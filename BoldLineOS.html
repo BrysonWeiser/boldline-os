@@ -1,0 +1,2629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoldLine OS</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #070810; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ─── ALL POSSIBLE FEATURES (master list for comparison view) ─────────────────
+const ALL_FEATURES = [
+  { id:"search_ads",      label:"Google Search Ads",               category:"Google" },
+  { id:"meta_ads",        label:"Facebook + Instagram Ads",         category:"Meta" },
+  { id:"keyword_research",label:"Keyword Research",                 category:"Google" },
+  { id:"ad_variations",   label:"Ad Copy Variations",               category:"Both" },
+  { id:"std_landing",     label:"Standard Landing Page",            category:"Both" },
+  { id:"custom_landing",  label:"Custom High-Converting Landing Page",category:"Both" },
+  { id:"lead_form",       label:"Lead Form + Conversion Tracking",  category:"Both" },
+  { id:"pixel",           label:"Pixel + Purchase Event Tracking",  category:"Meta" },
+  { id:"call_tracking",   label:"Call Tracking Setup",              category:"Google" },
+  { id:"monthly_report",  label:"Monthly Performance Report",       category:"Both" },
+  { id:"weekly_opt",      label:"Weekly Optimization",              category:"Both" },
+  { id:"monthly_opt",     label:"Monthly Optimization",             category:"Both" },
+  { id:"competitor_research",label:"Competitor Research",           category:"Both" },
+  { id:"crm_integration", label:"CRM Integration Assistance",       category:"Both" },
+  { id:"advanced_targeting",label:"Advanced Audience Targeting",    category:"Both" },
+  { id:"retargeting",     label:"Retargeting Campaigns",            category:"Both" },
+  { id:"lookalike",       label:"Lookalike Audience Targeting",     category:"Meta" },
+  { id:"split_testing",   label:"A/B Split Testing",                category:"Both" },
+  { id:"multi_campaign",  label:"Multi-Campaign Strategy",          category:"Both" },
+  { id:"google_shopping", label:"Google Shopping + Performance Max",category:"Google" },
+  { id:"abandoned_cart",  label:"Abandoned Cart Retargeting",       category:"Meta" },
+  { id:"full_funnel",     label:"Full Funnel Strategy (Cold→Hot)",  category:"Both" },
+  { id:"ugc_consulting",  label:"UGC / Video Creative Consulting",  category:"Both" },
+  { id:"crm_input",       label:"Offer + Pricing Optimization Input",category:"Both" },
+  { id:"page_cro",        label:"Product Page CRO Input",           category:"Both" },
+  { id:"strategy_calls",  label:"Weekly Strategy Calls",            category:"Both" },
+  { id:"slack_access",    label:"Priority Support + Slack Access",  category:"Both" },
+  { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
+  { id:"priority_comms",  label:"Priority Communication",           category:"Both" },
+  { id:"advanced_reporting",label:"Advanced Reporting Dashboard",   category:"Both" },
+  { id:"unified_reporting",label:"Unified Cross-Channel Reporting", category:"Both" },
+  { id:"cross_retargeting",label:"Cross-Channel Retargeting",       category:"Both" },
+];
+
+const PKG_FEATURES = {
+  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","monthly_report","monthly_opt"],
+  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report"],
+  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
+  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt"],
+  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
+  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
+  "c-launch":      ["search_ads","meta_ads","keyword_research","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt","unified_reporting"],
+  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","unified_reporting","advanced_reporting","monthly_report"],
+  "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
+  "e-growth":      ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
+  "e-domination":  ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","full_funnel","ugc_consulting","crm_input","page_cro","strategy_calls","slack_access","advanced_reporting","monthly_report"],
+};
+
+const PACKAGES_DB = {
+  google: [
+    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, tag:"",            adSpend:"$750–$2,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"g-growth",      name:"Growth System",      platform:"Google Ads",    price:600,  setup:1500, leadFee:true, tag:"Most Popular", adSpend:"$2,000–$8,000/mo",   optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:false, splitTesting:false, crmIntegration:true,  multiCampaign:false },
+    { id:"g-acquisition", name:"Acquisition System", platform:"Google Ads",    price:900,  setup:3000, leadFee:true, tag:"",            adSpend:"$5,000–$20,000+/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true  },
+  ],
+  meta: [
+    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:350,  setup:600,  leadFee:true, tag:"",            adSpend:"$500–$2,000/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:550,  setup:1200, leadFee:true, tag:"Most Popular", adSpend:"$1,500–$5,000/mo",   optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false },
+    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:850,  setup:2500, leadFee:true, tag:"",            adSpend:"$4,000–$15,000+/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true  },
+  ],
+  combined: [
+    { id:"c-launch", name:"Full System — Launch", platform:"Google + Meta", price:650,  setup:1100, leadFee:true, tag:"Best Value",    adSpend:"$1,000–$4,000/mo",  optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Save $100/mo" },
+    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:1000, setup:2300, leadFee:true, tag:"Most Powerful", adSpend:"$3,000–$12,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:false, crmIntegration:true,  multiCampaign:false, savings:"Save $150/mo" },
+  ],
+  ecom: [
+    { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      price:450,  setup:800,  leadFee:false, tag:"",            adSpend:"$500–$1,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, roas:"+$200 bonus at 3x ROAS" },
+    { id:"e-growth",     name:"Store Growth",     platform:"Meta + Google", price:750,  setup:1400, leadFee:false, tag:"Recommended", adSpend:"$1,500–$5,000/mo",   optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false, roas:"+$350 bonus at 4x ROAS" },
+    { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, tag:"",            adSpend:"$4,000–$15,000+/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true,  roas:"+$500 bonus at 5x ROAS" },
+  ],
+};
+const ALL_PKGS = Object.values(PACKAGES_DB).flat();
+const findPkg  = (id) => ALL_PKGS.find(p => p.id === id);
+const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(featureId);
+
+const getUpgradeOptions = (currentPkgId) => {
+  const cur = findPkg(currentPkgId);
+  if (!cur) return [];
+  return ALL_PKGS.filter(p =>
+    p.id !== currentPkgId &&
+    p.price > cur.price &&
+    (p.platform === cur.platform || p.platform.includes(cur.platform.split(" ")[0]) || cur.platform.includes(p.platform.split(" ")[0]) || p.id.startsWith(currentPkgId[0]))
+  ).sort((a,b) => a.price - b.price);
+};
+
+// ─── DYNAMIC BOT WORK LOGS ───────────────────────────────────────────────────
+const getBotLogs = (client, pkg) => {
+  if (!client || !pkg) return {};
+  const n=client.name, niche=client.niche||"service", plat=pkg.platform, pkgN=pkg.name;
+  const bud=client.adBudget||pkg.adSpend, leads=client.leads||0;
+  const cpl=client.cpl>0?`$${client.cpl}`:"—";
+  const opt=pkg.optimizationFreq==="weekly"?"Weekly":"Monthly";
+  const lp=pkg.customLandingPage?"custom":"standard";
+  const hasCall=pkg.callTracking, hasRet=pkg.retargeting, hasCRM=pkg.crmIntegration;
+  const nd={
+    Roofing:{buyer:"homeowner",trigger:"storm damage or leak",diff:"same-day estimate",neg:"DIY repair",angle:"storm damage urgency"},
+    "Med Spa":{buyer:"client",trigger:"upcoming event or self-care",diff:"results guarantee",neg:"budget seekers",angle:"transformation and confidence"},
+    "Auto Detailing":{buyer:"vehicle owner",trigger:"upcoming event or vehicle sale",diff:"mobile convenience",neg:"DIY car wash",angle:"vehicle protection"},
+    "E-Commerce":{buyer:"online shopper",trigger:"price drop or seasonal need",diff:"fast shipping + guarantee",neg:"window shoppers",angle:"offer + social proof"},
+  }[niche]||{buyer:"customer",trigger:"immediate need",diff:"quality service",neg:"irrelevant searches",angle:"quality and trust"};
+  const onTarget=client.cpl>0&&client.cpl<=(PER_LEAD[niche]||75);
+  return {
+    intake:{
+      currentTask:`Processing ${n} client brief — extracting fields into structured format for the pipeline.`,
+      output:`Brief complete: ${n} | ${niche} | ${pkgN} (${plat}) | Budget: ${bud} | ${opt} optimization | Landing: ${lp} | Call tracking: ${hasCall?"Yes":"No"} | CRM: ${hasCRM?"Yes":"No"}`,
+      decisions:[`${niche} niche confirmed — ${nd.angle} strategy`,`Package scope locked to ${pkgN}`,`${hasCall?"Call tracking required pre-launch":"Call tracking excluded from scope"}`,`${hasCRM?"CRM integration queued":"No CRM in scope"}`],
+      handoff:`Complete brief passed to CEO Director with all package constraints.`,
+    },
+    ceo:{
+      currentTask:`Building project plan for ${n} and assigning tasks in correct pipeline order.`,
+      output:`Plan created: ${n} | 14-day launch target | Priority: page build → tracking → ads | ${opt} cadence | ${hasRet?"Retargeting included":"Single campaign"} | Escalation rules active`,
+      decisions:[`Landing page is critical path — ads cannot launch until live and tracked`,`${opt} cadence locked per ${pkgN}`,`${hasRet?"Retargeting queued after main launch":"Single campaign confirmed"}`,`Budget/pause/launch changes require Bryson approval`],
+      handoff:`Tasks assigned to Market Research, Avatar, and Offer Creation in parallel.`,
+    },
+    research:{
+      currentTask:`Analyzing ${niche} competitive landscape for ${n}'s service area.`,
+      output:`Research complete: Buyer = ${nd.buyer} triggered by ${nd.trigger} | Differentiator: ${nd.diff} | Negative category: ${nd.neg} | Primary angle: ${nd.angle} | Seasonal patterns mapped`,
+      decisions:[`"${nd.diff}" identified as primary differentiator`,`"${nd.neg}" flagged as main negative keyword category`,`${nd.angle} angle confirmed highest conversion intent`,`No direct competitors currently leading with ${nd.diff}`],
+      handoff:`Market report passed to Customer Avatar and Offer Creation.`,
+    },
+    avatar:{
+      currentTask:`Building buyer profile for ${n} using ${plat} data and ${niche} market insights.`,
+      output:`Avatar complete: ${nd.buyer} motivated by ${nd.trigger} | Fear: overcharged or poor quality | Desire: fast, reliable, trusted | Language: "trusted", "guaranteed", "fast" | ${plat} audience signals mapped`,
+      decisions:[`Avatar built from ${plat} audience data and ${niche} reviews`,`"${nd.trigger}" confirmed as primary buying trigger`,`"${nd.neg}" added to negative targeting`,`Audience signals sent to Ads Builder`],
+      handoff:`Avatar profile passed to Offer Creation and Copy Chief.`,
+    },
+    offer:{
+      currentTask:`Developing and ranking offer variations for ${n} by conversion rate.`,
+      output:`Offers ranked: A (selected) Free ${nd.diff} | B Free consultation with guarantee | C Urgency promo | Guarantee: written response within 24hrs | Rationale: ${nd.diff} removes ${nd.trigger} objection`,
+      decisions:[`"${nd.diff}" chosen — removes primary objection`,`Discount offers rejected — signal lower quality in ${niche}`,`Guarantee added to reduce purchase risk`,`Winning offer briefed to Copy Chief and Page Architect`],
+      handoff:`Winning offer and guarantee passed to Funnel Director and Copy Chief.`,
+    },
+    builder:{
+      currentTask:`Building ${lp} landing page for ${n} from approved wireframe and copy.`,
+      output:`Page status: ✓ Hero+form above fold ✓ Offer+guarantee ✓ Benefits ✓ FAQ ✓ Mobile verified | Pending: client photos, testimonials${hasCall?", call tracking script":""} | Form minimized for max conversion`,
+      decisions:[`Form placed above fold — 30-40% higher conversion`,`Form reduced to minimum required fields`,`${hasCall?"Call tracking dependency flagged — page holds until confirmed":"No call tracking dependency"}`,`Testimonial placeholders installed`],
+      handoff:`Page URL sent to Tracking Engineer and QC Director.`,
+    },
+    copy:{
+      currentTask:`Writing all ${plat} ad copy and landing page content for ${n} using the ${nd.angle} angle.`,
+      output:`Copy complete: Landing page with "${nd.diff}" hero + "${nd.trigger}" angle | ${plat} ads: 3 headlines, 2 descriptions | SMS: 4-msg (60s/1hr/24hr/7d) | Email: 3-part drip | All grounded in avatar language`,
+      decisions:[`Led with offer not business name — higher CTR`,`Used direct avatar language: "trusted", "guaranteed", "${nd.diff}"`,`Avoided technical ${niche} jargon`,`SMS starts at 60 seconds — speed-to-lead critical in ${niche}`],
+      handoff:`All copy passed to Page Builder, Ads Builder, and Automation Engineer.`,
+    },
+    qc:{
+      currentTask:`Running pre-launch QC checklist for ${n} — verifying all deliverables within ${pkgN} scope.`,
+      output:`QC: ✓ Mobile ✓ Form routing ✓ Copy ✓ ${plat} ads ${hasCall?"✓ Call tracking ":""}✓ Conversions ✓ Scope verified | Status: ${leads>0?"LIVE — campaign active":"Pending asset approval"}`,
+      decisions:[`All deliverables verified against ${pkgN} scope`,`${leads>0?"Campaign cleared — all checks passed":"Launch held pending client photo assets"}`,`Escalation rules confirmed — no budget moves without Bryson`,`${hasRet?"Retargeting pixel verified":"No retargeting pixel needed"}`],
+      handoff:`QC report sent to CEO Director. ${leads>0?"Campaign is live.":"Launch approved pending assets."}`,
+    },
+    budget:{
+      currentTask:`Monitoring spend and CPL for ${n} against ${pkgN} targets.`,
+      output:`Budget: Range ${bud} | ${opt} cadence | ${leads} leads | CPL ${cpl}${leads>0?` | ${onTarget?"✓ On target":"⚠ Above target — optimize"}`:""} | No movements without Bryson approval`,
+      decisions:[`${opt} cadence locked — no ad-hoc changes`,`Threshold alerts set for daily spend`,`Bid/budget changes queued for Bryson approval`,`Scaling Specialist notified when ROAS/CPL hits threshold`],
+      handoff:`Budget report sent to Performance Analyst and Scaling Specialist.`,
+    },
+    perf:{
+      currentTask:`Compiling ${opt.toLowerCase()} performance report for ${n} with recommendations.`,
+      output:`Performance: ${pkgN} (${plat}) | ${leads} leads | CPL ${cpl} | ${opt} | ${leads>0?(onTarget?"On target":"CPL above target — optimizing"):"Pre-launch — no data yet"} | Next review scheduled`,
+      decisions:[`${leads>0?`CPL ${cpl} — ${onTarget?"maintaining strategy":"flagging for optimization"}`:"No data yet — monitoring post-launch"}`,`${hasRet?"Retargeting audience building":"Single campaign — no retargeting in scope"}`,`Scaling thresholds set`,`Client Success Director briefed`],
+      handoff:`Performance report sent to Client Success Director and Budget Manager.`,
+    },
+  };
+};
+
+const NICHES    = ["Roofing","Med Spa","Auto Detailing","E-Commerce"];
+const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
+const PLATFORMS = ["Google Ads","Meta Ads","Google + Meta","TikTok Ads","YouTube Ads","Other"];
+const STAGES    = [
+  { id:"onboarding", label:"Onboarding",   color:"#6366F1" },
+  { id:"research",   label:"Research",     color:"#0891B2" },
+  { id:"building",   label:"Building",     color:"#D97706" },
+  { id:"review",     label:"Final Review", color:"#7C3AED" },
+  { id:"active",     label:"Active",       color:"#10B981" },
+  { id:"optimizing", label:"Optimizing",   color:"#2563EB" },
+  { id:"scaling",    label:"Scaling",      color:"#059669" },
+  { id:"paused",     label:"Paused",       color:"#6B7280" },
+];
+
+const C = {
+  bg:"#070810", bg2:"#0C0D18", bg3:"#10111C",
+  bg4:"#14162A",
+  border:"rgba(255,255,255,0.07)", border2:"rgba(255,255,255,0.03)",
+  borderAccent:"rgba(200,168,75,0.18)",
+  text:"#F0F2FF", textDim:"#8B91B8", textMuted:"#3D4266",
+  gold:"#C8A84B", goldLight:"#E8C96A", goldDim:"rgba(200,168,75,0.15)",
+  green:"#22D3A0", blue:"#4F8EF7",
+  purple:"#8B5CF6", red:"#F87171", amber:"#FBBF24",
+  gradA:"linear-gradient(135deg,#8B5CF6,#4F8EF7)",
+  gradB:"linear-gradient(135deg,#C8A84B,#8B6914)",
+};
+const inp = { width:"100%", boxSizing:"border-box", padding:"10px 13px", backgroundColor:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, color:C.text, fontSize:13, fontFamily:"inherit", outline:"none", transition:"border-color 0.2s" };
+const card = { backgroundColor:C.bg2, border:`1px solid ${C.border}`, borderRadius:14, padding:"15px 16px" };
+
+// ─── SHARED STYLE SHORTCUTS ──────────────────────────────────────────────────
+const S = {
+  col11:  {display:"flex",flexDirection:"column",gap:11},
+  col12:  {display:"flex",flexDirection:"column",gap:12},
+  row8:   {display:"flex",gap:8},
+  row7:   {display:"flex",gap:7},
+  row10:  {display:"flex",alignItems:"center",gap:10},
+  f1:     {flex:1},
+  f1min:  {flex:1,minWidth:0},
+  t10m:   {fontSize:10,color:"#4B5563"},
+  t11m:   {fontSize:11,color:"#4B5563"},
+  t13b:   {fontSize:13,fontWeight:700,color:"#F0F2FF"},
+  t15b:   {fontSize:15,fontWeight:700,color:"#F0F2FF"},
+  ovh:    {overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
+};
+
+
+const today   = new Date();
+const addDays = (d,n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
+const fmt     = (d)   => new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+const daysUntil=(s)   => Math.ceil((new Date(s)-new Date())/(864e5));
+const uid     = ()    => Math.random().toString(36).slice(2,9);
+
+// Add exactly N calendar months — preserves the day-of-month correctly.
+// e.g. Jan 31 + 1 month = Feb 28/29 (not Mar 2/3 like *30 days gives)
+const addMonths = (date, n) => {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + n);
+  // If day overflowed (e.g. Jan 31 + 1 month → Mar 3), roll back to last day of intended month
+  if (d.getDate() !== day) d.setDate(0);
+  return d;
+};
+
+// Friendly duration label for display
+const monthsLabel = (n) => {
+  if (n===1)  return "1 month";
+  if (n===3)  return "3 months";
+  if (n===6)  return "6 months";
+  if (n===12) return "1 year";
+  return `${n} months`;
+};
+
+const buildBots = (pkg) => {
+  if (!pkg) return [];
+  return [
+    { id:"intake",    step:1,  name:"Client Intake",        icon:"📋", locked:true,  description:`Processes the client brief for ${pkg.name} (${pkg.platform}). Converts all info into a structured brief. Scope locked to ${pkg.name}.` },
+    { id:"ceo",       step:2,  name:"CEO Director",         icon:"🎯", locked:true,  description:`Reads the Client Brief and builds the full project plan. Assigns tasks in correct pipeline order. Only assigns work within ${pkg.name} scope.` },
+    { id:"research",  step:3,  name:"Market Research",      icon:"🔍", locked:false, description:`Analyzes the client's niche and local market. Competitor report, demand signals, and market gap analysis. Nothing creative starts until this is complete.` },
+    { id:"avatar",    step:4,  name:"Customer Avatar",      icon:"👤", locked:false, description:`Builds the detailed buyer profile: demographics, top fears, top desires, objections, buying triggers, and real language from reviews and forums.` },
+    { id:"offer",     step:5,  name:"Offer Creation",       icon:"💡", locked:false, description:`Develops 3 offer options ranked by conversion potential plus a guarantee structure. All downstream creative is built around the winning offer.` },
+    { id:"funnel",    step:6,  name:"Funnel Director",      icon:"🔀", locked:false, description:`Sets the conversion strategy: page structure, form type, CTA placement. ${pkg.weeklyOptimization?"Weekly":"Monthly"} optimization cadence.` },
+    { id:"architect", step:7,  name:"Page Architect",       icon:"📐", locked:false, description:`Designs the wireframe section by section: Hero, Offer, Benefits, Trust, Testimonials, Form, FAQ, Final CTA. Does not write copy or build the page.` },
+    { id:"copy",      step:8,  name:"Copy Chief",           icon:"✍️", locked:false, description:`Writes all campaign copy: landing page, ${pkg.platform} ads, SMS and email sequences. All grounded in the avatar and winning offer.` },
+    { id:"builder",   step:9,  name:"Page Builder",         icon:"🏗️", locked:false, description:`Builds the ${pkg.customLandingPage?"custom high-converting":"standard"} landing page. Connects form to CRM. ${pkg.callTracking?"Installs call tracking.":"No call tracking on this package."}` },
+    { id:"keywords",  step:10, name:"Keyword Research",     icon:"🔑", locked:false, description:`Finds buyer-intent keywords and builds negative keyword list. ${pkg.multiCampaign?"Multi-campaign structure.":"Single campaign structure."}` },
+    { id:"ads",       step:11, name:"Ads Builder",          icon:"📢", locked:false, description:`Builds ${pkg.platform} campaigns using approved copy and keywords. ${pkg.retargeting?"Includes retargeting.":"No retargeting on this package."} Submits to QC before launch — never self-launches.` },
+    { id:"tracking",  step:12, name:"Tracking Engineer",    icon:"📡", locked:false, description:`Installs GA4, GTM, conversion events. ${pkg.callTracking?"Call tracking included.":"No call tracking on this package."} Nothing launches until tracking is fully verified.` },
+    { id:"automation",step:13, name:"Automation Engineer",  icon:"⚡", locked:false, description:`Builds all follow-up sequences: immediate SMS within 60 seconds, missed-call text-back, 24hr follow-up, 7-day email drip, 30-day re-engagement.` },
+    { id:"qc",        step:14, name:"Quality Control",      icon:"✅", locked:true,  description:`Full pre-launch checklist. Verifies every deliverable is within ${pkg.name} scope. Nothing goes live without sign-off.` },
+    { id:"budget",    step:15, name:"Budget Manager",       icon:"💰", locked:false, description:`Monitors spend daily within ${pkg.adSpend}. ${pkg.weeklyOptimization?"Weekly":"Monthly"} optimization. Never moves budget without Bryson's explicit approval.` },
+    { id:"terms",     step:16, name:"Search Term Analyst",  icon:"🔎", locked:false, description:`Weekly search term report review. Adds irrelevant terms to negatives. Surfaces new keyword opportunities worth testing.` },
+    { id:"leads",     step:17, name:"Lead Quality Analyst", icon:"🎯", locked:false, description:`Scores lead quality 1–10 weekly. Flags drops with root-cause analysis and specific targeting adjustments.` },
+    { id:"perf",      step:18, name:"Performance Analyst",  icon:"📈", locked:false, description:`Translates campaign data into decisions. Weekly report: what is working, what is not, CPL trend vs target, 3 recommendations.` },
+    { id:"scaling",   step:19, name:"Scaling Specialist",   icon:"🚀", locked:false, description:`Identifies scale opportunities within ${pkg.name} limits. Always waits for Bryson's explicit approval before acting.` },
+    { id:"success",   step:20, name:"Client Success",       icon:"🤝", locked:false, description:`Creates plain-English reports for Bryson's client calls. Never mentions AI or bots. Scoped to ${pkg.name} deliverables only.` },
+  ];
+};
+
+const getAlerts = (cl) => {
+  const a = [...(cl.alerts||[])];
+  if (!cl.intakeComplete) a.push({type:"intake",msg:"Intake form not yet complete.",severity:"yellow"});
+  if (cl.upgradeRequest)  a.push({type:"upgrade",msg:`Upgrade requested: ${cl.upgradeRequest}`,severity:"blue"});
+  if (cl.contractEnd) {
+    const d = daysUntil(cl.contractEnd);
+    if (d<=7&&d>=0)       a.push({type:"contract_7", msg:`Contract expires in ${d} day${d!==1?"s":""}. Urgent renewal needed.`,severity:"red"});
+    else if (d<=30&&d>=0) a.push({type:"contract_30",msg:`Contract expires in ${d} days. Start renewal conversation.`,severity:"yellow"});
+  }
+  return a;
+};
+const healthColor = (s) => s>=8?C.green:s>=6?C.amber:C.red;
+const stageInfo   = (id) => STAGES.find(s=>s.id===id)||STAGES[0];
+
+// ─── AUTO HEALTH SCORE ────────────────────────────────────────────────────────
+const calcHealth = (cl) => {
+  let score = 0;
+  const pkg = findPkg(cl.packageId);
+  const days = daysUntil(cl.contractEnd);
+
+  // ── Foundation (max 2 pts) ─────────────────────────────────────────────────
+  if (cl.contractSigned)  score += 1;   // signed = relationship is real
+  if (cl.intakeComplete)  score += 1;   // intake = we can actually do the work
+
+  // ── Campaign stage (max 2 pts) ─────────────────────────────────────────────
+  const stageScore = {
+    onboarding:0, research:0.5, building:1, review:1.5,
+    active:2, optimizing:2, scaling:2, paused:0.5,
+  };
+  score += stageScore[cl.stage]||0;
+
+  // ── Lead performance (max 2 pts) ──────────────────────────────────────────
+  if (cl.leads>0)  score += 0.5;   // at least something coming in
+  if (cl.leads>10) score += 0.5;   // meaningful volume
+  if (cl.leads>30) score += 0.5;   // strong volume
+  if (cl.leads>0 && cl.cpl>0) {
+    const niche = cl.niche;
+    const target = PER_LEAD[niche]||50; // use per-lead fee as CPL benchmark
+    if (cl.cpl <= target * 0.75) score += 0.5;       // beating target by 25%+
+    else if (cl.cpl <= target)   score += 0.25;      // at or near target
+  }
+
+  // ── Contract health (max 2 pts) ───────────────────────────────────────────
+  if (cl.contractStatus==="active") score += 1;
+  if (days>30)  score += 1;         // plenty of runway
+  else if (days>7) score += 0.5;    // getting close
+
+  // ── Bot pipeline progress (max 1 pt) ──────────────────────────────────────
+  const statuses = Object.values(cl.botStatuses||{});
+  const done = statuses.filter(s=>s==="done").length;
+  const total = statuses.length||1;
+  score += (done/total) * 1;
+
+  // ── Deductions ────────────────────────────────────────────────────────────
+  if (cl.upgradeRequest) score -= 0;  // upgrade request is positive signal, no penalty
+  if (!cl.intakeComplete && cl.stage!=="onboarding") score -= 0.5; // overdue intake
+  if (cl.contractStatus==="expired") score -= 1;
+
+  return Math.max(1, Math.min(10, Math.round(score * 10) / 10));
+};
+
+const INIT_CLIENTS = [
+  { id:"c1", name:"Apex Roofing",   contactName:"Mike Thornton",  email:"owner@apexroofing.com",    businessAddress:"1234 Peachtree Rd, Atlanta, GA 30309", niche:"Roofing",        packageId:"g-growth",  stage:"building",   platforms:["Google Ads"],             adBudget:"$2,500/mo", contractStart:fmt(addDays(today,-45)), contractEnd:fmt(addDays(today,45)),  notes:"Storm season starting.", intakeComplete:true,  contractSigned:true,  contractStatus:"active",  healthScore:null, leads:24, cpl:62, alerts:[], commLog:[{date:fmt(addDays(today,-3)),note:"Called to check on build. Very happy.",cat:"call",ts:Date.now()-3*864e5}], upgradeRequest:null, botStatuses:{intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"done",copy:"done",builder:"active",keywords:"waiting",ads:"waiting",tracking:"waiting",automation:"waiting",qc:"waiting",budget:"waiting",terms:"waiting",leads:"waiting",perf:"waiting",scaling:"waiting",success:"waiting"} },
+  { id:"c2", name:"Luxe Med Spa",   contactName:"Sarah Chen",     email:"hello@luxemedspa.com",      businessAddress:"5678 Buckhead Ave, Atlanta, GA 30305",  niche:"Med Spa",        packageId:"c-growth",  stage:"active",     platforms:["Google Ads","Meta Ads"],  adBudget:"$3,000/mo", contractStart:fmt(addDays(today,-60)), contractEnd:fmt(addDays(today,30)),  notes:"Prefers email. Bi-weekly check-ins.", intakeComplete:true,  contractSigned:true,  contractStatus:"active",  healthScore:null, leads:41, cpl:29, alerts:[], commLog:[{date:fmt(addDays(today,-7)),note:"Bi-weekly check-in. CPL at $29. Client very happy with results.",cat:"call",ts:Date.now()-7*864e5}], upgradeRequest:null, botStatuses:{intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"done",copy:"done",builder:"done",keywords:"done",ads:"done",tracking:"done",automation:"done",qc:"done",budget:"active",terms:"active",leads:"active",perf:"active",scaling:"active",success:"active"} },
+  { id:"c3", name:"DetailKing ATL", contactName:"James Rivera",   email:"contact@detailkingatl.com", businessAddress:"910 Ponce de Leon Ave, Atlanta, GA 30306",niche:"Auto Detailing", packageId:"m-launch",  stage:"onboarding", platforms:["Meta Ads"],               adBudget:"$1,000/mo", contractStart:fmt(today),             contractEnd:fmt(addDays(today,90)),  notes:"New client. Intake not yet complete.", intakeComplete:false, contractSigned:false, contractStatus:"pending", healthScore:null, leads:0,  cpl:0,  alerts:[], commLog:[], upgradeRequest:null, botStatuses:{intake:"waiting",ceo:"waiting",research:"waiting",avatar:"waiting",offer:"waiting",funnel:"waiting",architect:"waiting",copy:"waiting",builder:"waiting",keywords:"waiting",ads:"waiting",tracking:"waiting",automation:"waiting",qc:"waiting",budget:"waiting",terms:"waiting",leads:"waiting",perf:"waiting",scaling:"waiting",success:"waiting"} },
+];
+// ─── AI HOOK ─────────────────────────────────────────────────────────────────
+function useAI(system) {
+  const [messages,setMessages] = useState([]);
+  const [loading,setLoading]   = useState(false);
+  const send = async (text, override) => {
+    const h = [...messages, {role:"user",content:text}];
+    setMessages(h); setLoading(true);
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1200,system:override||system,messages:h.map(m=>({role:m.role,content:m.content}))})});
+      const d = await r.json();
+      setMessages([...h,{role:"assistant",content:d.content?.[0]?.text||"No response."}]);
+    } catch { setMessages([...h,{role:"assistant",content:"Connection error — try again."}]); }
+    setLoading(false);
+  };
+  const reset = (intro) => setMessages(intro?[{role:"assistant",content:intro}]:[]);
+  return {messages,loading,send,reset};
+}
+
+// ─── UI ATOMS ─────────────────────────────────────────────────────────────────
+function Chip({label,color,small}) {
+  return (
+    <span style={{fontSize:small?9:10,fontWeight:700,padding:small?"2px 7px":"3px 10px",
+      borderRadius:20,backgroundColor:color+"18",border:`1px solid ${color}35`,
+      color,whiteSpace:"nowrap",display:"inline-block",letterSpacing:"0.02em"}}>
+      {label}
+    </span>
+  );
+}
+function CloseBtn({onClick}) {
+  return <button onClick={onClick} style={{background:"none",border:"none",color:C.textMuted,fontSize:20,cursor:"pointer",lineHeight:1,flexShrink:0,padding:"2px 4px"}}>✕</button>;
+}
+function Label({children}) {
+  return <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:C.textMuted,marginBottom:8,opacity:.8}}>{children}</div>;
+}
+function Card({children,style}) {
+  return <div style={{...card,...style}}>{children}</div>;
+}
+function AlertBadge({alerts}) {
+  if (!alerts?.length) return <span style={{width:8,height:8,borderRadius:"50%",backgroundColor:C.green,boxShadow:`0 0 5px ${C.green}`,display:"inline-block",flexShrink:0}}/>;
+  const hasUpgrade = alerts.some(a=>a.type==="upgrade");
+  const hasRed = alerts.some(a=>a.severity==="red");
+  const color = hasRed?C.red:hasUpgrade?C.purple:C.amber;
+  return <span style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:18,height:18,borderRadius:"50%",backgroundColor:color+"22",border:`1px solid ${color}44`,fontSize:9,fontWeight:800,color,flexShrink:0}}>{alerts.length}</span>;
+}
+function Bubble({msg}) {
+  const isUser=msg.role==="user";
+  const html=msg.content.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>").replace(/## (.*?)(\n|$)/g,"<div style='font-weight:700;color:#F9FAFB;margin:14px 0 4px'>$1</div>").replace(/\n/g,"<br/>");
+  return (
+    <div style={{display:"flex",justifyContent:isUser?"flex-end":"flex-start",marginBottom:10}}>
+      <div style={{maxWidth:"86%",padding:"10px 14px",fontSize:13,lineHeight:1.6,borderRadius:isUser?"14px 14px 4px 14px":"14px 14px 14px 4px",backgroundColor:isUser?"#1D4ED8":"rgba(255,255,255,.06)",border:isUser?"none":`1px solid ${C.border}`,color:isUser?"#fff":C.textDim}} dangerouslySetInnerHTML={{__html:html}}/>
+    </div>
+  );
+}
+function Typing() {
+  return <div style={{display:"flex",gap:5,padding:"8px 12px"}}>{[0,1,2].map(i=><span key={i} style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.textMuted,animation:`db 1.1s ${i*.18}s ease-in-out infinite`,display:"inline-block"}}/>)}</div>;
+}
+function ChatBar({value,onChange,onSend,disabled,placeholder}) {
+  return (
+    <div style={{padding:"10px 14px 20px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+      <div style={S.row8}>
+        <input value={value} onChange={e=>onChange(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&onSend()} placeholder={placeholder||"Type…"} disabled={disabled} style={{flex:1,padding:"11px 14px",background:"rgba(255,255,255,.05)",border:`1px solid ${C.border}`,borderRadius:11,color:C.text,fontSize:14,outline:"none",fontFamily:"inherit"}}/>
+        <button onClick={onSend} disabled={!value.trim()||disabled} style={{width:44,height:44,borderRadius:11,border:"none",fontSize:18,cursor:"pointer",flexShrink:0,backgroundColor:value.trim()&&!disabled?"#1D4ED8":"rgba(255,255,255,.05)",color:value.trim()&&!disabled?"#fff":C.textMuted}}>↑</button>
+      </div>
+    </div>
+  );
+}
+function Sheet({children,onClose,zIndex=60,height="93vh",accentBorder}) {
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:640,height,backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${accentBorder||C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {children}
+      </div>
+    </div>
+  );
+}
+function Divider() {
+  return <div style={{height:1,backgroundColor:C.border2,margin:"4px 0"}}/>;
+}
+
+// ─── BOT SHEET (chat + work log) ─────────────────────────────────────────────
+function BotSheet({bot,clientName,client,pkg,onClose}) {
+  const {messages,loading,send} = useAI(`You are the ${bot.name} working on the ${clientName} campaign inside BoldLine Media's AI Agency OS. ${bot.description} Be direct and actionable. State what you pass downstream when done.`);
+  const [input,setInput] = useState("");
+  const [botTab,setBotTab] = useState("worklog");
+  const endRef = useRef(null);
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  const handleSend = () => { if(!input.trim()||loading)return; send(input.trim()); setInput(""); };
+  const SC = { waiting:{dot:"#374151",label:"Waiting"}, active:{dot:C.green,label:"Running",pulse:true}, done:{dot:"#4B5563",label:"Complete"}, needs_input:{dot:C.blue,label:"Needs You",pulse:true} };
+  const sc = SC[bot.status]||SC.waiting;
+  const allLogs = getBotLogs(client, pkg);
+  const log = allLogs[bot.id];
+
+  return (
+    <Sheet onClose={onClose} zIndex={80} height="94vh">
+      {/* Header */}
+      <div style={{padding:"13px 14px 10px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div style={{width:38,height:38,borderRadius:10,backgroundColor:"rgba(255,255,255,.05)",border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>{bot.icon}</div>
+          <div style={S.f1min}>
+            <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+              <span style={{fontSize:14,fontWeight:700,color:C.text}}>{bot.name}</span>
+              <span style={{fontSize:10,fontFamily:"monospace",color:C.textMuted}}>Step {String(bot.step).padStart(2,"0")}</span>
+              {bot.locked&&<span style={{fontSize:10,color:C.textMuted}}>🔒</span>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2}}>
+              <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:sc.dot,display:"inline-block",boxShadow:sc.pulse?`0 0 5px ${sc.dot}`:"none"}}/>
+              <span style={{fontSize:11,color:C.textMuted}}>{sc.label} — {clientName}</span>
+            </div>
+          </div>
+          <CloseBtn onClick={onClose}/>
+        </div>
+        {/* Tab switcher */}
+        <div style={{display:"flex",gap:2,backgroundColor:"rgba(255,255,255,.04)",borderRadius:8,padding:3}}>
+          {[["worklog","Work Log"],["chat","Chat with Bot"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setBotTab(k)} style={{flex:1,padding:"5px 0",fontSize:11,fontWeight:600,borderRadius:6,border:"none",cursor:"pointer",backgroundColor:botTab===k?"rgba(255,255,255,.1)":"transparent",color:botTab===k?C.text:C.textMuted}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Work Log tab */}
+      {botTab==="worklog"&&(
+        <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+          {!log?(
+            <div style={{textAlign:"center",padding:"40px 20px",color:C.textMuted,fontSize:13}}>
+              <div style={{fontSize:28,marginBottom:10}}>{bot.icon}</div>
+              <div style={{fontWeight:700,color:C.textDim,marginBottom:6}}>{bot.name}</div>
+              <div>This bot has not started yet.<br/>It will begin when the previous step completes.</div>
+            </div>
+          ):(
+            <div style={S.col12}>
+              {/* Current task */}
+              <Card style={{borderColor:`${C.green}33`,backgroundColor:"rgba(16,185,129,.04)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:bot.status==="active"?C.green:"#4B5563",display:"inline-block",boxShadow:bot.status==="active"?`0 0 5px ${C.green}`:"none"}}/>
+                  <Label>Currently Working On</Label>
+                </div>
+                <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{log.currentTask}</div>
+              </Card>
+              {/* Output so far */}
+              <Card>
+                <Label>Output Produced</Label>
+                <div style={{fontSize:12,color:C.textDim,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{log.output}</div>
+              </Card>
+              {/* Decisions made */}
+              <Card>
+                <Label>Decisions and Reasoning</Label>
+                {log.decisions.map((d,i)=>(
+                  <div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:i<log.decisions.length-1?`1px solid ${C.border2}`:"none"}}>
+                    <span style={{color:C.gold,fontWeight:700,flexShrink:0,fontSize:12}}>→</span>
+                    <span style={{fontSize:12,color:C.textDim,lineHeight:1.6}}>{d}</span>
+                  </div>
+                ))}
+              </Card>
+              {/* Handoff */}
+              <Card style={{borderColor:`${C.blue}33`,backgroundColor:"rgba(59,130,246,.04)"}}>
+                <Label>Pipeline Handoff</Label>
+                <div style={{fontSize:12,color:C.textDim,lineHeight:1.6}}>{log.handoff}</div>
+              </Card>
+              {/* Description */}
+              <Card>
+                <Label>Bot Role</Label>
+                <div style={{fontSize:12,color:C.textMuted,lineHeight:1.6}}>{bot.description}</div>
+              </Card>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Chat tab */}
+      {botTab==="chat"&&(
+        <>
+          <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+            {messages.length===0&&(
+              <div style={{textAlign:"center",padding:"36px 16px",color:C.textMuted,fontSize:13,lineHeight:1.7}}>
+                <div style={{fontSize:28,marginBottom:10}}>{bot.icon}</div>
+                <div style={{fontWeight:700,color:C.textDim,marginBottom:6}}>{bot.name}</div>
+                <div>Ask this bot anything about their work on <strong style={{color:C.textDim}}>{clientName}</strong>.<br/>You can give direction, request changes, or collaborate.</div>
+              </div>
+            )}
+            {messages.map((m,i)=><Bubble key={i} msg={m}/>)}
+            {loading&&<Typing/>}
+            <div ref={endRef}/>
+          </div>
+          <ChatBar value={input} onChange={setInput} onSend={handleSend} disabled={loading} placeholder={`Ask ${bot.name} anything…`}/>
+        </>
+      )}
+    </Sheet>
+  );
+}
+// ─── UPGRADE SHEET (client-facing portal) ────────────────────────────────────
+function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
+  const cur = findPkg(currentPkgId);
+  const options = getUpgradeOptions(currentPkgId);
+  const [selected,setSelected] = useState(null);
+  const [step,setStep] = useState("select"); // "select" | "confirm" | "sent"
+
+  const selectedPkg = findPkg(selected);
+
+  const handleRequest = () => {
+    if (!selected) return;
+    onRequest(selectedPkg);
+    setStep("sent");
+  };
+
+  if (step==="sent") return (
+    <Sheet onClose={onClose} zIndex={90} height="55vh">
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 24px",textAlign:"center"}}>
+        <div style={{width:56,height:56,borderRadius:16,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,marginBottom:16}}>✓</div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,marginBottom:8,letterSpacing:"-0.01em"}}>Request Sent</div>
+        <div style={{fontSize:13,color:C.textDim,lineHeight:1.7,marginBottom:24,maxWidth:300}}>
+          Your account manager will review your upgrade request and be in touch within 1 business day to confirm and send the updated invoice. No changes will be made until you approve.
+        </div>
+        <button onClick={onClose} style={{padding:"11px 28px",fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>
+          Got It
+        </button>
+      </div>
+    </Sheet>
+  );
+
+  if (step==="confirm"&&selectedPkg) return (
+    <Sheet onClose={()=>setStep("select")} zIndex={90} height="70vh">
+      <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+        <button onClick={()=>setStep("select")} style={{background:"none",border:"none",color:C.textMuted,fontSize:20,cursor:"pointer",lineHeight:1}}>‹</button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:15,fontWeight:700,color:C.text}}>Confirm Upgrade</div>
+          <div style={{fontSize:11,color:C.textMuted}}>Review before sending your request</div>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"18px 16px"}}>
+        {/* Current vs new comparison */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <div style={{padding:"12px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:5}}>Current</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.textDim}}>{cur?.name}</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>${cur?.price}/mo</div>
+          </div>
+          <div style={{padding:"12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.08)",border:`1px solid rgba(200,168,75,0.25)`}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,marginBottom:5}}>Upgrading To</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.text}}>{selectedPkg.name}</div>
+            <div style={{fontSize:11,color:C.gold,marginTop:1}}>${selectedPkg.price}/mo</div>
+          </div>
+        </div>
+        {/* What's new */}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:10}}>What You're Adding</div>
+          {ALL_FEATURES.filter(f=>pkgHasFeature(selectedPkg.id,f.id)&&!pkgHasFeature(currentPkgId,f.id)).map(f=>(
+            <div key={f.id} style={{display:"flex",alignItems:"center",gap:9,padding:"6px 0",borderBottom:`1px solid rgba(255,255,255,0.03)`}}>
+              <span style={{width:16,height:16,borderRadius:4,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.25)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <IconCheck size={9} color={C.green}/>
+              </span>
+              <span style={{fontSize:12,color:C.textDim}}>{f.label}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{padding:"11px 13px",borderRadius:9,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,fontSize:11,color:C.textMuted,lineHeight:1.65}}>
+          Your account manager will contact you to confirm and send an updated invoice. No changes happen until you approve.
+        </div>
+      </div>
+      <div style={{padding:"12px 16px 24px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+        <button onClick={handleRequest} style={{width:"100%",padding:"13px",fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>
+          Send Upgrade Request →
+        </button>
+      </div>
+    </Sheet>
+  );
+
+  return (
+    <Sheet onClose={onClose} zIndex={90} height="92vh">
+      <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Upgrade Your Package</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>Currently on {cur?.name} · ${cur?.price}/mo</div>
+          </div>
+          <CloseBtn onClick={onClose}/>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
+        {options.length===0 ? (
+          <div style={{textAlign:"center",padding:"50px 20px",color:C.textMuted,fontSize:13,lineHeight:1.7}}>
+            You're already on the highest available package for your platform. Contact your account manager to discuss expanding to additional advertising channels.
+          </div>
+        ) : (
+          <>
+            <div style={{fontSize:12,color:C.textMuted,marginBottom:14,lineHeight:1.6}}>
+              Select an upgrade option below. No changes are made until your account manager confirms and you approve the invoice.
+            </div>
+            {options.map(pkg=>{
+              const isSelected = selected===pkg.id;
+              const diff = pkg.price - (cur?.price||0);
+              const newFeatures = ALL_FEATURES.filter(f=>pkgHasFeature(pkg.id,f.id)&&!pkgHasFeature(currentPkgId,f.id));
+              return (
+                <button key={pkg.id} onClick={()=>setSelected(pkg.id)}
+                  style={{width:"100%",textAlign:"left",padding:"14px",borderRadius:13,
+                    border:`2px solid ${isSelected?"#C8A84B":C.border}`,
+                    backgroundColor:isSelected?"rgba(200,168,75,0.07)":"rgba(255,255,255,0.02)",
+                    cursor:"pointer",marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                    <div style={S.f1min}>
+                      {pkg.tag&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",backgroundColor:C.gold,color:"#0a0800",borderRadius:20,marginRight:7,display:"inline-block",marginBottom:4}}>{pkg.tag}</span>}
+                      <div style={{fontSize:14,fontWeight:700,color:C.text}}>{pkg.name}</div>
+                      <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{pkg.platform} · {pkg.adSpend}</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                      <div style={{fontSize:19,fontWeight:800,color:C.gold}}>${pkg.price}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+                      <div style={{fontSize:10,color:C.green,fontWeight:600}}>+${diff}/mo more</div>
+                    </div>
+                  </div>
+                  {/* New features preview */}
+                  {newFeatures.length>0&&(
+                    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                      {newFeatures.slice(0,4).map(f=>(
+                        <span key={f.id} style={{fontSize:9,padding:"2px 8px",borderRadius:20,
+                          backgroundColor:"rgba(34,211,160,0.08)",border:"1px solid rgba(34,211,160,0.2)",
+                          color:C.green}}>+ {f.label}</span>
+                      ))}
+                      {newFeatures.length>4&&<span style={{fontSize:9,color:C.textMuted,padding:"2px 4px"}}>+{newFeatures.length-4} more</span>}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
+      </div>
+      {options.length>0&&(
+        <div style={{padding:"12px 16px 24px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+          <button onClick={()=>{ if(selected) setStep("confirm"); }}
+            disabled={!selected}
+            style={{width:"100%",padding:"13px",fontSize:13,fontWeight:700,borderRadius:10,border:"none",
+              backgroundColor:selected?"#C8A84B":"rgba(255,255,255,0.05)",
+              color:selected?"#0a0800":C.textMuted,cursor:selected?"pointer":"not-allowed"}}>
+            Review My Selection →
+          </button>
+          <div style={{fontSize:11,color:C.textMuted,textAlign:"center",marginTop:8}}>
+            No changes until your account manager confirms.
+          </div>
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+// ─── PACKAGE TAB — AGENCY VIEW (only what client has + manual upgrade) ─────────
+function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
+  const [selectedManualPkg,setSelectedManualPkg] = useState(null);
+  const [upgradeApplied,setUpgradeApplied] = useState(false);
+  const [applyConfirm,setApplyConfirm] = useState(false);
+  const perLead = PER_LEAD[client.niche];
+
+  const featureGroups = [
+    { label:"Ads and Campaigns", ids:["search_ads","meta_ads","keyword_research","ad_variations","multi_campaign","google_shopping"] },
+    { label:"Landing Page",      ids:["std_landing","custom_landing","split_testing","page_cro"] },
+    { label:"Tracking and Tech", ids:["lead_form","pixel","call_tracking"] },
+    { label:"Optimization",      ids:["monthly_opt","weekly_opt","competitor_research","advanced_targeting"] },
+    { label:"Audiences",         ids:["retargeting","lookalike","abandoned_cart","cross_retargeting"] },
+    { label:"CRM and Automation",ids:["crm_integration"] },
+    { label:"Reporting",         ids:["monthly_report","advanced_reporting","unified_reporting"] },
+    { label:"Strategy and Scale",ids:["full_funnel","ugc_consulting","crm_input","scaling_roadmap","strategy_calls","priority_comms","slack_access"] },
+  ];
+
+  const manualOptions = ALL_PKGS.filter(p=>p.id!==client.packageId).sort((a,b)=>a.price-b.price);
+
+  const applyManualUpgrade = () => {
+    if (!selectedManualPkg) return;
+    onManualUpgrade(selectedManualPkg);
+    setUpgradeApplied(true);
+    setTimeout(()=>{ setUpgradeApplied(false); setSelectedManualPkg(null); },1800);
+  };
+
+  return (
+    <div style={S.col12}>
+
+      {/* Package header */}
+      <Card style={{background:"linear-gradient(135deg,rgba(200,168,75,0.1),rgba(200,168,75,0.03))",borderColor:C.borderAccent}}>
+        <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,opacity:.7,marginBottom:6}}>Active Package</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={S.f1min}>
+            <div style={{fontSize:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>{pkg?.name}</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{pkg?.platform} · {pkg?.adSpend}</div>
+            {pkg?.roas&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.roas}</div>}
+          </div>
+          <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${pkg?.price?.toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+            {perLead&&<div style={{fontSize:10,color:C.textDim,marginTop:2}}>+${perLead}/lead</div>}
+            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${pkg?.setup?.toLocaleString()} setup (one-time)</div>
+          </div>
+        </div>
+        <div style={{marginTop:10,padding:"6px 9px",borderRadius:8,backgroundColor:"rgba(0,0,0,0.3)",
+          fontSize:10,color:C.textMuted,display:"flex",alignItems:"center",gap:5}}>
+          <span style={{width:5,height:5,borderRadius:"50%",backgroundColor:C.green,display:"inline-block",flexShrink:0,boxShadow:`0 0 4px ${C.green}`}}/>
+          {pkg?.optimizationFreq==="weekly"?"Weekly":"Monthly"} optimization · {(PKG_FEATURES[pkg?.id]||[]).length} features included
+        </div>
+      </Card>
+
+      {/* Upgrade request pending — agency alert */}
+      {client.upgradeRequest&&(
+        <Card style={{backgroundColor:"rgba(139,92,246,0.06)",borderColor:`${C.purple}33`}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+            <span style={{width:7,height:7,borderRadius:"50%",backgroundColor:C.purple,display:"inline-block",flexShrink:0}}/>
+            <div style={{fontSize:12,fontWeight:700,color:C.purple}}>Client Requested Upgrade</div>
+          </div>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:6}}>{client.upgradeRequest}</div>
+          <div style={{fontSize:10,color:C.textMuted}}>Go to Alerts tab to review and confirm.</div>
+        </Card>
+      )}
+
+      {/* What the client has — only included features, no grey-outs */}
+      <Card>
+        <Label>Included Features — {client.name}</Label>
+        {featureGroups.map(group=>{
+          const included = group.ids.filter(fid=>pkgHasFeature(client.packageId,fid));
+          if (included.length===0) return null;
+          return (
+            <div key={group.label} style={{marginBottom:14}}>
+              <div style={{fontSize:9,fontWeight:700,color:C.textMuted,textTransform:"uppercase",
+                letterSpacing:".07em",marginBottom:7,paddingBottom:4,
+                borderBottom:`1px solid ${C.border2}`}}>{group.label}</div>
+              {included.map(fid=>{
+                const feat = ALL_FEATURES.find(f=>f.id===fid);
+                if (!feat) return null;
+                return (
+                  <div key={fid} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",
+                    borderBottom:`1px solid rgba(255,255,255,0.03)`}}>
+                    <span style={{width:18,height:18,borderRadius:5,
+                      backgroundColor:"rgba(34,211,160,0.1)",
+                      border:"1px solid rgba(34,211,160,0.25)",
+                      display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      <IconCheck size={10} color={C.green}/>
+                    </span>
+                    <span style={{fontSize:12,color:C.textDim,flex:1,lineHeight:1.4}}>{feat.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </Card>
+
+      {/* Manual upgrade — agency only */}
+      <Card style={{borderColor:`${C.purple}22`,backgroundColor:`${C.purple}05`}}>
+        <Label>Manual Package Change</Label>
+        <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>
+          Switch this client to any package immediately. Send the updated invoice separately after confirming.
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+          {manualOptions.map(p=>(
+            <button key={p.id} onClick={()=>setSelectedManualPkg(p.id)}
+              style={{padding:"10px 12px",borderRadius:10,
+                border:`1px solid ${selectedManualPkg===p.id?C.purple:C.border}`,
+                backgroundColor:selectedManualPkg===p.id?`${C.purple}12`:"rgba(255,255,255,0.02)",
+                cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:600,color:C.text}}>{p.name}</div>
+                <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{p.platform}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.gold}}>${p.price}/mo</div>
+                <div style={{fontSize:9,color:C.textMuted}}>${p.setup?.toLocaleString()} setup</div>
+              </div>
+            </button>
+          ))}
+        </div>
+        {applyConfirm?(
+          <div style={{padding:"12px",borderRadius:10,backgroundColor:`${C.purple}08`,border:`1px solid ${C.purple}33`}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>Confirm Package Change</div>
+            <div style={{fontSize:11,color:C.textDim,marginBottom:4}}>
+              {client.name}: <span style={{color:C.textMuted}}>{pkg?.name}</span> → <span style={{color:C.gold,fontWeight:700}}>{findPkg(selectedManualPkg)?.name}</span>
+            </div>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:10}}>New rate: ${findPkg(selectedManualPkg)?.price}/mo · ${findPkg(selectedManualPkg)?.setup} setup. Send updated invoice separately.</div>
+            <div style={{display:"flex",gap:7}}>
+              <button onClick={()=>setApplyConfirm(false)} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>{ applyManualUpgrade(); setApplyConfirm(false); }} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.purple,color:"#fff",cursor:"pointer"}}>Confirm Change</button>
+            </div>
+          </div>
+        ):(
+          <button onClick={()=>{ if(selectedManualPkg) setApplyConfirm(true); }}
+            disabled={!selectedManualPkg}
+            style={{width:"100%",padding:"11px",fontSize:12,fontWeight:700,borderRadius:10,
+              backgroundColor:upgradeApplied?"rgba(34,211,160,0.15)":selectedManualPkg?C.purple:"rgba(255,255,255,0.04)",
+              color:upgradeApplied?C.green:selectedManualPkg?"#fff":C.textMuted,
+              cursor:selectedManualPkg?"pointer":"not-allowed",transition:"all 0.2s",
+              border:upgradeApplied?`1px solid ${C.green}33`:"none"}}>
+            {upgradeApplied?"✓ Package Changed — Send Invoice":"Apply Package Change"}
+          </button>
+        )}
+      </Card>
+    </div>
+  );
+}
+// ─── CONTRACT HTML ────────────────────────────────────────────────────────────
+const makeContractHTML=(cl,pkg)=>{
+  const pl=PER_LEAD[cl.niche];
+  const feats=(PKG_FEATURES[cl.packageId]||[]).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
+  const perLeadRow = pl ? '<div class="meta-item"><div class="meta-label">Per-Lead Fee</div><div class="meta-value">$'+pl+'/lead</div></div>' : '';
+  const budgetRow  = cl.adBudget ? '<div class="meta-item"><div class="meta-label">Ad Budget</div><div class="meta-value">'+cl.adBudget+'</div></div>' : '';
+  const css = 'body{font-family:Georgia,serif;font-size:13px;line-height:1.75;color:#1a1a1a;background:#fff;padding:24px;max-width:100%;word-break:break-word}h1{font-size:20px;text-align:center;margin-bottom:4px}h2{font-size:13px;margin:20px 0 6px;color:#8B6914;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e5e0d0;padding-bottom:4px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:12px;background:#f9f8f4;border:1px solid #e5e0d0;border-radius:4px}.pl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8B6914;margin-bottom:4px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}.meta-item{padding:8px 10px;background:#f9f8f4;border:1px solid #e5e0d0;border-radius:4px}.meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8B6914}.meta-value{font-size:13px;font-weight:700;color:#1a1a1a}ul{padding-left:18px;margin:6px 0}li{margin-bottom:4px;font-size:12px}p{margin-bottom:10px;font-size:12px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.sig-box{padding:12px;border:1px solid #e5e0d0;border-radius:4px}.sig-line{border-bottom:1px solid #1a1a1a;margin:20px 0 4px}';
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'
+   +'<h1>BoldLine Media — Service Agreement</h1><p style="text-align:center;font-size:11px;color:#666">Paid Advertising Management Services</p>'
+   +'<h2>Parties</h2><div class="parties"><div><div class="pl">Agency</div><strong>BoldLine Media</strong><br>Bryson Weiser, Owner<br>brysonaweiser@gmail.com</div><div><div class="pl">Client</div><strong>'+(cl.name||'')+'</strong><br>'+(cl.contactName||'')+'<br>'+(cl.email||'')+'<br>'+(cl.businessAddress||'')+'</div></div>'
+   +'<h2>Agreement Details</h2><div class="meta"><div class="meta-item"><div class="meta-label">Package</div><div class="meta-value">'+(pkg&&pkg.name||'—')+'</div></div><div class="meta-item"><div class="meta-label">Platform</div><div class="meta-value">'+(pkg&&pkg.platform||'—')+'</div></div><div class="meta-item"><div class="meta-label">Management Fee</div><div class="meta-value">$'+((pkg&&pkg.price)||0).toLocaleString()+'/mo</div></div><div class="meta-item"><div class="meta-label">Setup Fee</div><div class="meta-value">$'+((pkg&&pkg.setup)||0).toLocaleString()+' (one-time)</div></div><div class="meta-item"><div class="meta-label">Start Date</div><div class="meta-value">'+(cl.contractStart||'—')+'</div></div><div class="meta-item"><div class="meta-label">End Date</div><div class="meta-value">'+(cl.contractEnd||'—')+'</div></div>'+perLeadRow+budgetRow+'</div>'
+   +'<h2>Services Included</h2><ul>'+feats+'</ul>'
+   +'<h2>Terms</h2><p><strong>Payment:</strong> Management fee invoiced monthly. Per-lead fees invoiced monthly based on verified leads delivered. Setup fee due before campaign launch.</p><p><strong>Minimum Term:</strong> This agreement is for a minimum of 3 months from the start date. Either party may choose not to renew with 30 days written notice before the end date.</p><p><strong>Ad Spend:</strong> Ad budget is separate from management fees and paid directly to the advertising platform by the client.</p><p><strong>Ownership:</strong> All ad accounts, landing pages, leads, creative assets, and data created under this agreement belong to the client.</p><p><strong>Performance:</strong> BoldLine Media does not guarantee specific lead volumes or revenue outcomes. We guarantee full effort, transparent reporting, and professional campaign management.</p><p><strong>Confidentiality:</strong> Both parties agree to keep the terms of this agreement and all business information shared during the engagement confidential.</p>'
+   +'<h2>Signatures</h2><div class="sigs"><div class="sig-box"><div class="pl">BoldLine Media</div><div class="sig-line"></div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div><div class="sig-box"><div class="pl">Client — '+(cl.name||'')+'</div><div class="sig-line"></div><div style="font-size:11px">'+(cl.contactName||'Authorized Signatory')+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div></div>'
+   +'</body></html>';
+};
+
+
+const makePortalHTML=(cl,pkg)=>{
+  const si=STAGES.findIndex(s=>s.id===cl.stage);
+  const pl=PER_LEAD[cl.niche];
+  const SC=["#6366F1","#0891B2","#D97706","#7C3AED","#10B981","#2563EB","#059669","#6B7280"];
+  const SL=["Onboarding","Research","Building","Final Review","Active","Optimizing","Scaling","Paused"];
+  const upgOpts=getUpgradeOptions(cl.packageId);
+  const inclFeats=ALL_FEATURES.filter(f=>pkgHasFeature(cl.packageId,f.id));
+  const exclFeats=ALL_FEATURES.filter(f=>!pkgHasFeature(cl.packageId,f.id)&&upgOpts.some(p=>pkgHasFeature(p.id,f.id)));
+  const dL=daysUntil(cl.contractEnd);
+
+  const sbar = STAGES.map((_,i)=>'<div style="flex:1;height:5px;border-radius:3px;margin:0 1px;background:'+( i<=si?SC[i]:'rgba(255,255,255,.1)')+'" ></div>').join('');
+  const icons= STAGES.map((_,i)=>'<div style="text-align:center;flex:1"><div style="font-size:'+(i===si?'16':'12')+'px">'+(i<=si?'●':'○')+'</div><div style="font-size:7px;color:'+(i===si?SC[si]:'#444')+';text-transform:uppercase;font-weight:700;white-space:nowrap;overflow:hidden">'+SL[i].slice(0,5)+'</div></div>').join('');
+  const fHTML = inclFeats.map(f=>'<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:#9CA3AF;display:flex;align-items:center;gap:8px"><span style="color:#C8A84B;font-weight:700">✓</span>'+f.label+'</div>').join('');
+  const uHTML = exclFeats.slice(0,8).map(f=>'<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:#374151;display:flex;align-items:center;gap:8px"><span>○</span>'+f.label+'<span style="margin-left:auto;font-size:9px;padding:1px 6px;border-radius:20px;background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.2);color:#C8A84B">Upgrade</span></div>').join('');
+  const upgSection = upgOpts.length===0 ? '' :
+    '<div class="card" id="upgrade-section"><div class="lbl">Request an Upgrade</div>' +
+    '<div style="font-size:11px;color:#6B7280;margin-bottom:10px">Select a package. Your account manager will confirm and send an invoice — no changes until you approve.</div>' +
+    upgOpts.map(function(p,i){ return '<div class="uopt" id="u'+i+'" onclick="selUpg('+i+',''+p.name+' ('+p.platform+') $'+p.price+'/mo')"><div style="display:flex;justify-content:space-between"><div><div style="font-size:13px;font-weight:700;color:#F0F2FF">'+p.name+'</div><div style="font-size:10px;color:#6B7280">'+p.platform+'</div></div><div style="font-size:18px;font-weight:800;color:#C8A84B">$'+p.price+'<span style="font-size:10px;font-weight:400;color:#6B7280">/mo</span></div></div></div>'; }).join('') +
+    '<button class="btn" id="upgbtn" disabled onclick="submitUpg()" style="opacity:.4">Review Selection →</button></div>';
+  const contractAlert = (dL<=30&&dL>=0) ? '<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);font-size:11px;color:#F59E0B">Contract renewing in '+dL+' days. Your account manager will be in touch.</div>' : '';
+  const css = '*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#080A0F;color:#F9FAFB;font-size:14px}.hdr{background:#0D0F16;border-bottom:1px solid rgba(255,255,255,.08);padding:12px 16px;display:flex;align-items:center;gap:10px}.logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#C8A84B,#9a7a2e);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#0a0800}.nav{display:flex;overflow-x:auto;background:#0D0F16;border-bottom:1px solid rgba(255,255,255,.07)}.nb{padding:11px 14px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:none;background:transparent;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}.nb.on{color:#C8A84B;border-bottom-color:#C8A84B}.main{padding:14px;max-width:600px;margin:0 auto}.card{background:#0D0F16;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:14px;margin-bottom:10px}.lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4B5563;margin-bottom:8px}.sbar{display:flex;margin-bottom:8px}.sicons{display:flex;margin-bottom:12px}.cur{padding:11px;border-radius:9px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2)}.stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:9px 11px;flex:1}.inp{width:100%;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:8px;color:#F9FAFB;font-size:13px;font-family:inherit;margin-bottom:8px}.btn{width:100%;padding:12px;font-size:13px;font-weight:700;border-radius:10px;border:1px solid rgba(200,168,75,.35);background:rgba(200,168,75,.1);color:#C8A84B;cursor:pointer;font-family:inherit;margin-top:10px}.uopt{padding:12px;border-radius:10px;border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;margin-bottom:8px}.uopt.sel{border-color:#C8A84B;background:rgba(200,168,75,.07)}select{background:#0D0F16;color:#F9FAFB}';
+
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>'+cl.name+' Portal</title><style>'+css+'</style></head><body>'
+    +'<div class="hdr"><div class="logo">B</div><div><div style="font-size:13px;font-weight:700;color:#E8E4D0">BoldLine Media</div><div style="font-size:9px;color:#6e6b54">Client Portal</div></div><div style="margin-left:auto;font-size:11px;color:#9CA3AF">'+cl.name+'</div></div>'
+    +'<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>'
+    +'<div class="main">'
+    +'<div id="t-status"><div class="card"><div class="lbl">Campaign Progress</div><div class="sbar">'+sbar+'</div><div class="sicons">'+icons+'</div><div class="cur"><div style="font-size:12px;font-weight:700;color:#C8A84B;margin-bottom:3px">Currently: '+(SL[si]||'—')+'</div><div style="font-size:11px;color:#9CA3AF">Your campaign is active and being managed by your dedicated team.</div></div></div>'
+    +'<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">'+(pkg&&pkg.name||'—')+'</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">'+(pkg&&pkg.platform||'—')+'</div></div>'+(pl?'<div class="stat"><div class="lbl">Per Lead</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$'+pl+'</div></div>':'')+'</div></div></div>'
+    +'<div id="t-package" style="display:none"><div class="card"><div class="lbl">Your Package — '+(pkg&&pkg.name||'—')+'</div><div style="font-size:11px;color:#C8A84B;margin-bottom:12px">'+(pkg&&pkg.platform||'')+(pkg?' · $'+pkg.price+'/mo':'')+'</div>'+fHTML+(exclFeats.length>0?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)"><div class="lbl">Available with Upgrade</div>'+uHTML+'</div>':'')+'</div>'+upgSection+'</div>'
+    +'<div id="t-intake" style="display:none"><div class="card"><div class="lbl">Business Details</div><input class="inp" placeholder="Business Name *" value="'+cl.name+'"><input class="inp" placeholder="Contact Name" value="'+(cl.contactName||'')+'"><input class="inp" placeholder="Email" value="'+(cl.email||'')+'"><input class="inp" placeholder="Business Address" value="'+(cl.businessAddress||'')+'"><input class="inp" placeholder="Service Area"></div><div class="card"><div class="lbl">Your Offer</div><input class="inp" placeholder="Main service to advertise *"><input class="inp" placeholder="Average job / ticket value *"><input class="inp" placeholder="What makes you different? *"></div><div class="card"><div class="lbl">Assets</div><select class="inp"><option>Do you have photos of your work?</option><option>Yes — I will send them</option><option>No — use stock images</option></select><input class="inp" placeholder="Where should leads be sent? *"><input class="inp" placeholder="CRM or booking system (if any)"></div><button class="btn" onclick="this.textContent='✓ Saved';this.disabled=true">Save My Information</button></div>'
+    +'<div id="t-contract" style="display:none"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:13px;font-weight:700;color:'+(cl.contractStatus==='active'?'#10B981':cl.contractStatus==='pending'?'#F59E0B':'#EF4444')+';margin-bottom:6px">'+(cl.contractStatus==='active'?'Signed and Active':cl.contractStatus==='pending'?'Pending Signature':'Expired')+'</div><div style="font-size:11px;color:#6B7280;line-height:1.6">Start: '+(cl.contractStart||'—')+' · End: '+(cl.contractEnd||'—')+'</div>'+contractAlert+'</div></div>'
+    +'</div>'
+    +'<script>var selUpgName=null;function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));document.getElementById('t-'+n).style.display='block';b.classList.add('on');}function selUpg(i,name){selUpgName=name;document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function submitUpg(){if(!selUpgName)return;if(confirm('Send upgrade request?\n'+selUpgName+'\n\nYour account manager will be in touch within 1 business day.')){document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}}</script>'
+    +'</body></html>';
+};
+
+
+// ─── HOME SCREEN ─────────────────────────────────────────────────────────────
+function HomeScreen({clients,onSelect,onAdd}) {
+  const [search,setSearch]     = useState("");
+  const [stageFilter,setStageF]= useState("all");
+  const [nicheFilter,setNicheF]= useState("all");
+  const [sortBy,setSortBy]     = useState("name"); // name | health | leads | expiry
+  const [showFilters,setShowF] = useState(false);
+
+  const MRR       = clients.reduce((s,c)=>s+(findPkg(c.packageId)?.price||0),0);
+  const active    = clients.filter(c=>c.stage==="active").length;
+  const allAlerts = clients.flatMap(c=>getAlerts(c));
+  const expiring  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
+
+  // ── Filter + sort pipeline ─────────────────────────────────────────────────
+  const q = search.toLowerCase().trim();
+  const filtered = clients
+    .filter(cl=>{
+      if (q) {
+        const pkg = findPkg(cl.packageId);
+        const haystack = [cl.name,cl.contactName,cl.niche,cl.email,pkg?.name,pkg?.platform].join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      if (stageFilter!=="all" && cl.stage!==stageFilter) return false;
+      if (nicheFilter!=="all" && cl.niche!==nicheFilter)  return false;
+      return true;
+    })
+    .sort((a,b)=>{
+      if (sortBy==="health")  return calcHealth(b)-calcHealth(a);
+      if (sortBy==="leads")   return (b.leads||0)-(a.leads||0);
+      if (sortBy==="expiry")  return daysUntil(a.contractEnd)-daysUntil(b.contractEnd);
+      return a.name.localeCompare(b.name); // default: alphabetical
+    });
+
+  const hasActiveFilters = stageFilter!=="all" || nicheFilter!=="all" || sortBy!=="name";
+  const clearAll = () => { setSearch(""); setStageF("all"); setNicheF("all"); setSortBy("name"); };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"16px 14px 100px"}}>
+
+      {/* Header */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:42,height:42,borderRadius:12,background:C.gradB,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:18,fontWeight:900,color:"#0a0800",flexShrink:0,
+            boxShadow:"0 4px 16px rgba(200,168,75,0.25)"}}>B</div>
+          <div>
+            <div style={{fontSize:17,fontWeight:800,color:C.text,letterSpacing:"-0.02em",lineHeight:1.1}}>BoldLine OS</div>
+            <div style={{fontSize:10,color:C.textMuted,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:2}}>Agency Dashboard</div>
+          </div>
+        </div>
+      </div>
+
+      {/* MRR hero card */}
+      <div style={{background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
+        border:"1px solid rgba(200,168,75,0.2)",borderRadius:16,padding:"18px 20px",marginBottom:12,
+        position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",
+          background:"radial-gradient(circle,rgba(200,168,75,0.12),transparent 70%)"}}/>
+        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,marginBottom:4,opacity:.8}}>Monthly Recurring Revenue</div>
+        <div style={{fontSize:32,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1,marginBottom:4}}>${MRR.toLocaleString()}</div>
+        <div style={{fontSize:11,color:C.textMuted}}>management fees · {active} active of {clients.length} total</div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+        {[
+          {l:"Alerts",  v:allAlerts.length, color:allAlerts.length>0?C.amber:C.green},
+          {l:"Expiring",v:expiring.length,  color:expiring.length>0?C.red:C.textMuted},
+          {l:"Clients", v:clients.length,   color:C.blue},
+        ].map(({l,v,color})=>(
+          <div key={l} style={{backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px",textAlign:"center"}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:4}}>{l}</div>
+            <div style={{fontSize:22,fontWeight:800,color,lineHeight:1}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Urgent alerts */}
+      {expiring.map(cl=>{
+        const d=daysUntil(cl.contractEnd);
+        return <div key={cl.id} onClick={()=>onSelect(cl)} style={{marginBottom:8,padding:"11px 13px",borderRadius:11,backgroundColor:d<=7?"rgba(239,68,68,.07)":"rgba(245,158,11,.07)",border:`1px solid ${d<=7?C.red:C.amber}33`,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}>{d<=7?"🔴":"🟡"}</span>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div><div style={{fontSize:11,color:d<=7?C.red:C.amber}}>Contract expires in {d} day{d!==1?"s":""} — {d<=7?"urgent renewal needed":"start renewal conversation"}</div></div>
+          <span style={{fontSize:16,color:C.textMuted}}>›</span>
+        </div>;
+      })}
+      {clients.filter(c=>c.upgradeRequest).map(cl=>(
+        <div key={cl.id} onClick={()=>onSelect(cl)} style={{marginBottom:8,padding:"11px 13px",borderRadius:11,backgroundColor:`${C.purple}08`,border:`1px solid ${C.purple}33`,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}>⬆️</span>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div><div style={{fontSize:11,color:C.purple}}>Upgrade requested — review and send invoice</div></div>
+          <span style={{fontSize:16,color:C.textMuted}}>›</span>
+        </div>
+      ))}
+
+      {/* Add client */}
+      <button onClick={onAdd} style={{width:"100%",padding:"13px",fontSize:13,fontWeight:700,
+        borderRadius:12,border:`1px dashed rgba(200,168,75,0.3)`,
+        backgroundColor:"rgba(200,168,75,0.04)",color:C.gold,cursor:"pointer",marginBottom:14,
+        display:"flex",alignItems:"center",justifyContent:"center",gap:8,letterSpacing:"0.01em"}}>
+        <span style={{fontSize:20,lineHeight:1}}>+</span> Add New Client
+      </button>
+
+      {/* ── SEARCH BAR ── */}
+      <div style={{position:"relative",marginBottom:8}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round"
+          style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"}}>
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          value={search}
+          onChange={e=>setSearch(e.target.value)}
+          placeholder="Search clients by name, niche, or package…"
+          style={{...inp, paddingLeft:32, fontSize:13}}
+        />
+        {search&&(
+          <button onClick={()=>setSearch("")} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:16,lineHeight:1}}>✕</button>
+        )}
+      </div>
+
+      {/* ── FILTER + SORT ROW ── */}
+      <div style={{display:"flex",gap:7,marginBottom:12,alignItems:"center"}}>
+        <button
+          onClick={()=>setShowF(p=>!p)}
+          style={{display:"flex",alignItems:"center",gap:5,padding:"6px 11px",fontSize:11,fontWeight:700,
+            borderRadius:8,border:`1px solid ${hasActiveFilters?C.gold:C.border}`,
+            backgroundColor:hasActiveFilters?C.goldDim:"rgba(255,255,255,0.03)",
+            color:hasActiveFilters?C.gold:C.textMuted,cursor:"pointer",flexShrink:0}}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+          </svg>
+          Filter{hasActiveFilters?" ●":""}
+        </button>
+        {/* Sort chips */}
+        <div style={{display:"flex",gap:5,overflowX:"auto",flex:1}}>
+          {[["name","A–Z"],["health","Health"],["leads","Leads"],["expiry","Expiry"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setSortBy(k)} style={{
+              padding:"5px 10px",fontSize:10,fontWeight:700,borderRadius:20,flexShrink:0,
+              border:`1px solid ${sortBy===k?C.gold:C.border}`,
+              backgroundColor:sortBy===k?C.goldDim:"transparent",
+              color:sortBy===k?C.gold:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"
+            }}>{l}</button>
+          ))}
+        </div>
+        {hasActiveFilters&&(
+          <button onClick={clearAll} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.03)",color:C.textMuted,cursor:"pointer",flexShrink:0}}>Clear</button>
+        )}
+      </div>
+
+      {/* ── FILTER PANEL (collapsible) ── */}
+      {showFilters&&(
+        <div style={{backgroundColor:C.bg3,border:`1px solid ${C.border}`,borderRadius:12,padding:"14px",marginBottom:12,display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:7}}>Stage</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {[["all","All Stages"],...STAGES.map(s=>[s.id,s.label])].map(([k,l])=>(
+                <button key={k} onClick={()=>setStageF(k)} style={{
+                  padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:20,
+                  border:`1px solid ${stageFilter===k?(STAGES.find(s=>s.id===k)?.color||C.gold):C.border}`,
+                  backgroundColor:stageFilter===k?`${STAGES.find(s=>s.id===k)?.color||C.gold}18`:"transparent",
+                  color:stageFilter===k?(STAGES.find(s=>s.id===k)?.color||C.gold):C.textMuted,
+                  cursor:"pointer",whiteSpace:"nowrap"
+                }}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:7}}>Niche</div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {[["all","All Niches"],...NICHES.map(n=>[n,n])].map(([k,l])=>(
+                <button key={k} onClick={()=>setNicheF(k)} style={{
+                  padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:20,
+                  border:`1px solid ${nicheFilter===k?C.gold:C.border}`,
+                  backgroundColor:nicheFilter===k?C.goldDim:"transparent",
+                  color:nicheFilter===k?C.gold:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"
+                }}>{l}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CLIENT LIST HEADER ── */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:C.textMuted,opacity:.7}}>
+          {filtered.length===clients.length
+            ? `${clients.length} Client${clients.length!==1?"s":""}`
+            : `${filtered.length} of ${clients.length} Clients`}
+        </div>
+        <div style={{width:60,height:1,background:"linear-gradient(90deg,rgba(200,168,75,0.3),transparent)"}}/>
+      </div>
+
+      {/* ── EMPTY STATE ── */}
+      {filtered.length===0&&(
+        <div style={{textAlign:"center",padding:"40px 20px",color:C.textMuted}}>
+          <div style={{fontSize:28,marginBottom:10}}>🔍</div>
+          <div style={{fontSize:14,fontWeight:700,color:C.textDim,marginBottom:6}}>No clients found</div>
+          <div style={{fontSize:12,lineHeight:1.7}}>
+            {search?`No results for "${search}".`:"No clients match the selected filters."}
+            {" "}<button onClick={clearAll} style={{background:"none",border:"none",color:C.gold,cursor:"pointer",fontSize:12,fontWeight:700}}>Clear filters</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── CLIENT CARDS ── */}
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {filtered.map(cl=>{
+          const pkg=findPkg(cl.packageId);
+          const alerts=getAlerts(cl);
+          const stage=stageInfo(cl.stage);
+          const days=daysUntil(cl.contractEnd);
+          const health=calcHealth(cl);
+          return (
+            <button key={cl.id} onClick={()=>onSelect(cl)} style={{
+              width:"100%",textAlign:"left",cursor:"pointer",
+              backgroundColor:C.bg2,
+              border:`1px solid ${alerts.some(a=>a.severity==="red")?"rgba(248,113,113,0.2)":C.border}`,
+              borderRadius:14,padding:"14px 15px",
+            }}>
+              {/* Top row: avatar, name, alert badge, chevron */}
+              <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:10}}>
+                <div style={{width:42,height:42,borderRadius:12,
+                  background:`linear-gradient(135deg,${stage.color}33,${stage.color}11)`,
+                  border:`1px solid ${stage.color}33`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:16,fontWeight:900,color:stage.color,flexShrink:0}}>
+                  {cl.name[0]}
+                </div>
+                <div style={S.f1min}>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{cl.name}</div>
+                  <div style={{fontSize:11,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pkg?.platform} · {pkg?.name}</div>
+                </div>
+                <AlertBadge alerts={alerts}/>
+                <IconChevron size={14} color={C.textMuted}/>
+              </div>
+              {/* Bottom meta row */}
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                <Chip label={stage.label} color={stage.color} small/>
+                <span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>
+                <span style={{fontSize:10,fontWeight:600,color:healthColor(health)}}>⬡ {health.toFixed(1)}/10</span>
+                {cl.leads>0&&(
+                  <>
+                    <span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>
+                    <span style={{fontSize:10,color:C.textMuted}}>{cl.leads} leads · ${cl.cpl}/CPL</span>
+                  </>
+                )}
+                {days<=30&&days>=0&&(
+                  <>
+                    <span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>
+                    <span style={{fontSize:10,color:days<=7?C.red:C.amber,fontWeight:700}}>{days}d left</span>
+                  </>
+                )}
+                {cl.upgradeRequest&&(
+                  <>
+                    <span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>
+                    <span style={{fontSize:10,color:C.purple,fontWeight:700}}>Upgrade pending</span>
+                  </>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── CLIENT HUB ──────────────────────────────────────────────────────────────
+function ClientHub({client,onUpdate,onBack}) {
+  const [tab,setTab]         = useState(client._initialTab||"overview");
+  const [openBot,setOpenBot] = useState(null);
+  const [showEdit,setShowEdit] = useState(false);
+  const pkg    = findPkg(client.packageId);
+  const bots   = buildBots(pkg).map(b=>({...b,status:client.botStatuses?.[b.id]||"waiting"}));
+  const alerts = getAlerts(client);
+  const stage  = stageInfo(client.stage);
+  const days   = daysUntil(client.contractEnd);
+  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]];
+
+  const handleUpgradeRequest = (newPkg) => {
+    onUpdate({...client, upgradeRequest:`${newPkg.name} (${newPkg.platform}) — $${newPkg.price}/mo`});
+  };
+  const handleManualUpgrade = (newPkgId) => {
+    const newPkg = findPkg(newPkgId);
+    const bots   = buildBots(newPkg);
+    const botStatuses = Object.fromEntries(bots.map(b=>[b.id,"waiting"]));
+    botStatuses["intake"] = "done"; botStatuses["ceo"] = "done";
+    onUpdate({...client, packageId:newPkgId, upgradeRequest:null, botStatuses,
+      alerts:[...client.alerts, {type:"upgrade_done", msg:`Manually upgraded to ${newPkg.name} — send invoice to ${client.email}`, severity:"blue"}]
+    });
+  };
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
+        {/* Client header bar */}
+        <div style={{padding:"12px 14px 10px",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
+            border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            ‹
+          </button>
+          <div style={{width:36,height:36,borderRadius:10,
+            background:`linear-gradient(135deg,${stage.color}44,${stage.color}15)`,
+            border:`1px solid ${stage.color}33`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:14,fontWeight:900,color:stage.color,flexShrink:0}}>
+            {client.name[0]}
+          </div>
+          <div style={S.f1min}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{client.name}</div>
+            <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:1}}>
+              <Chip label={stage.label} color={stage.color} small/>
+              <span style={{fontSize:10,fontWeight:600,color:healthColor(calcHealth(client))}}>⬡ {calcHealth(client).toFixed(1)}/10</span>
+              {days<=30&&days>=0&&<span style={{fontSize:10,color:days<=7?C.red:C.amber,fontWeight:700}}>{days}d left</span>}
+            </div>
+          </div>
+          <AlertBadge alerts={alerts}/>
+          <button
+            onClick={()=>setShowEdit(true)}
+            style={{
+              padding:"5px 11px",fontSize:11,fontWeight:700,borderRadius:8,
+              border:`1px solid ${C.borderAccent}`,
+              backgroundColor:C.goldDim,color:C.gold,cursor:"pointer",flexShrink:0
+            }}>
+            Edit
+          </button>
+        </div>
+        {alerts.slice(0,1).map((a,i)=>(
+          <div key={i} style={{margin:"0 14px 8px",padding:"7px 10px",borderRadius:9,
+            backgroundColor:a.severity==="red"?"rgba(248,113,113,.07)":a.severity==="blue"?"rgba(139,92,246,.07)":"rgba(251,191,36,.07)",
+            border:`1px solid ${a.severity==="red"?C.red:a.severity==="blue"?C.purple:C.amber}30`,
+            fontSize:11,color:a.severity==="red"?C.red:a.severity==="blue"?C.purple:C.amber,fontWeight:600,
+            display:"flex",alignItems:"center",gap:7}}>
+            <span style={{fontSize:13}}>{a.severity==="red"?"⚠":"ℹ"}</span>
+            {a.msg}
+          </div>
+        ))}
+        <div style={{display:"flex",overflowX:"auto",gap:0,scrollbarWidth:"none"}}>
+          {TABS.map(([k,l])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              padding:"9px 14px",fontSize:11,fontWeight:600,border:"none",
+              borderBottom:`2px solid ${tab===k?C.gold:"transparent"}`,
+              backgroundColor:"transparent",
+              color:tab===k?C.gold:C.textMuted,
+              cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
+              letterSpacing:"0.01em",transition:"color 0.15s"
+            }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"13px 13px 60px"}}>
+        {tab==="overview"&&(
+          <div style={S.col11}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[{l:"Package",v:pkg?.name||"—"},{l:"Platform",v:pkg?.platform||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Revenue",v:pkg?`$${pkg.price}/mo`:"—"}].map(({l,v})=>(
+                <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
+              ))}
+            </div>
+            {pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
+              <Label>Monthly Revenue</Label>
+              <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+              <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>${pkg.setup.toLocaleString()} setup {client.niche&&PER_LEAD[client.niche]?`· $${PER_LEAD[client.niche]}/lead`:""}</div>
+            </Card>}
+            {/* Live health score breakdown */}
+            {(()=>{
+              const h = calcHealth(client);
+              const factors = [
+                {l:"Contract signed",       ok:client.contractSigned,        pts:"1.0"},
+                {l:"Intake complete",        ok:client.intakeComplete,        pts:"1.0"},
+                {l:"Campaign stage",         ok:["active","optimizing","scaling"].includes(client.stage), pts:"2.0"},
+                {l:"Leads coming in",        ok:client.leads>0,               pts:"1.5"},
+                {l:"CPL on target",          ok:client.cpl>0&&client.cpl<=(PER_LEAD[client.niche]||50), pts:"0.5"},
+                {l:"Contract active",        ok:client.contractStatus==="active", pts:"1.0"},
+                {l:"Contract runway (30d+)", ok:daysUntil(client.contractEnd)>30, pts:"1.0"},
+                {l:"Pipeline progress",      ok:Object.values(client.botStatuses||{}).filter(s=>s==="done").length>5, pts:"1.0"},
+              ];
+              return (
+                <Card style={{borderColor:`${healthColor(h)}33`,backgroundColor:`${healthColor(h)}06`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                    <Label>Health Score</Label>
+                    <div style={{fontSize:24,fontWeight:900,color:healthColor(h),lineHeight:1}}>{h.toFixed(1)}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/10</span></div>
+                  </div>
+                  <div style={{height:5,backgroundColor:C.border2,borderRadius:3,overflow:"hidden",marginBottom:12}}>
+                    <div style={{height:"100%",width:`${h*10}%`,backgroundColor:healthColor(h),borderRadius:3,transition:"width .4s"}}/>
+                  </div>
+                  {factors.map(({l,ok,pts})=>(
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",borderBottom:`1px solid ${C.border2}`}}>
+                      <span style={{width:16,height:16,borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,backgroundColor:ok?"rgba(34,211,160,0.12)":"rgba(255,255,255,0.03)",border:`1px solid ${ok?"rgba(34,211,160,0.25)":"rgba(255,255,255,0.06)"}`}}>
+                        {ok?<IconCheck size={9} color={C.green}/>:<span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>}
+                      </span>
+                      <span style={{fontSize:11,color:ok?C.textDim:C.textMuted,flex:1}}>{l}</span>
+                      <span style={{fontSize:9,color:C.textMuted,flexShrink:0}}>+{pts}</span>
+                    </div>
+                  ))}
+                  <div style={{marginTop:8,fontSize:10,color:C.textMuted,lineHeight:1.6}}>
+                    Score updates automatically as campaign data, stage, and contract status change.
+                  </div>
+                </Card>
+              );
+            })()}
+            <Card>
+              <Label>Contract Timeline</Label>
+              <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginBottom:6}}>
+                <div style={{height:"100%",backgroundColor:days<=7?C.red:days<=30?C.amber:C.green,width:`${Math.min(100,Math.max(0,100-days/90*100))}%`,borderRadius:2,transition:"width .3s"}}/>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.textMuted}}>
+                <span>Start: {client.contractStart}</span>
+                <span style={{color:days<=7?C.red:days<=30?C.amber:C.textMuted,fontWeight:days<=30?700:400}}>End: {client.contractEnd}</span>
+              </div>
+              {days<=30&&days>=0&&<div style={{marginTop:7,padding:"6px 9px",borderRadius:8,backgroundColor:days<=7?"rgba(239,68,68,.08)":"rgba(245,158,11,.08)",border:`1px solid ${days<=7?C.red:C.amber}33`,fontSize:11,color:days<=7?C.red:C.amber,fontWeight:600}}>{days<=7?"🔴 Urgent:":"🟡"} {days} day{days!==1?"s":""} left — {days<=7?"contact client immediately.":"start renewal conversation on next call."}</div>}
+            </Card>
+            <Card>
+              <Label>Onboarding Checklist</Label>
+              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!pkg?.callTracking&&client.stage!=="onboarding"},{l:"Landing page built",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
+                <div key={l} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:`1px solid ${C.border2}`}}>
+                  <span style={{fontSize:13,color:done?C.green:C.textMuted,flexShrink:0}}>{done?"✓":"○"}</span>
+                  <span style={{fontSize:12,color:done?C.text:C.textMuted}}>{l}</span>
+                </div>
+              ))}
+            </Card>
+            {client.notes&&(
+              <Card>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                  <Label>Internal Notes</Label>
+                  <button onClick={()=>{setShowEdit(true);}} style={{fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Edit</button>
+                </div>
+                <div style={{fontSize:12,color:C.textDim,lineHeight:1.75,whiteSpace:"pre-wrap"}}>{client.notes}</div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {tab==="pipeline"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`,marginBottom:2}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.gold,marginBottom:2}}>Package: {pkg?.name} — {pkg?.platform}</div>
+              <div style={{fontSize:11,color:C.textMuted}}>Tap any bot to see what it's working on and chat with it. Bots are scoped to this package — they cannot build beyond what's included.</div>
+            </Card>
+            {bots.map(bot=>{
+              const sc={waiting:{dot:"#374151",label:"Waiting"},active:{dot:C.green,label:"Running",pulse:true},done:{dot:"#4B5563",label:"Complete"},needs_input:{dot:C.blue,label:"Needs You",pulse:true}}[bot.status]||{dot:"#374151",label:"Waiting"};
+              const clientLogs = getBotLogs(client, pkg);
+              const hasLog = !!clientLogs[bot.id];
+              return (
+                <button key={bot.id} onClick={()=>setOpenBot(bot)} style={{...card,textAlign:"left",cursor:"pointer",width:"100%",borderColor:bot.status==="active"?`${C.green}33`:bot.status==="needs_input"?`${C.blue}33`:C.border}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:10,fontFamily:"monospace",color:C.textMuted,width:16,flexShrink:0}}>{String(bot.step).padStart(2,"0")}</span>
+                    <span style={{fontSize:15,flexShrink:0}}>{bot.icon}</span>
+                    <div style={S.f1min}>
+                      <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</div>
+                      {hasLog&&bot.status!=="waiting"&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{clientLogs[bot.id]?.currentTask?.slice(0,55)}…</div>}
+                    </div>
+                    {bot.locked&&<span style={{fontSize:10,color:C.textMuted,flexShrink:0}}>🔒</span>}
+                    <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+                      <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:sc.dot,display:"inline-block",boxShadow:sc.pulse?`0 0 5px ${sc.dot}`:"none"}}/>
+                      <span style={{fontSize:10,color:C.textMuted}}>{sc.label}</span>
+                    </div>
+                    <span style={{fontSize:14,color:C.textMuted,flexShrink:0}}>›</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {tab==="portal"&&(
+          <div style={S.col11}>
+            <Card>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                <Label>Live Client View</Label>
+                <button onClick={()=>navigator.clipboard.writeText(`https://portal.boldlinemedia.com/client?id=${client.id}&email=${encodeURIComponent(client.email)}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Link</button>
+              </div>
+              <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Exactly what {client.name} sees — no mention of AI or bots anywhere.</div>
+              <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`}}>
+                <iframe srcDoc={makePortalHTML(client,pkg)} title="Client Portal" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:500,border:"none",display:"block"}}/>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {tab==="package"&&(
+          <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
+        )}
+
+        {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onRenew={(newEnd)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
+        {tab==="reports"&&<ReportsTabContent client={client} pkg={pkg}/>}
+        {tab==="log"&&<LogTabContent client={client} onUpdate={onUpdate}/>}
+      </div>
+
+      {openBot&&<BotSheet bot={openBot} clientName={client.name} client={client} pkg={pkg} onClose={()=>setOpenBot(null)}/>}
+      {showEdit&&(
+        <EditClientSheet
+          client={client}
+          onSave={(updated)=>{
+            onUpdate(updated);
+            setShowEdit(false);
+          }}
+          onClose={()=>setShowEdit(false)}
+        />
+      )}
+    </div>
+  );
+}
+// ─── CONTRACT TAB ─────────────────────────────────────────────────────────────
+function ContractTabContent({client,pkg,days,onRenew}) {
+  const [copied,setCopied]=useState(false);
+  const [showRenewal,setShowRenewal]=useState(false);
+  const [renewMonths,setRenewMonths]=useState("3");
+  const [renewSaved,setRenewSaved]=useState(false);
+  const html=makeContractHTML(client,pkg);
+  const downloadPDF=()=>{
+    const blob=new Blob([html],{type:"text/html"});const url=URL.createObjectURL(blob);
+    const ifr=document.createElement("iframe");ifr.style.cssText="position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px";
+    document.body.appendChild(ifr);ifr.src=url;
+    ifr.onload=()=>{ setTimeout(()=>{ ifr.contentWindow.print(); setTimeout(()=>{ document.body.removeChild(ifr);URL.revokeObjectURL(url); },3000); },600); };
+  };
+  const handleRenew=()=>{
+    const months=parseInt(renewMonths)||3;
+    const base=new Date(client.contractEnd||new Date());
+    const newEnd=addMonths(base,months);  // proper calendar months, not *30 days
+    onRenew(fmt(newEnd));
+    setRenewSaved(true);
+    setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false); },1500);
+  };
+  // Live preview of the new end date using calendar months
+  const renewalPreviewDate = ()=>{
+    const months=parseInt(renewMonths)||3;
+    const base=new Date(client.contractEnd||new Date());
+    return fmt(addMonths(base,months));
+  };
+  const showRenewBtn = days<=30;
+  return (
+    <div style={S.col11}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        <Card style={{textAlign:"center"}}><Label>Status</Label><Chip label={client.contractStatus==="active"?"Signed & Active":client.contractStatus==="pending"?"Pending Signature":"Expired"} color={client.contractStatus==="active"?C.green:client.contractStatus==="pending"?C.amber:C.red}/></Card>
+        <Card style={{textAlign:"center"}}><Label>Days Remaining</Label><div style={{fontSize:22,fontWeight:800,color:days<=7?C.red:days<=30?C.amber:C.green,lineHeight:1}}>{Math.max(0,days)}</div></Card>
+      </div>
+      {/* Renewal button — appears when ≤30 days left or expired */}
+      {showRenewBtn&&!showRenewal&&(
+        <button onClick={()=>setShowRenewal(true)} style={{width:"100%",padding:"12px",fontSize:13,fontWeight:700,borderRadius:10,border:`1px solid ${C.green}44`,backgroundColor:`${C.green}12`,color:C.green,cursor:"pointer"}}>
+          ✓ Renew This Contract
+        </button>
+      )}
+      {showRenewal&&(
+        <Card style={{backgroundColor:"rgba(16,185,129,.06)",borderColor:"rgba(16,185,129,.25)"}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.green,marginBottom:10}}>Renew Contract for {client.name}</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:5}}>Renewal Length</div>
+          <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
+            {["1","3","6","12"].map(m=>(
+              <button key={m} onClick={()=>setRenewMonths(m)} style={{flex:1,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${renewMonths===m?C.green:C.border}`,backgroundColor:renewMonths===m?`${C.green}15`:"rgba(255,255,255,.03)",color:renewMonths===m?C.green:C.textMuted,cursor:"pointer",minWidth:50}}>{m} mo</button>
+            ))}
+          </div>
+          <div style={{fontSize:11,color:C.textDim,marginBottom:12,lineHeight:1.65}}>
+            <div>Renewing for <strong style={{color:C.text}}>{monthsLabel(parseInt(renewMonths||3))}</strong></div>
+            <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
+            <div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Calculated using exact calendar months — not an approximation.</div>
+          </div>
+          <div style={S.row7}>
+            <button onClick={()=>setShowRenewal(false)} style={{flex:1,padding:"9px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+            <button onClick={handleRenew} style={{flex:2,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:renewSaved?"#059669":C.green,color:"#fff",cursor:"pointer",transition:"background .2s"}}>
+              {renewSaved?"✓ Contract Renewed":"Confirm Renewal"}
+            </button>
+          </div>
+        </Card>
+      )}
+      {!client.contractSigned&&<Card style={{backgroundColor:"rgba(59,130,246,.06)",borderColor:"rgba(59,130,246,.28)"}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:4}}>Contract Not Yet Signed</div>
+        <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Send to <strong style={{color:C.textDim}}>{client.email}</strong> via DocuSign for e-signature.</div>
+        <button style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:"#1D4ED8",color:"#fff",cursor:"pointer"}}>Send via DocuSign →</button>
+      </Card>}
+      <div style={S.row7}>
+        <button onClick={downloadPDF} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>↓ Download PDF</button>
+        <button onClick={()=>{navigator.clipboard.writeText(html);setCopied(true);setTimeout(()=>setCopied(false),2000);}} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?"#34D399":C.textDim,cursor:"pointer"}}>{copied?"Copied!":"Copy"}</button>
+      </div>
+      <Card style={{padding:0,overflow:"hidden"}}>
+        <div style={{padding:"9px 13px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>Contract Preview</span>
+          <span style={{fontSize:10,color:C.textMuted}}>Scroll to read</span>
+        </div>
+        <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
+          <iframe
+            srcDoc={html}
+            title="Contract"
+            style={{
+              width:"100%",
+              height:480,
+              border:"none",
+              display:"block",
+              backgroundColor:"#fff",
+              maxWidth:"100%",
+            }}
+            sandbox="allow-same-origin allow-scripts"
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── REPORTS TAB ──────────────────────────────────────────────────────────────
+function ReportsTabContent({client,pkg}) {
+  const {messages,loading,send,reset}=useAI("");
+  const [gen,setGen]=useState(false);
+  const [input,setInput]=useState("");
+  const endRef=useRef(null);
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+
+  const perLead = PER_LEAD[client.niche];
+  const health  = calcHealth(client);
+  const onTarget= client.cpl>0 && client.cpl<=(perLead||75);
+  const daysLeft= daysUntil(client.contractEnd);
+  const botsComplete = Object.values(client.botStatuses||{}).filter(s=>s==="done").length;
+  const botsTotal    = Object.values(client.botStatuses||{}).length;
+
+  const SYS=`You are generating a client performance report for Bryson Weiser at BoldLine Media. Write in professional plain English Bryson can read aloud on a client call. Never mention AI or bots.
+
+CLIENT DATA:
+Business: ${client.name}
+Niche: ${client.niche}
+Package: ${pkg?.name} on ${pkg?.platform}
+Campaign Stage: ${client.stage}
+Health Score: ${health.toFixed(1)}/10
+Leads Generated: ${client.leads}
+Average CPL: ${client.cpl>0?"$"+client.cpl:"Not yet tracked"}
+Target CPL: ${perLead?"$"+perLead+" (per-lead rate)":"—"}
+CPL Status: ${client.leads>0?(onTarget?"On target":"Above target — needs optimization"):"No leads yet"}
+Ad Budget: ${client.adBudget||"Not set"}
+Contract: ${client.contractStart} → ${client.contractEnd} (${daysLeft>0?daysLeft+"d remaining":"expired"})
+Intake Complete: ${client.intakeComplete?"Yes":"No"}
+Pipeline Progress: ${botsComplete}/${botsTotal} steps complete
+Internal Notes: ${client.notes||"None"}
+
+REPORT STRUCTURE:
+1. Campaign Summary (2-3 sentences on current status)
+2. Performance This Period (leads, CPL vs target, what's working)
+3. What We Did (key actions taken this period)
+4. What's Next (next 30 days plan)
+5. One recommendation for the client
+
+Keep it concise. Bryson will read this on a call — it should sound natural, not like a dashboard export.`;
+
+  const generateReport = () => {
+    reset();
+    setGen(true);
+    send(`Generate the ${pkg?.optimizationFreq==="weekly"?"weekly":"monthly"} performance report for ${client.name}. Use all the client data provided. Make it sound like a confident account manager giving an update.`, SYS);
+  };
+
+  return (
+    <div style={S.col11}>
+      {/* Live data snapshot */}
+      <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`}}>
+        <Label>Data Used in This Report</Label>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          {[
+            {l:"Leads",     v:client.leads||0,           color:C.text},
+            {l:"CPL",       v:client.cpl?`$${client.cpl}`:"—", color:onTarget?C.green:client.cpl>0?C.amber:C.textMuted},
+            {l:"Health",    v:`${health.toFixed(1)}/10`,  color:healthColor(health)},
+            {l:"Stage",     v:stageInfo(client.stage).label, color:stageInfo(client.stage).color},
+            {l:"Pipeline",  v:`${botsComplete}/${botsTotal}`, color:C.textDim},
+            {l:"Days Left", v:daysLeft>0?`${daysLeft}d`:"Expired", color:daysLeft<=7?C.red:daysLeft<=30?C.amber:C.textDim},
+          ].map(({l,v,color})=>(
+            <div key={l} style={{padding:"6px 8px",borderRadius:7,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border2}`}}>
+              <div style={{fontSize:8,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:2}}>{l}</div>
+              <div style={{fontSize:12,fontWeight:700,color}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        {client.notes&&<div style={{marginTop:8,fontSize:10,color:C.textMuted,lineHeight:1.5,fontStyle:"italic"}}>Notes: {client.notes.slice(0,100)}{client.notes.length>100?"…":""}</div>}
+      </Card>
+      {/* Generate button */}
+      <div style={S.row8}>
+        <button onClick={generateReport} disabled={loading} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:loading?"rgba(255,255,255,.05)":"#1D4ED8",color:loading?C.textMuted:"#fff",cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"Generating…":gen?(pkg?.optimizationFreq==="weekly"?"Regenerate Weekly":"Regenerate Monthly"):(pkg?.optimizationFreq==="weekly"?"Generate Weekly Report":"Generate Monthly Report")}
+        </button>
+        {gen&&!loading&&<button onClick={()=>navigator.clipboard.writeText(messages.filter(m=>m.role==="assistant").map(m=>m.content).join("
+
+"))} style={{padding:"11px 14px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy</button>}
+      </div>
+      {/* Report output */}
+      <Card style={{minHeight:100}}>
+        {messages.length===0&&(
+          <div style={{color:C.textMuted,fontSize:12,textAlign:"center",padding:"28px 16px",lineHeight:1.7}}>
+            Tap Generate to create a client-ready {pkg?.optimizationFreq==="weekly"?"weekly":"monthly"} report for {client.name}.<br/>
+            <span style={{fontSize:10,opacity:.7}}>Uses live lead count, CPL, health score, stage, and pipeline progress.</span>
+          </div>
+        )}
+        {messages.map((m,i)=><Bubble key={i} msg={m}/>)}
+        {loading&&<Typing/>}
+        <div ref={endRef}/>
+      </Card>
+      {/* Ask */}
+      <Card>
+        <Label>Ask About {client.name}</Label>
+        <ChatBar value={input} onChange={setInput} onSend={()=>{if(input.trim()){send(input.trim(),SYS);setInput("");}}} disabled={loading} placeholder={`Ask about ${client.name}'s performance, next steps, or talking points…`}/>
+      </Card>
+    </div>
+  );
+}
+
+// ─── LOG TAB ─────────────────────────────────────────────────────────────────
+function LogTabContent({client,onUpdate}) {
+  const CATS = [
+    {id:"call",    label:"Call",     color:"#22D3A0", icon:"📞"},
+    {id:"email",   label:"Email",    color:"#4F8EF7", icon:"✉"},
+    {id:"meeting", label:"Meeting",  color:"#8B5CF6", icon:"🤝"},
+    {id:"update",  label:"Update",   color:"#C8A84B", icon:"📝"},
+    {id:"note",    label:"Note",     color:"#6B7280", icon:"💬"},
+  ];
+  const [note,setNote]       = useState("");
+  const [cat,setCat]         = useState("call");
+  const [saved,setSaved]     = useState(false);
+  const [filterCat,setFilter]= useState("all");
+  const [delIdx,setDelIdx]   = useState(null);
+
+  const add = () => {
+    if (!note.trim()) return;
+    const entry = {date:fmt(new Date()), note:note.trim(), cat, ts:Date.now()};
+    onUpdate({...client, commLog:[entry,...(client.commLog||[])]});
+    setNote(""); setSaved(true);
+    setTimeout(()=>setSaved(false), 2000);
+  };
+
+  const deleteEntry = (idx) => {
+    const updated = (client.commLog||[]).filter((_,i)=>i!==idx);
+    onUpdate({...client, commLog:updated});
+    setDelIdx(null);
+  };
+
+  const log = client.commLog||[];
+  const filtered = filterCat==="all" ? log : log.filter(e=>e.cat===filterCat);
+  const catInfo = (id) => CATS.find(c=>c.id===id)||CATS[4];
+
+  return (
+    <div style={S.col11}>
+      {/* Add entry card */}
+      <Card>
+        <Label>Log an Entry</Label>
+        {/* Category selector */}
+        <div style={{display:"flex",gap:5,marginBottom:10,flexWrap:"wrap"}}>
+          {CATS.map(c=>(
+            <button key={c.id} onClick={()=>setCat(c.id)} style={{
+              display:"flex",alignItems:"center",gap:5,
+              padding:"5px 10px",fontSize:11,fontWeight:700,borderRadius:20,
+              border:`1px solid ${cat===c.id?c.color+"66":C.border}`,
+              backgroundColor:cat===c.id?c.color+"15":"rgba(255,255,255,0.02)",
+              color:cat===c.id?c.color:C.textMuted,cursor:"pointer"
+            }}>
+              <span style={{fontSize:12}}>{c.icon}</span>{c.label}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={note}
+          onChange={e=>setNote(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter"&&e.metaKey) add(); }}
+          rows={3}
+          placeholder={
+            cat==="call"    ?"What was discussed, any action items, client sentiment…":
+            cat==="email"   ?"Summary of email sent or received…":
+            cat==="meeting" ?"Meeting notes, decisions made, follow-ups…":
+            cat==="update"  ?"Campaign update, milestone reached, change made…":
+                             "General note about this client…"
+          }
+          style={{...inp,resize:"none",lineHeight:1.6,marginBottom:8}}
+        />
+        <button onClick={add} disabled={!note.trim()} style={{
+          width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",
+          backgroundColor:saved?"rgba(34,211,160,0.15)":note.trim()?"#1D4ED8":"rgba(255,255,255,0.04)",
+          color:saved?C.green:note.trim()?"#fff":C.textMuted,
+          cursor:note.trim()?"pointer":"not-allowed",transition:"all .2s",
+          border:saved?`1px solid ${C.green}33`:"none"
+        }}>
+          {saved?`✓ ${catInfo(cat).label} logged`:`Log ${catInfo(cat).label}`}
+        </button>
+        <div style={{marginTop:6,fontSize:9,color:C.textMuted,textAlign:"right"}}>⌘ + Enter to save quickly</div>
+      </Card>
+
+      {/* History */}
+      <Card>
+        {/* Header with filter */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <Label>History ({log.length})</Label>
+          {log.length>0&&(
+            <div style={{display:"flex",gap:4,overflowX:"auto"}}>
+              <button onClick={()=>setFilter("all")} style={{padding:"2px 8px",fontSize:9,fontWeight:700,borderRadius:20,border:`1px solid ${filterCat==="all"?C.gold:C.border}`,backgroundColor:filterCat==="all"?C.goldDim:"transparent",color:filterCat==="all"?C.gold:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>All</button>
+              {CATS.filter(c=>log.some(e=>e.cat===c.id)).map(c=>(
+                <button key={c.id} onClick={()=>setFilter(filterCat===c.id?"all":c.id)} style={{padding:"2px 8px",fontSize:9,fontWeight:700,borderRadius:20,border:`1px solid ${filterCat===c.id?c.color+"66":C.border}`,backgroundColor:filterCat===c.id?c.color+"15":"transparent",color:filterCat===c.id?c.color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>{c.icon} {c.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Empty state */}
+        {log.length===0&&(
+          <div style={{textAlign:"center",padding:"24px 0",color:C.textMuted}}>
+            <div style={{fontSize:24,marginBottom:8}}>📋</div>
+            <div style={{fontSize:12,color:C.textDim,marginBottom:4}}>No entries yet</div>
+            <div style={{fontSize:11,lineHeight:1.6}}>Log calls, emails, and meetings above to keep a complete history of every interaction with {client.name}.</div>
+          </div>
+        )}
+
+        {/* Filtered empty */}
+        {log.length>0&&filtered.length===0&&(
+          <div style={{textAlign:"center",padding:"16px 0",color:C.textMuted,fontSize:12}}>
+            No {catInfo(filterCat).label.toLowerCase()} entries yet.
+            <button onClick={()=>setFilter("all")} style={{background:"none",border:"none",color:C.gold,cursor:"pointer",fontSize:12,fontWeight:700,marginLeft:5}}>Show all</button>
+          </div>
+        )}
+
+        {/* Entries */}
+        {filtered.map((e,i)=>{
+          const ci = catInfo(e.cat);
+          const isDeleting = delIdx===i;
+          return (
+            <div key={e.ts||i} style={{
+              padding:"10px 0",
+              borderBottom:i<filtered.length-1?`1px solid ${C.border2}`:"none",
+            }}>
+              {/* Entry header */}
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}>
+                <span style={{
+                  width:22,height:22,borderRadius:6,flexShrink:0,
+                  backgroundColor:ci.color+"15",border:`1px solid ${ci.color+"33"}`,
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:11
+                }}>{ci.icon}</span>
+                <span style={{fontSize:10,fontWeight:700,color:ci.color}}>{ci.label}</span>
+                <span style={{fontSize:10,color:C.textMuted,marginLeft:"auto"}}>{e.date}</span>
+                {!isDeleting&&(
+                  <button onClick={()=>setDelIdx(i)} style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:13,lineHeight:1,padding:"0 2px",opacity:.5}}>×</button>
+                )}
+              </div>
+              {/* Note text */}
+              <div style={{fontSize:12,color:C.textDim,lineHeight:1.65,paddingLeft:29}}>
+                {e.note}
+              </div>
+              {/* Delete confirm */}
+              {isDeleting&&(
+                <div style={{marginTop:8,paddingLeft:29,display:"flex",alignItems:"center",gap:7}}>
+                  <span style={{fontSize:11,color:C.textMuted}}>Delete this entry?</span>
+                  <button onClick={()=>deleteEntry(i)} style={{padding:"3px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer"}}>Delete</button>
+                  <button onClick={()=>setDelIdx(null)} style={{padding:"3px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </Card>
+    </div>
+  );
+}
+
+// ─── ARIA ─────────────────────────────────────────────────────────────────────
+function ARIAPanel({clients,onClose}) {
+  const [ariaTab,setAriaTab]=useState("chat");
+  const {messages,loading,send,reset}=useAI("");
+  const [input,setInput]=useState("");const [repGen,setRepGen]=useState(false);
+  const endRef=useRef(null);
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  const MRR=clients.reduce((s,c)=>s+(findPkg(c.packageId)?.price||0),0);
+  const upgradeRequests=clients.filter(c=>c.upgradeRequest);
+  const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
+STATE: ${clients.length} clients | ${clients.filter(c=>c.stage==="active").length} active | MRR $${MRR.toLocaleString()} | ${clients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
+CLIENTS:
+${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${p?.name}(${p?.platform}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("
+")}
+Be direct, opinionated. Flag problems Bryson hasn't noticed.`;
+  const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
+  const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYSTEM); setInput(""); };
+  return (
+    <Sheet onClose={onClose} zIndex={80} height="96vh" accentBorder={`${C.purple}44`}>
+      <div style={{padding:"13px 14px 11px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
+          <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.purple},#1D4ED8)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>✦</div>
+          <div style={{flex:1}}><div style={{fontSize:15,fontWeight:700,color:C.text}}>ARIA</div><div style={{fontSize:11,color:C.textMuted}}>Agency-wide AI · {clients.length} clients · ${MRR.toLocaleString()}/mo MRR</div></div>
+          <CloseBtn onClick={onClose}/>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          <button onClick={()=>setAriaTab("chat")} style={{padding:"5px 11px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${ariaTab==="chat"?`${C.purple}44`:C.border}`,backgroundColor:ariaTab==="chat"?`${C.purple}15`:"rgba(255,255,255,.03)",color:ariaTab==="chat"?C.purple:C.textMuted,cursor:"pointer"}}>Chat</button>
+          <button onClick={buildReport} style={{padding:"5px 11px",fontSize:11,fontWeight:600,borderRadius:8,border:"none",backgroundColor:repGen?"rgba(16,185,129,.15)":"#1D4ED8",color:repGen?"#34D399":"#fff",cursor:"pointer"}}>{loading&&repGen?"Generating…":repGen?"Regenerate":"Weekly Report"}</button>
+          <button onClick={()=>setAriaTab("builder")} style={{padding:"5px 11px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${ariaTab==="builder"?`${C.purple}44`:C.border}`,backgroundColor:ariaTab==="builder"?`${C.purple}15`:"rgba(255,255,255,.03)",color:ariaTab==="builder"?C.purple:C.textMuted,cursor:"pointer"}}>System Builder</button>
+          <button onClick={()=>setAriaTab("deploy")} style={{padding:"5px 11px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${ariaTab==="deploy"?"rgba(245,158,11,0.4)":C.border}`,backgroundColor:ariaTab==="deploy"?"rgba(245,158,11,0.1)":"rgba(255,255,255,.03)",color:ariaTab==="deploy"?C.amber:C.textMuted,cursor:"pointer"}}>Deployment ⚡</button>
+        </div>
+      </div>
+      {ariaTab==="chat"&&(
+        <><div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+          {messages.length===0&&<div style={{color:C.textMuted,fontSize:13,lineHeight:1.8,padding:"8px 0"}}>
+            <div style={{fontWeight:700,color:C.textDim,marginBottom:11}}>ARIA has full visibility into your entire agency.</div>
+            {["Ask about any client's performance or status","Get a weekly system report","Request optimization suggestions for any area","Describe something to build — ARIA will design it","Ask ARIA to flag anything that looks off"].map((t,i)=>(
+              <div key={i} style={{display:"flex",gap:10,marginBottom:8}}><span style={{color:C.purple,fontWeight:700,flexShrink:0}}>→</span><span>{t}</span></div>
+            ))}
+          </div>}
+          {messages.map((m,i)=><Bubble key={i} msg={m}/>)}
+          {loading&&<Typing/>}
+          <div ref={endRef}/>
+        </div>
+        <ChatBar value={input} onChange={setInput} onSend={handleSend} disabled={loading} placeholder="Ask ARIA anything about your agency…"/></>
+      )}
+      {ariaTab==="builder"&&<ARIABuilderTab ariaSystem={SYSTEM}/>}
+      {ariaTab==="deploy"&&<ARIADeployTab/>}
+    </Sheet>
+  );
+}
+
+// ─── ARIA DEPLOYMENT STATUS TAB ───────────────────────────────────────────────
+function ARIADeployTab() {
+  const items = [
+    {name:"ARIA Chat + Reports",icon:"✦",live:true,note:"Fully working now via Claude API."},
+    {name:"Bot Pipeline (20 bots)",icon:"🤖",live:true,note:"All bots working now. Client-aware logs active."},
+    {name:"Weekly Report Email",icon:"📊",live:false,note:"Manual generation works now. Auto Monday 8am email needs Railway ($5/mo) + Resend (free)."},
+    {name:"SMS Report Notification",icon:"📱",live:false,note:"Needs Twilio (~$0.01/text). Texts you when report is sent."},
+    {name:"DocuSign Contracts",icon:"✍️",live:false,note:"PDF download works now. E-signature needs your DocuSign Integration Key."},
+    {name:"Client Portal (hosted)",icon:"🔗",live:false,note:"Portal preview works inside OS. Live URL needs Railway + Supabase (free tier)."},
+    {name:"Data Persistence",icon:"💾",live:false,note:"Data resets on refresh. Needs Supabase (free) to save across sessions and devices."},
+  ];
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:14}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+        <div style={{padding:"12px",borderRadius:11,backgroundColor:"rgba(34,211,160,0.08)",border:"1px solid rgba(34,211,160,0.2)",textAlign:"center"}}>
+          <div style={{fontSize:22,fontWeight:800,color:C.green,lineHeight:1,marginBottom:3}}>{items.filter(i=>i.live).length}</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.green}}>Live Now</div>
+        </div>
+        <div style={{padding:"12px",borderRadius:11,backgroundColor:"rgba(245,158,11,0.08)",border:"1px solid rgba(245,158,11,0.2)",textAlign:"center"}}>
+          <div style={{fontSize:22,fontWeight:800,color:C.amber,lineHeight:1,marginBottom:3}}>{items.filter(i=>!i.live).length}</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.amber}}>Needs Deployment</div>
+        </div>
+      </div>
+      <div style={{padding:"10px 13px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.06)",border:`1px solid ${C.borderAccent}`,marginBottom:14,fontSize:11,color:C.textDim,lineHeight:1.65}}>
+        <strong style={{color:C.gold}}>Total cost when fully deployed:</strong> ~$5–8/mo<br/>
+        <span style={{color:C.textMuted}}>Railway $5/mo · Twilio ~$0.01/text · Resend free · Supabase free</span>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {items.map((item,i)=>(
+          <div key={i} style={{backgroundColor:C.bg3,border:`1px solid ${item.live?"rgba(34,211,160,0.15)":"rgba(245,158,11,0.15)"}`,borderRadius:11,padding:"12px 13px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:6}}>
+              <span style={{fontSize:18,flexShrink:0}}>{item.icon}</span>
+              <span style={{fontSize:13,fontWeight:700,color:C.text,flex:1}}>{item.name}</span>
+              <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,backgroundColor:item.live?"rgba(34,211,160,0.12)":"rgba(245,158,11,0.12)",border:`1px solid ${item.live?"rgba(34,211,160,0.3)":"rgba(245,158,11,0.3)"}`,color:item.live?C.green:C.amber,whiteSpace:"nowrap"}}>{item.live?"Live ✓":"Needs Setup"}</span>
+            </div>
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,paddingLeft:27}}>{item.note}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{marginTop:10,padding:"11px 13px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,fontSize:11,color:C.textMuted,lineHeight:1.7}}>
+        <strong style={{color:C.textDim}}>Setup order:</strong> Supabase → Railway → Resend → Twilio → DocuSign. Each step takes 15–30 min.
+      </div>
+    </div>
+  );
+}
+
+function ARIABuilderTab({ariaSystem}) {
+  const {messages,loading,send}=useAI("");const [input,setInput]=useState("");
+  const endRef=useRef(null);
+  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  const SYS=ariaSystem+"\n\nSYSTEM BUILDER MODE: Assess ideas honestly, flag overlaps, push back if needed, think about downstream effects.";
+  const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYS); setInput(""); };
+  return (
+    <><div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+      {messages.length===0&&<div style={{display:"flex",flexDirection:"column",gap:7}}>
+        <div style={{fontSize:13,color:C.textDim,lineHeight:1.7,marginBottom:7}}>Describe anything you want to add, change, or build. ARIA will push back if needed and help design it.</div>
+        {["What gaps do you see in the system?","Design a lead quality scoring system","What automation saves the most time?","How to handle client re-engagement after expiry?"].map((s,i)=>(
+          <button key={i} onClick={()=>send(s,SYS)} style={{padding:"10px 12px",fontSize:12,textAlign:"left",borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",color:C.textMuted,cursor:"pointer",lineHeight:1.5}}>{s}</button>
+        ))}
+      </div>}
+      {messages.map((m,i)=><Bubble key={i} msg={m}/>)}
+      {loading&&<Typing/>}
+      <div ref={endRef}/>
+    </div>
+    <ChatBar value={input} onChange={setInput} onSend={handleSend} disabled={loading} placeholder="Describe what you want to build or improve…"/></>
+  );
+}
+
+
+// ─── EDIT CLIENT SHEET ────────────────────────────────────────────────────────
+function EditClientSheet({client,onSave,onClose}) {
+  const [section,setSection] = useState("info"); // info | campaign | status | bots | notes
+  const [form,setForm] = useState({...client});
+  const [saved,setSaved] = useState(false);
+  const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  const togglePlat = (p) => setForm(prev=>({...prev,platforms:prev.platforms.includes(p)?prev.platforms.filter(x=>x!==p):[...prev.platforms,p]}));
+
+  const handleSave = () => {
+    onSave(form);
+    setSaved(true);
+    setTimeout(()=>{ setSaved(false); onClose(); },1000);
+  };
+
+  const pkg = findPkg(form.packageId);
+  const BOT_STATUS_OPTIONS = ["waiting","active","done","needs_input"];
+  const bots = buildBots(pkg);
+
+  const SECTIONS = [
+    { id:"info",     label:"Client Info" },
+    { id:"campaign", label:"Campaign" },
+    { id:"status",   label:"Status" },
+    { id:"bots",     label:"Pipeline" },
+    { id:"notes",    label:"Notes" },
+  ];
+
+  const fieldStyle = { marginBottom:12 };
+  const fieldLabelStyle = { fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4,display:"block" };
+
+  const [resetConfirm,setResetConfirm] = useState(false);
+  const [doneConfirm,setDoneConfirm]   = useState(false);
+  const statusDot = { waiting:"#374151", active:C.green, done:"#4B5563", needs_input:C.blue };
+  const statusLabel = { waiting:"Waiting", active:"Running", done:"Complete", needs_input:"Needs You" };
+
+  return (
+    <Sheet onClose={onClose} zIndex={90} height="96vh">
+      {/* Header */}
+      <div style={{padding:"13px 14px 11px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+          <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.gold}44,${C.gold}15)`,border:`1px solid ${C.gold}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:C.gold,flexShrink:0}}>
+            {client.name[0]}
+          </div>
+          <div style={S.f1min}>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Edit Client</div>
+            <div style={{fontSize:11,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client.name}</div>
+          </div>
+          <CloseBtn onClick={onClose}/>
+        </div>
+        {/* Section nav */}
+        <div style={{display:"flex",gap:2,backgroundColor:"rgba(255,255,255,0.04)",borderRadius:9,padding:3}}>
+          {SECTIONS.map(s=>(
+            <button key={s.id} onClick={()=>setSection(s.id)} style={{
+              flex:1,padding:"5px 0",fontSize:9,fontWeight:700,borderRadius:7,border:"none",
+              cursor:"pointer",textTransform:"uppercase",letterSpacing:".04em",
+              backgroundColor:section===s.id?`${C.gold}22`:"transparent",
+              color:section===s.id?C.gold:C.textMuted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
+            }}>{s.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Section content */}
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 20px",display:"flex",flexDirection:"column",gap:12}}>
+
+        {/* ── CLIENT INFO ── */}
+        {section==="info"&&(
+          <>
+            <Card>
+              <Label>Business Details</Label>
+              {[
+                {k:"name",l:"Business Name *",t:"text",ph:"e.g. Apex Roofing LLC"},
+                {k:"contactName",l:"Contact Name",t:"text",ph:"First and last name"},
+                {k:"email",l:"Email Address (portal login)",t:"email",ph:"owner@business.com"},
+                {k:"businessAddress",l:"Business Address",t:"text",ph:"123 Main St, City, State ZIP"},
+              ].map(({k,l,t,ph})=>(
+                <div key={k} style={fieldStyle}>
+                  <label style={fieldLabelStyle}>{l}</label>
+                  <input type={t} value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/>
+                </div>
+              ))}
+              <div style={fieldStyle}>
+                <label style={fieldLabelStyle}>Niche</label>
+                <select value={form.niche||""} onChange={e=>set("niche",e.target.value)} style={inp}>
+                  <option value="">Select niche…</option>
+                  {NICHES.map(n=><option key={n} value={n} style={{backgroundColor:C.bg2}}>{n}</option>)}
+                </select>
+              </div>
+            </Card>
+            <Card>
+              <Label>Platforms Running</Label>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {PLATFORMS.map(p=>(
+                  <button key={p} onClick={()=>togglePlat(p)} style={{
+                    padding:"6px 12px",fontSize:11,fontWeight:600,borderRadius:8,
+                    border:`1px solid ${form.platforms?.includes(p)?"rgba(79,142,247,.4)":C.border}`,
+                    backgroundColor:form.platforms?.includes(p)?"rgba(79,142,247,.12)":"rgba(255,255,255,.03)",
+                    color:form.platforms?.includes(p)?C.blue:C.textMuted,cursor:"pointer"
+                  }}>{p}</button>
+                ))}
+              </div>
+            </Card>
+          </>
+        )}
+
+        {/* ── CAMPAIGN ── */}
+        {section==="campaign"&&(
+          <>
+            <Card>
+              <Label>Campaign Numbers</Label>
+              {[
+                {k:"leads",   l:"Total Leads Generated", t:"number", ph:"0"},
+                {k:"cpl",     l:"Average CPL ($)",        t:"number", ph:"0"},
+                {k:"adBudget",l:"Monthly Ad Budget",      t:"text",   ph:"e.g. $2,500/mo"},
+              ].map(({k,l,t,ph})=>(
+                <div key={k} style={fieldStyle}>
+                  <label style={fieldLabelStyle}>{l}</label>
+                  <input type={t} value={form[k]||""} onChange={e=>set(k,t==="number"?Number(e.target.value):e.target.value)} placeholder={ph} style={inp}/>
+                </div>
+              ))}
+            </Card>
+            <Card>
+              <Label>Health Score (1–10)</Label>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6}}>
+                <input
+                  type="range" min="1" max="10" step="0.1"
+                  value={form.healthScore||5}
+                  onChange={e=>set("healthScore",parseFloat(e.target.value))}
+                  style={{flex:1,accentColor:C.gold}}
+                />
+                <div style={{fontSize:20,fontWeight:800,color:healthColor(form.healthScore||5),width:36,textAlign:"center",flexShrink:0}}>
+                  {(form.healthScore||5).toFixed(1)}
+                </div>
+              </div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6}}>
+                {(form.healthScore||5)>=8?"🟢 Healthy":(form.healthScore||5)>=6?"🟡 Moderate":"🔴 At Risk"}
+                {" — "}Auto-calculated score: <strong style={{color:healthColor(calcHealth(form))}}>{calcHealth(form).toFixed(1)}/10</strong>. Slider lets you override manually.
+              </div>
+            </Card>
+          </>
+        )}
+
+        {/* ── STATUS ── */}
+        {section==="status"&&(
+          <>
+            <Card>
+              <Label>Campaign Stage</Label>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {STAGES.map(s=>(
+                  <button key={s.id} onClick={()=>set("stage",s.id)} style={{
+                    padding:"10px 13px",borderRadius:10,textAlign:"left",
+                    border:`1px solid ${form.stage===s.id?s.color+"66":C.border}`,
+                    backgroundColor:form.stage===s.id?s.color+"12":"rgba(255,255,255,.02)",
+                    cursor:"pointer",display:"flex",alignItems:"center",gap:10
+                  }}>
+                    <span style={{width:8,height:8,borderRadius:"50%",backgroundColor:form.stage===s.id?s.color:"#374151",display:"inline-block",flexShrink:0,boxShadow:form.stage===s.id?`0 0 6px ${s.color}`:"none"}}/>
+                    <span style={{fontSize:13,fontWeight:600,color:form.stage===s.id?C.text:C.textMuted}}>{s.label}</span>
+                    {form.stage===s.id&&<span style={{marginLeft:"auto",fontSize:10,color:s.color,fontWeight:700}}>Current</span>}
+                  </button>
+                ))}
+              </div>
+            </Card>
+            <Card>
+              <Label>Contract and Intake</Label>
+              {[
+                {k:"contractSigned",  l:"Contract Signed",       type:"toggle"},
+                {k:"intakeComplete",  l:"Intake Form Complete",   type:"toggle"},
+              ].map(({k,l,type})=>(
+                <div key={k} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 0",borderBottom:`1px solid ${C.border2}`}}>
+                  <span style={{fontSize:13,color:C.textDim}}>{l}</span>
+                  <button onClick={()=>set(k,!form[k])} style={{
+                    width:44,height:24,borderRadius:12,border:"none",cursor:"pointer",
+                    backgroundColor:form[k]?C.green:"rgba(255,255,255,0.08)",
+                    transition:"background .2s",position:"relative",flexShrink:0
+                  }}>
+                    <span style={{
+                      position:"absolute",top:3,left:form[k]?22:3,
+                      width:18,height:18,borderRadius:"50%",
+                      backgroundColor:"#fff",transition:"left .2s",
+                      boxShadow:"0 1px 3px rgba(0,0,0,0.4)"
+                    }}/>
+                  </button>
+                </div>
+              ))}
+              <div style={{marginTop:10}}>
+                <label style={fieldLabelStyle}>Contract Status</label>
+                <select value={form.contractStatus||"pending"} onChange={e=>set("contractStatus",e.target.value)} style={inp}>
+                  <option value="pending" style={{backgroundColor:C.bg2}}>Pending Signature</option>
+                  <option value="active" style={{backgroundColor:C.bg2}}>Signed and Active</option>
+                  <option value="expired" style={{backgroundColor:C.bg2}}>Expired</option>
+                </select>
+              </div>
+              <div style={{marginTop:10}}>
+                <label style={fieldLabelStyle}>Contract Start Date</label>
+                <input value={form.contractStart||""} onChange={e=>set("contractStart",e.target.value)} placeholder="e.g. Jun 11, 2025" style={inp}/>
+              </div>
+              <div style={{marginTop:10}}>
+                <label style={fieldLabelStyle}>Contract End Date</label>
+                <input value={form.contractEnd||""} onChange={e=>set("contractEnd",e.target.value)} placeholder="e.g. Sep 11, 2025" style={inp}/>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {/* ── BOT PIPELINE STATUS ── */}
+        {section==="bots"&&(
+          <Card>
+            <Label>Bot Pipeline Status</Label>
+            <div style={{fontSize:11,color:C.textMuted,marginBottom:12,lineHeight:1.6}}>
+              Tap the status badge on any bot to cycle through: Waiting → Running → Complete → Needs You.
+            </div>
+            {bots.map(bot=>{
+              const current = form.botStatuses?.[bot.id]||"waiting";
+              const nextStatus = { waiting:"active", active:"done", done:"needs_input", needs_input:"waiting" };
+              const cycle = () => set("botStatuses",{...form.botStatuses,[bot.id]:nextStatus[current]});
+              const dot = statusDot[current]||"#374151";
+              const pulse = current==="active"||current==="needs_input";
+              return (
+                <div key={bot.id} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 0",borderBottom:`1px solid ${C.border2}`}}>
+                  <span style={{fontSize:10,fontFamily:"monospace",color:C.textMuted,width:16,flexShrink:0}}>{String(bot.step).padStart(2,"0")}</span>
+                  <span style={{fontSize:14,flexShrink:0}}>{bot.icon}</span>
+                  <span style={{fontSize:12,fontWeight:600,color:C.textDim,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</span>
+                  <button onClick={cycle} style={{
+                    display:"flex",alignItems:"center",gap:5,padding:"4px 9px",
+                    borderRadius:20,border:`1px solid ${dot}44`,
+                    backgroundColor:dot+"12",cursor:"pointer",flexShrink:0
+                  }}>
+                    <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:dot,display:"inline-block",boxShadow:pulse?`0 0 5px ${dot}`:"none"}}/>
+                    <span style={{fontSize:10,fontWeight:700,color:dot}}>{statusLabel[current]}</span>
+                  </button>
+                </div>
+              );
+            })}
+            {/* Batch actions */}
+            <div style={{marginTop:14}}>
+              {resetConfirm?(
+                <div style={{padding:"10px 12px",borderRadius:9,backgroundColor:"rgba(248,113,113,0.06)",border:`1px solid ${C.red}33`}}>
+                  <div style={{fontSize:11,color:C.textDim,marginBottom:7}}>Reset all bots to Waiting? Clears all current statuses.</div>
+                  <div style={{display:"flex",gap:7}}>
+                    <button onClick={()=>setResetConfirm(false)} style={{flex:1,padding:"6px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+                    <button onClick={()=>{ set("botStatuses",Object.fromEntries(bots.map(b=>[b.id,"waiting"]))); setResetConfirm(false); }} style={{flex:1,padding:"6px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer"}}>Yes, Reset All</button>
+                  </div>
+                </div>
+              ):doneConfirm?(
+                <div style={{padding:"10px 12px",borderRadius:9,backgroundColor:"rgba(34,211,160,0.06)",border:"1px solid rgba(34,211,160,0.25)"}}>
+                  <div style={{fontSize:11,color:C.textDim,marginBottom:7}}>Mark all bots Complete? Use when full campaign is live.</div>
+                  <div style={{display:"flex",gap:7}}>
+                    <button onClick={()=>setDoneConfirm(false)} style={{flex:1,padding:"6px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+                    <button onClick={()=>{ set("botStatuses",Object.fromEntries(bots.map(b=>[b.id,"done"]))); setDoneConfirm(false); }} style={{flex:1,padding:"6px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(34,211,160,0.15)",color:C.green,cursor:"pointer"}}>Yes, Mark All Done</button>
+                  </div>
+                </div>
+              ):(
+                <div style={{display:"flex",gap:7}}>
+                  <button onClick={()=>setResetConfirm(true)} style={{flex:1,padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)",color:C.textMuted,cursor:"pointer"}}>Reset All</button>
+                  <button onClick={()=>setDoneConfirm(true)} style={{flex:1,padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:"1px solid rgba(34,211,160,.3)",backgroundColor:"rgba(34,211,160,.06)",color:C.green,cursor:"pointer"}}>Mark All Done</button>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* ── NOTES ── */}
+        {section==="notes"&&(
+          <Card>
+            <Label>Internal Notes (not visible to client)</Label>
+            <textarea value={form.notes||""} onChange={e=>set("notes",e.target.value)} rows={5} placeholder="Context, special requests, communication preferences…" style={{...inp,resize:"vertical",lineHeight:1.7}}/>
+            <div style={{marginTop:8,fontSize:10,color:C.textMuted}}>Internal only — appears in Overview tab.</div>
+          </Card>
+        )}
+      </div>
+
+      {/* Save button */}
+      <div style={{padding:"11px 14px 24px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8}}>
+        <button onClick={onClose} style={{flex:1,padding:11,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+        <button onClick={handleSave} style={{
+          flex:2,padding:11,fontSize:13,fontWeight:700,borderRadius:10,border:"none",
+          backgroundColor:saved?"rgba(34,211,160,0.15)":C.gold,
+          color:saved?C.green:"#0a0800",cursor:"pointer",transition:"all .2s",
+          border:saved?`1px solid ${C.green}33`:"none"
+        }}>
+          {saved?"✓ Saved":"Save Changes"}
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
+// ─── ADD CLIENT ───────────────────────────────────────────────────────────────
+function AddClientSheet({onSave,onClose}) {
+  const [step,setStep]     = useState(1);
+  const [termMonths,setTermM] = useState(3);
+  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",contractStart:fmt(today),contractEnd:fmt(addMonths(today,3))});
+  const [pkgCat,setPkgCat] = useState("google");
+  const [saved,setSaved]   = useState(false);
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const togglePlat=(p)=>setForm(prev=>({...prev,platforms:prev.platforms.includes(p)?prev.platforms.filter(x=>x!==p):[...prev.platforms,p]}));
+  const selPkg=findPkg(form.packageId);
+  const canSave=form.name&&form.email&&form.packageId;
+
+  // Smart date helpers
+  const setStartDate = (val) => {
+    set("contractStart", val);
+    try { const s=new Date(val); if(!isNaN(s)) set("contractEnd", fmt(addMonths(s, termMonths))); } catch(e){}
+  };
+  const setTerm = (m) => {
+    setTermM(m);
+    try { const s=new Date(form.contractStart||today); if(!isNaN(s)) set("contractEnd", fmt(addMonths(s, m))); } catch(e){}
+  };
+  const startDate  = new Date(form.contractStart||today);
+  const endDate    = new Date(form.contractEnd||addMonths(today,3));
+  const termDays   = !isNaN(startDate)&&!isNaN(endDate) ? Math.round((endDate-startDate)/(864e5)) : 0;
+  const validDates = termDays >= 28;
+  const handleSave=()=>{
+    if(!canSave)return;
+    const pkg=findPkg(form.packageId);const bots=buildBots(pkg);
+    const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));botStatuses["intake"]="active";
+    onSave({...form,id:uid(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],upgradeRequest:null,botStatuses});
+    setSaved(true);setTimeout(()=>{ setSaved(false);onClose(); },1200);
+  };
+  return (
+    <Sheet onClose={onClose} zIndex={90} height="96vh">
+      <div style={{padding:"13px 14px 11px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:9}}>
+          <div style={{flex:1}}><div style={{fontSize:15,fontWeight:700,color:C.text}}>Add New Client</div><div style={{fontSize:11,color:C.textMuted}}>Step {step} of 2 — {step===1?"Client info and package":"Contract dates and platforms"}</div></div>
+          <CloseBtn onClick={onClose}/>
+        </div>
+        <div style={{height:3,backgroundColor:"rgba(255,255,255,.06)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",backgroundColor:"#1D4ED8",width:step===1?"50%":"100%",transition:"width .3s",borderRadius:2}}/></div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"13px 14px",display:"flex",flexDirection:"column",gap:12}}>
+        {step===1&&<>
+          <Card>
+            <Label>Client Information</Label>
+            {[{k:"name",l:"Business Name *",t:"text",ph:"e.g. Apex Roofing LLC"},{k:"contactName",l:"Contact Name",t:"text",ph:"First and last name"},{k:"email",l:"Email Address * (portal login)",t:"email",ph:"owner@business.com"},{k:"businessAddress",l:"Business Address",t:"text",ph:"123 Main St, City, State ZIP"}].map(({k,l,t,ph})=>(
+              <div key={k} style={{marginBottom:11}}><div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>{l}</div><input type={t} value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/></div>
+            ))}
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>Niche</div>
+            <select value={form.niche} onChange={e=>set("niche",e.target.value)} style={inp}><option value="">Select niche…</option>{NICHES.map(n=><option key={n} value={n} style={{backgroundColor:C.bg2}}>{n}</option>)}</select>
+          </Card>
+          <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}33`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:10,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".07em"}}>Package</div><span style={{fontSize:9,padding:"2px 7px",borderRadius:20,backgroundColor:`${C.gold}18`,border:`1px solid ${C.gold}33`,color:C.gold,fontWeight:700}}>Only you can set this</span></div>
+            <div style={{display:"flex",gap:2,backgroundColor:"rgba(255,255,255,.04)",borderRadius:8,padding:3,marginBottom:10}}>{[["google","Google"],["meta","Meta"],["combined","Combined"],["ecom","E-Commerce"]].map(([key,label])=><button key={key} onClick={()=>setPkgCat(key)} style={{flex:1,padding:"4px 0",fontSize:10,fontWeight:700,borderRadius:6,border:"none",cursor:"pointer",backgroundColor:pkgCat===key?`${C.gold}33`:"transparent",color:pkgCat===key?C.gold:C.textMuted}}>{label}</button>)}</div>
+            {PACKAGES_DB[pkgCat].map(pkg=>(
+              <button key={pkg.id} onClick={()=>set("packageId",pkg.id)} style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1px solid ${form.packageId===pkg.id?C.gold:C.border}`,backgroundColor:form.packageId===pkg.id?`${C.gold}10`:"rgba(255,255,255,.02)",cursor:"pointer",textAlign:"left",marginBottom:5}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={S.f1min}>{pkg.tag&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",backgroundColor:C.gold,color:"#0a0800",borderRadius:3,marginRight:5}}>{pkg.tag}</span>}<span style={{fontSize:12,fontWeight:700,color:C.text}}>{pkg.name}</span><div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{pkg.platform}</div></div>
+                  <div style={{textAlign:"right",flexShrink:0}}><span style={{fontSize:14,fontWeight:800,color:C.gold}}>${pkg.price}</span><span style={{fontSize:10,color:C.textMuted}}>/mo</span></div>
+                </div>
+              </button>
+            ))}
+          </Card>
+          {selPkg&&<Card style={{backgroundColor:"rgba(16,185,129,.05)",borderColor:"rgba(16,185,129,.2)"}}>
+            <Label>Bot Pipeline for This Package</Label>
+            <div style={{fontSize:11,color:C.textDim,lineHeight:1.7,marginBottom:7}}>{buildBots(selPkg).length} bots created, scoped to {selPkg.name}. Cannot build beyond what's included.</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{buildBots(selPkg).slice(0,4).map(b=><span key={b.id} style={{fontSize:10,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.2)",color:"#34D399"}}>{b.name}</span>)}<span style={{fontSize:10,color:C.textMuted}}>+{Math.max(0,buildBots(selPkg).length-4)} more</span></div>
+          </Card>}
+        </>}
+        {step===2&&<>
+          {/* Contract Start */}
+          <Card>
+            <Label>Contract Start Date</Label>
+            <div style={{display:"flex",gap:6,marginBottom:9,flexWrap:"wrap"}}>
+              {[{l:"Today",v:fmt(today)},{l:"Next Mon",v:fmt(addDays(today,(8-today.getDay())%7||7))},{l:"1st Next Month",v:fmt(new Date(today.getFullYear(),today.getMonth()+1,1))}].map(({l,v})=>(
+                <button key={l} onClick={()=>setStartDate(v)} style={{padding:"5px 10px",fontSize:10,fontWeight:700,borderRadius:20,border:`1px solid ${form.contractStart===v?C.gold:C.border}`,backgroundColor:form.contractStart===v?C.goldDim:"transparent",color:form.contractStart===v?C.gold:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>{l}</button>
+              ))}
+            </div>
+            <input value={form.contractStart||""} onChange={e=>setStartDate(e.target.value)} placeholder="e.g. Jun 11, 2025" style={inp}/>
+          </Card>
+          {/* Contract Term */}
+          <Card>
+            <Label>Contract Length</Label>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:10}}>
+              {[{m:1,l:"1 Mo",sub:"Month-to-month"},{m:3,l:"3 Mo",sub:"Standard"},{m:6,l:"6 Mo",sub:"Best value"},{m:12,l:"1 Year",sub:"Premium"}].map(({m,l,sub})=>(
+                <button key={m} onClick={()=>setTerm(m)} style={{padding:"9px 4px",borderRadius:10,textAlign:"center",border:`2px solid ${termMonths===m?C.gold:C.border}`,backgroundColor:termMonths===m?C.goldDim:"rgba(255,255,255,0.02)",cursor:"pointer"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:termMonths===m?C.gold:C.textDim}}>{l}</div>
+                  <div style={{fontSize:9,color:C.textMuted,marginTop:2}}>{sub}</div>
+                </button>
+              ))}
+            </div>
+            <div style={{padding:"10px 12px",borderRadius:9,backgroundColor:validDates?"rgba(34,211,160,0.06)":"rgba(248,113,113,0.06)",border:`1px solid ${validDates?"rgba(34,211,160,0.2)":"rgba(248,113,113,0.2)"}`,marginBottom:8}}>
+              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:validDates?C.green:C.red,marginBottom:3}}>{validDates?"Contract End Date":"⚠ End date before start date"}</div>
+              <div style={{fontSize:15,fontWeight:700,color:validDates?C.text:C.red}}>{form.contractEnd||"—"}</div>
+              {validDates&&<div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{termDays} days · {monthsLabel(termMonths)}</div>}
+            </div>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>Override End Date</div>
+            <input value={form.contractEnd||""} onChange={e=>set("contractEnd",e.target.value)} placeholder="e.g. Sep 11, 2025" style={{...inp,fontSize:12}}/>
+          </Card>
+          {/* Ad Budget */}
+          <Card>
+            <Label>Monthly Ad Budget</Label>
+            <div style={{display:"flex",gap:6,marginBottom:9,flexWrap:"wrap"}}>
+              {["$500/mo","$1,000/mo","$1,500/mo","$2,500/mo","$5,000/mo"].map(v=>(
+                <button key={v} onClick={()=>set("adBudget",v)} style={{padding:"5px 10px",fontSize:10,fontWeight:700,borderRadius:20,border:`1px solid ${form.adBudget===v?C.gold:C.border}`,backgroundColor:form.adBudget===v?C.goldDim:"transparent",color:form.adBudget===v?C.gold:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>{v}</button>
+              ))}
+            </div>
+            <input value={form.adBudget||""} onChange={e=>set("adBudget",e.target.value)} placeholder="e.g. $2,500/mo" style={inp}/>
+          </Card>
+          {/* Platforms */}
+          <Card><Label>Platforms Running</Label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{PLATFORMS.map(p=><button key={p} onClick={()=>togglePlat(p)} style={{padding:"5px 11px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${form.platforms.includes(p)?"rgba(59,130,246,.4)":C.border}`,backgroundColor:form.platforms.includes(p)?"rgba(59,130,246,.12)":"rgba(255,255,255,.03)",color:form.platforms.includes(p)?"#60A5FA":C.textMuted,cursor:"pointer"}}>{p}</button>)}</div></Card>
+          {/* Notes */}
+          <div><div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>Internal Notes</div><textarea value={form.notes||""} onChange={e=>set("notes",e.target.value)} rows={3} placeholder="Context, special requests, things to watch for…" style={{...inp,resize:"vertical",lineHeight:1.6}}/></div>
+          {/* Summary */}
+          {selPkg&&<Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`}}>
+            <Label>Summary — Review Before Adding</Label>
+            <div style={{fontSize:12,color:C.textDim,lineHeight:2.1}}>
+              <div><strong style={{color:C.text}}>Client:</strong> {form.name}</div>
+              <div><strong style={{color:C.text}}>Niche:</strong> {form.niche||"—"}</div>
+              <div><strong style={{color:C.text}}>Package:</strong> {selPkg.name} — ${selPkg.price}/mo + ${selPkg.setup} setup</div>
+              <div><strong style={{color:C.text}}>Platform:</strong> {selPkg.platform}</div>
+              <div><strong style={{color:C.text}}>Contract:</strong> {form.contractStart||"—"} → {form.contractEnd||"—"} ({monthsLabel(termMonths)})</div>
+              {form.adBudget&&<div><strong style={{color:C.text}}>Ad Budget:</strong> {form.adBudget}</div>}
+              {form.niche&&PER_LEAD[form.niche]&&<div><strong style={{color:C.text}}>Per-lead fee:</strong> ${PER_LEAD[form.niche]}/lead</div>}
+            </div>
+          </Card>}
+        </>}
+      </div>
+      <div style={{padding:"11px 14px 24px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8}}>
+        {step===1?<>
+          <button onClick={onClose} style={{flex:1,padding:10,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+          <button onClick={()=>setStep(2)} disabled={!form.name||!form.email||!form.packageId} style={{flex:2,padding:10,fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:(!form.name||!form.email||!form.packageId)?"rgba(255,255,255,.05)":"#1D4ED8",color:(!form.name||!form.email||!form.packageId)?C.textMuted:"#fff",cursor:"pointer"}}>Next →</button>
+        </>:<>
+          <button onClick={()=>setStep(1)} style={{flex:1,padding:10,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>← Back</button>
+          <button onClick={handleSave} disabled={!canSave} style={{flex:2,padding:10,fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:saved?"#059669":canSave?"#1D4ED8":"rgba(255,255,255,.05)",color:saved||canSave?"#fff":C.textMuted,cursor:"pointer",transition:"background .2s"}}>{saved?"✓ Client Added":"Add Client"}</button>
+        </>}
+      </div>
+    </Sheet>
+  );
+}
+
+// ─── NOTIFICATIONS PANEL ─────────────────────────────────────────────────────
+function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
+  const upgradeClients = clients.filter(c=>c.upgradeRequest);
+  const expiringClients= clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
+  const urgentClients  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7; });
+  const [confirming,setConfirming]=useState(null);
+  const [declining,setDeclining]=useState(null);
+  const [done,setDone]=useState({});
+
+  const goTo = (cl, tab) => {
+    onNavigate(cl, tab);
+    onClose();
+  };
+
+  const confirmUpgrade=(cl)=>{
+    const pkgId=cl.upgradeRequest?.match(/\(([^)]+)\)/)?.[1]?.split(" ")?.[0]||cl.packageId;
+    const newPkg=ALL_PKGS.find(p=>cl.upgradeRequest?.includes(p.name))||findPkg(cl.packageId);
+    const bots=buildBots(newPkg);
+    const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));
+    botStatuses["intake"]="done";botStatuses["ceo"]="done";
+    onUpdate({...cl,packageId:newPkg.id,upgradeRequest:null,botStatuses,
+      alerts:[...(cl.alerts||[]).filter(a=>a.type!=="upgrade"),
+        {type:"upgrade_done",msg:`Upgraded to ${newPkg.name} — send invoice to ${cl.email}`,severity:"blue"}]
+    });
+    setDone(p=>({...p,[cl.id]:true}));
+    setTimeout(()=>setConfirming(null),1000);
+  };
+
+  const totalCount = upgradeClients.length + urgentClients.length + expiringClients.filter(c=>daysUntil(c.contractEnd)>7).length;
+
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:80,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:640,height:"88vh",backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {/* Header */}
+        <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Notifications</div>
+            <div style={{fontSize:11,color:C.textMuted}}>{totalCount===0?"All clear — nothing needs attention":`${totalCount} item${totalCount!==1?"s":""} need your attention`}</div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.textMuted,fontSize:20,cursor:"pointer",lineHeight:1}}>✕</button>
+        </div>
+
+        <div style={{flex:1,overflowY:"auto",padding:"14px 14px 40px"}}>
+
+          {/* Upgrade Requests */}
+          {upgradeClients.length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.purple,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.purple,display:"inline-block"}}/>
+                Upgrade Requests
+              </div>
+              {upgradeClients.map(cl=>(
+                <div key={cl.id} style={{backgroundColor:C.bg3,border:`1px solid ${C.purple}33`,borderRadius:11,padding:"13px 14px",marginBottom:8}}>
+                  <div onClick={()=>goTo(cl,"package")} style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10,cursor:"pointer"}}>
+                    <div style={{width:36,height:36,borderRadius:9,backgroundColor:`${C.gold}18`,border:`1px solid ${C.gold}2a`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:C.gold,flexShrink:0}}>{cl.name[0]}</div>
+                    <div style={S.f1min}>
+                      <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
+                      <div style={{fontSize:11,color:C.purple,marginTop:1}}>Requested: {cl.upgradeRequest}</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Current: {findPkg(cl.packageId)?.name} · ${findPkg(cl.packageId)?.price}/mo</div>
+                    </div>
+                    <IconChevron size={14} color={C.purple}/>
+                  </div>
+                  {done[cl.id]?(
+                    <div style={{padding:"9px 12px",borderRadius:9,backgroundColor:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.25)",fontSize:12,fontWeight:700,color:C.green,textAlign:"center"}}>
+                      ✓ Upgrade confirmed — send invoice to {cl.email}
+                    </div>
+                  ):confirming===cl.id?(
+                    <div>
+                      <div style={{fontSize:11,color:C.textDim,marginBottom:8,lineHeight:1.6}}>Confirming this upgrade will apply the new package immediately. Send the updated invoice separately before or after confirming.</div>
+                      <div style={S.row7}>
+                        <button onClick={()=>setConfirming(null)} style={{flex:1,padding:"9px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+                        <button onClick={()=>confirmUpgrade(cl)} style={{flex:2,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.purple,color:"#fff",cursor:"pointer"}}>Confirm Upgrade ✓</button>
+                      </div>
+                    </div>
+                  ):(
+                    declining===cl.id?(
+                      <div style={{padding:"10px 12px",borderRadius:9,backgroundColor:"rgba(248,113,113,0.06)",border:`1px solid ${C.red}33`}}>
+                        <div style={{fontSize:11,color:C.textDim,marginBottom:8,lineHeight:1.6}}>Decline this upgrade request? The client will need to submit a new request if they still want to upgrade.</div>
+                        <div style={{display:"flex",gap:7}}>
+                          <button onClick={()=>setDeclining(null)} style={{flex:1,padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+                          <button onClick={()=>{ onUpdate({...cl,upgradeRequest:null}); setDeclining(null); }} style={{flex:1,padding:"7px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer"}}>Yes, Decline</button>
+                        </div>
+                      </div>
+                    ):(
+                    <div style={S.row7}>
+                      <button onClick={()=>setDeclining(cl.id)} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Decline</button>
+                      <button onClick={()=>setConfirming(cl.id)} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.purple}44`,backgroundColor:`${C.purple}22`,color:C.purple,cursor:"pointer"}}>Review and Confirm →</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Urgent contract alerts (≤7 days) */}
+          {urgentClients.length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.red,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.red,display:"inline-block"}}/>
+                Urgent — Contract Expiring
+              </div>
+              {urgentClients.map(cl=>{
+                const d=daysUntil(cl.contractEnd);
+                return (
+                  <div key={cl.id} onClick={()=>goTo(cl,"contract")} style={{backgroundColor:C.bg3,border:`1px solid ${C.red}33`,borderRadius:11,padding:"13px 14px",marginBottom:8,cursor:"pointer"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <span style={{width:34,height:34,borderRadius:9,backgroundColor:"rgba(248,113,113,0.1)",border:"1px solid rgba(248,113,113,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>⚠</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
+                        <div style={{fontSize:11,color:C.red,marginTop:1}}>Contract expires in {d} day{d!==1?"s":""}. Tap to renew.</div>
+                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · {findPkg(cl.packageId)?.name}</div>
+                      </div>
+                      <IconChevron size={14} color={C.red}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 30-day contract alerts */}
+          {expiringClients.filter(c=>daysUntil(c.contractEnd)>7).length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.amber,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.amber,display:"inline-block"}}/>
+                Contract Renewals Coming Up
+              </div>
+              {expiringClients.filter(c=>daysUntil(c.contractEnd)>7).map(cl=>{
+                const d=daysUntil(cl.contractEnd);
+                return (
+                  <div key={cl.id} onClick={()=>goTo(cl,"contract")} style={{backgroundColor:C.bg3,border:`1px solid ${C.amber}33`,borderRadius:11,padding:"13px 14px",marginBottom:8,cursor:"pointer"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      <span style={{width:34,height:34,borderRadius:9,backgroundColor:"rgba(251,191,36,0.1)",border:"1px solid rgba(251,191,36,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>↻</span>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
+                        <div style={{fontSize:11,color:C.amber,marginTop:1}}>Expires in {d} days. Tap to open contract.</div>
+                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · ${findPkg(cl.packageId)?.price}/mo</div>
+                      </div>
+                      <IconChevron size={14} color={C.amber}/>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Intake alerts */}
+          {clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.blue,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.blue,display:"inline-block"}}/>
+                Intake Forms Pending
+              </div>
+              {clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").map(cl=>(
+                <div key={cl.id} style={{backgroundColor:C.bg3,border:`1px solid ${C.blue}33`,borderRadius:11,padding:"13px 14px",marginBottom:8}}>
+                  <div onClick={()=>goTo(cl,"portal")} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:10}}>
+                    <span style={{width:34,height:34,borderRadius:9,backgroundColor:"rgba(79,142,247,0.1)",border:"1px solid rgba(79,142,247,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>📋</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
+                      <div style={{fontSize:11,color:C.blue,marginTop:1}}>Intake form not yet completed. Tap to open.</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email}</div>
+                    </div>
+                    <IconChevron size={14} color={C.blue}/>
+                  </div>
+                  <button onClick={()=>navigator.clipboard.writeText(`https://portal.boldlinemedia.com/client?id=${cl.id}&email=${encodeURIComponent(cl.email)}`)} style={{width:"100%",padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.04)",color:C.textDim,cursor:"pointer"}}>Copy Portal Link</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {totalCount===0&&(
+            <div style={{textAlign:"center",padding:"60px 20px",color:C.textMuted}}>
+              <div style={{fontSize:40,marginBottom:14}}>✓</div>
+              <div style={{fontSize:15,fontWeight:700,color:C.textDim,marginBottom:6}}>All clear</div>
+              <div style={{fontSize:13,lineHeight:1.7}}>No upgrade requests, no expiring contracts, no pending intake forms. Everything is running smoothly.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SVG ICONS ────────────────────────────────────────────────────────────────
+const IconHome = ({size=20,color}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/>
+    <path d="M9 21V12h6v9"/>
+  </svg>
+);
+const IconBell = ({size=20,color}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M13.73 21a2 2 0 01-3.46 0"/>
+  </svg>
+);
+const IconStar = ({size=20,color}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none">
+    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+  </svg>
+);
+const IconChevron = ({size=16,color="#fff"}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round">
+    <polyline points="9 18 15 12 9 6"/>
+  </svg>
+);
+const IconCheck = ({size=14,color}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
+// ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
+function BottomNav({screen,onHome,onNotif,onARIA,notifCount}) {
+  const navBg = "rgba(7,8,16,0.96)";
+  const btnStyle = (active) => ({
+    flex:1,height:"100%",background:"none",border:"none",cursor:"pointer",
+    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,
+    position:"relative",
+  });
+  return (
+    <div style={{position:"fixed",bottom:0,left:0,right:0,maxWidth:640,margin:"0 auto",height:64,
+      backgroundColor:navBg,borderTop:"1px solid rgba(255,255,255,0.06)",
+      display:"flex",alignItems:"center",zIndex:50,
+      backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)"}}>
+      {/* Home */}
+      <button onClick={onHome} style={btnStyle(screen==="home")}>
+        <IconHome size={22} color={screen==="home"?"#C8A84B":C.textMuted}/>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+          color:screen==="home"?"#C8A84B":C.textMuted}}>Home</span>
+        {screen==="home"&&<span style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
+          width:24,height:2,borderRadius:2,backgroundColor:"#C8A84B"}}/>}
+      </button>
+
+      {/* Alerts */}
+      <button onClick={onNotif} style={btnStyle(false)}>
+        <div style={{position:"relative"}}>
+          <IconBell size={22} color={notifCount>0?C.amber:C.textMuted}/>
+          {notifCount>0&&(
+            <span style={{position:"absolute",top:-5,right:-7,minWidth:15,height:15,
+              borderRadius:8,backgroundColor:C.red,color:"#fff",
+              fontSize:9,fontWeight:800,display:"flex",alignItems:"center",
+              justifyContent:"center",padding:"0 3px",lineHeight:1,
+              border:"1.5px solid rgba(7,8,16,0.9)"}}>
+              {notifCount}
+            </span>
+          )}
+        </div>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+          color:notifCount>0?C.amber:C.textMuted}}>Alerts</span>
+      </button>
+
+      {/* ARIA */}
+      <button onClick={onARIA} style={btnStyle(false)}>
+        <div style={{width:28,height:28,borderRadius:8,background:C.gradA,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <IconStar size={14} color="#fff"/>
+        </div>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+          color:C.purple}}>ARIA</span>
+      </button>
+    </div>
+  );
+}
+
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [clients,setClients]           = useState(INIT_CLIENTS);
+  const [screen,setScreen]             = useState("home");
+  const [activeClient,setActiveClient] = useState(null);
+  const [showARIA,setShowARIA]         = useState(false);
+  const [showAdd,setShowAdd]           = useState(false);
+  const [showNotif,setShowNotif]       = useState(false);
+
+  const updateClient = useCallback((updated) => {
+    setClients(prev=>prev.map(c=>c.id===updated.id?updated:c));
+    if(activeClient?.id===updated.id) setActiveClient(updated);
+  },[activeClient]);
+
+  const selectClient = (cl) => { setActiveClient(cl); setScreen("client"); };
+  const addClient    = (cl) => { setClients(p=>[...p,cl]); setShowAdd(false); setActiveClient(cl); setScreen("client"); };
+
+  const notifCount = clients.filter(c=>c.upgradeRequest).length
+    + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; }).length
+    + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length;
+
+  return (
+    <div style={{minHeight:"100vh",backgroundColor:C.bg,color:C.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",display:"flex",flexDirection:"column",maxWidth:640,margin:"0 auto",position:"relative"}}>
+      <style>{`
+        *{box-sizing:border-box;margin:0;padding:0}
+        ::-webkit-scrollbar{width:2px}::-webkit-scrollbar-thumb{background:rgba(200,168,75,0.15);border-radius:2px}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+        @keyframes db{0%,80%,100%{transform:scale(.55);opacity:.35}40%{transform:scale(1);opacity:1}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        input::placeholder,textarea::placeholder{color:#2D3748}
+        button,select,input,textarea{font-family:inherit}
+        select option{background:#0C0D18;color:#F0F2FF}
+        button:active{transform:scale(0.97);transition:transform 0.1s}
+        /* ── Responsive layout ── */
+        :root{--pad:14px;--card-r:14px;--font-base:13px;--font-sm:11px;--font-xs:10px}
+        @media(min-width:641px){
+          :root{--pad:20px;--card-r:16px;--font-base:14px;--font-sm:12px;--font-xs:11px}
+        }
+        @media(min-width:1025px){
+          :root{--pad:28px;--card-r:18px;--font-base:15px;--font-sm:13px;--font-xs:11px}
+        }
+      `}</style>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:60}}>
+        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)}/>}
+        {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onBack={()=>setScreen("home")}/>}
+      </div>
+      <BottomNav screen={screen} onHome={()=>setScreen("home")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount}/>
+      {showNotif&&<NotificationsPanel
+        clients={clients}
+        onUpdate={updateClient}
+        onClose={()=>setShowNotif(false)}
+        onNavigate={(cl,tab)=>{
+          setActiveClient({...cl,_initialTab:tab});
+          setScreen("client");
+          setShowNotif(false);
+        }}
+      />}
+      {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)}/>}
+      {showAdd&&<AddClientSheet onSave={addClient} onClose={()=>setShowAdd(false)}/>}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+  </script>
+</body>
+</html>
