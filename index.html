@@ -2,20 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>BoldLine OS</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #070810; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    #root { min-height: 100vh; }
-  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #070810; } #root { min-height: 100vh; }</style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="text/babel" data-presets="react">
+  <div id="err" style="display:none;padding:20px;color:#f87171;font-family:monospace;font-size:13px;background:#1a0000;min-height:100vh;white-space:pre-wrap;word-break:break-all"></div>
+  <script>
+    window.onerror=function(m,s,l,c,e){
+      document.getElementById('root').style.display='none';
+      var el=document.getElementById('err');
+      el.style.display='block';
+      el.textContent='ERROR line '+l+' col '+c+':\n'+m+'\n\n'+(e?e.stack:'');
+    };
+  </script>
+  <script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef, useCallback } = React;
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── ALL POSSIBLE FEATURES (master list for comparison view) ─────────────────
@@ -357,7 +363,7 @@ function useAI(system) {
     try {
       const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1200,system:override||system,messages:h.map(m=>({role:m.role,content:m.content}))})});
       const d = await r.json();
-      setMessages([...h,{role:"assistant",content:d.content?.[0]?.text||"No response."}]);
+      setMessages([...h,{role:"assistant",content:(d.content && d.content[0] && d.content[0].text)||"No response."}]);
     } catch { setMessages([...h,{role:"assistant",content:"Connection error — try again."}]); }
     setLoading(false);
   };
@@ -385,7 +391,7 @@ function Card({children,style}) {
   return <div style={{...card,...style}}>{children}</div>;
 }
 function AlertBadge({alerts}) {
-  if (!alerts?.length) return <span style={{width:8,height:8,borderRadius:"50%",backgroundColor:C.green,boxShadow:`0 0 5px ${C.green}`,display:"inline-block",flexShrink:0}}/>;
+  if (!(alerts && alerts.length)) return <span style={{width:8,height:8,borderRadius:"50%",backgroundColor:C.green,boxShadow:`0 0 5px ${C.green}`,display:"inline-block",flexShrink:0}}/>;
   const hasUpgrade = alerts.some(a=>a.type==="upgrade");
   const hasRed = alerts.some(a=>a.severity==="red");
   const color = hasRed?C.red:hasUpgrade?C.purple:C.amber;
@@ -432,7 +438,7 @@ function BotSheet({bot,clientName,client,pkg,onClose}) {
   const [input,setInput] = useState("");
   const [botTab,setBotTab] = useState("worklog");
   const endRef = useRef(null);
-  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
   const handleSend = () => { if(!input.trim()||loading)return; send(input.trim()); setInput(""); };
   const SC = { waiting:{dot:"#374151",label:"Waiting"}, active:{dot:C.green,label:"Running",pulse:true}, done:{dot:"#4B5563",label:"Complete"}, needs_input:{dot:C.blue,label:"Needs You",pulse:true} };
   const sc = SC[bot.status]||SC.waiting;
@@ -580,8 +586,8 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
           <div style={{padding:"12px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:5}}>Current</div>
-            <div style={{fontSize:13,fontWeight:700,color:C.textDim}}>{cur?.name}</div>
-            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>${cur?.price}/mo</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.textDim}}>{(cur && cur.name)}</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>${(cur && cur.price)}/mo</div>
           </div>
           <div style={{padding:"12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.08)",border:`1px solid rgba(200,168,75,0.25)`}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,marginBottom:5}}>Upgrading To</div>
@@ -619,7 +625,7 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:15,fontWeight:700,color:C.text}}>Upgrade Your Package</div>
-            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>Currently on {cur?.name} · ${cur?.price}/mo</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>Currently on {(cur && cur.name)} · ${(cur && cur.price)}/mo</div>
           </div>
           <CloseBtn onClick={onClose}/>
         </div>
@@ -636,7 +642,7 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
             </div>
             {options.map(pkg=>{
               const isSelected = selected===pkg.id;
-              const diff = pkg.price - (cur?.price||0);
+              const diff = pkg.price - ((cur && cur.price)||0);
               const newFeatures = ALL_FEATURES.filter(f=>pkgHasFeature(pkg.id,f.id)&&!pkgHasFeature(currentPkgId,f.id));
               return (
                 <button key={pkg.id} onClick={()=>setSelected(pkg.id)}
@@ -725,20 +731,20 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
         <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,opacity:.7,marginBottom:6}}>Active Package</div>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
           <div style={S.f1min}>
-            <div style={{fontSize:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>{pkg?.name}</div>
-            <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{pkg?.platform} · {pkg?.adSpend}</div>
-            {pkg?.roas&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.roas}</div>}
+            <div style={{fontSize:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>{(pkg && pkg.name)}</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{(pkg && pkg.platform)} · {(pkg && pkg.adSpend)}</div>
+            {(pkg && pkg.roas)&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.roas}</div>}
           </div>
           <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${pkg?.price?.toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${(pkg && pkg.price).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo</span></div>
             {perLead&&<div style={{fontSize:10,color:C.textDim,marginTop:2}}>+${perLead}/lead</div>}
-            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${pkg?.setup?.toLocaleString()} setup (one-time)</div>
+            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${(pkg && pkg.setup).toLocaleString()} setup (one-time)</div>
           </div>
         </div>
         <div style={{marginTop:10,padding:"6px 9px",borderRadius:8,backgroundColor:"rgba(0,0,0,0.3)",
           fontSize:10,color:C.textMuted,display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:5,height:5,borderRadius:"50%",backgroundColor:C.green,display:"inline-block",flexShrink:0,boxShadow:`0 0 4px ${C.green}`}}/>
-          {pkg?.optimizationFreq==="weekly"?"Weekly":"Monthly"} optimization · {(PKG_FEATURES[pkg?.id]||[]).length} features included
+          {(pkg && pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"} optimization · {(PKG_FEATURES[(pkg && pkg.id)]||[]).length} features included
         </div>
       </Card>
 
@@ -805,7 +811,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.gold}}>${p.price}/mo</div>
-                <div style={{fontSize:9,color:C.textMuted}}>${p.setup?.toLocaleString()} setup</div>
+                <div style={{fontSize:9,color:C.textMuted}}>${p.(setup && setup.toLocaleString)()} setup</div>
               </div>
             </button>
           ))}
@@ -814,9 +820,9 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
           <div style={{padding:"12px",borderRadius:10,backgroundColor:`${C.purple}08`,border:`1px solid ${C.purple}33`}}>
             <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>Confirm Package Change</div>
             <div style={{fontSize:11,color:C.textDim,marginBottom:4}}>
-              {client.name}: <span style={{color:C.textMuted}}>{pkg?.name}</span> → <span style={{color:C.gold,fontWeight:700}}>{findPkg(selectedManualPkg)?.name}</span>
+              {client.name}: <span style={{color:C.textMuted}}>{(pkg && pkg.name)}</span> → <span style={{color:C.gold,fontWeight:700}}>{(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).name)}</span>
             </div>
-            <div style={{fontSize:10,color:C.textMuted,marginBottom:10}}>New rate: ${findPkg(selectedManualPkg)?.price}/mo · ${findPkg(selectedManualPkg)?.setup} setup. Send updated invoice separately.</div>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:10}}>New rate: ${(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).price)}/mo · ${(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).setup)} setup. Send updated invoice separately.</div>
             <div style={{display:"flex",gap:7}}>
               <button onClick={()=>setApplyConfirm(false)} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
               <button onClick={()=>{ applyManualUpgrade(); setApplyConfirm(false); }} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.purple,color:"#fff",cursor:"pointer"}}>Confirm Change</button>
@@ -872,7 +878,7 @@ const makePortalHTML=(cl,pkg)=>{
   const upgSection = upgOpts.length===0 ? '' :
     '<div class="card" id="upgrade-section"><div class="lbl">Request an Upgrade</div>' +
     '<div style="font-size:11px;color:#6B7280;margin-bottom:10px">Select a package. Your account manager will confirm and send an invoice — no changes until you approve.</div>' +
-    upgOpts.map(function(p,i){ return '<div class="uopt" id="u'+i+'" onclick="selUpg('+i+',''+p.name+' ('+p.platform+') $'+p.price+'/mo')"><div style="display:flex;justify-content:space-between"><div><div style="font-size:13px;font-weight:700;color:#F0F2FF">'+p.name+'</div><div style="font-size:10px;color:#6B7280">'+p.platform+'</div></div><div style="font-size:18px;font-weight:800;color:#C8A84B">$'+p.price+'<span style="font-size:10px;font-weight:400;color:#6B7280">/mo</span></div></div></div>'; }).join('') +
+    upgOpts.map(function(p,i){ return '<div class="uopt" id="u'+i+'" data-name="'+p.name+' ('+p.platform+') $'+p.price+'/mo" onclick="selUpg(this,'+i+')"><div style="display:flex;justify-content:space-between"><div><div style="font-size:13px;font-weight:700;color:#F0F2FF">'+p.name+'</div><div style="font-size:10px;color:#6B7280">'+p.platform+'</div></div><div style="font-size:18px;font-weight:800;color:#C8A84B">$'+p.price+'<span style="font-size:10px;font-weight:400;color:#6B7280">/mo</span></div></div></div>'; }).join('') +
     '<button class="btn" id="upgbtn" disabled onclick="submitUpg()" style="opacity:.4">Review Selection →</button></div>';
   const contractAlert = (dL<=30&&dL>=0) ? '<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);font-size:11px;color:#F59E0B">Contract renewing in '+dL+' days. Your account manager will be in touch.</div>' : '';
   const css = '*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#080A0F;color:#F9FAFB;font-size:14px}.hdr{background:#0D0F16;border-bottom:1px solid rgba(255,255,255,.08);padding:12px 16px;display:flex;align-items:center;gap:10px}.logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#C8A84B,#9a7a2e);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#0a0800}.nav{display:flex;overflow-x:auto;background:#0D0F16;border-bottom:1px solid rgba(255,255,255,.07)}.nb{padding:11px 14px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:none;background:transparent;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}.nb.on{color:#C8A84B;border-bottom-color:#C8A84B}.main{padding:14px;max-width:600px;margin:0 auto}.card{background:#0D0F16;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:14px;margin-bottom:10px}.lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4B5563;margin-bottom:8px}.sbar{display:flex;margin-bottom:8px}.sicons{display:flex;margin-bottom:12px}.cur{padding:11px;border-radius:9px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2)}.stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:9px 11px;flex:1}.inp{width:100%;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:8px;color:#F9FAFB;font-size:13px;font-family:inherit;margin-bottom:8px}.btn{width:100%;padding:12px;font-size:13px;font-weight:700;border-radius:10px;border:1px solid rgba(200,168,75,.35);background:rgba(200,168,75,.1);color:#C8A84B;cursor:pointer;font-family:inherit;margin-top:10px}.uopt{padding:12px;border-radius:10px;border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;margin-bottom:8px}.uopt.sel{border-color:#C8A84B;background:rgba(200,168,75,.07)}select{background:#0D0F16;color:#F9FAFB}';
@@ -887,7 +893,7 @@ const makePortalHTML=(cl,pkg)=>{
     +'<div id="t-intake" style="display:none"><div class="card"><div class="lbl">Business Details</div><input class="inp" placeholder="Business Name *" value="'+cl.name+'"><input class="inp" placeholder="Contact Name" value="'+(cl.contactName||'')+'"><input class="inp" placeholder="Email" value="'+(cl.email||'')+'"><input class="inp" placeholder="Business Address" value="'+(cl.businessAddress||'')+'"><input class="inp" placeholder="Service Area"></div><div class="card"><div class="lbl">Your Offer</div><input class="inp" placeholder="Main service to advertise *"><input class="inp" placeholder="Average job / ticket value *"><input class="inp" placeholder="What makes you different? *"></div><div class="card"><div class="lbl">Assets</div><select class="inp"><option>Do you have photos of your work?</option><option>Yes — I will send them</option><option>No — use stock images</option></select><input class="inp" placeholder="Where should leads be sent? *"><input class="inp" placeholder="CRM or booking system (if any)"></div><button class="btn" onclick="this.textContent='✓ Saved';this.disabled=true">Save My Information</button></div>'
     +'<div id="t-contract" style="display:none"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:13px;font-weight:700;color:'+(cl.contractStatus==='active'?'#10B981':cl.contractStatus==='pending'?'#F59E0B':'#EF4444')+';margin-bottom:6px">'+(cl.contractStatus==='active'?'Signed and Active':cl.contractStatus==='pending'?'Pending Signature':'Expired')+'</div><div style="font-size:11px;color:#6B7280;line-height:1.6">Start: '+(cl.contractStart||'—')+' · End: '+(cl.contractEnd||'—')+'</div>'+contractAlert+'</div></div>'
     +'</div>'
-    +'<script>var selUpgName=null;function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));document.getElementById('t-'+n).style.display='block';b.classList.add('on');}function selUpg(i,name){selUpgName=name;document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function submitUpg(){if(!selUpgName)return;if(confirm('Send upgrade request?\n'+selUpgName+'\n\nYour account manager will be in touch within 1 business day.')){document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}}</script>'
+    +'<script>var selUpgName=null;function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));document.getElementById('t-'+n).style.display='block';b.classList.add('on');}function selUpg(el,i){selUpgName=el.getAttribute('data-name');document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function submitUpg(){if(!selUpgName)return;if(confirm('Send upgrade request?\n'+selUpgName+'\n\nYour account manager will be in touch within 1 business day.')){document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}}</script>'
     +'</body></html>';
 };
 
@@ -900,7 +906,7 @@ function HomeScreen({clients,onSelect,onAdd}) {
   const [sortBy,setSortBy]     = useState("name"); // name | health | leads | expiry
   const [showFilters,setShowF] = useState(false);
 
-  const MRR       = clients.reduce((s,c)=>s+(findPkg(c.packageId)?.price||0),0);
+  const MRR       = clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const active    = clients.filter(c=>c.stage==="active").length;
   const allAlerts = clients.flatMap(c=>getAlerts(c));
   const expiring  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
@@ -911,7 +917,7 @@ function HomeScreen({clients,onSelect,onAdd}) {
     .filter(cl=>{
       if (q) {
         const pkg = findPkg(cl.packageId);
-        const haystack = [cl.name,cl.contactName,cl.niche,cl.email,pkg?.name,pkg?.platform].join(" ").toLowerCase();
+        const haystack = [cl.name,cl.contactName,cl.niche,cl.email,(pkg && pkg.name),(pkg && pkg.platform)].join(" ").toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       if (stageFilter!=="all" && cl.stage!==stageFilter) return false;
@@ -1050,9 +1056,9 @@ function HomeScreen({clients,onSelect,onAdd}) {
               {[["all","All Stages"],...STAGES.map(s=>[s.id,s.label])].map(([k,l])=>(
                 <button key={k} onClick={()=>setStageF(k)} style={{
                   padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:20,
-                  border:`1px solid ${stageFilter===k?(STAGES.find(s=>s.id===k)?.color||C.gold):C.border}`,
-                  backgroundColor:stageFilter===k?`${STAGES.find(s=>s.id===k)?.color||C.gold}18`:"transparent",
-                  color:stageFilter===k?(STAGES.find(s=>s.id===k)?.color||C.gold):C.textMuted,
+                  border:`1px solid ${stageFilter===k?((STAGES.find(s=>s.id===k) && STAGES.find(s=>s.id===k).color)||C.gold):C.border}`,
+                  backgroundColor:stageFilter===k?`${(STAGES.find(s=>s.id===k) && STAGES.find(s=>s.id===k).color)||C.gold}18`:"transparent",
+                  color:stageFilter===k?((STAGES.find(s=>s.id===k) && STAGES.find(s=>s.id===k).color)||C.gold):C.textMuted,
                   cursor:"pointer",whiteSpace:"nowrap"
                 }}>{l}</button>
               ))}
@@ -1122,7 +1128,7 @@ function HomeScreen({clients,onSelect,onAdd}) {
                 </div>
                 <div style={S.f1min}>
                   <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{cl.name}</div>
-                  <div style={{fontSize:11,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pkg?.platform} · {pkg?.name}</div>
+                  <div style={{fontSize:11,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pkg && pkg.platform)} · {(pkg && pkg.name)}</div>
                 </div>
                 <AlertBadge alerts={alerts}/>
                 <IconChevron size={14} color={C.textMuted}/>
@@ -1165,7 +1171,7 @@ function ClientHub({client,onUpdate,onBack}) {
   const [openBot,setOpenBot] = useState(null);
   const [showEdit,setShowEdit] = useState(false);
   const pkg    = findPkg(client.packageId);
-  const bots   = buildBots(pkg).map(b=>({...b,status:client.botStatuses?.[b.id]||"waiting"}));
+  const bots   = buildBots(pkg).map(b=>({...b,status:(client.botStatuses && client.botStatuses[b.id])||"waiting"}));
   const alerts = getAlerts(client);
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
@@ -1250,7 +1256,7 @@ function ClientHub({client,onUpdate,onBack}) {
         {tab==="overview"&&(
           <div style={S.col11}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {[{l:"Package",v:pkg?.name||"—"},{l:"Platform",v:pkg?.platform||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Revenue",v:pkg?`$${pkg.price}/mo`:"—"}].map(({l,v})=>(
+              {[{l:"Package",v:(pkg && pkg.name)||"—"},{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Revenue",v:pkg?`$${pkg.price}/mo`:"—"}].map(({l,v})=>(
                 <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
               ))}
             </div>
@@ -1309,7 +1315,7 @@ function ClientHub({client,onUpdate,onBack}) {
             </Card>
             <Card>
               <Label>Onboarding Checklist</Label>
-              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!pkg?.callTracking&&client.stage!=="onboarding"},{l:"Landing page built",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
+              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!(pkg && pkg.callTracking)&&client.stage!=="onboarding"},{l:"Landing page built",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:`1px solid ${C.border2}`}}>
                   <span style={{fontSize:13,color:done?C.green:C.textMuted,flexShrink:0}}>{done?"✓":"○"}</span>
                   <span style={{fontSize:12,color:done?C.text:C.textMuted}}>{l}</span>
@@ -1331,7 +1337,7 @@ function ClientHub({client,onUpdate,onBack}) {
         {tab==="pipeline"&&(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`,marginBottom:2}}>
-              <div style={{fontSize:12,fontWeight:600,color:C.gold,marginBottom:2}}>Package: {pkg?.name} — {pkg?.platform}</div>
+              <div style={{fontSize:12,fontWeight:600,color:C.gold,marginBottom:2}}>Package: {(pkg && pkg.name)} — {(pkg && pkg.platform)}</div>
               <div style={{fontSize:11,color:C.textMuted}}>Tap any bot to see what it's working on and chat with it. Bots are scoped to this package — they cannot build beyond what's included.</div>
             </Card>
             {bots.map(bot=>{
@@ -1345,7 +1351,7 @@ function ClientHub({client,onUpdate,onBack}) {
                     <span style={{fontSize:15,flexShrink:0}}>{bot.icon}</span>
                     <div style={S.f1min}>
                       <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</div>
-                      {hasLog&&bot.status!=="waiting"&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{clientLogs[bot.id]?.currentTask?.slice(0,55)}…</div>}
+                      {hasLog&&bot.status!=="waiting"&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{(clientLogs[bot.id] && clientLogs[bot.id].currentTask) && currentTask.slice)(0,55)}…</div>}
                     </div>
                     {bot.locked&&<span style={{fontSize:10,color:C.textMuted,flexShrink:0}}>🔒</span>}
                     <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
@@ -1500,7 +1506,7 @@ function ReportsTabContent({client,pkg}) {
   const [gen,setGen]=useState(false);
   const [input,setInput]=useState("");
   const endRef=useRef(null);
-  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
 
   const perLead = PER_LEAD[client.niche];
   const health  = calcHealth(client);
@@ -1514,7 +1520,7 @@ function ReportsTabContent({client,pkg}) {
 CLIENT DATA:
 Business: ${client.name}
 Niche: ${client.niche}
-Package: ${pkg?.name} on ${pkg?.platform}
+Package: ${(pkg && pkg.name)} on ${(pkg && pkg.platform)}
 Campaign Stage: ${client.stage}
 Health Score: ${health.toFixed(1)}/10
 Leads Generated: ${client.leads}
@@ -1539,7 +1545,7 @@ Keep it concise. Bryson will read this on a call — it should sound natural, no
   const generateReport = () => {
     reset();
     setGen(true);
-    send(`Generate the ${pkg?.optimizationFreq==="weekly"?"weekly":"monthly"} performance report for ${client.name}. Use all the client data provided. Make it sound like a confident account manager giving an update.`, SYS);
+    send(`Generate the ${(pkg && pkg.optimizationFreq)==="weekly"?"weekly":"monthly"} performance report for ${client.name}. Use all the client data provided. Make it sound like a confident account manager giving an update.`, SYS);
   };
 
   return (
@@ -1567,7 +1573,7 @@ Keep it concise. Bryson will read this on a call — it should sound natural, no
       {/* Generate button */}
       <div style={S.row8}>
         <button onClick={generateReport} disabled={loading} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:loading?"rgba(255,255,255,.05)":"#1D4ED8",color:loading?C.textMuted:"#fff",cursor:loading?"not-allowed":"pointer"}}>
-          {loading?"Generating…":gen?(pkg?.optimizationFreq==="weekly"?"Regenerate Weekly":"Regenerate Monthly"):(pkg?.optimizationFreq==="weekly"?"Generate Weekly Report":"Generate Monthly Report")}
+          {loading?"Generating…":gen?((pkg && pkg.optimizationFreq)==="weekly"?"Regenerate Weekly":"Regenerate Monthly"):((pkg && pkg.optimizationFreq)==="weekly"?"Generate Weekly Report":"Generate Monthly Report")}
         </button>
         {gen&&!loading&&<button onClick={()=>navigator.clipboard.writeText(messages.filter(m=>m.role==="assistant").map(m=>m.content).join("
 
@@ -1577,7 +1583,7 @@ Keep it concise. Bryson will read this on a call — it should sound natural, no
       <Card style={{minHeight:100}}>
         {messages.length===0&&(
           <div style={{color:C.textMuted,fontSize:12,textAlign:"center",padding:"28px 16px",lineHeight:1.7}}>
-            Tap Generate to create a client-ready {pkg?.optimizationFreq==="weekly"?"weekly":"monthly"} report for {client.name}.<br/>
+            Tap Generate to create a client-ready {(pkg && pkg.optimizationFreq)==="weekly"?"weekly":"monthly"} report for {client.name}.<br/>
             <span style={{fontSize:10,opacity:.7}}>Uses live lead count, CPL, health score, stage, and pipeline progress.</span>
           </div>
         )}
@@ -1752,13 +1758,13 @@ function ARIAPanel({clients,onClose}) {
   const {messages,loading,send,reset}=useAI("");
   const [input,setInput]=useState("");const [repGen,setRepGen]=useState(false);
   const endRef=useRef(null);
-  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
-  const MRR=clients.reduce((s,c)=>s+(findPkg(c.packageId)?.price||0),0);
+  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
+  const MRR=clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const upgradeRequests=clients.filter(c=>c.upgradeRequest);
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
 STATE: ${clients.length} clients | ${clients.filter(c=>c.stage==="active").length} active | MRR $${MRR.toLocaleString()} | ${clients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
 CLIENTS:
-${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${p?.name}(${p?.platform}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("
+${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("
 ")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.`;
   const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
@@ -1847,7 +1853,7 @@ function ARIADeployTab() {
 function ARIABuilderTab({ariaSystem}) {
   const {messages,loading,send}=useAI("");const [input,setInput]=useState("");
   const endRef=useRef(null);
-  useEffect(()=>{ endRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
   const SYS=ariaSystem+"\n\nSYSTEM BUILDER MODE: Assess ideas honestly, flag overlaps, push back if needed, think about downstream effects.";
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYS); setInput(""); };
   return (
@@ -1961,9 +1967,9 @@ function EditClientSheet({client,onSave,onClose}) {
                 {PLATFORMS.map(p=>(
                   <button key={p} onClick={()=>togglePlat(p)} style={{
                     padding:"6px 12px",fontSize:11,fontWeight:600,borderRadius:8,
-                    border:`1px solid ${form.platforms?.includes(p)?"rgba(79,142,247,.4)":C.border}`,
-                    backgroundColor:form.platforms?.includes(p)?"rgba(79,142,247,.12)":"rgba(255,255,255,.03)",
-                    color:form.platforms?.includes(p)?C.blue:C.textMuted,cursor:"pointer"
+                    border:`1px solid ${form.(platforms && platforms.includes)(p)?"rgba(79,142,247,.4)":C.border}`,
+                    backgroundColor:form.(platforms && platforms.includes)(p)?"rgba(79,142,247,.12)":"rgba(255,255,255,.03)",
+                    color:form.(platforms && platforms.includes)(p)?C.blue:C.textMuted,cursor:"pointer"
                   }}>{p}</button>
                 ))}
               </div>
@@ -2078,7 +2084,7 @@ function EditClientSheet({client,onSave,onClose}) {
               Tap the status badge on any bot to cycle through: Waiting → Running → Complete → Needs You.
             </div>
             {bots.map(bot=>{
-              const current = form.botStatuses?.[bot.id]||"waiting";
+              const current = (form.botStatuses && form.botStatuses[bot.id])||"waiting";
               const nextStatus = { waiting:"active", active:"done", done:"needs_input", needs_input:"waiting" };
               const cycle = () => set("botStatuses",{...form.botStatuses,[bot.id]:nextStatus[current]});
               const dot = statusDot[current]||"#374151";
@@ -2309,8 +2315,8 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   };
 
   const confirmUpgrade=(cl)=>{
-    const pkgId=cl.upgradeRequest?.match(/\(([^)]+)\)/)?.[1]?.split(" ")?.[0]||cl.packageId;
-    const newPkg=ALL_PKGS.find(p=>cl.upgradeRequest?.includes(p.name))||findPkg(cl.packageId);
+    const pkgId=cl.(upgradeRequest && upgradeRequest.match)(/\(([^)]+)\)/) && eRequest.match(/\(([^)]+)\)/)[1] && eRequest.match(/\(([^)]+)\)/)[1].split(" ")[0]||cl.packageId;
+    const newPkg=ALL_PKGS.find(p=>cl.(upgradeRequest && upgradeRequest.includes)(p.name))||findPkg(cl.packageId);
     const bots=buildBots(newPkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));
     botStatuses["intake"]="done";botStatuses["ceo"]="done";
@@ -2352,7 +2358,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                     <div style={S.f1min}>
                       <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
                       <div style={{fontSize:11,color:C.purple,marginTop:1}}>Requested: {cl.upgradeRequest}</div>
-                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Current: {findPkg(cl.packageId)?.name} · ${findPkg(cl.packageId)?.price}/mo</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Current: {(findPkg(cl.packageId) && findPkg(cl.packageId).name)} · ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
                     </div>
                     <IconChevron size={14} color={C.purple}/>
                   </div>
@@ -2404,7 +2410,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                       <div style={{flex:1}}>
                         <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
                         <div style={{fontSize:11,color:C.red,marginTop:1}}>Contract expires in {d} day{d!==1?"s":""}. Tap to renew.</div>
-                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · {findPkg(cl.packageId)?.name}</div>
+                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · {(findPkg(cl.packageId) && findPkg(cl.packageId).name)}</div>
                       </div>
                       <IconChevron size={14} color={C.red}/>
                     </div>
@@ -2430,7 +2436,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                       <div style={{flex:1}}>
                         <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
                         <div style={{fontSize:11,color:C.amber,marginTop:1}}>Expires in {d} days. Tap to open contract.</div>
-                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · ${findPkg(cl.packageId)?.price}/mo</div>
+                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
                       </div>
                       <IconChevron size={14} color={C.amber}/>
                     </div>
@@ -2570,7 +2576,7 @@ export default function App() {
 
   const updateClient = useCallback((updated) => {
     setClients(prev=>prev.map(c=>c.id===updated.id?updated:c));
-    if(activeClient?.id===updated.id) setActiveClient(updated);
+    if((activeClient && activeClient.id)===updated.id) setActiveClient(updated);
   },[activeClient]);
 
   const selectClient = (cl) => { setActiveClient(cl); setScreen("client"); };
@@ -2622,8 +2628,8 @@ export default function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+const _root = ReactDOM.createRoot(document.getElementById('root'));
+_root.render(React.createElement(App));
   </script>
 </body>
 </html>
