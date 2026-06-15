@@ -22,7 +22,6 @@
   </script>
   <script type="text/babel" data-presets="env,react">
 const { useState, useEffect, useRef, useCallback } = React;
-import { useState, useEffect, useRef, useCallback } from "react";
 
 // ─── ALL POSSIBLE FEATURES (master list for comparison view) ─────────────────
 const ALL_FEATURES = [
@@ -438,7 +437,7 @@ function BotSheet({bot,clientName,client,pkg,onClose}) {
   const [input,setInput] = useState("");
   const [botTab,setBotTab] = useState("worklog");
   const endRef = useRef(null);
-  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); },[messages]);
   const handleSend = () => { if(!input.trim()||loading)return; send(input.trim()); setInput(""); };
   const SC = { waiting:{dot:"#374151",label:"Waiting"}, active:{dot:C.green,label:"Running",pulse:true}, done:{dot:"#4B5563",label:"Complete"}, needs_input:{dot:C.blue,label:"Needs You",pulse:true} };
   const sc = SC[bot.status]||SC.waiting;
@@ -811,7 +810,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <div style={{fontSize:13,fontWeight:700,color:C.gold}}>${p.price}/mo</div>
-                <div style={{fontSize:9,color:C.textMuted}}>${p.(setup && setup.toLocaleString)()} setup</div>
+                <div style={{fontSize:9,color:C.textMuted}}>${p.setup.toLocaleString()} setup</div>
               </div>
             </button>
           ))}
@@ -885,15 +884,15 @@ const makePortalHTML=(cl,pkg)=>{
 
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>'+cl.name+' Portal</title><style>'+css+'</style></head><body>'
     +'<div class="hdr"><div class="logo">B</div><div><div style="font-size:13px;font-weight:700;color:#E8E4D0">BoldLine Media</div><div style="font-size:9px;color:#6e6b54">Client Portal</div></div><div style="margin-left:auto;font-size:11px;color:#9CA3AF">'+cl.name+'</div></div>'
-    +'<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>'
+    +`<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>`
     +'<div class="main">'
     +'<div id="t-status"><div class="card"><div class="lbl">Campaign Progress</div><div class="sbar">'+sbar+'</div><div class="sicons">'+icons+'</div><div class="cur"><div style="font-size:12px;font-weight:700;color:#C8A84B;margin-bottom:3px">Currently: '+(SL[si]||'—')+'</div><div style="font-size:11px;color:#9CA3AF">Your campaign is active and being managed by your dedicated team.</div></div></div>'
     +'<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">'+(pkg&&pkg.name||'—')+'</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">'+(pkg&&pkg.platform||'—')+'</div></div>'+(pl?'<div class="stat"><div class="lbl">Per Lead</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$'+pl+'</div></div>':'')+'</div></div></div>'
     +'<div id="t-package" style="display:none"><div class="card"><div class="lbl">Your Package — '+(pkg&&pkg.name||'—')+'</div><div style="font-size:11px;color:#C8A84B;margin-bottom:12px">'+(pkg&&pkg.platform||'')+(pkg?' · $'+pkg.price+'/mo':'')+'</div>'+fHTML+(exclFeats.length>0?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)"><div class="lbl">Available with Upgrade</div>'+uHTML+'</div>':'')+'</div>'+upgSection+'</div>'
-    +'<div id="t-intake" style="display:none"><div class="card"><div class="lbl">Business Details</div><input class="inp" placeholder="Business Name *" value="'+cl.name+'"><input class="inp" placeholder="Contact Name" value="'+(cl.contactName||'')+'"><input class="inp" placeholder="Email" value="'+(cl.email||'')+'"><input class="inp" placeholder="Business Address" value="'+(cl.businessAddress||'')+'"><input class="inp" placeholder="Service Area"></div><div class="card"><div class="lbl">Your Offer</div><input class="inp" placeholder="Main service to advertise *"><input class="inp" placeholder="Average job / ticket value *"><input class="inp" placeholder="What makes you different? *"></div><div class="card"><div class="lbl">Assets</div><select class="inp"><option>Do you have photos of your work?</option><option>Yes — I will send them</option><option>No — use stock images</option></select><input class="inp" placeholder="Where should leads be sent? *"><input class="inp" placeholder="CRM or booking system (if any)"></div><button class="btn" onclick="this.textContent='✓ Saved';this.disabled=true">Save My Information</button></div>'
+    +`<div id="t-intake" style="display:none"><div class="card"><div class="lbl">Business Details</div><input class="inp" placeholder="Business Name *" value="${cl.name}"><input class="inp" placeholder="Contact Name" value="${cl.contactName||''}"><input class="inp" placeholder="Email" value="${cl.email||''}"><input class="inp" placeholder="Business Address" value="${cl.businessAddress||''}"><input class="inp" placeholder="Service Area"></div><div class="card"><div class="lbl">Your Offer</div><input class="inp" placeholder="Main service to advertise *"><input class="inp" placeholder="Average job / ticket value *"><input class="inp" placeholder="What makes you different? *"></div><div class="card"><div class="lbl">Assets</div><select class="inp"><option>Do you have photos of your work?</option><option>Yes — I will send them</option><option>No — use stock images</option></select><input class="inp" placeholder="Where should leads be sent? *"><input class="inp" placeholder="CRM or booking system (if any)"></div><button class="btn" onclick="this.textContent='✓ Saved';this.disabled=true">Save My Information</button></div>`
     +'<div id="t-contract" style="display:none"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:13px;font-weight:700;color:'+(cl.contractStatus==='active'?'#10B981':cl.contractStatus==='pending'?'#F59E0B':'#EF4444')+';margin-bottom:6px">'+(cl.contractStatus==='active'?'Signed and Active':cl.contractStatus==='pending'?'Pending Signature':'Expired')+'</div><div style="font-size:11px;color:#6B7280;line-height:1.6">Start: '+(cl.contractStart||'—')+' · End: '+(cl.contractEnd||'—')+'</div>'+contractAlert+'</div></div>'
     +'</div>'
-    +'<script>var selUpgName=null;function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));document.getElementById('t-'+n).style.display='block';b.classList.add('on');}function selUpg(el,i){selUpgName=el.getAttribute('data-name');document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function submitUpg(){if(!selUpgName)return;if(confirm('Send upgrade request?\n'+selUpgName+'\n\nYour account manager will be in touch within 1 business day.')){document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}}</script>'
+    +`<script>var selUpgName=null;function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));document.getElementById('t-'+n).style.display='block';b.classList.add('on');}function selUpg(el,i){selUpgName=el.getAttribute('data-name');document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function submitUpg(){if(!selUpgName)return;if(confirm('Send upgrade request?\\n'+selUpgName+'\\n\\nYour account manager will be in touch within 1 business day.')){document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}}<\/script>`
     +'</body></html>';
 };
 
@@ -1351,7 +1350,7 @@ function ClientHub({client,onUpdate,onBack}) {
                     <span style={{fontSize:15,flexShrink:0}}>{bot.icon}</span>
                     <div style={S.f1min}>
                       <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</div>
-                      {hasLog&&bot.status!=="waiting"&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{(clientLogs[bot.id] && clientLogs[bot.id].currentTask) && currentTask.slice)(0,55)}…</div>}
+                      {hasLog&&bot.status!=="waiting"&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{(clientLogs[bot.id] && clientLogs[bot.id].currentTask && clientLogs[bot.id].currentTask.slice(0,55))}…</div>}
                     </div>
                     {bot.locked&&<span style={{fontSize:10,color:C.textMuted,flexShrink:0}}>🔒</span>}
                     <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
@@ -1506,7 +1505,7 @@ function ReportsTabContent({client,pkg}) {
   const [gen,setGen]=useState(false);
   const [input,setInput]=useState("");
   const endRef=useRef(null);
-  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); },[messages]);
 
   const perLead = PER_LEAD[client.niche];
   const health  = calcHealth(client);
@@ -1575,9 +1574,7 @@ Keep it concise. Bryson will read this on a call — it should sound natural, no
         <button onClick={generateReport} disabled={loading} style={{flex:1,padding:"11px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:loading?"rgba(255,255,255,.05)":"#1D4ED8",color:loading?C.textMuted:"#fff",cursor:loading?"not-allowed":"pointer"}}>
           {loading?"Generating…":gen?((pkg && pkg.optimizationFreq)==="weekly"?"Regenerate Weekly":"Regenerate Monthly"):((pkg && pkg.optimizationFreq)==="weekly"?"Generate Weekly Report":"Generate Monthly Report")}
         </button>
-        {gen&&!loading&&<button onClick={()=>navigator.clipboard.writeText(messages.filter(m=>m.role==="assistant").map(m=>m.content).join("
-
-"))} style={{padding:"11px 14px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy</button>}
+        {gen&&!loading&&<button onClick={()=>navigator.clipboard.writeText(messages.filter(m=>m.role==="assistant").map(m=>m.content).join("\n\n"))} style={{padding:"11px 14px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy</button>}
       </div>
       {/* Report output */}
       <Card style={{minHeight:100}}>
@@ -1758,14 +1755,13 @@ function ARIAPanel({clients,onClose}) {
   const {messages,loading,send,reset}=useAI("");
   const [input,setInput]=useState("");const [repGen,setRepGen]=useState(false);
   const endRef=useRef(null);
-  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); },[messages]);
   const MRR=clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const upgradeRequests=clients.filter(c=>c.upgradeRequest);
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
 STATE: ${clients.length} clients | ${clients.filter(c=>c.stage==="active").length} active | MRR $${MRR.toLocaleString()} | ${clients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
 CLIENTS:
-${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("
-")}
+${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.`;
   const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYSTEM); setInput(""); };
@@ -1853,7 +1849,7 @@ function ARIADeployTab() {
 function ARIABuilderTab({ariaSystem}) {
   const {messages,loading,send}=useAI("");const [input,setInput]=useState("");
   const endRef=useRef(null);
-  useEffect(()=>{ endRef.(current && current.scrollIntoView)({behavior:"smooth"}); },[messages]);
+  useEffect(()=>{ endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); },[messages]);
   const SYS=ariaSystem+"\n\nSYSTEM BUILDER MODE: Assess ideas honestly, flag overlaps, push back if needed, think about downstream effects.";
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYS); setInput(""); };
   return (
@@ -1967,9 +1963,9 @@ function EditClientSheet({client,onSave,onClose}) {
                 {PLATFORMS.map(p=>(
                   <button key={p} onClick={()=>togglePlat(p)} style={{
                     padding:"6px 12px",fontSize:11,fontWeight:600,borderRadius:8,
-                    border:`1px solid ${form.(platforms && platforms.includes)(p)?"rgba(79,142,247,.4)":C.border}`,
-                    backgroundColor:form.(platforms && platforms.includes)(p)?"rgba(79,142,247,.12)":"rgba(255,255,255,.03)",
-                    color:form.(platforms && platforms.includes)(p)?C.blue:C.textMuted,cursor:"pointer"
+                    border:`1px solid ${(form.platforms && form.platforms.includes(p))?"rgba(79,142,247,.4)":C.border}`,
+                    backgroundColor:(form.platforms && form.platforms.includes(p))?"rgba(79,142,247,.12)":"rgba(255,255,255,.03)",
+                    color:(form.platforms && form.platforms.includes(p))?C.blue:C.textMuted,cursor:"pointer"
                   }}>{p}</button>
                 ))}
               </div>
@@ -2315,8 +2311,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   };
 
   const confirmUpgrade=(cl)=>{
-    const pkgId=cl.(upgradeRequest && upgradeRequest.match)(/\(([^)]+)\)/) && eRequest.match(/\(([^)]+)\)/)[1] && eRequest.match(/\(([^)]+)\)/)[1].split(" ")[0]||cl.packageId;
-    const newPkg=ALL_PKGS.find(p=>cl.(upgradeRequest && upgradeRequest.includes)(p.name))||findPkg(cl.packageId);
+    const newPkg=ALL_PKGS.find(p=>cl.upgradeRequest && cl.upgradeRequest.includes(p.name))||findPkg(cl.packageId);
     const bots=buildBots(newPkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));
     botStatuses["intake"]="done";botStatuses["ceo"]="done";
@@ -2388,7 +2383,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                       <button onClick={()=>setDeclining(cl.id)} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Decline</button>
                       <button onClick={()=>setConfirming(cl.id)} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.purple}44`,backgroundColor:`${C.purple}22`,color:C.purple,cursor:"pointer"}}>Review and Confirm →</button>
                     </div>
-                  )}
+                  ))}
                 </div>
               ))}
             </div>
@@ -2566,7 +2561,7 @@ function BottomNav({screen,onHome,onNotif,onARIA,notifCount}) {
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function App() {
+function App() {
   const [clients,setClients]           = useState(INIT_CLIENTS);
   const [screen,setScreen]             = useState("home");
   const [activeClient,setActiveClient] = useState(null);
