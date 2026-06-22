@@ -7,6 +7,7 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #070810; } #root { min-height: 100vh; }</style>
 </head>
 <body>
@@ -22,6 +23,12 @@
   </script>
   <script type="text/babel" data-presets="env,react">
 const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── SUPABASE (auth + database) ───────────────────────────────────────────────
+const supabaseClient = supabase.createClient(
+  "https://ahcrpxuwdyrxlethpdns.supabase.co",
+  "sb_publishable_HJIHgNV16WbZbr8W1j-6eg_Sf1-AAc4"
+);
 
 // ─── ALL POSSIBLE FEATURES (master list for comparison view) ─────────────────
 const ALL_FEATURES = [
@@ -909,7 +916,7 @@ const makePortalHTML=(cl,pkg)=>{
 
 
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({clients,onSelect,onAdd}) {
+function HomeScreen({clients,onSelect,onAdd,onLogout}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -959,6 +966,7 @@ function HomeScreen({clients,onSelect,onAdd}) {
             <div style={{fontSize:10,color:C.textMuted,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:2}}>Agency Dashboard</div>
           </div>
         </div>
+        <button onClick={onLogout} style={{padding:"6px 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Log Out</button>
       </div>
 
       {/* MRR hero card */}
@@ -2571,8 +2579,59 @@ function BottomNav({screen,onHome,onNotif,onARIA,notifCount}) {
   );
 }
 
+// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
+function LoginScreen() {
+  const [email,setEmail]     = useState("");
+  const [password,setPassword] = useState("");
+  const [error,setError]     = useState("");
+  const [loading,setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) setError(error.message);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",backgroundColor:C.bg,color:C.text,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",padding:20}}>
+      <form onSubmit={handleSubmit} style={{width:"100%",maxWidth:320}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:32,justifyContent:"center"}}>
+          <div style={{width:42,height:42,borderRadius:12,background:C.gradB,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#0a0800"}}>B</div>
+          <div style={{fontSize:18,fontWeight:800,color:C.text}}>BoldLine OS</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+          <input type="email" required autoFocus value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={inp}/>
+          <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" style={inp}/>
+        </div>
+        {error&&<div style={{fontSize:12,color:C.red,marginBottom:14,textAlign:"center"}}>{error}</div>}
+        <button type="submit" disabled={loading} style={{width:"100%",padding:"12px",fontSize:14,fontWeight:700,borderRadius:10,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:loading?"default":"pointer",opacity:loading?.7:1}}>{loading?"Signing in…":"Sign In"}</button>
+      </form>
+    </div>
+  );
+}
+
+// ─── AUTH GATE ─────────────────────────────────────────────────────────────────
+function AuthGate() {
+  const [session,setSession] = useState(undefined); // undefined=checking, null=logged out
+
+  useEffect(() => {
+    supabaseClient.auth.getSession().then(({data})=>setSession(data.session));
+    const { data:listener } = supabaseClient.auth.onAuthStateChange((_event,sess)=>setSession(sess));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (session === undefined) {
+    return <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.textMuted,fontSize:13}}>Loading…</div></div>;
+  }
+  if (!session) return <LoginScreen/>;
+  return <App onLogout={()=>supabaseClient.auth.signOut()}/>;
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
-function App() {
+function App({onLogout}) {
   const [clients,setClients]           = useState(INIT_CLIENTS);
   const [screen,setScreen]             = useState("home");
   const [activeClient,setActiveClient] = useState(null);
@@ -2614,7 +2673,7 @@ function App() {
         }
       `}</style>
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:60}}>
-        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)}/>}
+        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onBack={()=>setScreen("home")}/>}
       </div>
       <BottomNav screen={screen} onHome={()=>setScreen("home")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount}/>
@@ -2635,7 +2694,7 @@ function App() {
 }
 
 const _root = ReactDOM.createRoot(document.getElementById('root'));
-_root.render(React.createElement(App));
+_root.render(React.createElement(AuthGate));
   </script>
 </body>
 </html>
