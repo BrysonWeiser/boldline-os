@@ -1415,7 +1415,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Live Client View</Label>
-                <button onClick={()=>navigator.clipboard.writeText(`https://portal.boldlinemedia.com/client?id=${client.id}&email=${encodeURIComponent(client.email)}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Link</button>
+                <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${client.portalToken}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Link</button>
               </div>
               <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Exactly what {client.name} sees — no mention of AI or bots anywhere.</div>
               <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`}}>
@@ -1872,8 +1872,8 @@ function ARIADeployTab() {
     {name:"Weekly Report Email",icon:"📊",live:false,note:"Manual generation works now. Auto Monday 8am email needs Railway ($5/mo) + Resend (free)."},
     {name:"SMS Report Notification",icon:"📱",live:false,note:"Needs Twilio (~$0.01/text). Texts you when report is sent."},
     {name:"DocuSign Contracts",icon:"✍️",live:false,note:"PDF download works now. E-signature needs your DocuSign Integration Key."},
-    {name:"Client Portal (hosted)",icon:"🔗",live:false,note:"Portal preview works inside OS. Live URL needs Railway + Supabase (free tier)."},
-    {name:"Data Persistence",icon:"💾",live:false,note:"Data resets on refresh. Needs Supabase (free) to save across sessions and devices."},
+    {name:"Client Portal (hosted)",icon:"🔗",live:true,note:"Live now — each client gets a private, unguessable portal link via Copy Link."},
+    {name:"Data Persistence",icon:"💾",live:true,note:"Live now via Supabase — data is saved across sessions and devices."},
   ];
   return (
     <div style={{flex:1,overflowY:"auto",padding:14}}>
@@ -1904,7 +1904,7 @@ function ARIADeployTab() {
         ))}
       </div>
       <div style={{marginTop:10,padding:"11px 13px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,fontSize:11,color:C.textMuted,lineHeight:1.7}}>
-        <strong style={{color:C.textDim}}>Setup order:</strong> Supabase → Railway → Resend → Twilio → DocuSign. Each step takes 15–30 min.
+        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Railway → Resend → Twilio → DocuSign. Each step takes 15–30 min.
       </div>
     </div>
   );
@@ -2265,7 +2265,7 @@ function AddClientSheet({onSave,onClose}) {
     if(!canSave)return;
     const pkg=findPkg(form.packageId);const bots=buildBots(pkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));botStatuses["intake"]="active";
-    onSave({...form,id:uid(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],upgradeRequest:null,botStatuses});
+    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],upgradeRequest:null,botStatuses});
     setSaved(true);setTimeout(()=>{ setSaved(false);onClose(); },1200);
   };
   return (
@@ -2702,18 +2702,28 @@ function App({onLogout}) {
   const [showAdd,setShowAdd]           = useState(false);
   const [showNotif,setShowNotif]       = useState(false);
 
+  const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
+    if (c.portalToken) return c;
+    const next = {...c, portalToken: crypto.randomUUID()};
+    const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
+    if (error) console.error("Token backfill failed:", error);
+    return next;
+  }));
+
   const loadClients = useCallback(async () => {
     setDataState("loading");
     const { data, error } = await supabaseClient.from("clients").select("data");
     if (error) { console.error("Load failed:", error); setDataState("error"); return; }
+    let list;
     if (data.length === 0) {
       const rows = INIT_CLIENTS.map(cl => ({ id: cl.id, data: cl }));
       const { error: seedError } = await supabaseClient.from("clients").insert(rows);
       if (seedError) { console.error("Seed failed:", seedError); setDataState("error"); return; }
-      setClients(INIT_CLIENTS);
+      list = INIT_CLIENTS;
     } else {
-      setClients(data.map(r => r.data));
+      list = data.map(r => r.data);
     }
+    setClients(await ensureTokens(list));
     setDataState("ready");
   }, []);
 
