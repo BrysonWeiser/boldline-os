@@ -2631,24 +2631,60 @@ function AuthGate() {
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 function App({onLogout}) {
-  const [clients,setClients]           = useState(INIT_CLIENTS);
+  const [clients,setClients]           = useState([]);
+  const [dataState,setDataState]       = useState("loading"); // loading | ready | error
   const [screen,setScreen]             = useState("home");
   const [activeClient,setActiveClient] = useState(null);
   const [showARIA,setShowARIA]         = useState(false);
   const [showAdd,setShowAdd]           = useState(false);
   const [showNotif,setShowNotif]       = useState(false);
 
+  const loadClients = useCallback(async () => {
+    setDataState("loading");
+    const { data, error } = await supabaseClient.from("clients").select("data");
+    if (error) { console.error("Load failed:", error); setDataState("error"); return; }
+    if (data.length === 0) {
+      const rows = INIT_CLIENTS.map(cl => ({ id: cl.id, data: cl }));
+      const { error: seedError } = await supabaseClient.from("clients").insert(rows);
+      if (seedError) { console.error("Seed failed:", seedError); setDataState("error"); return; }
+      setClients(INIT_CLIENTS);
+    } else {
+      setClients(data.map(r => r.data));
+    }
+    setDataState("ready");
+  }, []);
+
+  useEffect(() => { loadClients(); }, [loadClients]);
+
   const updateClient = useCallback((updated) => {
     setClients(prev=>prev.map(c=>c.id===updated.id?updated:c));
     if((activeClient && activeClient.id)===updated.id) setActiveClient(updated);
+    supabaseClient.from("clients").update({ data:updated, updated_at:new Date().toISOString() }).eq("id",updated.id)
+      .then(({error})=>{ if(error) console.error("Save failed:", error); });
   },[activeClient]);
 
   const selectClient = (cl) => { setActiveClient(cl); setScreen("client"); };
-  const addClient    = (cl) => { setClients(p=>[...p,cl]); setShowAdd(false); setActiveClient(cl); setScreen("client"); };
+  const addClient    = (cl) => {
+    setClients(p=>[...p,cl]); setShowAdd(false); setActiveClient(cl); setScreen("client");
+    supabaseClient.from("clients").insert({ id:cl.id, data:cl })
+      .then(({error})=>{ if(error) console.error("Save failed:", error); });
+  };
 
   const notifCount = clients.filter(c=>c.upgradeRequest).length
     + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; }).length
     + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length;
+
+  if (dataState==="loading") {
+    return <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.textMuted,fontSize:13}}>Loading your dashboard…</div></div>;
+  }
+  if (dataState==="error") {
+    return (
+      <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",flexDirection:"column",gap:14,alignItems:"center",justifyContent:"center",padding:20}}>
+        <div style={{color:C.red,fontSize:13,textAlign:"center"}}>Couldn't load your data. Check your connection and try again.</div>
+        <button onClick={loadClients} style={{padding:"10px 20px",fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div style={{minHeight:"100vh",backgroundColor:C.bg,color:C.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",display:"flex",flexDirection:"column",maxWidth:640,margin:"0 auto",position:"relative"}}>
