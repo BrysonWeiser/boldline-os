@@ -21,7 +21,7 @@ exports.handler = async (event) => {
 
   try {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-8",
       max_tokens: 1200,
       system: system || undefined,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
