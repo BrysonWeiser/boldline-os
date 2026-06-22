@@ -369,9 +369,9 @@ function useAI(system) {
     const h = [...messages, {role:"user",content:text}];
     setMessages(h); setLoading(true);
     try {
-      const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1200,system:override||system,messages:h.map(m=>({role:m.role,content:m.content}))})});
+      const r = await fetch("/.netlify/functions/aria",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({system:override||system,messages:h.map(m=>({role:m.role,content:m.content}))})});
       const d = await r.json();
-      setMessages([...h,{role:"assistant",content:(d.content && d.content[0] && d.content[0].text)||"No response."}]);
+      setMessages([...h,{role:"assistant",content:d.text||"No response."}]);
     } catch { setMessages([...h,{role:"assistant",content:"Connection error — try again."}]); }
     setLoading(false);
   };

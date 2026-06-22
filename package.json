@@ -1,0 +1,8 @@
+{
+  "name": "boldline-os",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0"
+  }
+}
