@@ -206,24 +206,25 @@ const markdownToHTML = (text) => {
   return blocks.join("");
 };
 
-const reportToHTML = (client, reportText, { label, internal }) => {
+const reportToHTML = (reportText, { label, subtitle, internal, contactName }) => {
   const body = markdownToHTML(reportText);
   const banner = internal
     ? `<div style="margin-bottom:14px;padding:8px 12px;border-radius:8px;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:11px;font-weight:700;letter-spacing:.03em">INTERNAL — DO NOT FORWARD TO CLIENT</div>`
     : "";
   const greeting = internal
     ? ""
-    : `<p style="margin:0 0 16px;line-height:1.6;color:#1F2937">Hi ${escapeHTML(firstName(client.contactName) || "there")},</p>`;
+    : `<p style="margin:0 0 16px;line-height:1.6;color:#1F2937">Hi ${escapeHTML(firstName(contactName) || "there")},</p>`;
   const signoff = internal
     ? ""
     : `<p style="margin:20px 0 0;line-height:1.6;color:#1F2937">Best,<br><strong>The BoldLine Media Team</strong></p>`;
+  const headline = subtitle ? `${label} — ${escapeHTML(subtitle)}` : label;
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:28px 20px">
   ${banner}
   <div style="margin-bottom:22px;text-align:center">
     <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
     <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
-    <div style="font-size:11px;color:#6B7280;margin-top:10px">${label} — ${escapeHTML(client.name)}</div>
+    <div style="font-size:11px;color:#6B7280;margin-top:10px">${headline}</div>
   </div>
   <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:26px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05)">${greeting}${body}${signoff}</div>
   <div style="margin-top:18px;font-size:11px;color:#9CA3AF;text-align:center">${internal ? "Auto-generated internal briefing — not sent to the client." : "Sent automatically by BoldLine Media. Questions? Just reply to this email."}</div>
@@ -246,10 +247,42 @@ const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
+const sendSMS = async ({ to, body }) => {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_NUMBER;
+  if (!sid || !token || !from || !to) {
+    console.warn("SMS skipped: Twilio is not fully configured.");
+    return;
+  }
+  const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${sid}:${token}`).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ To: to, From: from, Body: body }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Twilio error ${res.status}: ${errBody}`);
+  }
+};
+
 const shouldSend = (client, minGapDays) => {
   if (!client.lastReportSent) return true;
   const sinceDays = (Date.now() - new Date(client.lastReportSent).getTime()) / 864e5;
   return sinceDays >= minGapDays;
+};
+
+// Monthly-tier clients are anchored to their own contract date instead of the
+// calendar, so "due" means 30+ days since the last report (or since the
+// contract started, for the very first one) rather than "it's the 1st."
+const dueForMonthly = (client, intervalDays) => {
+  const anchor = client.lastReportSent || client.contractStart;
+  if (!anchor) return false;
+  const sinceDays = (Date.now() - new Date(anchor).getTime()) / 864e5;
+  return sinceDays >= intervalDays;
 };
 
 const isEligible = (client, pkg, period) => {
@@ -263,7 +296,8 @@ const processClient = async (supabaseAdmin, row, period, minGapDays, testMode = 
   const client = row.data;
   const pkg = findPkg(client.packageId);
   if (!isEligible(client, pkg, period)) return { id: row.id, skipped: `not an eligible ${period} client` };
-  if (!testMode && !shouldSend(client, minGapDays)) return { id: row.id, skipped: `already sent this ${period === "weekly" ? "week" : "month"}` };
+  const due = period === "monthly" ? dueForMonthly(client, minGapDays) : shouldSend(client, minGapDays);
+  if (!testMode && !due) return { id: row.id, skipped: `not due yet this ${period === "weekly" ? "week" : "month"}` };
 
   const periodLabel = titleCase(period);
   const data = buildDataBlock(client, pkg);
@@ -282,14 +316,14 @@ const processClient = async (supabaseAdmin, row, period, minGapDays, testMode = 
   await sendEmail({
     to: process.env.OWNER_EMAIL,
     subject: `${testPrefix}[Internal] ${client.name} — ${periodLabel} Account Briefing`,
-    html: reportToHTML(client, ownerText, { label: `${periodLabel} Internal Briefing`, internal: true }),
+    html: reportToHTML(ownerText, { label: `${periodLabel} Internal Briefing`, subtitle: client.name, internal: true }),
     text: ownerText,
   });
 
   await sendEmail({
     to: testMode ? process.env.OWNER_EMAIL : client.email,
     subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your ${periodLabel} Performance Report — ${client.name}`,
-    html: reportToHTML(client, clientText, { label: `${periodLabel} Performance Report`, internal: false }),
+    html: reportToHTML(clientText, { label: `${periodLabel} Performance Report`, subtitle: client.name, internal: false, contactName: client.contactName }),
     text: clientText,
   });
 
@@ -311,7 +345,7 @@ const processClient = async (supabaseAdmin, row, period, minGapDays, testMode = 
   const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", row.id);
   if (error) throw error;
 
-  return { id: row.id, sent: true };
+  return { id: row.id, sent: true, client: client.name };
 };
 
 export const runReportJob = async (req, { period, minGapDays }) => {
@@ -357,11 +391,169 @@ export const runReportJob = async (req, { period, minGapDays }) => {
   }
 
   const results = await Promise.allSettled((data || []).map((row) => processClient(supabaseAdmin, row, period, minGapDays)));
+  const sentTo = [];
   results.forEach((r, i) => {
     const id = data[i] && data[i].id;
     if (r.status === "rejected") console.error(`Client ${id} failed:`, r.reason);
-    else console.log(`Client ${id}:`, r.value);
+    else {
+      console.log(`Client ${id}:`, r.value);
+      if (r.value && r.value.sent) sentTo.push(r.value.client);
+    }
   });
 
+  if (sentTo.length) {
+    const digest = sentTo.length === 1
+      ? `BoldLine: ${titleCase(period)} report sent to ${sentTo[0]}.`
+      : `BoldLine: ${titleCase(period)} reports sent to ${sentTo.length} clients — ${sentTo.join(", ")}.`;
+    try {
+      await sendSMS({ to: process.env.OWNER_PHONE, body: digest });
+    } catch (err) {
+      console.error("SMS notification failed:", err);
+    }
+  }
+
   return new Response("ok", { status: 200 });
+};
+
+const REQUIRED_ENV_VARS = [
+  "RESEND_API_KEY",
+  "REPORTS_FROM_EMAIL",
+  "OWNER_EMAIL",
+  "ANTHROPIC_API_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_FROM_NUMBER",
+  "OWNER_PHONE",
+];
+
+const EXPECTED_GAP_DAYS = { weekly: 7, monthly: 30 };
+
+// No dedicated logging table exists, so pipeline health is inferred from the
+// same client data the reports already use: accounts past their expected
+// cadence (plus slack) suggest the report job may not be reaching them.
+const buildOSDataBlock = (rows) => {
+  const clients = (rows || []).map((r) => r.data);
+  const active = clients.filter((c) => c.contractStatus === "active");
+
+  const healths = active.map((c) => calcHealth(c));
+  const avgHealth = healths.length ? healths.reduce((a, b) => a + b, 0) / healths.length : 0;
+  const lowHealth = active.filter((c) => calcHealth(c) < 5).map((c) => `${c.name} (${calcHealth(c).toFixed(1)}/10)`);
+
+  const totalLeads = active.reduce((sum, c) => sum + (c.leads || 0), 0);
+  const aboveTargetCPL = active.filter((c) => {
+    const target = PER_LEAD[c.niche] || 75;
+    return c.leads > 0 && c.cpl > target;
+  }).map((c) => c.name);
+
+  const renewalsSoon = active.filter((c) => {
+    const days = daysUntil(c.contractEnd);
+    return days > 0 && days <= 30;
+  }).map((c) => `${c.name} (${daysUntil(c.contractEnd)}d)`);
+
+  const incompleteIntake = active.filter((c) => !c.intakeComplete).map((c) => c.name);
+
+  const stageBreakdown = {};
+  active.forEach((c) => { stageBreakdown[c.stage] = (stageBreakdown[c.stage] || 0) + 1; });
+
+  const packageMix = {};
+  active.forEach((c) => {
+    const pkg = findPkg(c.packageId);
+    const key = pkg ? `${pkg.platform} / ${pkg.name}` : "Unknown";
+    packageMix[key] = (packageMix[key] || 0) + 1;
+  });
+
+  const missingEmail = active.filter((c) => !c.email).map((c) => c.name);
+
+  const overdue = active.filter((c) => {
+    const pkg = findPkg(c.packageId);
+    const expected = pkg && EXPECTED_GAP_DAYS[pkg.optimizationFreq];
+    if (!expected) return false;
+    const anchor = c.lastReportSent || c.contractStart;
+    if (!anchor) return false;
+    const sinceDays = (Date.now() - new Date(anchor).getTime()) / 864e5;
+    return sinceDays >= expected + 7;
+  }).map((c) => c.name);
+
+  const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+
+  return `PORTFOLIO OVERVIEW
+Total Clients: ${clients.length}
+Active Clients: ${active.length}
+Average Health Score: ${avgHealth.toFixed(1)}/10
+Low-Health Accounts (below 5/10): ${lowHealth.length ? lowHealth.join(", ") : "None"}
+Total Leads Generated (active accounts): ${totalLeads}
+Accounts Above Target CPL: ${aboveTargetCPL.length ? aboveTargetCPL.join(", ") : "None"}
+Renewals Within 30 Days: ${renewalsSoon.length ? renewalsSoon.join(", ") : "None"}
+Incomplete Intake: ${incompleteIntake.length ? incompleteIntake.join(", ") : "None"}
+Stage Breakdown: ${Object.entries(stageBreakdown).map(([k, v]) => `${k}: ${v}`).join(", ") || "None"}
+Package Mix: ${Object.entries(packageMix).map(([k, v]) => `${k}: ${v}`).join(", ") || "None"}
+
+SYSTEM / TECHNICAL HEALTH
+Active Accounts Missing Email: ${missingEmail.length ? missingEmail.join(", ") : "None"}
+Accounts With Overdue Reports (possible pipeline issue): ${overdue.length ? overdue.join(", ") : "None"}
+Missing Required Configuration: ${missingEnvVars.length ? missingEnvVars.join(", ") : "None — all required environment variables are set"}`;
+};
+
+const buildOSPrompt = (dataText) => ({
+  system: `You are ARIA, the AI assistant built into the BoldLine Media operating system. You are writing a weekly internal health report for Bryson Weiser, the owner, covering the entire business and the system itself. This is for his eyes only — be direct and specific, not diplomatic. Never mention being an AI model or large language model; you are ARIA reporting on the system you run inside of.
+
+PORTFOLIO & SYSTEM DATA:
+${dataText}
+
+OUTPUT FORMAT:
+Do NOT include a greeting, salutation, subject line, or sign-off. Start directly with the first section. Write each section header on its own line in bold markdown, using exactly these headers in this order:
+- **Overall Health** — one to two sentences on the state of the business portfolio right now
+- **What's Working** — what's going well across accounts, be specific with names and numbers
+- **What Needs Attention** — accounts or trends that need Bryson's attention, ranked by urgency
+- **System Health** — status of the reporting pipeline and configuration based on the technical data provided
+- **Recommendations** — concrete, prioritized actions Bryson could take this week
+
+Use "- " for bullet points within a section where a list is clearer than prose. Be specific with numbers and account names. Don't soften bad news.`,
+  user: `Write this week's OS health report. Use all the portfolio and system data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
+});
+
+export const runOSHealthReport = async (req) => {
+  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL || !process.env.OWNER_EMAIL) {
+    console.error("OS health report aborted: RESEND_API_KEY, REPORTS_FROM_EMAIL, or OWNER_EMAIL is not configured.");
+    return new Response("not configured", { status: 500 });
+  }
+
+  const testMode = new URL(req.url).searchParams.get("test") === "1";
+  const testPrefix = testMode ? "[TEST] " : "";
+
+  const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data, error } = await supabaseAdmin.from("clients").select("id, data");
+  if (error) {
+    console.error("Failed to load clients for OS health report:", error);
+    return new Response("error loading clients", { status: 500 });
+  }
+
+  try {
+    const dataText = buildOSDataBlock(data || []);
+    const prompt = buildOSPrompt(dataText);
+    const reportText = await generateText(prompt.system, prompt.user);
+
+    await sendEmail({
+      to: process.env.OWNER_EMAIL,
+      subject: `${testPrefix}Weekly OS Health Report — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+      html: reportToHTML(reportText, { label: "Weekly OS Health Report", internal: true }),
+      text: reportText,
+    });
+
+    if (!testMode) {
+      try {
+        await sendSMS({ to: process.env.OWNER_PHONE, body: "BoldLine: ARIA's weekly OS health report is ready — check your email." });
+      } catch (err) {
+        console.error("OS health report SMS failed:", err);
+      }
+    }
+
+    const msg = `OS health report sent to ${process.env.OWNER_EMAIL}.`;
+    console.log(msg);
+    return new Response(JSON.stringify({ ok: true, message: msg }), { status: 200, headers: { "content-type": "application/json" } });
+  } catch (err) {
+    console.error("OS health report failed:", err);
+    return new Response(JSON.stringify({ ok: false, error: String(err && err.message || err) }), { status: 500, headers: { "content-type": "application/json" } });
+  }
 };

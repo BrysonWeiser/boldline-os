@@ -6,7 +6,10 @@
   schedule = "0 15 * * 1"
 
 [functions."monthly-report"]
-  schedule = "0 15 1 * *"
+  schedule = "0 15 * * *"
+
+[functions."os-report"]
+  schedule = "0 16 * * 1"
 
 [[redirects]]
   from = "/portal"
