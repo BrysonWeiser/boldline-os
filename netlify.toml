@@ -5,6 +5,9 @@
 [functions."weekly-report"]
   schedule = "0 15 * * 1"
 
+[functions."monthly-report"]
+  schedule = "0 15 1 * *"
+
 [[redirects]]
   from = "/portal"
   to = "/.netlify/functions/portal"
