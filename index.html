@@ -1869,7 +1869,7 @@ function ARIADeployTab() {
   const items = [
     {name:"ARIA Chat + Reports",icon:"✦",live:true,note:"Fully working now via Claude API."},
     {name:"Bot Pipeline (20 bots)",icon:"🤖",live:true,note:"All bots working now. Client-aware logs active."},
-    {name:"Weekly Report Email",icon:"📊",live:false,note:"Manual generation works now. Auto Monday 8am email needs Railway ($5/mo) + Resend (free)."},
+    {name:"Weekly Report Email",icon:"📊",live:true,note:"Live now — auto-sends every Monday 8am to clients on weekly-report packages, via a scheduled function + Resend."},
     {name:"SMS Report Notification",icon:"📱",live:false,note:"Needs Twilio (~$0.01/text). Texts you when report is sent."},
     {name:"DocuSign Contracts",icon:"✍️",live:false,note:"PDF download works now. E-signature needs your DocuSign Integration Key."},
     {name:"Client Portal (hosted)",icon:"🔗",live:true,note:"Live now — each client gets a private, unguessable portal link via Copy Link."},
@@ -1888,8 +1888,8 @@ function ARIADeployTab() {
         </div>
       </div>
       <div style={{padding:"10px 13px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.06)",border:`1px solid ${C.borderAccent}`,marginBottom:14,fontSize:11,color:C.textDim,lineHeight:1.65}}>
-        <strong style={{color:C.gold}}>Total cost when fully deployed:</strong> ~$5–8/mo<br/>
-        <span style={{color:C.textMuted}}>Railway $5/mo · Twilio ~$0.01/text · Resend free · Supabase free</span>
+        <strong style={{color:C.gold}}>Total cost when fully deployed:</strong> Under $1/mo (plus a few cents per text)<br/>
+        <span style={{color:C.textMuted}}>Twilio ~$0.01/text · Resend free · Supabase free · Netlify free</span>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {items.map((item,i)=>(
@@ -1904,7 +1904,7 @@ function ARIADeployTab() {
         ))}
       </div>
       <div style={{marginTop:10,padding:"11px 13px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,fontSize:11,color:C.textMuted,lineHeight:1.7}}>
-        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Railway → Resend → Twilio → DocuSign. Each step takes 15–30 min.
+        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Twilio → DocuSign. Each step takes 15–30 min.
       </div>
     </div>
   );
@@ -2540,7 +2540,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                     </div>
                     <IconChevron size={14} color={C.blue}/>
                   </div>
-                  <button onClick={()=>navigator.clipboard.writeText(`https://portal.boldlinemedia.com/client?id=${cl.id}&email=${encodeURIComponent(cl.email)}`)} style={{width:"100%",padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.04)",color:C.textDim,cursor:"pointer"}}>Copy Portal Link</button>
+                  <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${cl.portalToken}`)} style={{width:"100%",padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.04)",color:C.textDim,cursor:"pointer"}}>Copy Portal Link</button>
                 </div>
               ))}
             </div>

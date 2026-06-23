@@ -2,6 +2,9 @@
   publish = "."
   functions = "netlify/functions"
 
+[functions."weekly-report"]
+  schedule = "0 14 * * 1"
+
 [[redirects]]
   from = "/portal"
   to = "/.netlify/functions/portal"
