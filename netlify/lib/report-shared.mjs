@@ -182,13 +182,18 @@ const shouldSend = (client, minGapDays) => {
   return sinceDays >= minGapDays;
 };
 
-const processClient = async (supabaseAdmin, row, period, minGapDays) => {
+const isEligible = (client, pkg, period) => {
+  if (!pkg || pkg.optimizationFreq !== period) return false;
+  if (client.contractStatus !== "active") return false;
+  if (!client.email) return false;
+  return true;
+};
+
+const processClient = async (supabaseAdmin, row, period, minGapDays, testMode = false) => {
   const client = row.data;
   const pkg = findPkg(client.packageId);
-  if (!pkg || pkg.optimizationFreq !== period) return { id: row.id, skipped: `not on a ${period} package` };
-  if (client.contractStatus !== "active") return { id: row.id, skipped: "contract not active" };
-  if (!client.email) return { id: row.id, skipped: "no email on file" };
-  if (!shouldSend(client, minGapDays)) return { id: row.id, skipped: `already sent this ${period === "weekly" ? "week" : "month"}` };
+  if (!isEligible(client, pkg, period)) return { id: row.id, skipped: `not an eligible ${period} client` };
+  if (!testMode && !shouldSend(client, minGapDays)) return { id: row.id, skipped: `already sent this ${period === "weekly" ? "week" : "month"}` };
 
   const periodLabel = titleCase(period);
   const data = buildDataBlock(client, pkg);
@@ -200,21 +205,25 @@ const processClient = async (supabaseAdmin, row, period, minGapDays) => {
     generateText(ownerPrompt.system, ownerPrompt.user),
   ]);
 
+  const testPrefix = testMode ? "[TEST] " : "";
+
   // Owner copy first: if the client send below fails and this run is retried,
   // a duplicate internal email is harmless but a duplicate client email is not.
   await sendEmail({
     to: process.env.OWNER_EMAIL,
-    subject: `[Internal] ${client.name} — ${periodLabel} Account Briefing`,
+    subject: `${testPrefix}[Internal] ${client.name} — ${periodLabel} Account Briefing`,
     html: reportToHTML(client, ownerText, { label: `${periodLabel} Internal Briefing`, internal: true }),
     text: ownerText,
   });
 
   await sendEmail({
-    to: client.email,
-    subject: `Your ${periodLabel} Performance Report — ${client.name}`,
+    to: testMode ? process.env.OWNER_EMAIL : client.email,
+    subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your ${periodLabel} Performance Report — ${client.name}`,
     html: reportToHTML(client, clientText, { label: `${periodLabel} Performance Report`, internal: false }),
     text: clientText,
   });
+
+  if (testMode) return { id: row.id, test: true, client: client.name };
 
   const entry = {
     date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
@@ -236,6 +245,8 @@ export const runReportJob = async (req, { period, minGapDays }) => {
     return new Response("not configured", { status: 500 });
   }
 
+  const testMode = new URL(req.url).searchParams.get("test") === "1";
+
   let nextRun = null;
   try {
     const body = await req.json();
@@ -243,13 +254,31 @@ export const runReportJob = async (req, { period, minGapDays }) => {
   } catch {
     // not all invocations send a JSON body (e.g. manual "Run now" testing) — safe to ignore
   }
-  console.log(`${titleCase(period)} report run starting. next_run:`, nextRun);
+  console.log(`${titleCase(period)} report run starting. next_run:`, nextRun, "testMode:", testMode);
 
   const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const { data, error } = await supabaseAdmin.from("clients").select("id, data");
   if (error) {
     console.error("Failed to load clients:", error);
     return new Response("error loading clients", { status: 500 });
+  }
+
+  if (testMode) {
+    const candidate = (data || []).find((row) => isEligible(row.data, findPkg(row.data.packageId), period));
+    if (!candidate) {
+      const msg = `No eligible ${period} client found to test with (need an active contract, an email on file, and a ${period}-cadence package).`;
+      console.log(msg);
+      return new Response(JSON.stringify({ ok: false, message: msg }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    try {
+      const result = await processClient(supabaseAdmin, candidate, period, minGapDays, true);
+      const msg = `Test emails sent to ${process.env.OWNER_EMAIL} using real data from "${candidate.data.name}". No client was emailed, no data was changed.`;
+      console.log(msg, result);
+      return new Response(JSON.stringify({ ok: true, message: msg, result }), { status: 200, headers: { "content-type": "application/json" } });
+    } catch (err) {
+      console.error("Test run failed:", err);
+      return new Response(JSON.stringify({ ok: false, error: String(err && err.message || err) }), { status: 500, headers: { "content-type": "application/json" } });
+    }
   }
 
   const results = await Promise.allSettled((data || []).map((row) => processClient(supabaseAdmin, row, period, minGapDays)));
