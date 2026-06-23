@@ -93,6 +93,41 @@ const STAGES = [
 ];
 const daysUntil = (s) => Math.ceil((new Date(s) - new Date()) / 864e5);
 
+// Renders the same lightweight markdown the report emails use (bold section
+// headers, "- " bullets, plain paragraphs), styled for the dark portal theme.
+const reportTextToHTML = (text) => {
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let bullets = null;
+  let first = true;
+  const flush = () => {
+    if (bullets && bullets.length) {
+      blocks.push('<ul style="margin:0 0 12px;padding-left:18px;color:#D1D5DB">' + bullets.map((b) => '<li style="margin-bottom:5px;line-height:1.55;font-size:12px">' + inline(b) + "</li>").join("") + "</ul>");
+    }
+    bullets = null;
+  };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    const h = line.match(/^\*\*(.+?)\*\*:?$/);
+    if (h) {
+      flush();
+      blocks.push('<div style="margin:' + (first ? "0" : "16px") + ' 0 6px;font-size:10px;font-weight:700;letter-spacing:.06em;color:#C8A84B;text-transform:uppercase">' + esc(h[1]) + "</div>");
+      first = false;
+      continue;
+    }
+    const li = line.match(/^[-*]\s+(.*)$/);
+    if (li) { bullets = bullets || []; bullets.push(li[1]); first = false; continue; }
+    flush();
+    blocks.push('<p style="margin:0 0 10px;line-height:1.6;font-size:12px;color:#D1D5DB">' + inline(line) + "</p>");
+    first = false;
+  }
+  flush();
+  return blocks.join("");
+};
+
 const makePortalHTML = (cl, pkg) => {
   const si = STAGES.findIndex((s) => s.id === cl.stage);
   const pl = PER_LEAD[cl.niche];
@@ -124,14 +159,18 @@ const makePortalHTML = (cl, pkg) => {
     }).join("") +
     '<button class="btn" id="upgbtn" disabled onclick="submitUpg()" style="opacity:.4">Review Selection →</button></div>';
   const contractAlert = (dL <= 30 && dL >= 0) ? '<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);font-size:11px;color:#F59E0B">Contract renewing in ' + dL + " days. Your account manager will be in touch.</div>" : "";
+  const reportSection = cl.latestReport && cl.latestReport.text
+    ? '<div class="card"><div class="lbl">' + (cl.latestReport.period === "monthly" ? "Monthly" : "Weekly") + ' Performance Report</div><div style="font-size:10px;color:#6B7280;margin-bottom:12px">Sent ' + new Date(cl.latestReport.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) + "</div>" + reportTextToHTML(cl.latestReport.text) + "</div>"
+    : '<div class="card"><div class="lbl">Performance Reports</div><div style="font-size:12px;color:#6B7280;line-height:1.6">Your first performance report will appear here once it\'s sent.</div></div>';
   const css = '*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,sans-serif;background:#080A0F;color:#F9FAFB;font-size:14px}.hdr{background:#0D0F16;border-bottom:1px solid rgba(255,255,255,.08);padding:12px 16px;display:flex;align-items:center;gap:10px}.logo{width:30px;height:30px;object-fit:contain}.nav{display:flex;overflow-x:auto;background:#0D0F16;border-bottom:1px solid rgba(255,255,255,.07)}.nb{padding:11px 14px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border:none;background:transparent;color:#6B7280;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}.nb.on{color:#C8A84B;border-bottom-color:#C8A84B}.main{padding:14px;max-width:600px;margin:0 auto}.card{background:#0D0F16;border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:14px;margin-bottom:10px}.lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4B5563;margin-bottom:8px}.stage-cur{padding:11px;border-radius:9px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2);margin-bottom:8px}.stage-cur-top{display:flex;align-items:center;gap:8px;margin-bottom:5px}.stage-cur-name{font-size:13px;font-weight:700}.stage-cur-desc{font-size:11px;color:#9CA3AF;line-height:1.6}.stage-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;display:inline-block}.stage-tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-left:auto}.stage-list{margin-top:2px}.stage-toggle{padding:9px 4px;font-size:11px;font-weight:700;color:#9CA3AF;cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:center;gap:6px;border-top:1px solid rgba(255,255,255,.06);margin-top:4px}.stage-toggle::-webkit-details-marker{display:none}.stage-toggle::after{content:"▾";font-size:9px}.stage-list[open]>.stage-toggle::after{content:"▴"}.stage-row{border:1px solid rgba(255,255,255,.06);border-radius:8px;margin-top:6px}.stage-btn{padding:9px 10px;font-size:12px;font-weight:600;color:#E5E7EB;cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}.stage-btn::-webkit-details-marker{display:none}.stage-btn::after{content:"▾";font-size:9px;color:#6B7280;margin-left:4px}.stage-row[open]>.stage-btn::after{content:"▴"}.stage-desc{padding:0 10px 10px 26px;font-size:11px;color:#9CA3AF;line-height:1.6}.stat{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:9px 11px;flex:1}.inp{width:100%;padding:9px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:8px;color:#F9FAFB;font-size:13px;font-family:inherit;margin-bottom:8px}.btn{width:100%;padding:12px;font-size:13px;font-weight:700;border-radius:10px;border:1px solid rgba(200,168,75,.35);background:rgba(200,168,75,.1);color:#C8A84B;cursor:pointer;font-family:inherit;margin-top:10px}.uopt{padding:12px;border-radius:10px;border:2px solid rgba(255,255,255,.08);background:rgba(255,255,255,.02);cursor:pointer;margin-bottom:8px}.uopt.sel{border-color:#C8A84B;background:rgba(200,168,75,.07)}.uopt-feats-top{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06);margin-bottom:6px}.uopt-feats{display:flex;flex-wrap:wrap;gap:5px}.uopt-feat{font-size:10px;color:#9CA3AF;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:3px 9px;line-height:1.4}.uopt-more{color:#C8A84B;border-color:rgba(200,168,75,.2);background:rgba(200,168,75,.07)}select{background:#0D0F16;color:#F9FAFB}';
 
   return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1\"><title>" + cl.name + " Portal</title><style>" + css + "</style></head><body>"
     + '<div class="hdr"><img class="logo" src="/logo.png" alt="BoldLine Media"><div><div style="font-size:13px;font-weight:700;color:#E8E4D0">BoldLine Media</div><div style="font-size:9px;color:#6e6b54">Client Portal</div></div><div style="margin-left:auto;font-size:11px;color:#9CA3AF">' + cl.name + "</div></div>"
-    + `<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>`
+    + `<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('reports',this)">Reports</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>`
     + '<div class="main">'
     + `<div id="t-status"><div class="card"><div class="lbl">Campaign Progress</div><div class="stage-cur"><div class="stage-cur-top"><span class="stage-dot" style="background:${SC[si] || "#6B7280"}"></span><span class="stage-cur-name" style="color:${SC[si] || "#9CA3AF"}">${SL[si] || "—"}</span><span class="stage-tag" style="color:${SC[si] || "#9CA3AF"}">In Progress</span></div><div class="stage-cur-desc">${SD[si] || "Your campaign status will appear here."}</div></div><details class="stage-list"><summary class="stage-toggle">View all steps</summary>${stageRows}</details></div>`
     + '<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.name) || "—") + '</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.platform) || "—") + "</div></div>" + (pl ? '<div class="stat"><div class="lbl">Per Lead</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$' + pl + "</div></div>" : "") + "</div></div></div>"
+    + '<div id="t-reports" style="display:none">' + reportSection + "</div>"
     + '<div id="t-package" style="display:none"><div class="card"><div class="lbl">Your Package — ' + ((pkg && pkg.name) || "—") + '</div><div style="font-size:11px;color:#C8A84B;margin-bottom:12px">' + ((pkg && pkg.platform) || "") + (pkg ? " · $" + pkg.price + "/mo" : "") + "</div>" + fHTML + (exclFeats.length > 0 ? '<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)"><div class="lbl">Available with Upgrade</div>' + uHTML + "</div>" : "") + "</div>" + upgSection + "</div>"
     + `<div id="t-intake" style="display:none"><div class="card"><div class="lbl">Business Details</div><input class="inp" placeholder="Business Name *" value="${cl.name}"><input class="inp" placeholder="Contact Name" value="${cl.contactName || ""}"><input class="inp" placeholder="Email" value="${cl.email || ""}"><input class="inp" placeholder="Business Address" value="${cl.businessAddress || ""}"><input class="inp" placeholder="Service Area"></div><div class="card"><div class="lbl">Your Offer</div><input class="inp" placeholder="Main service to advertise *"><input class="inp" placeholder="Average job / ticket value *"><input class="inp" placeholder="What makes you different? *"></div><div class="card"><div class="lbl">Assets</div><select class="inp"><option>Do you have photos of your work?</option><option>Yes — I will send them</option><option>No — use stock images</option></select><input class="inp" placeholder="Where should leads be sent? *"><input class="inp" placeholder="CRM or booking system (if any)"></div><button class="btn" onclick="this.textContent='✓ Saved';this.disabled=true">Save My Information</button></div>`
     + '<div id="t-contract" style="display:none"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:13px;font-weight:700;color:' + (cl.contractStatus === "active" ? "#10B981" : cl.contractStatus === "pending" ? "#F59E0B" : "#EF4444") + ';margin-bottom:6px">' + (cl.contractStatus === "active" ? "Signed and Active" : cl.contractStatus === "pending" ? "Pending Signature" : "Expired") + '</div><div style="font-size:11px;color:#6B7280;line-height:1.6">Start: ' + (cl.contractStart || "—") + " · End: " + (cl.contractEnd || "—") + "</div>" + contractAlert + "</div></div>"

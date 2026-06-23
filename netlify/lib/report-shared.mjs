@@ -80,6 +80,7 @@ const buildDataBlock = (client, pkg) => {
   const pendingSteps = Object.entries(client.botStatuses || {}).filter(([, s]) => s !== "done").map(([k]) => k);
 
   const text = `Business: ${client.name}
+Contact: ${client.contactName || "Not provided"}
 Niche: ${client.niche}
 Package: ${(pkg && pkg.name)} on ${(pkg && pkg.platform)}
 Campaign Stage: ${client.stage}
@@ -98,20 +99,23 @@ Internal Notes: ${client.notes || "None"}`;
 };
 
 const buildClientPrompt = (client, period, data) => ({
-  system: `You are generating a client performance report for Bryson Weiser at BoldLine Media. Write in professional plain English. Never mention AI or bots.
+  system: `You are writing the body of a performance report email that will be sent directly to a BoldLine Media client. Write in professional plain English. Never mention AI or bots.
 
 CLIENT DATA:
 ${data.text}
 
-REPORT STRUCTURE:
-1. Campaign Summary (2-3 sentences on current status)
-2. Performance This Period (leads, CPL vs target, what's working)
-3. What We Did (key actions taken this period)
-4. What's Next (next 30 days plan)
-5. One recommendation for the client
+OUTPUT FORMAT:
+Do NOT include a greeting, salutation, subject line, or sign-off — those are added separately by the system. Start directly with the first section. Write each section header on its own line in bold markdown, using exactly these headers in this order:
+- **Campaign Summary** — 2-3 sentences on current status
+- **Performance This Period** — leads, CPL vs target, what's working
+- **What We Did** — key actions taken this period
+- **What's Next** — next 30 days plan
+- **Recommendation** — one recommendation for the client
 
-Keep it concise. This will be emailed directly to the client, so write it as a finished, polished update — no placeholders, no brackets, no internal jargon.`,
-  user: `Write the ${period} performance report email for ${client.name}. Use all the client data provided. Sign off as "The BoldLine Media Team".`,
+Use "- " for bullet points within a section where a list is clearer than prose.
+
+Keep it concise. Write it as a finished, polished update — no placeholders, no brackets, no internal jargon.`,
+  user: `Write the body of the ${period} performance report for ${client.name}. Use all the client data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
 });
 
 const buildOwnerPrompt = (client, period, data) => ({
@@ -120,15 +124,18 @@ const buildOwnerPrompt = (client, period, data) => ({
 CLIENT DATA:
 ${data.text}
 
-BRIEFING STRUCTURE:
-1. Account Snapshot (one line: stage, health score, contract status)
-2. Performance vs Target (leads, CPL vs target — say plainly if it's good, bad, or borderline)
-3. What Was Done This Period
-4. Flags (anything needing Bryson's attention: renewal window, missed targets, incomplete intake, stalled pipeline steps, low lead volume. If nothing needs attention, say so in one line.)
-5. What's Next
+OUTPUT FORMAT:
+Do NOT include a greeting, salutation, subject line, or sign-off. Start directly with the first section. Write each section header on its own line in bold markdown, using exactly these headers in this order:
+- **Account Snapshot** — one line: stage, health score, contract status
+- **Performance vs Target** — leads, CPL vs target — say plainly if it's good, bad, or borderline
+- **What Was Done This Period**
+- **Flags** — anything needing Bryson's attention: renewal window, missed targets, incomplete intake, stalled pipeline steps, low lead volume. If nothing needs attention, say so in one line.
+- **What's Next**
 
-Be specific with numbers. Don't soften bad news. No sign-off needed — this is an internal note, not a client-facing message.`,
-  user: `Write the internal ${period} account briefing for ${client.name}.`,
+Use "- " for bullet points within a section where a list is clearer than prose.
+
+Be specific with numbers. Don't soften bad news.`,
+  user: `Write the internal ${period} account briefing for ${client.name}. Do not include a greeting or sign-off — start directly with the first section header.`,
 });
 
 const generateText = async (system, user) => {
@@ -142,20 +149,83 @@ const generateText = async (system, user) => {
   return textBlock ? textBlock.text : "";
 };
 
+const GOLD = "#C8A84B";
+
+const escapeHTML = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const inlineMd = (s) => escapeHTML(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+const firstName = (contactName) => {
+  if (!contactName) return null;
+  const first = contactName.trim().split(/\s+/)[0];
+  return first || null;
+};
+
+// Renders the LLM's lightweight markdown (bold section headers, "- " bullets,
+// plain paragraphs) into HTML matching BoldLine's branded email styling.
+const markdownToHTML = (text) => {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let bullets = null;
+  let firstBlock = true;
+
+  const flushBullets = () => {
+    if (bullets && bullets.length) {
+      blocks.push(`<ul style="margin:0 0 16px;padding-left:18px;color:#1F2937">${bullets.map((b) => `<li style="margin-bottom:6px;line-height:1.55">${inlineMd(b)}</li>`).join("")}</ul>`);
+    }
+    bullets = null;
+  };
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { flushBullets(); continue; }
+
+    const headerMatch = line.match(/^\*\*(.+?)\*\*:?$/);
+    if (headerMatch) {
+      flushBullets();
+      const topMargin = firstBlock ? "0" : "22px";
+      blocks.push(`<div style="margin:${topMargin} 0 8px;padding-bottom:5px;border-bottom:1px solid #F0E6C8;font-size:11px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">${escapeHTML(headerMatch[1])}</div>`);
+      firstBlock = false;
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-*]\s+(.*)$/);
+    if (bulletMatch) {
+      bullets = bullets || [];
+      bullets.push(bulletMatch[1]);
+      firstBlock = false;
+      continue;
+    }
+
+    flushBullets();
+    blocks.push(`<p style="margin:0 0 14px;line-height:1.6;color:#1F2937">${inlineMd(line)}</p>`);
+    firstBlock = false;
+  }
+  flushBullets();
+  return blocks.join("");
+};
+
 const reportToHTML = (client, reportText, { label, internal }) => {
-  const paragraphs = reportText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-  const body = paragraphs.map((p) => `<p style="margin:0 0 14px;line-height:1.6;color:#1F2937">${p.replace(/\n/g, "<br>")}</p>`).join("");
+  const body = markdownToHTML(reportText);
   const banner = internal
     ? `<div style="margin-bottom:14px;padding:8px 12px;border-radius:8px;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:11px;font-weight:700;letter-spacing:.03em">INTERNAL — DO NOT FORWARD TO CLIENT</div>`
     : "";
+  const greeting = internal
+    ? ""
+    : `<p style="margin:0 0 16px;line-height:1.6;color:#1F2937">Hi ${escapeHTML(firstName(client.contactName) || "there")},</p>`;
+  const signoff = internal
+    ? ""
+    : `<p style="margin:20px 0 0;line-height:1.6;color:#1F2937">Best,<br><strong>The BoldLine Media Team</strong></p>`;
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:28px 20px">
   ${banner}
-  <div style="margin-bottom:20px">
-    <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#C8A84B;text-transform:uppercase">BoldLine Media</div>
-    <div style="font-size:11px;color:#6B7280;margin-top:2px">${label} — ${client.name}</div>
+  <div style="margin-bottom:22px;text-align:center">
+    <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
+    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
+    <div style="font-size:11px;color:#6B7280;margin-top:10px">${label} — ${escapeHTML(client.name)}</div>
   </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:24px">${body}</div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:26px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05)">${greeting}${body}${signoff}</div>
   <div style="margin-top:18px;font-size:11px;color:#9CA3AF;text-align:center">${internal ? "Auto-generated internal briefing — not sent to the client." : "Sent automatically by BoldLine Media. Questions? Just reply to this email."}</div>
 </div>
 </body></html>`;
@@ -231,7 +301,12 @@ const processClient = async (supabaseAdmin, row, period, minGapDays, testMode = 
     cat: "email",
     ts: Date.now(),
   };
-  const nextData = { ...client, lastReportSent: new Date().toISOString(), commLog: [entry, ...(client.commLog || [])] };
+  const nextData = {
+    ...client,
+    lastReportSent: new Date().toISOString(),
+    latestReport: { period, text: clientText, sentAt: new Date().toISOString() },
+    commLog: [entry, ...(client.commLog || [])],
+  };
 
   const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", row.id);
   if (error) throw error;
