@@ -70,18 +70,16 @@ export const calcHealth = (cl) => {
 const anthropic = new Anthropic();
 const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const buildReportPrompt = (client, pkg, period) => {
+const buildDataBlock = (client, pkg) => {
   const perLead = PER_LEAD[client.niche];
   const health = calcHealth(client);
   const onTarget = client.cpl > 0 && client.cpl <= (perLead || 75);
   const daysLeft = daysUntil(client.contractEnd);
   const botsComplete = Object.values(client.botStatuses || {}).filter((s) => s === "done").length;
   const botsTotal = Object.values(client.botStatuses || {}).length;
+  const pendingSteps = Object.entries(client.botStatuses || {}).filter(([, s]) => s !== "done").map(([k]) => k);
 
-  const system = `You are generating a client performance report for Bryson Weiser at BoldLine Media. Write in professional plain English. Never mention AI or bots.
-
-CLIENT DATA:
-Business: ${client.name}
+  const text = `Business: ${client.name}
 Niche: ${client.niche}
 Package: ${(pkg && pkg.name)} on ${(pkg && pkg.platform)}
 Campaign Stage: ${client.stage}
@@ -93,8 +91,17 @@ CPL Status: ${client.leads > 0 ? (onTarget ? "On target" : "Above target — nee
 Ad Budget: ${client.adBudget || "Not set"}
 Contract: ${client.contractStart} → ${client.contractEnd} (${daysLeft > 0 ? daysLeft + "d remaining" : "expired"})
 Intake Complete: ${client.intakeComplete ? "Yes" : "No"}
-Pipeline Progress: ${botsComplete}/${botsTotal} steps complete
-Internal Notes: ${client.notes || "None"}
+Pipeline Progress: ${botsComplete}/${botsTotal} steps complete${pendingSteps.length ? " (pending: " + pendingSteps.join(", ") + ")" : ""}
+Internal Notes: ${client.notes || "None"}`;
+
+  return { text, daysLeft };
+};
+
+const buildClientPrompt = (client, period, data) => ({
+  system: `You are generating a client performance report for Bryson Weiser at BoldLine Media. Write in professional plain English. Never mention AI or bots.
+
+CLIENT DATA:
+${data.text}
 
 REPORT STRUCTURE:
 1. Campaign Summary (2-3 sentences on current status)
@@ -103,15 +110,28 @@ REPORT STRUCTURE:
 4. What's Next (next 30 days plan)
 5. One recommendation for the client
 
-Keep it concise. This will be emailed directly to the client, so write it as a finished, polished update — no placeholders, no brackets, no internal jargon.`;
+Keep it concise. This will be emailed directly to the client, so write it as a finished, polished update — no placeholders, no brackets, no internal jargon.`,
+  user: `Write the ${period} performance report email for ${client.name}. Use all the client data provided. Sign off as "The BoldLine Media Team".`,
+});
 
-  const user = `Write the ${period} performance report email for ${client.name}. Use all the client data provided. Sign off as "The BoldLine Media Team".`;
+const buildOwnerPrompt = (client, period, data) => ({
+  system: `You are writing a private internal account briefing for Bryson Weiser, owner of BoldLine Media, about one of his clients. This is for his eyes only — be direct and specific, not diplomatic. Never mention AI or bots.
 
-  return { system, user };
-};
+CLIENT DATA:
+${data.text}
 
-const generateReportText = async (client, pkg, period) => {
-  const { system, user } = buildReportPrompt(client, pkg, period);
+BRIEFING STRUCTURE:
+1. Account Snapshot (one line: stage, health score, contract status)
+2. Performance vs Target (leads, CPL vs target — say plainly if it's good, bad, or borderline)
+3. What Was Done This Period
+4. Flags (anything needing Bryson's attention: renewal window, missed targets, incomplete intake, stalled pipeline steps, low lead volume. If nothing needs attention, say so in one line.)
+5. What's Next
+
+Be specific with numbers. Don't soften bad news. No sign-off needed — this is an internal note, not a client-facing message.`,
+  user: `Write the internal ${period} account briefing for ${client.name}.`,
+});
+
+const generateText = async (system, user) => {
   const response = await anthropic.messages.create({
     model: "claude-opus-4-8",
     max_tokens: 1200,
@@ -122,35 +142,33 @@ const generateReportText = async (client, pkg, period) => {
   return textBlock ? textBlock.text : "";
 };
 
-const reportToHTML = (client, reportText, period) => {
+const reportToHTML = (client, reportText, { label, internal }) => {
   const paragraphs = reportText.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const body = paragraphs.map((p) => `<p style="margin:0 0 14px;line-height:1.6;color:#1F2937">${p.replace(/\n/g, "<br>")}</p>`).join("");
+  const banner = internal
+    ? `<div style="margin-bottom:14px;padding:8px 12px;border-radius:8px;background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:11px;font-weight:700;letter-spacing:.03em">INTERNAL — DO NOT FORWARD TO CLIENT</div>`
+    : "";
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
 <div style="max-width:560px;margin:0 auto;padding:28px 20px">
+  ${banner}
   <div style="margin-bottom:20px">
     <div style="font-size:13px;font-weight:700;letter-spacing:.04em;color:#C8A84B;text-transform:uppercase">BoldLine Media</div>
-    <div style="font-size:11px;color:#6B7280;margin-top:2px">${titleCase(period)} Performance Report — ${client.name}</div>
+    <div style="font-size:11px;color:#6B7280;margin-top:2px">${label} — ${client.name}</div>
   </div>
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:24px">${body}</div>
-  <div style="margin-top:18px;font-size:11px;color:#9CA3AF;text-align:center">Sent automatically by BoldLine Media. Questions? Just reply to this email.</div>
+  <div style="margin-top:18px;font-size:11px;color:#9CA3AF;text-align:center">${internal ? "Auto-generated internal briefing — not sent to the client." : "Sent automatically by BoldLine Media. Questions? Just reply to this email."}</div>
 </div>
 </body></html>`;
 };
 
-const sendReportEmail = async (client, html, reportText, period) => {
+const sendEmail = async ({ to, subject, html, text }) => {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: process.env.REPORTS_FROM_EMAIL,
-      to: [client.email],
-      subject: `Your ${titleCase(period)} Performance Report — ${client.name}`,
-      html,
-      text: reportText,
-    }),
+    body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL, to: [to], subject, html, text }),
   });
   if (!res.ok) {
     const errBody = await res.text();
@@ -172,13 +190,35 @@ const processClient = async (supabaseAdmin, row, period, minGapDays) => {
   if (!client.email) return { id: row.id, skipped: "no email on file" };
   if (!shouldSend(client, minGapDays)) return { id: row.id, skipped: `already sent this ${period === "weekly" ? "week" : "month"}` };
 
-  const reportText = await generateReportText(client, pkg, period);
-  const html = reportToHTML(client, reportText, period);
-  await sendReportEmail(client, html, reportText, period);
+  const periodLabel = titleCase(period);
+  const data = buildDataBlock(client, pkg);
+
+  const clientPrompt = buildClientPrompt(client, period, data);
+  const ownerPrompt = buildOwnerPrompt(client, period, data);
+  const [clientText, ownerText] = await Promise.all([
+    generateText(clientPrompt.system, clientPrompt.user),
+    generateText(ownerPrompt.system, ownerPrompt.user),
+  ]);
+
+  // Owner copy first: if the client send below fails and this run is retried,
+  // a duplicate internal email is harmless but a duplicate client email is not.
+  await sendEmail({
+    to: process.env.OWNER_EMAIL,
+    subject: `[Internal] ${client.name} — ${periodLabel} Account Briefing`,
+    html: reportToHTML(client, ownerText, { label: `${periodLabel} Internal Briefing`, internal: true }),
+    text: ownerText,
+  });
+
+  await sendEmail({
+    to: client.email,
+    subject: `Your ${periodLabel} Performance Report — ${client.name}`,
+    html: reportToHTML(client, clientText, { label: `${periodLabel} Performance Report`, internal: false }),
+    text: clientText,
+  });
 
   const entry = {
     date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    note: `${titleCase(period)} performance report auto-sent.`,
+    note: `${periodLabel} report sent to client; internal briefing sent to Bryson.`,
     cat: "email",
     ts: Date.now(),
   };
@@ -191,8 +231,8 @@ const processClient = async (supabaseAdmin, row, period, minGapDays) => {
 };
 
 export const runReportJob = async (req, { period, minGapDays }) => {
-  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL) {
-    console.error(`${titleCase(period)} report aborted: RESEND_API_KEY or REPORTS_FROM_EMAIL is not configured.`);
+  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL || !process.env.OWNER_EMAIL) {
+    console.error(`${titleCase(period)} report aborted: RESEND_API_KEY, REPORTS_FROM_EMAIL, or OWNER_EMAIL is not configured.`);
     return new Response("not configured", { status: 500 });
   }
 
