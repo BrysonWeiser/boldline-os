@@ -1,0 +1,83 @@
+import Anthropic from "@anthropic-ai/sdk";
+
+const anthropic = new Anthropic();
+
+const json = (body, status) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+const LANDING_COPY_TOOL = {
+  name: "landing_page_copy",
+  description: "Submit the finished copy for a local-business ad landing page.",
+  input_schema: {
+    type: "object",
+    properties: {
+      headline: { type: "string", description: "Punchy headline, under 60 characters. No business name needed — it appears separately." },
+      subheadline: { type: "string", description: "One supporting sentence, under 120 characters." },
+      bullets: { type: "array", items: { type: "string" }, description: "3-4 short benefit bullets, each under 60 characters." },
+      ctaText: { type: "string", description: "Lead-form button text, e.g. 'Get My Free Quote'. Under 30 characters." },
+    },
+    required: ["headline", "subheadline", "bullets", "ctaText"],
+  },
+};
+
+const clip = (s, n) => String(s || "").slice(0, n);
+
+export default async (req) => {
+  if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+
+  let body;
+  try {
+    body = JSON.parse(await req.text() || "{}");
+  } catch {
+    return json({ ok: false, error: "Invalid JSON" }, 400);
+  }
+
+  const name = clip(body.name, 200) || "this business";
+  const niche = clip(body.niche, 100);
+  const cs = body.campaignSetup || {};
+  const bv = body.brandVoice || {};
+
+  const dataBlock = `Business: ${name}
+Niche: ${niche || "Not specified"}
+Main offer: ${clip(cs.mainOffer, 300) || "Not specified"}
+Average job/ticket value: ${clip(cs.avgTicket, 100) || "Not specified"}
+Service area: ${clip(cs.targetLocations, 200) || clip(cs.serviceArea, 200) || "Not specified"}
+Brand tone: ${clip(bv.tone, 50) || "Professional"}
+Top competitors: ${clip(bv.competitors, 300) || "Not specified"}
+What makes them different: ${clip(bv.differentiator, 300) || "Not specified"}
+Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
+
+  const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. Avoid anything listed under "Things to avoid mentioning."
+
+BUSINESS DATA:
+${dataBlock}
+
+Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 600,
+      system,
+      messages: [{ role: "user", content: "Write the landing page copy." }],
+      tools: [LANDING_COPY_TOOL],
+      tool_choice: { type: "tool", name: "landing_page_copy" },
+    });
+
+    const toolUse = response.content.find((b) => b.type === "tool_use");
+    if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
+
+    const { headline, subheadline, bullets, ctaText } = toolUse.input;
+    return json({
+      ok: true,
+      landingPage: {
+        headline: clip(headline, 100),
+        subheadline: clip(subheadline, 200),
+        bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
+        ctaText: clip(ctaText, 50) || "Get My Free Quote",
+      },
+    }, 200);
+  } catch (err) {
+    console.error("Landing copy generation failed:", err);
+    return json({ ok: false, error: "AI request failed" }, err.status || 500);
+  }
+};

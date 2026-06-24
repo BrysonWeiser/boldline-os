@@ -248,6 +248,7 @@ const addDays = (d,n) => { const r=new Date(d); r.setDate(r.getDate()+n); return
 const fmt     = (d)   => new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 const daysUntil=(s)   => Math.ceil((new Date(s)-new Date())/(864e5));
 const uid     = ()    => Math.random().toString(36).slice(2,9);
+const makeSlug = (name) => `${String(name||"client").toLowerCase().trim().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40)||"client"}-${uid().slice(0,4)}`;
 
 // Add exactly N calendar months — preserves the day-of-month correctly.
 // e.g. Jan 31 + 1 month = Feb 28/29 (not Mar 2/3 like *30 days gives)
@@ -955,6 +956,43 @@ const makePortalHTML=(cl,pkg)=>{
     +'</body></html>';
 };
 
+const makeLandingHTML=(cl)=>{
+  const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const lp=cl.landingPage||{};
+  if(!lp.headline){
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;font-family:-apple-system,sans-serif;background:#F9FAFB;color:#111827;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px}div{max-width:320px}h1{font-size:17px;margin-bottom:6px}p{font-size:13px;color:#6B7280;line-height:1.6}</style></head><body><div><h1>No landing page yet</h1><p>Click Generate to create one from this client's campaign setup and brand voice.</p></div></body></html>`;
+  }
+  const media=cl.mediaLibrary||[];
+  const hero=media.find(m=>m.category==="photo")||media.find(m=>m.category==="logo");
+  const bullets=Array.isArray(lp.bullets)?lp.bullets:[];
+  const phone=cl.callTrackingNumber||"";
+  const GOLD="#C8A84B";
+  const css=`*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#fff;color:#111827;line-height:1.5}.wrap{max-width:480px;margin:0 auto}.hero{padding:28px 20px 22px;text-align:center;background:linear-gradient(180deg,#FAFAF7,#fff)}.bizname{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${GOLD};margin-bottom:10px}.headline{font-size:27px;font-weight:800;color:#0F172A;line-height:1.25;margin-bottom:10px}.subhead{font-size:15px;color:#4B5563;margin-bottom:18px}.heroimg{width:100%;border-radius:14px;object-fit:cover;height:200px;margin-bottom:18px;display:block}.cta{display:block;width:100%;padding:15px;font-size:15px;font-weight:700;border-radius:11px;border:none;background:${GOLD};color:#1A1502;cursor:pointer;text-align:center;text-decoration:none}.callrow{margin-top:10px;font-size:13px;color:#6B7280}.callrow a{color:#0F172A;font-weight:700;text-decoration:none}.bullets{padding:6px 20px 22px;max-width:480px;margin:0 auto}.bullet{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;font-size:14px;color:#1F2937}.check{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:rgba(200,168,75,.15);color:${GOLD};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}.formsec{padding:22px 20px 36px;background:#F8F8F4}.formtitle{font-size:17px;font-weight:800;margin-bottom:4px;color:#0F172A;text-align:center}.formsub{font-size:13px;color:#6B7280;text-align:center;margin-bottom:16px}.inp{width:100%;padding:13px 14px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;margin-bottom:10px;font-family:inherit;background:#fff}`;
+  const heroImg=hero?`<img class="heroimg" src="${esc(hero.url)}" alt="">`:"";
+  const bulletsHTML=bullets.map(b=>`<div class="bullet"><span class="check">✓</span><span>${esc(b)}</span></div>`).join("");
+  const callRow=phone?`<div class="callrow">or call <a href="tel:${esc(phone.replace(/[^0-9+]/g,""))}">${esc(phone)}</a></div>`:"";
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
+<div class="wrap">
+  <div class="hero">
+    <div class="bizname">${esc(cl.name)}</div>
+    <div class="headline">${esc(lp.headline)}</div>
+    <div class="subhead">${esc(lp.subheadline||"")}</div>
+    ${heroImg}
+    <a class="cta" href="#lead-form">${esc(lp.ctaText||"Get My Free Quote")}</a>
+    ${callRow}
+  </div>
+  <div class="bullets">${bulletsHTML}</div>
+  <div class="formsec" id="lead-form">
+    <div class="formtitle">${esc(lp.ctaText||"Get My Free Quote")}</div>
+    <div class="formsub">Fill this out and we'll be in touch shortly.</div>
+    <input class="inp" placeholder="Your name">
+    <input class="inp" placeholder="Phone number">
+    <input class="inp" placeholder="Email (optional)">
+    <button class="cta" style="border:none;width:100%">${esc(lp.ctaText||"Get My Free Quote")}</button>
+  </div>
+</div>
+</body></html>`;
+};
 
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
 function HomeScreen({clients,onSelect,onAdd,onLogout}) {
@@ -1226,6 +1264,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
   const [tab,setTab]         = useState(client._initialTab||"overview");
   const [openBot,setOpenBot] = useState(null);
   const [showEdit,setShowEdit] = useState(false);
+  const [genLanding,setGenLanding] = useState({busy:false,error:null});
   const pkg    = findPkg(client.packageId);
   const bots   = buildBots(pkg).map(b=>({...b,status:(client.botStatuses && client.botStatuses[b.id])||"waiting"}));
   const alerts = getAlerts(client);
@@ -1252,6 +1291,22 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
     onUpdate({...client, packageId:newPkgId, upgradeRequest:null, botStatuses,
       alerts:[...client.alerts, {type:"upgrade_done", msg:`Manually upgraded to ${newPkg.name} — send invoice to ${client.email}`, severity:"blue"}]
     });
+  };
+  const handleGenerateLanding = async () => {
+    setGenLanding({busy:true,error:null});
+    try {
+      const r = await fetch("/.netlify/functions/generate-landing",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name:client.name,niche:client.niche,campaignSetup:client.campaignSetup,brandVoice:client.brandVoice})});
+      const d = await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.error||"Generation failed");
+      onUpdate({...client, landingPage:{...d.landingPage,published:(client.landingPage&&client.landingPage.published)||false,generatedAt:new Date().toISOString()}});
+      setGenLanding({busy:false,error:null});
+    } catch (err) {
+      setGenLanding({busy:false,error:err.message||"Generation failed"});
+    }
+  };
+  const handleTogglePublish = () => {
+    onUpdate({...client, landingPage:{...client.landingPage,published:!(client.landingPage&&client.landingPage.published)}});
   };
 
   return (
@@ -1379,7 +1434,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
             </Card>
             <Card>
               <Label>Onboarding Checklist</Label>
-              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!(pkg && pkg.callTracking)&&client.stage!=="onboarding"},{l:"Landing page built",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
+              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!(pkg && pkg.callTracking)&&client.stage!=="onboarding"},{l:"Landing page built",done:!!(client.landingPage&&client.landingPage.published)||["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:`1px solid ${C.border2}`}}>
                   <span style={{fontSize:13,color:done?C.green:C.textMuted,flexShrink:0}}>{done?"✓":"○"}</span>
                   <span style={{fontSize:12,color:done?C.text:C.textMuted}}>{l}</span>
@@ -1444,7 +1499,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
             </Card>
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
-                <Label>Onboarding Checklist</Label>
+                <Label>Client Setup Checklist</Label>
                 <span style={{fontSize:10,fontWeight:700,color:C.textDim}}>{onboardingSteps.filter(s=>s.done).length}/{onboardingSteps.length} done</span>
               </div>
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
@@ -1458,6 +1513,31 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
                   </div>
                 ))}
               </div>
+            </Card>
+            <Card>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                <Label>Landing Page</Label>
+                {client.landingPage&&client.landingPage.published&&(
+                  <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.3)",color:C.green}}>Published</span>
+                )}
+              </div>
+              {client.landingPage&&client.landingPage.headline ? (
+                <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:10}}>
+                  <iframe srcDoc={makeLandingHTML(client)} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:460,border:"none",display:"block"}}/>
+                </div>
+              ) : (
+                <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Generate an ad-ready landing page using {client.name}'s campaign setup, brand voice, and uploaded media.</div>
+              )}
+              {genLanding.error&&<div style={{fontSize:11,color:C.red,marginBottom:8}}>{genLanding.error}</div>}
+              <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                <button onClick={handleGenerateLanding} disabled={genLanding.busy} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:genLanding.busy?"default":"pointer",opacity:genLanding.busy?.6:1}}>{genLanding.busy?"Generating…":(client.landingPage&&client.landingPage.headline)?"Regenerate":"Generate Landing Page"}</button>
+                {client.landingPage&&client.landingPage.headline&&(
+                  <button onClick={handleTogglePublish} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{client.landingPage.published?"Unpublish":"Publish"}</button>
+                )}
+              </div>
+              {client.landingPage&&client.landingPage.published&&(
+                <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/lp/${client.landingSlug}`)} style={{marginTop:7,width:"100%",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Live Link</button>
+              )}
             </Card>
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
@@ -1923,6 +2003,7 @@ function ARIADeployTab() {
     {name:"Lead Capture Webhook",icon:"📥",live:true,note:"Live now — point any external lead source at a client's webhook URL (Lead Webhook tab) to log leads automatically."},
     {name:"Client Onboarding Checklist",icon:"📋",live:true,note:"Live now — clients fill in business details, campaign setup, and brand voice themselves from their portal. No manual data entry needed."},
     {name:"Media Library",icon:"🖼️",live:true,note:"Live now — clients upload photos/video for their ads and landing page, with a built-in recommendation list so they know what to send."},
+    {name:"AI Landing Page Generator",icon:"📄",live:true,note:"Live now — ARIA writes the landing page copy from each client's campaign setup and brand voice. One click to generate, preview, and publish a hosted page for ad clicks to land on."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
     {name:"Ad Account Connection",icon:"📈",live:false,note:"Needs a Google Ads Manager account + developer token, and a Meta Business Manager + App Review. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
@@ -2316,7 +2397,7 @@ function AddClientSheet({onSave,onClose}) {
     if(!canSave)return;
     const pkg=findPkg(form.packageId);const bots=buildBots(pkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));botStatuses["intake"]="active";
-    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses,campaignSetup:{serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:""},brandVoice:{tone:"",competitors:"",differentiator:""},callTrackingNumber:"",mediaLibrary:[]});
+    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses,campaignSetup:{serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:""},brandVoice:{tone:"",competitors:"",differentiator:""},callTrackingNumber:"",mediaLibrary:[],landingSlug:makeSlug(form.name),landingPage:{headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null}});
     setSaved(true);setTimeout(()=>{ setSaved(false);onClose(); },1200);
   };
   return (
@@ -2754,7 +2835,7 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
-    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary) return c;
+    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage) return c;
     const next = {...c,
       portalToken: c.portalToken||crypto.randomUUID(),
       leadToken: c.leadToken||crypto.randomUUID(),
@@ -2762,6 +2843,8 @@ function App({onLogout}) {
       brandVoice: {tone:"",competitors:"",differentiator:"",...c.brandVoice},
       callTrackingNumber: c.callTrackingNumber||"",
       mediaLibrary: c.mediaLibrary||[],
+      landingSlug: c.landingSlug||makeSlug(c.name),
+      landingPage: {headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null,...c.landingPage},
     };
     const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
     if (error) console.error("Token backfill failed:", error);

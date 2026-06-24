@@ -22,6 +22,11 @@
   status = 200
 
 [[redirects]]
+  from = "/lp/:slug"
+  to = "/.netlify/functions/landing?slug=:slug"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

@@ -242,7 +242,7 @@ exports.handler = async (event) => {
       }
       if (!data) return { statusCode: 404, body: JSON.stringify({ ok: false, error: "Invalid token" }) };
 
-      const nextData = mergeFields(data.data, sanitizeFields(body.fields));
+      const nextData = { ...mergeFields(data.data, sanitizeFields(body.fields)), intakeComplete: true };
       const { error: updateError } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", data.id);
       if (updateError) {
         console.error("Portal save failed:", updateError);
