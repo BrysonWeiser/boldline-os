@@ -1869,8 +1869,10 @@ function ARIADeployTab() {
   const items = [
     {name:"ARIA Chat + Reports",icon:"✦",live:true,note:"Fully working now via Claude API."},
     {name:"Bot Pipeline (20 bots)",icon:"🤖",live:true,note:"All bots working now. Client-aware logs active."},
-    {name:"Weekly Report Email",icon:"📊",live:true,note:"Live now — auto-sends every Monday 8am to clients on weekly-report packages, via a scheduled function + Resend."},
-    {name:"SMS Report Notification",icon:"📱",live:false,note:"Needs Twilio (~$0.01/text). Texts you when report is sent."},
+    {name:"Weekly Report Email",icon:"📊",live:true,note:"Live now — auto-sends every Monday 8am to clients on weekly-cadence packages, via a scheduled function + Resend."},
+    {name:"Monthly Report Email",icon:"🗓️",live:true,note:"Live now — auto-sends every 30 days from each client's own contract start date, for clients on monthly-cadence packages."},
+    {name:"Weekly OS Health Report",icon:"🩺",live:true,note:"Live now — ARIA emails Bryson a full business + system health report with recommendations every Monday morning."},
+    {name:"SMS Report Notification",icon:"📱",live:false,note:"Twilio is connected, but carrier rules (A2P 10DLC) block texts from trial accounts. Needs a paid Twilio account to finish."},
     {name:"DocuSign Contracts",icon:"✍️",live:false,note:"PDF download works now. E-signature needs your DocuSign Integration Key."},
     {name:"Client Portal (hosted)",icon:"🔗",live:true,note:"Live now — each client gets a private, unguessable portal link via Copy Link."},
     {name:"Data Persistence",icon:"💾",live:true,note:"Live now via Supabase — data is saved across sessions and devices."},
@@ -1904,7 +1906,7 @@ function ARIADeployTab() {
         ))}
       </div>
       <div style={{marginTop:10,padding:"11px 13px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,fontSize:11,color:C.textMuted,lineHeight:1.7}}>
-        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Twilio → DocuSign. Each step takes 15–30 min.
+        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Upgrade Twilio off trial → DocuSign. Each step takes 15–30 min.
       </div>
     </div>
   );
