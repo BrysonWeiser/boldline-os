@@ -507,7 +507,7 @@ Do NOT include a greeting, salutation, subject line, or sign-off. Start directly
 - **What's Working** — what's going well across accounts, be specific with names and numbers
 - **What Needs Attention** — accounts or trends that need Bryson's attention, ranked by urgency
 - **System Health** — status of the reporting pipeline and configuration based on the technical data provided
-- **Recommendations** — concrete, prioritized actions Bryson could take this week
+- **Recommendations** — concrete, prioritized ideas for making the BoldLine OS itself better: automations worth adding, workflow inefficiencies worth fixing, features worth building, anything that would make the system run smoother or save Bryson time — not just account follow-ups
 
 Use "- " for bullet points within a section where a list is clearer than prose. Be specific with numbers and account names. Don't soften bad news.`,
   user: `Write this week's OS health report. Use all the portfolio and system data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
