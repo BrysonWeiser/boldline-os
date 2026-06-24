@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail, escapeHTML, GOLD } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, sendEmail, escapeHTML, GOLD, appendLead } from "../lib/report-shared.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -80,23 +80,11 @@ export default async (req) => {
   }
   if (!data) return json({ ok: false, error: "Invalid token" }, 404);
 
-  const client = data.data;
-  const entry = {
-    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    note: `New lead: ${lead.name || "Unknown"}${lead.source !== "unknown" ? ` (${lead.source})` : ""}`,
-    cat: "update",
-    ts: Date.now(),
-  };
-  const nextData = {
-    ...client,
-    leads: (client.leads || 0) + 1,
-    leadsLog: [lead, ...(client.leadsLog || [])],
-    commLog: [entry, ...(client.commLog || [])],
-  };
-
-  const { error: updateError } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", data.id);
-  if (updateError) {
-    console.error("Lead intake save failed:", updateError);
+  let nextData;
+  try {
+    nextData = await appendLead(supabaseAdmin, data, lead);
+  } catch (err) {
+    console.error("Lead intake save failed:", err);
     return json({ ok: false, error: "save failed" }, 500);
   }
 

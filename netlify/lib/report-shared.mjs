@@ -247,6 +247,25 @@ export const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
+export const appendLead = async (supabaseAdmin, row, lead) => {
+  const client = row.data;
+  const entry = {
+    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    note: `New lead: ${lead.name || "Unknown"}${lead.source !== "unknown" ? ` (${lead.source})` : ""}`,
+    cat: "update",
+    ts: Date.now(),
+  };
+  const nextData = {
+    ...client,
+    leads: (client.leads || 0) + 1,
+    leadsLog: [lead, ...(client.leadsLog || [])],
+    commLog: [entry, ...(client.commLog || [])],
+  };
+  const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", row.id);
+  if (error) throw error;
+  return nextData;
+};
+
 const sendSMS = async ({ to, body }) => {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;

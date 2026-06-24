@@ -1265,6 +1265,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
   const [openBot,setOpenBot] = useState(null);
   const [showEdit,setShowEdit] = useState(false);
   const [genLanding,setGenLanding] = useState({busy:false,error:null});
+  const [callTrack,setCallTrack] = useState({busy:false,error:null,areaCode:""});
   const pkg    = findPkg(client.packageId);
   const bots   = buildBots(pkg).map(b=>({...b,status:(client.botStatuses && client.botStatuses[b.id])||"waiting"}));
   const alerts = getAlerts(client);
@@ -1307,6 +1308,31 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
   };
   const handleTogglePublish = () => {
     onUpdate({...client, landingPage:{...client.landingPage,published:!(client.landingPage&&client.landingPage.published)}});
+  };
+  const handleProvisionNumber = async () => {
+    setCallTrack(s=>({...s,busy:true,error:null}));
+    try {
+      const r = await fetch(`/.netlify/functions/call-tracking?token=${encodeURIComponent(client.portalToken)}&action=provision`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({areaCode:callTrack.areaCode})});
+      const d = await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.error||"Provisioning failed");
+      onUpdate({...client, callTrackingNumber:d.callTrackingNumber});
+      setCallTrack(s=>({...s,busy:false,error:null}));
+    } catch (err) {
+      setCallTrack(s=>({...s,busy:false,error:err.message||"Provisioning failed"}));
+    }
+  };
+  const handleReleaseNumber = async () => {
+    if(!window.confirm("Release this tracking number? This stops the monthly charge and the number can't be recovered.")) return;
+    setCallTrack(s=>({...s,busy:true,error:null}));
+    try {
+      const r = await fetch(`/.netlify/functions/call-tracking?token=${encodeURIComponent(client.portalToken)}&action=release`,{method:"POST"});
+      const d = await r.json();
+      if(!r.ok||!d.ok) throw new Error(d.error||"Release failed");
+      onUpdate({...client, callTrackingNumber:"", callTrackingNumberSid:""});
+      setCallTrack(s=>({...s,busy:false,error:null}));
+    } catch (err) {
+      setCallTrack(s=>({...s,busy:false,error:err.message||"Release failed"}));
+    }
   };
 
   return (
@@ -1434,7 +1460,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
             </Card>
             <Card>
               <Label>Onboarding Checklist</Label>
-              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!(pkg && pkg.callTracking)&&client.stage!=="onboarding"},{l:"Landing page built",done:!!(client.landingPage&&client.landingPage.published)||["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
+              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!client.callTrackingNumber||(!!(pkg && pkg.callTracking)&&client.stage!=="onboarding")},{l:"Landing page built",done:!!(client.landingPage&&client.landingPage.published)||["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:`1px solid ${C.border2}`}}>
                   <span style={{fontSize:13,color:done?C.green:C.textMuted,flexShrink:0}}>{done?"✓":"○"}</span>
                   <span style={{fontSize:12,color:done?C.text:C.textMuted}}>{l}</span>
@@ -1537,6 +1563,29 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
               </div>
               {client.landingPage&&client.landingPage.published&&(
                 <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/lp/${client.landingSlug}`)} style={{marginTop:7,width:"100%",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Live Link</button>
+              )}
+            </Card>
+            <Card>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                <Label>Call Tracking</Label>
+                {client.callTrackingNumber&&(
+                  <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.3)",color:C.green}}>Active</span>
+                )}
+              </div>
+              {client.callTrackingNumber ? (
+                <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{client.callTrackingNumber}</div>
+              ) : (
+                <div style={{fontSize:11,color:C.textMuted,marginBottom:8,lineHeight:1.6}}>Buy a dedicated tracking number for {client.name}'s ads. Calls forward to their real number and log automatically as leads.</div>
+              )}
+              <div style={{fontSize:11,color:C.textMuted,marginBottom:8}}>Forwards to: {client.businessPhone ? <span style={{color:C.textDim,fontWeight:600}}>{client.businessPhone}</span> : <span style={{color:C.amber}}>Not set — ask the client to add their phone number in their portal</span>}</div>
+              {callTrack.error&&<div style={{fontSize:11,color:C.red,marginBottom:8}}>{callTrack.error}</div>}
+              {!client.callTrackingNumber ? (
+                <>
+                  <input value={callTrack.areaCode} onChange={e=>setCallTrack(s=>({...s,areaCode:e.target.value.replace(/\D/g,"").slice(0,3)}))} placeholder="Preferred area code (optional)" style={{...inp,marginBottom:8,fontSize:12,padding:"8px 10px"}}/>
+                  <button onClick={handleProvisionNumber} disabled={callTrack.busy||!client.businessPhone} style={{width:"100%",padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:(callTrack.busy||!client.businessPhone)?"default":"pointer",opacity:(callTrack.busy||!client.businessPhone)?.6:1}}>{callTrack.busy?"Provisioning…":"Provision Tracking Number"}</button>
+                </>
+              ) : (
+                <button onClick={handleReleaseNumber} disabled={callTrack.busy} style={{width:"100%",padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:callTrack.busy?"default":"pointer",opacity:callTrack.busy?.6:1}}>{callTrack.busy?"Releasing…":"Release Number"}</button>
               )}
             </Card>
             <Card>
@@ -2004,6 +2053,7 @@ function ARIADeployTab() {
     {name:"Client Onboarding Checklist",icon:"📋",live:true,note:"Live now — clients fill in business details, campaign setup, and brand voice themselves from their portal. No manual data entry needed."},
     {name:"Media Library",icon:"🖼️",live:true,note:"Live now — clients upload photos/video for their ads and landing page, with a built-in recommendation list so they know what to send."},
     {name:"AI Landing Page Generator",icon:"📄",live:true,note:"Live now — ARIA writes the landing page copy from each client's campaign setup and brand voice. One click to generate, preview, and publish a hosted page for ad clicks to land on."},
+    {name:"Call Tracking Numbers",icon:"📞",live:true,note:"Live now — ARIA buys a dedicated Twilio number per client, forwards calls to their real number, and logs every call as a lead automatically. On your trial Twilio account, the client's forwarding number must be verified in the Twilio console first (one-time, ~1 min) — upgrade to a paid account to skip that step."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
     {name:"Ad Account Connection",icon:"📈",live:false,note:"Needs a Google Ads Manager account + developer token, and a Meta Business Manager + App Review. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
@@ -2020,8 +2070,8 @@ function ARIADeployTab() {
         </div>
       </div>
       <div style={{padding:"10px 13px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.06)",border:`1px solid ${C.borderAccent}`,marginBottom:14,fontSize:11,color:C.textDim,lineHeight:1.65}}>
-        <strong style={{color:C.gold}}>Total cost when fully deployed:</strong> Under $1/mo (plus a few cents per text)<br/>
-        <span style={{color:C.textMuted}}>Twilio ~$0.01/text · Resend free · Supabase free · Netlify free</span>
+        <strong style={{color:C.gold}}>Total cost when fully deployed:</strong> Under $1/mo base, plus ~$1.15/mo + a few cents/min per active call-tracking number<br/>
+        <span style={{color:C.textMuted}}>Twilio ~$0.01/text · ~$1.15/mo per tracking number · Resend free · Supabase free · Netlify free</span>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {items.map((item,i)=>(
@@ -2372,7 +2422,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
 function AddClientSheet({onSave,onClose}) {
   const [step,setStep]     = useState(1);
   const [termMonths,setTermM] = useState(3);
-  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",contractStart:fmt(today),contractEnd:fmt(addMonths(today,3))});
+  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",businessPhone:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",contractStart:fmt(today),contractEnd:fmt(addMonths(today,3))});
   const [pkgCat,setPkgCat] = useState("google");
   const [saved,setSaved]   = useState(false);
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -2397,7 +2447,7 @@ function AddClientSheet({onSave,onClose}) {
     if(!canSave)return;
     const pkg=findPkg(form.packageId);const bots=buildBots(pkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));botStatuses["intake"]="active";
-    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses,campaignSetup:{serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:""},brandVoice:{tone:"",competitors:"",differentiator:""},callTrackingNumber:"",mediaLibrary:[],landingSlug:makeSlug(form.name),landingPage:{headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null}});
+    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses,campaignSetup:{serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:""},brandVoice:{tone:"",competitors:"",differentiator:""},businessPhone:form.businessPhone||"",callTrackingNumber:"",callTrackingNumberSid:"",mediaLibrary:[],landingSlug:makeSlug(form.name),landingPage:{headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null}});
     setSaved(true);setTimeout(()=>{ setSaved(false);onClose(); },1200);
   };
   return (
@@ -2413,7 +2463,7 @@ function AddClientSheet({onSave,onClose}) {
         {step===1&&<>
           <Card>
             <Label>Client Information</Label>
-            {[{k:"name",l:"Business Name *",t:"text",ph:"e.g. Apex Roofing LLC"},{k:"contactName",l:"Contact Name",t:"text",ph:"First and last name"},{k:"email",l:"Email Address * (portal login)",t:"email",ph:"owner@business.com"},{k:"businessAddress",l:"Business Address",t:"text",ph:"123 Main St, City, State ZIP"}].map(({k,l,t,ph})=>(
+            {[{k:"name",l:"Business Name *",t:"text",ph:"e.g. Apex Roofing LLC"},{k:"contactName",l:"Contact Name",t:"text",ph:"First and last name"},{k:"email",l:"Email Address * (portal login)",t:"email",ph:"owner@business.com"},{k:"businessPhone",l:"Business Phone (for call forwarding)",t:"text",ph:"(555) 123-4567"},{k:"businessAddress",l:"Business Address",t:"text",ph:"123 Main St, City, State ZIP"}].map(({k,l,t,ph})=>(
               <div key={k} style={{marginBottom:11}}><div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>{l}</div><input type={t} value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/></div>
             ))}
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>Niche</div>
@@ -2835,13 +2885,15 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
-    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage) return c;
+    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined) return c;
     const next = {...c,
       portalToken: c.portalToken||crypto.randomUUID(),
       leadToken: c.leadToken||crypto.randomUUID(),
       campaignSetup: {serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:"",...c.campaignSetup},
       brandVoice: {tone:"",competitors:"",differentiator:"",...c.brandVoice},
+      businessPhone: c.businessPhone||"",
       callTrackingNumber: c.callTrackingNumber||"",
+      callTrackingNumberSid: c.callTrackingNumberSid||"",
       mediaLibrary: c.mediaLibrary||[],
       landingSlug: c.landingSlug||makeSlug(c.name),
       landingPage: {headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null,...c.landingPage},
