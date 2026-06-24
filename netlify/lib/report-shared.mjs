@@ -249,6 +249,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 
 export const appendLead = async (supabaseAdmin, row, lead) => {
   const client = row.data;
+  const leadEntry = { status: "new", followUps: [], ...lead };
   const entry = {
     date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
     note: `New lead: ${lead.name || "Unknown"}${lead.source !== "unknown" ? ` (${lead.source})` : ""}`,
@@ -258,7 +259,7 @@ export const appendLead = async (supabaseAdmin, row, lead) => {
   const nextData = {
     ...client,
     leads: (client.leads || 0) + 1,
-    leadsLog: [lead, ...(client.leadsLog || [])],
+    leadsLog: [leadEntry, ...(client.leadsLog || [])],
     commLog: [entry, ...(client.commLog || [])],
   };
   const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", row.id);
@@ -266,7 +267,22 @@ export const appendLead = async (supabaseAdmin, row, lead) => {
   return nextData;
 };
 
-const sendSMS = async ({ to, body }) => {
+// Branded wrapper for a short transactional message sent to one of a client's
+// own leads — headlined with the client's business name, not BoldLine's,
+// since from the lead's perspective this email comes from the business they
+// contacted.
+export const leadEmailHTML = (client, bodyText) => `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
+<div style="max-width:480px;margin:0 auto;padding:28px 20px">
+  <div style="margin-bottom:18px;text-align:center">
+    <div style="font-size:16px;font-weight:700;letter-spacing:.04em;color:#1F2937;text-transform:uppercase">${escapeHTML(client.name)}</div>
+    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:22px 22px;font-size:14px;line-height:1.6;color:#1F2937">${escapeHTML(bodyText).replace(/\n/g, "<br>")}</div>
+  <div style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center">This is an automated message from ${escapeHTML(client.name)}.</div>
+</div>
+</body></html>`;
+
+export const sendSMS = async ({ to, body }) => {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_NUMBER;

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail, escapeHTML, GOLD, appendLead } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, sendEmail, sendSMS, escapeHTML, GOLD, appendLead, leadEmailHTML } from "../lib/report-shared.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +54,31 @@ const notifyOwner = async (client, lead) => {
   }
 };
 
+// Speed-to-lead matters most in the first few minutes, so reply immediately
+// rather than waiting for the nurture cron — branded as the client's
+// business, since this goes straight to their customer.
+const notifyLead = async (client, lead) => {
+  const firstName = lead.name ? lead.name.trim().split(/\s+/)[0] : "";
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const phoneLine = client.businessPhone ? ` Need something faster? Call us anytime at ${client.businessPhone}.` : "";
+  const body = `${greeting} thanks for reaching out to ${client.name}! We got your message and will be in touch shortly.${phoneLine}`;
+
+  if (lead.phone) {
+    try {
+      await sendSMS({ to: lead.phone, body: body.slice(0, 320) });
+    } catch (err) {
+      console.error("Lead auto-reply SMS failed:", err);
+    }
+  }
+  if (lead.email) {
+    try {
+      await sendEmail({ to: lead.email, subject: `Thanks for reaching out to ${client.name}`, html: leadEmailHTML(client, body), text: body });
+    } catch (err) {
+      console.error("Lead auto-reply email failed:", err);
+    }
+  }
+};
+
 export default async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -88,7 +113,7 @@ export default async (req) => {
     return json({ ok: false, error: "save failed" }, 500);
   }
 
-  await notifyOwner(nextData, lead);
+  await Promise.all([notifyOwner(nextData, lead), notifyLead(nextData, lead)]);
 
   return json({ ok: true }, 200);
 };

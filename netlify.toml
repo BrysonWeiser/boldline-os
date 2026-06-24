@@ -11,6 +11,9 @@
 [functions."os-report"]
   schedule = "0 16 * * 1"
 
+[functions."lead-followup"]
+  schedule = "0 13 * * *"
+
 [[redirects]]
   from = "/portal"
   to = "/.netlify/functions/portal"

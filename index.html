@@ -1271,7 +1271,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
   const alerts = getAlerts(client);
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
-  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]];
+  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]];
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
     {key:"billing",label:"Billing Connected",done:false,note:"BoldLine is finishing setup — coming soon."},
@@ -1510,6 +1510,8 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
             })}
           </div>
         )}
+
+        {tab==="leads"&&<LeadsTabContent client={client} onUpdate={onUpdate}/>}
 
         {tab==="portal"&&(
           <div style={S.col11}>
@@ -1968,6 +1970,95 @@ function LogTabContent({client,onUpdate}) {
   );
 }
 
+function LeadsTabContent({client,onUpdate}) {
+  const STATUSES = [
+    {id:"new",label:"New",color:C.amber},
+    {id:"contacted",label:"Contacted",color:C.blue},
+    {id:"won",label:"Won",color:C.green},
+    {id:"lost",label:"Lost",color:C.textMuted},
+  ];
+  const SOURCE_LABELS = {landing_page:"Landing Page",call_tracking:"Inbound Call",unknown:"Unknown"};
+  const sourceLabel = (s) => SOURCE_LABELS[s] || String(s||"unknown").replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+  const statusInfo = (id) => STATUSES.find(s=>s.id===id) || STATUSES[0];
+
+  const [filterStatus,setFilterStatus] = useState("all");
+  const leads = client.leadsLog||[];
+  const indexed = leads.map((l,i)=>({lead:l,idx:i}));
+  const filtered = filterStatus==="all" ? indexed : indexed.filter(({lead})=>(lead.status||"new")===filterStatus);
+
+  const setLeadStatus = (idx,status) => {
+    const updated = leads.map((l,i)=> i===idx ? {...l,status} : l);
+    onUpdate({...client, leadsLog:updated});
+  };
+
+  return (
+    <div style={S.col11}>
+      <Card>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <Label>Leads ({leads.length})</Label>
+          {leads.length>0&&(
+            <div style={{display:"flex",gap:4,overflowX:"auto"}}>
+              <button onClick={()=>setFilterStatus("all")} style={{padding:"2px 8px",fontSize:9,fontWeight:700,borderRadius:20,border:`1px solid ${filterStatus==="all"?C.gold:C.border}`,backgroundColor:filterStatus==="all"?C.goldDim:"transparent",color:filterStatus==="all"?C.gold:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>All</button>
+              {STATUSES.filter(s=>leads.some(l=>(l.status||"new")===s.id)).map(s=>(
+                <button key={s.id} onClick={()=>setFilterStatus(filterStatus===s.id?"all":s.id)} style={{padding:"2px 8px",fontSize:9,fontWeight:700,borderRadius:20,border:`1px solid ${filterStatus===s.id?s.color+"66":C.border}`,backgroundColor:filterStatus===s.id?s.color+"15":"transparent",color:filterStatus===s.id?s.color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>{s.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {leads.length===0&&(
+          <div style={{textAlign:"center",padding:"24px 0",color:C.textMuted}}>
+            <div style={{fontSize:24,marginBottom:8}}>📥</div>
+            <div style={{fontSize:12,color:C.textDim,marginBottom:4}}>No leads yet</div>
+            <div style={{fontSize:11,lineHeight:1.6}}>Leads from {client.name}'s landing page and tracking number will show up here automatically.</div>
+          </div>
+        )}
+
+        {leads.length>0&&filtered.length===0&&(
+          <div style={{textAlign:"center",padding:"16px 0",color:C.textMuted,fontSize:12}}>
+            No {statusInfo(filterStatus).label.toLowerCase()} leads.
+            <button onClick={()=>setFilterStatus("all")} style={{background:"none",border:"none",color:C.gold,cursor:"pointer",fontSize:12,fontWeight:700,marginLeft:5}}>Show all</button>
+          </div>
+        )}
+
+        {filtered.map(({lead,idx},pos)=>{
+          const st = statusInfo(lead.status||"new");
+          const followCount = (lead.followUps||[]).length;
+          return (
+            <div key={lead.receivedAt ? `${lead.receivedAt}-${idx}` : idx} style={{padding:"10px 0",borderBottom:pos<filtered.length-1?`1px solid ${C.border2}`:"none"}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:5}}>
+                <div style={S.f1min}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name || (lead.source==="call_tracking" ? "Inbound Call" : "Unknown")}</div>
+                  <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{sourceLabel(lead.source)} · {lead.receivedAt ? fmt(lead.receivedAt) : "—"}</div>
+                </div>
+                <Chip label={st.label} color={st.color} small/>
+              </div>
+              {(lead.phone||lead.email)&&(
+                <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:4}}>
+                  {lead.phone}{lead.phone && lead.email ? " · " : ""}{lead.email}
+                </div>
+              )}
+              {lead.message&&<div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:6,fontStyle:"italic"}}>"{lead.message}"</div>}
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                {STATUSES.map(s=>(
+                  <button key={s.id} onClick={()=>setLeadStatus(idx,s.id)} disabled={(lead.status||"new")===s.id} style={{
+                    padding:"3px 9px",fontSize:9,fontWeight:700,borderRadius:7,
+                    border:`1px solid ${(lead.status||"new")===s.id?s.color+"66":C.border}`,
+                    backgroundColor:(lead.status||"new")===s.id?s.color+"15":"transparent",
+                    color:(lead.status||"new")===s.id?s.color:C.textMuted,
+                    cursor:(lead.status||"new")===s.id?"default":"pointer"
+                  }}>{s.label}</button>
+                ))}
+                {followCount>0&&<span style={{fontSize:9,color:C.textMuted,marginLeft:"auto"}}>{followCount} follow-up{followCount===1?"":"s"} sent</span>}
+              </div>
+            </div>
+          );
+        })}
+      </Card>
+    </div>
+  );
+}
+
 // ─── ARIA ─────────────────────────────────────────────────────────────────────
 function ARIAPanel({clients,onClose,onDelete}) {
   const [ariaTab,setAriaTab]=useState("chat");
@@ -2054,6 +2145,7 @@ function ARIADeployTab() {
     {name:"Media Library",icon:"🖼️",live:true,note:"Live now — clients upload photos/video for their ads and landing page, with a built-in recommendation list so they know what to send."},
     {name:"AI Landing Page Generator",icon:"📄",live:true,note:"Live now — ARIA writes the landing page copy from each client's campaign setup and brand voice. One click to generate, preview, and publish a hosted page for ad clicks to land on."},
     {name:"Call Tracking Numbers",icon:"📞",live:true,note:"Live now — ARIA buys a dedicated Twilio number per client, forwards calls to their real number, and logs every call as a lead automatically. On your trial Twilio account, the client's forwarding number must be verified in the Twilio console first (one-time, ~1 min) — upgrade to a paid account to skip that step."},
+    {name:"Automated Lead Follow-Up",icon:"⚡",live:true,note:"Live now — every new lead gets an instant auto-reply, branded as the client's business, the moment they fill out a landing page or call a tracking number. If nobody marks the lead Contacted/Won/Lost, ARIA automatically nurtures them again at 1 day and 3 days. Check the Leads tab on any client to see every lead and its status."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
     {name:"Ad Account Connection",icon:"📈",live:false,note:"Needs a Google Ads Manager account + developer token, and a Meta Business Manager + App Review. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
