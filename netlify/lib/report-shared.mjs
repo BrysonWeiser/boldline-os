@@ -149,9 +149,9 @@ const generateText = async (system, user) => {
   return textBlock ? textBlock.text : "";
 };
 
-const GOLD = "#C8A84B";
+export const GOLD = "#C8A84B";
 
-const escapeHTML = (s) =>
+export const escapeHTML = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const inlineMd = (s) => escapeHTML(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
@@ -232,7 +232,7 @@ const reportToHTML = (reportText, { label, subtitle, internal, contactName }) =>
 </body></html>`;
 };
 
-const sendEmail = async ({ to, subject, html, text }) => {
+export const sendEmail = async ({ to, subject, html, text }) => {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

@@ -1422,6 +1422,13 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
                 <iframe srcDoc={makePortalHTML(client,pkg)} title="Client Portal" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:500,border:"none",display:"block"}}/>
               </div>
             </Card>
+            <Card>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                <Label>Lead Webhook</Label>
+                <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/lead?token=${client.leadToken}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy URL</button>
+              </div>
+              <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Point {client.name}'s lead form (or any source) at this URL to log leads here automatically. POST JSON or a form with name / phone / email / message / source.</div>
+            </Card>
           </div>
         )}
 
@@ -2267,7 +2274,7 @@ function AddClientSheet({onSave,onClose}) {
     if(!canSave)return;
     const pkg=findPkg(form.packageId);const bots=buildBots(pkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));botStatuses["intake"]="active";
-    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],upgradeRequest:null,botStatuses});
+    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses});
     setSaved(true);setTimeout(()=>{ setSaved(false);onClose(); },1200);
   };
   return (
@@ -2705,8 +2712,8 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
-    if (c.portalToken) return c;
-    const next = {...c, portalToken: crypto.randomUUID()};
+    if (c.portalToken && c.leadToken) return c;
+    const next = {...c, portalToken: c.portalToken||crypto.randomUUID(), leadToken: c.leadToken||crypto.randomUUID()};
     const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
     if (error) console.error("Token backfill failed:", error);
     return next;
