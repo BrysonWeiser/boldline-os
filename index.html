@@ -2060,7 +2060,7 @@ function LeadsTabContent({client,onUpdate}) {
 }
 
 // ─── ARIA ─────────────────────────────────────────────────────────────────────
-function ARIAPanel({clients,onClose,onDelete}) {
+function ARIAPanel({clients,onClose,onDelete,onUpdate}) {
   const [ariaTab,setAriaTab]=useState("chat");
   const {messages,loading,send,reset,pendingAction,confirmAction,cancelAction}=useAI("",{enableTools:true});
   const [input,setInput]=useState("");const [repGen,setRepGen]=useState(false);
@@ -2073,7 +2073,8 @@ STATE: ${clients.length} clients | ${clients.filter(c=>c.stage==="active").lengt
 CLIENTS:
 ${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
-If Bryson clearly asks you to delete a specific client, call the delete_client tool with that client's exact name. He'll see an on-screen confirm button before anything is actually deleted, so just call the tool — no need to double-check in chat first.`;
+If Bryson clearly asks you to delete a specific client, call the delete_client tool with that client's exact name. He'll see an on-screen confirm button before anything is actually deleted, so just call the tool — no need to double-check in chat first.
+If you identify a specific, concrete action worth taking on a client's campaign — a budget change, pausing something underperforming, a creative refresh, anything with real-world or financial impact — call the propose_action tool instead of just suggesting it in chat. It lands in Bryson's approval queue (Notifications) for him to approve or reject; nothing executes on its own. Propose it any time you'd otherwise just tell him "you should..." about a specific client.`;
   const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYSTEM); setInput(""); };
 
@@ -2084,6 +2085,16 @@ If Bryson clearly asks you to delete a specific client, call the delete_client t
     else { confirmAction(`Could not find a client named "${targetName}". No changes made.`,SYSTEM); }
   };
   const handleCancelDelete=()=>cancelAction(SYSTEM);
+
+  useEffect(()=>{
+    if(!pendingAction||pendingAction.name!=="propose_action") return;
+    const {client_name,title,detail,category}=pendingAction.input||{};
+    const target=clients.find(c=>c.name.toLowerCase()===String(client_name||"").toLowerCase());
+    if(!target){ confirmAction(`Could not find a client named "${client_name}". No proposal logged.`,SYSTEM); return; }
+    const action={id:crypto.randomUUID(),title:String(title||"Proposed action"),detail:String(detail||""),category:String(category||"other"),createdAt:new Date().toISOString()};
+    onUpdate({...target,pendingActions:[...(target.pendingActions||[]),action]});
+    confirmAction(`Logged for Bryson's approval: "${action.title}" on ${target.name}.`,SYSTEM);
+  },[pendingAction]);
   return (
     <Sheet onClose={onClose} zIndex={80} height="96vh" accentBorder={`${C.purple}44`}>
       <div style={{padding:"13px 14px 11px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
@@ -2146,6 +2157,7 @@ function ARIADeployTab() {
     {name:"AI Landing Page Generator",icon:"📄",live:true,note:"Live now — ARIA writes the landing page copy from each client's campaign setup and brand voice. One click to generate, preview, and publish a hosted page for ad clicks to land on."},
     {name:"Call Tracking Numbers",icon:"📞",live:true,note:"Live now — ARIA buys a dedicated Twilio number per client, forwards calls to their real number, and logs every call as a lead automatically. On your trial Twilio account, the client's forwarding number must be verified in the Twilio console first (one-time, ~1 min) — upgrade to a paid account to skip that step."},
     {name:"Automated Lead Follow-Up",icon:"⚡",live:true,note:"Live now — every new lead gets an instant auto-reply, branded as the client's business, the moment they fill out a landing page or call a tracking number. If nobody marks the lead Contacted/Won/Lost, ARIA automatically nurtures them again at 1 day and 3 days. Check the Leads tab on any client to see every lead and its status."},
+    {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA can propose budget changes, pauses, or creative refreshes for a client, but every proposal lands in Notifications and waits for you to Approve or Reject. Nothing executes on its own. Once Google Ads/Meta are connected, this is the gate real ad-account changes will run through."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
     {name:"Ad Account Connection",icon:"📈",live:false,note:"Needs a Google Ads Manager account + developer token, and a Meta Business Manager + App Review. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
@@ -2652,10 +2664,13 @@ function AddClientSheet({onSave,onClose}) {
 }
 
 // ─── NOTIFICATIONS PANEL ─────────────────────────────────────────────────────
+const CATEGORY_LABELS = {budget:"💰 Budget",creative:"🎨 Creative",targeting:"🎯 Targeting",pause:"⏸ Pause",other:"📌 Other"};
+
 function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   const upgradeClients = clients.filter(c=>c.upgradeRequest);
   const expiringClients= clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
   const urgentClients  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7; });
+  const pendingApprovals = clients.flatMap(c=>(c.pendingActions||[]).map(a=>({...a,client:c})));
   const [confirming,setConfirming]=useState(null);
   const [declining,setDeclining]=useState(null);
   const [done,setDone]=useState({});
@@ -2663,6 +2678,13 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   const goTo = (cl, tab) => {
     onNavigate(cl, tab);
     onClose();
+  };
+
+  const decideAction=(cl,action,decision)=>{
+    onUpdate({...cl,
+      pendingActions:(cl.pendingActions||[]).filter(a=>a.id!==action.id),
+      commLog:[{date:fmt(new Date()),note:`${decision==="approved"?"Approved":"Rejected"} ARIA proposal: ${action.title}`,cat:"update",ts:Date.now()},...(cl.commLog||[])],
+    });
   };
 
   const confirmUpgrade=(cl)=>{
@@ -2678,7 +2700,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
     setTimeout(()=>setConfirming(null),1000);
   };
 
-  const totalCount = upgradeClients.length + urgentClients.length + expiringClients.filter(c=>daysUntil(c.contractEnd)>7).length;
+  const totalCount = upgradeClients.length + urgentClients.length + expiringClients.filter(c=>daysUntil(c.contractEnd)>7).length + pendingApprovals.length;
 
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:80,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
@@ -2741,6 +2763,33 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                   ))}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Pending Approvals (ARIA proposals) */}
+          {pendingApprovals.length>0&&(
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.gold,display:"inline-block"}}/>
+                Pending Approvals
+              </div>
+              {pendingApprovals.map(({client:cl,...action})=>(
+                <div key={action.id} style={{backgroundColor:C.bg3,border:`1px solid ${C.gold}33`,borderRadius:11,padding:"13px 14px",marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:9}}>
+                    <div style={{width:34,height:34,borderRadius:9,backgroundColor:`${C.purple}18`,border:`1px solid ${C.purple}2a`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>✦</div>
+                    <div style={S.f1min}>
+                      <div style={{fontSize:13,fontWeight:700,color:C.text}}>{action.title}</div>
+                      {action.detail&&<div style={{fontSize:11,color:C.textDim,marginTop:3,lineHeight:1.6}}>{action.detail}</div>}
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:4}}>{cl.name} · {CATEGORY_LABELS[action.category]||CATEGORY_LABELS.other} · ARIA proposal</div>
+                    </div>
+                  </div>
+                  <div style={S.row7}>
+                    <button onClick={()=>decideAction(cl,action,"rejected")} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Reject</button>
+                    <button onClick={()=>decideAction(cl,action,"approved")} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}44`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer"}}>Approve</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,padding:"2px 2px 0"}}>Approving logs your decision in the client's activity log. ARIA doesn't have live access to ad platforms yet, so you'll still make the actual change in Google/Meta yourself for now.</div>
             </div>
           )}
 
@@ -2824,7 +2873,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
             <div style={{textAlign:"center",padding:"60px 20px",color:C.textMuted}}>
               <div style={{fontSize:40,marginBottom:14}}>✓</div>
               <div style={{fontSize:15,fontWeight:700,color:C.textDim,marginBottom:6}}>All clear</div>
-              <div style={{fontSize:13,lineHeight:1.7}}>No upgrade requests, no expiring contracts, no pending intake forms. Everything is running smoothly.</div>
+              <div style={{fontSize:13,lineHeight:1.7}}>No upgrade requests, no expiring contracts, no pending intake forms, no proposals waiting on you. Everything is running smoothly.</div>
             </div>
           )}
         </div>
@@ -2977,7 +3026,7 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
-    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined) return c;
+    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions) return c;
     const next = {...c,
       portalToken: c.portalToken||crypto.randomUUID(),
       leadToken: c.leadToken||crypto.randomUUID(),
@@ -2989,6 +3038,7 @@ function App({onLogout}) {
       mediaLibrary: c.mediaLibrary||[],
       landingSlug: c.landingSlug||makeSlug(c.name),
       landingPage: {headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null,...c.landingPage},
+      pendingActions: c.pendingActions||[],
     };
     const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
     if (error) console.error("Token backfill failed:", error);
@@ -3037,7 +3087,8 @@ function App({onLogout}) {
 
   const notifCount = clients.filter(c=>c.upgradeRequest).length
     + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; }).length
-    + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length;
+    + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length
+    + clients.reduce((s,c)=>s+(c.pendingActions||[]).length,0);
 
   if (dataState==="loading") {
     return <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.textMuted,fontSize:13}}>Loading your dashboard…</div></div>;
@@ -3087,7 +3138,7 @@ function App({onLogout}) {
           setShowNotif(false);
         }}
       />}
-      {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)} onDelete={deleteClient}/>}
+      {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)} onDelete={deleteClient} onUpdate={updateClient}/>}
       {showAdd&&<AddClientSheet onSave={addClient} onClose={()=>setShowAdd(false)}/>}
     </div>
   );
