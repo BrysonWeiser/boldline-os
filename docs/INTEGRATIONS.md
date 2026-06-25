@@ -135,6 +135,23 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   long-lived/system-user access token). Same hard constraint applies: clients link
   and pay for their own ad accounts; BoldLine holds manager access only.
 
+## OS internals & gotchas (read before editing the portal / landing pages)
+- **The client portal HTML lives in TWO places that must be edited together:**
+  `netlify/functions/portal.js` (the LIVE portal, server-rendered at `/portal?token=`)
+  and a near-identical `makePortalHTML` inside `index.html` (the owner-side preview).
+  Same structure, slightly different syntax (portal.js: `(r) => … .join("")`;
+  index.html: `r=> … .join('')`). Change one, change the other or they drift.
+  (Discovered 2026-06-25: a screenshot looked out of date because it was a cached
+  pre-upgrade view — the code was already ahead.)
+- **Client media upload** (the photos/logo/video clients want us to use): on the
+  portal **My Info** tab. Redesigned 2026-06-25 into a prominent gold "📸 Your Photos
+  & Video" card at the TOP of the tab (previously buried under the Save button, easy to
+  miss) with an amber empty-state nudge that disappears after the first upload. Flow:
+  `media.mjs` `action=sign` → browser PUTs the file to the signed URL → `action=confirm`
+  appends `{category,label,url,path}` to the client's `mediaLibrary[]`. The AI landing
+  page uses the first photo/logo as its hero image. Uploads fire on their own button,
+  independent of "Save My Information" (which only saves the text fields).
+
 ## Reference: existing OS safety capability
 - **Task #8** built a human-in-the-loop guardrail: `propose_action` → `pendingActions`
   queue → Approve/Reject. No automated process executes a real ad-account change
