@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"systemMessage\":\"Auto-recording to the index: refreshing CLAUDE.md + docs/INTEGRATIONS.md before this context is compacted.\",\"hookSpecificOutput\":{\"hookEventName\":\"PreCompact\",\"additionalContext\":\"STANDING INSTRUCTION FROM BRYSON: Before context is compacted, immediately update CLAUDE.md and docs/INTEGRATIONS.md with every unrecorded decision, status change, gotcha, credential or env-var name, and completed setup step from this session, then commit and push. The index must never fall behind, and Bryson must never have to ask whether it was saved.\"}}'",
+            "statusMessage": "Flushing session notes to the index..."
+          }
+        ]
+      }
+    ]
+  }
+}

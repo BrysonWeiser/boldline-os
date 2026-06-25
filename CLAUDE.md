@@ -20,12 +20,20 @@ automated.
 ## How Bryson wants me to work (standing preferences)
 - **Be opinionated, not a yes-man.** If an idea is weak or there's a better way,
   say so with reasoning. Offer recommendations proactively, not only when asked.
-- **Granular, click-by-click instructions** for any external/manual setup. Assume
-  no familiarity with dev tools ("click the wrench icon, top right"). He has
-  explicitly asked for this level of detail.
-- **After each finished section/task, update this index** (this file +
-  `docs/INTEGRATIONS.md`): review what we did, record decisions and how he likes
-  things done, so future sessions can check what's already done before redoing it.
+- **Always teach the setup — never just "I set it up, let me know."** For everything
+  we do (every external account, credential, platform, dashboard, or configuration),
+  give granular, click-by-click instructions so Bryson can do it AND understand it
+  himself. Assume zero familiarity with dev tools ("click the gear icon, top-right").
+  Never silently perform/configure a setup and only report it done — he needs the HOW,
+  step by step, every time. (Code I write is mine to implement, but I still explain
+  what it does and how he interacts with it.) He has explicitly + repeatedly asked.
+- **Record to the index AUTOMATICALLY — Bryson must never have to ask whether I
+  saved it.** The moment anything worth remembering happens (a finished section, a
+  decision, a status change, a gotcha + its fix, a credential/env-var name, a stated
+  preference), immediately update this file and `docs/INTEGRATIONS.md`, then commit +
+  push. Do NOT wait to be told. Say so visibly when you do it ("✅ Index updated: …")
+  so he sees it without checking. A **PreCompact hook** (`.claude/settings.json`)
+  backstops this by forcing an index flush before any context is ever compacted/lost.
 - **Always prompt the Netlify env-var step** at the end of each platform's
   credential setup — never skip it.
 - **Confirm before irreversible or outward-facing actions.**
