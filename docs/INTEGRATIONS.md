@@ -61,7 +61,7 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   backend — only the contract-HTML rendering path is untested); (3) production
   promotion before first real client (see warning above).
 
-## Google Ads API — credentials DONE ✅ · awaiting approval + first client ⏳
+## Google Ads API — credentials DONE ✅ · code built ✅ · awaiting Basic Access + first client ⏳
 - Architecture: one **MCC** manager account (ID in Netlify) + one Developer Token +
   one OAuth refresh token operate across all linked client accounts via the
   `login-customer-id` header.
@@ -79,10 +79,31 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   human-in-the-loop safety story.
 - Env vars: `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`,
   `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`,
-  `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (stored WITH dashes; code will
-  strip them when calling the API).
-- **TODO:** wait for Basic Access (Task #16) → link first client account to the MCC
-  (Task #17) → build the Ads API code.
+  `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (stored WITH dashes; the code strips them when
+  calling the API). Optional: `GOOGLE_ADS_API_VERSION` — see caveat below.
+- **Code (built 2026-06-25, pending live-verify):** `netlify/functions/google-ads.mjs`
+  — OAuth refresh-token → access-token exchange, then actions: `test`
+  (listAccessibleCustomers — the smoke test), `campaigns` (GAQL read: campaigns +
+  30-day metrics), `setBudget` + `setStatus` (guarded writes). Secured by the owner's
+  Supabase session, same as DocuSign. Front end: a "Test Google Ads Connection" card
+  on the Deploy tab (one-click connectivity check, mirrors the DocuSign test card).
+  New client field `googleAdsCustomerId` added to the data model for per-client
+  linking (Task #17). Built but **staged on the feature branch, NOT merged to main** —
+  it can't be live-verified until Basic Access is granted, and a failing test card on
+  the live OS would just confuse. Merge + verify together once the token lands.
+  - ⚠️ **API version caveat:** `API_VERSION` defaults to `v18` in the code. Google
+    sunsets versions ~yearly; this is the value most likely to be stale at test time.
+    If the `test` call errors with "version not found / deprecated", set
+    `GOOGLE_ADS_API_VERSION` in Netlify to a current version — no code change needed.
+- **Approve→execute wiring is deferred (correctly):** ARIA's `propose_action` logs a
+  *descriptive* proposal (title/detail/category) to the approval queue; `decideAction`
+  records the approve/reject. Turning an approval into a real `setBudget`/`setStatus`
+  call needs live campaign reads first (to resolve the specific campaign + resource
+  names), so it's a post-Basic-Access task. The executable pieces are ready in
+  `google-ads.mjs`; only the final UI wire-up remains.
+- **TODO:** Basic Access approval (Task #16) → live-verify via the test card + bump
+  API version if needed → link first client account to the MCC (Task #17) → wire
+  approve→execute.
 
 ## Stripe (BoldLine service-fee billing) — NOT started ⏳
 - Purpose: bill clients **BoldLine's management/service fee only**. NOT ad spend —

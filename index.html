@@ -2192,6 +2192,33 @@ function DocuSignTestCard() {
   );
 }
 
+function GoogleAdsTestCard() {
+  const [state,setState]=useState("idle");   // idle | testing | ok | error
+  const [msg,setMsg]=useState("");
+  const test=async()=>{
+    setState("testing"); setMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token){ setState("error"); setMsg("Session expired — refresh the page and log in again."); return; }
+      const r=await fetch("/.netlify/functions/google-ads",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action:"test"})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok){ setState("error"); setMsg((d.stage?d.stage+" — ":"")+(d.error||"Test failed.")+(d.detail?" | "+JSON.stringify(d.detail):"")); return; }
+      setState("ok"); setMsg("✓ Authenticated (API "+d.apiVersion+"). "+d.count+" account"+(d.count===1?"":"s")+" visible to the manager"+(d.accounts&&d.accounts.length?": "+d.accounts.join(", "):"")+(d.mccVisible?". MCC confirmed.":"."));
+    }catch(e){ setState("error"); setMsg("Network error — try again."); }
+  };
+  return (
+    <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📈 Test Google Ads Connection</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Checks that the manager (MCC) credentials authenticate and lists the ad accounts they can see. Expected to fail until the Developer Token's Basic Access is approved.</div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={test} disabled={state==="testing"} style={{padding:"9px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="ok"?"#059669":"#1D4ED8",color:"#fff",cursor:state==="testing"?"default":"pointer",opacity:state==="testing"?.7:1,whiteSpace:"nowrap"}}>{state==="testing"?"Testing…":state==="ok"?"✓ Connected":"Test Connection"}</button>
+      </div>
+      {msg&&<div style={{fontSize:11,marginTop:8,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
+    </div>
+  );
+}
+
 // ─── ARIA DEPLOYMENT STATUS TAB ───────────────────────────────────────────────
 function ARIADeployTab() {
   const items = [
@@ -2212,7 +2239,7 @@ function ARIADeployTab() {
     {name:"Automated Lead Follow-Up",icon:"⚡",live:true,note:"Live now — every new lead gets an instant auto-reply, branded as the client's business, the moment they fill out a landing page or call a tracking number. If nobody marks the lead Contacted/Won/Lost, ARIA automatically nurtures them again at 1 day and 3 days. Check the Leads tab on any client to see every lead and its status."},
     {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA can propose budget changes, pauses, or creative refreshes for a client, but every proposal lands in Notifications and waits for you to Approve or Reject. Nothing executes on its own. Once Google Ads/Meta are connected, this is the gate real ad-account changes will run through."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
-    {name:"Ad Account Connection",icon:"📈",live:false,note:"Needs a Google Ads Manager account + developer token, and a Meta Business Manager + App Review. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
+    {name:"Ad Account Connection",icon:"📈",live:false,note:"Google Ads: manager account + credentials are in place and the integration code is built — waiting on the Developer Token's Basic Access approval (use 'Test Google Ads Connection' above once it's granted). Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
   return (
     <div style={{flex:1,overflowY:"auto",padding:14}}>
@@ -2231,6 +2258,7 @@ function ARIADeployTab() {
         <span style={{color:C.textMuted}}>Twilio ~$0.01/text · ~$1.15/mo per tracking number · Resend free · Supabase free · Netlify free</span>
       </div>
       <DocuSignTestCard/>
+      <GoogleAdsTestCard/>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {items.map((item,i)=>(
           <div key={i} style={{backgroundColor:C.bg3,border:`1px solid ${item.live?"rgba(34,211,160,0.15)":"rgba(245,158,11,0.15)"}`,borderRadius:11,padding:"12px 13px"}}>
@@ -3080,7 +3108,7 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
-    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions) return c;
+    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions && c.googleAdsCustomerId!==undefined) return c;
     const next = {...c,
       portalToken: c.portalToken||crypto.randomUUID(),
       leadToken: c.leadToken||crypto.randomUUID(),
@@ -3093,6 +3121,7 @@ function App({onLogout}) {
       landingSlug: c.landingSlug||makeSlug(c.name),
       landingPage: {headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null,...c.landingPage},
       pendingActions: c.pendingActions||[],
+      googleAdsCustomerId: c.googleAdsCustomerId||"",
     };
     const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
     if (error) console.error("Token backfill failed:", error);
