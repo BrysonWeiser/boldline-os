@@ -20,7 +20,7 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
 
 ---
 
-## DocuSign (e-signature) — credentials DONE ✅ · code NOT built yet ⏳
+## DocuSign (e-signature) — credentials DONE ✅ · code built ✅ · live-verify pending ⏳
 - **Environment: DEMO / sandbox** (`demo.docusign.net` REST base + `account-d.docusign.com` auth server).
   - ⚠️ **Demo signatures are NOT legally binding** (watermarked). Before the first
     real client: open a **production** DocuSign account, complete the **Go-Live
@@ -35,8 +35,16 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   registered — required for the consent flow, otherwise unused.
 - Env vars: `DOCUSIGN_INTEGRATION_KEY`, `DOCUSIGN_USER_ID`, `DOCUSIGN_ACCOUNT_ID`,
   `DOCUSIGN_PRIVATE_KEY`, `DOCUSIGN_BASE_PATH` (= `https://demo.docusign.net`).
-- **TODO (Task #9):** build JWT-auth + envelope-send serverless function; wire into
-  the existing contract flow (currently PDF download only — no real e-sign send yet).
+- **Code (built 2026-06-25):** `netlify/functions/docusign-send.mjs` — JWT Grant
+  auth + envelope send, secured by the owner's Supabase session. Front end wired in
+  two places: "Send via DocuSign" on a client's Contract tab (sends the rendered
+  service agreement, marks contract "pending", stores `docusignEnvelopeId`), and a
+  "Test DocuSign Connection" card on the Deploy tab (sends a non-binding test
+  envelope to any email — self-serve credential verification). Signature tab is
+  placed on an invisible `/BL_SIGN_HERE/` anchor in the contract.
+- **TODO (Task #9):** (1) live-verify via the Test card once deployed; (2) later,
+  envelope status sync (webhook/poll) so a signed contract flips status to "active"
+  automatically; (3) production promotion before first real client (see warning above).
 
 ## Google Ads API — credentials DONE ✅ · awaiting approval + first client ⏳
 - Architecture: one **MCC** manager account (#989-283-2533) + one Developer Token +

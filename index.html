@@ -892,7 +892,7 @@ const makeContractHTML=(cl,pkg)=>{
    +'<h2>Agreement Details</h2><div class="meta"><div class="meta-item"><div class="meta-label">Package</div><div class="meta-value">'+(pkg&&pkg.name||'—')+'</div></div><div class="meta-item"><div class="meta-label">Platform</div><div class="meta-value">'+(pkg&&pkg.platform||'—')+'</div></div><div class="meta-item"><div class="meta-label">Management Fee</div><div class="meta-value">$'+((pkg&&pkg.price)||0).toLocaleString()+'/mo</div></div><div class="meta-item"><div class="meta-label">Setup Fee</div><div class="meta-value">$'+((pkg&&pkg.setup)||0).toLocaleString()+' (one-time)</div></div><div class="meta-item"><div class="meta-label">Start Date</div><div class="meta-value">'+(cl.contractStart||'—')+'</div></div><div class="meta-item"><div class="meta-label">End Date</div><div class="meta-value">'+(cl.contractEnd||'—')+'</div></div>'+perLeadRow+budgetRow+'</div>'
    +'<h2>Services Included</h2><ul>'+feats+'</ul>'
    +'<h2>Terms</h2><p><strong>Payment:</strong> Management fee invoiced monthly. Per-lead fees invoiced monthly based on verified leads delivered. Setup fee due before campaign launch.</p><p><strong>Minimum Term:</strong> This agreement is for a minimum of 3 months from the start date. Either party may choose not to renew with 30 days written notice before the end date.</p><p><strong>Ad Spend:</strong> Ad budget is separate from management fees and paid directly to the advertising platform by the client.</p><p><strong>Ownership:</strong> All ad accounts, landing pages, leads, creative assets, and data created under this agreement belong to the client.</p><p><strong>Performance:</strong> BoldLine Media does not guarantee specific lead volumes or revenue outcomes. We guarantee full effort, transparent reporting, and professional campaign management.</p><p><strong>Confidentiality:</strong> Both parties agree to keep the terms of this agreement and all business information shared during the engagement confidential.</p>'
-   +'<h2>Signatures</h2><div class="sigs"><div class="sig-box"><div class="pl">BoldLine Media</div><div class="sig-line"></div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div><div class="sig-box"><div class="pl">Client — '+(cl.name||'')+'</div><div class="sig-line"></div><div style="font-size:11px">'+(cl.contactName||'Authorized Signatory')+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div></div>'
+   +'<h2>Signatures</h2><div class="sigs"><div class="sig-box"><div class="pl">BoldLine Media</div><div class="sig-line"></div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div><div class="sig-box"><div class="pl">Client — '+(cl.name||'')+'</div><div class="sig-line"><span style="color:#fff;font-size:9px">/BL_SIGN_HERE/</span></div><div style="font-size:11px">'+(cl.contactName||'Authorized Signatory')+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div></div>'
    +'</body></html>';
 };
 
@@ -1604,7 +1604,7 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
           <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
         )}
 
-        {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onRenew={(newEnd)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
+        {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onUpdate={onUpdate} onRenew={(newEnd)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
         {tab==="reports"&&<ReportsTabContent client={client} pkg={pkg}/>}
         {tab==="log"&&<LogTabContent client={client} onUpdate={onUpdate}/>}
       </div>
@@ -1625,12 +1625,28 @@ function ClientHub({client,onUpdate,onDelete,onBack}) {
   );
 }
 // ─── CONTRACT TAB ─────────────────────────────────────────────────────────────
-function ContractTabContent({client,pkg,days,onRenew}) {
+function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [copied,setCopied]=useState(false);
   const [showRenewal,setShowRenewal]=useState(false);
   const [renewMonths,setRenewMonths]=useState("3");
   const [renewSaved,setRenewSaved]=useState(false);
+  const [dsState,setDsState]=useState("idle");   // idle | sending | sent | error
+  const [dsMsg,setDsMsg]=useState("");
   const html=makeContractHTML(client,pkg);
+  const sendDocuSign=async()=>{
+    if(!client.email){ setDsState("error"); setDsMsg("Add the client's email on the Overview tab first."); return; }
+    setDsState("sending"); setDsMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token){ setDsState("error"); setDsMsg("Session expired — refresh the page and log in again."); return; }
+      const r=await fetch("/.netlify/functions/docusign-send",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({recipientEmail:client.email,recipientName:client.contactName||client.name,documentHtml:html})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok){ setDsState("error"); setDsMsg(d.error||"Send failed — try again."); return; }
+      setDsState("sent");
+      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString()});
+    }catch(e){ setDsState("error"); setDsMsg("Network error — try again."); }
+  };
   const downloadPDF=()=>{
     const blob=new Blob([html],{type:"text/html"});const url=URL.createObjectURL(blob);
     const ifr=document.createElement("iframe");ifr.style.cssText="position:fixed;width:0;height:0;border:none;left:-9999px;top:-9999px";
@@ -1689,7 +1705,9 @@ function ContractTabContent({client,pkg,days,onRenew}) {
       {!client.contractSigned&&<Card style={{backgroundColor:"rgba(59,130,246,.06)",borderColor:"rgba(59,130,246,.28)"}}>
         <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:4}}>Contract Not Yet Signed</div>
         <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Send to <strong style={{color:C.textDim}}>{client.email}</strong> via DocuSign for e-signature.</div>
-        <button style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:"#1D4ED8",color:"#fff",cursor:"pointer"}}>Send via DocuSign →</button>
+        <button onClick={sendDocuSign} disabled={dsState==="sending"||dsState==="sent"} style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:dsState==="sent"?"#059669":"#1D4ED8",color:"#fff",cursor:dsState==="sending"||dsState==="sent"?"default":"pointer",opacity:dsState==="sending"?.7:1}}>{dsState==="sending"?"Sending…":dsState==="sent"?"✓ Sent for Signature":"Send via DocuSign →"}</button>
+        {dsState==="sent"&&<div style={{fontSize:11,color:"#34D399",marginTop:8,lineHeight:1.6}}>Envelope sent to {client.email}. They'll receive an email to sign; status now shows Pending Signature.</div>}
+        {dsState==="error"&&<div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{dsMsg||"Something went wrong."}</div>}
       </Card>}
       <div style={S.row7}>
         <button onClick={downloadPDF} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>↓ Download PDF</button>
@@ -2139,6 +2157,41 @@ If you identify a specific, concrete action worth taking on a client's campaign 
   );
 }
 
+// ─── DOCUSIGN CONNECTION TEST ─────────────────────────────────────────────────
+// Sends a real (non-binding) test envelope through the JWT integration so the
+// owner can confirm the DocuSign credentials work end-to-end without needing a
+// real client on file.
+function DocuSignTestCard() {
+  const [email,setEmail]=useState("");
+  const [state,setState]=useState("idle");   // idle | sending | sent | error
+  const [msg,setMsg]=useState("");
+  const send=async()=>{
+    const to=email.trim();
+    if(!to||!to.includes("@")){ setState("error"); setMsg("Enter a valid email address."); return; }
+    setState("sending"); setMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token){ setState("error"); setMsg("Session expired — refresh the page and log in again."); return; }
+      const r=await fetch("/.netlify/functions/docusign-send",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({recipientEmail:to,recipientName:"BoldLine Test"})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok){ setState("error"); setMsg((d.stage?d.stage+" — ":"")+(d.error||"Send failed.")); return; }
+      setState("sent"); setMsg("✓ Envelope sent to "+to+". Check your inbox (and spam) for a DocuSign email.");
+    }catch(e){ setState("error"); setMsg("Network error — try again."); }
+  };
+  return (
+    <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>✍️ Test DocuSign Connection</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Sends a real (non-binding) test envelope to confirm the JWT credentials authenticate and send. Currently on DocuSign's free demo environment.</div>
+      <div style={{display:"flex",gap:6}}>
+        <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email.com" style={{flex:1,padding:"9px 11px",fontSize:13,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit"}}/>
+        <button onClick={send} disabled={state==="sending"} style={{padding:"9px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="sent"?"#059669":"#1D4ED8",color:"#fff",cursor:state==="sending"?"default":"pointer",opacity:state==="sending"?.7:1,whiteSpace:"nowrap"}}>{state==="sending"?"Sending…":state==="sent"?"✓ Sent":"Send Test"}</button>
+      </div>
+      {msg&&<div style={{fontSize:11,marginTop:8,lineHeight:1.6,color:state==="error"?C.red:"#34D399"}}>{msg}</div>}
+    </div>
+  );
+}
+
 // ─── ARIA DEPLOYMENT STATUS TAB ───────────────────────────────────────────────
 function ARIADeployTab() {
   const items = [
@@ -2148,7 +2201,7 @@ function ARIADeployTab() {
     {name:"Monthly Report Email",icon:"🗓️",live:true,note:"Live now — auto-sends every 30 days from each client's own contract start date, for clients on monthly-cadence packages."},
     {name:"Weekly OS Health Report",icon:"🩺",live:true,note:"Live now — ARIA emails Bryson a full business + system health report with recommendations every Monday morning."},
     {name:"SMS Report Notification",icon:"📱",live:false,note:"Twilio is connected, but carrier rules (A2P 10DLC) block texts from trial accounts. Needs a paid Twilio account to finish."},
-    {name:"DocuSign Contracts",icon:"✍️",live:false,note:"PDF download works now. E-signature needs your DocuSign Integration Key."},
+    {name:"DocuSign Contracts",icon:"✍️",live:false,note:"Built and deployed — JWT integration + real e-signature send is live in code. Click 'Test DocuSign Connection' above to verify, then use 'Send via DocuSign' on any client's Contract tab. On DocuSign's free demo environment for now (test signatures aren't legally binding); switches to production before the first real client."},
     {name:"Client Portal (hosted)",icon:"🔗",live:true,note:"Live now — each client gets a private, unguessable portal link via Copy Link."},
     {name:"Data Persistence",icon:"💾",live:true,note:"Live now via Supabase — data is saved across sessions and devices."},
     {name:"Lead Capture Webhook",icon:"📥",live:true,note:"Live now — point any external lead source at a client's webhook URL (Lead Webhook tab) to log leads automatically."},
@@ -2177,6 +2230,7 @@ function ARIADeployTab() {
         <strong style={{color:C.gold}}>Total cost when fully deployed:</strong> Under $1/mo base, plus ~$1.15/mo + a few cents/min per active call-tracking number<br/>
         <span style={{color:C.textMuted}}>Twilio ~$0.01/text · ~$1.15/mo per tracking number · Resend free · Supabase free · Netlify free</span>
       </div>
+      <DocuSignTestCard/>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {items.map((item,i)=>(
           <div key={i} style={{backgroundColor:C.bg3,border:`1px solid ${item.live?"rgba(34,211,160,0.15)":"rgba(245,158,11,0.15)"}`,borderRadius:11,padding:"12px 13px"}}>
