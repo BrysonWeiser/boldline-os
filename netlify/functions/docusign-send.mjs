@@ -46,9 +46,22 @@ const escapeHtml = (s) =>
 const b64url = (buf) =>
   Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-// Netlify preserves real newlines in secrets, but tolerate keys pasted with
-// literal "\n" escape sequences too.
-const normalizeKey = (k) => String(k || "").replace(/\\n/g, "\n").trim();
+// Reconstruct canonical PEM formatting no matter how the key arrived: tolerate
+// literal "\n" escape sequences, surrounding quotes, and — the most common
+// paste failure — line breaks lost when pasted into a single-line UI field.
+// As long as the BEGIN/END markers and base64 body survived, this rebuilds a
+// valid PEM by re-wrapping the body at the standard 64-char width.
+function normalizeKey(raw) {
+  let k = String(raw || "").replace(/\\n/g, "\n").trim();
+  if ((k.startsWith('"') && k.endsWith('"')) || (k.startsWith("'") && k.endsWith("'"))) {
+    k = k.slice(1, -1).trim();
+  }
+  const m = k.match(/-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END \1-----/);
+  if (!m) return k;
+  const body = m[2].replace(/\s+/g, "");
+  const wrapped = body.match(/.{1,64}/g)?.join("\n") || body;
+  return `-----BEGIN ${m[1]}-----\n${wrapped}\n-----END ${m[1]}-----`;
+}
 
 // ── JWT Grant: build a signed assertion, exchange for an access token ─────────
 async function getAccessToken() {
@@ -71,8 +84,18 @@ async function getAccessToken() {
     signature = signer.sign(normalizeKey(DS.privateKey))
       .toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   } catch (err) {
+    const raw = String(DS.privateKey || "");
     const e = new Error("Could not sign with DOCUSIGN_PRIVATE_KEY — check the key was pasted in full (BEGIN/END lines included).");
     e.stage = "sign";
+    // Structural facts only — never the key content itself — so we can
+    // diagnose a bad paste without ever seeing the secret.
+    e.detail = {
+      charLength: raw.trim().length,
+      lineCount: raw.split("\n").length,
+      hasBeginMarker: /-----BEGIN [A-Z ]+-----/.test(raw),
+      hasEndMarker: /-----END [A-Z ]+-----/.test(raw),
+      hasLiteralBackslashN: /\\n/.test(raw),
+    };
     throw e;
   }
 
@@ -222,6 +245,7 @@ export default async (req) => {
       ok: false,
       stage: err.stage || "unknown",
       error: err.message || "DocuSign request failed",
+      detail: err.detail,
     }, 502);
   }
 };

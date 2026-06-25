@@ -2175,7 +2175,7 @@ function DocuSignTestCard() {
       if(!token){ setState("error"); setMsg("Session expired — refresh the page and log in again."); return; }
       const r=await fetch("/.netlify/functions/docusign-send",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({recipientEmail:to,recipientName:"BoldLine Test"})});
       const d=await r.json().catch(()=>({}));
-      if(!r.ok||!d.ok){ setState("error"); setMsg((d.stage?d.stage+" — ":"")+(d.error||"Send failed.")); return; }
+      if(!r.ok||!d.ok){ setState("error"); setMsg((d.stage?d.stage+" — ":"")+(d.error||"Send failed.")+(d.detail?" | "+JSON.stringify(d.detail):"")); return; }
       setState("sent"); setMsg("✓ Envelope sent to "+to+". Check your inbox (and spam) for a DocuSign email.");
     }catch(e){ setState("error"); setMsg("Network error — try again."); }
   };
