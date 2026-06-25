@@ -20,12 +20,16 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
 
 ---
 
-## DocuSign (e-signature) — credentials DONE ✅ · code built ✅ · live-verify pending ⏳
+## DocuSign (e-signature) — credentials DONE ✅ · code built ✅ · LIVE-VERIFIED ✅ (demo)
+- **Live-verified 2026-06-25:** test envelope sent from the Deploy-tab "Test DocuSign
+  Connection" card → email delivered → signing document opened successfully. Full JWT
+  round-trip (sign → token → envelope → deliver) confirmed working end to end.
 - **Environment: DEMO / sandbox** (`demo.docusign.net` REST base + `account-d.docusign.com` auth server).
   - ⚠️ **Demo signatures are NOT legally binding** (watermarked). Before the first
     real client: open a **production** DocuSign account, complete the **Go-Live
-    promotion** (requires ~20 successful API calls in demo first), and regenerate
-    ALL DocuSign credentials for production. This is known future work.
+    promotion** (requires ~20 successful API calls in demo first — every test send we
+    make now counts toward that 20), and regenerate ALL DocuSign credentials for
+    production. Known future work, deferred until a real client is close.
 - Auth method: **JWT Grant** (server-to-server, unattended). One-time consent grant
   **COMPLETED 2026-06-25** (redirect landed cleanly with `?code=...`).
 - Account: BoldLine Media, account #48872018. Integration type: **Private custom
@@ -35,16 +39,27 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   registered — required for the consent flow, otherwise unused.
 - Env vars: `DOCUSIGN_INTEGRATION_KEY`, `DOCUSIGN_USER_ID`, `DOCUSIGN_ACCOUNT_ID`,
   `DOCUSIGN_PRIVATE_KEY`, `DOCUSIGN_BASE_PATH` (DocuSign demo/sandbox REST base — value in Netlify).
-- **Code (built 2026-06-25):** `netlify/functions/docusign-send.mjs` — JWT Grant
-  auth + envelope send, secured by the owner's Supabase session. Front end wired in
-  two places: "Send via DocuSign" on a client's Contract tab (sends the rendered
-  service agreement, marks contract "pending", stores `docusignEnvelopeId`), and a
-  "Test DocuSign Connection" card on the Deploy tab (sends a non-binding test
-  envelope to any email — self-serve credential verification). Signature tab is
-  placed on an invisible `/BL_SIGN_HERE/` anchor in the contract.
-- **TODO (Task #9):** (1) live-verify via the Test card once deployed; (2) later,
-  envelope status sync (webhook/poll) so a signed contract flips status to "active"
-  automatically; (3) production promotion before first real client (see warning above).
+- **Code:** `netlify/functions/docusign-send.mjs` — JWT Grant auth + envelope send,
+  secured by the owner's Supabase session. Front end wired in two places: "Send via
+  DocuSign" on a client's Contract tab (sends the rendered service agreement, marks
+  contract "pending", stores `docusignEnvelopeId`), and a "Test DocuSign Connection"
+  card on the Deploy tab (sends a non-binding test envelope to any email — self-serve
+  credential verification). Signature tab placed on an invisible `/BL_SIGN_HERE/`
+  anchor in the contract.
+- **GOTCHA — the private-key paste (cost ~3 retries before it worked):**
+  `DOCUSIGN_PRIVATE_KEY` kept failing at the `sign` stage. Cause: pasting a multi-line
+  PEM key into Netlify's secret field collapses the internal newlines, and Node's
+  `crypto` then rejects the malformed PEM. Fix in code: `normalizeKey()` now rebuilds
+  canonical PEM (re-wraps the base64 body at 64 chars) whenever the BEGIN/END markers
+  survived, so a flattened paste self-heals; the `sign`-stage error also returns
+  non-secret structural facts (length, line count, marker presence) for diagnosis.
+  **When we regenerate the key for production we'll likely hit the same paste issue —
+  the code tolerates it now, but cleanest is to keep the newlines intact on paste.**
+- **TODO (later, not blocking):** (1) envelope status sync (webhook/poll) so a signed
+  contract auto-flips status to "active" instead of staying "pending"; (2) optional:
+  exercise the real "Send via DocuSign" on a test client's Contract tab (same verified
+  backend — only the contract-HTML rendering path is untested); (3) production
+  promotion before first real client (see warning above).
 
 ## Google Ads API — credentials DONE ✅ · awaiting approval + first client ⏳
 - Architecture: one **MCC** manager account (ID in Netlify) + one Developer Token +
