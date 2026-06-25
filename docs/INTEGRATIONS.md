@@ -88,9 +88,10 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   Supabase session, same as DocuSign. Front end: a "Test Google Ads Connection" card
   on the Deploy tab (one-click connectivity check, mirrors the DocuSign test card).
   New client field `googleAdsCustomerId` added to the data model for per-client
-  linking (Task #17). Built but **staged on the feature branch, NOT merged to main** —
-  it can't be live-verified until Basic Access is granted, and a failing test card on
-  the live OS would just confuse. Merge + verify together once the token lands.
+  linking (Task #17). **Now LIVE on main** (carried along when the portal fix was
+  fast-forwarded 2026-06-25). The "Test Google Ads Connection" card is on the Deploy
+  tab but clearly labeled "expected to fail until Basic Access is approved" — owner-only,
+  harmless, and ready to one-click verify the moment the token lands (no redeploy needed).
   - ⚠️ **API version caveat:** `API_VERSION` defaults to `v18` in the code. Google
     sunsets versions ~yearly; this is the value most likely to be stale at test time.
     If the `test` call errors with "version not found / deprecated", set
