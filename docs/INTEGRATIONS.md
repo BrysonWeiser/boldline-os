@@ -150,8 +150,25 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   miss) with an amber empty-state nudge that disappears after the first upload. Flow:
   `media.mjs` `action=sign` → browser PUTs the file to the signed URL → `action=confirm`
   appends `{category,label,url,path}` to the client's `mediaLibrary[]`. The AI landing
-  page uses the first photo/logo as its hero image. Uploads fire on their own button,
-  independent of "Save My Information" (which only saves the text fields).
+  page uses the first photo/logo as its hero image — **this is why the category
+  dropdown stays even though the "Worth adding" list already tells clients what to
+  bring**: the tag isn't just descriptive, the landing-page generator reads it. Uploads
+  fire on their own button, independent of "Save My Information" (which only saves the
+  text fields).
+- **Media-category dropdown fix (2026-06-25):** client screenshot showed the
+  category `<select>` rendering white text on a white background — unreadable except
+  for the one option under the OS-level blue selection highlight. Cause: `.inp`
+  styled the closed `<select>` dark, but the `<option>` elements in the opened native
+  list inherited no override, so the browser fell back to a white dropdown with the
+  inherited near-white text. Fix: added `option{background:#0D0F16;color:#F9FAFB}` to
+  the CSS. Also smoothed the UX while in there: reordered options to default to
+  "Photo" (the common case, was "Logo"), added a plain "What are you uploading?"
+  label above the select, and added an `autoCat(input)` JS function (wired via
+  `onchange` on the file input) that auto-switches the category to "Video" when the
+  chosen file's MIME type starts with `video/` — logo/review still need a manual
+  pick since they can't be inferred from file type. Applied identically to both
+  `portal.js` and `index.html`'s `makePortalHTML` copy (see the dual-copy gotcha
+  above).
 
 ## Reference: existing OS safety capability
 - **Task #8** built a human-in-the-loop guardrail: `propose_action` → `pendingActions`
