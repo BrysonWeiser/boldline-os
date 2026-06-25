@@ -34,7 +34,7 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   saved to Netlify only). Placeholder redirect URI `https://www.docusign.com`
   registered — required for the consent flow, otherwise unused.
 - Env vars: `DOCUSIGN_INTEGRATION_KEY`, `DOCUSIGN_USER_ID`, `DOCUSIGN_ACCOUNT_ID`,
-  `DOCUSIGN_PRIVATE_KEY`, `DOCUSIGN_BASE_PATH` (= `https://demo.docusign.net`).
+  `DOCUSIGN_PRIVATE_KEY`, `DOCUSIGN_BASE_PATH` (DocuSign demo/sandbox REST base — value in Netlify).
 - **Code (built 2026-06-25):** `netlify/functions/docusign-send.mjs` — JWT Grant
   auth + envelope send, secured by the owner's Supabase session. Front end wired in
   two places: "Send via DocuSign" on a client's Contract tab (sends the rendered
@@ -47,7 +47,7 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   automatically; (3) production promotion before first real client (see warning above).
 
 ## Google Ads API — credentials DONE ✅ · awaiting approval + first client ⏳
-- Architecture: one **MCC** manager account (#989-283-2533) + one Developer Token +
+- Architecture: one **MCC** manager account (ID in Netlify) + one Developer Token +
   one OAuth refresh token operate across all linked client accounts via the
   `login-customer-id` header.
 - Google Cloud project created, Google Ads API enabled. OAuth consent screen
@@ -64,7 +64,7 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   human-in-the-loop safety story.
 - Env vars: `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`,
   `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`,
-  `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (= `989-283-2533`, stored WITH dashes; code will
+  `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (stored WITH dashes; code will
   strip them when calling the API).
 - **TODO:** wait for Basic Access (Task #16) → link first client account to the MCC
   (Task #17) → build the Ads API code.

@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  # DOCUSIGN_BASE_PATH is a public DocuSign API hostname (not a secret), used as a
+  # code default in docusign-send.mjs. Exclude it from secret scanning so the build
+  # doesn't fail on a non-sensitive value. All genuinely-secret keys stay scanned.
+  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH"
+
 [functions."weekly-report"]
   schedule = "0 15 * * 1"
 

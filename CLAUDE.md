@@ -43,7 +43,11 @@ manager-level access. This governs all billing / ad-account / Stripe / Meta work
   on network errors.
 - Never open a PR unless explicitly asked. Never use `--no-verify` or bypass hooks.
 - **Never commit secrets.** Credential values live only in Netlify env vars, never
-  in the repo (not even in docs).
+  in the repo (not even in docs). NOTE: Netlify's secret scanner fails the build if
+  the value of ANY env var (even a non-secret one like a base URL or account ID)
+  appears in a committed file. So keep *all* env-var values out of code/docs — refer
+  to them by name only. If a non-secret value genuinely must appear as a code default,
+  add its key to `SECRETS_SCAN_OMIT_KEYS` in netlify.toml.
 
 ## Detailed state
 See **`docs/INTEGRATIONS.md`** for per-platform setup status, env-var names,
