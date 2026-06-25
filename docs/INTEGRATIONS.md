@@ -110,9 +110,30 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   the client pays Google/Meta directly (see hard business constraint in CLAUDE.md).
 - Research/walkthrough already given in chat. Task #10.
 
-## Meta Marketing API — NOT started ⏳
-- **Longest approval pipeline** of all four (Business Verification + app review —
-  can take weeks). Worth starting EARLY so the clock runs in the background. Task #12.
+## Meta Marketing API — IN PROGRESS 🔧 (started 2026-06-25)
+- **Longest approval pipeline** of all four (Business Verification + App Review — can
+  take weeks). Started early on purpose so the clock runs in parallel with the Google
+  Ads Basic Access wait. Task #12.
+- **Starting point: from scratch** — BoldLine had nothing on Facebook/Meta (no
+  personal account confirmed, no Page, no Business Manager) as of 2026-06-25.
+- **Setup path (walking Bryson through it click-by-click):**
+  1. Personal Facebook login — the required admin "key" behind any business (the
+     personal account stays separate from the business). Use `brysonaweiser@gmail.com`.
+  2. **Business Portfolio** at business.facebook.com — name `BoldLine Media`, email
+     `brysonaweiser@gmail.com`, confirm via the email link.
+  3. **Facebook Page** `BoldLine Media`, category Marketing Agency (needed for ads +
+     verification).
+  4. **Business Verification** (Business Settings → Security Center) — the weeks-long
+     step; submit ASAP to start the clock.
+  5. **Developer app** at developers.facebook.com (Business-type) + add the
+     **Marketing API** product.
+  6. **App Review** for advanced `ads_management` access.
+- **Current position (2026-06-25):** Bryson is on steps 1–3 (creating the Business
+  Portfolio + Page). Next session checkpoint: confirm the portfolio dashboard is up,
+  then do Business Verification (step 4).
+- No env vars yet — will be added once the app exists (App ID, App Secret, a
+  long-lived/system-user access token). Same hard constraint applies: clients link
+  and pay for their own ad accounts; BoldLine holds manager access only.
 
 ## Reference: existing OS safety capability
 - **Task #8** built a human-in-the-loop guardrail: `propose_action` → `pendingActions`
