@@ -151,6 +151,54 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
     portal) and **no testimonials/client counts/logos** (BoldLine has no real clients
     yet — reframed honestly as boutique/limited-roster positioning instead of
     inventing social proof).
+- **v2.1 update (2026-06-26): micro-animations, real tabbed packages, Calendly
+  booking.** Bryson asked for the site to "feel modern... like the best website
+  company," for the Services section to actually reveal real package tiers on
+  click, and for every CTA to book a call instead of just emailing.
+  - **Tabbed packages section** replaces the old 3-card "Capabilities" blurbs.
+    `#services` now has 4 platform tabs — Google Ads / Meta Ads / Combined
+    Systems / E-Commerce (e-commerce promoted from a footnote to its own full
+    tab with 3 tiers) — each showing that platform's real tiers pulled
+    directly from `PACKAGES_DB` in `index.html`: tier name, real `adSpend`
+    range labeled "Typical ad budget," and a feature checklist built strictly
+    from each tier's actual boolean flags (no tier shows a feature it doesn't
+    actually have). Deliberately still **no BoldLine dollar pricing shown** —
+    same no-public-pricing model as v2, now applied per-tier instead of
+    site-wide. `savings`/`roas` dollar figures from `PACKAGES_DB` are
+    paraphrased into qualitative lines ("Bundled pricing — runs more
+    efficiently...", "Performance bonus available once your store is
+    consistently hitting strong ROAS") rather than shown verbatim with
+    numbers.
+  - **Progressive-enhancement tabs (no-JS safe by construction):** default
+    CSS shows all 4 tab panels (`display:block`) — only once an early
+    synchronous `<script>` in `<head>` adds `js-tabs` to `<html>` does CSS
+    switch to hide/show (`html.js-tabs .tab-panel{display:none}` /
+    `.active{display:block}`). Standard no-js/js convention, chosen
+    specifically so the scroll-reveal bug class below can't recur here:
+    verified with Playwright's `javaScriptEnabled:false` that all 4 panels'
+    full content (every package card, every line of copy) stays in the DOM
+    and visible with JS off.
+  - **Micro-animations:** hero glow drifts slowly (`@keyframes glowDrift`,
+    10s loop), nav links get an animated gold underline on hover, buttons
+    give tactile press feedback (`scale(.96)` on `:active`), package/cap
+    cards lift on hover, tab switches fade the new panel in
+    (`animation:fadeUp .5s`). All pure CSS, all respect
+    `prefers-reduced-motion`.
+  - **Every CTA now books a call, not an email.** Hero button, new header
+    button ("Book a Call"), every package card's CTA, and the contact section
+    all link to `https://calendly.com/theboldlinemedia/30min` (opens in a new
+    tab). Default wording is "Book a Free Consultation" (warmer than
+    "Contact Us," sets the expectation it's a real conversation, not a form)
+    with "Book a Call" for the compact header button.
+  - **Fixed a real content-accuracy bug while in there:** the old "Every
+    Engagement" section claimed weekly review, retargeting, and CRM
+    integration as included on every plan — but `PACKAGES_DB` shows those are
+    `false` on every family's entry-level Launch tier. Rewrote the section to
+    state only what's genuinely true on every tier (landing page on every
+    plan, immediate lead notification, plain-English reporting, scope locked
+    before launch, full account transparency, no spend without sign-off) and
+    moved the tier-gated claims into the new per-tier package cards where
+    they're correctly scoped.
 - ⚠️ **Gotcha + fix (2026-06-26): scroll-reveal was hiding all content from anything
   that doesn't scroll.** The first v2 draft used a JS `IntersectionObserver` to fade
   sections in as the user scrolled, with `.reveal{opacity:0}` as the resting state. A
@@ -167,8 +215,8 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
 - ⚠️ **Placeholder needing Bryson's input:** the contact section currently shows
   `hello@boldlinemedia.com` — a guess, not a confirmed live mailbox. Needs Bryson to
   either confirm that address (and make sure it's actually receiving mail once DNS
-  is repointed) or give a different one to swap in. Asked twice in chat, unanswered
-  as of 2026-06-26 — still open.
+  is repointed) or give a different one to swap in. Asked three times in chat now,
+  unanswered as of 2026-06-26 — still open.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
