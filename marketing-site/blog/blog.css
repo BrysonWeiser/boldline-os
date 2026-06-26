@@ -68,6 +68,16 @@ footer nav a:hover{color:var(--gold)}
   .blog-hero h1{font-size:30px}
 }
 
+.pagination{display:flex;align-items:center;justify-content:center;gap:28px;max-width:1100px;margin:0 auto 100px;padding:0 28px}
+.pagination a{font-size:12.5px;font-weight:600;color:var(--gold);text-decoration:none;letter-spacing:.02em}
+.pagination a:hover{color:#fff}
+.pagination .page-current{font-size:12px;color:var(--faint);letter-spacing:.04em}
+.pagination .page-disabled{font-size:12.5px;font-weight:600;color:var(--faint);letter-spacing:.02em;opacity:.35}
+
+@media (max-width:840px){
+  .pagination{gap:18px}
+}
+
 /* ---- Post article ---- */
 .breadcrumb{position:relative;padding:148px 28px 0;max-width:680px;margin:0 auto}
 .breadcrumb a{font-size:12.5px;font-weight:600;color:var(--muted);text-decoration:none;letter-spacing:.02em}

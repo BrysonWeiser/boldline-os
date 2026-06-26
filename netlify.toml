@@ -20,6 +20,9 @@
 [functions."lead-followup"]
   schedule = "0 13 * * *"
 
+[functions."blog-autopublish"]
+  schedule = "0 14 * * 1,3,5"
+
 [[redirects]]
   from = "/portal"
   to = "/.netlify/functions/portal"

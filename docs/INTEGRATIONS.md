@@ -14,9 +14,12 @@ secret values"**, same value across Production / Deploy Previews / Branch deploy
 Preview Server & Agent Runners (Local development is dropped automatically for
 secret vars — we don't use the Netlify CLI locally, so this is fine).
 
-Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
-`RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `TWILIO_ACCOUNT_SID`,
-`TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `URL`.
+Pre-existing vars: `ANTHROPIC_API_KEY`, `OWNER_EMAIL`, `OWNER_PHONE`,
+`REPORTS_FROM_EMAIL`, `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`,
+`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `URL`.
+(`ANTHROPIC_API_KEY` was missing from this list despite being live and in use since
+the original report-generation feature — added 2026-06-26 while documenting the blog
+automation below, which reuses it. No action needed; just a doc gap fix.)
 
 ---
 
@@ -303,6 +306,78 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
     under a real HTTP root): full-page screenshots of every page at desktop + mobile,
     a `javaScriptEnabled:false` regression pass confirming substantial visible text on
     all 5 pages with JS off, and a check that the existing homepage tabs still work.
+- **v2.4 update (2026-06-26): AI-written blog, fully automated end to end.** Bryson
+  asked for a posting-cadence recommendation, then for the blog to actually write and
+  publish itself. Recommended **1 post/week for the first 3 months, ramping to
+  2-3/week** once there's a track record to judge what's resonating — confirmed.
+  Control model confirmed: **auto-publish immediately + email notify** (not a
+  draft-for-approval queue), with delete and regenerate as the safety valve instead of
+  a pre-publish review step.
+  - **New Supabase tables** (`docs/sql/blog-schema.sql`, one-time paste into the SQL
+    Editor — see TODO #7 below): `blog_posts` (slug/title/category/excerpt/
+    meta_description/body_html/read_minutes, `status` enum `published|draft|deleted`
+    for soft-delete, `source` enum `ai|manual`, separate `created_at` vs
+    `published_at`) and a singleton `blog_settings` row (`id` pinned to `1` via a check
+    constraint) holding `posts_per_week`. The same script migrates the 3 existing
+    static posts in as `source:'manual'` rows with staggered `published_at`
+    timestamps that reproduce their exact current display order — moving to the
+    database changes nothing visible on day one.
+  - **AI generation** (`netlify/lib/blog-shared.mjs`): calls the Anthropic API with a
+    forced tool call (`tool_choice:{type:"tool",name:"blog_post"}`) so it always
+    returns clean structured fields (title/category/excerpt/intro/3-5 sections each
+    with optional body+bullets/pull-quote/conclusion) instead of free text to parse.
+    Every prompt is grounded in a `BLOG_FACTS` constant — the only facts about
+    BoldLine the AI is allowed to state (the real process, the real
+    what's-true-on-every-plan list, the ad-spend-ownership rule, the real Calendly
+    link) — with an explicit instruction to never invent client results,
+    testimonials, or stats, since BoldLine doesn't have real ones yet, and to never
+    repeat or closely rephrase an existing post's topic.
+  - **Owner controls** (`netlify/functions/blog-admin.mjs`, new **Blog** panel on the
+    ARIA Deploy tab in `index.html`): same Bearer-JWT owner-auth pattern as the Google
+    Ads tools. Actions: list posts, write one on demand ("Write One Now"),
+    **regenerate** a specific post, **delete** a specific post (soft-delete, with an
+    inline confirm step matching the delete-confirm pattern already used elsewhere in
+    the OS), and set the weekly cadence. Regenerate keeps the **same
+    `id`/`slug`/`created_at` permanently** and only swaps the content fields + bumps
+    `published_at` — so a regenerated post's live URL never breaks and it still counts
+    as the *original* post for quota purposes, never a second new one. Regenerate is
+    topic-locked: it tells the AI to take another pass at the *same subject*, not pick
+    a new one.
+    - ⚠️ **Worth confirming this is what you meant:** "regenerate" here is a per-post
+      rewrite (pick one post, get a fresh take on the same topic), not a full
+      wipe-and-rebuild of the whole blog — and there's no version history, so
+      regenerating overwrites the previous text for good. Flagging in case you
+      pictured something else.
+  - **Auto-publish cron** (`netlify/functions/blog-autopublish.mjs`, runs Mon/Wed/Fri
+    14:00 UTC via `netlify.toml`): counts posts created in the trailing 7 days (by
+    `created_at`, never `published_at`, so a regenerate never double-counts toward the
+    week's quota) against `blog_settings.posts_per_week`; under quota, writes and
+    publishes one more AI post and emails `OWNER_EMAIL` a branded "new post is live"
+    notice; at/over quota, no-ops silently. Picked a 3x/week check cadence specifically
+    so the schedule never needs to change as the cadence later ramps from 1/week up to
+    2-3/week — most checks just no-op early on. `?test=1` emails a quota-used-vs-limit
+    status report without publishing anything, same dry-run convention as
+    `lead-followup.mjs`.
+  - **Static blog converted to dynamic, paginated, newest-first**: deleted the old
+    hand-coded `marketing-site/blog/index.html`, its 3 static post pages, and the
+    static `sitemap.xml`; replaced with `marketing-site/netlify/functions/
+    blog-index.mjs` (paginated listing, 6 posts/page, newest always top-left),
+    `blog-post.mjs` (single post by slug, 404 for unknown/deleted slugs), and a
+    dynamic `sitemap.mjs` — all backed by `marketing-site/netlify/lib/
+    blog-render.mjs`'s shared render helpers (header/footer/post-CTA/head-tags incl.
+    JSON-LD, all HTML-escaped). `blog/blog.css` kept as-is.
+  - **Sandbox verification limits (full disclosure):** this environment has no live
+    Supabase project, no Netlify CLI, and no `ANTHROPIC_API_KEY` available, so nothing
+    above could be exercised as a real end-to-end test — no real AI call was made, no
+    real Supabase round-trip happened. What *was* verified: every new/changed file
+    passes `node --check`; the new React component in `index.html` was verified with a
+    real Babel `transformSync()` of the extracted JSX (this file has no build step, so
+    that's the only way to catch a JSX syntax error here); every cross-file import was
+    checked against the real exports it points at; and `blog-render.mjs`'s pure
+    HTML-rendering helpers were smoke-tested against mock post data, including a
+    deliberate XSS-style payload in a title/excerpt to confirm escaping holds. **Not**
+    verified: a real AI-generated post end to end, or a real Supabase read/write —
+    worth a real test once the env var below is in place.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
@@ -336,6 +411,24 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
      vs. organic performance once ads are live. Not required to rank. Not set up yet —
      needs Bryson to create the actual Google Analytics account; happy to walk through
      it click-by-click whenever he wants it.
+  7. **Run the blog schema SQL once** (new, v2.4) — open the Supabase dashboard for
+     the BoldLine OS project → left sidebar **SQL Editor** → **New query** → open
+     `docs/sql/blog-schema.sql` from this repo, paste its entire contents in, click
+     **Run**. Creates the two new tables and migrates the 3 existing posts in as rows.
+     Safe to re-run if you ever need to — every statement is idempotent.
+  8. **Add one new env var to the *new* marketing-site Netlify site** (new, v2.4) —
+     this is a separate Netlify site from the OS (see TODO #1 above), so it has its
+     own separate env-var list even though it points at the same Supabase project. In
+     that new site's dashboard: **Site configuration** → **Environment variables** →
+     **Add a variable** → key `SUPABASE_SERVICE_ROLE_KEY`, value = the same
+     service-role key already set on the OS's own Netlify site (Supabase dashboard →
+     **Project Settings** → **API** → `service_role` secret, if you need to copy it
+     again) → mark **Contains secret values** → save with the same
+     Production/Previews/Branch-deploys/Runners scope as the OS site's vars.
+     *(Correction to an earlier note: only this one env var is owed, not two —
+     `SUPABASE_URL` is a non-secret constant baked directly into the code, the same
+     convention the existing report-generation features already use, so it doesn't
+     need an env var.)*
 
 ## Stripe (BoldLine service-fee billing) — NOT started ⏳
 - Purpose: bill clients **BoldLine's management/service fee only**. NOT ad spend —
