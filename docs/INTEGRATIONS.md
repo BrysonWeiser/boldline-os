@@ -248,6 +248,61 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
     device-scale-factor, plus per-section crops so copy is legible on review) and
     confirmed hover states render correctly (shine sweep, tag glow ring, process-step
     tint) before shipping.
+- **v2.3 update (2026-06-26): SEO scaffolding + blog section, to actually rank
+  organically.** Bryson asked what the "Start a Conversation" email is for (confirmed
+  it's the same `theboldlinemedia@gmail.com` already logged above) and asked to add a
+  blog for organic Google ranking, plus "anything else" for SEO/general improvement.
+  - **SEO scaffolding added to `index.html`:**
+    - Real favicon + apple-touch-icon: extracted the existing inline base64 logo
+      data-URI to a standalone `marketing-site/logo.png` (292×342 PNG, via shell
+      `base64 -d` — never passed through chat/model context) instead of re-embedding
+      the string a second time. Reused for favicon, apple-touch-icon, and the JSON-LD
+      `logo` field.
+    - `<link rel="canonical">` on every page.
+    - Full Open Graph + Twitter Card tags (title/description/url/image,
+      `summary_large_image`), backed by a real rendered `marketing-site/og-image.png`
+      (1200×630, built from a custom HTML share-card matching the site's actual design
+      tokens via headless Chromium — not a placeholder).
+    - JSON-LD structured data: `Organization` schema on the homepage (name, url, logo,
+      description, email, `knowsAbout`); `Blog` schema on the blog index; `Article`
+      schema (author/publisher/mainEntityOfPage) on every post. All real values, no
+      invented ratings/review counts/social links.
+    - `marketing-site/robots.txt` (allow all, points at the sitemap) +
+      `marketing-site/sitemap.xml` (homepage + blog index + all 3 posts, real
+      `lastmod` dates — nothing fabricated).
+  - **Blog section added:** `marketing-site/blog/` — hand-coded static HTML, no CMS,
+    no Supabase backend, consistent with this site's "no build step" philosophy and
+    the v2.1 lesson never to gate content on JS. `blog/blog.css` is a shared
+    stylesheet (duplicates the homepage's design tokens/header/footer on purpose, so
+    the blog keeps working even if the homepage's CSS changes shape later).
+    `blog/index.html` is the listing page (hero + 3-card grid). Three launch posts,
+    each grounded in the site's own real service descriptions — zero invented client
+    stats/testimonials (BoldLine has no real clients yet):
+    1. `blog/is-your-business-ready-for-google-ads/` — "Is Your Business Ready for
+       Google Ads?" (category: Getting Started)
+    2. `blog/google-ads-vs-meta-ads/` — "Google Ads vs. Meta Ads: Which Should You
+       Start With?" (category: Strategy; links internally to post 3)
+    3. `blog/why-your-landing-page-matters/` — "Why Your Landing Page Matters More
+       Than Your Ad" (category: Conversion)
+    Header nav on every page (homepage + blog) now includes a **Blog** link.
+  - ⚠️ **Gotcha + fix: real pre-existing CSS specificity bug found while reviewing
+    screenshots, fixed in both files.** The "Book a Call" header button rendered with
+    low-contrast gray text (and fully invisible gold-on-gold on hover) because
+    `.hdr-row nav a{color:var(--muted)}` (1 class + 2 type-selectors) beat
+    `.hdr-cta{color:#15110A}` (1 class + 0 type-selectors) — when class-counts tie,
+    type-selector count breaks the tie. This bug predates this round of changes (it
+    shipped with v2.1's header CTA) but was never caught because no earlier screenshot
+    review zoomed in tight enough on that one element. Fixed in both `index.html` and
+    the new `blog/blog.css` using the `:not(.hdr-cta)` exclusion pattern already used
+    elsewhere in the same files for the underline-hover effect:
+    `.hdr-row nav a:not(.hdr-cta){...}` / `:not(.hdr-cta):hover{...}`. Re-verified with
+    fresh screenshots at rest + hover, desktop + mobile, homepage + blog — confirmed
+    legible dark text in every state.
+  - Verified end-to-end via headless Chromium against a local static server (not
+    `file://` — these pages use absolute `/`-rooted paths that only resolve correctly
+    under a real HTTP root): full-page screenshots of every page at desktop + mobile,
+    a `javaScriptEnabled:false` regression pass confirming substantial visible text on
+    all 5 pages with JS off, and a check that the existing homepage tabs still work.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
@@ -265,6 +320,22 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
      the site is intentionally minimal it's worth adding a short note describing the
      business model + intended API use case (managing multiple clients' campaigns via
      one MCC) directly in the application notes, not just relying on the site alone.
+  4. **Set up Google Search Console** (free) — once the site is live at the real
+     domain, go to `search.google.com/search-console` → "Add property" → enter
+     `boldlinemedia.com` → verify ownership (Netlify's DNS panel makes the TXT-record
+     verification a copy/paste) → under "Sitemaps," submit
+     `https://boldlinemedia.com/sitemap.xml`. This is what actually gets the blog
+     posts crawled and indexed quickly instead of waiting for Google to stumble on
+     them on its own — the single highest-leverage step for "front of Google."
+  5. **Create a Google Business Profile** (free) — `business.google.com/create`,
+     category "Marketing Agency," service-area business (no public office needed).
+     Drives local "near me" / "[service] near [city]" search visibility, which is a
+     different (and often faster) channel than blog SEO.
+  6. **Optional: Google Analytics (GA4)** — real visitor data (which blog post drives
+     traffic, where visitors come from) instead of guessing, and lets us compare paid
+     vs. organic performance once ads are live. Not required to rank. Not set up yet —
+     needs Bryson to create the actual Google Analytics account; happy to walk through
+     it click-by-click whenever he wants it.
 
 ## Stripe (BoldLine service-fee billing) — NOT started ⏳
 - Purpose: bill clients **BoldLine's management/service fee only**. NOT ad spend —
