@@ -119,25 +119,56 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   the full Task #18 rebuild + AI website-builder feature right now — this is the
   middle path: a real, permanent, but minimal static site, not throwaway Wix content
   and not the bigger AI-builder feature (that stays deferred).
-- **Code (built 2026-06-26):** `marketing-site/index.html` + `marketing-site/netlify.toml`
-  — a standalone static one-pager, deliberately its own directory with its own
-  `netlify.toml` so it can be deployed as a **second, separate Netlify site** from
-  this same repo (Base directory = `marketing-site`) without touching the OS's
-  existing routing (`netlify.toml` at the repo root still serves `index.html`/the OS
-  at `/*`, untouched). No build step, no React/Babel — plain HTML/CSS, reuses the
-  same `LOGO` data-URI and gold (`#C8A84B`) brand color as the rest of the product.
-  Verified by rendering it in headless Chromium and screenshotting both desktop and
-  mobile (not just eyeballing the HTML).
-- **Content:** real, accurate description of the actual business — Google Ads
-  management, custom landing pages, automatic lead follow-up (all real, shipped
-  features) — plus a "How It Works" section that states the client owns/pays for
-  their own ad account directly and BoldLine only ever manages it. That line isn't
-  just honest marketing copy — it's also exactly the kind of content a Google
-  reviewer wants to see to understand the API use case.
+- **Code (built 2026-06-26, redesigned same day as v2):** `marketing-site/index.html` +
+  `marketing-site/netlify.toml` — a standalone static one-pager, deliberately its own
+  directory with its own `netlify.toml` so it can be deployed as a **second, separate
+  Netlify site** from this same repo (Base directory = `marketing-site`) without
+  touching the OS's existing routing (`netlify.toml` at the repo root still serves
+  `index.html`/the OS at `/*`, untouched). No build step, no React/Babel — plain
+  HTML/CSS, reuses the same `LOGO` data-URI as the rest of the product. Verified by
+  rendering it in headless Chromium and screenshotting both desktop and mobile (not
+  just eyeballing the HTML) — caught a real bug this way, see gotcha below.
+- **v2 redesign (2026-06-26):** Bryson asked for the page to be rebuilt grounded in
+  the *real* services/business rather than generic copy, and restyled darker/more
+  luxury. Content is now pulled directly from the OS's own data structures instead of
+  invented:
+  - "Capabilities" section = the real platforms in `PACKAGES_DB` (Google Ads / Meta
+    Ads / Combined Systems), e-commerce folded into a supporting note line rather than
+    its own card.
+  - "Every Engagement" section = real features bundled across packages (landing page
+    per campaign, call tracking, weekly review, retargeting, CRM lead routing,
+    plain-English reporting).
+  - "Process" section = the real client-facing pipeline, condensed from the `STAGES`
+    array (Discovery → Build → Launch → Optimize → Scale).
+  - "You Keep the Keys" section states the hard ad-spend-ownership constraint
+    verbatim as the page's one explicit promise.
+  - Visual: reused the OS's existing dark theme tokens (`#080A0F` bg / `#0D0F16` card /
+    gold `#C8A84B`) for consistency, added Google Fonts **Playfair Display** (serif
+    headlines) + **Inter** (body) for the luxury feel — first external font dependency
+    anywhere in this project (everything else uses system font stacks).
+  - Deliberately **no public pricing** (CTA-only "Start a Conversation" model,
+    consistent with real pricing already being gated behind the post-intake client
+    portal) and **no testimonials/client counts/logos** (BoldLine has no real clients
+    yet — reframed honestly as boutique/limited-roster positioning instead of
+    inventing social proof).
+- ⚠️ **Gotcha + fix (2026-06-26): scroll-reveal was hiding all content from anything
+  that doesn't scroll.** The first v2 draft used a JS `IntersectionObserver` to fade
+  sections in as the user scrolled, with `.reveal{opacity:0}` as the resting state. A
+  full-page Playwright screenshot proved the problem: everything below the hero
+  rendered completely blank, because the page was captured/composited without ever
+  firing real scroll events. That's a direct risk for *this specific page*, whose
+  whole purpose is to pass a Google reviewer's crawl of "content related to your
+  application" — a non-scrolling crawler would see an empty page. Fixed by dropping
+  the JS/scroll dependency entirely: `.reveal` now plays a pure-CSS `@keyframes`
+  fade-up on load (`animation:fadeUp .8s ease both`) that resolves to fully visible
+  with or without JS, with or without scrolling, and respects
+  `prefers-reduced-motion`. General lesson for any future scroll-triggered UI in this
+  project: never gate content visibility on JS/scroll state — animate, don't hide.
 - ⚠️ **Placeholder needing Bryson's input:** the contact section currently shows
   `hello@boldlinemedia.com` — a guess, not a confirmed live mailbox. Needs Bryson to
   either confirm that address (and make sure it's actually receiving mail once DNS
-  is repointed) or give a different one to swap in.
+  is repointed) or give a different one to swap in. Asked twice in chat, unanswered
+  as of 2026-06-26 — still open.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
