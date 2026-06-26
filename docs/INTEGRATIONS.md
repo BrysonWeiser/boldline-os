@@ -212,11 +212,42 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   with or without JS, with or without scrolling, and respects
   `prefers-reduced-motion`. General lesson for any future scroll-triggered UI in this
   project: never gate content visibility on JS/scroll state — animate, don't hide.
-- ⚠️ **Placeholder needing Bryson's input:** the contact section currently shows
-  `hello@boldlinemedia.com` — a guess, not a confirmed live mailbox. Needs Bryson to
-  either confirm that address (and make sure it's actually receiving mail once DNS
-  is repointed) or give a different one to swap in. Asked three times in chat now,
-  unanswered as of 2026-06-26 — still open.
+- ✅ **Contact email confirmed (2026-06-26):** Bryson confirmed the real mailbox is
+  `theboldlinemedia@gmail.com`. Swapped in everywhere the old `hello@boldlinemedia.com`
+  placeholder appeared (contact section mailto + display text). No longer an open item.
+- **v2.2 visual-polish pass (2026-06-26):** Bryson said the page still felt "kind of
+  bland" and asked for more flare. Added a cohesive set of depth/motion details on top
+  of the v2.1 base, all pure CSS (no new JS, no content-visibility risk — verified by
+  re-running the same `javaScriptEnabled:false` regression check after this pass; all
+  4 service-tab panels still render full content with JS off):
+  - **Hero:** bigger dual-tone glow (warm gold + a faint cool counter-glow for depth),
+    the emphasized headline word ("marketing") now renders as a slow gold gradient
+    shimmer (`background-clip:text` + `@keyframes shimmer`) instead of flat color, and
+    a row of small caption-style pills (Google Ads · Meta Ads · Landing Pages · Call
+    Tracking · CRM Routing) under the CTA gives the hero more visual weight without
+    inventing stats.
+  - **Every Engagement:** the 6 identical "✓" marks became 6 distinct small inline-SVG
+    line icons (document / lightning bolt / bar-chart / clipboard-check / eye / lock),
+    one per benefit, for visual variety instead of repeating the same glyph.
+  - **Process:** step numerals enlarged (26px → 40px) for an editorial feel, plus a
+    hover state (soft gold background tint, numeral brightens to full gold) so the
+    list feels interactive on desktop.
+  - **Package cards:** added a diagonal gold shine-sweep on hover (pure
+    `background-position` transition, deliberately NOT `overflow:hidden` + clip —
+    that would've clipped the "Most Popular"/"Best Value" tag badges that intentionally
+    sit half outside the card's top edge) and a soft gold glow ring around whichever
+    card carries a tier tag, via `:pkg:has(.tag)`.
+  - **Trust ("You Keep the Keys"):** added a soft centered ambient gold glow behind the
+    text, echoing the hero's glow for visual cohesion at the page's thematic climax.
+  - **Footer:** thin centered gold gradient hairline accent on the top border.
+  - **Cleanup while in there:** removed `.cap-grid`/`.cap`/`.cap h3`/`.cap p`/`.cap .num`
+    — dead CSS left over from the pre-v2.1 "Capabilities" 3-card layout that the tabbed
+    Services section replaced; `.cap-note` (the "Not sure which fits?" line) is still
+    used so it stayed.
+  - Re-verified with fresh Playwright screenshots (full-page desktop/mobile at 2x
+    device-scale-factor, plus per-section crops so copy is legible on review) and
+    confirmed hover states render correctly (shine sweep, tag glow ring, process-step
+    tint) before shipping.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
