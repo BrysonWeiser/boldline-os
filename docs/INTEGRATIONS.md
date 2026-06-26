@@ -6,7 +6,7 @@ Detailed record of external-platform setup.
 > identifiers, decisions, and state. All credential values live only in Netlify
 > environment variables.
 
-Last updated: **2026-06-25**
+Last updated: **2026-06-26**
 
 ## Netlify environment variables
 All app secrets live here. Convention: ALL_CAPS_SNAKE_CASE, marked **"Contains
@@ -77,6 +77,13 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   application submitted 2026-06-25** (~3 business-day review). The application
   included a custom design doc that cited the Task #8 approval-queue as the
   human-in-the-loop safety story.
+  - ❌ **REJECTED 2026-06-26.** Reason given: the company website on file
+    (`theboldlinemedia.wixsite.com/boldline-media-4`) "does not have content related
+    to your application" — Google requires a working website as part of review, and
+    the email explicitly warns **do not resubmit with the same responses** (it just
+    triggers the same rejection again). Not a rejection of the business model or the
+    design doc — purely the website. See the new **"BoldLine Media's own marketing
+    site"** section below for the fix in progress.
 - Env vars: `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`,
   `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`,
   `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (stored WITH dashes; the code strips them when
@@ -102,9 +109,52 @@ Pre-existing vars: `OWNER_EMAIL`, `OWNER_PHONE`, `REPORTS_FROM_EMAIL`,
   call needs live campaign reads first (to resolve the specific campaign + resource
   names), so it's a post-Basic-Access task. The executable pieces are ready in
   `google-ads.mjs`; only the final UI wire-up remains.
-- **TODO:** Basic Access approval (Task #16) → live-verify via the test card + bump
-  API version if needed → link first client account to the MCC (Task #17) → wire
-  approve→execute.
+- **TODO:** fix the website blocker (below) → resubmit Basic Access (Task #16) →
+  live-verify via the test card + bump API version if needed → link first client
+  account to the MCC (Task #17) → wire approve→execute.
+
+## BoldLine Media's own marketing site — code built ✅ · Netlify site + DNS + resubmit ⏳
+- **Why this exists:** purely to unblock the Google Ads Basic Access rejection above.
+  Bryson chose this over (a) just patching the old Wix site with real copy, or (b) doing
+  the full Task #18 rebuild + AI website-builder feature right now — this is the
+  middle path: a real, permanent, but minimal static site, not throwaway Wix content
+  and not the bigger AI-builder feature (that stays deferred).
+- **Code (built 2026-06-26):** `marketing-site/index.html` + `marketing-site/netlify.toml`
+  — a standalone static one-pager, deliberately its own directory with its own
+  `netlify.toml` so it can be deployed as a **second, separate Netlify site** from
+  this same repo (Base directory = `marketing-site`) without touching the OS's
+  existing routing (`netlify.toml` at the repo root still serves `index.html`/the OS
+  at `/*`, untouched). No build step, no React/Babel — plain HTML/CSS, reuses the
+  same `LOGO` data-URI and gold (`#C8A84B`) brand color as the rest of the product.
+  Verified by rendering it in headless Chromium and screenshotting both desktop and
+  mobile (not just eyeballing the HTML).
+- **Content:** real, accurate description of the actual business — Google Ads
+  management, custom landing pages, automatic lead follow-up (all real, shipped
+  features) — plus a "How It Works" section that states the client owns/pays for
+  their own ad account directly and BoldLine only ever manages it. That line isn't
+  just honest marketing copy — it's also exactly the kind of content a Google
+  reviewer wants to see to understand the API use case.
+- ⚠️ **Placeholder needing Bryson's input:** the contact section currently shows
+  `hello@boldlinemedia.com` — a guess, not a confirmed live mailbox. Needs Bryson to
+  either confirm that address (and make sure it's actually receiving mail once DNS
+  is repointed) or give a different one to swap in.
+- **TODO (Bryson's side, click-by-click owed before resubmitting):**
+  1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
+     "Add new site" → "Import an existing project" → pick the `boldline-os` repo
+     again (yes, the same repo as the OS) → in that new site's build settings, set
+     **Base directory** to `marketing-site`. Netlify will then read
+     `marketing-site/netlify.toml` for this site instead of the root one, so it serves
+     completely independently from the OS.
+  2. **Point `boldlinemedia.com` at the new site** — in that new Netlify site's
+     "Domain management," add `boldlinemedia.com` as a custom domain, then update the
+     domain's DNS at the registrar (wherever it's currently pointed for Wix) to
+     Netlify's nameservers/records (Netlify shows the exact records once the domain
+     is added). No registrar transfer needed, just a DNS change.
+  3. **Resubmit the Google Ads Basic Access application** once the new site is live
+     at the domain — reference the live site URL, and per Google's own email, since
+     the site is intentionally minimal it's worth adding a short note describing the
+     business model + intended API use case (managing multiple clients' campaigns via
+     one MCC) directly in the application notes, not just relying on the site alone.
 
 ## Stripe (BoldLine service-fee billing) — NOT started ⏳
 - Purpose: bill clients **BoldLine's management/service fee only**. NOT ad spend —
