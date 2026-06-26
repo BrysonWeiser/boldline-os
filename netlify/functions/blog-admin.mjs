@@ -8,6 +8,12 @@
 //   "regenerate"    -> { postId } rewrites an existing post's content in place,
 //                       same id/slug, bumped to newest.
 //   "delete"        -> { postId } soft-delete (status='deleted').
+//   "delete-all"    -> soft-deletes every non-deleted post in one shot. Used by
+//                       the owner UI's "Rebuild From Scratch" flow, which then
+//                       calls "generate-now" in a loop client-side to write a
+//                       fresh set -- kept as two thin calls (not one slow
+//                       server-side loop) so each AI generation stays inside
+//                       a single function invocation's timeout.
 //   "get-settings"  -> current posts_per_week cadence.
 //   "set-cadence"   -> { postsPerWeek } updates posts_per_week.
 //
@@ -65,6 +71,16 @@ export default async (req) => {
       const { error } = await supabase.from("blog_posts").update({ status: "deleted" }).eq("id", body.postId);
       if (error) throw error;
       return json({ ok: true, action });
+    }
+
+    if (action === "delete-all") {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .update({ status: "deleted" })
+        .neq("status", "deleted")
+        .select("id");
+      if (error) throw error;
+      return json({ ok: true, action, count: (data || []).length });
     }
 
     if (action === "get-settings") {

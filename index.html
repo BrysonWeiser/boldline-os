@@ -2233,6 +2233,8 @@ function BlogManagementCard() {
   const [genState,setGenState]=useState("idle");         // idle | generating
   const [busyId,setBusyId]=useState(null);               // postId mid regenerate/delete
   const [confirmId,setConfirmId]=useState(null);         // postId armed for delete confirm
+  const [bulkConfirm,setBulkConfirm]=useState(null);     // "rewrite" | "rebuild" armed for confirm
+  const [bulkProgress,setBulkProgress]=useState(null);   // {type,phase,done,total} while a bulk op runs
   const [msg,setMsg]=useState("");
 
   const call=async(action,extra)=>{
@@ -2286,18 +2288,86 @@ function BlogManagementCard() {
     setBusyId(null);
   };
 
+  // Both bulk flows are sequential client-side loops over the existing
+  // single-post actions (not one slow server-side loop) so every AI call
+  // stays inside its own function invocation's timeout, and progress can be
+  // shown as each post finishes.
+  const rewriteAll=async()=>{
+    const ids=posts.map(p=>p.id);
+    setBulkConfirm(null); setMsg("");
+    setBulkProgress({type:"rewrite",done:0,total:ids.length});
+    let done=0;
+    try{
+      for(const id of ids){
+        const d=await call("regenerate",{postId:id});
+        setPosts(p=>[d.post,...p.filter(x=>x.id!==id)]);
+        done++; setBulkProgress({type:"rewrite",done,total:ids.length});
+      }
+    }catch(e){
+      setMsg(`Rewrite stopped after ${done} of ${ids.length} — ${e.message}. The rest are unchanged; retry individually or try Rewrite All again.`);
+    }
+    setBulkProgress(null);
+  };
+
+  const rebuildFromScratch=async()=>{
+    const targetCount=posts.length||3;
+    setBulkConfirm(null); setMsg("");
+    setBulkProgress({type:"rebuild",phase:"deleting",done:0,total:targetCount});
+    try{
+      await call("delete-all");
+      setPosts([]);
+      for(let i=0;i<targetCount;i++){
+        setBulkProgress({type:"rebuild",phase:"writing",done:i,total:targetCount});
+        const d=await call("generate-now");
+        setPosts(p=>[d.post,...p]);
+        setBulkProgress({type:"rebuild",phase:"writing",done:i+1,total:targetCount});
+      }
+    }catch(e){
+      setMsg(`Rebuild stopped partway — ${e.message}. Use "Write One Now" to keep adding posts, or try Rebuild again.`);
+    }
+    setBulkProgress(null);
+  };
+
   const fmtDate=(iso)=>iso?new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"";
+  const bulkBusy=!!bulkProgress;
 
   return (
     <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
       <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📝 Blog — AI Auto-Publish</div>
-      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Writes and publishes a new post to boldlinemedia.com/blog automatically (checked Mon/Wed/Fri) up to the cadence below, and emails you every time one goes live. Delete or regenerate anything that misses the mark.</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Writes and publishes a new post to boldlinemedia.com/blog automatically (checked Mon/Wed/Fri) up to the cadence below, and emails you every time one goes live. Delete or regenerate anything that misses the mark, or use the row below to rewrite every post at once or wipe the blog and start fresh.</div>
 
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
         <span style={{fontSize:11,color:C.textDim,fontWeight:600,whiteSpace:"nowrap"}}>Posts per week:</span>
         <input type="number" min="1" max="14" value={cadenceInput} onChange={e=>setCadenceInput(e.target.value)} style={{width:54,padding:"7px 8px",fontSize:13,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit"}}/>
-        <button onClick={saveCadence} disabled={cadenceState==="saving"||Number(cadenceInput)===cadence} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:cadenceState==="saved"?"#059669":"#1D4ED8",color:"#fff",cursor:"pointer",opacity:(cadenceState==="saving"||Number(cadenceInput)===cadence)?.6:1,whiteSpace:"nowrap"}}>{cadenceState==="saving"?"Saving…":cadenceState==="saved"?"✓ Saved":"Save"}</button>
-        <button onClick={generateNow} disabled={genState==="generating"} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:genState==="generating"?.7:1,whiteSpace:"nowrap"}}>{genState==="generating"?"Writing…":"Write One Now"}</button>
+        <button onClick={saveCadence} disabled={cadenceState==="saving"||Number(cadenceInput)===cadence||bulkBusy} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:cadenceState==="saved"?"#059669":"#1D4ED8",color:"#fff",cursor:"pointer",opacity:(cadenceState==="saving"||Number(cadenceInput)===cadence||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{cadenceState==="saving"?"Saving…":cadenceState==="saved"?"✓ Saved":"Save"}</button>
+        <button onClick={generateNow} disabled={genState==="generating"||bulkBusy} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>{genState==="generating"?"Writing…":"Write One Now"}</button>
+      </div>
+
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
+        {bulkProgress?(
+          <span style={{fontSize:11,color:C.textDim,fontWeight:600}}>
+            {bulkProgress.type==="rewrite"
+              ?`Rewriting post ${bulkProgress.done} of ${bulkProgress.total}…`
+              :bulkProgress.phase==="deleting"?"Clearing old posts…":`Writing post ${bulkProgress.done} of ${bulkProgress.total}…`}
+          </span>
+        ):bulkConfirm==="rewrite"?(
+          <>
+            <span style={{fontSize:11,color:C.textDim}}>Rewrite all {posts.length} posts now — same URLs, fresh text, old text gone for good?</span>
+            <button onClick={()=>setBulkConfirm(null)} style={{padding:"6px 10px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
+            <button onClick={rewriteAll} style={{padding:"6px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer",whiteSpace:"nowrap"}}>Confirm Rewrite</button>
+          </>
+        ):bulkConfirm==="rebuild"?(
+          <>
+            <span style={{fontSize:11,color:C.textDim}}>Delete all {posts.length} posts and write {posts.length||3} brand-new ones?</span>
+            <button onClick={()=>setBulkConfirm(null)} style={{padding:"6px 10px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
+            <button onClick={rebuildFromScratch} style={{padding:"6px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer",whiteSpace:"nowrap"}}>Confirm Rebuild</button>
+          </>
+        ):(
+          <>
+            <button onClick={()=>setBulkConfirm("rewrite")} disabled={posts.length===0||!!busyId} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(posts.length===0||busyId)?.5:1,whiteSpace:"nowrap"}}>Rewrite All Posts</button>
+            <button onClick={()=>setBulkConfirm("rebuild")} disabled={!!busyId} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:busyId?.5:1,whiteSpace:"nowrap"}}>Rebuild From Scratch</button>
+          </>
+        )}
       </div>
 
       {msg&&<div style={{fontSize:11,marginBottom:10,lineHeight:1.6,color:C.red}}>{msg}</div>}
@@ -2317,14 +2387,14 @@ function BlogManagementCard() {
                   <div style={{fontSize:10,color:C.textMuted,marginTop:3}}>{fmtDate(p.published_at)} · {p.read_minutes} min read</div>
                 </div>
                 <div style={{display:"flex",gap:5,flexShrink:0}}>
-                  <button onClick={()=>regenerate(p.id)} disabled={busyId===p.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:busyId===p.id?.6:1,whiteSpace:"nowrap"}}>{busyId===p.id?"…":"Regenerate"}</button>
+                  <button onClick={()=>regenerate(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{busyId===p.id?"…":"Regenerate"}</button>
                   {confirmId===p.id?(
                     <div style={{display:"flex",gap:5}}>
                       <button onClick={()=>setConfirmId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
                       <button onClick={()=>doDelete(p.id)} disabled={busyId===p.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer",whiteSpace:"nowrap"}}>Confirm</button>
                     </div>
                   ):(
-                    <button onClick={()=>setConfirmId(p.id)} disabled={busyId===p.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:busyId===p.id?.6:1,whiteSpace:"nowrap"}}>Delete</button>
+                    <button onClick={()=>setConfirmId(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Delete</button>
                   )}
                 </div>
               </div>
@@ -2354,7 +2424,7 @@ function ARIADeployTab() {
     {name:"AI Landing Page Generator",icon:"📄",live:true,note:"Live now — ARIA writes the landing page copy from each client's campaign setup and brand voice. One click to generate, preview, and publish a hosted page for ad clicks to land on."},
     {name:"Call Tracking Numbers",icon:"📞",live:true,note:"Live now — ARIA buys a dedicated Twilio number per client, forwards calls to their real number, and logs every call as a lead automatically. On your trial Twilio account, the client's forwarding number must be verified in the Twilio console first (one-time, ~1 min) — upgrade to a paid account to skip that step."},
     {name:"Automated Lead Follow-Up",icon:"⚡",live:true,note:"Live now — every new lead gets an instant auto-reply, branded as the client's business, the moment they fill out a landing page or call a tracking number. If nobody marks the lead Contacted/Won/Lost, ARIA automatically nurtures them again at 1 day and 3 days. Check the Leads tab on any client to see every lead and its status."},
-    {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, write one on demand, or delete/regenerate any post above."},
+    {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, write one on demand, delete/regenerate any single post, rewrite every post at once, or wipe the blog and rebuild it from scratch — all above."},
     {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA can propose budget changes, pauses, or creative refreshes for a client, but every proposal lands in Notifications and waits for you to Approve or Reject. Nothing executes on its own. Once Google Ads/Meta are connected, this is the gate real ad-account changes will run through."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
     {name:"Ad Account Connection",icon:"📈",live:false,note:"Google Ads: manager account + credentials are in place and the integration code is built — waiting on the Developer Token's Basic Access approval (use 'Test Google Ads Connection' above once it's granted). Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},

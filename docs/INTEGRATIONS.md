@@ -378,6 +378,41 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     deliberate XSS-style payload in a title/excerpt to confirm escaping holds. **Not**
     verified: a real AI-generated post end to end, or a real Supabase read/write —
     worth a real test once the env var below is in place.
+- **v2.5 update (2026-06-26): bulk Rewrite-All and Rebuild-From-Scratch.** Bryson
+  asked for the v2.4 "regenerate = single post only" flag to actually be addressed —
+  he wants both a full rebuild and a blanket rewrite, not just per-post regenerate.
+  Added two buttons to the Blog panel, both gated behind an inline confirm (this is
+  the most destructive action in the panel so far — it touches every post at once):
+  - **Rewrite All Posts** — regenerates every currently-live post's content in place,
+    one by one. Same mechanics as the existing single-post Regenerate (same
+    id/slug/created_at preserved, so no live URL breaks), just looped across the
+    whole blog. Shows "Rewriting post N of T…" as it goes.
+  - **Rebuild From Scratch** — soft-deletes every current post (new `delete-all`
+    action in `blog-admin.mjs`), then writes that many brand-new posts on entirely
+    new topics (defaults to 3 if the blog was already empty). Shows a live "Clearing
+    old posts… / Writing post N of T…" status.
+  - **Why these are two thin sequential loops, not one big backend call:** each AI
+    generation already runs close to a single Netlify function's execution
+    timeout on its own (this is exactly how the existing single-post
+    generate-now/regenerate actions already work). Looping several of those *inside
+    one* function invocation risked timing out partway with no good way to report
+    progress. Instead both buttons drive the loop from the browser, calling the same
+    proven single-post endpoints once per post and updating a progress line between
+    calls — slower wall-clock for a big rebuild, but every individual step is one
+    already-working call, and the owner sees progress instead of a single
+    all-or-nothing spinner.
+  - Both bulk buttons (and every per-post Regenerate/Delete button) disable while a
+    bulk run or another single action is in flight, to avoid two writes racing on the
+    same post.
+  - **Side effect worth knowing:** Rebuild's new posts set `created_at` to right now,
+    same as any AI post — so they count against that week's auto-publish quota
+    immediately. Rebuilding right before a scheduled Mon/Wed/Fri check can make that
+    check skip (quota already met), which is the same created_at-based counting rule
+    already in place, just worth knowing if a rebuild and a scheduled run land close
+    together. Rewrite All does **not** touch `created_at`, so it never affects quota.
+  - Same sandbox caveat as v2.4: verified via `node --check`, a real Babel
+    `transformSync()` of the updated JSX, and logic review — no live Supabase/Netlify/
+    Anthropic credentials here to run an actual bulk rewrite or rebuild end to end.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
