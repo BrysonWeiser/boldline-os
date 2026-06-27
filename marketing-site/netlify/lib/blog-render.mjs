@@ -64,8 +64,8 @@ export const footerHTML = () => `<footer>
 // since future AI-written posts can't get a hand-tuned line each time).
 export const postCtaHTML = () => `<div class="post-cta reveal">
   <h3>Want a second opinion?</h3>
-  <p>Book a free consultation — we'll look at what you have and tell you honestly what's working.</p>
-  <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation</a>
+  <p>Book a quick call — we'll look at what you have and tell you honestly what's working.</p>
+  <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
 </div>`;
 
 export const headTags = ({ title, ogTitle, description, canonical, ogType = "website", jsonLd }) => `<meta charset="UTF-8">

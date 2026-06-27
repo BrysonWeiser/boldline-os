@@ -483,8 +483,10 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     the next, never something you control") and then frames the recommended package as
     the fix. Still honest — no invented numbers — and still closes with the "starting
     point, not a quote; your ad account stays yours" line.
-  - **Hero + contact buttons left as "Book a Free Consultation"** on purpose (only the
-    nav + per-package CTAs say "Book a Call"); easy to unify later if wanted.
+  - **Every CTA now says "Book a Call."** Bryson confirmed he wanted it fully uniform,
+    so the hero and contact-section buttons (and the blog-post "Want a second opinion?"
+    CTA in `blog-render.mjs`) were switched from "Book a Free Consultation" to "Book a
+    Call" — the word "consultation" no longer appears anywhere on the site.
   - **Verified in headless Chromium:** all inline scripts pass `node --check`; ran the
     full quiz flow (new Q3 → pain-point result) and the nav (desktop pill, scrolled
     state, mobile hamburger → open menu) with zero JS page errors; screenshotted
