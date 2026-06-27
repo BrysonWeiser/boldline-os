@@ -491,6 +491,23 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     full quiz flow (new Q3 → pain-point result) and the nav (desktop pill, scrolled
     state, mobile hamburger → open menu) with zero JS page errors; screenshotted
     every state.
+- **v2.8 update (2026-06-27): pain-led hero.** Bryson wanted the first thing a visitor
+  sees to be the pains most business owners actually feel, instead of the old "built
+  for businesses who'd rather not think about marketing" line.
+  - Hero headline is now three stacked, staggered-fade-in pain statements — **"Slow
+    weeks. Inconsistent leads. Ads that don't pay for themselves."** — under a small
+    "Sound familiar?" eyebrow, followed by the turn: *"That's not bad luck — it's a
+    missing system. BoldLine plans, builds, and runs your Google and Meta ads (and the
+    landing pages behind them), so new business comes in steadily and predictably —
+    without it ever landing on your to-do list."* (Classic problem → agitate → solution
+    framing; "steadily and predictably" highlighted gold.)
+  - Each pain line fades up in sequence on load (pure-CSS stagger via a `--i` index +
+    `painIn` keyframes), respecting `prefers-reduced-motion`. Verified desktop + mobile
+    in headless Chromium, no JS errors.
+  - **Left alone on purpose:** the `<title>`/meta-description/Open-Graph text (still
+    accurate, good for SEO) and the `og-image.png` social share card (a static image
+    that doesn't carry the old headline). If we ever want the social preview to mirror
+    this new hero, the OG card can be re-rendered — say the word.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
