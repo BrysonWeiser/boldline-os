@@ -497,13 +497,18 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   - Hero headline is now three stacked, staggered-fade-in pain statements — **"Slow
     weeks. Inconsistent leads. Ads that don't pay for themselves."** — under a small
     "Sound familiar?" eyebrow, followed by the turn: *"That's not bad luck — it's a
-    missing system. BoldLine plans, builds, and runs your Google and Meta ads (and the
-    landing pages behind them), so new business comes in steadily and predictably —
-    without it ever landing on your to-do list."* (Classic problem → agitate → solution
-    framing; "steadily and predictably" highlighted gold.)
+    missing system. BoldLine plans, builds, and runs your ads, so new business comes in
+    steadily and predictably — without it ever landing on your to-do list."* (Classic
+    problem → agitate → solution framing; "steadily and predictably" highlighted gold.)
   - Each pain line fades up in sequence on load (pure-CSS stagger via a `--i` index +
     `painIn` keyframes), respecting `prefers-reduced-motion`. Verified desktop + mobile
     in headless Chromium, no JS errors.
+  - **Follow-up tweaks (same day):** (1) the sub was shortened from "your Google and
+    Meta ads (and the landing pages behind them)" to just **"your ads"** at Bryson's
+    request — cleaner, and the capability pills below already spell out the specifics.
+    (2) Mobile felt too big/cluttered, so the hero was tightened: smaller headline +
+    body, less top padding at ≤840px, and a new dedicated ≤480px phone breakpoint
+    (27px headline, 14px body, smaller pills). Re-verified at 390px and 360px.
   - **Left alone on purpose:** the `<title>`/meta-description/Open-Graph text (still
     accurate, good for SEO) and the `og-image.png` social share card (a static image
     that doesn't carry the old headline). If we ever want the social preview to mirror
