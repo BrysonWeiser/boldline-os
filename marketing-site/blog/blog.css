@@ -21,8 +21,8 @@ header{position:fixed;top:0;left:0;right:0;background:rgba(8,10,15,.82);backdrop
 .hdr-row nav a:not(.hdr-cta){font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--muted);text-decoration:none;transition:color .2s}
 .hdr-row nav a:not(.hdr-cta):hover{color:var(--gold)}
 .hdr-row nav a.current{color:var(--gold)}
-.hdr-cta{display:inline-block;padding:9px 18px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:2px;background:var(--gold);color:#15110A;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease}
-.hdr-cta:hover{transform:translateY(-1px);box-shadow:0 8px 20px -8px rgba(200,168,75,.45)}
+.hdr-cta{display:inline-block;padding:8px 17px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:2px;background:transparent;color:var(--gold);border:1px solid var(--gold-line);text-decoration:none;transition:background .2s ease,color .2s ease,border-color .2s ease,box-shadow .2s ease}
+.hdr-cta:hover{background:var(--gold);color:#15110A;border-color:var(--gold);box-shadow:0 8px 20px -8px rgba(200,168,75,.4)}
 .hdr-row nav a:not(.hdr-cta){position:relative;padding-bottom:4px}
 .hdr-row nav a:not(.hdr-cta)::after{content:"";position:absolute;left:0;bottom:0;width:0;height:1px;background:var(--gold);transition:width .25s ease}
 .hdr-row nav a:not(.hdr-cta):hover::after{width:100%}

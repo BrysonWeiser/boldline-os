@@ -6,7 +6,7 @@ Detailed record of external-platform setup.
 > identifiers, decisions, and state. All credential values live only in Netlify
 > environment variables.
 
-Last updated: **2026-06-26**
+Last updated: **2026-06-27**
 
 ## Netlify environment variables
 All app secrets live here. Convention: ALL_CAPS_SNAKE_CASE, marked **"Contains
@@ -413,6 +413,40 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   - Same sandbox caveat as v2.4: verified via `node --check`, a real Babel
     `transformSync()` of the updated JSX, and logic review — no live Supabase/Netlify/
     Anthropic credentials here to run an actual bulk rewrite or rebuild end to end.
+- **v2.6 update (2026-06-27): cleaner nav + a package recommender quiz.** Bryson
+  wanted the header to feel more uniform (not one heavy solid-gold "Book a Call"
+  block), the per-package CTAs reworded, and the "not sure which fits?" line turned
+  into a quick quiz that recommends a package and then sends them to book a call.
+  - **Header CTA restyled** from a solid gold button to an **outlined gold pill**
+    (transparent fill, gold border + gold text, fills gold on hover) so it sits as a
+    peer of the nav links instead of dominating them. Changed in **both**
+    `index.html` and `marketing-site/blog/blog.css` so the homepage and blog headers
+    stay identical.
+  - **Per-package CTAs** changed from "Book a Free Consultation →" to **"Book a Call
+    →"** on every tier. (The big hero and contact-section buttons still say "Book a
+    Free Consultation" — left as-is on purpose; easy to unify to "Book a Call" too if
+    he wants.)
+  - **Package recommender modal** replaces the old "Not sure which fits? Book a
+    consultation" line. Three quick taps — monthly ad budget, business type, how
+    customers find you — then it recommends a specific tier + platform from the real
+    package set and shows two actions: **Book a Call** (Calendly) and **See this
+    package** (closes the modal, switches the Services tab to the recommended platform,
+    scrolls there). Carries an honest "a starting point, not a quote" line that also
+    restates the ad-spend-ownership rule. No email/sign-up, no backend, no new env
+    vars — pure client-side JS in `index.html`. Degrades gracefully: with JS off the
+    trigger is just a plain Calendly link.
+  - **Recommendation logic** (recorded so it's not a black box later): platform family
+    = online store → E-Commerce; "a mix" → Combined Systems; otherwise by how
+    customers find them (search → Google Ads, browse → Meta Ads, both → Combined).
+    Tier = by budget band (under $1.5k / $1.5–5k / $5k+). Combined only has two tiers,
+    so the top budget band maps to its Growth tier.
+  - **Verified in headless Chromium** (no live backend needed — this is all static
+    front-end): all three inline `<script>` blocks pass `node --check`; ran the full
+    flow end to end (open → answer → recommendation) on both a Google-Ads path and an
+    E-Commerce path with zero JS page errors; screenshotted the new nav (homepage +
+    blog), the quiz form, and the recommendation card. The only console noise was an
+    occasional Google-Fonts fetch timing out through the sandbox proxy — not a code
+    issue, fonts render on the real site.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo

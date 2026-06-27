@@ -118,10 +118,10 @@ footer .copy{font-size:11px;color:#4B5260}
 .reveal{animation:fadeUp .8s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
-@media (prefers-reduced-motion:reduce){.reveal,html.js-tabs .tab-panel.active,.hero h1 em,.hero::before{animation:none}}
+@media (prefers-reduced-motion:reduce){.reveal,html.js-tabs .tab-panel.active,.hero h1 em,.hero::before,.modal-overlay{animation:none}}
 
-.hdr-cta{display:inline-block;padding:9px 18px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:2px;background:var(--gold);color:#15110A;text-decoration:none;transition:transform .2s ease,box-shadow .2s ease}
-.hdr-cta:hover{transform:translateY(-1px);box-shadow:0 8px 20px -8px rgba(200,168,75,.45)}
+.hdr-cta{display:inline-block;padding:8px 17px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:2px;background:transparent;color:var(--gold);border:1px solid var(--gold-line);text-decoration:none;transition:background .2s ease,color .2s ease,border-color .2s ease,box-shadow .2s ease}
+.hdr-cta:hover{background:var(--gold);color:#15110A;border-color:var(--gold);box-shadow:0 8px 20px -8px rgba(200,168,75,.4)}
 .hdr-row nav a:not(.hdr-cta){position:relative;padding-bottom:4px}
 .hdr-row nav a:not(.hdr-cta)::after{content:"";position:absolute;left:0;bottom:0;width:0;height:1px;background:var(--gold);transition:width .25s ease}
 .hdr-row nav a:not(.hdr-cta):hover::after{width:100%}
@@ -169,6 +169,33 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .tabs{gap:8px}
   .tab{padding:9px 16px;font-size:11.5px}
 }
+
+/* ---- Package recommender modal ---- */
+.link-btn{background:none;border:none;padding:0;font:inherit;font-weight:600;color:var(--gold);cursor:pointer;border-bottom:1px solid var(--gold-line);transition:color .2s,border-color .2s}
+.link-btn:hover{color:#fff;border-color:#fff}
+.modal-overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,6,10,.78);backdrop-filter:blur(6px);animation:fadeUp .3s ease both}
+.modal-overlay[hidden]{display:none}
+.modal{position:relative;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:16px;padding:38px 34px}
+.modal-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--muted);font-size:28px;line-height:1;cursor:pointer;transition:color .2s}
+.modal-close:hover{color:#fff}
+.modal-eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.modal h3{font-family:var(--serif);font-weight:600;font-size:24px;color:#fff;line-height:1.25;margin-bottom:8px}
+.modal h3 strong{color:var(--gold);font-weight:600}
+.modal-sub{font-size:13.5px;color:var(--muted);margin-bottom:26px}
+.q{margin-bottom:22px}
+.q-label{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:11px}
+.opts{display:flex;flex-wrap:wrap;gap:9px}
+.opts button{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:30px;padding:9px 16px;cursor:pointer;transition:color .2s,border-color .2s,background .2s}
+.opts button:hover{color:var(--ink);border-color:var(--gold-line)}
+.opts button.sel{color:#15110A;background:var(--gold);border-color:var(--gold)}
+.modal-submit{margin-top:10px;width:100%;text-align:center;border:none;cursor:pointer;font-family:var(--sans)}
+.modal-submit:disabled{opacity:.4;cursor:not-allowed}
+.modal-why{font-size:14px;color:var(--muted);line-height:1.7;margin:4px 0 26px}
+.modal-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.modal-actions .btn{cursor:pointer}
+.btn-outline{display:inline-block;padding:16px 28px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;background:transparent;color:var(--gold);border:1px solid var(--gold-line);cursor:pointer;font-family:var(--sans);transition:background .2s,color .2s,border-color .2s}
+.btn-outline:hover{background:var(--gold);color:#15110A;border-color:var(--gold)}
+.modal-fine{font-size:11.5px;color:var(--faint);margin-bottom:18px;line-height:1.55}
 </style>
 </head>
 <body>
@@ -227,7 +254,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Landing page included</li>
             <li>Monthly optimization &amp; reporting</li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <span class="tag">Most Popular</span>
@@ -240,7 +267,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Call tracking &amp; attribution</li>
             <li>CRM integration</li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
@@ -255,7 +282,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>CRM integration</li>
             <li>Multi-campaign structure</li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
       </div>
     </div>
@@ -269,7 +296,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Landing page included</li>
             <li>Monthly optimization &amp; reporting</li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <span class="tag">Most Popular</span>
@@ -282,7 +309,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Retargeting &amp; audience building</li>
             <li>Split testing</li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
@@ -295,7 +322,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Split testing</li>
             <li>Multi-campaign structure</li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
       </div>
     </div>
@@ -311,7 +338,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Monthly optimization &amp; reporting</li>
           </ul>
           <div class="note">Bundled pricing — runs more efficiently than two separate single-platform engagements.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <span class="tag">Most Powerful</span>
@@ -326,7 +353,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>CRM integration</li>
           </ul>
           <div class="note">Bundled pricing — runs more efficiently than two separate single-platform engagements.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
       </div>
     </div>
@@ -341,7 +368,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Monthly optimization &amp; reporting</li>
           </ul>
           <div class="note">Performance bonus available once your store is consistently hitting strong ROAS.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <span class="tag">Recommended</span>
@@ -355,7 +382,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Split testing</li>
           </ul>
           <div class="note">Performance bonus available once your store is consistently hitting strong ROAS.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
         <div class="pkg">
           <h3>Store Domination</h3>
@@ -369,13 +396,13 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
             <li>Multi-campaign structure</li>
           </ul>
           <div class="note">Performance bonus available once your store is consistently hitting strong ROAS.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Consultation →</a>
+          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call →</a>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="cap-note reveal">Not sure which fits? <a href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a free consultation</a> and we'll tell you honestly.</div>
+  <div class="cap-note reveal">Not sure which fits? <a href="https://calendly.com/theboldlinemedia/30min" id="openRecommender" target="_blank" rel="noopener noreferrer">Answer 3 quick questions</a> and we'll point you to the right starting package.</div>
 </section>
 
 <section class="alt" id="included">
@@ -446,6 +473,60 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   <div class="copy">© 2026 BoldLine Media. All rights reserved.</div>
 </footer>
 
+<div class="modal-overlay" id="recModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+    <button class="modal-close" id="recClose" type="button" aria-label="Close">&times;</button>
+
+    <div id="recForm">
+      <div class="modal-eyebrow">Find your fit</div>
+      <h3 id="recTitle">Let's point you to the right package.</h3>
+      <p class="modal-sub">Three quick questions — no email or sign-up required.</p>
+
+      <div class="q" data-q="budget">
+        <div class="q-label">What's your monthly ad budget?</div>
+        <div class="opts">
+          <button type="button" data-val="low">Under $1,500</button>
+          <button type="button" data-val="mid">$1,500–$5,000</button>
+          <button type="button" data-val="high">$5,000+</button>
+        </div>
+      </div>
+
+      <div class="q" data-q="type">
+        <div class="q-label">What kind of business are you?</div>
+        <div class="opts">
+          <button type="button" data-val="local">Local service business</button>
+          <button type="button" data-val="ecom">Online store</button>
+          <button type="button" data-val="both">A mix of both</button>
+          <button type="button" data-val="unsure">Not sure yet</button>
+        </div>
+      </div>
+
+      <div class="q" data-q="find">
+        <div class="q-label">How do customers usually find a business like yours?</div>
+        <div class="opts">
+          <button type="button" data-val="search">They search when they need it</button>
+          <button type="button" data-val="browse">They discover it while browsing</button>
+          <button type="button" data-val="mix">A bit of both</button>
+        </div>
+      </div>
+
+      <button class="btn modal-submit" id="recSubmit" type="button" disabled>See my recommendation</button>
+    </div>
+
+    <div id="recResult" hidden>
+      <div class="modal-eyebrow">Your starting point</div>
+      <h3 id="recHeadline"></h3>
+      <p class="modal-why" id="recWhy"></p>
+      <div class="modal-actions">
+        <a class="btn" id="recBook" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+        <button type="button" class="btn-outline" id="recSee">See this package</button>
+      </div>
+      <p class="modal-fine">A starting point, not a quote — we'll confirm the right fit with you on the call. Your ad account always stays owned and paid for by you.</p>
+      <button type="button" class="link-btn" id="recRestart">Start over</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   var tabs = document.querySelectorAll('.tab');
@@ -457,6 +538,91 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
       panels.forEach(function(p){ p.classList.toggle('active', p.getAttribute('data-panel')===target); });
     });
   });
+})();
+</script>
+
+<script>
+(function(){
+  var modal = document.getElementById('recModal');
+  if(!modal) return;
+  var trigger = document.getElementById('openRecommender');
+  var closeBtn = document.getElementById('recClose');
+  var form = document.getElementById('recForm');
+  var result = document.getElementById('recResult');
+  var submit = document.getElementById('recSubmit');
+  var answers = {};
+
+  function openModal(){ modal.hidden = false; document.body.style.overflow = 'hidden'; }
+  function closeModal(){ modal.hidden = true; document.body.style.overflow = ''; }
+  function reset(){
+    answers = {};
+    result.hidden = true; form.hidden = false; submit.disabled = true;
+    modal.querySelectorAll('.opts button').forEach(function(b){ b.classList.remove('sel'); });
+  }
+
+  // Trigger degrades to a real Calendly link with JS off; here we upgrade it.
+  if(trigger){ trigger.addEventListener('click', function(e){ e.preventDefault(); reset(); openModal(); }); }
+  closeBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', function(e){ if(e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !modal.hidden) closeModal(); });
+
+  modal.querySelectorAll('.q').forEach(function(q){
+    var key = q.getAttribute('data-q');
+    q.querySelectorAll('.opts button').forEach(function(b){
+      b.addEventListener('click', function(){
+        answers[key] = b.getAttribute('data-val');
+        q.querySelectorAll('.opts button').forEach(function(x){ x.classList.toggle('sel', x === b); });
+        submit.disabled = !(answers.budget && answers.type && answers.find);
+      });
+    });
+  });
+
+  var FAMILIES = {
+    google:   { tab:'google',   label:'Google Ads',       tiers:{ low:'Launch System',        mid:'Growth System',        high:'Acquisition System' } },
+    meta:     { tab:'meta',     label:'Meta Ads',         tiers:{ low:'Launch System',        mid:'Growth System',        high:'Acquisition System' } },
+    combined: { tab:'combined', label:'Combined Systems', tiers:{ low:'Full System — Launch',  mid:'Full System — Growth', high:'Full System — Growth' } },
+    ecom:     { tab:'ecom',     label:'E-Commerce',       tiers:{ low:'Store Launch',          mid:'Store Growth',         high:'Store Domination' } }
+  };
+
+  function pickFamily(){
+    if(answers.type === 'ecom') return 'ecom';
+    if(answers.type === 'both') return 'combined';
+    // local or unsure -> decide by how customers find them
+    if(answers.find === 'search') return 'google';
+    if(answers.find === 'browse') return 'meta';
+    return 'combined';
+  }
+
+  function whyText(fam, tierKey){
+    var budget = { low:'a focused starting budget', mid:'a mid-range budget', high:'a serious growth budget' };
+    var reason = {
+      google:'your customers are actively searching for what you offer, so we meet them at the exact moment they’re looking',
+      meta:'your customers tend to discover businesses while browsing, so we stop the scroll with creative built for Facebook and Instagram',
+      combined:'your growth comes from both search and discovery, so we run them as one coordinated system instead of two efforts competing for budget',
+      ecom:'an online store lives on creative and return on ad spend, so we build around product-led campaigns and conversion tracking'
+    };
+    return 'With ' + budget[tierKey] + ', and because ' + reason[fam] + '.';
+  }
+
+  submit.addEventListener('click', function(){
+    var fam = pickFamily();
+    var tierKey = answers.budget;
+    var f = FAMILIES[fam];
+    var tierName = f.tiers[tierKey];
+    document.getElementById('recHeadline').innerHTML =
+      'We’d start you with the <strong>' + tierName + '</strong> on <strong>' + f.label + '</strong>.';
+    document.getElementById('recWhy').textContent = whyText(fam, tierKey);
+    document.getElementById('recSee').onclick = function(){
+      closeModal();
+      var tabBtn = document.querySelector('.tab[data-tab="' + f.tab + '"]');
+      if(tabBtn){ tabBtn.click(); }
+      var svc = document.getElementById('services');
+      if(svc){ svc.scrollIntoView({ behavior:'smooth' }); }
+    };
+    form.hidden = true; result.hidden = false;
+  });
+
+  document.getElementById('recRestart').addEventListener('click', reset);
 })();
 </script>
 
