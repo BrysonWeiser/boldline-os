@@ -24,18 +24,31 @@ export const formatMonthYear = (iso) => {
 export const isoDate = (iso) => new Date(iso).toISOString().slice(0, 10);
 
 export const headerHTML = () => `<header>
-  <div class="hdr-row">
-    <img src="/logo.png" alt="BoldLine Media">
-    <div class="word">BoldLine Media</div>
-    <nav>
+  <div class="nav-inner">
+    <a class="nav-brand" href="/">
+      <img src="/logo.png" alt="BoldLine Media">
+      <span class="word">BoldLine Media</span>
+    </a>
+    <nav class="nav-links">
       <a href="/#services">Services</a>
       <a href="/#process">Process</a>
       <a href="/blog/" class="current">Blog</a>
       <a href="/#contact">Contact</a>
-      <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
     </nav>
+    <div class="nav-right">
+      <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+      <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    </div>
   </div>
-</header>`;
+  <div class="nav-mobile">
+    <a href="/#services">Services</a>
+    <a href="/#process">Process</a>
+    <a href="/blog/" class="current">Blog</a>
+    <a href="/#contact">Contact</a>
+    <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+  </div>
+</header>
+<script>(function(){var h=document.querySelector('header');if(!h)return;h.classList.add('nav-in');var s=function(){h.classList.toggle('scrolled',window.scrollY>12)};s();window.addEventListener('scroll',s,{passive:true});var t=h.querySelector('.nav-toggle'),m=h.querySelector('.nav-mobile');if(t&&m){t.addEventListener('click',function(){var o=m.classList.toggle('open');t.classList.toggle('open',o);t.setAttribute('aria-expanded',o?'true':'false')});m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){m.classList.remove('open');t.classList.remove('open');t.setAttribute('aria-expanded','false')})})}})();</script>`;
 
 export const footerHTML = () => `<footer>
   <div class="word">BoldLine Media</div>

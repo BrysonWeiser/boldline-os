@@ -447,6 +447,48 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     blog), the quiz form, and the recommendation card. The only console noise was an
     occasional Google-Fonts fetch timing out through the sandbox proxy — not a code
     issue, fonts render on the real site.
+- **v2.7 update (2026-06-27): nav fully redesigned + a sharper recommender.** Bryson
+  asked to completely redo the nav (more uniform/aesthetic, modern, keep micro-
+  animations), to reword the recommender's third question around how they *currently*
+  get clients (with "word of mouth" as an option), and to make the recommendation hit
+  a pain point so it lands harder.
+  - **Nav is now a floating pill** instead of a full-width bar: a rounded,
+    blurred, bordered capsule that floats with margin from the top edge — logo +
+    wordmark on the left, nav links centered, outlined "Book a Call" on the right.
+    Modern agency/SaaS pattern. Rebuilt in both `index.html` and
+    `marketing-site/blog/blog.css` (and the markup in `blog-render.mjs`'s
+    `headerHTML()`) so homepage and blog stay identical.
+  - **Micro-animations** (all pure CSS except where noted, all respect
+    `prefers-reduced-motion`): the bar fades/slides down on load; each link has an
+    animated gold underline that grows from center plus a soft rounded hover
+    background; the logo mark tilts + scales and the wordmark's letter-spacing opens
+    slightly on hover; the CTA fills gold + lifts on hover and presses in on click;
+    and a tiny JS scroll listener makes the pill go more solid + tighten as you
+    scroll (the one scripted touch — pure styling, never gates content).
+  - **Real mobile menu added** (was: links just disappeared under 840px). The pill
+    now shows a hamburger that morphs into an X and opens a dropdown panel with all
+    the links + a full-width Book a Call. The inline top-bar CTA is hidden on mobile
+    so the collapsed bar stays clean (logo + wordmark + toggle). Tapping any link
+    closes the menu. Blog pages get the same behavior via a small inline script
+    appended to `headerHTML()`.
+  - **Recommender Q3 reworded** from "How do customers find a business like yours?"
+    to **"How do you currently get new clients?"** with options Word of mouth &
+    referrals / Google or online search / Social media / Paid ads already / Nothing
+    consistent yet. Mapping: social → Meta, already-running-ads → Combined, and word
+    of mouth / search / nothing → Google (capture high-intent demand first); online
+    store still → E-Commerce, "a mix" still → Combined.
+  - **Recommendation now leads with the pain.** Instead of a neutral "because…" line,
+    it opens by naming the gap in how they get clients today (e.g. for word of mouth:
+    "new business comes down to who happens to refer you — strong some months, quiet
+    the next, never something you control") and then frames the recommended package as
+    the fix. Still honest — no invented numbers — and still closes with the "starting
+    point, not a quote; your ad account stays yours" line.
+  - **Hero + contact buttons left as "Book a Free Consultation"** on purpose (only the
+    nav + per-package CTAs say "Book a Call"); easy to unify later if wanted.
+  - **Verified in headless Chromium:** all inline scripts pass `node --check`; ran the
+    full quiz flow (new Q3 → pain-point result) and the nav (desktop pill, scrolled
+    state, mobile hamburger → open menu) with zero JS page errors; screenshotted
+    every state.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
