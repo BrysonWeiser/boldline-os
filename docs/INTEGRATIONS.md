@@ -513,6 +513,28 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     accurate, good for SEO) and the `og-image.png` social share card (a static image
     that doesn't carry the old headline). If we ever want the social preview to mirror
     this new hero, the OG card can be re-rendered — say the word.
+- **v2.9 update (2026-06-27): "Who we work with / Are we a fit?" section.** Bryson liked
+  the limited-roster line and wanted to lean into it with a qualifier. Discussed framing
+  it as "Do you qualify?" but landed on **fit, not gatekeeping** — for a brand with no
+  public track record yet, transparent "here's who we're right for" reads as honest
+  rather than posturing, which matches the site's whole tone. Chose an always-visible
+  section over a gated popup (the package recommender already does interactive
+  qualification, so a second gate would be redundant).
+  - New `#fit` section (placed after Process, before the "You keep the keys" trust
+    block): eyebrow "Who We Work With" → heading "Are we the right fit?" → two cards
+    (the four real niches as gold chips: home services / medical & wellness / automotive
+    / e-commerce, with a "not on the list? reach out anyway" note; and a "You're a
+    strong fit if…" checklist) → a gold-tinted **soft minimum-budget** callout → an
+    honest "not sure? that's what the call is for" line + Book a Call.
+  - **Minimum budget = soft ~$1,000/mo** (Bryson's call, "stay with 1000 for now"):
+    phrased as "most clients start with an ad budget of around $1,000/month or more,"
+    not a hard wall. The callout restates the hard constraint verbatim — the client owns
+    and pays for their own ad account; BoldLine just runs it.
+  - Trimmed the top boutique one-liner to just the scarcity ("…so the clients we take on
+    get our full attention") since the niche list now lives in this section (no more
+    duplication).
+  - Verified desktop + mobile (cards stack to one column ≤840px) in headless Chromium,
+    no JS errors.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo

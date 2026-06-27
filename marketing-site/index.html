@@ -188,6 +188,8 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .hero h1{font-size:34px}
   .hero p{font-size:15.5px;margin-bottom:32px}
   .section-head h2{font-size:27px}
+  #fit{padding:74px 22px}
+  .fit-grid{grid-template-columns:1fr}
   .nav-links{display:none}
   .nav-toggle{display:flex}
   .nav-right .hdr-cta{display:none}
@@ -232,6 +234,22 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .btn-outline{display:inline-block;padding:16px 28px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;background:transparent;color:var(--gold);border:1px solid var(--gold-line);cursor:pointer;font-family:var(--sans);transition:background .2s,color .2s,border-color .2s}
 .btn-outline:hover{background:var(--gold);color:#15110A;border-color:var(--gold)}
 .modal-fine{font-size:11.5px;color:var(--faint);margin-bottom:18px;line-height:1.55}
+
+/* ---- Who we work with / fit ---- */
+#fit{padding:96px 28px;border-top:1px solid var(--line)}
+.fit-grid{max-width:900px;margin:0 auto 22px;display:grid;grid-template-columns:1fr 1fr;gap:22px}
+.fit-block{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:30px 28px}
+.fit-block h3{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
+.niche-chips{display:flex;flex-wrap:wrap;gap:10px}
+.niche-chips span{font-size:13px;font-weight:600;color:var(--ink);background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:30px;padding:9px 16px}
+.fit-note{font-size:12px;color:var(--faint);margin-top:16px;line-height:1.6}
+.fit-list{list-style:none;display:flex;flex-direction:column;gap:14px}
+.fit-list li{font-size:14px;color:var(--muted);line-height:1.55;display:flex;gap:10px;align-items:flex-start}
+.fit-list li::before{content:"✓";color:var(--gold);font-weight:700;flex-shrink:0}
+.fit-budget{max-width:760px;margin:0 auto 34px;text-align:center;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:14px;padding:22px 26px;font-size:14.5px;color:var(--ink);line-height:1.65}
+.fit-budget strong{color:var(--gold);font-weight:700}
+.fit-cta{text-align:center;max-width:560px;margin:0 auto}
+.fit-cta p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:24px}
 </style>
 </head>
 <body>
@@ -279,7 +297,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 </div>
 
 <div class="boutique">
-  <p><strong>By design, we work with a limited number of businesses at a time</strong> — currently focused on home services, medical &amp; wellness, automotive, and e-commerce brands.</p>
+  <p><strong>By design, we work with a limited number of businesses at a time</strong> — so the clients we take on get our full attention, not a seat in a queue.</p>
 </div>
 
 <section id="services">
@@ -499,6 +517,41 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
       <div class="pn">05</div>
       <div><h3>Scale</h3><p>Budget grows only once the numbers earn it — and never without your sign-off.</p></div>
     </div>
+  </div>
+</section>
+
+<section id="fit">
+  <div class="section-head reveal">
+    <div class="eyebrow">Who We Work With</div>
+    <h2>Are we the right fit?</h2>
+    <p>We only take on a limited number of clients at a time, so we're honest up front about who we do our best work for. If this sounds like you, let's talk.</p>
+  </div>
+  <div class="fit-grid reveal">
+    <div class="fit-block">
+      <h3>Industries we focus on</h3>
+      <div class="niche-chips">
+        <span>Home services</span>
+        <span>Medical &amp; wellness</span>
+        <span>Automotive</span>
+        <span>E-commerce</span>
+      </div>
+      <p class="fit-note">Not on the list? Reach out anyway — if it's close, we'll tell you honestly.</p>
+    </div>
+    <div class="fit-block">
+      <h3>You're a strong fit if…</h3>
+      <ul class="fit-list">
+        <li>You could handle more customers if they came in steadily</li>
+        <li>Someone can follow up on a new lead fast — calls and forms don't sit for days</li>
+        <li>You're ready to invest in ads consistently, not test for two weeks and bail</li>
+      </ul>
+    </div>
+  </div>
+  <div class="fit-budget reveal">
+    Most clients start with an ad budget of around <strong>$1,000/month</strong> or more. That's spend that goes straight to Google or Meta — you always own and pay for your own ad account, we just run it.
+  </div>
+  <div class="fit-cta reveal">
+    <p>Not sure if it's a fit? That's exactly what the call is for — we'll tell you straight, even if the answer is "not yet."</p>
+    <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
   </div>
 </section>
 
