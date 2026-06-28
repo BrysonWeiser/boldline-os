@@ -548,7 +548,10 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     Call" (every CTA previously went only to Calendly, capturing only people ready to
     book today). Name / business / email / "biggest challenge," via **Netlify Forms**
     (no backend, no env vars) with a honeypot, AJAX submit + inline success, and a no-JS
-    fallback. *Needs Bryson to switch on form notifications — see TODO #9.*
+    fallback. *Needs Bryson to switch on form notifications — see TODO #9.* (Also removed
+    the raw `theboldlinemedia@gmail.com` line that used to sit under the form — redundant
+    now that the form + Book a Call cover contact; the email still lives in the page's
+    JSON-LD metadata only.)
   - **"Leads show up sorted" showcase** — the first real visual on the site: a pure
     CSS/HTML mockup of the lead feed (form / tracked call / Google Ads rows), clearly
     labeled an illustration. Breaks up the all-text page and shows the product.
