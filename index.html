@@ -3336,6 +3336,57 @@ function App({onLogout}) {
 
   useEffect(() => { loadClients(); }, [loadClients]);
 
+  // ── Live refresh ── keeps clients (and therefore the alert count) current
+  // without a manual reload: Supabase realtime is instant; the poll + focus
+  // refetch are fallbacks in case realtime isn't enabled on the table.
+  const refreshClients = useCallback(async () => {
+    const { data, error } = await supabaseClient.from("clients").select("data");
+    if (error || !data || !data.length) return;
+    setClients(data.map(r => r.data));
+  }, []);
+
+  useEffect(() => {
+    if (dataState !== "ready") return;
+    const channel = supabaseClient
+      .channel("clients-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "clients" }, () => refreshClients())
+      .subscribe();
+    const poll = setInterval(refreshClients, 15000);
+    const onVisible = () => { if (document.visibilityState === "visible") refreshClients(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", refreshClients);
+    return () => {
+      supabaseClient.removeChannel(channel);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", refreshClients);
+    };
+  }, [dataState, refreshClients]);
+
+  // ── Live alert toasts ── pop briefly (bottom-left) the moment a new alert
+  // arrives. Seeds the "seen" set on first load so existing alerts don't toast.
+  const [toasts, setToasts] = useState([]);
+  const seenAlertKeys = useRef(null);
+  const pushToast = useCallback((t) => {
+    const id = crypto.randomUUID();
+    setToasts(prev => [...prev.slice(-3), { id, ...t }]);
+    setTimeout(() => setToasts(prev => prev.filter(x => x.id !== id)), 6500);
+  }, []);
+
+  useEffect(() => {
+    if (dataState !== "ready") return;
+    const current = [];
+    clients.forEach(c => {
+      getAlerts(c).forEach(a => current.push({ key: `${c.id}|${a.type}|${a.msg}`, msg: a.msg, severity: a.severity, client: c.name }));
+      (c.pendingActions || []).forEach(p => current.push({ key: `${c.id}|pending|${p.id}`, msg: `Approval needed: ${p.title || "new action"}`, severity: "amber", client: c.name }));
+    });
+    const keys = new Set(current.map(x => x.key));
+    if (seenAlertKeys.current === null) { seenAlertKeys.current = keys; return; }
+    const fresh = current.filter(x => !seenAlertKeys.current.has(x.key));
+    seenAlertKeys.current = keys;
+    fresh.slice(0, 4).forEach(pushToast);
+  }, [clients, dataState, pushToast]);
+
   const updateClient = useCallback((updated) => {
     setClients(prev=>prev.map(c=>c.id===updated.id?updated:c));
     if((activeClient && activeClient.id)===updated.id) setActiveClient(updated);
@@ -3382,6 +3433,7 @@ function App({onLogout}) {
         @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
         @keyframes db{0%,80%,100%{transform:scale(.55);opacity:.35}40%{transform:scale(1);opacity:1}}
         @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes toastIn{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:translateX(0)}}
         input::placeholder,textarea::placeholder{color:#2D3748}
         button,select,input,textarea{font-family:inherit}
         select option{background:#0C0D18;color:#F0F2FF}
@@ -3400,6 +3452,24 @@ function App({onLogout}) {
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")}/>}
       </div>
       <BottomNav screen={screen} onHome={()=>setScreen("home")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount}/>
+      {toasts.length>0&&(
+        <div style={{position:"fixed",left:12,bottom:74,zIndex:300,display:"flex",flexDirection:"column",gap:8,width:"calc(100% - 24px)",maxWidth:300,pointerEvents:"none"}}>
+          {toasts.map(t=>{
+            const col = t.severity==="red"?C.red:t.severity==="blue"?C.blue:(t.severity==="yellow"||t.severity==="amber")?C.amber:C.gold;
+            return (
+              <div key={t.id} onClick={()=>{ setShowNotif(true); setToasts(p=>p.filter(x=>x.id!==t.id)); }}
+                style={{pointerEvents:"auto",cursor:"pointer",backgroundColor:C.bg3,border:`1px solid ${C.border}`,borderLeft:`3px solid ${col}`,borderRadius:10,padding:"10px 12px",boxShadow:"0 12px 32px -12px rgba(0,0,0,0.7)",animation:"toastIn .25s ease both"}}>
+                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",backgroundColor:col,flexShrink:0}}/>
+                  <span style={{fontSize:10,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:col}}>New alert</span>
+                  <span style={{fontSize:10,color:C.textMuted,marginLeft:"auto",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:120}}>{t.client}</span>
+                </div>
+                <div style={{fontSize:12,color:C.text,lineHeight:1.4}}>{t.msg}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {showNotif&&<NotificationsPanel
         clients={clients}
         onUpdate={updateClient}

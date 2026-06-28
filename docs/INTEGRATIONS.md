@@ -708,6 +708,30 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   `portal.js` and `index.html`'s `makePortalHTML` copy (see the dual-copy gotcha
   above).
 
+- **Live alert notifications (added 2026-06-28):** Bryson noticed alerts only appeared
+  after a manual page reload. Root cause: `clients` was fetched once on mount (the alert
+  count and every alert are *derived* from `clients` via `getAlerts()` + `notifCount`),
+  with no live refresh. Fix in `index.html`'s `App`:
+  - A quiet `refreshClients()` (re-selects `clients`, no loading flash, no re-seed, no
+    token backfill) is driven by three things: a **Supabase realtime** subscription on
+    the `clients` table (instant), a **15s polling** interval (fallback), and a
+    **refetch on tab focus / visibility**. Any of them refreshing `clients` makes the
+    Alerts-tab count update on its own (it's derived state). Active client edits are
+    safe — the screen being edited is bound to `activeClient`, a separate state the
+    background refresh never touches.
+  - New alerts pop a **bottom-left toast** (auto-dismiss ~6.5s, click → opens the Alerts
+    panel). Detection diffs a `seenAlertKeys` set each time `clients` changes; the set is
+    seeded on first load so existing alerts don't toast on open. Covers the same things
+    the Alerts count does (intake / upgrade / contract / custom `cl.alerts` + pending
+    approvals). Unit-tested the diff logic (seed→silent, new→fires once, repeat→silent).
+  - **Setup owed for *instant* alerts:** enable Supabase Realtime on the `clients`
+    table — Supabase dashboard → **Database** → **Replication** → the `supabase_realtime`
+    publication → toggle **`clients`** on. Without it, alerts still arrive within ~15s
+    via the polling fallback (and instantly on tab-focus); with it, they're real-time.
+  - Sandbox note: couldn't live-click-test (needs an owner login + live Supabase
+    session). Verified via Babel compile of the whole app + a unit test of the detection
+    logic; the realtime/polling wiring is standard supabase-js v2.
+
 ## Reference: existing OS safety capability
 - **Task #8** built a human-in-the-loop guardrail: `propose_action` → `pendingActions`
   queue → Approve/Reject. No automated process executes a real ad-account change
