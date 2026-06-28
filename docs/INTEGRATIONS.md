@@ -732,6 +732,20 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     session). Verified via Babel compile of the whole app + a unit test of the detection
     logic; the realtime/polling wiring is standard supabase-js v2.
 
+- **Portal upgrade flow (2026-06-28):** the client portal's "Request an Upgrade" CTA
+  was relabeled **"Review Selection →" → "Upgrade"** and now uses a **two-step in-page
+  confirmation** (Upgrade → Cancel / **Confirm Upgrade Request**) instead of a native
+  `confirm()`. On confirm it POSTs `{upgrade:<name>}` to the portal function, which
+  records `data.upgradeRequest` **without** setting `intakeComplete` (a dedicated branch
+  added before the intake `mergeFields`) — so the owner gets a **live alert** (ties into
+  the live-alert toast above; previously the portal showed "Request Sent" but never
+  persisted, so the owner never actually saw the request). Mirrored in **both**
+  `portal.js` and `index.html`'s `makePortalHTML` per the dual-copy gotcha. Verified the
+  client flow in headless Chromium (label → confirm step → POST body → success); the
+  real Supabase round-trip needs the live env. Minor note: the owner-side preview shares
+  the same JS, so confirming an upgrade *in the preview* would also persist — unlikely
+  but possible.
+
 ## Reference: existing OS safety capability
 - **Task #8** built a human-in-the-loop guardrail: `propose_action` → `pendingActions`
   queue → Approve/Reject. No automated process executes a real ad-account change
