@@ -541,6 +541,41 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     duplication).
   - Verified desktop + mobile (icons reflow to a 2×2 grid on phones) in headless
     Chromium, no JS errors.
+- **v3.0 update (2026-06-28): conversion + aesthetic additions.** After a full review,
+  Bryson asked to add everything recommended to tighten the funnel and polish the look.
+  All in `marketing-site/index.html` (+ a re-rendered `og-image.png`):
+  - **Lead-capture form** in the contact section — a lower-friction path beside "Book a
+    Call" (every CTA previously went only to Calendly, capturing only people ready to
+    book today). Name / business / email / "biggest challenge," via **Netlify Forms**
+    (no backend, no env vars) with a honeypot, AJAX submit + inline success, and a no-JS
+    fallback. *Needs Bryson to switch on form notifications — see TODO #9.*
+  - **"Leads show up sorted" showcase** — the first real visual on the site: a pure
+    CSS/HTML mockup of the lead feed (form / tracked call / Google Ads rows), clearly
+    labeled an illustration. Breaks up the all-text page and shows the product.
+  - **FAQ section** with a native `<details>` accordion (works with JS off) answering the
+    six objections that kill conversions (cost, account ownership, contract, speed,
+    "what if it's not working," platforms) — plus **FAQPage JSON-LD** for Google
+    rich-results.
+  - **Founder section** — a short signed note + monogram avatar to humanize the boutique
+    positioning (honest trust, no fake testimonials). *Placeholder — swap the "B" for a
+    real headshot + personalize the quote, see TODO #10.*
+  - **Recommender quiz now also captures an optional email** at the result step (same
+    Netlify Forms mechanism, recommended package attached), so quiz-takers who don't book
+    still become a lead.
+  - **Mobile sticky "Book a Call" bar** that slides up after scrolling — the CTA is
+    always one tap away on phones.
+  - **Refreshed the OG/social-share image** to the new pain-led positioning ("Slow weeks.
+    Inconsistent leads." + the solution line), re-rendered from a matching share card so
+    link previews match the current site.
+  - **Deliberately NOT added:** testimonials / client logos / stats — no real clients
+    yet, and honesty is the site's edge.
+  - **Verification:** every inline script passes `node --check`; full-site overflow check
+    is clean at 1440 / 390 / 360px with no JS errors; screenshotted every new section on
+    desktop + mobile and exercised the quiz, the form (success state), and the sticky
+    bar. Caught + fixed a CSS source-order bug (new sections' mobile overrides sat before
+    their base rules, so the showcase wasn't stacking and the sticky bar stayed hidden) by
+    moving them into a media block after the base rules. **Not testable in this sandbox:**
+    real Netlify Forms capture only activates on the live deploy (TODO #9).
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
@@ -592,6 +627,19 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
      `SUPABASE_URL` is a non-secret constant baked directly into the code, the same
      convention the existing report-generation features already use, so it doesn't
      need an env var.)*
+  9. **Turn on lead-form notifications** (new, v3.0) — the contact form and the
+     recommender's email capture use Netlify Forms, which auto-activate once the
+     marketing site is deployed (TODO #1). To get emailed on every submission: in the
+     new site's dashboard go to **Forms** → select the `contact` form (and
+     `recommendation`) → **Settings & notifications** → **Add notification** → **Email
+     notification** → send to `theboldlinemedia@gmail.com`. Submissions are also always
+     listed under **Forms**. Nothing to deploy — just this one-time toggle.
+  10. **Personalize the founder section** (new, v3.0) — optional but recommended: drop a
+      real headshot at `marketing-site/founder.png`, then in the `#founder` block of
+      `index.html` change the avatar from the "B" monogram to
+      `<img src="/founder.png" alt="Bryson">`, and tweak the quote/name to your own
+      words. It's marked with an HTML comment so it's easy to find — or send me the photo
+      and I'll wire it in.
 
 ## Stripe (BoldLine service-fee billing) — NOT started ⏳
 - Purpose: bill clients **BoldLine's management/service fee only**. NOT ad spend —

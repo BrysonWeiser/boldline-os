@@ -24,6 +24,9 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Organization","name":"BoldLine Media","url":"https://boldlinemedia.com/","logo":"https://boldlinemedia.com/logo.png","description":"BoldLine Media plans, builds, and manages Google and Meta ad campaigns — and the landing pages behind them — for a select roster of businesses.","email":"theboldlinemedia@gmail.com","knowsAbout":["Google Ads management","Meta Ads management","Landing page design","Call tracking","CRM lead routing"]}
 </script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How much does this cost?","acceptedAnswer":{"@type":"Answer","text":"Our management fee depends on the platforms and tier that fit your goals, which we walk you through on a call. Separately, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta — you always own that account."}},{"@type":"Question","name":"Do I own my ad account?","acceptedAnswer":{"@type":"Answer","text":"Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them — we never hold, front, or touch your ad spend."}},{"@type":"Question","name":"Am I locked into a long contract?","acceptedAnswer":{"@type":"Answer","text":"No long lock-ins. We earn the relationship month to month, scaling your budget only once the numbers earn it and never without your sign-off."}},{"@type":"Question","name":"How fast will I see results?","acceptedAnswer":{"@type":"Answer","text":"The first few weeks are mostly learning which keywords and audiences convert. Paid ads compound, they are not a light switch — and if your offer or follow-up is not ready to make the most of the clicks, we tell you before you spend."}},{"@type":"Question","name":"What if it's not working?","acceptedAnswer":{"@type":"Answer","text":"We review every account on a set cadence against real performance data and report in plain English. If something isn't working we change it, and if we're genuinely not the right fit we say so."}},{"@type":"Question","name":"Which platforms do you run?","acceptedAnswer":{"@type":"Answer","text":"Google Ads and Meta (Facebook and Instagram), on their own or as one coordinated system, plus the landing pages, call tracking, and lead routing behind them."}}]}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -188,10 +191,6 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .hero h1{font-size:34px}
   .hero p{font-size:15.5px;margin-bottom:32px}
   .section-head h2{font-size:27px}
-  #fit{padding:74px 22px}
-  .niche-row{gap:28px 26px;max-width:300px}
-  .fit-sep{margin:44px auto}
-  .fit-check li{font-size:14.5px}
   .nav-links{display:none}
   .nav-toggle{display:flex}
   .nav-right .hdr-cta{display:none}
@@ -254,6 +253,86 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .fit-budget strong{color:var(--gold);font-weight:700}
 .fit-cta{text-align:center;max-width:540px;margin:46px auto 0}
 .fit-cta p{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:24px}
+
+/* ---- Showcase (leads-in-inbox mockup) ---- */
+.showcase{display:grid;grid-template-columns:1fr 1fr;gap:54px;align-items:center;max-width:1000px;margin:0 auto}
+.showcase-copy .eyebrow{margin-bottom:14px}
+.showcase-copy h2{font-family:var(--serif);font-weight:600;font-size:31px;color:#fff;margin-bottom:16px;line-height:1.25}
+.showcase-copy p{font-size:15px;color:var(--muted);line-height:1.75}
+.inbox{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:0 30px 70px -34px rgba(0,0,0,.8)}
+.inbox-head{display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--line)}
+.inbox-head .dot{width:9px;height:9px;border-radius:50%;background:#2c2f3a}
+.inbox-head .ttl{margin-left:8px;font-size:12px;font-weight:700;letter-spacing:.04em;color:var(--faint);text-transform:uppercase}
+.inbox-row{display:flex;align-items:center;gap:13px;padding:15px 14px;border-bottom:1px solid rgba(255,255,255,.05)}
+.inbox-row:last-child{border-bottom:none}
+.inbox-ic{width:34px;height:34px;border-radius:9px;background:var(--gold-soft);border:1px solid var(--gold-line);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gold)}
+.inbox-ic svg{width:17px;height:17px}
+.inbox-main{flex:1;min-width:0}
+.inbox-main .t{font-size:13.5px;font-weight:600;color:var(--ink)}
+.inbox-main .s{font-size:11.5px;color:var(--faint);margin-top:2px}
+.inbox-time{font-size:11px;color:var(--faint);flex-shrink:0;white-space:nowrap}
+.showcase-aside{font-size:11.5px;color:var(--faint);text-align:center;margin-top:14px;font-style:italic}
+
+/* ---- FAQ ---- */
+.faq-list{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.faq-item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;transition:border-color .25s ease}
+.faq-item[open]{border-color:var(--gold-line)}
+.faq-item summary{list-style:none;cursor:pointer;padding:19px 22px;font-size:15px;font-weight:600;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:16px}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:"+";color:var(--gold);font-size:24px;font-weight:300;line-height:1;transition:transform .3s ease;flex-shrink:0}
+.faq-item[open] summary::after{transform:rotate(45deg)}
+.faq-a{padding:0 22px 20px;font-size:14px;color:var(--muted);line-height:1.7}
+.faq-a a{color:var(--gold);text-decoration:none;border-bottom:1px solid var(--gold-line)}
+
+/* ---- Founder ---- */
+.founder{max-width:660px;margin:0 auto;text-align:center}
+.founder-avatar{width:80px;height:80px;border-radius:50%;margin:0 auto 24px;background:linear-gradient(145deg,#1a1d27,#0d0f16);border:1px solid var(--gold-line);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:30px;font-weight:700;color:var(--gold);overflow:hidden}
+.founder-avatar img{width:100%;height:100%;object-fit:cover}
+.founder blockquote{font-family:var(--serif);font-weight:500;font-size:22px;line-height:1.5;color:var(--ink);margin-bottom:22px}
+.founder .sig{font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--gold);text-transform:uppercase}
+
+/* ---- Lead form ---- */
+.contact-or{display:flex;align-items:center;gap:14px;max-width:440px;margin:30px auto 4px;color:var(--faint);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.contact-or::before,.contact-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.lead-form{max-width:440px;margin:26px auto 0;text-align:left}
+.lead-form .frow{margin-bottom:13px}
+.lead-form label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.03em;color:var(--muted);margin-bottom:6px}
+.lead-form input,.lead-form textarea{width:100%;padding:12px 14px;font-size:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:inherit;transition:border-color .2s ease}
+.lead-form input:focus,.lead-form textarea:focus{outline:none;border-color:var(--gold-line)}
+.lead-form textarea{min-height:92px;resize:vertical}
+.lead-form button{width:100%;margin-top:6px;border:none;cursor:pointer;font-family:var(--sans)}
+.lead-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.form-success{display:none;max-width:440px;margin:26px auto 0;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:12px;padding:22px 24px;text-align:center;font-size:14.5px;color:var(--ink);line-height:1.6}
+.form-success strong{color:var(--gold)}
+
+/* ---- Recommender email capture ---- */
+.rec-email{margin:18px 0 4px;text-align:left}
+.rec-email label{display:block;font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.5}
+.rec-email .re-row{display:flex;gap:8px}
+.rec-email input{flex:1;min-width:0;padding:11px 13px;font-size:13.5px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:9px;color:var(--ink);font-family:inherit}
+.rec-email input:focus{outline:none;border-color:var(--gold-line)}
+.rec-email button{flex-shrink:0;padding:11px 16px;font-size:12px;font-weight:700;border-radius:9px;border:1px solid var(--gold-line);background:transparent;color:var(--gold);cursor:pointer;font-family:var(--sans);transition:background .2s,color .2s}
+.rec-email button:hover{background:var(--gold);color:#15110A}
+.rec-email .re-done{font-size:13px;color:var(--gold);font-weight:600}
+
+/* ---- Mobile sticky CTA ---- */
+.mobile-cta{display:none}
+
+/* Mobile overrides for the sections defined above (kept after their base rules
+   so they win the cascade at <=840px). */
+@media (max-width:840px){
+  #fit{padding:74px 22px}
+  .niche-row{gap:28px 26px;max-width:300px}
+  .fit-sep{margin:44px auto}
+  .fit-check li{font-size:14.5px}
+  .showcase{grid-template-columns:1fr;gap:36px}
+  .showcase-copy h2{font-size:25px}
+  .founder blockquote{font-size:19px}
+  body{padding-bottom:70px}
+  .mobile-cta{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;padding:11px 14px;background:rgba(8,10,15,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);transform:translateY(120%);transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+  .mobile-cta.show{transform:translateY(0)}
+  .mobile-cta a{flex:1;text-align:center;padding:14px;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:10px;background:var(--gold);color:#15110A;text-decoration:none}
+}
 </style>
 </head>
 <body>
@@ -494,6 +573,37 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   </div>
 </section>
 
+<section id="showcase">
+  <div class="showcase reveal">
+    <div class="showcase-copy">
+      <div class="eyebrow">In Your Inbox</div>
+      <h2>Leads show up sorted, not scattered.</h2>
+      <p>Every form fill and tracked call lands in one place — tagged by source, timestamped, with an instant auto-reply already sent on your behalf. You get a steady, organized stream of real prospects instead of chasing scraps across voicemail, email, and sticky notes.</p>
+    </div>
+    <div>
+      <div class="inbox">
+        <div class="inbox-head"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="ttl">Leads · BoldLine OS</span></div>
+        <div class="inbox-row">
+          <div class="inbox-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h10l4 4v14H5z"/><path d="M8 10h8M8 14h8M8 18h5"/></svg></div>
+          <div class="inbox-main"><div class="t">New lead · Landing page form</div><div class="s">Auto-reply sent · awaiting your call</div></div>
+          <div class="inbox-time">2m ago</div>
+        </div>
+        <div class="inbox-row">
+          <div class="inbox-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-3 2a12 12 0 0 0 5 5l2-3 5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></svg></div>
+          <div class="inbox-main"><div class="t">Call tracked · 3m 41s</div><div class="s">Logged as a new lead automatically</div></div>
+          <div class="inbox-time">26m ago</div>
+        </div>
+        <div class="inbox-row">
+          <div class="inbox-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></div>
+          <div class="inbox-main"><div class="t">New lead · Google Ads</div><div class="s">Nurtured at day 1 + day 3 if no reply</div></div>
+          <div class="inbox-time">1h ago</div>
+        </div>
+      </div>
+      <div class="showcase-aside">Illustration of the lead feed — your real leads, organized the moment they arrive.</div>
+    </div>
+  </div>
+</section>
+
 <section id="process">
   <div class="section-head reveal">
     <div class="eyebrow">Process</div>
@@ -577,13 +687,52 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   </div>
 </div>
 
+<!-- FOUNDER: swap the "B" monogram for a real headshot (<img src="/founder.png">)
+     and personalize the quote/name before going live. -->
+<section class="alt" id="founder">
+  <div class="founder reveal">
+    <div class="founder-avatar">B</div>
+    <blockquote>"I keep the roster small on purpose. Too many businesses get handed to a junior and a dashboard they never asked for — here, you get senior attention, honest answers, and ads that are actually managed, not set and forgotten."</blockquote>
+    <div class="sig">— Bryson, Founder of BoldLine Media</div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="section-head reveal">
+    <div class="eyebrow">Questions</div>
+    <h2>The things people ask first.</h2>
+  </div>
+  <div class="faq-list reveal">
+    <details class="faq-item"><summary>How much does this cost?</summary><div class="faq-a">Our management fee depends on the platforms and tier that fit your goals — we'll walk you through it on the call once we understand what you need. Separately, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta (you always own that account).</div></details>
+    <details class="faq-item"><summary>Do I own my ad account?</summary><div class="faq-a">Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them — we never hold, front, or touch your ad spend.</div></details>
+    <details class="faq-item"><summary>Am I locked into a long contract?</summary><div class="faq-a">No long lock-ins. We earn the relationship month to month — scaling your budget only once the numbers earn it, and never without your sign-off. We'll cover exact terms on the call.</div></details>
+    <details class="faq-item"><summary>How fast will I see results?</summary><div class="faq-a">The first few weeks are mostly learning — which keywords and audiences actually convert. Honest answer: paid ads compound, they're not a light switch. And if your offer or follow-up isn't ready to make the most of the clicks, we'll tell you before you spend, not after. (<a href="/blog/is-your-business-ready-for-google-ads/">More on that here.</a>)</div></details>
+    <details class="faq-item"><summary>What if it's not working?</summary><div class="faq-a">We review every account on a set cadence against real performance data and report in plain English — so you always know what's spending, what's converting, and what's wasted. If something isn't working, we change it. If we're genuinely not the right fit, we'll say so.</div></details>
+    <details class="faq-item"><summary>Which platforms do you run?</summary><div class="faq-a">Google Ads and Meta (Facebook &amp; Instagram) — on their own or as one coordinated system — plus the landing pages, call tracking, and lead routing behind them. <a href="#services">See the packages above.</a></div></details>
+  </div>
+</section>
+
 <section id="contact">
   <div class="contact-box reveal">
     <div class="eyebrow">Get Started</div>
     <h2>Start a conversation.</h2>
     <p>Tell us about your business and where you're trying to grow. We'll get back to you shortly — and let you know honestly whether we're a fit.</p>
     <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
-    <div class="contact-line" style="margin-top:24px">✉️ <a href="mailto:theboldlinemedia@gmail.com">theboldlinemedia@gmail.com</a></div>
+
+    <div class="contact-or">or send a message</div>
+
+    <form class="lead-form" id="leadForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+      <input type="hidden" name="form-name" value="contact">
+      <p class="lead-hp"><label>Leave this empty: <input name="bot-field"></label></p>
+      <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" required></div>
+      <div class="frow"><label for="lf-biz">Business</label><input id="lf-biz" type="text" name="business" required></div>
+      <div class="frow"><label for="lf-email">Email</label><input id="lf-email" type="email" name="email" required></div>
+      <div class="frow"><label for="lf-msg">What's your biggest challenge right now?</label><textarea id="lf-msg" name="message"></textarea></div>
+      <button class="btn" type="submit">Send Message</button>
+    </form>
+    <div class="form-success" id="formSuccess"><strong>Got it — thanks!</strong><br>We'll be in touch shortly. If it's urgent, book a call above.</div>
+
+    <div class="contact-line" style="margin-top:28px">✉️ <a href="mailto:theboldlinemedia@gmail.com">theboldlinemedia@gmail.com</a></div>
   </div>
 </section>
 
@@ -591,6 +740,8 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   <div class="word">BoldLine Media</div>
   <div class="copy">© 2026 BoldLine Media. All rights reserved.</div>
 </footer>
+
+<div class="mobile-cta" id="mobileCta"><a href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a></div>
 
 <div class="modal-overlay" id="recModal" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recTitle">
@@ -642,6 +793,14 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
         <a class="btn" id="recBook" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
         <button type="button" class="btn-outline" id="recSee">See this package</button>
       </div>
+      <form class="rec-email" id="recEmailForm" name="recommendation" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+        <input type="hidden" name="form-name" value="recommendation">
+        <input type="hidden" name="recommended" id="recRecommended" value="">
+        <p class="lead-hp"><label>Leave this empty: <input name="bot-field"></label></p>
+        <label for="re-email">Not ready to book? Drop your email and we'll follow up with a tailored plan — no spam.</label>
+        <div class="re-row"><input id="re-email" type="email" name="email" placeholder="you@business.com"><button type="submit">Send it</button></div>
+      </form>
+      <div class="rec-email re-done" id="recEmailDone" hidden>Got it — we'll be in touch. ✓</div>
       <p class="modal-fine">A starting point, not a quote — we'll confirm the right fit with you on the call. Your ad account always stays owned and paid for by you.</p>
       <button type="button" class="link-btn" id="recRestart">Start over</button>
     </div>
@@ -742,6 +901,9 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
     document.getElementById('recHeadline').innerHTML =
       'We’d start you with the <strong>' + tierName + '</strong> on <strong>' + f.label + '</strong>.';
     document.getElementById('recWhy').textContent = recBody(answers.channel, fam, tierName, f.label);
+    var rf = document.getElementById('recEmailForm'), rd = document.getElementById('recEmailDone');
+    if(rf){ rf.reset(); rf.hidden = false; var recd = rf.querySelector('#recRecommended'); if(recd) recd.value = tierName + ' on ' + f.label; }
+    if(rd) rd.hidden = true;
     document.getElementById('recSee').onclick = function(){
       closeModal();
       var tabBtn = document.querySelector('.tab[data-tab="' + f.tab + '"]');
@@ -761,7 +923,12 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   var header = document.querySelector('header');
   if(!header) return;
   header.classList.add('nav-in');
-  var onScroll = function(){ header.classList.toggle('scrolled', window.scrollY > 12); };
+  var mcta = document.getElementById('mobileCta');
+  var onScroll = function(){
+    var y = window.scrollY;
+    header.classList.toggle('scrolled', y > 12);
+    if(mcta) mcta.classList.toggle('show', y > 700);
+  };
   onScroll();
   window.addEventListener('scroll', onScroll, { passive:true });
   var toggle = header.querySelector('.nav-toggle');
@@ -778,6 +945,46 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
         toggle.classList.remove('open');
         toggle.setAttribute('aria-expanded', 'false');
       });
+    });
+  }
+})();
+</script>
+
+<script>
+(function(){
+  function encode(data){ return Object.keys(data).map(function(k){ return encodeURIComponent(k)+"="+encodeURIComponent(data[k]); }).join("&"); }
+  function submitNetlify(form, onOk, onErr){
+    var data = {}; new FormData(form).forEach(function(v,k){ data[k]=v; });
+    fetch("/", { method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body: encode(data) })
+      .then(function(r){ r.ok ? onOk() : (onErr && onErr()); })
+      .catch(function(){ onErr && onErr(); });
+  }
+
+  var lead = document.getElementById('leadForm');
+  var leadOk = document.getElementById('formSuccess');
+  if(lead){
+    lead.addEventListener('submit', function(e){
+      e.preventDefault();
+      if(!lead.checkValidity()){ lead.reportValidity(); return; }
+      var btn = lead.querySelector('button[type=submit]');
+      if(btn){ btn.disabled = true; btn.textContent = "Sending…"; }
+      submitNetlify(lead, function(){
+        lead.style.display = "none";
+        if(leadOk) leadOk.style.display = "block";
+      }, function(){
+        if(btn){ btn.disabled = false; btn.textContent = "Send Message"; }
+        alert("Something went wrong — please email theboldlinemedia@gmail.com.");
+      });
+    });
+  }
+
+  var rform = document.getElementById('recEmailForm');
+  var rdone = document.getElementById('recEmailDone');
+  if(rform){
+    rform.addEventListener('submit', function(e){
+      e.preventDefault();
+      if(!rform.checkValidity()){ rform.reportValidity(); return; }
+      submitNetlify(rform, function(){ rform.hidden = true; if(rdone) rdone.hidden = false; });
     });
   }
 })();
