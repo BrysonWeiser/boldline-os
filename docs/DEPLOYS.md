@@ -56,3 +56,6 @@ Each row = the production state saved *before* that merge (the rollback target).
 |---|---|---|---|
 | 2026-06-29 | `3c96043` | `rollback/20260629-000411` | First auto-merge: full session — marketing-site rebuild + blog automation, OS live-alert toasts, portal upgrade-CTA + confirmation, the auto-merge/rollback workflow itself. |
 | 2026-06-29 | `048b491` | `rollback/20260629-DOCS` | Doc fix: switch rollback mechanism from tags → branches (tags can't push to this remote). |
+| 2026-06-29 | `e071d85` | `rollback/20260629-003813` | Marketing site: privacy + terms + branded 404 pages, footer legal links, soft-404 fix (removed catch-all rewrite). |
+| 2026-06-29 | `dcf2828` | `rollback/20260629-022514` | Blog 404 fix attempt #1: moved blog.css out of /blog/ and added force=true to blog redirects (routed to the function but didn't fully fix it). |
+| 2026-06-29 | `f709686` | `rollback/20260629T224622Z` | Blog 404 real fix: read slug from /blog/&lt;slug&gt;/ and page from /blog/page/&lt;n&gt;/ in the path — Netlify new-format functions don't receive the redirect's `?slug=`/`?page=` query. |
