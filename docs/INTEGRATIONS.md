@@ -595,18 +595,34 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     (Gotcha fixed in the 404 page: `.article-body a` is gold, which made a `.btn`'s text
     gold-on-gold/invisible — forced the filled button's text color.)
   - Verified all three pages render at desktop + mobile, no overflow, no JS errors.
-- ⚠️ **Gotcha + fix (2026-06-29): blog post pages 404'd in production.** After the site
-  went live on Netlify, the blog *index* (`/blog/`) worked but every individual post
-  (`/blog/:slug/`) returned 404 — even though calling the function directly
-  (`/.netlify/functions/blog-post?slug=…`) returned the article fine. Cause: a **real
-  `marketing-site/blog/` directory existed** (it held `blog.css`), and Netlify lets a
-  real directory shadow placeholder redirects under that path, so the `/blog/:slug`
-  rewrite never fired (the OS's `/lp/:slug` works only because there's no real `/lp/`
-  dir). Fix: **moved `blog.css` to the site root (`/blog.css`)** so nothing real lives
-  under `/blog/`, updated the 4 references (blog-render `headTags`, privacy/terms/404),
-  and added **`force = true`** to the blog redirects as belt-and-suspenders. General
-  lesson: never keep static files under a path you also use for dynamic
-  placeholder redirects.
+- ✅ **Gotcha + fix (2026-06-29): blog post pages 404'd in production — now fixed & live.**
+  After the site went live on Netlify, the blog *index* (`/blog/`) worked but every
+  individual post (`/blog/:slug/`) returned 404 — even though calling the function
+  directly (`/.netlify/functions/blog-post?slug=…`) returned the article fine.
+  - **First (wrong) theory:** a real `marketing-site/blog/` directory (it held
+    `blog.css`) was shadowing the `/blog/:slug` redirect. We moved `blog.css` to the
+    site root (`/blog.css`), updated its 4 references (blog-render `headTags`,
+    privacy/terms/404), and added `force = true` to the blog redirects. This did NOT
+    fix the 404 — but it WAS still worth keeping (cleaner: nothing real under `/blog/`),
+    and it changed the symptom from a bare 404 to our *styled* `notFoundPage`, which
+    proved the redirect WAS reaching the function. That narrowed it to the function.
+  - **Real root cause:** Netlify's **NEW function format** (`export default async (req)`,
+    used by `blog-*.mjs`) receives the **ORIGINAL request URL** in `req.url`, NOT the
+    redirect target. So the `?slug=:slug` we set in the `netlify.toml` rewrite never
+    reached the function — `new URL(req.url).searchParams.get("slug")` was always
+    empty → `notFoundPage()`. (The index "worked" only because it defaults to page 1
+    when `?page` is missing.) The OS's OLD-format functions (`exports.handler`,
+    `event.queryStringParameters`) DO get the rewrite target's query — that's why
+    `landing.js`/`portal.js` never hit this.
+  - **Fix (commit `cb141a7`, deployed):** parse the slug from the **path** itself in
+    `blog-post.mjs` (`/blog/<slug>/`) and the page number from the path in
+    `blog-index.mjs` (`/blog/page/<n>/`), keeping the query param as a fallback for
+    direct function calls. Verified live: all 3 posts return HTTP 200 with the full
+    article (Article JSON-LD present), no-trailing-slash works, and a bogus slug still
+    returns the styled 404. **Blog is fully working in production.**
+  - **Durable lesson:** for Netlify NEW-format (`export default`) functions behind a
+    rewrite, read path params from `req.url`'s path — do NOT rely on the rewrite
+    target's query string (that only arrives for OLD `exports.handler` functions).
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
