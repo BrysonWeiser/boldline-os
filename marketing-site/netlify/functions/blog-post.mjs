@@ -8,7 +8,18 @@ import {
 } from "../lib/blog-render.mjs";
 
 export default async (req) => {
-  const slug = new URL(req.url).searchParams.get("slug") || "";
+  // Netlify NEW-format functions (export default) receive the ORIGINAL request
+  // URL in req.url, NOT the redirect target — so the `?slug=` we set in
+  // netlify.toml's rewrite is NOT here. Read the slug from the path
+  // (/blog/<slug>/) first; fall back to the query param for direct calls.
+  const url = new URL(req.url);
+  let slug = url.searchParams.get("slug") || "";
+  if (!slug) {
+    const parts = url.pathname.split("/").filter(Boolean);
+    const bi = parts.indexOf("blog");
+    if (bi !== -1 && parts[bi + 1]) slug = decodeURIComponent(parts[bi + 1]);
+  }
+  slug = slug.replace(/\/+$/, "").trim();
   if (!slug) return notFoundPage();
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
