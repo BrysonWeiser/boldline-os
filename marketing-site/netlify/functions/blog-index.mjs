@@ -14,7 +14,15 @@ const postCard = (p) => `<a class="post-card" href="/blog/${esc(p.slug)}/">
   </a>`;
 
 export default async (req) => {
-  const rawPage = parseInt(new URL(req.url).searchParams.get("page"), 10);
+  // Netlify NEW-format functions get the ORIGINAL request URL in req.url, not
+  // the redirect target — so the `?page=` from netlify.toml isn't here. Read
+  // the page number from the path (/blog/page/<n>/) first; query as fallback.
+  const url = new URL(req.url);
+  let rawPage = parseInt(url.searchParams.get("page"), 10);
+  if (!Number.isFinite(rawPage)) {
+    const m = url.pathname.match(/\/blog\/page\/(\d+)/);
+    if (m) rawPage = parseInt(m[1], 10);
+  }
   const page = Number.isFinite(rawPage) && rawPage > 1 ? rawPage : 1;
 
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
