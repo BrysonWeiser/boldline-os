@@ -56,6 +56,8 @@ export const footerHTML = () => `<footer>
   <nav>
     <a href="/">Home</a>
     <a href="/blog/">Blog</a>
+    <a href="/privacy.html">Privacy</a>
+    <a href="/terms.html">Terms</a>
   </nav>
 </footer>`;
 
