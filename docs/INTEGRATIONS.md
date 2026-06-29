@@ -623,6 +623,35 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   - **Durable lesson:** for Netlify NEW-format (`export default`) functions behind a
     rewrite, read path params from `req.url`'s path — do NOT rely on the rewrite
     target's query string (that only arrives for OLD `exports.handler` functions).
+- **v3.1 update (2026-06-29): plain-English jargon popovers + inclusive wording**
+  (from a round of outside feedback Bryson collected). Two changes:
+  - **Glossary term explainers.** Every piece of marketing jargon in the package
+    lists now has a subtle gold dotted underline; hovering it (desktop) or tapping it
+    (mobile) opens a small popover with a 1–2 sentence plain-English definition. On
+    desktop the bubble anchors next to the word; on mobile it centers as a card with
+    the page gently dimmed/blurred behind it (close button + tap-outside to dismiss).
+    Built as one reusable popover node driven by a `data-term` dictionary in a single
+    inline script at the bottom of `marketing-site/index.html` (~13 terms: landing
+    page, optimization & reporting, custom design, call tracking, attribution,
+    retargeting, audience building, CRM integration, split testing, multi-campaign
+    structure, ROAS, plus Google/Meta Ads). Keyboard-accessible (`tabindex`, Enter/Esc).
+    Chose a lightweight popover over a full-screen takeover on purpose — less friction,
+    keeps the reader in place, converts better. *Not yet wired into blog posts* (their
+    bodies are AI-generated HTML in Supabase) — an easy follow-up via a text auto-linker
+    if we want it there too.
+  - **Inclusive wording (so every business feels wanted, any package).** In the "Who
+    We Work With" section: reworded the intro + the "not on the list" aside so the
+    listed niches read as *examples of where we have the most reps*, not a closed
+    guest list ("don't count yourself out if you're not on this list… the fundamentals
+    work almost anywhere"); added two more niche tiles (Professional Services, Local &
+    Retail) so the grid feels open (now 6). Added an **equal-effort promise** right
+    under the packages: "Big budget or small, you get the same team and the same
+    effort… we don't rank clients by spend." Kept the selective positioning intact —
+    we're selective on *commitment/fit* (the behavior-based "strong fit if…" list and
+    the ~$1,000 start), open on *industry and budget size*.
+  - Verified headless (desktop + mobile, Playwright): term click/tap opens the right
+    definition, stays in-viewport, Esc/backdrop closes, 6 niche tiles, equal-effort
+    block present, no code errors. Live-checked after deploy.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
