@@ -1,0 +1,48 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/.netlify/functions/sitemap"
+  status = 200
+
+# Pagination (/blog/page/2/, /blog/page/3/, ...) -- listed before the bare
+# /blog/:slug rule below, and duplicated with/without a trailing slash since
+# both forms get typed/linked in the wild.
+[[redirects]]
+  from = "/blog/page/:n/"
+  to = "/.netlify/functions/blog-index?page=:n"
+  status = 200
+
+[[redirects]]
+  from = "/blog/page/:n"
+  to = "/.netlify/functions/blog-index?page=:n"
+  status = 200
+
+[[redirects]]
+  from = "/blog/"
+  to = "/.netlify/functions/blog-index"
+  status = 200
+
+[[redirects]]
+  from = "/blog"
+  to = "/.netlify/functions/blog-index"
+  status = 200
+
+# Individual posts -- /blog/:slug/ is the canonical form used everywhere on
+# the site; the no-trailing-slash rule below just covers stray links/typing.
+[[redirects]]
+  from = "/blog/:slug/"
+  to = "/.netlify/functions/blog-post?slug=:slug"
+  status = 200
+
+[[redirects]]
+  from = "/blog/:slug"
+  to = "/.netlify/functions/blog-post?slug=:slug"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
