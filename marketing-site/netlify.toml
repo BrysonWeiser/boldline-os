@@ -42,7 +42,8 @@
   to = "/.netlify/functions/blog-post?slug=:slug"
   status = 200
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# No catch-all on purpose: real files (index.html, privacy.html, terms.html) are
+# served directly, blog routes are handled above, and any other path falls through
+# to Netlify's 404 — which serves our branded /404.html with a true 404 status.
+# (A previous "/* -> /index.html 200" rule caused soft-404s: unknown URLs returned
+# the homepage as if it existed, which hurts SEO.)

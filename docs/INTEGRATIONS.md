@@ -579,6 +579,22 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     their base rules, so the showcase wasn't stacking and the sticky bar stayed hidden) by
     moving them into a media block after the base rules. **Not testable in this sandbox:**
     real Netlify Forms capture only activates on the live deploy (TODO #9).
+- **v3.1 update (2026-06-29): legal pages + real 404 (launch-readiness).** Before pointing
+  ads at the site, added the pieces a site with a lead form + paid traffic needs:
+  - **`privacy.html` + `terms.html`** — styled to match (reuse `blog/blog.css`, same
+    floating nav + footer), with honest content describing the *actual* data flow (form
+    submissions, Calendly, Netlify/Supabase, no data selling, the ad-account-ownership
+    rule) and a clear "this is a template, not legal advice — get it reviewed" note.
+    Linked from every footer.
+  - **Footer links** — added **Privacy / Terms** to the homepage footer and the blog
+    `footerHTML()` (so both stay in sync).
+  - **Branded `404.html` + soft-404 fix** — `marketing-site/netlify.toml` had a
+    `/* → /index.html 200` catch-all that made *every* unknown URL return the homepage
+    with HTTP 200 (a soft-404 that hurts SEO). Removed it so unmatched paths fall through
+    to Netlify's 404, which now serves a branded `404.html` with a true 404 status.
+    (Gotcha fixed in the 404 page: `.article-body a` is gold, which made a `.btn`'s text
+    gold-on-gold/invisible — forced the filled button's text color.)
+  - Verified all three pages render at desktop + mobile, no overflow, no JS errors.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
