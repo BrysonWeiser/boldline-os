@@ -59,3 +59,6 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-06-29 | `e071d85` | `rollback/20260629-003813` | Marketing site: privacy + terms + branded 404 pages, footer legal links, soft-404 fix (removed catch-all rewrite). |
 | 2026-06-29 | `dcf2828` | `rollback/20260629-022514` | Blog 404 fix attempt #1: moved blog.css out of /blog/ and added force=true to blog redirects (routed to the function but didn't fully fix it). |
 | 2026-06-29 | `f709686` | `rollback/20260629T224622Z` | Blog 404 real fix: read slug from /blog/&lt;slug&gt;/ and page from /blog/page/&lt;n&gt;/ in the path — Netlify new-format functions don't receive the redirect's `?slug=`/`?page=` query. |
+| 2026-06-29 | `65fcc2b` | `rollback/20260629T224744Z` | Docs only: logged the blog-fix rollback points in this file. |
+| 2026-06-29 | `f7d1713` | `rollback/20260629T224957Z` | Docs only: corrected the blog-404 root-cause writeup in INTEGRATIONS.md. |
+| 2026-06-29 | `5d1ac42` | `rollback/20260629T233952Z` | Marketing site: plain-English jargon popovers on package terms + inclusive wording (niches as examples, equal-effort promise). |
