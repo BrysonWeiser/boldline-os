@@ -7,28 +7,33 @@
   to = "/.netlify/functions/sitemap"
   status = 200
 
-# Pagination (/blog/page/2/, /blog/page/3/, ...) -- listed before the bare
-# /blog/:slug rule below, and duplicated with/without a trailing slash since
-# both forms get typed/linked in the wild.
+# Blog routes. force=true so these dynamic redirects always win, even though
+# blog.css lives at the site root (/blog.css) — we keep NO real files under
+# /blog/ so the placeholder routes below aren't shadowed by a real directory.
+# Pagination first (/blog/page/2/, ...), with/without trailing slash.
 [[redirects]]
   from = "/blog/page/:n/"
   to = "/.netlify/functions/blog-index?page=:n"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/blog/page/:n"
   to = "/.netlify/functions/blog-index?page=:n"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/blog/"
   to = "/.netlify/functions/blog-index"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/blog"
   to = "/.netlify/functions/blog-index"
   status = 200
+  force = true
 
 # Individual posts -- /blog/:slug/ is the canonical form used everywhere on
 # the site; the no-trailing-slash rule below just covers stray links/typing.
@@ -36,11 +41,13 @@
   from = "/blog/:slug/"
   to = "/.netlify/functions/blog-post?slug=:slug"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/blog/:slug"
   to = "/.netlify/functions/blog-post?slug=:slug"
   status = 200
+  force = true
 
 # No catch-all on purpose: real files (index.html, privacy.html, terms.html) are
 # served directly, blog routes are handled above, and any other path falls through
