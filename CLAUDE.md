@@ -49,13 +49,16 @@ manager-level access. This governs all billing / ad-account / Stripe / Meta work
   permission" rule):** develop on `claude/zen-babbage-1wtcv3`; after each completed unit
   of work (committed + pushed), **automatically merge it into `main`** — `main` is what
   Netlify deploys to production. No need to ask first.
-- **Always save a rollback point before merging.** Before every merge: tag the current
-  `main` HEAD `prod-pre-merge-<UTCtimestamp>` and push the tag, then `git merge --no-ff`
-  the branch into `main` and push. The previous production state is therefore always
-  recoverable. **Report the rollback tag after each merge.** Mechanism + how to roll
-  back (git tag *or* Netlify's one-click deploy history) is documented in
-  `docs/DEPLOYS.md`. Keep working on the same branch after merging (it stays ahead of
-  main again for the next unit of work).
+- **Always save a rollback point before merging.** This remote (the Claude-Code git
+  proxy) **blocks tag pushes and branch deletions**, so the restore point is a **pushed
+  branch**, not a tag: before every merge, create `rollback/<UTCtimestamp>` at the
+  current `main` HEAD and push it, then `git merge --no-ff` the dev branch into `main`
+  and push. These `rollback/*` branches accumulate on purpose — each is a saved
+  pre-deploy snapshot (exactly what Bryson asked for). **After each merge, report the
+  rollback branch + pre-merge SHA, and log that SHA in `docs/DEPLOYS.md`.** Rollback
+  paths (Netlify one-click deploy history, or `git revert -m 1 <merge>` / reset to the
+  `rollback/*` branch) live in `docs/DEPLOYS.md`. Keep working on the same dev branch
+  after merging (it goes ahead of `main` again for the next unit of work).
 - `git push -u origin <branch>`; retry 4× exponential backoff (2s/4s/8s/16s) only
   on network errors.
 - Never open a PR unless explicitly asked. Never use `--no-verify` or bypass hooks.

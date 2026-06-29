@@ -6,47 +6,53 @@ How production deploys and rollbacks work for BoldLine OS.
 - Production = the **`main`** branch. Netlify auto-builds and deploys whenever `main`
   changes.
 - All work happens on `claude/zen-babbage-1wtcv3`, then gets **auto-merged into `main`**
-  after each completed unit of work (per Bryson's standing instruction, 2026-06-29).
+  after each completed unit of work (Bryson's standing instruction, 2026-06-29).
 
 ## The safety net (so we can always roll back)
-Two independent ways to get back to the last working version:
+Three independent ways back to the last working version:
 
-**1. Pre-merge git tags.** Right before every merge, the current production state of
-`main` is tagged `prod-pre-merge-<UTC timestamp>` and pushed. Each tag is a frozen,
-named snapshot of production *before* that merge — i.e., a guaranteed restore point.
-- List every restore point, newest last:
-  ```
-  git tag -l 'prod-pre-merge-*'
-  ```
+1. **Netlify deploy history** — Netlify keeps every past deploy and can re-publish any
+   of them instantly, no code changes. This is the fastest path.
+2. **`rollback/<timestamp>` branches** — right before every merge, the current production
+   state of `main` is saved to a branch named `rollback/<UTC timestamp>` and pushed.
+   Each is a frozen snapshot of production *before* that merge. They accumulate on
+   purpose (each = one saved restore point).
+   - List them, newest last: `git branch -r --list 'origin/rollback/*'`
+3. **The merge commit's first parent** — every deploy merge is a `--no-ff` merge commit,
+   so its first parent is always the exact pre-merge state, recoverable via `revert`.
 
-**2. Netlify deploy history.** Netlify keeps every past deploy and can re-publish any of
-them instantly, with no code changes.
+> Note: this git remote **blocks tag pushes and branch deletions**, so restore points
+> are pushed *branches* (not tags), and old `rollback/*` branches can't be deleted —
+> that's fine, we want them kept. (A leftover `zz-rollback-test` branch from setup is
+> harmless and can't be removed.)
 
 ## How to roll back
 
 ### Fastest (no code) — Netlify
-1. Open the site in the Netlify dashboard → **Deploys**.
-2. Find the last deploy that worked (each row shows the commit + time).
-3. Click it → **Publish deploy**. Production reverts to that build immediately.
+1. Netlify dashboard → the site → **Deploys**.
+2. Find the last deploy that worked (each row shows commit + time).
+3. Click it → **Publish deploy**. Production reverts immediately.
 
-### Code-level — git revert (preferred for a clean history)
-Undo the most recent merge and let Netlify redeploy the previous code:
+### Code-level — git revert (clean, preferred)
+Back out the most recent deploy merge and let Netlify redeploy the prior code:
 ```
 git checkout main && git pull origin main
 git revert -m 1 <merge-commit-sha>     # the "Merge … into main (deploy)" commit
 git push origin main
 ```
-(`-m 1` keeps `main`'s side and backs out everything the merge introduced.)
 
-### Or restore to a specific saved point
+### Restore to a specific saved branch
 ```
 git checkout main && git pull origin main
-git reset --hard prod-pre-merge-<timestamp>
+git reset --hard origin/rollback/<timestamp>
 git push --force-with-lease origin main
 ```
-Use this only if a plain revert isn't enough; force-push rewrites `main`, so prefer the
-revert or the Netlify route when possible.
+Prefer the revert or Netlify route; force-push rewrites `main`.
 
-## Log
-Restore points are the `prod-pre-merge-*` tags (listable with the command above). The
-most recent tag is always the state to roll back to if the latest deploy misbehaves.
+## Log of restore points
+Each row = the production state saved *before* that merge (the rollback target).
+
+| Date (UTC) | Pre-merge SHA | Rollback branch | What the merge shipped |
+|---|---|---|---|
+| 2026-06-29 | `3c96043` | `rollback/20260629-000411` | First auto-merge: full session — marketing-site rebuild + blog automation, OS live-alert toasts, portal upgrade-CTA + confirmation, the auto-merge/rollback workflow itself. |
+| 2026-06-29 | `048b491` | `rollback/20260629-DOCS` | Doc fix: switch rollback mechanism from tags → branches (tags can't push to this remote). |
