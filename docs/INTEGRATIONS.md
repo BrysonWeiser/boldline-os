@@ -738,11 +738,15 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     to theboldlinemedia@gmail.com (already public in the site's mailto links, so no
     secret-scan issue). Fails soft (logs + returns 200) if env vars are missing. Verified
     by rendering the generated HTML headless.
-    - **Pending on Bryson:** (1) add `RESEND_API_KEY` and `REPORTS_FROM_EMAIL` to the
-      *marketing* Netlify site's env vars (copy the same values from the OS site), then
-      redeploy; (2) once a test submission confirms the branded email lands, delete the
-      plain Netlify "Form submission notification" set up earlier so there's one email
-      per lead, not two.
+    - **Update (2026-06-30):** simplified so only **`RESEND_API_KEY`** is needed on the
+      marketing site. `REPORTS_FROM_EMAIL` is now optional — if unset, the function falls
+      back to `BoldLine Media <onboarding@resend.dev>`, which Resend delivers to the
+      account owner's own email (theboldlinemedia@gmail.com). (Netlify hides secret env
+      values once saved, so Bryson creates a fresh Resend key rather than copying the OS's.)
+    - **Pending on Bryson:** (1) create a Resend API key (resend.com → API Keys) and add it
+      as `RESEND_API_KEY` on the *marketing* Netlify site, then redeploy; (2) once a test
+      submission confirms the branded email lands, delete the plain Netlify "Form submission
+      notification" so there's one email per lead, not two.
 - **v3.6 update (2026-06-30): website leads now flow into a dedicated OS "Leads" section.**
   Bryson wanted all website leads in one place in the OS, not just email. Built end to end:
   - **New table `website_leads`** (`docs/sql/website-leads-schema.sql`): BoldLine's own
