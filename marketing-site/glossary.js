@@ -5,19 +5,19 @@
    driven by the G dictionary keyed off each .term's data-term. Styles: /glossary.css */
 (function(){
   var G = {
-    "landing-page":["Landing page","A single web page built for one job — turning an ad click into a call, form, or sale. No menus or distractions, just your offer and one clear next step."],
-    "optimization":["Optimization & reporting","Ongoing tuning of your ads — pausing what wastes money, doubling down on what works — plus a plain-English report so you always know what your spend is getting you."],
-    "custom-design":["Fully custom design","A landing page designed from scratch around your business and offer instead of a generic template — so it looks like you and converts better."],
-    "call-tracking":["Call tracking","A dedicated phone number that forwards straight to your real line, so we can see exactly which ads make your phone ring — and stop paying for the ones that don't."],
-    "attribution":["Attribution","Tying each lead or sale back to the exact ad that created it, so decisions are based on what's actually working — not guesswork."],
-    "retargeting":["Retargeting","Showing ads again to people who already visited your site but didn't act yet — a low-cost nudge that brings warm prospects back to finish."],
-    "audience-building":["Audience building","Defining exactly who sees your ads — by location, interests, and behavior — so your budget reaches likely customers instead of everyone."],
-    "crm-integration":["CRM integration","CRM = Customer Relationship Management, the software that stores your leads and customers. Connecting your ads to it means every new inquiry lands in one organized place ready for follow-up, so nothing slips through the cracks."],
-    "split-testing":["Split testing (A/B testing)","Running two versions of an ad or page against each other, keeping the winner, and repeating — steady, measured improvement instead of guessing."],
-    "multi-campaign":["Multi-campaign structure","Splitting your advertising into several focused campaigns — by service, location, or goal — so each can be controlled and improved on its own for better results."],
-    "roas":["ROAS — return on ad spend","How many dollars you earn for every dollar spent on ads. A ROAS of 4 means $4 back for every $1 in — the simplest gauge of whether ads are paying off."],
-    "google-ads":["Google Ads","Ads that appear when someone searches Google for what you offer, putting you in front of people actively looking to buy right now."],
-    "meta-ads":["Meta Ads","Ads on Facebook and Instagram that reach the right people by interest, location, and behavior — great for creating demand, not just capturing it."]
+    "landing-page":["Landing page","A single web page built for one job: turning an ad click into a call, form, or sale. No menus or distractions, just your offer and one clear next step."],
+    "optimization":["Optimization & reporting","We keep tuning your ads, cutting what wastes money and putting more behind what works, then send a plain-English report so you always know what your spend is getting you."],
+    "custom-design":["Fully custom design","A landing page designed from scratch around your business and your offer, not a generic template. It looks like you, and it converts better."],
+    "call-tracking":["Call tracking","A dedicated phone number that forwards straight to your real line. It lets us see exactly which ads make your phone ring, so you stop paying for the ones that don't."],
+    "attribution":["Attribution","Tying each lead or sale back to the exact ad that created it, so decisions are based on what's actually working instead of guesswork."],
+    "retargeting":["Retargeting","Showing ads again to people who visited your site but didn't act yet. It's a low-cost nudge that brings warm prospects back to finish."],
+    "audience-building":["Audience building","Choosing exactly who sees your ads, by location, interests, and behavior, so your budget reaches likely customers instead of everyone."],
+    "crm-integration":["CRM integration","CRM stands for Customer Relationship Management, the software that stores your leads and customers. Connecting your ads to it means every new inquiry lands in one organized place ready for follow-up, so nothing slips through the cracks."],
+    "split-testing":["Split testing (A/B testing)","Running two versions of an ad or page against each other, keeping the winner, and repeating. Steady, measured improvement instead of guessing."],
+    "multi-campaign":["Multi-campaign structure","Splitting your advertising into several focused campaigns, by service, location, or goal, so each one can be controlled and improved on its own."],
+    "roas":["ROAS (return on ad spend)","How many dollars you earn for every dollar spent on ads. A ROAS of 4 means $4 back for every $1 in. It's the simplest gauge of whether ads are paying off."],
+    "google-ads":["Google Ads","Ads that show up when someone searches Google for what you offer, putting you in front of people who are looking to buy right now."],
+    "meta-ads":["Meta Ads","Ads on Facebook and Instagram that reach the right people by interest, location, and behavior. Great for creating demand, not just capturing it."]
   };
 
   /* ---- Auto-link known terms inside a blog article body ----

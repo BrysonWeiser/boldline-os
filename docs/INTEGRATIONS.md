@@ -678,6 +678,32 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   index.html is static, Netlify detects them at build and they'll appear under the
   **marketing site's** Forms tab after deploy. *Remaining: Bryson enables email
   notifications in the dashboard (steps below) — no code change needed.*
+- **v3.3 update (2026-06-30): de-AI'd the copy + killed em-dashes (outside feedback).**
+  A reviewer with web-design background flagged two AI tells: em-dashes (—) and the
+  generally "AI-sounding" voice, both of which lower trust. Fixes:
+  - **Homepage (`index.html`):** removed all 60+ em-dashes and reworded the flagged
+    copy to sound like one person talking, not a model. Killed the "it's not X, it's Y"
+    hero construction, trimmed rule-of-three triads, cut repeated "honestly/actually,"
+    softened the founder quote, and rewrote the SEO `<title>` + meta/OG/Twitter
+    descriptions + JSON-LD (Organization + FAQ) to match. 0 em-dashes left in visible copy.
+  - **Glossary (`glossary.js`):** all 13 definitions rewritten dash-free and plainer.
+  - **Blog chrome:** de-dashed the blog index hero (dropped the "no fluff" tell), post
+    CTA, page `<title>`s (now use "|" not "—"), and meta descriptions in
+    `blog-render.mjs` / `blog-index.mjs` / `blog-post.mjs`.
+  - **Legal:** `privacy.html` / `terms.html` / `404.html` de-dashed.
+  - **Future AI posts (`netlify/lib/blog-shared.mjs`):** added an explicit WRITING
+    STYLE block to the generation system prompt (never use em-dashes; vary sentence
+    length; avoid the listed AI tics) **plus a deterministic safety net** — a `deDash()`
+    that strips any "—" from the generated title/excerpt/meta/body before save. So both
+    the weekly auto-publish and the "Rewrite all" button now produce clean, human copy.
+  - **Existing 3 live posts:** the seed used `ON CONFLICT DO NOTHING`, so re-running it
+    won't update them. De-dashed the seed (`docs/sql/blog-schema.sql`) for repo
+    consistency and added **`docs/sql/dedash-posts.sql`** — a one-paste `UPDATE` (uses
+    `regexp_replace` with clean spacing) for Bryson to run once in Supabase to strip
+    em-dashes from the live rows. (Optional fuller refresh: click "Rewrite all" in the
+    OS Blog panel, which now uses the improved prompt.)
+  - Verified headless after the rewrite: homepage + blog popovers still pass, blog
+    re-rendered from the de-dashed seed, 0 visible em-dashes site-wide. Live-checked.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
