@@ -62,3 +62,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-06-29 | `65fcc2b` | `rollback/20260629T224744Z` | Docs only: logged the blog-fix rollback points in this file. |
 | 2026-06-29 | `f7d1713` | `rollback/20260629T224957Z` | Docs only: corrected the blog-404 root-cause writeup in INTEGRATIONS.md. |
 | 2026-06-29 | `5d1ac42` | `rollback/20260629T233952Z` | Marketing site: plain-English jargon popovers on package terms + inclusive wording (niches as examples, equal-effort promise). |
+| 2026-06-30 | `2a067dd` | `rollback/20260630T001347Z` | Glossary popovers refactored to shared /glossary.css + /glossary.js and extended to blog posts (runtime auto-linker). Netlify Forms wiring verified (no change). |
