@@ -4,8 +4,10 @@
 // HTML email to the BoldLine inbox (instead of Netlify's plain default).
 //
 // Sends via Resend, reusing the same env vars as the OS:
-//   RESEND_API_KEY      - Resend API key (secret; set in Netlify env, never in repo)
-//   REPORTS_FROM_EMAIL  - a verified Resend "from" address
+//   RESEND_API_KEY      - Resend API key (secret; set in Netlify env, never in repo). REQUIRED.
+//   REPORTS_FROM_EMAIL  - optional verified "from" address; falls back to Resend's
+//                         onboarding@resend.dev (which delivers to the Resend account's
+//                         own email, i.e. theboldlinemedia@gmail.com).
 // DB save uses SUPABASE_SERVICE_ROLE_KEY (already set for the blog functions),
 // which bypasses RLS. Both steps are best-effort: one failing never blocks the
 // other, and the submission is always still stored in Netlify's Forms tab.
@@ -58,7 +60,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL, to: [to], subject, html, text }),
+    body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL || "BoldLine Media <onboarding@resend.dev>", to: [to], subject, html, text }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 };
@@ -97,8 +99,8 @@ const buildHTML = ({ badge, heading, when, rowsHTML, replyHTML }) => `<!doctype 
 </html>`;
 
 const emailOwner = async (formName, data, createdAt) => {
-  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL) {
-    console.log("submission-created: email env vars not set, skipping branded email");
+  if (!process.env.RESEND_API_KEY) {
+    console.log("submission-created: RESEND_API_KEY not set, skipping branded email");
     return;
   }
   const isQuiz = formName === "recommendation";
