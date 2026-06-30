@@ -770,18 +770,18 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     `SUPABASE_SERVICE_ROLE_KEY`, so website leads now flow into the OS Leads tab.
     (The branded *email* still needs `RESEND_API_KEY` + `REPORTS_FROM_EMAIL` on the
     marketing site, per v3.5; the Leads tab itself does not need them.)
-- **TODO (Bryson's side, click-by-click owed before resubmitting):**
-  1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
-     "Add new site" → "Import an existing project" → pick the `boldline-os` repo
-     again (yes, the same repo as the OS) → in that new site's build settings, set
-     **Base directory** to `marketing-site`. Netlify will then read
-     `marketing-site/netlify.toml` for this site instead of the root one, so it serves
-     completely independently from the OS.
-  2. **Point `boldlinemedia.com` at the new site** — in that new Netlify site's
-     "Domain management," add `boldlinemedia.com` as a custom domain, then update the
-     domain's DNS at the registrar (wherever it's currently pointed for Wix) to
-     Netlify's nameservers/records (Netlify shows the exact records once the domain
-     is added). No registrar transfer needed, just a DNS change.
+- **✅ LAUNCHED 2026-06-30: `boldlinemedia.com` is LIVE on Netlify with HTTPS.** Wix keeps the
+  registration; DNS was repointed to Netlify via **records** (Wix doesn't allow nameserver
+  delegation for Wix-registered domains, so Netlify DNS couldn't be used): A `@` → `75.2.60.5`,
+  CNAME `www` → `boldline-media.netlify.app`. The Wix default A records (185.230.63.x) and the
+  `www`/`en` Wix CNAMEs were replaced; the unused Netlify DNS zone we'd started was deleted so
+  Netlify verifies against the records. Verified live: apex serves the marketing site over HTTPS
+  (Let's Encrypt cert auto-issued), `www` 301s → apex, `http` 301s → `https`. No email on the
+  domain, nothing to preserve. The 3 live blog posts were also de-em-dashed via
+  `docs/sql/dedash-posts.sql` (0 em-dashes live).
+- **TODO (Bryson's side):**
+  1. ~~Create a second Netlify site~~ — **DONE** (marketing site, base dir `marketing-site`, deploys from `main`).
+  2. ~~Point `boldlinemedia.com` at the site~~ — **DONE 2026-06-30** (see LAUNCHED note above).
   3. **Resubmit the Google Ads Basic Access application** once the new site is live
      at the domain — reference the live site URL, and per Google's own email, since
      the site is intentionally minimal it's worth adding a short note describing the
