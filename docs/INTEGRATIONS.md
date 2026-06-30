@@ -765,9 +765,11 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     Leads tab. Degrades gracefully if the table doesn't exist yet (empty state, no crash).
     Verified: OS JSX parses (3,610 lines), function logic unit-tested (no-env / email-only
     / bad-body all return 200), Leads UI rendered as a static preview.
-  - **Pending on Bryson:** run `docs/sql/website-leads-schema.sql` once in the Supabase
-    SQL Editor. (The marketing site already has `SUPABASE_SERVICE_ROLE_KEY`; the branded
-    email still needs `RESEND_API_KEY` + `REPORTS_FROM_EMAIL` as noted in v3.5.)
+  - **✅ DONE 2026-06-30:** Bryson ran `docs/sql/website-leads-schema.sql` in Supabase;
+    the `website_leads` table is live. The marketing site already has
+    `SUPABASE_SERVICE_ROLE_KEY`, so website leads now flow into the OS Leads tab.
+    (The branded *email* still needs `RESEND_API_KEY` + `REPORTS_FROM_EMAIL` on the
+    marketing site, per v3.5; the Leads tab itself does not need them.)
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
