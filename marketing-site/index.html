@@ -337,28 +337,11 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .mobile-cta a{flex:1;text-align:center;padding:14px;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:10px;background:var(--gold);color:#15110A;text-decoration:none}
 }
 
-/* ---- Glossary term explainers (plain-English popovers) ---- */
-.term{color:var(--gold);border-bottom:1px dotted var(--gold-line);cursor:help}
-.term:focus-visible{outline:2px solid var(--gold-line);outline-offset:2px;border-radius:2px}
-.glossary-pop{position:absolute;z-index:120;max-width:300px;background:#0F121A;border:1px solid var(--gold-line);border-radius:12px;padding:14px 16px;box-shadow:0 18px 50px -16px rgba(0,0,0,.85);opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
-.glossary-pop.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
-.glossary-pop .gp-term{display:block;font-weight:700;color:var(--gold);font-size:12.5px;letter-spacing:.02em;margin-bottom:5px}
-.glossary-pop .gp-def{display:block;font-size:13px;color:var(--ink);line-height:1.55}
-.glossary-pop .gp-close{display:none}
-.glossary-backdrop{position:fixed;inset:0;z-index:110;background:rgba(5,6,10,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s ease}
-.glossary-backdrop.show{opacity:1;pointer-events:auto}
-@media(max-width:640px){
-  .glossary-pop{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);width:calc(100vw - 48px);max-width:360px;padding:20px}
-  .glossary-pop.show{transform:translate(-50%,-50%) scale(1)}
-  .glossary-pop .gp-term{font-size:15px;margin-bottom:8px}
-  .glossary-pop .gp-def{font-size:14.5px}
-  .glossary-pop .gp-close{display:block;position:absolute;top:6px;right:10px;background:none;border:none;color:var(--faint);font-size:24px;line-height:1;cursor:pointer;padding:4px}
-}
-
 /* Equal-effort promise under the packages */
 .equal-effort{max-width:660px;margin:36px auto 0;text-align:center;font-size:14px;color:var(--muted);line-height:1.7}
 .equal-effort strong{display:block;color:var(--ink);font-weight:600;font-size:15.5px;margin-bottom:6px}
 </style>
+<link rel="stylesheet" href="/glossary.css">
 </head>
 <body>
 
@@ -1030,88 +1013,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 })();
 </script>
 
-<script>
-/* Glossary term explainers: hover (desktop) / tap (mobile) popovers that define
-   the jargon in the package lists in plain English. One reusable popover node,
-   driven by a small dictionary keyed off each .term's data-term. */
-(function(){
-  var G = {
-    "landing-page":["Landing page","A single web page built for one job — turning an ad click into a call, form, or sale. No menus or distractions, just your offer and one clear next step."],
-    "optimization":["Optimization & reporting","Ongoing tuning of your ads — pausing what wastes money, doubling down on what works — plus a plain-English report so you always know what your spend is getting you."],
-    "custom-design":["Fully custom design","A landing page designed from scratch around your business and offer instead of a generic template — so it looks like you and converts better."],
-    "call-tracking":["Call tracking","A dedicated phone number that forwards straight to your real line, so we can see exactly which ads make your phone ring — and stop paying for the ones that don't."],
-    "attribution":["Attribution","Tying each lead or sale back to the exact ad that created it, so decisions are based on what's actually working — not guesswork."],
-    "retargeting":["Retargeting","Showing ads again to people who already visited your site but didn't act yet — a low-cost nudge that brings warm prospects back to finish."],
-    "audience-building":["Audience building","Defining exactly who sees your ads — by location, interests, and behavior — so your budget reaches likely customers instead of everyone."],
-    "crm-integration":["CRM integration","Connecting your ads to the software that stores your leads and customers, so every new inquiry lands in one organized place ready for follow-up — nothing slips through the cracks."],
-    "split-testing":["Split testing","Running two versions of an ad or page against each other, keeping the winner, and repeating — steady, measured improvement instead of guessing."],
-    "multi-campaign":["Multi-campaign structure","Splitting your advertising into several focused campaigns — by service, location, or goal — so each can be controlled and improved on its own for better results."],
-    "roas":["ROAS — return on ad spend","How many dollars you earn for every dollar spent on ads. A ROAS of 4 means $4 back for every $1 in — the simplest gauge of whether ads are paying off."],
-    "google-ads":["Google Ads","Ads that appear when someone searches Google for what you offer, putting you in front of people actively looking to buy right now."],
-    "meta-ads":["Meta Ads","Ads on Facebook and Instagram that reach the right people by interest, location, and behavior — great for creating demand, not just capturing it."]
-  };
-  var mq = window.matchMedia("(max-width:640px)");
-  var pop=null, backdrop=null, current=null, hideTimer=null;
-  function build(){
-    pop=document.createElement("div"); pop.className="glossary-pop"; pop.setAttribute("role","dialog");
-    pop.innerHTML='<button class="gp-close" type="button" aria-label="Close">×</button><span class="gp-term"></span><span class="gp-def"></span>';
-    document.body.appendChild(pop);
-    backdrop=document.createElement("div"); backdrop.className="glossary-backdrop";
-    document.body.appendChild(backdrop);
-    pop.querySelector(".gp-close").addEventListener("click",hide);
-    backdrop.addEventListener("click",hide);
-    pop.addEventListener("mouseenter",cancelHide);
-    pop.addEventListener("mouseleave",scheduleHide);
-  }
-  function cancelHide(){ if(hideTimer){ clearTimeout(hideTimer); hideTimer=null; } }
-  function scheduleHide(){ cancelHide(); hideTimer=setTimeout(hide,180); }
-  function place(el){
-    if(mq.matches) return; // mobile: centered via CSS
-    var r=el.getBoundingClientRect();
-    var top=r.bottom+window.scrollY+8;
-    var w=pop.offsetWidth||300;
-    var left=r.left+window.scrollX;
-    var maxLeft=window.scrollX+document.documentElement.clientWidth-w-12;
-    if(left>maxLeft) left=maxLeft;
-    if(left<window.scrollX+12) left=window.scrollX+12;
-    pop.style.top=top+"px"; pop.style.left=left+"px";
-  }
-  function show(el){
-    var e=G[el.getAttribute("data-term")]; if(!e) return;
-    if(!pop) build();
-    cancelHide();
-    pop.querySelector(".gp-term").textContent=e[0];
-    pop.querySelector(".gp-def").textContent=e[1];
-    if(mq.matches){ pop.style.top=""; pop.style.left=""; }
-    place(el);
-    requestAnimationFrame(function(){ pop.classList.add("show"); if(mq.matches&&backdrop) backdrop.classList.add("show"); });
-    current=el;
-  }
-  function hide(){ cancelHide(); if(pop) pop.classList.remove("show"); if(backdrop) backdrop.classList.remove("show"); current=null; }
-
-  document.addEventListener("click",function(ev){
-    var t=ev.target.closest&&ev.target.closest(".term");
-    if(t){ ev.preventDefault(); (current===t)?hide():show(t); return; }
-    if(pop && !(ev.target.closest&&ev.target.closest(".glossary-pop"))) hide();
-  });
-  document.addEventListener("mouseover",function(ev){
-    if(mq.matches) return;
-    var t=ev.target.closest&&ev.target.closest(".term");
-    if(t) show(t);
-  });
-  document.addEventListener("mouseout",function(ev){
-    if(mq.matches) return;
-    var t=ev.target.closest&&ev.target.closest(".term");
-    if(t){ var to=ev.relatedTarget; if(!(to&&to.closest&&to.closest(".glossary-pop"))) scheduleHide(); }
-  });
-  document.addEventListener("keydown",function(ev){
-    if(ev.key==="Escape"){ hide(); return; }
-    var a=document.activeElement;
-    if((ev.key==="Enter"||ev.key===" ")&&a&&a.classList&&a.classList.contains("term")){ ev.preventDefault(); (current===a)?hide():show(a); }
-  });
-  window.addEventListener("scroll",function(){ if(current&&!mq.matches) hide(); },{passive:true});
-})();
-</script>
+<script src="/glossary.js" defer></script>
 
 </body>
 </html>

@@ -92,7 +92,9 @@ ${JSON.stringify(jsonLd)}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/blog.css">`;
+<link rel="stylesheet" href="/blog.css">
+<link rel="stylesheet" href="/glossary.css">
+<script src="/glossary.js" defer></script>`;
 
 export const notFoundPage = () => html(`<!DOCTYPE html>
 <html lang="en">
