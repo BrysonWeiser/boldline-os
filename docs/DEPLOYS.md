@@ -66,3 +66,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-06-30 | `44846e4` | `rollback/20260630T045451Z` | De-AI'd the copy: removed all em-dashes + reworded AI-sounding text site-wide (homepage, glossary, blog chrome, legal); updated blog-gen prompt + deterministic deDash safety net; added dedash-posts.sql for the live posts. |
 | 2026-06-30 | `5c34928` | `rollback/20260630T060411Z` | Visual upgrades: hero browser/landing-page mockup + floating chart/toast + grid depth, "Every Engagement" cards, illustrated scroll-drawn process timeline. Mobile kept light. |
 | 2026-06-30 | `33dc4e2` | `rollback/20260630T061426Z` | Hero copy tweak (Bryson wording) + branded form-notification email (submission-created.mjs via Resend). |
+| 2026-06-30 | `4d2c2eb` | `rollback/20260630T063103Z` | Website leads now flow into a dedicated OS Leads section: website_leads table, submission-created DB insert, OS Leads tab (filters, status, notes, realtime). |
