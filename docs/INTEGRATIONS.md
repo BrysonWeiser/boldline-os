@@ -704,6 +704,26 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     OS Blog panel, which now uses the improved prompt.)
   - Verified headless after the rewrite: homepage + blog popovers still pass, blog
     re-rendered from the de-dashed seed, 0 visible em-dashes site-wide. Live-checked.
+- **v3.4 update (2026-06-30): visual upgrades (Bryson: "don't want to just stare at words").**
+  Since there are no client photos or real result numbers yet (and we won't fake either),
+  went with polished UI mockups + motion + depth instead of stock photos. Bryson picked
+  three of four proposed upgrades (skipped the results-chart/logos one to avoid anything
+  that reads as invented numbers):
+  - **Hero product mockup + depth.** Added a browser-framed landing-page mockup under the
+    hero with a floating "Leads / month" mini bar chart (illustrative, no numbers) and a
+    "New lead just came in" toast, plus a faint background grid and the existing gold glow.
+    Subtle float animations; chart bars grow on load. (`.hero-stage`, `.browser`,
+    `.float-chart`, `.float-toast`, `.grid-bg` in index.html.)
+  - **Richer section styling.** "Every Engagement" items are now bordered cards with
+    gold icon tiles and hover-lift; added soft gold top-glows behind the Services and
+    Process sections for depth. (Package cards already had hover/popular accents.)
+  - **Visual process timeline.** Replaced the plain numbered list with an illustrated
+    vertical timeline: a gold rail that draws in on scroll, icon nodes per step (magnifier
+    / layers / send / sliders / trending-up), staggered fade-in. Scroll-triggered via a
+    small IntersectionObserver (`.timeline.in`); respects `prefers-reduced-motion`.
+  - Mobile kept deliberately light (Bryson dislikes mobile clutter): the browser mockup
+    flattens to one column, floating chart/toast are hidden, timeline compacts. Verified
+    headless desktop + mobile: no horizontal overflow, no console errors, 0 em-dashes.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
