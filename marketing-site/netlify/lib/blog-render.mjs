@@ -66,7 +66,7 @@ export const footerHTML = () => `<footer>
 // since future AI-written posts can't get a hand-tuned line each time).
 export const postCtaHTML = () => `<div class="post-cta reveal">
   <h3>Want a second opinion?</h3>
-  <p>Book a quick call — we'll look at what you have and tell you honestly what's working.</p>
+  <p>Book a quick call and we'll look at what you have and give you an honest read on what's working.</p>
   <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
 </div>`;
 
@@ -100,7 +100,7 @@ export const notFoundPage = () => html(`<!DOCTYPE html>
 <html lang="en">
 <head>
 ${headTags({
-  title: "Page Not Found — BoldLine Media",
+  title: "Page Not Found | BoldLine Media",
   description: "This page doesn't exist.",
   canonical: `${SITE_URL}/blog/`,
 })}

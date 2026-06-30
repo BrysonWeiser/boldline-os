@@ -127,6 +127,13 @@ ${BLOG_FACTS}
 ${topicInstruction}
 ${avoidInstruction}
 
+WRITING STYLE (this is how NOT to sound like AI — follow it closely):
+- Never use em-dashes (the "—" character). Use a period, comma, or parentheses instead. This is the single biggest tell that writing is AI-generated.
+- Vary your sentence length. Mix short, blunt sentences with longer ones. Avoid the steady, evenly-balanced rhythm AI defaults to.
+- Avoid these tics: "It's not X, it's Y" setups, rule-of-three triads, "here's the thing," "the truth is," "no fluff," "let's dive in," "in today's world," "when it comes to," and constant hedging.
+- Go easy on "actually," "simply," "just," "truly," "seamless," "robust," "leverage," "elevate," "unlock."
+- Write like one experienced person talking to a business owner across the table: plain, direct, a little blunt. Use contractions. It's fine to start a sentence with "And" or "But," and fine to have an opinion.
+
 Call the blog_post tool with the finished post. Do not write any other text.`;
 
   const response = await anthropic.messages.create({
@@ -142,13 +149,16 @@ Call the blog_post tool with the finished post. Do not write any other text.`;
   if (!toolUse) throw new Error("No post generated");
 
   const post = toolUse.input;
+  // Safety net behind the style prompt: guarantee no em-dashes ever ship, even
+  // if the model slips. Replace "—" (with any surrounding spaces) with ", ".
+  const deDash = (s) => (typeof s === "string" ? s.replace(/\s*—\s*/g, ", ") : s);
   return {
     slug: uniqueSlug(slugify(post.title), existingSlugs),
-    title: clip(post.title, 150),
-    category: clip(post.category, 40),
-    excerpt: clip(post.excerpt, 240),
-    meta_description: clip(post.meta_description, 200),
-    body_html: postToHTML(post),
+    title: clip(deDash(post.title), 150),
+    category: clip(deDash(post.category), 40),
+    excerpt: clip(deDash(post.excerpt), 240),
+    meta_description: clip(deDash(post.meta_description), 200),
+    body_html: deDash(postToHTML(post)),
     read_minutes: Math.max(3, Math.min(12, Number(post.read_minutes) || 5)),
   };
 }

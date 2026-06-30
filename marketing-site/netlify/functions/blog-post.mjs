@@ -54,7 +54,7 @@ export default async (req) => {
 <html lang="en">
 <head>
 ${headTags({
-  title: `${post.title} — BoldLine Media`,
+  title: `${post.title} | BoldLine Media`,
   ogTitle: post.title,
   description: post.meta_description,
   canonical,

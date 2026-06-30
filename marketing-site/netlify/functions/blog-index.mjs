@@ -45,8 +45,8 @@ export default async (req) => {
   if (page > 1 && (!posts || posts.length === 0)) return notFoundPage();
 
   const canonical = page === 1 ? `${SITE_URL}/blog/` : `${SITE_URL}/blog/page/${page}/`;
-  const title = page === 1 ? "Blog — BoldLine Media" : `Blog — Page ${page} — BoldLine Media`;
-  const description = "Straight answers on Google Ads, Meta Ads, and landing pages for small and mid-size businesses — from the team that runs them day to day.";
+  const title = page === 1 ? "Blog | BoldLine Media" : `Blog | Page ${page} | BoldLine Media`;
+  const description = "Straight answers on Google Ads, Meta Ads, and landing pages for small and mid-size businesses, written by the team that runs them day to day.";
 
   const prevHref = page <= 1 ? null : page - 1 === 1 ? "/blog/" : `/blog/page/${page - 1}/`;
   const nextHref = page >= totalPages ? null : `/blog/page/${page + 1}/`;
@@ -80,7 +80,7 @@ ${headerHTML()}
   <div class="blog-hero-inner reveal">
     <div class="eyebrow">From BoldLine Media</div>
     <h1>Notes on running ads that actually work.</h1>
-    <p>No fluff, no recycled "10 tips" lists — just straight answers to the questions we hear most from business owners before they ever sign with us.</p>
+    <p>Plain answers to the questions we hear most from business owners before they sign with anyone, written by the people who actually run the campaigns.</p>
   </div>
 </div>
 
