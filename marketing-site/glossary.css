@@ -1,0 +1,19 @@
+/* Glossary term explainers (plain-English popovers) — shared by the homepage
+   (terms pre-wrapped in markup) and the blog (terms auto-linked by glossary.js).
+   The interaction logic lives in /glossary.js. */
+.term{color:var(--gold);border-bottom:1px dotted var(--gold-line);cursor:help}
+.term:focus-visible{outline:2px solid var(--gold-line);outline-offset:2px;border-radius:2px}
+.glossary-pop{position:absolute;z-index:120;max-width:300px;background:#0F121A;border:1px solid var(--gold-line);border-radius:12px;padding:14px 16px;box-shadow:0 18px 50px -16px rgba(0,0,0,.85);opacity:0;transform:translateY(6px) scale(.98);pointer-events:none;transition:opacity .16s ease,transform .16s ease}
+.glossary-pop.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.glossary-pop .gp-term{display:block;font-weight:700;color:var(--gold);font-size:12.5px;letter-spacing:.02em;margin-bottom:5px}
+.glossary-pop .gp-def{display:block;font-size:13px;color:var(--ink);line-height:1.55}
+.glossary-pop .gp-close{display:none}
+.glossary-backdrop{position:fixed;inset:0;z-index:110;background:rgba(5,6,10,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .2s ease}
+.glossary-backdrop.show{opacity:1;pointer-events:auto}
+@media(max-width:640px){
+  .glossary-pop{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);width:calc(100vw - 48px);max-width:360px;padding:20px}
+  .glossary-pop.show{transform:translate(-50%,-50%) scale(1)}
+  .glossary-pop .gp-term{font-size:15px;margin-bottom:8px}
+  .glossary-pop .gp-def{font-size:14.5px}
+  .glossary-pop .gp-close{display:block;position:absolute;top:6px;right:10px;background:none;border:none;color:var(--faint);font-size:24px;line-height:1;cursor:pointer;padding:4px}
+}

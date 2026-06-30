@@ -636,9 +636,7 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     retargeting, audience building, CRM integration, split testing, multi-campaign
     structure, ROAS, plus Google/Meta Ads). Keyboard-accessible (`tabindex`, Enter/Esc).
     Chose a lightweight popover over a full-screen takeover on purpose — less friction,
-    keeps the reader in place, converts better. *Not yet wired into blog posts* (their
-    bodies are AI-generated HTML in Supabase) — an easy follow-up via a text auto-linker
-    if we want it there too.
+    keeps the reader in place, converts better.
   - **Inclusive wording (so every business feels wanted, any package).** In the "Who
     We Work With" section: reworded the intro + the "not on the list" aside so the
     listed niches read as *examples of where we have the most reps*, not a closed
@@ -652,6 +650,34 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   - Verified headless (desktop + mobile, Playwright): term click/tap opens the right
     definition, stays in-viewport, Esc/backdrop closes, 6 niche tiles, equal-effort
     block present, no code errors. Live-checked after deploy.
+- **v3.2 update (2026-06-30): glossary popovers extended to the blog + shared files.**
+  - **Refactored to shared assets.** Pulled the glossary CSS and JS out of `index.html`'s
+    inline blocks into `marketing-site/glossary.css` + `marketing-site/glossary.js`
+    (one dictionary, one runtime, one stylesheet — no more drift between homepage and
+    blog). Homepage now loads them via `<link href="/glossary.css">` + `<script
+    src="/glossary.js" defer>`; its package terms stay pre-wrapped in markup. The
+    `.equal-effort` style stayed inline (homepage-only).
+  - **Blog posts now get the same popovers.** `glossary.js` includes an `autolink()`
+    that runs only on blog pages (anything with an `.article-body`): it walks the
+    article's text nodes and wraps the FIRST occurrence of each known term in a `.term`
+    span — skipping links, headings, code, and already-wrapped terms — so posts stay
+    readable and un-cluttered. Curated match list (landing page, retargeting/remarketing,
+    A/B & split testing, call tracking, attribution, ROAS, CRM, Google/Meta Ads,
+    audience building, optimization). Wired site-wide on the blog via `blog-render.mjs`
+    `headTags` (so index, posts, and 404 all pull the same two files; autolink no-ops
+    where there's no article body). No-JS readers still get clean prose (SEO-safe).
+  - Verified headless against a real rendered post (mocked-Supabase build harness):
+    autolink wrapped terms once each, none inside links/headings, click/tap opens the
+    right definition, Esc/backdrop closes, desktop + mobile. Homepage re-verified after
+    the refactor (popover still works from external files). Live-checked after deploy.
+- **✅ Netlify Forms wiring verified (2026-06-30).** Both marketing-site forms are
+  correctly set up for Netlify Forms capture: `contact` (the contact section) and
+  `recommendation` (the quiz email-capture) each have `data-netlify="true"`, a `name`,
+  the hidden `<input name="form-name">`, and a `bot-field` honeypot; they AJAX-POST to
+  `/` with the urlencoded `form-name` (Netlify's documented JS pattern). Because
+  index.html is static, Netlify detects them at build and they'll appear under the
+  **marketing site's** Forms tab after deploy. *Remaining: Bryson enables email
+  notifications in the dashboard (steps below) — no code change needed.*
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
