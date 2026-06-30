@@ -724,6 +724,25 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   - Mobile kept deliberately light (Bryson dislikes mobile clutter): the browser mockup
     flattens to one column, floating chart/toast are hidden, timeline compacts. Verified
     headless desktop + mobile: no horizontal overflow, no console errors, 0 em-dashes.
+- **v3.5 update (2026-06-30): hero copy tweak + branded lead-notification email.**
+  - **Hero copy (Bryson's wording):** opening line is now "It's not bad luck. It means
+    no one has built a system to bring work in." (dropped "Usually"), and "so your
+    business shows up steadily and predictably" (was "so new business shows up").
+  - **Branded form-notification email.** Added `marketing-site/netlify/functions/
+    submission-created.mjs`. Netlify automatically runs a function named exactly
+    `submission-created` on every verified form submission; this one sends an on-brand
+    HTML email (dark + gold, BoldLine wordmark, "New Website Lead" / "Quiz Lead" badge,
+    fields as a clean table, a gold "Reply to <name>" mailto button, AZ timestamp)
+    instead of Netlify's plain default. Sends via **Resend**, reusing the OS env vars
+    `RESEND_API_KEY` + `REPORTS_FROM_EMAIL` (referenced by name only). Recipient hardcoded
+    to theboldlinemedia@gmail.com (already public in the site's mailto links, so no
+    secret-scan issue). Fails soft (logs + returns 200) if env vars are missing. Verified
+    by rendering the generated HTML headless.
+    - **Pending on Bryson:** (1) add `RESEND_API_KEY` and `REPORTS_FROM_EMAIL` to the
+      *marketing* Netlify site's env vars (copy the same values from the OS site), then
+      redeploy; (2) once a test submission confirms the branded email lands, delete the
+      plain Netlify "Form submission notification" set up earlier so there's one email
+      per lead, not two.
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo
