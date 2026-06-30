@@ -743,6 +743,31 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
       redeploy; (2) once a test submission confirms the branded email lands, delete the
       plain Netlify "Form submission notification" set up earlier so there's one email
       per lead, not two.
+- **v3.6 update (2026-06-30): website leads now flow into a dedicated OS "Leads" section.**
+  Bryson wanted all website leads in one place in the OS, not just email. Built end to end:
+  - **New table `website_leads`** (`docs/sql/website-leads-schema.sql`): BoldLine's own
+    inbound leads from the marketing site (separate from per-client customer leads).
+    Columns: form, name, business, email, message, recommended, status (new/contacted/
+    won/lost/archived), notes, payload, created_at. RLS on, with policies for the
+    `authenticated` role (the OS logs in, reads/updates via the publishable key); the
+    marketing site inserts via the service-role key, which bypasses RLS. Added to the
+    `supabase_realtime` publication for instant updates.
+  - **Pipe-in:** `submission-created.mjs` now does two best-effort things per submission:
+    insert the lead into `website_leads` (uses the marketing site's existing
+    `SUPABASE_SERVICE_ROLE_KEY`) AND send the branded email. Either can fail without
+    blocking the other.
+  - **OS "Leads" section** (root `index.html`): new bottom-nav tab (envelope icon, green
+    badge = count of `new` leads), a `LeadsScreen` with filter chips (All/New/Contacted/
+    Won/Lost), and `LeadCard`s showing name/business, Contact-vs-Quiz badge, email
+    (mailto), message or recommended package, a status dropdown, a Reply button, a notes
+    field (saves on blur), and relative time. Live: a `leads-live` realtime channel +
+    20s poll + focus refetch, and a "New lead" toast (bottom-left) that deep-links to the
+    Leads tab. Degrades gracefully if the table doesn't exist yet (empty state, no crash).
+    Verified: OS JSX parses (3,610 lines), function logic unit-tested (no-env / email-only
+    / bad-body all return 200), Leads UI rendered as a static preview.
+  - **Pending on Bryson:** run `docs/sql/website-leads-schema.sql` once in the Supabase
+    SQL Editor. (The marketing site already has `SUPABASE_SERVICE_ROLE_KEY`; the branded
+    email still needs `RESEND_API_KEY` + `REPORTS_FROM_EMAIL` as noted in v3.5.)
 - **TODO (Bryson's side, click-by-click owed before resubmitting):**
   1. **Create a second Netlify site** from this same repo — in the Netlify dashboard,
      "Add new site" → "Import an existing project" → pick the `boldline-os` repo

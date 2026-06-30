@@ -3183,7 +3183,7 @@ const IconCheck = ({size=14,color}) => (
 );
 
 // ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
-function BottomNav({screen,onHome,onNotif,onARIA,notifCount}) {
+function BottomNav({screen,onHome,onLeads,onNotif,onARIA,notifCount,newLeadsCount}) {
   const navBg = "rgba(7,8,16,0.96)";
   const btnStyle = (active) => ({
     flex:1,height:"100%",background:"none",border:"none",cursor:"pointer",
@@ -3201,6 +3201,26 @@ function BottomNav({screen,onHome,onNotif,onARIA,notifCount}) {
         <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
           color:screen==="home"?"#C8A84B":C.textMuted}}>Home</span>
         {screen==="home"&&<span style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
+          width:24,height:2,borderRadius:2,backgroundColor:"#C8A84B"}}/>}
+      </button>
+
+      {/* Leads */}
+      <button onClick={onLeads} style={btnStyle(screen==="leads")}>
+        <div style={{position:"relative"}}>
+          <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={screen==="leads"?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>
+          {newLeadsCount>0&&(
+            <span style={{position:"absolute",top:-5,right:-7,minWidth:15,height:15,
+              borderRadius:8,backgroundColor:C.green,color:"#04110b",
+              fontSize:9,fontWeight:800,display:"flex",alignItems:"center",
+              justifyContent:"center",padding:"0 3px",lineHeight:1,
+              border:"1.5px solid rgba(7,8,16,0.9)"}}>
+              {newLeadsCount}
+            </span>
+          )}
+        </div>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+          color:screen==="leads"?"#C8A84B":C.textMuted}}>Leads</span>
+        {screen==="leads"&&<span style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
           width:24,height:2,borderRadius:2,backgroundColor:"#C8A84B"}}/>}
       </button>
 
@@ -3287,6 +3307,85 @@ function AuthGate() {
 }
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
+// ─── WEBSITE LEADS ─────────────────────────────────────────────────────────────
+// BoldLine's own inbound leads from boldlinemedia.com (contact form + quiz),
+// stored in the website_leads table by the marketing site's submission-created
+// function. Separate from per-client customer leads.
+const LEAD_STATUSES = ["new","contacted","won","lost","archived"];
+const leadStatusColor = (s) => s==="new"?C.gold:s==="contacted"?C.blue:s==="won"?C.green:s==="lost"?C.red:C.textMuted;
+function leadTimeAgo(iso){
+  const t = new Date(iso).getTime(); if(!t) return "";
+  const s = Math.floor((Date.now()-t)/1000);
+  if(s<60) return "just now";
+  const m=Math.floor(s/60); if(m<60) return m+"m ago";
+  const h=Math.floor(m/60); if(h<24) return h+"h ago";
+  const d=Math.floor(h/24); if(d<7) return d+"d ago";
+  return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric"});
+}
+
+function LeadCard({lead,onUpdate}){
+  const [notes,setNotes]=useState(lead.notes||"");
+  useEffect(()=>{ setNotes(lead.notes||""); },[lead.id]);
+  const isQuiz = lead.form==="recommendation";
+  const title = lead.name || lead.business || lead.email || "New lead";
+  return (
+    <div style={{...card,borderLeft:`3px solid ${leadStatusColor(lead.status)}`,display:"flex",flexDirection:"column",gap:10}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text}}>{title}</div>
+          {lead.name&&lead.business&&<div style={{fontSize:11.5,color:C.textDim}}>{lead.business}</div>}
+        </div>
+        <span style={{fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",whiteSpace:"nowrap",borderRadius:20,padding:"3px 9px",color:isQuiz?C.purple:C.gold,backgroundColor:isQuiz?"rgba(139,92,246,0.14)":C.goldDim}}>{isQuiz?"Quiz":"Contact"}</span>
+      </div>
+      {lead.email&&<a href={"mailto:"+lead.email} style={{fontSize:12.5,color:C.gold,textDecoration:"none",wordBreak:"break-all"}}>{lead.email}</a>}
+      {lead.recommended&&<div style={{fontSize:12,color:C.textDim}}>Recommended: <span style={{color:C.text}}>{lead.recommended}</span></div>}
+      {lead.message&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{lead.message}</div>}
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+        <select value={lead.status} onChange={e=>onUpdate({...lead,status:e.target.value})} style={{...inp,width:"auto",padding:"7px 10px",fontSize:11.5}}>
+          {LEAD_STATUSES.map(s=><option key={s} value={s}>{s[0].toUpperCase()+s.slice(1)}</option>)}
+        </select>
+        {lead.email&&<a href={"mailto:"+lead.email+"?subject="+encodeURIComponent("Re: your message to BoldLine Media")} style={{fontSize:11.5,fontWeight:700,color:"#0a0800",backgroundColor:C.gold,borderRadius:8,padding:"7px 14px",textDecoration:"none"}}>Reply</a>}
+        <span style={{fontSize:10.5,color:C.textMuted,marginLeft:"auto"}}>{leadTimeAgo(lead.created_at)}</span>
+      </div>
+      <input value={notes} onChange={e=>setNotes(e.target.value)} onBlur={()=>{ if(notes!==(lead.notes||"")) onUpdate({...lead,notes}); }} placeholder="Add a note…" style={{...inp,fontSize:12,padding:"8px 11px"}}/>
+    </div>
+  );
+}
+
+function LeadsScreen({leads,onUpdate,onRefresh}){
+  const [filter,setFilter]=useState("all");
+  const counts = LEAD_STATUSES.reduce((a,s)=>{a[s]=leads.filter(l=>l.status===s).length;return a;},{});
+  const shown = filter==="all"?leads:leads.filter(l=>l.status===filter);
+  const FILTERS = [["all","All"],["new","New"],["contacted","Contacted"],["won","Won"],["lost","Lost"]];
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"var(--pad)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+        <div style={{fontSize:20,fontWeight:800,color:C.text}}>Leads</div>
+        <div style={{fontSize:11.5,color:C.textDim}}>{leads.length} total{counts.new?` · ${counts.new} new`:""}</div>
+        <button onClick={onRefresh} style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer"}}>Refresh</button>
+      </div>
+      <div style={{fontSize:11.5,color:C.textMuted,marginBottom:14,lineHeight:1.6}}>Everyone who reaches out through boldlinemedia.com lands here automatically.</div>
+      <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
+        {FILTERS.map(([k,label])=>(
+          <button key={k} onClick={()=>setFilter(k)} style={{fontSize:11,fontWeight:700,padding:"6px 12px",borderRadius:20,cursor:"pointer",border:`1px solid ${filter===k?C.gold:C.border}`,backgroundColor:filter===k?C.goldDim:"transparent",color:filter===k?C.gold:C.textDim}}>
+            {label}{k!=="all"&&counts[k]?` ${counts[k]}`:""}
+          </button>
+        ))}
+      </div>
+      {shown.length===0?(
+        <div style={{textAlign:"center",padding:"56px 20px"}}>
+          <div style={{fontSize:32,marginBottom:10}}>📭</div>
+          <div style={{fontSize:13,color:C.textDim,lineHeight:1.6}}>{leads.length===0?"No leads yet. They'll show up here the moment someone submits a form on the website.":("No "+filter+" leads right now.")}</div>
+        </div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {shown.map(l=><LeadCard key={l.id} lead={l} onUpdate={onUpdate}/>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App({onLogout}) {
   const [clients,setClients]           = useState([]);
   const [dataState,setDataState]       = useState("loading"); // loading | ready | error
@@ -3295,6 +3394,7 @@ function App({onLogout}) {
   const [showARIA,setShowARIA]         = useState(false);
   const [showAdd,setShowAdd]           = useState(false);
   const [showNotif,setShowNotif]       = useState(false);
+  const [leads,setLeads]               = useState([]);
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
     if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions && c.googleAdsCustomerId!==undefined) return c;
@@ -3335,6 +3435,29 @@ function App({onLogout}) {
   }, []);
 
   useEffect(() => { loadClients(); }, [loadClients]);
+
+  // ── Website leads (boldlinemedia.com contact form + quiz) ──
+  const loadLeads = useCallback(async () => {
+    const { data, error } = await supabaseClient.from("website_leads").select("*").order("created_at", { ascending: false });
+    if (error) { console.error("Leads load failed:", error); return; }
+    setLeads(data || []);
+  }, []);
+  useEffect(() => { loadLeads(); }, [loadLeads]);
+  useEffect(() => {
+    const channel = supabaseClient.channel("leads-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "website_leads" }, () => loadLeads())
+      .subscribe();
+    const poll = setInterval(loadLeads, 20000);
+    const onVisible = () => { if (document.visibilityState === "visible") loadLeads(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", loadLeads);
+    return () => {
+      supabaseClient.removeChannel(channel);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", loadLeads);
+    };
+  }, [loadLeads]);
 
   // ── Live refresh ── keeps clients (and therefore the alert count) current
   // without a manual reload: Supabase realtime is instant; the poll + focus
@@ -3387,6 +3510,17 @@ function App({onLogout}) {
     fresh.slice(0, 4).forEach(pushToast);
   }, [clients, dataState, pushToast]);
 
+  // ── New-website-lead toasts ── seeds the "seen" set on first load so existing
+  // leads don't toast, then pops one the moment a new lead lands.
+  const seenLeadIds = useRef(null);
+  useEffect(() => {
+    const ids = new Set(leads.map(l => l.id));
+    if (seenLeadIds.current === null) { seenLeadIds.current = ids; return; }
+    const fresh = leads.filter(l => !seenLeadIds.current.has(l.id));
+    seenLeadIds.current = ids;
+    fresh.slice(0, 3).forEach(l => pushToast({ severity: "gold", label: "New lead", nav: "leads", client: "Website", msg: l.name || l.business || l.email || "New website lead" }));
+  }, [leads, pushToast]);
+
   const updateClient = useCallback((updated) => {
     setClients(prev=>prev.map(c=>c.id===updated.id?updated:c));
     if((activeClient && activeClient.id)===updated.id) setActiveClient(updated);
@@ -3401,6 +3535,12 @@ function App({onLogout}) {
       .then(({error})=>{ if(error) console.error("Delete failed:", error); });
   },[activeClient]);
 
+  const updateLead = useCallback((updated) => {
+    setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+    supabaseClient.from("website_leads").update({ status: updated.status, notes: updated.notes }).eq("id", updated.id)
+      .then(({ error }) => { if (error) console.error("Lead save failed:", error); });
+  }, []);
+
   const selectClient = (cl) => { setActiveClient(cl); setScreen("client"); };
   const addClient    = (cl) => {
     setClients(p=>[...p,cl]); setShowAdd(false); setActiveClient(cl); setScreen("client");
@@ -3412,6 +3552,7 @@ function App({onLogout}) {
     + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; }).length
     + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length
     + clients.reduce((s,c)=>s+(c.pendingActions||[]).length,0);
+  const newLeadsCount = leads.filter(l => l.status === "new").length;
 
   if (dataState==="loading") {
     return <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.textMuted,fontSize:13}}>Loading your dashboard…</div></div>;
@@ -3450,18 +3591,19 @@ function App({onLogout}) {
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:60}}>
         {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")}/>}
+        {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onRefresh={loadLeads}/>}
       </div>
-      <BottomNav screen={screen} onHome={()=>setScreen("home")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount}/>
+      <BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>
       {toasts.length>0&&(
         <div style={{position:"fixed",left:12,bottom:74,zIndex:300,display:"flex",flexDirection:"column",gap:8,width:"calc(100% - 24px)",maxWidth:300,pointerEvents:"none"}}>
           {toasts.map(t=>{
             const col = t.severity==="red"?C.red:t.severity==="blue"?C.blue:(t.severity==="yellow"||t.severity==="amber")?C.amber:C.gold;
             return (
-              <div key={t.id} onClick={()=>{ setShowNotif(true); setToasts(p=>p.filter(x=>x.id!==t.id)); }}
+              <div key={t.id} onClick={()=>{ if(t.nav==="leads") setScreen("leads"); else setShowNotif(true); setToasts(p=>p.filter(x=>x.id!==t.id)); }}
                 style={{pointerEvents:"auto",cursor:"pointer",backgroundColor:C.bg3,border:`1px solid ${C.border}`,borderLeft:`3px solid ${col}`,borderRadius:10,padding:"10px 12px",boxShadow:"0 12px 32px -12px rgba(0,0,0,0.7)",animation:"toastIn .25s ease both"}}>
                 <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
                   <span style={{width:7,height:7,borderRadius:"50%",backgroundColor:col,flexShrink:0}}/>
-                  <span style={{fontSize:10,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:col}}>New alert</span>
+                  <span style={{fontSize:10,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:col}}>{t.label||"New alert"}</span>
                   <span style={{fontSize:10,color:C.textMuted,marginLeft:"auto",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:120}}>{t.client}</span>
                 </div>
                 <div style={{fontSize:12,color:C.text,lineHeight:1.4}}>{t.msg}</div>

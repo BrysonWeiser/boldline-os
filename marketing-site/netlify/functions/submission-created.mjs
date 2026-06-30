@@ -1,12 +1,18 @@
 // Netlify automatically calls a function named "submission-created" whenever a
-// verified form submission comes in. We use it to send a branded, on-brand HTML
-// email to the BoldLine inbox (instead of Netlify's plain default notification).
+// verified form submission comes in. We use it to (1) save the lead into the OS
+// database so it shows up in the OS "Leads" section, and (2) send an on-brand
+// HTML email to the BoldLine inbox (instead of Netlify's plain default).
 //
 // Sends via Resend, reusing the same env vars as the OS:
 //   RESEND_API_KEY      - Resend API key (secret; set in Netlify env, never in repo)
 //   REPORTS_FROM_EMAIL  - a verified Resend "from" address
-// The recipient is hardcoded (it's already public in the site's mailto links).
+// DB save uses SUPABASE_SERVICE_ROLE_KEY (already set for the blog functions),
+// which bypasses RLS. Both steps are best-effort: one failing never blocks the
+// other, and the submission is always still stored in Netlify's Forms tab.
 
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 const OWNER_EMAIL = "theboldlinemedia@gmail.com";
 const GOLD = "#C8A84B";
 
@@ -25,8 +31,25 @@ const LABELS = {
 const prettyLabel = (k) =>
   LABELS[k] || k.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-// Fields we never show in the email.
+// Fields we never show in the email / store as columns.
 const HIDDEN = new Set(["form-name", "bot-field"]);
+
+const clean = (v) => (v == null ? null : (String(v).trim() || null));
+
+const saveLead = async (formName, data) => {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { error } = await supabase.from("website_leads").insert({
+    form: formName,
+    name: clean(data.name),
+    business: clean(data.business),
+    email: clean(data.email),
+    message: clean(data.message),
+    recommended: clean(data.recommended),
+    payload: data,
+  });
+  if (error) throw error;
+};
 
 const sendEmail = async ({ to, subject, html, text }) => {
   const res = await fetch("https://api.resend.com/emails", {
@@ -65,7 +88,7 @@ const buildHTML = ({ badge, heading, when, rowsHTML, replyHTML }) => `<!doctype 
         </td></tr>
         ${replyHTML ? `<tr><td style="padding:20px 28px 30px;">${replyHTML}</td></tr>` : `<tr><td style="height:14px;"></td></tr>`}
         <tr><td style="padding:18px 28px;border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.015);">
-          <p style="margin:0;color:#6B7280;font-size:11px;line-height:1.6;">This lead came in through boldlinemedia.com. Replying within a few minutes gives you the best shot at winning the job.</p>
+          <p style="margin:0;color:#6B7280;font-size:11px;line-height:1.6;">This lead came in through boldlinemedia.com and is now in your OS Leads section. Replying within a few minutes gives you the best shot at winning the job.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -73,64 +96,69 @@ const buildHTML = ({ badge, heading, when, rowsHTML, replyHTML }) => `<!doctype 
 </body>
 </html>`;
 
-export const handler = async (event) => {
-  try {
-    if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL) {
-      console.log("submission-created: email env vars not set, skipping branded email");
-      return { statusCode: 200, body: "skipped (no email config)" };
-    }
-
-    const payload = (JSON.parse(event.body || "{}")).payload || {};
-    const data = payload.data || {};
-    const formName = payload.form_name || "form";
-
-    const isQuiz = formName === "recommendation";
-    const badge = isQuiz ? "Quiz Lead" : "New Website Lead";
-    const heading = isQuiz ? "Someone used the package finder." : "Someone wants to talk.";
-
-    const when = (() => {
-      try {
-        return new Date(payload.created_at || Date.now()).toLocaleString("en-US", {
-          timeZone: "America/Phoenix", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
-        }) + " (AZ)";
-      } catch { return "just now"; }
-    })();
-
-    // Build field rows: known order first, then any extras. Skip hidden + empty.
-    const order = ["name", "business", "email", "recommended", "message"];
-    const keys = [...new Set([...order, ...Object.keys(data)])]
-      .filter((k) => !HIDDEN.has(k) && data[k] != null && String(data[k]).trim() !== "");
-
-    const email = (data.email || "").trim();
-    const rowsHTML = keys.map((k) => {
-      const v = String(data[k]).trim();
-      const valueHTML = k === "email"
-        ? `<a href="mailto:${esc(v)}" style="color:${GOLD};text-decoration:none;">${esc(v)}</a>`
-        : esc(v).replace(/\n/g, "<br>");
-      return fieldRow(prettyLabel(k), valueHTML);
-    }).join("");
-
-    const replyHTML = email
-      ? `<a href="mailto:${esc(email)}?subject=${encodeURIComponent("Re: your message to BoldLine Media")}" style="display:inline-block;background:${GOLD};color:#15110A;font-weight:bold;font-size:14px;text-decoration:none;padding:13px 26px;border-radius:10px;">Reply to ${esc(data.name || "this lead")}</a>`
-      : "";
-
-    const textLines = keys.map((k) => `${prettyLabel(k)}: ${String(data[k]).trim()}`);
-    const text = `${heading}\nSubmitted ${when}\n\n${textLines.join("\n")}`;
-
-    await sendEmail({
-      to: OWNER_EMAIL,
-      subject: isQuiz
-        ? `New quiz lead${data.recommended ? `: ${data.recommended}` : ""}`
-        : `New website lead: ${data.name || data.business || data.email || "someone"}`,
-      html: buildHTML({ badge, heading, when, rowsHTML, replyHTML }),
-      text,
-    });
-
-    return { statusCode: 200, body: "sent" };
-  } catch (err) {
-    // Never hard-fail: the submission is already stored and Netlify's own
-    // notification (if any) still fires. Just log so it's visible in function logs.
-    console.error("submission-created email failed:", err && err.message);
-    return { statusCode: 200, body: "error logged" };
+const emailOwner = async (formName, data, createdAt) => {
+  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL) {
+    console.log("submission-created: email env vars not set, skipping branded email");
+    return;
   }
+  const isQuiz = formName === "recommendation";
+  const badge = isQuiz ? "Quiz Lead" : "New Website Lead";
+  const heading = isQuiz ? "Someone used the package finder." : "Someone wants to talk.";
+
+  let when;
+  try {
+    when = new Date(createdAt || Date.now()).toLocaleString("en-US", {
+      timeZone: "America/Phoenix", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+    }) + " (AZ)";
+  } catch { when = "just now"; }
+
+  const order = ["name", "business", "email", "recommended", "message"];
+  const keys = [...new Set([...order, ...Object.keys(data)])]
+    .filter((k) => !HIDDEN.has(k) && data[k] != null && String(data[k]).trim() !== "");
+
+  const email = (data.email || "").trim();
+  const rowsHTML = keys.map((k) => {
+    const v = String(data[k]).trim();
+    const valueHTML = k === "email"
+      ? `<a href="mailto:${esc(v)}" style="color:${GOLD};text-decoration:none;">${esc(v)}</a>`
+      : esc(v).replace(/\n/g, "<br>");
+    return fieldRow(prettyLabel(k), valueHTML);
+  }).join("");
+
+  const replyHTML = email
+    ? `<a href="mailto:${esc(email)}?subject=${encodeURIComponent("Re: your message to BoldLine Media")}" style="display:inline-block;background:${GOLD};color:#15110A;font-weight:bold;font-size:14px;text-decoration:none;padding:13px 26px;border-radius:10px;">Reply to ${esc(data.name || "this lead")}</a>`
+    : "";
+
+  const text = `${heading}\nSubmitted ${when}\n\n${keys.map((k) => `${prettyLabel(k)}: ${String(data[k]).trim()}`).join("\n")}`;
+
+  await sendEmail({
+    to: OWNER_EMAIL,
+    subject: isQuiz
+      ? `New quiz lead${data.recommended ? `: ${data.recommended}` : ""}`
+      : `New website lead: ${data.name || data.business || data.email || "someone"}`,
+    html: buildHTML({ badge, heading, when, rowsHTML, replyHTML }),
+    text,
+  });
+};
+
+export const handler = async (event) => {
+  let payload = {};
+  try { payload = (JSON.parse(event.body || "{}")).payload || {}; }
+  catch (e) { console.error("submission-created: unparseable body:", e && e.message); return { statusCode: 200, body: "bad body" }; }
+  const data = payload.data || {};
+  const formName = payload.form_name || "form";
+
+  // Both steps are best-effort and independent: a failure in one is logged but
+  // never blocks the other, and never fails the submission (always return 200).
+  const results = await Promise.allSettled([
+    saveLead(formName, data),
+    emailOwner(formName, data, payload.created_at),
+  ]);
+  results.forEach((r, i) => {
+    if (r.status === "rejected") {
+      console.error(`submission-created ${i === 0 ? "DB save" : "email"} failed:`, r.reason && r.reason.message);
+    }
+  });
+
+  return { statusCode: 200, body: "ok" };
 };
