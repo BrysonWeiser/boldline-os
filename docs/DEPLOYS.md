@@ -69,3 +69,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-06-30 | `4d2c2eb` | `rollback/20260630T063103Z` | Website leads now flow into a dedicated OS Leads section: website_leads table, submission-created DB insert, OS Leads tab (filters, status, notes, realtime). |
 | 2026-07-01 | `c5c0f0f` | `rollback/20260701T060723Z` | Branded lead email set dormant (Wix blocks Resend domain verification); relayed via GitHub MCP after a git-relay hiccup, then git recovered. |
 | 2026-07-01 | `af623c8` | `rollback/20260701T063124Z` | OS notifications: contract-expiry + intake alerts are now dismissible (per-client dismissedAlerts; bell badge respects them). |
+| 2026-07-01 | `77c6fa8` | `rollback/20260701T180426Z` | OS Leads tab: each lead card now has a Delete control (Cancel/Delete confirm) that removes the row from website_leads. |

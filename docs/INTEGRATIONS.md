@@ -799,6 +799,10 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     `c7:<contractEnd>` / `c30:<contractEnd>` (a renewal changes `contractEnd`, so a fresh
     alert shows again), intake key is `intake`. The bottom-nav bell badge (`notifCount`)
     respects dismissals too. No schema/RLS change (clients are stored as a JSON blob).
+  - **Website leads are deletable too (2026-07-01):** each card in the OS **Leads** tab now
+    has a "Delete lead" control (inline Cancel/Delete confirm) for clearing spam/test leads.
+    `deleteLead` in App does an optimistic local remove + `website_leads` delete via the
+    authenticated `website_leads_auth_delete` RLS policy (already in the schema).
   - ⚠️ **Infra note (2026-07-01):** the git relay auth broke mid-session after an environment
     refresh (local proxy creds rotated; GIT_ASKPASS emptied). One commit (`af623c8`, branded
     email dormant) was relayed to `main` via the GitHub MCP `push_files` as a workaround, then
