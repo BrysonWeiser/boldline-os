@@ -4,10 +4,13 @@
 // HTML email to the BoldLine inbox (instead of Netlify's plain default).
 //
 // Sends via Resend, reusing the same env vars as the OS:
-//   RESEND_API_KEY      - Resend API key (secret; set in Netlify env, never in repo). REQUIRED.
-//   REPORTS_FROM_EMAIL  - optional verified "from" address; falls back to Resend's
-//                         onboarding@resend.dev (which delivers to the Resend account's
-//                         own email, i.e. theboldlinemedia@gmail.com).
+//   RESEND_API_KEY      - Resend API key (secret). Needed for the branded email.
+//   REPORTS_FROM_EMAIL  - a VERIFIED Resend "from" address. Also needed: without it the
+//                         branded email is skipped (leads still save to the OS). Currently
+//                         unset on purpose — boldlinemedia.com can't be verified in Resend
+//                         while its DNS is on Wix (no subdomain MX support), so the plain
+//                         Netlify form notification is the reliable ping instead. If the
+//                         domain ever moves off Wix, set REPORTS_FROM_EMAIL to reactivate.
 // DB save uses SUPABASE_SERVICE_ROLE_KEY (already set for the blog functions),
 // which bypasses RLS. Both steps are best-effort: one failing never blocks the
 // other, and the submission is always still stored in Netlify's Forms tab.
@@ -60,7 +63,7 @@ const sendEmail = async ({ to, subject, html, text }) => {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL || "BoldLine Media <onboarding@resend.dev>", to: [to], subject, html, text }),
+    body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL, to: [to], subject, html, text }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
 };
@@ -99,8 +102,12 @@ const buildHTML = ({ badge, heading, when, rowsHTML, replyHTML }) => `<!doctype 
 </html>`;
 
 const emailOwner = async (formName, data, createdAt) => {
-  if (!process.env.RESEND_API_KEY) {
-    console.log("submission-created: RESEND_API_KEY not set, skipping branded email");
+  // Branded email only sends when a VERIFIED sender is configured. It's dormant until
+  // then (leads still save to the OS + the plain Netlify email is the reliable ping).
+  // Currently dormant: boldlinemedia.com can't be verified in Resend while its DNS is
+  // on Wix (Wix doesn't support the subdomain MX record Resend requires).
+  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL) {
+    console.log("submission-created: no verified REPORTS_FROM_EMAIL, skipping branded email (lead still saved to OS)");
     return;
   }
   const isQuiz = formName === "recommendation";
