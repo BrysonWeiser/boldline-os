@@ -71,3 +71,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-07-01 | `af623c8` | `rollback/20260701T063124Z` | OS notifications: contract-expiry + intake alerts are now dismissible (per-client dismissedAlerts; bell badge respects them). |
 | 2026-07-01 | `77c6fa8` | `rollback/20260701T180426Z` | OS Leads tab: each lead card now has a Delete control (Cancel/Delete confirm) that removes the row from website_leads. |
 | 2026-07-01 | `80a7d55` | `rollback/20260701T182745Z` | Mobile optimization: fixed 720px section-glow overflow that expanded the phone viewport to 555px (disabling phone styles); clipped it + tightened mobile section padding/type. |
+| 2026-07-01 | `f2017d0` | `rollback/20260701T183735Z` | Mobile density pass: compacted package cards, engagement cards, timeline, and fit section (authoritative trailing @media block); homepage ~18% shorter on mobile. |

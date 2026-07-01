@@ -825,7 +825,15 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     trimmed the `≤480px` block (hero H1 27→25px, section padding →50px, h2 →23px). Homepage
     is ~13% shorter on mobile with far less dead space.
   - Verified headless: 0 horizontal overflow at 320/360/390/414/430px, no console errors.
-- **TODO (Bryson's side):**
+  - **Density follow-up (2026-07-01):** still felt long (packages ate too much scroll). Did a
+    real density pass: compacted package cards (padding 34→22, bullet gap 10→7, smaller type),
+    "Every Engagement" cards, process-timeline steps, and the fit section. **Gotcha:** the
+    first attempt didn't shrink #fit/#included/#process because their component base rules are
+    defined LATER in the stylesheet than the mobile media query (same specificity → source
+    order let base win). Fix: one **authoritative `@media(max-width:640px)` block at the very
+    end of `<style>`** so overrides reliably win. Per-section heights measured to target the
+    biggest; mobile homepage ~10,476 → ~8,560px (~18% shorter). **Lesson: put mobile/override
+    media queries LAST in the stylesheet, or later base rules silently beat them.**
   1. ~~Create a second Netlify site~~ — **DONE** (marketing site, base dir `marketing-site`, deploys from `main`).
   2. ~~Point `boldlinemedia.com` at the site~~ — **DONE 2026-06-30** (see LAUNCHED note above).
   3. **Resubmit the Google Ads Basic Access application** once the new site is live
