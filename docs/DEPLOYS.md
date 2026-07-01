@@ -70,3 +70,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-07-01 | `c5c0f0f` | `rollback/20260701T060723Z` | Branded lead email set dormant (Wix blocks Resend domain verification); relayed via GitHub MCP after a git-relay hiccup, then git recovered. |
 | 2026-07-01 | `af623c8` | `rollback/20260701T063124Z` | OS notifications: contract-expiry + intake alerts are now dismissible (per-client dismissedAlerts; bell badge respects them). |
 | 2026-07-01 | `77c6fa8` | `rollback/20260701T180426Z` | OS Leads tab: each lead card now has a Delete control (Cancel/Delete confirm) that removes the row from website_leads. |
+| 2026-07-01 | `80a7d55` | `rollback/20260701T182745Z` | Mobile optimization: fixed 720px section-glow overflow that expanded the phone viewport to 555px (disabling phone styles); clipped it + tightened mobile section padding/type. |
