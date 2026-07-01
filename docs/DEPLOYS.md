@@ -67,3 +67,5 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-06-30 | `5c34928` | `rollback/20260630T060411Z` | Visual upgrades: hero browser/landing-page mockup + floating chart/toast + grid depth, "Every Engagement" cards, illustrated scroll-drawn process timeline. Mobile kept light. |
 | 2026-06-30 | `33dc4e2` | `rollback/20260630T061426Z` | Hero copy tweak (Bryson wording) + branded form-notification email (submission-created.mjs via Resend). |
 | 2026-06-30 | `4d2c2eb` | `rollback/20260630T063103Z` | Website leads now flow into a dedicated OS Leads section: website_leads table, submission-created DB insert, OS Leads tab (filters, status, notes, realtime). |
+| 2026-07-01 | `c5c0f0f` | `rollback/20260701T060723Z` | Branded lead email set dormant (Wix blocks Resend domain verification); relayed via GitHub MCP after a git-relay hiccup, then git recovered. |
+| 2026-07-01 | `af623c8` | `rollback/20260701T063124Z` | OS notifications: contract-expiry + intake alerts are now dismissible (per-client dismissedAlerts; bell badge respects them). |
