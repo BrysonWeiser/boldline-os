@@ -203,22 +203,40 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .tab{padding:9px 16px;font-size:11.5px}
 }
 
-/* ── Tighten spacing on phones/phablets so it doesn't feel oversized ── */
+/* ── Tighten spacing + density on phones/phablets so it doesn't feel oversized ── */
 @media (max-width:640px){
-  section{padding:60px 20px}
-  .section-head{margin-bottom:32px}
+  section{padding:54px 20px}
+  .section-head{margin-bottom:28px}
   .section-head p{font-size:13.5px}
-  .boutique{padding:22px 20px}
+  .boutique{padding:20px}
   .boutique p{font-size:13px}
-  .trust{padding:60px 22px}
-  #fit{padding:56px 20px}
-  .fit-sep{margin:36px auto}
-  .fit-budget{margin-top:32px;padding:20px;font-size:13.5px}
-  .fit-cta{margin-top:32px}
+  .trust{padding:54px 22px}
+  /* Packages: denser cards + tighter stacking */
+  .pkg-grid{gap:12px}
+  .pkg{padding:22px 18px}
+  .pkg h3{font-size:16px}
+  .pkg .budget{margin-bottom:12px}
+  .pkg ul{gap:7px;margin-bottom:14px}
+  .pkg ul li{font-size:12px}
+  .pkg .note{margin-bottom:12px}
+  .equal-effort{margin-top:24px}
+  .cap-note{margin-top:20px}
+  /* "Every engagement" cards */
+  .incl-grid{gap:10px}
+  .incl{padding:14px}
+  .incl .mark{width:32px;height:32px}
+  /* Process timeline */
+  .tstep{padding:12px 0 24px}
+  /* Fit section */
+  #fit{padding:54px 20px}
+  .fit-sep{margin:26px auto}
+  .fit-budget{margin-top:22px;padding:18px;font-size:13.5px}
+  .fit-cta{margin-top:24px}
+  .fit-cta p{margin-bottom:16px}
+  .fit-check ul{gap:11px}
   .fit-check li{font-size:14px}
-  .incl-grid{gap:12px}
-  .incl{padding:16px}
   .founder{padding-left:4px;padding-right:4px}
+  .hero-stage{margin-top:30px}
 }
 
 @media (max-width:480px){
@@ -445,6 +463,41 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .browser,.float-chart,.float-toast,.fc-bars span{animation:none}
   .tstep,.tnode{opacity:1;transform:none;transition:none}
   .tl-rail::after{height:100%;transition:none}
+}
+
+/* ── Mobile density (authoritative: placed LAST so it wins CSS source order
+      over the component base rules defined above) ── */
+@media (max-width:640px){
+  section{padding:52px 20px}
+  .section-head{margin-bottom:26px}
+  /* Packages */
+  .pkg-grid{gap:12px}
+  .pkg{padding:22px 18px}
+  .pkg .budget{margin-bottom:12px}
+  .pkg ul{gap:7px;margin-bottom:14px}
+  .pkg ul li{font-size:12px}
+  .pkg .note{margin-bottom:12px}
+  .equal-effort{margin-top:22px}
+  .cap-note{margin-top:18px}
+  /* "Every engagement" cards */
+  .incl-grid{gap:10px}
+  .incl{padding:14px}
+  .incl .mark{width:32px;height:32px}
+  .incl p{font-size:12px}
+  /* Process timeline */
+  .tstep{padding:8px 0 22px}
+  /* Fit section */
+  #fit{padding:52px 20px}
+  .fit-sep{margin:24px auto}
+  .fit-budget{margin-top:20px;padding:18px;font-size:13.5px}
+  .fit-cta{margin-top:22px}
+  .fit-cta p{margin-bottom:14px}
+  .fit-check ul{gap:10px}
+  .fit-check li{font-size:14px}
+  .niche-row{gap:22px 24px}
+  /* Founder + contact */
+  .founder blockquote{font-size:18px;line-height:1.5;margin-bottom:16px}
+  .contact-or{margin:22px auto 4px}
 }
 </style>
 <link rel="stylesheet" href="/glossary.css">
