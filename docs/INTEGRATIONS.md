@@ -810,6 +810,21 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
     Username", the remote may have been reset to an `api.anthropic.com` ingress URL — set it
     back to `https://github.com/BrysonWeiser/boldline-os.git` (the proxy's insteadOf rewrite
     handles auth) and retry.
+- **v3.8 update (2026-07-01): mobile optimization (Bryson: "everything too big / stuffed").**
+  - **Root cause found + fixed:** the gold glow pseudo-elements I'd added behind `#services`
+    and `#process` were **720px wide** on sections without `overflow:hidden`, so on a 390px
+    phone the glow bled to 555px, which made the browser **expand the layout viewport to
+    555px** — that disabled the `≤480px` media query, so phones were rendering the *tablet*
+    (≤840) styles (oversized type, big padding). Fix: `#services,#process{overflow:hidden}`
+    and capped the glow at `width:min(720px,100%)` (mirrors how `.hero` already clips its glow).
+    After the fix, layout viewport == device width at every tested size and the phone styles
+    apply. **Lesson: any element/pseudo wider than the viewport (esp. centered decorative
+    glows) silently zooms the whole mobile layout out — always clip decorative overflow.**
+  - **Tightened phone spacing:** added a `≤640px` block (section padding 104→60px,
+    section-head margins, fit-section spacing, `.incl`/`.boutique`/`.trust` padding) and
+    trimmed the `≤480px` block (hero H1 27→25px, section padding →50px, h2 →23px). Homepage
+    is ~13% shorter on mobile with far less dead space.
+  - Verified headless: 0 horizontal overflow at 320/360/390/414/430px, no console errors.
 - **TODO (Bryson's side):**
   1. ~~Create a second Netlify site~~ — **DONE** (marketing site, base dir `marketing-site`, deploys from `main`).
   2. ~~Point `boldlinemedia.com` at the site~~ — **DONE 2026-06-30** (see LAUNCHED note above).
