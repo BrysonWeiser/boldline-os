@@ -783,6 +783,29 @@ automation below, which reuses it. No action needed; just a doc gap fix.)
   (Let's Encrypt cert auto-issued), `www` 301s → apex, `http` 301s → `https`. No email on the
   domain, nothing to preserve. The 3 live blog posts were also de-em-dashed via
   `docs/sql/dedash-posts.sql` (0 em-dashes live).
+- **v3.7 update (2026-07-01): branded email finalized as dormant + OS notifications are dismissible.**
+  - **Branded lead email (final state):** verifying `boldlinemedia.com` in Resend is blocked
+    by Wix (Resend needs a subdomain MX record; Wix doesn't support subdomain MX). So the
+    `submission-created` function only sends the branded email when a verified
+    `REPORTS_FROM_EMAIL` is set (none is) — it's **dormant**, no spam sends. Bryson
+    **re-enabled the plain Netlify form notification** to theboldlinemedia@gmail.com as the
+    reliable inbox ping; the OS Leads tab is the polished view. (Reactivate later only if
+    the domain moves off Wix.)
+  - **OS notifications now dismissible:** upgrade requests + ARIA approvals already had
+    Decline/Reject, but the derived **contract-expiry (≤7d and 8–30d) and intake alerts had
+    no way to clear**. Added a dismiss control (✕ on contract cards, a "Dismiss" button on
+    intake cards) in `NotificationsPanel`. Dismissals persist per client in a new
+    `dismissedAlerts` array, keyed so they **auto-resurface correctly**: contract keys are
+    `c7:<contractEnd>` / `c30:<contractEnd>` (a renewal changes `contractEnd`, so a fresh
+    alert shows again), intake key is `intake`. The bottom-nav bell badge (`notifCount`)
+    respects dismissals too. No schema/RLS change (clients are stored as a JSON blob).
+  - ⚠️ **Infra note (2026-07-01):** the git relay auth broke mid-session after an environment
+    refresh (local proxy creds rotated; GIT_ASKPASS emptied). One commit (`af623c8`, branded
+    email dormant) was relayed to `main` via the GitHub MCP `push_files` as a workaround, then
+    the relay recovered and normal `git push` resumed. If pushes fail with "could not read
+    Username", the remote may have been reset to an `api.anthropic.com` ingress URL — set it
+    back to `https://github.com/BrysonWeiser/boldline-os.git` (the proxy's insteadOf rewrite
+    handles auth) and retry.
 - **TODO (Bryson's side):**
   1. ~~Create a second Netlify site~~ — **DONE** (marketing site, base dir `marketing-site`, deploys from `main`).
   2. ~~Point `boldlinemedia.com` at the site~~ — **DONE 2026-06-30** (see LAUNCHED note above).

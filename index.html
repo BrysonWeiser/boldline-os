@@ -2938,13 +2938,20 @@ function AddClientSheet({onSave,onClose}) {
 const CATEGORY_LABELS = {budget:"💰 Budget",creative:"🎨 Creative",targeting:"🎯 Targeting",pause:"⏸ Pause",other:"📌 Other"};
 
 function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
+  const isDismissed = (cl,key) => (cl.dismissedAlerts||[]).includes(key);
+  const dismiss = (cl,key) => onUpdate({...cl, dismissedAlerts:[...(cl.dismissedAlerts||[]), key]});
   const upgradeClients = clients.filter(c=>c.upgradeRequest);
-  const expiringClients= clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
-  const urgentClients  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7; });
+  const urgentClients  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7 && !isDismissed(c,`c7:${c.contractEnd}`); });
+  const expiringSoon   = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>7&&d<=30 && !isDismissed(c,`c30:${c.contractEnd}`); });
+  const intakeClients  = clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding"&&!isDismissed(c,"intake"));
   const pendingApprovals = clients.flatMap(c=>(c.pendingActions||[]).map(a=>({...a,client:c})));
   const [confirming,setConfirming]=useState(null);
   const [declining,setDeclining]=useState(null);
   const [done,setDone]=useState({});
+  const dismissBtn = (cl,key,color) => (
+    <button onClick={(e)=>{e.stopPropagation();dismiss(cl,key);}} title="Dismiss"
+      style={{background:"none",border:"none",color:C.textMuted,fontSize:16,lineHeight:1,cursor:"pointer",padding:"2px 5px",flexShrink:0}}>✕</button>
+  );
 
   const goTo = (cl, tab) => {
     onNavigate(cl, tab);
@@ -2971,7 +2978,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
     setTimeout(()=>setConfirming(null),1000);
   };
 
-  const totalCount = upgradeClients.length + urgentClients.length + expiringClients.filter(c=>daysUntil(c.contractEnd)>7).length + pendingApprovals.length;
+  const totalCount = upgradeClients.length + urgentClients.length + expiringSoon.length + pendingApprovals.length + intakeClients.length;
 
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:80,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
@@ -3083,6 +3090,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                         <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · {(findPkg(cl.packageId) && findPkg(cl.packageId).name)}</div>
                       </div>
                       <IconChevron size={14} color={C.red}/>
+                      {dismissBtn(cl,`c7:${cl.contractEnd}`)}
                     </div>
                   </div>
                 );
@@ -3091,13 +3099,13 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
           )}
 
           {/* 30-day contract alerts */}
-          {expiringClients.filter(c=>daysUntil(c.contractEnd)>7).length>0&&(
+          {expiringSoon.length>0&&(
             <div style={{marginBottom:20}}>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.amber,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
                 <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.amber,display:"inline-block"}}/>
                 Contract Renewals Coming Up
               </div>
-              {expiringClients.filter(c=>daysUntil(c.contractEnd)>7).map(cl=>{
+              {expiringSoon.map(cl=>{
                 const d=daysUntil(cl.contractEnd);
                 return (
                   <div key={cl.id} onClick={()=>goTo(cl,"contract")} style={{backgroundColor:C.bg3,border:`1px solid ${C.amber}33`,borderRadius:11,padding:"13px 14px",marginBottom:8,cursor:"pointer"}}>
@@ -3109,6 +3117,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                         <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
                       </div>
                       <IconChevron size={14} color={C.amber}/>
+                      {dismissBtn(cl,`c30:${cl.contractEnd}`)}
                     </div>
                   </div>
                 );
@@ -3117,13 +3126,13 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
           )}
 
           {/* Intake alerts */}
-          {clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length>0&&(
+          {intakeClients.length>0&&(
             <div style={{marginBottom:20}}>
               <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.blue,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
                 <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.blue,display:"inline-block"}}/>
                 Intake Forms Pending
               </div>
-              {clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").map(cl=>(
+              {intakeClients.map(cl=>(
                 <div key={cl.id} style={{backgroundColor:C.bg3,border:`1px solid ${C.blue}33`,borderRadius:11,padding:"13px 14px",marginBottom:8}}>
                   <div onClick={()=>goTo(cl,"portal")} style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:10}}>
                     <span style={{width:34,height:34,borderRadius:9,backgroundColor:"rgba(79,142,247,0.1)",border:"1px solid rgba(79,142,247,0.25)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>📋</span>
@@ -3134,7 +3143,10 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                     </div>
                     <IconChevron size={14} color={C.blue}/>
                   </div>
-                  <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${cl.portalToken}`)} style={{width:"100%",padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.04)",color:C.textDim,cursor:"pointer"}}>Copy Portal Link</button>
+                  <div style={{display:"flex",gap:7}}>
+                    <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${cl.portalToken}`)} style={{flex:1,padding:"7px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.04)",color:C.textDim,cursor:"pointer"}}>Copy Portal Link</button>
+                    <button onClick={()=>dismiss(cl,"intake")} style={{padding:"7px 13px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,0.04)",color:C.textMuted,cursor:"pointer"}}>Dismiss</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -3548,9 +3560,11 @@ function App({onLogout}) {
       .then(({error})=>{ if(error) console.error("Save failed:", error); });
   };
 
+  const _dism = (c,k) => (c.dismissedAlerts||[]).includes(k);
   const notifCount = clients.filter(c=>c.upgradeRequest).length
-    + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; }).length
-    + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding").length
+    + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7 && !_dism(c,`c7:${c.contractEnd}`); }).length
+    + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>7&&d<=30 && !_dism(c,`c30:${c.contractEnd}`); }).length
+    + clients.filter(c=>!c.intakeComplete&&c.stage==="onboarding"&&!_dism(c,"intake")).length
     + clients.reduce((s,c)=>s+(c.pendingActions||[]).length,0);
   const newLeadsCount = leads.filter(l => l.status === "new").length;
 
