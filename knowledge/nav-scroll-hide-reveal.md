@@ -12,8 +12,16 @@ scrolling (felt "out of place"), but still wanted it reachable without hunting. 
 auto-hide-on-scroll-down / reveal-on-scroll-up, same pattern as most modern sites.
 
 **Where it lives:** `marketing-site/index.html`.
-- CSS: `header{...transform:translateY(0);transition:transform .35s cubic-bezier(.4,0,.2,1)}`
-  and `header.nav-hidden{transform:translateY(-140%)}` near the top `<style>` block (~line 56).
+- CSS: `header{...transform:translateY(0);transition:transform .6s cubic-bezier(.22,1,.36,1)}`
+  and `header.nav-hidden{transform:translateY(-140%);transition:transform .35s cubic-bezier(.4,0,.2,1)}`
+  near the top `<style>` block (~line 56).
+- **Asymmetric timing (deliberate):** the reveal (coming back into view) is slower + gentler
+  (`.6s` easeOutQuint) than the hide (`.35s`). This works because **a CSS transition is
+  governed by the transition-* props of the state being transitioned TO**: removing
+  `.nav-hidden` lands on base `header` → its `.6s` transition runs the reveal; adding
+  `.nav-hidden` lands on `header.nav-hidden` → its `.35s` transition runs the hide. To retune
+  reveal vs hide independently, edit those two `transition` values respectively. (Bryson asked
+  for a slower/smoother reveal on 2026-07-02.)
 - The one-time intro drop animation is on **`header.nav-in .nav-inner`** (the pill), NOT on
   `header` itself — this is deliberate, see bug #2 below.
 - JS: the `onScroll` handler in the `header.scrolled` script (~line 1145–1175) tracks
