@@ -2,9 +2,9 @@
 name: ambient-background-micro-motion
 topic: Marketing site
 task: change or tune the site background graphics (orbs, constellation, grain) or the scroll micro-animations
-keywords: [ambient, bgNet, constellation, orb, orbDrift, grain, feTurbulence, sr-in, scroll-settle, progress hairline, parallax, rootMargin, stagger, srd]
+keywords: [ambient, bgNet, constellation, orb, orbDrift, grain, feTurbulence, sr-in, scroll-settle, progress hairline, parallax, rootMargin, stagger, srd, glyphs, ow-g, glFloat, ad icons]
 status: verified
-summary: Site-wide "living canvas" background (3 aurora orbs + gold constellation canvas + film grain, fixed z-index -1) plus a micro-motion pass (safe scroll-settle reveals, divider draw-in, progress hairline, orb parallax, hover polish). All decorative/additive — no-JS and reduced-motion get a fully visible static page.
+summary: Site-wide "living canvas" background (3 aurora orbs + gold constellation canvas + film grain + 9 floating ad-ecosystem glyphs, fixed z-index -1) plus a micro-motion pass (safe scroll-settle reveals, divider draw-in, progress hairline, parallax, hover polish). All decorative/additive — no-JS and reduced-motion get a fully visible static page.
 verified: 2026-07-02
 ---
 Bryson asked (2026-07-02) for background graphics instead of the flat black screen —
@@ -25,6 +25,18 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   double-schedule the loop.**
 - **Film grain** (`.grain`) — static inline-SVG `feTurbulence` tile (170px, URL-encoded data
   URI) at `opacity:.05`. Static on purpose; animated grain burns CPU for no benefit.
+- **Ad-ecosystem glyphs** (`.ow-g` layer, added same day at Bryson's request for "more stuff
+  related to ads") — nine inline-SVG gold line-art icons (search magnifier, click cursor,
+  rising bar chart, trend line, location pin, bullseye, lead speech-bubble, megaphone, "AD"
+  badge) at `opacity:.11`, each positioned in the **desktop side gutters only** (left 3.5–8%,
+  right 3.5–8% — never inside the centered 1100px content column; a Playwright check asserts
+  zero overlap). Each floats on its own slow loop (`glFloat`/`glFloat2`, 18–27s, staggered
+  negative delays via `--gd`/`--gde` inline vars). The layer carries class `.ow` so it rides
+  the existing parallax loop (its factor is the 4th entry in `factors`). Hidden `<900px`
+  (phones have no gutters); `animation:none` under reduced-motion (static faint icons are
+  fine — they're aria-hidden decoration). The AD-badge text uses `stroke:none;fill:currentColor`
+  (`.gl-ad text`) or it renders as double-drawn outline mush. Deliberately NO fabricated
+  metric text (e.g. "+38% CTR") — background numbers could read as implied performance claims.
 
 `.alt` bands went `background:rgba(13,15,22,.88)` so a hint of orb glow bleeds through.
 
