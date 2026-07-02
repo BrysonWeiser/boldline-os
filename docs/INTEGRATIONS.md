@@ -79,8 +79,8 @@
   The homepage's visual language — dark --card boxes with a --line border, rounded corners, gold accents. Match this vocabulary when adding or restyling a component so nothing looks out of place.  
   <sub>*task:* keep the marketing site visually uniform or restyle a component to match the rest of the site &nbsp;|&nbsp; *keywords:* design-tokens, card, boutique, section-head, eyebrow, uniform, border-radius</sub>
 - **[nav-scroll-hide-reveal](../knowledge/nav-scroll-hide-reveal.md)** &mdash; &#9989; verified &middot; 2026-07-02  
-  Header auto-hides (slides up) on scroll-down past 80px and reveals instantly on scroll-up or near top, instead of staying permanently fixed/visible.  
-  <sub>*task:* change or tune how the header/nav bar behaves while the page is scrolled (not nav-link clicks) &nbsp;|&nbsp; *keywords:* nav-hidden, onScroll, lastY, header.scrolled, translateY, auto-hide nav, sticky header</sub>
+  Header auto-hides (slides up) on >60px continuous scroll-down and reveals on >10px scroll-up or near top, instead of staying permanently fixed/visible. Uses cumulative run-distance, NOT per-event delta (that was a shipped bug — see Gotchas).  
+  <sub>*task:* change or tune how the header/nav bar behaves while the page is scrolled (not nav-link clicks) &nbsp;|&nbsp; *keywords:* nav-hidden, onScroll, lastY, runStartY, runDir, header.scrolled, translateY, auto-hide nav, sticky header, momentum scrolling, per-event delta</sub>
 - **[nav-scroll-transition](../knowledge/nav-scroll-transition.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Nav-link clicks glide (custom eased scroll) + soft fade veil to the section. Tune it via the NAV config object in a script near the end of marketing-site/index.html.  
   <sub>*task:* change or tune the nav-link scroll animation and fade transition on the marketing site &nbsp;|&nbsp; *keywords:* veilPeak, navFade, nav-arrive, glide, blScrollTo, easeInOutCubic, scroll-padding-top, scroll-behavior</sub>
