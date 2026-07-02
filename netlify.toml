@@ -38,6 +38,14 @@
   to = "/.netlify/functions/landing?slug=:slug"
   status = 200
 
+# Internal knowledge base lives in the repo (for cross-session persistence) but must
+# never be served publicly by the OS site. Force a 404 on it before the SPA catch-all.
+[[redirects]]
+  from = "/knowledge/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
