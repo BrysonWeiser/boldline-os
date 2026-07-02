@@ -1235,7 +1235,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
    Toggle NAV.fade=false for "Option 1" (glide + settle, no veil). SEO-safe:
    only the transition animates; content is never hidden. Respects reduced-motion. */
 (function(){
-  var NAV = { glide:true, fade:true, arriveCue:true, duration:820, veilPeak:0.5 };
+  var NAV = { glide:true, fade:true, arriveCue:true, duration:820, veilPeak:0.7 };
   var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   var root = document.documentElement;
   root.style.scrollBehavior = 'auto'; // JS owns the scroll now (rAF glide, or an instant jump for reduced-motion); CSS 'smooth' stays as the no-JS fallback
