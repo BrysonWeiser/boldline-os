@@ -53,8 +53,9 @@ a{color:inherit}
 .divider.left{margin:18px 0}
 
 /* Floating pill nav */
-header{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;flex-direction:column;align-items:center;padding:14px 20px;pointer-events:none}
+header{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;flex-direction:column;align-items:center;padding:14px 20px;pointer-events:none;transform:translateY(0);transition:transform .35s cubic-bezier(.4,0,.2,1)}
 header.nav-in{animation:navDown .6s cubic-bezier(.2,.7,.2,1) both}
+header.nav-hidden{transform:translateY(-140%)}
 @keyframes navDown{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
 .nav-inner{pointer-events:auto;width:100%;max-width:1000px;display:flex;align-items:center;gap:14px;padding:9px 9px 9px 18px;background:rgba(13,15,22,.6);backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px -18px rgba(0,0,0,.7);transition:background .3s ease,box-shadow .3s ease,padding .3s ease,border-color .3s ease}
 header.scrolled .nav-inner{background:rgba(8,10,15,.9);border-color:rgba(255,255,255,.12);box-shadow:0 14px 36px -16px rgba(0,0,0,.8);padding-top:7px;padding-bottom:7px}
@@ -1148,10 +1149,24 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   if(!header) return;
   header.classList.add('nav-in');
   var mcta = document.getElementById('mobileCta');
+  var lastY = window.scrollY;
   var onScroll = function(){
     var y = window.scrollY;
     header.classList.toggle('scrolled', y > 12);
     if(mcta) mcta.classList.toggle('show', y > 700);
+
+    // Auto-hide on scroll down, reveal on scroll up (keeps the pill nav
+    // out of the way of content but always one upward swipe/scroll away).
+    var mobileOpen = header.querySelector('.nav-mobile.open');
+    var delta = y - lastY;
+    if(y < 80 || mobileOpen){
+      header.classList.remove('nav-hidden');
+    } else if(delta > 4){
+      header.classList.add('nav-hidden');
+    } else if(delta < -4){
+      header.classList.remove('nav-hidden');
+    }
+    lastY = y;
   };
   onScroll();
   window.addEventListener('scroll', onScroll, { passive:true });
