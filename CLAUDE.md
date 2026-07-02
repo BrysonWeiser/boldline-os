@@ -43,6 +43,14 @@ automated.
 - **Always prompt the Netlify env-var step** at the end of each platform's
   credential setup — never skip it.
 - **Confirm before irreversible or outward-facing actions.**
+- **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
+  Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
+  genuinely Opus-worthy task (hard multi-file debugging, architecture, subtle logic),
+  say so first and let him switch (`/model`) — don't silently do hard work on the wrong
+  tier. Also work **lean**: concise replies; no preview screenshots or heavy verification
+  unless the task needs it or he asks; batch changes instead of many tiny round-trips;
+  prefer a fresh session per new topic (this file + the KB carry continuity). Note:
+  `/fast` does NOT save credits (still Opus, just faster output).
 
 ## Hard business constraint (do NOT violate)
 **The client pays for everything. BoldLine never fronts, holds, or is financially
