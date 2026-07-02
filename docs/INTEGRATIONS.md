@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 33 task-keyed entries under `knowledge/`. They surface automatically via the
+> 34 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**33 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**34 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -63,6 +63,9 @@
 
 ## Marketing site
 
+- **[ambient-background-micro-motion](../knowledge/ambient-background-micro-motion.md)** &mdash; &#9989; verified &middot; 2026-07-02  
+  Site-wide "living canvas" background (3 aurora orbs + gold constellation canvas + film grain, fixed z-index -1) plus a micro-motion pass (safe scroll-settle reveals, divider draw-in, progress hairline, orb parallax, hover polish). All decorative/additive — no-JS and reduced-motion get a fully visible static page.  
+  <sub>*task:* change or tune the site background graphics (orbs, constellation, grain) or the scroll micro-animations &nbsp;|&nbsp; *keywords:* ambient, bgNet, constellation, orb, orbDrift, grain, feTurbulence, sr-in, scroll-settle, progress hairline, parallax, rootMargin, stagger, srd</sub>
 - **[content-visibility-no-js](../knowledge/content-visibility-no-js.md)** &mdash; &#9940; dead-end &middot; 2026-07-02  
   DEAD-END — a JS IntersectionObserver scroll-reveal with .reveal{opacity:0} left the whole page blank to anything that doesn't scroll (crawlers, screenshots), which would sink the site's whole Google-review purpose. Never gate content visibility on JS/scroll — animate on load, don't hide. Verify with javaScriptEnabled:false.  
   <sub>*task:* keep marketing/blog content visible to crawlers and no-JS visitors instead of gating it on JS or scroll &nbsp;|&nbsp; *keywords:* scroll-reveal, intersectionobserver, javaScriptEnabled, progressive-enhancement, js-tabs, prefers-reduced-motion</sub>
