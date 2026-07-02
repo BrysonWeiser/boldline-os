@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 32 task-keyed entries under `knowledge/`. They surface automatically via the
+> 33 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**32 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**33 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -78,6 +78,9 @@
 - **[marketing-site-design-system](../knowledge/marketing-site-design-system.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The homepage's visual language — dark --card boxes with a --line border, rounded corners, gold accents. Match this vocabulary when adding or restyling a component so nothing looks out of place.  
   <sub>*task:* keep the marketing site visually uniform or restyle a component to match the rest of the site &nbsp;|&nbsp; *keywords:* design-tokens, card, boutique, section-head, eyebrow, uniform, border-radius</sub>
+- **[nav-scroll-hide-reveal](../knowledge/nav-scroll-hide-reveal.md)** &mdash; &#9989; verified &middot; 2026-07-02  
+  Header auto-hides (slides up) on scroll-down past 80px and reveals instantly on scroll-up or near top, instead of staying permanently fixed/visible.  
+  <sub>*task:* change or tune how the header/nav bar behaves while the page is scrolled (not nav-link clicks) &nbsp;|&nbsp; *keywords:* nav-hidden, onScroll, lastY, header.scrolled, translateY, auto-hide nav, sticky header</sub>
 - **[nav-scroll-transition](../knowledge/nav-scroll-transition.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Nav-link clicks glide (custom eased scroll) + soft fade veil to the section. Tune it via the NAV config object in a script near the end of marketing-site/index.html.  
   <sub>*task:* change or tune the nav-link scroll animation and fade transition on the marketing site &nbsp;|&nbsp; *keywords:* veilPeak, navFade, nav-arrive, glide, blScrollTo, easeInOutCubic, scroll-padding-top, scroll-behavior</sub>
