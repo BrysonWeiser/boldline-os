@@ -2,8 +2,10 @@
 
 > Read this first every session. It is the durable memory across sessions —
 > nothing from past chats persists except what is written here and in the repo.
-> When we finish a section of work, UPDATE this file and `docs/INTEGRATIONS.md`
-> (Bryson asked for this explicitly so we never redo work or forget a decision).
+> Detailed, per-topic memory now lives in the **task-keyed knowledge base** under
+> `knowledge/` — it surfaces automatically (recall hook) when a prompt matches, so
+> don't bulk-read it. When we finish a unit of work, capture it as a KB entry
+> (see "Record to the knowledge base" below) so we never redo work or forget a decision.
 
 ## What this is
 BoldLine OS is the internal operations platform for **BoldLine Media**, a digital
@@ -27,13 +29,17 @@ automated.
   Never silently perform/configure a setup and only report it done — he needs the HOW,
   step by step, every time. (Code I write is mine to implement, but I still explain
   what it does and how he interacts with it.) He has explicitly + repeatedly asked.
-- **Record to the index AUTOMATICALLY — Bryson must never have to ask whether I
-  saved it.** The moment anything worth remembering happens (a finished section, a
-  decision, a status change, a gotcha + its fix, a credential/env-var name, a stated
-  preference), immediately update this file and `docs/INTEGRATIONS.md`, then commit +
-  push. Do NOT wait to be told. Say so visibly when you do it ("✅ Index updated: …")
-  so he sees it without checking. A **PreCompact hook** (`.claude/settings.json`)
-  backstops this by forcing an index flush before any context is ever compacted/lost.
+- **Record to the knowledge base AUTOMATICALLY — Bryson must never have to ask whether
+  I saved it.** The moment anything worth remembering happens (a finished unit of work,
+  a decision, a status change, a gotcha + its fix, a credential/env-var NAME, a stated
+  preference), immediately add or update a task-keyed entry `knowledge/<slug>.md`, run
+  `node knowledge/build-index.cjs` (regenerates the recall index + the slim
+  `docs/INTEGRATIONS.md`), then commit + push. Do NOT wait to be told. Say so visibly
+  ("✅ KB updated: <slug>") so he sees it without checking. Entry format + rules are in
+  `knowledge/_README.md`. Two hooks back this up: a **PreCompact hook**
+  (`.claude/settings.json`) forces a KB flush before context is ever compacted/lost, and
+  a **UserPromptSubmit hook** (`knowledge/recall.cjs`) surfaces relevant entries at the
+  start of each task so we don't rediscover what we already solved.
 - **Always prompt the Netlify env-var step** at the end of each platform's
   credential setup — never skip it.
 - **Confirm before irreversible or outward-facing actions.**
@@ -70,5 +76,10 @@ manager-level access. This governs all billing / ad-account / Stripe / Meta work
   add its key to `SECRETS_SCAN_OMIT_KEYS` in netlify.toml.
 
 ## Detailed state
-See **`docs/INTEGRATIONS.md`** for per-platform setup status, env-var names,
-decisions, and what's still pending.
+Per-platform setup status, env-var names, decisions, gotchas, and pending items live in the
+**task-keyed knowledge base** under **`knowledge/`** (one entry per topic). Two ways in:
+- Let the **recall hook** surface the relevant entry automatically when you start a task, or
+- Browse the generated index at **`docs/INTEGRATIONS.md`** (auto-built; slim TOC) and open the
+  one entry you need. **Don't** bulk-read the whole thing — that's the habit this replaced.
+Add/refresh entries as work completes (see the "Record to the knowledge base" rule above and
+`knowledge/_README.md`).

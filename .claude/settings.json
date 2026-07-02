@@ -1,12 +1,24 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/knowledge/recall.cjs\"",
+            "timeout": 10,
+            "statusMessage": "Checking the knowledge base..."
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"systemMessage\":\"Auto-recording to the index: refreshing CLAUDE.md + docs/INTEGRATIONS.md before this context is compacted.\",\"hookSpecificOutput\":{\"hookEventName\":\"PreCompact\",\"additionalContext\":\"STANDING INSTRUCTION FROM BRYSON: Before context is compacted, immediately update CLAUDE.md and docs/INTEGRATIONS.md with every unrecorded decision, status change, gotcha, credential or env-var name, and completed setup step from this session, then commit and push. The index must never fall behind, and Bryson must never have to ask whether it was saved.\"}}'",
-            "statusMessage": "Flushing session notes to the index..."
+            "command": "echo '{\"systemMessage\":\"Auto-recording to the knowledge base before this context is compacted.\",\"hookSpecificOutput\":{\"hookEventName\":\"PreCompact\",\"additionalContext\":\"STANDING INSTRUCTION FROM BRYSON: Before context is compacted, capture every unrecorded decision, status change, gotcha, credential or env-var NAME (never a value), and completed setup step from this session as task-keyed entries under knowledge/ (add or update knowledge/<slug>.md), then run `node knowledge/build-index.cjs` and commit + push. The knowledge base must never fall behind, and Bryson must never have to ask whether it was saved.\"}}'",
+            "statusMessage": "Flushing session notes to the knowledge base..."
           }
         ]
       }

@@ -39,7 +39,12 @@
   --sans:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
+/* Nav-click glide + soft fade transition. See the nav script near </body>;
+   set NAV.fade=false there to drop the veil ("Option 1": glide + settle only). */
+#navFade{position:fixed;inset:0;background:var(--bg);opacity:0;pointer-events:none;z-index:40;will-change:opacity}
+@keyframes navSettle{from{opacity:.5;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.nav-arrive>.section-head,.nav-arrive>.contact-box{animation:navSettle .55s cubic-bezier(.2,.7,.2,1) both}
 body{font-family:var(--sans);color:var(--ink);line-height:1.6;background:var(--bg);-webkit-font-smoothing:antialiased}
 a{color:inherit}
 .wrap{max-width:1100px;margin:0 auto;padding:0 28px}
@@ -96,8 +101,10 @@ header.scrolled .nav-inner{background:rgba(8,10,15,.9);border-color:rgba(255,255
 .btn-ghost{display:inline-block;margin-top:18px;font-size:12px;color:var(--faint);text-decoration:none;letter-spacing:.03em}
 .btn-ghost:hover{color:var(--gold)}
 
-.boutique{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:30px 28px;text-align:center;background:rgba(255,255,255,.015)}
-.boutique p{max-width:620px;margin:0 auto;font-size:13.5px;color:var(--muted);letter-spacing:.01em}
+.boutique{max-width:776px;margin:0 auto;padding:0 28px}
+.boutique-card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:32px 34px;text-align:center;overflow:hidden}
+.boutique-card::before{content:"";position:absolute;top:0;left:50%;transform:translateX(-50%);width:46px;height:2px;background:var(--gold)}
+.boutique p{max-width:600px;margin:0 auto;font-size:14px;color:var(--muted);letter-spacing:.01em;line-height:1.7}
 .boutique strong{color:var(--ink);font-weight:600}
 
 section{padding:104px 28px}
@@ -208,7 +215,8 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   section{padding:54px 20px}
   .section-head{margin-bottom:28px}
   .section-head p{font-size:13.5px}
-  .boutique{padding:20px}
+  .boutique{padding:0 20px}
+  .boutique-card{padding:26px 22px}
   .boutique p{font-size:13px}
   .trust{padding:54px 22px}
   /* Packages: denser cards + tighter stacking */
@@ -576,7 +584,9 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 </div>
 
 <div class="boutique">
-  <p><strong>We work with a limited number of businesses at a time, on purpose.</strong> The ones we take on get our full attention, not a seat in a queue.</p>
+  <div class="boutique-card">
+    <p><strong>We work with a limited number of businesses at a time, on purpose.</strong> The ones we take on get our full attention, not a seat in a queue.</p>
+  </div>
 </div>
 
 <section id="services">
@@ -1123,7 +1133,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
       var tabBtn = document.querySelector('.tab[data-tab="' + f.tab + '"]');
       if(tabBtn){ tabBtn.click(); }
       var svc = document.getElementById('services');
-      if(svc){ svc.scrollIntoView({ behavior:'smooth' }); }
+      if(svc){ if(window.blScrollTo){ window.blScrollTo(svc); } else { svc.scrollIntoView({ behavior:'smooth' }); } }
     };
     form.hidden = true; result.hidden = false;
   });
@@ -1217,6 +1227,96 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
     entries.forEach(function(e){ if(e.isIntersecting){ show(); io.disconnect(); } });
   }, { threshold: 0.25 });
   io.observe(tl);
+})();
+</script>
+
+<script>
+/* Nav-link click -> glide + soft fade to the section (Option 3).
+   Toggle NAV.fade=false for "Option 1" (glide + settle, no veil). SEO-safe:
+   only the transition animates; content is never hidden. Respects reduced-motion. */
+(function(){
+  var NAV = { glide:true, fade:true, arriveCue:true, duration:820, veilPeak:0.5 };
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  var root = document.documentElement;
+  root.style.scrollBehavior = 'auto'; // JS owns the scroll now (rAF glide, or an instant jump for reduced-motion); CSS 'smooth' stays as the no-JS fallback
+
+  var veil = null;
+  function getVeil(){
+    if(!veil){ veil = document.createElement('div'); veil.id = 'navFade'; document.body.appendChild(veil); }
+    return veil;
+  }
+  function headerOffset(){
+    var ni = document.querySelector('.nav-inner');
+    return (ni ? ni.getBoundingClientRect().height : 52) + 26;
+  }
+  function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
+
+  var rafId = null;
+  function cancelAnim(){ if(rafId){ cancelAnimationFrame(rafId); rafId = null; } }
+
+  function arriveCue(target){
+    if(!NAV.arriveCue || reduce) return;
+    target.classList.remove('nav-arrive');
+    void target.offsetWidth;                 // reflow so the settle can replay
+    target.classList.add('nav-arrive');
+    setTimeout(function(){ target.classList.remove('nav-arrive'); }, 650);
+  }
+
+  function scrollToEl(target){
+    if(!target) return;
+    var startY = window.pageYOffset || root.scrollTop || 0;
+    var maxY = Math.max(0, (document.body.scrollHeight || 0) - window.innerHeight);
+    var destY = Math.min(maxY, Math.max(0, target.getBoundingClientRect().top + startY - headerOffset()));
+    var dist = destY - startY;
+
+    if(reduce || !NAV.glide || Math.abs(dist) < 4){ window.scrollTo(0, destY); arriveCue(target); return; }
+
+    var dur = Math.min(1200, Math.max(520, NAV.duration * Math.min(1.4, Math.abs(dist)/900)));
+    var vEl = NAV.fade ? getVeil() : null;
+    var start = null;
+    cancelAnim();
+
+    function cleanup(){
+      window.removeEventListener('wheel', interrupt);
+      window.removeEventListener('touchstart', interrupt);
+      window.removeEventListener('keydown', onKey);
+    }
+    function interrupt(){ cancelAnim(); if(vEl){ vEl.style.opacity = '0'; } cleanup(); }
+    function onKey(e){ if(['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].indexOf(e.key) >= 0){ interrupt(); } }
+    window.addEventListener('wheel', interrupt, { passive:true });
+    window.addEventListener('touchstart', interrupt, { passive:true });
+    window.addEventListener('keydown', onKey);
+
+    function step(ts){
+      if(start === null){ start = ts; }
+      var p = Math.min(1, (ts - start)/dur);
+      window.scrollTo(0, startY + dist * easeInOutCubic(p));
+      if(vEl){ vEl.style.opacity = String(NAV.veilPeak * Math.sin(Math.PI * p)); }
+      if(p < 1){ rafId = requestAnimationFrame(step); }
+      else { rafId = null; if(vEl){ vEl.style.opacity = '0'; } cleanup(); arriveCue(target); }
+    }
+    rafId = requestAnimationFrame(step);
+  }
+  window.blScrollTo = scrollToEl;
+
+  document.addEventListener('click', function(e){
+    var node = e.target;
+    var a = node && node.closest ? node.closest('a[href]') : null;
+    if(!a) return;
+    var href = a.getAttribute('href') || '';
+    if(href.charAt(0) !== '#' || href.length < 2) return;   // only same-page anchors
+    var target = document.getElementById(href.slice(1));
+    if(!target) return;
+    e.preventDefault();
+    var mob = document.querySelector('.nav-mobile.open');   // close mobile menu if open
+    if(mob){
+      mob.classList.remove('open');
+      var tg = document.querySelector('.nav-toggle');
+      if(tg){ tg.classList.remove('open'); tg.setAttribute('aria-expanded','false'); }
+    }
+    scrollToEl(target);
+    if(history.replaceState){ try{ history.replaceState(null, '', href); }catch(_){} }
+  });
 })();
 </script>
 
