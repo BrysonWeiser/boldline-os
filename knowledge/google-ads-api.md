@@ -1,0 +1,21 @@
+---
+name: google-ads-api
+topic: OS app
+task: connect, test, or debug the Google Ads API integration (MCC, OAuth, Basic Access, approval queue)
+keywords: [google-ads.mjs, MCC, login-customer-id, GOOGLE_ADS_API_VERSION, redirect_uri_mismatch, basic-access, propose_action, pendingActions]
+status: verified
+summary: Google Ads is wired via one MCC + Developer Token + OAuth refresh token (login-customer-id header); code in google-ads.mjs (test/campaigns/setBudget/setStatus). Blockers — Developer Token still Explorer Access (Basic Access was REJECTED for the old website; do not resubmit same responses), and the Web-app OAuth client must be used (Desktop got redirect_uri_mismatch).
+verified: 2026-07-02
+---
+
+**Architecture:** one **MCC** manager account (its ID is in `GOOGLE_ADS_MANAGER_CUSTOMER_ID`) + one Developer Token + one OAuth refresh token operate across all linked client accounts via the `login-customer-id` header. OAuth consent screen **published to PRODUCTION** (avoids Testing mode's 7-day refresh-token expiry).
+
+**OAuth client gotcha:** two clients exist — a **Desktop-app** one (**unused**; OAuth Playground rejected it with `redirect_uri_mismatch`) and a **Web-application** one (**in use**; has `https://developers.google.com/oauthplayground` as an authorized redirect URI). The refresh token was generated against the **Web-app** client, so `GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET` must be the **Web-app** client's (refresh tokens are bound to the issuing client).
+
+**Env vars:** `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (stored **with dashes**; the code strips them). Optional `GOOGLE_ADS_API_VERSION` (defaults `v18` in code; Google sunsets versions ~yearly — if `test` errors "version not found/deprecated," set this to a current version in Netlify, no code change).
+
+**Code:** `netlify/functions/google-ads.mjs` — OAuth refresh→access-token exchange, then actions `test` (listAccessibleCustomers smoke test), `campaigns` (GAQL read + 30-day metrics), `setBudget` + `setStatus` (guarded writes). Secured by the owner's Supabase session. A "Test Google Ads Connection" card on the Deploy tab (labeled "expected to fail until Basic Access is approved"; one-click, no redeploy needed to verify the moment the token lands). Per-client field `googleAdsCustomerId` in the data model for MCC linking.
+
+**BLOCKER — Basic Access REJECTED 2026-06-26:** the Developer Token is still **Explorer Access** (test accounts only). Basic Access was rejected purely because the website on file (the old Wix site) "does not have content related to your application" — **not** a rejection of the business model or design doc. Google's email warns **do NOT resubmit with the same responses** (it just re-triggers the same rejection). Fix = resubmit against the now-live `boldlinemedia.com` plus a business-model/MCC note in the application (see `pending-seo-next-steps`).
+
+**Approve→execute deferred (correctly):** ARIA's `propose_action` logs a *descriptive* proposal (title/detail/category) to the `pendingActions` approval queue; `decideAction` records the approve/reject. This is Task #8's human-in-the-loop guardrail — **no automated process executes a real ad-account change without manual approval** — and it was the safety story cited in the Basic Access design doc. Turning an approval into a real `setBudget`/`setStatus` call needs live campaign reads first (to resolve the specific campaign + resource names), so it's a post-Basic-Access task. The executable pieces are ready in `google-ads.mjs`; only the final UI wire-up remains.

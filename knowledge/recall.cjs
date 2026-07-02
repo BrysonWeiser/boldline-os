@@ -4,17 +4,25 @@
 // knowledge base, and (only on a confident match) injects a 1-2 line pointer block
 // so Claude opens the relevant prior finding instead of rediscovering it.
 //
-// Two hard rules from the runbook:
-//   1. Weight keywords by inverse doc-frequency (rare keyword = strong signal).
-//   2. Cap output at MAX hits (one tangential hit trains the reader to skim past all).
-// And it must NEVER throw and must always exit 0 (a hook that errors would disrupt
-// every prompt). Silent when nothing clears the threshold.
+// Scoring: each entry carries a weighted term bag (keywords + task + summary +
+// topic + name, built by build-index.cjs). We sum weight * inverse-doc-frequency
+// over the prompt tokens that hit an entry's bag -- so rare, on-topic words
+// dominate and common words barely register. Output is capped at MAX entries.
+//
+// Hard rule: NEVER throw, ALWAYS exit 0 (a hook that errors would disrupt every
+// prompt). Silent when nothing clears the threshold.
 
 const fs = require('fs');
 const path = require('path');
 
-const THRESHOLD = 1.3; // min summed IDF score to surface an entry (tune here)
+const THRESHOLD = 7.0; // min score to surface an entry (tune here); scored as sum(weight*idf)
 const MAX = 2;         // never surface more than this many entries
+
+const STOP = new Set(('a an and are as at be but by can cant do does doesnt done for from get gets getting got had has have how i if in into is it its make made makes need needs no not of off on or our out over per see so than that the their them then there they this to up use used using via want wants was were what when where which who why will with wont you your yours yes we us am been being also any all one via vs etc'.split(/\s+/)));
+
+function tokens(s) {
+  return String(s == null ? '' : s).toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !STOP.has(t));
+}
 
 function readStdin() {
   try { return fs.readFileSync(0, 'utf8'); } catch { return ''; }
@@ -41,17 +49,17 @@ function main() {
   const df = index.df || {};
   const N = Math.max(1, index.N || entries.length);
 
-  const hay = ' ' + promptText.toLowerCase().replace(/\s+/g, ' ') + ' ';
+  const promptTokens = new Set(tokens(promptText));
+  if (!promptTokens.size) return;
 
-  // 3. score each entry by summed IDF of its keywords that appear in the prompt
+  // 3. score each entry: sum(weight * idf) over prompt tokens hitting its bag
   const scored = entries.map((e) => {
     let score = 0;
-    for (const kw of (e.keywords || [])) {
-      if (!kw || kw.length < 3) continue;
-      const spaced = kw.replace(/[-_]+/g, ' ');
-      if (hay.includes(kw) || hay.includes(spaced)) {
-        score += Math.log((N + 1) / (df[kw] || 1));
-      }
+    const terms = e.terms || {};
+    for (const tok of promptTokens) {
+      const w = terms[tok];
+      if (!w) continue;
+      score += w * Math.log((N + 1) / (df[tok] || 1));
     }
     return { e, score };
   }).filter((x) => x.score >= THRESHOLD)

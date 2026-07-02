@@ -51,7 +51,10 @@ machine's disk persisted. Ours doesn't — so everything here is versioned, and 
 
 ## Tuning knobs
 
-- Recall too noisy / too quiet → `recall.cjs` `THRESHOLD` (default 1.3, higher = quieter) and `MAX` (default 2).
+- Recall too noisy / too quiet → `recall.cjs` `THRESHOLD` (default 7, higher = quieter) and `MAX` (default 2).
+  Scoring sums `weight × inverse-doc-frequency` over the prompt words that hit an entry's term bag
+  (built from keywords + task + summary + topic + name). Rare, on-topic words dominate; common words
+  barely register. Re-run `build-index.cjs` after editing entries so the term bags + frequencies refresh.
 
 ## What we deliberately skipped (and why)
 
