@@ -1150,6 +1150,8 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   header.classList.add('nav-in');
   var mcta = document.getElementById('mobileCta');
   var lastY = window.scrollY;
+  var runStartY = lastY;  // scroll position where the current up/down run began
+  var runDir = 0;         // 1 = running down, -1 = running up, 0 = none yet
   var onScroll = function(){
     var y = window.scrollY;
     header.classList.toggle('scrolled', y > 12);
@@ -1157,16 +1159,21 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 
     // Auto-hide on scroll down, reveal on scroll up (keeps the pill nav
     // out of the way of content but always one upward swipe/scroll away).
+    // Tracks distance travelled since the last direction change rather than
+    // frame-to-frame delta, since trackpad/momentum scrolling fires many
+    // events with only a few px each -- a per-event threshold never trips.
     var mobileOpen = header.querySelector('.nav-mobile.open');
-    var delta = y - lastY;
+    var dir = y > lastY ? 1 : (y < lastY ? -1 : runDir);
+    if(dir !== runDir){ runStartY = lastY; runDir = dir; }
+    lastY = y;
+    var traveled = y - runStartY;
     if(y < 80 || mobileOpen){
       header.classList.remove('nav-hidden');
-    } else if(delta > 4){
+    } else if(dir === 1 && traveled > 60){
       header.classList.add('nav-hidden');
-    } else if(delta < -4){
+    } else if(dir === -1 && traveled < -10){
       header.classList.remove('nav-hidden');
     }
-    lastY = y;
   };
   onScroll();
   window.addEventListener('scroll', onScroll, { passive:true });
