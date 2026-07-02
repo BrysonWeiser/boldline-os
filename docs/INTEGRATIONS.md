@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 29 task-keyed entries under `knowledge/`. They surface automatically via the
+> 32 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**29 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**32 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -75,6 +75,12 @@
 - **[marketing-site-content-principles](../knowledge/marketing-site-content-principles.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The marketing site pulls content from the OS's real data (PACKAGES_DB, STAGES), shows NO public dollar pricing (CTA/Calendly model), and uses NO testimonials/logos/stats (no real clients yet — honest boutique positioning). Dark+gold tokens, Playfair Display + Inter. Every CTA books a call.  
   <sub>*task:* decide what copy, pricing, proof, and design to put on the marketing site (and where its content comes from) &nbsp;|&nbsp; *keywords:* PACKAGES_DB, STAGES, no-public-pricing, calendly, playfair-display, recommender-quiz</sub>
+- **[marketing-site-design-system](../knowledge/marketing-site-design-system.md)** &mdash; &#9989; verified &middot; 2026-07-02  
+  The homepage's visual language — dark --card boxes with a --line border, rounded corners, gold accents. Match this vocabulary when adding or restyling a component so nothing looks out of place.  
+  <sub>*task:* keep the marketing site visually uniform or restyle a component to match the rest of the site &nbsp;|&nbsp; *keywords:* design-tokens, card, boutique, section-head, eyebrow, uniform, border-radius</sub>
+- **[nav-scroll-transition](../knowledge/nav-scroll-transition.md)** &mdash; &#9989; verified &middot; 2026-07-02  
+  Nav-link clicks glide (custom eased scroll) + soft fade veil to the section. Tune it via the NAV config object in a script near the end of marketing-site/index.html.  
+  <sub>*task:* change or tune the nav-link scroll animation and fade transition on the marketing site &nbsp;|&nbsp; *keywords:* veilPeak, navFade, nav-arrive, glide, blScrollTo, easeInOutCubic, scroll-padding-top, scroll-behavior</sub>
 
 ## Mobile/CSS
 
@@ -132,6 +138,9 @@
 
 ## Tooling
 
+- **[knowledge-base-system](../knowledge/knowledge-base-system.md)** &mdash; &#9989; verified &middot; 2026-07-02  
+  BoldLine's task-keyed memory — entries in knowledge/<slug>.md, a UserPromptSubmit recall hook surfaces the relevant ones per prompt, build-index.cjs regenerates the index. Full runbook in knowledge/_README.md.  
+  <sub>*task:* add to, maintain, or understand the knowledge base and recall system &nbsp;|&nbsp; *keywords:* knowledge-base, recall, build-index, recall.cjs, UserPromptSubmit, entry, slug, THRESHOLD</sub>
 - **[verification-harness](../knowledge/verification-harness.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Sandbox has no live Supabase/Netlify CLI/ANTHROPIC_API_KEY. Verify with node --check on every file; a real Babel transformSync() of the extracted JSX (index.html has no build step); import/export cross-checks; and headless Chromium/Playwright against a LOCAL HTTP server (not file://) with full-page desktop+mobile shots + a javaScriptEnabled:false pass.  
   <sub>*task:* verify a code change in this sandbox (no live Supabase/Netlify/Anthropic) before shipping &nbsp;|&nbsp; *keywords:* node-check, transformSync, javaScriptEnabled, playwright, chromium, xss-payload</sub>
