@@ -439,7 +439,10 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .tl-rail{position:absolute;left:23px;top:30px;bottom:46px;width:2px;background:var(--line)}
 .tl-rail::after{content:"";position:absolute;top:0;left:0;width:100%;height:0;background:linear-gradient(var(--gold),var(--gold-line));transition:height 1.5s ease}
 .timeline.in .tl-rail::after{height:100%}
-.tstep{position:relative;display:grid;grid-template-columns:48px 1fr;gap:20px;padding:14px 0 30px;opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .6s ease}
+.tstep{position:relative;display:grid;grid-template-columns:48px 1fr;gap:20px;padding:14px 0 30px;transition:opacity .6s ease,transform .6s ease}
+/* Hidden resting state only when JS is running (html.js-tabs from the head script) —
+   no-JS visitors and crawlers see the steps fully visible without scrolling */
+html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .tstep:last-child{padding-bottom:0}
 .timeline.in .tstep{opacity:1;transform:none}
 .timeline.in .tstep:nth-of-type(2){transition-delay:.12s}
@@ -470,7 +473,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 }
 @media (prefers-reduced-motion:reduce){
   .browser,.float-chart,.float-toast,.fc-bars span{animation:none}
-  .tstep,.tnode{opacity:1;transform:none;transition:none}
+  .tstep,html.js-tabs .tstep,.tnode{opacity:1;transform:none;transition:none}
   .tl-rail::after{height:100%;transition:none}
 }
 
@@ -508,10 +511,70 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .founder blockquote{font-size:18px;line-height:1.5;margin-bottom:16px}
   .contact-or{margin:22px auto 4px}
 }
+
+/* ── Ambient living background + micro-motion (self-contained block; placed
+      last on purpose so its media queries win source order) ── */
+.ambient{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.ow{position:absolute;will-change:transform}
+.ow .orb{width:100%;height:100%;border-radius:50%}
+.ow-a{top:-320px;left:-180px;width:880px;height:880px}
+.ow-a .orb{background:radial-gradient(circle,rgba(200,168,75,.10),transparent 65%);animation:orbDrift 46s ease-in-out infinite alternate}
+.ow-b{top:30%;right:-280px;width:780px;height:780px}
+.ow-b .orb{background:radial-gradient(circle,rgba(99,116,255,.07),transparent 66%);animation:orbDrift 58s ease-in-out -14s infinite alternate-reverse}
+.ow-c{bottom:-320px;left:20%;width:840px;height:840px}
+.ow-c .orb{background:radial-gradient(circle,rgba(200,168,75,.06),transparent 62%);animation:orbDrift 72s ease-in-out -30s infinite alternate}
+@keyframes orbDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(64px,-44px,0) scale(1.1)}100%{transform:translate3d(-54px,52px,0) scale(.94)}}
+#bgNet{position:absolute;inset:0;width:100%;height:100%;opacity:.6}
+.grain{position:absolute;inset:0;opacity:.05;background-size:170px 170px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* Scroll progress hairline */
+#progress{position:fixed;top:0;left:0;right:0;height:2px;z-index:70;pointer-events:none;background:linear-gradient(90deg,var(--gold),#F0DCA0);transform:scaleX(0);transform-origin:0 50%;opacity:.65}
+
+/* Scroll-settle micro-reveals. IMPORTANT (see knowledge/content-visibility-no-js):
+   nothing here hides content by default — .sr/.sr-in are added ONLY by JS, and only
+   to elements below the viewport at arm time, so no-JS visitors, crawlers, and
+   screenshots always get fully visible content. */
+.sr{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--srd,0s)}
+.sr-in{opacity:1;transform:none}
+.sr-in .divider{animation:drawX .9s cubic-bezier(.2,.7,.2,1) .15s both}
+@keyframes drawX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* Unified hover polish */
+.incl{transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
+.incl:hover{transform:translateY(-3px);border-color:var(--gold-line);box-shadow:0 16px 34px -20px rgba(0,0,0,.7)}
+.faq-item:hover{border-color:rgba(200,168,75,.18)}
+.btn{position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;top:0;left:-80%;width:55%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.34),transparent);transform:skewX(-18deg);transition:left .55s ease;pointer-events:none}
+.btn:hover::after{left:130%}
+
+/* Let a hint of the ambient glow bleed through the alt bands */
+.alt{background:rgba(13,15,22,.88)}
+
+@media (max-width:720px){
+  .ow-c{display:none}
+  .ow-a{width:640px;height:640px;top:-260px;left:-200px}
+  .ow-b{width:560px;height:560px;right:-240px}
+}
+@media (prefers-reduced-motion:reduce){
+  .ow .orb{animation:none}
+  #bgNet,#progress{display:none}
+  .sr{opacity:1;transform:none;transition:none}
+  .sr-in .divider{animation:none}
+  .btn::after{display:none}
+}
 </style>
 <link rel="stylesheet" href="/glossary.css">
 </head>
 <body>
+
+<div class="ambient" aria-hidden="true">
+  <div class="ow ow-a"><div class="orb"></div></div>
+  <div class="ow ow-b"><div class="orb"></div></div>
+  <div class="ow ow-c"><div class="orb"></div></div>
+  <canvas id="bgNet"></canvas>
+  <div class="grain"></div>
+</div>
+<div id="progress" aria-hidden="true"></div>
 
 <header>
   <div class="nav-inner">
@@ -1339,6 +1402,124 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
     scrollToEl(target);
     if(history.replaceState){ try{ history.replaceState(null, '', href); }catch(_){} }
   });
+})();
+</script>
+
+<script>
+/* Ambient background engine + scroll micro-motion.
+   Everything here is decorative and additive: with JS off (or reduced-motion on)
+   the page is fully rendered and visible without any of it. */
+(function(){
+  var reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+  /* ── Constellation canvas: faint drifting points joined by thin gold lines ── */
+  var canvas = document.getElementById('bgNet');
+  if(canvas && !reduce && window.innerWidth >= 720){
+    var ctx = canvas.getContext('2d');
+    var pts = [], W = 0, H = 0, dpr = 1, frame = 0;
+
+    function size(){
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var want = Math.min(80, Math.round(W * H / 26000));
+      while(pts.length < want) pts.push(spawn());
+      pts.length = want;
+    }
+    function spawn(){
+      return {
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22,
+        r: .8 + Math.random() * .9
+      };
+    }
+    function tick(){
+      requestAnimationFrame(tick);                // rAF self-pauses in hidden tabs
+      if(++frame % 2) return;                     // ~30fps is plenty for slow drift
+      ctx.clearRect(0, 0, W, H);
+      var i, j, p, q, dx, dy, d, LINK = 130;
+      for(i = 0; i < pts.length; i++){
+        p = pts[i];
+        p.x += p.vx; p.y += p.vy;
+        if(p.x < -20) p.x = W + 20; else if(p.x > W + 20) p.x = -20;
+        if(p.y < -20) p.y = H + 20; else if(p.y > H + 20) p.y = -20;
+      }
+      ctx.lineWidth = 1;
+      for(i = 0; i < pts.length; i++){
+        p = pts[i];
+        for(j = i + 1; j < pts.length; j++){
+          q = pts[j];
+          dx = p.x - q.x; dy = p.y - q.y;
+          if(dx > LINK || dx < -LINK || dy > LINK || dy < -LINK) continue;
+          d = Math.sqrt(dx * dx + dy * dy);
+          if(d < LINK){
+            ctx.strokeStyle = 'rgba(200,168,75,' + ((1 - d / LINK) * .09).toFixed(3) + ')';
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+          }
+        }
+        ctx.fillStyle = 'rgba(222,205,160,.28)';
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.2832); ctx.fill();
+      }
+    }
+    size();
+    var rsz; window.addEventListener('resize', function(){ clearTimeout(rsz); rsz = setTimeout(size, 180); });
+    requestAnimationFrame(tick);
+  }
+
+  /* ── One rAF-throttled scroll handler: progress hairline + orb parallax ── */
+  var bar = document.getElementById('progress');
+  var orbs = document.querySelectorAll('.ambient .ow');
+  var parallax = !reduce && window.innerWidth >= 720 && orbs.length;
+  var factors = [.06, -.045, .09];               // px of orb drift per px scrolled
+  var queued = false;
+  function paint(){
+    queued = false;
+    var y = window.scrollY || 0;
+    if(bar && !reduce){
+      var max = (document.body.scrollHeight || 1) - window.innerHeight;
+      bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, y / max) : 0) + ')';
+    }
+    if(parallax){
+      for(var i = 0; i < orbs.length; i++){
+        orbs[i].style.transform = 'translate3d(0,' + (-y * factors[i % 3]).toFixed(1) + 'px,0)';
+      }
+    }
+  }
+  window.addEventListener('scroll', function(){
+    if(!queued){ queued = true; requestAnimationFrame(paint); }
+  }, { passive: true });
+  paint();
+
+  /* ── Scroll-settle reveals (safe pattern — see knowledge/content-visibility-no-js):
+        we only ever arm elements that are BELOW the viewport right now, so nothing
+        visible (or crawlable) is ever hidden; JS then plays the settle as they enter. ── */
+  if(!reduce && 'IntersectionObserver' in window){
+    var groups = ['.section-head', '.boutique-card', '.pkg', '.incl', '.faq-item',
+                  '.fit-check', '.fit-budget', '.founder-card', '.contact-box',
+                  '.cap-note', '.equal-effort'];
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){ e.target.classList.add('sr-in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '12000px 0px -7% 0px', threshold: 0.06 });
+    // The huge TOP margin guarantees nothing can get stuck hidden: anything the
+    // user jumps past (End key, nav glide) is instantly "intersecting" once it is
+    // at/above the viewport, so only entrances from below play the settle.
+    var vh = window.innerHeight;
+    document.querySelectorAll(groups.join(',')).forEach(function(el){
+      if(el.getBoundingClientRect().top > vh * 0.92){
+        // .reveal's finished fadeUp (fill-mode both) pins opacity:1 forever and
+        // would override .sr — the same animation-vs-class trap as the nav bug
+        el.classList.remove('reveal');
+        // stagger siblings that share a parent grid (packages, cards, faq)
+        var sibs = el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0;
+        el.style.setProperty('--srd', Math.min(sibs * 70, 420) + 'ms');
+        el.classList.add('sr');
+        io.observe(el);
+      }
+    });
+  }
 })();
 </script>
 
