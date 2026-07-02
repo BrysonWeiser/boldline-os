@@ -76,3 +76,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-07-02 | `aeb32f2` | `rollback/20260702T063642Z` | Marketing site tweak: deepened the nav-transition fade veil (peak 0.5 -> 0.7) for a stronger mid-transit dim. |
 | 2026-07-02 | `d2c897f` | `rollback/20260702T162611Z` | Docs/KB only: captured today's work as KB entries (nav transition, design system, KB-system) + recorded the Sonnet-default / flag-Opus / lean working rule in CLAUDE.md. No site behavior change. |
 | 2026-07-02 | `c5376fc` | `rollback/20260702T180118Z` | Marketing site: nav bar now auto-hides on scroll-down and reveals on scroll-up (was always fixed at top) so it stays out of the way of content but is one scroll away. |
+| 2026-07-02 | `522e6d5` | `rollback/20260702T180218Z` | Docs/KB only: captured the nav auto-hide/reveal behavior as a KB entry. No site behavior change. |
