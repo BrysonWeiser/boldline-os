@@ -116,7 +116,7 @@ section{padding:104px 28px}
 .cap-note{text-align:center;margin-top:30px;font-size:13px;color:var(--faint)}
 .cap-note a{color:var(--gold);text-decoration:none;border-bottom:1px solid var(--gold-line)}
 
-.alt{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.alt{background:transparent}  /* was a distinct card band; flattened so the ambient background flows uniformly (Bryson, 2026-07-02) */
 .incl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px 48px;max-width:760px;margin:0 auto}
 .incl{display:flex;gap:14px;align-items:flex-start}
 .incl .mark{flex-shrink:0;width:22px;height:22px;border:1px solid var(--gold-line);border-radius:50%;color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;margin-top:1px}
@@ -525,14 +525,23 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .ow-c .orb{background:radial-gradient(circle,rgba(200,168,75,.06),transparent 62%);animation:orbDrift 72s ease-in-out -30s infinite alternate}
 @keyframes orbDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(64px,-44px,0) scale(1.1)}100%{transform:translate3d(-54px,52px,0) scale(.94)}}
 #bgNet{position:absolute;inset:0;width:100%;height:100%;opacity:.6}
-/* Floating ad-ecosystem glyphs (search, click, chart, pin, target, lead bubble,
-   megaphone, Ad badge) — line-art in gold, whisper opacity, side gutters only */
+/* Campaign-blueprint artifacts: four large, fine-line wireframes of the ads craft
+   (ghost search ad, targeting reticle, conversion funnel, performance curve).
+   Nearly still on purpose — depth comes from the parallax, not bobbing. */
 .ow-g{inset:0}
-.gl{position:absolute;height:auto;color:var(--gold);opacity:.11;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;animation:glFloat var(--gd,20s) ease-in-out var(--gde,0s) infinite}
-.gl-b{animation-name:glFloat2}
-.gl-ad text{stroke:none;fill:currentColor}
-@keyframes glFloat{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-17px) rotate(2.5deg)}}
-@keyframes glFloat2{0%,100%{transform:translateY(-7px) rotate(-2deg)}50%{transform:translateY(11px) rotate(1.5deg)}}
+.bp{position:absolute;height:auto;color:var(--gold);fill:none;stroke:currentColor;stroke-width:1;stroke-linecap:round;stroke-linejoin:round}
+.bp .fl{fill:currentColor;stroke:none}
+.bp-card{left:2.5%;top:9%;width:280px;opacity:.09;transform:rotate(-4deg)}
+.bp-ret{right:3%;top:13%;width:200px;opacity:.08}
+.bp-fun{left:3.2%;top:55%;width:170px;opacity:.08;transform:rotate(3deg)}
+.bp-cur{right:1.5%;bottom:4%;width:400px;opacity:.10}
+.bp-ret .rot{animation:bpSpin 120s linear infinite;transform-origin:center;transform-box:fill-box}
+.bp-cur .pulse{animation:bpPulse 5.5s ease-out infinite;transform-origin:center;transform-box:fill-box}
+.bp-cur .pulse2{animation-delay:2.75s}
+.bp-cur .dash{stroke-dasharray:3 6;animation:bpDash 30s linear infinite}
+@keyframes bpSpin{to{transform:rotate(360deg)}}
+@keyframes bpPulse{0%{transform:scale(.4);opacity:.8}70%,100%{transform:scale(2.4);opacity:0}}
+@keyframes bpDash{to{stroke-dashoffset:-180}}
 .grain{position:absolute;inset:0;opacity:.05;background-size:170px 170px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 
 /* Scroll progress hairline */
@@ -547,16 +556,11 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .sr-in .divider{animation:drawX .9s cubic-bezier(.2,.7,.2,1) .15s both}
 @keyframes drawX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
-/* Unified hover polish */
-.incl{transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease}
-.incl:hover{transform:translateY(-3px);border-color:var(--gold-line);box-shadow:0 16px 34px -20px rgba(0,0,0,.7)}
+/* Unified hover polish (.incl already has its own lift+tint hover in the card block) */
 .faq-item:hover{border-color:rgba(200,168,75,.18)}
 .btn{position:relative;overflow:hidden}
 .btn::after{content:"";position:absolute;top:0;left:-80%;width:55%;height:100%;background:linear-gradient(105deg,transparent,rgba(255,255,255,.34),transparent);transform:skewX(-18deg);transition:left .55s ease;pointer-events:none}
 .btn:hover::after{left:130%}
-
-/* Let a hint of the ambient glow bleed through the alt bands */
-.alt{background:rgba(13,15,22,.88)}
 
 @media (max-width:900px){
   .ow-g{display:none}   /* glyphs live in the desktop side gutters; phones have none */
@@ -568,7 +572,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 }
 @media (prefers-reduced-motion:reduce){
   .ow .orb{animation:none}
-  .gl{animation:none}
+  .bp .rot,.bp .dash{animation:none}
+  .bp .pulse{display:none}
   #bgNet,#progress{display:none}
   .sr{opacity:1;transform:none;transition:none}
   .sr-in .divider{animation:none}
@@ -585,15 +590,46 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   <div class="ow ow-c"><div class="orb"></div></div>
   <canvas id="bgNet"></canvas>
   <div class="ow ow-g">
-    <svg class="gl" style="left:4%;top:13%;width:46px;--gd:19s" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-    <svg class="gl gl-b" style="left:7%;top:38%;width:34px;--gd:23s;--gde:-6s" viewBox="0 0 24 24"><path d="M4 3l7 17 2.5-6.5L20 11 4 3z"/></svg>
-    <svg class="gl" style="left:3.5%;top:62%;width:52px;--gd:26s;--gde:-11s" viewBox="0 0 24 24"><path d="M3 20h18M5 20v-5M11 20v-9M17 20v-14"/></svg>
-    <svg class="gl gl-b" style="left:8%;top:84%;width:40px;--gd:21s;--gde:-3s" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><circle cx="12" cy="12" r="1.8"/></svg>
-    <svg class="gl gl-b" style="right:4%;top:10%;width:42px;--gd:24s;--gde:-9s" viewBox="0 0 24 24"><path d="M3 17l6-6 4 3 8-8"/><path d="M15 6h6v6"/></svg>
-    <svg class="gl" style="right:7.5%;top:33%;width:36px;--gd:18s;--gde:-13s" viewBox="0 0 24 24"><path d="M12 21s-7-5.4-7-11a7 7 0 1 1 14 0c0 5.6-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
-    <svg class="gl gl-b" style="right:3.5%;top:57%;width:48px;--gd:27s;--gde:-5s" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2.2-3.1A8 8 0 1 1 21 12z"/><circle cx="8.6" cy="12" r=".9"/><circle cx="12.6" cy="12" r=".9"/><circle cx="16.6" cy="12" r=".9"/></svg>
-    <svg class="gl" style="right:8%;top:80%;width:44px;--gd:22s;--gde:-15s" viewBox="0 0 24 24"><path d="M3 10.5L17 4v16L3 13.5v-3z"/><path d="M17 8a4.2 4.2 0 0 1 0 8M6.5 14.5V19"/></svg>
-    <svg class="gl gl-ad" style="left:5.5%;top:88%;width:40px;--gd:25s;--gde:-8s" viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="10" rx="2.2"/><text x="12" y="14.8" text-anchor="middle" font-size="6.5" font-family="Inter,sans-serif" font-weight="600" letter-spacing=".5">AD</text></svg>
+    <!-- Ghost search-ad: the skeleton of a Google ad, drawn like a blueprint -->
+    <svg class="bp bp-card" viewBox="0 0 300 190">
+      <rect x="1" y="1" width="298" height="188" rx="14"/>
+      <rect x="20" y="20" width="66" height="19" rx="9.5"/>
+      <circle cx="31" cy="66" r="9"/>
+      <rect class="fl" x="50" y="61" width="162" height="7" rx="3.5" opacity=".5"/>
+      <rect class="fl" x="20" y="94" width="258" height="6" rx="3" opacity=".32"/>
+      <rect class="fl" x="20" y="110" width="212" height="6" rx="3" opacity=".32"/>
+      <rect x="20" y="138" width="94" height="27" rx="13.5"/>
+    </svg>
+    <!-- Targeting reticle: dashed inner ring rotates once every 2 minutes -->
+    <svg class="bp bp-ret" viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="92"/>
+      <g class="rot"><circle cx="100" cy="100" r="63" stroke-dasharray="3 9"/></g>
+      <circle class="fl" cx="100" cy="100" r="2.6" opacity=".7"/>
+      <path d="M100 2v13M100 185v13M2 100h13M185 100h13"/>
+    </svg>
+    <!-- Funnel in fine linework: impressions -> clicks -> the one gold lead -->
+    <svg class="bp bp-fun" viewBox="0 0 220 240">
+      <path d="M12 10h196l-26 70H38z"/>
+      <path d="M44 96h132l-20 64H64z"/>
+      <path d="M70 176h80l-28 58h-24z"/>
+      <g class="fl" opacity=".55">
+        <circle cx="70" cy="45" r="2.6"/><circle cx="90" cy="45" r="2.6"/><circle cx="110" cy="45" r="2.6"/><circle cx="130" cy="45" r="2.6"/><circle cx="150" cy="45" r="2.6"/>
+        <circle cx="90" cy="128" r="2.6"/><circle cx="110" cy="128" r="2.6"/><circle cx="130" cy="128" r="2.6"/>
+      </g>
+      <circle class="fl" cx="110" cy="206" r="3.4" opacity=".9"/>
+    </svg>
+    <!-- Performance curve: soft area fill, pulsing endpoint, dashed projection -->
+    <svg class="bp bp-cur" viewBox="0 0 440 210">
+      <defs><linearGradient id="bpg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C8A84B" stop-opacity=".13"/><stop offset="1" stop-color="#C8A84B" stop-opacity="0"/></linearGradient></defs>
+      <path class="fl" fill="url(#bpg)" d="M0 170C90 168 150 150 220 120S340 60 400 38v152H0z" opacity="1"/>
+      <path d="M0 190h440" opacity=".5"/>
+      <path d="M40 190v6M120 190v6M200 190v6M280 190v6M360 190v6"/>
+      <path d="M0 170C90 168 150 150 220 120S340 60 400 38"/>
+      <path class="dash" d="M400 38L440 18"/>
+      <circle class="pulse" cx="400" cy="38" r="8"/>
+      <circle class="pulse pulse2" cx="400" cy="38" r="8"/>
+      <circle class="fl" cx="400" cy="38" r="3.4" opacity=".9"/>
+    </svg>
   </div>
   <div class="grain"></div>
 </div>
