@@ -15,7 +15,7 @@
 - **[blog-404-force-redirect-deadend](../knowledge/blog-404-force-redirect-deadend.md)** &mdash; &#9940; dead-end &middot; 2026-07-02  
   DEAD-END — the first blog-404 fix (moving blog.css out of /blog/ plus adding force=true to the blog redirects) did NOT fix it. The real cause was new-format functions not seeing the rewrite's ?slug= query (see netlify-new-format-function-req-url).  
   <sub>*task:* fix blog post pages returning 404 in production while the blog index still works &nbsp;|&nbsp; *keywords:* blog.css, force=true, soft-404, notFoundPage, redirect-shadowing, blog-post.mjs</sub>
-- **[blog-backend-automation](../knowledge/blog-backend-automation.md)** &mdash; &#9989; verified &middot; 2026-07-02  
+- **[blog-backend-automation](../knowledge/blog-backend-automation.md)** &mdash; &#9989; verified &middot; 2026-07-03  
   Blog is DB-backed (blog_posts + singleton blog_settings). AI writes posts via blog-shared.mjs (Anthropic forced tool call, grounded in BLOG_FACTS); owner controls via blog-admin.mjs + Deploy-tab Blog panel (write/regenerate/delete/rewrite-all/rebuild); blog-autopublish.mjs auto-publishes on a Mon/Wed/Fri quota check.  
   <sub>*task:* understand or change how the blog stores posts and how AI writes, regenerates, and auto-publishes them &nbsp;|&nbsp; *keywords:* blog_posts, blog_settings, blog-shared.mjs, blog-admin.mjs, blog-autopublish.mjs, BLOG_FACTS, posts_per_week</sub>
 - **[blog-dynamic-rendering](../knowledge/blog-dynamic-rendering.md)** &mdash; &#9989; verified &middot; 2026-07-02  

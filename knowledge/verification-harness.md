@@ -18,3 +18,13 @@ verified: 2026-07-02
 - **Front end:** headless **Chromium / Playwright** against a **local static HTTP server** — NOT `file://`, because these pages use absolute `/`-rooted paths that only resolve under a real HTTP root. Take full-page screenshots at desktop + mobile (e.g. 2x device-scale, per-section crops for legibility), run a **`javaScriptEnabled:false`** regression pass (confirm substantial content still visible with JS off — see `content-visibility-no-js`), and check horizontal overflow at phone widths (320/360/390/414/430).
 
 Occasional console noise from a Google-Fonts fetch timing out through the sandbox proxy is not a code issue (fonts render on the real site).
+
+**OS (root index.html) render-testing in the cloud sandbox (2026-07-03):** the sandbox
+browser cannot reach unpkg.com (ERR_CONNECTION_RESET — Playwright doesn't route through the
+proxy), so the OS renders blank in Playwright even when the code is fine. Fix: `curl` (which
+DOES use the proxy) the four CDN scripts (react, react-dom, babel standalone, supabase) into a
+scratch `vendor/` dir, `sed` the unpkg URLs to `/vendor/*.js` in a COPY of index.html, serve
+that copy, and Playwright it. Renders the real login screen ("BoldLine OS / Sign In") and
+surfaces any JSX/Babel compile error. Note: everything lives in ONE `<script type="text/babel">`
+block, so a successful compile+mount proves component references resolve; deeper screens sit
+behind Supabase login and can't be exercised without credentials.

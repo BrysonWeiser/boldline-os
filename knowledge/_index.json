@@ -1246,7 +1246,7 @@
       ],
       "status": "verified",
       "summary": "Blog is DB-backed (blog_posts + singleton blog_settings). AI writes posts via blog-shared.mjs (Anthropic forced tool call, grounded in BLOG_FACTS); owner controls via blog-admin.mjs + Deploy-tab Blog panel (write/regenerate/delete/rewrite-all/rebuild); blog-autopublish.mjs auto-publishes on a Mon/Wed/Fri quota check.",
-      "verified": "2026-07-02",
+      "verified": "2026-07-03",
       "terms": {
         "blog_posts": 3,
         "blog": 3,

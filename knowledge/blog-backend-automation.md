@@ -5,7 +5,7 @@ task: understand or change how the blog stores posts and how AI writes, regenera
 keywords: [blog_posts, blog_settings, blog-shared.mjs, blog-admin.mjs, blog-autopublish.mjs, BLOG_FACTS, posts_per_week]
 status: verified
 summary: Blog is DB-backed (blog_posts + singleton blog_settings). AI writes posts via blog-shared.mjs (Anthropic forced tool call, grounded in BLOG_FACTS); owner controls via blog-admin.mjs + Deploy-tab Blog panel (write/regenerate/delete/rewrite-all/rebuild); blog-autopublish.mjs auto-publishes on a Mon/Wed/Fri quota check.
-verified: 2026-07-02
+verified: 2026-07-03
 ---
 
 **Tables** (`docs/sql/blog-schema.sql`, one idempotent paste into the Supabase SQL Editor):
@@ -15,8 +15,8 @@ verified: 2026-07-02
 
 **AI generation** (`netlify/lib/blog-shared.mjs`): Anthropic API with a **forced tool call** (`tool_choice:{type:"tool",name:"blog_post"}`) so it always returns clean structured fields (title/category/excerpt/intro/3-5 sections with optional body+bullets/pull-quote/conclusion). Every prompt is grounded in a `BLOG_FACTS` constant (the only BoldLine facts the AI may state: real process, what's-true-on-every-plan, the ad-spend-ownership rule, the real Calendly link), with explicit "never invent client results/testimonials/stats" and "never repeat or rephrase an existing post's topic." Also carries the `deDash()` safety net (see `dedash-ai-voice`).
 
-**Owner controls** (`netlify/functions/blog-admin.mjs` + a **Blog** panel on the ARIA Deploy tab in root `index.html`): same Bearer-JWT owner-auth as the Google Ads tools. Actions:
-- list posts; **write one now**; **regenerate** a post; **delete** a post (soft, inline confirm); **delete-all**; set weekly cadence.
+**Owner controls** (`netlify/functions/blog-admin.mjs` + the **Website tab** in the OS bottom nav — moved there from the ARIA Deploy tab 2026-07-03; the Deploy tab now just shows a pointer note. The Website tab also carries quick links to the live site pages): same Bearer-JWT owner-auth as the Google Ads tools. Actions:
+- list posts; **get** (one post incl `body_html`, for the editor); **update** (manual owner edit of title/category/excerpt/meta_description/body_html via the Edit modal — publishes immediately, same slug/URL, recomputes `read_minutes` at ~200wpm when the body changes, never touches slug/created_at/published_at so URLs + quota are safe); **write one now**; **regenerate** a post (UI label: "AI Rewrite"); **delete** a post (soft, inline confirm); **delete-all**; set weekly cadence.
 - **Regenerate** keeps the **same id/slug/created_at permanently**, only swaps content fields + bumps `published_at` — the live URL never breaks, and it still counts as the *original* post for quota (never a second new one). Topic-locked (another pass at the same subject). No version history — overwrites for good.
 - **Rewrite All Posts:** loops regenerate across every live post ("Rewriting post N of T…"). Same id/slug/created_at preserved; does **not** touch `created_at`, so never affects quota.
 - **Rebuild From Scratch:** soft-deletes every post (`delete-all`), then writes that many brand-new posts on new topics (defaults to 3 if empty). New posts set `created_at`=now, so they **count against that week's auto-publish quota immediately** (can make a nearby scheduled check skip).
