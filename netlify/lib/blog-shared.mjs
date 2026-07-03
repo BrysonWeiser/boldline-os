@@ -14,6 +14,7 @@ Niches served (by design, a limited number of clients): home services, medical &
 Process used on every engagement: Discovery (learn the business and customer before any money moves) -> Build (campaign structure, ad creative, tracking, and a dedicated landing page, all checked before launch) -> Launch (quality-checked against the full plan, then live) -> Optimize (reviewed on a set cadence against real performance data, never left untouched) -> Scale (budget grows only once the numbers earn it, and only with the client's sign-off).
 True on every plan regardless of tier: a landing page built specifically for the campaign; leads reach the business immediately (automatic notification, no manual forwarding); reporting in plain English on a set cadence; scope locked and checked before anything launches; full account transparency; no spend without the client's sign-off.
 The one rule that never bends: the client's ad account is always owned and paid for directly by the client. BoldLine only ever holds manager-level access to run it day to day -- BoldLine never holds, fronts, or touches client ad spend.
+Contract terms: engagements start with a three month minimum (paid ads compound; the first month is learning, the second applies the data, the third shows judgeable momentum), then run month to month.
 Booking link for every CTA: https://calendly.com/theboldlinemedia/30min
 BoldLine does not have real client case studies, testimonials, or performance numbers to cite yet -- never invent any.`;
 
