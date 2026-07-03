@@ -10,7 +10,7 @@ const clip = (s, n) => String(s || "").slice(0, n);
 // sync with marketing-site/index.html -- never let generated posts invent
 // client results, testimonials, or capabilities not listed here.
 export const BLOG_FACTS = `Business: BoldLine Media -- a digital marketing agency running Google Ads, Meta Ads, custom landing pages, call tracking, and CRM lead routing for small and mid-size businesses.
-Niches served (by design, a limited number of clients at a time): home services, medical & wellness, automotive, e-commerce brands.
+Niches served (by design, a limited number of clients): home services, medical & wellness, automotive, e-commerce brands.
 Process used on every engagement: Discovery (learn the business and customer before any money moves) -> Build (campaign structure, ad creative, tracking, and a dedicated landing page, all checked before launch) -> Launch (quality-checked against the full plan, then live) -> Optimize (reviewed on a set cadence against real performance data, never left untouched) -> Scale (budget grows only once the numbers earn it, and only with the client's sign-off).
 True on every plan regardless of tier: a landing page built specifically for the campaign; leads reach the business immediately (automatic notification, no manual forwarding); reporting in plain English on a set cadence; scope locked and checked before anything launches; full account transparency; no spend without the client's sign-off.
 The one rule that never bends: the client's ad account is always owned and paid for directly by the client. BoldLine only ever holds manager-level access to run it day to day -- BoldLine never holds, fronts, or touches client ad spend.
