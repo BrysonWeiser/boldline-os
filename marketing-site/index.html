@@ -537,11 +537,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .bp{position:absolute;height:auto;color:var(--gold);fill:none;stroke:currentColor;stroke-width:1;stroke-linecap:round;stroke-linejoin:round}
 .bp .fl{fill:currentColor;stroke:none}
 .bp-card{left:2.5%;top:9%;width:280px;opacity:.09;transform:rotate(-4deg)}
-.bp-ret{right:3%;top:13%;width:200px;opacity:.08}
-.bp-fun{left:3.2%;top:55%;width:170px;opacity:.08;transform:rotate(3deg)}
+.bp-ret{display:none}  /* desktop retired it in the declutter pass; mobile still shows it */
 .bp-cur{right:1.5%;bottom:4%;width:400px;opacity:.10}
 .bp-dash{right:2.5%;top:44%;width:250px;opacity:.085;transform:rotate(2.5deg)}
-.bp-ig{left:6.5%;top:37%;width:64px;opacity:.075;transform:rotate(-6deg)}
+.bp-gads{left:6.5%;top:37%;width:62px;opacity:.075;transform:rotate(-6deg)}
 .bp-meta{left:4%;top:83%;width:88px;opacity:.075;transform:rotate(4deg)}
 .bp-ret .rot{animation:bpSpin 120s linear infinite;transform-origin:center;transform-box:fill-box}
 .bp-cur .pulse{animation:bpPulse 5.5s ease-out infinite;transform-origin:center;transform-box:fill-box}
@@ -573,8 +572,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 @media (max-width:900px){
   /* No gutters on phones: the two busy wireframes go; the reticle and curve stay,
      deliberately cropped off the edges so they read as intentional page furniture */
-  .bp-card,.bp-fun,.bp-dash,.bp-ig,.bp-meta{display:none}
-  .bp-ret{right:-64px;top:7%;width:170px;opacity:.07}
+  .bp-card,.bp-dash,.bp-gads,.bp-meta{display:none}
+  .bp-ret{display:block;right:-64px;top:7%;width:170px;opacity:.07}
   .bp-cur{right:-46px;bottom:3%;width:300px;opacity:.08}
 }
 @media (max-width:720px){
@@ -619,17 +618,6 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <circle class="fl" cx="100" cy="100" r="2.6" opacity=".7"/>
       <path d="M100 2v13M100 185v13M2 100h13M185 100h13"/>
     </svg>
-    <!-- Funnel in fine linework: impressions -> clicks -> the one gold lead -->
-    <svg class="bp bp-fun" viewBox="0 0 220 240">
-      <path d="M12 10h196l-26 70H38z"/>
-      <path d="M44 96h132l-20 64H64z"/>
-      <path d="M70 176h80l-28 58h-24z"/>
-      <g class="fl" opacity=".55">
-        <circle cx="70" cy="45" r="2.6"/><circle cx="90" cy="45" r="2.6"/><circle cx="110" cy="45" r="2.6"/><circle cx="130" cy="45" r="2.6"/><circle cx="150" cy="45" r="2.6"/>
-        <circle cx="90" cy="128" r="2.6"/><circle cx="110" cy="128" r="2.6"/><circle cx="130" cy="128" r="2.6"/>
-      </g>
-      <circle class="fl" cx="110" cy="206" r="3.4" opacity=".9"/>
-    </svg>
     <!-- Performance curve: soft area fill, pulsing endpoint, dashed projection -->
     <svg class="bp bp-cur" viewBox="0 0 440 210">
       <defs><linearGradient id="bpg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C8A84B" stop-opacity=".13"/><stop offset="1" stop-color="#C8A84B" stop-opacity="0"/></linearGradient></defs>
@@ -661,10 +649,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <path d="M66 152h180" opacity=".5"/>
     </svg>
     <!-- Platform marks as hairline outlines (referential line-art, not brand-color logos) -->
-    <svg class="bp bp-ig" viewBox="0 0 24 24">
-      <rect x="2" y="2" width="20" height="20" rx="5.5"/>
-      <circle cx="12" cy="12" r="4.6"/>
-      <circle class="fl" cx="17.6" cy="6.4" r="1.15" opacity=".8"/>
+    <svg class="bp bp-gads" viewBox="0 0 24 24">
+      <rect x="6" y="1.2" width="6.2" height="17" rx="3.1" transform="rotate(30 9.1 9.7)"/>
+      <rect x="15.6" y="1" width="6.2" height="22" rx="3.1"/>
+      <circle cx="4.6" cy="20.4" r="2.8"/>
     </svg>
     <svg class="bp bp-meta" viewBox="0 0 32 20">
       <path d="M2 15.2C2 9.4 4.4 4.5 7.8 4.5c2.6 0 4.3 2.6 6 6.2l.9 2c1.3 2.8 2.4 4.6 4.4 4.6 2.7 0 4.9-3.3 4.9-7.2 0-3.4-1.5-5.6-3.8-5.6-1.4 0-2.6.9-3.7 2.7"/>
