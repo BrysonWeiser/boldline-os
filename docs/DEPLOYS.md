@@ -91,3 +91,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-07-03 | `8786d98` | `rollback/20260703T055819Z` | Google Ads mark made visible: 92px @ .105 opacity (was 62px @ .075, washed out in the orb glow), moved to darker background, stroke weight matched to the Meta loop. |
 | 2026-07-03 | `3c12a08` | `rollback/20260703T060517Z` | Blueprint v6: Google "G" replaces the Ads mark; staggered scatter layout (varied insets/tilts, no more two straight columns); mobile now shows Google G + Meta loop + curve; reticle fully removed. |
 | 2026-07-03 | `76c0e48` | `rollback/20260703T060950Z` | Google G upgraded to the actual official four-segment geometry (sign-in asset paths), solid monochrome gold fill instead of a thin-stroke approximation. |
+| 2026-07-03 | `d6d11c4` | `rollback/20260703T061309Z` | Google G switched from solid fill to outline (same official geometry, stroke 1.5, opacity .11) per Bryson — "not colored in". |
