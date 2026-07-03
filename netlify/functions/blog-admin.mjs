@@ -4,7 +4,13 @@
 //
 // POST body: { action, ... }
 //   "list"          -> all non-deleted posts, newest first (for the admin table).
+//                       Includes scheduled drafts (status='draft', published_at
+//                       in the future = the exact go-live time).
 //   "generate-now"  -> writes + publishes a brand-new AI post immediately.
+//   "generate-scheduled" -> writes a new AI post as a scheduled draft at the
+//                       next cadence slot (or an explicit { when }).
+//   "publish-now"   -> { postId } flips a scheduled draft live immediately.
+//   "reschedule"    -> { postId, when } moves a scheduled draft's go-live time.
 //   "regenerate"    -> { postId } rewrites an existing post's content in place,
 //                       same id/slug, bumped to newest.
 //   "delete"        -> { postId } soft-delete (status='deleted').
@@ -26,7 +32,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { createAndPublishPost, regeneratePost } from "../lib/blog-shared.mjs";
+import { createAndPublishPost, createScheduledPost, nextPublishSlot, regeneratePost } from "../lib/blog-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -63,6 +69,44 @@ export default async (req) => {
     if (action === "generate-now") {
       const post = await createAndPublishPost();
       return json({ ok: true, action, post });
+    }
+
+    if (action === "generate-scheduled") {
+      // Writes the next post as a scheduled draft at the next cadence slot
+      // (or an explicit body.when), for review before it goes live.
+      let when = body.when ? new Date(body.when) : null;
+      if (when && (isNaN(when) || when.getTime() <= Date.now())) return json({ ok: false, error: "Scheduled time must be in the future" }, 400);
+      const slot = when ? when.toISOString() : await nextPublishSlot(supabase, (await supabase.from("blog_settings").select("posts_per_week").eq("id", 1).single()).data?.posts_per_week || 1);
+      const post = await createScheduledPost(slot);
+      return json({ ok: true, action, post });
+    }
+
+    if (action === "publish-now") {
+      if (!body.postId) return json({ ok: false, error: "postId required" }, 400);
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .update({ status: "published", published_at: new Date().toISOString() })
+        .eq("id", body.postId)
+        .eq("status", "draft")
+        .select("id, slug, title, category, excerpt, status, source, read_minutes, published_at, created_at")
+        .single();
+      if (error) throw error;
+      return json({ ok: true, action, post: data });
+    }
+
+    if (action === "reschedule") {
+      if (!body.postId) return json({ ok: false, error: "postId required" }, 400);
+      const when = new Date(body.when || "");
+      if (isNaN(when) || when.getTime() <= Date.now()) return json({ ok: false, error: "Scheduled time must be a valid future date/time" }, 400);
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .update({ published_at: when.toISOString() })
+        .eq("id", body.postId)
+        .eq("status", "draft")   // only scheduled drafts can move; published history stays put
+        .select("id, slug, title, category, excerpt, status, source, read_minutes, published_at, created_at")
+        .single();
+      if (error) throw error;
+      return json({ ok: true, action, post: data });
     }
 
     if (action === "regenerate") {

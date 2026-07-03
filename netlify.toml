@@ -20,8 +20,10 @@
 [functions."lead-followup"]
   schedule = "0 13 * * *"
 
+# Every 15 min: publishes scheduled drafts at their exact time + keeps >=1
+# scheduled post in the review pipeline. Nearly every run is a cheap no-op.
 [functions."blog-autopublish"]
-  schedule = "0 14 * * 1,3,5"
+  schedule = "*/15 * * * *"
 
 [[redirects]]
   from = "/portal"

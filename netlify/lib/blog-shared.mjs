@@ -171,10 +171,10 @@ async function activePostsExcept(supabase, excludeId) {
   return data || [];
 }
 
-// Generates a brand-new post on a topic the AI picks itself, inserts it, and
-// returns the inserted row. Used by both the weekly auto-publish cron and the
-// owner's on-demand "Write one now" button -- always publishes immediately,
-// per the auto-publish-and-notify control model.
+// Generates a brand-new post on a topic the AI picks itself, inserts it as
+// PUBLISHED immediately, and returns the inserted row. Owner-only escape hatch
+// ("Write + Publish Now") -- the normal path since 2026-07-03 is
+// createScheduledPost + the review pipeline below.
 export async function createAndPublishPost() {
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const existing = await activePostsExcept(supabase, null);
@@ -187,6 +187,45 @@ export async function createAndPublishPost() {
   const { data, error } = await supabase
     .from("blog_posts")
     .insert({ ...post, status: "published", source: "ai", published_at: new Date().toISOString() })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Next open slot in the publishing pipeline: one cadence-interval (7/N days)
+// after the latest post on the books (published or scheduled), never in the
+// past. Keeps a steady rhythm no matter when the pipeline is topped up.
+export async function nextPublishSlot(supabase, postsPerWeek) {
+  const spacingMs = (7 / Math.max(1, postsPerWeek)) * 864e5;
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .select("published_at")
+    .neq("status", "deleted")
+    .order("published_at", { ascending: false })
+    .limit(1);
+  if (error) throw error;
+  const base = data && data[0] && data[0].published_at ? new Date(data[0].published_at).getTime() : Date.now();
+  return new Date(Math.max(Date.now() + 36e5, base + spacingMs)).toISOString();
+}
+
+// Generates a brand-new post but parks it as a SCHEDULED draft: status stays
+// 'draft' (invisible to the public blog, which filters status='published')
+// and published_at holds the future go-live time. blog-autopublish flips it
+// to published when that time arrives -- the owner reviews/edits it in the
+// OS Website tab in the meantime.
+export async function createScheduledPost(whenISO) {
+  const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const existing = await activePostsExcept(supabase, null);
+
+  const post = await generateBlogPost({
+    existingSlugs: existing.map((p) => p.slug),
+    existingTitles: existing.map((p) => p.title),
+  });
+
+  const { data, error } = await supabase
+    .from("blog_posts")
+    .insert({ ...post, status: "draft", source: "ai", published_at: whenISO })
     .select()
     .single();
   if (error) throw error;
@@ -219,7 +258,9 @@ export async function regeneratePost(postId) {
       body_html: post.body_html,
       read_minutes: post.read_minutes,
       source: "ai",
-      published_at: new Date().toISOString(),
+      // Scheduled drafts keep their future publish time -- rewriting the text
+      // must not change WHEN it goes live. Published posts bump to newest.
+      published_at: target.status === "draft" ? target.published_at : new Date().toISOString(),
     })
     .eq("id", postId)
     .select()
