@@ -568,7 +568,11 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .btn:hover::after{left:130%}
 
 @media (max-width:900px){
-  .ow-g{display:none}   /* glyphs live in the desktop side gutters; phones have none */
+  /* No gutters on phones: the two busy wireframes go; the reticle and curve stay,
+     deliberately cropped off the edges so they read as intentional page furniture */
+  .bp-card,.bp-fun{display:none}
+  .bp-ret{right:-64px;top:7%;width:170px;opacity:.07}
+  .bp-cur{right:-46px;bottom:3%;width:300px;opacity:.08}
 }
 @media (max-width:720px){
   .ow-c{display:none}
@@ -1478,16 +1482,19 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
   /* ── Constellation canvas: faint drifting points joined by thin gold lines ── */
   var canvas = document.getElementById('bgNet');
-  if(canvas && !reduce && window.innerWidth >= 720){
+  if(canvas && !reduce){
     var ctx = canvas.getContext('2d');
-    var pts = [], W = 0, H = 0, dpr = 1, frame = 0;
+    var pts = [], W = 0, H = 0, dpr = 1, frame = 0, small = false, LINK = 130;
 
     function size(){
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      small = window.innerWidth < 720;             // phones get a lighter, battery-kind field
+      dpr = Math.min(window.devicePixelRatio || 1, small ? 1.25 : 1.5);
+      LINK = small ? 110 : 130;
       W = window.innerWidth; H = window.innerHeight;
       canvas.width = W * dpr; canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      var want = Math.min(80, Math.round(W * H / 26000));
+      var want = small ? Math.min(26, Math.max(20, Math.round(W * H / 15000)))
+                       : Math.min(80, Math.round(W * H / 26000));
       while(pts.length < want) pts.push(spawn());
       pts.length = want;
     }
@@ -1502,7 +1509,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       requestAnimationFrame(tick);                // rAF self-pauses in hidden tabs
       if(++frame % 2) return;                     // ~30fps is plenty for slow drift
       ctx.clearRect(0, 0, W, H);
-      var i, j, p, q, dx, dy, d, LINK = 130;
+      var i, j, p, q, dx, dy, d;
       for(i = 0; i < pts.length; i++){
         p = pts[i];
         p.x += p.vx; p.y += p.vy;
