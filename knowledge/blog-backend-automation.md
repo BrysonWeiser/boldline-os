@@ -4,7 +4,7 @@ topic: Blog
 task: understand or change how the blog stores posts and how AI writes, regenerates, and auto-publishes them
 keywords: [blog_posts, blog_settings, blog-shared.mjs, blog-admin.mjs, blog-autopublish.mjs, BLOG_FACTS, posts_per_week]
 status: verified
-summary: Blog is DB-backed (blog_posts + singleton blog_settings). AI writes posts via blog-shared.mjs (Anthropic forced tool call, grounded in BLOG_FACTS); owner controls via blog-admin.mjs + Deploy-tab Blog panel (write/regenerate/delete/rewrite-all/rebuild); blog-autopublish.mjs auto-publishes on a Mon/Wed/Fri quota check.
+summary: Blog is DB-backed (blog_posts + singleton blog_settings). REVIEW-FIRST pipeline (2026-07-03): AI writes posts ahead as scheduled drafts (status='draft' + future published_at = exact go-live time); blog-autopublish runs every 15 min (publishes due drafts, keeps ≥1 scheduled, self-healing); owner reviews/edits/reschedules in the OS Website tab before they go live.
 verified: 2026-07-03
 ---
 
@@ -22,8 +22,10 @@ verified: 2026-07-03
 - **Rebuild From Scratch:** soft-deletes every post (`delete-all`), then writes that many brand-new posts on new topics (defaults to 3 if empty). New posts set `created_at`=now, so they **count against that week's auto-publish quota immediately** (can make a nearby scheduled check skip).
 - **Why bulk buttons loop from the browser, not one backend call:** each AI generation runs close to a single Netlify function timeout on its own; looping several inside one invocation risked timing out mid-run with no progress. So both bulk buttons call the proven single-post endpoints once per post and update a progress line. All bulk/per-post buttons disable while any run is in flight (avoids two writes racing the same post).
 
-**Auto-publish cron** (`netlify/functions/blog-autopublish.mjs`, scheduled **Mon/Wed/Fri 14:00 UTC** via `netlify.toml`):
-- Counts posts created in the trailing 7 days (by `created_at`, **never** `published_at`, so a regenerate never double-counts) against `blog_settings.posts_per_week`. Under quota → writes & publishes one more AI post and emails `OWNER_EMAIL` a branded "new post is live" notice. At/over quota → no-ops silently.
-- The 3x/week check cadence was chosen so the **schedule never needs changing** as the cadence ramps from 1/week to 2-3/week — most checks just no-op early on.
-- `?test=1` emails a quota-used-vs-limit report **without publishing** (same dry-run convention as `lead-followup.mjs`).
-- Cadence recommendation (confirmed): **1 post/week for the first 3 months, then ramp to 2-3/week.** Control model: **auto-publish immediately + email notify** (not draft-for-approval); delete/regenerate is the safety valve.
+**Publishing pipeline** (`netlify/functions/blog-autopublish.mjs`, scheduled **every 15 minutes** via root `netlify.toml`) — **review-first model (Bryson, 2026-07-03; replaced the old Mon/Wed/Fri publish-immediately quota model):**
+- **A scheduled post = `status='draft'` with `published_at` set to the future go-live time.** No schema change was needed; the public blog/sitemap filter `status='published'`, so drafts never leak. When the time arrives the cron just flips status to published (the timestamp already on the row becomes the official publish time) and emails the "now live" notice.
+- **Pipeline top-up:** after publishing due drafts, if no future-dated draft remains, the cron writes a new AI post and schedules it one cadence-interval (`7 / posts_per_week` days, from `nextPublishSlot()`) after the latest post on the books (never sooner than now+1h), then emails a "scheduled for <date> — review it" notice. This guarantees **always ≥1 scheduled post awaiting review** and self-heals if the owner deletes or early-publishes the pending one (next 15-min check refills).
+- **Gotcha fixed in the same change:** `regeneratePost` used to bump `published_at` to *now* — on a draft that would have made it instantly due. It now preserves a draft's scheduled time (published posts still bump to newest).
+- OS Website tab shows two sections: **Scheduled — awaiting your review** (gold rows, exact local publish time, actions: Review/Edit, AI Rewrite, Reschedule via `datetime-local` picker, Publish Now, Delete) and **Posted — live on the site**. Primary write button is "Write & Schedule" (`generate-scheduled`); "Write + Publish Now" (`generate-now`) remains as the skip-review escape hatch. New admin actions: `generate-scheduled` (optional `{when}`), `publish-now`, `reschedule` (drafts only, future-time validated).
+- `?test=1` emails a pipeline report (due drafts / pending count / next slot) **without doing anything** (same dry-run convention as `lead-followup.mjs`).
+- Cadence still lives in `blog_settings.posts_per_week` (slot spacing = 7/N days). Recommendation unchanged: 1/week first 3 months, then ramp.
