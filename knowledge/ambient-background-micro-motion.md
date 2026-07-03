@@ -52,9 +52,10 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   curve corner-anchored). **Mobile (<900px) shows the two platform logos + curve** (G top-left
   7%/12%, Meta mid-right — needs `left:auto` to override desktop's left positioning — curve
   bottom crop); card+dashboard stay desktop-only. The funnel, Instagram glyph, and targeting
-  reticle are REMOVED (reticle incl. its bpSpin keyframe). Platform marks are hairline
-  OUTLINES, not brand-color logos (fits the blueprint language and avoids trademark-styling
-  issues). All still — the "no bobbing" rule holds. Large pieces may bleed under the wide
+  reticle are REMOVED (reticle incl. its bpSpin keyframe). Platform marks are monochrome gold, never brand colors: the Google G is the OFFICIAL
+  four-segment path geometry as a solid `fill:currentColor` (`.bp-g` overrides the layer's
+  stroke defaults — Bryson wanted "the actual google g... not just a thin lined g"); the Meta
+  loop is a hairline outline. All still — the "no bobbing" rule holds. Large pieces may bleed under the wide
   content column edge by design; small logos sit clear of text columns. **Visibility lesson
   (Bryson: "where is the google logo"): a small mark at <.08 opacity inside an orb-glow
   hotspot washes out to invisible — size platform marks ≥84px, opacity ~.10, and place them
