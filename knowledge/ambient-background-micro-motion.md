@@ -44,17 +44,21 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   STAY** at reduced size/opacity, deliberately cropped off the right edge (negative right
   offsets — safe because `.ambient` is fixed + overflow:hidden, per mobile-glow-overflow);
   only the busier ghost-ad card + funnel are hidden (phones have no gutters).
-  **v4→v5 (2026-07-03):** Bryson asked for platform logos + an ad dashboard, then trimmed the
-  set as too cluttered. **Current desktop lineup (5 pieces): ghost search-ad card (top-left),
-  Google Ads mark `.bp-gads` (left ~37%), Meta loop `.bp-meta` (left ~83%), ads-manager
-  dashboard `.bp-dash` (right ~44%), performance curve (bottom-right).** The funnel was
-  removed; the reticle is `display:none` on desktop but re-shown in the `<900px` block (mobile
-  keeps its approved reticle+curve pair — don't "clean up" that desktop-hidden rule). The
-  Instagram glyph was replaced by the Google Ads mark at Bryson's request. Platform marks are
-  hairline OUTLINES, not brand-color logos (fits the blueprint language and avoids
-  trademark-styling issues). All still — the "no bobbing" rule holds. The dashboard bleeds
-  ~40px under the wide content column edge like the other large pieces; that's by design —
-  only the small logos must stay strictly inside the gutters. Skeleton "text" bars
+  **v4→v6 evolution (2026-07-03, several Bryson iterations):** logos+dashboard added (v4),
+  decluttered to 5 (v5), then **v6 (current)**: the Google **"G"** (`.bp-g`, hairline arc +
+  crossbar — replaced the Ads triangle mark at Bryson's request), **staggered scatter layout**
+  (varied insets/heights/tilts — Bryson: "two lines on both sides" reads lazy; card at edge
+  2.5%, G pulled inward 10.5%/31%, Meta near edge 5.5%/66%, dashboard inward right 6.5%/15%,
+  curve corner-anchored). **Mobile (<900px) shows the two platform logos + curve** (G top-left
+  7%/12%, Meta mid-right — needs `left:auto` to override desktop's left positioning — curve
+  bottom crop); card+dashboard stay desktop-only. The funnel, Instagram glyph, and targeting
+  reticle are REMOVED (reticle incl. its bpSpin keyframe). Platform marks are hairline
+  OUTLINES, not brand-color logos (fits the blueprint language and avoids trademark-styling
+  issues). All still — the "no bobbing" rule holds. Large pieces may bleed under the wide
+  content column edge by design; small logos sit clear of text columns. **Visibility lesson
+  (Bryson: "where is the google logo"): a small mark at <.08 opacity inside an orb-glow
+  hotspot washes out to invisible — size platform marks ≥84px, opacity ~.10, and place them
+  against darker background.** Skeleton "text" bars
   use `class="fl"` (`fill:currentColor;stroke:none`). Deliberately NO fabricated metric text
   (e.g. "+38% CTR") — background numbers could read as implied performance claims.
 - **`.alt` bands are transparent** (same session): #included/#founder previously drew a
