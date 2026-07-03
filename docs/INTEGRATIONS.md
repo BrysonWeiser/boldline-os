@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 34 task-keyed entries under `knowledge/`. They surface automatically via the
+> 35 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**34 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**35 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -87,6 +87,9 @@
 - **[nav-scroll-transition](../knowledge/nav-scroll-transition.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Nav-link clicks glide (custom eased scroll) + soft fade veil to the section. Tune it via the NAV config object in a script near the end of marketing-site/index.html.  
   <sub>*task:* change or tune the nav-link scroll animation and fade transition on the marketing site &nbsp;|&nbsp; *keywords:* veilPeak, navFade, nav-arrive, glide, blScrollTo, easeInOutCubic, scroll-padding-top, scroll-behavior</sub>
+- **[pkg-card-selection](../knowledge/pkg-card-selection.md)** &mdash; &#9989; verified &middot; 2026-07-03  
+  Tapping/clicking a package card is a single selection (.sel via delegated JS). The featured "Most Popular" ring is a DEFAULT that steps aside (via :has rules) whenever another card is selected or hovered — its pill badge stays. Never two rings at once.  
+  <sub>*task:* change how package cards highlight, select, or show the Most Popular state &nbsp;|&nbsp; *keywords:* pkg, .sel, most popular, tag, sticky hover, :has, featured ring, tap selection</sub>
 
 ## Mobile/CSS
 
