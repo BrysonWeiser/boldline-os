@@ -2309,6 +2309,32 @@ function BlogManagementCard() {
     setEditorSaving(false);
   };
 
+  // Scheduled-pipeline controls: publish a draft early, move its go-live time,
+  // or write the next post straight into the review queue.
+  const [reschedId,setReschedId]=useState(null);
+  const [reschedVal,setReschedVal]=useState("");
+  const toLocalInput=(iso)=>{ const d=new Date(iso); const z=(n)=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes()); };
+  const publishNow=async(postId)=>{
+    setBusyId(postId); setMsg("");
+    try{ const d=await call("publish-now",{postId}); setPosts(p=>p.map(x=>x.id===postId?d.post:x)); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const saveReschedule=async(postId)=>{
+    const when=new Date(reschedVal);
+    if(isNaN(when)||when.getTime()<=Date.now()){ setMsg("Pick a date and time in the future."); return; }
+    setBusyId(postId); setMsg("");
+    try{ const d=await call("reschedule",{postId,when:when.toISOString()}); setPosts(p=>p.map(x=>x.id===postId?d.post:x)); setReschedId(null); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const writeScheduled=async()=>{
+    setGenState("generating"); setMsg("");
+    try{ const d=await call("generate-scheduled"); setPosts(p=>[d.post,...p]); }
+    catch(e){ setMsg(e.message); }
+    setGenState("idle");
+  };
+
   // Both bulk flows are sequential client-side loops over the existing
   // single-post actions (not one slow server-side loop) so every AI call
   // stays inside its own function invocation's timeout, and progress can be
@@ -2355,13 +2381,14 @@ function BlogManagementCard() {
   return (
     <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
       <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📝 Blog — AI Auto-Publish</div>
-      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Writes and publishes a new post to boldlinemedia.com/blog automatically (checked Mon/Wed/Fri) up to the cadence below, and emails you every time one goes live. Delete or regenerate anything that misses the mark, or use the row below to rewrite every post at once or wipe the blog and start fresh.</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Review-first pipeline: the AI writes each post ahead of time and parks it under <strong style={{color:C.gold}}>Scheduled</strong> with an exact publish date and time (you get an email when one is queued). Edit, AI-rewrite, reschedule, or delete it before then — or do nothing and it publishes itself on schedule. There's always at least one post waiting for review; the queue refills automatically.</div>
 
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`}}>
         <span style={{fontSize:11,color:C.textDim,fontWeight:600,whiteSpace:"nowrap"}}>Posts per week:</span>
         <input type="number" min="1" max="14" value={cadenceInput} onChange={e=>setCadenceInput(e.target.value)} style={{width:54,padding:"7px 8px",fontSize:13,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit"}}/>
         <button onClick={saveCadence} disabled={cadenceState==="saving"||Number(cadenceInput)===cadence||bulkBusy} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:cadenceState==="saved"?"#059669":"#1D4ED8",color:"#fff",cursor:"pointer",opacity:(cadenceState==="saving"||Number(cadenceInput)===cadence||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{cadenceState==="saving"?"Saving…":cadenceState==="saved"?"✓ Saved":"Save"}</button>
-        <button onClick={generateNow} disabled={genState==="generating"||bulkBusy} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>{genState==="generating"?"Writing…":"Write One Now"}</button>
+        <button onClick={writeScheduled} disabled={genState==="generating"||bulkBusy} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>{genState==="generating"?"Writing…":"Write & Schedule"}</button>
+        <button onClick={generateNow} disabled={genState==="generating"||bulkBusy} title="Skips the review queue and goes live immediately" style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>Write + Publish Now</button>
       </div>
 
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
@@ -2396,20 +2423,35 @@ function BlogManagementCard() {
       {loading?(
         <div style={{fontSize:12,color:C.textMuted,padding:"8px 0"}}>Loading posts…</div>
       ):posts.length===0?(
-        <div style={{fontSize:12,color:C.textMuted,padding:"8px 0"}}>No posts yet — click "Write One Now" to publish the first one.</div>
-      ):(
-        <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:340,overflowY:"auto"}}>
-          {posts.map(p=>(
-            <div key={p.id} style={{padding:"9px 10px",borderRadius:9,backgroundColor:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`}}>
-              <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,marginBottom:3}}>{p.category}{p.source==="ai"?" · AI":""}</div>
+        <div style={{fontSize:12,color:C.textMuted,padding:"8px 0"}}>No posts yet — the pipeline writes and schedules the first one on its next 15-minute check, or click "Write & Schedule".</div>
+      ):(()=>{
+        const scheduled=posts.filter(p=>p.status==="draft").sort((a,b)=>a.published_at<b.published_at?-1:1);
+        const posted=posts.filter(p=>p.status!=="draft").sort((a,b)=>a.published_at>b.published_at?-1:1);
+        const fmtWhen=(iso)=>iso?new Date(iso).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"";
+        const row=(p,isSched)=>(
+          <div key={p.id} style={{padding:"9px 10px",borderRadius:9,backgroundColor:isSched?"rgba(200,168,75,.05)":"rgba(255,255,255,.03)",border:`1px solid ${isSched?C.borderAccent:C.border}`}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
+              <div style={{flex:1,minWidth:170}}>
+                <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,marginBottom:3}}>{p.category}{p.source==="ai"?" · AI":""}</div>
+                {isSched?(
+                  <span style={{fontSize:12.5,fontWeight:600,color:C.text,lineHeight:1.4}}>{p.title}</span>
+                ):(
                   <a href={"https://boldlinemedia.com/blog/"+p.slug+"/"} target="_blank" rel="noopener noreferrer" style={{fontSize:12.5,fontWeight:600,color:C.text,textDecoration:"none",lineHeight:1.4}}>{p.title}</a>
-                  <div style={{fontSize:10,color:C.textMuted,marginTop:3}}>{fmtDate(p.published_at)} · {p.read_minutes} min read</div>
+                )}
+                <div style={{fontSize:10,color:isSched?C.gold:C.textMuted,marginTop:3,fontWeight:isSched?700:400}}>{isSched?"Publishes "+fmtWhen(p.published_at):fmtDate(p.published_at)+" · "+p.read_minutes+" min read"}</div>
+              </div>
+              {reschedId===p.id?(
+                <div style={{display:"flex",gap:5,flexShrink:0,alignItems:"center",flexWrap:"wrap"}}>
+                  <input type="datetime-local" value={reschedVal} onChange={e=>setReschedVal(e.target.value)} style={{padding:"5px 7px",fontSize:11,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit",colorScheme:"dark"}}/>
+                  <button onClick={()=>saveReschedule(p.id)} disabled={busyId===p.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",whiteSpace:"nowrap"}}>{busyId===p.id?"…":"Save"}</button>
+                  <button onClick={()=>setReschedId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
                 </div>
-                <div style={{display:"flex",gap:5,flexShrink:0}}>
-                  <button onClick={()=>openEditor(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.08)",color:C.gold,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Edit</button>
+              ):(
+                <div style={{display:"flex",gap:5,flexShrink:0,flexWrap:"wrap"}}>
+                  <button onClick={()=>openEditor(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.08)",color:C.gold,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{isSched?"Review / Edit":"Edit"}</button>
                   <button onClick={()=>regenerate(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{busyId===p.id?"…":"AI Rewrite"}</button>
+                  {isSched&&<button onClick={()=>{setReschedId(p.id);setReschedVal(toLocalInput(p.published_at));}} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Reschedule</button>}
+                  {isSched&&<button onClick={()=>publishNow(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(34,211,160,.14)",color:C.green,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Publish Now</button>}
                   {confirmId===p.id?(
                     <div style={{display:"flex",gap:5}}>
                       <button onClick={()=>setConfirmId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
@@ -2419,19 +2461,31 @@ function BlogManagementCard() {
                     <button onClick={()=>setConfirmId(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Delete</button>
                   )}
                 </div>
-              </div>
+              )}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        );
+        return (
+          <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:440,overflowY:"auto"}}>
+            <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"2px 0 1px"}}>Scheduled — awaiting your review ({scheduled.length})</div>
+            {scheduled.length===0?(
+              <div style={{fontSize:11,color:C.textMuted,padding:"2px 0 4px"}}>Queue is empty — the pipeline writes the next post on its next 15-minute check.</div>
+            ):scheduled.map(p=>row(p,true))}
+            <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.textDim,margin:"8px 0 1px"}}>Posted — live on the site ({posted.length})</div>
+            {posted.length===0?(
+              <div style={{fontSize:11,color:C.textMuted,padding:"2px 0 4px"}}>Nothing live yet.</div>
+            ):posted.map(p=>row(p,false))}
+          </div>
+        );
+      })()}
 
       {editor&&(
         <div onClick={e=>{ if(e.target===e.currentTarget&&!editorSaving) setEditor(null); }} style={{position:"fixed",inset:0,zIndex:400,backgroundColor:"rgba(4,6,10,.75)",display:"flex",alignItems:"center",justifyContent:"center",padding:14}}>
           <div style={{width:"100%",maxWidth:700,maxHeight:"88vh",overflowY:"auto",backgroundColor:C.bg2,border:`1px solid ${C.borderAccent}`,borderRadius:14,padding:"16px 16px 14px"}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-              <div style={{fontSize:13,fontWeight:800,color:C.text}}>Edit Post</div>
-              <a href={"https://boldlinemedia.com/blog/"+editor.slug+"/"} target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,fontWeight:600,color:C.textDim,textDecoration:"none"}}>View live ↗</a>
-              <div style={{marginLeft:"auto",fontSize:10,color:C.textMuted}}>Saving publishes the changes immediately</div>
+              <div style={{fontSize:13,fontWeight:800,color:C.text}}>{editor.status==="draft"?"Review Scheduled Post":"Edit Post"}</div>
+              {editor.status!=="draft"&&<a href={"https://boldlinemedia.com/blog/"+editor.slug+"/"} target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,fontWeight:600,color:C.textDim,textDecoration:"none"}}>View live ↗</a>}
+              <div style={{marginLeft:"auto",fontSize:10,color:C.textMuted}}>{editor.status==="draft"?"Saved changes go live at the scheduled time":"Saving publishes the changes immediately"}</div>
             </div>
             {[["title","Title",false],["category","Category",false],["excerpt","Excerpt (shown on the blog index)",true],["meta_description","Meta description (Google search snippet)",true]].map(([k,label,multi])=>(
               <div key={k} style={{marginBottom:10}}>
