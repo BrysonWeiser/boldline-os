@@ -43,7 +43,15 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   (their resting keyframe would show as stray circles). **Mobile (<900px): reticle + curve
   STAY** at reduced size/opacity, deliberately cropped off the right edge (negative right
   offsets — safe because `.ambient` is fixed + overflow:hidden, per mobile-glow-overflow);
-  only the busier ghost-ad card + funnel are hidden (phones have no gutters). Skeleton "text" bars
+  only the busier ghost-ad card + funnel are hidden (phones have no gutters).
+  **v4 additions (2026-07-03, Bryson asked for platform logos + ad dashboards):** an
+  ads-manager dashboard wireframe (`.bp-dash`, right gutter ~44%) and Instagram + Meta marks
+  as hairline OUTLINES (`.bp-ig`/`.bp-meta`, left gutter) — deliberately line-art references,
+  not brand-color logos (fits the blueprint language and avoids trademark-styling issues).
+  7 desktop pieces total; the three new ones are hidden `<900px`. All still — the "no bobbing"
+  rule holds. The dashboard bleeds ~40px under the wide content column edge like the other
+  large pieces; that's by design (invisible behind opaque cards, whisper opacity in gaps) —
+  only the small logos must stay strictly inside the gutters. Skeleton "text" bars
   use `class="fl"` (`fill:currentColor;stroke:none`). Deliberately NO fabricated metric text
   (e.g. "+38% CTR") — background numbers could read as implied performance claims.
 - **`.alt` bands are transparent** (same session): #included/#founder previously drew a
