@@ -52,8 +52,6 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   contained styling, so the band was pure legacy. If a new section needs distinction, use
   contained cards, not full-width bands.
 
-`.alt` bands went `background:rgba(13,15,22,.88)` so a hint of orb glow bleeds through.
-
 **Micro-motion** (CSS block is the LAST thing before `</style>` so its media queries win
 source order; JS is the last `<script>` before `</body>`):
 - **Scroll-settle reveals — the safe pattern (per content-visibility-no-js):** default DOM has
@@ -87,8 +85,8 @@ element inside the initial viewport; (4) settle ends at computed opacity '1'; (5
 jump to bottom → zero stuck-hidden elements**; (6) `javaScriptEnabled:false` → every
 section-head/pkg/tstep/faq/contact at opacity 1 (wait ~2s for the load fadeUp to finish before
 measuring or you get 0.99 false-fails); (7) `emulateMedia reducedMotion` → canvas+bar
-display:none, 0 armed, orb animation none; (8) 390px viewport → no canvas init, no horizontal
-overflow. Gotcha: don't check the progress bar with a `'matrix(0'` substring — `matrix(0.15…)`
+display:none, 0 armed, orb animation none; (8) 390px viewport → lighter canvas drawing+animating, reticle+curve visible
+(card+funnel hidden), no horizontal overflow. Gotcha: don't check the progress bar with a `'matrix(0'` substring — `matrix(0.15…)`
 matches it; parse the scaleX number.
 
 **Shell gotcha from this session:** `pkill -f "http.server 8931"` inside a compound Bash call
