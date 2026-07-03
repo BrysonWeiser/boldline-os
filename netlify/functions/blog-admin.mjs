@@ -14,6 +14,11 @@
 //                       fresh set -- kept as two thin calls (not one slow
 //                       server-side loop) so each AI generation stays inside
 //                       a single function invocation's timeout.
+//   "get"           -> { postId } one post including body_html (for the editor).
+//   "update"        -> { postId, title?, category?, excerpt?, meta_description?,
+//                       body_html? } manual owner edit; recomputes read_minutes
+//                       when the body changes; slug/created_at/published_at
+//                       never change so URLs and quota are unaffected.
 //   "get-settings"  -> current posts_per_week cadence.
 //   "set-cadence"   -> { postsPerWeek } updates posts_per_week.
 //
@@ -81,6 +86,39 @@ export default async (req) => {
         .select("id");
       if (error) throw error;
       return json({ ok: true, action, count: (data || []).length });
+    }
+
+    if (action === "get") {
+      if (!body.postId) return json({ ok: false, error: "postId required" }, 400);
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("id, slug, title, category, excerpt, meta_description, body_html, status, source, read_minutes, published_at, created_at")
+        .eq("id", body.postId)
+        .single();
+      if (error) throw error;
+      return json({ ok: true, action, post: data });
+    }
+
+    if (action === "update") {
+      if (!body.postId) return json({ ok: false, error: "postId required" }, 400);
+      const fields = {};
+      for (const k of ["title", "category", "excerpt", "meta_description", "body_html"]) {
+        if (typeof body[k] === "string" && body[k].trim()) fields[k] = body[k].trim();
+      }
+      if (!Object.keys(fields).length) return json({ ok: false, error: "Nothing to update" }, 400);
+      if (fields.body_html) {
+        // Honest re-estimate at ~200 wpm, clamped to the same 3-12 range the AI uses
+        const words = fields.body_html.replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+        fields.read_minutes = Math.max(3, Math.min(12, Math.round(words / 200) || 3));
+      }
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .update(fields)
+        .eq("id", body.postId)
+        .select("id, slug, title, category, excerpt, status, source, read_minutes, published_at, created_at")
+        .single();
+      if (error) throw error;
+      return json({ ok: true, action, post: data });
     }
 
     if (action === "get-settings") {
