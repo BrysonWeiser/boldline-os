@@ -13,4 +13,11 @@ verified: 2026-07-02
 
 **Lesson (2026-07-02):** the "We work with a limited number of businesses…" band (`.boutique`) originally used a full-width top/bottom-bordered stripe with a faint white wash — the only element doing that, so it read as out of place. Fixed by rebuilding it as a contained `.boutique-card` matching the package/included cards.
 
+**HARD RULE — no full-width band backgrounds (Bryson, 2026-07-03):** no section or other
+full-width structural element may paint its own opaque background ("black boxes" that
+interrupt the ambient background). Bryson has now flagged this three times (.boutique band,
+.alt bands, then .trust + #contact) — all flattened to transparent. Structure/contrast comes
+from **contained cards only**; sections sit directly on the flowing ambient background. When
+adding any new section, background stays transparent.
+
 **Takeaway:** to keep the site uniform, restyle any odd component into the contained-card vocabulary above rather than inventing a new treatment.
