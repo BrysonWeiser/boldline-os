@@ -536,17 +536,16 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .ow-g{inset:0}
 .bp{position:absolute;height:auto;color:var(--gold);fill:none;stroke:currentColor;stroke-width:1;stroke-linecap:round;stroke-linejoin:round}
 .bp .fl{fill:currentColor;stroke:none}
-.bp-card{left:2.5%;top:9%;width:280px;opacity:.09;transform:rotate(-4deg)}
-.bp-ret{display:none}  /* desktop retired it in the declutter pass; mobile still shows it */
+/* Staggered placement on purpose — varied insets, heights, and tilts so the pieces
+   read as scattered composition, not two straight columns */
+.bp-card{left:2.5%;top:7%;width:280px;opacity:.09;transform:rotate(-4deg)}
 .bp-cur{right:1.5%;bottom:4%;width:400px;opacity:.10}
-.bp-dash{right:2.5%;top:44%;width:250px;opacity:.085;transform:rotate(2.5deg)}
-.bp-gads{left:5%;top:40%;width:92px;opacity:.105;transform:rotate(-6deg);stroke-width:.75}
-.bp-meta{left:4%;top:83%;width:88px;opacity:.075;transform:rotate(4deg)}
-.bp-ret .rot{animation:bpSpin 120s linear infinite;transform-origin:center;transform-box:fill-box}
+.bp-dash{right:6.5%;top:15%;width:250px;opacity:.085;transform:rotate(2.5deg)}
+.bp-g{left:10.5%;top:31%;width:84px;opacity:.105;transform:rotate(7deg);stroke-width:.75}
+.bp-meta{left:5.5%;top:66%;width:88px;opacity:.09;transform:rotate(-5deg)}
 .bp-cur .pulse{animation:bpPulse 5.5s ease-out infinite;transform-origin:center;transform-box:fill-box}
 .bp-cur .pulse2{animation-delay:2.75s}
 .bp-cur .dash{stroke-dasharray:3 6;animation:bpDash 30s linear infinite}
-@keyframes bpSpin{to{transform:rotate(360deg)}}
 @keyframes bpPulse{0%{transform:scale(.4);opacity:.8}70%,100%{transform:scale(2.4);opacity:0}}
 @keyframes bpDash{to{stroke-dashoffset:-180}}
 .grain{position:absolute;inset:0;opacity:.05;background-size:170px 170px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
@@ -570,10 +569,11 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .btn:hover::after{left:130%}
 
 @media (max-width:900px){
-  /* No gutters on phones: the two busy wireframes go; the reticle and curve stay,
-     deliberately cropped off the edges so they read as intentional page furniture */
-  .bp-card,.bp-dash,.bp-gads,.bp-meta{display:none}
-  .bp-ret{display:block;right:-64px;top:7%;width:170px;opacity:.07}
+  /* Phones: the two platform logos + the curve (Bryson wants Google/Meta visible on mobile);
+     the big wireframes stay desktop-only */
+  .bp-card,.bp-dash{display:none}
+  .bp-g{left:7%;top:12%;width:52px;opacity:.09}
+  .bp-meta{left:auto;right:7%;top:42%;width:64px;opacity:.09;transform:rotate(6deg)}
   .bp-cur{right:-46px;bottom:3%;width:300px;opacity:.08}
 }
 @media (max-width:720px){
@@ -583,7 +583,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 }
 @media (prefers-reduced-motion:reduce){
   .ow .orb{animation:none}
-  .bp .rot,.bp .dash{animation:none}
+  .bp .dash{animation:none}
   .bp .pulse{display:none}
   #bgNet,#progress{display:none}
   .sr{opacity:1;transform:none;transition:none}
@@ -610,13 +610,6 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <rect class="fl" x="20" y="94" width="258" height="6" rx="3" opacity=".32"/>
       <rect class="fl" x="20" y="110" width="212" height="6" rx="3" opacity=".32"/>
       <rect x="20" y="138" width="94" height="27" rx="13.5"/>
-    </svg>
-    <!-- Targeting reticle: dashed inner ring rotates once every 2 minutes -->
-    <svg class="bp bp-ret" viewBox="0 0 200 200">
-      <circle cx="100" cy="100" r="92"/>
-      <g class="rot"><circle cx="100" cy="100" r="63" stroke-dasharray="3 9"/></g>
-      <circle class="fl" cx="100" cy="100" r="2.6" opacity=".7"/>
-      <path d="M100 2v13M100 185v13M2 100h13M185 100h13"/>
     </svg>
     <!-- Performance curve: soft area fill, pulsing endpoint, dashed projection -->
     <svg class="bp bp-cur" viewBox="0 0 440 210">
@@ -649,10 +642,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <path d="M66 152h180" opacity=".5"/>
     </svg>
     <!-- Platform marks as hairline outlines (referential line-art, not brand-color logos) -->
-    <svg class="bp bp-gads" viewBox="0 0 24 24">
-      <rect x="6" y="1.2" width="6.2" height="17" rx="3.1" transform="rotate(30 9.1 9.7)"/>
-      <rect x="15.6" y="1" width="6.2" height="22" rx="3.1"/>
-      <circle cx="4.6" cy="20.4" r="2.8"/>
+    <svg class="bp bp-g" viewBox="0 0 24 24">
+      <path d="M21.2 12A9.2 9.2 0 1 1 18.6 5.5"/>
+      <path d="M21.2 12h-9.2"/>
     </svg>
     <svg class="bp bp-meta" viewBox="0 0 32 20">
       <path d="M2 15.2C2 9.4 4.4 4.5 7.8 4.5c2.6 0 4.3 2.6 6 6.2l.9 2c1.3 2.8 2.4 4.6 4.4 4.6 2.7 0 4.9-3.3 4.9-7.2 0-3.4-1.5-5.6-3.8-5.6-1.4 0-2.6.9-3.7 2.7"/>
