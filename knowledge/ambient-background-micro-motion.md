@@ -19,8 +19,10 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   parallax transforms the **wrapper** while the keyframe animates the **child**, so they never
   fight (same animation-vs-transform conflict class as the nav-hide bug).
 - **Constellation canvas** (`#bgNet`) — ~80 max drifting points joined by thin gold lines when
-  <130px apart (alpha ≤ .09, canvas itself `opacity:.6`). ~30fps via frame-skip, DPR capped
-  1.5, desktop-only (`innerWidth >= 720`), skipped under reduced-motion. No visibilitychange
+  <130px apart (alpha ≤ .09, canvas itself `opacity:.6`). ~30fps via frame-skip, skipped under
+  reduced-motion. **Runs on mobile too** (Bryson 2026-07-03: phones looked plain) with a
+  lighter profile chosen in `size()`: <720px → 20–26 points, LINK 110, DPR ≤1.25; desktop →
+  area/26000 capped 80, LINK 130, DPR ≤1.5. No visibilitychange
   handling needed — **rAF self-pauses in hidden tabs; adding manual resume logic can
   double-schedule the loop.**
 - **Film grain** (`.grain`) — static inline-SVG `feTurbulence` tile (170px, URL-encoded data
@@ -37,8 +39,11 @@ micro-animations. Built as a zero-asset "living canvas" in `marketing-site/index
   **Design lesson: fewer/larger/finer/stiller reads expensive; many small bobbing icons read
   clip-art.** Motion is limited to the reticle spin, endpoint pulse, and dash drift — depth
   comes from the layer riding the parallax loop (class `.ow`; its factor is the 4th `factors`
-  entry). Hidden `<900px`; under reduced-motion the spin/dash stop and the pulse rings are
-  `display:none` (their resting keyframe would show as stray circles). Skeleton "text" bars
+  entry). Under reduced-motion the spin/dash stop and the pulse rings are `display:none`
+  (their resting keyframe would show as stray circles). **Mobile (<900px): reticle + curve
+  STAY** at reduced size/opacity, deliberately cropped off the right edge (negative right
+  offsets — safe because `.ambient` is fixed + overflow:hidden, per mobile-glow-overflow);
+  only the busier ghost-ad card + funnel are hidden (phones have no gutters). Skeleton "text" bars
   use `class="fl"` (`fill:currentColor;stroke:none`). Deliberately NO fabricated metric text
   (e.g. "+38% CTR") — background numbers could read as implied performance claims.
 - **`.alt` bands are transparent** (same session): #included/#founder previously drew a
