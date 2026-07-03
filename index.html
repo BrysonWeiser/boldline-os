@@ -2288,6 +2288,27 @@ function BlogManagementCard() {
     setBusyId(null);
   };
 
+  // Manual editor: "get" fetches the full post (list rows omit body_html),
+  // "update" saves owner edits in place — same slug/URL, changes live at once.
+  const [editor,setEditor]=useState(null);        // full post being edited, or null
+  const [editorSaving,setEditorSaving]=useState(false);
+  const openEditor=async(postId)=>{
+    setBusyId(postId); setMsg("");
+    try{ const d=await call("get",{postId}); setEditor(d.post); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const setEd=(k,v)=>setEditor(p=>({...p,[k]:v}));
+  const saveEditor=async()=>{
+    setEditorSaving(true); setMsg("");
+    try{
+      const d=await call("update",{postId:editor.id,title:editor.title,category:editor.category,excerpt:editor.excerpt,meta_description:editor.meta_description,body_html:editor.body_html});
+      setPosts(p=>p.map(x=>x.id===editor.id?d.post:x));
+      setEditor(null);
+    }catch(e){ setMsg(e.message); }
+    setEditorSaving(false);
+  };
+
   // Both bulk flows are sequential client-side loops over the existing
   // single-post actions (not one slow server-side loop) so every AI call
   // stays inside its own function invocation's timeout, and progress can be
@@ -2387,7 +2408,8 @@ function BlogManagementCard() {
                   <div style={{fontSize:10,color:C.textMuted,marginTop:3}}>{fmtDate(p.published_at)} · {p.read_minutes} min read</div>
                 </div>
                 <div style={{display:"flex",gap:5,flexShrink:0}}>
-                  <button onClick={()=>regenerate(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{busyId===p.id?"…":"Regenerate"}</button>
+                  <button onClick={()=>openEditor(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.08)",color:C.gold,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Edit</button>
+                  <button onClick={()=>regenerate(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{busyId===p.id?"…":"AI Rewrite"}</button>
                   {confirmId===p.id?(
                     <div style={{display:"flex",gap:5}}>
                       <button onClick={()=>setConfirmId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
@@ -2402,6 +2424,64 @@ function BlogManagementCard() {
           ))}
         </div>
       )}
+
+      {editor&&(
+        <div onClick={e=>{ if(e.target===e.currentTarget&&!editorSaving) setEditor(null); }} style={{position:"fixed",inset:0,zIndex:400,backgroundColor:"rgba(4,6,10,.75)",display:"flex",alignItems:"center",justifyContent:"center",padding:14}}>
+          <div style={{width:"100%",maxWidth:700,maxHeight:"88vh",overflowY:"auto",backgroundColor:C.bg2,border:`1px solid ${C.borderAccent}`,borderRadius:14,padding:"16px 16px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <div style={{fontSize:13,fontWeight:800,color:C.text}}>Edit Post</div>
+              <a href={"https://boldlinemedia.com/blog/"+editor.slug+"/"} target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,fontWeight:600,color:C.textDim,textDecoration:"none"}}>View live ↗</a>
+              <div style={{marginLeft:"auto",fontSize:10,color:C.textMuted}}>Saving publishes the changes immediately</div>
+            </div>
+            {[["title","Title",false],["category","Category",false],["excerpt","Excerpt (shown on the blog index)",true],["meta_description","Meta description (Google search snippet)",true]].map(([k,label,multi])=>(
+              <div key={k} style={{marginBottom:10}}>
+                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>{label}</div>
+                {multi?(
+                  <textarea value={editor[k]||""} onChange={e=>setEd(k,e.target.value)} rows={2} style={{width:"100%",padding:"8px 10px",fontSize:12.5,lineHeight:1.5,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
+                ):(
+                  <input value={editor[k]||""} onChange={e=>setEd(k,e.target.value)} style={{width:"100%",padding:"8px 10px",fontSize:12.5,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit"}}/>
+                )}
+              </div>
+            ))}
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>Body (HTML — the article itself; tags like &lt;h2&gt; and &lt;p&gt; control the layout)</div>
+              <textarea value={editor.body_html||""} onChange={e=>setEd("body_html",e.target.value)} rows={16} spellCheck={false} style={{width:"100%",padding:"10px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"ui-monospace,Menlo,Consolas,monospace",resize:"vertical"}}/>
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setEditor(null)} disabled={editorSaving} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+              <button onClick={saveEditor} disabled={editorSaving} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:editorSaving?.7:1}}>{editorSaving?"Saving…":"Save & Publish"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── WEBSITE SCREEN ───────────────────────────────────────────────────────────
+// Everything for boldlinemedia.com in one place: quick links to the live pages
+// and the full blog manager (cadence, write-now, edit, AI rewrite, delete).
+function WebsiteScreen() {
+  const LINKS=[
+    ["Homepage","https://boldlinemedia.com/"],
+    ["Blog","https://boldlinemedia.com/blog/"],
+    ["Privacy","https://boldlinemedia.com/privacy.html"],
+    ["Terms","https://boldlinemedia.com/terms.html"],
+    ["Sitemap","https://boldlinemedia.com/sitemap.xml"],
+  ];
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:"var(--pad)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
+        <div style={{fontSize:20,fontWeight:800,color:C.text}}>Website</div>
+        <a href="https://boldlinemedia.com/" target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"6px 10px"}}>Open Site ↗</a>
+      </div>
+      <div style={{fontSize:11.5,color:C.textMuted,marginBottom:14,lineHeight:1.6}}>Everything for boldlinemedia.com. Manage the AI-written blog below — form submissions from the site land in the Leads tab automatically.</div>
+      <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
+        {LINKS.map(([label,url])=>(
+          <a key={label} href={url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,padding:"6px 12px",borderRadius:20,border:`1px solid ${C.border}`,color:C.textDim,textDecoration:"none"}}>{label} ↗</a>
+        ))}
+      </div>
+      <BlogManagementCard/>
     </div>
   );
 }
@@ -2424,7 +2504,7 @@ function ARIADeployTab() {
     {name:"AI Landing Page Generator",icon:"📄",live:true,note:"Live now — ARIA writes the landing page copy from each client's campaign setup and brand voice. One click to generate, preview, and publish a hosted page for ad clicks to land on."},
     {name:"Call Tracking Numbers",icon:"📞",live:true,note:"Live now — ARIA buys a dedicated Twilio number per client, forwards calls to their real number, and logs every call as a lead automatically. On your trial Twilio account, the client's forwarding number must be verified in the Twilio console first (one-time, ~1 min) — upgrade to a paid account to skip that step."},
     {name:"Automated Lead Follow-Up",icon:"⚡",live:true,note:"Live now — every new lead gets an instant auto-reply, branded as the client's business, the moment they fill out a landing page or call a tracking number. If nobody marks the lead Contacted/Won/Lost, ARIA automatically nurtures them again at 1 day and 3 days. Check the Leads tab on any client to see every lead and its status."},
-    {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, write one on demand, delete/regenerate any single post, rewrite every post at once, or wipe the blog and rebuild it from scratch — all above."},
+    {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, edit any post by hand, write one on demand, delete/AI-rewrite any single post, rewrite every post at once, or wipe the blog and rebuild it from scratch — all in the Website tab."},
     {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA can propose budget changes, pauses, or creative refreshes for a client, but every proposal lands in Notifications and waits for you to Approve or Reject. Nothing executes on its own. Once Google Ads/Meta are connected, this is the gate real ad-account changes will run through."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
     {name:"Ad Account Connection",icon:"📈",live:false,note:"Google Ads: manager account + credentials are in place and the integration code is built — waiting on the Developer Token's Basic Access approval (use 'Test Google Ads Connection' above once it's granted). Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
@@ -2447,7 +2527,10 @@ function ARIADeployTab() {
       </div>
       <DocuSignTestCard/>
       <GoogleAdsTestCard/>
-      <BlogManagementCard/>
+      <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📝 Blog — AI Auto-Publish</div>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Blog management moved to the <strong style={{color:C.gold}}>Website</strong> tab in the bottom bar — edit, AI-rewrite, delete, and set the weekly cadence there.</div>
+      </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {items.map((item,i)=>(
           <div key={i} style={{backgroundColor:C.bg3,border:`1px solid ${item.live?"rgba(34,211,160,0.15)":"rgba(245,158,11,0.15)"}`,borderRadius:11,padding:"12px 13px"}}>
@@ -3195,7 +3278,7 @@ const IconCheck = ({size=14,color}) => (
 );
 
 // ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
-function BottomNav({screen,onHome,onLeads,onNotif,onARIA,notifCount,newLeadsCount}) {
+function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,notifCount,newLeadsCount}) {
   const navBg = "rgba(7,8,16,0.96)";
   const btnStyle = (active) => ({
     flex:1,height:"100%",background:"none",border:"none",cursor:"pointer",
@@ -3233,6 +3316,15 @@ function BottomNav({screen,onHome,onLeads,onNotif,onARIA,notifCount,newLeadsCoun
         <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
           color:screen==="leads"?"#C8A84B":C.textMuted}}>Leads</span>
         {screen==="leads"&&<span style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
+          width:24,height:2,borderRadius:2,backgroundColor:"#C8A84B"}}/>}
+      </button>
+
+      {/* Website */}
+      <button onClick={onWebsite} style={btnStyle(screen==="website")}>
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={screen==="website"?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></svg>
+        <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
+          color:screen==="website"?"#C8A84B":C.textMuted}}>Website</span>
+        {screen==="website"&&<span style={{position:"absolute",bottom:0,left:"50%",transform:"translateX(-50%)",
           width:24,height:2,borderRadius:2,backgroundColor:"#C8A84B"}}/>}
       </button>
 
@@ -3624,8 +3716,9 @@ function App({onLogout}) {
         {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")}/>}
         {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onDelete={deleteLead} onRefresh={loadLeads}/>}
+        {screen==="website"&&<WebsiteScreen/>}
       </div>
-      <BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>
+      <BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>
       {toasts.length>0&&(
         <div style={{position:"fixed",left:12,bottom:74,zIndex:300,display:"flex",flexDirection:"column",gap:8,width:"calc(100% - 24px)",maxWidth:300,pointerEvents:"none"}}>
           {toasts.map(t=>{
