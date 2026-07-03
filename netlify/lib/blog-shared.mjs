@@ -129,7 +129,8 @@ ${topicInstruction}
 ${avoidInstruction}
 
 WRITING STYLE (this is how NOT to sound like AI — follow it closely):
-- Never use em-dashes (the "—" character). Use a period, comma, or parentheses instead. This is the single biggest tell that writing is AI-generated.
+- Never use em-dashes (the "—" character). Use a period or comma instead. This is the single biggest tell that writing is AI-generated.
+- Never use parentheses anywhere in the post. If an aside matters, write it as its own sentence; if it doesn't, cut it.
 - Vary your sentence length. Mix short, blunt sentences with longer ones. Avoid the steady, evenly-balanced rhythm AI defaults to.
 - Avoid these tics: "It's not X, it's Y" setups, rule-of-three triads, "here's the thing," "the truth is," "no fluff," "let's dive in," "in today's world," "when it comes to," and constant hedging.
 - Go easy on "actually," "simply," "just," "truly," "seamless," "robust," "leverage," "elevate," "unlock."

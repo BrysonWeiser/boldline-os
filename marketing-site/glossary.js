@@ -13,11 +13,12 @@
     "retargeting":["Retargeting","Showing ads again to people who visited your site but didn't act yet. It's a low-cost nudge that brings warm prospects back to finish."],
     "audience-building":["Audience building","Choosing exactly who sees your ads, by location, interests, and behavior, so your budget reaches likely customers instead of everyone."],
     "crm-integration":["CRM integration","CRM stands for Customer Relationship Management, the software that stores your leads and customers. Connecting your ads to it means every new inquiry lands in one organized place ready for follow-up, so nothing slips through the cracks."],
-    "split-testing":["Split testing (A/B testing)","Running two versions of an ad or page against each other, keeping the winner, and repeating. Steady, measured improvement instead of guessing."],
+    "split-testing":["Split testing","Also called A/B testing. Running two versions of an ad or page against each other, keeping the winner, and repeating. Steady, measured improvement instead of guessing."],
     "multi-campaign":["Multi-campaign structure","Splitting your advertising into several focused campaigns, by service, location, or goal, so each one can be controlled and improved on its own."],
-    "roas":["ROAS (return on ad spend)","How many dollars you earn for every dollar spent on ads. A ROAS of 4 means $4 back for every $1 in. It's the simplest gauge of whether ads are paying off."],
+    "roas":["ROAS","Short for return on ad spend: how many dollars you earn for every dollar spent on ads. A ROAS of 4 means $4 back for every $1 in. It's the simplest gauge of whether ads are paying off."],
     "google-ads":["Google Ads","Ads that show up when someone searches Google for what you offer, putting you in front of people who are looking to buy right now."],
-    "meta-ads":["Meta Ads","Ads on Facebook and Instagram that reach the right people by interest, location, and behavior. Great for creating demand, not just capturing it."]
+    "meta-ads":["Meta Ads","Ads on Facebook and Instagram that reach the right people by interest, location, and behavior. Great for creating demand, not just capturing it."],
+    "meta":["Meta","The company behind Facebook and Instagram. When we run Meta ads, your business shows up across both apps from one campaign system."]
   };
 
   /* ---- Auto-link known terms inside a blog article body ----
@@ -40,6 +41,7 @@
       [/\bCRM\b/,"crm-integration"],
       [/\bGoogle Ads\b/i,"google-ads"],
       [/\bMeta Ads\b/i,"meta-ads"],
+      [/\bMeta\b/,"meta"],
       [/\baudience building\b/i,"audience-building"],
       [/\boptimization\b/i,"optimization"]
     ];
