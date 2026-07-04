@@ -32,3 +32,17 @@ verified: 2026-07-03
 - **Why the old model flooded (the bug Bryson hit):** `nextPublishSlot` spaced 7/N days off the latest post; with only old published posts on the books it clamped to `now+1h`, so clicking "Write & Schedule" a few times stacked multiple drafts onto the same day. Fixed.
 - **The once-per-cycle guard** in blog-autopublish: create only if NO non-deleted post has `published_at` within the current cycle window `[most recent Tue 8am AZ, +7 days)`. This fires ~Tuesday 8am, is idempotent under rapid 15-min ticks, tolerates reschedules within the week, and self-heals (delete the pending draft → next run refills it). Manual **Write & Schedule** button targets the next OPEN Monday slot so repeat clicks stack future weeks. **Write + Publish Now** still bypasses review.
 - The `posts_per_week` column + get-settings/set-cadence actions still exist (unused by the schedule now); the OS cadence number input was removed in favor of a fixed-schedule line.
+
+**On-demand generation runs as a BACKGROUND function (2026-07-04 — fixed "Request failed"):**
+A full Claude post takes ~20-40s, past the ~10s synchronous Netlify function limit, so the
+OS write buttons were getting a 502 that surfaced as the generic "Request failed." (The weekly
+cron was fine — scheduled functions get the long runtime.) Fix: `netlify/functions/blog-write-background.mjs`
+— Netlify runs any function whose name ends in `-background` asynchronously (returns 202
+immediately, up to 15 min), same owner-JWT auth as blog-admin, handles generate-now /
+generate-scheduled / regenerate. The OS calls it (`callBg`) then **polls `list` every 4s until
+the new/changed post appears** (`pollList`, ~150s cap) with "still writing, refresh in a minute"
+fallback. All five AI controls use it: the two write buttons, per-post AI Rewrite, and the two
+bulk flows. The synchronous blog-admin generate-* / regenerate actions still exist (unused by
+the buttons now) — leave them. **Gotcha:** a Netlify background function returns 202 before the
+work runs, so client-side you cannot read its result or its errors — you must poll the DB via
+list(). Relies on background functions being available on the Netlify plan (GA on current plans).
