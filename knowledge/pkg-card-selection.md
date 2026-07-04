@@ -29,3 +29,14 @@ whose computed boxShadow contains `0px 0px 0px 1px` — expect exactly 1 at defa
 after tapping 0 (→0), 2 (→2), then featured (→1). **Tap card headings (`.pkg h3`), not list
 items** — list text contains glossary-linked terms and the popover backdrop will intercept
 subsequent taps (that cost a test run).
+
+**Book-a-call = on-site Calendly popup + package tracking (2026-07-04):** Calendly's widget
+assets (assets.calendly.com widget.css/js) are loaded in <head>; a delegated click handler on
+`a[href*="calendly.com/theboldlinemedia"]` calls `Calendly.initPopupWidget({url})` so booking
+stays in an on-site modal instead of navigating away. Falls back to the plain link if the widget
+didn't load (progressive enhancement). **Excludes `#openRecommender`** (that Calendly-href link
+actually opens the recommender modal — its own handler + mine are both document listeners, so it
+must be skipped explicitly). For a click inside a `.pkg`, the handler reads the card's `<h3>`
+text and books with `utm_content=<package name>` (no per-button markup) so the package shows on
+the Calendly event. Package CTA buttons (`.pkg-cta`) start non-highlighted and fill gold on
+`:hover` or `.pkg.sel` (card selected).
