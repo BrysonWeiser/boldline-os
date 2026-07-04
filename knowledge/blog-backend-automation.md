@@ -4,7 +4,7 @@ topic: Blog
 task: understand or change how the blog stores posts and how AI writes, regenerates, and auto-publishes them
 keywords: [blog_posts, blog_settings, blog-shared.mjs, blog-admin.mjs, blog-autopublish.mjs, BLOG_FACTS, posts_per_week]
 status: verified
-summary: Blog is DB-backed (blog_posts + singleton blog_settings). REVIEW-FIRST pipeline (2026-07-03): AI writes posts ahead as scheduled drafts (status='draft' + future published_at = exact go-live time); blog-autopublish runs every 15 min (publishes due drafts, keeps ≥1 scheduled, self-healing); owner reviews/edits/reschedules in the OS Website tab before they go live.
+summary: Blog is DB-backed (blog_posts + blog_settings). REVIEW-FIRST, FIXED WEEKLY schedule (2026-07-04): exactly 1 post/week, published MONDAY 08:00 America/Phoenix, written+scheduled the preceding TUESDAY 08:00. AI writes ahead as a scheduled draft; blog-autopublish runs every 15 min (publishes due drafts + creates one per Tue→Mon cycle); owner reviews/edits/reschedules in the OS Website tab.
 verified: 2026-07-03
 ---
 
@@ -28,4 +28,7 @@ verified: 2026-07-03
 - **Gotcha fixed in the same change:** `regeneratePost` used to bump `published_at` to *now* — on a draft that would have made it instantly due. It now preserves a draft's scheduled time (published posts still bump to newest).
 - OS Website tab shows two sections: **Scheduled — awaiting your review** (gold rows, exact local publish time, actions: Review/Edit, AI Rewrite, Reschedule via `datetime-local` picker, Publish Now, Delete) and **Posted — live on the site**. Primary write button is "Write & Schedule" (`generate-scheduled`); "Write + Publish Now" (`generate-now`) remains as the skip-review escape hatch. New admin actions: `generate-scheduled` (optional `{when}`), `publish-now`, `reschedule` (drafts only, future-time validated).
 - `?test=1` emails a pipeline report (due drafts / pending count / next slot) **without doing anything** (same dry-run convention as `lead-followup.mjs`).
-- Cadence still lives in `blog_settings.posts_per_week` (slot spacing = 7/N days). Recommendation unchanged: 1/week first 3 months, then ramp.
+- **Fixed weekly schedule (2026-07-04, replaced the posts_per_week spacing model):** publish **Monday 08:00 America/Phoenix**, write+schedule the preceding **Tuesday 08:00**. Arizona = MST all year (UTC-7, no DST) so 08:00 AZ = 15:00 UTC; helpers in blog-shared.mjs are pure UTC math, **no tz library** (`azMostRecent(nowMs,dow,hour)`, `weeklyTargetMs` = most recent Tue 8am + 6 days, `nextOpenWeeklySlotISO` = next unoccupied Monday slot).
+- **Why the old model flooded (the bug Bryson hit):** `nextPublishSlot` spaced 7/N days off the latest post; with only old published posts on the books it clamped to `now+1h`, so clicking "Write & Schedule" a few times stacked multiple drafts onto the same day. Fixed.
+- **The once-per-cycle guard** in blog-autopublish: create only if NO non-deleted post has `published_at` within the current cycle window `[most recent Tue 8am AZ, +7 days)`. This fires ~Tuesday 8am, is idempotent under rapid 15-min ticks, tolerates reschedules within the week, and self-heals (delete the pending draft → next run refills it). Manual **Write & Schedule** button targets the next OPEN Monday slot so repeat clicks stack future weeks. **Write + Publish Now** still bypasses review.
+- The `posts_per_week` column + get-settings/set-cadence actions still exist (unused by the schedule now); the OS cadence number input was removed in favor of a fixed-schedule line.
