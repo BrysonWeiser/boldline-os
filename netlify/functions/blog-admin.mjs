@@ -32,7 +32,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { createAndPublishPost, createScheduledPost, nextPublishSlot, regeneratePost } from "../lib/blog-shared.mjs";
+import { createAndPublishPost, createScheduledPost, nextOpenWeeklySlotISO, regeneratePost } from "../lib/blog-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -72,11 +72,12 @@ export default async (req) => {
     }
 
     if (action === "generate-scheduled") {
-      // Writes the next post as a scheduled draft at the next cadence slot
-      // (or an explicit body.when), for review before it goes live.
+      // Writes the next post as a scheduled draft at the next OPEN Monday
+      // 08:00-AZ slot (or an explicit body.when), for review before it goes
+      // live. Repeat clicks stack future weeks instead of piling onto one day.
       let when = body.when ? new Date(body.when) : null;
       if (when && (isNaN(when) || when.getTime() <= Date.now())) return json({ ok: false, error: "Scheduled time must be in the future" }, 400);
-      const slot = when ? when.toISOString() : await nextPublishSlot(supabase, (await supabase.from("blog_settings").select("posts_per_week").eq("id", 1).single()).data?.posts_per_week || 1);
+      const slot = when ? when.toISOString() : await nextOpenWeeklySlotISO(supabase);
       const post = await createScheduledPost(slot);
       return json({ ok: true, action, post });
     }

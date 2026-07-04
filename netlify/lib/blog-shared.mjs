@@ -195,20 +195,50 @@ export async function createAndPublishPost() {
   return data;
 }
 
-// Next open slot in the publishing pipeline: one cadence-interval (7/N days)
-// after the latest post on the books (published or scheduled), never in the
-// past. Keeps a steady rhythm no matter when the pipeline is topped up.
-export async function nextPublishSlot(supabase, postsPerWeek) {
-  const spacingMs = (7 / Math.max(1, postsPerWeek)) * 864e5;
-  const { data, error } = await supabase
-    .from("blog_posts")
-    .select("published_at")
-    .neq("status", "deleted")
-    .order("published_at", { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  const base = data && data[0] && data[0].published_at ? new Date(data[0].published_at).getTime() : Date.now();
-  return new Date(Math.max(Date.now() + 36e5, base + spacingMs)).toISOString();
+// --- Fixed weekly schedule (Bryson, 2026-07-03): each post publishes MONDAY
+//     08:00 America/Phoenix, and the next one is written+scheduled the preceding
+//     TUESDAY 08:00. Arizona keeps Mountain Standard Time all year (UTC-7, no
+//     daylight saving), so 08:00 AZ is always 15:00 UTC -- no tz library needed. ---
+export const AZ_OFFSET_MS = 7 * 3600 * 1000;
+const DAY_MS = 24 * 3600 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+// Most recent UTC instant (ms) that falls on Arizona-local `dow` (0=Sun..6=Sat)
+// at `hour`:00, at or before nowMs.
+export function azMostRecent(nowMs, dow, hour) {
+  const wall = new Date(nowMs - AZ_OFFSET_MS);   // read AZ wall-clock off UTC getters
+  wall.setUTCHours(hour, 0, 0, 0);
+  let delta = wall.getUTCDay() - dow;
+  if (delta < 0) delta += 7;
+  wall.setUTCDate(wall.getUTCDate() - delta);
+  let slot = wall.getTime() + AZ_OFFSET_MS;       // back to a real UTC instant
+  if (slot > nowMs) slot -= WEEK_MS;
+  return slot;
+}
+
+// The Monday-08:00-AZ target for the current Tue->Mon cycle: the most recent
+// Tuesday 08:00 AZ plus 6 days lands on the following Monday 08:00 AZ.
+export function weeklyTargetMs(nowMs = Date.now()) {
+  return azMostRecent(nowMs, 2, 8) + 6 * DAY_MS;
+}
+
+// Next Monday-08:00-AZ publish slot not already occupied by a non-deleted post.
+// Used by the manual "Write & Schedule" button so repeat clicks stack future
+// weeks instead of piling multiple posts onto the same day.
+export async function nextOpenWeeklySlotISO(supabase, nowMs = Date.now()) {
+  let mon = weeklyTargetMs(nowMs);
+  while (mon <= nowMs) mon += WEEK_MS;
+  for (let i = 0; i < 104; i++) {
+    const lo = new Date(mon - 2 * 60000).toISOString();
+    const hi = new Date(mon + 2 * 60000).toISOString();
+    const { data, error } = await supabase
+      .from("blog_posts").select("id")
+      .neq("status", "deleted").gte("published_at", lo).lte("published_at", hi).limit(1);
+    if (error) throw error;
+    if (!data || !data.length) return new Date(mon).toISOString();
+    mon += WEEK_MS;
+  }
+  return new Date(mon).toISOString();
 }
 
 // Generates a brand-new post but parks it as a SCHEDULED draft: status stays
