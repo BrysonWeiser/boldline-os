@@ -40,3 +40,10 @@ must be skipped explicitly). For a click inside a `.pkg`, the handler reads the 
 text and books with `utm_content=<package name>` (no per-button markup) so the package shows on
 the Calendly event. Package CTA buttons (`.pkg-cta`) start non-highlighted and fill gold on
 `:hover` or `.pkg.sel` (card selected).
+
+**Calendly custom-answer prefill (2026-07-04):** besides utm_content, the handler prefills the
+"Which package are you interested in?" question via `prefill:{customAnswers:{a3:name}}`.
+**Calendly keys custom questions a1/a2/... by their position on the booking form; Bryson's form
+order is a1 = "Briefly describe your business", a2 = "What is your budget", a3 = the package
+question** (took three test bookings to land — always test-book after reordering questions).
+The key lives in the `PKG_ANSWER_KEY` constant in the book-a-call script.

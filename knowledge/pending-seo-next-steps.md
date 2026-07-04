@@ -5,7 +5,7 @@ task: pick up the next unstarted marketing/SEO steps now that the site is live (
 keywords: [basic-access-resubmit, search-console, sitemap.xml, business-profile, GA4]
 status: verified
 summary: Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.
-verified: 2026-07-02
+verified: 2026-07-04
 ---
 
 Context: the second Netlify site and the custom domain are **DONE** (marketing site live at `boldlinemedia.com`). These are the next steps offered but not yet started:
@@ -16,3 +16,17 @@ Context: the second Netlify site and the custom domain are **DONE** (marketing s
 4. **Google Analytics GA4** (optional): real visitor/source data (which post drives traffic, paid vs. organic); not required to rank. Needs Bryson to create the account (walk through click-by-click when wanted).
 
 (Related one-time setup TODOs already documented elsewhere: run `docs/sql/blog-schema.sql` in Supabase; add `SUPABASE_SERVICE_ROLE_KEY` on the marketing site; add `RESEND_API_KEY` on the marketing site; turn on Netlify Forms notifications — see `blog-backend-automation`, `supabase-access-model`, `resend-email-sending`, `netlify-forms-wiring`.)
+
+**2026-07-04 (post-audit prioritized plan, agreed with Bryson):** the site itself is done/fast
+(full audit clean); remaining value is off-site, in this order:
+1. **Google Search Console** — register + submit /sitemap.xml (FIRST; ~10 min; also evidence for
+   the Ads Basic Access resubmission). Bryson was about to start this in a new session.
+2. **GA4 analytics** — site has ZERO analytics; once Bryson creates the property, wire the tag +
+   events for package clicks / Calendly popup opens / form sends.
+3. **Resubmit Google Ads Basic Access** referencing the live site (do NOT reuse old rejected
+   responses — see google-ads-api).
+4. **Custom-domain email** (bryson@boldlinemedia.com, Google Workspace ~$7/mo or Zoho free) —
+   replaces the gmail on privacy page + Calendly; root-domain MX on Wix DNS should be possible
+   (the Resend dead-end was a SUBDOMAIN record) and may unlock the dormant branded lead emails.
+5. **Google Business Profile** (optional, local-pitch credibility).
+Small folds-in: proper square favicon; first-client testimonial section someday.

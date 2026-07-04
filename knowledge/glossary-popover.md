@@ -12,3 +12,9 @@ verified: 2026-07-02
 - **Refactored to shared assets** (v3.2): the CSS/JS were pulled out of `index.html`'s inline blocks into `marketing-site/glossary.css` + `marketing-site/glossary.js` (one dictionary, one runtime, one stylesheet — no drift between homepage and blog). The homepage loads them via `<link href="/glossary.css">` + `<script src="/glossary.js" defer>`; its package terms stay **pre-wrapped** in markup. (The `.equal-effort` style stayed inline — homepage-only.)
 - **Blog auto-linking:** `glossary.js` includes an `autolink()` that runs only on pages with an `.article-body` (blog posts). It walks the article's text nodes and wraps the **first occurrence** of each known term in a `.term` span, **skipping links, headings, code, and already-wrapped terms**, so prose stays clean. Wired site-wide on the blog via `blog-render.mjs` `headTags` (index, posts, and 404 all pull the same two files; autolink no-ops where there's no article body).
 - **No-JS readers get clean prose** (SEO-safe). A lightweight popover was chosen over a full-screen takeover on purpose — less friction, better conversion.
+
+**2026-07-04:** added a "meta" dict entry (the company, for the bare word "Meta" in the platforms
+FAQ — marked up as `<span class="term" data-term="meta">`; autolink also wraps bare /\bMeta\b/
+in blog posts, placed AFTER the "Meta Ads" rule so the compound wins). Popover titles must not
+contain parentheses (voice rule): "Split testing" and "ROAS" fold their parentheticals into the
+definition text instead.
