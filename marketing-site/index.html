@@ -1280,6 +1280,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     var rf = document.getElementById('recEmailForm'), rd = document.getElementById('recEmailDone');
     if(rf){ rf.reset(); rf.hidden = false; var recd = rf.querySelector('#recRecommended'); if(recd) recd.value = tierName + ' on ' + f.label; }
     if(rd) rd.hidden = true;
+    var recBook = document.getElementById('recBook');
+    if(recBook) recBook.setAttribute('data-pkg', tierName + ' on ' + f.label);  // so Book a Call prefills the recommended package
     document.getElementById('recSee').onclick = function(){
       closeModal();
       var tabBtn = document.querySelector('.tab[data-tab="' + f.tab + '"]');
@@ -1625,19 +1627,28 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         and tag the booking with which package they were on so it shows up in the
         Calendly event. Falls back to the plain link if the widget didn't load. ── */
   var CAL_BASE = "https://calendly.com/theboldlinemedia/30min";
+  // Calendly custom-question key for "Which package are you interested in?".
+  // Custom questions are a1, a2, ... in the order they appear on the booking
+  // page. If a test booking shows the package in the wrong field, bump this to
+  // a2/a3 to match the question's position.
+  var PKG_ANSWER_KEY = "a1";
   document.addEventListener('click', function(e){
     var a = e.target.closest ? e.target.closest('a[href*="calendly.com/theboldlinemedia"]') : null;
     if(!a || a.id === 'openRecommender') return;                // that link opens the recommender modal, not Calendly
     if(!(window.Calendly && Calendly.initPopupWidget)) return;  // widget missing -> normal link
-    var url = a.getAttribute('href');
+    var opts = { url: a.getAttribute('href') };
     var pkgCard = a.closest('.pkg');
-    if(pkgCard){
-      var h = pkgCard.querySelector('h3');
-      var name = h ? h.textContent.trim() : '';
-      if(name) url = CAL_BASE + '?utm_source=website&utm_medium=package_card&utm_campaign=book_a_call&utm_content=' + encodeURIComponent(name);
+    var name = pkgCard ? (pkgCard.querySelector('h3') ? pkgCard.querySelector('h3').textContent.trim() : '')
+                       : (a.getAttribute('data-pkg') || '');
+    if(name){
+      // Prefill the "which package" answer (visible on the booking) + a utm tag as a backup signal
+      var src = pkgCard ? 'package_card' : 'recommender';
+      opts.url = CAL_BASE + '?utm_source=website&utm_medium=' + src + '&utm_campaign=book_a_call&utm_content=' + encodeURIComponent(name);
+      var ca = {}; ca[PKG_ANSWER_KEY] = name;
+      opts.prefill = { customAnswers: ca };
     }
     e.preventDefault();
-    Calendly.initPopupWidget({ url: url });
+    Calendly.initPopupWidget(opts);
   });
 })();
 </script>
