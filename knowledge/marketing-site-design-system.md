@@ -29,6 +29,14 @@ base64 defeats brotli). og-image.png is also quantized (~25KB). `marketing-site/
 both images 1-week caching; HTML/CSS/JS stay on Netlify's default ETag revalidation so edits show
 immediately. Third-party CSS (Calendly widget.css) loads via the media="print" → onload swap so it
 never blocks first paint. Meta description target ≤160 chars. Heading ladder: one h1, sections h2,
-cards h3 (no h2→h4 skips). NOTE: og-image.png still has an em-dash + older hero copy baked into
-the artwork; regenerate it whenever there's a design pass (needs Playfair Display, which the
-sandbox can't load).
+cards h3 (no h2→h4 skips). og-image was regenerated 2026-07-04 as **og-image.jpg** (57KB — JPEG, because
+quantized PNG posterizes the soft glows) with current hero copy and no dash; metas point at the
+.jpg (old .png kept for previously scraped shares). **Recipe to regenerate:** curl the Google
+Fonts css2 URL with a Chrome UA, download the woff2s, build a 1200×630 card.html with local
+@font-face, screenshot via Playwright at deviceScaleFactor 1, save as JPEG q85.
+**Founder section (2026-07-04):** real headshot at `/founder.jpg` (EXIF-upright via
+ImageOps.exif_transpose — phone uploads arrive rotated; square crop ~(790,1030,1690,1930) of the
+original upload; 240px, q82 progressive, lazy, alt "Bryson, founder of BoldLine Media").
+**To revert to the monogram** (Bryson wants this option kept open): replace the
+`<div class="founder-avatar"><img …></div>` with `<div class="founder-avatar">B</div>` — the
+circle/monogram CSS still supports both.
