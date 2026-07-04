@@ -1,0 +1,6 @@
+# Long-cache the images (they change rarely; HTML/CSS/JS keep Netlify's
+# default revalidation so edits show up immediately)
+/logo.png
+  Cache-Control: public, max-age=604800
+/og-image.png
+  Cache-Control: public, max-age=604800
