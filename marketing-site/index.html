@@ -30,6 +30,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Calendly popup widget: keeps booking on-site in a modal instead of navigating away -->
+<link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+<script src="https://assets.calendly.com/assets/external/widget.js" async></script>
 <style>
 :root{
   --gold:#C8A84B;--gold-soft:rgba(200,168,75,.12);--gold-line:rgba(200,168,75,.28);
@@ -199,10 +202,9 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 /* Full-width package CTA button (was a small underlined text link) — bottom-
    aligned across the row via margin-top:auto so every card's button lines up */
 .pkg-cta{display:block;margin-top:auto;text-align:center;padding:13px 18px;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);text-decoration:none;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:9px;transition:background .22s ease,color .22s ease,border-color .22s ease,transform .22s ease,box-shadow .22s ease}
-.pkg-cta:hover{background:var(--gold);color:#15110A;border-color:var(--gold);transform:translateY(-2px);box-shadow:0 12px 26px -12px rgba(200,168,75,.5)}
-/* The "Most Popular" card gets a solid-gold button to pull the eye */
-.pkg:has(.tag) .pkg-cta{background:var(--gold);color:#15110A;border-color:var(--gold)}
-.pkg:has(.tag) .pkg-cta:hover{box-shadow:0 14px 30px -12px rgba(200,168,75,.6)}
+/* Every button starts non-highlighted; it fills gold only on hover or when its
+   card is selected via tap/click (.pkg.sel is toggled in the nav script). */
+.pkg-cta:hover,.pkg.sel .pkg-cta{background:var(--gold);color:#15110A;border-color:var(--gold);transform:translateY(-2px);box-shadow:0 12px 26px -12px rgba(200,168,75,.5)}
 
 @media (max-width:840px){
   .pkg-grid{grid-template-columns:1fr}
@@ -1617,6 +1619,25 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     if(!card) return;
     document.querySelectorAll('.pkg.sel').forEach(function(p){ if(p !== card) p.classList.remove('sel'); });
     card.classList.add('sel');
+  });
+
+  /* ── Book-a-call: open Calendly in an on-site popup instead of navigating away,
+        and tag the booking with which package they were on so it shows up in the
+        Calendly event. Falls back to the plain link if the widget didn't load. ── */
+  var CAL_BASE = "https://calendly.com/theboldlinemedia/30min";
+  document.addEventListener('click', function(e){
+    var a = e.target.closest ? e.target.closest('a[href*="calendly.com/theboldlinemedia"]') : null;
+    if(!a || a.id === 'openRecommender') return;                // that link opens the recommender modal, not Calendly
+    if(!(window.Calendly && Calendly.initPopupWidget)) return;  // widget missing -> normal link
+    var url = a.getAttribute('href');
+    var pkgCard = a.closest('.pkg');
+    if(pkgCard){
+      var h = pkgCard.querySelector('h3');
+      var name = h ? h.textContent.trim() : '';
+      if(name) url = CAL_BASE + '?utm_source=website&utm_medium=package_card&utm_campaign=book_a_call&utm_content=' + encodeURIComponent(name);
+    }
+    e.preventDefault();
+    Calendly.initPopupWidget({ url: url });
   });
 })();
 </script>
