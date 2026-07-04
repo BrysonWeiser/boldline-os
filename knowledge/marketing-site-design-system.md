@@ -21,3 +21,14 @@ from **contained cards only**; sections sit directly on the flowing ambient back
 adding any new section, background stays transparent.
 
 **Takeaway:** to keep the site uniform, restyle any odd component into the contained-card vocabulary above rather than inventing a new treatment.
+
+**Assets + performance (2026-07-04 audit):** the brand logo is `/logo.png` (292×342, palette-
+quantized to ~14.5KB — do NOT re-export a huge RGBA original; quantize flat-color art) and it is
+REFERENCED, never inlined as base64 (an inline base64 copy in the nav once made index.html 218KB;
+base64 defeats brotli). og-image.png is also quantized (~25KB). `marketing-site/_headers` gives
+both images 1-week caching; HTML/CSS/JS stay on Netlify's default ETag revalidation so edits show
+immediately. Third-party CSS (Calendly widget.css) loads via the media="print" → onload swap so it
+never blocks first paint. Meta description target ≤160 chars. Heading ladder: one h1, sections h2,
+cards h3 (no h2→h4 skips). NOTE: og-image.png still has an em-dash + older hero copy baked into
+the artwork; regenerate it whenever there's a design pass (needs Playfair Display, which the
+sandbox can't load).
