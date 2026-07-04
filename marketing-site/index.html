@@ -1629,9 +1629,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   var CAL_BASE = "https://calendly.com/theboldlinemedia/30min";
   // Calendly custom-question key for "Which package are you interested in?".
   // Custom questions are a1, a2, ... in the order they appear on the booking
-  // page. If a test booking shows the package in the wrong field, bump this to
-  // a2/a3 to match the question's position.
-  var PKG_ANSWER_KEY = "a1";
+  // page. Bryson's form: a1 = "Briefly describe your business", a2 = the
+  // package question. If the form's question order changes, update this.
+  var PKG_ANSWER_KEY = "a2";
   document.addEventListener('click', function(e){
     var a = e.target.closest ? e.target.closest('a[href*="calendly.com/theboldlinemedia"]') : null;
     if(!a || a.id === 'openRecommender') return;                // that link opens the recommender modal, not Calendly
