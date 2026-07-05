@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 35 task-keyed entries under `knowledge/`. They surface automatically via the
+> 36 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**35 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**36 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -90,6 +90,12 @@
 - **[pkg-card-selection](../knowledge/pkg-card-selection.md)** &mdash; &#9989; verified &middot; 2026-07-03  
   Tapping/clicking a package card is a single selection (.sel via delegated JS). The featured "Most Popular" ring is a DEFAULT that steps aside (via :has rules) whenever another card is selected or hovered — its pill badge stays. Never two rings at once.  
   <sub>*task:* change how package cards highlight, select, or show the Most Popular state &nbsp;|&nbsp; *keywords:* pkg, .sel, most popular, tag, sticky hover, :has, featured ring, tap selection</sub>
+
+## Marketing site / brand
+
+- **[brand-palette-decision](../knowledge/brand-palette-decision.md)** &mdash; &#9989; verified &middot; 2026-07-05  
+  DECISION (2026-07-05) — keep the current dark + gold brand palette. A green/beige earth-tone rebrand was explored in depth and Bryson rejected it ("let's just stick with the colors we have"). Do NOT re-propose a rebrand unless he asks.  
+  <sub>*task:* change, rebrand, or recolor the site palette / brand colors &nbsp;|&nbsp; *keywords:* rebrand, palette, recolor, green, beige, earth-tone, brass, gold, C8A84B, brand-colors, quiet-luxury, dark-green</sub>
 
 ## Mobile/CSS
 
