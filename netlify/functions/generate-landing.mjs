@@ -14,6 +14,7 @@ const LANDING_COPY_TOOL = {
       subheadline: { type: "string", description: "One supporting sentence, under 120 characters." },
       bullets: { type: "array", items: { type: "string" }, description: "3-4 short benefit bullets, each under 60 characters." },
       ctaText: { type: "string", description: "Lead-form button text, e.g. 'Get My Free Quote'. Under 30 characters." },
+      heroIndex: { type: "integer", description: "Optional. Number of the ONE asset from AVAILABLE MEDIA to feature as the hero image — pick the strongest photo of real work/results, or the logo only if no photo fits. Use -1 if none of the assets would strengthen the page. Never pick a video." },
     },
     required: ["headline", "subheadline", "bullets", "ctaText"],
   },
@@ -35,6 +36,9 @@ export default async (req) => {
   const niche = clip(body.niche, 100);
   const cs = body.campaignSetup || {};
   const bv = body.brandVoice || {};
+  const media = (Array.isArray(body.mediaLibrary) ? body.mediaLibrary : [])
+    .slice(0, 30)
+    .map((m) => ({ category: clip(m && m.category, 30), label: clip(m && m.label, 200), path: clip(m && m.path, 300) }));
 
   const dataBlock = `Business: ${name}
 Niche: ${niche || "Not specified"}
@@ -46,10 +50,14 @@ Top competitors: ${clip(bv.competitors, 300) || "Not specified"}
 What makes them different: ${clip(bv.differentiator, 300) || "Not specified"}
 Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
 
+  const mediaBlock = media.length
+    ? `\n\nAVAILABLE MEDIA (uploaded by the client — using any of it is OPTIONAL; pick only what makes the page stronger, never feel obligated to use everything):\n${media.map((m, i) => `${i}. [${m.category || "photo"}] ${m.label || "untitled"}`).join("\n")}`
+    : "";
+
   const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. Avoid anything listed under "Things to avoid mentioning."
 
 BUSINESS DATA:
-${dataBlock}
+${dataBlock}${mediaBlock}
 
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
@@ -66,7 +74,10 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
 
-    const { headline, subheadline, bullets, ctaText } = toolUse.input;
+    const { headline, subheadline, bullets, ctaText, heroIndex } = toolUse.input;
+    const chosen = Number.isInteger(heroIndex) && heroIndex >= 0 && heroIndex < media.length && media[heroIndex].category !== "video"
+      ? media[heroIndex]
+      : null;
     return json({
       ok: true,
       landingPage: {
@@ -74,6 +85,7 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
         subheadline: clip(subheadline, 200),
         bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
         ctaText: clip(ctaText, 50) || "Get My Free Quote",
+        heroPath: chosen ? chosen.path : "",
       },
     }, 200);
   } catch (err) {

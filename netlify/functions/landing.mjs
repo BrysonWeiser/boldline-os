@@ -35,7 +35,8 @@ export default async (req) => {
   if (!lp.published || !lp.headline) return comingSoonPage(cl.name);
 
   const media = cl.mediaLibrary || [];
-  const hero = media.find((m) => m.category === "photo") || media.find((m) => m.category === "logo");
+  // AI-chosen hero first (if it still exists), then first photo, then logo
+  const hero = (lp.heroPath && media.find((m) => m.path === lp.heroPath)) || media.find((m) => m.category === "photo") || media.find((m) => m.category === "logo");
   const bullets = Array.isArray(lp.bullets) ? lp.bullets : [];
   const phone = cl.callTrackingNumber || "";
 
