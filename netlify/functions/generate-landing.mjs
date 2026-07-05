@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { SUPABASE_URL } from "../lib/report-shared.mjs";
 
 const anthropic = new Anthropic();
 
@@ -38,7 +39,13 @@ export default async (req) => {
   const bv = body.brandVoice || {};
   const media = (Array.isArray(body.mediaLibrary) ? body.mediaLibrary : [])
     .slice(0, 30)
-    .map((m) => ({ category: clip(m && m.category, 30), label: clip(m && m.label, 200), path: clip(m && m.path, 300) }));
+    .map((m) => ({ category: clip(m && m.category, 30), label: clip(m && m.label, 200), path: clip(m && m.path, 300), url: clip(m && m.url, 500) }));
+
+  // Images the model can actually look at: our own storage only, no videos, capped to bound cost
+  const viewable = media
+    .map((m, i) => ({ ...m, index: i }))
+    .filter((m) => m.category !== "video" && m.url.startsWith(`${SUPABASE_URL}/`))
+    .slice(0, 10);
 
   const dataBlock = `Business: ${name}
 Niche: ${niche || "Not specified"}
@@ -51,7 +58,7 @@ What makes them different: ${clip(bv.differentiator, 300) || "Not specified"}
 Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
 
   const mediaBlock = media.length
-    ? `\n\nAVAILABLE MEDIA (uploaded by the client — using any of it is OPTIONAL; pick only what makes the page stronger, never feel obligated to use everything):\n${media.map((m, i) => `${i}. [${m.category || "photo"}] ${m.label || "untitled"}`).join("\n")}`
+    ? `\n\nAVAILABLE MEDIA (uploaded by the client — using any of it is OPTIONAL; pick only what makes the page stronger, never feel obligated to use everything):\n${media.map((m, i) => `${i}. [${m.category || "photo"}] ${m.label || "untitled"}`).join("\n")}${viewable.length ? "\n\nThe images themselves are attached to the user message, each preceded by its asset number. Judge them VISUALLY when picking heroIndex: choose the sharpest, best-lit photo that shows real work or results (a logo only if no photo is strong enough). Skip anything blurry, dark, cluttered, or off-topic — picking nothing (-1) is better than picking a weak image. Videos are never attached and can never be the hero." : ""}`
     : "";
 
   const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. Avoid anything listed under "Things to avoid mentioning."
@@ -61,15 +68,34 @@ ${dataBlock}${mediaBlock}
 
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
+  // Attach the actual images so the model judges the pixels, not just filenames
+  const visionContent = [
+    ...viewable.flatMap((m) => [
+      { type: "text", text: `Asset ${m.index} — [${m.category || "photo"}] ${m.label || "untitled"}:` },
+      { type: "image", source: { type: "url", url: m.url } },
+    ]),
+    { type: "text", text: "Write the landing page copy." },
+  ];
+
+  const callModel = (content) => anthropic.messages.create({
+    model: "claude-opus-4-8",
+    max_tokens: 600,
+    system,
+    messages: [{ role: "user", content }],
+    tools: [LANDING_COPY_TOOL],
+    tool_choice: { type: "tool", name: "landing_page_copy" },
+  });
+
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 600,
-      system,
-      messages: [{ role: "user", content: "Write the landing page copy." }],
-      tools: [LANDING_COPY_TOOL],
-      tool_choice: { type: "tool", name: "landing_page_copy" },
-    });
+    let response;
+    try {
+      response = await callModel(visionContent);
+    } catch (visionErr) {
+      // A broken/unfetchable image fails the whole request — degrade to text-only rather than erroring out
+      if (!viewable.length) throw visionErr;
+      console.error("Vision generation failed, retrying text-only:", visionErr);
+      response = await callModel("Write the landing page copy.");
+    }
 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
