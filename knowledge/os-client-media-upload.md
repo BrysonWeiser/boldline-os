@@ -4,7 +4,7 @@ topic: OS app
 task: work on client media uploads, deletes, the owner-side media gallery, and how the AI picks media
 keywords: [media.mjs, mediaLibrary, signed-url, autoCat, option-background, category-select, action-delete, heroPath, heroIndex, media-del, client-media-gallery]
 status: verified
-summary: Portal My-Info media upload — media.mjs action=sign → browser PUTs to the signed URL → action=confirm appends {category,label,url,path} to the client's mediaLibrary[]. action=delete (2026-07-05) removes storage object + entry, used by BOTH the client portal (✕ per row) and the owner's Client Media gallery (Client View tab). The AI landing-page generator now sees the media list and OPTIONALLY picks a hero (heroIndex → landingPage.heroPath); renderers fall back to first photo → logo.
+summary: Portal My-Info media upload — media.mjs action=sign → browser PUTs to the signed URL → action=confirm appends {category,label,url,path} to the client's mediaLibrary[]. action=delete (2026-07-05) removes storage object + entry, used by BOTH the client portal (✕ per row) and the owner's Client Media gallery (Client View tab). The AI landing-page generator SEES the actual images (vision: URL image blocks, Supabase-only, max 10, text-only fallback) and OPTIONALLY picks a hero (heroIndex → landingPage.heroPath); renderers fall back to first photo → logo.
 verified: 2026-07-05
 ---
 
@@ -33,5 +33,14 @@ Applied identically to **both** `portal.js` and `index.html`'s `makePortalHTML` 
   optional `heroIndex` (-1/omit = use none; video picks rejected server-side). Chosen asset →
   `landingPage.heroPath`. Renderers (`landing.mjs` + `makeLandingHTML`) resolve
   `lp.heroPath && media.find(path)` first, then fall back to first photo → logo — so deleting the chosen
-  image degrades gracefully. Note: selection is by category+filename only (text); the model does not see
-  the pixels. Vision-based picking is a possible upgrade if filename signal proves too weak.
+  image degrades gracefully.
+- **Vision selection (2026-07-05):** the generator attaches the ACTUAL images to the Claude request as
+  URL image blocks (`{type:"image",source:{type:"url",url}}`), each preceded by a text block with its
+  asset number, so heroIndex is picked by looking at the pixels (sharp/well-lit/real work), not filenames.
+  Guards: only URLs on our own `SUPABASE_URL` host are attached (endpoint is unauthenticated — prevents
+  feeding arbitrary URLs to the API), videos are never attached (no video input support), attach cap 10
+  images to bound cost (~10–25¢ of image input tokens per generation on Opus). If the vision request
+  errors (e.g. an unfetchable image), it retries once text-only rather than failing the generation.
+  A/B split testing against real leads was assessed 2026-07-05 and deliberately DEFERRED until the first
+  client has live traffic (design: landing.mjs 50/50 cookie split, variant tag on lead-intake leads,
+  test big swings only — low-traffic significance takes months for small tweaks).
