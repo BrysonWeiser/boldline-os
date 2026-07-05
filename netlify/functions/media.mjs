@@ -14,7 +14,7 @@ export default async (req) => {
   const token = url.searchParams.get("token");
   const action = url.searchParams.get("action");
   if (!token) return json({ ok: false, error: "Missing token" }, 400);
-  if (action !== "sign" && action !== "confirm") return json({ ok: false, error: "Invalid action" }, 400);
+  if (action !== "sign" && action !== "confirm" && action !== "delete") return json({ ok: false, error: "Invalid action" }, 400);
 
   let body;
   try {
@@ -47,9 +47,22 @@ export default async (req) => {
     return json({ ok: true, signedUrl: signed.signedUrl, path }, 200);
   }
 
-  // action === "confirm"
+  // "confirm" and "delete" both operate on a path scoped to this client
   const path = String(body.path || "");
   if (!path.startsWith(`${data.id}/`)) return json({ ok: false, error: "Invalid path" }, 400);
+
+  if (action === "delete") {
+    const { error: removeError } = await supabaseAdmin.storage.from(BUCKET).remove([path]);
+    if (removeError) console.error("Media storage remove failed (entry still unlinked):", removeError);
+    const client = data.data;
+    const nextData = { ...client, mediaLibrary: (client.mediaLibrary || []).filter((m) => m.path !== path) };
+    const { error: updateError } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", data.id);
+    if (updateError) {
+      console.error("Media delete save failed:", updateError);
+      return json({ ok: false, error: "save failed" }, 500);
+    }
+    return json({ ok: true, mediaLibrary: nextData.mediaLibrary }, 200);
+  }
 
   const { data: pub } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
   const entry = {
