@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 36 task-keyed entries under `knowledge/`. They surface automatically via the
+> 37 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**36 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**37 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -135,6 +135,9 @@
 - **[os-client-media-upload](../knowledge/os-client-media-upload.md)** &mdash; &#9989; verified &middot; 2026-07-05  
   Portal My-Info media upload — media.mjs action=sign → browser PUTs to the signed URL → action=confirm appends {category,label,url,path} to the client's mediaLibrary[]. action=delete (2026-07-05) removes storage object + entry, used by BOTH the client portal (✕ per row) and the owner's Client Media gallery (Client View tab). The AI landing-page generator SEES the actual images (vision: URL image blocks, Supabase-only, max 10, text-only fallback) and OPTIONALLY picks a hero (heroIndex → landingPage.heroPath); renderers fall back to first photo → logo.  
   <sub>*task:* work on client media uploads, deletes, the owner-side media gallery, and how the AI picks media &nbsp;|&nbsp; *keywords:* media.mjs, mediaLibrary, signed-url, autoCat, option-background, category-select, action-delete, heroPath, heroIndex, media-del, client-media-gallery</sub>
+- **[os-portal-aesthetic](../knowledge/os-portal-aesthetic.md)** &mdash; &#9989; verified &middot; 2026-07-06  
+  2026-07-06 visual refresh. Client portal got a "living" gold aesthetic (ambient aurora orbs + top halo + grain, glass cards, a gold conic progress ring "N/8" + an 8-node stage tracker, welcome hero, tab fade-in). The OS app got a lighter shared-layer pass (subtle ambient behind the app, card depth + hover, screen fade, gold scrollbar/focus). Brand stays dark + gold.  
+  <sub>*task:* change the visual style / aesthetic of the client portal or the OS interface &nbsp;|&nbsp; *keywords:* aesthetic, ambient, orbs, glass, backdrop-filter, progress-ring, tracker, os-card, os-ambient, prog-hero, ringGlow, topglow, conic-gradient</sub>
 - **[os-portal-dual-copy](../knowledge/os-portal-dual-copy.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The client portal HTML lives in TWO places that must be edited together — netlify/functions/portal.js (the LIVE portal at /portal?token=) and a near-identical makePortalHTML inside index.html (the owner-side preview). Change one, change the other or they drift.  
   <sub>*task:* edit the client portal without the live and preview copies drifting apart &nbsp;|&nbsp; *keywords:* portal.js, makePortalHTML, dual-copy, portal-token, server-rendered</sub>
