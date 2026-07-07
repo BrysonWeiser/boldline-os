@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 40 task-keyed entries under `knowledge/`. They surface automatically via the
+> 41 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**40 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**41 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -156,6 +156,9 @@
 - **[pending-seo-next-steps](../knowledge/pending-seo-next-steps.md)** &mdash; &#9989; verified &middot; 2026-07-04  
   Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.  
   <sub>*task:* pick up the next unstarted marketing/SEO steps now that the site is live (Google Ads resubmit, Search Console, Business Profile) &nbsp;|&nbsp; *keywords:* basic-access-resubmit, search-console, sitemap.xml, business-profile, GA4</sub>
+- **[pre-client-readiness](../knowledge/pre-client-readiness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
+  Snapshot 2026-07-07 of everything gating the first client. Hard blockers — Stripe billing (not started at all) and DocuSign production go-live (demo sigs not binding). Automation blockers — Google Ads Basic Access resubmit (+ post-approval approve→execute wire-up) and Meta Business Verification. Supporting — Search Console, custom-domain email, GBP/GA4.  
+  <sub>*task:* know what remains before BoldLine can sign and onboard its first real client &nbsp;|&nbsp; *keywords:* first-client, readiness, launch-checklist, stripe-not-started, docusign-go-live, basic-access-resubmit, business-verification, approve-execute</sub>
 
 ## Supabase
 
