@@ -458,7 +458,7 @@ function ChatBar({value,onChange,onSend,disabled,placeholder}) {
 function Sheet({children,onClose,zIndex=60,height="93vh",accentBorder}) {
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,zIndex,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:640,height,backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${accentBorder||C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div onClick={e=>e.stopPropagation()} className="os-sheet" style={{width:"100%",maxWidth:640,height,"--sh-dvh":(typeof height==="string"?height.replace("vh","dvh"):height),backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${accentBorder||C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {children}
       </div>
     </div>
@@ -2564,7 +2564,7 @@ function BlogManagementCard() {
 
       {editor&&(
         <div onClick={e=>{ if(e.target===e.currentTarget&&!editorSaving) setEditor(null); }} style={{position:"fixed",inset:0,zIndex:400,backgroundColor:"rgba(4,6,10,.75)",display:"flex",alignItems:"center",justifyContent:"center",padding:14}}>
-          <div style={{width:"100%",maxWidth:700,maxHeight:"88vh",overflowY:"auto",backgroundColor:C.bg2,border:`1px solid ${C.borderAccent}`,borderRadius:14,padding:"16px 16px 14px"}}>
+          <div style={{width:"100%",maxWidth:700,maxHeight:"88dvh",overflowY:"auto",backgroundColor:C.bg2,border:`1px solid ${C.borderAccent}`,borderRadius:14,padding:"16px 16px 14px"}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
               <div style={{fontSize:13,fontWeight:800,color:C.text}}>{editor.status==="draft"?"Review Scheduled Post":"Edit Post"}</div>
               {editor.status!=="draft"&&<a href={"https://boldlinemedia.com/blog/"+editor.slug+"/"} target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,fontWeight:600,color:C.textDim,textDecoration:"none"}}>View live ↗</a>}
@@ -3202,7 +3202,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
 
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:80,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:640,height:"88vh",backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div onClick={e=>e.stopPropagation()} className="os-sheet" style={{width:"100%",maxWidth:640,height:"88vh","--sh-dvh":"88dvh",backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {/* Header */}
         <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
           <div style={{flex:1}}>
@@ -3863,6 +3863,9 @@ function App({onLogout}) {
         .os-card:hover{transform:translateY(-2px);border-color:rgba(200,168,75,0.22);box-shadow:inset 0 1px 0 rgba(200,168,75,0.14),0 16px 34px -22px rgba(0,0,0,0.85)}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(200,168,75,0.22);border-radius:3px}
         input:focus,textarea:focus{border-color:rgba(200,168,75,0.4)!important}
+        /* Bottom sheets: prefer dynamic viewport height so the header isn't clipped
+           behind mobile browser chrome (vh counts the area behind it); vh stays as fallback */
+        .os-sheet{height:var(--sh-dvh)!important}
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
