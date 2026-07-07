@@ -1002,7 +1002,7 @@ const makeLandingHTML=(cl)=>{
 };
 
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({clients,onSelect,onAdd,onLogout}) {
+function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -1052,16 +1052,20 @@ function HomeScreen({clients,onSelect,onAdd,onLogout}) {
         <button onClick={onLogout} style={{padding:"6px 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Log Out</button>
       </div>
 
-      {/* MRR hero card */}
-      <div style={{background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
+      {/* MRR hero card — tap to see per-client breakdown */}
+      <button onClick={onRevenue} className="os-card" style={{textAlign:"left",width:"100%",cursor:"pointer",
+        background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
         border:"1px solid rgba(200,168,75,0.2)",borderRadius:16,padding:"18px 20px",marginBottom:12,
-        position:"relative",overflow:"hidden"}}>
+        position:"relative",overflow:"hidden",display:"block"}}>
         <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",
           background:"radial-gradient(circle,rgba(200,168,75,0.12),transparent 70%)"}}/>
-        <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,marginBottom:4,opacity:.8}}>Monthly Recurring Revenue</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,opacity:.8}}>Monthly Recurring Revenue</div>
+          <span style={{fontSize:10,fontWeight:700,color:C.gold,opacity:.7,display:"flex",alignItems:"center",gap:3}}>Breakdown ›</span>
+        </div>
         <div style={{fontSize:32,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1,marginBottom:4}}>${MRR.toLocaleString()}</div>
         <div style={{fontSize:11,color:C.textMuted}}>management fees · {active} active of {clients.length} total</div>
-      </div>
+      </button>
 
       {/* Stats row */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
@@ -1261,6 +1265,76 @@ function HomeScreen({clients,onSelect,onAdd,onLogout}) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ─── REVENUE BREAKDOWN SCREEN ────────────────────────────────────────────────
+function RevenueScreen({clients,onSelect,onBack}) {
+  // One row per client: their monthly management fee (package price), sorted high → low.
+  const rows = clients
+    .map(cl=>{ const pkg=findPkg(cl.packageId); return {cl,pkg,price:(pkg&&pkg.price)||0,setup:(pkg&&pkg.setup)||0}; })
+    .sort((a,b)=>b.price-a.price);
+  const MRR   = rows.reduce((s,r)=>s+r.price,0);
+  const paying= rows.filter(r=>r.price>0).length;
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header bar */}
+      <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
+        <div style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
+            border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            ‹
+          </button>
+          <div>
+            <div style={{fontSize:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>Revenue by Client</div>
+            <div style={{fontSize:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>Monthly management fees</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"14px 14px 100px"}}>
+        {/* Total */}
+        <div className="os-card" style={{background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
+          border:"1px solid rgba(200,168,75,0.2)",borderRadius:16,padding:"18px 20px",marginBottom:14,position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",
+            background:"radial-gradient(circle,rgba(200,168,75,0.12),transparent 70%)"}}/>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,marginBottom:4,opacity:.8}}>Total Monthly Recurring Revenue</div>
+          <div style={{fontSize:32,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1,marginBottom:4}}>${MRR.toLocaleString()}<span style={{fontSize:13,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+          <div style={{fontSize:11,color:C.textMuted}}>{paying} paying client{paying!==1?"s":""} of {clients.length} total</div>
+        </div>
+
+        {/* Per-client rows */}
+        {rows.length===0
+          ? <div style={{textAlign:"center",color:C.textMuted,fontSize:13,padding:"40px 0"}}>No clients yet.</div>
+          : rows.map(({cl,pkg,price,setup})=>{
+              const share = MRR>0 ? Math.round((price/MRR)*100) : 0;
+              return (
+                <button key={cl.id} onClick={()=>onSelect(cl)} className="os-card" style={{textAlign:"left",width:"100%",cursor:"pointer",
+                  backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",marginBottom:8,display:"block"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cl.name}</div>
+                      <div style={{fontSize:11,color:C.textMuted,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {pkg?`${pkg.name} · ${pkg.platform}`:"No package"}
+                      </div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:16,fontWeight:800,color:price>0?C.gold:C.textMuted,lineHeight:1}}>${price.toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+                      {setup>0&&<div style={{fontSize:10,color:C.textMuted,marginTop:2}}>${setup.toLocaleString()} setup</div>}
+                    </div>
+                    <span style={{fontSize:16,color:C.textMuted,flexShrink:0}}>›</span>
+                  </div>
+                  {/* share-of-revenue bar */}
+                  <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginTop:9}}>
+                    <div style={{height:"100%",width:`${share}%`,backgroundColor:C.gold,opacity:.55,borderRadius:2}}/>
+                  </div>
+                </button>
+              );
+            })}
       </div>
     </div>
   );
@@ -3870,7 +3944,8 @@ function App({onLogout}) {
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:60}}>
-        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout}/>}
+        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")}/>}
+        {screen==="revenue"&&<RevenueScreen clients={clients} onSelect={selectClient} onBack={()=>setScreen("home")}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")}/>}
         {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onDelete={deleteLead} onRefresh={loadLeads}/>}
         {screen==="website"&&<WebsiteScreen/>}
