@@ -94,11 +94,21 @@ const ready = (page) => page.waitForFunction(() => {
   const url = `http://127.0.0.1:${server.address().port}/os.html`;
   const browser = await chromium.launch({ executablePath: findChrome(), headless: true, args: ["--no-sandbox"] });
 
-  const dctx = await browser.newContext({ viewport: { width:1000, height:1500 }, deviceScaleFactor:2 });
+  // DESKTOP — real desktop width (>1024 breakpoint) so the sidebar shell renders
+  const dctx = await browser.newContext({ viewport: { width:1440, height:900 }, deviceScaleFactor:1.5 });
   const dp = await dctx.newPage(); dp.on("pageerror", e => errs.push("desktop: "+e.message));
   await dp.goto(url, { waitUntil:"domcontentloaded" });
-  try { await ready(dp); } catch(e){ errs.push("desktop ready: "+e.message); }
-  await dp.screenshot({ path: path.join(OUT,"os-home-desktop.png") }); console.log("shot: os-home-desktop");
+  try {
+    await ready(dp);
+    await dp.screenshot({ path: path.join(OUT,"os-home-desktop.png") }); console.log("shot: os-home-desktop");
+    await dp.getByText("Revenue", { exact:true }).first().click({ timeout:5000 }); await dp.waitForTimeout(700);
+    await dp.screenshot({ path: path.join(OUT,"os-revenue-desktop.png") }); console.log("shot: os-revenue-desktop");
+    await dp.getByText("Dashboard", { exact:true }).first().click({ timeout:5000 }); await dp.waitForTimeout(500);
+    await dp.getByText("Summit Roofing", { exact:false }).first().click({ timeout:5000 }); await dp.waitForTimeout(800);
+    await dp.screenshot({ path: path.join(OUT,"os-client-desktop.png") }); console.log("shot: os-client-desktop");
+    await dp.getByText("Leads", { exact:true }).first().click({ timeout:5000 }); await dp.waitForTimeout(600);
+    await dp.screenshot({ path: path.join(OUT,"os-leads-desktop.png") }); console.log("shot: os-leads-desktop");
+  } catch(e){ errs.push("desktop flow: "+e.message); }
   await dctx.close();
 
   const mctx = await browser.newContext({ viewport: { width:390, height:844 }, deviceScaleFactor:3, isMobile:true, hasTouch:true });
