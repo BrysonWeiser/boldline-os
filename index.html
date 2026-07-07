@@ -1002,7 +1002,7 @@ const makeLandingHTML=(cl)=>{
 };
 
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,isDesktop}) {
+function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,isDesktop}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -1077,14 +1077,14 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,isDesktop}) {
           </button>
         );
         const tiles = [
-          {l:"Alerts",  v:allAlerts.length, color:allAlerts.length>0?C.amber:C.green},
-          {l:"Expiring",v:expiring.length,  color:expiring.length>0?C.red:C.textMuted},
-          {l:"Clients", v:clients.length,   color:C.blue},
-        ].map(({l,v,color})=>(
-          <div key={l} className="os-card" style={{backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:isDesktop?"16px 14px":"12px",textAlign:"center",display:"flex",flexDirection:"column",justifyContent:"center"}}>
-            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:4}}>{l}</div>
+          {k:"alerts",  l:"Alerts",  v:allAlerts.length, color:allAlerts.length>0?C.amber:C.green},
+          {k:"expiring",l:"Expiring",v:expiring.length,  color:expiring.length>0?C.red:C.textMuted},
+          {k:"clients", l:"Clients", v:clients.length,   color:C.blue},
+        ].map(({k,l,v,color})=>(
+          <button key={l} onClick={()=>onSegment(k)} className="os-card" style={{backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:isDesktop?"16px 14px":"12px",textAlign:"center",display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",cursor:"pointer",width:"100%"}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:4}}>{l} ›</div>
             <div style={{fontSize:isDesktop?26:22,fontWeight:800,color,lineHeight:1}}>{v}</div>
-          </div>
+          </button>
         ));
         return isDesktop
           ? <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr 1fr",gap:12,marginBottom:16,alignItems:"stretch"}}>{hero}{tiles}</div>
@@ -1345,6 +1345,112 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
                   <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginTop:9}}>
                     <div style={{height:"100%",width:`${share}%`,backgroundColor:C.gold,opacity:.55,borderRadius:2}}/>
                   </div>
+                </button>
+              );
+            })}
+            </div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── STAT SEGMENT SCREEN ─────────────────────────────────────────────────────
+// Opened by tapping the Alerts / Expiring / Clients tiles on the dashboard.
+// One screen, three modes — each lists the clients in that category and taps
+// through to the client hub.
+function SegmentScreen({mode,clients,onSelect,onBack,isDesktop}) {
+  const MODES = {
+    alerts:  { title:"Clients with Alerts",  sub:"Active alerts across all clients" },
+    expiring:{ title:"Expiring Contracts",   sub:"Contracts ending within 30 days" },
+    clients: { title:"All Clients",          sub:"Full roster" },
+  };
+  const meta = MODES[mode]||MODES.clients;
+
+  let rows;
+  if (mode==="alerts") {
+    rows = clients.map(cl=>({cl,alerts:getAlerts(cl)})).filter(r=>r.alerts.length>0)
+      .sort((a,b)=>{
+        const red = (r)=>r.alerts.some(x=>x.severity==="red")?1:0;
+        return red(b)-red(a) || b.alerts.length-a.alerts.length;
+      });
+  } else if (mode==="expiring") {
+    rows = clients.map(cl=>({cl,days:daysUntil(cl.contractEnd)})).filter(r=>r.days>=0&&r.days<=30)
+      .sort((a,b)=>a.days-b.days);
+  } else {
+    rows = clients.map(cl=>({cl})).sort((a,b)=>a.cl.name.localeCompare(b.cl.name));
+  }
+
+  const EMPTY = {
+    alerts:  {icon:"✅", msg:"No active alerts — every client is running clean."},
+    expiring:{icon:"🗓️", msg:"No contracts expiring in the next 30 days."},
+    clients: {icon:"👥", msg:"No clients yet."},
+  }[mode]||{icon:"—",msg:"Nothing here."};
+
+  const sevColor = (s)=>s==="red"?C.red:s==="blue"?C.purple:C.amber;
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      {/* Header bar */}
+      <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
+        <div style={{padding:isDesktop?"18px 32px":"12px 14px",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
+            border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            ‹
+          </button>
+          <div>
+            <div style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>{meta.title}</div>
+            <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>{meta.sub} · {rows.length}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:isDesktop?"20px 32px 60px":"14px 14px 100px"}}>
+        {rows.length===0
+          ? <div style={{textAlign:"center",padding:"56px 20px"}}>
+              <div style={{fontSize:30,marginBottom:10}}>{EMPTY.icon}</div>
+              <div style={{fontSize:13,color:C.textDim,lineHeight:1.6}}>{EMPTY.msg}</div>
+            </div>
+          : <div style={isDesktop?{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:10,alignItems:"start"}:{display:"flex",flexDirection:"column",gap:8}}>
+            {rows.map((r)=>{
+              const cl=r.cl, pkg=findPkg(cl.packageId), stage=stageInfo(cl.stage), health=calcHealth(cl);
+              return (
+                <button key={cl.id} onClick={()=>onSelect(cl)} className="os-card" style={{textAlign:"left",width:"100%",height:isDesktop?"100%":undefined,cursor:"pointer",
+                  backgroundColor:C.bg2,border:`1px solid ${mode==="alerts"&&r.alerts.some(a=>a.severity==="red")?"rgba(248,113,113,0.25)":mode==="expiring"&&r.days<=7?"rgba(248,113,113,0.25)":C.border}`,
+                  borderRadius:12,padding:"12px 14px",display:"block"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cl.name}</div>
+                      <div style={{fontSize:11,color:C.textMuted,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {pkg?`${pkg.name} · ${pkg.platform}`:"No package"}
+                      </div>
+                    </div>
+                    {mode==="expiring"&&(
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:15,fontWeight:800,color:r.days<=7?C.red:C.amber,lineHeight:1}}>{r.days}d left</div>
+                        <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>ends {cl.contractEnd||"—"}</div>
+                      </div>
+                    )}
+                    {mode==="clients"&&(
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                        <Chip label={stage.label} color={stage.color} small/>
+                        <span style={{fontSize:10,fontWeight:600,color:healthColor(health)}}>⬡ {health.toFixed(1)}</span>
+                      </div>
+                    )}
+                    {mode==="alerts"&&(
+                      <span style={{flexShrink:0,minWidth:20,height:20,borderRadius:10,backgroundColor:r.alerts.some(a=>a.severity==="red")?C.red:C.amber,
+                        color:"#0a0800",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 6px"}}>{r.alerts.length}</span>
+                    )}
+                    <span style={{fontSize:16,color:C.textMuted,flexShrink:0}}>›</span>
+                  </div>
+                  {mode==="alerts"&&r.alerts.map((a,i)=>(
+                    <div key={i} style={{marginTop:7,padding:"7px 10px",borderRadius:9,
+                      backgroundColor:a.severity==="red"?"rgba(248,113,113,.07)":a.severity==="blue"?"rgba(139,92,246,.07)":"rgba(251,191,36,.07)",
+                      border:`1px solid ${sevColor(a.severity)}30`,
+                      fontSize:11,color:sevColor(a.severity),fontWeight:600,display:"flex",alignItems:"center",gap:7}}>
+                      <span style={{fontSize:12}}>{a.severity==="red"?"⚠":"ℹ"}</span>{a.msg}
+                    </div>
+                  ))}
                 </button>
               );
             })}
@@ -3808,6 +3914,7 @@ function App({onLogout}) {
   const [clients,setClients]           = useState([]);
   const [dataState,setDataState]       = useState("loading"); // loading | ready | error
   const [screen,setScreen]             = useState("home");
+  const [segment,setSegment]           = useState(null); // alerts | expiring | clients
   const [activeClient,setActiveClient] = useState(null);
   const [showARIA,setShowARIA]         = useState(false);
   const [showAdd,setShowAdd]           = useState(false);
@@ -4039,8 +4146,9 @@ function App({onLogout}) {
       {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} isDesktop={isDesktop}/>}
+        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={clients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={clients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onDelete={deleteLead} onRefresh={loadLeads} isDesktop={isDesktop}/>}
         {screen==="website"&&<WebsiteScreen/>}
