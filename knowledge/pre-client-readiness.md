@@ -21,11 +21,10 @@ approvals, billing, and legal signing. Update or retire items here as they compl
    (see `docusign-integration`).
 
 **Automation blockers (per Bryson's own bar: full automation before client #1):**
-3. **Google Ads Basic Access resubmit** — token still Explorer (API works on test accounts
-   only). Resubmit referencing live boldlinemedia.com + a business-model/MCC note; do NOT
-   reuse the rejected responses (see `google-ads-api`). NOTE: this gates the API/bots only —
-   manual campaign management through the MCC web UI is NOT blocked, so a client could be
-   serviced by hand if a deal lands early.
+3. **Google Ads Basic Access resubmit** — **SUBMITTED 2026-07-07**, awaiting decision
+   (~3 business days; fresh design doc + live-domain answers, see `google-ads-api`).
+   NOTE: this gates the API/bots only — manual campaign management through the MCC web UI
+   is NOT blocked, so a client could be serviced by hand if a deal lands early.
 4. **Post-approval code task:** wire ARIA's approved `pendingActions` to real
    `setBudget`/`setStatus` execution (needs live campaign reads; pieces ready in google-ads.mjs).
 5. **Meta Business Verification + App Review** — weeks-long; was at steps 1–3 on 2026-06-25

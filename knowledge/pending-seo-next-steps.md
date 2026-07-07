@@ -27,9 +27,8 @@ Context: the second Netlify site and the custom domain are **DONE** (marketing s
    0 pages) — Wix's SEO tools had auto-connected the domain to Google back then; told Bryson to
    remove that stale row (⋮ → Remove sitemap). Note for a Domain property the "Add a new
    sitemap" box needs the FULL URL (no pre-filled prefix like URL-prefix properties).
-2. **Resubmit Google Ads Basic Access** referencing the live site (do NOT reuse old rejected
-   responses — see google-ads-api). IN PROGRESS 2026-07-07 — walkthrough + paste-ready
-   application text given to Bryson.
+2. ~~**Resubmit Google Ads Basic Access**~~ — **SUBMITTED 2026-07-07**, awaiting Google's
+   decision (~3 business days). Details + form gotchas in `google-ads-api`.
 3. **GA4 analytics** — site has ZERO analytics; once Bryson creates the property, wire the tag +
    events for package clicks / Calendly popup opens / form sends.
 4. **Custom-domain email** (bryson@boldlinemedia.com, Google Workspace ~$7/mo or Zoho free) —
