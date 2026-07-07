@@ -10,6 +10,8 @@ verified: 2026-07-02
 
 **Architecture:** one **MCC** manager account (its ID is in `GOOGLE_ADS_MANAGER_CUSTOMER_ID`) + one Developer Token + one OAuth refresh token operate across all linked client accounts via the `login-customer-id` header. OAuth consent screen **published to PRODUCTION** (avoids Testing mode's 7-day refresh-token expiry).
 
+**Which Google account (Bryson, 2026-07-07):** the MCC — and therefore the API Center / developer token / Basic Access application — lives under **theboldlinemedia@gmail.com** (the business gmail; also where Netlify Forms notifications go). It is NOT under brysonaweiser@gmail.com — that personal account holds **Search Console** (set up 2026-07-07) and the **Meta** setup. Sign into the right one before looking for the MCC.
+
 **OAuth client gotcha:** two clients exist — a **Desktop-app** one (**unused**; OAuth Playground rejected it with `redirect_uri_mismatch`) and a **Web-application** one (**in use**; has `https://developers.google.com/oauthplayground` as an authorized redirect URI). The refresh token was generated against the **Web-app** client, so `GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET` must be the **Web-app** client's (refresh tokens are bound to the issuing client).
 
 **Env vars:** `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_MANAGER_CUSTOMER_ID` (stored **with dashes**; the code strips them). Optional `GOOGLE_ADS_API_VERSION` (defaults `v18` in code; Google sunsets versions ~yearly — if `test` errors "version not found/deprecated," set this to a current version in Netlify, no code change).
