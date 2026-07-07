@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 37 task-keyed entries under `knowledge/`. They surface automatically via the
+> 38 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**37 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**38 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -135,6 +135,9 @@
 - **[os-client-media-upload](../knowledge/os-client-media-upload.md)** &mdash; &#9989; verified &middot; 2026-07-05  
   Portal My-Info media upload — media.mjs action=sign → browser PUTs to the signed URL → action=confirm appends {category,label,url,path} to the client's mediaLibrary[]. action=delete (2026-07-05) removes storage object + entry, used by BOTH the client portal (✕ per row) and the owner's Client Media gallery (Client View tab). The AI landing-page generator SEES the actual images (vision: URL image blocks, Supabase-only, max 10, text-only fallback) and OPTIONALLY picks a hero (heroIndex → landingPage.heroPath); renderers fall back to first photo → logo.  
   <sub>*task:* work on client media uploads, deletes, the owner-side media gallery, and how the AI picks media &nbsp;|&nbsp; *keywords:* media.mjs, mediaLibrary, signed-url, autoCat, option-background, category-select, action-delete, heroPath, heroIndex, media-del, client-media-gallery</sub>
+- **[os-overlay-mobile-gotchas](../knowledge/os-overlay-mobile-gotchas.md)** &mdash; &#9989; verified &middot; 2026-07-07  
+  Two overlay gotchas hit during the 2026-07 OS restyle. (1) A transform on an ancestor (even a leftover from an animation with fill:both) makes position:fixed children anchor to THAT element, not the viewport — it shifted the bot-detail sheet down into the content area. (2) Bottom sheets sized in `vh` clip their header behind mobile browser chrome; use `dvh`.  
+  <sub>*task:* debug or build modals / bottom sheets / popups in the OS, or fix mobile fit &nbsp;|&nbsp; *keywords:* sheet, modal, popup, position-fixed, transform, containing-block, dvh, vh, viewport, mobile, os-sheet, os-content, backdrop-filter</sub>
 - **[os-portal-aesthetic](../knowledge/os-portal-aesthetic.md)** &mdash; &#9989; verified &middot; 2026-07-06  
   2026-07-06 visual refresh. Client portal got a "living" gold aesthetic (ambient aurora orbs + top halo + grain, glass cards, a gold conic progress ring "N/8" + an 8-node stage tracker, welcome hero, tab fade-in). The OS app got a lighter shared-layer pass (subtle ambient behind the app, card depth + hover, screen fade, gold scrollbar/focus). Brand stays dark + gold.  
   <sub>*task:* change the visual style / aesthetic of the client portal or the OS interface &nbsp;|&nbsp; *keywords:* aesthetic, ambient, orbs, glass, backdrop-filter, progress-ring, tracker, os-card, os-ambient, prog-hero, ringGlow, topglow, conic-gradient</sub>
