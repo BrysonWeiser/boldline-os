@@ -19,12 +19,19 @@ Context: the second Netlify site and the custom domain are **DONE** (marketing s
 
 **2026-07-04 (post-audit prioritized plan, agreed with Bryson):** the site itself is done/fast
 (full audit clean); remaining value is off-site, in this order:
-1. **Google Search Console** — register + submit /sitemap.xml (FIRST; ~10 min; also evidence for
-   the Ads Basic Access resubmission). Bryson was about to start this in a new session.
-2. **GA4 analytics** — site has ZERO analytics; once Bryson creates the property, wire the tag +
+1. ~~**Google Search Console**~~ — **DONE 2026-07-07.** Domain property `boldlinemedia.com`
+   verified via DNS TXT (Wix panel, "Domain name provider" method). Apex sitemap
+   `https://boldlinemedia.com/sitemap.xml` submitted. **Homepage was ALREADY indexed** ("URL is
+   on Google") — no Request Indexing needed. GOTCHA found: the property carried an old
+   **Wix-era sitemap** row (`https://www.boldlinemedia.com/sitemap.xml`, submitted Oct 2025,
+   0 pages) — Wix's SEO tools had auto-connected the domain to Google back then; told Bryson to
+   remove that stale row (⋮ → Remove sitemap). Note for a Domain property the "Add a new
+   sitemap" box needs the FULL URL (no pre-filled prefix like URL-prefix properties).
+2. **Resubmit Google Ads Basic Access** referencing the live site (do NOT reuse old rejected
+   responses — see google-ads-api). IN PROGRESS 2026-07-07 — walkthrough + paste-ready
+   application text given to Bryson.
+3. **GA4 analytics** — site has ZERO analytics; once Bryson creates the property, wire the tag +
    events for package clicks / Calendly popup opens / form sends.
-3. **Resubmit Google Ads Basic Access** referencing the live site (do NOT reuse old rejected
-   responses — see google-ads-api).
 4. **Custom-domain email** (bryson@boldlinemedia.com, Google Workspace ~$7/mo or Zoho free) —
    replaces the gmail on privacy page + Calendly; root-domain MX on Wix DNS should be possible
    (the Resend dead-end was a SUBDOMAIN record) and may unlock the dormant branded lead emails.

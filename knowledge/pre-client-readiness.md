@@ -32,7 +32,8 @@ approvals, billing, and legal signing. Update or retire items here as they compl
    (stale — re-check). Only blocks Meta-ads clients; Google-only clients unaffected.
 
 **Supporting (not gating, but pre-client smart):**
-6. Google Search Console (~10 min; also evidence for the Ads resubmission — do it FIRST, same day).
+6. ~~Google Search Console~~ — **DONE 2026-07-07** (domain property verified via Wix DNS TXT,
+   apex sitemap submitted, homepage already indexed; details in `pending-seo-next-steps`).
 7. Custom-domain email bryson@boldlinemedia.com (cold-call credibility; root-domain MX on Wix
    should work — the Resend dead-end was a SUBDOMAIN record; may unlock branded lead emails).
 8. Optional: GA4, Google Business Profile (see `pending-seo-next-steps`).
