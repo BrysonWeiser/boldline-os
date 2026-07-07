@@ -2,7 +2,7 @@
 name: os-screen-routing
 topic: OS app
 task: add a new page/screen to the OS, wire navigation, change desktop vs mobile layout, or find how the OS switches screens
-keywords: [screen, routing, navigation, setScreen, HomeScreen, RevenueScreen, ClientHub, BottomNav, SideNav, revenue, MRR, breakdown, sub-page, desktop, sidebar, useIsDesktop, responsive, grid, layout]
+keywords: [screen, routing, navigation, setScreen, HomeScreen, RevenueScreen, SegmentScreen, ClientHub, BottomNav, SideNav, revenue, MRR, breakdown, sub-page, desktop, sidebar, useIsDesktop, responsive, grid, layout, tiles, alerts, expiring]
 status: verified
 summary: How the OS app (index.html) routes between top-level screens, how the Revenue-by-Client page was added, and how the desktop layout works — ≥1024px gets a sidebar shell (SideNav) + multi-column grids via a useIsDesktop() hook while mobile keeps the BottomNav single-column layout untouched.
 verified: 2026-07-07
@@ -25,6 +25,8 @@ verified: 2026-07-07
 4. Give the new screen its own back button → `onBack={()=>setScreen("home")}` (mirror ClientHub's `‹` back-button style: 32×32 rounded, `rgba(255,255,255,0.05)` bg). Sub-pages of home don't light up a BottomNav tab — that's fine.
 
 **Revenue-by-Client page (2026-07-07).** Tapping the home **Monthly Recurring Revenue** hero card (now a button with a "Breakdown ›" affordance) opens `RevenueScreen`: a total-MRR hero, then one row per client **sorted by fee high→low**, each showing the client's monthly management fee (`findPkg(cl.packageId).price`), package name · platform, setup fee, and a share-of-revenue mini-bar (`price/MRR`). Rows are buttons → `onSelect(cl)` deep-links into that client's hub. MRR = `clients.reduce((s,c)=>s+(findPkg(c.packageId).price||0),0)` — same formula as the home hero and ARIA. Per-client revenue is the **package price only** (management fee); this matches the hard business rule that BoldLine never touches client ad spend, so ad budget is never counted as BoldLine revenue.
+
+**Stat-tile segments (2026-07-07).** The dashboard's Alerts / Expiring / Clients tiles are buttons → `onSegment(k)` sets `segment` state + `screen="segment"`, rendering `SegmentScreen({mode,clients,onSelect,onBack,isDesktop})` — ONE component, three modes (don't add per-tile screens): `alerts` = clients with `getAlerts(cl).length>0`, red-severity first, alert messages inline; `expiring` = `0≤daysUntil(contractEnd)≤30` sorted most-urgent-first with "Xd left" + end date; `clients` = full roster A–Z with stage chip + health. Rows deep-link via `onSelect(cl)`. Tile labels render as "Alerts ›" etc. (the › is the affordance; the harness locates the tile by that text).
 
 **Desktop layout (2026-07-07).** The OS is no longer a stretched phone column on desktop. `useIsDesktop(bp=1024)` (a matchMedia hook next to `App`) is the single source of truth; `App` passes `isDesktop` down to every screen. On desktop:
 - **`SideNav`** (persistent left rail, 236px, sticky) replaces `BottomNav` — Dashboard / Revenue / Leads / Website + Alerts / ARIA / Log Out with the same badges. `BottomNav` renders only when `!isDesktop`; Revenue is a first-class sidebar item there.
