@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 39 task-keyed entries under `knowledge/`. They surface automatically via the
+> 40 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**39 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**40 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -144,6 +144,9 @@
 - **[os-portal-dual-copy](../knowledge/os-portal-dual-copy.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The client portal HTML lives in TWO places that must be edited together — netlify/functions/portal.js (the LIVE portal at /portal?token=) and a near-identical makePortalHTML inside index.html (the owner-side preview). Change one, change the other or they drift.  
   <sub>*task:* edit the client portal without the live and preview copies drifting apart &nbsp;|&nbsp; *keywords:* portal.js, makePortalHTML, dual-copy, portal-token, server-rendered</sub>
+- **[os-screen-routing](../knowledge/os-screen-routing.md)** &mdash; &#9989; verified &middot; 2026-07-07  
+  How the OS app (index.html) routes between top-level screens, and how the Revenue-by-Client breakdown page was added as a home sub-page. The App component holds one `screen` string in useState and conditionally renders each screen; BottomNav sets it. To add a page, add a component, a `screen==="x"` render line, and a setter passed as a prop.  
+  <sub>*task:* add a new page/screen to the OS, wire navigation, or find how the OS switches screens &nbsp;|&nbsp; *keywords:* screen, routing, navigation, setScreen, HomeScreen, RevenueScreen, ClientHub, BottomNav, revenue, MRR, breakdown, sub-page</sub>
 - **[os-screenshot-harness](../knowledge/os-screenshot-harness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   A committed render harness (tools/os-screenshot.js) that boots the REAL index.html in headless Chromium with a stubbed Supabase and captures desktop + mobile PNGs, so I can eyeball layout/overflow/popup-position myself instead of asking Bryson for a screenshot for the obvious stuff. Known limit — no browser chrome, so vh/dvh mobile bugs won't reproduce.  
   <sub>*task:* self-QA the OS/portal layout, screenshot the real app headless, check a UI change before shipping &nbsp;|&nbsp; *keywords:* screenshot, render, headless, playwright, chromium, self-qa, harness, visual, layout, mobile, desktop, os-screenshot, tools</sub>
