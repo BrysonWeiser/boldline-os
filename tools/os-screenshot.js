@@ -107,6 +107,11 @@ const ready = (page) => page.waitForFunction(() => {
   try {
     await ready(mp);
     await mp.screenshot({ path: path.join(OUT,"os-home-mobile.png") }); console.log("shot: os-home-mobile");
+    // revenue breakdown (tap the MRR hero card)
+    await mp.getByText("Monthly Recurring Revenue", { exact:false }).first().click({ timeout:5000 }); await mp.waitForTimeout(800);
+    await mp.screenshot({ path: path.join(OUT,"os-revenue-mobile.png") }); console.log("shot: os-revenue-mobile");
+    await mp.getByText("Revenue by Client", { exact:false }).first().waitFor({ timeout:5000 });
+    await mp.getByText("‹").first().click({ timeout:5000 }); await mp.waitForTimeout(500);
     await mp.getByText("Summit Roofing", { exact:false }).first().click({ timeout:5000 }); await mp.waitForTimeout(900);
     await mp.screenshot({ path: path.join(OUT,"os-client-mobile.png") }); console.log("shot: os-client-mobile");
     await mp.getByText("Pipeline", { exact:true }).first().click({ timeout:5000 }); await mp.waitForTimeout(700);
