@@ -1,10 +1,10 @@
 ---
 name: os-screen-routing
 topic: OS app
-task: add a new page/screen to the OS, wire navigation, or find how the OS switches screens
-keywords: [screen, routing, navigation, setScreen, HomeScreen, RevenueScreen, ClientHub, BottomNav, revenue, MRR, breakdown, sub-page]
+task: add a new page/screen to the OS, wire navigation, change desktop vs mobile layout, or find how the OS switches screens
+keywords: [screen, routing, navigation, setScreen, HomeScreen, RevenueScreen, ClientHub, BottomNav, SideNav, revenue, MRR, breakdown, sub-page, desktop, sidebar, useIsDesktop, responsive, grid, layout]
 status: verified
-summary: How the OS app (index.html) routes between top-level screens, and how the Revenue-by-Client breakdown page was added as a home sub-page. The App component holds one `screen` string in useState and conditionally renders each screen; BottomNav sets it. To add a page, add a component, a `screen==="x"` render line, and a setter passed as a prop.
+summary: How the OS app (index.html) routes between top-level screens, how the Revenue-by-Client page was added, and how the desktop layout works — ≥1024px gets a sidebar shell (SideNav) + multi-column grids via a useIsDesktop() hook while mobile keeps the BottomNav single-column layout untouched.
 verified: 2026-07-07
 ---
 
@@ -26,4 +26,13 @@ verified: 2026-07-07
 
 **Revenue-by-Client page (2026-07-07).** Tapping the home **Monthly Recurring Revenue** hero card (now a button with a "Breakdown ›" affordance) opens `RevenueScreen`: a total-MRR hero, then one row per client **sorted by fee high→low**, each showing the client's monthly management fee (`findPkg(cl.packageId).price`), package name · platform, setup fee, and a share-of-revenue mini-bar (`price/MRR`). Rows are buttons → `onSelect(cl)` deep-links into that client's hub. MRR = `clients.reduce((s,c)=>s+(findPkg(c.packageId).price||0),0)` — same formula as the home hero and ARIA. Per-client revenue is the **package price only** (management fee); this matches the hard business rule that BoldLine never touches client ad spend, so ad budget is never counted as BoldLine revenue.
 
-**Verify** new screens with the render harness (`os-screenshot-harness`) — it now taps the MRR card and captures `os-revenue-mobile.png`.
+**Desktop layout (2026-07-07).** The OS is no longer a stretched phone column on desktop. `useIsDesktop(bp=1024)` (a matchMedia hook next to `App`) is the single source of truth; `App` passes `isDesktop` down to every screen. On desktop:
+- **`SideNav`** (persistent left rail, 236px, sticky) replaces `BottomNav` — Dashboard / Revenue / Leads / Website + Alerts / ARIA / Log Out with the same badges. `BottomNav` renders only when `!isDesktop`; Revenue is a first-class sidebar item there.
+- The App root switches `flexDirection:"column",maxWidth:640` (mobile) → `row` full-width with a `maxWidth:1200` centered content column. **Key trick:** the extra desktop content wrapper uses `style={{display:"contents"}}` on mobile, so the mobile DOM/layout is byte-for-byte unchanged.
+- HomeScreen: mobile brand header is replaced by a "Dashboard" page title (brand lives in the sidebar); MRR hero + 3 stat tiles form ONE grid row (`1.6fr 1fr 1fr 1fr`); client cards flow in `repeat(auto-fill,minmax(340px,1fr))`.
+- RevenueScreen: rows grid at `minmax(360px,1fr)`; back button hidden on desktop (sidebar handles nav). LeadsScreen grids at `minmax(380px,1fr)`.
+- ClientHub scroll body is width-capped at 1000px + centered (detail views read better narrow).
+- Toasts: bottom-right on desktop (bottom-left overlapped the sidebar), unchanged on mobile.
+Gotcha: keep `useIsDesktop` breakpoint aligned with the CSS `@media(min-width:1025px)` vars already in the app. And remember `.os-card` hover uses transform — never put it on an ancestor of a `position:fixed` overlay (see `os-overlay-mobile-gotchas`).
+
+**Verify** new screens with the render harness (`os-screenshot-harness`) — desktop context is 1440×900 (must be >1024 or the sidebar won't render); it captures home/revenue/client/leads desktop + the mobile flow.
