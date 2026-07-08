@@ -114,13 +114,13 @@ const BLOG_POST_TOOL = {
 export async function generateBlogPost({ topic, existingSlugs = [], existingTitles = [] } = {}) {
   const topicInstruction = topic
     ? `Write specifically about this topic, in your own words and structure -- this is a fresh attempt at an existing post, so improve on it rather than just rephrasing it: "${topic}"`
-    : `Pick your own topic -- something a real small-business owner would search for or wonder about before/while running Google Ads or Meta Ads, or about landing pages or lead follow-up.`;
+    : `Pick your own topic -- something a real business owner would search for or wonder about before/while running Google Ads or Meta Ads, or about landing pages or lead follow-up.`;
 
   const avoidInstruction = existingTitles.length
     ? `Do not repeat or closely rephrase any of these existing post topics:\n${existingTitles.map((t) => `- ${t}`).join("\n")}`
     : "";
 
-  const system = `You are writing a new post for the BoldLine Media marketing blog, aimed at small-business owners deciding whether and how to run paid ads. Match the tone of BoldLine's existing posts: direct, plain-spoken, no hype, no generic "10 tips" listicles, willing to say plainly when something might not be right for a given business yet. Ground every factual claim about BoldLine in the real data below -- never invent client results, testimonials, statistics, or capabilities not listed.
+  const system = `You are writing a new post for the BoldLine Media marketing blog, aimed at business owners deciding whether and how to run paid ads. Match the tone of BoldLine's existing posts: direct, plain-spoken, no hype, no generic "10 tips" listicles, willing to say plainly when something might not be right for a given business yet. Ground every factual claim about BoldLine in the real data below -- never invent client results, testimonials, statistics, or capabilities not listed.
 
 REAL BUSINESS DATA (the only facts you may state about BoldLine):
 ${BLOG_FACTS}

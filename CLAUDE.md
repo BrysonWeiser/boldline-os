@@ -9,8 +9,8 @@
 
 ## What this is
 BoldLine OS is the internal operations platform for **BoldLine Media**, a digital
-marketing agency (Google Ads management + custom landing pages for small-business
-clients). Static front end (`index.html`) + Netlify serverless functions
+marketing agency (Google Ads management + custom landing pages for businesses of
+any size). Static front end (`index.html`) + Netlify serverless functions
 (`netlify/functions/`). Deployed on Netlify. Data in Supabase.
 
 ## The end goal (Bryson's vision)
