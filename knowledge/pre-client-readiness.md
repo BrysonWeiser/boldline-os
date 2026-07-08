@@ -12,6 +12,11 @@ Snapshot of first-client readiness as of **2026-07-07**. The OS itself (site, bl
 portal, landing pages, media, reports, alerts) is built and live — the gaps are external
 approvals, billing, and legal signing. Update or retire items here as they complete.
 
+**FACT (2026-07-08): BoldLine Media IS a registered LLC.** Use its exact legal name + EIN
+consistently across Stripe, the business bank account, and Meta Business Verification.
+Business bank account being opened (Mercury recommended); Stripe activation proceeds in
+parallel and the payout bank gets attached once the account is open.
+
 **Hard blockers (cannot sign/bill a client without):**
 1. **Stripe — NOT STARTED (Task #10).** No way to collect the management fee. Bills the
    service fee ONLY, never ad spend (see `business-constraint-ad-spend`).
