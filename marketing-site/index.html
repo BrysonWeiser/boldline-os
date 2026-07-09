@@ -25,7 +25,7 @@
 {"@context":"https://schema.org","@type":"Organization","name":"BoldLine Media","url":"https://boldlinemedia.com/","logo":"https://boldlinemedia.com/logo.png","description":"BoldLine plans, builds, and runs Google and Meta ad campaigns, plus the landing pages behind them, for a small roster of businesses.","email":"theboldlinemedia@gmail.com","knowsAbout":["Google Ads management","Meta Ads management","Landing page design","Call tracking","CRM lead routing"]}
 </script>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How much does this cost?","acceptedAnswer":{"@type":"Answer","text":"Our management fee depends on the platforms and tier that fit your goals, which we walk you through on a call. Separately, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta. You always own your account."}},{"@type":"Question","name":"Do I own my ad account?","acceptedAnswer":{"@type":"Answer","text":"Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them, and we never hold, front, or touch your ad spend."}},{"@type":"Question","name":"Why is there a three month minimum to start?","acceptedAnswer":{"@type":"Answer","text":"Because paid ads compound. The first month is mostly learning which keywords and audiences actually convert, the second puts that data to work, and by the third the system has real momentum you can judge fairly. After those first three months we earn it month to month, and your budget never scales without your sign-off."}},{"@type":"Question","name":"How fast will I see results?","acceptedAnswer":{"@type":"Answer","text":"The first few weeks are mostly learning which keywords and audiences convert. Paid ads compound; they are not a light switch. And if your offer or follow-up isn't ready to make the most of the clicks, we tell you before you spend."}},{"@type":"Question","name":"What if it's not working?","acceptedAnswer":{"@type":"Answer","text":"We review every account on a set cadence against real performance data and report in plain English. If something isn't working we change it, and if we're genuinely not the right fit we say so."}},{"@type":"Question","name":"Which platforms do you run?","acceptedAnswer":{"@type":"Answer","text":"Google Ads and Meta ads across Facebook and Instagram, on their own or as one coordinated system, plus the landing pages, call tracking, and lead routing behind them."}}]}
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How much does this cost?","acceptedAnswer":{"@type":"Answer","text":"Management starts at $350/month depending on the platforms and tier that fit your goals; every package on our site shows its starting price, and we walk through exact pricing on a call. Separately, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta. You always own your account."}},{"@type":"Question","name":"Do I own my ad account?","acceptedAnswer":{"@type":"Answer","text":"Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them, and we never hold, front, or touch your ad spend."}},{"@type":"Question","name":"Why is there a three month minimum to start?","acceptedAnswer":{"@type":"Answer","text":"Because paid ads compound. The first month is mostly learning which keywords and audiences actually convert, the second puts that data to work, and by the third the system has real momentum you can judge fairly. After those first three months we earn it month to month, and your budget never scales without your sign-off."}},{"@type":"Question","name":"How fast will I see results?","acceptedAnswer":{"@type":"Answer","text":"The first few weeks are mostly learning which keywords and audiences convert. Paid ads compound; they are not a light switch. And if your offer or follow-up isn't ready to make the most of the clicks, we tell you before you spend."}},{"@type":"Question","name":"What if it's not working?","acceptedAnswer":{"@type":"Answer","text":"We review every account on a set cadence against real performance data and report in plain English. If something isn't working we change it, and if we're genuinely not the right fit we say so."}},{"@type":"Question","name":"Which platforms do you run?","acceptedAnswer":{"@type":"Answer","text":"Google Ads and Meta ads across Facebook and Instagram, on their own or as one coordinated system, plus the landing pages, call tracking, and lead routing behind them."}}]}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -198,6 +198,16 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .pkg-grid:has(.pkg:hover) .pkg:has(.tag):not(:hover):not(.sel){box-shadow:none}
 .pkg .tag{position:absolute;top:-11px;left:28px;background:var(--gold);color:#15110A;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:20px}
 .pkg h3{font-size:17px;font-weight:700;color:#fff;margin-bottom:6px}
+.pkg .price{font-size:13px;color:var(--muted);margin:0 0 6px}
+.pkg .price b{color:var(--gold);font-size:17px;font-weight:700}
+.sys-flow{display:flex;align-items:stretch;max-width:1150px;margin:0 auto}
+.sys-step{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px 18px;text-align:center;transition:transform .3s ease,border-color .3s ease}
+.sys-step:hover{transform:translateY(-4px);border-color:var(--gold-line)}
+.sys-step .si{width:40px;height:40px;border-radius:50%;border:1px solid var(--gold-line);color:var(--gold);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.sys-step h3{font-size:15px;font-weight:700;color:#fff;margin-bottom:6px}
+.sys-step p{font-size:13px;color:var(--muted);line-height:1.6}
+.sys-arrow{display:flex;align-items:center;justify-content:center;color:var(--gold);opacity:.7;padding:0 5px;flex:0 0 auto}
+@media (max-width:900px){.sys-flow{flex-direction:column;max-width:440px}.sys-arrow{transform:rotate(90deg);padding:8px 0}}
 .pkg .budget{font-size:11.5px;color:var(--faint);margin-bottom:20px;letter-spacing:.01em}
 .pkg ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
 .pkg ul li{font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:flex-start;line-height:1.5}
@@ -741,7 +751,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
 <div class="boutique">
   <div class="boutique-card">
-    <p><strong>We work with a limited number of businesses, on purpose.</strong> The ones we take on get our full attention, not a seat in a queue.</p>
+    <p><strong>We work with a select group of businesses, on purpose.</strong> The ones we take on get our full attention, not a seat in a queue.</p>
   </div>
 </div>
 
@@ -764,6 +774,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Launch System</h3>
+          <div class="price">Management starting at <b>$400/mo</b></div>
           <div class="budget">Typical ad budget: $750–$2,500/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -774,6 +785,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Most Popular</span>
           <h3>Growth System</h3>
+          <div class="price">Management starting at <b>$600/mo</b></div>
           <div class="budget">Typical ad budget: $2,000–$8,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -786,6 +798,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
+          <div class="price">Management starting at <b>$900/mo</b></div>
           <div class="budget">Typical ad budget: $5,000–$20,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -806,6 +819,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Launch System</h3>
+          <div class="price">Management starting at <b>$350/mo</b></div>
           <div class="budget">Typical ad budget: $500–$2,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -816,6 +830,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Most Popular</span>
           <h3>Growth System</h3>
+          <div class="price">Management starting at <b>$550/mo</b></div>
           <div class="budget">Typical ad budget: $1,500–$5,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -828,6 +843,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
+          <div class="price">Management starting at <b>$850/mo</b></div>
           <div class="budget">Typical ad budget: $4,000–$15,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -847,6 +863,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Best Value</span>
           <h3>Full System: Launch</h3>
+          <div class="price">Management starting at <b>$650/mo</b></div>
           <div class="budget">Typical ad budget: $1,000–$4,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -858,6 +875,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Most Powerful</span>
           <h3>Full System: Growth</h3>
+          <div class="price">Management starting at <b>$1,000/mo</b></div>
           <div class="budget">Typical ad budget: $3,000–$12,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -877,6 +895,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Store Launch</h3>
+          <div class="price">Management starting at <b>$450/mo</b></div>
           <div class="budget">Typical ad budget: $500–$1,500/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -888,6 +907,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Recommended</span>
           <h3>Store Growth</h3>
+          <div class="price">Management starting at <b>$750/mo</b></div>
           <div class="budget">Typical ad budget: $1,500–$5,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -901,6 +921,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         </div>
         <div class="pkg">
           <h3>Store Domination</h3>
+          <div class="price">Management starting at <b>$1,200/mo</b></div>
           <div class="budget">Typical ad budget: $4,000–$15,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
@@ -936,6 +957,44 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     <div class="incl"><span class="mark"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><polyline points="8.5 13 11 15.5 16 10"/></svg></span><div><h3>Scope locked before launch</h3><p>We check every deliverable against your plan before anything goes live. No surprise add-ons halfway through.</p></div></div>
     <div class="incl"><span class="mark"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg></span><div><h3>Full account transparency</h3><p>You can see exactly what's running and what it costs, any time you want to look.</p></div></div>
     <div class="incl"><span class="mark"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><h3>No spend without sign-off</h3><p>Budget and scaling decisions always come back to you before they happen.</p></div></div>
+  </div>
+</section>
+
+<section id="system">
+  <div class="section-head reveal">
+    <div class="eyebrow">The System</div>
+    <h2>What we actually build for you.</h2>
+  </div>
+  <div class="sys-flow reveal">
+    <div class="sys-step">
+      <span class="si"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+      <h3>Your ad budget</h3>
+      <p>You set it, and it stays in your own account, paid straight to Google or Meta.</p>
+    </div>
+    <div class="sys-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    <div class="sys-step">
+      <span class="si"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg></span>
+      <h3>Campaigns that find buyers</h3>
+      <p>We build and run your ads where your customers already search and scroll.</p>
+    </div>
+    <div class="sys-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    <div class="sys-step">
+      <span class="si"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg></span>
+      <h3>A page built to convert</h3>
+      <p>Clicks land on a dedicated page designed to turn visits into calls and form fills.</p>
+    </div>
+    <div class="sys-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    <div class="sys-step">
+      <span class="si"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <h3>Leads, tracked to the ad</h3>
+      <p>Every call and form is tied to the ad that caused it and reaches you the moment it happens.</p>
+    </div>
+    <div class="sys-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+    <div class="sys-step">
+      <span class="si"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="11"/></svg></span>
+      <h3>Reporting in plain English</h3>
+      <p>What you spent, what it brought back, and what we're doing next.</p>
+    </div>
   </div>
 </section>
 
@@ -1007,7 +1066,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   <div class="section-head reveal">
     <div class="eyebrow">Who We Work With</div>
     <h2>Are we the right fit?</h2>
-    <p>We only take on a limited number of clients, so we're upfront about fit. These are the industries we know best, but the fundamentals work everywhere, so don't count yourself out if you're not on the list.</p>
+    <p>We keep our client roster focused, so we're upfront about fit. These are the industries we know best, but the fundamentals work everywhere, so don't count yourself out if you're not on the list.</p>
   </div>
   <div class="niche-row reveal">
     <div class="niche">
@@ -1081,7 +1140,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     <h2>The things people ask first.</h2>
   </div>
   <div class="faq-list reveal">
-    <details class="faq-item"><summary>How much does this cost?</summary><div class="faq-a">Our management fee depends on the platforms and tier you go with. We'll walk you through it on the call once we know what you need. On top of that, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta. You always own your account.</div></details>
+    <details class="faq-item"><summary>How much does this cost?</summary><div class="faq-a">Management starts at $350/month, and every package above shows its starting price. Exact pricing depends on the platforms and tier that fit your goals, which we walk through on the call. On top of that, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta. You always own your account.</div></details>
     <details class="faq-item"><summary>Do I own my ad account?</summary><div class="faq-a">Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them, and we never hold, front, or touch your ad spend.</div></details>
     <details class="faq-item"><summary>Why is there a three month minimum to start?</summary><div class="faq-a">Because paid ads compound. The first month is mostly learning which keywords and audiences actually convert, the second puts that data to work, and by the third the system has real momentum you can judge fairly. Anything shorter sets both of us up to quit right before the results show. After those first three months we earn it month to month, and your budget never scales without your sign-off. We'll cover exact terms on the call.</div></details>
     <details class="faq-item"><summary>How fast will I see results?</summary><div class="faq-a">The first few weeks are mostly learning which keywords and audiences convert. Paid ads compound over time; they're not a light switch. And if your offer or follow-up isn't ready to make the most of the clicks, we'll tell you before you spend, not after. <a href="/blog/is-your-business-ready-for-google-ads/">More on that here.</a></div></details>
