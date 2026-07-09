@@ -14,8 +14,11 @@ approvals, billing, and legal signing. Update or retire items here as they compl
 
 **FACT (2026-07-08): BoldLine Media IS a registered LLC.** Use its exact legal name + EIN
 consistently across Stripe, the business bank account, and Meta Business Verification.
-Business bank account being opened (Mercury recommended); Stripe activation proceeds in
-parallel and the payout bank gets attached once the account is open.
+**Mercury application SUBMITTED 2026-07-08** (login = brysonaweiser@gmail.com, org = the LLC;
+industry Advertising; low-ball activity estimates; FB Page + Calendly + founder-bio links as
+verification) — pending Mercury's 1-2 business-day review; watch that inbox for follow-up
+questions and answer promptly. Then: copy routing + account numbers into Stripe's payout step.
+Stripe activation proceeds in parallel up to the payout-bank step.
 
 **Hard blockers (cannot sign/bill a client without):**
 1. **Stripe — NOT STARTED (Task #10).** No way to collect the management fee. Bills the
