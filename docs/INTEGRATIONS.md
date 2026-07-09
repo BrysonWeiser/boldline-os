@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 41 task-keyed entries under `knowledge/`. They surface automatically via the
+> 42 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**41 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**42 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -24,6 +24,9 @@
 
 ## Business rules
 
+- **[account-email-map](../knowledge/account-email-map.md)** &mdash; &#9888; stale-able &middot; 2026-07-08  
+  Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login (by design — one login, many future orgs), old/aged Facebook account. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.  
+  <sub>*task:* know which email/login owns which external account before signing in or setting one up &nbsp;|&nbsp; *keywords:* account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login</sub>
 - **[business-constraint-ad-spend](../knowledge/business-constraint-ad-spend.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   HARD RULE — the client always owns and is billed for their own ad account; BoldLine never fronts, holds, or is financially exposed for client ad spend, and only ever holds manager-level access. Stripe (not started) will bill BoldLine's service fee ONLY, never ad spend.  
   <sub>*task:* make any billing, ad-account, Stripe, or Meta decision without violating the ad-spend ownership rule &nbsp;|&nbsp; *keywords:* ad-spend, MCC, manager-access, stripe, service-fee, client-owns-account</sub>
