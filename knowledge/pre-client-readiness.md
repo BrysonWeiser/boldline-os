@@ -21,9 +21,17 @@ register with theboldlinemedia@gmail.com, LLC path, exact legal name + EIN, Merc
 in the payout step. The moment Stripe exists, the OS billing-flow build starts (service fee
 ONLY, never ad spend).
 
+**Stripe ACTIVATED (live) 2026-07-09** — login theboldlinemedia@gmail.com; LLC / single-member,
+category "Other marketing services", statement descriptor BOLDLINE MEDIA, payouts →
+Mercury Checking ••7212 automatic weekly (Mondays); Stripe Tax + Climate declined (revisit Tax
+with a CPA later). `pk_live_...` keys present. Skipped Connect/Radar setup-guide items (Connect
+is for marketplaces — not our model). **NEXT: build the OS billing flow (service fee ONLY).**
+The LIVE SECRET KEY goes straight into a Netlify env var (e.g. STRIPE_SECRET_KEY), never pasted
+in chat or committed — Netlify's scanner also fails the build if a key value lands in a file.
+
 **Hard blockers (cannot sign/bill a client without):**
-1. **Stripe — NOT STARTED (Task #10).** No way to collect the management fee. Bills the
-   service fee ONLY, never ad spend (see `business-constraint-ad-spend`).
+1. ~~**Stripe**~~ — **DONE (activated 2026-07-09).** Account live; OS billing-flow build is the
+   remaining software piece. Bills the service fee ONLY, never ad spend (see `business-constraint-ad-spend`).
 2. **DocuSign production go-live** — everything works but in DEMO; demo signatures are
    watermarked and NOT legally binding. Needs ~20 successful demo API calls (every Deploy-tab
    test send counts), production account + Go-Live promotion, then regenerate ALL creds
