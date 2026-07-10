@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 42 task-keyed entries under `knowledge/`. They surface automatically via the
+> 43 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**42 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**43 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -153,6 +153,9 @@
 - **[os-screenshot-harness](../knowledge/os-screenshot-harness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   A committed render harness (tools/os-screenshot.js) that boots the REAL index.html in headless Chromium with a stubbed Supabase and captures desktop + mobile PNGs, so I can eyeball layout/overflow/popup-position myself instead of asking Bryson for a screenshot for the obvious stuff. Known limit — no browser chrome, so vh/dvh mobile bugs won't reproduce.  
   <sub>*task:* self-QA the OS/portal layout, screenshot the real app headless, check a UI change before shipping &nbsp;|&nbsp; *keywords:* screenshot, render, headless, playwright, chromium, self-qa, harness, visual, layout, mobile, desktop, os-screenshot, tools</sub>
+- **[stripe-billing](../knowledge/stripe-billing.md)** &mdash; &#9989; verified &middot; 2026-07-10  
+  Recurring management-fee billing via Stripe. Owner clicks "Set Up Recurring Billing" on a client's Contract tab → stripe-billing.mjs creates a subscription-mode Checkout Session (card + ACH) at the package's monthly price + one-time setup fee → client pays once, auto-charges monthly. stripe-webhook.mjs keeps billingStatus in sync. Charges the SERVICE FEE ONLY, never ad spend. Built 2026-07-10 (hand-rolled Stripe REST, no SDK). Env vars STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET still need to be added in Netlify; test in Stripe test mode before the first real client.  
+  <sub>*task:* set up, debug, or extend Stripe billing (recurring management-fee subscription) in the OS &nbsp;|&nbsp; *keywords:* stripe-billing.mjs, stripe-webhook.mjs, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, checkout-session, us_bank_account, billingStatus, BillingCard, subscription</sub>
 
 ## Pending
 

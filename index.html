@@ -1870,6 +1870,111 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
     </div>
   );
 }
+// ─── BILLING CARD (inside Contract tab) ───────────────────────────────────────
+// Recurring MANAGEMENT-FEE subscription via Stripe (auto-charge card/ACH) + the
+// one-time setup fee. Charges BoldLine's service fee ONLY — never ad spend
+// (client pays Google/Meta directly). Backend: netlify/functions/stripe-billing.mjs.
+function BillingCard({client,pkg,onUpdate}) {
+  const [busy,setBusy]=useState("");        // "" | "setup" | "sync" | "portal"
+  const [msg,setMsg]=useState("");
+  const [copied,setCopied]=useState(false);
+  const monthly=(pkg&&pkg.price)||client.billingMonthly||0;
+  const setup=(pkg&&pkg.setup)||0;
+  const status=client.billingStatus||"none";
+  const link=client.billingCheckoutUrl||"";
+
+  const callBilling=async(action,extra)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token){ throw new Error("Session expired — refresh and log in again."); }
+    const r=await fetch("/.netlify/functions/stripe-billing",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok) throw new Error(d.error||"Request failed — try again.");
+    return d;
+  };
+  const setupBilling=async()=>{
+    if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
+    setBusy("setup"); setMsg("");
+    try{
+      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin});
+      onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_payment",billingCheckoutUrl:d.url,billingMonthly:monthly,billingSetup:setup});
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  const refresh=async()=>{
+    if(!client.stripeCustomerId){ return; }
+    setBusy("sync"); setMsg("");
+    try{
+      const d=await callBilling("sync",{customerId:client.stripeCustomerId});
+      onUpdate&&onUpdate({...client,billingStatus:d.billingStatus,stripeSubscriptionId:d.subscriptionId||client.stripeSubscriptionId,lastPaymentAt:d.lastPaymentAt||client.lastPaymentAt,billingNextCharge:d.currentPeriodEnd||null,...(d.billingStatus==="active"?{billingCheckoutUrl:null}:{})});
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  const openPortal=async()=>{
+    setBusy("portal"); setMsg("");
+    try{
+      const d=await callBilling("portal",{customerId:client.stripeCustomerId,origin:window.location.origin});
+      window.open(d.url,"_blank","noopener");
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  const copyLink=()=>{ if(link){ navigator.clipboard.writeText(link); setCopied(true); setTimeout(()=>setCopied(false),2000);} };
+
+  const money=(n)=>"$"+Number(n||0).toLocaleString();
+  const badge = status==="active"?{t:"Billing Active",c:C.green}:status==="past_due"?{t:"Payment Failed",c:C.red}:status==="awaiting_payment"?{t:"Awaiting Payment",c:C.amber}:status==="canceled"?{t:"Canceled",c:C.textMuted}:{t:"Not Set Up",c:C.textMuted};
+  const btn=(bg,extra)=>({width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:bg,color:"#fff",cursor:busy?"default":"pointer",opacity:busy?.7:1,...extra});
+
+  return (
+    <Card style={{borderColor:status==="active"?"rgba(34,211,160,.28)":status==="past_due"?"rgba(248,113,113,.3)":C.border,backgroundColor:status==="active"?"rgba(34,211,160,.05)":status==="past_due"?"rgba(248,113,113,.05)":"rgba(200,168,75,.04)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <span style={{fontSize:12,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Billing</span>
+        <Chip label={badge.t} color={badge.c} small/>
+      </div>
+      <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:10}}>
+        {money(monthly)}<span style={{color:C.textMuted}}>/mo management fee</span>{setup>0?<span> · {money(setup)} one-time setup</span>:null}
+        <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Management fee only — the client pays Google/Meta directly for ad spend.</div>
+      </div>
+
+      {status==="none"&&<>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.</div>
+        <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Recurring Billing →"}</button>
+      </>}
+
+      {status==="awaiting_payment"&&<>
+        <div style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:8}}>Payment link ready. Send it to the client (or open it together on the call). Billing activates the moment they pay.</div>
+        {link&&<div style={{fontSize:10,color:C.textDim,wordBreak:"break-all",background:"rgba(0,0,0,.25)",border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 9px",marginBottom:8}}>{link}</div>}
+        <div style={S.row7}>
+          <button onClick={copyLink} style={{flex:1,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?C.green:C.textDim,cursor:"pointer"}}>{copied?"Copied!":"Copy Link"}</button>
+          <button onClick={()=>window.open(link,"_blank","noopener")} style={{flex:1,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:"#1D4ED8",color:"#fff",cursor:"pointer"}}>Open</button>
+        </div>
+        <button onClick={refresh} disabled={!!busy} style={{...btn("transparent"),marginTop:8,border:`1px solid ${C.border}`,color:C.textMuted}}>{busy==="sync"?"Checking…":"Refresh Status"}</button>
+      </>}
+
+      {status==="active"&&<>
+        <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>Auto-charging {money(client.billingMonthly||monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</div>
+        <div style={S.row7}>
+          <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Manage in Stripe"}</button>
+          <button onClick={refresh} disabled={!!busy} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="sync"?"…":"Refresh"}</button>
+        </div>
+      </>}
+
+      {status==="past_due"&&<>
+        <div style={{fontSize:11,color:C.red,lineHeight:1.6,marginBottom:8}}>The last payment failed. Stripe automatically retries, or update the card/bank in the billing portal.</div>
+        <div style={S.row7}>
+          <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.red,color:"#fff",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Fix Payment Method"}</button>
+          <button onClick={refresh} disabled={!!busy} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="sync"?"…":"Refresh"}</button>
+        </div>
+      </>}
+
+      {status==="canceled"&&<>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>This subscription was canceled. Set up a new one to resume billing.</div>
+        <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Billing Again →"}</button>
+      </>}
+
+      {msg&&<div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{msg}</div>}
+    </Card>
+  );
+}
 // ─── CONTRACT TAB ─────────────────────────────────────────────────────────────
 function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [copied,setCopied]=useState(false);
@@ -1959,6 +2064,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
         <button onClick={downloadPDF} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>↓ Download PDF</button>
         <button onClick={()=>{navigator.clipboard.writeText(html);setCopied(true);setTimeout(()=>setCopied(false),2000);}} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?"#34D399":C.textDim,cursor:"pointer"}}>{copied?"Copied!":"Copy"}</button>
       </div>
+      <BillingCard client={client} pkg={pkg} onUpdate={onUpdate}/>
       <Card style={{padding:0,overflow:"hidden"}}>
         <div style={{padding:"9px 13px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>Contract Preview</span>

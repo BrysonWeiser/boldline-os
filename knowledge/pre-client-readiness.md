@@ -30,8 +30,11 @@ The LIVE SECRET KEY goes straight into a Netlify env var (e.g. STRIPE_SECRET_KEY
 in chat or committed — Netlify's scanner also fails the build if a key value lands in a file.
 
 **Hard blockers (cannot sign/bill a client without):**
-1. ~~**Stripe**~~ — **DONE (activated 2026-07-09).** Account live; OS billing-flow build is the
-   remaining software piece. Bills the service fee ONLY, never ad spend (see `business-constraint-ad-spend`).
+1. ~~**Stripe**~~ — **DONE.** Account activated 2026-07-09; **OS billing flow BUILT 2026-07-10**
+   (recurring management-fee subscription, card+ACH, Contract-tab BillingCard — see `stripe-billing`).
+   Remaining: add `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` in Netlify, create the webhook
+   endpoint, and run one Stripe TEST-mode end-to-end before the first real client. Bills the service
+   fee ONLY, never ad spend (see `business-constraint-ad-spend`).
 2. **DocuSign production go-live** — everything works but in DEMO; demo signatures are
    watermarked and NOT legally binding. Needs ~20 successful demo API calls (every Deploy-tab
    test send counts), production account + Go-Live promotion, then regenerate ALL creds
