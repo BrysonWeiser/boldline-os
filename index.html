@@ -4061,7 +4061,9 @@ function App({onLogout}) {
     } else {
       list = data.map(r => r.data);
     }
-    setClients(await ensureTokens(list));
+    const finalList = await ensureTokens(list);
+    setClients(finalList);
+    setActiveClient(prev => prev ? (finalList.find(c => c.id === prev.id) || prev) : prev);
     setDataState("ready");
   }, []);
 
@@ -4096,7 +4098,17 @@ function App({onLogout}) {
   const refreshClients = useCallback(async () => {
     const { data, error } = await supabaseClient.from("clients").select("data");
     if (error || !data || !data.length) return;
-    setClients(data.map(r => r.data));
+    const list = data.map(r => r.data);
+    setClients(list);
+    // Keep the OPEN client hub in sync too — otherwise a change the client makes
+    // in their portal (or the Client View tab) saves to Supabase and lands in the
+    // clients array, but the card you're looking at (activeClient) stays stale.
+    setActiveClient(prev => {
+      if (!prev) return prev;
+      const fresh = list.find(c => c.id === prev.id);
+      if (!fresh) return prev;
+      return prev._initialTab ? { ...fresh, _initialTab: prev._initialTab } : fresh;
+    });
   }, []);
 
   useEffect(() => {

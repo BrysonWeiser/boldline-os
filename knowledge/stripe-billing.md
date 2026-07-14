@@ -53,10 +53,17 @@ PHP-style nested keys (`a[b][c]=v`, arrays `a[0][b]=v`) via `encodeForm()`.
    `customer.subscription.deleted`. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
    (SUPABASE_SERVICE_ROLE_KEY already exists on the OS site.)
 
-**MUST TEST before the first real client (can't be verified in the sandbox — no live Stripe):**
-run one end-to-end in **Stripe TEST mode** (test `sk_test_`/`whsec_` keys + card 4242 4242 4242
-4242) — set up billing on a dummy client, complete checkout, confirm the card flips to
-"Billing Active". **One API detail to watch on that first test:** we bill the one-time setup fee as
+**TEST-MODE END-TO-END PASSED 2026-07-10.** Bryson set `STRIPE_SECRET_KEY` (sk_test) +
+`STRIPE_WEBHOOK_SECRET` (whsec) in Netlify, created the webhook endpoint
+(`https://boldlinemedia.netlify.app/.netlify/functions/stripe-webhook`, 5 events, Snapshot
+payload, API 2025-11-17.clover), redeployed, then set up billing on a dummy client and paid with
+test card 4242 → the BillingCard flipped to green **Billing Active** ($600/mo). Full loop verified:
+Checkout → subscription → OS sync. **To go LIVE:** swap the two Netlify env vars to the live
+`sk_live_`/`whsec_` (live-mode webhook endpoint) and redeploy — no code change.
+
+**Original note (still true) — can't be verified in this sandbox (no live Stripe):** the one-time
+setup fee rides the first invoice as a second one-time line item in subscription-mode Checkout;
+confirmed working in the 2026-07-10 test. **One API detail to watch on that first test:** we bill the one-time setup fee as
 a second (one-time) line item inside the subscription-mode Checkout Session. Stripe supports mixing
 recurring + one-time line items in `mode:subscription`; if a future Stripe change ever rejects it,
 switch that line to `subscription_data[add_invoice_items]` in stripe-billing.mjs (one-spot change,
