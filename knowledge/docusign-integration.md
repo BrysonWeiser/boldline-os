@@ -18,6 +18,14 @@ verified: 2026-07-02
 
 **GOTCHA — multi-line PEM paste (cost ~3 retries):** pasting a multi-line PEM into Netlify's secret field collapses the internal newlines, and Node's `crypto` then rejects the malformed PEM at the `sign` stage. Fix in code: `normalizeKey()` rebuilds canonical PEM (re-wraps the base64 body at 64 chars) whenever the BEGIN/END markers survive, so a flattened paste self-heals; the sign-stage error also returns non-secret structural facts (length, line count, marker presence) for diagnosis. **Expect the same on the production key — cleanest is to keep the newlines intact on paste.**
 
-**Before the first real client (deferred):** demo signatures are **not legally binding** (watermarked). Open a **production** DocuSign account, complete **Go-Live promotion** (requires ~20 successful demo API calls first — every test send counts toward the 20), and **regenerate ALL DocuSign credentials** for production.
+**GO-LIVE PROGRESS (2026-07-14):** The demo integration was **eligible ("Ready to Submit")** — the ~20-call requirement was already met. Ran **Go Live** on the "BoldLine OS" integration key (`ee517e33-4ae5-46da-9361-adfb4dbfc39f`), accepted the integration-type/billing T&C (type is correct: private server-to-server JWT for sending our own contracts — locks once pending/live), and **promoted it into production account `176800420`** (Bryson A. Weiser). Status is now **"Pending approval — Submit verification form"** (DocuSign reviews within ~48h). All of this is FREE.
+
+**Remaining to actually send binding contracts (the paid/setup half — DEFERRED until a client is close, per lean-spend):**
+1. **Submit the verification form** (free) → wait ~48h for approval. [in progress 2026-07-14]
+2. Production account `176800420` needs an **eSignature plan with API access** (the monthly fee — ~$25-45/mo tier; the free tier won't API-send). Don't activate until a deal is imminent.
+3. **Regenerate/register production credentials:** register the RSA **public** key on the production app + complete a **one-time JWT consent** for production. New values differ from demo: prod `DOCUSIGN_ACCOUNT_ID` = 176800420's API account id, prod `DOCUSIGN_USER_ID` = the prod user GUID, `DOCUSIGN_BASE_PATH` = the production host (e.g. `https://na*.docusign.net`, NOT demo.docusign.net — the code auto-switches the auth host to account.docusign.com when BASE_PATH lacks "demo"). Integration key may carry over.
+4. **Swap the 5 Netlify env vars** (OS site) to the production values, redeploy, test one send. **Do NOT swap early** — pointing the OS at production before the plan + consent are done breaks the working "Send via DocuSign". Keep demo creds live until the final cutover.
+
+Demo signatures remain **not legally binding** (watermarked) until the above is done.
 
 **TODO (not blocking):** envelope status sync (webhook/poll) so a signed contract auto-flips "pending" → "active"; exercise the real Contract-tab send path (same verified backend, only the contract-HTML rendering path is untested).
