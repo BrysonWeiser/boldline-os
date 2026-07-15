@@ -13,6 +13,14 @@ standard rate. At renewal, reward commitment: month-to-month costs a little more
 terms get a discount. Anchored so the package `price` = the 3-month rate (renewing at 3mo =
 no change, zero friction for existing clients).
 
+**Kill switch + dials (the only two lines to edit):** at the top of the pricing block in
+index.html — `const TERM_PRICING_ENABLED = true;` and `const TERM_RATE = {…}`. Set
+`TERM_PRICING_ENABLED=false` to flatten everything to the plain standard rate (no premium/
+discount at any length) — this is the "put rates back to normal" switch, independent of any git
+rollback and affects nothing else. Edit `TERM_RATE` decimals to re-tune percentages anytime.
+`termRate()` returns 0 for every length when disabled, so the UI shows all terms at the standard
+price and the month-to-month premium note hides (guarded by `termRate(1)>0`).
+
 **Rates** (`TERM_RATE` in index.html, fraction applied to the standard monthly):
 `{1:+0.10, 3:0, 6:−0.05, 12:−0.10}`. Helpers next to `monthsLabel`:
 - `termRate(months)` → fraction (0 if unknown length)

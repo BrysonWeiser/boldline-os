@@ -270,14 +270,25 @@ const monthsLabel = (n) => {
   return `${n} months`;
 };
 
-// ── Term-based renewal pricing ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// TERM-BASED RENEWAL PRICING — Bryson's dials. Edit ONLY the two lines below.
+// ───────────────────────────────────────────────────────────────────────────────
 // New clients always start on a 3-month term at the standard package rate. At
 // RENEWAL the client picks a length: month-to-month carries a small flexibility
 // premium, longer commitments earn a discount. Rates are a fraction applied to
 // the package's standard monthly (the 3-month rate is the anchor = 0%).
 // Charges the management fee only — never ad spend (see business constraint).
+//
+//  • TERM_PRICING_ENABLED = false  → turns the whole thing OFF: every renewal
+//    length bills the plain standard rate (no premium, no discount). This is the
+//    "put the rates back to normal" switch — flip it and redeploy, nothing else
+//    changes and no future feature is affected.
+//  • TERM_RATE  → the percentages, as decimals (0.10 = +10%, -0.10 = -10%). Change
+//    any of them any time. Keys are the term lengths in months.
+const TERM_PRICING_ENABLED = true;
 const TERM_RATE = { 1:0.10, 3:0, 6:-0.05, 12:-0.10 };
-const termRate    = (months) => TERM_RATE[months] || 0;
+// ═══════════════════════════════════════════════════════════════════════════════
+const termRate    = (months) => (TERM_PRICING_ENABLED ? (TERM_RATE[months] || 0) : 0);
 const termMonthly = (base, months) => Math.round((Number(base)||0) * (1 + termRate(months)));
 // e.g. "+10%", "−10%", or "Standard rate"
 const termRateLabel = (months) => {
@@ -2107,7 +2118,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
               const saved=(m2m-mo)*m;
               return <>
                 <div>Renewing for <strong style={{color:C.text}}>{monthsLabel(m)}</strong> at <strong style={{color:C.green}}>${mo.toLocaleString()}/mo</strong> ({termRateLabel(m)})</div>
-                {m===1&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium over the standard rate.</div>}
+                {m===1&&termRate(1)>0&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium over the standard rate.</div>}
                 {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} over the term vs. month-to-month.</div>}
                 <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
                 {client.billingStatus==="active"&&mo!==(client.billingMonthly||baseMonthly)&&<div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Their live Stripe subscription will update to this rate automatically.</div>}
