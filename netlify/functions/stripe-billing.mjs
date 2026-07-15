@@ -22,6 +22,11 @@
 //       -> reads the customer's latest subscription + invoice straight from
 //          Stripe (webhook-independent truth). Returns { ok, billingStatus,
 //          subscriptionId, currentPeriodEnd, lastPaymentAt, monthly }.
+//   { action:"update-subscription", customerId?, subscriptionId?, monthlyAmount, packageName? }
+//       -> rewrites the active subscription's recurring line item to a new monthly
+//          management fee (used when a client renews at a term-based rate). New rate
+//          applies from the next invoice (proration_behavior:"none"). Returns
+//          { ok, subscriptionId, monthly }.
 //   { action:"portal", customerId, origin }
 //       -> creates a Stripe Billing Portal session so the card/bank can be
 //          updated and invoices viewed. Returns { ok, url }.
@@ -240,6 +245,59 @@ export default async (req) => {
         lastPaymentAt,
         monthly,
       });
+    }
+
+    // ── Update the live subscription's monthly amount (term-priced renewal) ───
+    // Called when a client renews at a new term rate. Rewrites the subscription's
+    // recurring line item to the new monthly management fee. proration_behavior
+    // "none" = the new rate applies from the next invoice, no mid-cycle proration
+    // surprise. Charges the management fee ONLY — never ad spend.
+    if (action === "update-subscription") {
+      const monthly = Number(body.monthlyAmount);
+      const packageName = body.packageName;
+      if (!(monthly > 0)) return json({ ok: false, error: "Monthly fee must be greater than zero." }, 400);
+
+      // Resolve the subscription: prefer a passed id, else the customer's latest.
+      let sub = null;
+      if (body.subscriptionId) {
+        try {
+          sub = await stripe(`subscriptions/${encodeURIComponent(body.subscriptionId)}`, { method: "GET" });
+        } catch { sub = null; }
+      }
+      if (!sub) {
+        if (!body.customerId) return json({ ok: false, error: "No billing set up for this client yet." }, 400);
+        const subs = await stripe(
+          `subscriptions?customer=${encodeURIComponent(body.customerId)}&limit=1&status=all`,
+          { method: "GET" }
+        );
+        sub = (subs.data && subs.data[0]) || null;
+      }
+      if (!sub) return json({ ok: false, error: "No active subscription to update." }, 400);
+      if (["canceled", "incomplete_expired"].includes(sub.status))
+        return json({ ok: false, error: "This subscription is canceled — set up billing again instead." }, 400);
+
+      const item = sub.items && sub.items.data && sub.items.data[0];
+      if (!item) return json({ ok: false, error: "Subscription has no line item to update." }, 400);
+
+      // Update the existing item in place (pass its id) to fresh inline price_data.
+      await stripe(`subscriptions/${encodeURIComponent(sub.id)}`, {
+        body: {
+          items: [
+            {
+              id: item.id,
+              price_data: {
+                currency: "usd",
+                product_data: { name: `BoldLine Media — ${packageName || "Management"} (monthly management fee)` },
+                unit_amount: dollars(monthly),
+                recurring: { interval: "month" },
+              },
+            },
+          ],
+          proration_behavior: "none",
+        },
+      });
+
+      return json({ ok: true, subscriptionId: sub.id, monthly });
     }
 
     // ── Billing Portal session (update card/bank, view invoices) ──────────────
