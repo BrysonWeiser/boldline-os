@@ -4,8 +4,8 @@ topic: OS app
 task: set up, debug, or extend Stripe billing (recurring management-fee subscription) in the OS
 keywords: [stripe-billing.mjs, stripe-webhook.mjs, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, checkout-session, us_bank_account, billingStatus, BillingCard, subscription]
 status: verified
-summary: Recurring management-fee billing via Stripe. Owner clicks "Set Up Recurring Billing" on a client's Contract tab → stripe-billing.mjs creates a subscription-mode Checkout Session (card + ACH) at the package's monthly price + one-time setup fee → client pays once, auto-charges monthly. stripe-webhook.mjs keeps billingStatus in sync. Charges the SERVICE FEE ONLY, never ad spend. Built 2026-07-10 (hand-rolled Stripe REST, no SDK). Env vars STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET still need to be added in Netlify; test in Stripe test mode before the first real client.
-verified: 2026-07-10
+summary: Recurring management-fee billing via Stripe — BUILT + LIVE (2026-07-14). Owner clicks "Set Up Recurring Billing" on a client's Contract tab → stripe-billing.mjs creates a subscription-mode Checkout Session (card + ACH) at the package's monthly price + one-time setup fee → client pays once, auto-charges monthly. stripe-webhook.mjs keeps billingStatus in sync. Charges the SERVICE FEE ONLY, never ad spend. Hand-rolled Stripe REST (no SDK). Test-mode E2E passed then flipped to LIVE keys + live webhook; hardened against stale/mode-mismatched customer ids. Ready to bill real clients.
+verified: 2026-07-14
 ---
 
 **What it does:** collects BoldLine's recurring **management fee** (the package `price`) as an
