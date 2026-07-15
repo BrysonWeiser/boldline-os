@@ -1906,7 +1906,12 @@ function BillingCard({client,pkg,onUpdate}) {
     setBusy("sync"); setMsg("");
     try{
       const d=await callBilling("sync",{customerId:client.stripeCustomerId});
-      onUpdate&&onUpdate({...client,billingStatus:d.billingStatus,stripeSubscriptionId:d.subscriptionId||client.stripeSubscriptionId,lastPaymentAt:d.lastPaymentAt||client.lastPaymentAt,billingNextCharge:d.currentPeriodEnd||null,...(d.billingStatus==="active"?{billingCheckoutUrl:null}:{})});
+      if(d.customerMissing){
+        // Stored customer no longer exists in this Stripe mode — reset cleanly.
+        onUpdate&&onUpdate({...client,billingStatus:"none",stripeCustomerId:null,stripeSubscriptionId:null,billingCheckoutUrl:null,billingNextCharge:null});
+      }else{
+        onUpdate&&onUpdate({...client,billingStatus:d.billingStatus,stripeSubscriptionId:d.subscriptionId||client.stripeSubscriptionId,lastPaymentAt:d.lastPaymentAt||client.lastPaymentAt,billingNextCharge:d.currentPeriodEnd||null,...(d.billingStatus==="active"?{billingCheckoutUrl:null}:{})});
+      }
     }catch(e){ setMsg(e.message); }
     setBusy("");
   };

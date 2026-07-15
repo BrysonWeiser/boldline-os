@@ -132,8 +132,19 @@ export default async (req) => {
       if (!(monthly > 0)) return json({ ok: false, error: "Monthly fee must be greater than zero." }, 400);
       if (!origin) return json({ ok: false, error: "Missing origin" }, 400);
 
-      // Reuse an existing customer if we already made one for this client.
+      // Reuse an existing customer if we already made one for this client — but
+      // only if it still exists in THIS mode. A stale id (e.g. a test-mode
+      // customer left on the client after switching to live keys, or a deleted
+      // customer) would otherwise make Checkout fail with "No such customer".
       let customerId = body.customerId || "";
+      if (customerId) {
+        try {
+          const existing = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
+          if (existing.deleted) customerId = "";
+        } catch {
+          customerId = ""; // not found in this mode -> fall through and create a fresh one
+        }
+      }
       if (!customerId) {
         const cust = await stripe("customers", {
           body: { email, name: name || email, metadata: { clientId } },
@@ -189,9 +200,19 @@ export default async (req) => {
     if (action === "sync") {
       const customerId = body.customerId;
       if (!customerId) return json({ ok: false, error: "Missing customerId" }, 400);
-      const subs = await stripe(`subscriptions?customer=${encodeURIComponent(customerId)}&limit=1&status=all`, {
-        method: "GET",
-      });
+      let subs;
+      try {
+        subs = await stripe(`subscriptions?customer=${encodeURIComponent(customerId)}&limit=1&status=all`, {
+          method: "GET",
+        });
+      } catch (e) {
+        // Customer doesn't exist in this mode (e.g. a leftover test-mode id after
+        // going live, or a deleted customer). Reset the card cleanly instead of
+        // surfacing a scary error; the UI clears the stale ids on customerMissing.
+        const missing = (e.detail && e.detail.code === "resource_missing") || /no such customer/i.test(e.message || "");
+        if (missing) return json({ ok: true, billingStatus: "none", customerMissing: true });
+        throw e;
+      }
       const sub = (subs.data && subs.data[0]) || null;
       if (!sub) return json({ ok: true, billingStatus: "none" });
 
