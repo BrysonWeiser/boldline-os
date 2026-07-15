@@ -270,6 +270,23 @@ const monthsLabel = (n) => {
   return `${n} months`;
 };
 
+// ── Term-based renewal pricing ────────────────────────────────────────────────
+// New clients always start on a 3-month term at the standard package rate. At
+// RENEWAL the client picks a length: month-to-month carries a small flexibility
+// premium, longer commitments earn a discount. Rates are a fraction applied to
+// the package's standard monthly (the 3-month rate is the anchor = 0%).
+// Charges the management fee only — never ad spend (see business constraint).
+const TERM_RATE = { 1:0.10, 3:0, 6:-0.05, 12:-0.10 };
+const termRate    = (months) => TERM_RATE[months] || 0;
+const termMonthly = (base, months) => Math.round((Number(base)||0) * (1 + termRate(months)));
+// e.g. "+10%", "−10%", or "Standard rate"
+const termRateLabel = (months) => {
+  const r = termRate(months);
+  if (r > 0) return `+${Math.round(r*100)}%`;
+  if (r < 0) return `−${Math.round(-r*100)}%`;
+  return "Standard rate";
+};
+
 const buildBots = (pkg) => {
   if (!pkg) return [];
   return [
@@ -885,13 +902,17 @@ const makeContractHTML=(cl,pkg)=>{
   const feats=(PKG_FEATURES[cl.packageId]||[]).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
   const perLeadRow = pl ? '<div class="meta-item"><div class="meta-label">Per-Lead Fee</div><div class="meta-value">$'+pl+'/lead</div></div>' : '';
   const budgetRow  = cl.adBudget ? '<div class="meta-item"><div class="meta-label">Ad Budget</div><div class="meta-value">'+cl.adBudget+'</div></div>' : '';
+  // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
+  const effMonthly = cl.billingMonthly || (pkg&&pkg.price) || 0;
+  const termMo     = cl.contractTermMonths || 3;
+  const termRow    = '<div class="meta-item"><div class="meta-label">Contract Term</div><div class="meta-value">'+monthsLabel(termMo)+'</div></div>';
   const css = 'body{font-family:Georgia,serif;font-size:13px;line-height:1.75;color:#1a1a1a;background:#fff;padding:24px;max-width:100%;word-break:break-word}h1{font-size:20px;text-align:center;margin-bottom:4px}h2{font-size:13px;margin:20px 0 6px;color:#8B6914;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #e5e0d0;padding-bottom:4px}.parties{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;padding:12px;background:#f9f8f4;border:1px solid #e5e0d0;border-radius:4px}.pl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8B6914;margin-bottom:4px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}.meta-item{padding:8px 10px;background:#f9f8f4;border:1px solid #e5e0d0;border-radius:4px}.meta-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8B6914}.meta-value{font-size:13px;font-weight:700;color:#1a1a1a}ul{padding-left:18px;margin:6px 0}li{margin-bottom:4px;font-size:12px}p{margin-bottom:10px;font-size:12px}.sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}.sig-box{padding:12px;border:1px solid #e5e0d0;border-radius:4px}.sig-line{border-bottom:1px solid #1a1a1a;margin:20px 0 4px}';
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'
    +'<h1>BoldLine Media — Service Agreement</h1><p style="text-align:center;font-size:11px;color:#666">Paid Advertising Management Services</p>'
    +'<h2>Parties</h2><div class="parties"><div><div class="pl">Agency</div><strong>BoldLine Media</strong><br>Bryson Weiser, Owner<br>brysonaweiser@gmail.com</div><div><div class="pl">Client</div><strong>'+(cl.name||'')+'</strong><br>'+(cl.contactName||'')+'<br>'+(cl.email||'')+'<br>'+(cl.businessAddress||'')+'</div></div>'
-   +'<h2>Agreement Details</h2><div class="meta"><div class="meta-item"><div class="meta-label">Package</div><div class="meta-value">'+(pkg&&pkg.name||'—')+'</div></div><div class="meta-item"><div class="meta-label">Platform</div><div class="meta-value">'+(pkg&&pkg.platform||'—')+'</div></div><div class="meta-item"><div class="meta-label">Management Fee</div><div class="meta-value">$'+((pkg&&pkg.price)||0).toLocaleString()+'/mo</div></div><div class="meta-item"><div class="meta-label">Setup Fee</div><div class="meta-value">$'+((pkg&&pkg.setup)||0).toLocaleString()+' (one-time)</div></div><div class="meta-item"><div class="meta-label">Start Date</div><div class="meta-value">'+(cl.contractStart||'—')+'</div></div><div class="meta-item"><div class="meta-label">End Date</div><div class="meta-value">'+(cl.contractEnd||'—')+'</div></div>'+perLeadRow+budgetRow+'</div>'
+   +'<h2>Agreement Details</h2><div class="meta"><div class="meta-item"><div class="meta-label">Package</div><div class="meta-value">'+(pkg&&pkg.name||'—')+'</div></div><div class="meta-item"><div class="meta-label">Platform</div><div class="meta-value">'+(pkg&&pkg.platform||'—')+'</div></div><div class="meta-item"><div class="meta-label">Management Fee</div><div class="meta-value">$'+effMonthly.toLocaleString()+'/mo</div></div><div class="meta-item"><div class="meta-label">Setup Fee</div><div class="meta-value">$'+((pkg&&pkg.setup)||0).toLocaleString()+' (one-time)</div></div><div class="meta-item"><div class="meta-label">Start Date</div><div class="meta-value">'+(cl.contractStart||'—')+'</div></div><div class="meta-item"><div class="meta-label">End Date</div><div class="meta-value">'+(cl.contractEnd||'—')+'</div></div>'+termRow+perLeadRow+budgetRow+'</div>'
    +'<h2>Services Included</h2><ul>'+feats+'</ul>'
-   +'<h2>Terms</h2><p><strong>Payment:</strong> Management fee invoiced monthly. Per-lead fees invoiced monthly based on verified leads delivered. Setup fee due before campaign launch.</p><p><strong>Minimum Term:</strong> This agreement is for a minimum of 3 months from the start date. Either party may choose not to renew with 30 days written notice before the end date.</p><p><strong>Ad Spend:</strong> Ad budget is separate from management fees and paid directly to the advertising platform by the client.</p><p><strong>Ownership:</strong> All ad accounts, landing pages, leads, creative assets, and data created under this agreement belong to the client.</p><p><strong>Performance:</strong> BoldLine Media does not guarantee specific lead volumes or revenue outcomes. We guarantee full effort, transparent reporting, and professional campaign management.</p><p><strong>Confidentiality:</strong> Both parties agree to keep the terms of this agreement and all business information shared during the engagement confidential.</p>'
+   +'<h2>Terms</h2><p><strong>Payment:</strong> Management fee invoiced monthly. Per-lead fees invoiced monthly based on verified leads delivered. Setup fee due before campaign launch.</p><p><strong>Minimum Term:</strong> The initial agreement is for a minimum of 3 months from the start date. Either party may choose not to renew with 30 days written notice before the end date.</p><p><strong>Renewal:</strong> At the end of the term the agreement may be renewed for 1, 3, 6, or 12 months. The monthly management fee depends on the renewal length chosen — month-to-month carries a small premium and longer commitments receive a discount, as reflected in the Contract Term and Management Fee above.</p><p><strong>Ad Spend:</strong> Ad budget is separate from management fees and paid directly to the advertising platform by the client.</p><p><strong>Ownership:</strong> All ad accounts, landing pages, leads, creative assets, and data created under this agreement belong to the client.</p><p><strong>Performance:</strong> BoldLine Media does not guarantee specific lead volumes or revenue outcomes. We guarantee full effort, transparent reporting, and professional campaign management.</p><p><strong>Confidentiality:</strong> Both parties agree to keep the terms of this agreement and all business information shared during the engagement confidential.</p>'
    +'<h2>Signatures</h2><div class="sigs"><div class="sig-box"><div class="pl">BoldLine Media</div><div class="sig-line"></div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div><div class="sig-box"><div class="pl">Client — '+(cl.name||'')+'</div><div class="sig-line"><span style="color:#fff;font-size:9px">/BL_SIGN_HERE/</span></div><div style="font-size:11px">'+(cl.contactName||'Authorized Signatory')+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div></div>'
    +'</body></html>';
 };
@@ -1850,7 +1871,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
           <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
         )}
 
-        {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onUpdate={onUpdate} onRenew={(newEnd)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
+        {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onUpdate={onUpdate} onRenew={(newEnd,extra)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,...(extra||{}),alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
         {tab==="reports"&&<ReportsTabContent client={client} pkg={pkg}/>}
         {tab==="log"&&<LogTabContent client={client} onUpdate={onUpdate}/>}
       </div>
@@ -1870,6 +1891,17 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
     </div>
   );
 }
+// Shared owner-authed call to the stripe-billing function (used by BillingCard
+// and by the renewal flow, which updates the live subscription amount).
+async function stripeBilling(action,extra){
+  const { data:{ session } }=await supabaseClient.auth.getSession();
+  const token=session&&session.access_token;
+  if(!token){ throw new Error("Session expired — refresh and log in again."); }
+  const r=await fetch("/.netlify/functions/stripe-billing",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok) throw new Error(d.error||"Request failed — try again.");
+  return d;
+}
 // ─── BILLING CARD (inside Contract tab) ───────────────────────────────────────
 // Recurring MANAGEMENT-FEE subscription via Stripe (auto-charge card/ACH) + the
 // one-time setup fee. Charges BoldLine's service fee ONLY — never ad spend
@@ -1878,20 +1910,14 @@ function BillingCard({client,pkg,onUpdate}) {
   const [busy,setBusy]=useState("");        // "" | "setup" | "sync" | "portal"
   const [msg,setMsg]=useState("");
   const [copied,setCopied]=useState(false);
-  const monthly=(pkg&&pkg.price)||client.billingMonthly||0;
+  // Prefer the agreed rate (set at renewal / checkout) over the package default,
+  // so a term-discounted renewal flows into a fresh checkout at the right price.
+  const monthly=client.billingMonthly||(pkg&&pkg.price)||0;
   const setup=(pkg&&pkg.setup)||0;
   const status=client.billingStatus||"none";
   const link=client.billingCheckoutUrl||"";
 
-  const callBilling=async(action,extra)=>{
-    const { data:{ session } }=await supabaseClient.auth.getSession();
-    const token=session&&session.access_token;
-    if(!token){ throw new Error("Session expired — refresh and log in again."); }
-    const r=await fetch("/.netlify/functions/stripe-billing",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok||!d.ok) throw new Error(d.error||"Request failed — try again.");
-    return d;
-  };
+  const callBilling=stripeBilling;
   const setupBilling=async()=>{
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
     setBusy("setup"); setMsg("");
@@ -1986,6 +2012,8 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [showRenewal,setShowRenewal]=useState(false);
   const [renewMonths,setRenewMonths]=useState("3");
   const [renewSaved,setRenewSaved]=useState(false);
+  const [renewBusy,setRenewBusy]=useState(false);
+  const [renewNote,setRenewNote]=useState("");
   const [dsState,setDsState]=useState("idle");   // idle | sending | sent | error
   const [dsMsg,setDsMsg]=useState("");
   const html=makeContractHTML(client,pkg);
@@ -2009,13 +2037,31 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     document.body.appendChild(ifr);ifr.src=url;
     ifr.onload=()=>{ setTimeout(()=>{ ifr.contentWindow.print(); setTimeout(()=>{ document.body.removeChild(ifr);URL.revokeObjectURL(url); },3000); },600); };
   };
-  const handleRenew=()=>{
+  // The standard (3-month) monthly rate this client's term pricing is anchored to.
+  const baseMonthly=(pkg&&pkg.price)||client.billingMonthly||0;
+  const handleRenew=async()=>{
     const months=parseInt(renewMonths)||3;
     const base=new Date(client.contractEnd||new Date());
     const newEnd=addMonths(base,months);  // proper calendar months, not *30 days
-    onRenew(fmt(newEnd));
+    const monthly=termMonthly(baseMonthly,months);
+    setRenewNote("");
+    // v2 — if a live subscription is active, push the new rate to Stripe so the
+    // renewal actually changes what auto-charges (no manual Stripe edit needed).
+    let note="";
+    if(client.stripeSubscriptionId && client.billingStatus==="active" && monthly!==(client.billingMonthly||baseMonthly)){
+      setRenewBusy(true);
+      try{
+        await stripeBilling("update-subscription",{customerId:client.stripeCustomerId,subscriptionId:client.stripeSubscriptionId,monthlyAmount:monthly,packageName:pkg&&pkg.name});
+        note=`Stripe subscription updated — now auto-charging $${monthly.toLocaleString()}/mo.`;
+      }catch(e){
+        note=`Contract renewed, but the Stripe update failed (${e.message}). Update the amount manually in Stripe.`;
+      }
+      setRenewBusy(false);
+    }
+    onRenew(fmt(newEnd),{contractTermMonths:months,billingMonthly:monthly});
+    setRenewNote(note);
     setRenewSaved(true);
-    setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false); },1500);
+    setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false);setRenewNote(""); },note?4000:1500);
   };
   // Live preview of the new end date using calendar months
   const renewalPreviewDate = ()=>{
@@ -2039,23 +2085,42 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       {showRenewal&&(
         <Card style={{backgroundColor:"rgba(16,185,129,.06)",borderColor:"rgba(16,185,129,.25)"}}>
           <div style={{fontSize:13,fontWeight:700,color:C.green,marginBottom:10}}>Renew Contract for {client.name}</div>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:5}}>Renewal Length</div>
-          <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
-            {["1","3","6","12"].map(m=>(
-              <button key={m} onClick={()=>setRenewMonths(m)} style={{flex:1,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${renewMonths===m?C.green:C.border}`,backgroundColor:renewMonths===m?`${C.green}15`:"rgba(255,255,255,.03)",color:renewMonths===m?C.green:C.textMuted,cursor:"pointer",minWidth:50}}>{m} mo</button>
-            ))}
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:5}}>Renewal Length &amp; Rate</div>
+          <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+            {["1","3","6","12"].map(m=>{
+              const sel=renewMonths===m;
+              const mo=termMonthly(baseMonthly,parseInt(m));
+              return (
+                <button key={m} onClick={()=>setRenewMonths(m)} style={{flex:1,padding:"8px 4px",borderRadius:9,border:`1px solid ${sel?C.green:C.border}`,backgroundColor:sel?`${C.green}15`:"rgba(255,255,255,.03)",cursor:"pointer",minWidth:56,textAlign:"center"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:sel?C.green:C.textDim}}>{m==="12"?"1 yr":m+" mo"}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:sel?C.green:C.textMuted,marginTop:2}}>${mo.toLocaleString()}</div>
+                  <div style={{fontSize:8,fontWeight:700,letterSpacing:".03em",color:parseInt(m)===1?C.amber:parseInt(m)>3?C.green:C.textMuted,marginTop:1}}>{termRateLabel(parseInt(m))}</div>
+                </button>
+              );
+            })}
           </div>
           <div style={{fontSize:11,color:C.textDim,marginBottom:12,lineHeight:1.65}}>
-            <div>Renewing for <strong style={{color:C.text}}>{monthsLabel(parseInt(renewMonths||3))}</strong></div>
-            <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
-            <div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Calculated using exact calendar months — not an approximation.</div>
+            {(()=>{
+              const m=parseInt(renewMonths)||3;
+              const mo=termMonthly(baseMonthly,m);
+              const m2m=termMonthly(baseMonthly,1);
+              const saved=(m2m-mo)*m;
+              return <>
+                <div>Renewing for <strong style={{color:C.text}}>{monthsLabel(m)}</strong> at <strong style={{color:C.green}}>${mo.toLocaleString()}/mo</strong> ({termRateLabel(m)})</div>
+                {m===1&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium over the standard rate.</div>}
+                {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} over the term vs. month-to-month.</div>}
+                <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
+                {client.billingStatus==="active"&&mo!==(client.billingMonthly||baseMonthly)&&<div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Their live Stripe subscription will update to this rate automatically.</div>}
+              </>;
+            })()}
           </div>
           <div style={S.row7}>
-            <button onClick={()=>setShowRenewal(false)} style={{flex:1,padding:"9px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
-            <button onClick={handleRenew} style={{flex:2,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:renewSaved?"#059669":C.green,color:"#fff",cursor:"pointer",transition:"background .2s"}}>
-              {renewSaved?"✓ Contract Renewed":"Confirm Renewal"}
+            <button onClick={()=>setShowRenewal(false)} disabled={renewBusy} style={{flex:1,padding:"9px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:renewBusy?"default":"pointer"}}>Cancel</button>
+            <button onClick={handleRenew} disabled={renewBusy||renewSaved} style={{flex:2,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:renewSaved?"#059669":C.green,color:"#fff",cursor:renewBusy?"default":"pointer",opacity:renewBusy?.7:1,transition:"background .2s"}}>
+              {renewBusy?"Updating…":renewSaved?"✓ Contract Renewed":"Confirm Renewal"}
             </button>
           </div>
+          {renewNote&&<div style={{fontSize:10,color:renewNote.startsWith("Contract renewed, but")?C.amber:C.green,marginTop:8,lineHeight:1.55}}>{renewNote}</div>}
         </Card>
       )}
       {!client.contractSigned&&<Card style={{backgroundColor:"rgba(59,130,246,.06)",borderColor:"rgba(59,130,246,.28)"}}>
@@ -3321,7 +3386,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
 function AddClientSheet({onSave,onClose}) {
   const [step,setStep]     = useState(1);
   const [termMonths,setTermM] = useState(3);
-  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",businessPhone:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",contractStart:fmt(today),contractEnd:fmt(addMonths(today,3))});
+  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",businessPhone:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",contractStart:fmt(today),contractEnd:fmt(addMonths(today,3)),contractTermMonths:3});
   const [pkgCat,setPkgCat] = useState("google");
   const [saved,setSaved]   = useState(false);
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -3336,6 +3401,7 @@ function AddClientSheet({onSave,onClose}) {
   };
   const setTerm = (m) => {
     setTermM(m);
+    set("contractTermMonths", m);
     try { const s=new Date(form.contractStart||today); if(!isNaN(s)) set("contractEnd", fmt(addMonths(s, m))); } catch(e){}
   };
   const startDate  = new Date(form.contractStart||today);

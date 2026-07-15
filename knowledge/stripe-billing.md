@@ -82,6 +82,11 @@ recurring + one-time line items in `mode:subscription`; if a future Stripe chang
 switch that line to `subscription_data[add_invoice_items]` in stripe-billing.mjs (one-spot change,
 clearly commented).
 
+**`update-subscription` action (added 2026-07-15, for term-priced renewals):** rewrites the active
+subscription's recurring line item to a new monthly amount (`{customerId?, subscriptionId?,
+monthlyAmount, packageName?}`), `proration_behavior:"none"` so the new rate hits the next invoice.
+Called automatically by the contract-renewal flow. See `knowledge/contract-renewal-pricing.md`.
+
 **Not built yet (future):** client-portal self-serve pay (v1 = owner sends the checkout link);
 proration on mid-cycle package upgrades; dunning email customization (Stripe's default retries
 apply). ACH takes a few days to clear and can fail on insufficient funds → shows as past_due, Stripe
