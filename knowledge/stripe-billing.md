@@ -53,6 +53,19 @@ PHP-style nested keys (`a[b][c]=v`, arrays `a[0][b]=v`) via `encodeForm()`.
    `customer.subscription.deleted`. Copy its signing secret into `STRIPE_WEBHOOK_SECRET`.
    (SUPABASE_SERVICE_ROLE_KEY already exists on the OS site.)
 
+**LIVE 2026-07-14.** Swapped both Netlify env vars to live values (`sk_live_` secret key +
+a NEW live-mode webhook endpoint's `whsec_` — the test webhook stays in the sandbox; live mode
+needs its own endpoint at the same URL/5 events) and redeployed. Live secret key confirmed working
+(a sync call authenticated against Stripe live). **GOTCHA hit + hardened:** the leftover test-mode
+dummy client still carried a `stripeCustomerId` from the 4242 test; clicking Refresh in live mode
+threw "No such customer … a similar object exists in test mode, but a live mode key was used."
+Fix (2026-07-14): `sync` now catches `resource_missing`/"no such customer" and returns
+`{billingStatus:"none", customerMissing:true}`, and the BillingCard clears the stale
+customer/subscription ids so the card self-heals to "Not Set Up"; `create-checkout` now validates a
+reused `customerId` (GET first) and creates a fresh customer if it's stale/deleted. So a
+mode-switch or deleted customer no longer breaks setup. Delete old test-mode dummy clients to keep
+production data clean.
+
 **TEST-MODE END-TO-END PASSED 2026-07-10.** Bryson set `STRIPE_SECRET_KEY` (sk_test) +
 `STRIPE_WEBHOOK_SECRET` (whsec) in Netlify, created the webhook endpoint
 (`https://boldlinemedia.netlify.app/.netlify/functions/stripe-webhook`, 5 events, Snapshot
