@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 46 task-keyed entries under `knowledge/`. They surface automatically via the
+> 47 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**46 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**47 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -129,6 +129,9 @@
 
 ## OS app
 
+- **[billing-automation](../knowledge/billing-automation.md)** &mdash; &#9989; verified &middot; 2026-07-16  
+  Contract-enforcement automation — BUILT 2026-07-16. (1) Fee adjust/waive UI on the BillingCard (billingMonthly/billingSetup overrides flow into contract doc + checkout; setup $0 = "Waived" on the contract). (2) getAlerts now raises red/yellow billing alerts (past_due, interest accruing, checkout unpaid, ETF owed). (3) billing-watch.mjs (daily 14:30 UTC Netlify schedule) syncs unpaid invoices from Stripe, stores billingLate{days,amountDue,interest} on the client, accrues 1.5%/mo interest pro-rated daily AFTER a 10-day grace as ONE pending Stripe invoice item (auto-rides the next monthly invoice), and emails OWNER_EMAIL on transitions (newly late / interest started / recovered). (4) Early-termination panel on the Contract tab auto-computes ETF = 1 month fee + term-discount clawback and can bill it via new stripe-billing action charge-etf (standalone auto-charge invoice + cancel_at_period_end). No new env vars needed. NOT yet live-tested against real Stripe.  
+  <sub>*task:* change how billing enforcement works — fee waivers/discounts, late-payment tracking, late interest, or early-termination billing &nbsp;|&nbsp; *keywords:* billing-watch.mjs, charge-etf, billingLate, billingSetup, waive setup fee, discount, late interest, 1.5%, past_due, early termination fee, ETF, invoice item, getAlerts billing, Adjust Fees</sub>
 - **[contract-renewal-pricing](../knowledge/contract-renewal-pricing.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Term-based renewal pricing — BUILT 2026-07-15, TEST-MODE E2E VERIFIED 2026-07-16. New clients always start on a 3-month term at the standard package rate. At RENEWAL the client picks 1/3/6/12 months; month-to-month is +10%, 3mo is the standard anchor (0%), 6mo −5%, 12mo −10%, applied to the package's monthly price. v1 = pricing math + renewal UI (per-term price + savings) + contract doc reflect the term & effective rate. v2 = renewal pushes the new monthly to the live Stripe subscription automatically via `update-subscription` (no manual Stripe edit) — proven end-to-end in Stripe test mode after two real Stripe-quirk fixes (see gotchas). Charges management fee ONLY, never ad spend.  
   <sub>*task:* change how contract renewal pricing / term discounts work, or the renewal flow on the Contract tab &nbsp;|&nbsp; *keywords:* termMonthly, termRate, termRateLabel, TERM_RATE, renewMonths, handleRenew, contractTermMonths, billingMonthly, update-subscription, renewal discount, month-to-month premium</sub>
