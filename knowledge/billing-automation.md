@@ -58,6 +58,12 @@ defaults to "exclude"). charge-etf's standalone invoice came out $0, auto-"paid"
 falsely reported the ETF settled while the items silently queued for the next monthly invoice.
 Fix: pass `pending_invoice_items_behavior:"include"` + guard that rejects an empty invoice.
 
+**GOTCHA 2 (same test, next attempt):** the $600 invoice then sat in "Retrying" — Checkout
+attaches the card to the SUBSCRIPTION (default_payment_method on the sub), not as the customer's
+invoice default, so a standalone invoice has no card to charge. Fix: charge-etf resolves a PM
+(subscription's card → customer invoice default → first saved card) and passes it as the
+invoice's `default_payment_method` before /pay.
+
 **NOT yet live-tested against Stripe** (charge-etf + the invoice-item accrual). Test recipe =
 same sk_test swap as contract-renewal-pricing: dummy client → pay 4242 → (a) record ETF w/ bill →
 check standalone invoice paid in Stripe; (b) simulate late: create an open invoice with a past
