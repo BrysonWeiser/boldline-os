@@ -4,8 +4,8 @@ topic: OS app
 task: change how contract renewal pricing / term discounts work, or the renewal flow on the Contract tab
 keywords: [termMonthly, termRate, termRateLabel, TERM_RATE, renewMonths, handleRenew, contractTermMonths, billingMonthly, update-subscription, renewal discount, month-to-month premium]
 status: verified
-summary: Term-based renewal pricing — BUILT 2026-07-15. New clients always start on a 3-month term at the standard package rate. At RENEWAL the client picks 1/3/6/12 months; month-to-month is +10%, 3mo is the standard anchor (0%), 6mo −5%, 12mo −10%, applied to the package's monthly price. v1 = pricing math + renewal UI (per-term price + savings) + contract doc reflect the term & effective rate. v2 = renewal pushes the new monthly to the live Stripe subscription automatically via a new `update-subscription` action (no manual Stripe edit). Charges management fee ONLY, never ad spend.
-verified: 2026-07-15
+summary: Term-based renewal pricing — BUILT 2026-07-15, TEST-MODE E2E VERIFIED 2026-07-16. New clients always start on a 3-month term at the standard package rate. At RENEWAL the client picks 1/3/6/12 months; month-to-month is +10%, 3mo is the standard anchor (0%), 6mo −5%, 12mo −10%, applied to the package's monthly price. v1 = pricing math + renewal UI (per-term price + savings) + contract doc reflect the term & effective rate. v2 = renewal pushes the new monthly to the live Stripe subscription automatically via `update-subscription` (no manual Stripe edit) — proven end-to-end in Stripe test mode after two real Stripe-quirk fixes (see gotchas). Charges management fee ONLY, never ad spend.
+verified: 2026-07-16
 ---
 
 **Bryson's model (2026-07-15):** keep the 3-month minimum for brand-new clients at the
@@ -79,3 +79,11 @@ is the fallback if the auto-update ever fails.
 
 **Not applied to initial contracts** (by design): the first term is always 3-month standard rate.
 Term pricing kicks in only at renewal.
+
+**TEST-MODE E2E PASSED 2026-07-16** (Bryson): sk_test key in Netlify → dummy client (Growth $600)
+→ Checkout with 4242 → Billing Active → renewed at 1 yr → green "Stripe subscription updated —
+now auto-charging $540/mo" + BillingCard flipped to $540/mo. Took three rounds: round 1 hit
+gotcha 1 (product_data rejected), round 2 hit gotcha 2 (inactive Checkout product), round 3 clean.
+The amber-note fallback ("renewed but Stripe update failed → update manually") also proven in
+rounds 1–2 — contract state stayed correct while Stripe lagged. After the test: swap
+STRIPE_SECRET_KEY back to live + redeploy, delete the dummy client (test-mode ids are junk in live).
