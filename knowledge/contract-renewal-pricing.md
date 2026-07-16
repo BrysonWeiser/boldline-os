@@ -53,6 +53,11 @@ are trivial to re-tune: edit the one `TERM_RATE` object.
   recurring line item **in place** (passes `items:[{id, price_data:{…}}]` to the subscription
   update endpoint) to the new monthly. `proration_behavior:"none"` → new rate applies from the
   **next invoice**, no mid-cycle proration surprise. Owner-authed (same Supabase-JWT pattern).
+- **GOTCHA (caught in the 2026-07-15 test-mode run):** subscription updates REJECT inline
+  `price_data[product_data]` — that's Checkout-only. Error: "Received unknown parameter:
+  items[0][price_data][product_data]. Did you mean product?". Fix: `price_data.product` must be
+  the **existing product id** off the current line item (`item.price.product`), creating a
+  product first only if missing. Checkout (`create-checkout`) legitimately keeps `product_data`.
 - `handleRenew` only calls it when `client.stripeSubscriptionId` && `billingStatus==="active"`
   && the rate actually changed. On success the renewal panel shows "Stripe subscription updated
   — now auto-charging $X/mo"; on failure it renews the contract anyway and tells the owner to
