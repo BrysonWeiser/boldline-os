@@ -22,8 +22,8 @@ verified: 2026-07-02
 
 **Remaining to actually send binding contracts (the paid/setup half — DEFERRED until a client is close, per lean-spend):**
 1. **Submit the verification form** (free) → wait ~48h for approval. [in progress 2026-07-14]
-2. Production account `176800420` needs an **eSignature plan with API access** (the monthly fee — ~$25-45/mo tier; the free tier won't API-send). Don't activate until a deal is imminent.
-3. **Regenerate/register production credentials:** register the RSA **public** key on the production app + complete a **one-time JWT consent** for production. New values differ from demo: prod `DOCUSIGN_ACCOUNT_ID` = 176800420's API account id, prod `DOCUSIGN_USER_ID` = the prod user GUID, `DOCUSIGN_BASE_PATH` = the production host (e.g. `https://na*.docusign.net`, NOT demo.docusign.net — the code auto-switches the auth host to account.docusign.com when BASE_PATH lacks "demo"). Integration key may carry over.
+2. The production account (its # is `DOCUSIGN_ACCOUNT_ID` in Netlify) needs an **eSignature plan with API access** (the monthly fee — ~$25-45/mo tier; the free tier won't API-send). Don't activate until a deal is imminent.
+3. **Regenerate/register production credentials:** register the RSA **public** key on the production app + complete a **one-time JWT consent** for production. New values differ from demo: prod `DOCUSIGN_ACCOUNT_ID` = the production account's API account id, prod `DOCUSIGN_USER_ID` = the prod user GUID, `DOCUSIGN_BASE_PATH` = the production host (e.g. `https://na*.docusign.net`, NOT demo.docusign.net — the code auto-switches the auth host to account.docusign.com when BASE_PATH lacks "demo"). Integration key may carry over.
 4. **Swap the 5 Netlify env vars** (OS site) to the production values, redeploy, test one send. **Do NOT swap early** — pointing the OS at production before the plan + consent are done breaks the working "Send via DocuSign". Keep demo creds live until the final cutover.
 
 Demo signatures remain **not legally binding** (watermarked) until the above is done.
