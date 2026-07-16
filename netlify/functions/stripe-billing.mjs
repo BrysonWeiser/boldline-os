@@ -279,7 +279,19 @@ export default async (req) => {
       const item = sub.items && sub.items.data && sub.items.data[0];
       if (!item) return json({ ok: false, error: "Subscription has no line item to update." }, 400);
 
-      // Update the existing item in place (pass its id) to fresh inline price_data.
+      // Subscription updates don't accept inline product_data (that's Checkout-only) —
+      // price_data here must reference an existing product id. Reuse the product
+      // already on the line item; create one only if it's somehow missing.
+      let productId =
+        item.price && (typeof item.price.product === "string" ? item.price.product : item.price.product && item.price.product.id);
+      if (!productId) {
+        const prod = await stripe("products", {
+          body: { name: `BoldLine Media — ${packageName || "Management"} (monthly management fee)` },
+        });
+        productId = prod.id;
+      }
+
+      // Update the existing item in place (pass its id) to a new price on the same product.
       await stripe(`subscriptions/${encodeURIComponent(sub.id)}`, {
         body: {
           items: [
@@ -287,7 +299,7 @@ export default async (req) => {
               id: item.id,
               price_data: {
                 currency: "usd",
-                product_data: { name: `BoldLine Media — ${packageName || "Management"} (monthly management fee)` },
+                product: productId,
                 unit_amount: dollars(monthly),
                 recurring: { interval: "month" },
               },
