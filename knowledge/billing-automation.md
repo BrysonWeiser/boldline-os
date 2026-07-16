@@ -52,6 +52,12 @@ billed,settled,invoiceId?,invoiceUrl?}`.
 owner's judgment call, the alert prompts it); waiving/settling an ETF; the 30-day notice email
 itself. Renewal-window nudges were already automated (contract_30/contract_7 alerts).
 
+**GOTCHA (caught in the 2026-07-16 test):** on current Stripe API versions, creating an
+invoice does NOT sweep in pending invoice items by default (`pending_invoice_items_behavior`
+defaults to "exclude"). charge-etf's standalone invoice came out $0, auto-"paid", and the OS
+falsely reported the ETF settled while the items silently queued for the next monthly invoice.
+Fix: pass `pending_invoice_items_behavior:"include"` + guard that rejects an empty invoice.
+
 **NOT yet live-tested against Stripe** (charge-etf + the invoice-item accrual). Test recipe =
 same sk_test swap as contract-renewal-pricing: dummy client → pay 4242 → (a) record ETF w/ bill →
 check standalone invoice paid in Stripe; (b) simulate late: create an open invoice with a past

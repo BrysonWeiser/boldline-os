@@ -360,11 +360,20 @@ export default async (req) => {
             description: `Term-discount clawback — months billed at discounted rate recalculated at the Standard Rate (Agreement, Termination section)` },
         });
       }
-      // Standalone invoice pulls in all pending invoice items for the customer.
+      // Standalone invoice that sweeps in the pending invoice items just created.
+      // GOTCHA: on current Stripe API versions pending_invoice_items_behavior
+      // defaults to "exclude" — without it the invoice is created EMPTY ($0),
+      // auto-"pays" trivially, and the items silently ride the next monthly
+      // invoice instead (caught in the 2026-07-16 test run).
       const inv = await stripe("invoices", {
         body: { customer: customerId, collection_method: "charge_automatically", auto_advance: true,
+          pending_invoice_items_behavior: "include",
           description: `BoldLine Media — early termination charges${clientName ? " for " + clientName : ""}` },
       });
+      if (!inv.amount_due || inv.amount_due <= 0) {
+        // Defensive: never report success off an empty invoice again.
+        return json({ ok: false, error: "ETF invoice came out empty — the pending items were not attached. Check the customer's pending invoice items in Stripe." }, 502);
+      }
       // Try to charge it now; if the payment method declines, Stripe keeps retrying (dunning).
       let paid = false, hostedUrl = inv.hosted_invoice_url || null;
       try {
