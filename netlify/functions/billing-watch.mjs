@@ -21,7 +21,9 @@ import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 const MONTHLY_RATE = 0.015; // 1.5%/mo per Agreement §3.4
-const GRACE_DAYS = 10;      // interest starts after day 10 past due
+// Interest starts after day 10 past due (Agreement §3.4). BILLING_GRACE_DAYS
+// exists ONLY so test mode can shorten the wait (set 0, test, then REMOVE it).
+const GRACE_DAYS = process.env.BILLING_GRACE_DAYS != null ? Number(process.env.BILLING_GRACE_DAYS) : 10;
 
 async function stripe(path, { method = "POST", body } = {}) {
   const opts = { method, headers: { authorization: `Bearer ${SK}` } };
