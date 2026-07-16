@@ -333,6 +333,17 @@ const getAlerts = (cl) => {
     if (d<=7&&d>=0)       a.push({type:"contract_7", msg:`Contract expires in ${d} day${d!==1?"s":""}. Urgent renewal needed.`,severity:"red"});
     else if (d<=30&&d>=0) a.push({type:"contract_30",msg:`Contract expires in ${d} days. Start renewal conversation.`,severity:"yellow"});
   }
+  // ── Billing enforcement (Agreement §3.4) — fed by Stripe webhook + the daily billing-watch job
+  if (cl.billingStatus==="past_due") {
+    const late = cl.billingLate||{};
+    const days = late.days||0;
+    const amt  = late.amountDue ? ` ($${Number(late.amountDue).toLocaleString()} due)` : "";
+    if (late.interest>0) a.push({type:"billing_interest",msg:`Payment ${days} days late${amt} — $${Number(late.interest).toLocaleString()} late interest accruing at 1.5%/mo, auto-added to their next invoice.`,severity:"red"});
+    else if (days>0)     a.push({type:"billing_late",msg:`Payment failed — ${days} day${days!==1?"s":""} late${amt}. Stripe is retrying. Interest starts after day 10; services may be suspended per §3.4.`,severity:"red"});
+    else                 a.push({type:"billing_late",msg:`Payment failed${amt}. Stripe is retrying automatically.`,severity:"red"});
+  }
+  if (cl.billingStatus==="awaiting_payment" && cl.billingCheckoutUrl) a.push({type:"billing_await",msg:"Billing set up but the client has not paid the checkout link yet.",severity:"yellow"});
+  if (cl.etf && !cl.etf.settled) a.push({type:"etf_due",msg:`Early termination recorded — $${Number(cl.etf.total).toLocaleString()} owed (${cl.etf.billed?"billed via Stripe, awaiting payment":"not yet billed"}).`,severity:cl.etf.billed?"yellow":"red"});
   return a;
 };
 const healthColor = (s) => s>=8?C.green:s>=6?C.amber:C.red;
@@ -923,7 +934,8 @@ const makeContractHTML=(cl,pkg)=>{
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
   const effMonthly = cl.billingMonthly || (pkg&&pkg.price) || 0;
   const stdMonthly = (pkg&&pkg.price) || effMonthly;      // the Standard (3-month) Rate
-  const setupFee   = (pkg&&pkg.setup) || 0;
+  // Setup fee honors a manual adjustment (billingSetup), including an explicit $0 waiver.
+  const setupFee   = (cl.billingSetup!=null?cl.billingSetup:(pkg&&pkg.setup))||0;
   const termMo     = cl.contractTermMonths || 3;
   const clientName = esc(cl.name), signerName = esc(cl.contactName||"Authorized Signatory");
   const agreementNo= esc(String(cl.id||"").slice(-8).toUpperCase() || "—");
@@ -939,7 +951,7 @@ const makeContractHTML=(cl,pkg)=>{
     metaItem("Service Package",(pkg&&pkg.name)||"—")
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
    +metaItem("Monthly Management Fee",money(effMonthly)+"/mo")
-   +metaItem("One-Time Setup Fee",money(setupFee))
+   +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived")
    +metaItem("Committed Term",monthsLabel(termMo))
    +metaItem("Start Date",esc(cl.contractStart)||"—")
    +metaItem("End Date",esc(cl.contractEnd)||"—")
@@ -1008,10 +1020,10 @@ const makeContractHTML=(cl,pkg)=>{
    +'<p>2.3 <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month rate for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
 
    +'<h2>3. Fees and Payment</h2>'
-   +'<p>3.1 <strong>Setup Fee.</strong> The one-time Setup Fee is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
+   +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
    +'<p>3.2 <strong>Management Fee.</strong> The Monthly Management Fee is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
-   +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach.</p>'
+   +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
    +perLeadSection
    +bonusSection
@@ -1031,7 +1043,7 @@ const makeContractHTML=(cl,pkg)=>{
    +'<h2>'+nTerm+'. Termination</h2>'
    +'<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>'
    +'<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Management Fee</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>'
-   +'<p>(c) <strong>By Agency, early.</strong> Agency may terminate before the End Date on thirty (30) days&rsquo; written notice. In that case Agency will refund any prepaid fees covering periods after the effective termination date, and no early-termination fee applies to Client.</p>'
+   +'<p>(c) <strong>By Agency, early.</strong> Agency may terminate before the End Date on thirty (30) days&rsquo; written notice. In that case Agency will refund any prepaid fees covering periods after the effective termination date and, if Agency terminates before the Campaigns launch, the unearned portion of any Setup Fee; no early-termination fee applies to Client.</p>'
    +'<p>(d) <strong>For cause.</strong> Either party may terminate immediately by written notice if the other party materially breaches this Agreement and fails to cure within fifteen (15) days of written notice describing the breach (no cure period applies to Client&rsquo;s non-payment beyond the periods in Section 3.4, or to a breach of confidentiality). Termination for Client&rsquo;s uncured breach does not relieve Client of subsection (b) amounts.</p>'
    +'<p>(e) <strong>Effect.</strong> On termination: all unpaid amounts become immediately due; Agency will stop campaigns as directed, relinquish account access, and deliver any Client-owned materials in its possession; and each party will return or delete the other&rsquo;s Confidential Information on request. Sections addressing fees owed, ownership, confidentiality, data, liability, indemnification, and disputes survive termination.</p>'
 
@@ -1063,10 +1075,10 @@ const makeContractHTML=(cl,pkg)=>{
    +'<h2>'+nLaw+'. Governing Law and Dispute Resolution</h2>'
    +'<p>(a) This Agreement is governed by the laws of the State of Arizona, USA, without regard to conflict-of-laws rules. The United Nations Convention on Contracts for the International Sale of Goods does not apply.</p>'
    +'<p>(b) The parties will first attempt in good faith to resolve any dispute by direct negotiation for thirty (30) days after written notice. Any dispute not so resolved will be finally settled by <strong>binding arbitration</strong> administered by the American Arbitration Association under its Commercial Arbitration Rules, by one arbitrator, seated in Arizona, conducted in English (with the option of remote/video proceedings for the convenience of out-of-state or international parties). Judgment on the award may be entered in any court of competent jurisdiction. Either party may instead bring an individual claim in small-claims court, and either party may seek temporary injunctive relief in court for breach of confidentiality or intellectual-property rights. <span class="caps">EACH PARTY WAIVES ANY RIGHT TO A JURY TRIAL AND TO PARTICIPATE IN A CLASS ACTION, TO THE EXTENT PERMITTED BY LAW.</span> The prevailing party in any proceeding is entitled to its reasonable attorneys&rsquo; fees and costs.</p>'
-   +'<p>(c) <strong>International clients.</strong> This Agreement is drafted, negotiated, and performed in English, and the English text controls over any translation. All payments are in U.S. dollars. Client represents that it has authority to enter this Agreement under the laws of its own jurisdiction.</p>'
+   +'<p>(c) <strong>International clients.</strong> This Agreement is drafted, negotiated, and performed in English, and the English text controls over any translation. All payments are in U.S. dollars. Client represents that it has authority to enter this Agreement under the laws of its own jurisdiction, and that neither Client nor its owners are subject to sanctions administered by the U.S. Office of Foreign Assets Control or located in an embargoed jurisdiction.</p>'
 
    +'<h2>'+nGen+'. General</h2>'
-   +'<p>This Agreement (including the Key Commercial Terms above) is the entire agreement between the parties about its subject and supersedes all prior discussions and proposals. Amendments must be in a writing signed (including electronically) by both parties, except that package upgrades and renewal terms may be confirmed by exchange of email or through Agency&rsquo;s client systems. If any provision is held unenforceable, it will be modified to the minimum extent necessary and the rest remains in effect. A waiver must be written and applies only to the instance given. Client may not assign this Agreement without Agency&rsquo;s consent; Agency may assign to a successor of its business. Notices may be given by email to the addresses on page one and are effective on the business day received. <strong>The parties agree this Agreement may be executed electronically, and electronic signatures (including via DocuSign) are valid and binding under the U.S. E-SIGN Act, the Arizona Electronic Transactions Act, and equivalent laws.</strong> This Agreement may be signed in counterparts.</p>'
+   +'<p>This Agreement (including the Key Commercial Terms above) is the entire agreement between the parties about its subject and supersedes all prior discussions and proposals. Amendments must be in a writing signed (including electronically) by both parties, except that package upgrades and renewal terms may be confirmed by exchange of email or through Agency&rsquo;s client systems. If any provision is held unenforceable, it will be modified to the minimum extent necessary and the rest remains in effect. A waiver must be written and applies only to the instance given. Client may not assign this Agreement without Agency&rsquo;s consent; Agency may assign to a successor of its business. Notices may be given by email to the addresses on page one and are effective on the business day received. <strong>The parties agree this Agreement may be executed electronically, and electronic signatures (including via DocuSign) are valid and binding under the U.S. E-SIGN Act, the Arizona Electronic Transactions Act, and equivalent laws.</strong> This Agreement may be signed in counterparts. There are no third-party beneficiaries to this Agreement. Headings are for convenience only and do not affect interpretation.</p>'
 
    +'<h2>Signatures</h2>'
    +'<p style="font-size:11px">By signing below, each party confirms it has read, understands, and agrees to this Agreement, and that the person signing is authorized to bind that party.</p>'
@@ -2071,14 +2083,34 @@ function BillingCard({client,pkg,onUpdate}) {
   const [busy,setBusy]=useState("");        // "" | "setup" | "sync" | "portal"
   const [msg,setMsg]=useState("");
   const [copied,setCopied]=useState(false);
-  // Prefer the agreed rate (set at renewal / checkout) over the package default,
-  // so a term-discounted renewal flows into a fresh checkout at the right price.
+  const [adjusting,setAdjusting]=useState(false);
+  // Prefer the agreed rate (set at renewal / checkout / manual adjust) over the
+  // package default, so discounts and term pricing flow into checkout + contract.
   const monthly=client.billingMonthly||(pkg&&pkg.price)||0;
-  const setup=(pkg&&pkg.setup)||0;
+  // billingSetup may legitimately be 0 (waived) — only fall back when unset.
+  const setup=(client.billingSetup!=null?client.billingSetup:(pkg&&pkg.setup))||0;
   const status=client.billingStatus||"none";
   const link=client.billingCheckoutUrl||"";
+  const [adjMonthly,setAdjMonthly]=useState(String(monthly));
+  const [adjSetup,setAdjSetup]=useState(String(setup));
+  const stdMonthly=(pkg&&pkg.price)||0, stdSetup=(pkg&&pkg.setup)||0;
+  const discounted=monthly!==stdMonthly||setup!==stdSetup;
 
   const callBilling=stripeBilling;
+  // Persist manual fee adjustments (discount the monthly, waive/reduce the setup
+  // fee). Flows everywhere automatically: contract doc, checkout, revenue views.
+  const applyAdjust=()=>{
+    const m=Math.max(0,Number(adjMonthly)||0), s=Math.max(0,Number(adjSetup)||0);
+    if(!(m>0)){ setMsg("Monthly fee must be greater than zero (Stripe requires a recurring amount)."); return; }
+    setMsg("");
+    onUpdate&&onUpdate({...client,billingMonthly:m,billingSetup:s});
+    setAdjusting(false);
+  };
+  const resetAdjust=()=>{
+    onUpdate&&onUpdate({...client,billingMonthly:stdMonthly,billingSetup:stdSetup});
+    setAdjMonthly(String(stdMonthly)); setAdjSetup(String(stdSetup));
+    setAdjusting(false); setMsg("");
+  };
   const setupBilling=async()=>{
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
     setBusy("setup"); setMsg("");
@@ -2123,13 +2155,34 @@ function BillingCard({client,pkg,onUpdate}) {
         <Chip label={badge.t} color={badge.c} small/>
       </div>
       <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:10}}>
-        {money(monthly)}<span style={{color:C.textMuted}}>/mo management fee</span>{setup>0?<span> · {money(setup)} one-time setup</span>:null}
+        {money(monthly)}<span style={{color:C.textMuted}}>/mo management fee</span>{setup>0?<span> · {money(setup)} one-time setup</span>:<span style={{color:C.green,fontWeight:700}}> · setup fee waived</span>}
+        {discounted&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"1px 7px"}}>Adjusted</span>}
         <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Management fee only — the client pays Google/Meta directly for ad spend.</div>
       </div>
 
-      {status==="none"&&<>
-        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.</div>
+      {status==="none"&&!adjusting&&<>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly fee only."}</div>
         <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Recurring Billing →"}</button>
+        <button onClick={()=>{setAdjMonthly(String(monthly));setAdjSetup(String(setup));setAdjusting(true);}} style={{...btn("transparent"),marginTop:8,border:`1px solid ${C.border}`,color:C.textMuted}}>Adjust Fees (discount / waive setup)</button>
+      </>}
+      {status==="none"&&adjusting&&<>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Set this client&rsquo;s agreed fees. They flow into the contract, the checkout, and revenue views. Standard: {money(stdMonthly)}/mo + {money(stdSetup)} setup.</div>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:3}}>Monthly Fee ($)</div>
+            <input value={adjMonthly} onChange={e=>setAdjMonthly(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" style={{width:"100%",padding:"8px 10px",fontSize:13,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:3}}>Setup Fee ($ · 0 = waived)</div>
+            <input value={adjSetup} onChange={e=>setAdjSetup(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" style={{width:"100%",padding:"8px 10px",fontSize:13,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
+          </div>
+        </div>
+        <button onClick={()=>setAdjSetup("0")} style={{width:"100%",padding:"7px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.green}44`,backgroundColor:`${C.green}10`,color:C.green,cursor:"pointer",marginBottom:8}}>Waive Setup Fee (set to $0)</button>
+        <div style={S.row7}>
+          <button onClick={resetAdjust} style={{flex:1,padding:"9px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Reset to Standard</button>
+          <button onClick={()=>setAdjusting(false)} style={{flex:1,padding:"9px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+          <button onClick={applyAdjust} style={{flex:1,padding:"9px",fontSize:11,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Apply</button>
+        </div>
       </>}
 
       {status==="awaiting_payment"&&<>
@@ -2175,6 +2228,9 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [renewSaved,setRenewSaved]=useState(false);
   const [renewBusy,setRenewBusy]=useState(false);
   const [renewNote,setRenewNote]=useState("");
+  const [showETF,setShowETF]=useState(false);
+  const [etfBusy,setEtfBusy]=useState(false);
+  const [etfMsg,setEtfMsg]=useState("");
   const [dsState,setDsState]=useState("idle");   // idle | sending | sent | error
   const [dsMsg,setDsMsg]=useState("");
   const html=makeContractHTML(client,pkg);
@@ -2200,6 +2256,37 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   };
   // The standard (3-month) monthly rate this client's term pricing is anchored to.
   const baseMonthly=(pkg&&pkg.price)||client.billingMonthly||0;
+  // ── Early termination (Agreement: 30-day notice; ETF = 1 month's fee + term-discount clawback)
+  const effMonthly=client.billingMonthly||baseMonthly;
+  const etfCalc=(()=>{
+    const start=new Date(client.contractStart||new Date());
+    const now=new Date();
+    // Billing cycles already started this term (billed monthly in advance) — min 1, capped at the committed term.
+    const monthsElapsed=Math.max(0,(now.getFullYear()-start.getFullYear())*12+(now.getMonth()-start.getMonth())+(now.getDate()>=start.getDate()?0:-1));
+    const monthsBilled=Math.min(Math.max(monthsElapsed+1,1),client.contractTermMonths||3);
+    const clawPerMonth=Math.max(0,baseMonthly-effMonthly);
+    const clawback=clawPerMonth*monthsBilled;
+    const etfFee=effMonthly;
+    return {monthsBilled,clawPerMonth,clawback,etfFee,total:etfFee+clawback};
+  })();
+  const recordETF=async(billViaStripe)=>{
+    setEtfBusy(true); setEtfMsg("");
+    const noticeEnd=addMonths(new Date(),1);
+    const endsSooner=!client.contractEnd||noticeEnd<new Date(client.contractEnd);
+    let etf={date:fmt(new Date()),etfFee:etfCalc.etfFee,clawback:etfCalc.clawback,monthsBilled:etfCalc.monthsBilled,total:etfCalc.total,billed:false,settled:false};
+    try{
+      if(billViaStripe){
+        const d=await stripeBilling("charge-etf",{customerId:client.stripeCustomerId,subscriptionId:client.stripeSubscriptionId,etfFee:etfCalc.etfFee,clawback:etfCalc.clawback,clientName:client.name});
+        etf={...etf,billed:true,invoiceId:d.invoiceId,invoiceUrl:d.invoiceUrl,settled:d.paid||false};
+        setEtfMsg(d.paid?"ETF invoice charged and PAID. Subscription set to cancel at period end.":"ETF invoice created and sent for automatic collection. Subscription set to cancel at period end.");
+      }else{
+        setEtfMsg("Early termination recorded. Bill the ETF manually (or via Stripe later) — it stays flagged in alerts until marked settled.");
+      }
+      onUpdate&&onUpdate({...client,etf,contractStatus:"active",...(endsSooner?{contractEnd:fmt(noticeEnd)}:{})});
+      setShowETF(false);
+    }catch(e){ setEtfMsg("Recording kept locally, but Stripe billing failed: "+e.message); onUpdate&&onUpdate({...client,etf}); }
+    setEtfBusy(false);
+  };
   const handleRenew=async()=>{
     const months=parseInt(renewMonths)||3;
     const base=new Date(client.contractEnd||new Date());
@@ -2282,6 +2369,40 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
             </button>
           </div>
           {renewNote&&<div style={{fontSize:10,color:renewNote.startsWith("Contract renewed, but")?C.amber:C.green,marginTop:8,lineHeight:1.55}}>{renewNote}</div>}
+        </Card>
+      )}
+      {/* Early termination — auto-calculates the Agreement's ETF (1 month fee + term-discount clawback) */}
+      {client.contractSigned&&client.contractStatus==="active"&&!client.etf&&!showETF&&(
+        <button onClick={()=>setShowETF(true)} style={{width:"100%",padding:"9px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.red}33`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>
+          Client leaving early? Calculate Early Termination →
+        </button>
+      )}
+      {showETF&&(
+        <Card style={{backgroundColor:"rgba(239,68,68,.05)",borderColor:"rgba(239,68,68,.25)"}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.red,marginBottom:8}}>Early Termination — {client.name}</div>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.7,marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span>Early-termination fee (1 month&rsquo;s fee)</span><strong style={{color:C.text}}>${etfCalc.etfFee.toLocaleString()}</strong></div>
+            <div style={{display:"flex",justifyContent:"space-between"}}><span>Term-discount clawback ({etfCalc.clawPerMonth>0?`$${etfCalc.clawPerMonth.toLocaleString()}/mo × ${etfCalc.monthsBilled} month${etfCalc.monthsBilled!==1?"s":""} billed`:"no discounted rate — none"})</span><strong style={{color:C.text}}>${etfCalc.clawback.toLocaleString()}</strong></div>
+            <div style={{display:"flex",justifyContent:"space-between",borderTop:`1px solid ${C.border}`,marginTop:5,paddingTop:5}}><span style={{fontWeight:700,color:C.text}}>Total owed (per Agreement)</span><strong style={{color:C.red,fontSize:14}}>${etfCalc.total.toLocaleString()}</strong></div>
+            <div style={{fontSize:10,color:C.textMuted,marginTop:6}}>Recording sets the contract end to 30 days out (the notice period) if that is sooner than the current end date. Fees already accrued still bill normally.</div>
+          </div>
+          <div style={S.row7}>
+            <button onClick={()=>setShowETF(false)} disabled={etfBusy} style={{flex:1,padding:"9px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+            <button onClick={()=>recordETF(false)} disabled={etfBusy} style={{flex:1,padding:"9px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.red}44`,backgroundColor:`${C.red}12`,color:C.red,cursor:"pointer"}}>Record Only</button>
+            {client.billingStatus==="active"&&<button onClick={()=>recordETF(true)} disabled={etfBusy} style={{flex:2,padding:"9px",fontSize:11,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.red,color:"#fff",cursor:"pointer",opacity:etfBusy?.7:1}}>{etfBusy?"Billing…":"Bill via Stripe + End Subscription"}</button>}
+          </div>
+          {etfMsg&&<div style={{fontSize:10,color:etfMsg.includes("failed")?C.amber:C.green,marginTop:8,lineHeight:1.55}}>{etfMsg}</div>}
+        </Card>
+      )}
+      {client.etf&&(
+        <Card style={{backgroundColor:client.etf.settled?"rgba(34,211,160,.05)":"rgba(239,68,68,.05)",borderColor:client.etf.settled?"rgba(34,211,160,.25)":"rgba(239,68,68,.25)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:client.etf.settled?C.green:C.red}}>Early Termination — ${Number(client.etf.total).toLocaleString()} {client.etf.settled?"settled":client.etf.billed?"billed, awaiting payment":"owed (not yet billed)"}</div>
+              <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Recorded {client.etf.date} · ${Number(client.etf.etfFee).toLocaleString()} ETF + ${Number(client.etf.clawback).toLocaleString()} clawback ({client.etf.monthsBilled} mo)</div>
+            </div>
+            {!client.etf.settled&&<button onClick={()=>onUpdate&&onUpdate({...client,etf:{...client.etf,settled:true}})} style={{padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.green}44`,backgroundColor:`${C.green}10`,color:C.green,cursor:"pointer",whiteSpace:"nowrap"}}>Mark Settled</button>}
+          </div>
         </Card>
       )}
       {!client.contractSigned&&<Card style={{backgroundColor:"rgba(59,130,246,.06)",borderColor:"rgba(59,130,246,.28)"}}>

@@ -27,6 +27,11 @@
 //          management fee (used when a client renews at a term-based rate). New rate
 //          applies from the next invoice (proration_behavior:"none"). Returns
 //          { ok, subscriptionId, monthly }.
+//   { action:"charge-etf", customerId, subscriptionId?, etfFee, clawback, clientName? }
+//       -> bills the Agreement's early-termination amounts (one month's fee +
+//          term-discount clawback) as an auto-charged standalone invoice and
+//          sets the subscription to cancel at period end. Returns
+//          { ok, invoiceId, invoiceUrl, paid }.
 //   { action:"portal", customerId, origin }
 //       -> creates a Stripe Billing Portal session so the card/bank can be
 //          updated and invoices viewed. Returns { ok, url }.
@@ -329,6 +334,54 @@ export default async (req) => {
       });
 
       return json({ ok: true, subscriptionId: sub.id, monthly });
+    }
+
+    // ── Bill the early-termination amounts and wind down the subscription ─────
+    // Agreement terms: ETF = one month's management fee, plus the term-discount
+    // clawback. Creates invoice items, collects them on a standalone auto-charge
+    // invoice against the client's saved payment method, and sets the
+    // subscription to cancel at period end (the 30-day notice period).
+    if (action === "charge-etf") {
+      const { customerId, subscriptionId, clientName } = body;
+      const etfFee = Number(body.etfFee) || 0;
+      const clawback = Number(body.clawback) || 0;
+      if (!customerId) return json({ ok: false, error: "No billing set up for this client." }, 400);
+      if (!(etfFee + clawback > 0)) return json({ ok: false, error: "Nothing to bill." }, 400);
+
+      if (etfFee > 0) {
+        await stripe("invoiceitems", {
+          body: { customer: customerId, amount: dollars(etfFee), currency: "usd",
+            description: `Early termination fee — one month's management fee (Agreement, Termination section)` },
+        });
+      }
+      if (clawback > 0) {
+        await stripe("invoiceitems", {
+          body: { customer: customerId, amount: dollars(clawback), currency: "usd",
+            description: `Term-discount clawback — months billed at discounted rate recalculated at the Standard Rate (Agreement, Termination section)` },
+        });
+      }
+      // Standalone invoice pulls in all pending invoice items for the customer.
+      const inv = await stripe("invoices", {
+        body: { customer: customerId, collection_method: "charge_automatically", auto_advance: true,
+          description: `BoldLine Media — early termination charges${clientName ? " for " + clientName : ""}` },
+      });
+      // Try to charge it now; if the payment method declines, Stripe keeps retrying (dunning).
+      let paid = false, hostedUrl = inv.hosted_invoice_url || null;
+      try {
+        const done = await stripe(`invoices/${encodeURIComponent(inv.id)}/pay`);
+        paid = done.status === "paid";
+        hostedUrl = done.hosted_invoice_url || hostedUrl;
+      } catch { /* left open — auto_advance keeps collecting */ }
+
+      // Wind down the recurring subscription at the end of the current period.
+      if (subscriptionId) {
+        try {
+          await stripe(`subscriptions/${encodeURIComponent(subscriptionId)}`, {
+            body: { cancel_at_period_end: true },
+          });
+        } catch { /* subscription may already be gone — non-fatal */ }
+      }
+      return json({ ok: true, invoiceId: inv.id, invoiceUrl: hostedUrl, paid });
     }
 
     // ── Billing Portal session (update card/bank, view invoices) ──────────────
