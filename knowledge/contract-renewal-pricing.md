@@ -53,11 +53,17 @@ are trivial to re-tune: edit the one `TERM_RATE` object.
   recurring line item **in place** (passes `items:[{id, price_data:{…}}]` to the subscription
   update endpoint) to the new monthly. `proration_behavior:"none"` → new rate applies from the
   **next invoice**, no mid-cycle proration surprise. Owner-authed (same Supabase-JWT pattern).
-- **GOTCHA (caught in the 2026-07-15 test-mode run):** subscription updates REJECT inline
+- **GOTCHA 1 (caught in the 2026-07-15 test-mode run):** subscription updates REJECT inline
   `price_data[product_data]` — that's Checkout-only. Error: "Received unknown parameter:
   items[0][price_data][product_data]. Did you mean product?". Fix: `price_data.product` must be
   the **existing product id** off the current line item (`item.price.product`), creating a
   product first only if missing. Checkout (`create-checkout`) legitimately keeps `product_data`.
+- **GOTCHA 2 (same test run, next attempt):** that existing product can be **inactive** —
+  products auto-created by Checkout's inline `price_data` are single-use-ish and get archived;
+  Stripe then errors "The product prod_… is marked as inactive, and thus no new subscriptions
+  can be create[d] to any plans of this product". Fix: GET the product first; if `active:false`,
+  POST `{active:true}` to reactivate; if deleted/unreachable/reactivation fails, create a fresh
+  product. The update-subscription action now does this verify→reactivate→fallback dance.
 - `handleRenew` only calls it when `client.stripeSubscriptionId` && `billingStatus==="active"`
   && the rate actually changed. On success the renewal panel shows "Stripe subscription updated
   — now auto-charging $X/mo"; on failure it renews the contract anyway and tells the owner to

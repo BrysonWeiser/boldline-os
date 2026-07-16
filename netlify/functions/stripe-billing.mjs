@@ -281,9 +281,28 @@ export default async (req) => {
 
       // Subscription updates don't accept inline product_data (that's Checkout-only) —
       // price_data here must reference an existing product id. Reuse the product
-      // already on the line item; create one only if it's somehow missing.
+      // already on the line item, BUT products auto-created by Checkout's inline
+      // price_data can be archived (inactive) and Stripe refuses new prices on them
+      // ("The product ... is marked as inactive"). So verify it: reactivate if
+      // inactive, and fall back to creating a fresh product if that's not possible.
       let productId =
         item.price && (typeof item.price.product === "string" ? item.price.product : item.price.product && item.price.product.id);
+      if (productId) {
+        try {
+          const prod = await stripe(`products/${encodeURIComponent(productId)}`, { method: "GET" });
+          if (prod.deleted) {
+            productId = "";
+          } else if (prod.active === false) {
+            try {
+              await stripe(`products/${encodeURIComponent(productId)}`, { body: { active: true } });
+            } catch {
+              productId = ""; // can't reactivate -> create a fresh product below
+            }
+          }
+        } catch {
+          productId = ""; // not retrievable in this mode -> create fresh
+        }
+      }
       if (!productId) {
         const prod = await stripe("products", {
           body: { name: `BoldLine Media — ${packageName || "Management"} (monthly management fee)` },
