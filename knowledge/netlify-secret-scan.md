@@ -34,8 +34,13 @@ Redeploy. Example:
 `SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL"`.
 (`SECRETS_SCAN_OMIT_PATHS` exists too but excluding a whole file is too broad — prefer key-based.)
 
-**Fix — a GENUINE secret committed:** do NOT omit it. Remove the value from the file (reference
-it via `process.env.X` only), rotate the key if it was ever pushed. Our real secrets (Stripe,
+**Fix — a GENUINE secret/identifier committed:** do NOT omit it — REDACT it. Replace the value in
+the file with the env-var name (e.g. "its value is `DOCUSIGN_INTEGRATION_KEY` in Netlify"). Hit
+2026-07-15: the `DOCUSIGN_INTEGRATION_KEY` GUID and the DocuSign production account # had leaked
+into a KB doc (`docusign-integration.md` line 21) while documenting go-live — redacted both, kept
+them OUT of `OMIT_KEYS` (omitting a credential would disable protection if it ever leaked again).
+Note: the scanner reads the working tree at build time, not git history, so redacting in the
+current commit is enough to pass; a low-risk client-id GUID in history doesn't require a rewrite. Our real secrets (Stripe,
 Supabase service role, Twilio auth, Google Ads, Resend, DocuSign private key) are NOT committed —
 keep it that way. The front-end Supabase **publishable** key in index.html is public-by-design
 (RLS-protected) and is fine to commit; it only needs omitting IF an env var is created holding it.
