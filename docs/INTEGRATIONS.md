@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 44 task-keyed entries under `knowledge/`. They surface automatically via the
+> 45 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**44 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**45 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -30,6 +30,12 @@
 - **[business-constraint-ad-spend](../knowledge/business-constraint-ad-spend.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   HARD RULE — the client always owns and is billed for their own ad account; BoldLine never fronts, holds, or is financially exposed for client ad spend, and only ever holds manager-level access. Stripe (not started) will bill BoldLine's service fee ONLY, never ad spend.  
   <sub>*task:* make any billing, ad-account, Stripe, or Meta decision without violating the ad-spend ownership rule &nbsp;|&nbsp; *keywords:* ad-spend, MCC, manager-access, stripe, service-fee, client-owns-account</sub>
+
+## Deploy
+
+- **[netlify-secret-scan](../knowledge/netlify-secret-scan.md)** &mdash; &#9989; verified &middot; 2026-07-15  
+  Netlify's secret scanner FAILS the build if the VALUE of ANY Netlify env var (secret OR not — an email, phone, base URL, account ID) appears in any committed file inside the publish dir (publish=".", so the whole repo). Fix for genuinely non-secret values = add their KEY to SECRETS_SCAN_OMIT_KEYS in netlify.toml (comma-separated). NEVER omit a real secret — remove its value from the file instead. Currently omitted: DOCUSIGN_BASE_PATH, OWNER_EMAIL, REPORTS_FROM_EMAIL.  
+  <sub>*task:* fix a Netlify build that failed with "Secrets scanning found N instance(s) of secrets in build &nbsp;|&nbsp; *keywords:* SECRETS_SCAN_OMIT_KEYS, SECRETS_SCAN_OMIT_PATHS, secret scanning, secrets scan, netlify.toml, build failed secret, OWNER_EMAIL, REPORTS_FROM_EMAIL, DOCUSIGN_BASE_PATH</sub>
 
 ## Domain/DNS
 
