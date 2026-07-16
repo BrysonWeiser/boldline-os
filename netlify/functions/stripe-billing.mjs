@@ -360,6 +360,30 @@ export default async (req) => {
             description: `Term-discount clawback — months billed at discounted rate recalculated at the Standard Rate (Agreement, Termination section)` },
         });
       }
+      // Resolve a payment method for the standalone invoice. GOTCHA (2026-07-16
+      // test): Checkout attaches the card to the SUBSCRIPTION, not as the
+      // customer's default — a standalone invoice finds nothing and sits in
+      // "Retrying". Order: subscription's card -> customer default -> first card.
+      let pm = null;
+      if (subscriptionId) {
+        try {
+          const sub = await stripe(`subscriptions/${encodeURIComponent(subscriptionId)}`, { method: "GET" });
+          pm = sub.default_payment_method || null;
+        } catch { /* fall through */ }
+      }
+      if (!pm) {
+        try {
+          const cust = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
+          pm = (cust.invoice_settings && cust.invoice_settings.default_payment_method) || null;
+        } catch { /* fall through */ }
+      }
+      if (!pm) {
+        try {
+          const pms = await stripe(`payment_methods?customer=${encodeURIComponent(customerId)}&type=card&limit=1`, { method: "GET" });
+          pm = (pms.data && pms.data[0] && pms.data[0].id) || null;
+        } catch { /* fall through */ }
+      }
+
       // Standalone invoice that sweeps in the pending invoice items just created.
       // GOTCHA: on current Stripe API versions pending_invoice_items_behavior
       // defaults to "exclude" — without it the invoice is created EMPTY ($0),
@@ -368,6 +392,7 @@ export default async (req) => {
       const inv = await stripe("invoices", {
         body: { customer: customerId, collection_method: "charge_automatically", auto_advance: true,
           pending_invoice_items_behavior: "include",
+          ...(pm ? { default_payment_method: pm } : {}),
           description: `BoldLine Media — early termination charges${clientName ? " for " + clientName : ""}` },
       });
       if (!inv.amount_due || inv.amount_due <= 0) {
