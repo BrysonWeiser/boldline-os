@@ -3,10 +3,14 @@
   functions = "netlify/functions"
 
 [build.environment]
-  # DOCUSIGN_BASE_PATH is a public DocuSign API hostname (not a secret), used as a
-  # code default in docusign-send.mjs. Exclude it from secret scanning so the build
-  # doesn't fail on a non-sensitive value. All genuinely-secret keys stay scanned.
-  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH"
+  # These keys hold NON-SECRET values that legitimately appear in committed files, so
+  # the secret scanner must skip them (their presence in code is intentional, not a leak):
+  #   • DOCUSIGN_BASE_PATH   — public DocuSign API hostname, a code default in docusign-send.mjs
+  #   • OWNER_EMAIL          — Bryson's email, printed on the service agreement (makeContractHTML)
+  #   • REPORTS_FROM_EMAIL   — the from-address shown in owner-facing report/email content
+  # Every genuinely-secret key (Stripe, Twilio auth, Supabase service role, Google Ads,
+  # Resend, etc.) stays fully scanned — none of their values are ever committed.
+  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL"
 
 [functions."weekly-report"]
   schedule = "0 15 * * 1"
