@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 45 task-keyed entries under `knowledge/`. They surface automatically via the
+> 46 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**45 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**46 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -162,6 +162,9 @@
 - **[os-screenshot-harness](../knowledge/os-screenshot-harness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   A committed render harness (tools/os-screenshot.js) that boots the REAL index.html in headless Chromium with a stubbed Supabase and captures desktop + mobile PNGs, so I can eyeball layout/overflow/popup-position myself instead of asking Bryson for a screenshot for the obvious stuff. Known limit — no browser chrome, so vh/dvh mobile bugs won't reproduce.  
   <sub>*task:* self-QA the OS/portal layout, screenshot the real app headless, check a UI change before shipping &nbsp;|&nbsp; *keywords:* screenshot, render, headless, playwright, chromium, self-qa, harness, visual, layout, mobile, desktop, os-screenshot, tools</sub>
+- **[service-agreement](../knowledge/service-agreement.md)** &mdash; &#9989; verified &middot; 2026-07-16  
+  Full lawyer-style Advertising Services Agreement — BUILT 2026-07-16, replaces the old one-page stub. One data-driven template (makeContractHTML in index.html) serves every package — fees, term, features, per-lead fee (only when the niche has one), and ROAS bonus (only on ecom packages) all pull from client+package data, with section numbers computed so conditional sections never break the numbering. AZ law + AAA arbitration (remote-friendly) for national/international use. Both-sides exits: 30-day notice; client early exit = 1 month ETF + term-discount clawback; agency early exit = pro-rated refund, no ETF. Strong protections: no-results guarantee, platform-dependency shield, ad-spend liability firewall (hard constraint), liability cap (3 months fees), mutual indemnities, TCPA/consent responsibility on client, chargeback clause, e-sign validity. DRAFT — needs one-hour AZ attorney review before first real signature. /BL_SIGN_HERE/ DocuSign anchor preserved.  
+  <sub>*task:* change the client service agreement / contract template, its clauses, or how it adapts per package &nbsp;|&nbsp; *keywords:* makeContractHTML, service agreement, contract template, early termination fee, ETF, holdover, arbitration, no guarantee, indemnification, liability cap, BL_SIGN_HERE, portfolio rights, per-lead, qualified lead, ROAS bonus</sub>
 - **[stripe-billing](../knowledge/stripe-billing.md)** &mdash; &#9989; verified &middot; 2026-07-14  
   Recurring management-fee billing via Stripe — BUILT + LIVE (2026-07-14). Owner clicks "Set Up Recurring Billing" on a client's Contract tab → stripe-billing.mjs creates a subscription-mode Checkout Session (card + ACH) at the package's monthly price + one-time setup fee → client pays once, auto-charges monthly. stripe-webhook.mjs keeps billingStatus in sync. Charges the SERVICE FEE ONLY, never ad spend. Hand-rolled Stripe REST (no SDK). Test-mode E2E passed then flipped to LIVE keys + live webhook; hardened against stale/mode-mismatched customer ids. Ready to bill real clients.  
   <sub>*task:* set up, debug, or extend Stripe billing (recurring management-fee subscription) in the OS &nbsp;|&nbsp; *keywords:* stripe-billing.mjs, stripe-webhook.mjs, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, checkout-session, us_bank_account, billingStatus, BillingCard, subscription</sub>
