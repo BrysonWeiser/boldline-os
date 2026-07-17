@@ -4,7 +4,7 @@ topic: OS app
 task: change how billing enforcement works — fee waivers/discounts, late-payment tracking, late interest, or early-termination billing
 keywords: [billing-watch.mjs, charge-etf, billingLate, billingSetup, waive setup fee, discount, late interest, 1.5%, past_due, early termination fee, ETF, invoice item, getAlerts billing, Adjust Fees]
 status: verified
-summary: Contract-enforcement automation — BUILT 2026-07-16. (1) Fee adjust/waive UI on the BillingCard (billingMonthly/billingSetup overrides flow into contract doc + checkout; setup $0 = "Waived" on the contract). (2) getAlerts now raises red/yellow billing alerts (past_due, interest accruing, checkout unpaid, ETF owed). (3) billing-watch.mjs (daily 14:30 UTC Netlify schedule) syncs unpaid invoices from Stripe, stores billingLate{days,amountDue,interest} on the client, accrues 1.5%/mo interest pro-rated daily AFTER a 10-day grace as ONE pending Stripe invoice item (auto-rides the next monthly invoice), and emails OWNER_EMAIL on transitions (newly late / interest started / recovered). (4) Early-termination panel on the Contract tab auto-computes ETF = 1 month fee + term-discount clawback and can bill it via new stripe-billing action charge-etf (standalone auto-charge invoice + cancel_at_period_end). No new env vars needed. NOT yet live-tested against real Stripe.
+summary: Contract-enforcement automation — BUILT 2026-07-16. (1) Fee adjust/waive UI on the BillingCard (billingMonthly/billingSetup overrides flow into contract doc + checkout; setup $0 = "Waived" on the contract). (2) getAlerts now raises red/yellow billing alerts (past_due, interest accruing, checkout unpaid, ETF owed). (3) billing-watch.mjs (daily 14:30 UTC Netlify schedule) syncs unpaid invoices from Stripe, stores billingLate{days,amountDue,interest} on the client, accrues 1.5%/mo interest pro-rated daily AFTER a 10-day grace as ONE pending Stripe invoice item (auto-rides the next monthly invoice), and emails OWNER_EMAIL on transitions (newly late / interest started / recovered). (4) Early-termination panel on the Contract tab auto-computes ETF = 1 month fee + term-discount clawback and can bill it via new stripe-billing action charge-etf (standalone auto-charge invoice + cancel_at_period_end). No new env vars needed. TEST-MODE E2E VERIFIED 2026-07-16 (waiver + discount + checkout-skip + ETF auto-charge all green on the third round; late-watch Part B confirmed next morning).
 verified: 2026-07-16
 ---
 
@@ -64,8 +64,15 @@ invoice default, so a standalone invoice has no card to charge. Fix: charge-etf 
 (subscription's card → customer invoice default → first saved card) and passes it as the
 invoice's `default_payment_method` before /pay.
 
-**NOT yet live-tested against Stripe** (charge-etf + the invoice-item accrual). Test recipe =
-same sk_test swap as contract-renewal-pricing: dummy client → pay 4242 → (a) record ETF w/ bill →
-check standalone invoice paid in Stripe; (b) simulate late: create an open invoice with a past
-due_date via Stripe dashboard → run billing-watch manually (curl the function URL) → expect
-billingLate on the client + owner email + pending invoice item after day 10.
+**TEST-MODE E2E (2026-07-16, Bryson):** waiver/discount/checkout-skip verified on dummy clients;
+ETF path green on round 3 ("ETF invoice charged and PAID", $600 invoice Paid in Stripe, no
+leftover pending items) after gotchas 1+2 above were caught by rounds 1–2. Late-payment sim
+(open $100 send-invoice + BILLING_GRACE_DAYS=0) checked the following morning. Test recipe for
+reruns: sk_test swap → dummy client → Adjust Fees (waive+discount) → checkout 4242 → mark
+signed/active → ETF bill; late sim = open send-invoice due today + BILLING_GRACE_DAYS=0 →
+next 14:30 UTC run → owner email + red alert + pending interest item.
+
+**Copy button fix (2026-07-16):** the Contract tab's "Copy" used to copy the contract's raw
+HTML (useless to Bryson — pasted as a wall of code, mistaken for a broken link). Now "Copy
+Client Link" copies the client's portal URL (/portal?token=…) where they can read the contract.
+The DocuSign SIGNING link is never in the OS — DocuSign emails it to the client directly.
