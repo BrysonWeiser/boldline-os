@@ -383,6 +383,28 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .lead-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .form-success{display:none;max-width:440px;margin:26px auto 0;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:12px;padding:22px 24px;text-align:center;font-size:14.5px;color:var(--ink);line-height:1.6}
 .form-success strong{color:var(--gold)}
+/* ---- Step-by-step contact wizard (replaces the visible single form; the
+   static form stays hidden so Netlify build-time detection + the leads
+   pipeline are untouched) ---- */
+.lead-wiz{max-width:440px;margin:26px auto 0;text-align:left}
+.wiz-progress{display:flex;gap:7px;justify-content:center;margin-bottom:20px}
+.wdot{width:8px;height:8px;border-radius:50%;background:var(--line);transition:background .25s}
+.wdot.on{background:var(--gold)}
+.wiz-step{animation:wizIn .3s ease}
+@keyframes wizIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.lead-wiz .q-label{font-size:15px;margin-bottom:14px;color:var(--ink)}
+.lead-wiz .opts{gap:10px}
+.lead-wiz .opts button{font-size:13.5px;padding:11px 18px}
+.lead-wiz input{width:100%;padding:12px 14px;font-size:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:inherit;transition:border-color .2s ease;margin-bottom:11px}
+.lead-wiz input:focus{outline:none;border-color:var(--gold-line)}
+.wiz-cta{width:100%;margin-top:4px;border:none;cursor:pointer;font-family:var(--sans)}
+.wiz-nav{margin-top:14px;min-height:20px}
+.wiz-back{background:none;border:none;color:var(--faint);font-size:12.5px;font-family:var(--sans);cursor:pointer;padding:0}
+.wiz-back:hover{color:var(--muted)}
+.wiz-note{margin-top:16px;text-align:center;font-size:12px;color:var(--faint)}
+.wiz-note a{color:var(--muted)}
+.wiz-err{display:none;margin-top:8px;font-size:12.5px;color:#E5A65A}
+
 
 /* ---- Recommender email capture ---- */
 .rec-email{margin:18px 0 4px;text-align:left}
@@ -1156,7 +1178,47 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
     <div class="contact-or">or send a message</div>
 
-    <form class="lead-form" id="leadForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+    <div class="lead-wiz" id="leadWiz">
+      <div class="wiz-progress"><span class="wdot on"></span><span class="wdot"></span><span class="wdot"></span><span class="wdot"></span></div>
+      <div class="wiz-step" data-step="0">
+        <div class="q-label">What do you need help with?</div>
+        <div class="opts" data-key="platform">
+          <button type="button" data-val="Google Ads">Google Ads</button>
+          <button type="button" data-val="Meta Ads">Facebook / Instagram</button>
+          <button type="button" data-val="Google + Meta">Both</button>
+          <button type="button" data-val="Not sure yet">Not sure yet</button>
+        </div>
+      </div>
+      <div class="wiz-step" data-step="1" hidden>
+        <div class="q-label">Rough monthly ad budget?</div>
+        <div class="opts" data-key="budget">
+          <button type="button" data-val="Under $1,000">Under $1,000</button>
+          <button type="button" data-val="$1,000-$3,000">$1,000&ndash;$3,000</button>
+          <button type="button" data-val="$3,000-$8,000">$3,000&ndash;$8,000</button>
+          <button type="button" data-val="$8,000+">$8,000+</button>
+          <button type="button" data-val="Not sure yet">Not sure yet</button>
+        </div>
+      </div>
+      <div class="wiz-step" data-step="2" hidden>
+        <div class="q-label">Tell us about your business</div>
+        <input id="wf-business" type="text" placeholder="Business name" autocomplete="organization">
+        <input id="wf-website" type="text" placeholder="Website (optional)" autocomplete="url">
+        <button class="btn wiz-cta" id="wizNext2" type="button">Continue</button>
+        <div class="wiz-err" id="wizErr2">Please add your business name.</div>
+      </div>
+      <div class="wiz-step" data-step="3" hidden>
+        <div class="q-label">Where should we send your plan?</div>
+        <input id="wf-name" type="text" placeholder="Your name" autocomplete="name">
+        <input id="wf-email" type="email" placeholder="Email" autocomplete="email">
+        <input id="wf-phone" type="tel" placeholder="Phone (optional)" autocomplete="tel">
+        <button class="btn wiz-cta" id="wizSend" type="button">Send &rarr;</button>
+        <div class="wiz-err" id="wizErr3">Please add your name and a valid email.</div>
+      </div>
+      <div class="wiz-nav"><button class="wiz-back" id="wizBack" type="button" hidden>&lsaquo; Back</button></div>
+      <div class="wiz-note">Prefer email? <a href="mailto:theboldlinemedia@gmail.com">theboldlinemedia@gmail.com</a> &middot; No spam, no obligation.</div>
+    </div>
+
+    <form class="lead-form" id="leadForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
       <input type="hidden" name="form-name" value="contact">
       <p class="lead-hp"><label>Leave this empty: <input name="bot-field"></label></p>
       <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" required></div>
@@ -1436,6 +1498,88 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         if(btn){ btn.disabled = false; btn.textContent = "Send Message"; }
         alert("Something went wrong. Please email theboldlinemedia@gmail.com.");
       });
+    });
+  }
+
+  // ── Step-by-step contact wizard: submits to the SAME Netlify "contact" form
+  // (fields packed into name/business/email/message) so notifications + the
+  // OS leads pipeline keep working with zero backend change.
+  var wiz = document.getElementById('leadWiz');
+  if(wiz){
+    var answers = { platform:'', budget:'' };
+    var steps = [].slice.call(wiz.querySelectorAll('.wiz-step'));
+    var dots  = [].slice.call(wiz.querySelectorAll('.wdot'));
+    var wback = document.getElementById('wizBack');
+    var cur = 0;
+    function wshow(i){
+      cur = i;
+      steps.forEach(function(st,j){ st.hidden = j!==i; });
+      dots.forEach(function(d,j){ d.classList.toggle('on', j<=i); });
+      wback.hidden = i===0;
+      var inp = steps[i].querySelector('input');
+      if(inp) setTimeout(function(){ try{ inp.focus({preventScroll:true}); }catch(e){} }, 60);
+    }
+    [].slice.call(wiz.querySelectorAll('.opts')).forEach(function(grp){
+      var key = grp.getAttribute('data-key');
+      [].slice.call(grp.querySelectorAll('button')).forEach(function(b){
+        b.addEventListener('click', function(){
+          [].slice.call(grp.querySelectorAll('button')).forEach(function(x){ x.classList.remove('sel'); });
+          b.classList.add('sel');
+          answers[key] = b.getAttribute('data-val');
+          setTimeout(function(){ wshow(Math.min(cur+1, steps.length-1)); }, 160);
+        });
+      });
+    });
+    wback.addEventListener('click', function(){ if(cur>0) wshow(cur-1); });
+    function step2ok(){
+      var biz = document.getElementById('wf-business').value.trim();
+      var err = document.getElementById('wizErr2');
+      if(!biz){ err.style.display='block'; return false; }
+      err.style.display='none'; return true;
+    }
+    document.getElementById('wizNext2').addEventListener('click', function(){ if(step2ok()) wshow(3); });
+    function wizSubmit(){
+      var nm = document.getElementById('wf-name').value.trim();
+      var em = document.getElementById('wf-email').value.trim();
+      var err = document.getElementById('wizErr3');
+      if(!nm || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ err.style.display='block'; return; }
+      err.style.display='none';
+      var btn = document.getElementById('wizSend');
+      btn.disabled = true; btn.textContent = 'Sending\u2026';
+      var msgParts = [
+        'Platform: ' + (answers.platform || '-'),
+        'Ad budget: ' + (answers.budget || '-')
+      ];
+      var site = document.getElementById('wf-website').value.trim();
+      var ph = document.getElementById('wf-phone').value.trim();
+      if(site) msgParts.push('Website: ' + site);
+      if(ph) msgParts.push('Phone: ' + ph);
+      msgParts.push('(via step-by-step contact)');
+      var data = {
+        'form-name':'contact', 'bot-field':'',
+        name: nm, email: em,
+        business: document.getElementById('wf-business').value.trim(),
+        message: msgParts.join('\n')
+      };
+      fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: encode(data) })
+        .then(function(r){
+          if(!r.ok) throw 0;
+          wiz.style.display = 'none';
+          var orDiv = document.querySelector('.contact-or');
+          if(orDiv) orDiv.style.display = 'none';
+          if(leadOk) leadOk.style.display = 'block';
+        })
+        .catch(function(){
+          btn.disabled = false; btn.textContent = 'Send \u2192';
+          alert('Something went wrong. Please email theboldlinemedia@gmail.com.');
+        });
+    }
+    document.getElementById('wizSend').addEventListener('click', wizSubmit);
+    wiz.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      if(cur===2){ if(step2ok()) wshow(3); }
+      else if(cur===3){ wizSubmit(); }
     });
   }
 
