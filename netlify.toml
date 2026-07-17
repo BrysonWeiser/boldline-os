@@ -28,8 +28,10 @@
 # Agreement's 1.5%/mo late interest after day 10 (as a pending invoice item on
 # the client's next bill), and emails the owner on late/interest/recovered
 # transitions. Management-fee side only — never ad spend.
+# TEMP (2026-07-17): every 20 min while the Part B late-payment test completes —
+# REVERT to "30 14 * * *" (daily) right after the test verifies.
 [functions."billing-watch"]
-  schedule = "30 14 * * *"
+  schedule = "*/20 * * * *"
 
 # Every 15 min: publishes scheduled drafts at their exact time + keeps >=1
 # scheduled post in the review pipeline. Nearly every run is a cheap no-op.
