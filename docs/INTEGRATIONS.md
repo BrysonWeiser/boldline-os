@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 47 task-keyed entries under `knowledge/`. They surface automatically via the
+> 48 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**47 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**48 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -165,6 +165,9 @@
 - **[os-screenshot-harness](../knowledge/os-screenshot-harness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   A committed render harness (tools/os-screenshot.js) that boots the REAL index.html in headless Chromium with a stubbed Supabase and captures desktop + mobile PNGs, so I can eyeball layout/overflow/popup-position myself instead of asking Bryson for a screenshot for the obvious stuff. Known limit — no browser chrome, so vh/dvh mobile bugs won't reproduce.  
   <sub>*task:* self-QA the OS/portal layout, screenshot the real app headless, check a UI change before shipping &nbsp;|&nbsp; *keywords:* screenshot, render, headless, playwright, chromium, self-qa, harness, visual, layout, mobile, desktop, os-screenshot, tools</sub>
+- **[responsive-standards](../knowledge/responsive-standards.md)** &mdash; &#9989; verified &middot; 2026-07-17  
+  STANDING RULE (Bryson 2026-07-17, in CLAUDE.md): every surface — OS, portal, marketing site, future — must look intentional at phone ~390px, tablet ~768px, laptop ~1280px, desktop ~1600px+. No horizontal scroll, no cramped narrow column on big screens, no giant empty gutters, no cut-off content; sibling cards share widths. Verify every UI change headlessly at all four widths before merging (Playwright recipe below). Coverage map of what each surface already does + the breakout-width gotcha (use negative-margin centering, NOT left+transform — that creates a phantom horizontal scrollbar).  
+  <sub>*task:* build or review ANY UI change — the responsive breakpoints it must pass and how to verify headlessly &nbsp;|&nbsp; *keywords:* responsive, breakpoints, mobile, tablet, laptop, desktop, viewport, horizontal scroll, media query, cwide, 390, 768, 1280, 1600, playwright verify</sub>
 - **[service-agreement](../knowledge/service-agreement.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Full lawyer-style Advertising Services Agreement — BUILT 2026-07-16, replaces the old one-page stub. One data-driven template (makeContractHTML in index.html) serves every package — fees, term, features, per-lead fee (only when the niche has one), and ROAS bonus (only on ecom packages) all pull from client+package data, with section numbers computed so conditional sections never break the numbering. AZ law + AAA arbitration (remote-friendly) for national/international use. Both-sides exits: 30-day notice; client early exit = 1 month ETF + term-discount clawback; agency early exit = pro-rated refund, no ETF. Strong protections: no-results guarantee, platform-dependency shield, ad-spend liability firewall (hard constraint), liability cap (3 months fees), mutual indemnities, TCPA/consent responsibility on client, chargeback clause, e-sign validity. DRAFT — needs one-hour AZ attorney review before first real signature. /BL_SIGN_HERE/ DocuSign anchor preserved.  
   <sub>*task:* change the client service agreement / contract template, its clauses, or how it adapts per package &nbsp;|&nbsp; *keywords:* makeContractHTML, service agreement, contract template, early termination fee, ETF, holdover, arbitration, no guarantee, indemnification, liability cap, BL_SIGN_HERE, portfolio rights, per-lead, qualified lead, ROAS bonus</sub>
