@@ -57,6 +57,15 @@ as its agent (Twilio lead-followup!); mutual liability cap = 3 months' fees, no 
 own IP infringement + willful misconduct; independent contractors; 12-month non-solicit;
 force majeure; e-sign validity (E-SIGN + AZ ETA); notices by email.
 
+**Client portal access (2026-07-16):** the portal's Contract tab now shows the FULL agreement
+(not just a status card) — embedded iframe + "Download / Print a Copy" button, in BOTH portal
+copies (portal.js and index.html makePortalHTML). Server side renders via
+`netlify/lib/contract-shared.cjs` — a CJS port of makeContractHTML (LOGO is a param: portal
+passes /logo.png). **If the agreement template changes in index.html, re-sync contract-shared.cjs**
+(extraction recipe: grab ALL_FEATURES→PACKAGES_DB block, PER_LEAD, monthsLabel, makeContractHTML
+from index.html; swap the LOGO global for a param). srcdoc escaping = only & and " need escaping.
+Browser-verified via headless Chromium (iframe renders agreement, print button wired).
+
 **NOT legal advice — before first real client:** (1) one-hour review by an AZ attorney;
 (2) confirm the LLC's EXACT registered legal name (template says "BoldLine Media LLC");
 (3) consider swapping brysonaweiser@gmail.com → bryson@boldlinemedia.com when custom email
