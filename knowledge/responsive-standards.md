@@ -43,6 +43,15 @@ viewports and assert per page:
 cards match, and screenshot the desktop + phone for eyeball checks. See the 2026-07-17 session
 for a working loop (portal contract tab test).
 
+**FULL AUDIT PASSED 2026-07-17** (existing surfaces, all four breakpoints, headless):
+- OS app — home, client overview/package/contract/reports tabs, leads screen: no horizontal
+  scroll at 390/768/1280/1600, no page errors. (Audited via the os-screenshot harness's
+  supabase stub + a custom 4-viewport loop — `audit-os.js` recipe: extract the harness's
+  CLIENTS/LEADS/STUB block with `new Function(seg+";return{...}")()`, swap CDN scripts for
+  local react/react-dom/babel, serve over localhost, loop viewports.)
+- Marketing site — home, privacy, terms, 404: clean at all four widths.
+- Client portal — all tabs incl. the wide Contract tab: verified same day.
+
 **When something SHOULD stay narrow:** forms and reading-width text can cap ~600–700px on
 desktop — that's intentional typography, not "cramped" — but center it and balance the page
 (e.g. the OS caps client detail at 1000px). The rule bans *accidental* narrowness, not
