@@ -40,8 +40,14 @@ automated.
   (`.claude/settings.json`) forces a KB flush before context is ever compacted/lost, and
   a **UserPromptSubmit hook** (`knowledge/recall.cjs`) surfaces relevant entries at the
   start of each task so we don't rediscover what we already solved.
-- **Always prompt the Netlify env-var step** at the end of each platform's
-  credential setup — never skip it.
+- **Responsive at every breakpoint — standing rule for ALL surfaces (Bryson, 2026-07-17).**
+  Everything we ship — OS app, client portal, marketing site, emails where possible, and any
+  future surface — must look intentional at **phone (~390px), tablet (~768px), laptop
+  (~1280px), and desktop (~1600px+)**: no horizontal scrolling, no content crammed into a
+  narrow column on big screens, no oversized empty gutters, nothing cut off or "missing".
+  Before merging any UI change, verify it headlessly at those four widths (Playwright recipe
+  + current coverage map in KB `responsive-standards`). Cards/sections that share a container
+  should share a width — no mixed-width stacks.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
