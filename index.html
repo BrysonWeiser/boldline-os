@@ -2414,7 +2414,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       </Card>}
       <div style={S.row7}>
         <button onClick={downloadPDF} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>↓ Download PDF</button>
-        <button onClick={()=>{navigator.clipboard.writeText(html);setCopied(true);setTimeout(()=>setCopied(false),2000);}} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?"#34D399":C.textDim,cursor:"pointer"}}>{copied?"Copied!":"Copy"}</button>
+        <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/portal?token=${client.portalToken}`);setCopied(true);setTimeout(()=>setCopied(false),2000);}} title="Copies the client's portal link — they can read this contract on their Contract tab. (The DocuSign signing link is emailed to them directly by DocuSign.)" style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?"#34D399":C.textDim,cursor:"pointer"}}>{copied?"Link Copied!":"Copy Client Link"}</button>
       </div>
       <BillingCard client={client} pkg={pkg} onUpdate={onUpdate}/>
       <Card style={{padding:0,overflow:"hidden"}}>
