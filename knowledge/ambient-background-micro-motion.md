@@ -95,6 +95,33 @@ durations; constellation density `W*H/26000` (cap 80) + link distance 130 + line
 grain `opacity:.05`; reveal distance/duration in `.sr`; stagger in the enhancer; parallax
 factors `[.06,-.045,.09]`.
 
+**HERO INTERACTIVE UPGRADES (2026-07-18, Bryson asked to make the hero more alive; he'd floated
+an intro splash + background audio, both talked down — a splash gate tanks LCP and audio is a B2B
+conversion-killer, and browsers block autoplay anyway).** Three additive, reduced-motion-safe
+pieces in `marketing-site/index.html`:
+1. **First-paint entrance cascade** — `@keyframes heroIn` (opacity+translateY, compositor-only)
+   on `.hero-inner .eyebrow / >p / >.btn / >.hero-pills` at delays 0/.5/.62/.74s, and the
+   existing `.hero h1.pains span` painIn got a +.08s base so the order is eyebrow→headline
+   words→copy→CTA→pills. **JS-gated on `html.js-tabs`** (set pre-paint in `<head>`) so no-JS +
+   crawlers get content instantly; every selector added to the reduced-motion `animation:none`
+   list. Tune: the delay values + heroIn duration.
+2. **Cursor-reactive constellation** — window `pointermove/pointerdown` set `mx,my,mAct` (mAct=1,
+   1.5 on click); `mAct*=.94` decays each drawn frame so the effect fades when the pointer stops.
+   In the point loop, points within `IR` (150 mobile / 210 desktop) get a **positional nudge**
+   toward the cursor (`p.x/y += dx/d * f`, f≈.5–.8·mAct) — velocity is NEVER touched, so the
+   field relaxes back to drift and **never clumps** (the clumping trap if you integrate into
+   vx/vy). After the ambient web draws, brighter gold links (alpha `(1−d/IR)*.2*m`) + a faint
+   node are drawn from the cursor. Tune: `IR`, the `.5/.8` nudge, the `.2` link alpha, `.94`
+   decay. GOTCHA: `.ambient` is `pointer-events:none`, so the canvas can't get mouse events —
+   listen on `window` (works regardless).
+3. **Living hero mockup** — `.float-toast` runs `floatY` (transform) **+ `leadPing`** (box-shadow
+   gold ring pulse — different property, so no transform conflict) every 5.5s; `.ft-ic` scales
+   via `iconPing`; `.fc-bars span:last-child` glows via `barLive` (filter drop-shadow) in sync,
+   restating barGrow in the shorthand with its .75s delay so both apply. All three added to the
+   hero-mockup reduced-motion `animation:none` list (incl. `.float-toast .ft-ic`). Reads as live
+   leads arriving. Tune: the 5.5s period + ring/blur sizes.
+Verified headless 390/768/1280/1600: no overflow, no pageerror, entrance + toast anims active.
+
 **Testing recipe (reuse this):** Playwright suite asserting (1) no pageerror; (2) canvas has
 painted pixels AND the count changes between samples (i.e. actually animating); (3) no `.sr`
 element inside the initial viewport; (4) settle ends at computed opacity '1'; (5) **instant
