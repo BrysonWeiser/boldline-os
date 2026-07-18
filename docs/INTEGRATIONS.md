@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 49 task-keyed entries under `knowledge/`. They surface automatically via the
+> 50 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**49 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**50 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -87,6 +87,9 @@
 - **[glossary-popover](../knowledge/glossary-popover.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Marketing jargon gets a gold dotted underline; hover (desktop) or tap (mobile) opens a plain-English popover. Shared marketing-site/glossary.css + glossary.js (one dict/runtime). Homepage terms are pre-wrapped in markup; blog posts get them via glossary.js autolink() wrapping the first occurrence of each known term.  
   <sub>*task:* work on the plain-English jargon popover glossary on the marketing site or blog &nbsp;|&nbsp; *keywords:* glossary.js, glossary.css, data-term, autolink, article-body, term-span</sub>
+- **[marketing-aesthetic-pass-2](../knowledge/marketing-aesthetic-pass-2.md)** &mdash; &#9989; verified &middot; 2026-07-18  
+  Aesthetic pass 2 — BUILT+VERIFIED 2026-07-18 (Bryson approved all 7 proposals). Timeline stuck-hidden IO fix, gold .sxd section dividers (8), mobile sticky Book-a-Call pill, rotating conic gold ring on the featured package, hero platform marquee (replaced static pills), founder pull-quote glow-up, live lead ticker in the showcase inbox. All additive + reduced-motion-safe; verified headless 390/768/1280/1600 incl. behavioral asserts.  
+  <sub>*task:* change the section dividers, mobile sticky CTA, featured-package ring, platform marquee, founder quote, or lead-feed ticker on the marketing site &nbsp;|&nbsp; *keywords:* sxd, divider, sticky-cta, sticky CTA, marquee, hero-mq, mq-track, mq-set, pkgOrbit, conic-gradient, featured package, most popular ring, founder blockquote, pull quote, lead ticker, inbox-row, tick-in, timeline observer, stuck hidden, rootMargin</sub>
 - **[marketing-site-content-principles](../knowledge/marketing-site-content-principles.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The marketing site pulls content from the OS's real data (PACKAGES_DB, STAGES), shows NO public dollar pricing (CTA/Calendly model), and uses NO testimonials/logos/stats (no real clients yet — honest boutique positioning). Dark+gold tokens, Playfair Display + Inter. Every CTA books a call.  
   <sub>*task:* decide what copy, pricing, proof, and design to put on the marketing site (and where its content comes from) &nbsp;|&nbsp; *keywords:* PACKAGES_DB, STAGES, no-public-pricing, calendly, playfair-display, recommender-quiz</sub>
