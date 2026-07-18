@@ -105,13 +105,25 @@ header.scrolled .nav-inner{background:rgba(8,10,15,.9);border-color:rgba(255,255
 html.js-tabs .hero-inner .eyebrow{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) both}
 html.js-tabs .hero-inner>p{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) both .5s}
 html.js-tabs .hero-inner>.btn{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) both .62s}
-html.js-tabs .hero-inner>.hero-pills{animation:heroIn .8s cubic-bezier(.2,.7,.2,1) both .74s}
+html.js-tabs .hero-inner>.hero-mq{animation:heroIn .8s cubic-bezier(.2,.7,.2,1) both .74s}
 @keyframes heroIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .hero p{font-size:17px;color:var(--muted);max-width:520px;margin:0 auto 38px;line-height:1.7}
 .hero p .hl{color:var(--gold);font-weight:600}
-.hero-pills{display:flex;justify-content:center;flex-wrap:wrap;gap:10px 0;margin-top:38px}
-.hero-pills span{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--faint);padding:0 16px;position:relative}
-.hero-pills span:not(:last-child)::after{content:"";position:absolute;right:0;top:50%;transform:translateY(-50%);width:1px;height:11px;background:var(--line)}
+/* Platform marquee — a slow seamless loop of the service strip (replaces the
+   static pills). Two identical .mq-set copies; the track slides -50% (= one
+   set) per cycle. Edge fade via mask. Reduced-motion: static wrapped pills. */
+.hero-mq{margin:38px auto 0;max-width:620px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent);mask-image:linear-gradient(90deg,transparent,#000 15%,#000 85%,transparent)}
+.mq-track{display:flex;width:max-content;animation:mqSlide 28s linear infinite}
+.mq-set{display:flex;align-items:center;flex-shrink:0}
+.mq-set span{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);padding:0 20px;white-space:nowrap}
+.mq-set i{width:5px;height:5px;flex-shrink:0;transform:rotate(45deg);background:rgba(200,168,75,.4)}
+@keyframes mqSlide{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){
+  .mq-track{animation:none;width:auto}
+  .mq-set{flex-wrap:wrap;justify-content:center;row-gap:8px}
+  .mq-set:last-child,.mq-set i:last-child{display:none}
+  .hero-mq{-webkit-mask-image:none;mask-image:none}
+}
 .btn{display:inline-block;padding:16px 36px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;background:var(--gold);color:#15110A;text-decoration:none;transition:transform .25s,box-shadow .25s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 12px 30px -10px rgba(200,168,75,.5)}
 .btn-ghost{display:inline-block;margin-top:18px;font-size:12px;color:var(--faint);text-decoration:none;letter-spacing:.03em}
@@ -173,7 +185,7 @@ footer nav a:hover{color:var(--gold)}
 .reveal{animation:fadeUp .8s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes shimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
-@media (prefers-reduced-motion:reduce){.reveal,html.js-tabs .tab-panel.active,.hero h1 em,.hero h1.pains span,html.js-tabs .hero-inner .eyebrow,html.js-tabs .hero-inner>p,html.js-tabs .hero-inner>.btn,html.js-tabs .hero-inner>.hero-pills,.hero::before,.modal-overlay,header.nav-in .nav-inner,.nav-mobile.open{animation:none}}
+@media (prefers-reduced-motion:reduce){.reveal,html.js-tabs .tab-panel.active,.hero h1 em,.hero h1.pains span,html.js-tabs .hero-inner .eyebrow,html.js-tabs .hero-inner>p,html.js-tabs .hero-inner>.btn,html.js-tabs .hero-inner>.hero-mq,.hero::before,.modal-overlay,header.nav-in .nav-inner,.nav-mobile.open{animation:none}}
 
 .hdr-cta{display:inline-block;padding:9px 18px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:10px;background:transparent;color:var(--gold);border:1px solid var(--gold-line);text-decoration:none;white-space:nowrap;transition:background .22s ease,color .22s ease,border-color .22s ease,transform .22s ease,box-shadow .22s ease}
 .hdr-cta:hover{background:var(--gold);color:#15110A;border-color:var(--gold);transform:translateY(-1px);box-shadow:0 8px 22px -8px rgba(200,168,75,.5)}
@@ -286,8 +298,8 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .hero{padding:104px 20px 52px}
   .hero h1{font-size:25px;line-height:1.2;margin:14px 0 18px}
   .hero p{font-size:14px;max-width:340px;margin-bottom:28px}
-  .hero-pills{margin-top:26px;gap:7px 0}
-  .hero-pills span{font-size:10px;padding:0 11px}
+  .hero-mq{margin-top:26px}
+  .mq-set span{font-size:10px;padding:0 14px}
   .btn{padding:14px 30px;font-size:12px}
   section{padding:50px 18px}
   .section-head{margin-bottom:26px}
@@ -375,7 +387,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .founder{max-width:660px;margin:0 auto;text-align:center}
 .founder-avatar{width:80px;height:80px;border-radius:50%;margin:0 auto 24px;background:linear-gradient(145deg,#1a1d27,#0d0f16);border:1px solid var(--gold-line);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:30px;font-weight:700;color:var(--gold);overflow:hidden}
 .founder-avatar img{width:100%;height:100%;object-fit:cover}
-.founder blockquote{font-family:var(--serif);font-weight:500;font-size:22px;line-height:1.5;color:var(--ink);margin-bottom:22px}
+.founder blockquote{font-family:var(--serif);font-weight:500;font-size:23px;line-height:1.5;color:var(--ink);margin-bottom:22px}
 .founder .sig{font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--gold);text-transform:uppercase}
 
 /* ---- Lead form ---- */
@@ -538,6 +550,47 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   .browser,.float-chart,.float-toast,.float-toast .ft-ic,.fc-bars span{animation:none}
   .tstep,html.js-tabs .tstep,.tnode{opacity:1;transform:none;transition:none}
   .tl-rail::after{height:100%;transition:none}
+}
+
+/* ============ Aesthetic pass 2: dividers, sticky CTA, featured ring,
+                founder pull-quote, live lead ticker ============ */
+
+/* Gold section dividers — hairline gradients meeting a small diamond, giving
+   the long dark scroll a designed rhythm between sections */
+.sxd{display:flex;align-items:center;justify-content:center;max-width:560px;margin:0 auto;padding:0 40px}
+.sxd::before,.sxd::after{content:"";flex:1;height:1px}
+.sxd::before{background:linear-gradient(90deg,transparent,rgba(200,168,75,.3))}
+.sxd::after{background:linear-gradient(90deg,rgba(200,168,75,.3),transparent)}
+.sxd i{width:6px;height:6px;margin:0 14px;flex-shrink:0;transform:rotate(45deg);border:1px solid rgba(200,168,75,.55);background:rgba(200,168,75,.12)}
+
+/* Mobile sticky Book-a-Call pill — docks bottom-center on phones once the
+   hero CTA has scrolled away; hides again when the contact section arrives.
+   Invisible without JS (never gets .on) — purely an extra affordance. */
+.sticky-cta{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:90;display:none;padding:14px 34px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:32px;background:var(--gold);color:#15110A;text-decoration:none;box-shadow:0 12px 30px -8px rgba(200,168,75,.5),0 8px 24px rgba(0,0,0,.5);opacity:0;transform:translate(-50%,84px);transition:transform .5s cubic-bezier(.2,.7,.2,1),opacity .4s ease;pointer-events:none}
+.sticky-cta.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+@media (max-width:720px){.sticky-cta{display:block}}
+
+/* Featured package: a slow gold light orbiting the card border. Steps aside
+   with the same :has() rules as the static ring when another card is
+   hovered/selected, so it never reads as two picked packages. */
+@property --pkga{syntax:'<angle>';inherits:false;initial-value:0deg}
+.pkg:has(.tag)::after{content:"";position:absolute;inset:-1px;border-radius:13px;padding:1px;background:conic-gradient(from var(--pkga),rgba(200,168,75,0) 0deg 250deg,rgba(200,168,75,.85) 300deg,#F0DCA0 320deg,rgba(200,168,75,.85) 340deg,rgba(200,168,75,0) 360deg);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;animation:pkgOrbit 7s linear infinite;pointer-events:none;transition:opacity .3s ease}
+.pkg-grid:has(.pkg.sel) .pkg:has(.tag):not(.sel)::after,
+.pkg-grid:has(.pkg:hover) .pkg:has(.tag):not(:hover):not(.sel)::after{opacity:0}
+@keyframes pkgOrbit{to{--pkga:360deg}}
+
+/* Founder pull-quote: oversized serif quote mark + gold-ringed headshot */
+.founder blockquote::before{content:"\201C";display:block;font-family:var(--serif);font-size:64px;line-height:.55;color:var(--gold);opacity:.4;margin:8px 0 18px}
+.founder-avatar{border-color:rgba(200,168,75,.5);box-shadow:0 0 0 3px rgba(200,168,75,.12),0 10px 40px -8px rgba(200,168,75,.28)}
+
+/* Live lead ticker: the recycled inbox row slides in at the top */
+.inbox-row.tick-in{animation:rowIn .55s cubic-bezier(.2,.7,.2,1)}
+@keyframes rowIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+
+@media (prefers-reduced-motion:reduce){
+  .pkg:has(.tag)::after{display:none}
+  .sticky-cta{transition:none}
+  .inbox-row.tick-in{animation:none}
 }
 
 /* ── Mobile density (authoritative: placed LAST so it wins CSS source order
@@ -752,8 +805,11 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </h1>
     <p>It's not bad luck. It means no one has built a system to bring work in. BoldLine plans, builds, and runs your ads so your business shows up <span class="hl">steadily and predictably</span>, without ever landing on your to-do list.</p>
     <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
-    <div class="hero-pills">
-      <span>Google Ads</span><span>Meta Ads</span><span>Landing Pages</span><span>Call Tracking</span><span>CRM Routing</span>
+    <div class="hero-mq" role="img" aria-label="Google Ads, Meta Ads, Landing Pages, Call Tracking, CRM Routing">
+      <div class="mq-track" aria-hidden="true">
+        <div class="mq-set"><span>Google Ads</span><i></i><span>Meta Ads</span><i></i><span>Landing Pages</span><i></i><span>Call Tracking</span><i></i><span>CRM Routing</span><i></i></div>
+        <div class="mq-set"><span>Google Ads</span><i></i><span>Meta Ads</span><i></i><span>Landing Pages</span><i></i><span>Call Tracking</span><i></i><span>CRM Routing</span><i></i></div>
+      </div>
     </div>
   </div>
   <div class="hero-stage reveal">
@@ -982,6 +1038,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   <div class="cap-note reveal">Not sure which fits? <a href="https://calendly.com/theboldlinemedia/30min" id="openRecommender" target="_blank" rel="noopener noreferrer">Answer 3 quick questions</a> and we'll point you to the right starting package.</div>
 </section>
 
+<div class="sxd" aria-hidden="true"><i></i></div>
+
 <section class="alt" id="included">
   <div class="section-head reveal">
     <div class="eyebrow">Every Engagement</div>
@@ -993,6 +1051,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     <div class="incl"><span class="mark"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><h3>No spend without sign-off</h3><p>Budget and scaling decisions always come back to you before they happen.</p></div></div>
   </div>
 </section>
+
+<div class="sxd" aria-hidden="true"><i></i></div>
 
 <section id="system">
   <div class="section-head reveal">
@@ -1032,6 +1092,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   </div>
 </section>
 
+<div class="sxd" aria-hidden="true"><i></i></div>
+
 <section id="showcase">
   <div class="showcase reveal">
     <div class="showcase-copy">
@@ -1062,6 +1124,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </div>
   </div>
 </section>
+
+<div class="sxd" aria-hidden="true"><i></i></div>
 
 <section id="process">
   <div class="section-head reveal">
@@ -1095,6 +1159,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </div>
   </div>
 </section>
+
+<div class="sxd" aria-hidden="true"><i></i></div>
 
 <section id="fit">
   <div class="section-head reveal">
@@ -1149,6 +1215,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   </div>
 </section>
 
+<div class="sxd" aria-hidden="true"><i></i></div>
+
 <div class="trust">
   <div class="trust-inner reveal">
     <div class="eyebrow">The One Rule We Don't Bend</div>
@@ -1168,6 +1236,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   </div>
 </section>
 
+<div class="sxd" aria-hidden="true"><i></i></div>
+
 <section id="faq">
   <div class="section-head reveal">
     <div class="eyebrow">Questions</div>
@@ -1182,6 +1252,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     <details class="faq-item"><summary>Which platforms do you run?</summary><div class="faq-a">Google Ads and <span class="term" data-term="meta">Meta</span>, on their own or as one system, plus the landing pages, call tracking, and lead routing behind them. <a href="#services">See the packages above.</a></div></details>
   </div>
 </section>
+
+<div class="sxd" aria-hidden="true"><i></i></div>
 
 <section id="contact">
   <div class="contact-box reveal">
@@ -1254,6 +1326,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     <a href="/terms.html">Terms</a>
   </nav>
 </footer>
+
+<!-- Mobile sticky CTA — shown <720px by CSS; JS toggles .on past the hero -->
+<a class="sticky-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
 
 <div class="mobile-cta" id="mobileCta"><a href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a></div>
 
@@ -1620,7 +1695,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   if(!('IntersectionObserver' in window)){ show(); return; }
   var io = new IntersectionObserver(function(entries){
     entries.forEach(function(e){ if(e.isIntersecting){ show(); io.disconnect(); } });
-  }, { threshold: 0.25 });
+  // Same hardening as the .sr reveals: the huge TOP rootMargin means anything
+  // jumped past still counts as intersecting, so the section can't get stuck
+  // hidden (threshold .25 alone left the whole timeline blank after a jump).
+  }, { rootMargin: '12000px 0px -7% 0px', threshold: 0.06 });
   io.observe(tl);
 })();
 </script>
@@ -1809,15 +1887,51 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     requestAnimationFrame(tick);
   }
 
+  /* ── Live lead ticker: recycle the bottom inbox row to the top every few
+        seconds while the showcase is on screen, so the lead feed reads as
+        live. Reuses the existing rows (times rewritten to a fixed ladder),
+        so no-JS/reduced-motion visitors keep the static list unchanged. ── */
+  var inbox = document.querySelector('.inbox');
+  if(inbox && !reduce && 'IntersectionObserver' in window){
+    var inboxHead = inbox.querySelector('.inbox-head');
+    var LADDER = ['Just now', '6m ago', '18m ago', '41m ago', '1h ago'];
+    var inboxVis = false;
+    new IntersectionObserver(function(es){ inboxVis = es[0].isIntersecting; }).observe(inbox);
+    setInterval(function(){
+      if(!inboxVis || document.hidden) return;
+      var rows = inbox.querySelectorAll('.inbox-row');
+      if(rows.length < 2) return;
+      var last = rows[rows.length - 1];
+      last.classList.remove('tick-in');
+      inbox.insertBefore(last, inboxHead.nextSibling);
+      void last.offsetWidth;                     // restart the slide-in animation
+      last.classList.add('tick-in');
+      rows = inbox.querySelectorAll('.inbox-row');
+      for(var r = 0; r < rows.length; r++){
+        var tEl = rows[r].querySelector('.inbox-time');
+        if(tEl) tEl.textContent = LADDER[Math.min(r, LADDER.length - 1)];
+      }
+    }, 4600);
+  }
+
   /* ── One rAF-throttled scroll handler: progress hairline + orb parallax ── */
   var bar = document.getElementById('progress');
   var orbs = document.querySelectorAll('.ambient .ow');
   var parallax = !reduce && window.innerWidth >= 720 && orbs.length;
   var factors = [.085, -.065, .12, .05];         // per-layer px drift per px scrolled (3 orbs + glyphs)
+  var stick = document.querySelector('.sticky-cta');
+  var contactSec = document.getElementById('contact');
   var queued = false;
   function paint(){
     queued = false;
     var y = window.scrollY || 0;
+    if(stick){
+      // Show once the hero CTA has scrolled away; hide while the contact
+      // form is on screen (its own CTA takes over).
+      var on = y > 620;
+      if(on && contactSec && contactSec.getBoundingClientRect().top < window.innerHeight) on = false;
+      stick.classList.toggle('on', on);
+    }
     if(bar && !reduce){
       var max = (document.body.scrollHeight || 1) - window.innerHeight;
       bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, y / max) : 0) + ')';
