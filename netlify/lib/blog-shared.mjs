@@ -222,23 +222,74 @@ export function weeklyTargetMs(nowMs = Date.now()) {
   return azMostRecent(nowMs, 2, 8) + 6 * DAY_MS;
 }
 
-// Next Monday-08:00-AZ publish slot not already occupied by a non-deleted post.
-// Used by the manual "Write & Schedule" button so repeat clicks stack future
-// weeks instead of piling multiple posts onto the same day.
+// Bucket ANY instant to its Tue->Mon publishing week, keyed by that week's
+// Monday-08:00-AZ ms. Two posts in the same week share a key regardless of the
+// exact time either one is set to -- this is what "one post per week" and "that
+// week is blocked" are measured against (Bryson, 2026-07-18).
+export function weekKeyMs(ms) {
+  return weeklyTargetMs(ms);
+}
+
+// Set of week-keys already occupied by a non-deleted post. `exclude` is a Set
+// of post ids to ignore (used when respacing the very drafts we're moving).
+async function occupiedWeekKeys(supabase, exclude = new Set()) {
+  const { data, error } = await supabase.from("blog_posts").select("id, published_at").neq("status", "deleted");
+  if (error) throw error;
+  const keys = new Set();
+  for (const p of data || []) {
+    if (exclude.has(p.id) || !p.published_at) continue;
+    keys.add(String(weekKeyMs(new Date(p.published_at).getTime())));
+  }
+  return keys;
+}
+
+// Next Monday-08:00-AZ publish slot whose WEEK holds no non-deleted post yet.
+// Used by the manual "Write & Schedule" button and the auto-scheduler so a week
+// that already has a post is skipped entirely and the new one lands on the next
+// open week -- never two in one week (Bryson's one-per-week rule).
 export async function nextOpenWeeklySlotISO(supabase, nowMs = Date.now()) {
+  const occupied = await occupiedWeekKeys(supabase);
   let mon = weeklyTargetMs(nowMs);
   while (mon <= nowMs) mon += WEEK_MS;
-  for (let i = 0; i < 104; i++) {
-    const lo = new Date(mon - 2 * 60000).toISOString();
-    const hi = new Date(mon + 2 * 60000).toISOString();
-    const { data, error } = await supabase
-      .from("blog_posts").select("id")
-      .neq("status", "deleted").gte("published_at", lo).lte("published_at", hi).limit(1);
-    if (error) throw error;
-    if (!data || !data.length) return new Date(mon).toISOString();
+  for (let i = 0; i < 260; i++) {
+    if (!occupied.has(String(weekKeyMs(mon)))) return new Date(mon).toISOString();
     mon += WEEK_MS;
   }
   return new Date(mon).toISOString();
+}
+
+// One-time / maintenance enforcement of the one-per-week rule on EXISTING
+// scheduled drafts. Loads all future-dated drafts (kept in their current order),
+// then reassigns them to consecutive open Monday-08:00-AZ slots -- one per week,
+// skipping any week already held by a published post -- collapsing stacks so no
+// two drafts share a week. Idempotent: run it again and it moves nothing.
+export async function respaceScheduledDrafts(supabase, nowMs = Date.now()) {
+  const nowISO = new Date(nowMs).toISOString();
+  const { data: drafts, error } = await supabase
+    .from("blog_posts").select("id, title, published_at")
+    .eq("status", "draft").gte("published_at", nowISO)
+    .order("published_at", { ascending: true });
+  if (error) throw error;
+  if (!drafts || !drafts.length) return { moved: 0, total: 0, assignments: [] };
+
+  // Weeks locked by everything we are NOT moving (published posts, etc.).
+  const occupied = await occupiedWeekKeys(supabase, new Set(drafts.map((d) => d.id)));
+
+  let mon = weeklyTargetMs(nowMs);
+  while (mon <= nowMs) mon += WEEK_MS;
+  const assignments = [];
+  for (const d of drafts) {
+    while (occupied.has(String(weekKeyMs(mon)))) mon += WEEK_MS;   // skip taken weeks
+    occupied.add(String(weekKeyMs(mon)));
+    const iso = new Date(mon).toISOString();
+    if (iso !== d.published_at) {
+      const { error: uErr } = await supabase.from("blog_posts").update({ published_at: iso }).eq("id", d.id);
+      if (uErr) throw uErr;
+      assignments.push({ id: d.id, title: d.title, from: d.published_at, to: iso });
+    }
+    mon += WEEK_MS;
+  }
+  return { moved: assignments.length, total: drafts.length, assignments };
 }
 
 // Generates a brand-new post but parks it as a SCHEDULED draft: status stays

@@ -21,7 +21,13 @@ the `.sr` system. Regression-tested: jump to bottom → `.timeline.in` + step op
 gold pill, `display:block` only ≤720px, `z-index:90` (above nav 70, below modal 100). JS in the
 ambient engine's rAF `paint()`: `.on` when `y>620` AND the #contact section is NOT on screen
 (its own CTA takes over; one `getBoundingClientRect` read per scroll frame is fine). Without JS
-it never gets `.on` → invisible, pure progressive enhancement.
+it never gets `.on` → invisible, pure progressive enhancement. **Yield rule (2026-07-18, Bryson:
+"make sure the button isn't covering another button"):** a second IO with rootMargin
+`-82% 0px 0px 0px` (= watch the bottom ~18% of the viewport) observes every `.pkg-cta`, `.btn`,
+`.tab`, and `.faq-item summary`; while ANY of them intersects that band, `bandSet.size > 0` and
+`paint()` keeps the pill off — it can never sit on top of another tappable control. `.pkg` cards
+are deliberately NOT observed (tap-to-select is cosmetic; observing them would hide the pill for
+the whole packages section). Add new interactive elements to the `yieldTo` selector list.
 
 **2. Gold section dividers** (`.sxd`, 8 of them): hairline gradient flanks meeting a small
 rotated-square diamond. Inserted before #included, #system, #showcase, #process, #fit, .trust,

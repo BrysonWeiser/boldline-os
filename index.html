@@ -3085,6 +3085,17 @@ function BlogManagementCard() {
     }catch(e){ setMsg(e.message); }
     setGenState("idle");
   };
+  // Enforce one-per-week on existing scheduled drafts: any that are stacked in
+  // the same week get spread onto consecutive open Monday slots.
+  const respaceSchedule=async()=>{
+    setGenState("generating"); setMsg("Spacing scheduled posts to one per week…");
+    try{
+      const d=await call("respace-schedule");
+      await loadAll();
+      setMsg(d.moved?`Done — moved ${d.moved} post${d.moved!==1?"s":""} so there's exactly one per week.`:"Already one per week — nothing to move.");
+    }catch(e){ setMsg(e.message); }
+    setGenState("idle");
+  };
 
   // Both bulk flows are sequential client-side loops: each post's AI write is
   // kicked off as a background job (callBg) and we poll list() until it lands,
@@ -3135,8 +3146,11 @@ function BlogManagementCard() {
       <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>One post a week, on autopilot. Every <strong style={{color:C.gold}}>Tuesday 8am Arizona time</strong> the AI writes next week's post and parks it under <strong style={{color:C.gold}}>Scheduled</strong>, set to publish the following <strong style={{color:C.gold}}>Monday 8am</strong> (you get an email when it's queued). You have until Monday to edit, AI-rewrite, reschedule, or delete it — do nothing and it publishes itself. There's always one waiting for review; the queue refills automatically.</div>
 
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,paddingBottom:10,borderBottom:`1px solid ${C.border}`,flexWrap:"wrap"}}>
-        <span style={{fontSize:11,color:C.textDim,fontWeight:600,lineHeight:1.5}}>📅 Publishes Mondays 8am · written Tuesdays 8am (Arizona)</span>
-        <button onClick={writeScheduled} disabled={genState==="generating"||bulkBusy} title="Writes one now and schedules it for the next open Monday slot" style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>{genState==="generating"?"Writing…":"Write & Schedule"}</button>
+        <span style={{fontSize:11,color:C.textDim,fontWeight:600,lineHeight:1.5}}>📅 One per week · publishes Mondays 8am · written Tuesdays 8am (Arizona)</span>
+        {posts.filter(p=>p.status==="draft").length>=2&&(
+          <button onClick={respaceSchedule} disabled={genState==="generating"||bulkBusy} title="Spreads stacked scheduled posts onto separate weeks — one per week" style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.08)",color:C.gold,cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>Space 1/week</button>
+        )}
+        <button onClick={writeScheduled} disabled={genState==="generating"||bulkBusy} title="Writes one now and schedules it for the next open Monday slot" style={{marginLeft:posts.filter(p=>p.status==="draft").length>=2?0:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>{genState==="generating"?"Writing…":"Write & Schedule"}</button>
         <button onClick={generateNow} disabled={genState==="generating"||bulkBusy} title="Skips the review queue and goes live immediately" style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(genState==="generating"||bulkBusy)?.7:1,whiteSpace:"nowrap"}}>Write + Publish Now</button>
       </div>
 
