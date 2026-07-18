@@ -76,3 +76,19 @@ next 14:30 UTC run → owner email + red alert + pending interest item.
 HTML (useless to Bryson — pasted as a wall of code, mistaken for a broken link). Now "Copy
 Client Link" copies the client's portal URL (/portal?token=…) where they can read the contract.
 The DocuSign SIGNING link is never in the OS — DocuSign emails it to the client directly.
+
+**⚠️ OPEN / PENDING as of 2026-07-17 (finish this before calling billing done):**
+The ETF path is fully verified; the LATE-PAYMENT watcher was NOT confirmed yet (first daily run
+saw the test invoice at 0 days late — whole-day counting). Mid-test state to unwind:
+1. **`netlify.toml` billing-watch schedule is on a TEMP `*/20 * * * *`** (every 20 min) to finish
+   the test today — **REVERT to `30 14 * * *` (daily) and deploy** once the late-payment test
+   passes (owner email + red OS alert on "TEST — delete me" + a few-cents pending interest item
+   in Stripe test mode).
+2. **Netlify env `BILLING_GRACE_DAYS=0`** was added for the test — **DELETE it** (restores the
+   Agreement's 10-day grace).
+3. **`STRIPE_SECRET_KEY` is on the TEST key** in Netlify — **swap back to the live `sk_live_`**
+   and Trigger deploy.
+4. **Delete test-mode dummy clients** `TEST — delete me`, `test2`, `test3` in the OS.
+5. Then flip this entry's late-payment status to verified.
+(send_later reminders were set in the 2026-07-16/17 session — they fire into THAT session; if
+you're in a new one, this checklist is the source of truth.)
