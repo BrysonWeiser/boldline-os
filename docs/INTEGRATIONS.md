@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 50 task-keyed entries under `knowledge/`. They surface automatically via the
+> 51 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**50 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**51 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -132,6 +132,12 @@
 - **[two-netlify-sites](../knowledge/two-netlify-sites.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   One git repo deploys as TWO separate Netlify sites, both from main — the OS (repo-root netlify.toml, index.html at /*) and the marketing site (base dir marketing-site, its own netlify.toml). Each has its OWN env-var list.  
   <sub>*task:* understand or configure the two separate Netlify sites (OS vs marketing) and which branch and base dir each uses &nbsp;|&nbsp; *keywords:* netlify.toml, marketing-site, base-directory, boldline-media.netlify.app, second-netlify-site</sub>
+
+## OS Architecture
+
+- **[live-auto-updates](../knowledge/live-auto-updates.md)** &mdash; &#9989; verified &middot; 2026-07-18  
+  Every live surface in the OS runs through one useLiveData(load,{table,interval,active}) hook — Supabase realtime (instant, when the table is in supabase_realtime) + interval poll + tab-focus/visibility refetch, all re-running `load`. Wired for clients (15s), website_leads (20s), and blog posts (30s, function-backed). No full-page reload needed for any of them.  
+  <sub>*task:* understand or extend how OS views auto-update live without a full-page refresh &nbsp;|&nbsp; *keywords:* useLiveData, realtime, supabase_realtime, poll, visibilitychange, refreshClients, loadLeads, silentReload, blog_posts, clients-live, leads-live</sub>
 
 ## OS app
 
