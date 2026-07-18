@@ -1921,14 +1921,29 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   var factors = [.085, -.065, .12, .05];         // per-layer px drift per px scrolled (3 orbs + glyphs)
   var stick = document.querySelector('.sticky-cta');
   var contactSec = document.getElementById('contact');
+  // The pill must never sit on top of another tappable control. An IO with a
+  // negative top rootMargin watches the bottom ~18% of the viewport; while any
+  // button/tab/FAQ row is inside that band, the pill yields (slides away).
+  var bandSet = new Set();
+  if(stick && 'IntersectionObserver' in window){
+    var bandIO = new IntersectionObserver(function(es){
+      for(var k = 0; k < es.length; k++){
+        if(es[k].isIntersecting) bandSet.add(es[k].target); else bandSet.delete(es[k].target);
+      }
+      if(!queued){ queued = true; requestAnimationFrame(paint); }  // re-evaluate promptly
+    }, { rootMargin: '-82% 0px 0px 0px' });
+    var yieldTo = document.querySelectorAll('.pkg-cta, .btn, .tab, .faq-item summary');
+    for(var b = 0; b < yieldTo.length; b++) bandIO.observe(yieldTo[b]);
+  }
   var queued = false;
   function paint(){
     queued = false;
     var y = window.scrollY || 0;
     if(stick){
       // Show once the hero CTA has scrolled away; hide while the contact
-      // form is on screen (its own CTA takes over).
-      var on = y > 620;
+      // form is on screen (its own CTA takes over) or while any other
+      // tappable control is in the pill's bottom band.
+      var on = y > 620 && bandSet.size === 0;
       if(on && contactSec && contactSec.getBoundingClientRect().top < window.innerHeight) on = false;
       stick.classList.toggle('on', on);
     }
