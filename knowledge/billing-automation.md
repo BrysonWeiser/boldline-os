@@ -77,18 +77,34 @@ HTML (useless to Bryson — pasted as a wall of code, mistaken for a broken link
 Client Link" copies the client's portal URL (/portal?token=…) where they can read the contract.
 The DocuSign SIGNING link is never in the OS — DocuSign emails it to the client directly.
 
-**⚠️ OPEN / PENDING as of 2026-07-17 (finish this before calling billing done):**
-The ETF path is fully verified; the LATE-PAYMENT watcher was NOT confirmed yet (first daily run
-saw the test invoice at 0 days late — whole-day counting). Mid-test state to unwind:
-1. **`netlify.toml` billing-watch schedule is on a TEMP `*/20 * * * *`** (every 20 min) to finish
-   the test today — **REVERT to `30 14 * * *` (daily) and deploy** once the late-payment test
-   passes (owner email + red OS alert on "TEST — delete me" + a few-cents pending interest item
-   in Stripe test mode).
-2. **Netlify env `BILLING_GRACE_DAYS=0`** was added for the test — **DELETE it** (restores the
-   Agreement's 10-day grace).
-3. **`STRIPE_SECRET_KEY` is on the TEST key** in Netlify — **swap back to the live `sk_live_`**
-   and Trigger deploy.
-4. **Delete test-mode dummy clients** `TEST — delete me`, `test2`, `test3` in the OS.
-5. Then flip this entry's late-payment status to verified.
+**LATE-PAYMENT WATCHER — VERIFIED 2026-07-18.** Confirmed end-to-end on the manual "Run now":
+watcher processed the billed clients (`checked 4, updated 1`), flipped the test client to
+`past_due`, and **sent the owner the "payment failed — $100 overdue, 1 day past due" email**
+(1.5%/mo interest line present). Owner alert + status + email all green. The earlier doubt (first
+daily run at 0 days late) was just whole-day counting — it fires correctly once ≥1 day late.
+
+**GOTCHA 3 — a test/live STRIPE_SECRET_KEY mismatch silently breaks the watcher for the OTHER
+mode's clients (caught 2026-07-18).** While `STRIPE_SECRET_KEY` was the `sk_test_` key for the
+late-payment test, billing-watch threw `No such customer … a similar object exists in live mode,
+but a test mode key was used` for every LIVE client (e.g. DetailKing ATL) — meaning real clients
+had NO late-payment enforcement, no alert, no email, the whole time the test key was in place.
+The per-client `try/catch` keeps the run alive (still `checked 4`) so the failure is invisible
+unless you read the function log. Lesson: the test-key swap is not just cleanliness — it actively
+disables live billing enforcement. Swap back to `sk_live_` the moment a test is done.
+
+**Home-dashboard surfacing fix (2026-07-18).** `getAlerts` correctly raised the red `past_due`
+alert, and it showed on the client card + Alerts tile count + Alerts segment list — but the Home
+dashboard's inline "Urgent alerts" banners only rendered expiring contracts + upgrade requests,
+so a payment failure never appeared on the dashboard itself (you had to drill into the client).
+Fixed in `index.html` (HomeScreen): red `billing_late`/`billing_interest`/`etf_due` alerts now
+lead the dashboard banners, above expiring contracts.
+
+**⚠️ CLEANUP STATE as of 2026-07-18 (post-verification):**
+1. ✅ **`netlify.toml` billing-watch schedule reverted** from the TEMP `*/20 * * * *` back to
+   `30 14 * * *` (daily) — done in code, needs merge+deploy.
+2. ⬜ **Netlify env `BILLING_GRACE_DAYS=0`** — still needs to be **DELETED** (restores 10-day grace).
+3. ⬜ **`STRIPE_SECRET_KEY` still on the TEST key** in Netlify — **swap back to live `sk_live_`**
+   and Trigger deploy (see GOTCHA 3 — this is urgent; live clients are unprotected until it's done).
+4. ⬜ **Delete test-mode dummy clients** `TEST — delete me`, `test2`, `test3` in the OS.
 (send_later reminders were set in the 2026-07-16/17 session — they fire into THAT session; if
 you're in a new one, this checklist is the source of truth.)
