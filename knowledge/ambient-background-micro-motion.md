@@ -90,10 +90,15 @@ source order; JS is the last `<script>` before `</body>`):
   the same rAF paint as orb parallax), unified `.incl`/`.faq-item` hover, `.btn` sheen sweep
   (::after skew sweep — `.btn` got position:relative+overflow:hidden).
 
-**Tuning knobs:** orb colors/opacities in `.ow-* .orb` gradients; drift speed = orbDrift
-durations; constellation density `W*H/26000` (cap 80) + link distance 130 + line alpha .09;
-grain `opacity:.05`; reveal distance/duration in `.sr`; stagger in the enhancer; parallax
-factors `[.06,-.045,.09]`.
+**Tuning knobs (values = the 2026-07-18 "one notch stronger" pass, Bryson request):** orb
+colors/opacities in `.ow-* .orb` gradients (gold .14/.09, indigo .10; orbDrift 34/44/54s);
+constellation density `W*H/20000` (cap 100; phones /13000 cap 30) + link distance 150 (mobile
+120) + line alpha .14 + dot alpha .38 + drift velocity .32 + canvas `#bgNet` opacity .8;
+blueprint wireframes .12–.14 desktop / .10–.11 mobile; grain `opacity:.05`; reveal
+distance/duration in `.sr`; stagger in the enhancer; parallax factors `[.085,-.065,.12,.05]`.
+(Original softer baseline, if it ever needs dialing back: orbs .10/.07/.06 @46/58/72s, density
+/26000 cap 80, LINK 130, line .09, dots .28, vel .22, canvas .6, bp .085–.10, factors
+[.06,-.045,.09,.035].)
 
 **HERO INTERACTIVE UPGRADES (2026-07-18, Bryson asked to make the hero more alive; he'd floated
 an intro splash + background audio, both talked down — a splash gate tanks LCP and audio is a B2B
