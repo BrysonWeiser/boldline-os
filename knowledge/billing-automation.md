@@ -99,12 +99,14 @@ so a payment failure never appeared on the dashboard itself (you had to drill in
 Fixed in `index.html` (HomeScreen): red `billing_late`/`billing_interest`/`etf_due` alerts now
 lead the dashboard banners, above expiring contracts.
 
-**⚠️ CLEANUP STATE as of 2026-07-18 (post-verification):**
-1. ✅ **`netlify.toml` billing-watch schedule reverted** from the TEMP `*/20 * * * *` back to
-   `30 14 * * *` (daily) — done in code, needs merge+deploy.
-2. ⬜ **Netlify env `BILLING_GRACE_DAYS=0`** — still needs to be **DELETED** (restores 10-day grace).
-3. ⬜ **`STRIPE_SECRET_KEY` still on the TEST key** in Netlify — **swap back to live `sk_live_`**
-   and Trigger deploy (see GOTCHA 3 — this is urgent; live clients are unprotected until it's done).
-4. ⬜ **Delete test-mode dummy clients** `TEST — delete me`, `test2`, `test3` in the OS.
-(send_later reminders were set in the 2026-07-16/17 session — they fire into THAT session; if
-you're in a new one, this checklist is the source of truth.)
+**✅ CLEANUP COMPLETE — 2026-07-18. Late-payment billing is fully live and verified end-to-end.**
+1. ✅ `netlify.toml` billing-watch schedule reverted from the TEMP `*/20 * * * *` to `30 14 * * *`
+   (daily) — merged + deployed.
+2. ✅ Netlify env `BILLING_GRACE_DAYS=0` **deleted** (10-day grace restored).
+3. ✅ `STRIPE_SECRET_KEY` swapped back to the live `sk_live_` key.
+4. ✅ Test-mode dummy clients (`TEST — delete me`, `test2`, `test3`) deleted from the OS.
+**Live-key verification (Run now, 2026-07-18):** `billing-watch: checked 1 billed client(s),
+updated 0` with NO error line — the prior `No such customer … test mode key` failure on the live
+client is gone, confirming GOTCHA 3 is resolved and real clients are covered again. (Leftover
+test-mode Stripe objects — test customer, $100 invoice, ~$0.05 interest item, $600 ETF invoice —
+remain in Stripe TEST mode only; sandboxed, harmless, optional to clear.)
