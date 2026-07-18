@@ -32,7 +32,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { createAndPublishPost, createScheduledPost, nextOpenWeeklySlotISO, regeneratePost } from "../lib/blog-shared.mjs";
+import { createAndPublishPost, createScheduledPost, nextOpenWeeklySlotISO, regeneratePost, respaceScheduledDrafts } from "../lib/blog-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -114,6 +114,14 @@ export default async (req) => {
       if (!body.postId) return json({ ok: false, error: "postId required" }, 400);
       const post = await regeneratePost(body.postId);
       return json({ ok: true, action, post });
+    }
+
+    if (action === "respace-schedule") {
+      // Enforce one-post-per-week on existing scheduled drafts: spread them
+      // across consecutive open Monday slots, one per week. DB-only (no AI),
+      // so it's fast enough for the synchronous function.
+      const result = await respaceScheduledDrafts(supabase);
+      return json({ ok: true, action, ...result });
     }
 
     if (action === "delete") {
