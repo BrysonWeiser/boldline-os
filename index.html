@@ -1287,7 +1287,19 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,isDeskt
           : <>{hero}<div style={{marginTop:12}}/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>{tiles}</div></>;
       })()}
 
-      {/* Urgent alerts */}
+      {/* Urgent alerts — payment/billing failures first: a client not paying is
+         the most urgent business alert, so it leads the dashboard (matches the
+         red billing alert getAlerts already raises on past_due / ETF owed). */}
+      {clients.flatMap(cl=>getAlerts(cl)
+        .filter(a=>a.severity==="red"&&(a.type==="billing_late"||a.type==="billing_interest"||a.type==="etf_due"))
+        .map(a=>({cl,a})))
+        .map(({cl,a})=>(
+        <div key={`${cl.id}|${a.type}`} onClick={()=>onSelect(cl)} style={{marginBottom:8,padding:"11px 13px",borderRadius:11,backgroundColor:"rgba(239,68,68,.07)",border:`1px solid ${C.red}33`,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:18}}>{a.type==="etf_due"?"⛔":"💳"}</span>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div><div style={{fontSize:11,color:C.red}}>{a.msg}</div></div>
+          <span style={{fontSize:16,color:C.textMuted}}>›</span>
+        </div>
+      ))}
       {expiring.map(cl=>{
         const d=daysUntil(cl.contractEnd);
         return <div key={cl.id} onClick={()=>onSelect(cl)} style={{marginBottom:8,padding:"11px 13px",borderRadius:11,backgroundColor:d<=7?"rgba(239,68,68,.07)":"rgba(245,158,11,.07)",border:`1px solid ${d<=7?C.red:C.amber}33`,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
