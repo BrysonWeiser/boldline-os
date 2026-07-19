@@ -4,8 +4,8 @@ topic: OS Architecture
 task: understand or extend how OS views auto-update live without a full-page refresh
 keywords: [useLiveData, realtime, supabase_realtime, poll, visibilitychange, refreshClients, loadLeads, silentReload, blog_posts, clients-live, leads-live]
 status: verified
-summary: Every live surface in the OS runs through one useLiveData(load,{table,interval,active}) hook — Supabase realtime (instant, when the table is in supabase_realtime) + interval poll + tab-focus/visibility refetch, all re-running `load`. Wired for clients (15s), website_leads (20s), and blog posts (30s, function-backed). No full-page reload needed for any of them.
-verified: 2026-07-18
+summary: Every live surface in the OS runs through one useLiveData(load,{table,interval,active}) hook — Supabase realtime (instant, when the table is in supabase_realtime) + interval poll + tab-focus/visibility refetch, all re-running `load`. Wired for clients (15s), website_leads (20s), and blog posts (30s, function-backed). All three are now in the realtime publication (blog_posts added 2026-07-19), so all update instantly. No full-page reload needed for any of them.
+verified: 2026-07-19
 ---
 
 ## The primitive
@@ -38,12 +38,17 @@ channel, clears the interval, and drops the listeners.
   - `opBusyRef` is a **ref** (not deps) so `silentReload` keeps a stable identity — otherwise
     the realtime channel would tear down/rebuild on every state change.
 
-## To enable INSTANT (realtime) blog updates
-`blog_posts` currently updates within 30s (poll) + on tab focus. To make it instant like
-clients/leads: Supabase → **Database → Replication → `supabase_realtime`** → toggle
-`blog_posts` **on**, and ensure an RLS SELECT policy exists for the `authenticated` role on
-that table (the OS reads under the publishable/anon key). No code change needed — the hook
-already subscribes; it just starts receiving events. (See `supabase-access-model`.)
+## Realtime publication — all three tables ON (blog_posts added 2026-07-19)
+`clients`, `website_leads`, and `blog_posts` are all in the `supabase_realtime` publication,
+so all three push instantly (poll + focus stay as fallbacks).
+
+**Menu path (Supabase UI as of 2026-07-19):** the toggle is under **Database → Publications**
+(left sidebar, DATABASE MANAGEMENT group) → open **`supabase_realtime`** → toggle the table on.
+NOTE: the old "Database → **Replication**" menu is now a *different* feature (read replicas /
+analytics pipelines / destinations) — do NOT send anyone there for realtime. To add a future
+table: same page, toggle it on, and make sure an RLS SELECT policy exists for the
+`authenticated` role (the OS reads under the publishable/anon key). No code change needed —
+the hook already subscribes. (See `supabase-access-model`.)
 
 ## Not on this hook (by design)
 Action-triggered function calls — media upload/delete, call-tracking provision/release,
