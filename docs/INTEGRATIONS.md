@@ -198,8 +198,8 @@
 - **[pending-seo-next-steps](../knowledge/pending-seo-next-steps.md)** &mdash; &#9989; verified &middot; 2026-07-04  
   Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.  
   <sub>*task:* pick up the next unstarted marketing/SEO steps now that the site is live (Google Ads resubmit, Search Console, Business Profile) &nbsp;|&nbsp; *keywords:* basic-access-resubmit, search-console, sitemap.xml, business-profile, GA4</sub>
-- **[pre-client-readiness](../knowledge/pre-client-readiness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
-  Snapshot 2026-07-07 of everything gating the first client. Hard blockers — Stripe billing (not started at all) and DocuSign production go-live (demo sigs not binding). Automation blockers — Google Ads Basic Access resubmit (+ post-approval approve→execute wire-up) and Meta Business Verification. Supporting — Search Console, custom-domain email, GBP/GA4.  
+- **[pre-client-readiness](../knowledge/pre-client-readiness.md)** &mdash; &#9989; verified &middot; 2026-07-19  
+  As of 2026-07-19 almost nothing blocks SELLING/onboarding a Google-ads client — Stripe live, Google Ads live + approve→execute built, Search Console done. Remaining are timed-to-the-deal (DocuSign production cutover — parked by choice, same-day flip), a should-do (AZ attorney review of the contract draft), and in-flight (Meta verification submitted 2026-07-19 ~2-day review, then App Review weeks — only gates Meta-ads clients). Optional credibility: custom-domain email, Twilio paid upgrade.  
   <sub>*task:* know what remains before BoldLine can sign and onboard its first real client &nbsp;|&nbsp; *keywords:* first-client, readiness, launch-checklist, stripe-not-started, docusign-go-live, basic-access-resubmit, business-verification, approve-execute</sub>
 
 ## Supabase
