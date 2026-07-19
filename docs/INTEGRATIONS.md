@@ -135,8 +135,8 @@
 
 ## OS Architecture
 
-- **[live-auto-updates](../knowledge/live-auto-updates.md)** &mdash; &#9989; verified &middot; 2026-07-18  
-  Every live surface in the OS runs through one useLiveData(load,{table,interval,active}) hook — Supabase realtime (instant, when the table is in supabase_realtime) + interval poll + tab-focus/visibility refetch, all re-running `load`. Wired for clients (15s), website_leads (20s), and blog posts (30s, function-backed). No full-page reload needed for any of them.  
+- **[live-auto-updates](../knowledge/live-auto-updates.md)** &mdash; &#9989; verified &middot; 2026-07-19  
+  Every live surface in the OS runs through one useLiveData(load,{table,interval,active}) hook — Supabase realtime (instant, when the table is in supabase_realtime) + interval poll + tab-focus/visibility refetch, all re-running `load`. Wired for clients (15s), website_leads (20s), and blog posts (30s, function-backed). All three are now in the realtime publication (blog_posts added 2026-07-19), so all update instantly. No full-page reload needed for any of them.  
   <sub>*task:* understand or extend how OS views auto-update live without a full-page refresh &nbsp;|&nbsp; *keywords:* useLiveData, realtime, supabase_realtime, poll, visibilitychange, refreshClients, loadLeads, silentReload, blog_posts, clients-live, leads-live</sub>
 
 ## OS app
