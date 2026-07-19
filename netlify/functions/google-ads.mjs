@@ -28,7 +28,11 @@ const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 // sunsets API versions ~yearly; if a call returns "version not found" or
 // "deprecated", set GOOGLE_ADS_API_VERSION in Netlify to a current one — no
 // code change or redeploy logic needed beyond the env var.
-const API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v18";
+// Default bumped v18 → v24 on 2026-07-19: v18 was sunset and its REST path 404'd
+// the live-connection test. Google keeps ~3 major versions live (v22/v23/v24 as of
+// Jul 2026); v24 is the newest GA. When v24 sunsets (~14mo), set GOOGLE_ADS_API_VERSION
+// in Netlify to a current one — no code change needed.
+const API_VERSION = process.env.GOOGLE_ADS_API_VERSION || "v24";
 const ADS_BASE = `https://googleads.googleapis.com/${API_VERSION}`;
 
 const G = {
