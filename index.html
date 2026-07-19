@@ -3251,13 +3251,13 @@ function BlogManagementCard() {
                 <div style={{fontSize:10,color:isSched?C.gold:C.textMuted,marginTop:3,fontWeight:isSched?700:400}}>{isSched?"Publishes "+fmtWhen(p.published_at):fmtDate(p.published_at)+" · "+p.read_minutes+" min read"}</div>
               </div>
               {reschedId===p.id?(
-                <div style={{display:"flex",gap:5,flexShrink:0,alignItems:"center",flexWrap:"wrap"}}>
-                  <input type="datetime-local" value={reschedVal} onChange={e=>setReschedVal(e.target.value)} style={{padding:"5px 7px",fontSize:11,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit",colorScheme:"dark"}}/>
+                <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+                  <input type="datetime-local" value={reschedVal} onChange={e=>setReschedVal(e.target.value)} style={{flex:"1 1 150px",minWidth:0,maxWidth:"100%",padding:"5px 7px",fontSize:11,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit",colorScheme:"dark"}}/>
                   <button onClick={()=>saveReschedule(p.id)} disabled={busyId===p.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",whiteSpace:"nowrap"}}>{busyId===p.id?"…":"Save"}</button>
                   <button onClick={()=>setReschedId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
                 </div>
               ):(
-                <div style={{display:"flex",gap:5,flexShrink:0,flexWrap:"wrap"}}>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
                   <button onClick={()=>openEditor(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.08)",color:C.gold,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{isSched?"Review / Edit":"Edit"}</button>
                   <button onClick={()=>regenerate(p.id)} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>{busyId===p.id?"…":"AI Rewrite"}</button>
                   {isSched&&<button onClick={()=>{setReschedId(p.id);setReschedVal(toLocalInput(p.published_at));}} disabled={busyId===p.id||bulkBusy} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:(busyId===p.id||bulkBusy)?.6:1,whiteSpace:"nowrap"}}>Reschedule</button>}
