@@ -40,12 +40,12 @@ in chat or committed — Netlify's scanner also fails the build if a key value l
    (see `docusign-integration`).
 
 **Automation blockers (per Bryson's own bar: full automation before client #1):**
-3. **Google Ads Basic Access resubmit** — **SUBMITTED 2026-07-07**, awaiting decision
-   (~3 business days; fresh design doc + live-domain answers, see `google-ads-api`).
-   NOTE: this gates the API/bots only — manual campaign management through the MCC web UI
-   is NOT blocked, so a client could be serviced by hand if a deal lands early.
-4. **Post-approval code task:** wire ARIA's approved `pendingActions` to real
+3. **Google Ads Basic Access** — ✅ **APPROVED 2026-07-19** (15,000 ops/day; the
+   long-standing blocker is cleared — see `google-ads-api`). Pending: run the Deploy-tab
+   test card to confirm the creds authenticate end-to-end.
+4. **Post-approval code task (NOW UNBLOCKED):** wire ARIA's approved `pendingActions` to real
    `setBudget`/`setStatus` execution (needs live campaign reads; pieces ready in google-ads.mjs).
+   Can only be E2E-verified once a real client ad account is linked to the MCC.
 5. **Meta Business Verification + App Review** — weeks-long; was at steps 1–3 on 2026-06-25
    (stale — re-check). Only blocks Meta-ads clients; Google-only clients unaffected.
 
