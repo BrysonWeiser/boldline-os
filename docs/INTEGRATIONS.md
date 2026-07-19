@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 51 task-keyed entries under `knowledge/`. They surface automatically via the
+> 52 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**51 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**52 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -69,6 +69,12 @@
 - **[git-relay-proxy-recovery](../knowledge/git-relay-proxy-recovery.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   If git push fails with "could not read Username", the remote may have been reset to an api.anthropic.com ingress URL — set origin back to the GitHub HTTPS URL (the proxy's insteadOf rewrite handles auth) and retry. A one-off workaround relayed a commit via the GitHub MCP push_files.  
   <sub>*task:* recover git push when it fails with "could not read Username" because the relay/proxy auth broke &nbsp;|&nbsp; *keywords:* could-not-read-username, GIT_ASKPASS, insteadOf, push_files, api.anthropic.com, git-relay</sub>
+
+## Marketing Site
+
+- **[marketing-mobile-cta](../knowledge/marketing-mobile-cta.md)** &mdash; &#9989; verified &middot; 2026-07-19  
+  On phones (≤720px) the marketing site shows exactly ONE Book-a-Call CTA — the floating .sticky-cta pill. The per-package in-card .pkg-cta buttons and the old full-width .mobile-cta bottom bar are both hidden on mobile so nothing stacks under the pill. Desktop keeps the in-card CTAs and never shows the pill.  
+  <sub>*task:* understand or change the mobile Book-a-Call CTAs on boldlinemedia.com &nbsp;|&nbsp; *keywords:* sticky-cta, mobile-cta, pkg-cta, Book a Call, marketing-site, phone CTA, 720px</sub>
 
 ## Marketing site
 

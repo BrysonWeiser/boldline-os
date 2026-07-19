@@ -450,7 +450,9 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
   .showcase-copy h2{font-size:25px}
   .founder blockquote{font-size:19px}
   body{padding-bottom:70px}
-  .mobile-cta{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;padding:11px 14px;background:rgba(8,10,15,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);transform:translateY(120%);transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+  /* Removed on mobile: the floating .sticky-cta pill is the single bottom CTA
+     (this full-width bar used to stack under it — see knowledge/marketing-mobile-cta). */
+  .mobile-cta{display:none;position:fixed;left:0;right:0;bottom:0;z-index:60;padding:11px 14px;background:rgba(8,10,15,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line);transform:translateY(120%);transition:transform .35s cubic-bezier(.2,.7,.2,1)}
   .mobile-cta.show{transform:translateY(0)}
   .mobile-cta a{flex:1;text-align:center;padding:14px;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:10px;background:var(--gold);color:#15110A;text-decoration:none}
 }
@@ -569,6 +571,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 .sticky-cta{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:90;display:none;padding:14px 34px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:32px;background:var(--gold);color:#15110A;text-decoration:none;box-shadow:0 12px 30px -8px rgba(200,168,75,.5),0 8px 24px rgba(0,0,0,.5);opacity:0;transform:translate(-50%,84px);transition:transform .5s cubic-bezier(.2,.7,.2,1),opacity .4s ease;pointer-events:none}
 .sticky-cta.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
 @media (max-width:720px){.sticky-cta{display:block}}
+/* On phones the sticky Book-a-Call pill is the single, always-present CTA, so
+   hide the per-package in-card buttons (they'd otherwise sit under the pill and
+   read as two stacked Book-a-Call buttons). Desktop keeps the in-card CTAs. */
+@media (max-width:720px){.pkg-cta{display:none}}
 
 /* Featured package: a slow gold light orbiting the card border. Steps aside
    with the same :has() rules as the static ring when another card is
