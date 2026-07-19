@@ -10,6 +10,8 @@ verified: 2026-07-02
 
 **Status: IN PROGRESS** (started 2026-06-25). The longest approval pipeline of the four integrations (Business Verification + App Review can take weeks) — started early on purpose to run in parallel with the Google Ads Basic Access wait. Started **from scratch** (no prior Facebook/Meta presence).
 
+**GOTCHA — Security Center says "Your organization does not need to be verified" (2026-07-19):** the Start-verification button does NOT exist until some Meta surface *requires* verification. For an API build, the trigger is the **developer app**: create the Business-type app at developers.facebook.com, connect it to the BoldLine Media portfolio, add the Marketing API product — then Security Center flips to offering Start verification. (The card's "Authorizations and verifications" link is worth one click first — Meta sometimes allows self-serve start from that hub.) Don't burn time hunting for the button in Security Center before the app exists.
+
 **Setup path (click-by-click):**
 1. Personal Facebook login (the admin "key" behind any business; it stays separate from the business) — use brysonaweiser@gmail.com.
 2. **Business Portfolio** at business.facebook.com — name `BoldLine Media`, email brysonaweiser@gmail.com, confirm via the email link.
