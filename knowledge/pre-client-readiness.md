@@ -63,6 +63,15 @@ in chat or committed — Netlify's scanner also fails the build if a key value l
    apex sitemap submitted, homepage already indexed; details in `pending-seo-next-steps`).
 7. Custom-domain email bryson@boldlinemedia.com (cold-call credibility; root-domain MX on Wix
    should work — the Resend dead-end was a SUBDOMAIN record; may unlock branded lead emails).
+   **ATTEMPTED + PARKED 2026-07-19:** started Zoho Mail signup (Business Email, org
+   theboldlinemedia@gmail.com, an account was created) but the **Zoho "Forever Free Plan" is no
+   longer reachable** in the signup — it dumps you into the paid-plan chooser only (Mail Lite
+   $1.25/mo, Mail Premium $4, etc.). Bryson wanted $0 so we stopped. RESUME when a client is
+   close; recommendation then = just take **Mail Lite (~$15/yr)** (fully functional incl. IMAP —
+   the free tier is webmail/app-only anyway and Zoho hides it) rather than hunt the free plan.
+   Alternatives to weigh: Google Workspace $6/mo (lives in Gmail). DNS lands on **Wix** (see
+   `domain-dns-wix`): add root MX + SPF/DKIM there, don't disturb the A@→75.2.60.5 / CNAME www
+   records. Skipping now is fine — email is credibility, not a client blocker.
 8. Optional: GA4, Google Business Profile (see `pending-seo-next-steps`).
 9. Verify the Netlify Forms email-notification toggle is ON (marketing site → Forms) — one
    ping per lead while the branded email stays dormant.
