@@ -43,9 +43,10 @@ in chat or committed — Netlify's scanner also fails the build if a key value l
 3. **Google Ads Basic Access** — ✅ **APPROVED + VERIFIED LIVE 2026-07-19** (15,000
    ops/day; Deploy-tab test card green: authenticated API v24, MCC confirmed — see
    `google-ads-api`). This blocker is fully cleared.
-4. **Post-approval code task (NOW UNBLOCKED):** wire ARIA's approved `pendingActions` to real
-   `setBudget`/`setStatus` execution (needs live campaign reads; pieces ready in google-ads.mjs).
-   Can only be E2E-verified once a real client ad account is linked to the MCC.
+4. **Approve→execute** — ✅ **BUILT 2026-07-19** (see `google-ads-api`): ARIA reads live
+   campaigns, proposes ⚡-executable actions, and Bryson's Approve fires the real
+   `setBudget`/`setStatus`. ⚠ E2E verification still pending the first real client ad
+   account linked to the MCC (no live campaigns exist yet).
 5. **Meta Business Verification + App Review** — weeks-long; was at steps 1–3 on 2026-06-25
    (stale — re-check). Only blocks Meta-ads clients; Google-only clients unaffected.
 
