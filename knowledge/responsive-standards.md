@@ -52,6 +52,15 @@ for a working loop (portal contract tab test).
 - Marketing site — home, privacy, terms, 404: clean at all four widths.
 - Client portal — all tabs incl. the wide Contract tab: verified same day.
 
+**GOTCHA — `flexShrink:0` on a `flexWrap:wrap` action row clips instead of wrapping
+(2026-07-19).** A right-side button group with `flexShrink:0` sizes to its full single-line
+(max-content) width and overflows a narrow card instead of wrapping — the last buttons get
+clipped at the card edge (hit on the Blog Scheduled-post row: Publish Now/Delete clipped at
+~390px). Fix: **drop `flexShrink:0`** (so the group can shrink to the parent and its
+`flexWrap` actually kicks in) and add `justifyContent:flex-end`. Any wide flex child in such
+a row (e.g. a `datetime-local` input) also needs `flex:1 1 <basis>; minWidth:0` so it can
+shrink rather than force overflow.
+
 **When something SHOULD stay narrow:** forms and reading-width text can cap ~600–700px on
 desktop — that's intentional typography, not "cramped" — but center it and balance the page
 (e.g. the OS caps client detail at 1000px). The rule bans *accidental* narrowness, not
