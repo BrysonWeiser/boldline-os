@@ -2959,7 +2959,7 @@ function GoogleAdsTestCard() {
   return (
     <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
       <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📈 Test Google Ads Connection</div>
-      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Checks that the manager (MCC) credentials authenticate and lists the ad accounts they can see. Expected to fail until the Developer Token's Basic Access is approved.</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Checks that the manager (MCC) credentials authenticate and lists the ad accounts they can see. Basic Access approved + verified 2026-07-19 — this should always pass now; a failure means something changed (API version sunset, revoked token).</div>
       <div style={{display:"flex",gap:6}}>
         <button onClick={test} disabled={state==="testing"} style={{padding:"9px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="ok"?"#059669":"#1D4ED8",color:"#fff",cursor:state==="testing"?"default":"pointer",opacity:state==="testing"?.7:1,whiteSpace:"nowrap"}}>{state==="testing"?"Testing…":state==="ok"?"✓ Connected":"Test Connection"}</button>
       </div>
@@ -3371,7 +3371,7 @@ function ARIADeployTab() {
     {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, edit any post by hand, write one on demand, delete/AI-rewrite any single post, rewrite every post at once, or wipe the blog and rebuild it from scratch — all in the Website tab."},
     {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA can propose budget changes, pauses, or creative refreshes for a client, but every proposal lands in Notifications and waits for you to Approve or Reject. Nothing executes on its own. Once Google Ads/Meta are connected, this is the gate real ad-account changes will run through."},
     {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
-    {name:"Ad Account Connection",icon:"📈",live:false,note:"Google Ads: manager account + credentials are in place and the integration code is built — waiting on the Developer Token's Basic Access approval (use 'Test Google Ads Connection' above once it's granted). Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
+    {name:"Ad Account Connection",icon:"📈",live:true,note:"Google Ads LIVE — Basic Access approved + connection verified 2026-07-19 (MCC authenticates, API v24). Campaign reads + guarded budget/status writes are ready; approve→execute wiring is the remaining step. Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
   return (
     <div style={{flex:1,overflowY:"auto",padding:14}}>
