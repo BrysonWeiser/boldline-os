@@ -64,6 +64,23 @@ function useLiveData(load, { table, interval = 15000, active = true, channel } =
   }, [load, table, interval, active, channel]);
 }
 
+// ─── gadsCall ── owner-authed call to the google-ads function ─────────────────
+// Shared by ARIA's live-campaign reads and the approve→execute path. Throws with
+// the function's stage-tagged message on any failure.
+async function gadsCall(payload) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const token = session && session.access_token;
+  if (!token) throw new Error("Session expired — refresh the page and log in again.");
+  const r = await fetch("/.netlify/functions/google-ads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify(payload),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.ok) throw new Error((d.stage ? d.stage + " — " : "") + (d.error || "Google Ads request failed"));
+  return d;
+}
+
 const ALL_FEATURES = [
   { id:"search_ads",      label:"Google Search Ads",               category:"Google" },
   { id:"meta_ads",        label:"Facebook + Instagram Ads",         category:"Meta" },
@@ -2833,6 +2850,31 @@ function ARIAPanel({clients,onClose,onDelete,onUpdate}) {
   const [input,setInput]=useState("");const [repGen,setRepGen]=useState(false);
   const endRef=useRef(null);
   useEffect(()=>{ endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); },[messages,pendingAction]);
+
+  // ── Live Google Ads campaigns ── fetched once per ARIA open for every client
+  // with a linked ad account, then injected into the system prompt so ARIA can
+  // propose EXECUTABLE actions (real campaign ids). Failures are silent — ARIA
+  // simply gets no campaign data and falls back to descriptive-only proposals.
+  const [adsLive,setAdsLive]=useState({}); // clientId -> campaigns[]
+  useEffect(()=>{
+    let dead=false;
+    const linked=clients.filter(c=>c.googleAdsCustomerId);
+    if(!linked.length) return;
+    (async()=>{
+      for(const c of linked.slice(0,8)){
+        try{
+          const d=await gadsCall({action:"campaigns",customerId:c.googleAdsCustomerId});
+          if(dead) return;
+          setAdsLive(p=>({...p,[c.id]:d.campaigns||[]}));
+        }catch(e){ /* no campaign data for this client — descriptive proposals only */ }
+      }
+    })();
+    return ()=>{ dead=true; };
+  },[]);
+  const adsLines=clients.filter(c=>adsLive[c.id]&&adsLive[c.id].length)
+    .map(c=>`${c.name}: `+adsLive[c.id].map(cp=>`[id ${cp.id} "${cp.name}" ${cp.status} $${cp.dailyBudget}/day | 30d: ${cp.clicks} clicks, ${cp.conversions} conv, $${cp.cost.toFixed(0)} spent]`).join(" "))
+    .join("\n");
+
   const MRR=clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const upgradeRequests=clients.filter(c=>c.upgradeRequest);
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
@@ -2841,7 +2883,8 @@ CLIENTS:
 ${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
 If Bryson clearly asks you to delete a specific client, call the delete_client tool with that client's exact name. He'll see an on-screen confirm button before anything is actually deleted, so just call the tool — no need to double-check in chat first.
-If you identify a specific, concrete action worth taking on a client's campaign — a budget change, pausing something underperforming, a creative refresh, anything with real-world or financial impact — call the propose_action tool instead of just suggesting it in chat. It lands in Bryson's approval queue (Notifications) for him to approve or reject; nothing executes on its own. Propose it any time you'd otherwise just tell him "you should..." about a specific client.`;
+If you identify a specific, concrete action worth taking on a client's campaign — a budget change, pausing something underperforming, a creative refresh, anything with real-world or financial impact — call the propose_action tool instead of just suggesting it in chat. It lands in Bryson's approval queue (Notifications) for him to approve or reject; nothing executes without his approval. Propose it any time you'd otherwise just tell him "you should..." about a specific client.
+${adsLines?`LIVE GOOGLE ADS CAMPAIGNS (real, from the API — 30-day metrics):\n${adsLines}\nWhen a proposal is exactly ONE budget change or ONE pause/enable on a campaign listed above, include the exec payload (kind + that campaign's exact id + name) so Bryson's approval executes it in Google Ads automatically. Budget figures in exec are DAILY dollars. Never invent a campaign id; if the campaign isn't listed above, omit exec.`:""}`;
   const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYSTEM); setInput(""); };
 
@@ -2858,9 +2901,24 @@ If you identify a specific, concrete action worth taking on a client's campaign 
     const {client_name,title,detail,category}=pendingAction.input||{};
     const target=clients.find(c=>c.name.toLowerCase()===String(client_name||"").toLowerCase());
     if(!target){ confirmAction(`Could not find a client named "${client_name}". No proposal logged.`,SYSTEM); return; }
-    const action={id:crypto.randomUUID(),title:String(title||"Proposed action"),detail:String(detail||""),category:String(category||"other"),createdAt:new Date().toISOString()};
+    // Validate the optional exec payload — only attach when it's a well-formed,
+    // single Google Ads operation on a client with a linked ad account. Anything
+    // malformed silently degrades to a descriptive-only proposal (never blocks).
+    let exec=null;
+    const rawExec=pendingAction.input&&pendingAction.input.exec;
+    if(rawExec&&target.googleAdsCustomerId){
+      const kind=String(rawExec.kind||"");
+      const campaignId=String(rawExec.campaign_id||"").replace(/[^0-9]/g,"");
+      const budget=Number(rawExec.new_daily_budget_dollars);
+      const okKind=["set_daily_budget","pause_campaign","enable_campaign"].includes(kind);
+      const okBudget=kind!=="set_daily_budget"||(Number.isFinite(budget)&&budget>0&&budget<100000);
+      if(okKind&&campaignId&&okBudget){
+        exec={kind,campaignId,campaignName:String(rawExec.campaign_name||""),...(kind==="set_daily_budget"?{newDailyBudgetDollars:budget}:{})};
+      }
+    }
+    const action={id:crypto.randomUUID(),title:String(title||"Proposed action"),detail:String(detail||""),category:String(category||"other"),createdAt:new Date().toISOString(),...(exec?{exec}:{})};
     onUpdate({...target,pendingActions:[...(target.pendingActions||[]),action]});
-    confirmAction(`Logged for Bryson's approval: "${action.title}" on ${target.name}.`,SYSTEM);
+    confirmAction(`Logged for Bryson's approval: "${action.title}" on ${target.name}.${exec?" It will execute in Google Ads the moment he approves.":""}`,SYSTEM);
   },[pendingAction]);
   return (
     <Sheet onClose={onClose} zIndex={80} height="96vh" accentBorder={`${C.purple}44`}>
@@ -3369,9 +3427,9 @@ function ARIADeployTab() {
     {name:"Call Tracking Numbers",icon:"📞",live:true,note:"Live now — ARIA buys a dedicated Twilio number per client, forwards calls to their real number, and logs every call as a lead automatically. On your trial Twilio account, the client's forwarding number must be verified in the Twilio console first (one-time, ~1 min) — upgrade to a paid account to skip that step."},
     {name:"Automated Lead Follow-Up",icon:"⚡",live:true,note:"Live now — every new lead gets an instant auto-reply, branded as the client's business, the moment they fill out a landing page or call a tracking number. If nobody marks the lead Contacted/Won/Lost, ARIA automatically nurtures them again at 1 day and 3 days. Check the Leads tab on any client to see every lead and its status."},
     {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, edit any post by hand, write one on demand, delete/AI-rewrite any single post, rewrite every post at once, or wipe the blog and rebuild it from scratch — all in the Website tab."},
-    {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA can propose budget changes, pauses, or creative refreshes for a client, but every proposal lands in Notifications and waits for you to Approve or Reject. Nothing executes on its own. Once Google Ads/Meta are connected, this is the gate real ad-account changes will run through."},
-    {name:"Billing (Stripe)",icon:"💳",live:false,note:"Needs your Stripe account. Will only ever charge BoldLine's service fee — never ad spend, which stays on the client's own ad account."},
-    {name:"Ad Account Connection",icon:"📈",live:true,note:"Google Ads LIVE — Basic Access approved + connection verified 2026-07-19 (MCC authenticates, API v24). Campaign reads + guarded budget/status writes are ready; approve→execute wiring is the remaining step. Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
+    {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA proposes budget changes, pauses, or creative refreshes, and every proposal waits in Notifications for your Approve or Reject. Google Ads is connected: approved proposals marked ⚡ execute in the client's ad account automatically — nothing ever runs without your tap. Meta will flow through this same gate once its API is verified."},
+    {name:"Billing (Stripe)",icon:"💳",live:true,note:"Live — full service-fee lifecycle on Stripe: subscription checkout (card + ACH), setup fees, fee waivers/discounts, daily late-payment watching with automatic interest, and early-termination billing. Service fee ONLY — ad spend always stays on the client's own ad account."},
+    {name:"Ad Account Connection",icon:"📈",live:true,note:"Google Ads LIVE — Basic Access approved + connection verified 2026-07-19 (MCC authenticates, API v24). ARIA reads live campaigns and her approved ⚡ proposals execute real budget/pause changes through the approval queue. First full end-to-end run happens when the first client ad account links to the MCC. Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
   return (
     <div style={{flex:1,overflowY:"auto",padding:14}}>
@@ -3408,7 +3466,7 @@ function ARIADeployTab() {
         ))}
       </div>
       <div style={{marginTop:10,padding:"11px 13px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`,fontSize:11,color:C.textMuted,lineHeight:1.7}}>
-        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Upgrade Twilio off trial → DocuSign → Stripe → Google Ads/Meta API approvals. The ad platform approvals can take days to weeks, so start those first even though they're listed last.
+        <strong style={{color:C.textDim}}>Setup order for what's left:</strong> Meta Business Verification + App Review (weeks — keep it moving) → DocuSign production go-live (waiting on DocuSign's approval) → upgrade Twilio off trial (unlocks SMS + friction-free call tracking). Stripe and Google Ads are done and live.
       </div>
     </div>
   );
@@ -3905,7 +3963,44 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
     onClose();
   };
 
-  const decideAction=(cl,action,decision)=>{
+  // Approve/Reject an ARIA proposal. Approving a proposal that carries an exec
+  // payload EXECUTES it in Google Ads first: re-read the account's campaigns
+  // (verifies the campaign still exists + gets fresh resource names — never
+  // trust ids cached at proposal time), then fire the guarded write. Success
+  // clears the card + logs "EXECUTED"; failure keeps the card in the queue with
+  // the error shown so Approve becomes a retry. Proposals without exec (and all
+  // rejections) just log the decision, exactly as before.
+  const [executingId,setExecutingId]=useState(null);
+  const [execErrors,setExecErrors]=useState({});
+  const decideAction=async(cl,action,decision)=>{
+    if(decision==="approved"&&action.exec&&cl.googleAdsCustomerId){
+      if(executingId)return;
+      setExecutingId(action.id);
+      setExecErrors(p=>{const n={...p};delete n[action.id];return n;});
+      try{
+        const d=await gadsCall({action:"campaigns",customerId:cl.googleAdsCustomerId});
+        const camp=(d.campaigns||[]).find(c=>String(c.id)===String(action.exec.campaignId));
+        if(!camp)throw new Error(`Campaign "${action.exec.campaignName||action.exec.campaignId}" wasn't found in the account — it may have been removed or renamed. Nothing was changed.`);
+        let summary;
+        if(action.exec.kind==="set_daily_budget"){
+          await gadsCall({action:"setBudget",customerId:cl.googleAdsCustomerId,budgetResourceName:camp.budgetResourceName,dollars:action.exec.newDailyBudgetDollars});
+          summary=`"${camp.name}" daily budget $${camp.dailyBudget} → $${action.exec.newDailyBudgetDollars}`;
+        }else{
+          const st=action.exec.kind==="pause_campaign"?"PAUSED":"ENABLED";
+          await gadsCall({action:"setStatus",customerId:cl.googleAdsCustomerId,campaignResourceName:camp.campaignResourceName,status:st});
+          summary=`"${camp.name}" ${st==="PAUSED"?"paused":"re-enabled"}`;
+        }
+        setExecutingId(null);
+        onUpdate({...cl,
+          pendingActions:(cl.pendingActions||[]).filter(a=>a.id!==action.id),
+          commLog:[{date:fmt(new Date()),note:`Approved + EXECUTED in Google Ads: ${action.title} (${summary})`,cat:"update",ts:Date.now()},...(cl.commLog||[])],
+        });
+      }catch(e){
+        setExecutingId(null);
+        setExecErrors(p=>({...p,[action.id]:e.message||"Execution failed — nothing was changed."}));
+      }
+      return;
+    }
     onUpdate({...cl,
       pendingActions:(cl.pendingActions||[]).filter(a=>a.id!==action.id),
       commLog:[{date:fmt(new Date()),note:`${decision==="approved"?"Approved":"Rejected"} ARIA proposal: ${action.title}`,cat:"update",ts:Date.now()},...(cl.commLog||[])],
@@ -4003,18 +4098,19 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                   <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:9}}>
                     <div style={{width:34,height:34,borderRadius:9,backgroundColor:`${C.purple}18`,border:`1px solid ${C.purple}2a`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>✦</div>
                     <div style={S.f1min}>
-                      <div style={{fontSize:13,fontWeight:700,color:C.text}}>{action.title}</div>
+                      <div style={{fontSize:13,fontWeight:700,color:C.text}}>{action.title}{action.exec&&<span style={{marginLeft:7,fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.3)",color:C.green,whiteSpace:"nowrap",verticalAlign:"2px"}}>⚡ Executes on approve</span>}</div>
                       {action.detail&&<div style={{fontSize:11,color:C.textDim,marginTop:3,lineHeight:1.6}}>{action.detail}</div>}
                       <div style={{fontSize:10,color:C.textMuted,marginTop:4}}>{cl.name} · {CATEGORY_LABELS[action.category]||CATEGORY_LABELS.other} · ARIA proposal</div>
+                      {execErrors[action.id]&&<div style={{fontSize:10.5,color:C.red,marginTop:5,lineHeight:1.5}}>⚠ {execErrors[action.id]}</div>}
                     </div>
                   </div>
                   <div style={S.row7}>
-                    <button onClick={()=>decideAction(cl,action,"rejected")} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Reject</button>
-                    <button onClick={()=>decideAction(cl,action,"approved")} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}44`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer"}}>Approve</button>
+                    <button onClick={()=>decideAction(cl,action,"rejected")} disabled={executingId===action.id} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:executingId===action.id?.5:1}}>Reject</button>
+                    <button onClick={()=>decideAction(cl,action,"approved")} disabled={executingId===action.id} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}44`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer",opacity:executingId===action.id?.7:1}}>{executingId===action.id?"Executing in Google Ads…":execErrors[action.id]?"Retry Execution":"Approve"}</button>
                   </div>
                 </div>
               ))}
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,padding:"2px 2px 0"}}>Approving logs your decision in the client's activity log. ARIA doesn't have live access to ad platforms yet, so you'll still make the actual change in Google/Meta yourself for now.</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,padding:"2px 2px 0"}}>Approving a proposal marked ⚡ executes the change in the client's Google Ads account immediately (logged as "EXECUTED" in their activity log). Proposals without ⚡ are logged for you to carry out manually — that includes all Meta changes until Meta's API is verified. Rejecting only records your decision; nothing is ever changed.</div>
             </div>
           )}
 

@@ -42,6 +42,31 @@ const PROPOSE_ACTION_TOOL = {
         enum: ["budget", "creative", "targeting", "pause", "other"],
         description: "The kind of action being proposed.",
       },
+      exec: {
+        type: "object",
+        description:
+          "OPTIONAL — include ONLY when this proposal is one specific, directly executable Google Ads change on a campaign whose numeric id appears in the LIVE GOOGLE ADS CAMPAIGNS data you were given. When present, approving the proposal EXECUTES the change in the client's Google Ads account immediately. Omit entirely for clients with no campaign data, for multi-step ideas, or for anything that isn't exactly one budget change or one pause/enable. Never invent or guess a campaign id.",
+        properties: {
+          kind: {
+            type: "string",
+            enum: ["set_daily_budget", "pause_campaign", "enable_campaign"],
+            description: "The single Google Ads operation to run on approval.",
+          },
+          campaign_id: {
+            type: "string",
+            description: "The campaign's numeric id, copied exactly from the LIVE GOOGLE ADS CAMPAIGNS data.",
+          },
+          campaign_name: {
+            type: "string",
+            description: "The campaign's name, for the approval card and audit log.",
+          },
+          new_daily_budget_dollars: {
+            type: "number",
+            description: "Required when kind is set_daily_budget: the new DAILY budget in dollars (not monthly).",
+          },
+        },
+        required: ["kind", "campaign_id", "campaign_name"],
+      },
     },
     required: ["client_name", "title", "detail", "category"],
   },
