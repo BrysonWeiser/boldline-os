@@ -10,6 +10,11 @@ verified: 2026-07-02
 
 **Status: IN PROGRESS** (started 2026-06-25). The longest approval pipeline of the four integrations (Business Verification + App Review can take weeks) — started early on purpose to run in parallel with the Google Ads Basic Access wait. Started **from scratch** (no prior Facebook/Meta presence).
 
+**✅ ACCOUNT MAP — CONFIRMED from the People list 2026-07-19 (end the guessing):**
+- **Portfolio admin / the account Bryson normally logs in as = `theboldlinemedia@gmail.com`** (display name "Bryson Weiser", labeled "(you)", **Active**, Full access/Everything). This is the newer account (created ~2026-07-06) and the one to use for all portfolio + dev-app + verification work.
+- **Second admin = `brysonaweiser@gmail.com`** (the older personal account) — **Full access, status "Invited"/pending** as of 2026-07-19. The invite is already sent; it just needs accepting **while logged in AS brysonaweiser** (incognito). The prior "you're already in the Business Portfolio" error was from trying to accept while logged in as theboldlinemedia (the admin can't accept its own invite). Do NOT re-send — accept the pending one. Open risk: whether Bryson has the brysonaweiser FB password.
+- (Supersedes the tangled 2026-07-07 notes below. `lleatherboy@gmail.com` is NOT one of his logins.)
+
 **GOTCHA — Security Center says "Your organization does not need to be verified" (2026-07-19):** the Start-verification button does NOT exist until some Meta surface *requires* verification. For an API build, the trigger is the **developer app**: create the Business-type app at developers.facebook.com, connect it to the BoldLine Media portfolio, add the Marketing API product — then Security Center flips to offering Start verification. (The card's "Authorizations and verifications" link is worth one click first — Meta sometimes allows self-serve start from that hub.) Don't burn time hunting for the button in Security Center before the app exists.
 
 **Setup path (click-by-click):**
