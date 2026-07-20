@@ -81,6 +81,21 @@ async function gadsCall(payload) {
   return d;
 }
 
+// ─── metaCall ── owner-authed call to the meta-ads function (Meta counterpart) ─
+async function metaCall(payload) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const token = session && session.access_token;
+  if (!token) throw new Error("Session expired — refresh the page and log in again.");
+  const r = await fetch("/.netlify/functions/meta-ads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify(payload),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.ok) throw new Error((d.stage ? d.stage + " — " : "") + (d.error || "Meta Ads request failed"));
+  return d;
+}
+
 const ALL_FEATURES = [
   { id:"search_ads",      label:"Google Search Ads",               category:"Google" },
   { id:"meta_ads",        label:"Facebook + Instagram Ads",         category:"Meta" },
@@ -2103,7 +2118,10 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
         )}
 
         {tab==="package"&&(
-          <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
+          <>
+            <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
+            <MetaLaunchCard client={client}/>
+          </>
         )}
 
         {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onUpdate={onUpdate} onRenew={(newEnd,extra)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,...(extra||{}),alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
@@ -2851,28 +2869,29 @@ function ARIAPanel({clients,onClose,onDelete,onUpdate}) {
   const endRef=useRef(null);
   useEffect(()=>{ endRef.current && endRef.current.scrollIntoView({behavior:"smooth"}); },[messages,pendingAction]);
 
-  // ── Live Google Ads campaigns ── fetched once per ARIA open for every client
-  // with a linked ad account, then injected into the system prompt so ARIA can
-  // propose EXECUTABLE actions (real campaign ids). Failures are silent — ARIA
-  // simply gets no campaign data and falls back to descriptive-only proposals.
-  const [adsLive,setAdsLive]=useState({}); // clientId -> campaigns[]
+  // ── Live ad campaigns (Google + Meta) ── fetched once per ARIA open for every
+  // client with a linked ad account, injected into the system prompt so ARIA can
+  // propose EXECUTABLE actions with real campaign ids. Failures are silent — ARIA
+  // simply gets no campaign data for that client and falls back to descriptive-only.
+  const [adsLive,setAdsLive]=useState({});   // clientId -> Google campaigns[]
+  const [metaLive,setMetaLive]=useState({}); // clientId -> Meta campaigns[]
   useEffect(()=>{
     let dead=false;
-    const linked=clients.filter(c=>c.googleAdsCustomerId);
-    if(!linked.length) return;
     (async()=>{
-      for(const c of linked.slice(0,8)){
-        try{
-          const d=await gadsCall({action:"campaigns",customerId:c.googleAdsCustomerId});
-          if(dead) return;
-          setAdsLive(p=>({...p,[c.id]:d.campaigns||[]}));
-        }catch(e){ /* no campaign data for this client — descriptive proposals only */ }
+      for(const c of clients.filter(c=>c.googleAdsCustomerId).slice(0,8)){
+        try{ const d=await gadsCall({action:"campaigns",customerId:c.googleAdsCustomerId}); if(dead)return; setAdsLive(p=>({...p,[c.id]:d.campaigns||[]})); }catch(e){}
+      }
+      for(const c of clients.filter(c=>c.metaAdAccountId).slice(0,8)){
+        try{ const d=await metaCall({action:"campaigns",adAccountId:c.metaAdAccountId}); if(dead)return; setMetaLive(p=>({...p,[c.id]:d.campaigns||[]})); }catch(e){}
       }
     })();
     return ()=>{ dead=true; };
   },[]);
   const adsLines=clients.filter(c=>adsLive[c.id]&&adsLive[c.id].length)
     .map(c=>`${c.name}: `+adsLive[c.id].map(cp=>`[id ${cp.id} "${cp.name}" ${cp.status} $${cp.dailyBudget}/day | 30d: ${cp.clicks} clicks, ${cp.conversions} conv, $${cp.cost.toFixed(0)} spent]`).join(" "))
+    .join("\n");
+  const metaLines=clients.filter(c=>metaLive[c.id]&&metaLive[c.id].length)
+    .map(c=>`${c.name}: `+metaLive[c.id].map(cp=>`[id ${cp.id} "${cp.name}" ${cp.status} $${cp.dailyBudget}/day | 30d: ${cp.clicks} clicks, ${cp.leads} leads, $${cp.spend.toFixed(0)} spent]`).join(" "))
     .join("\n");
 
   const MRR=clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
@@ -2884,7 +2903,8 @@ ${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.na
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
 If Bryson clearly asks you to delete a specific client, call the delete_client tool with that client's exact name. He'll see an on-screen confirm button before anything is actually deleted, so just call the tool — no need to double-check in chat first.
 If you identify a specific, concrete action worth taking on a client's campaign — a budget change, pausing something underperforming, a creative refresh, anything with real-world or financial impact — call the propose_action tool instead of just suggesting it in chat. It lands in Bryson's approval queue (Notifications) for him to approve or reject; nothing executes without his approval. Propose it any time you'd otherwise just tell him "you should..." about a specific client.
-${adsLines?`LIVE GOOGLE ADS CAMPAIGNS (real, from the API — 30-day metrics):\n${adsLines}\nWhen a proposal is exactly ONE budget change or ONE pause/enable on a campaign listed above, include the exec payload (kind + that campaign's exact id + name) so Bryson's approval executes it in Google Ads automatically. Budget figures in exec are DAILY dollars. Never invent a campaign id; if the campaign isn't listed above, omit exec.`:""}`;
+${(adsLines||metaLines)?`LIVE AD CAMPAIGNS (real, from the APIs — 30-day metrics). For an executable proposal, set exec.platform to "google" or "meta" matching which list the campaign came from, use that campaign's EXACT id, and give budgets as DAILY dollars. Never invent an id; if a campaign isn't listed, omit exec.
+${adsLines?`GOOGLE ADS:\n${adsLines}\n`:""}${metaLines?`META ADS:\n${metaLines}\n`:""}When a proposal is exactly ONE budget change or ONE pause/enable on a listed campaign, include the exec payload (platform + kind + that campaign's exact id + name) so Bryson's approval executes it automatically.`:""}`;
   const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYSTEM); setInput(""); };
 
@@ -2906,19 +2926,21 @@ ${adsLines?`LIVE GOOGLE ADS CAMPAIGNS (real, from the API — 30-day metrics):\n
     // malformed silently degrades to a descriptive-only proposal (never blocks).
     let exec=null;
     const rawExec=pendingAction.input&&pendingAction.input.exec;
-    if(rawExec&&target.googleAdsCustomerId){
+    if(rawExec){
+      const platform=String(rawExec.platform||"google").toLowerCase()==="meta"?"meta":"google";
+      const linkedOk=platform==="meta"?!!target.metaAdAccountId:!!target.googleAdsCustomerId;
       const kind=String(rawExec.kind||"");
       const campaignId=String(rawExec.campaign_id||"").replace(/[^0-9]/g,"");
       const budget=Number(rawExec.new_daily_budget_dollars);
       const okKind=["set_daily_budget","pause_campaign","enable_campaign"].includes(kind);
       const okBudget=kind!=="set_daily_budget"||(Number.isFinite(budget)&&budget>0&&budget<100000);
-      if(okKind&&campaignId&&okBudget){
-        exec={kind,campaignId,campaignName:String(rawExec.campaign_name||""),...(kind==="set_daily_budget"?{newDailyBudgetDollars:budget}:{})};
+      if(linkedOk&&okKind&&campaignId&&okBudget){
+        exec={platform,kind,campaignId,campaignName:String(rawExec.campaign_name||""),...(kind==="set_daily_budget"?{newDailyBudgetDollars:budget}:{})};
       }
     }
     const action={id:crypto.randomUUID(),title:String(title||"Proposed action"),detail:String(detail||""),category:String(category||"other"),createdAt:new Date().toISOString(),...(exec?{exec}:{})};
     onUpdate({...target,pendingActions:[...(target.pendingActions||[]),action]});
-    confirmAction(`Logged for Bryson's approval: "${action.title}" on ${target.name}.${exec?" It will execute in Google Ads the moment he approves.":""}`,SYSTEM);
+    confirmAction(`Logged for Bryson's approval: "${action.title}" on ${target.name}.${exec?` It will execute in ${exec.platform==="meta"?"Meta":"Google"} Ads the moment he approves.`:""}`,SYSTEM);
   },[pendingAction]);
   return (
     <Sheet onClose={onClose} zIndex={80} height="96vh" accentBorder={`${C.purple}44`}>
@@ -3023,6 +3045,110 @@ function GoogleAdsTestCard() {
       </div>
       {msg&&<div style={{fontSize:11,marginTop:8,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
     </div>
+  );
+}
+
+function MetaAdsTestCard() {
+  const [state,setState]=useState("idle");   // idle | testing | ok | error
+  const [msg,setMsg]=useState("");
+  const test=async()=>{
+    setState("testing"); setMsg("");
+    try{
+      const d=await metaCall({action:"test"});
+      setState("ok"); setMsg("✓ Authenticated (Graph "+d.graphVersion+"). "+d.count+" ad account"+(d.count===1?"":"s")+" visible to the business"+(d.accounts&&d.accounts.length?": "+d.accounts.map(a=>a.name||a.id).join(", "):"")+".");
+    }catch(e){ setState("error"); setMsg(e.message||"Test failed."); }
+  };
+  return (
+    <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📘 Test Meta Ads Connection</div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Checks the business System-User token and lists the ad accounts it can see. Needs META_SYSTEM_USER_TOKEN + META_APP_SECRET in Netlify. Works on your own ad account in dev mode now; client accounts require Meta App Review (advanced ads_management) to be approved first.</div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={test} disabled={state==="testing"} style={{padding:"9px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="ok"?"#059669":"#1D4ED8",color:"#fff",cursor:state==="testing"?"default":"pointer",opacity:state==="testing"?.7:1,whiteSpace:"nowrap"}}>{state==="testing"?"Testing…":state==="ok"?"✓ Connected":"Test Connection"}</button>
+      </div>
+      {msg&&<div style={{fontSize:11,marginTop:8,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
+    </div>
+  );
+}
+
+// ─── META CAMPAIGN LAUNCHER ───────────────────────────────────────────────────
+// "Run specific ads" for a client: builds a full lead-gen Meta campaign
+// (campaign→adset→creative→ad) on the CLIENT's ad account, ALL PAUSED, driving to
+// their landing page. Pre-fills from client data; owner reviews + tweaks + launches.
+// Nothing spends until it's activated (approval queue / Ads Manager). Client owns
+// the account + pays their own spend — BoldLine only manages.
+function MetaLaunchCard({client}) {
+  const linked = client.metaAdAccountId && client.metaPageId;
+  const landingDefault = client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "";
+  const firstImg = (client.mediaLibrary||[]).find(m=>m.url && m.category!=="video");
+  const [f,setF] = useState({
+    name: `${client.name} — Leads`,
+    dailyBudgetDollars: 20,
+    landingUrl: landingDefault,
+    headline: (client.landingPage && client.landingPage.headline) || client.name,
+    primaryText: (client.landingPage && client.landingPage.subheadline) || "",
+    description: "",
+    ctaType: "LEARN_MORE",
+    ageMin: 18, ageMax: 65,
+    country: "US",
+    imageUrl: (firstImg && firstImg.url) || "",
+  });
+  const [state,setState] = useState("idle"); // idle | creating | done | error
+  const [msg,setMsg] = useState("");
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"};
+  const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
+  const launch=async()=>{
+    if(!(Number(f.dailyBudgetDollars)>0)){ setState("error"); setMsg("Daily budget must be greater than 0."); return; }
+    if(!f.landingUrl){ setState("error"); setMsg("A landing page URL is required."); return; }
+    setState("creating"); setMsg("");
+    try{
+      const d=await metaCall({action:"createCampaign",
+        adAccountId:client.metaAdAccountId, pageId:client.metaPageId,
+        landingUrl:f.landingUrl, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
+        geo:{countries:[f.country||"US"]}, ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
+        headline:f.headline, primaryText:f.primaryText, description:f.description,
+        ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}),
+      });
+      setState("done"); setMsg(`✓ Campaign created PAUSED (campaign ${d.campaignId}). Review it, then activate to start spend — it won't run until you do.`);
+    }catch(e){ setState("error"); setMsg(e.message||"Launch failed — nothing was created."); }
+  };
+  if(!linked) return (
+    <Card>
+      <Label>📘 Launch Meta Campaign</Label>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Link this client's <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then you can build and launch their Meta ads right here. (Client accounts also require Meta App Review to be approved.)</div>
+    </Card>
+  );
+  return (
+    <Card>
+      <Label>📘 Launch Meta Campaign</Label>
+      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</div>
+      {[
+        {k:"name",l:"Campaign name",t:"text"},
+        {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
+        {k:"landingUrl",l:"Landing page URL",t:"text"},
+        {k:"headline",l:"Headline",t:"text"},
+        {k:"primaryText",l:"Primary text (the post body)",t:"text"},
+        {k:"description",l:"Description (optional)",t:"text"},
+        {k:"imageUrl",l:"Ad image URL (optional — defaults to a client photo)",t:"text"},
+      ].map(({k,l,t})=>(
+        <div key={k} style={{marginBottom:9}}>
+          <label style={lbl}>{l}</label>
+          <input type={t} value={f[k]} onChange={e=>set(k,e.target.value)} style={box}/>
+        </div>
+      ))}
+      <div style={{display:"flex",gap:8,marginBottom:9}}>
+        <div style={{flex:1}}><label style={lbl}>CTA button</label>
+          <select value={f.ctaType} onChange={e=>set("ctaType",e.target.value)} style={box}>
+            {["LEARN_MORE","SIGN_UP","GET_QUOTE","CONTACT_US","BOOK_NOW","GET_OFFER","SUBSCRIBE"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o.replace(/_/g," ")}</option>)}
+          </select>
+        </div>
+        <div style={{width:70}}><label style={lbl}>Age min</label><input type="number" value={f.ageMin} onChange={e=>set("ageMin",e.target.value)} style={box}/></div>
+        <div style={{width:70}}><label style={lbl}>Age max</label><input type="number" value={f.ageMax} onChange={e=>set("ageMax",e.target.value)} style={box}/></div>
+        <div style={{width:70}}><label style={lbl}>Country</label><input type="text" value={f.country} onChange={e=>set("country",e.target.value.toUpperCase().slice(0,2))} style={box}/></div>
+      </div>
+      <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
+      {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
+    </Card>
   );
 }
 
@@ -3429,7 +3555,7 @@ function ARIADeployTab() {
     {name:"AI Blog Auto-Publish",icon:"📝",live:true,note:"Live now — ARIA writes and publishes a new blog post to boldlinemedia.com/blog on its own (checked Mon/Wed/Fri, capped at your weekly cadence), and emails you every time one goes live. Manage cadence, edit any post by hand, write one on demand, delete/AI-rewrite any single post, rewrite every post at once, or wipe the blog and rebuild it from scratch — all in the Website tab."},
     {name:"Guardrails — Approval Queue",icon:"🛡️",live:true,note:"Live now — ARIA proposes budget changes, pauses, or creative refreshes, and every proposal waits in Notifications for your Approve or Reject. Google Ads is connected: approved proposals marked ⚡ execute in the client's ad account automatically — nothing ever runs without your tap. Meta will flow through this same gate once its API is verified."},
     {name:"Billing (Stripe)",icon:"💳",live:true,note:"Live — full service-fee lifecycle on Stripe: subscription checkout (card + ACH), setup fees, fee waivers/discounts, daily late-payment watching with automatic interest, and early-termination billing. Service fee ONLY — ad spend always stays on the client's own ad account."},
-    {name:"Ad Account Connection",icon:"📈",live:true,note:"Google Ads LIVE — Basic Access approved + connection verified 2026-07-19 (MCC authenticates, API v24). ARIA reads live campaigns and her approved ⚡ proposals execute real budget/pause changes through the approval queue. First full end-to-end run happens when the first client ad account links to the MCC. Meta: Business Verification + App Review in progress. Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
+    {name:"Ad Account Connection",icon:"📈",live:true,note:"Google Ads LIVE — Basic Access approved + connection verified 2026-07-19 (MCC authenticates, API v24). ARIA reads live campaigns and her approved ⚡ proposals execute real budget/pause changes through the approval queue. First full end-to-end run happens when the first client ad account links to the MCC. Meta Ads: full integration BUILT 2026-07-20 — Test-connection card, ARIA reads live Meta campaigns, ⚡ approve→execute for budget/pause, AND campaign creation (Launch Meta Campaign on the Package tab). Business verified 2026-07-19; needs META_SYSTEM_USER_TOKEN + META_APP_SECRET in Netlify, and App Review (advanced ads_management) before it works on CLIENT accounts (your own account works in dev mode now). Clients link their own ad accounts — they always pay, BoldLine never touches spend."},
   ];
   return (
     <div style={{flex:1,overflowY:"auto",padding:14}}>
@@ -3449,6 +3575,7 @@ function ARIADeployTab() {
       </div>
       <DocuSignTestCard/>
       <GoogleAdsTestCard/>
+      <MetaAdsTestCard/>
       <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:11,padding:"12px 13px",marginBottom:14}}>
         <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:5}}>📝 Blog — AI Auto-Publish</div>
         <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Blog management moved to the <strong style={{color:C.gold}}>Website</strong> tab in the bottom bar — edit, AI-rewrite, delete, and set the weekly cadence there.</div>
@@ -3628,6 +3755,20 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>
                   <input type={t} value={form[k]||""} onChange={e=>set(k,t==="number"?Number(e.target.value):e.target.value)} placeholder={ph} style={inp}/>
+                </div>
+              ))}
+            </Card>
+            <Card>
+              <Label>Ad Account Linking</Label>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes.</div>
+              {[
+                {k:"googleAdsCustomerId", l:"Google Ads Customer ID", ph:"123-456-7890"},
+                {k:"metaAdAccountId",     l:"Meta Ad Account ID",     ph:"e.g. 1234567890 (digits only)"},
+                {k:"metaPageId",          l:"Meta / Facebook Page ID (for ad creatives)", ph:"e.g. 1098765432109876"},
+              ].map(({k,l,ph})=>(
+                <div key={k} style={fieldStyle}>
+                  <label style={fieldLabelStyle}>{l}</label>
+                  <input type="text" value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/>
                 </div>
               ))}
             </Card>
@@ -3964,36 +4105,53 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   };
 
   // Approve/Reject an ARIA proposal. Approving a proposal that carries an exec
-  // payload EXECUTES it in Google Ads first: re-read the account's campaigns
-  // (verifies the campaign still exists + gets fresh resource names — never
-  // trust ids cached at proposal time), then fire the guarded write. Success
-  // clears the card + logs "EXECUTED"; failure keeps the card in the queue with
-  // the error shown so Approve becomes a retry. Proposals without exec (and all
-  // rejections) just log the decision, exactly as before.
+  // payload EXECUTES it on the right platform (Google or Meta) first: re-read the
+  // account's campaigns (verifies the campaign still exists + gets fresh resource
+  // names — never trust ids cached at proposal time), then fire the guarded write.
+  // Success clears the card + logs "EXECUTED"; failure keeps the card in the queue
+  // with the error shown so Approve becomes a retry. Proposals without exec (and
+  // all rejections) just log the decision.
   const [executingId,setExecutingId]=useState(null);
   const [execErrors,setExecErrors]=useState({});
   const decideAction=async(cl,action,decision)=>{
-    if(decision==="approved"&&action.exec&&cl.googleAdsCustomerId){
+    const ex=action.exec;
+    const platform=ex&&(ex.platform==="meta"?"meta":"google");
+    const linkedId=ex&&(platform==="meta"?cl.metaAdAccountId:cl.googleAdsCustomerId);
+    if(decision==="approved"&&ex&&linkedId){
       if(executingId)return;
       setExecutingId(action.id);
       setExecErrors(p=>{const n={...p};delete n[action.id];return n;});
       try{
-        const d=await gadsCall({action:"campaigns",customerId:cl.googleAdsCustomerId});
-        const camp=(d.campaigns||[]).find(c=>String(c.id)===String(action.exec.campaignId));
-        if(!camp)throw new Error(`Campaign "${action.exec.campaignName||action.exec.campaignId}" wasn't found in the account — it may have been removed or renamed. Nothing was changed.`);
         let summary;
-        if(action.exec.kind==="set_daily_budget"){
-          await gadsCall({action:"setBudget",customerId:cl.googleAdsCustomerId,budgetResourceName:camp.budgetResourceName,dollars:action.exec.newDailyBudgetDollars});
-          summary=`"${camp.name}" daily budget $${camp.dailyBudget} → $${action.exec.newDailyBudgetDollars}`;
+        if(platform==="meta"){
+          const d=await metaCall({action:"campaigns",adAccountId:cl.metaAdAccountId});
+          const camp=(d.campaigns||[]).find(c=>String(c.id)===String(ex.campaignId));
+          if(!camp)throw new Error(`Campaign "${ex.campaignName||ex.campaignId}" wasn't found in the Meta account — it may have been removed or renamed. Nothing was changed.`);
+          if(ex.kind==="set_daily_budget"){
+            await metaCall({action:"setBudget",campaignId:camp.id,dailyBudgetDollars:ex.newDailyBudgetDollars});
+            summary=`Meta "${camp.name}" daily budget $${camp.dailyBudget} → $${ex.newDailyBudgetDollars}`;
+          }else{
+            const st=ex.kind==="pause_campaign"?"PAUSED":"ACTIVE";
+            await metaCall({action:"setStatus",campaignId:camp.id,status:st});
+            summary=`Meta "${camp.name}" ${st==="PAUSED"?"paused":"activated"}`;
+          }
         }else{
-          const st=action.exec.kind==="pause_campaign"?"PAUSED":"ENABLED";
-          await gadsCall({action:"setStatus",customerId:cl.googleAdsCustomerId,campaignResourceName:camp.campaignResourceName,status:st});
-          summary=`"${camp.name}" ${st==="PAUSED"?"paused":"re-enabled"}`;
+          const d=await gadsCall({action:"campaigns",customerId:cl.googleAdsCustomerId});
+          const camp=(d.campaigns||[]).find(c=>String(c.id)===String(ex.campaignId));
+          if(!camp)throw new Error(`Campaign "${ex.campaignName||ex.campaignId}" wasn't found in the Google account — it may have been removed or renamed. Nothing was changed.`);
+          if(ex.kind==="set_daily_budget"){
+            await gadsCall({action:"setBudget",customerId:cl.googleAdsCustomerId,budgetResourceName:camp.budgetResourceName,dollars:ex.newDailyBudgetDollars});
+            summary=`Google "${camp.name}" daily budget $${camp.dailyBudget} → $${ex.newDailyBudgetDollars}`;
+          }else{
+            const st=ex.kind==="pause_campaign"?"PAUSED":"ENABLED";
+            await gadsCall({action:"setStatus",customerId:cl.googleAdsCustomerId,campaignResourceName:camp.campaignResourceName,status:st});
+            summary=`Google "${camp.name}" ${st==="PAUSED"?"paused":"re-enabled"}`;
+          }
         }
         setExecutingId(null);
         onUpdate({...cl,
           pendingActions:(cl.pendingActions||[]).filter(a=>a.id!==action.id),
-          commLog:[{date:fmt(new Date()),note:`Approved + EXECUTED in Google Ads: ${action.title} (${summary})`,cat:"update",ts:Date.now()},...(cl.commLog||[])],
+          commLog:[{date:fmt(new Date()),note:`Approved + EXECUTED: ${action.title} (${summary})`,cat:"update",ts:Date.now()},...(cl.commLog||[])],
         });
       }catch(e){
         setExecutingId(null);
@@ -4565,6 +4723,8 @@ function App({onLogout}) {
       landingPage: {headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null,...c.landingPage},
       pendingActions: c.pendingActions||[],
       googleAdsCustomerId: c.googleAdsCustomerId||"",
+      metaAdAccountId: c.metaAdAccountId||"",
+      metaPageId: c.metaPageId||"",
     };
     const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
     if (error) console.error("Token backfill failed:", error);

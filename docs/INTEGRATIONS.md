@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 52 task-keyed entries under `knowledge/`. They surface automatically via the
+> 53 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**52 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**53 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -159,6 +159,9 @@
 - **[google-ads-api](../knowledge/google-ads-api.md)** &mdash; &#9989; verified &middot; 2026-07-19  
   Google Ads is FULLY LIVE — Basic Access approved AND the Deploy-tab test card verified green 2026-07-19 ("Authenticated (API v24), 1 account visible to the manager, MCC confirmed"). One MCC + Developer Token + OAuth refresh token (login-customer-id header); code in google-ads.mjs (test/campaigns/setBudget/setStatus). Remaining step: wire approve→execute (needs a real linked client account to E2E-verify). Use the Web-app OAuth client (Desktop got redirect_uri_mismatch).  
   <sub>*task:* connect, test, or debug the Google Ads API integration (MCC, OAuth, Basic Access, approval queue) &nbsp;|&nbsp; *keywords:* google-ads.mjs, MCC, login-customer-id, GOOGLE_ADS_API_VERSION, redirect_uri_mismatch, basic-access, propose_action, pendingActions</sub>
+- **[meta-ads-integration](../knowledge/meta-ads-integration.md)** &mdash; &#9989; verified &middot; 2026-07-20  
+  Full Meta Marketing API integration BUILT 2026-07-20 (mirrors + extends the Google Ads side). netlify/functions/meta-ads.mjs — test / campaigns / setBudget / setStatus / createCampaign, owner-Supabase-session gated, System-User-token auth, Graph v25.0 (META_GRAPH_VERSION overrides). OS: Deploy-tab Test card, per-client metaAdAccountId + metaPageId in Edit→Campaign, ARIA reads live Meta campaigns + ⚡ approve→execute (exec.platform "google"|"meta"), and a Launch Meta Campaign form on the Package tab (builds campaign→adset→creative→ad ALL PAUSED). NOT yet runnable on client accounts — needs env vars set + Meta App Review (advanced ads_management). NOT tested against a live account.  
+  <sub>*task:* connect, test, debug, or extend the Meta (Facebook/Instagram) Ads integration in the OS &nbsp;|&nbsp; *keywords:* meta-ads.mjs, metaCall, MetaAdsTestCard, MetaLaunchCard, createCampaign, System User token, ads_management, metaAdAccountId, metaPageId, appsecret_proof</sub>
 - **[meta-marketing-api](../knowledge/meta-marketing-api.md)** &mdash; &#9888; stale-able &middot; 2026-07-02  
   Meta Marketing API setup is IN PROGRESS (longest approval pipeline — Business Verification + App Review, weeks). Started from scratch. As of 2026-06-25 Bryson was on steps 1-3 (Business Portfolio + Page); next is Business Verification. No env vars yet. (Current position is volatile — re-check.)  
   <sub>*task:* continue the Meta (Facebook) Marketing API setup and business verification &nbsp;|&nbsp; *keywords:* meta-marketing-api, business-portfolio, business-verification, ads_management, app-review, security-center</sub>

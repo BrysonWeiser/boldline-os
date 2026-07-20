@@ -45,8 +45,13 @@ const PROPOSE_ACTION_TOOL = {
       exec: {
         type: "object",
         description:
-          "OPTIONAL — include ONLY when this proposal is one specific, directly executable Google Ads change on a campaign whose numeric id appears in the LIVE GOOGLE ADS CAMPAIGNS data you were given. When present, approving the proposal EXECUTES the change in the client's Google Ads account immediately. Omit entirely for clients with no campaign data, for multi-step ideas, or for anything that isn't exactly one budget change or one pause/enable. Never invent or guess a campaign id.",
+          "OPTIONAL — include ONLY when this proposal is one specific, directly executable ad change on a campaign whose id appears in the LIVE AD CAMPAIGNS data you were given (Google or Meta). When present, approving the proposal EXECUTES the change in the client's ad account immediately. Omit entirely for clients with no campaign data, for multi-step ideas, or for anything that isn't exactly one budget change or one pause/enable. Never invent or guess a campaign id.",
         properties: {
+          platform: {
+            type: "string",
+            enum: ["google", "meta"],
+            description: "Which ad platform the campaign is on — must match the list (GOOGLE ADS vs META ADS) the campaign id came from. Defaults to google if omitted.",
+          },
           kind: {
             type: "string",
             enum: ["set_daily_budget", "pause_campaign", "enable_campaign"],
