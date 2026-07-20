@@ -52,11 +52,11 @@ in chat or committed — Netlify's scanner also fails the build if a key value l
    campaigns, proposes ⚡-executable actions, and Bryson's Approve fires the real
    `setBudget`/`setStatus`. ⚠ E2E verification still pending the first real client ad
    account linked to the MCC (no live campaigns exist yet).
-5. **Meta Business Verification + App Review** — Business Verification **SUBMITTED 2026-07-19,
-   in review (~2 business days)**; after it clears → Access verification (~5 days) → App Review
-   for `ads_management` (weeks). Dev app "BoldLine OS" created, portfolio connected (see
-   `meta-marketing-api`). Only blocks **Meta-ads** clients; Google-only clients unaffected — so
-   NOT a blocker for taking a Google client today.
+5. **Meta Business Verification + App Review** — ✅ **Business Verification APPROVED 2026-07-19**
+   (~17h, fast). Remaining: **Access verification** (~5-day review, startable now) → **App Review**
+   for `ads_management` (needs the Meta integration BUILT into the OS to demo — not built yet).
+   Dev app "BoldLine OS" created + portfolio verified (see `meta-marketing-api`). Only blocks
+   **Meta-ads** clients; Google-only clients unaffected — NOT a blocker for a Google client today.
 
 **Supporting (not gating, but pre-client smart):**
 6. ~~Google Search Console~~ — **DONE 2026-07-07** (domain property verified via Wix DNS TXT,
