@@ -18,6 +18,7 @@ verified: 2026-07-20
 
 **Code — `netlify/functions/meta-ads.mjs`** (hand-rolled Graph REST, no SDK; stage-tagged errors like google-ads.mjs):
 - `test` → GET `me/adaccounts` — lists visible ad accounts. Deploy-tab smoke test.
+- `page` → GET `me/accounts` (**pages_show_list**) + GET `{pageId}?fields=name,fan_count,followers_count,engagement` (**pages_read_engagement**). Added 2026-07-21 as the ONLY OS call that exercises the two page permissions — createCampaign's page_id in object_story_spec is an ads-publish, NOT a page read, so it does not tick pages_*. Surfaced as the "📄 Read Page" button on MetaLaunchCard (per-client, uses `metaPageId`). Required for the App-Review demo screencast.
 - `campaigns` → `{adAccountId}` reads campaigns + one `insights` call (last_30d), merges by campaign id; returns `{id,name,status,objective,dailyBudget(dollars),impressions,clicks,spend,leads,cpl}`. Budgets are Meta MINOR units (cents) → dollars. Leads summed from lead-type actions.
 - `setBudget` → `{campaignId, dailyBudgetDollars}` POST daily_budget (cents). **Assumes campaign-level/CBO budget** — which `createCampaign` uses.
 - `setStatus` → `{campaignId, status}` PAUSED|ACTIVE (note: Meta uses ACTIVE, not Google's ENABLED).

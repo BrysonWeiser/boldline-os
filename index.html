@@ -3094,6 +3094,19 @@ function MetaLaunchCard({client}) {
   });
   const [state,setState] = useState("idle"); // idle | creating | done | error
   const [msg,setMsg] = useState("");
+  const [pgState,setPgState] = useState("idle"); // idle | reading | ok | error
+  const [pgMsg,setPgMsg] = useState("");
+  const readPage=async()=>{
+    setPgState("reading"); setPgMsg("");
+    try{
+      const d=await metaCall({action:"page",pageId:client.metaPageId});
+      const p=d.page;
+      setPgState("ok");
+      setPgMsg(p
+        ? `✓ ${p.name} — ${p.followers.toLocaleString()} followers, ${p.fanCount.toLocaleString()} likes, ${p.engagement.toLocaleString()} recent engagement. (${(d.pages||[]).length} managed Page${(d.pages||[]).length===1?"":"s"} visible.)`
+        : `✓ ${(d.pages||[]).length} managed Page${(d.pages||[]).length===1?"":"s"} visible.`);
+    }catch(e){ setPgState("error"); setPgMsg(e.message||"Page read failed."); }
+  };
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"};
   const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
@@ -3122,6 +3135,13 @@ function MetaLaunchCard({client}) {
     <Card>
       <Label>📘 Launch Meta Campaign</Label>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</div>
+      <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 10px",marginBottom:11}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={readPage} disabled={pgState==="reading"} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:"none",backgroundColor:pgState==="ok"?"#059669":"#1D4ED8",color:"#fff",cursor:pgState==="reading"?"default":"pointer",opacity:pgState==="reading"?.7:1,whiteSpace:"nowrap"}}>{pgState==="reading"?"Reading…":pgState==="ok"?"✓ Page read":"📄 Read Page"}</button>
+          <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5}}>Reads the Page these ads publish to — confirms manage access + pulls its follower/engagement stats.</div>
+        </div>
+        {pgMsg&&<div style={{fontSize:11,marginTop:8,lineHeight:1.6,color:pgState==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{pgMsg}</div>}
+      </div>
       {[
         {k:"name",l:"Campaign name",t:"text"},
         {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
