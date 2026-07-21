@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 53 task-keyed entries under `knowledge/`. They surface automatically via the
+> 54 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**53 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**54 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -198,6 +198,9 @@
 
 ## Pending
 
+- **[landing-page-issues](../knowledge/landing-page-issues.md)** &mdash; &#9989; verified &middot; 2026-07-21  
+  The OS AI landing-page generator has two problems flagged by Bryson 2026-07-21 while prepping the Meta demo — (1) the live /lp/<slug> link returns the "Page not found / This link may have expired" page, and (2) the generated content quality is weak. PARKED BY CHOICE until after the Meta App Review screencast is submitted; then investigate + fix.  
+  <sub>*task:* fix the client landing-page generator — broken /lp/ link (404) and weak AI output &nbsp;|&nbsp; *keywords:* landing.mjs, landingSlug, landingPage, notFoundPage, comingSoonPage, /lp/, landing-generator, two-netlify-sites</sub>
 - **[pending-seo-next-steps](../knowledge/pending-seo-next-steps.md)** &mdash; &#9989; verified &middot; 2026-07-04  
   Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.  
   <sub>*task:* pick up the next unstarted marketing/SEO steps now that the site is live (Google Ads resubmit, Search Console, Business Profile) &nbsp;|&nbsp; *keywords:* basic-access-resubmit, search-console, sitemap.xml, business-profile, GA4</sub>
