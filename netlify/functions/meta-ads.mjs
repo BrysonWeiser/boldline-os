@@ -102,6 +102,40 @@ async function listAdAccounts() {
   }));
 }
 
+// ── Read a Page: list managed Pages + read one Page's engagement ──────────────
+// Two calls, on purpose — they exercise two distinct permissions:
+//   me/accounts                  -> pages_show_list  (which Pages can we manage?)
+//   {page-id}?fields=…engagement -> pages_read_engagement (the Page's basics)
+// This is a legitimate read for the agency model: BoldLine publishes each client's
+// ads ON that client's Facebook Page, so reading the Page it's advertising is
+// exactly what these permissions are for. Nothing is written.
+async function readPage(pageId) {
+  // pages_show_list — the Pages this token can manage.
+  const acc = await graph("page", "me/accounts", {
+    params: { fields: "id,name,category,tasks", limit: "100" },
+  });
+  const pages = (acc.data || []).map((p) => ({
+    id: p.id, name: p.name, category: p.category,
+  }));
+
+  // pages_read_engagement — read the target Page's public basics. fan_count +
+  // engagement both require pages_read_engagement, so this call registers it.
+  let page = null;
+  if (pageId) {
+    const p = await graph("page", `${pageId}`, {
+      params: { fields: "name,fan_count,followers_count,engagement" },
+    });
+    page = {
+      id: pageId,
+      name: p.name,
+      fanCount: Number(p.fan_count || 0),
+      followers: Number(p.followers_count || 0),
+      engagement: (p.engagement && Number(p.engagement.count)) || 0,
+    };
+  }
+  return { pages, page };
+}
+
 // ── Read: campaigns + last-30-day insights ────────────────────────────────────
 // Meta keeps spend/results in a separate insights edge; we fetch both and merge
 // by campaign id. "leads" is summed from the lead-type actions.
@@ -344,6 +378,11 @@ export default async (req) => {
       if (!acct(body.adAccountId)) return json({ ok: false, error: "adAccountId required" }, 400);
       const campaigns = await getCampaigns(body.adAccountId);
       return json({ ok: true, action, adAccountId: acct(body.adAccountId), campaigns });
+    }
+
+    if (action === "page") {
+      const result = await readPage(body.pageId);
+      return json({ ok: true, action, ...result });
     }
 
     if (action === "setBudget") {
