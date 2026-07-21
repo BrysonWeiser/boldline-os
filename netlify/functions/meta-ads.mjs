@@ -218,6 +218,9 @@ async function createCampaign(p) {
   if (!p.pageId) throw Object.assign(new Error("createCampaign: the client's Facebook pageId is required"), { stage: "createCampaign" });
   if (!p.landingUrl) throw Object.assign(new Error("createCampaign: landingUrl required"), { stage: "createCampaign" });
   if (!(Number(p.dailyBudgetDollars) > 0)) throw Object.assign(new Error("createCampaign: dailyBudgetDollars must be > 0"), { stage: "createCampaign" });
+  // Meta link ads must carry an image — fail fast (before creating any objects)
+  // with a clear message instead of a cryptic creative-stage rejection.
+  if (!p.imageUrl) throw Object.assign(new Error("createCampaign: an ad image is required — Meta link ads must have an image. Upload one to the client's media library, then retry."), { stage: "createCampaign" });
 
   const name = String(p.name || "BoldLine Lead Campaign");
 
@@ -225,12 +228,17 @@ async function createCampaign(p) {
   let imageHash = null;
   if (p.imageUrl) imageHash = await uploadImage(p.adAccountId, p.imageUrl);
 
-  // 2) campaign (CBO daily budget lives here so setBudget targets the campaign)
+  // 2) campaign (CBO daily budget lives here so setBudget targets the campaign).
+  // OUTCOME_TRAFFIC: BoldLine drives clicks to the CLIENT's landing page (the page
+  // captures the lead), so traffic-to-website is the correct, pixel-free objective.
+  // (OUTCOME_LEADS optimizing for link-clicks needs a pixel/promoted_object and
+  // gets rejected; switch to OUTCOME_SALES/LEADS + a promoted_object later, once
+  // the client's pixel + lead events exist.)
   const camp = await graph("createCampaign", `${a}/campaigns`, {
     method: "POST",
     params: {
       name,
-      objective: "OUTCOME_LEADS",
+      objective: "OUTCOME_TRAFFIC",
       status: "PAUSED",
       special_ad_categories: "[]",
       daily_budget: String(dollarsToCents(p.dailyBudgetDollars)),
@@ -255,7 +263,8 @@ async function createCampaign(p) {
       campaign_id: camp.id,
       billing_event: "IMPRESSIONS",
       optimization_goal: "LINK_CLICKS",
-      bid_strategy: "LOWEST_COST_WITHOUT_CAP",
+      // No bid_strategy here — it's set at the campaign level (CBO); Meta rejects
+      // a duplicate/conflicting bid_strategy on the ad set when campaign budget is on.
       targeting: JSON.stringify(targeting),
       status: "PAUSED",
       start_time: new Date(Date.now() + 3600e3).toISOString(),
