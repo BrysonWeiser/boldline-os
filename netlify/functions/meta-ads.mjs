@@ -118,12 +118,43 @@ async function listAdAccounts() {
 // This is a legitimate read for the agency model: BoldLine publishes each client's
 // ads ON that client's Facebook Page, so reading the Page it's advertising is
 // exactly what these permissions are for. Nothing is written.
+// Which scopes does the DEPLOYED token actually carry? Used to diagnose
+// permission errors — distinguishes "old token still deployed" from
+// "correctly-scoped token blocked by Meta". Best effort, never throws.
+async function tokenScopes() {
+  const appId = process.env.META_APP_ID;
+  try {
+    if (appId && M.appSecret) {
+      const r = await fetch(
+        `${BASE}/debug_token?input_token=${encodeURIComponent(M.token)}&access_token=${encodeURIComponent(`${appId}|${M.appSecret}`)}`,
+      );
+      const d = await r.json().catch(() => ({}));
+      const s = d && d.data && d.data.scopes;
+      if (Array.isArray(s) && s.length) return s;
+    }
+  } catch {}
+  try {
+    const d = await graph("scopes", "me/permissions", { params: { limit: "100" } });
+    const s = (d.data || []).filter((p) => p.status === "granted").map((p) => p.permission);
+    if (s.length) return s;
+  } catch {}
+  return null;
+}
+
 async function readPage(pageId) {
   // pages_show_list — the Pages this token can manage. Ask for each Page's own
   // access_token too, so we can read Page-level fields with the PAGE token below.
-  const acc = await graph("page:list", "me/accounts", {
-    params: { fields: "id,name,category,access_token,tasks", limit: "100" },
-  });
+  let acc;
+  try {
+    acc = await graph("page:list", "me/accounts", {
+      params: { fields: "id,name,category,access_token,tasks", limit: "100" },
+    });
+  } catch (e) {
+    const scopes = await tokenScopes();
+    if (scopes) e.message += ` — deployed token scopes: [${scopes.join(", ")}]`;
+    else e.message += " — (couldn't introspect the deployed token's scopes)";
+    throw e;
+  }
   const list = acc.data || [];
   const pages = list.map((p) => ({ id: p.id, name: p.name, category: p.category }));
 
