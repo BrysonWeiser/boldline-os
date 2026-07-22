@@ -201,8 +201,8 @@
 
 ## Pending
 
-- **[landing-page-issues](../knowledge/landing-page-issues.md)** &mdash; &#9989; verified &middot; 2026-07-21  
-  The OS AI landing-page generator has two problems flagged by Bryson 2026-07-21 while prepping the Meta demo — (1) the live /lp/<slug> link returns the "Page not found / This link may have expired" page, and (2) the generated content quality is weak. PARKED BY CHOICE until after the Meta App Review screencast is submitted; then investigate + fix.  
+- **[landing-page-issues](../knowledge/landing-page-issues.md)** &mdash; &#9989; verified &middot; 2026-07-22  
+  The OS AI landing-page generator had two problems (flagged 2026-07-21) — both FIXED 2026-07-22. (1) The live /lp/<slug> link 404'd because landing.mjs is a NEW-format function (req.url = original URL) so the /lp/:slug rewrite's ?slug= never arrived — now parses the slug from the path (per KB netlify-new-format-function-req-url). (2) The template was a bare 480px phone-column at every width — rebuilt into a full responsive page (split hero, trust chips, benefit-card grid, work-photo gallery, offer CTA band, card lead form, OG meta). Live renderer landing.mjs + OS preview makeLandingHTML updated together (dual copy). Verified live at 390/768/1280/1600 — zero horizontal overflow.  
   <sub>*task:* fix the client landing-page generator — broken /lp/ link (404) and weak AI output &nbsp;|&nbsp; *keywords:* landing.mjs, landingSlug, landingPage, notFoundPage, comingSoonPage, /lp/, landing-generator, two-netlify-sites</sub>
 - **[pending-seo-next-steps](../knowledge/pending-seo-next-steps.md)** &mdash; &#9989; verified &middot; 2026-07-04  
   Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.  

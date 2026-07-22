@@ -16,6 +16,8 @@ const LANDING_COPY_TOOL = {
       bullets: { type: "array", items: { type: "string" }, description: "3-4 short benefit bullets, each under 60 characters." },
       ctaText: { type: "string", description: "Lead-form button text, e.g. 'Get My Free Quote'. Under 30 characters." },
       heroIndex: { type: "integer", description: "Optional. Number of the ONE asset from AVAILABLE MEDIA to feature as the hero image — pick the strongest photo of real work/results, or the logo only if no photo fits. Use -1 if none of the assets would strengthen the page. Never pick a video." },
+      brandColor: { type: "string", description: "The business's primary BRAND accent color as a 6-digit hex (e.g. '#C21807'). If a logo or photos are attached, derive it from the dominant brand color you SEE in them. Otherwise pick a confident, professional color that fits THIS specific business and industry — not a generic default. This becomes the page's accent (buttons, highlights). Never return gold/tan near #C8A84B (that's another company's color); avoid pure black/white unless the brand is genuinely monochrome." },
+      theme: { type: "string", enum: ["light", "dark"], description: "The overall page theme (background + surfaces), chosen to MATCH the client's EXISTING brand aesthetic — their logo, photos, and what a business like this typically looks like on its website/social. Use 'dark' when the brand reads dark, premium, luxury, bold, or automotive/nightlife, or when the logo/branding you see is on a dark background. Use 'light' when the brand is clean, bright, medical, or approachable. Do NOT default to light — a dark-branded business should get a DARK page (with their accent color), not a bright one. Judge from the actual branding, not a generic template." },
     },
     required: ["headline", "subheadline", "bullets", "ctaText"],
   },
@@ -66,6 +68,8 @@ Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
 BUSINESS DATA:
 ${dataBlock}${mediaBlock}
 
+Match the page to the client's OWN brand identity — set brandColor and theme (light/dark) from their actual logo/photos/industry, not a generic look. A dark, premium, or bold brand should get a dark page with their accent color; a clean, bright brand should get a light one. Never impose a default bright/white theme on a brand that isn't bright.
+
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
   // Attach the actual images so the model judges the pixels, not just filenames
@@ -100,10 +104,12 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
 
-    const { headline, subheadline, bullets, ctaText, heroIndex } = toolUse.input;
+    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme } = toolUse.input;
     const chosen = Number.isInteger(heroIndex) && heroIndex >= 0 && heroIndex < media.length && media[heroIndex].category !== "video"
       ? media[heroIndex]
       : null;
+    const bcRaw = String(brandColor || "").trim();
+    const brandHex = /^#?[0-9a-fA-F]{6}$/.test(bcRaw) ? `#${bcRaw.replace(/^#/, "").toLowerCase()}` : "";
     return json({
       ok: true,
       landingPage: {
@@ -112,6 +118,8 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
         bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
         ctaText: clip(ctaText, 50) || "Get My Free Quote",
         heroPath: chosen ? chosen.path : "",
+        brandColor: brandHex,
+        theme: String(theme).toLowerCase() === "dark" ? "dark" : "light",
       },
     }, 200);
   } catch (err) {
