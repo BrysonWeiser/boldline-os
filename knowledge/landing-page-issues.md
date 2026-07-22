@@ -10,6 +10,15 @@ verified: 2026-07-22
 
 **✅ RESOLVED 2026-07-22.** Both problems fixed + deployed to production; live page verified headless at all four breakpoints (0px overflow). Details below.
 
+**➕ BRAND-THEMED PER CLIENT (2026-07-22, Bryson) — landing pages use the CLIENT's branding, never BoldLine's.**
+- The template no longer hardcodes BoldLine gold or a white background. `landingTheme(cl)` (exported from `landing.mjs`) returns a full palette — accent color AND light/dark mode with matching background/text/surfaces/borders/form/inputs — derived from `landingPage.brandColor` + `landingPage.theme`.
+- **Accent:** `brandColor` (6-hex). Neutral slate `#334155` default (NEVER gold). Text-on-brand auto-computed by luminance; soft tint for chips/checks; deep brand-tinted offer band.
+- **Theme:** `theme` = `"light"|"dark"`. A dark/premium brand gets a DARK page (near-black bg, light text, dark surfaces) with its accent — Bryson's explicit ask: don't default bright. Light default when unset.
+- **AI picks both:** `generate-landing.mjs` tool schema gained `brandColor` + `theme`; system+tool prompts tell it to MATCH the client's existing brand aesthetic (from the logo/photos it sees via vision + industry), not impose a generic bright look.
+- **Rendering is DUAL COPY:** live `renderLandingPage(cl)` in `landing.mjs` and the OS preview `makeLandingHTML` in `index.html` — the CSS strings are kept byte-identical (both build the same `P` palette object). Edit both together.
+- Verified: real **Ceramic Pro Phoenix** rendered via the production `renderLandingPage` in light AND dark, in their red — 0px overflow at 390/768/1280/1600.
+- **KNOWN LIMITATION / future enhancement:** the AI infers color+theme from the client's UPLOADED logo/photos + business type — it does NOT fetch the client's real website/socials. So best results come from uploading the client's logo. A future upgrade could fetch the client's site URL and extract its actual palette/theme; not built yet.
+
 **THE FIXES (2026-07-22):**
 - **404 → fixed:** root cause was the new-format-function req.url gotcha (NOT unpublished, NOT a missing slug). `landing.mjs` now does `url.pathname.match(/^\/lp\/([^/]+)\/?$/)` and falls back to `?slug=` for direct calls. Confirmed: the exact URL that returned 404 now serves HTTP 200 with the client's page.
 - **Quality → fixed:** replaced the 480px single-column template with a responsive, data-rich page that pulls from existing client fields (campaignSetup.serviceArea/mainOffer, brandVoice.differentiator, mediaLibrary photos). Sections: top bar (name + tap-to-call), split hero (copy | hero image on ≥940px), trust chips, benefit-card grid, "Recent work" photo gallery (≥2 photos), dark offer-CTA band, card lead form, footer. Lead-form POST to `lead-intake?token=` unchanged. **DUAL COPY like the portal:** live renderer = `netlify/functions/landing.mjs`; OS preview = `makeLandingHTML` in `index.html` — edit both together.
