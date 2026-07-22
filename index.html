@@ -1227,36 +1227,58 @@ const makeLandingHTML=(cl)=>{
   if(!lp.headline){
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;font-family:-apple-system,sans-serif;background:#F9FAFB;color:#111827;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px}div{max-width:320px}h1{font-size:17px;margin-bottom:6px}p{font-size:13px;color:#6B7280;line-height:1.6}</style></head><body><div><h1>No landing page yet</h1><p>Click Generate to create one from this client's campaign setup and brand voice.</p></div></body></html>`;
   }
+  // NOTE: dual copy — this preview mirrors netlify/functions/landing.mjs (the live
+  // /lp/<slug> renderer). Change one, change the other (same rule as the portal).
+  const cs=cl.campaignSetup||{};
+  const bv=cl.brandVoice||{};
   const media=cl.mediaLibrary||[];
   // AI-chosen hero first (if it still exists), then first photo, then logo
   const hero=(lp.heroPath&&media.find(m=>m.path===lp.heroPath))||media.find(m=>m.category==="photo")||media.find(m=>m.category==="logo");
   const bullets=Array.isArray(lp.bullets)?lp.bullets:[];
   const phone=cl.callTrackingNumber||"";
+  const area=cs.serviceArea||cs.targetLocations||"";
+  const offer=cs.mainOffer||"";
+  const differentiator=bv.differentiator||"";
+  const cta=lp.ctaText||"Get My Free Quote";
+  const photos=media.filter(m=>m.category==="photo"&&m.url&&(!hero||m.path!==hero.path)).slice(0,6);
   const GOLD="#C8A84B";
-  const css=`*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,Helvetica,Arial,sans-serif;background:#fff;color:#111827;line-height:1.5}.wrap{max-width:480px;margin:0 auto}.hero{padding:28px 20px 22px;text-align:center;background:linear-gradient(180deg,#FAFAF7,#fff)}.bizname{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${GOLD};margin-bottom:10px}.headline{font-size:27px;font-weight:800;color:#0F172A;line-height:1.25;margin-bottom:10px}.subhead{font-size:15px;color:#4B5563;margin-bottom:18px}.heroimg{width:100%;border-radius:14px;object-fit:cover;height:200px;margin-bottom:18px;display:block}.cta{display:block;width:100%;padding:15px;font-size:15px;font-weight:700;border-radius:11px;border:none;background:${GOLD};color:#1A1502;cursor:pointer;text-align:center;text-decoration:none}.callrow{margin-top:10px;font-size:13px;color:#6B7280}.callrow a{color:#0F172A;font-weight:700;text-decoration:none}.bullets{padding:6px 20px 22px;max-width:480px;margin:0 auto}.bullet{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;font-size:14px;color:#1F2937}.check{flex-shrink:0;width:20px;height:20px;border-radius:50%;background:rgba(200,168,75,.15);color:${GOLD};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}.formsec{padding:22px 20px 36px;background:#F8F8F4}.formtitle{font-size:17px;font-weight:800;margin-bottom:4px;color:#0F172A;text-align:center}.formsub{font-size:13px;color:#6B7280;text-align:center;margin-bottom:16px}.inp{width:100%;padding:13px 14px;border:1px solid #E5E7EB;border-radius:10px;font-size:15px;margin-bottom:10px;font-family:inherit;background:#fff}`;
-  const heroImg=hero?`<img class="heroimg" src="${esc(hero.url)}" alt="">`:"";
-  const bulletsHTML=bullets.map(b=>`<div class="bullet"><span class="check">✓</span><span>${esc(b)}</span></div>`).join("");
-  const callRow=phone?`<div class="callrow">or call <a href="tel:${esc(phone.replace(/[^0-9+]/g,""))}">${esc(phone)}</a></div>`:"";
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
-<div class="wrap">
-  <div class="hero">
-    <div class="bizname">${esc(cl.name)}</div>
-    <div class="headline">${esc(lp.headline)}</div>
+  const css=`*{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#fff;color:#111827;line-height:1.55}.wrap{max-width:1140px;margin:0 auto;padding:0 20px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}.tb-name{font-weight:800;font-size:15px;color:#0F172A}.tb-call{font-size:14px;font-weight:700;color:#0F172A;text-decoration:none;white-space:nowrap}.hero{padding:26px 0 32px;background:linear-gradient(180deg,#FAF9F5,#fff)}.hero-g{display:grid;gap:28px;align-items:center}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${GOLD};margin-bottom:10px}.headline{font-size:clamp(28px,5vw,44px);font-weight:800;color:#0F172A;line-height:1.15;margin-bottom:12px}.subhead{font-size:clamp(15px,2vw,18px);color:#4B5563;margin-bottom:20px;max-width:56ch}.cta{display:inline-block;padding:15px 26px;font-size:16px;font-weight:800;border-radius:12px;border:none;background:${GOLD};color:#1A1502;cursor:pointer;text-align:center;text-decoration:none}.ctarow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.callrow{font-size:14px;color:#6B7280}.callrow a{color:#0F172A;font-weight:800;text-decoration:none}.heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:18px;box-shadow:0 18px 40px rgba(15,23,42,.14)}.chips{display:flex;flex-wrap:wrap;gap:10px;padding:18px 0;border-top:1px solid #F1EFE9;border-bottom:1px solid #F1EFE9}.chip{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#374151;background:#FAF9F5;border:1px solid #EFEBDF;border-radius:999px;padding:8px 14px}.sec{padding:38px 0}.sec.tight{padding-top:0}.sec-t{font-size:clamp(20px,3vw,28px);font-weight:800;color:#0F172A;margin-bottom:18px}.bene{display:grid;gap:12px;grid-template-columns:1fr}.bcard{display:flex;gap:12px;align-items:flex-start;background:#FAF9F5;border:1px solid #EFEBDF;border-radius:14px;padding:16px}.bcard span{font-size:15px;color:#1F2937;font-weight:600}.check{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(200,168,75,.16);color:${GOLD};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}.gal{display:grid;gap:10px;grid-template-columns:1fr 1fr}.gal img{aspect-ratio:4/3;object-fit:cover;border-radius:12px;width:100%}.offer{background:#0F172A;border-radius:20px;padding:30px 24px;text-align:center;color:#fff}.offer .eyebrow{margin-bottom:8px}.offer-t{font-size:clamp(19px,2.6vw,26px);font-weight:800;margin-bottom:18px}.formsec{background:#F8F7F2;padding:44px 0 54px}.fcard{max-width:560px;margin:0 auto;background:#fff;border:1px solid #ECE9DF;border-radius:18px;padding:26px 22px;box-shadow:0 14px 34px rgba(15,23,42,.07)}.formtitle{font-size:20px;font-weight:800;margin-bottom:4px;color:#0F172A;text-align:center}.formsub{font-size:13.5px;color:#6B7280;text-align:center;margin-bottom:18px}.inp{width:100%;padding:14px;border:1px solid #E5E7EB;border-radius:11px;font-size:15px;margin-bottom:10px;font-family:inherit;background:#fff}.foot{padding:22px 0 30px;text-align:center;font-size:13px;color:#6B7280}.foot a{color:#0F172A;font-weight:700;text-decoration:none}@media(min-width:640px){.bene{grid-template-columns:1fr 1fr}.gal{grid-template-columns:1fr 1fr 1fr}}@media(min-width:940px){.hero{padding:44px 0 50px}.hero-g.has-img{grid-template-columns:1.05fr .95fr}.bene{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}`;
+  const telHref=phone?`tel:${esc(phone.replace(/[^0-9+]/g,""))}`:"";
+  const topCall=phone?`<a class="tb-call" href="${telHref}">📞 ${esc(phone)}</a>`:"";
+  const callRow=phone?`<div class="callrow">or call <a href="${telHref}">${esc(phone)}</a></div>`:"";
+  const heroImg=hero?`<img class="heroimg" src="${esc(hero.url)}" alt="${esc(cl.name)}">`:"";
+  const chips=[
+    area?`<div class="chip">📍 Serving ${esc(area)}</div>`:"",
+    differentiator?`<div class="chip">⭐ ${esc(differentiator.slice(0,80))}</div>`:"",
+    `<div class="chip">✅ Free quote — no obligation</div>`,
+  ].filter(Boolean).join("");
+  const bulletsHTML=bullets.map(b=>`<div class="bcard"><span class="check">✓</span><span>${esc(b)}</span></div>`).join("");
+  const galleryHTML=photos.length>=2?`<section class="wrap sec tight"><h2 class="sec-t">Recent work</h2><div class="gal">${photos.map(p=>`<img src="${esc(p.url)}" alt="${esc(p.label||cl.name)}" loading="lazy">`).join("")}</div></section>`:"";
+  const offerHTML=offer?`<section class="wrap sec tight"><div class="offer"><div class="eyebrow">Current offer</div><div class="offer-t">${esc(offer)}</div><a class="cta" href="#lead-form">${esc(cta)}</a></div></section>`:"";
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
+<header class="wrap topbar"><div class="tb-name">${esc(cl.name)}</div>${topCall}</header>
+<section class="hero"><div class="wrap hero-g${hero?" has-img":""}">
+  <div>
+    <div class="eyebrow">${esc(cl.niche||"Trusted local service")}</div>
+    <h1 class="headline">${esc(lp.headline)}</h1>
     <div class="subhead">${esc(lp.subheadline||"")}</div>
-    ${heroImg}
-    <a class="cta" href="#lead-form">${esc(lp.ctaText||"Get My Free Quote")}</a>
-    ${callRow}
+    <div class="ctarow"><a class="cta" href="#lead-form">${esc(cta)}</a>${callRow}</div>
   </div>
-  <div class="bullets">${bulletsHTML}</div>
-  <div class="formsec" id="lead-form">
-    <div class="formtitle">${esc(lp.ctaText||"Get My Free Quote")}</div>
-    <div class="formsub">Fill this out and we'll be in touch shortly.</div>
-    <input class="inp" placeholder="Your name">
-    <input class="inp" placeholder="Phone number">
-    <input class="inp" placeholder="Email (optional)">
-    <button class="cta" style="border:none;width:100%">${esc(lp.ctaText||"Get My Free Quote")}</button>
-  </div>
-</div>
+  ${heroImg}
+</div></section>
+<div class="wrap chips">${chips}</div>
+<section class="wrap sec"><h2 class="sec-t">Why choose ${esc(cl.name)}</h2><div class="bene">${bulletsHTML}</div></section>
+${galleryHTML}
+${offerHTML}
+<section class="formsec" id="lead-form"><div class="wrap"><div class="fcard">
+  <div class="formtitle">${esc(cta)}</div>
+  <div class="formsub">Fill this out and we'll be in touch shortly.</div>
+  <input class="inp" placeholder="Your name">
+  <input class="inp" placeholder="Phone number">
+  <input class="inp" placeholder="Email (optional)">
+  <button class="cta" style="border:none;width:100%">${esc(cta)}</button>
+</div></div></section>
+<footer class="foot">${esc(cl.name)}${area?` · Serving ${esc(area)}`:""}${phone?` · <a href="${telHref}">${esc(phone)}</a>`:""}</footer>
 </body></html>`;
 };
 
