@@ -19,7 +19,12 @@ const comingSoonPage = (name) => html(
 export default async (req) => {
   if (req.method !== "GET") return new Response("Method not allowed", { status: 405 });
 
-  const slug = new URL(req.url).searchParams.get("slug");
+  // New-format functions receive the ORIGINAL request URL — the rewrite target's
+  // ?slug= never arrives (see KB netlify-new-format-function-req-url). Parse the
+  // slug from the /lp/<slug> path; keep ?slug= as fallback for direct calls.
+  const url = new URL(req.url);
+  const pathMatch = url.pathname.match(/^\/lp\/([^/]+)\/?$/);
+  const slug = (pathMatch && decodeURIComponent(pathMatch[1])) || url.searchParams.get("slug");
   if (!slug) return notFoundPage();
 
   const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
