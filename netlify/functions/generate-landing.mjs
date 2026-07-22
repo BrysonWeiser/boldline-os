@@ -16,6 +16,7 @@ const LANDING_COPY_TOOL = {
       bullets: { type: "array", items: { type: "string" }, description: "3-4 short benefit bullets, each under 60 characters." },
       ctaText: { type: "string", description: "Lead-form button text, e.g. 'Get My Free Quote'. Under 30 characters." },
       heroIndex: { type: "integer", description: "Optional. Number of the ONE asset from AVAILABLE MEDIA to feature as the hero image — pick the strongest photo of real work/results, or the logo only if no photo fits. Use -1 if none of the assets would strengthen the page. Never pick a video." },
+      brandColor: { type: "string", description: "The business's primary BRAND accent color as a 6-digit hex (e.g. '#C21807'). If a logo or photos are attached, derive it from the dominant brand color you SEE in them. Otherwise pick a confident, professional color that fits THIS specific business and industry — not a generic default. This becomes the page's accent (buttons, highlights). Never return gold/tan near #C8A84B (that's another company's color); avoid pure black/white unless the brand is genuinely monochrome." },
     },
     required: ["headline", "subheadline", "bullets", "ctaText"],
   },
@@ -100,10 +101,12 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
 
-    const { headline, subheadline, bullets, ctaText, heroIndex } = toolUse.input;
+    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor } = toolUse.input;
     const chosen = Number.isInteger(heroIndex) && heroIndex >= 0 && heroIndex < media.length && media[heroIndex].category !== "video"
       ? media[heroIndex]
       : null;
+    const bcRaw = String(brandColor || "").trim();
+    const brandHex = /^#?[0-9a-fA-F]{6}$/.test(bcRaw) ? `#${bcRaw.replace(/^#/, "").toLowerCase()}` : "";
     return json({
       ok: true,
       landingPage: {
@@ -112,6 +115,7 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
         bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
         ctaText: clip(ctaText, 50) || "Get My Free Quote",
         heroPath: chosen ? chosen.path : "",
+        brandColor: brandHex,
       },
     }, 200);
   } catch (err) {
