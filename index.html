@@ -1221,79 +1221,30 @@ const makePortalHTML=(cl,pkg)=>{
     +'</body></html>';
 };
 
-const makeLandingHTML=(cl)=>{
-  const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const lp=cl.landingPage||{};
-  if(!lp.headline){
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{margin:0;font-family:-apple-system,sans-serif;background:#F9FAFB;color:#111827;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px}div{max-width:320px}h1{font-size:17px;margin-bottom:6px}p{font-size:13px;color:#6B7280;line-height:1.6}</style></head><body><div><h1>No landing page yet</h1><p>Click Generate to create one from this client's campaign setup and brand voice.</p></div></body></html>`;
-  }
-  // NOTE: dual copy — this preview mirrors netlify/functions/landing.mjs (the live
-  // /lp/<slug> renderer). Change one, change the other (same rule as the portal).
-  const cs=cl.campaignSetup||{};
-  const bv=cl.brandVoice||{};
-  const media=cl.mediaLibrary||[];
-  // AI-chosen hero first (if it still exists), then first photo, then logo
-  const hero=(lp.heroPath&&media.find(m=>m.path===lp.heroPath))||media.find(m=>m.category==="photo")||media.find(m=>m.category==="logo");
-  const bullets=Array.isArray(lp.bullets)?lp.bullets:[];
-  const phone=cl.callTrackingNumber||"";
-  const area=cs.serviceArea||cs.targetLocations||"";
-  const offer=cs.mainOffer||"";
-  const differentiator=bv.differentiator||"";
-  const cta=lp.ctaText||"Get My Free Quote";
-  const photos=media.filter(m=>m.category==="photo"&&m.url&&(!hero||m.path!==hero.path)).slice(0,6);
-  // Full theme from the CLIENT's OWN branding (accent + light/dark) — never BoldLine gold.
-  const braw=(lp.brandColor||cl.brandColor||"");
-  const bm=/^#?([0-9a-fA-F]{6})$/.exec(String(braw).trim());
-  const brand=bm?`#${bm[1].toLowerCase()}`:"#334155";
-  const bn=parseInt(brand.slice(1),16),br=(bn>>16)&255,bg=(bn>>8)&255,bb=bn&255;
-  const onBrand=(0.299*br+0.587*bg+0.114*bb)/255>0.62?"#15110A":"#ffffff";
-  const tint=`rgba(${br},${bg},${bb},.16)`;
-  const band=`#${[br,bg,bb].map(v=>Math.round(v*0.24).toString(16).padStart(2,"0")).join("")}`;
-  const dark=String(lp.theme||"").toLowerCase()==="dark";
-  const base=dark
-    ?{bg:"#0E0F13",text:"#E7E9EE",headline:"#F7F8FA",muted:"#A9AEB8",heroGrad:"linear-gradient(180deg,#15161C,#0E0F13)",surface:"#16181E",border:"#24262E",line:"#23262E",chipText:"#C7CBD3",formBg:"#0B0C10",cardBg:"#16181E",cardBorder:"#282B34",inBg:"#0F1116",inBorder:"#2A2E37",inText:"#F4F5F7",ph:"#7A818C",topName:"#F4F5F7",foot:"#8A909B"}
-    :{bg:"#ffffff",text:"#111827",headline:"#0F172A",muted:"#4B5563",heroGrad:"linear-gradient(180deg,#FAFAFA,#fff)",surface:"#FAFAFA",border:"#EEEEEE",line:"#F1F1F1",chipText:"#374151",formBg:"#F7F7F7",cardBg:"#ffffff",cardBorder:"#ECECEC",inBg:"#ffffff",inBorder:"#E5E7EB",inText:"#111827",ph:"#9CA3AF",topName:"#0F172A",foot:"#6B7280"};
-  const P={...base,brand,onBrand,tint,band};
-  const css=`*{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:${P.bg};color:${P.text};line-height:1.55}.wrap{max-width:1140px;margin:0 auto;padding:0 20px}.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}.tb-name{font-weight:800;font-size:15px;color:${P.topName}}.tb-call{font-size:14px;font-weight:700;color:${P.text};text-decoration:none;white-space:nowrap}.hero{padding:26px 0 32px;background:${P.heroGrad}}.hero-g{display:grid;gap:28px;align-items:center}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${P.brand};margin-bottom:10px}.headline{font-size:clamp(28px,5vw,44px);font-weight:800;color:${P.headline};line-height:1.15;margin-bottom:12px}.subhead{font-size:clamp(15px,2vw,18px);color:${P.muted};margin-bottom:20px;max-width:56ch}.cta{display:inline-block;padding:15px 26px;font-size:16px;font-weight:800;border-radius:12px;border:none;background:${P.brand};color:${P.onBrand};cursor:pointer;text-align:center;text-decoration:none}.ctarow{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.callrow{font-size:14px;color:${P.muted}}.callrow a{color:${P.text};font-weight:800;text-decoration:none}.heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:18px;box-shadow:0 18px 40px rgba(0,0,0,.28)}.chips{display:flex;flex-wrap:wrap;gap:10px;padding:18px 0;border-top:1px solid ${P.line};border-bottom:1px solid ${P.line}}.chip{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:${P.chipText};background:${P.surface};border:1px solid ${P.border};border-radius:999px;padding:8px 14px}.sec{padding:38px 0}.sec.tight{padding-top:0}.sec-t{font-size:clamp(20px,3vw,28px);font-weight:800;color:${P.headline};margin-bottom:18px}.bene{display:grid;gap:12px;grid-template-columns:1fr}.bcard{display:flex;gap:12px;align-items:flex-start;background:${P.surface};border:1px solid ${P.border};border-radius:14px;padding:16px}.bcard span{font-size:15px;color:${P.text};font-weight:600}.check{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:${P.tint};color:${P.brand};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}.gal{display:grid;gap:10px;grid-template-columns:1fr 1fr}.gal img{aspect-ratio:4/3;object-fit:cover;border-radius:12px;width:100%}.offer{background:${P.band};border:1px solid ${P.tint};border-radius:20px;padding:30px 24px;text-align:center;color:#fff}.offer .eyebrow{color:${P.onBrand==="#ffffff"?"#fff":P.brand};opacity:.92;margin-bottom:8px}.offer-t{font-size:clamp(19px,2.6vw,26px);font-weight:800;margin-bottom:18px;color:#fff}.formsec{background:${P.formBg};padding:44px 0 54px}.fcard{max-width:560px;margin:0 auto;background:${P.cardBg};border:1px solid ${P.cardBorder};border-radius:18px;padding:26px 22px;box-shadow:0 14px 34px rgba(0,0,0,.10)}.formtitle{font-size:20px;font-weight:800;margin-bottom:4px;color:${P.headline};text-align:center}.formsub{font-size:13.5px;color:${P.muted};text-align:center;margin-bottom:18px}.inp{width:100%;padding:14px;border:1px solid ${P.inBorder};border-radius:11px;font-size:15px;margin-bottom:10px;font-family:inherit;background:${P.inBg};color:${P.inText}}.inp::placeholder{color:${P.ph}}.foot{padding:22px 0 30px;text-align:center;font-size:13px;color:${P.foot}}.foot a{color:${P.text};font-weight:700;text-decoration:none}@media(min-width:640px){.bene{grid-template-columns:1fr 1fr}.gal{grid-template-columns:1fr 1fr 1fr}}@media(min-width:940px){.hero{padding:44px 0 50px}.hero-g.has-img{grid-template-columns:1.05fr .95fr}.bene{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}}`;
-  const telHref=phone?`tel:${esc(phone.replace(/[^0-9+]/g,""))}`:"";
-  const topCall=phone?`<a class="tb-call" href="${telHref}">📞 ${esc(phone)}</a>`:"";
-  const callRow=phone?`<div class="callrow">or call <a href="${telHref}">${esc(phone)}</a></div>`:"";
-  const heroImg=hero?`<img class="heroimg" src="${esc(hero.url)}" alt="${esc(cl.name)}">`:"";
-  const chips=[
-    area?`<div class="chip">📍 Serving ${esc(area)}</div>`:"",
-    differentiator?`<div class="chip">⭐ ${esc(differentiator.slice(0,80))}</div>`:"",
-    `<div class="chip">✅ Free quote — no obligation</div>`,
-  ].filter(Boolean).join("");
-  const bulletsHTML=bullets.map(b=>`<div class="bcard"><span class="check">✓</span><span>${esc(b)}</span></div>`).join("");
-  const galleryHTML=photos.length>=2?`<section class="wrap sec tight"><h2 class="sec-t">Recent work</h2><div class="gal">${photos.map(p=>`<img src="${esc(p.url)}" alt="${esc(p.label||cl.name)}" loading="lazy">`).join("")}</div></section>`:"";
-  const offerHTML=offer?`<section class="wrap sec tight"><div class="offer"><div class="eyebrow">Current offer</div><div class="offer-t">${esc(offer)}</div><a class="cta" href="#lead-form">${esc(cta)}</a></div></section>`:"";
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
-<header class="wrap topbar"><div class="tb-name">${esc(cl.name)}</div>${topCall}</header>
-<section class="hero"><div class="wrap hero-g${hero?" has-img":""}">
-  <div>
-    <div class="eyebrow">${esc(cl.niche||"Trusted local service")}</div>
-    <h1 class="headline">${esc(lp.headline)}</h1>
-    <div class="subhead">${esc(lp.subheadline||"")}</div>
-    <div class="ctarow"><a class="cta" href="#lead-form">${esc(cta)}</a>${callRow}</div>
-  </div>
-  ${heroImg}
-</div></section>
-<div class="wrap chips">${chips}</div>
-<section class="wrap sec"><h2 class="sec-t">Why choose ${esc(cl.name)}</h2><div class="bene">${bulletsHTML}</div></section>
-${galleryHTML}
-${offerHTML}
-<section class="formsec" id="lead-form"><div class="wrap"><div class="fcard">
-  <div class="formtitle">${esc(cta)}</div>
-  <div class="formsub">Fill this out and we'll be in touch shortly.</div>
-  <input class="inp" placeholder="Your name">
-  <input class="inp" placeholder="Phone number">
-  <input class="inp" placeholder="Email (optional)">
-  <button class="cta" style="border:none;width:100%">${esc(cta)}</button>
-</div></div></section>
-<footer class="foot">${esc(cl.name)}${area?` · Serving ${esc(area)}`:""}${phone?` · <a href="${telHref}">${esc(phone)}</a>`:""}</footer>
-</body></html>`;
-};
-
+// LandingPreview — renders the owner's in-app preview through the SAME live function
+// (POST /landing) so the preview can never drift from the real /lp/<slug> page.
+function LandingPreview({client}){
+  const [html,setHtml]=useState("");
+  const [state,setState]=useState("loading"); // loading | ok | err
+  const key=JSON.stringify(client.landingPage||{})+"|"+(client.callTrackingNumber||"")+"|"+(client.bookingUrl||"")+"|"+JSON.stringify(client.campaignSetup||{})+"|"+JSON.stringify(client.brandVoice||{})+"|"+JSON.stringify((client.mediaLibrary||[]).map(m=>m.url));
+  useEffect(()=>{
+    let dead=false; setState("loading");
+    (async()=>{
+      try{
+        const { data:{ session } }=await supabaseClient.auth.getSession();
+        const token=session&&session.access_token;
+        const r=await fetch("/.netlify/functions/landing",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(token||"")},body:JSON.stringify({client})});
+        const t=await r.text();
+        if(dead)return;
+        if(!r.ok){setState("err");return;}
+        setHtml(t);setState("ok");
+      }catch(e){ if(!dead) setState("err"); }
+    })();
+    return ()=>{dead=true;};
+  },[key]);
+  if(state==="err") return <div style={{fontSize:11,color:C.textMuted,padding:12,lineHeight:1.6}}>Preview unavailable right now — once published, the live page at <code>/lp/{client.landingSlug}</code> is what clients see.</div>;
+  return <iframe srcDoc={html} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:520,border:"none",display:"block",background:"#fff",opacity:state==="ok"?1:.45,transition:"opacity .2s"}}/>;
+}
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
 function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,isDesktop}) {
   const [search,setSearch]     = useState("");
@@ -1805,7 +1756,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
     setGenLanding({busy:true,error:null});
     try {
       const r = await fetch("/.netlify/functions/generate-landing",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({name:client.name,niche:client.niche,campaignSetup:client.campaignSetup,brandVoice:client.brandVoice,mediaLibrary:client.mediaLibrary})});
+        body:JSON.stringify({name:client.name,niche:client.niche,campaignSetup:client.campaignSetup,brandVoice:client.brandVoice,mediaLibrary:client.mediaLibrary,website:client.website})});
       const d = await r.json();
       if(!r.ok||!d.ok) throw new Error(d.error||"Generation failed");
       onUpdate({...client, landingPage:{...d.landingPage,published:(client.landingPage&&client.landingPage.published)||false,generatedAt:new Date().toISOString()}});
@@ -2102,7 +2053,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               </div>
               {client.landingPage&&client.landingPage.headline ? (
                 <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:10}}>
-                  <iframe srcDoc={makeLandingHTML(client)} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:460,border:"none",display:"block"}}/>
+                  <LandingPreview client={client}/>
                 </div>
               ) : (
                 <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Generate an ad-ready landing page using {client.name}'s campaign setup, brand voice, and uploaded media.</div>
@@ -3766,6 +3717,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 {k:"contactName",l:"Contact Name",t:"text",ph:"First and last name"},
                 {k:"email",l:"Email Address (portal login)",t:"email",ph:"owner@business.com"},
                 {k:"businessAddress",l:"Business Address",t:"text",ph:"123 Main St, City, State ZIP"},
+                {k:"website",l:"Website (landing page matches its colors + theme)",t:"text",ph:"https://theirbusiness.com"},
               ].map(({k,l,t,ph})=>(
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>
