@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 53 task-keyed entries under `knowledge/`. They surface automatically via the
+> 55 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**53 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**55 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -90,6 +90,9 @@
 - **[dedash-ai-voice](../knowledge/dedash-ai-voice.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   All em-dashes and AI-sounding phrasing were stripped site-wide (homepage, glossary, blog chrome, legal). blog-shared.mjs got a WRITING STYLE prompt block + a deterministic deDash() that strips "—" before save. Live posts fixed via docs/sql/dedash-posts.sql (the seed's ON CONFLICT DO NOTHING won't update them).  
   <sub>*task:* remove em-dashes and de-AI the copy, and keep future AI blog posts clean &nbsp;|&nbsp; *keywords:* em-dash, deDash, dedash-posts.sql, writing-style, regexp_replace, on-conflict-do-nothing</sub>
+- **[ga4-analytics](../knowledge/ga4-analytics.md)** &mdash; &#9989; verified &middot; 2026-07-22  
+  GA4 web tracking set up 2026-07-22 for boldlinemedia.com — property "BoldLine Media", Web stream "BoldLine Media Web" (Stream ID 15301155601, Measurement ID G-MG7T0687RT), Enhanced measurement ON. The gtag snippet is hardcoded in marketing-site/index.html <head> (measurement IDs are PUBLIC, not a secret). PENDING (deferred until after Meta App Review submit): surface GA4 data INSIDE the OS via the Analytics Data API (needs the numeric Property ID + a GCP service account added as a Viewer).  
+  <sub>*task:* manage GA4 analytics on the marketing site and (pending) surface GA4 data inside the OS &nbsp;|&nbsp; *keywords:* ga4, google-analytics, gtag, measurement-id, G-MG7T0687RT, analytics-data-api, marketing-site</sub>
 - **[glossary-popover](../knowledge/glossary-popover.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Marketing jargon gets a gold dotted underline; hover (desktop) or tap (mobile) opens a plain-English popover. Shared marketing-site/glossary.css + glossary.js (one dict/runtime). Homepage terms are pre-wrapped in markup; blog posts get them via glossary.js autolink() wrapping the first occurrence of each known term.  
   <sub>*task:* work on the plain-English jargon popover glossary on the marketing site or blog &nbsp;|&nbsp; *keywords:* glossary.js, glossary.css, data-term, autolink, article-body, term-span</sub>
@@ -198,6 +201,9 @@
 
 ## Pending
 
+- **[landing-page-issues](../knowledge/landing-page-issues.md)** &mdash; &#9989; verified &middot; 2026-07-21  
+  The OS AI landing-page generator has two problems flagged by Bryson 2026-07-21 while prepping the Meta demo — (1) the live /lp/<slug> link returns the "Page not found / This link may have expired" page, and (2) the generated content quality is weak. PARKED BY CHOICE until after the Meta App Review screencast is submitted; then investigate + fix.  
+  <sub>*task:* fix the client landing-page generator — broken /lp/ link (404) and weak AI output &nbsp;|&nbsp; *keywords:* landing.mjs, landingSlug, landingPage, notFoundPage, comingSoonPage, /lp/, landing-generator, two-netlify-sites</sub>
 - **[pending-seo-next-steps](../knowledge/pending-seo-next-steps.md)** &mdash; &#9989; verified &middot; 2026-07-04  
   Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.  
   <sub>*task:* pick up the next unstarted marketing/SEO steps now that the site is live (Google Ads resubmit, Search Console, Business Profile) &nbsp;|&nbsp; *keywords:* basic-access-resubmit, search-console, sitemap.xml, business-profile, GA4</sub>
