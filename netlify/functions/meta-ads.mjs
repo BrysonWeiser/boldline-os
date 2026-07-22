@@ -56,13 +56,21 @@ const centsToDollars = (c) => Number(c || 0) / 100;
 
 // appsecret_proof = HMAC-SHA256(access_token) keyed by the app secret. Meta
 // recommends it on every server-side call; harmless when the app doesn't require it.
-const appProof = () =>
-  M.appSecret ? crypto.createHmac("sha256", M.appSecret).update(M.token).digest("hex") : null;
+const appProof = (tok) => {
+  const t = tok || M.token;
+  return M.appSecret ? crypto.createHmac("sha256", M.appSecret).update(t).digest("hex") : null;
+};
 
-// Meta nests the useful error under data.error.
+// Meta nests the useful error under data.error. Surface its code/subcode/type so a
+// vague message ("API access blocked") is actually diagnosable from the OS.
 function metaErr(stage, status, data) {
   const e = data && data.error;
-  const msg = (e && (e.error_user_msg || e.message)) || `HTTP ${status}`;
+  const base = (e && (e.error_user_msg || e.message)) || `HTTP ${status}`;
+  const bits = [];
+  if (e && e.code != null) bits.push(`code ${e.code}`);
+  if (e && e.error_subcode != null) bits.push(`subcode ${e.error_subcode}`);
+  if (e && e.type) bits.push(e.type);
+  const msg = bits.length ? `${base} (${bits.join(", ")})` : base;
   const err = new Error(`${stage}: ${msg}`);
   err.stage = stage;
   err.detail = e || data;
@@ -71,9 +79,10 @@ function metaErr(stage, status, data) {
 
 // One Graph call. GET puts params in the query; POST in the form body. The token
 // + appsecret_proof are always attached.
-async function graph(stage, path, { method = "GET", params = {} } = {}) {
-  const proof = appProof();
-  const auth = { access_token: M.token, ...(proof ? { appsecret_proof: proof } : {}) };
+async function graph(stage, path, { method = "GET", params = {}, token } = {}) {
+  const tok = token || M.token;
+  const proof = appProof(tok);
+  const auth = { access_token: tok, ...(proof ? { appsecret_proof: proof } : {}) };
   let url = `${BASE}/${path}`;
   const opts = { method };
   if (method === "GET") {
@@ -110,20 +119,24 @@ async function listAdAccounts() {
 // ads ON that client's Facebook Page, so reading the Page it's advertising is
 // exactly what these permissions are for. Nothing is written.
 async function readPage(pageId) {
-  // pages_show_list — the Pages this token can manage.
-  const acc = await graph("page", "me/accounts", {
-    params: { fields: "id,name,category,tasks", limit: "100" },
+  // pages_show_list — the Pages this token can manage. Ask for each Page's own
+  // access_token too, so we can read Page-level fields with the PAGE token below.
+  const acc = await graph("page:list", "me/accounts", {
+    params: { fields: "id,name,category,access_token,tasks", limit: "100" },
   });
-  const pages = (acc.data || []).map((p) => ({
-    id: p.id, name: p.name, category: p.category,
-  }));
+  const list = acc.data || [];
+  const pages = list.map((p) => ({ id: p.id, name: p.name, category: p.category }));
 
-  // pages_read_engagement — read the target Page's public basics. fan_count +
-  // engagement both require pages_read_engagement, so this call registers it.
+  // pages_read_engagement — read the target Page's basics. fan_count + engagement
+  // require pages_read_engagement, AND Meta blocks these fields on a user/system-user
+  // token — they must be read with the PAGE's own access token (from me/accounts).
   let page = null;
   if (pageId) {
-    const p = await graph("page", `${pageId}`, {
+    const match = list.find((p) => String(p.id) === String(pageId));
+    const pageToken = (match && match.access_token) || undefined; // fall back to caller token
+    const p = await graph("page:read", `${pageId}`, {
       params: { fields: "name,fan_count,followers_count,engagement" },
+      token: pageToken,
     });
     page = {
       id: pageId,
