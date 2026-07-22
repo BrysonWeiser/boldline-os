@@ -3,14 +3,19 @@ name: landing-page-issues
 topic: Pending
 task: fix the client landing-page generator — broken /lp/ link (404) and weak AI output
 keywords: [landing.mjs, landingSlug, landingPage, notFoundPage, comingSoonPage, /lp/, landing-generator, two-netlify-sites]
-status: open
-summary: The OS AI landing-page generator has two problems flagged by Bryson 2026-07-21 while prepping the Meta demo — (1) the live /lp/<slug> link returns the "Page not found / This link may have expired" page, and (2) the generated content quality is weak. PARKED BY CHOICE until after the Meta App Review screencast is submitted; then investigate + fix.
-verified: 2026-07-21
+status: resolved
+summary: The OS AI landing-page generator had two problems (flagged 2026-07-21) — both FIXED 2026-07-22. (1) The live /lp/<slug> link 404'd because landing.mjs is a NEW-format function (req.url = original URL) so the /lp/:slug rewrite's ?slug= never arrived — now parses the slug from the path (per KB netlify-new-format-function-req-url). (2) The template was a bare 480px phone-column at every width — rebuilt into a full responsive page (split hero, trust chips, benefit-card grid, work-photo gallery, offer CTA band, card lead form, OG meta). Live renderer landing.mjs + OS preview makeLandingHTML updated together (dual copy). Verified live at 390/768/1280/1600 — zero horizontal overflow.
+verified: 2026-07-22
 ---
 
-**Status: OPEN — parked by choice until the Meta App Review demo is recorded + submitted** (Bryson's sequencing, 2026-07-21). Do not block the Meta demo on this; the demo ad points at `https://boldlinemedia.com` instead of a generated landing page.
+**✅ RESOLVED 2026-07-22.** Both problems fixed + deployed to production; live page verified headless at all four breakpoints (0px overflow). Details below.
 
-**Two problems (surfaced 2026-07-21 on client DetailKing ATL):**
+**THE FIXES (2026-07-22):**
+- **404 → fixed:** root cause was the new-format-function req.url gotcha (NOT unpublished, NOT a missing slug). `landing.mjs` now does `url.pathname.match(/^\/lp\/([^/]+)\/?$/)` and falls back to `?slug=` for direct calls. Confirmed: the exact URL that returned 404 now serves HTTP 200 with the client's page.
+- **Quality → fixed:** replaced the 480px single-column template with a responsive, data-rich page that pulls from existing client fields (campaignSetup.serviceArea/mainOffer, brandVoice.differentiator, mediaLibrary photos). Sections: top bar (name + tap-to-call), split hero (copy | hero image on ≥940px), trust chips, benefit-card grid, "Recent work" photo gallery (≥2 photos), dark offer-CTA band, card lead form, footer. Lead-form POST to `lead-intake?token=` unchanged. **DUAL COPY like the portal:** live renderer = `netlify/functions/landing.mjs`; OS preview = `makeLandingHTML` in `index.html` — edit both together.
+- The AI copy generator (`generate-landing.mjs`) was left as-is — its output was fine; the page just had nowhere good to *show* it. Richer client data (fill serviceArea/mainOffer/differentiator + upload work photos) now automatically makes a fuller page.
+
+**(historical) Two problems (surfaced 2026-07-21 on client DetailKing ATL):**
 
 1. **Live link 404s.** Opening the generated landing URL returns the **`notFoundPage()`** in `netlify/functions/landing.mjs` — the exact copy "**Page not found / This link may have expired or is no longer active**".
    - CRITICAL diagnostic: that is the **slug-didn't-resolve** branch (landing.mjs ~L23–31: no slug, OR no client row matches `data->>landingSlug`, OR a Supabase lookup error). It is **NOT** the unpublished branch — an existing-but-unpublished page renders **`comingSoonPage()`** ("*This page is being finished up. Check back shortly.*", L35, gated on `!lp.published || !lp.headline`). So this is not merely "hit Publish."
