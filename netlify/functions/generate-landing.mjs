@@ -23,13 +23,13 @@ const LANDING_COPY_TOOL = {
         type: "object",
         description: "DESIGN DIRECTIVES that shape this page's LAYOUT and feel so it fits THIS business and does NOT look like a clone of other clients' pages. Choose each to match the brand's personality — and deliberately VARY your choices from business to business; do not default to the same combo every time.",
         properties: {
-          layout: { type: "string", enum: ["split", "centered", "overlay"], description: "Hero layout. 'split' = copy beside a photo; 'centered' = centered copy with a wide photo banner below; 'overlay' = full-bleed photo hero with text on top (premium/visual brands with a strong photo)." },
+          layout: { type: "string", enum: ["split", "centered", "overlay", "capture"], description: "Overall page layout. 'split' = hero copy beside a photo; 'centered' = centered copy with a wide photo banner below; 'overlay' = full-bleed photo hero with text on top (premium/visual brands with a strong photo); 'capture' = the lead form sits IN the hero above the fold (highest-converting for lead-gen; great when there's no strong photo or the goal is maximum form fills)." },
           font: { type: "string", enum: ["modern", "elegant", "bold"], description: "Type mood. 'modern' clean sans; 'elegant' serif headings (spa/luxury/legal/wellness); 'bold' heavy sans (trades/fitness/automotive)." },
           motion: { type: "string", enum: ["up", "side", "zoom"], description: "Scroll + entrance motion style." },
           background: { type: "string", enum: ["glowgrid", "mesh", "dots", "clean"], description: "Hero background treatment." },
           benefits: { type: "string", enum: ["cards", "list", "numbered"], description: "How the 'why choose us' points are laid out." },
           shape: { type: "string", enum: ["rounded", "soft", "sharp"], description: "Corner style. 'rounded' friendly/approachable; 'sharp' modern/premium." },
-          order: { type: "string", enum: ["a", "b"], description: "Section order variant." },
+          order: { type: "string", enum: ["a", "b", "c", "d"], description: "Section order variant (arranges benefits / how-it-works / gallery / offer differently; 'c' leads with the offer as a hook)." },
         },
       },
     },
@@ -165,8 +165,8 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const keep = (v, arr) => (arr.includes(v) ? v : undefined);
     const designOut = {};
     const dm = {
-      layout: ["split", "centered", "overlay"], font: ["modern", "elegant", "bold"], motion: ["up", "side", "zoom"],
-      background: ["glowgrid", "mesh", "dots", "clean"], benefits: ["cards", "list", "numbered"], shape: ["rounded", "soft", "sharp"], order: ["a", "b"],
+      layout: ["split", "centered", "overlay", "capture"], font: ["modern", "elegant", "bold"], motion: ["up", "side", "zoom"],
+      background: ["glowgrid", "mesh", "dots", "clean"], benefits: ["cards", "list", "numbered"], shape: ["rounded", "soft", "sharp"], order: ["a", "b", "c", "d"],
     };
     for (const k of Object.keys(dm)) { const v = keep(dIn[k], dm[k]); if (v) designOut[k] = v; }
     const chosen = Number.isInteger(heroIndex) && heroIndex >= 0 && heroIndex < media.length && media[heroIndex].category !== "video"
