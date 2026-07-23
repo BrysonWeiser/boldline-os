@@ -1,4 +1,5 @@
-const Anthropic = require("@anthropic-ai/sdk");
+import Anthropic from "@anthropic-ai/sdk";
+import { withLambda } from "../lib/lambda-adapter.mjs";
 
 const client = new Anthropic();
 
@@ -77,7 +78,7 @@ const PROPOSE_ACTION_TOOL = {
   },
 };
 
-exports.handler = async (event) => {
+const handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
   }
@@ -117,3 +118,5 @@ exports.handler = async (event) => {
     };
   }
 };
+
+export default withLambda(handler);
