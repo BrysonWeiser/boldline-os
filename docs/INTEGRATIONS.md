@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 56 task-keyed entries under `knowledge/`. They surface automatically via the
+> 57 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**56 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**57 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -36,6 +36,12 @@
 - **[netlify-secret-scan](../knowledge/netlify-secret-scan.md)** &mdash; &#9989; verified &middot; 2026-07-15  
   Netlify's secret scanner FAILS the build if the VALUE of ANY Netlify env var (secret OR not — an email, phone, base URL, account ID) appears in any committed file inside the publish dir (publish=".", so the whole repo). Fix for genuinely non-secret values = add their KEY to SECRETS_SCAN_OMIT_KEYS in netlify.toml (comma-separated). NEVER omit a real secret — remove its value from the file instead. Currently omitted: DOCUSIGN_BASE_PATH, OWNER_EMAIL, REPORTS_FROM_EMAIL.  
   <sub>*task:* fix a Netlify build that failed with "Secrets scanning found N instance(s) of secrets in build &nbsp;|&nbsp; *keywords:* SECRETS_SCAN_OMIT_KEYS, SECRETS_SCAN_OMIT_PATHS, secret scanning, secrets scan, netlify.toml, build failed secret, OWNER_EMAIL, REPORTS_FROM_EMAIL, DOCUSIGN_BASE_PATH</sub>
+
+## Deploys
+
+- **[netlify-lambda-4kb-limit](../knowledge/netlify-lambda-4kb-limit.md)** &mdash; &#9989; verified &middot; 2026-07-23  
+  Classic-style Netlify functions (exports.handler = async(event)=>{...}) run in AWS "Lambda compatibility mode," which caps the TOTAL size of ALL env vars at 4KB. Every site env var is injected into every function, so once the OS's secrets (DocuSign key + Google Ads creds + GA4 service-account JSON …) crossed 4KB, the two classic functions (aria, portal) failed to deploy — even though they don't use the big vars. Fix: move them to the MODERN runtime (export default async(req)=>Response), which has no such limit. Done via a tiny in-repo adapter netlify/lib/lambda-adapter.mjs (withLambda) that keeps each handler body 100% unchanged.  
+  <sub>*task:* fix/avoid the Netlify "environment variables exceed the 4KB limit imposed by AWS Lambda" deploy failure &nbsp;|&nbsp; *keywords:* netlify, lambda, 4kb, environment variables, deploy failed, exports.handler, withLambda, lambda-adapter, modern functions runtime, compatibility mode, aria, portal</sub>
 
 ## Domain/DNS
 
@@ -181,7 +187,7 @@
   2026-07-06 visual refresh. Client portal got a "living" gold aesthetic (ambient aurora orbs + top halo + grain, glass cards, a gold conic progress ring "N/8" + an 8-node stage tracker, welcome hero, tab fade-in). The OS app got a lighter shared-layer pass (subtle ambient behind the app, card depth + hover, screen fade, gold scrollbar/focus). Brand stays dark + gold.  
   <sub>*task:* change the visual style / aesthetic of the client portal or the OS interface &nbsp;|&nbsp; *keywords:* aesthetic, ambient, orbs, glass, backdrop-filter, progress-ring, tracker, os-card, os-ambient, prog-hero, ringGlow, topglow, conic-gradient</sub>
 - **[os-portal-dual-copy](../knowledge/os-portal-dual-copy.md)** &mdash; &#9989; verified &middot; 2026-07-02  
-  The client portal HTML lives in TWO places that must be edited together — netlify/functions/portal.js (the LIVE portal at /portal?token=) and a near-identical makePortalHTML inside index.html (the owner-side preview). Change one, change the other or they drift.  
+  The client portal HTML lives in TWO places that must be edited together — netlify/functions/portal.mjs (the LIVE portal at /portal?token=) and a near-identical makePortalHTML inside index.html (the owner-side preview). Change one, change the other or they drift.  
   <sub>*task:* edit the client portal without the live and preview copies drifting apart &nbsp;|&nbsp; *keywords:* portal.js, makePortalHTML, dual-copy, portal-token, server-rendered</sub>
 - **[os-screen-routing](../knowledge/os-screen-routing.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   How the OS app (index.html) routes between top-level screens, how the Revenue-by-Client page was added, and how the desktop layout works — ≥1024px gets a sidebar shell (SideNav) + multi-column grids via a useIsDesktop() hook while mobile keeps the BottomNav single-column layout untouched.  

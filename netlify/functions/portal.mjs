@@ -1,5 +1,6 @@
-const { createClient } = require("@supabase/supabase-js");
-const { makeContractHTML } = require("../lib/contract-shared.cjs");
+import { createClient } from "@supabase/supabase-js";
+import { makeContractHTML } from "../lib/contract-shared.cjs";
+import { withLambda } from "../lib/lambda-adapter.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -246,7 +247,7 @@ const mergeFields = (base, patch) => {
   return out;
 };
 
-exports.handler = async (event) => {
+const handler = async (event) => {
   const token = event.queryStringParameters && event.queryStringParameters.token;
   if (!token) {
     if (event.httpMethod === "POST") return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Missing token" }) };
@@ -320,4 +321,5 @@ exports.handler = async (event) => {
   }
 };
 
-exports._internal = { makePortalHTML, findPkg };
+export default withLambda(handler);
+export const _internal = { makePortalHTML, findPkg };

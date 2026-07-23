@@ -25,6 +25,6 @@ These are the SAME per-client IDs the OS uses to run ads (Edit → Campaign → 
 - `META_BUSINESS_ID` — BoldLine's Meta Business ID (shows in the Meta "add partner" step; until set the step says "the Business ID we give you").
 Set them in Netlify → OS site → Site configuration → Environment variables, then redeploy. No code change needed.
 
-**DUAL COPY:** the live portal is `netlify/functions/portal.js` (`makePortalHTML`) and the owner-preview `makePortalHTML` in `index.html` — edit BOTH (see `os-portal-dual-copy`). The preview has no `process.env`, so it always shows the video placeholder.
+**DUAL COPY:** the live portal is `netlify/functions/portal.mjs` (`makePortalHTML`) and the owner-preview `makePortalHTML` in `index.html` — edit BOTH (see `os-portal-dual-copy`). The preview has no `process.env`, so it always shows the video placeholder.
 
 **Verified:** correct section per package (google/meta/combined), portal My Info 0px overflow at 390px, OS recompiles clean.
