@@ -3779,6 +3779,11 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               ))}
             </Card>
             <Card>
+              <Label>Reviews / Testimonials</Label>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Paste the client's <strong>real</strong> reviews — one per line, as <code>quote — Name</code>. These appear on the landing page. The AI never invents these; leave blank to hide the section.</div>
+              <textarea value={form.reviews||""} onChange={e=>set("reviews",e.target.value)} placeholder={"Best detailer in Phoenix, my car looks brand new. — Marcus B.\nFast, professional, fair price. Highly recommend! — Dana R."} rows={5} style={{...inp,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}}/>
+            </Card>
+            <Card>
               <Label>Health Score (1–10)</Label>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6}}>
                 <input

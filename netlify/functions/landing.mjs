@@ -62,7 +62,9 @@ export function renderLandingPage(cl) {
   const P = landingTheme(cl);
   const D = designConfig(cl);
 
-  const hero = (lp.heroPath && media.find((m) => m.path === lp.heroPath)) || media.find((m) => m.category === "photo") || media.find((m) => m.category === "logo");
+  const mediaHero = (lp.heroPath && media.find((m) => m.path === lp.heroPath)) || media.find((m) => m.category === "photo") || media.find((m) => m.category === "logo");
+  const hero = mediaHero || (lp.heroUrl ? { url: lp.heroUrl, category: "photo", path: "__web" } : null);
+  const logoUrl = lp.logo || cl.brandLogo || "";
   const bullets = Array.isArray(lp.bullets) ? lp.bullets : [];
   const phone = cl.callTrackingNumber || "";
   const area = cs.serviceArea || cs.targetLocations || "";
@@ -93,6 +95,21 @@ a{color:inherit}
 .hdr .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px}
 .brandmark{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15.5px;color:${P.topName}}
 .dot{width:10px;height:10px;border-radius:3px;background:${P.brand};box-shadow:0 0 0 4px ${P.tint}}
+.blogo{height:30px;width:auto;max-width:180px;object-fit:contain;display:block}
+/* reviews */
+.revs{display:grid;gap:14px;grid-template-columns:1fr}
+.rev{background:${P.cardBg};border:1px solid ${P.border};border-radius:var(--r);padding:22px 20px}
+.rev .stars{color:${P.brand};font-size:13px;letter-spacing:2px;margin-bottom:9px}
+.rev p{font-size:14.5px;color:${P.text};margin-bottom:12px;line-height:1.6}
+.rev .who{font-size:13px;font-weight:700;color:${P.muted}}
+/* faq */
+.faqwrap{max-width:760px;margin:0 auto;display:grid;gap:10px}
+.faq{background:${P.cardBg};border:1px solid ${P.border};border-radius:var(--r);padding:0 18px}
+.faq summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:15px;color:${P.headline};display:flex;justify-content:space-between;gap:12px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:${P.brand};font-size:22px;font-weight:800;line-height:1}
+.faq[open] summary::after{content:"–"}
+.faq p{padding:0 0 16px;font-size:14px;color:${P.muted};line-height:1.6}
 .hdr-cta{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:${P.brand};text-decoration:none;border:1px solid ${P.tint};border-radius:999px;padding:7px 14px;background:${P.tint}}
 .ann{background:${P.band};color:#fff;text-align:center;font-size:13px;font-weight:600;padding:9px 16px}
 .ann b{font-weight:800}
@@ -215,7 +232,7 @@ a{color:inherit}
 @keyframes zin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 @keyframes slin{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;transform:none!important}}
-@media(min-width:720px){.bene{grid-template-columns:repeat(3,1fr)}.benum{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:720px){.bene{grid-template-columns:repeat(3,1fr)}.benum{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}}
 @media(min-width:940px){.hero{padding:64px 0 56px}.hero-g.has-img{grid-template-columns:1.05fr .95fr}.form-g{grid-template-columns:.9fr 1.1fr;gap:44px}}
 @media(max-width:719px){.mcta{display:flex}body{padding-bottom:76px}.hdr-cta{display:none}.hero-ov{min-height:440px}}
 `;
@@ -278,11 +295,23 @@ a{color:inherit}
 
   const offerSection = offer ? `<section class="sec"><div class="wrap"><div class="offer reveal"><div class="ok">Limited-time offer</div><h2>${esc(offer)}</h2><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></div></section>` : "";
 
+  // Reviews — REAL ones only, from the owner-entered client.reviews (one per line, "quote — Name"). Never AI-fabricated.
+  const reviewList = String(cl.reviews || "").split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 6).map((l) => {
+    const m = l.match(/^(.*\S)\s+[—–|]\s+([^—–|]+)$/); // split on the LAST delimiter so quotes may contain dashes
+    const q = (m ? m[1] : l).replace(/^["'“]+|["'”]+$/g, "").trim();
+    return { q, who: m ? m[2].trim() : "" };
+  });
+  const reviewsSection = reviewList.length ? `<section class="sec alt"><div class="wrap"><div class="sec-head"><div class="sec-k">Reviews</div><h2 class="sec-t">What clients say</h2></div><div class="revs">${reviewList.map((r) => `<div class="rev reveal"><div class="stars">★★★★★</div><p>${esc(r.q)}</p>${r.who ? `<div class="who">— ${esc(r.who)}</div>` : ""}</div>`).join("")}</div></div></section>` : "";
+
+  // FAQ — AI-written honest Q&A (no fabricated specifics). Native <details> accordion, no JS.
+  const faqs = Array.isArray(lp.faqs) ? lp.faqs.filter((f) => f && f.q && f.a).slice(0, 6) : [];
+  const faqSection = faqs.length ? `<section class="sec"><div class="wrap"><div class="sec-head"><div class="sec-k">FAQ</div><h2 class="sec-t">Common questions</h2></div><div class="faqwrap">${faqs.map((f) => `<details class="faq reveal"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}</div></div></section>` : "";
+
   const orders = {
-    a: [benefitsSection, stepsSection, gallerySection, offerSection],
-    b: [benefitsSection, gallerySection, offerSection, stepsSection],
-    c: [offerSection, benefitsSection, gallerySection, stepsSection],
-    d: [benefitsSection, gallerySection, stepsSection, offerSection],
+    a: [benefitsSection, reviewsSection, stepsSection, gallerySection, faqSection, offerSection],
+    b: [benefitsSection, gallerySection, reviewsSection, offerSection, faqSection, stepsSection],
+    c: [offerSection, benefitsSection, reviewsSection, gallerySection, faqSection, stepsSection],
+    d: [benefitsSection, gallerySection, stepsSection, reviewsSection, faqSection, offerSection],
   };
   const middle = (orders[D.order] || orders.a).filter(Boolean).join("\n");
 
@@ -305,7 +334,7 @@ a{color:inherit}
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} — ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} — ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}
-<header class="hdr"><div class="wrap"><div class="brandmark"><span class="dot"></span>${esc(cl.name)}</div>${phone ? `<a class="hdr-cta" href="${telHref}">📞 ${esc(phone)}</a>` : ""}</div></header>
+<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(cl.name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(cl.name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">📞 ${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
