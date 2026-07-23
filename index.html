@@ -3263,6 +3263,106 @@ function MetaLaunchCard({client}) {
   );
 }
 
+// ─── GA4 ANALYTICS ────────────────────────────────────────────────────────────
+// Marketing-site traffic (boldlinemedia.com) pulled straight from Google
+// Analytics into the OS so Bryson never opens the GA4 web UI. Read-only; hits
+// ga4.mjs (service-account auth) under the owner's Supabase session. Last 28
+// days vs the prior 28 for each headline metric, plus top channels + pages.
+function GA4AnalyticsCard() {
+  const [state,setState]=useState("loading"); // loading | ok | error
+  const [data,setData]=useState(null);
+  const [err,setErr]=useState("");
+  const load=async()=>{
+    setState("loading"); setErr("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token){ setState("error"); setErr("Session expired — refresh the page and log in again."); return; }
+      const r=await fetch("/.netlify/functions/ga4",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action:"summary"})});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok){ setState("error"); setErr((d.stage?d.stage+" — ":"")+(d.error||"Couldn't load analytics.")); return; }
+      setData(d); setState("ok");
+    }catch(e){ setState("error"); setErr("Network error — try again."); }
+  };
+  useEffect(()=>{ load(); },[]);
+
+  const Trend=({change})=>{
+    if(change===0) return <span style={{fontSize:10,color:C.textMuted}}>—</span>;
+    const up=change>0;
+    return <span style={{fontSize:10,fontWeight:700,color:up?C.green:C.red}}>{up?"▲":"▼"} {Math.abs(change)}%</span>;
+  };
+  const Tile=({label,m})=>(
+    <div style={{backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:11,padding:"11px 12px"}}>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:5}}>{label}</div>
+      <div style={{display:"flex",alignItems:"baseline",gap:7,flexWrap:"wrap"}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text,lineHeight:1}}>{(m.value||0).toLocaleString()}</div>
+        <Trend change={m.change}/>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{backgroundColor:C.bg3,border:`1px solid ${C.borderAccent}`,borderRadius:14,padding:"14px 15px",marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+        <span style={{fontSize:15}}>📊</span>
+        <div style={{fontSize:13,fontWeight:800,color:C.text}}>Site Analytics</div>
+        <span style={{marginLeft:"auto",fontSize:10,fontWeight:700,color:C.textMuted}}>Last 28 days</span>
+        <button onClick={load} disabled={state==="loading"} style={{fontSize:11,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:state==="loading"?"default":"pointer",padding:0,opacity:state==="loading"?.5:1}}>↻</button>
+      </div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:12,lineHeight:1.55}}>Live Google Analytics for boldlinemedia.com — % vs the prior 28 days.</div>
+
+      {state==="loading"&&(
+        <div style={{fontSize:12,color:C.textMuted,padding:"14px 0"}}>Loading analytics…</div>
+      )}
+
+      {state==="error"&&(
+        <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,backgroundColor:"rgba(245,158,11,0.06)",border:`1px solid ${C.borderAccent}`,borderRadius:10,padding:"11px 12px"}}>
+          <div style={{color:C.amber,fontWeight:700,marginBottom:6,wordBreak:"break-word"}}>Analytics not connected yet</div>
+          <div style={{marginBottom:8,wordBreak:"break-word"}}>{err}</div>
+          <div style={{color:C.textMuted}}>To turn this on, add two Netlify env vars on the OS site — <strong style={{color:C.textDim}}>GA4_PROPERTY_ID</strong> (the numeric property id from GA4 → Admin → Property settings) and <strong style={{color:C.textDim}}>GA4_SERVICE_ACCOUNT_JSON</strong> (a Google Cloud service-account key) — then add that service account's email as a <strong style={{color:C.textDim}}>Viewer</strong> on the GA4 property. Ask ARIA for the click-by-click.</div>
+          <button onClick={load} style={{marginTop:9,fontSize:11,fontWeight:700,padding:"6px 12px",borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(255,255,255,0.03)",color:C.gold,cursor:"pointer"}}>Retry</button>
+        </div>
+      )}
+
+      {state==="ok"&&data&&(
+        <>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            <Tile label="Users" m={data.totals.users}/>
+            <Tile label="Sessions" m={data.totals.sessions}/>
+            <Tile label="Page Views" m={data.totals.pageViews}/>
+            <Tile label="Conversions" m={data.totals.conversions}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:7}}>Top Channels</div>
+              {(data.channels||[]).length===0?<div style={{fontSize:11,color:C.textMuted}}>No data yet.</div>:
+                data.channels.map((c,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11.5,padding:"3px 0",color:C.textDim}}>
+                    <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.label}</span>
+                    <span style={{fontWeight:700,color:C.text,flexShrink:0}}>{c.sessions.toLocaleString()}</span>
+                  </div>
+                ))}
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:7}}>Top Pages</div>
+              {(data.pages||[]).length===0?<div style={{fontSize:11,color:C.textMuted}}>No data yet.</div>:
+                data.pages.map((p,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11.5,padding:"3px 0",color:C.textDim}}>
+                    <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}} title={p.path}>{p.path}</span>
+                    <span style={{fontWeight:700,color:C.text,flexShrink:0}}>{p.views.toLocaleString()}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+          <div style={{marginTop:11,textAlign:"right"}}>
+            <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,fontWeight:700,color:C.textMuted,textDecoration:"none"}}>Open full GA4 ↗</a>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── BLOG MANAGEMENT ──────────────────────────────────────────────────────────
 // Owner panel for the AI-written marketing blog: set the weekly cadence, write
 // a post on demand, and regenerate/delete any post the AI gets wrong. All
@@ -3640,6 +3740,7 @@ function WebsiteScreen() {
           <a key={label} href={url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,padding:"6px 12px",borderRadius:20,border:`1px solid ${C.border}`,color:C.textDim,textDecoration:"none"}}>{label} ↗</a>
         ))}
       </div>
+      <GA4AnalyticsCard/>
       <BlogManagementCard/>
     </div>
   );
