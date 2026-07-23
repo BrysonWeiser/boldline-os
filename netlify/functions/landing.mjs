@@ -44,13 +44,13 @@ export function designConfig(cl) {
   const seed = FNV(String(cl.landingSlug || cl.name || "boldline"));
   const opt = (key, arr, shift) => (d[key] && arr.includes(d[key]) ? d[key] : arr[(seed >>> shift) % arr.length]);
   return {
-    layout: opt("layout", ["split", "centered", "overlay"], 0),
+    layout: opt("layout", ["split", "centered", "overlay", "capture"], 0),
     bg: opt("background", ["glowgrid", "mesh", "dots", "clean"], 3),
     motion: opt("motion", ["up", "side", "zoom"], 6),
     benefits: opt("benefits", ["cards", "list", "numbered"], 9),
     font: opt("font", ["modern", "elegant", "bold"], 12),
     shape: opt("shape", ["rounded", "soft", "sharp"], 15),
-    order: opt("order", ["a", "b"], 19),
+    order: opt("order", ["a", "b", "c", "d"], 19),
   };
 }
 
@@ -77,6 +77,7 @@ export function renderLandingPage(cl) {
   const telHref = phone ? `tel:${esc(phone.replace(/[^0-9+]/g, ""))}` : "";
   const useOverlay = D.layout === "overlay" && !!hero;
   const useCentered = D.layout === "centered";
+  const useCapture = D.layout === "capture"; // lead form sits IN the hero (above the fold)
 
   const css = `
 *{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}
@@ -118,6 +119,7 @@ a{color:inherit}
 .heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);box-shadow:0 30px 60px rgba(0,0,0,.30)}
 .hero-media .badge{position:absolute;left:16px;bottom:16px;background:${P.cardBg};color:${P.text};border:1px solid ${P.cardBorder};border-radius:14px;padding:11px 14px;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:13px;font-weight:700;display:flex;align-items:center;gap:9px}
 .badge .bdot{width:26px;height:26px;border-radius:8px;background:${P.tint};color:${P.brand};display:flex;align-items:center;justify-content:center;font-size:15px}
+.hero-form{position:relative;z-index:2}.hero-form .fcard{box-shadow:0 24px 60px rgba(0,0,0,.22)}
 /* hero background treatments */
 .hero::before,.hero::after{content:"";position:absolute;pointer-events:none}
 .bg-glowgrid .hero::before{inset:-30% -10% auto -10%;height:120%;background:radial-gradient(60% 60% at 20% 20%,${P.glowA},transparent 60%),radial-gradient(50% 50% at 92% 8%,${P.glowB},transparent 55%)}
@@ -227,8 +229,27 @@ a{color:inherit}
   const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">📞 Call now</a>` : ""}</div>`;
   const badgeH = (offer || differentiator) ? `<div class="badge"><span class="bdot">✓</span><span>${esc((differentiator || offer).slice(0, 40))}</span></div>` : "";
 
+  // The lead form (single instance on the page) — reused in the hero (capture layout)
+  // or in the bottom form section (all other layouts). id="lead-form" is the scroll target.
+  const formCardHTML = `<div class="fcard reveal" id="lead-form">
+    <div class="formtitle">${esc(cta)}</div>
+    <div class="formsub">Takes 20 seconds. We'll be in touch shortly.</div>
+    <form id="lf">
+      <input class="inp" id="lf-name" placeholder="Your name" required>
+      <input class="inp" id="lf-phone" placeholder="Phone number" required>
+      <input class="inp" id="lf-email" type="email" placeholder="Email (optional)">
+      <div class="err" id="lf-err">Something went wrong — please try again.</div>
+      <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
+      <div class="fine">🔒 Your info stays private. No spam, ever.</div>
+    </form>
+    <div class="thanks" id="lf-thanks"><h2>Got it — thank you!</h2><p>We'll be in touch shortly.</p></div>
+  </div>`;
+
   let heroSection;
-  if (useOverlay) {
+  if (useCapture) {
+    const callLine = phone ? `<div class="ctarow an" style="animation-delay:.2s"><a class="cta ghost" href="${telHref}">📞 Call ${esc(phone)}</a></div>` : "";
+    heroSection = `<section class="hero"><div class="wrap hero-g has-img"><div>${eyebrowH}${headlineH}${subH}${trustH}${callLine}</div><div class="hero-form reveal">${formCardHTML}</div></div></section>`;
+  } else if (useOverlay) {
     heroSection = `<section class="hero hero-ov" style="--heroimg:url('${esc(hero.url)}')"><div class="hero-ov-scrim"></div><div class="wrap hero-ovc">${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div></section>`;
   } else if (useCentered) {
     const band = hero ? `<div class="wrap"><div class="heroband reveal"><img src="${esc(hero.url)}" alt="${esc(cl.name)}"></div></div>` : "";
@@ -257,8 +278,26 @@ a{color:inherit}
 
   const offerSection = offer ? `<section class="sec"><div class="wrap"><div class="offer reveal"><div class="ok">Limited-time offer</div><h2>${esc(offer)}</h2><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></div></section>` : "";
 
-  const order = D.order === "b" ? [benefitsSection, gallerySection, offerSection, stepsSection] : [benefitsSection, stepsSection, gallerySection, offerSection];
-  const middle = order.join("\n");
+  const orders = {
+    a: [benefitsSection, stepsSection, gallerySection, offerSection],
+    b: [benefitsSection, gallerySection, offerSection, stepsSection],
+    c: [offerSection, benefitsSection, gallerySection, stepsSection],
+    d: [benefitsSection, gallerySection, stepsSection, offerSection],
+  };
+  const middle = (orders[D.order] || orders.a).filter(Boolean).join("\n");
+
+  // Bottom conversion block: the full form section for most layouts; for the capture
+  // layout (form already in the hero) a slim closing CTA that scrolls back to it.
+  const bottomBlock = useCapture
+    ? `<section class="formsec"><div class="wrap" style="text-align:center"><h2 class="form-copy-h2" style="font-size:clamp(22px,3vw,30px);font-weight:850;color:${P.headline};margin-bottom:8px">Ready to get started?</h2><p style="color:${P.muted};margin-bottom:20px">No pressure, no obligation — get your free quote today.</p><a class="cta" href="#lead-form">${esc(cta)}</a></div></section>`
+    : `<section class="formsec"><div class="wrap"><div class="form-g">
+  <div class="form-copy reveal">
+    <h2>Ready to get started?</h2>
+    <p>Fill out the form and we'll get right back to you — no pressure, no obligation.</p>
+    <ul class="rlist"><li><span class="rk">1</span><span>Tell us a bit about what you need.</span></li><li><span class="rk">2</span><span>We'll reach out fast with your free quote.</span></li><li><span class="rk">3</span><span>Book your slot and we handle the rest.</span></li></ul>
+  </div>
+  ${formCardHTML}
+</div></div></section>`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const chips = [area ? `<div class="chip">📍 Serving ${esc(area)}</div>` : "", differentiator ? `<div class="chip">⭐ ${esc(differentiator.slice(0, 60))}</div>` : "", `<div class="chip">✅ Free quote — no obligation</div>`, phone ? `<div class="chip">⚡ Fast response</div>` : ""].filter(Boolean).join("");
@@ -270,26 +309,7 @@ ${annHTML}
 ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
-<section class="formsec" id="lead-form"><div class="wrap"><div class="form-g">
-  <div class="form-copy reveal">
-    <h2>Ready to get started?</h2>
-    <p>Fill out the form and we'll get right back to you — no pressure, no obligation.</p>
-    <ul class="rlist"><li><span class="rk">1</span><span>Tell us a bit about what you need.</span></li><li><span class="rk">2</span><span>We'll reach out fast with your free quote.</span></li><li><span class="rk">3</span><span>Book your slot and we handle the rest.</span></li></ul>
-  </div>
-  <div class="fcard reveal">
-    <div class="formtitle">${esc(cta)}</div>
-    <div class="formsub">Takes 20 seconds. We'll be in touch shortly.</div>
-    <form id="lf">
-      <input class="inp" id="lf-name" placeholder="Your name" required>
-      <input class="inp" id="lf-phone" placeholder="Phone number" required>
-      <input class="inp" id="lf-email" type="email" placeholder="Email (optional)">
-      <div class="err" id="lf-err">Something went wrong — please try again.</div>
-      <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
-      <div class="fine">🔒 Your info stays private. No spam, ever.</div>
-    </form>
-    <div class="thanks" id="lf-thanks"><h2>Got it — thank you!</h2><p>We'll be in touch shortly.</p></div>
-  </div>
-</div></div></section>
+${bottomBlock}
 <footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">📞 Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
