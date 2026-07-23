@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 55 task-keyed entries under `knowledge/`. They surface automatically via the
+> 56 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**55 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**56 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -189,6 +189,9 @@
 - **[os-screenshot-harness](../knowledge/os-screenshot-harness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   A committed render harness (tools/os-screenshot.js) that boots the REAL index.html in headless Chromium with a stubbed Supabase and captures desktop + mobile PNGs, so I can eyeball layout/overflow/popup-position myself instead of asking Bryson for a screenshot for the obvious stuff. Known limit — no browser chrome, so vh/dvh mobile bugs won't reproduce.  
   <sub>*task:* self-QA the OS/portal layout, screenshot the real app headless, check a UI change before shipping &nbsp;|&nbsp; *keywords:* screenshot, render, headless, playwright, chromium, self-qa, harness, visual, layout, mobile, desktop, os-screenshot, tools</sub>
+- **[portal-connect-ad-accounts](../knowledge/portal-connect-ad-accounts.md)** &mdash; &#9989; verified &middot; 2026-07-22  
+  Client portal (My Info tab) has a "Connect Your Ad Accounts" section that shows ONLY the platform(s) the client's package runs (Google/Meta/both). Each has a walkthrough-video slot + click-by-click steps + input fields so the client self-enters their IDs (googleAdsCustomerId / metaAdAccountId / metaPageId), which save to the client record and drive the OS ad-runners. Built 2026-07-22.  
+  <sub>*task:* the client-portal "Connect Your Ad Accounts" tutorials + self-entry of ad IDs, and how to add the walkthrough videos &nbsp;|&nbsp; *keywords:* portal, connect, tutorial, video, googleAdsCustomerId, metaAdAccountId, metaPageId, GOOGLE_CONNECT_VIDEO, META_CONNECT_VIDEO, META_BUSINESS_ID, sanitizeFields, conditional-by-platform</sub>
 - **[responsive-standards](../knowledge/responsive-standards.md)** &mdash; &#9989; verified &middot; 2026-07-17  
   STANDING RULE (Bryson 2026-07-17, in CLAUDE.md): every surface — OS, portal, marketing site, future — must look intentional at phone ~390px, tablet ~768px, laptop ~1280px, desktop ~1600px+. No horizontal scroll, no cramped narrow column on big screens, no giant empty gutters, no cut-off content; sibling cards share widths. Verify every UI change headlessly at all four widths before merging (Playwright recipe below). Coverage map of what each surface already does + the breakout-width gotcha (use negative-margin centering, NOT left+transform — that creates a phantom horizontal scrollbar).  
   <sub>*task:* build or review ANY UI change — the responsive breakpoints it must pass and how to verify headlessly &nbsp;|&nbsp; *keywords:* responsive, breakpoints, mobile, tablet, laptop, desktop, viewport, horizontal scroll, media query, cwide, 390, 768, 1280, 1600, playwright verify</sub>

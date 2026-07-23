@@ -2114,7 +2114,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
         {tab==="package"&&(
           <>
             <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
-            <MetaLaunchCard client={client}/>
+            {pkg && /google/i.test(pkg.platform||"") && <GoogleLaunchCard client={client}/>}
+            {pkg && /meta|facebook|instagram/i.test(pkg.platform||"") && <MetaLaunchCard client={client}/>}
           </>
         )}
 
@@ -3070,6 +3071,102 @@ function MetaAdsTestCard() {
 // their landing page. Pre-fills from client data; owner reviews + tweaks + launches.
 // Nothing spends until it's activated (approval queue / Ads Manager). Client owns
 // the account + pays their own spend — BoldLine only manages.
+// ─── GOOGLE ADS CAMPAIGN LAUNCHER ─────────────────────────────────────────────
+// "Run Google Search ads" for a client: builds a full Search campaign
+// (budget → campaign → ad group → responsive search ad → keywords) on the
+// CLIENT's own linked Google Ads account, ALL PAUSED. Pre-fills from client data;
+// owner reviews + edits + launches. Nothing spends until it's enabled.
+// NOT yet verified against a live linked account — see google-ads.mjs createCampaign.
+function GoogleLaunchCard({client}) {
+  const linked = !!client.googleAdsCustomerId;
+  const landingDefault = client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "";
+  const niche = client.niche || "";
+  const cs = client.campaignSetup || {};
+  const bv = client.brandVoice || {};
+  const lp = client.landingPage || {};
+  const offer = cs.mainOffer || "";
+  const area = cs.serviceArea || cs.targetLocations || "";
+  const diff = bv.differentiator || "";
+  const cl30 = (s) => String(s||"").trim().slice(0,30);
+  const cl90 = (s) => String(s||"").trim().slice(0,90);
+  const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Free Quote — Get Started", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
+  const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust — fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
+  const kwSeed = [...new Set([niche, niche&&area?`${niche} ${area}`:"", niche?`${niche} near me`:"", niche?`best ${niche}`:""].map(s=>String(s||"").trim()).filter(Boolean))].slice(0,8);
+  const [f,setF] = useState({
+    name: `${client.name} — Search`,
+    dailyBudgetDollars: 20,
+    landingUrl: landingDefault,
+    matchType: "PHRASE",
+    headlinesText: headlineSeed.join("\n"),
+    descriptionsText: descSeed.join("\n"),
+    keywordsText: kwSeed.join("\n"),
+  });
+  const [state,setState] = useState("idle"); // idle | creating | done | error
+  const [msg,setMsg] = useState("");
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"};
+  const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
+  const launch=async()=>{
+    const headlines=f.headlinesText.split("\n").map(s=>s.trim()).filter(Boolean);
+    const descriptions=f.descriptionsText.split("\n").map(s=>s.trim()).filter(Boolean);
+    const keywords=f.keywordsText.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(!(Number(f.dailyBudgetDollars)>0)){ setState("error"); setMsg("Daily budget must be greater than 0."); return; }
+    if(!f.landingUrl){ setState("error"); setMsg("A landing page URL is required."); return; }
+    if(headlines.length<3){ setState("error"); setMsg("Add at least 3 headlines (each ≤30 characters), one per line."); return; }
+    if(descriptions.length<2){ setState("error"); setMsg("Add at least 2 descriptions (each ≤90 characters), one per line."); return; }
+    if(!keywords.length){ setState("error"); setMsg("Add at least 1 keyword, one per line."); return; }
+    setState("creating"); setMsg("");
+    try{
+      const d=await gadsCall({action:"createCampaign",
+        customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
+        landingUrl:f.landingUrl, headlines, descriptions, keywords, matchType:f.matchType});
+      setState("done"); setMsg(`✓ Campaign created PAUSED (${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}). Review it in Google Ads, then enable to start spend — it won't run until you do.`);
+    }catch(e){ setState("error"); setMsg(e.message||"Launch failed — nothing was created."); }
+  };
+  if(!linked) return (
+    <Card>
+      <Label>📈 Launch Google Ads Campaign</Label>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Link this client's <strong style={{color:C.textDim}}>Google Ads Customer ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em> (or the client can add it themselves from their portal). Then you can build and launch their Google Search ads right here.</div>
+    </Card>
+  );
+  return (
+    <Card>
+      <Label>📈 Launch Google Ads Campaign</Label>
+      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Builds a full Search campaign (budget → ad group → responsive search ad → keywords) on <strong>{client.name}</strong>'s Google Ads account. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you enable it. They own the account + pay their own spend.</div>
+      {[
+        {k:"name",l:"Campaign name",t:"text"},
+        {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
+        {k:"landingUrl",l:"Landing / final URL",t:"text"},
+      ].map(({k,l,t})=>(
+        <div key={k} style={{marginBottom:9}}>
+          <label style={lbl}>{l}</label>
+          <input type={t} value={f[k]} onChange={e=>set(k,e.target.value)} style={box}/>
+        </div>
+      ))}
+      <div style={{marginBottom:9}}>
+        <label style={lbl}>Headlines — one per line, ≤30 chars each (3+ required)</label>
+        <textarea value={f.headlinesText} onChange={e=>set("headlinesText",e.target.value)} rows={5} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+      </div>
+      <div style={{marginBottom:9}}>
+        <label style={lbl}>Descriptions — one per line, ≤90 chars each (2+ required)</label>
+        <textarea value={f.descriptionsText} onChange={e=>set("descriptionsText",e.target.value)} rows={3} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+      </div>
+      <div style={{marginBottom:9}}>
+        <label style={lbl}>Keywords — one per line</label>
+        <textarea value={f.keywordsText} onChange={e=>set("keywordsText",e.target.value)} rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+      </div>
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>Keyword match type</label>
+        <select value={f.matchType} onChange={e=>set("matchType",e.target.value)} style={box}>
+          {["PHRASE","BROAD","EXACT"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o[0]+o.slice(1).toLowerCase()}</option>)}
+        </select>
+      </div>
+      <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
+      {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
+    </Card>
+  );
+}
+
 function MetaLaunchCard({client}) {
   const linked = client.metaAdAccountId && client.metaPageId;
   const landingDefault = client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "";
