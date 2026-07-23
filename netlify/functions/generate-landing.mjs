@@ -19,6 +19,7 @@ const LANDING_COPY_TOOL = {
       brandColor: { type: "string", description: "The business's primary BRAND accent color as a 6-digit hex (e.g. '#C21807'). If a logo or photos are attached, derive it from the dominant brand color you SEE in them. Otherwise pick a confident, professional color that fits THIS specific business and industry — not a generic default. This becomes the page's accent (buttons, highlights). Never return gold/tan near #C8A84B (that's another company's color); avoid pure black/white unless the brand is genuinely monochrome." },
       theme: { type: "string", enum: ["light", "dark"], description: "The overall page theme (background + surfaces), chosen to MATCH the client's EXISTING brand aesthetic — their logo, photos, and what a business like this typically looks like on its website/social. Use 'dark' when the brand reads dark, premium, luxury, bold, or automotive/nightlife, or when the logo/branding you see is on a dark background. Use 'light' when the brand is clean, bright, medical, or approachable. Do NOT default to light — a dark-branded business should get a DARK page (with their accent color), not a bright one. Judge from the actual branding, not a generic template." },
       steps: { type: "array", items: { type: "string" }, description: "Exactly 3 very short 'how it works' steps (each under ~34 characters) describing the customer's path to becoming a lead for THIS business — e.g. ['Request your free quote','We reach out fast','Get it done right']. Action-oriented, no fabricated specifics." },
+      faqs: { type: "array", items: { type: "object", properties: { question: { type: "string" }, answer: { type: "string" } }, required: ["question", "answer"] }, description: "3-4 honest FAQs that overcome common objections for this service. Question short; answer 1-2 sentences, general and truthful. Do NOT invent specific prices, stats, awards, or guarantees the business didn't state." },
       design: {
         type: "object",
         description: "DESIGN DIRECTIVES that shape this page's LAYOUT and feel so it fits THIS business and does NOT look like a clone of other clients' pages. Choose each to match the brand's personality — and deliberately VARY your choices from business to business; do not default to the same combo every time.",
@@ -68,7 +69,13 @@ async function scrapeBrand(url) {
     let darkVotes = 0, lightVotes = 0;
     for (const [h, c] of top) { if (isGray(h) || lumOf(h) < 0.2 || lumOf(h) > 0.8) { (lumOf(h) < 0.5 ? (darkVotes += c) : (lightVotes += c)); } }
     const themeHint = darkVotes > lightVotes * 1.3 ? "dark" : lightVotes > darkVotes * 1.3 ? "light" : "unclear";
-    return { url: u, themeColor, accents, themeHint };
+    // Pull the client's real logo + main image so the page can look on-brand automatically.
+    const abs = (href) => { try { return href ? new URL(href, u).href : ""; } catch { return ""; } };
+    const ogImage = abs((text.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || [])[1]);
+    const apple = abs((text.match(/<link[^>]+rel=["'][^"']*apple-touch-icon[^"']*["'][^>]+href=["']([^"']+)["']/i) || [])[1]);
+    const logoTag = (text.match(/<img[^>]*(?:class|id|alt|src)=["'][^"']*logo[^"']*["'][^>]*>/i) || [""])[0];
+    const logoImg = abs((logoTag.match(/src=["']([^"']+)["']/i) || [])[1]);
+    return { url: u, themeColor, accents, themeHint, logo: logoImg || apple || "", ogImage: ogImage || "" };
   } catch { return null; }
 }
 
@@ -117,7 +124,9 @@ Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
     ? `\n\nAVAILABLE MEDIA (uploaded by the client — using any of it is OPTIONAL; pick only what makes the page stronger, never feel obligated to use everything):\n${media.map((m, i) => `${i}. [${m.category || "photo"}] ${m.label || "untitled"}`).join("\n")}${viewable.length ? "\n\nThe images themselves are attached to the user message, each preceded by its asset number. Judge them VISUALLY when picking heroIndex: choose the sharpest, best-lit photo that shows real work or results (a logo only if no photo is strong enough). Skip anything blurry, dark, cluttered, or off-topic — picking nothing (-1) is better than picking a weak image. Videos are never attached and can never be the hero." : ""}`
     : "";
 
-  const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. Avoid anything listed under "Things to avoid mentioning."
+  const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
+
+Also write 3-4 honest FAQs (faqs) that overcome common objections for this kind of service — pricing approach, timing, what to expect, guarantees ONLY if the business actually offers them. Keep answers to 1-2 sentences, general and truthful. If the client's website logo/main image is attached, use it to judge the real brand colors + theme.
 
 BUSINESS DATA:
 ${dataBlock}${mediaBlock}${websiteBlock}
@@ -128,8 +137,15 @@ Also fill in the DESIGN directives (layout, font, motion, background, benefits, 
 
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
-  // Attach the actual images so the model judges the pixels, not just filenames
+  // Attach the actual images so the model judges the pixels, not just filenames —
+  // including the client's real website logo/main image scraped above.
+  const scrapedImgs = [];
+  if (scrape) {
+    if (scrape.logo) scrapedImgs.push({ label: "The client's website LOGO (judge the brand colors from this):", url: scrape.logo });
+    if (scrape.ogImage && scrape.ogImage !== scrape.logo) scrapedImgs.push({ label: "The client's website main image:", url: scrape.ogImage });
+  }
   const visionContent = [
+    ...scrapedImgs.flatMap((m) => [{ type: "text", text: m.label }, { type: "image", source: { type: "url", url: m.url } }]),
     ...viewable.flatMap((m) => [
       { type: "text", text: `Asset ${m.index} — [${m.category || "photo"}] ${m.label || "untitled"}:` },
       { type: "image", source: { type: "url", url: m.url } },
@@ -151,8 +167,8 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     try {
       response = await callModel(visionContent);
     } catch (visionErr) {
-      // A broken/unfetchable image fails the whole request — degrade to text-only rather than erroring out
-      if (!viewable.length) throw visionErr;
+      // A broken/unfetchable image (uploaded OR scraped) fails the whole request —
+      // degrade to text-only rather than erroring out.
       console.error("Vision generation failed, retrying text-only:", visionErr);
       response = await callModel("Write the landing page copy.");
     }
@@ -160,7 +176,7 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
 
-    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design } = toolUse.input;
+    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design, faqs } = toolUse.input;
     const dIn = design || {};
     const keep = (v, arr) => (arr.includes(v) ? v : undefined);
     const designOut = {};
@@ -186,6 +202,9 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
         theme: String(theme).toLowerCase() === "dark" ? "dark" : "light",
         steps: Array.isArray(steps) ? steps.slice(0, 3).map((s) => clip(s, 60)) : [],
         design: designOut,
+        faqs: Array.isArray(faqs) ? faqs.map((f) => ({ q: clip(f && f.question, 140), a: clip(f && f.answer, 320) })).filter((f) => f.q && f.a).slice(0, 5) : [],
+        logo: scrape && scrape.logo ? clip(scrape.logo, 500) : "",
+        heroUrl: scrape && scrape.ogImage ? clip(scrape.ogImage, 500) : "",
       },
     }, 200);
   } catch (err) {
