@@ -299,12 +299,27 @@ export async function respaceScheduledDrafts(supabase, nowMs = Date.now()) {
 // OS Website tab in the meantime.
 export async function createScheduledPost(whenISO) {
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const existing = await activePostsExcept(supabase, null);
 
+  // ONE POST PER WEEK, race-hardened. Scheduled functions deliver at-least-once,
+  // so blog-autopublish can fire twice at nearly the same moment (or a manual
+  // "Write & Schedule" can overlap the cron). Both runs used to pass the outer
+  // guard, spend ~30s writing, and insert into the same week -> two near-identical
+  // posts on one Monday (the bug Bryson kept hitting). Guard the WEEK BUCKET here,
+  // and RE-CHECK it right before the insert, after generation: whichever run
+  // inserts first claims the week; any other run sees it occupied and backs off
+  // (returns null) instead of creating a duplicate. Callers treat null as
+  // "this week is already covered -- nothing to do."
+  const targetKey = String(weekKeyMs(new Date(whenISO).getTime()));
+  if ((await occupiedWeekKeys(supabase)).has(targetKey)) return null;
+
+  const existing = await activePostsExcept(supabase, null);
   const post = await generateBlogPost({
     existingSlugs: existing.map((p) => p.slug),
     existingTitles: existing.map((p) => p.title),
   });
+
+  // Re-check after the slow AI call closes the long race window.
+  if ((await occupiedWeekKeys(supabase)).has(targetKey)) return null;
 
   const { data, error } = await supabase
     .from("blog_posts")

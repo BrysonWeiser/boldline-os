@@ -137,6 +137,13 @@ export default async (req) => {
     if (needsPost) {
       const slot = new Date(targetMs).toISOString();
       const post = await createScheduledPost(slot);
+      // createScheduledPost returns null when the week was claimed by a
+      // concurrent run (at-least-once duplicate delivery) between our guard and
+      // its insert -- that means this week is already covered, so do nothing.
+      if (!post) {
+        console.log(`blog-autopublish: week ${slot} already covered by another run -- skipped duplicate.`);
+        return new Response("ok", { status: 200 });
+      }
       console.log(`blog-autopublish: scheduled "${post.title}" (${post.slug}) for ${slot}`);
       try {
         await sendEmail({

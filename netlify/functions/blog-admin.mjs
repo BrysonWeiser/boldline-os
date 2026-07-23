@@ -79,6 +79,7 @@ export default async (req) => {
       if (when && (isNaN(when) || when.getTime() <= Date.now())) return json({ ok: false, error: "Scheduled time must be in the future" }, 400);
       const slot = when ? when.toISOString() : await nextOpenWeeklySlotISO(supabase);
       const post = await createScheduledPost(slot);
+      if (!post) return json({ ok: true, action, post: null, note: "That week already has a post scheduled." });
       return json({ ok: true, action, post });
     }
 
