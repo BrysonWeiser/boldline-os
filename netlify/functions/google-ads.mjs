@@ -180,6 +180,110 @@ async function setStatus(accessToken, customerId, campaignResourceName, status) 
   return data;
 }
 
+// ── Create a full Search campaign, ALL PAUSED ─────────────────────────────────
+// One atomic googleAds:mutate using temp (negative) resource names so budget →
+// campaign → ad group → responsive search ad → keywords all reference each other
+// in a single all-or-nothing request. Manual CPC (no conversion tracking needed),
+// Search network only. Everything PAUSED — nothing spends until it's enabled.
+// Runs on the CLIENT's own linked account (their customerId + their billing).
+// ⚠ NOT yet verified against a live linked account — the Google Ads API is strict;
+// expect first-run tweaks (bidding-strategy rules, RSA asset minimums, budget-name
+// uniqueness). Dry-run against a real linked client before relying on it.
+async function createCampaign(accessToken, p) {
+  const cid = digits(p.customerId);
+  const err = (m) => Object.assign(new Error(`createCampaign: ${m}`), { stage: "createCampaign" });
+  if (!cid) throw err("customerId required");
+  if (!p.landingUrl) throw err("landingUrl required");
+  if (!/^https?:\/\//i.test(String(p.landingUrl))) throw err("landingUrl must start with http:// or https://");
+  if (!(Number(p.dailyBudgetDollars) > 0)) throw err("dailyBudgetDollars must be > 0");
+  const headlines = (Array.isArray(p.headlines) ? p.headlines : []).map((h) => String(h || "").trim()).filter(Boolean).slice(0, 15);
+  const descriptions = (Array.isArray(p.descriptions) ? p.descriptions : []).map((d) => String(d || "").trim()).filter(Boolean).slice(0, 4);
+  const keywords = (Array.isArray(p.keywords) ? p.keywords : []).map((k) => String(k || "").trim()).filter(Boolean).slice(0, 20);
+  if (headlines.length < 3) throw err("at least 3 headlines required (Google requires 3+ for a responsive search ad; each ≤30 chars)");
+  if (descriptions.length < 2) throw err("at least 2 descriptions required (each ≤90 chars)");
+  if (!keywords.length) throw err("at least 1 keyword required");
+  const badH = headlines.find((h) => h.length > 30);
+  if (badH) throw err(`headline over 30 characters: "${badH}"`);
+  const badD = descriptions.find((d) => d.length > 90);
+  if (badD) throw err(`description over 90 characters: "${badD}"`);
+
+  const name = String(p.name || "BoldLine Search Campaign").slice(0, 120);
+  const mtRaw = String(p.matchType || "PHRASE").toUpperCase();
+  const matchType = ["BROAD", "PHRASE", "EXACT"].includes(mtRaw) ? mtRaw : "PHRASE";
+  const budgetRN = `customers/${cid}/campaignBudgets/-1`;
+  const campaignRN = `customers/${cid}/campaigns/-2`;
+  const adGroupRN = `customers/${cid}/adGroups/-3`;
+  const cpcMicros = String(dollarsToMicros(Number(p.cpcBidDollars) > 0 ? p.cpcBidDollars : 2));
+
+  const mutateOperations = [
+    { campaignBudgetOperation: { create: {
+      resourceName: budgetRN,
+      name: `${name.slice(0, 80)} Budget ${Date.now()}`, // budget names must be unique per account
+      amountMicros: String(dollarsToMicros(p.dailyBudgetDollars)),
+      deliveryMethod: "STANDARD",
+      explicitlyShared: false,
+    } } },
+    { campaignOperation: { create: {
+      resourceName: campaignRN,
+      name,
+      status: "PAUSED",
+      advertisingChannelType: "SEARCH",
+      manualCpc: {},
+      campaignBudget: budgetRN,
+      networkSettings: {
+        targetGoogleSearch: true,
+        targetSearchNetwork: false,
+        targetContentNetwork: false,
+        targetPartnerSearchNetwork: false,
+      },
+    } } },
+    { adGroupOperation: { create: {
+      resourceName: adGroupRN,
+      name: `${name} — Ad Group`.slice(0, 120),
+      campaign: campaignRN,
+      status: "PAUSED",
+      type: "SEARCH_STANDARD",
+      cpcBidMicros: cpcMicros,
+    } } },
+    { adGroupAdOperation: { create: {
+      adGroup: adGroupRN,
+      status: "PAUSED",
+      ad: {
+        finalUrls: [String(p.landingUrl)],
+        responsiveSearchAd: {
+          headlines: headlines.map((t) => ({ text: t })),
+          descriptions: descriptions.map((t) => ({ text: t })),
+        },
+      },
+    } } },
+    ...keywords.map((k) => ({ adGroupCriterionOperation: { create: {
+      adGroup: adGroupRN,
+      status: "ENABLED", // keywords enabled is fine — the campaign itself is PAUSED, so $0
+      keyword: { text: k, matchType },
+    } } })),
+  ];
+
+  const resp = await fetch(`${ADS_BASE}/customers/${cid}/googleAds:mutate`, {
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ mutateOperations }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("createCampaign", resp.status, data));
+    e.stage = "createCampaign"; e.detail = data; throw e;
+  }
+  const results = data.mutateOperationResponses || [];
+  const rn = (key) => { const r = results.find((x) => x && x[key]); return r && r[key] && r[key].resourceName; };
+  return {
+    campaignResourceName: rn("campaignResult"),
+    budgetResourceName: rn("campaignBudgetResult"),
+    adGroupResourceName: rn("adGroupResult"),
+    adResourceName: rn("adGroupAdResult"),
+    keywordsCreated: results.filter((x) => x && x.adGroupCriterionResult).length,
+    status: "PAUSED",
+    note: "Created PAUSED — review it in Google Ads, then enable to start spend. Nothing spends until you do.",
+  };
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -236,6 +340,11 @@ export default async (req) => {
         return json({ ok: false, error: "customerId, campaignResourceName, status required" }, 400);
       const result = await setStatus(accessToken, body.customerId, body.campaignResourceName, body.status);
       return json({ ok: true, action, result });
+    }
+
+    if (action === "createCampaign") {
+      const result = await createCampaign(accessToken, body);
+      return json({ ok: true, action, ...result });
     }
 
     return json({ ok: false, error: `Unknown action: ${action}` }, 400);
