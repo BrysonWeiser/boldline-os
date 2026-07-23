@@ -55,6 +55,10 @@ export default async (req) => {
         slot = await nextOpenWeeklySlotISO(supabase);
       }
       const post = await createScheduledPost(slot);
+      if (!post) {
+        console.log(`blog-write-background: week ${slot} already covered -- no duplicate created.`);
+        return json({ ok: true, action, post: null, note: "That week already has a post scheduled." });
+      }
       console.log(`blog-write-background: scheduled "${post.title}" (${post.slug}) for ${slot}`);
       return json({ ok: true, action, post });
     }
