@@ -19,6 +19,19 @@ const LANDING_COPY_TOOL = {
       brandColor: { type: "string", description: "The business's primary BRAND accent color as a 6-digit hex (e.g. '#C21807'). If a logo or photos are attached, derive it from the dominant brand color you SEE in them. Otherwise pick a confident, professional color that fits THIS specific business and industry — not a generic default. This becomes the page's accent (buttons, highlights). Never return gold/tan near #C8A84B (that's another company's color); avoid pure black/white unless the brand is genuinely monochrome." },
       theme: { type: "string", enum: ["light", "dark"], description: "The overall page theme (background + surfaces), chosen to MATCH the client's EXISTING brand aesthetic — their logo, photos, and what a business like this typically looks like on its website/social. Use 'dark' when the brand reads dark, premium, luxury, bold, or automotive/nightlife, or when the logo/branding you see is on a dark background. Use 'light' when the brand is clean, bright, medical, or approachable. Do NOT default to light — a dark-branded business should get a DARK page (with their accent color), not a bright one. Judge from the actual branding, not a generic template." },
       steps: { type: "array", items: { type: "string" }, description: "Exactly 3 very short 'how it works' steps (each under ~34 characters) describing the customer's path to becoming a lead for THIS business — e.g. ['Request your free quote','We reach out fast','Get it done right']. Action-oriented, no fabricated specifics." },
+      design: {
+        type: "object",
+        description: "DESIGN DIRECTIVES that shape this page's LAYOUT and feel so it fits THIS business and does NOT look like a clone of other clients' pages. Choose each to match the brand's personality — and deliberately VARY your choices from business to business; do not default to the same combo every time.",
+        properties: {
+          layout: { type: "string", enum: ["split", "centered", "overlay"], description: "Hero layout. 'split' = copy beside a photo; 'centered' = centered copy with a wide photo banner below; 'overlay' = full-bleed photo hero with text on top (premium/visual brands with a strong photo)." },
+          font: { type: "string", enum: ["modern", "elegant", "bold"], description: "Type mood. 'modern' clean sans; 'elegant' serif headings (spa/luxury/legal/wellness); 'bold' heavy sans (trades/fitness/automotive)." },
+          motion: { type: "string", enum: ["up", "side", "zoom"], description: "Scroll + entrance motion style." },
+          background: { type: "string", enum: ["glowgrid", "mesh", "dots", "clean"], description: "Hero background treatment." },
+          benefits: { type: "string", enum: ["cards", "list", "numbered"], description: "How the 'why choose us' points are laid out." },
+          shape: { type: "string", enum: ["rounded", "soft", "sharp"], description: "Corner style. 'rounded' friendly/approachable; 'sharp' modern/premium." },
+          order: { type: "string", enum: ["a", "b"], description: "Section order variant." },
+        },
+      },
     },
     required: ["headline", "subheadline", "bullets", "ctaText"],
   },
@@ -111,6 +124,8 @@ ${dataBlock}${mediaBlock}${websiteBlock}
 
 Match the page to the client's OWN brand identity — set brandColor and theme (light/dark) from their actual logo/photos/industry, not a generic look. A dark, premium, or bold brand should get a dark page with their accent color; a clean, bright brand should get a light one. Never impose a default bright/white theme on a brand that isn't bright.
 
+Also fill in the DESIGN directives (layout, font, motion, background, benefits, shape, order) so this page's STRUCTURE and feel suit THIS business specifically. Two different clients should end up with visibly different pages, not the same template recolored — so vary these choices to fit each brand's personality (e.g. an elegant med spa: overlay or centered layout, elegant serif type, soft shapes; a bold roofing company: split layout, bold type, sharp shapes, cards). Reuse good ideas, but do not pick the same combination every time.
+
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
   // Attach the actual images so the model judges the pixels, not just filenames
@@ -145,7 +160,15 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
 
-    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps } = toolUse.input;
+    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design } = toolUse.input;
+    const dIn = design || {};
+    const keep = (v, arr) => (arr.includes(v) ? v : undefined);
+    const designOut = {};
+    const dm = {
+      layout: ["split", "centered", "overlay"], font: ["modern", "elegant", "bold"], motion: ["up", "side", "zoom"],
+      background: ["glowgrid", "mesh", "dots", "clean"], benefits: ["cards", "list", "numbered"], shape: ["rounded", "soft", "sharp"], order: ["a", "b"],
+    };
+    for (const k of Object.keys(dm)) { const v = keep(dIn[k], dm[k]); if (v) designOut[k] = v; }
     const chosen = Number.isInteger(heroIndex) && heroIndex >= 0 && heroIndex < media.length && media[heroIndex].category !== "video"
       ? media[heroIndex]
       : null;
@@ -162,6 +185,7 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
         brandColor: brandHex,
         theme: String(theme).toLowerCase() === "dark" ? "dark" : "light",
         steps: Array.isArray(steps) ? steps.slice(0, 3).map((s) => clip(s, 60)) : [],
+        design: designOut,
       },
     }, 200);
   } catch (err) {
