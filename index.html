@@ -1256,7 +1256,7 @@ function LandingPreview({client}){
   return <iframe srcDoc={html} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:520,border:"none",display:"block",background:"#fff",opacity:state==="ok"?1:.45,transition:"opacity .2s"}}/>;
 }
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,isDesktop}) {
+function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenMyAds,hasMyAccount,isDesktop}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -1344,6 +1344,18 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,isDeskt
           ? <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr 1fr 1fr",gap:12,marginBottom:16,alignItems:"stretch"}}>{hero}{tiles}</div>
           : <>{hero}<div style={{marginTop:12}}/><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>{tiles}</div></>;
       })()}
+
+      {/* My Ads — BoldLine's own house ad account, its own section (kept out of the client list + metrics) */}
+      <button onClick={onOpenMyAds} className="os-card" style={{width:"100%",textAlign:"left",cursor:"pointer",display:"flex",alignItems:"center",gap:12,
+        background:"linear-gradient(135deg,rgba(200,168,75,0.14),rgba(79,142,247,0.06))",
+        border:"1px solid rgba(200,168,75,0.28)",borderRadius:14,padding:"14px 16px",marginBottom:14}}>
+        <span style={{fontSize:22,flexShrink:0}}>🚀</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:800,color:C.text,letterSpacing:"-0.01em"}}>My Ads — BoldLine Media</div>
+          <div style={{fontSize:11,color:C.textMuted,marginTop:2,lineHeight:1.5}}>{hasMyAccount?"Run & manage your own campaigns, landing pages, and leads.":"Set up your own house account to run ads for BoldLine."}</div>
+        </div>
+        <span style={{fontSize:11,fontWeight:700,color:C.gold,whiteSpace:"nowrap",flexShrink:0}}>{hasMyAccount?"Open ›":"Set up ›"}</span>
+      </button>
 
       {/* Urgent alerts — payment/billing failures first: a client not paying is
          the most urgent business alert, so it leads the dashboard (matches the
@@ -1740,7 +1752,9 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const alerts = getAlerts(client);
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
-  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]];
+  // Internal "My Ads" account (BoldLine's own): no client portal or contract — it's not a client.
+  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]]
+                   .filter(([k])=>!(client.internal&&(k==="portal"||k==="contract")));
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
     {key:"billing",label:"Billing Connected",done:false,note:"BoldLine is finishing setup — coming soon."},
@@ -1835,11 +1849,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {client.name[0]}
           </div>
           <div style={S.f1min}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{client.name}</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{client.name}{client.internal&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:C.gold,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:6,padding:"1px 6px",verticalAlign:"middle"}}>My Ads</span>}</div>
             <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:1}}>
-              <Chip label={stage.label} color={stage.color} small/>
-              <span style={{fontSize:10,fontWeight:600,color:healthColor(calcHealth(client))}}>⬡ {calcHealth(client).toFixed(1)}/10</span>
-              {days<=30&&days>=0&&<span style={{fontSize:10,color:days<=7?C.red:C.amber,fontWeight:700}}>{days}d left</span>}
+              <Chip label={client.internal?"Internal — house account":stage.label} color={stage.color} small/>
+              {!client.internal&&<span style={{fontSize:10,fontWeight:600,color:healthColor(calcHealth(client))}}>⬡ {calcHealth(client).toFixed(1)}/10</span>}
+              {!client.internal&&days<=30&&days>=0&&<span style={{fontSize:10,color:days<=7?C.red:C.amber,fontWeight:700}}>{days}d left</span>}
             </div>
           </div>
           <AlertBadge alerts={alerts}/>
@@ -1883,17 +1897,20 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
         {tab==="overview"&&(
           <div style={S.col11}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {[{l:"Package",v:(pkg && pkg.name)||"—"},{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Revenue",v:pkg?`$${pkg.price}/mo`:"—"}].map(({l,v})=>(
+              {(client.internal
+                ? [{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Landing Page",v:(client.landingPage&&client.landingPage.published)?"Published":"Not built"}]
+                : [{l:"Package",v:(pkg && pkg.name)||"—"},{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Revenue",v:pkg?`$${pkg.price}/mo`:"—"}]
+              ).map(({l,v})=>(
                 <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
               ))}
             </div>
-            {pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
+            {!client.internal&&pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
               <Label>Monthly Revenue</Label>
               <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo</span></div>
               <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>${pkg.setup.toLocaleString()} setup {client.niche&&PER_LEAD[client.niche]?`· $${PER_LEAD[client.niche]}/lead`:""}</div>
             </Card>}
             {/* Live health score breakdown */}
-            {(()=>{
+            {!client.internal&&(()=>{
               const h = calcHealth(client);
               const factors = [
                 {l:"Contract signed",       ok:client.contractSigned,        pts:"1.0"},
@@ -1929,7 +1946,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 </Card>
               );
             })()}
-            <Card>
+            {!client.internal&&<Card>
               <Label>Contract Timeline</Label>
               <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginBottom:6}}>
                 <div style={{height:"100%",backgroundColor:days<=7?C.red:days<=30?C.amber:C.green,width:`${Math.min(100,Math.max(0,100-days/90*100))}%`,borderRadius:2,transition:"width .3s"}}/>
@@ -1939,8 +1956,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 <span style={{color:days<=7?C.red:days<=30?C.amber:C.textMuted,fontWeight:days<=30?700:400}}>End: {client.contractEnd}</span>
               </div>
               {days<=30&&days>=0&&<div style={{marginTop:7,padding:"6px 9px",borderRadius:8,backgroundColor:days<=7?"rgba(239,68,68,.08)":"rgba(245,158,11,.08)",border:`1px solid ${days<=7?C.red:C.amber}33`,fontSize:11,color:days<=7?C.red:C.amber,fontWeight:600}}>{days<=7?"🔴 Urgent:":"🟡"} {days} day{days!==1?"s":""} left — {days<=7?"contact client immediately.":"start renewal conversation on next call."}</div>}
-            </Card>
-            <Card>
+            </Card>}
+            {!client.internal&&<Card>
               <Label>Onboarding Checklist</Label>
               {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!client.callTrackingNumber||(!!(pkg && pkg.callTracking)&&client.stage!=="onboarding")},{l:"Landing page built",done:!!(client.landingPage&&client.landingPage.published)||["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
                 <div key={l} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:`1px solid ${C.border2}`}}>
@@ -1948,7 +1965,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                   <span style={{fontSize:12,color:done?C.text:C.textMuted}}>{l}</span>
                 </div>
               ))}
-            </Card>
+            </Card>}
             {client.notes&&(
               <Card>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
@@ -2114,7 +2131,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
 
         {tab==="package"&&(
           <>
-            <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>
+            {client.internal
+              ? <Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
+                  <Label>Run Your Own Ads</Label>
+                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns below — the same tools you use for clients. First link your ad account on the <b style={{color:C.gold}}>Overview → Edit</b> screen (your Google Ads Customer ID / Meta Ad Account ID), then build a campaign here.</div>
+                </Card>
+              : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
             {pkg && /google/i.test(pkg.platform||"") && <GoogleLaunchCard client={client}/>}
             {pkg && /meta|facebook|instagram/i.test(pkg.platform||"") && <MetaLaunchCard client={client}/>}
           </>
@@ -2890,12 +2912,13 @@ function ARIAPanel({clients,onClose,onDelete,onUpdate}) {
     .map(c=>`${c.name}: `+metaLive[c.id].map(cp=>`[id ${cp.id} "${cp.name}" ${cp.status} $${cp.dailyBudget}/day | 30d: ${cp.clicks} clicks, ${cp.leads} leads, $${cp.spend.toFixed(0)} spent]`).join(" "))
     .join("\n");
 
-  const MRR=clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
-  const upgradeRequests=clients.filter(c=>c.upgradeRequest);
+  const realClients=clients.filter(c=>!c.internal); // BoldLine's own house account isn't a client
+  const MRR=realClients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
+  const upgradeRequests=realClients.filter(c=>c.upgradeRequest);
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
-STATE: ${clients.length} clients | ${clients.filter(c=>c.stage==="active").length} active | MRR $${MRR.toLocaleString()} | ${clients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
+STATE: ${realClients.length} clients | ${realClients.filter(c=>c.stage==="active").length} active | MRR $${MRR.toLocaleString()} | ${realClients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
 CLIENTS:
-${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}`; }).join("\n")}
+${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}${c.internal?" [INTERNAL: BoldLine's OWN house ad account, not a paying client — help run/optimize its ads, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
 If Bryson clearly asks you to delete a specific client, call the delete_client tool with that client's exact name. He'll see an on-screen confirm button before anything is actually deleted, so just call the tool — no need to double-check in chat first.
 If you identify a specific, concrete action worth taking on a client's campaign — a budget change, pausing something underperforming, a creative refresh, anything with real-world or financial impact — call the propose_action tool instead of just suggesting it in chat. It lands in Bryson's approval queue (Notifications) for him to approve or reject; nothing executes without his approval. Propose it any time you'd otherwise just tell him "you should..." about a specific client.
@@ -4158,6 +4181,36 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
 }
 
 // ─── ADD CLIENT ───────────────────────────────────────────────────────────────
+// BoldLine's own "house" ad account — internal, not a paying client. Reuses the
+// full client shape so all the ad machinery (Package launch cards, landing pages,
+// leads, ARIA) works on it, but flagged `internal` so it's kept out of the client
+// list, MRR/revenue/billing, and has no portal/contract. Used to run BoldLine's
+// own ads AND to dogfood the real client flow end-to-end.
+function makeInternalClient() {
+  const packageId = "c-growth"; // combined → both Google + Meta launch cards on the Package tab
+  const pkg = findPkg(packageId);
+  const botStatuses = Object.fromEntries(buildBots(pkg).map(b => [b.id, "active"]));
+  return {
+    id: uid(), internal: true,
+    name: "BoldLine Media", contactName: "Bryson Weiser", email: "",
+    businessAddress: "Phoenix, AZ", businessPhone: "", niche: "Marketing Agency",
+    website: "https://boldlinemedia.com", packageId, stage: "active",
+    platforms: ["Google Ads", "Meta Ads"], adBudget: "",
+    notes: "BoldLine's own house ad account — internal, not a client.",
+    contractStart: "", contractEnd: "", contractTermMonths: 0,
+    portalToken: crypto.randomUUID(), leadToken: crypto.randomUUID(),
+    intakeComplete: true, contractSigned: true, contractStatus: "internal",
+    healthScore: null, leads: 0, cpl: 0, alerts: [], commLog: [], leadsLog: [],
+    upgradeRequest: null, botStatuses,
+    campaignSetup: { serviceArea: "", mainOffer: "", avgTicket: "", targetLocations: "", excludedKeywords: "", leadDestination: "", crmSystem: "" },
+    brandVoice: { tone: "", competitors: "", differentiator: "" },
+    callTrackingNumber: "", callTrackingNumberSid: "", mediaLibrary: [],
+    landingSlug: makeSlug("BoldLine Media"),
+    landingPage: { headline: "", subheadline: "", bullets: [], ctaText: "", published: false, generatedAt: null },
+    googleAdsCustomerId: "", metaAdAccountId: "", metaPageId: "",
+  };
+}
+
 function AddClientSheet({onSave,onClose}) {
   const [step,setStep]     = useState(1);
   const [termMonths,setTermM] = useState(3);
@@ -4858,7 +4911,7 @@ function useIsDesktop(bp=1024){
 // ─── DESKTOP SIDEBAR ──────────────────────────────────────────────────────────
 // Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden
 // there. Same destinations as BottomNav plus a first-class Revenue entry.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -4894,6 +4947,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <button onClick={onRevenue} style={item(screen==="revenue")}>{bar(screen==="revenue")}{svg(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>,col("revenue"))}Revenue</button>
         <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
         <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
+        <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
       </div>
       <div style={{height:1,background:C.border,margin:"16px 6px"}}/>
       {/* Tools */}
@@ -5069,6 +5123,13 @@ function App({onLogout}) {
       .then(({error})=>{ if(error) console.error("Save failed:", error); });
   };
 
+  // BoldLine's own "My Ads" house account is kept out of the client list and all
+  // business metrics (MRR/revenue/count/billing). It's reached via its own
+  // section, and created on first open.
+  const realClients = clients.filter(c=>!c.internal);
+  const myAccount   = clients.find(c=>c.internal) || null;
+  const openMyAds   = () => { if (myAccount) selectClient(myAccount); else addClient(makeInternalClient()); };
+
   const _dism = (c,k) => (c.dismissedAlerts||[]).includes(k);
   const notifCount = clients.filter(c=>c.upgradeRequest).length
     + clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=7 && !_dism(c,`c7:${c.contractEnd}`); }).length
@@ -5133,12 +5194,12 @@ function App({onLogout}) {
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={clients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} isDesktop={isDesktop}/>}
-        {screen==="revenue"&&<RevenueScreen clients={clients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
-        {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={clients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
+        {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onDelete={deleteLead} onRefresh={loadLeads} isDesktop={isDesktop}/>}
         {screen==="website"&&<WebsiteScreen/>}

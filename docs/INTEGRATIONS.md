@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 57 task-keyed entries under `knowledge/`. They surface automatically via the
+> 58 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**57 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**58 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -174,6 +174,9 @@
 - **[meta-marketing-api](../knowledge/meta-marketing-api.md)** &mdash; &#9888; stale-able &middot; 2026-07-02  
   Meta Marketing API setup is IN PROGRESS (longest approval pipeline — Business Verification + App Review, weeks). Started from scratch. As of 2026-06-25 Bryson was on steps 1-3 (Business Portfolio + Page); next is Business Verification. No env vars yet. (Current position is volatile — re-check.)  
   <sub>*task:* continue the Meta (Facebook) Marketing API setup and business verification &nbsp;|&nbsp; *keywords:* meta-marketing-api, business-portfolio, business-verification, ads_management, app-review, security-center</sub>
+- **[my-ads-internal-account](../knowledge/my-ads-internal-account.md)** &mdash; &#9989; verified &middot; 2026-07-24  
+  BoldLine runs its OWN ads (and dogfoods the whole client flow) via a "My Ads" house account — a client record flagged `internal:true` that reuses ALL the client machinery (Package Google/Meta launch cards, landing pages, leads, ARIA) but is kept OUT of the client list + MRR/revenue/count/billing, and has NO Client-Portal or Contract tab. Reached from its own "My Ads" section (dashboard card + desktop sidebar item). Built 2026-07-24 (Bryson: run ads for myself + be the first test client). Doubles as the first real Google account linked to the MCC → the live E2E test of the launch card + approve→execute.  
+  <sub>*task:* run ads for BoldLine itself via the "My Ads" house account (internal, not a client) and how it's kept out of business metrics &nbsp;|&nbsp; *keywords:* my ads, internal, house account, makeInternalClient, realClients, myAccount, dogfood, first client, google launch, self client, run own ads</sub>
 - **[os-alerts-notifications](../knowledge/os-alerts-notifications.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   OS alerts are derived from clients; a quiet refreshClients (Supabase realtime + 15s poll + focus refetch) keeps the count live, and new alerts pop a bottom-left toast (seenAlertKeys diff). Contract-expiry/intake alerts are dismissible (dismissedAlerts, keys c7:/c30:/intake). The portal "Upgrade" CTA uses a two-step confirm that persists upgradeRequest → live alert.  
   <sub>*task:* work on OS owner alerts/notifications (live refresh, toasts, dismissing) and the portal upgrade request &nbsp;|&nbsp; *keywords:* refreshClients, seenAlertKeys, dismissedAlerts, notifCount, NotificationsPanel, upgradeRequest</sub>
