@@ -4952,8 +4952,9 @@ function AuthGate() {
 // BoldLine's own inbound leads from boldlinemedia.com (contact form + quiz),
 // stored in the website_leads table by the marketing site's submission-created
 // function. Separate from per-client customer leads.
-const LEAD_STATUSES = ["new","contacted","won","lost","archived"];
-const leadStatusColor = (s) => s==="new"?C.gold:s==="contacted"?C.blue:s==="won"?C.green:s==="lost"?C.red:C.textMuted;
+const LEAD_STATUSES = ["new","contacted","meeting","won","lost","archived"];
+const LEAD_STATUS_LABEL = {new:"New",contacted:"Contacted",meeting:"Meeting Booked",won:"Won",lost:"Lost",archived:"Archived"};
+const leadStatusColor = (s) => s==="new"?C.gold:s==="contacted"?C.blue:s==="meeting"?C.purple:s==="won"?C.green:s==="lost"?C.red:C.textMuted;
 function leadTimeAgo(iso){
   const t = new Date(iso).getTime(); if(!t) return "";
   const s = Math.floor((Date.now()-t)/1000);
@@ -4967,9 +4968,22 @@ function leadTimeAgo(iso){
 function LeadCard({lead,onUpdate,onDelete}){
   const [notes,setNotes]=useState(lead.notes||"");
   const [confirmDel,setConfirmDel]=useState(false);
-  useEffect(()=>{ setNotes(lead.notes||""); setConfirmDel(false); },[lead.id]);
+  const [reachOpen,setReachOpen]=useState(false);
+  const [draft,setDraft]=useState("");
+  const [copied,setCopied]=useState("");
+  useEffect(()=>{ setNotes(lead.notes||""); setConfirmDel(false); setReachOpen(false); },[lead.id]);
   const isQuiz = lead.form==="recommendation";
   const title = lead.name || lead.business || lead.email || "New lead";
+  const phone = lead.phone || (lead.payload && lead.payload.phone) || "";
+  const first = String(lead.name||"there").trim().split(/\s+/)[0] || "there";
+  const emailDraft = () => {
+    const biz = lead.business ? ` at ${lead.business}` : "";
+    const ref = lead.message ? `\n\nYou mentioned: "${String(lead.message).slice(0,200)}"` : "";
+    return `Hi ${first},\n\nThanks for reaching out to BoldLine Media${biz}! I'd love to learn about your business and show you how we can bring you more customers with Google and Meta ads.${ref}\n\nGrab a quick 30-minute call at whatever time works best for you:\n${CALENDLY_URL}\n\nTalk soon,\nBryson\nBoldLine Media`;
+  };
+  const smsDraft = () => `Hi ${first}, it's Bryson from BoldLine Media — thanks for reaching out! Grab a quick call whenever works for you: ${CALENDLY_URL}`;
+  const openReach = () => { setReachOpen(v=>!v); setDraft(emailDraft()); setCopied(""); };
+  const doCopy = (t,w) => { try{ navigator.clipboard.writeText(t); setCopied(w); setTimeout(()=>setCopied(""),1500); }catch(e){} };
   return (
     <div style={{...card,borderLeft:`3px solid ${leadStatusColor(lead.status)}`,display:"flex",flexDirection:"column",gap:10}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
@@ -4984,11 +4998,28 @@ function LeadCard({lead,onUpdate,onDelete}){
       {lead.message&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{lead.message}</div>}
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <select value={lead.status} onChange={e=>onUpdate({...lead,status:e.target.value})} style={{...inp,width:"auto",padding:"7px 10px",fontSize:11.5}}>
-          {LEAD_STATUSES.map(s=><option key={s} value={s}>{s[0].toUpperCase()+s.slice(1)}</option>)}
+          {LEAD_STATUSES.map(s=><option key={s} value={s}>{LEAD_STATUS_LABEL[s]||s}</option>)}
         </select>
-        {lead.email&&<a href={"mailto:"+lead.email+"?subject="+encodeURIComponent("Re: your message to BoldLine Media")} style={{fontSize:11.5,fontWeight:700,color:"#0a0800",backgroundColor:C.gold,borderRadius:8,padding:"7px 14px",textDecoration:"none"}}>Reply</a>}
+        <button onClick={openReach} style={{fontSize:11.5,fontWeight:800,color:C.gold,backgroundColor:reachOpen?C.goldDim:"transparent",border:`1px solid ${C.gold}55`,borderRadius:8,padding:"6px 12px",cursor:"pointer"}}>📅 {reachOpen?"Close":"Book a Call"}</button>
         <span style={{fontSize:10.5,color:C.textMuted,marginLeft:"auto"}}>{leadTimeAgo(lead.created_at)}</span>
       </div>
+      {reachOpen&&(
+        <div style={{padding:"11px 12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.05)",border:`1px solid ${C.borderAccent}`}}>
+          <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Reach out from your own email or phone (personal beats a no-reply blast).</div>
+          <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={7} style={{width:"100%",padding:"9px 11px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:8}}/>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {lead.email&&<a href={`mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent("BoldLine Media — let's book a quick call")}&body=${encodeURIComponent(draft)}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#1D4ED8",color:"#fff",textDecoration:"none"}}>✉️ Email</a>}
+            {phone&&<a href={`sms:${String(phone).replace(/[^0-9+]/g,"")}?body=${encodeURIComponent(smsDraft())}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#059669",color:"#fff",textDecoration:"none"}}>💬 Text</a>}
+            <button onClick={()=>doCopy(draft,"email")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="email"?"✓ Copied":"Copy"}</button>
+            <button onClick={()=>doCopy(CALENDLY_URL,"link")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="link"?"✓ Link copied":"Copy booking link"}</button>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginTop:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:10,color:C.textMuted}}>After you send:</span>
+            <button onClick={()=>onUpdate({...lead,status:"contacted"})} style={{padding:"3px 9px",fontSize:9,fontWeight:700,borderRadius:7,border:`1px solid ${C.blue}66`,backgroundColor:"transparent",color:C.blue,cursor:"pointer"}}>Mark Contacted</button>
+            <button onClick={()=>onUpdate({...lead,status:"meeting"})} style={{padding:"3px 9px",fontSize:9,fontWeight:700,borderRadius:7,border:`1px solid ${C.purple}66`,backgroundColor:"transparent",color:C.purple,cursor:"pointer"}}>📅 Meeting Booked</button>
+          </div>
+        </div>
+      )}
       <input value={notes} onChange={e=>setNotes(e.target.value)} onBlur={()=>{ if(notes!==(lead.notes||"")) onUpdate({...lead,notes}); }} placeholder="Add a note…" style={{...inp,fontSize:12,padding:"8px 11px"}}/>
       {confirmDel?(
         <div style={{display:"flex",alignItems:"center",gap:8}}>
