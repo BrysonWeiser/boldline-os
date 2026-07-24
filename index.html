@@ -3317,18 +3317,44 @@ function MetaLaunchCard({client}) {
   const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
     : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
   const firstImg = (client.mediaLibrary||[]).find(m=>m.url && m.category!=="video");
-  const [f,setF] = useState({
+  // House account: BoldLine advertising to WIN a given kind of business as a client.
+  const metaAgencySeed = (aud) => {
+    const raw = String(aud||"").trim();
+    const general = !raw || /\b(any|general|all|business owner|small business|owner|owners)\b/i.test(raw);
+    const A = raw ? raw.charAt(0).toUpperCase()+raw.slice(1) : "";
+    return {
+      name: `BoldLine Media — ${general ? "General" : A}`,
+      headline: general ? "More Customers, On Autopilot" : `More ${A} Customers`,
+      primaryText: general
+        ? "Struggling to get new customers? BoldLine plans, builds, and runs your Google and Meta ads for you — plus the landing pages and instant lead follow-up behind them. You own your ad account, we manage it. Book a free strategy call and we'll map out a plan for your business."
+        : `${A}: tired of slow months? BoldLine runs your Google and Meta ads for you — plus the landing pages and lead follow-up behind them — so you get a steady flow of new customers. You own your ad account, we manage it. Book a free strategy call.`,
+      description: "Done-for-you ad management. Book a free call.",
+    };
+  };
+  const mseed0 = client.internal ? metaAgencySeed("") : {
     name: `${client.name} — Leads`,
-    dailyBudgetDollars: 20,
-    landingUrl: landingDefault,
     headline: (client.landingPage && client.landingPage.headline) || client.name,
     primaryText: (client.landingPage && client.landingPage.subheadline) || "",
     description: "",
+  };
+  const [audience,setAudience] = useState("");
+  const [f,setF] = useState({
+    name: mseed0.name,
+    dailyBudgetDollars: 20,
+    landingUrl: landingDefault,
+    headline: mseed0.headline,
+    primaryText: mseed0.primaryText,
+    description: mseed0.description,
     ctaType: "LEARN_MORE",
     ageMin: 18, ageMax: 65,
     country: "US",
     imageUrl: (firstImg && firstImg.url) || "",
   });
+  const fillFromAudience = () => {
+    const s = metaAgencySeed(audience);
+    setF(p=>({...p, name:s.name, headline:s.headline, primaryText:s.primaryText, description:s.description}));
+    setState("idle"); setMsg("");
+  };
   const [state,setState] = useState("idle"); // idle | creating | done | error
   const [msg,setMsg] = useState("");
   const [pgState,setPgState] = useState("idle"); // idle | reading | ok | error
@@ -3365,13 +3391,23 @@ function MetaLaunchCard({client}) {
   if(!linked) return (
     <Card>
       <Label>📘 Launch Meta Campaign</Label>
-      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Link this client's <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then you can build and launch their Meta ads right here. (Client accounts also require Meta App Review to be approved.)</div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?<>Link your <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then build and launch your Meta ads right here. (Meta ads also need App Review approved first.)</>:<>Link this client's <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then you can build and launch their Meta ads right here. (Client accounts also require Meta App Review to be approved.)</>}</div>
     </Card>
   );
   return (
     <Card>
       <Label>📘 Launch Meta Campaign</Label>
-      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</div>
+      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full lead-gen campaign on <strong>your</strong> Meta ad account, driving to your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</>}</div>
+      {client.internal&&(
+        <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
+          <label style={lbl}>Who should this ad target?</label>
+          <div style={{display:"flex",gap:6}}>
+            <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder="e.g. Roofers, Med spas — or blank for any business owner" style={{...box,flex:1}}/>
+            <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
+          </div>
+          <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the ad for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad. (Tip: also narrow the age/country below for tighter targeting.)</div>
+        </div>
+      )}
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 10px",marginBottom:11}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <button onClick={readPage} disabled={pgState==="reading"} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:"none",backgroundColor:pgState==="ok"?"#059669":"#1D4ED8",color:"#fff",cursor:pgState==="reading"?"default":"pointer",opacity:pgState==="reading"?.7:1,whiteSpace:"nowrap"}}>{pgState==="reading"?"Reading…":pgState==="ok"?"✓ Page read":"📄 Read Page"}</button>
