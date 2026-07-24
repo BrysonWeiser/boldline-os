@@ -2794,18 +2794,35 @@ function LogTabContent({client,onUpdate}) {
   );
 }
 
+// BoldLine's public booking link (also in BLOG_FACTS / marketing site). Public, not a secret.
+const CALENDLY_URL = "https://calendly.com/theboldlinemedia/30min";
+
 function LeadsTabContent({client,onUpdate}) {
-  const STATUSES = [
-    {id:"new",label:"New",color:C.amber},
-    {id:"contacted",label:"Contacted",color:C.blue},
-    {id:"won",label:"Won",color:C.green},
-    {id:"lost",label:"Lost",color:C.textMuted},
-  ];
+  // The house account's leads are prospective BOLDLINE clients, so it gets a
+  // sales pipeline with a "Meeting Booked" stage + a book-a-call outreach tool.
+  // Regular clients' leads are their own customers — plain 4-stage pipeline.
+  const STATUSES = client.internal
+    ? [
+        {id:"new",label:"New",color:C.amber},
+        {id:"contacted",label:"Contacted",color:C.blue},
+        {id:"meeting",label:"Meeting Booked",color:C.purple},
+        {id:"won",label:"Won",color:C.green},
+        {id:"lost",label:"Lost",color:C.textMuted},
+      ]
+    : [
+        {id:"new",label:"New",color:C.amber},
+        {id:"contacted",label:"Contacted",color:C.blue},
+        {id:"won",label:"Won",color:C.green},
+        {id:"lost",label:"Lost",color:C.textMuted},
+      ];
   const SOURCE_LABELS = {landing_page:"Landing Page",call_tracking:"Inbound Call",unknown:"Unknown"};
   const sourceLabel = (s) => SOURCE_LABELS[s] || String(s||"unknown").replace(/_/g," ").replace(/\b\w/g,c=>c.toUpperCase());
   const statusInfo = (id) => STATUSES.find(s=>s.id===id) || STATUSES[0];
 
   const [filterStatus,setFilterStatus] = useState("all");
+  const [openOutreach,setOpenOutreach] = useState(null); // idx of the lead whose outreach panel is open
+  const [draft,setDraft] = useState("");
+  const [copied,setCopied] = useState("");
   const leads = client.leadsLog||[];
   const indexed = leads.map((l,i)=>({lead:l,idx:i}));
   const filtered = filterStatus==="all" ? indexed : indexed.filter(({lead})=>(lead.status||"new")===filterStatus);
@@ -2814,6 +2831,17 @@ function LeadsTabContent({client,onUpdate}) {
     const updated = leads.map((l,i)=> i===idx ? {...l,status} : l);
     onUpdate({...client, leadsLog:updated});
   };
+
+  // ── Book-a-call outreach (house account only) ──
+  const firstName = (l) => String(l.name||"there").trim().split(/\s+/)[0] || "there";
+  const emailDraft = (l) => {
+    const biz = l.business ? ` at ${l.business}` : "";
+    const ref = l.message ? `\n\nYou mentioned: "${String(l.message).slice(0,200)}"` : "";
+    return `Hi ${firstName(l)},\n\nThanks for reaching out to BoldLine Media${biz}! I'd love to learn about your business and show you how we can bring you more customers with Google and Meta ads.${ref}\n\nGrab a quick 30-minute call at whatever time works best for you:\n${CALENDLY_URL}\n\nTalk soon,\nBryson\nBoldLine Media`;
+  };
+  const smsDraft = (l) => `Hi ${firstName(l)}, it's Bryson from BoldLine Media — thanks for reaching out! Grab a quick call whenever works for you: ${CALENDLY_URL}`;
+  const openReachOut = (idx,l) => { setOpenOutreach(openOutreach===idx?null:idx); setDraft(emailDraft(l)); setCopied(""); };
+  const doCopy = (text,what) => { try{ navigator.clipboard.writeText(text); setCopied(what); setTimeout(()=>setCopied(""),1500); }catch(e){} };
 
   return (
     <div style={S.col11}>
@@ -2873,8 +2901,26 @@ function LeadsTabContent({client,onUpdate}) {
                     cursor:(lead.status||"new")===s.id?"default":"pointer"
                   }}>{s.label}</button>
                 ))}
+                {client.internal&&<button onClick={()=>openReachOut(idx,lead)} style={{marginLeft:followCount>0?0:"auto",padding:"3px 10px",fontSize:9,fontWeight:800,borderRadius:7,border:`1px solid ${C.gold}55`,backgroundColor:openOutreach===idx?C.goldDim:"transparent",color:C.gold,cursor:"pointer",whiteSpace:"nowrap"}}>📅 {openOutreach===idx?"Close":"Reach Out & Book"}</button>}
                 {followCount>0&&<span style={{fontSize:9,color:C.textMuted,marginLeft:"auto"}}>{followCount} follow-up{followCount===1?"":"s"} sent</span>}
               </div>
+              {client.internal&&openOutreach===idx&&(
+                <div style={{marginTop:8,padding:"11px 12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.05)",border:`1px solid ${C.borderAccent}`}}>
+                  <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Book a call — reach out from your own email or phone (personal beats a no-reply blast).</div>
+                  <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={7} style={{width:"100%",padding:"9px 11px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:8}}/>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {lead.email&&<a href={`mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent("BoldLine Media — let's book a quick call")}&body=${encodeURIComponent(draft)}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#1D4ED8",color:"#fff",textDecoration:"none",cursor:"pointer"}}>✉️ Email</a>}
+                    {lead.phone&&<a href={`sms:${String(lead.phone).replace(/[^0-9+]/g,"")}?body=${encodeURIComponent(smsDraft(lead))}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#059669",color:"#fff",textDecoration:"none",cursor:"pointer"}}>💬 Text</a>}
+                    <button onClick={()=>doCopy(draft,"email")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="email"?"✓ Copied":"Copy"}</button>
+                    <button onClick={()=>doCopy(CALENDLY_URL,"link")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="link"?"✓ Link copied":"Copy booking link"}</button>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:10,flexWrap:"wrap"}}>
+                    <span style={{fontSize:10,color:C.textMuted}}>After you send, update the status:</span>
+                    <button onClick={()=>setLeadStatus(idx,"contacted")} style={{padding:"3px 9px",fontSize:9,fontWeight:700,borderRadius:7,border:`1px solid ${C.blue}66`,backgroundColor:"transparent",color:C.blue,cursor:"pointer"}}>Mark Contacted</button>
+                    <button onClick={()=>setLeadStatus(idx,"meeting")} style={{padding:"3px 9px",fontSize:9,fontWeight:700,borderRadius:7,border:`1px solid ${C.purple}66`,backgroundColor:"transparent",color:C.purple,cursor:"pointer"}}>📅 Meeting Booked</button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
