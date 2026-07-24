@@ -29,4 +29,11 @@ verified: 2026-07-24
 
 **Verified 2026-07-24 (headless):** OS compiles clean; dashboard shows the My Ads card + sidebar item, MRR/count exclude the house account (MRR $600 with 1 real client, not $1,600/2); internal detail has no Client-View/Contract tabs, MY ADS badge, cleaned Overview, and the Google launch card present on its Package tab.
 
+**Lead → meeting BOOKING outreach (2026-07-24, Bryson: don't auto-convert a lead to a client — that skips the sales call and looks unprofessional; instead help contact leads + book a meeting).** The funnel is: ad lead → Bryson reaches out → they book a call → Bryson closes on the call → THEN they become a client (kept manual on purpose). Built into `LeadsTabContent`, **gated `client.internal`** (a regular client's leads are their own customers, not BoldLine prospects — they don't get this):
+- **Sales pipeline** gains a **"Meeting Booked"** stage: New → Contacted → Meeting Booked → Won → Lost (regular clients keep the plain New/Contacted/Won/Lost).
+- **"📅 Reach Out & Book"** per lead opens a panel with an **auto-drafted, editable** message personalized from the lead (first name, business, and their own message quoted) + the Calendly link. Send is **personal, not automated**: one-tap **Email** (`mailto:` prefilled subject+body) and **Text** (`sms:` prefilled, shorter body) open from Bryson's own address/phone — professional, and dodges the dormant branded-email deliverability problem (see `branded-lead-email-dormant`). Plus Copy / Copy-booking-link, and quick "Mark Contacted" / "Meeting Booked" status buttons.
+- `CALENDLY_URL` constant (`https://calendly.com/theboldlinemedia/30min`, public, same link as BLOG_FACTS / marketing site). No new function, no AI call — instant smart template; AI personalization could be a later add.
+- Verified headless: panel renders in the house account's Leads tab with a seeded lead, Email/Text/Calendly/Meeting-Booked all present, compiles clean.
+- **NOT built (deferred until ads run):** the acquisition-ROI view (ad spend → leads → clients won → CAC), since it needs live spend data.
+
 **DUAL COPY note:** this is all OS-app (`index.html`) — the portal isn't involved (internal has no portal). No `portal.mjs` change.
