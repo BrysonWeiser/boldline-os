@@ -1752,9 +1752,13 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const alerts = getAlerts(client);
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
-  // Internal "My Ads" account (BoldLine's own): no client portal or contract — it's not a client.
+  // Internal "My Ads" account (BoldLine's own): it's not a client, so drop the
+  // client-only tabs (portal, contract, and the client-delivery Pipeline) and
+  // rename "Package" → "Campaigns" (there's no service tier — it's just where
+  // the launch cards live).
   const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="portal"||k==="contract")));
+                   .filter(([k])=>!(client.internal&&(k==="portal"||k==="contract"||k==="pipeline")))
+                   .map(([k,label])=> (client.internal&&k==="package") ? [k,"Campaigns"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
     {key:"billing",label:"Billing Connected",done:false,note:"BoldLine is finishing setup — coming soon."},
