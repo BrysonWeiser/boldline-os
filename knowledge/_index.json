@@ -3068,7 +3068,7 @@
         "analytics-data-api",
         "marketing-site"
       ],
-      "status": "partial",
+      "status": "verified",
       "summary": "GA4 web tracking set up 2026-07-22 for boldlinemedia.com — property \"BoldLine Media\", Web stream \"BoldLine Media Web\" (Stream ID 15301155601, Measurement ID G-MG7T0687RT), Enhanced measurement ON. gtag hardcoded in marketing-site/index.html <head> (measurement IDs are PUBLIC). GA4-DATA-IN-THE-OS is now BUILT (2026-07-23): a \"Site Analytics\" card on the OS Website tab pulls last-28-day traffic via the Analytics Data API. Awaits two Netlify env vars (GA4_PROPERTY_ID + GA4_SERVICE_ACCOUNT_JSON) + service-account added as Viewer on the property to go live.",
       "verified": "2026-07-22",
       "terms": {

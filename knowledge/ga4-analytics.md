@@ -3,7 +3,7 @@ name: ga4-analytics
 topic: Marketing site
 task: manage GA4 analytics on the marketing site and (pending) surface GA4 data inside the OS
 keywords: [ga4, google-analytics, gtag, measurement-id, G-MG7T0687RT, analytics-data-api, marketing-site]
-status: partial
+status: verified
 summary: GA4 web tracking set up 2026-07-22 for boldlinemedia.com — property "BoldLine Media", Web stream "BoldLine Media Web" (Stream ID 15301155601, Measurement ID G-MG7T0687RT), Enhanced measurement ON. gtag hardcoded in marketing-site/index.html <head> (measurement IDs are PUBLIC). GA4-DATA-IN-THE-OS is now BUILT (2026-07-23): a "Site Analytics" card on the OS Website tab pulls last-28-day traffic via the Analytics Data API. Awaits two Netlify env vars (GA4_PROPERTY_ID + GA4_SERVICE_ACCOUNT_JSON) + service-account added as Viewer on the property to go live.
 verified: 2026-07-22
 ---
@@ -31,6 +31,8 @@ verified: 2026-07-22
 2. `GA4_SERVICE_ACCOUNT_JSON` — a **Google Cloud service-account key file**, pasted as one value. Create it: Google Cloud Console → the project → APIs & Services → **enable "Google Analytics Data API"** → IAM & Admin → Service Accounts → Create → then Keys → Add key → JSON → download → paste the whole file's contents as the env-var value. (It's a JSON blob with `client_email` + `private_key`; the code `JSON.parse`s it. Keep the value out of the repo — env var only.)
 3. In **GA4 → Admin → Property → Property Access Management**, add the service-account's `client_email` as a **Viewer**.
 Then redeploy the OS site. Until all three are done the card shows the "Analytics not connected yet" state with these exact instructions. No code change needed to flip it on.
+
+**✅ LIVE + CONFIRMED 2026-07-24** — all three steps done (Property ID + service-account JSON in Netlify, service account added as Viewer). The OS Website tab "Site Analytics" card is showing real boldlinemedia.com numbers (verified: 4 users / 4 sessions / 5 page views / top page `/`, real channel split). GA4-in-the-OS is DONE.
 
 **DEPLOY GOTCHA hit while turning this on (2026-07-23):** adding `GA4_SERVICE_ACCOUNT_JSON` (a ~2KB key) pushed total env vars over AWS Lambda's **4KB limit** and the deploy failed ("environment variables exceed the 4KB limit… Failed to upload file: portal / aria"). Root cause + fix in KB **`netlify-lambda-4kb-limit`**: the two classic `exports.handler` functions (aria, portal) were migrated to the modern runtime (via `netlify/lib/lambda-adapter.mjs`), which has no 4KB limit. After that fix the env vars deploy fine.
 - **Gotcha to watch on first live load:** if `batchRunReports` returns a 403, it's almost always step 3 (service account not added as a Viewer on the property) or step 2's API not enabled. The card surfaces the API's error message under the `report`/`auth` stage.
