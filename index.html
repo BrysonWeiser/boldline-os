@@ -2161,8 +2161,20 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 </Card>
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
             {client.internal && <LiveCampaignsCard client={client}/>}
-            {pkg && /google/i.test(pkg.platform||"") && <GoogleLaunchCard client={client}/>}
-            {pkg && /meta|facebook|instagram/i.test(pkg.platform||"") && <MetaLaunchCard client={client}/>}
+            {(()=>{
+              // For the house account the launch cards follow the platforms you pick
+              // in Edit → Info; for real clients they follow their package platform.
+              const plats = client.platforms || [];
+              const runsGoogle = client.internal ? plats.some(p=>/google/i.test(p)) : /google/i.test((pkg&&pkg.platform)||"");
+              const runsMeta   = client.internal ? plats.some(p=>/meta|facebook|instagram/i.test(p)) : /meta|facebook|instagram/i.test((pkg&&pkg.platform)||"");
+              return (<>
+                {runsGoogle && <GoogleLaunchCard client={client}/>}
+                {runsMeta && <MetaLaunchCard client={client}/>}
+                {client.internal && !runsGoogle && !runsMeta && (
+                  <Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>Pick <b style={{color:C.gold}}>Google Ads</b> and/or <b style={{color:C.gold}}>Meta Ads</b> in <b style={{color:C.textDim}}>Edit → Info → Platforms Running</b> and the campaign builder for each will appear here.</div></Card>
+                )}
+              </>);
+            })()}
           </>
         )}
 
@@ -3173,7 +3185,9 @@ function MetaAdsTestCard() {
 // NOT yet verified against a live linked account — see google-ads.mjs createCampaign.
 function GoogleLaunchCard({client}) {
   const linked = !!client.googleAdsCustomerId;
-  const landingDefault = client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "";
+  // House account's ads point at the real ad landing page; clients point at their own /lp page.
+  const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
+    : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
   const niche = client.niche || "";
   const cs = client.campaignSetup || {};
   const bv = client.brandVoice || {};
@@ -3186,15 +3200,42 @@ function GoogleLaunchCard({client}) {
   const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Free Quote — Get Started", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
   const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust — fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
   const kwSeed = [...new Set([niche, niche&&area?`${niche} ${area}`:"", niche?`${niche} near me`:"", niche?`best ${niche}`:""].map(s=>String(s||"").trim()).filter(Boolean))].slice(0,8);
+
+  // House account: BoldLine advertises to WIN a given kind of business as a client.
+  // Blank / "any business owner" => a general agency campaign; a niche => niche-targeted.
+  const agencySeed = (audience) => {
+    const raw = String(audience||"").trim();
+    const general = !raw || /\b(any|general|all|business owner|small business|owner|owners)\b/i.test(raw);
+    const A = raw ? raw.charAt(0).toUpperCase()+raw.slice(1) : "";
+    const name = `BoldLine Media — ${general ? "General" : A}`;
+    const headlines = (general
+      ? ["More Customers On Autopilot","Google & Meta Ads For You","Get More Leads This Month","We Run Your Ads For You","Free Marketing Strategy Call","Stop Guessing With Ad Spend","Managed Ads That Grow You","Done-For-You Ad Management"]
+      : [`More ${A} Customers`,`${A} Marketing Experts`,`Get More ${A} Leads`,`We Run ${A} Ads For You`,`Free Strategy Call`,`Google & Meta Ads Managed`,`Fill Your ${A} Schedule`,`Stop Wasting Ad Spend`]).map(cl30);
+    const descriptions = (general
+      ? ["We plan, build, and run your Google and Meta ads so you get more customers.","Done-for-you ad management and landing pages. Book a free strategy call today.","You own your ad account, we manage it. Real reporting, no long contracts."]
+      : [`We run Google and Meta ads for ${raw} so you get a steady flow of new customers.`,`Done-for-you ads and landing pages built for ${raw}. Book a free strategy call.`,`You own your ad account, we manage it. Real reporting, no guesswork.`]).map(cl90);
+    const keywords = general
+      ? ["marketing agency","google ads management","facebook ads agency","get more customers online","small business advertising","lead generation agency","done for you marketing"]
+      : [`marketing agency for ${raw}`,`${raw} advertising`,`google ads for ${raw}`,`${raw} lead generation`,`${raw} marketing`,`get more ${raw} customers`];
+    return { name, headlines, descriptions, keywords };
+  };
+  const seed0 = client.internal ? agencySeed("") : { name:`${client.name} — Search`, headlines:headlineSeed, descriptions:descSeed, keywords:kwSeed };
+
+  const [audience,setAudience] = useState("");
   const [f,setF] = useState({
-    name: `${client.name} — Search`,
+    name: seed0.name,
     dailyBudgetDollars: 20,
     landingUrl: landingDefault,
     matchType: "PHRASE",
-    headlinesText: headlineSeed.join("\n"),
-    descriptionsText: descSeed.join("\n"),
-    keywordsText: kwSeed.join("\n"),
+    headlinesText: seed0.headlines.join("\n"),
+    descriptionsText: seed0.descriptions.join("\n"),
+    keywordsText: seed0.keywords.join("\n"),
   });
+  const fillFromAudience = () => {
+    const s = agencySeed(audience);
+    setF(p=>({...p, name:s.name, headlinesText:s.headlines.join("\n"), descriptionsText:s.descriptions.join("\n"), keywordsText:s.keywords.join("\n")}));
+    setState("idle"); setMsg("");
+  };
   const [state,setState] = useState("idle"); // idle | creating | done | error
   const [msg,setMsg] = useState("");
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
@@ -3220,13 +3261,23 @@ function GoogleLaunchCard({client}) {
   if(!linked) return (
     <Card>
       <Label>📈 Launch Google Ads Campaign</Label>
-      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Link this client's <strong style={{color:C.textDim}}>Google Ads Customer ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em> (or the client can add it themselves from their portal). Then you can build and launch their Google Search ads right here.</div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?<>Link your <strong style={{color:C.textDim}}>Google Ads Customer ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then build and launch your Search ads right here.</>:<>Link this client's <strong style={{color:C.textDim}}>Google Ads Customer ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em> (or the client can add it themselves from their portal). Then you can build and launch their Google Search ads right here.</>}</div>
     </Card>
   );
   return (
     <Card>
       <Label>📈 Launch Google Ads Campaign</Label>
-      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Builds a full Search campaign (budget → ad group → responsive search ad → keywords) on <strong>{client.name}</strong>'s Google Ads account. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you enable it. They own the account + pay their own spend.</div>
+      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full Search campaign on <strong>your</strong> Google Ads account, pointing at your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full Search campaign (budget → ad group → responsive search ad → keywords) on <strong>{client.name}</strong>'s Google Ads account. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you enable it. They own the account + pay their own spend.</>}</div>
+      {client.internal&&(
+        <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
+          <label style={lbl}>Who should this ad target?</label>
+          <div style={{display:"flex",gap:6}}>
+            <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder="e.g. Roofers, Med spas — or blank for any business owner" style={{...box,flex:1}}/>
+            <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
+          </div>
+          <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the campaign for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</div>
+        </div>
+      )}
       {[
         {k:"name",l:"Campaign name",t:"text"},
         {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
@@ -3263,7 +3314,8 @@ function GoogleLaunchCard({client}) {
 
 function MetaLaunchCard({client}) {
   const linked = client.metaAdAccountId && client.metaPageId;
-  const landingDefault = client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "";
+  const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
+    : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
   const firstImg = (client.mediaLibrary||[]).find(m=>m.url && m.category!=="video");
   const [f,setF] = useState({
     name: `${client.name} — Leads`,
@@ -4112,8 +4164,9 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
             </Card>
             <Card>
               <Label>Platforms Running</Label>
+              {client.internal&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginBottom:9}}>Pick the platforms you want to advertise on — the <b style={{color:C.textDim}}>Campaigns</b> tab shows a builder for each one you select. The OS runs <b style={{color:C.gold}}>Google</b> and <b style={{color:C.gold}}>Meta</b> today.</div>}
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {PLATFORMS.map(p=>(
+                {(client.internal ? ["Google Ads","Meta Ads","Google + Meta"] : PLATFORMS).map(p=>(
                   <button key={p} onClick={()=>togglePlat(p)} style={{
                     padding:"6px 12px",fontSize:11,fontWeight:600,borderRadius:8,
                     border:`1px solid ${(form.platforms && form.platforms.includes(p))?"rgba(79,142,247,.4)":C.border}`,
