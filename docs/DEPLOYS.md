@@ -54,6 +54,7 @@ Each row = the production state saved *before* that merge (the rollback target).
 
 | Date (UTC) | Pre-merge SHA | Rollback branch | What the merge shipped |
 |---|---|---|---|
+| 2026-07-24 | `fba284d` | `rollback/20260724T191307Z` | OS My Ads: Edit platform chips now actually drive the Campaigns tab (launch cards follow client.platforms; internal chips limited to Google/Meta/Combo). GoogleLaunchCard gains a 'Who should this ad target?' + Fill-copy field (niche-targeted or blank=general) so you can run multiple niche campaigns. Both launch cards default the URL to boldlinemedia.com/get-started. KB: my-ads-internal-account. |
 | 2026-07-24 | `fc33f85` | `rollback/20260724T185709Z` | OS: book-a-call outreach tool added to the MAIN Leads screen (one-tap Email/Text + Calendly + Meeting-Booked status) so website + ad leads are worked from one place. KB: ad-landing-page. |
 | 2026-06-29 | `3c96043` | `rollback/20260629-000411` | First auto-merge: full session — marketing-site rebuild + blog automation, OS live-alert toasts, portal upgrade-CTA + confirmation, the auto-merge/rollback workflow itself. |
 | 2026-06-29 | `048b491` | `rollback/20260629-DOCS` | Doc fix: switch rollback mechanism from tags → branches (tags can't push to this remote). |
