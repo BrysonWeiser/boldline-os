@@ -2051,7 +2051,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 <Label>{client.internal?"Media":"Client Media"} ({(client.mediaLibrary||[]).length})</Label>
               </div>
               {(client.mediaLibrary||[]).length===0 ? (
-                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?"No media uploaded yet. The AI landing-page generator pulls your logo + images from your website automatically; uploaded media (if any) is used too.":`Nothing uploaded yet — ${client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.`}</div>
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?"No media uploaded yet. Your /get-started landing page already uses your site's branding; upload photos or video here if you want them on hand for ad creatives.":`Nothing uploaded yet — ${client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.`}</div>
               ) : (
                 <div>
                   <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Everything {client.name} has uploaded. The AI picks what it needs from here — it's never required to use all of it. Deleting removes the file for good, on both sides.</div>
@@ -2076,6 +2076,23 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 </div>
               )}
             </Card>
+            {client.internal ? (
+              <Card style={{borderColor:`${C.gold}2a`}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                  <Label>Your Ad Landing Page</Label>
+                  <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.3)",color:C.green}}>Live</span>
+                </div>
+                <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.7,marginBottom:11}}>Point your ads at this hand-built page on your own site:</div>
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:9,backgroundColor:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,marginBottom:11}}>
+                  <span style={{fontSize:13,fontWeight:700,color:C.gold,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>boldlinemedia.com/get-started</span>
+                </div>
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:11}}>It's hidden from your site menu and Google, so only people who click your ad ever reach it — keeping your lead tracking clean. <b style={{color:C.textDim}}>Book a Call</b> opens your Calendly; the backup form sends leads to your <b style={{color:C.textDim}}>Leads</b> screen.</div>
+                <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                  <a href="https://boldlinemedia.com/get-started" target="_blank" rel="noopener noreferrer" style={{flex:1,textAlign:"center",padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,textDecoration:"none"}}>Preview Page ↗</a>
+                  <button onClick={()=>navigator.clipboard.writeText("https://boldlinemedia.com/get-started")} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Ad URL</button>
+                </div>
+              </Card>
+            ) : (
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Landing Page</Label>
@@ -2101,6 +2118,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/lp/${client.landingSlug}`)} style={{marginTop:7,width:"100%",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Live Link</button>
               )}
             </Card>
+            )}
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Call Tracking</Label>
