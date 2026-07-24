@@ -20,4 +20,4 @@ verified: 2026-07-24
 
 **Deploys with `main`** (both the marketing site and OS build from the repo). 
 
-**FOLLOW-UP (not built):** the backup-form leads land in the MAIN Leads screen (website_leads); the book-a-call outreach tool currently lives on the My Ads → Leads tab (internal account leadsLog). To work ad form-leads with that tool, either add the outreach panel to the main Leads screen or route /get-started leads to the internal account. Calendly is the PRIMARY path (self-book, tracked), so this is a refinement, not a blocker.
+**Lead outreach on the MAIN Leads screen (added 2026-07-24):** the book-a-call outreach tool now also lives on `LeadCard` (the main Leads screen), so every inbound prospect — website contact form AND ad-landing `get-started` form — can be worked from one place with one-tap Email/Text (personalized draft + Calendly link) + Copy + status. `LEAD_STATUSES` gained a **`meeting`** stage ("Meeting Booked", purple) with `LEAD_STATUS_LABEL`. Phone comes from `lead.phone || lead.payload.phone`. Calendly is still the PRIMARY self-book path; this handles the form leads.
