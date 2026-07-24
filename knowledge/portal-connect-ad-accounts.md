@@ -13,9 +13,11 @@ verified: 2026-07-22
 **Conditional logic:** `hasGoogle = /google/i.test(pkg.platform)`, `hasMeta = /meta|facebook|instagram/i.test(pkg.platform)`. Driven by the client's package platform.
 
 **Each section has:** a walkthrough-video slot, click-by-click steps, and **input fields the client fills in themselves**:
-- Google → `googleAdsCustomerId` (+ "approve our manager link request").
-- Meta → `metaAdAccountId` + `metaPageId` (+ Partners → Add our Business ID → share as Manage).
+- Google → `googleAdsCustomerId` (+ **add a payment method** in Billing → Payments, + "approve our manager link request").
+- Meta → `metaAdAccountId` + `metaPageId` (+ **add a payment method** in Billing → Payment settings, + link Instagram to the Page for IG ads, + Partners → Add our Business ID → share as Manage).
 These are the SAME per-client IDs the OS uses to run ads (Edit → Campaign → Ad Account Linking). The client's entries save via the portal Save button.
+
+**Written steps expanded 2026-07-24 (Bryson: "make a tutorial for everything a client needs to send/add to run their ads").** Added the **payment-method** step to BOTH platforms (the client pays Google/Meta directly — ads literally won't run without a card on their account, and it's the hard "client pays for everything, BoldLine never touches spend" rule made explicit to the client), plus a Meta **"link your Instagram to your Page"** step for IG placements. So the in-portal WRITTEN tutorial is now complete end-to-end: sign in → grab IDs → add billing → (IG link) → grant us Manage access → save IDs. **STILL TODO (Bryson's part): record the two short walkthrough VIDEOS** and set `GOOGLE_CONNECT_VIDEO` / `META_CONNECT_VIDEO` / `META_BUSINESS_ID` (below) — until then the video slot shows a placeholder that says the written steps have everything.
 
 **Field whitelist (important):** `portal.js sanitizeFields` now whitelists `googleAdsCustomerId`, `metaAdAccountId`, `metaPageId` (clip 60) — without this, client-entered IDs would be silently dropped on save.
 
