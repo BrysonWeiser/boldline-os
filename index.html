@@ -1753,12 +1753,13 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
   // Internal "My Ads" account (BoldLine's own): it's not a client, so drop the
-  // client-only tabs (portal, contract, and the client-delivery Pipeline) and
-  // rename "Package" → "Campaigns" (there's no service tier — it's just where
-  // the launch cards live).
+  // client-only tabs (Contract + the client-delivery Pipeline), rename "Package"
+  // → "Campaigns" (no service tier — just the launch cards), and rename the
+  // "Client View" tab → "Assets" (keeps the landing-page/media/call-tracking
+  // tools needed to run ads; the client-portal preview inside it is hidden).
   const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="portal"||k==="contract"||k==="pipeline")))
-                   .map(([k,label])=> (client.internal&&k==="package") ? [k,"Campaigns"] : [k,label]);
+                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="pipeline")))
+                   .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
     {key:"billing",label:"Billing Connected",done:false,note:"BoldLine is finishing setup — coming soon."},
@@ -2018,7 +2019,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
 
         {tab==="portal"&&(
           <div style={S.col11}>
-            <Card>
+            {!client.internal&&<Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Live Client View</Label>
                 <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${client.portalToken}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Link</button>
@@ -2027,8 +2028,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`}}>
                 <iframe srcDoc={makePortalHTML(client,pkg)} title="Client Portal" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:500,border:"none",display:"block"}}/>
               </div>
-            </Card>
-            <Card>
+            </Card>}
+            {!client.internal&&<Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Client Setup Checklist</Label>
                 <span style={{fontSize:10,fontWeight:700,color:C.textDim}}>{onboardingSteps.filter(s=>s.done).length}/{onboardingSteps.length} done</span>
@@ -2044,13 +2045,13 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                   </div>
                 ))}
               </div>
-            </Card>
+            </Card>}
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
-                <Label>Client Media ({(client.mediaLibrary||[]).length})</Label>
+                <Label>{client.internal?"Media":"Client Media"} ({(client.mediaLibrary||[]).length})</Label>
               </div>
               {(client.mediaLibrary||[]).length===0 ? (
-                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>Nothing uploaded yet — {client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.</div>
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?"No media uploaded yet. The AI landing-page generator pulls your logo + images from your website automatically; uploaded media (if any) is used too.":`Nothing uploaded yet — ${client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.`}</div>
               ) : (
                 <div>
                   <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Everything {client.name} has uploaded. The AI picks what it needs from here — it's never required to use all of it. Deleting removes the file for good, on both sides.</div>
@@ -2110,9 +2111,9 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               {client.callTrackingNumber ? (
                 <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{client.callTrackingNumber}</div>
               ) : (
-                <div style={{fontSize:11,color:C.textMuted,marginBottom:8,lineHeight:1.6}}>Buy a dedicated tracking number for {client.name}'s ads. Calls forward to their real number and log automatically as leads.</div>
+                <div style={{fontSize:11,color:C.textMuted,marginBottom:8,lineHeight:1.6}}>{client.internal?"Buy a dedicated tracking number for your ads. Calls forward to your real number and log automatically as leads.":`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and log automatically as leads.`}</div>
               )}
-              <div style={{fontSize:11,color:C.textMuted,marginBottom:8}}>Forwards to: {client.businessPhone ? <span style={{color:C.textDim,fontWeight:600}}>{client.businessPhone}</span> : <span style={{color:C.amber}}>Not set — ask the client to add their phone number in their portal</span>}</div>
+              <div style={{fontSize:11,color:C.textMuted,marginBottom:8}}>Forwards to: {client.businessPhone ? <span style={{color:C.textDim,fontWeight:600}}>{client.businessPhone}</span> : <span style={{color:C.amber}}>{client.internal?"Not set — add your phone number in Edit.":"Not set — ask the client to add their phone number in their portal"}</span>}</div>
               {callTrack.error&&<div style={{fontSize:11,color:C.red,marginBottom:8}}>{callTrack.error}</div>}
               {!client.callTrackingNumber ? (
                 <>
@@ -2141,6 +2142,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                   <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns below — the same tools you use for clients. First link your ad account on the <b style={{color:C.gold}}>Overview → Edit</b> screen (your Google Ads Customer ID / Meta Ad Account ID), then build a campaign here.</div>
                 </Card>
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
+            {client.internal && <LiveCampaignsCard client={client}/>}
             {pkg && /google/i.test(pkg.platform||"") && <GoogleLaunchCard client={client}/>}
             {pkg && /meta|facebook|instagram/i.test(pkg.platform||"") && <MetaLaunchCard client={client}/>}
           </>
@@ -3337,6 +3339,81 @@ function MetaLaunchCard({client}) {
   );
 }
 
+// ─── LIVE CAMPAIGNS — START / PAUSE ───────────────────────────────────────────
+// Lists the linked account's real campaigns (Google + Meta) with 30-day metrics
+// and a direct Start (enable) / Pause toggle. This is how you actually turn ads
+// ON from inside the OS — the launch cards only BUILD campaigns (paused). Enabling
+// starts real spend, so it's confirmed first. Reads via gadsCall/metaCall
+// "campaigns" and writes via "setStatus" (same functions ARIA's approval queue uses).
+function LiveCampaignsCard({client}) {
+  const hasG=!!client.googleAdsCustomerId, hasM=!!client.metaAdAccountId;
+  const [state,setState]=useState("loading"); // loading | ready | error | none
+  const [g,setG]=useState([]); const [m,setM]=useState([]);
+  const [err,setErr]=useState(""); const [busy,setBusy]=useState(null);
+  const load=async()=>{
+    if(!hasG&&!hasM){ setState("none"); return; }
+    setState("loading"); setErr("");
+    try{
+      if(hasG){ const d=await gadsCall({action:"campaigns",customerId:client.googleAdsCustomerId}); setG(d.campaigns||[]); }
+      if(hasM){ const d=await metaCall({action:"campaigns",adAccountId:client.metaAdAccountId}); setM(d.campaigns||[]); }
+      setState("ready");
+    }catch(e){ setErr(e.message||"Couldn't load campaigns."); setState("error"); }
+  };
+  useEffect(()=>{ load(); },[client.googleAdsCustomerId,client.metaAdAccountId]);
+
+  const toggle=async(platform,c)=>{
+    const on = platform==="google" ? String(c.status).toUpperCase()==="ENABLED" : String(c.status).toUpperCase()==="ACTIVE";
+    if(!on && !window.confirm(`Start "${c.name}"?\n\nThis turns the ads ON and begins REAL ad spend on your ${platform==="google"?"Google":"Meta"} account. You can pause it again any time.`)) return;
+    const key = platform==="google"?c.campaignResourceName:c.id;
+    setBusy(key); setErr("");
+    try{
+      if(platform==="google") await gadsCall({action:"setStatus",customerId:client.googleAdsCustomerId,campaignResourceName:c.campaignResourceName,status:on?"PAUSED":"ENABLED"});
+      else await metaCall({action:"setStatus",campaignId:c.id,status:on?"PAUSED":"ACTIVE"});
+      await load();
+    }catch(e){ setErr(e.message||"Couldn't update the campaign."); }
+    setBusy(null);
+  };
+
+  const row=(platform,c)=>{
+    const on = platform==="google" ? String(c.status).toUpperCase()==="ENABLED" : String(c.status).toUpperCase()==="ACTIVE";
+    const key = platform==="google"?c.campaignResourceName:c.id;
+    const working = busy===key;
+    return (
+      <div key={key} style={{padding:"10px 0",borderBottom:`1px solid ${C.border2}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+          <span style={{fontSize:9,fontWeight:800,padding:"1px 6px",borderRadius:5,backgroundColor:platform==="google"?"rgba(66,133,244,.14)":"rgba(24,119,242,.14)",color:platform==="google"?"#7CA9FF":"#5B9BFF",flexShrink:0}}>{platform==="google"?"Google":"Meta"}</span>
+          <span style={{fontSize:12.5,fontWeight:700,color:C.text,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</span>
+          <Chip label={on?"Live":"Paused"} color={on?C.green:C.textMuted} small/>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:10,color:C.textMuted}}>{Number(c.impressions||0).toLocaleString()} impr · {Number(c.clicks||0).toLocaleString()} clicks · ${Number(c.cost||c.spend||0).toLocaleString()} · {Number(c.conversions||0)} conv <span style={{opacity:.6}}>(30d)</span></span>
+          <button onClick={()=>toggle(platform,c)} disabled={working} style={{marginLeft:"auto",padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
+        </div>
+      </div>
+    );
+  };
+
+  const total=g.length+m.length;
+  return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+        <Label>Your Live Campaigns</Label>
+        <button onClick={load} disabled={state==="loading"} style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:state==="loading"?"default":"pointer",opacity:state==="loading"?.5:1}}>↻ Refresh</button>
+      </div>
+      {state==="none"&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>Link your Google or Meta ad account first (<b style={{color:C.gold}}>Overview → Edit</b>), then build a campaign below — it'll show up here with a <b>Start Ads</b> button.</div>}
+      {state==="loading"&&<div style={{fontSize:12,color:C.textMuted,padding:"6px 0"}}>Loading your campaigns…</div>}
+      {state==="error"&&<div style={{fontSize:11.5,color:C.red,lineHeight:1.6}}>{err} <button onClick={load} style={{background:"none",border:"none",color:C.gold,cursor:"pointer",fontWeight:700}}>Retry</button></div>}
+      {state==="ready"&&total===0&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>No campaigns yet — build one below, then come back here and hit <b style={{color:C.green}}>▶ Start Ads</b> to take it live.</div>}
+      {state==="ready"&&total>0&&<>
+        {g.map(c=>row("google",c))}
+        {m.map(c=>row("meta",c))}
+        {err&&<div style={{fontSize:11,color:C.red,marginTop:8}}>{err}</div>}
+        <div style={{fontSize:10,color:C.textMuted,marginTop:9,lineHeight:1.6}}>Campaigns build <b>Paused</b> so nothing spends by accident. <b style={{color:C.green}}>Start Ads</b> takes one live; <b>Pause</b> stops spend instantly. Changes apply straight to your ad account.</div>
+      </>}
+    </Card>
+  );
+}
+
 // ─── GA4 ANALYTICS ────────────────────────────────────────────────────────────
 // Marketing-site traffic (boldlinemedia.com) pulled straight from Google
 // Analytics into the OS so Bryson never opens the GA4 web UI. Read-only; hits
@@ -3927,13 +4004,15 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
   const BOT_STATUS_OPTIONS = ["waiting","active","done","needs_input"];
   const bots = buildBots(pkg);
 
+  // House account isn't a client: no contract/intake Status section, no delivery
+  // Pipeline section.
   const SECTIONS = [
-    { id:"info",     label:"Client Info" },
+    { id:"info",     label:client.internal?"Info":"Client Info" },
     { id:"campaign", label:"Campaign" },
     { id:"status",   label:"Status" },
     { id:"bots",     label:"Pipeline" },
     { id:"notes",    label:"Notes" },
-  ];
+  ].filter(s=>!(client.internal&&(s.id==="status"||s.id==="bots")));
 
   const fieldStyle = { marginBottom:12 };
   const fieldLabelStyle = { fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4,display:"block" };
@@ -3952,7 +4031,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
             {client.name[0]}
           </div>
           <div style={S.f1min}>
-            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Edit Client</div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>{client.internal?"Edit My Ads Account":"Edit Client"}</div>
             <div style={{fontSize:11,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client.name}</div>
           </div>
           <button onClick={()=>setDeleteConfirm(true)} title="Delete client" aria-label="Delete client" style={{width:34,height:34,borderRadius:9,border:`1px solid ${C.red}33`,backgroundColor:"rgba(248,113,113,0.08)",color:C.red,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginRight:8}}>
@@ -3980,7 +4059,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
         {deleteConfirm&&(
           <Card style={{borderColor:`${C.red}44`,backgroundColor:"rgba(248,113,113,0.07)"}}>
             <Label>Delete Client</Label>
-            <div style={{fontSize:12,color:C.textDim,margin:"5px 0 11px",lineHeight:1.6}}>Permanently delete <b style={{color:C.text}}>{client.name}</b>? This removes the client, their portal, and all their data. This cannot be undone.</div>
+            <div style={{fontSize:12,color:C.textDim,margin:"5px 0 11px",lineHeight:1.6}}>Permanently delete <b style={{color:C.text}}>{client.name}</b>? This removes {client.internal?"your house ad account and its data (you can set it up again anytime)":"the client, their portal, and all their data"}. This cannot be undone.</div>
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>setDeleteConfirm(false)} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
               <button onClick={onDelete} style={{flex:1,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.red,color:"#fff",cursor:"pointer"}}>Yes, Delete Permanently</button>
@@ -3996,7 +4075,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               {[
                 {k:"name",l:"Business Name *",t:"text",ph:"e.g. Apex Roofing LLC"},
                 {k:"contactName",l:"Contact Name",t:"text",ph:"First and last name"},
-                {k:"email",l:"Email Address (portal login)",t:"email",ph:"owner@business.com"},
+                {k:"email",l:client.internal?"Email Address":"Email Address (portal login)",t:"email",ph:"owner@business.com"},
                 {k:"businessAddress",l:"Business Address",t:"text",ph:"123 Main St, City, State ZIP"},
                 {k:"website",l:"Website (landing page matches its colors + theme)",t:"text",ph:"https://theirbusiness.com"},
               ].map(({k,l,t,ph})=>(
@@ -4047,7 +4126,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
             </Card>
             <Card>
               <Label>Ad Account Linking</Label>
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes.</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?"Link BoldLine's OWN ad accounts here (paste your Google Ads Customer ID / Meta Ad Account ID). Once linked, build a campaign on the Campaigns tab and Start it live — and ARIA reads live performance.":"Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes."}</div>
               {[
                 {k:"googleAdsCustomerId", l:"Google Ads Customer ID", ph:"123-456-7890"},
                 {k:"metaAdAccountId",     l:"Meta Ad Account ID",     ph:"e.g. 1234567890 (digits only)"},
@@ -4064,7 +4143,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Paste the client's <strong>real</strong> reviews — one per line, as <code>quote — Name</code>. These appear on the landing page. The AI never invents these; leave blank to hide the section.</div>
               <textarea value={form.reviews||""} onChange={e=>set("reviews",e.target.value)} placeholder={"Best detailer in Phoenix, my car looks brand new. — Marcus B.\nFast, professional, fair price. Highly recommend! — Dana R."} rows={5} style={{...inp,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}}/>
             </Card>
-            <Card>
+            {!client.internal&&<Card>
               <Label>Health Score (1–10)</Label>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:6}}>
                 <input
@@ -4081,7 +4160,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 {(form.healthScore||5)>=8?"🟢 Healthy":(form.healthScore||5)>=6?"🟡 Moderate":"🔴 At Risk"}
                 {" — "}Auto-calculated score: <strong style={{color:healthColor(calcHealth(form))}}>{calcHealth(form).toFixed(1)}/10</strong>. Slider lets you override manually.
               </div>
-            </Card>
+            </Card>}
           </>
         )}
 
