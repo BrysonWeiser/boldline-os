@@ -52,6 +52,12 @@
 [functions."blog-autopublish"]
   schedule = "*/15 * * * *"
 
+# Hourly: keeps one companion newsletter email drafted per blog post (awaiting
+# review) and sends any that are due. Sending stays dormant until
+# NEWSLETTER_SENDING_ENABLED=1 (after the domain is verified in Resend).
+[functions."newsletter-autopublish"]
+  schedule = "0 * * * *"
+
 [[redirects]]
   from = "/portal"
   to = "/.netlify/functions/portal"

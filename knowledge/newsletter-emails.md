@@ -1,0 +1,26 @@
+---
+name: newsletter-emails
+topic: Blog
+task: the weekly newsletter — one companion email per blog post, reviewed/scheduled in the OS, plus subscribers + analytics; how it generates, sends (dormant), and where the UI lives
+keywords: [newsletter, newsletter_emails, newsletter-admin, newsletter-autopublish, newsletter-write-background, newsletter-shared, companion email, NewsletterManagementCard, broadcast, resend broadcast, NEWSLETTER_SENDING_ENABLED, subscribers, email analytics]
+status: verified
+summary: Weekly newsletter mirrored on the blog system (Bryson, 2026-07-25). One AI-drafted "quick tip + read the full post" companion email per blog post, scheduled ~2h after the post publishes (Mon ~10am AZ), reviewed/edited/rescheduled in the OS Website tab (NewsletterManagementCard, below the blog manager) alongside subscribers + analytics (total, new-this-month, unsubscribed, 6-month bar). SENDING IS DORMANT until boldlinemedia.com is verified in Resend + NEWSLETTER_SENDING_ENABLED=1; drafting/scheduling/review/subscribers/analytics all work now. Needs a one-time SQL migration (docs/sql/newsletter-schema.sql).
+verified: 2026-07-25
+---
+
+**Decision (Bryson, 2026-07-25):** weekly cadence like the blog; each week's email promotes that week's blog post — a short self-contained tip so the reader gets value from the email alone, plus a "Read the full post" button to the blog. Review/schedule in the OS like blogs; also show subscribers + analytics (subscribed/unsubscribed per month + total). Chosen defaults (he didn't pick, I recommended): build now with sending dormant; send Monday ~2h after the post; UI in the Website tab beside the blog.
+
+**Data — `newsletter_emails` table** (`docs/sql/newsletter-schema.sql`, one idempotent paste into Supabase SQL Editor — **Bryson must run this once** or the OS card shows a load error): `id, post_slug (unique, 1:1 with the blog post), subject, preview, body_html, status (draft|scheduled|sent|deleted), scheduled_for, sent_at, recipients, resend_broadcast_id, source (ai|manual), created_at`. RLS on, no public policies (service-role only, like blog_posts). Subscribers come from the `website_leads` backup rows (`form:"newsletter"`, written by the marketing `subscribe.mjs`) + best-effort Resend contact counts.
+
+**Files (OS repo root `netlify/`):**
+- `lib/newsletter-shared.mjs`: `generateNewsletterEmail(post)` (Anthropic forced tool call → subject/preview/2-3 tip paragraphs/cta, grounded in BLOG_FACTS + deDash) → `renderNewsletterHTML` (branded, "Read the full post →" button to `/blog/<slug>/`, `{{{RESEND_UNSUBSCRIBE_URL}}}` footer). `ensureCompanionDraft(supabase)` (draft for the newest post lacking one, scheduled = post publish +2h). `sendDueNewsletters` (DORMANT unless `NEWSLETTER_SENDING_ENABLED==="1"`; then `sendBroadcast` via Resend Broadcasts API). `getSubscriberStats` (total, this-month, 6-month buckets, recent 50, best-effort unsubscribed from Resend).
+- `functions/newsletter-admin.mjs`: owner-JWT (same gate as blog-admin). Actions: list, get, update, reschedule, delete (soft), send-now (guarded off), subscribers.
+- `functions/newsletter-write-background.mjs`: `*-background` (long AI runtime). generate (companion for latest post) | regenerate (rewrite one from its post). OS polls list after.
+- `functions/newsletter-autopublish.mjs`: scheduled **hourly** (`0 * * * *`), wrapped in `withFailureAlert`. Ensures a companion draft exists + sends due (dormant). `?test=1` reports without doing anything.
+- `netlify.toml`: `[functions."newsletter-autopublish"] schedule="0 * * * *"`.
+
+**OS UI:** `NewsletterManagementCard` in index.html, added to `WebsiteScreen` after `<BlogManagementCard/>`. Mirrors the blog manager exactly (call/callBg/pollList, list rows, editor modal, reschedule via datetime-local). Sections: dormant-sending banner (when off); analytics stats + 6-month bar + "See all subscribers" list; "Scheduled — awaiting your review" (Review/Edit, AI Rewrite, Reschedule, Send Now[only if sending enabled], Delete) and "Sent". "Write companion email" button triggers on-demand generation. Verified: full OS babel-compiles (env,react) clean; renders + mounts clean at 1440 + 390 (0px overflow), card shows analytics + the scheduled email row.
+
+**SENDING GATE (the one real blocker):** external sends need boldlinemedia.com verified in Resend (blocked on Wix DNS — see `domain-dns-wix` / `email-list-newsletter`) AND `NEWSLETTER_SENDING_ENABLED=1` on the OS site. Until then emails just draft + queue on schedule; `sendDueNewsletters` no-ops. `sendBroadcast` also needs `RESEND_AUDIENCE_ID` + a verified `REPORTS_FROM_EMAIL` — finalize the exact Resend Broadcasts wiring (audience targeting) at domain-verification time (Broadcasts target an Audience; the account uses account-level contacts, so confirm the audience id then).
+
+**BRYSON'S SETUP:** (1) Run `docs/sql/newsletter-schema.sql` in Supabase SQL Editor (one paste) — makes the OS card work. (2) Everything else drafts/schedules automatically. (3) When ready to actually SEND: verify the domain in Resend, then set `NEWSLETTER_SENDING_ENABLED=1` (and `RESEND_AUDIENCE_ID`) on the OS site.
