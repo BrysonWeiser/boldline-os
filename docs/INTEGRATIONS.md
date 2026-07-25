@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 59 task-keyed entries under `knowledge/`. They surface automatically via the
+> 60 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**59 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**60 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -204,6 +204,9 @@
 - **[portal-connect-ad-accounts](../knowledge/portal-connect-ad-accounts.md)** &mdash; &#9989; verified &middot; 2026-07-22  
   Client portal (My Info tab) has a "Connect Your Ad Accounts" section that shows ONLY the platform(s) the client's package runs (Google/Meta/both). Each has a walkthrough-video slot + click-by-click steps + input fields so the client self-enters their IDs (googleAdsCustomerId / metaAdAccountId / metaPageId), which save to the client record and drive the OS ad-runners. Built 2026-07-22.  
   <sub>*task:* the client-portal "Connect Your Ad Accounts" tutorials + self-entry of ad IDs, and how to add the walkthrough videos &nbsp;|&nbsp; *keywords:* portal, connect, tutorial, video, googleAdsCustomerId, metaAdAccountId, metaPageId, GOOGLE_CONNECT_VIDEO, META_CONNECT_VIDEO, META_BUSINESS_ID, sanitizeFields, conditional-by-platform</sub>
+- **[reports-cadence](../knowledge/reports-cadence.md)** &mdash; &#9989; verified &middot; 2026-07-25  
+  Three scheduled report jobs, restructured 2026-07-25 to Bryson's spec. WEEKLY (Mon) = a client-facing weekly report for weekly-tier clients + an internal briefing to Bryson on EVERY active client (even monthly-tier, so he stays current). MONTHLY (per-contract-date, daily-gated) = the client-facing monthly report for monthly-tier clients + an exact COPY to Bryson of what the client got. OS HEALTH = ARIA's business+system report with OS-improvement recommendations, now MONTHLY (1st) and owner-only — this is Bryson's "monthly report: only ARIA, about the OS." All in netlify/lib/report-shared.mjs; schedules in netlify.toml.  
+  <sub>*task:* who gets which report and when — the weekly/monthly client reports, Bryson's internal briefings, and ARIA's monthly OS health report &nbsp;|&nbsp; *keywords:* reports, weekly report, monthly report, OS health report, ARIA report, internal briefing, cadence, report-shared, runReportJob, runOSHealthReport, lastOwnerBriefing, lastReportSent, owner copy</sub>
 - **[responsive-standards](../knowledge/responsive-standards.md)** &mdash; &#9989; verified &middot; 2026-07-17  
   STANDING RULE (Bryson 2026-07-17, in CLAUDE.md): every surface — OS, portal, marketing site, future — must look intentional at phone ~390px, tablet ~768px, laptop ~1280px, desktop ~1600px+. No horizontal scroll, no cramped narrow column on big screens, no giant empty gutters, no cut-off content; sibling cards share widths. Verify every UI change headlessly at all four widths before merging (Playwright recipe below). Coverage map of what each surface already does + the breakout-width gotcha (use negative-margin centering, NOT left+transform — that creates a phantom horizontal scrollbar).  
   <sub>*task:* build or review ANY UI change — the responsive breakpoints it must pass and how to verify headlessly &nbsp;|&nbsp; *keywords:* responsive, breakpoints, mobile, tablet, laptop, desktop, viewport, horizontal scroll, media query, cwide, 390, 768, 1280, 1600, playwright verify</sub>

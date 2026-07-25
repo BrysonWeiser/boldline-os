@@ -12,14 +12,22 @@
   # Resend, etc.) stays fully scanned — none of their values are ever committed.
   SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL"
 
+# WEEKLY (Mon 15:00 UTC): a weekly internal briefing to Bryson on EVERY active
+# client (even monthly-tier ones, so he stays current) + the client-facing
+# weekly report for weekly-tier clients.
 [functions."weekly-report"]
   schedule = "0 15 * * 1"
 
+# Fires daily but is gated per-client to a 30-day gap anchored to each contract
+# date (at-least-once monthly delivery). Sends monthly-tier clients their
+# client-facing report + an exact copy to Bryson. Most daily runs are no-ops.
 [functions."monthly-report"]
   schedule = "0 15 * * *"
 
+# ARIA's OS health + improvement-suggestions report — MONTHLY (1st, 16:00 UTC).
+# This is Bryson's monthly email: ONLY ARIA, about the OS itself.
 [functions."os-report"]
-  schedule = "0 16 * * 1"
+  schedule = "0 16 1 * *"
 
 [functions."lead-followup"]
   schedule = "0 13 * * *"
