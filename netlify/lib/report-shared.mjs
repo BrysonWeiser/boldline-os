@@ -304,14 +304,14 @@ export const sendSMS = async ({ to, body }) => {
   }
 };
 
-const shouldSend = (client, minGapDays) => {
-  if (!client.lastReportSent) return true;
-  const sinceDays = (Date.now() - new Date(client.lastReportSent).getTime()) / 864e5;
+const gapOk = (dateStr, minGapDays) => {
+  if (!dateStr) return true;
+  const sinceDays = (Date.now() - new Date(dateStr).getTime()) / 864e5;
   return sinceDays >= minGapDays;
 };
 
 // Monthly-tier clients are anchored to their own contract date instead of the
-// calendar, so "due" means 30+ days since the last report (or since the
+// calendar, so "due" means 30+ days since the last CLIENT report (or since the
 // contract started, for the very first one) rather than "it's the 1st."
 const dueForMonthly = (client, intervalDays) => {
   const anchor = client.lastReportSent || client.contractStart;
@@ -320,76 +320,130 @@ const dueForMonthly = (client, intervalDays) => {
   return sinceDays >= intervalDays;
 };
 
-const isEligible = (client, pkg, period) => {
-  if (!pkg || pkg.optimizationFreq !== period) return false;
-  if (client.contractStatus !== "active") return false;
-  if (!client.email) return false;
-  return true;
-};
+// Bryson gets an internal briefing on EVERY active client every week — even
+// monthly-tier clients — so he stays current between the client-facing sends.
+// Tracked separately from lastReportSent (which gates the client-facing email)
+// so a weekly owner briefing never disturbs a monthly client's send cadence.
+const OWNER_BRIEFING_GAP_DAYS = 5;
 
-const processClient = async (supabaseAdmin, row, period, minGapDays, testMode = false) => {
+// A client is in scope for reporting at all if it's a real (non-internal),
+// active account with a known package and an email on file. The internal
+// "My Ads" house account is excluded — ARIA's monthly OS report covers it.
+const isReportable = (client, pkg) =>
+  !!pkg && !client.internal && client.contractStatus === "active" && !!client.email;
+
+const logEntry = (note, cat) => ({
+  date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+  note, cat, ts: Date.now(),
+});
+
+// WEEKLY run: a weekly internal briefing to Bryson for EVERY active client
+// (so he stays current on monthly-tier clients too), plus the client-facing
+// performance report for weekly-tier clients only.
+const processWeekly = async (supabaseAdmin, row, testMode = false) => {
   const client = row.data;
   const pkg = findPkg(client.packageId);
-  if (!isEligible(client, pkg, period)) return { id: row.id, skipped: `not an eligible ${period} client` };
-  const due = period === "monthly" ? dueForMonthly(client, minGapDays) : shouldSend(client, minGapDays);
-  if (!testMode && !due) return { id: row.id, skipped: `not due yet this ${period === "weekly" ? "week" : "month"}` };
+  if (!isReportable(client, pkg)) return { id: row.id, skipped: "not a reportable client" };
 
-  const periodLabel = titleCase(period);
+  const ownerDue = testMode || gapOk(client.lastOwnerBriefing, OWNER_BRIEFING_GAP_DAYS);
+  const clientDue = pkg.optimizationFreq === "weekly" && (testMode || gapOk(client.lastReportSent, 5));
+  if (!ownerDue && !clientDue) return { id: row.id, skipped: "nothing due this week" };
+
   const data = buildDataBlock(client, pkg);
-
-  const clientPrompt = buildClientPrompt(client, period, data);
-  const ownerPrompt = buildOwnerPrompt(client, period, data);
-  const [clientText, ownerText] = await Promise.all([
-    generateText(clientPrompt.system, clientPrompt.user),
-    generateText(ownerPrompt.system, ownerPrompt.user),
+  const ownerP = ownerDue ? buildOwnerPrompt(client, "weekly", data) : null;
+  const clientP = clientDue ? buildClientPrompt(client, "weekly", data) : null;
+  const [ownerText, clientText] = await Promise.all([
+    ownerP ? generateText(ownerP.system, ownerP.user) : Promise.resolve(null),
+    clientP ? generateText(clientP.system, clientP.user) : Promise.resolve(null),
   ]);
 
   const testPrefix = testMode ? "[TEST] " : "";
 
-  // Owner copy first: if the client send below fails and this run is retried,
-  // a duplicate internal email is harmless but a duplicate client email is not.
+  if (ownerDue) {
+    await sendEmail({
+      to: process.env.OWNER_EMAIL,
+      subject: `${testPrefix}[Internal] ${client.name} — Weekly Account Briefing`,
+      html: reportToHTML(ownerText, { label: "Weekly Internal Briefing", subtitle: client.name, internal: true }),
+      text: ownerText,
+    });
+  }
+  if (clientDue) {
+    await sendEmail({
+      to: testMode ? process.env.OWNER_EMAIL : client.email,
+      subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your Weekly Performance Report — ${client.name}`,
+      html: reportToHTML(clientText, { label: "Weekly Performance Report", subtitle: client.name, internal: false, contactName: client.contactName }),
+      text: clientText,
+    });
+  }
+
+  if (testMode) return { id: row.id, test: true, client: client.name, ownerDue, clientDue };
+
+  const now = new Date().toISOString();
+  const nextData = { ...client };
+  const logs = [];
+  if (ownerDue) { nextData.lastOwnerBriefing = now; logs.push(logEntry("Weekly internal briefing sent to Bryson.", "email")); }
+  if (clientDue) { nextData.lastReportSent = now; nextData.latestReport = { period: "weekly", text: clientText, sentAt: now }; logs.push(logEntry("Weekly report sent to client.", "email")); }
+  nextData.commLog = [...logs, ...(client.commLog || [])];
+
+  const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: now }).eq("id", row.id);
+  if (error) throw error;
+  return { id: row.id, ownerBriefed: ownerDue, clientSent: clientDue ? client.name : null };
+};
+
+// MONTHLY run: the client-facing monthly performance report for monthly-tier
+// clients, plus an exact copy to Bryson of what the client received (his ask:
+// "I should get a copy of that report that goes to them"). Bryson's weekly
+// internal briefing above is what keeps him current between these; this run
+// does NOT generate a separate briefing.
+const processMonthly = async (supabaseAdmin, row, testMode = false) => {
+  const client = row.data;
+  const pkg = findPkg(client.packageId);
+  if (!isReportable(client, pkg) || pkg.optimizationFreq !== "monthly") return { id: row.id, skipped: "not a monthly client" };
+  if (!testMode && !dueForMonthly(client, 30)) return { id: row.id, skipped: "not due yet this month" };
+
+  const data = buildDataBlock(client, pkg);
+  const clientP = buildClientPrompt(client, "monthly", data);
+  const clientText = await generateText(clientP.system, clientP.user);
+  const testPrefix = testMode ? "[TEST] " : "";
+
+  // Owner's copy first (a duplicate on retry is harmless), then the client send.
   await sendEmail({
     to: process.env.OWNER_EMAIL,
-    subject: `${testPrefix}[Internal] ${client.name} — ${periodLabel} Account Briefing`,
-    html: reportToHTML(ownerText, { label: `${periodLabel} Internal Briefing`, subtitle: client.name, internal: true }),
-    text: ownerText,
+    subject: `${testPrefix}[Copy] ${client.name} — Monthly Performance Report (sent to client)`,
+    html: reportToHTML(clientText, { label: "Monthly Performance Report", subtitle: client.name, internal: false, contactName: client.contactName }),
+    text: clientText,
   });
-
   await sendEmail({
     to: testMode ? process.env.OWNER_EMAIL : client.email,
-    subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your ${periodLabel} Performance Report — ${client.name}`,
-    html: reportToHTML(clientText, { label: `${periodLabel} Performance Report`, subtitle: client.name, internal: false, contactName: client.contactName }),
+    subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your Monthly Performance Report — ${client.name}`,
+    html: reportToHTML(clientText, { label: "Monthly Performance Report", subtitle: client.name, internal: false, contactName: client.contactName }),
     text: clientText,
   });
 
   if (testMode) return { id: row.id, test: true, client: client.name };
 
-  const entry = {
-    date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-    note: `${periodLabel} report sent to client; internal briefing sent to Bryson.`,
-    cat: "email",
-    ts: Date.now(),
-  };
+  const now = new Date().toISOString();
   const nextData = {
     ...client,
-    lastReportSent: new Date().toISOString(),
-    latestReport: { period, text: clientText, sentAt: new Date().toISOString() },
-    commLog: [entry, ...(client.commLog || [])],
+    lastReportSent: now,
+    latestReport: { period: "monthly", text: clientText, sentAt: now },
+    commLog: [logEntry("Monthly report sent to client; copy sent to Bryson.", "email"), ...(client.commLog || [])],
   };
-
-  const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", row.id);
+  const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: now }).eq("id", row.id);
   if (error) throw error;
-
-  return { id: row.id, sent: true, client: client.name };
+  return { id: row.id, clientSent: client.name };
 };
 
-export const runReportJob = async (req, { period, minGapDays }) => {
+export const runReportJob = async (req, { period }) => {
   if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL || !process.env.OWNER_EMAIL) {
     console.error(`${titleCase(period)} report aborted: RESEND_API_KEY, REPORTS_FROM_EMAIL, or OWNER_EMAIL is not configured.`);
     return new Response("not configured", { status: 500 });
   }
 
   const testMode = new URL(req.url).searchParams.get("test") === "1";
+  const processor = period === "monthly" ? processMonthly : processWeekly;
+  const eligibleForTest = (client, pkg) =>
+    isReportable(client, pkg) && (period === "monthly" ? pkg.optimizationFreq === "monthly" : true);
 
   let nextRun = null;
   try {
@@ -408,14 +462,15 @@ export const runReportJob = async (req, { period, minGapDays }) => {
   }
 
   if (testMode) {
-    const candidate = (data || []).find((row) => isEligible(row.data, findPkg(row.data.packageId), period));
+    const candidate = (data || []).find((row) => eligibleForTest(row.data, findPkg(row.data.packageId)));
     if (!candidate) {
-      const msg = `No eligible ${period} client found to test with (need an active contract, an email on file, and a ${period}-cadence package).`;
+      const need = period === "monthly" ? "a monthly-cadence package" : "any active package";
+      const msg = `No eligible ${period} client found to test with (need an active contract, an email on file, and ${need}).`;
       console.log(msg);
       return new Response(JSON.stringify({ ok: false, message: msg }), { status: 200, headers: { "content-type": "application/json" } });
     }
     try {
-      const result = await processClient(supabaseAdmin, candidate, period, minGapDays, true);
+      const result = await processor(supabaseAdmin, candidate, true);
       const msg = `Test emails sent to ${process.env.OWNER_EMAIL} using real data from "${candidate.data.name}". No client was emailed, no data was changed.`;
       console.log(msg, result);
       return new Response(JSON.stringify({ ok: true, message: msg, result }), { status: 200, headers: { "content-type": "application/json" } });
@@ -425,23 +480,27 @@ export const runReportJob = async (req, { period, minGapDays }) => {
     }
   }
 
-  const results = await Promise.allSettled((data || []).map((row) => processClient(supabaseAdmin, row, period, minGapDays)));
-  const sentTo = [];
+  const results = await Promise.allSettled((data || []).map((row) => processor(supabaseAdmin, row)));
+  const clientSentTo = [];
+  let ownerBriefed = 0;
   results.forEach((r, i) => {
     const id = data[i] && data[i].id;
     if (r.status === "rejected") console.error(`Client ${id} failed:`, r.reason);
     else {
       console.log(`Client ${id}:`, r.value);
-      if (r.value && r.value.sent) sentTo.push(r.value.client);
+      if (r.value) {
+        if (r.value.clientSent) clientSentTo.push(r.value.clientSent);
+        if (r.value.ownerBriefed) ownerBriefed++;
+      }
     }
   });
 
-  if (sentTo.length) {
-    const digest = sentTo.length === 1
-      ? `BoldLine: ${titleCase(period)} report sent to ${sentTo[0]}.`
-      : `BoldLine: ${titleCase(period)} reports sent to ${sentTo.length} clients — ${sentTo.join(", ")}.`;
+  const parts = [];
+  if (clientSentTo.length) parts.push(`${titleCase(period)} report${clientSentTo.length > 1 ? "s" : ""} sent to ${clientSentTo.join(", ")}`);
+  if (ownerBriefed) parts.push(`${ownerBriefed} internal briefing${ownerBriefed > 1 ? "s" : ""} for you`);
+  if (parts.length) {
     try {
-      await sendSMS({ to: process.env.OWNER_PHONE, body: digest });
+      await sendSMS({ to: process.env.OWNER_PHONE, body: `BoldLine: ${parts.join("; ")}.` });
     } catch (err) {
       console.error("SMS notification failed:", err);
     }
@@ -531,7 +590,7 @@ Missing Required Configuration: ${missingEnvVars.length ? missingEnvVars.join(",
 };
 
 const buildOSPrompt = (dataText) => ({
-  system: `You are ARIA, the AI assistant built into the BoldLine Media operating system. You are writing a weekly internal health report for Bryson Weiser, the owner, covering the entire business and the system itself. This is for his eyes only — be direct and specific, not diplomatic. Never mention being an AI model or large language model; you are ARIA reporting on the system you run inside of.
+  system: `You are ARIA, the AI assistant built into the BoldLine Media operating system. You are writing a monthly internal health report for Bryson Weiser, the owner, covering the entire business and the system itself. This is for his eyes only — be direct and specific, not diplomatic. Never mention being an AI model or large language model; you are ARIA reporting on the system you run inside of.
 
 PORTFOLIO & SYSTEM DATA:
 ${dataText}
@@ -545,7 +604,7 @@ Do NOT include a greeting, salutation, subject line, or sign-off. Start directly
 - **Recommendations** — concrete, prioritized ideas for making the BoldLine OS itself better: automations worth adding, workflow inefficiencies worth fixing, features worth building, anything that would make the system run smoother or save Bryson time — not just account follow-ups
 
 Use "- " for bullet points within a section where a list is clearer than prose. Be specific with numbers and account names. Don't soften bad news.`,
-  user: `Write this week's OS health report. Use all the portfolio and system data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
+  user: `Write this month's OS health report. Use all the portfolio and system data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
 });
 
 export const runOSHealthReport = async (req) => {
@@ -571,14 +630,14 @@ export const runOSHealthReport = async (req) => {
 
     await sendEmail({
       to: process.env.OWNER_EMAIL,
-      subject: `${testPrefix}Weekly OS Health Report — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
-      html: reportToHTML(reportText, { label: "Weekly OS Health Report", internal: true }),
+      subject: `${testPrefix}Monthly OS Health Report — ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+      html: reportToHTML(reportText, { label: "Monthly OS Health Report", internal: true }),
       text: reportText,
     });
 
     if (!testMode) {
       try {
-        await sendSMS({ to: process.env.OWNER_PHONE, body: "BoldLine: ARIA's weekly OS health report is ready — check your email." });
+        await sendSMS({ to: process.env.OWNER_PHONE, body: "BoldLine: ARIA's monthly OS health report is ready — check your email." });
       } catch (err) {
         console.error("OS health report SMS failed:", err);
       }
