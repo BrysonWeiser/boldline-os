@@ -3,15 +3,16 @@
 //
 // Two things happen, both best-effort and independent so one failing never
 // blocks the other:
-//   1. The email is added to a Resend AUDIENCE (the actual mailing list you
-//      broadcast to). Needs RESEND_API_KEY (already set) + RESEND_AUDIENCE_ID
-//      (you create the Audience in Resend and paste its ID into Netlify env).
-//      Adding contacts works WITHOUT a verified domain; only SENDING broadcasts
-//      later needs the domain verified.
+//   1. The email is added to Resend's account-level Contacts (POST /contacts) —
+//      the dashboard shows them all under "Audience". Newer Resend accounts no
+//      longer scope contacts to an audience_id, so only RESEND_API_KEY (already
+//      set on the marketing site) is needed — no extra config. Adding contacts
+//      works WITHOUT a verified domain; only SENDING broadcasts later needs the
+//      domain verified.
 //   2. A durable backup row is written to the existing website_leads table
 //      (form:"newsletter") via the service-role key, so a subscriber is never
-//      lost even before the Audience ID is configured. The OS filters these out
-//      of the sales-Leads list.
+//      lost even if the Resend add fails. The OS filters these out of the
+//      sales-Leads list.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -21,16 +22,20 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json" } });
 
-const addToResendAudience = async (email) => {
+const addToResendContacts = async (email) => {
   const key = process.env.RESEND_API_KEY;
-  const audienceId = process.env.RESEND_AUDIENCE_ID;
-  if (!key || !audienceId) return "not-configured";
-  const res = await fetch(`https://api.resend.com/audiences/${audienceId}/contacts`, {
+  if (!key) return "not-configured";
+  const res = await fetch("https://api.resend.com/contacts", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ email, unsubscribed: false }),
   });
-  if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const body = await res.text();
+    // A repeat email returns an error — treat "already exists" as success.
+    if (/already exists|duplicate/i.test(body)) return "already";
+    throw new Error(`Resend ${res.status}: ${body}`);
+  }
   return "added";
 };
 
@@ -61,7 +66,7 @@ export default async (req) => {
   if (!EMAIL_RE.test(email)) return json({ ok: false, error: "Please enter a valid email address." }, 400);
   const source = String(body.source || "website").slice(0, 60);
 
-  const results = await Promise.allSettled([addToResendAudience(email), backupToDB(email, source)]);
+  const results = await Promise.allSettled([addToResendContacts(email), backupToDB(email, source)]);
   results.forEach((r, i) => {
     if (r.status === "rejected") console.error(`subscribe ${i === 0 ? "Resend" : "DB"} failed:`, r.reason && r.reason.message);
     else console.log(`subscribe ${i === 0 ? "Resend" : "DB"}:`, r.value);
