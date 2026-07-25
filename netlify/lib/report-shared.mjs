@@ -283,6 +283,11 @@ export const leadEmailHTML = (client, bodyText) => `<!DOCTYPE html><html><body s
 </body></html>`;
 
 export const sendSMS = async ({ to, body }) => {
+  // SMS is OFF by default (Bryson, 2026-07-25) — the trial Twilio account's A2P
+  // block makes texts fail, so we don't attempt them. Reports + alerts still go
+  // out by email + in-app. To turn SMS back on after upgrading Twilio to paid,
+  // set env var SMS_ENABLED=1 in Netlify (no code change needed).
+  if (process.env.SMS_ENABLED !== "1") return;
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_NUMBER;
