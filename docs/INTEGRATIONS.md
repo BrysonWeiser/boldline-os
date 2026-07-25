@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 60 task-keyed entries under `knowledge/`. They surface automatically via the
+> 61 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**60 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**61 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -171,6 +171,9 @@
 - **[google-ads-api](../knowledge/google-ads-api.md)** &mdash; &#9989; verified &middot; 2026-07-19  
   Google Ads is FULLY LIVE — Basic Access approved AND the Deploy-tab test card verified green 2026-07-19 ("Authenticated (API v24), 1 account visible to the manager, MCC confirmed"). One MCC + Developer Token + OAuth refresh token (login-customer-id header); code in google-ads.mjs (test/campaigns/setBudget/setStatus/createCampaign). approve→execute AND owner-side campaign launch both BUILT; remaining step is live E2E-verification against a real linked client account. Use the Web-app OAuth client (Desktop got redirect_uri_mismatch).  
   <sub>*task:* connect, test, or debug the Google Ads API integration (MCC, OAuth, Basic Access, approval queue) &nbsp;|&nbsp; *keywords:* google-ads.mjs, MCC, login-customer-id, GOOGLE_ADS_API_VERSION, redirect_uri_mismatch, basic-access, propose_action, pendingActions</sub>
+- **[major-issue-alerts](../knowledge/major-issue-alerts.md)** &mdash; &#9989; verified &middot; 2026-07-25  
+  Beyond the scheduled reports, BoldLine OS pushes a real-time alert the moment something MAJOR trips (Bryson, 2026-07-25). Channels: EMAIL + SMS (via netlify/lib/alerts-shared.mjs dispatchAlert) + IN-APP (derived live in index.html getAlerts()). Triggers: (1) billing/payment failure — billing-watch.mjs; (2) client performance crash — health <5 on an active client; (3) live campaign with zero leads after 14d; (4) CPL 2x+ target (runaway/inefficient spend proxy) — all three via the daily alerts-watch.mjs; (5) system/integration failure — any scheduled job crashing, via withFailureAlert wrapper. De-duped so no daily spam. SMS delivery itself waits on the paid Twilio upgrade (trial A2P block); email + in-app work now.  
+  <sub>*task:* real-time "something major came up" alerts to Bryson — SMS + email + in-app — for billing failures, client performance crashes, runaway/inefficient spend, and system/job failures &nbsp;|&nbsp; *keywords:* alerts, major issue, alerts-watch, dispatchAlert, withFailureAlert, alerts-shared, perf crash, no leads, cpl blowout, spend spike, billing failure, system failure, SMS alert, getAlerts</sub>
 - **[meta-ads-integration](../knowledge/meta-ads-integration.md)** &mdash; &#9989; verified &middot; 2026-07-20  
   Full Meta Marketing API integration BUILT 2026-07-20 (mirrors + extends the Google Ads side). netlify/functions/meta-ads.mjs — test / campaigns / setBudget / setStatus / createCampaign, owner-Supabase-session gated, System-User-token auth, Graph v25.0 (META_GRAPH_VERSION overrides). OS: Deploy-tab Test card, per-client metaAdAccountId + metaPageId in Edit→Campaign, ARIA reads live Meta campaigns + ⚡ approve→execute (exec.platform "google"|"meta"), and a Launch Meta Campaign form on the Package tab (builds campaign→adset→creative→ad ALL PAUSED). NOT yet runnable on client accounts — needs env vars set + Meta App Review (advanced ads_management). NOT tested against a live account.  
   <sub>*task:* connect, test, debug, or extend the Meta (Facebook/Instagram) Ads integration in the OS &nbsp;|&nbsp; *keywords:* meta-ads.mjs, metaCall, MetaAdsTestCard, MetaLaunchCard, createCampaign, System User token, ads_management, metaAdAccountId, metaPageId, appsecret_proof</sub>
