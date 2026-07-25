@@ -17,7 +17,8 @@
 // SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, REPORTS_FROM_EMAIL, OWNER_EMAIL.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, sendEmail, sendSMS } from "../lib/report-shared.mjs";
+import { withFailureAlert } from "../lib/alerts-shared.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 const MONTHLY_RATE = 0.015; // 1.5%/mo per Agreement §3.4
@@ -56,7 +57,7 @@ const ownerEmail = async (subject, lines) => {
   } catch (e) { console.error("billing-watch: owner email failed:", e.message); }
 };
 
-export default async () => {
+export default withFailureAlert("billing-watch", async () => {
   if (!SK || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.error("billing-watch aborted: STRIPE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY missing.");
     return new Response("missing config", { status: 200 });
@@ -103,10 +104,14 @@ export default async () => {
         }
 
         // Owner notifications on state transitions only (no daily spam).
+        // Payment failure is a "major issue" — also fire an SMS (in-app is
+        // already covered by getAlerts reading billingLate).
         if (!prev.days && daysLate > 0) {
           await ownerEmail(`⚠️ ${cl.name}: payment failed — ${money(overdue)} overdue`,
             [`<strong>${cl.name}</strong> has an unpaid invoice of <strong>${money(overdue)}</strong>, now ${daysLate} day(s) past due.`,
              `Stripe retries automatically. Interest (1.5%/mo) starts after day ${GRACE_DAYS}, and services may be suspended per the Agreement.`]);
+          try { await sendSMS({ to: process.env.OWNER_PHONE, body: `BoldLine ALERT — ${cl.name}: payment failed, ${money(overdue)} overdue (${daysLate}d late).` }); }
+          catch (e) { console.error("billing-watch: SMS failed:", e.message); }
         } else if ((prev.interest || 0) === 0 && interest > 0) {
           await ownerEmail(`🔴 ${cl.name}: late interest now accruing (${money(overdue)} overdue, ${daysLate} days)`,
             [`<strong>${cl.name}</strong> is past the ${GRACE_DAYS}-day grace period. Late interest of <strong>${money(interest)}</strong> has been added as a pending line on their next invoice and will keep accruing daily.`,
@@ -135,4 +140,4 @@ export default async () => {
   }
   console.log(`billing-watch: checked ${checked} billed client(s), updated ${updated}.`);
   return new Response(JSON.stringify({ ok: true, checked, updated }), { status: 200 });
-};
+});

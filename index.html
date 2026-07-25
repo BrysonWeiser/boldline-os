@@ -407,6 +407,17 @@ const getAlerts = (cl) => {
   }
   if (cl.billingStatus==="awaiting_payment" && cl.billingCheckoutUrl) a.push({type:"billing_await",msg:"Billing set up but the client has not paid the checkout link yet.",severity:"yellow"});
   if (cl.etf && !cl.etf.settled) a.push({type:"etf_due",msg:`Early termination recorded — $${Number(cl.etf.total).toLocaleString()} owed (${cl.etf.billed?"billed via Stripe, awaiting payment":"not yet billed"}).`,severity:cl.etf.billed?"yellow":"red"});
+  // ── Major-issue watch (mirrors the alerts-watch push job; SMS+email fire once
+  //    per transition there, these show live in-app). Active clients only.
+  if (!cl.internal && cl.contractStatus==="active" && ["active","optimizing","scaling"].includes(cl.stage)) {
+    const health = calcHealth(cl);
+    const target = PER_LEAD[cl.niche]||50;
+    const leads = cl.leads||0;
+    const liveDays = cl.contractStart ? Math.floor((Date.now()-new Date(cl.contractStart).getTime())/864e5) : null;
+    if (health<5) a.push({type:"perf_crash",msg:`Performance crash — health score is ${health.toFixed(1)}/10. Needs attention.`,severity:"red"});
+    if (cl.adBudget && leads===0 && liveDays!=null && liveDays>=14) a.push({type:"no_leads",msg:`Campaign live ${liveDays} days with a budget set but ZERO leads — check targeting/tracking.`,severity:"red"});
+    if (leads>0 && cl.cpl>0 && cl.cpl>=2*target) a.push({type:"cpl_blowout",msg:`Cost per lead is $${cl.cpl} — 2×+ the $${target} target. Spend is inefficient.`,severity:"red"});
+  }
   return a;
 };
 const healthColor = (s) => s>=8?C.green:s>=6?C.amber:C.red;
@@ -4012,6 +4023,7 @@ function ARIADeployTab() {
     {name:"Monthly Report Email",icon:"🗓️",live:true,note:"Live now — auto-sends every 30 days from each client's own contract start date, for clients on monthly-cadence packages. Bryson also gets an exact copy of what the client received."},
     {name:"Monthly OS Health Report",icon:"🩺",live:true,note:"Live now — on the 1st of each month, ARIA emails Bryson a full business + system health report with recommendations for improving the OS itself. This is his monthly report: only ARIA, about the OS."},
     {name:"SMS Report Notification",icon:"📱",live:false,note:"Twilio is connected, but carrier rules (A2P 10DLC) block texts from trial accounts. Needs a paid Twilio account to finish."},
+    {name:"Major-Issue Alerts",icon:"🚨",live:true,note:"Live now — a daily watch + billing watch alert you the moment something major trips: a client's health crashes, a live campaign gets zero leads, CPL blows past target, a payment fails, or a scheduled job breaks. Each fires an EMAIL + in-app alert (bell), plus an SMS (SMS itself waits on the paid Twilio upgrade above). De-duped so no daily spam. Note: precise real-time ad-SPEND-spike detection activates once live campaign spend is flowing."},
     {name:"DocuSign Contracts",icon:"✍️",live:true,note:"Live and verified — JWT integration + real e-signature send confirmed working end to end (test envelope delivered + signed). Use 'Send via DocuSign' on any client's Contract tab. On DocuSign's free demo environment for now (test signatures aren't legally binding) — switches to production before the first real client."},
     {name:"Client Portal (hosted)",icon:"🔗",live:true,note:"Live now — each client gets a private, unguessable portal link via Copy Link."},
     {name:"Data Persistence",icon:"💾",live:true,note:"Live now via Supabase — data is saved across sessions and devices."},

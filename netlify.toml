@@ -41,6 +41,12 @@
 [functions."billing-watch"]
   schedule = "30 14 * * *"
 
+# Daily major-issue watch: SMS + email the moment a client's health crashes,
+# a live campaign produces zero leads, or CPL blows past target. De-duped per
+# client (no daily spam); matching in-app alerts are derived in getAlerts().
+[functions."alerts-watch"]
+  schedule = "0 17 * * *"
+
 # Every 15 min: publishes scheduled drafts at their exact time + keeps >=1
 # scheduled post in the review pipeline. Nearly every run is a cheap no-op.
 [functions."blog-autopublish"]
