@@ -3985,6 +3985,256 @@ function BlogManagementCard() {
   );
 }
 
+// ─── NEWSLETTER MANAGEMENT ────────────────────────────────────────────────────
+// Owner panel for the weekly email list: review/edit/reschedule the AI-drafted
+// companion email for each blog post, see subscribers + analytics. Mirrors the
+// blog manager. Backend: newsletter-admin.mjs (+ newsletter-write-background for
+// AI). Sending stays dormant until the domain is verified in Resend.
+function NewsletterManagementCard() {
+  const [emails,setEmails]=useState([]);
+  const [subs,setSubs]=useState(null);
+  const [loading,setLoading]=useState(true);
+  const [sendingEnabled,setSendingEnabled]=useState(false);
+  const [genState,setGenState]=useState("idle");   // idle | generating
+  const [busyId,setBusyId]=useState(null);
+  const [confirmId,setConfirmId]=useState(null);
+  const [reschedId,setReschedId]=useState(null);
+  const [reschedVal,setReschedVal]=useState("");
+  const [editor,setEditor]=useState(null);
+  const [editorSaving,setEditorSaving]=useState(false);
+  const [showSubs,setShowSubs]=useState(false);
+  const [msg,setMsg]=useState("");
+
+  const toLocalInput=(iso)=>{ const d=new Date(iso); const z=(n)=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes()); };
+  const fmtWhen=(iso)=>iso?new Date(iso).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"—";
+
+  const call=async(action,extra)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token) throw new Error("Session expired — refresh the page and log in again.");
+    const r=await fetch("/.netlify/functions/newsletter-admin",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok) throw new Error(d.error||"Request failed.");
+    return d;
+  };
+  const callBg=async(payload)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token) throw new Error("Session expired — refresh the page and log in again.");
+    const r=await fetch("/.netlify/functions/newsletter-write-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(payload)});
+    if(!(r.status>=200&&r.status<300)){ let d={}; try{ d=await r.json(); }catch(e){} throw new Error(d.error||"Couldn't start the writer. Refresh and try again."); }
+  };
+  const pollList=async(detect,timeoutMs=150000)=>{
+    const start=Date.now();
+    while(Date.now()-start<timeoutMs){
+      await new Promise(res=>setTimeout(res,4000));
+      let fresh; try{ fresh=(await call("list")).emails||[]; }catch(e){ continue; }
+      if(detect(fresh)){ setEmails(fresh); return true; }
+    }
+    return false;
+  };
+
+  const loadAll=async()=>{
+    setLoading(true); setMsg("");
+    try{
+      const [listRes,subRes]=await Promise.all([call("list"),call("subscribers").catch(()=>null)]);
+      setEmails(listRes.emails||[]);
+      setSendingEnabled(!!listRes.sendingEnabled);
+      if(subRes) setSubs(subRes);
+    }catch(e){ setMsg(e.message); }
+    setLoading(false);
+  };
+  useEffect(()=>{ loadAll(); },[]);
+
+  const generateCompanion=async()=>{
+    setGenState("generating"); setMsg("");
+    const before=new Set(emails.map(e=>e.id));
+    try{
+      await callBg({action:"generate"});
+      const ok=await pollList(list=>list.some(e=>!before.has(e.id)));
+      setMsg(ok?"Companion email drafted — review it below.":"Still writing — refresh in a minute.");
+    }catch(e){ setMsg(e.message); }
+    setGenState("idle");
+  };
+  const regenerate=async(id)=>{
+    setBusyId(id); setMsg("");
+    try{
+      const cur=emails.find(e=>e.id===id); const stamp=cur&&cur.created_at;
+      await callBg({action:"regenerate",id});
+      await pollList(list=>{ const n=list.find(e=>e.id===id); return n&&n.created_at!==stamp?false:true; }, 60000); // subject may change; just refresh
+      setEmails((await call("list")).emails||[]);
+      setMsg("Rewritten.");
+    }catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const openEditor=async(id)=>{
+    setBusyId(id); setMsg("");
+    try{ const d=await call("get",{id}); setEditor(d.email); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const setEd=(k,v)=>setEditor(e=>({...e,[k]:v}));
+  const saveEditor=async()=>{
+    setEditorSaving(true);
+    try{ await call("update",{id:editor.id,subject:editor.subject,preview:editor.preview,body_html:editor.body_html}); setEditor(null); await loadAll(); }
+    catch(e){ setMsg(e.message); }
+    setEditorSaving(false);
+  };
+  const saveReschedule=async(id)=>{
+    setBusyId(id);
+    try{ await call("reschedule",{id,when:new Date(reschedVal).toISOString()}); setReschedId(null); await loadAll(); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const sendNow=async(id)=>{
+    setBusyId(id); setMsg("");
+    try{ await call("send-now",{id}); await loadAll(); setMsg("Sent."); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+  const doDelete=async(id)=>{
+    setBusyId(id);
+    try{ await call("delete",{id}); setConfirmId(null); await loadAll(); }
+    catch(e){ setMsg(e.message); }
+    setBusyId(null);
+  };
+
+  const stat=(label,val,accent)=>(
+    <div style={{flex:"1 1 90px",backgroundColor:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px"}}>
+      <div style={{fontSize:19,fontWeight:800,color:accent||C.text}}>{val}</div>
+      <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginTop:2}}>{label}</div>
+    </div>
+  );
+
+  const scheduled=emails.filter(e=>e.status!=="sent").sort((a,b)=>(a.scheduled_for||"")<(b.scheduled_for||"")?-1:1);
+  const sent=emails.filter(e=>e.status==="sent").sort((a,b)=>(a.sent_at||"")>(b.sent_at||"")?-1:1);
+
+  const row=(e,isSched)=>(
+    <div key={e.id} style={{padding:"9px 10px",borderRadius:9,backgroundColor:isSched?"rgba(200,168,75,.05)":"rgba(255,255,255,.03)",border:`1px solid ${isSched?C.borderAccent:C.border}`}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:170}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,marginBottom:3}}>{e.source==="ai"?"AI":"Edited"}{e.post_slug?" · promotes /blog/"+e.post_slug:""}</div>
+          <span style={{fontSize:12.5,fontWeight:600,color:C.text,lineHeight:1.4}}>{e.subject}</span>
+          <div style={{fontSize:10,color:isSched?C.gold:C.textMuted,marginTop:3,fontWeight:isSched?700:400}}>{isSched?("Sends "+fmtWhen(e.scheduled_for)):("Sent "+fmtWhen(e.sent_at)+(e.recipients?(" · "+e.recipients+" recipients"):""))}</div>
+        </div>
+        {reschedId===e.id?(
+          <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <input type="datetime-local" value={reschedVal} onChange={ev=>setReschedVal(ev.target.value)} style={{flex:"1 1 150px",minWidth:0,maxWidth:"100%",padding:"5px 7px",fontSize:11,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.05)",color:C.text,fontFamily:"inherit",colorScheme:"dark"}}/>
+            <button onClick={()=>saveReschedule(e.id)} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",whiteSpace:"nowrap"}}>{busyId===e.id?"…":"Save"}</button>
+            <button onClick={()=>setReschedId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
+          </div>
+        ):(
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <button onClick={()=>openEditor(e.id)} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.08)",color:C.gold,cursor:"pointer",opacity:busyId===e.id?.6:1,whiteSpace:"nowrap"}}>{isSched?"Review / Edit":"View / Edit"}</button>
+            {isSched&&<button onClick={()=>regenerate(e.id)} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:busyId===e.id?.6:1,whiteSpace:"nowrap"}}>{busyId===e.id?"…":"AI Rewrite"}</button>}
+            {isSched&&<button onClick={()=>{setReschedId(e.id);setReschedVal(toLocalInput(e.scheduled_for||new Date().toISOString()));}} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",opacity:busyId===e.id?.6:1,whiteSpace:"nowrap"}}>Reschedule</button>}
+            {isSched&&sendingEnabled&&<button onClick={()=>sendNow(e.id)} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(34,211,160,.14)",color:C.green,cursor:"pointer",opacity:busyId===e.id?.6:1,whiteSpace:"nowrap"}}>Send Now</button>}
+            {isSched&&(confirmId===e.id?(
+              <div style={{display:"flex",gap:5}}>
+                <button onClick={()=>setConfirmId(null)} style={{padding:"5px 9px",fontSize:10,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>Cancel</button>
+                <button onClick={()=>doDelete(e.id)} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer",whiteSpace:"nowrap"}}>Confirm</button>
+              </div>
+            ):(
+              <button onClick={()=>setConfirmId(e.id)} disabled={busyId===e.id} style={{padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:busyId===e.id?.6:1,whiteSpace:"nowrap"}}>Delete</button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{marginTop:16,backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:14,padding:"15px 15px 14px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+        <div style={{fontSize:14,fontWeight:800,color:C.text}}>📧 Newsletter</div>
+        <button onClick={generateCompanion} disabled={genState==="generating"} style={{marginLeft:"auto",padding:"6px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:genState==="generating"?.7:1}}>{genState==="generating"?"Writing…":"Write companion email"}</button>
+      </div>
+      <div style={{fontSize:11,color:C.textMuted,marginBottom:12,lineHeight:1.6}}>One short "quick tip + read the full post" email per blog post, auto-drafted for your review and scheduled to send ~2h after the post goes live.</div>
+
+      {!sendingEnabled&&(
+        <div style={{fontSize:10.5,color:C.amber,backgroundColor:"rgba(217,119,6,.08)",border:`1px solid rgba(217,119,6,.28)`,borderRadius:9,padding:"8px 10px",marginBottom:12,lineHeight:1.55}}>Sending is <b>off</b> until boldlinemedia.com is verified in Resend. Emails still draft + queue on schedule — they'll send automatically once you verify the domain and set NEWSLETTER_SENDING_ENABLED=1.</div>
+      )}
+
+      {subs&&(
+        <div style={{marginBottom:14}}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {stat("Subscribers",subs.total,C.gold)}
+            {stat("New this month","+"+subs.thisMonthAdded,C.green)}
+            {stat("Unsubscribed",subs.unsubscribed==null?"—":subs.unsubscribed)}
+          </div>
+          {subs.months&&subs.months.length>0&&(()=>{ const max=Math.max(1,...subs.months.map(m=>m.added)); return (
+            <div style={{display:"flex",gap:6,alignItems:"flex-end",marginTop:12,height:56}}>
+              {subs.months.map(m=>(
+                <div key={m.month} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                  <div style={{fontSize:9,color:C.textDim}}>{m.added}</div>
+                  <div style={{width:"70%",height:Math.round((m.added/max)*32)+2,backgroundColor:C.gold,opacity:.55,borderRadius:3}}/>
+                  <div style={{fontSize:8.5,color:C.textMuted}}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          ); })()}
+          <button onClick={()=>setShowSubs(s=>!s)} style={{marginTop:8,padding:0,fontSize:10.5,fontWeight:700,border:"none",background:"none",color:C.gold,cursor:"pointer",borderBottom:`1px solid ${C.borderAccent}`}}>{showSubs?"Hide subscribers":"See all subscribers"}</button>
+          {showSubs&&(
+            <div style={{marginTop:8,maxHeight:180,overflowY:"auto",display:"flex",flexDirection:"column",gap:2}}>
+              {subs.recent.length===0?(
+                <div style={{fontSize:11,color:C.textMuted}}>No subscribers yet.</div>
+              ):subs.recent.map((s,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11,color:C.textDim,padding:"4px 6px",borderRadius:6,backgroundColor:"rgba(255,255,255,.02)"}}>
+                  <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.email}</span>
+                  <span style={{color:C.textMuted,flexShrink:0}}>{new Date(s.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {msg&&<div style={{fontSize:11,color:C.textDim,marginBottom:8}}>{msg}</div>}
+
+      {loading?(
+        <div style={{fontSize:11,color:C.textMuted}}>Loading…</div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:6,maxHeight:440,overflowY:"auto"}}>
+          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"2px 0 1px"}}>Scheduled — awaiting your review ({scheduled.length})</div>
+          {scheduled.length===0?(
+            <div style={{fontSize:11,color:C.textMuted,padding:"2px 0 4px"}}>None queued — the pipeline drafts one per blog post on its next hourly check, or use "Write companion email" above.</div>
+          ):scheduled.map(e=>row(e,true))}
+          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.textDim,margin:"8px 0 1px"}}>Sent ({sent.length})</div>
+          {sent.length===0?(
+            <div style={{fontSize:11,color:C.textMuted,padding:"2px 0 4px"}}>Nothing sent yet.</div>
+          ):sent.map(e=>row(e,false))}
+        </div>
+      )}
+
+      {editor&&(
+        <div onClick={ev=>{ if(ev.target===ev.currentTarget&&!editorSaving) setEditor(null); }} style={{position:"fixed",inset:0,zIndex:400,backgroundColor:"rgba(4,6,10,.75)",display:"flex",alignItems:"center",justifyContent:"center",padding:14}}>
+          <div style={{width:"100%",maxWidth:700,maxHeight:"88dvh",overflowY:"auto",backgroundColor:C.bg2,border:`1px solid ${C.borderAccent}`,borderRadius:14,padding:"16px 16px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <div style={{fontSize:13,fontWeight:800,color:C.text}}>{editor.status==="sent"?"View Sent Email":"Review Newsletter Email"}</div>
+              {editor.post_slug&&<a href={"https://boldlinemedia.com/blog/"+editor.post_slug+"/"} target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,fontWeight:600,color:C.textDim,textDecoration:"none"}}>View post ↗</a>}
+              <div style={{marginLeft:"auto",fontSize:10,color:C.textMuted}}>{editor.status==="sent"?"Already sent — read-only":"Saved edits keep the schedule"}</div>
+            </div>
+            {[["subject","Subject line",false],["preview","Inbox preview line",false]].map(([k,label,multi])=>(
+              <div key={k} style={{marginBottom:10}}>
+                <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>{label}</div>
+                <input value={editor[k]||""} onChange={ev=>setEd(k,ev.target.value)} disabled={editor.status==="sent"} style={{width:"100%",padding:"8px 10px",fontSize:12.5,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit"}}/>
+              </div>
+            ))}
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>Body (HTML — the email itself)</div>
+              <textarea value={editor.body_html||""} onChange={ev=>setEd("body_html",ev.target.value)} disabled={editor.status==="sent"} rows={16} spellCheck={false} style={{width:"100%",padding:"10px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"ui-monospace,Menlo,Consolas,monospace",resize:"vertical"}}/>
+            </div>
+            <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setEditor(null)} disabled={editorSaving} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>{editor.status==="sent"?"Close":"Cancel"}</button>
+              {editor.status!=="sent"&&<button onClick={saveEditor} disabled={editorSaving} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer",opacity:editorSaving?.7:1}}>{editorSaving?"Saving…":"Save"}</button>}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── WEBSITE SCREEN ───────────────────────────────────────────────────────────
 // Everything for boldlinemedia.com in one place: quick links to the live pages
 // and the full blog manager (cadence, write-now, edit, AI rewrite, delete).
@@ -4010,6 +4260,7 @@ function WebsiteScreen() {
       </div>
       <GA4AnalyticsCard/>
       <BlogManagementCard/>
+      <NewsletterManagementCard/>
     </div>
   );
 }

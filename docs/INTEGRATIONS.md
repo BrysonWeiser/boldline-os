@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 62 task-keyed entries under `knowledge/`. They surface automatically via the
+> 63 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**62 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**63 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -21,6 +21,9 @@
 - **[blog-dynamic-rendering](../knowledge/blog-dynamic-rendering.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The marketing blog is server-rendered by new-format functions — blog-index.mjs (paginated 6/page, newest first), blog-post.mjs (single by slug, 404 for unknown/deleted), sitemap.mjs (dynamic) — all via shared marketing-site/netlify/lib/blog-render.mjs helpers. Slug/page are read from the URL PATH.  
   <sub>*task:* understand how marketing-site blog pages are server-rendered, paginated, and mapped from URL slugs &nbsp;|&nbsp; *keywords:* blog-index.mjs, blog-post.mjs, sitemap.mjs, blog-render.mjs, slug-from-path, pagination</sub>
+- **[newsletter-emails](../knowledge/newsletter-emails.md)** &mdash; &#9989; verified &middot; 2026-07-25  
+  Weekly newsletter mirrored on the blog system (Bryson, 2026-07-25). One AI-drafted "quick tip + read the full post" companion email per blog post, scheduled ~2h after the post publishes (Mon ~10am AZ), reviewed/edited/rescheduled in the OS Website tab (NewsletterManagementCard, below the blog manager) alongside subscribers + analytics (total, new-this-month, unsubscribed, 6-month bar). SENDING IS DORMANT until boldlinemedia.com is verified in Resend + NEWSLETTER_SENDING_ENABLED=1; drafting/scheduling/review/subscribers/analytics all work now. Needs a one-time SQL migration (docs/sql/newsletter-schema.sql).  
+  <sub>*task:* the weekly newsletter — one companion email per blog post, reviewed/scheduled in the OS, plus subscribers + analytics; how it generates, sends (dormant), and where the UI lives &nbsp;|&nbsp; *keywords:* newsletter, newsletter_emails, newsletter-admin, newsletter-autopublish, newsletter-write-background, newsletter-shared, companion email, NewsletterManagementCard, broadcast, resend broadcast, NEWSLETTER_SENDING_ENABLED, subscribers, email analytics</sub>
 
 ## Business rules
 
