@@ -5308,7 +5308,10 @@ function App({onLogout}) {
   const loadLeads = useCallback(async () => {
     const { data, error } = await supabaseClient.from("website_leads").select("*").order("created_at", { ascending: false });
     if (error) { console.error("Leads load failed:", error); return; }
-    setLeads(data || []);
+    // Newsletter subscribers are stored in the same table (form:"newsletter") as a
+    // durable backup of the Resend Audience — they're not sales leads, so keep them
+    // out of the Leads list. Manage the actual list in Resend (Audiences).
+    setLeads((data || []).filter(l => l.form !== "newsletter"));
   }, []);
   useEffect(() => { loadLeads(); }, [loadLeads]);
   useLiveData(loadLeads, { table: "website_leads", interval: 20000 });

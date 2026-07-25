@@ -1331,6 +1331,53 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   </div>
 </section>
 
+<!-- Email-list signup (posts to /.netlify/functions/subscribe → Resend Audience + website_leads backup) -->
+<section class="nl-signup" aria-labelledby="nl-h">
+  <div class="nl-inner">
+    <div class="nl-eyebrow">Free Newsletter</div>
+    <h3 id="nl-h">Marketing tips that actually move the needle</h3>
+    <p>Practical Google &amp; Meta ads and lead-gen tips for busy business owners — a couple times a month. No spam, unsubscribe anytime.</p>
+    <form class="nl-form" data-source="homepage" onsubmit="return blSubscribe(this,event)">
+      <input type="email" name="email" required placeholder="you@business.com" aria-label="Your email address" autocomplete="email">
+      <input type="text" name="company" class="nl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit">Subscribe</button>
+    </form>
+    <div class="nl-msg" role="status" aria-live="polite"></div>
+  </div>
+</section>
+<style>
+.nl-signup{background:linear-gradient(160deg,rgba(200,168,75,.07),rgba(13,15,22,.35));border-top:1px solid rgba(200,168,75,.18);border-bottom:1px solid rgba(200,168,75,.18);padding:46px 20px}
+.nl-signup .nl-inner{max-width:560px;margin:0 auto;text-align:center}
+.nl-signup .nl-eyebrow{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#C8A84B;margin-bottom:10px}
+.nl-signup h3{font-family:'Playfair Display',Georgia,serif;font-weight:600;font-size:clamp(22px,3.4vw,30px);color:#fff;margin:0 0 10px;line-height:1.2}
+.nl-signup p{color:#9CA3AF;font-size:14.5px;line-height:1.6;margin:0 0 20px}
+.nl-form{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.nl-form input[type=email]{flex:1 1 260px;max-width:340px;padding:13px 15px;font-size:15px;font-family:inherit;color:#F5F3ED;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.14);border-radius:10px}
+.nl-form input[type=email]:focus{outline:none;border-color:rgba(200,168,75,.55)}
+.nl-form button{padding:13px 26px;font-size:14px;font-weight:700;letter-spacing:.03em;border:none;border-radius:10px;background:linear-gradient(135deg,#C8A84B,#b8963f);color:#15110A;cursor:pointer;transition:transform .18s,box-shadow .18s}
+.nl-form button:hover{transform:translateY(-1px);box-shadow:0 10px 26px -12px rgba(200,168,75,.6)}
+.nl-form button:disabled{opacity:.6;cursor:default;transform:none;box-shadow:none}
+.nl-hp{position:absolute!important;left:-9999px!important;width:1px;height:1px;opacity:0}
+.nl-msg{min-height:20px;margin-top:14px;font-size:13.5px;line-height:1.5}
+.nl-msg.ok{color:#34D399}
+.nl-msg.err{color:#F87171}
+@media(max-width:480px){.nl-form input[type=email],.nl-form button{flex:1 1 100%;max-width:none}}
+</style>
+<script>
+window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
+  var msg=form.parentNode.querySelector('.nl-msg'),btn=form.querySelector('button'),old=btn.textContent;
+  if(form.company.value){return false;}
+  var email=(form.email.value||'').trim();
+  btn.disabled=true;btn.textContent='Subscribing…';
+  fetch('/.netlify/functions/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,company:form.company.value,source:form.getAttribute('data-source')||'website'})})
+    .then(function(r){return r.json().catch(function(){return{ok:r.ok};});})
+    .then(function(d){ if(d&&d.ok){ msg.className='nl-msg ok'; msg.textContent="You're in — thanks! Watch your inbox for the first tips."; form.style.display='none'; }
+      else { msg.className='nl-msg err'; msg.textContent=(d&&d.error)||'Something went wrong — please try again.'; btn.disabled=false; btn.textContent=old; } })
+    .catch(function(){ msg.className='nl-msg err'; msg.textContent='Network error — please try again.'; btn.disabled=false; btn.textContent=old; });
+  return false;
+};
+</script>
+
 <footer>
   <div class="word">BoldLine Media</div>
   <div class="copy">© 2026 BoldLine Media. All rights reserved.</div>
