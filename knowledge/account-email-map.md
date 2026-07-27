@@ -18,8 +18,7 @@ verified: 2026-07-08
 |---|---|---|
 | Google Ads MCC + API Center + Basic Access application | **theboldlinemedia@gmail.com** | Application decisions arrive here |
 | Google Search Console (boldlinemedia.com domain property) | **brysonaweiser@gmail.com** | Set up 2026-07-07 |
-| Facebook — NEW personal account (sole admin of the BoldLine Media Business Portfolio) | shows **theboldlinemedia@gmail.com** in Business Manager People; actual login email unconfirmed | Created 2026-07-06; 2FA advised |
-| Facebook — OLD/aged personal account | **brysonaweiser@gmail.com** | To be added as 2nd full-control admin (~2026-07-14 retry) |
+| Facebook — the ONE personal account (Bryson Weiser) — admin of the BoldLine Media Business Portfolio + owner of the dev app + BoldLine Page | **brysonaweiser@gmail.com** (primary), phone +1 602-784-4228 | **CORRECTED 2026-07-27 via Accounts Center: there is only ONE Facebook account.** Accounts Center → Profiles shows a single profile "Bryson Weiser"; Contact info = brysonaweiser@gmail.com + 602 only; birthday on file Oct 11 2007 (young + weeks-old account = why Meta keeps checkpointing). `theboldlinemedia@gmail.com` is NOT a separate FB personal account — it's the Business Portfolio's business-contact email (and appears to also work as a login alias to this same account). The old "NEW vs OLD account / invite a 2nd admin" model was WRONG — you can't be your own second admin, which is why every invite looped "you're already in the Business Portfolio." |
 | Meta Business Portfolio business-contact email | **theboldlinemedia@gmail.com** | Contact address only, not a login |
 | Mercury (bank) | **brysonaweiser@gmail.com** (DECISION 2026-07-08) | Deliberate: one personal login can own multiple org entities as future businesses launch; BoldLine Media LLC is the org inside it |
 | Stripe | **theboldlinemedia@gmail.com** (as instructed; unconfirmed) | Fine either way — Stripe logins can hold multiple accounts |
