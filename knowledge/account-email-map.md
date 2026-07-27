@@ -25,6 +25,7 @@ verified: 2026-07-08
 | Stripe | **theboldlinemedia@gmail.com** (as instructed; unconfirmed) | Fine either way — Stripe logins can hold multiple accounts |
 | Netlify Forms email notifications | sent to **theboldlinemedia@gmail.com** | |
 | Calendly | theboldlinemedia (calendly.com/theboldlinemedia/30min) | |
+| Namecheap (domain registrar — boldlinemedia.com) | **brysonaweiser@gmail.com** (2026-07-27) | Domain transferred here off Wix so Resend can verify the domain for email sending. Namecheap transfer-authorization/approval emails go to THIS inbox; the Wix release/auth-code email went to theboldlinemedia@gmail.com. Auto-renew ON, free WHOIS privacy. See domain-dns-wix. |
 
 **Rules learned the hard way:**
 - `lleatherboy@gmail.com` is NOT one of Bryson's logins anywhere (a mistaken Meta invite went there 2026-07-07).
