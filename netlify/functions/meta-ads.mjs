@@ -111,6 +111,19 @@ async function listAdAccounts() {
   }));
 }
 
+// Read the businesses this token manages — a genuine business_management call
+// (me/adaccounts above is ads-scoped and never exercises business_management).
+// Best-effort: the smoke test still succeeds if this errors.
+async function listBusinesses() {
+  try {
+    const data = await graph("test", "me/businesses", { params: { fields: "id,name", limit: "50" } });
+    return (data.data || []).map((b) => ({ id: b.id, name: b.name }));
+  } catch (e) {
+    console.warn("meta test: me/businesses read failed:", e && e.message);
+    return [];
+  }
+}
+
 // ── Read a Page: list managed Pages + read one Page's engagement ──────────────
 // Two calls, on purpose — they exercise two distinct permissions:
 //   me/accounts                  -> pages_show_list  (which Pages can we manage?)
@@ -415,7 +428,8 @@ export default async (req) => {
   try {
     if (action === "test") {
       const accounts = await listAdAccounts();
-      return json({ ok: true, action, graphVersion: GRAPH_VERSION, accounts, count: accounts.length });
+      const businesses = await listBusinesses(); // exercises business_management
+      return json({ ok: true, action, graphVersion: GRAPH_VERSION, accounts, count: accounts.length, businesses });
     }
 
     if (action === "campaigns") {
