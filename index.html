@@ -4275,6 +4275,7 @@ function ARIADeployTab() {
     {name:"Monthly OS Health Report",icon:"🩺",live:true,note:"Live now — on the 1st of each month, ARIA emails Bryson a full business + system health report with recommendations for improving the OS itself. This is his monthly report: only ARIA, about the OS."},
     {name:"SMS Report Notification",icon:"📱",live:false,note:"Twilio is connected, but carrier rules (A2P 10DLC) block texts from trial accounts. Needs a paid Twilio account to finish."},
     {name:"Major-Issue Alerts",icon:"🚨",live:true,note:"Live now — a daily watch + billing watch alert you the moment something major trips: a client's health crashes, a live campaign gets zero leads, CPL blows past target, a payment fails, or a scheduled job breaks. Each fires an EMAIL + in-app alert (bell). De-duped so no daily spam. SMS is off for now (set SMS_ENABLED=1 in Netlify once Twilio is upgraded to a paid account). Note: precise real-time ad-SPEND-spike detection activates once live campaign spend is flowing."},
+    {name:"Suspicious-Login Alert",icon:"🔐",live:true,note:"Live now — if your OS is signed into from a country/region it's never been used from before, you get an email alert (uses Netlify's edge geolocation; no external service). First sign-in from each place sets the baseline; only genuinely new locations alert. Needs the one-time login_events table (docs/sql/login-events-schema.sql) run in Supabase; until then it safely no-ops."},
     {name:"DocuSign Contracts",icon:"✍️",live:true,note:"Live and verified — JWT integration + real e-signature send confirmed working end to end (test envelope delivered + signed). Use 'Send via DocuSign' on any client's Contract tab. On DocuSign's free demo environment for now (test signatures aren't legally binding) — switches to production before the first real client."},
     {name:"Client Portal (hosted)",icon:"🔗",live:true,note:"Live now — each client gets a private, unguessable portal link via Copy Link."},
     {name:"Data Persistence",icon:"💾",live:true,note:"Live now via Supabase — data is saved across sessions and devices."},
@@ -5259,9 +5260,13 @@ function LoginScreen() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) { setError(error.message); return; }
+    // Fire-and-forget suspicious-login check (alerts on a sign-in from a new
+    // location). Never blocks or delays the sign-in; failures are ignored.
+    const token = data && data.session && data.session.access_token;
+    if (token) { try { fetch("/.netlify/functions/login-watch", { method:"POST", headers:{ "Authorization":"Bearer "+token } }); } catch(e){} }
   };
 
   return (

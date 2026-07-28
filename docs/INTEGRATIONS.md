@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 63 task-keyed entries under `knowledge/`. They surface automatically via the
+> 64 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**63 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**64 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -225,6 +225,9 @@
 - **[stripe-billing](../knowledge/stripe-billing.md)** &mdash; &#9989; verified &middot; 2026-07-14  
   Recurring management-fee billing via Stripe — BUILT + LIVE (2026-07-14). Owner clicks "Set Up Recurring Billing" on a client's Contract tab → stripe-billing.mjs creates a subscription-mode Checkout Session (card + ACH) at the package's monthly price + one-time setup fee → client pays once, auto-charges monthly. stripe-webhook.mjs keeps billingStatus in sync. Charges the SERVICE FEE ONLY, never ad spend. Hand-rolled Stripe REST (no SDK). Test-mode E2E passed then flipped to LIVE keys + live webhook; hardened against stale/mode-mismatched customer ids. Ready to bill real clients.  
   <sub>*task:* set up, debug, or extend Stripe billing (recurring management-fee subscription) in the OS &nbsp;|&nbsp; *keywords:* stripe-billing.mjs, stripe-webhook.mjs, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, checkout-session, us_bank_account, billingStatus, BillingCard, subscription</sub>
+- **[suspicious-login-alert](../knowledge/suspicious-login-alert.md)** &mdash; &#9989; verified &middot; 2026-07-27  
+  The OS emails an alert when the owner account is signed into from a country/region it's never been signed into before (Bryson, 2026-07-27). On a successful password sign-in the OS fire-and-forgets a call to netlify/functions/login-watch.mjs, which reads Netlify's edge geolocation (context.geo — no external geo-IP service), compares the sign-in's country+region to the login_events history, records the event, and on a never-seen combo fires dispatchAlert (email; SMS gated off). Needs a one-time SQL migration (docs/sql/login-events-schema.sql); fails soft until then.  
+  <sub>*task:* the suspicious-login (new sign-in location) security alert — how it detects a login from an unusual location and emails Bryson &nbsp;|&nbsp; *keywords:* suspicious login, login alert, new location, login-watch, login_events, geolocation, security alert, sign-in, netlify geo</sub>
 
 ## Pending
 
