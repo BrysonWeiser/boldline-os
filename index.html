@@ -4050,6 +4050,7 @@ function NewsletterManagementCard() {
   const [editor,setEditor]=useState(null);
   const [editorSaving,setEditorSaving]=useState(false);
   const [showSubs,setShowSubs]=useState(false);
+  const [showUnsub,setShowUnsub]=useState(false);
   const [msg,setMsg]=useState("");
 
   const toLocalInput=(iso)=>{ const d=new Date(iso); const z=(n)=>String(n).padStart(2,"0"); return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+"T"+z(d.getHours())+":"+z(d.getMinutes()); };
@@ -4220,15 +4221,37 @@ function NewsletterManagementCard() {
               ))}
             </div>
           ); })()}
-          <button onClick={()=>setShowSubs(s=>!s)} style={{marginTop:8,padding:0,fontSize:10.5,fontWeight:700,border:"none",background:"none",color:C.gold,cursor:"pointer",borderBottom:`1px solid ${C.borderAccent}`}}>{showSubs?"Hide subscribers":"See all subscribers"}</button>
+          <div style={{display:"flex",gap:14,flexWrap:"wrap",marginTop:8}}>
+            <button onClick={()=>{setShowSubs(s=>!s); if(!showSubs)setShowUnsub(false);}} style={{padding:0,fontSize:10.5,fontWeight:700,border:"none",background:"none",color:C.gold,cursor:"pointer",borderBottom:`1px solid ${C.borderAccent}`}}>{showSubs?"Hide subscribers":"See all subscribers"}</button>
+            {(subs.unsubscribed>0||(subs.unsubscribedList&&subs.unsubscribedList.length>0))&&(
+              <button onClick={()=>{setShowUnsub(u=>!u); if(!showUnsub)setShowSubs(false);}} style={{padding:0,fontSize:10.5,fontWeight:700,border:"none",background:"none",color:C.textMuted,cursor:"pointer",borderBottom:`1px solid ${C.border}`}}>{showUnsub?"Hide unsubscribed":`See who unsubscribed (${subs.unsubscribed==null?(subs.unsubscribedList||[]).length:subs.unsubscribed})`}</button>
+            )}
+          </div>
           {showSubs&&(
             <div style={{marginTop:8,maxHeight:180,overflowY:"auto",display:"flex",flexDirection:"column",gap:2}}>
               {subs.recent.length===0?(
                 <div style={{fontSize:11,color:C.textMuted}}>No subscribers yet.</div>
               ):subs.recent.map((s,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11,color:C.textDim,padding:"4px 6px",borderRadius:6,backgroundColor:"rgba(255,255,255,.02)"}}>
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,fontSize:11,color:s.unsubscribed?C.textMuted:C.textDim,padding:"4px 6px",borderRadius:6,backgroundColor:"rgba(255,255,255,.02)"}}>
+                  <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textDecoration:s.unsubscribed?"line-through":"none"}}>{s.email}</span>
+                  <span style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                    {s.unsubscribed&&<span style={{fontSize:8.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:C.amber,backgroundColor:"rgba(217,119,6,.1)",border:`1px solid rgba(217,119,6,.3)`,borderRadius:4,padding:"1px 4px"}}>unsub'd</span>}
+                    <span style={{color:C.textMuted}}>{new Date(s.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          {showUnsub&&(
+            <div style={{marginTop:8,maxHeight:180,overflowY:"auto",display:"flex",flexDirection:"column",gap:2}}>
+              {subs.unsubscribedList==null?(
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}>The unsubscribe list comes from Resend and isn't reachable right now. It fills in once the domain is verified and emails start sending.</div>
+              ):subs.unsubscribedList.length===0?(
+                <div style={{fontSize:11,color:C.textMuted}}>Nobody has unsubscribed. 🎉</div>
+              ):subs.unsubscribedList.map((s,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",gap:8,fontSize:11,color:C.textMuted,padding:"4px 6px",borderRadius:6,backgroundColor:"rgba(217,119,6,.04)"}}>
                   <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.email}</span>
-                  <span style={{color:C.textMuted,flexShrink:0}}>{new Date(s.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>
+                  {s.subscribed_at&&<span style={{flexShrink:0}}>joined {new Date(s.subscribed_at).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</span>}
                 </div>
               ))}
             </div>
