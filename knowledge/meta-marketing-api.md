@@ -3,10 +3,15 @@ name: meta-marketing-api
 topic: OS app
 task: continue the Meta (Facebook) Marketing API setup and business verification
 keywords: [meta-marketing-api, business-portfolio, business-verification, ads_management, app-review, security-center]
-status: stale-able
-summary: Meta Marketing API setup is IN PROGRESS (longest approval pipeline — Business Verification + App Review, weeks). Started from scratch. As of 2026-06-25 Bryson was on steps 1-3 (Business Portfolio + Page); next is Business Verification. No env vars yet. (Current position is volatile — re-check.)
-verified: 2026-07-02
+status: verified
+summary: Meta App Review is SUBMITTED and "Review in progress" as of 2026-07-29 (Meta est. ≤20 days; result by email to theboldlinemedia@gmail.com). Business Verification already approved; the app (BoldLine OS) is Live; the system-user token + createCampaign are wired and verified. All 7 permissions in review (Marketing API Tier + pages_show_list + business_management + ads_read + pages_read_engagement + public_profile + ads_management). Nothing to do but wait; don't change app settings/permissions/privacy URLs during review. Meta gates only Meta-ads clients — Google clients sellable regardless.
+verified: 2026-07-29
 ---
+
+**🟢🟢🟢 APP REVIEW SUBMITTED 2026-07-29 — "Review in progress."** After business_management's last "API test call" counter finally ticked to Completed (the `GET me/businesses` run in Graph API Explorer registered), every gated permission read Completed / the use case showed "Testing complete", all 5 submission sections (Verification, App settings, Allowed usage, Data handling, Reviewer instructions) were green, and Bryson clicked **Submit for review**. developers.facebook.com → Review → App Review now shows **Status: "Review in progress — Most submissions are reviewed within 20 days"**, with all 7 permissions listed under "New requests": pages_show_list, business_management, ads_read, pages_read_engagement, public_profile, ads_management, Marketing API Access Tier. NO EDITS during review. Result arrives by email (theboldlinemedia@gmail.com) + the dashboard.
+- **The two grey rows at submit time were NOT blockers:** public_profile (default perm, no review needed — count is informational) and pages_show_list (already had 14 logged test calls). The "Testing complete" badge + green "Allowed usage" section + active blue Submit button confirmed readiness.
+- **PENDING (post-decision):** (1) if APPROVED → swap mom's borrowed phone number for Bryson's own clean SIM + authenticator 2FA (Accounts Center → Personal details → Contact info) so he's self-sufficient; the Alert Inbox (2) badge can be checked then. (2) if Meta asks for changes/rejects → the reviewer note tells us what to fix; re-record/re-answer and resubmit. (3) After approval, Meta-ads clients can be fully managed; nothing else to build (token/code/createCampaign all verified).
+- App ID is in the dashboard URL/card — keep it OUT of the repo (Netlify secret-scan). Business ID also visible; same rule.
 
 **Status: IN PROGRESS** (started 2026-06-25). The longest approval pipeline of the four integrations (Business Verification + App Review can take weeks) — started early on purpose to run in parallel with the Google Ads Basic Access wait. Started **from scratch** (no prior Facebook/Meta presence).
 
