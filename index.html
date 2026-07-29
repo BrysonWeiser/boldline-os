@@ -3640,6 +3640,44 @@ function GA4AnalyticsCard() {
   );
 }
 
+// ─── VISUAL CONTENT EDITOR ────────────────────────────────────────────────────
+// "Edit the words, keep the formatting." Renders stored HTML (a blog article
+// fragment OR a full newsletter email doc) as readable, formatted, contentEditable
+// content so the owner edits text in place instead of reading raw HTML. Save keeps
+// the exact layout: a full email doc's <!doctype>/<head>/<body> shell is split off
+// and re-stitched around the edited body, so the wrapper is never lost. A one-tap
+// toggle drops to raw HTML for power edits.
+const splitDoc = (html) => {
+  const m = /^([\s\S]*<body[^>]*>)([\s\S]*)(<\/body>[\s\S]*)$/i.exec(html||"");
+  return m ? {prefix:m[1], inner:m[2], suffix:m[3]} : {prefix:"", inner:html||"", suffix:""};
+};
+function VisualEditor({html, onChange, itemKey, light, disabled}) {
+  const [raw,setRaw]=useState(false);
+  const ref=useRef(null);
+  const parts=useRef(splitDoc(html));
+  // Re-seed the editable area when the item changes or when toggling back from raw.
+  useEffect(()=>{ parts.current=splitDoc(html); if(ref.current&&!raw) ref.current.innerHTML=parts.current.inner; },[itemKey]);
+  useEffect(()=>{ if(!raw&&ref.current) ref.current.innerHTML=parts.current.inner; },[raw]);
+  const emit=()=>{ if(ref.current) onChange(parts.current.prefix+ref.current.innerHTML+parts.current.suffix); };
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:6}}>
+        <button type="button" onClick={()=>{ parts.current=splitDoc(html); setRaw(r=>!r); }}
+          style={{background:"none",border:"none",color:C.gold,fontSize:10.5,fontWeight:700,cursor:"pointer",padding:0,borderBottom:`1px solid ${C.borderAccent}`}}>
+          {raw?"◀ Visual editor":"Edit raw HTML ▶"}
+        </button>
+      </div>
+      {raw?(
+        <textarea value={html||""} onChange={e=>onChange(e.target.value)} disabled={disabled} rows={16} spellCheck={false}
+          style={{width:"100%",padding:"10px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"ui-monospace,Menlo,Consolas,monospace",resize:"vertical"}}/>
+      ):(
+        <div ref={ref} contentEditable={!disabled} suppressContentEditableWarning onInput={emit} onBlur={emit}
+          style={{minHeight:240,maxHeight:"52dvh",overflowY:"auto",padding:light?"18px 20px":"14px 16px",borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:light?"#ffffff":"rgba(255,255,255,.04)",color:light?"#1F2937":C.text,lineHeight:1.7,fontSize:14.5,outline:"none",cursor:disabled?"default":"text"}}/>
+      )}
+    </div>
+  );
+}
+
 // ─── BLOG MANAGEMENT ──────────────────────────────────────────────────────────
 // Owner panel for the AI-written marketing blog: set the weekly cadence, write
 // a post on demand, and regenerate/delete any post the AI gets wrong. All
@@ -3980,8 +4018,8 @@ function BlogManagementCard() {
               </div>
             ))}
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>Body (HTML — the article itself; tags like &lt;h2&gt; and &lt;p&gt; control the layout)</div>
-              <textarea value={editor.body_html||""} onChange={e=>setEd("body_html",e.target.value)} rows={16} spellCheck={false} style={{width:"100%",padding:"10px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"ui-monospace,Menlo,Consolas,monospace",resize:"vertical"}}/>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>Article — edit the words right here; the formatting is kept automatically</div>
+              <VisualEditor html={editor.body_html||""} onChange={v=>setEd("body_html",v)} itemKey={editor.id}/>
             </div>
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={()=>setEditor(null)} disabled={editorSaving} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
@@ -4230,8 +4268,8 @@ function NewsletterManagementCard() {
               </div>
             ))}
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>Body (HTML — the email itself)</div>
-              <textarea value={editor.body_html||""} onChange={ev=>setEd("body_html",ev.target.value)} disabled={editor.status==="sent"} rows={16} spellCheck={false} style={{width:"100%",padding:"10px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"ui-monospace,Menlo,Consolas,monospace",resize:"vertical"}}/>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textDim,marginBottom:4}}>Email — edit the words right here; the formatting is kept automatically</div>
+              <VisualEditor html={editor.body_html||""} onChange={v=>setEd("body_html",v)} itemKey={editor.id} light disabled={editor.status==="sent"}/>
             </div>
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={()=>setEditor(null)} disabled={editorSaving} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>{editor.status==="sent"?"Close":"Cancel"}</button>
