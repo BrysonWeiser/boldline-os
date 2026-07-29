@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 67 task-keyed entries under `knowledge/`. They surface automatically via the
+> 68 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**67 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**68 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -237,6 +237,12 @@
 - **[visual-editor](../knowledge/visual-editor.md)** &mdash; &#9989; verified &middot; 2026-07-29  
   The blog and newsletter editors used to show the raw HTML of body_html in a textarea, which Bryson couldn't read. Both now use a shared VisualEditor (index.html, just above the BLOG MANAGEMENT section) — a contentEditable WYSIWYG that renders the content formatted and lets you edit the words in place, with a one-tap "Edit raw HTML ▶" toggle kept for power edits. For a full-document email, splitDoc peels off the <body> wrapper before editing and re-stitches prefix+editedInner+suffix on save so the email's <head>/styles/<body> attributes are never lost; blog posts are HTML fragments and edit directly. Built 2026-07-29.  
   <sub>*task:* edit blog posts and newsletter emails as readable content instead of raw HTML &nbsp;|&nbsp; *keywords:* visual editor, WYSIWYG, contentEditable, splitDoc, blog editor, newsletter editor, body_html, edit raw HTML, readable, review content, BlogManagementCard, NewsletterManagementCard</sub>
+
+## Ops / automation
+
+- **[morning-brief-routine](../knowledge/morning-brief-routine.md)** &mdash; &#9989; verified &middot; 2026-07-29  
+  A recurring Routine (trigger id trig_01AvKbwqaidkJZs3gYYVAusV) fires a FRESH Claude session every day at 8:00 AM Arizona (cron "0 15 * * *" UTC), which reads docs/MORNING-BRIEF.md + the live business state (knowledge/ index, docs/DEPLOYS.md) and writes Bryson a prioritized daily game plan (🎯 top priority · 📈 BoldLine · 📞 get clients · 💡 new income · 💪 gym · ✅ quick wins), delivered as a push notification + email. Read-only (never commits/deploys/emails). Set up 2026-07-29. Update docs/MORNING-BRIEF.md to change what it focuses on.  
+  <sub>*task:* the automated daily morning brief Claude sends Bryson (priorities for the day — ads, clients, new businesses, income, gym) &nbsp;|&nbsp; *keywords:* morning brief, daily brief, routine, scheduled task, trigger, morning routine, daily priorities, game plan, MORNING-BRIEF.md, cron, 8am arizona</sub>
 
 ## Pending
 
