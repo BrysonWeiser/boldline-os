@@ -125,8 +125,8 @@ export const headTags = ({ title, ogTitle, description, canonical, ogType = "web
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
 <link rel="canonical" href="${esc(canonical)}">
-<link rel="icon" type="image/png" href="/logo.png">
-<link rel="apple-touch-icon" href="/logo.png">
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
 <meta property="og:type" content="${esc(ogType)}">
 <meta property="og:site_name" content="BoldLine Media">
 <meta property="og:title" content="${esc(ogTitle || title)}">
