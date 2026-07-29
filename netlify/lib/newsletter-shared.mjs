@@ -206,24 +206,40 @@ export async function getSubscriberStats(supabase) {
     months.push({ month: k, label: d.toLocaleString("en-US", { month: "short", year: "2-digit" }), added: byMonth[k] || 0 });
   }
 
-  // Best-effort live unsubscribe count from Resend (account-level contacts).
+  // Best-effort live unsubscribe data from Resend (account-level contacts).
+  // unsubscribed = count; unsubU'd = the actual emails so the owner can see WHO
+  // left (Resend only exposes the contact's created_at, not the unsub date, so
+  // we cross-reference our own website_leads to show when they'd subscribed).
+  // Both are null when Resend is unreachable so the UI can show "—" vs "0".
   let unsubscribed = null;
+  let unsubscribedList = null;
+  const subbedAt = {};
+  for (const r of rows) { const k = String(r.email || "").toLowerCase(); if (k && !subbedAt[k]) subbedAt[k] = r.created_at; }
+  const unsubSet = new Set();
   try {
     if (process.env.RESEND_API_KEY) {
       const r = await fetch("https://api.resend.com/contacts", { headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` } });
       if (r.ok) {
         const j = await r.json();
         const list = j.data || j.contacts || [];
-        if (Array.isArray(list)) unsubscribed = list.filter((c) => c.unsubscribed).length;
+        if (Array.isArray(list)) {
+          const gone = list.filter((c) => c.unsubscribed);
+          unsubscribed = gone.length;
+          unsubscribedList = gone
+            .map((c) => { const em = String(c.email || ""); return { email: em, subscribed_at: subbedAt[em.toLowerCase()] || c.created_at || null }; })
+            .sort((a, b) => new Date(b.subscribed_at || 0) - new Date(a.subscribed_at || 0));
+          for (const c of gone) unsubSet.add(String(c.email || "").toLowerCase());
+        }
       }
     }
-  } catch (e) { console.warn("newsletter: Resend contact count unavailable:", e.message); }
+  } catch (e) { console.warn("newsletter: Resend contact data unavailable:", e.message); }
 
   return {
     total: rows.length,
     thisMonthAdded: byMonth[thisMonth] || 0,
     unsubscribed,
+    unsubscribedList,
     months,
-    recent: rows.slice(0, 50).map((r) => ({ email: r.email, created_at: r.created_at })),
+    recent: rows.slice(0, 50).map((r) => ({ email: r.email, created_at: r.created_at, unsubscribed: unsubSet.has(String(r.email || "").toLowerCase()) })),
   };
 }
