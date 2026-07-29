@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 65 task-keyed entries under `knowledge/`. They surface automatically via the
+> 66 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**65 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**66 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -231,6 +231,9 @@
 - **[suspicious-login-alert](../knowledge/suspicious-login-alert.md)** &mdash; &#9989; verified &middot; 2026-07-27  
   The OS emails an alert when the owner account is signed into from a country/region it's never been signed into before (Bryson, 2026-07-27). On a successful password sign-in the OS fire-and-forgets a call to netlify/functions/login-watch.mjs, which reads Netlify's edge geolocation (context.geo — no external geo-IP service), compares the sign-in's country+region to the login_events history, records the event, and on a never-seen combo fires dispatchAlert (email; SMS gated off). Needs a one-time SQL migration (docs/sql/login-events-schema.sql); fails soft until then.  
   <sub>*task:* the suspicious-login (new sign-in location) security alert — how it detects a login from an unusual location and emails Bryson &nbsp;|&nbsp; *keywords:* suspicious login, login alert, new location, login-watch, login_events, geolocation, security alert, sign-in, netlify geo</sub>
+- **[visual-editor](../knowledge/visual-editor.md)** &mdash; &#9989; verified &middot; 2026-07-29  
+  The blog and newsletter editors used to show the raw HTML of body_html in a textarea, which Bryson couldn't read. Both now use a shared VisualEditor (index.html, just above the BLOG MANAGEMENT section) — a contentEditable WYSIWYG that renders the content formatted and lets you edit the words in place, with a one-tap "Edit raw HTML ▶" toggle kept for power edits. For a full-document email, splitDoc peels off the <body> wrapper before editing and re-stitches prefix+editedInner+suffix on save so the email's <head>/styles/<body> attributes are never lost; blog posts are HTML fragments and edit directly. Built 2026-07-29.  
+  <sub>*task:* edit blog posts and newsletter emails as readable content instead of raw HTML &nbsp;|&nbsp; *keywords:* visual editor, WYSIWYG, contentEditable, splitDoc, blog editor, newsletter editor, body_html, edit raw HTML, readable, review content, BlogManagementCard, NewsletterManagementCard</sub>
 
 ## Pending
 
