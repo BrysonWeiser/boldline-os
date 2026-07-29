@@ -459,6 +459,17 @@ export default async (req) => {
 
     if (action === "createCampaign") {
       const result = await createCampaign(body);
+      // Notify the owner a campaign was created + is awaiting approval (covers
+      // owner-launched AND future bot-launched). Best-effort; never blocks.
+      try {
+        const { dispatchAlert } = await import("../lib/alerts-shared.mjs");
+        await dispatchAlert({
+          title: "New Meta campaign awaiting approval",
+          body: `A Meta campaign "${body.name || "(unnamed)"}"${body.clientName ? ` for ${body.clientName}` : ""} was just created and is PAUSED. Approve it in BoldLine OS → Alerts (or "Your Live Campaigns") to set it live. Nothing spends until you do.`,
+          severity: "yellow",
+          smsText: `BoldLine: new Meta campaign "${body.name || ""}" created (paused) — approve in the OS to launch.`,
+        });
+      } catch (e) { console.error("createCampaign owner alert failed:", e && e.message); }
       return json({ ok: true, action, ...result });
     }
 

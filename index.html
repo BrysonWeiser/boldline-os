@@ -2171,7 +2171,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                   <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns below — the same tools you use for clients. First link your ad account on the <b style={{color:C.gold}}>Overview → Edit</b> screen (your Google Ads Customer ID / Meta Ad Account ID), then build a campaign here.</div>
                 </Card>
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
-            {client.internal && <LiveCampaignsCard client={client}/>}
+            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
               // in Edit → Info; for real clients they follow their package platform.
@@ -2179,8 +2179,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               const runsGoogle = client.internal ? plats.some(p=>/google/i.test(p)) : /google/i.test((pkg&&pkg.platform)||"");
               const runsMeta   = client.internal ? plats.some(p=>/meta|facebook|instagram/i.test(p)) : /meta|facebook|instagram/i.test((pkg&&pkg.platform)||"");
               return (<>
-                {runsGoogle && <GoogleLaunchCard client={client}/>}
-                {runsMeta && <MetaLaunchCard client={client}/>}
+                {runsGoogle && <GoogleLaunchCard client={client} onUpdate={onUpdate}/>}
+                {runsMeta && <MetaLaunchCard client={client} onUpdate={onUpdate}/>}
                 {client.internal && !runsGoogle && !runsMeta && (
                   <Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>Pick <b style={{color:C.gold}}>Google Ads</b> and/or <b style={{color:C.gold}}>Meta Ads</b> in <b style={{color:C.textDim}}>Edit → Info → Platforms Running</b> and the campaign builder for each will appear here.</div></Card>
                 )}
@@ -3194,7 +3194,7 @@ function MetaAdsTestCard() {
 // CLIENT's own linked Google Ads account, ALL PAUSED. Pre-fills from client data;
 // owner reviews + edits + launches. Nothing spends until it's enabled.
 // NOT yet verified against a live linked account — see google-ads.mjs createCampaign.
-function GoogleLaunchCard({client}) {
+function GoogleLaunchCard({client, onUpdate}) {
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
   const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
@@ -3265,8 +3265,13 @@ function GoogleLaunchCard({client}) {
     try{
       const d=await gadsCall({action:"createCampaign",
         customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
-        landingUrl:f.landingUrl, headlines, descriptions, keywords, matchType:f.matchType});
-      setState("done"); setMsg(`✓ Campaign created PAUSED (${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}). Review it in Google Ads, then enable to start spend — it won't run until you do.`);
+        landingUrl:f.landingUrl, headlines, descriptions, keywords, matchType:f.matchType, clientName:client.name});
+      setState("done"); setMsg(`✓ Campaign created PAUSED (${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}). It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
+      const gcid=String(d.campaignResourceName||"").split("/").pop();
+      if(gcid&&onUpdate) onUpdate({...client, pendingActions:[
+        {id:`launch-g-${gcid}`, title:`Launch Google campaign "${f.name}"`, detail:`Created PAUSED on ${client.internal?"your":client.name+"'s"} Google Ads account. Approve to set it live and start spend.`, cat:"launch", ts:Date.now(),
+         exec:{platform:"google", campaignId:gcid, campaignName:f.name, kind:"enable_campaign"}},
+        ...(client.pendingActions||[])]});
     }catch(e){ setState("error"); setMsg(e.message||"Launch failed — nothing was created."); }
   };
   if(!linked) return (
@@ -3323,7 +3328,7 @@ function GoogleLaunchCard({client}) {
   );
 }
 
-function MetaLaunchCard({client}) {
+function MetaLaunchCard({client, onUpdate}) {
   const linked = client.metaAdAccountId && client.metaPageId;
   const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
     : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
@@ -3394,9 +3399,13 @@ function MetaLaunchCard({client}) {
         landingUrl:f.landingUrl, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
         geo:{countries:[f.country||"US"]}, ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
         headline:f.headline, primaryText:f.primaryText, description:f.description,
-        ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}),
+        ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}), clientName:client.name,
       });
-      setState("done"); setMsg(`✓ Campaign created PAUSED (campaign ${d.campaignId}). Review it, then activate to start spend — it won't run until you do.`);
+      setState("done"); setMsg(`✓ Campaign created PAUSED (campaign ${d.campaignId}). It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
+      if(d.campaignId&&onUpdate) onUpdate({...client, pendingActions:[
+        {id:`launch-m-${d.campaignId}`, title:`Launch Meta campaign "${f.name}"`, detail:`Created PAUSED on ${client.internal?"your":client.name+"'s"} Meta account. Approve to set it live and start spend.`, cat:"launch", ts:Date.now(),
+         exec:{platform:"meta", campaignId:String(d.campaignId), campaignName:f.name, kind:"enable_campaign"}},
+        ...(client.pendingActions||[])]});
     }catch(e){ setState("error"); setMsg(e.message||"Launch failed — nothing was created."); }
   };
   if(!linked) return (
