@@ -436,6 +436,13 @@ const getAlerts = (cl) => {
       a.push({type:"email_renewal",msg:"📧 Renewal window — send the Renewal email.",severity:"blue",email:"renewal"});
     if ((cl.contractStatus==="expired" || (dEnd!=null && dEnd<0)) && !eSent("Thank-You / Offboarding"))
       a.push({type:"email_thankyou",msg:"📧 Contract ended — send the Thank-You / Offboarding email.",severity:"blue",email:"thank_you"});
+    // Client-approval decisions (portal): changes-requested is actionable (yellow);
+    // still-awaiting is informational (blue). Approved ones just clear.
+    (cl.approvals||[]).forEach(ap=>{
+      if (ap && ap.status==="changes") a.push({type:"approval_changes_"+ap.id,msg:`Client requested changes on "${ap.title}"${ap.note?": "+ap.note:""}.`,severity:"yellow"});
+    });
+    const apAwaiting=(cl.approvals||[]).filter(a2=>a2&&a2.status==="pending").length;
+    if (apAwaiting) a.push({type:"approval_awaiting",msg:`${apAwaiting} item${apAwaiting===1?"":"s"} awaiting the client's approval.`,severity:"blue"});
   }
   return a;
 };
@@ -1895,6 +1902,80 @@ function EmailCenterTab({client,pkg,onUpdate}) {
   );
 }
 
+// ─── CLIENT APPROVALS (owner side) ─────────────────────────────────────────────
+// Owner queues anything the client needs to personally approve (landing page, ad
+// copy, a plan…). It appears in the client's portal "Review" tab with a red badge;
+// the client Approves / Requests Changes there, and their decision flows back to
+// getAlerts + the commLog. Creating one auto-emails the client (approval_request).
+function ClientApprovalsCard({client,onUpdate}) {
+  const [title,setTitle]=useState("");
+  const [body,setBody]=useState("");
+  const [url,setUrl]=useState("");
+  const [kind,setKind]=useState("custom");
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState("");
+  const approvals=client.approvals||[];
+
+  const call=async(action,extra)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token) throw new Error("Session expired — refresh and log in again.");
+    const r=await fetch("/.netlify/functions/client-email",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok) throw new Error(d.error||"Request failed.");
+    return d;
+  };
+
+  const create=async()=>{
+    if(!title.trim()){ setMsg("Give it a title first."); return; }
+    setBusy(true); setMsg("");
+    const item={id:"ap-"+Date.now().toString(36),kind,title:title.trim(),body:body.trim(),previewUrl:url.trim(),status:"pending",createdAt:new Date().toISOString()};
+    let notified=false, warn="";
+    if(client.email){
+      try{
+        const portalUrl=client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"";
+        const d=await call("render",{type:"approval_request",ctx:{businessName:client.name,contactName:client.contactName,approvalTitle:item.title,portalUrl}});
+        await call("send",{to:client.email,subject:d.subject,html:d.html});
+        notified=true;
+      }catch(e){ warn=" (created, but the notification email failed: "+e.message+")"; }
+    }
+    onUpdate&&onUpdate({...client,approvals:[item,...approvals],commLog:[{date:fmt(new Date()),note:`Requested client approval: "${item.title}"${notified?" — client emailed":""}`,cat:"update",ts:Date.now()},...(client.commLog||[])]});
+    setTitle("");setBody("");setUrl("");setKind("custom");
+    setMsg(notified?`✓ Sent to ${client.email} for approval.`:(client.email?"Added to their portal."+warn:"✓ Added — it'll show in their portal (no client email on file to notify)."));
+    setBusy(false);
+  };
+
+  const remove=(id)=>onUpdate&&onUpdate({...client,approvals:approvals.filter(a=>a.id!==id)});
+  const pill=(s)=>{ const m=({pending:["Awaiting client",C.gold],approved:["✓ Approved",C.green],changes:["Changes requested",C.amber]})[s]||["",C.textMuted]; return <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:m[1],backgroundColor:m[1]+"1a",border:`1px solid ${m[1]}44`,borderRadius:6,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{m[0]}</span>; };
+
+  return (
+    <div style={{...card,marginTop:12}}>
+      <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>✅ Client Approvals</div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:12}}>Send {client.name} anything to approve — landing page, ad copy, a plan. They review it in their portal (Approve / Request Changes) and get an email automatically. Their decision comes back to your Alerts.</div>
+      <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What needs approval? (e.g. Your new landing page)" style={{...inp,marginBottom:8}}/>
+      <textarea value={body} onChange={e=>setBody(e.target.value)} rows={2} placeholder="Short description / instructions (optional)" style={{...inp,marginBottom:8,resize:"vertical"}}/>
+      <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="Preview link (optional) — e.g. the landing page URL" style={{...inp,marginBottom:8}}/>
+      <button onClick={create} disabled={busy} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:busy?"default":"pointer",opacity:busy?.6:1}}>{busy?"Sending…":"Send for Approval"}</button>
+      {msg&&<div style={{fontSize:11,color:msg[0]==="✓"?C.green:C.textDim,marginTop:8,lineHeight:1.5}}>{msg}</div>}
+      {approvals.length>0&&(
+        <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:8}}>
+          {approvals.map(a=>(
+            <div key={a.id} style={{padding:"10px 12px",borderRadius:10,backgroundColor:C.bg3,border:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{flex:1,minWidth:0,fontSize:12.5,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.title}</div>
+                {pill(a.status)}
+                <button onClick={()=>remove(a.id)} title="Remove" style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:13,padding:"0 2px",flexShrink:0}}>✕</button>
+              </div>
+              {a.previewUrl&&<a href={a.previewUrl} target="_blank" rel="noopener noreferrer" style={{display:"block",fontSize:10.5,color:C.gold,textDecoration:"none",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.previewUrl}</a>}
+              {a.status==="changes"&&a.note&&<div style={{fontSize:11,color:C.amber,marginTop:4,lineHeight:1.5}}>Client note: {a.note}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const [tab,setTab]         = useState(client._initialTab||"overview");
   const [openBot,setOpenBot] = useState(null);
@@ -2185,6 +2266,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 <iframe srcDoc={makePortalHTML(client,pkg)} title="Client Portal" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:500,border:"none",display:"block"}}/>
               </div>
             </Card>}
+            {!client.internal&&<ClientApprovalsCard client={client} onUpdate={onUpdate}/>}
             {!client.internal&&<Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Client Setup Checklist</Label>

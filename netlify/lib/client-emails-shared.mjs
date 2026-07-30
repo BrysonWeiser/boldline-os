@@ -184,6 +184,18 @@ const T = {
       signoff(),
   }),
 
+  approval_request: (c) => ({
+    subject: `Your review is needed${c.approvalTitle ? ": " + c.approvalTitle : ""}`,
+    preheader: "Something's ready for your review and approval in your portal.",
+    bodyHtml:
+      h1("Something's ready for your review") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))} — ${b(escapeHTML(c.approvalTitle || "an item"))} is ready and needs your approval before we move forward.`) +
+      p("Open your portal to take a look and either approve it or request changes — it only takes a minute:") +
+      button("Review & Approve", c.portalUrl || SITE) +
+      small("You'll find it under the “Needs Your Review” section of your portal. Nothing moves forward until you approve, so take your time.") +
+      signoff(),
+  }),
+
   thank_you: (c) => ({
     subject: `Thank you from BoldLine Media`,
     preheader: "It's been a pleasure — here's your final wrap-up and a standing invitation.",
