@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 68 task-keyed entries under `knowledge/`. They surface automatically via the
+> 69 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**68 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**69 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -174,6 +174,9 @@
 - **[campaign-launch-approval](../knowledge/campaign-launch-approval.md)** &mdash; &#9989; verified &middot; 2026-07-28  
   Creating a campaign (Google or Meta launch card) now (1) adds a pendingAction "Launch <platform> campaign X" to the client — which surfaces automatically in the bell count + a toast ("Approval needed…") + the Notifications panel with an Approve button that sets it LIVE — and (2) emails the owner (dispatchAlert, best-effort, server-side in createCampaign, so it also covers bot-created campaigns). Separately, the LiveCampaignsCard Start/Pause control is now shown for ANY client with a linked ad account (was internal-only), giving a persistent manual launch/pause control. Built 2026-07-28 (Bryson: created campaigns gave no notification + regular clients had no way to make the ad go live).  
   <sub>*task:* get alerted when a campaign is created/needs approval, and have a way to set it live &nbsp;|&nbsp; *keywords:* campaign approval, launch alert, pendingActions, LiveCampaignsCard, GoogleLaunchCard, MetaLaunchCard, enable_campaign, go live, start ads, notifications, approve</sub>
+- **[client-email-center](../knowledge/client-email-center.md)** &mdash; &#9989; verified &middot; 2026-07-30  
+  A per-client "Emails" tab lets Bryson preview, edit, and one-click-send 8 polished DARK-THEME lifecycle emails with the client's details auto-filled — welcome+portal, ad-account access, contract-signed, invoice, receipt, past-due, renewal, thank-you/offboarding. Templates + branding live server-side (client-emails-shared.mjs); client-email.mjs (owner-JWT) renders/sends via the existing Resend sender (report-shared.sendEmail), so they send today with no new config. Built 2026-07-30.  
+  <sub>*task:* send branded, professional client emails (welcome, invoice, renewal, thank-you, etc.) from within the OS with one click &nbsp;|&nbsp; *keywords:* client emails, email center, EmailCenterTab, client-email, client-emails-shared, welcome email, invoice email, receipt, past due, renewal, thank you, onboarding, ad account access, branded email, dark theme email, lifecycle emails, EMAIL_TYPES</sub>
 - **[contract-renewal-pricing](../knowledge/contract-renewal-pricing.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Term-based renewal pricing — BUILT 2026-07-15, TEST-MODE E2E VERIFIED 2026-07-16. New clients always start on a 3-month term at the standard package rate. At RENEWAL the client picks 1/3/6/12 months; month-to-month is +10%, 3mo is the standard anchor (0%), 6mo −5%, 12mo −10%, applied to the package's monthly price. v1 = pricing math + renewal UI (per-term price + savings) + contract doc reflect the term & effective rate. v2 = renewal pushes the new monthly to the live Stripe subscription automatically via `update-subscription` (no manual Stripe edit) — proven end-to-end in Stripe test mode after two real Stripe-quirk fixes (see gotchas). Charges management fee ONLY, never ad spend.  
   <sub>*task:* change how contract renewal pricing / term discounts work, or the renewal flow on the Contract tab &nbsp;|&nbsp; *keywords:* termMonthly, termRate, termRateLabel, TERM_RATE, renewMonths, handleRenew, contractTermMonths, billingMonthly, update-subscription, renewal discount, month-to-month premium</sub>
