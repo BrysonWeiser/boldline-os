@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 71 task-keyed entries under `knowledge/`. They surface automatically via the
+> 72 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**71 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**72 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -228,6 +228,9 @@
 - **[portal-connect-ad-accounts](../knowledge/portal-connect-ad-accounts.md)** &mdash; &#9989; verified &middot; 2026-07-22  
   Client portal (My Info tab) has a "Connect Your Ad Accounts" section that shows ONLY the platform(s) the client's package runs (Google/Meta/both). Each has a walkthrough-video slot + click-by-click steps + input fields so the client self-enters their IDs (googleAdsCustomerId / metaAdAccountId / metaPageId), which save to the client record and drive the OS ad-runners. Built 2026-07-22.  
   <sub>*task:* the client-portal "Connect Your Ad Accounts" tutorials + self-entry of ad IDs, and how to add the walkthrough videos &nbsp;|&nbsp; *keywords:* portal, connect, tutorial, video, googleAdsCustomerId, metaAdAccountId, metaPageId, GOOGLE_CONNECT_VIDEO, META_CONNECT_VIDEO, META_BUSINESS_ID, sanitizeFields, conditional-by-platform</sub>
+- **[pwa-plan](../knowledge/pwa-plan.md)** &mdash; &#9989; verified &middot; 2026-07-30  
+  Approved plan (Bryson, 2026-07-29/30) to turn the OS (index.html, served at the repo-root Netlify site) into an installable PWA so it launches from an icon on his phone + computer instead of a browser tab, then wire web-push so OS alerts hit his phone. Build NOW on the current OS URL; switch to app.boldlinemedia.com once the domain transfer finishes (he re-installs once — trivial). Not yet built — kick off in a fresh session with "build the PWA".  
+  <sub>*task:* turn the BoldLine OS into an installable desktop + mobile app (PWA) with push notifications &nbsp;|&nbsp; *keywords:* pwa, app, installable, manifest, service worker, add to home screen, desktop app, mobile app, push notifications, web push, VAPID, standalone, icon</sub>
 - **[reports-cadence](../knowledge/reports-cadence.md)** &mdash; &#9989; verified &middot; 2026-07-25  
   Three scheduled report jobs, restructured 2026-07-25 to Bryson's spec. WEEKLY (Mon) = a client-facing weekly report for weekly-tier clients + an internal briefing to Bryson on EVERY active client (even monthly-tier, so he stays current). MONTHLY (per-contract-date, daily-gated) = the client-facing monthly report for monthly-tier clients + an exact COPY to Bryson of what the client got. OS HEALTH = ARIA's business+system report with OS-improvement recommendations, now MONTHLY (1st) and owner-only — this is Bryson's "monthly report: only ARIA, about the OS." All in netlify/lib/report-shared.mjs; schedules in netlify.toml.  
   <sub>*task:* who gets which report and when — the weekly/monthly client reports, Bryson's internal briefings, and ARIA's monthly OS health report &nbsp;|&nbsp; *keywords:* reports, weekly report, monthly report, OS health report, ARIA report, internal briefing, cadence, report-shared, runReportJob, runOSHealthReport, lastOwnerBriefing, lastReportSent, owner copy</sub>
