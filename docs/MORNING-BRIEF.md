@@ -11,8 +11,9 @@ lead follow-up. Bryson's only manual jobs: cold call, close the deal, and check 
 Bigger picture beyond BoldLine: **build more income streams / businesses**, and stay disciplined (**gym, health**).
 
 ## Current phase (update as this changes)
-**Pre-first-client.** The OS is largely built. The single biggest lever right now = **land the first
-paying client.** A **Google-ads client is sellable TODAY**; Meta is in App Review (doesn't block Google).
+**Pre-first-client.** The OS is largely built. A **Google-ads client is sellable TODAY**; Meta is in App Review.
+- **Chosen niche: HVAC (Phoenix metro)** — decided 2026-07-29 (best local market + highest income ceiling).
+- **⛔ OUTREACH GATED (Bryson's call, 2026-07-29):** do NOT start the daily cold-call push until **Meta App Review is APPROVED and verified 100% working** — he wants the full Google + Meta offer ready before he starts selling. Until that gate clears, the brief's client-getting focus is **finishing Meta + optional prep only** (build the HVAC list + script), NOT a daily "make 25 calls" drumbeat. Flip the 📞 section to active the day Meta is confirmed working.
 
 ## Daily schedule + hard constraints (shape the brief around these)
 - **Wakes 8:00 AM every day; asleep by ~midnight.**
@@ -40,11 +41,10 @@ Pull the LIVE state each morning from `knowledge/` + `docs/DEPLOYS.md` — don't
   AI-drafted blog/newsletter posts awaiting review).
 
 ### 📞 Get clients / revenue (the real bottleneck — WEEKDAYS)
-- **Target: 20 cold calls/day the first week** (build the habit + a script), then **25–30/day** once the script clicks, **+ 5 follow-up emails.**
-- **The metric that matters is booked meetings, not dials — aim for 1 booked call/day.** ~25 dials ≈ 4–6 real conversations ≈ 1 booked once the pitch is tight.
-- Best calling window: **~10:00 AM–12:15 PM** (after the gym).
-- Work any warm leads in the OS **Leads** tab → book a meeting → close.
-- **Target niche:** [not locked yet — Bryson to pick a first vertical, e.g. HVAC / dentists / contractors / med-spas. Until then, suggest picking ONE niche and building a 25-name call list.]
+**⛔ STATUS: ON HOLD until Meta App Review is approved + verified working (Bryson's call).** Until then, do NOT push a daily cold-call target — the brief should treat client-getting as *prep only* (optional: build the HVAC list + script) and keep the real top priority on finishing Meta + build/OS work. When Meta is confirmed working, delete this hold line and activate the targets below.
+- *(ACTIVATE WHEN META IS LIVE)* Niche = **HVAC, Phoenix metro.** Target: **20 cold calls/day** week 1 (build the habit + script), then **25–30/day + 5 follow-up emails.**
+- *(when active)* The metric that matters is **booked meetings, not dials — aim for 1 booked call/day.** ~25 dials ≈ 4–6 real conversations ≈ 1 booked once the pitch is tight.
+- *(when active)* Best calling window: **~10:00 AM–12:15 PM** (after the gym). Work warm leads in the OS **Leads** tab → book → close.
 
 ### 💡 New businesses & more income
 - **Reselling** (current side hustle for extra cash): one concrete action/day — source a deal, list an item, or ship/reprice. Weekends = the bigger sourcing/listing push.
@@ -71,7 +71,8 @@ Pull the LIVE state each morning from `knowledge/` + `docs/DEPLOYS.md` — don't
 Small things that clear mental clutter (a 5-min task, an email reply, a decision to make).
 
 ## How to write the brief
-- **Adapt to the day of week:** weekday = gym + cold calls + BoldLine + day-job reality (morning only). Weekend = build/reselling + recovery, NO cold calls.
+- **Respect the outreach gate:** while the 📞 section is ON HOLD (Meta not yet confirmed working), do NOT push cold-call targets — keep client-getting to optional prep and put the daily weight on finishing Meta + build/OS work. Only start the call drumbeat once the hold is lifted.
+- **Adapt to the day of week:** weekday = gym + BoldLine + day-job reality (morning only). Weekend = build/reselling + recovery, NO cold calls.
 - Name **today's specific gym session** from the split (and on Fridays, remind the plyo focus, not the full list).
 - Keep it **tight, skimmable, motivating** — it goes to his phone. Concrete next actions ("Call 25 HVAC shops from your list, book 1 meeting" beats "do outreach").
 - Pull the **real current state** each morning (knowledge/, docs/DEPLOYS.md) — skip anything already handled.
