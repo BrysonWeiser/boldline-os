@@ -13,6 +13,7 @@
 import { GOLD, escapeHTML } from "./report-shared.mjs";
 
 const DARK = { bg:"#070810", card:"#0C0D18", cardBorder:"rgba(255,255,255,.08)", head:"#F5F3EA", body:"#C6CAE0", muted:"#8B91B8", faint:"#5A6078", chip:"#12131F" };
+const SITE = "https://boldlinemedia.com"; // last-resort fallback so a button link is never empty
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
 const SERIF = "Georgia,'Times New Roman',serif";
 
@@ -80,7 +81,7 @@ const T = {
       h1(`Welcome aboard, ${escapeHTML(firstName(c.contactName))}.`) +
       p(`We're thrilled to have ${b(escapeHTML(c.businessName || "your business"))} on board. BoldLine plans, builds, and runs your ${escapeHTML(c.packageName ? c.packageName + " " : "")}ad campaigns and the landing pages behind them — so you can focus on running your business while we bring you the leads.`) +
       p(`Everything lives in your ${gold("client portal")} — track leads, see performance, upload photos, and message us anytime:`) +
-      button("Open Your Client Portal", c.portalUrl) +
+      button("Open Your Client Portal", c.portalUrl || SITE) +
       rule() +
       p(b("What happens next:")) +
       steps([
@@ -105,7 +106,7 @@ const T = {
         "Follow the short walkthrough for Google and/or Meta.",
         "That's it — we'll take it from there and confirm once we're in.",
       ]) +
-      button("Connect Your Ad Accounts", c.portalUrl) +
+      button("Connect Your Ad Accounts", c.portalUrl || SITE) +
       small("Not sure about a step? Just reply — happy to hop on a quick call and do it together.") +
       signoff(),
   }),
@@ -117,7 +118,7 @@ const T = {
       h1("You're all set ✓") +
       p(`Thanks ${escapeHTML(firstName(c.contactName))} — your BoldLine Media agreement is ${b("signed and on file.")} A copy is always available in your portal.`) +
       p("Next up, we'll get your billing and ad account connected, then start building. You'll approve everything before anything goes live.") +
-      button("View in Your Portal", c.portalUrl) +
+      button("View in Your Portal", c.portalUrl || SITE) +
       signoff(),
   }),
 
@@ -136,7 +137,7 @@ const T = {
         h1("Your invoice") +
         p(`Hi ${escapeHTML(firstName(c.contactName))}, here's your invoice for ${b(escapeHTML(c.businessName || "your account"))}. You can pay securely online in a few taps:`) +
         detailBox(rows) +
-        button("Pay Securely Online", c.payUrl || c.portalUrl) +
+        button("Pay Securely Online", c.payUrl || c.portalUrl || SITE) +
         small("Payments are processed securely by Stripe. A receipt is emailed automatically once payment clears. This invoice covers BoldLine management fees only — your ad spend is billed separately by Google/Meta directly to you.") +
         signoff(),
     };
@@ -155,7 +156,7 @@ const T = {
         p(`Thanks ${escapeHTML(firstName(c.contactName))}! We've received your payment and your account is all squared away.`) +
         detailBox(rows) +
         p("Nothing else needed on your end — we're hard at work on your campaigns. You can see everything anytime in your portal.") +
-        button("Open Your Portal", c.portalUrl) +
+        button("Open Your Portal", c.portalUrl || SITE) +
         signoff(),
     };
   },
@@ -166,7 +167,7 @@ const T = {
     bodyHtml:
       h1("A quick heads-up on your payment") +
       p(`Hi ${escapeHTML(firstName(c.contactName))} — your most recent payment of ${b(money(c.monthly))} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
-      button("Update Payment Method", c.payUrl || c.portalUrl) +
+      button("Update Payment Method", c.payUrl || c.portalUrl || SITE) +
       small("Your campaigns keep running for now — we just wanted to catch this early so nothing gets interrupted. If you think this is a mistake, reply and we'll sort it out.") +
       signoff(),
   }),
@@ -178,7 +179,7 @@ const T = {
       h1("Let's keep the momentum going") +
       p(`Hi ${escapeHTML(firstName(c.contactName))} — your current term with BoldLine is ${b("coming up for renewal" + (c.termEnd ? " on " + escapeHTML(c.termEnd) : "") + ".")}`) +
       p("We've loved working with " + b(escapeHTML(c.businessName || "you")) + ", and we'd love to keep the leads coming. Renewing is effortless — nothing changes on your end, your campaigns just keep running without a gap.") +
-      button("Review Your Plan", c.portalUrl) +
+      button("Review Your Plan", c.portalUrl || SITE) +
       p("Want to talk results, adjust your plan, or scale up? Just reply and we'll set up a quick call.") +
       signoff(),
   }),
@@ -190,7 +191,7 @@ const T = {
       h1("Thank you — it's been a pleasure") +
       p(`Hi ${escapeHTML(firstName(c.contactName))}, we wanted to say a genuine thank you for trusting BoldLine Media with ${b(escapeHTML(c.businessName || "your business"))}. It's been a pleasure running your campaigns.`) +
       p(`A couple of things as we wrap up: ${gold("your ad account stays entirely yours")} — everything we built lives in your account, and your final performance report is in your portal. Nothing goes away.`) +
-      button("View Your Final Report", c.portalUrl) +
+      button("View Your Final Report", c.portalUrl || SITE) +
       p("If you ever want to pick things back up or need a hand down the road, our door is always open — just reply to this email. Wishing you huge success ahead.") +
       signoff(),
   }),
