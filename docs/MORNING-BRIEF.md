@@ -38,7 +38,9 @@ Pull the LIVE state each morning from `knowledge/` + `docs/DEPLOYS.md` — don't
 - **Meta App Review:** submitted 2026-07-29, "review in progress" (~≤20 days, result by email). No action but wait.
 - **Google Ads:** connected + sellable now — a Google client can be onboarded today.
 - Standing daily: check the OS **Alerts** tab; approve/reject anything queued (campaigns awaiting go-live,
-  AI-drafted blog/newsletter posts awaiting review).
+  AI-drafted blog/newsletter posts awaiting review, and 📧 client-email reminders — "send the Welcome/Invoice/Renewal…").
+- **Revisit later:** once BoldLine has **~3+ active paying clients**, remind Bryson to consider **fully automating the client
+  lifecycle emails** (currently HYBRID: receipts/past-due auto, the rest are one-tap) based on how the real flow feels.
 
 ### 📞 Get clients / revenue (the real bottleneck — WEEKDAYS)
 **⛔ STATUS: ON HOLD until Meta App Review is approved + verified working (Bryson's call).** Until then, do NOT push a daily cold-call target — the brief should treat client-getting as *prep only* (optional: build the HVAC list + script) and keep the real top priority on finishing Meta + build/OS work. When Meta is confirmed working, delete this hold line and activate the targets below.

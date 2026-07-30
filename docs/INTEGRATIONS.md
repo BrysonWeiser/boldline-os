@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 69 task-keyed entries under `knowledge/`. They surface automatically via the
+> 70 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**69 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**70 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -246,6 +246,12 @@
 - **[morning-brief-routine](../knowledge/morning-brief-routine.md)** &mdash; &#9989; verified &middot; 2026-07-29  
   A recurring Routine (trigger id trig_01AvKbwqaidkJZs3gYYVAusV) fires a FRESH Claude session every day at 8:00 AM Arizona (cron "0 15 * * *" UTC), which reads docs/MORNING-BRIEF.md + the live business state (knowledge/ index, docs/DEPLOYS.md) and writes Bryson a prioritized daily game plan (🎯 top priority · 📈 BoldLine · 📞 get clients · 💡 new income · 💪 gym · ✅ quick wins), delivered as a push notification + email. Read-only (never commits/deploys/emails). Set up 2026-07-29. Update docs/MORNING-BRIEF.md to change what it focuses on.  
   <sub>*task:* the automated daily morning brief Claude sends Bryson (priorities for the day — ads, clients, new businesses, income, gym) &nbsp;|&nbsp; *keywords:* morning brief, daily brief, routine, scheduled task, trigger, morning routine, daily priorities, game plan, MORNING-BRIEF.md, cron, 8am arizona</sub>
+
+## Ops / procedures
+
+- **[client-lifecycle](../knowledge/client-lifecycle.md)** &mdash; &#9989; verified &middot; 2026-07-30  
+  The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails are HYBRID-automated (receipts/past-due auto; rest one-tap w/ getAlerts reminders — see client-email-center).  
+  <sub>*task:* the standard procedure for onboarding, renewing, and offboarding a client (and which emails fire at each step) &nbsp;|&nbsp; *keywords:* onboarding, offboarding, renewal, client procedure, lifecycle, welcome, ad account access, contract, invoice, thank you, approval, portal approval</sub>
 
 ## Pending
 
