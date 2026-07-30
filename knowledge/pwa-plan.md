@@ -3,8 +3,8 @@ name: pwa-plan
 topic: OS app
 task: turn the BoldLine OS into an installable desktop + mobile app (PWA) with push notifications
 keywords: [pwa, app, installable, manifest, service worker, add to home screen, desktop app, mobile app, push notifications, web push, VAPID, standalone, icon]
-status: planned
-summary: Approved plan (Bryson, 2026-07-29/30) to turn the OS (index.html, served at the repo-root Netlify site) into an installable PWA so it launches from an icon on his phone + computer instead of a browser tab, then wire web-push so OS alerts hit his phone. Build NOW on the current OS URL; switch to app.boldlinemedia.com once the domain transfer finishes (he re-installs once — trivial). Not yet built — kick off in a fresh session with "build the PWA".
+status: verified
+summary: Approved plan (Bryson, 2026-07-29/30) to turn the OS (index.html, served at the repo-root Netlify site) into an installable PWA so it launches from an icon on his phone + computer, then wire web-push so OS alerts hit his phone. UPDATE 2026-07-30 — **Phase 1 (installable) is BUILT + verified; see `pwa-build` for the implementation.** Phase 2 (web-push) still pending. Switch to app.boldlinemedia.com once the domain transfer finishes (he re-installs once — trivial).
 verified: 2026-07-30
 ---
 
