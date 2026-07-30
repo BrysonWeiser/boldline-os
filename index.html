@@ -418,6 +418,25 @@ const getAlerts = (cl) => {
     if (cl.adBudget && leads===0 && liveDays!=null && liveDays>=14) a.push({type:"no_leads",msg:`Campaign live ${liveDays} days with a budget set but ZERO leads — check targeting/tracking.`,severity:"red"});
     if (leads>0 && cl.cpl>0 && cl.cpl>=2*target) a.push({type:"cpl_blowout",msg:`Cost per lead is $${cl.cpl} — 2×+ the $${target} target. Spend is inefficient.`,severity:"red"});
   }
+  // ── Client-email reminders (hybrid automation, Bryson 2026-07-30): the
+  //    relationship emails are one-tap approve, so nudge here at each milestone
+  //    and auto-clear once sent. Sends are logged to commLog as
+  //    `Sent "<label>" email to …` (EmailCenterTab), which is what eSent checks.
+  //    `email:` names the template so the reminder can deep-link to the Emails tab.
+  if (!cl.internal) {
+    const eSent = (label) => (cl.commLog||[]).some(e => (e.note||"").includes(`Sent "${label}"`));
+    const dEnd  = cl.contractEnd ? daysUntil(cl.contractEnd) : null;
+    if (cl.contractSigned && !eSent("Welcome + Portal"))
+      a.push({type:"email_welcome",msg:"📧 New client — send the Welcome + Portal email.",severity:"blue",email:"welcome"});
+    else if (cl.contractSigned && !eSent("Ad Account Access"))
+      a.push({type:"email_access",msg:"📧 Send the Ad-Account Access email so they can grant access.",severity:"blue",email:"onboarding_access"});
+    if (cl.billingStatus==="awaiting_payment" && !eSent("Invoice"))
+      a.push({type:"email_invoice",msg:"📧 Billing is set up — send the Invoice email.",severity:"blue",email:"invoice"});
+    if (dEnd!=null && dEnd<=30 && dEnd>=0 && cl.contractStatus==="active" && !eSent("Renewal Reminder"))
+      a.push({type:"email_renewal",msg:"📧 Renewal window — send the Renewal email.",severity:"blue",email:"renewal"});
+    if ((cl.contractStatus==="expired" || (dEnd!=null && dEnd<0)) && !eSent("Thank-You / Offboarding"))
+      a.push({type:"email_thankyou",msg:"📧 Contract ended — send the Thank-You / Offboarding email.",severity:"blue",email:"thank_you"});
+  }
   return a;
 };
 const healthColor = (s) => s>=8?C.green:s>=6?C.amber:C.red;
