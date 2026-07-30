@@ -1750,6 +1750,132 @@ function SegmentScreen({mode,clients,onSelect,onBack,isDesktop}) {
 }
 
 // ─── CLIENT HUB ──────────────────────────────────────────────────────────────
+// ─── CLIENT EMAIL CENTER ──────────────────────────────────────────────────────
+// The "Emails" tab: send polished, on-brand (dark-theme) lifecycle emails to a
+// client with one click — welcome/portal, ad-account access, invoice, receipt,
+// past-due, renewal, thank-you. Client specifics auto-fill; every email can be
+// previewed (rendered in an iframe), edited (VisualEditor + subject), reset, or
+// sent. Templates + sending live server-side (netlify/functions/client-email.mjs
+// → client-emails-shared.mjs) so there's one source of truth for the branding.
+function EmailCenterTab({client,pkg,onUpdate}) {
+  const [types,setTypes]=useState([]);
+  const [loadingTypes,setLoadingTypes]=useState(true);
+  const [open,setOpen]=useState(null);   // {type, subject, html, mode:"preview"|"edit", dirty}
+  const [busy,setBusy]=useState(false);
+  const [sentId,setSentId]=useState(null);
+  const [msg,setMsg]=useState("");
+
+  const buildCtx=()=>({
+    businessName: client.name||"",
+    contactName: client.contactName||"",
+    packageName: (pkg&&pkg.name)||"",
+    monthly: client.billingMonthly!=null?client.billingMonthly:((pkg&&pkg.price)||0),
+    setup: client.billingSetup!=null?client.billingSetup:((pkg&&pkg.setup)||0),
+    portalUrl: client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"",
+    payUrl: "",
+    date: fmt(new Date()),
+  });
+
+  const call=async(action,extra)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token) throw new Error("Session expired — refresh and log in again.");
+    const r=await fetch("/.netlify/functions/client-email",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok) throw new Error(d.error||"Request failed.");
+    return d;
+  };
+
+  useEffect(()=>{ (async()=>{ try{ const d=await call("types"); setTypes(d.types||[]); }catch(e){ setMsg(e.message); } setLoadingTypes(false); })(); },[]);
+
+  const preview=async(t)=>{
+    setBusy(true); setMsg("");
+    try{ const d=await call("render",{type:t.id,ctx:buildCtx()}); setOpen({type:t,subject:d.subject,html:d.html,mode:"preview",dirty:false}); }
+    catch(e){ setMsg(e.message); }
+    setBusy(false);
+  };
+  const resetToDefault=async()=>{
+    if(!open) return; setBusy(true);
+    try{ const d=await call("render",{type:open.type.id,ctx:buildCtx()}); setOpen(o=>({...o,subject:d.subject,html:d.html,dirty:false})); }
+    catch(e){ setMsg(e.message); }
+    setBusy(false);
+  };
+  const send=async()=>{
+    if(!open) return;
+    if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
+    setBusy(true); setMsg("");
+    try{
+      await call("send",{to:client.email,subject:open.subject,html:open.html});
+      onUpdate&&onUpdate({...client,commLog:[{date:fmt(new Date()),note:`Sent "${open.type.label}" email to ${client.email}`,cat:"update",ts:Date.now()},...(client.commLog||[])]});
+      setSentId(open.type.id); setMsg(`✓ Sent "${open.type.label}" to ${client.email}`); setOpen(null);
+      setTimeout(()=>setSentId(null),4000);
+    }catch(e){ setMsg("Send failed: "+e.message); }
+    setBusy(false);
+  };
+
+  return (
+    <div>
+      <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginBottom:14}}>
+        Send polished, on-brand emails to <b style={{color:C.text}}>{client.name}</b> — client details fill in automatically. Preview it, tweak the wording if you want, then send with one click.
+      </div>
+      {!client.email&&(
+        <div style={{fontSize:11,color:C.amber,backgroundColor:"rgba(251,191,36,.08)",border:`1px solid rgba(251,191,36,.28)`,borderRadius:9,padding:"8px 10px",marginBottom:12,lineHeight:1.55}}>No email on file for this client — add one on the Overview tab to enable sending. You can still preview.</div>
+      )}
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.textDim,marginBottom:10}}>{msg}</div>}
+      {loadingTypes?(
+        <div style={{fontSize:11,color:C.textMuted}}>Loading…</div>
+      ):(
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {types.map(t=>(
+            <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:11,backgroundColor:C.bg3,border:`1px solid ${C.border}`}}>
+              <div style={{fontSize:20,flexShrink:0}}>{t.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>{t.label}{sentId===t.id&&<span style={{color:C.green,fontWeight:700,fontSize:11,marginLeft:8}}>✓ sent</span>}</div>
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{t.desc}</div>
+              </div>
+              <button onClick={()=>preview(t)} disabled={busy} style={{flexShrink:0,padding:"7px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:busy?"default":"pointer",opacity:busy?.6:1}}>Preview</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {open&&(
+        <div onClick={e=>{if(e.target===e.currentTarget&&!busy)setOpen(null);}} style={{position:"fixed",inset:0,zIndex:400,backgroundColor:"rgba(4,6,10,.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:14}}>
+          <div style={{width:"100%",maxWidth:600,maxHeight:"90vh",backgroundColor:C.bg2,borderRadius:16,border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 16px",borderBottom:`1px solid ${C.border}`}}>
+              <div style={{fontSize:18}}>{open.type.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text}}>{open.type.label}</div>
+                <div style={{fontSize:10.5,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>To: {client.email||"— no email on file —"}</div>
+              </div>
+              <div style={{display:"flex",gap:4,backgroundColor:"rgba(255,255,255,.04)",borderRadius:8,padding:2}}>
+                {["preview","edit"].map(m=>(
+                  <button key={m} onClick={()=>setOpen(o=>({...o,mode:m}))} style={{padding:"5px 12px",fontSize:11,fontWeight:700,borderRadius:6,border:"none",cursor:"pointer",backgroundColor:open.mode===m?"rgba(200,168,75,.16)":"transparent",color:open.mode===m?C.gold:C.textMuted,textTransform:"capitalize"}}>{m}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{padding:"12px 16px",overflowY:"auto",flex:1}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:4}}>Subject</div>
+              <input value={open.subject} onChange={e=>setOpen(o=>({...o,subject:e.target.value,dirty:true}))} disabled={open.mode!=="edit"} style={{...inp,marginBottom:12,opacity:open.mode==="edit"?1:.85}}/>
+              {open.mode==="preview"?(
+                <iframe title="Email preview" srcDoc={open.html} style={{width:"100%",height:"46vh",border:`1px solid ${C.border}`,borderRadius:10,background:"#070810"}}/>
+              ):(
+                <VisualEditor html={open.html} onChange={v=>setOpen(o=>({...o,html:v,dirty:true}))} itemKey={open.type.id+":"+client.id}/>
+              )}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,padding:"12px 16px",borderTop:`1px solid ${C.border}`}}>
+              {open.dirty&&<button onClick={resetToDefault} disabled={busy} style={{padding:"8px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>Reset</button>}
+              <div style={{flex:1}}/>
+              <button onClick={()=>setOpen(null)} disabled={busy} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+              <button onClick={send} disabled={busy||!client.email} style={{padding:"8px 18px",fontSize:12,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:(busy||!client.email)?"default":"pointer",opacity:(busy||!client.email)?.5:1}}>{busy?"Sending…":"Send Now"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const [tab,setTab]         = useState(client._initialTab||"overview");
   const [openBot,setOpenBot] = useState(null);
@@ -1768,8 +1894,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   // → "Campaigns" (no service tier — just the launch cards), and rename the
   // "Client View" tab → "Assets" (keeps the landing-page/media/call-tracking
   // tools needed to run ads; the client-portal preview inside it is hidden).
-  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="pipeline")))
+  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
+                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="pipeline"||k==="emails")))
                    .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
@@ -2190,6 +2316,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
         )}
 
         {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onUpdate={onUpdate} onRenew={(newEnd,extra)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,...(extra||{}),alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
+        {tab==="emails"&&<EmailCenterTab client={client} pkg={pkg} onUpdate={onUpdate}/>}
         {tab==="reports"&&<ReportsTabContent client={client} pkg={pkg}/>}
         {tab==="log"&&<LogTabContent client={client} onUpdate={onUpdate}/>}
       </div>
