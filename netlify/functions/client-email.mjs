@@ -7,6 +7,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
 import { EMAIL_TYPES, renderClientEmail } from "../lib/client-emails-shared.mjs";
+import { dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -50,6 +51,15 @@ export default async (req) => {
       if (!subject || !html) return json({ ok: false, error: "Nothing to send — subject and body are required." }, 400);
       await sendEmail({ to, subject, html });
       return json({ ok: true, action, to });
+    }
+
+    if (action === "owner-alert") {
+      // Fire an owner email (+ SMS if enabled) — used for the create-time approval
+      // ping so Bryson knows a deliverable just went out for a client to approve.
+      const title = String(body.title || "").trim();
+      if (!title) return json({ ok: false, error: "title required" }, 400);
+      await dispatchAlert({ title, body: String(body.body || ""), severity: body.severity === "red" ? "red" : "yellow" });
+      return json({ ok: true, action });
     }
 
     return json({ ok: false, error: `Unknown action: ${action}` }, 400);

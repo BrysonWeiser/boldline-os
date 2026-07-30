@@ -55,8 +55,31 @@ export default withFailureAlert("alerts-watch", async () => {
   if (error) { console.error("alerts-watch: clients load failed:", error.message); return new Response("db error", { status: 200 }); }
 
   let checked = 0, alerted = 0;
+  const STALE_APPROVAL_DAYS = 3;
   for (const row of rows || []) {
     const cl = row.data || {};
+
+    // Stale client-approval nudge: a deliverable sent for the client's approval
+    // that they haven't acted on after a few days — remind the owner to follow up.
+    // Runs for EVERY client (not just active ones). De-duped via nudgedAt.
+    const approvals = Array.isArray(cl.approvals) ? cl.approvals : [];
+    const nowMs = Date.now();
+    const staleUnnudged = approvals.filter((a) => a && a.status === "pending" && !a.nudgedAt && a.createdAt && (nowMs - new Date(a.createdAt).getTime()) > STALE_APPROVAL_DAYS * 864e5);
+    if (staleUnnudged.length) {
+      for (const a of staleUnnudged) {
+        const days = Math.floor((nowMs - new Date(a.createdAt).getTime()) / 864e5);
+        await dispatchAlert({
+          title: `⏳ ${cl.name} hasn't approved "${a.title}" yet (${days} days)`,
+          body: `${cl.name} still hasn't approved "${a.title}" — it's been ${days} days since it was sent to them. Reach out to nudge them so their campaign isn't held up.`,
+          severity: "yellow",
+        });
+        alerted++;
+      }
+      const nudgedIds = new Set(staleUnnudged.map((a) => a.id));
+      cl.approvals = approvals.map((a) => (nudgedIds.has(a.id) ? { ...a, nudgedAt: new Date().toISOString() } : a));
+      await supabase.from("clients").update({ data: cl, updated_at: new Date().toISOString() }).eq("id", row.id);
+    }
+
     const cur = evalConditions(cl);
     const keys = ["perfCrash", "noLeads", "cplBlowout"];
     if (keys.every((k) => cur[k] === undefined)) continue; // not an active reportable client

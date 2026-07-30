@@ -441,8 +441,10 @@ const getAlerts = (cl) => {
     (cl.approvals||[]).forEach(ap=>{
       if (ap && ap.status==="changes") a.push({type:"approval_changes_"+ap.id,msg:`Client requested changes on "${ap.title}"${ap.note?": "+ap.note:""}.`,severity:"yellow"});
     });
-    const apAwaiting=(cl.approvals||[]).filter(a2=>a2&&a2.status==="pending").length;
-    if (apAwaiting) a.push({type:"approval_awaiting",msg:`${apAwaiting} item${apAwaiting===1?"":"s"} awaiting the client's approval.`,severity:"blue"});
+    const pendingAps=(cl.approvals||[]).filter(a2=>a2&&a2.status==="pending");
+    pendingAps.forEach(ap=>{ const d=ap.createdAt?Math.floor((Date.now()-new Date(ap.createdAt).getTime())/864e5):0; if(d>=3) a.push({type:"approval_stale_"+ap.id,msg:`Client hasn't approved "${ap.title}" in ${d} days — follow up.`,severity:"yellow"}); });
+    const freshAwaiting=pendingAps.filter(ap=>{ const d=ap.createdAt?Math.floor((Date.now()-new Date(ap.createdAt).getTime())/864e5):0; return d<3; }).length;
+    if (freshAwaiting) a.push({type:"approval_awaiting",msg:`${freshAwaiting} item${freshAwaiting===1?"":"s"} awaiting the client's approval.`,severity:"blue"});
   }
   return a;
 };
@@ -2032,7 +2034,33 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
     }
   };
   const handleTogglePublish = () => {
-    onUpdate({...client, landingPage:{...client.landingPage,published:!(client.landingPage&&client.landingPage.published)}});
+    const goingLive = !(client.landingPage&&client.landingPage.published);
+    const base = {...client, landingPage:{...client.landingPage,published:goingLive}};
+    // AUTO-APPROVAL (Bryson 2026-07-30: don't make me manually request it): the
+    // moment a landing page goes live it's sent to the client to approve + pings
+    // the owner. Dedupe: skip if a landing_page approval is already pending.
+    const alreadyPending = (client.approvals||[]).some(a=>a&&a.kind==="landing_page"&&a.status==="pending");
+    if (goingLive && !client.internal && !alreadyPending) {
+      const item = {id:"ap-"+Date.now().toString(36),kind:"landing_page",title:"Your new landing page",body:"Your ad landing page is ready. Take a look and approve it so we can point your ads at it — or request changes and we'll take another pass.",previewUrl:`${window.location.origin}/lp/${client.landingSlug}`,status:"pending",createdAt:new Date().toISOString(),source:"auto"};
+      base.approvals=[item,...(client.approvals||[])];
+      base.commLog=[{date:fmt(new Date()),note:`Auto-sent landing page to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
+      onUpdate(base);
+      (async()=>{
+        try{
+          const { data:{ session } }=await supabaseClient.auth.getSession();
+          const token=session&&session.access_token; if(!token) return;
+          const post=(b)=>fetch("/.netlify/functions/client-email",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(b)});
+          if(client.email){
+            const rr=await post({action:"render",type:"approval_request",ctx:{businessName:client.name,contactName:client.contactName,approvalTitle:item.title,portalUrl:client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:""}});
+            const d=await rr.json().catch(()=>({}));
+            if(d&&d.ok) await post({action:"send",to:client.email,subject:d.subject,html:d.html});
+          }
+          await post({action:"owner-alert",title:`📋 Landing page sent to ${client.name} for approval`,body:`${client.name}'s landing page is published and was just sent to them to approve. You'll be notified the instant they respond — reach out if you want to nudge them along.`});
+        }catch(e){ /* fire-and-forget */ }
+      })();
+    } else {
+      onUpdate(base);
+    }
   };
   const handleProvisionNumber = async () => {
     setCallTrack(s=>({...s,busy:true,error:null}));
