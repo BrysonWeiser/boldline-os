@@ -75,5 +75,6 @@ Netlify site that means the desktop Install button + Android "Add to Home Screen
 - **iOS launch splash (optional polish):** no `apple-touch-startup-image` tags yet, so iOS shows a brief
   plain screen on launch (harmless; skipped — Android is his current device).
 
-**Deploy note:** built + pushed on branch `claude/pwa-build-k5zm1o`. Merge to `main` (with the usual
-`rollback/*` snapshot from `deploy-rollback-workflow`) to ship it to production Netlify.
+**Deploy note:** DEPLOYED to production 2026-07-30 — merged `claude/pwa-build-k5zm1o` into `main`
+(Netlify auto-deploys `main`). Pre-merge restore point: `rollback/20260730T201705Z` (main @ `fde9f67`);
+logged in `docs/DEPLOYS.md`. Installable from the live HTTPS OS URL now.
