@@ -212,11 +212,11 @@ const makePortalHTML = (cl, pkg) => {
     : '<span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#C8A84B;background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.3);border-radius:6px;padding:2px 7px;flex-shrink:0">Needs review</span>';
   const apCardHTML = (a) => {
     const pending = a.status === "pending";
-    const preview = a.previewUrl ? `<a href="${esc(a.previewUrl)}" target="_blank" rel="noopener" style="display:inline-block;margin:2px 0 12px;font-size:12px;font-weight:700;color:#C8A84B;text-decoration:none;border-bottom:1px solid rgba(200,168,75,.4)">View ${esc(a.kind === "landing_page" ? "your landing page" : "the details")} →</a>` : "";
+    const preview = a.previewUrl ? `<a href="${esc(a.previewUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:2px 0 12px;font-size:12px;font-weight:700;color:#C8A84B;text-decoration:none;border-bottom:1px solid rgba(200,168,75,.4)">${esc(a.kind === "landing_page" ? "Open your landing page" : "Open preview")} &#8599;</a><div style="font-size:10px;color:#6B7280;margin:-6px 0 12px">Opens in a new tab.</div>` : "";
     const actions = pending
       ? `<textarea id="apnote-${esc(a.id)}" class="inp" rows="2" placeholder="Optional note — add this if you're requesting changes…" style="margin-top:4px"></textarea><div style="display:flex;gap:8px"><button class="btn" style="margin-top:0;flex:1;background:transparent;border-color:rgba(255,255,255,.15);color:#9CA3AF" onclick="decideApproval('${esc(a.id)}','changes',this)">Request Changes</button><button class="btn" style="margin-top:0;flex:1" onclick="decideApproval('${esc(a.id)}','approved',this)">✓ Approve</button></div>`
       : (a.note ? `<div style="font-size:11px;color:#9CA3AF;margin-top:6px;line-height:1.5">Your note: ${esc(a.note)}</div>` : "");
-    return `<div class="card" id="ap-card-${esc(a.id)}"><div style="display:flex;align-items:center;gap:8px;margin-bottom:${a.body || preview ? "8px" : "0"}"><div style="font-size:14px;font-weight:700;color:#F5F3ED;flex:1;min-width:0">${esc(a.title || "Approval needed")}</div>${apPill(a.status)}</div>${a.body ? `<div style="font-size:12px;color:#9CA3AF;line-height:1.6;margin-bottom:10px">${esc(a.body)}</div>` : ""}${preview}${actions}</div>`;
+    return `<div class="card" id="ap-card-${esc(a.id)}"><div style="display:flex;align-items:center;gap:8px;margin-bottom:${a.body || preview ? "8px" : "0"}"><div style="font-size:14px;font-weight:700;color:#F5F3ED;flex:1;min-width:0">${esc(a.title || "Approval needed")}</div>${apPill(a.status)}</div>${a.body ? `<div style="font-size:12.5px;color:#C7CBD9;line-height:1.65;margin-bottom:12px">${esc(a.body).replace(/\n/g, "<br>")}</div>` : ""}${preview}${actions}</div>`;
   };
   const apOrder = { pending: 0, changes: 1, approved: 2 };
   const apPanel = approvals.length
@@ -325,6 +325,18 @@ const handler = async (event) => {
         const apData = { ...data.data, approvals: next, commLog: [logEntry, ...((data.data.commLog) || [])] };
         const { error: apErr } = await supabaseAdmin.from("clients").update({ data: apData, updated_at: new Date().toISOString() }).eq("id", data.id);
         if (apErr) { console.error("Portal approval save failed:", apErr); return { statusCode: 500, body: JSON.stringify({ ok: false, error: "save failed" }) }; }
+        // Notify the owner IMMEDIATELY so they can follow up (email + SMS-if-enabled). Best-effort.
+        try {
+          const { dispatchAlert } = await import("../lib/alerts-shared.mjs");
+          const who = data.data.name || "A client";
+          await dispatchAlert({
+            title: decision === "approved" ? `✅ ${who} approved: ${title}` : `📝 ${who} requested changes: ${title}`,
+            body: decision === "approved"
+              ? `${who} just approved "${title}" in their portal. You're clear to move forward — reach out if there's a next step.`
+              : `${who} requested changes on "${title}" in their portal.${note ? ` Their note: "${note}"` : ""} Follow up with them.`,
+            severity: "yellow",
+          });
+        } catch (e) { console.warn("approval owner-alert failed:", e && e.message); }
         return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true }) };
       }
 
