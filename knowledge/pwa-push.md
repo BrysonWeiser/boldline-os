@@ -4,7 +4,7 @@ topic: OS app
 task: web-push notifications — make OS alerts buzz Bryson's phone/desktop; set up VAPID keys + the push_subscriptions table; debug push not arriving
 keywords: [web push, push notification, VAPID, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, push_subscriptions, pushManager, service worker push, dispatchAlert, sendPushToAll, push-shared, notificationclick, PushToggle, applicationServerKey, userVisibleOnly]
 status: verified
-summary: Phase 2 of the PWA is BUILT (2026-07-31) — OS alerts now deliver as phone/desktop push notifications via a third fail-soft channel inside dispatchAlert, so EVERY major-issue alert (billing, approvals, perf crash, no-leads, CPL blowout, login, job failures, upgrade requests) reaches subscribed devices automatically. Needs one-time setup: 2 Netlify env vars (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY) + a Supabase push_subscriptions table. Dormant + harmless until configured.
+summary: Phase 2 of the PWA is BUILT + device-verified working end-to-end (2026-07-31) — OS alerts deliver as phone/desktop push notifications via a third fail-soft channel inside dispatchAlert, so EVERY major-issue alert (billing, approvals, perf crash, no-leads, CPL blowout, login, job failures, upgrade requests) reaches subscribed devices automatically. Setup done: 2 Netlify env vars (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY) + a Supabase push_subscriptions table. See the "Real-world setup gotchas" section — the code was correct throughout; every failure was a paste error or an Android/Windows OS notification setting.
 verified: 2026-07-31
 ---
 
@@ -72,6 +72,37 @@ server yet", sends no-op):**
   `=`/`:` / quotes / whitespace and takes the trailing token), so a name-prefixed or newline-padded paste
   self-heals — no Netlify re-edit needed, just re-tap Turn on after the redeploy. A truly invalid-key
   error that ISN'T a paste artifact means the value is genuinely wrong.
+
+**Real-world setup gotchas (all hit + resolved 2026-07-31 — the CODE was correct throughout; every
+failure was a paste error or an OS-level notification setting):**
+- **`sent:1, failed:0` is the key signal.** web-push ENCRYPTS the payload with the subscription's keys
+  BEFORE the HTTP call, so a bad/missing subscription fails locally (failed:1). `sent:1` therefore proves
+  the subscription is well-formed AND the push service (FCM) accepted it — so any "no notification" from
+  that point on is device-side display, NOT our code.
+- **Env-var paste error:** see the `cleanKey` gotcha above (name pasted into Netlify's value field).
+- **Android (Samsung Galaxy) ate the push silently — the #1 mobile culprit:** Samsung's battery manager
+  puts Chrome to "sleep" and drops web pushes. Fix on the phone: **Settings → Apps → Chrome → Battery →
+  Unrestricted**, and **Settings → Battery → Background usage limits → Sleeping/Deep-sleeping apps →
+  remove Chrome**. (Also confirm Chrome + the site's notifications are allowed and DND is off.)
+- **Windows desktop showed nothing** until Windows notifications were enabled (Win+I → System →
+  Notifications → on + Chrome on, Do-not-disturb off) — DevTools → Application → Service Workers → the
+  **Push** button fires the SW handler locally (no FCM) and is the definitive "does display work" test.
+- **Notification opened the browser, not the app:** the subscription was created in the Chrome TAB, and/or
+  the site was a home-screen SHORTCUT, not an installed WebAPK. Fix: install via Chrome ⋮ → **"Install and
+  create shortcut"** (newer Chrome merged the label) → the app launches full-screen with no address bar,
+  then **subscribe from INSIDE the installed app**. Note: the tab and the installed PWA have SEPARATE push
+  subscriptions for the same origin, so subscribing in both leaves two rows (dupe notifications) — turn one
+  off, or clear the tab's. There is no reliable server-side same-device dedupe; multiple rows are the
+  legitimate multi-DEVICE model.
+- **Status-bar icon was a white box:** Android renders the small status-bar icon from the ALPHA channel
+  only (a white silhouette), so a solid app icon becomes a white square. Fix: a dedicated monochrome
+  transparent **`badge-96.png`** (BL monogram silhouette) passed as `badge:`; the full-color `icon:` still
+  shows in the expanded notification. (Can't show a full-color icon in the status bar — Android limitation.)
+- **Notification `tag`:** do NOT set a shared per-severity tag (`"boldline-"+severity`) — two same-severity
+  alerts then collapse into one (second replaces first). Left tag unset so each alert is its own notification.
+- **`urgency:high`** on `webpush.sendNotification` helps the push service wake the device promptly (mobile).
+- **Diagnostics:** a temporary `?action=debug` (subscription count / push-service host / hasKeys — no
+  secrets) was added to inspect stored subs, then REMOVED after verification. Re-add from git if needed.
 
 **Verified (2026-07-31):** all modules `node --check` clean; `web-push` imports; index.html Babel-transforms
 clean; full app boots with 0 pageerrors (render harness); `PushToggle` renders in the bell sheet on-brand

@@ -8,7 +8,7 @@
  *
  * Bump CACHE_VERSION on any breaking change to force a clean cache rollover.
  */
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
@@ -73,13 +73,12 @@ self.addEventListener("push", (event) => {
   const title = data.title || "BoldLine OS";
   event.waitUntil(self.registration.showNotification(title, {
     body: data.body || "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: "boldline-" + (data.severity || "alert"),
-    renotify: true,
-    requireInteraction: true, // stay on screen until tapped — don't let an alert slip by
+    icon: "/icon-192.png",       // large full-color icon shown in the expanded notification
+    badge: "/badge-96.png",      // monochrome status-bar silhouette (Android uses alpha only)
+    requireInteraction: true,    // stay on screen until tapped — don't let an alert slip by
     silent: false,
     vibrate: [120, 60, 120, 60, 120],
+    // no shared tag: each alert shows as its own notification instead of collapsing
     data: { url: data.url || "/" },
   }));
 });
