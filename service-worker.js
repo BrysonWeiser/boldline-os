@@ -8,7 +8,7 @@
  *
  * Bump CACHE_VERSION on any breaking change to force a clean cache rollover.
  */
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
@@ -77,7 +77,9 @@ self.addEventListener("push", (event) => {
     badge: "/icon-192.png",
     tag: "boldline-" + (data.severity || "alert"),
     renotify: true,
-    vibrate: [80, 40, 80],
+    requireInteraction: true, // stay on screen until tapped — don't let an alert slip by
+    silent: false,
+    vibrate: [120, 60, 120, 60, 120],
     data: { url: data.url || "/" },
   }));
 });
