@@ -65,6 +65,13 @@ server yet", sends no-op):**
   existing installs automatically.
 - Changing VAPID keys later invalidates all stored subscriptions (they'd 410 and auto-prune); users just
   re-tap Turn on.
+- **Paste gotcha (hit 2026-07-31):** Bryson pasted the env-var NAME into Netlify's VALUE field, so
+  `VAPID_PUBLIC_KEY`'s value was `"VAPID_PUBLIC_KEY BAbSh…"`. The browser then rejected it with
+  *"Failed to execute 'subscribe' on 'PushManager': The provided applicationServerKey is not valid."*
+  Fix: `push-shared.mjs` now runs both keys through a `cleanKey()` normalizer (strips a leading label /
+  `=`/`:` / quotes / whitespace and takes the trailing token), so a name-prefixed or newline-padded paste
+  self-heals — no Netlify re-edit needed, just re-tap Turn on after the redeploy. A truly invalid-key
+  error that ISN'T a paste artifact means the value is genuinely wrong.
 
 **Verified (2026-07-31):** all modules `node --check` clean; `web-push` imports; index.html Babel-transforms
 clean; full app boots with 0 pageerrors (render harness); `PushToggle` renders in the bell sheet on-brand

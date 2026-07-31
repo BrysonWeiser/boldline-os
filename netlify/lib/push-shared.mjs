@@ -21,12 +21,28 @@ const VAPID_SUBJECT = "https://boldlinemedia.netlify.app";
 export const pushConfigured = () =>
   !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-export const getVapidPublicKey = () => process.env.VAPID_PUBLIC_KEY || "";
+// Env values sometimes arrive with the key NAME accidentally pasted in front of the
+// value (Netlify's value field), or with surrounding whitespace/quotes. Normalize so
+// a "VAPID_PUBLIC_KEY BAbSh…" paste still yields the real key: drop a leading label,
+// strip quotes, and take the trailing token (VAPID keys never contain whitespace).
+const cleanKey = (v, name) => {
+  if (!v) return "";
+  let s = String(v).trim().replace(/^['"]|['"]$/g, "").trim();
+  s = s.replace(new RegExp("^" + name + "\\s*[=:]?\\s*", "i"), "").trim();
+  const parts = s.split(/\s+/);
+  return parts[parts.length - 1].replace(/^['"]|['"]$/g, "");
+};
+
+export const getVapidPublicKey = () => cleanKey(process.env.VAPID_PUBLIC_KEY, "VAPID_PUBLIC_KEY");
 
 let vapidReady = false;
 const ensureVapid = () => {
   if (vapidReady) return;
-  webpush.setVapidDetails(VAPID_SUBJECT, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+  webpush.setVapidDetails(
+    VAPID_SUBJECT,
+    cleanKey(process.env.VAPID_PUBLIC_KEY, "VAPID_PUBLIC_KEY"),
+    cleanKey(process.env.VAPID_PRIVATE_KEY, "VAPID_PRIVATE_KEY"),
+  );
   vapidReady = true;
 };
 
