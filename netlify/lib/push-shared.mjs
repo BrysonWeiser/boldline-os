@@ -84,7 +84,7 @@ export const sendPushToAll = async ({ title, body = "", severity = "red", url = 
   const payload = JSON.stringify({ title, body, severity, url });
   await Promise.all(subs.map(async (row) => {
     try {
-      await webpush.sendNotification(row.subscription, payload, { TTL: 3600 });
+      await webpush.sendNotification(row.subscription, payload, { TTL: 3600, urgency: "high" });
       out.sent++;
     } catch (e) {
       const code = e && e.statusCode;
