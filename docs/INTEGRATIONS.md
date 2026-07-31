@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 73 task-keyed entries under `knowledge/`. They surface automatically via the
+> 74 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**73 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**74 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -231,9 +231,12 @@
 - **[pwa-build](../knowledge/pwa-build.md)** &mdash; &#9989; verified &middot; 2026-07-30  
   Phase 1 of the PWA is BUILT + verified (2026-07-30) — the OS is now installable on desktop/Android/iOS from an icon. Added manifest.webmanifest + service-worker.js + PWA icons at repo root, PWA meta in index.html <head>, SW registration script, and netlify.toml headers. SW is network-first (always fresh online, cached shell offline). Phase 2 (web-push to phone) still pending.  
   <sub>*task:* install the BoldLine OS as an app on phone/desktop, or change the app icon, manifest, or service worker &nbsp;|&nbsp; *keywords:* pwa, manifest, webmanifest, service-worker, service worker, installable, add to home screen, standalone, maskable, apple-touch-icon, theme-color, install prompt, offline, network-first</sub>
-- **[pwa-plan](../knowledge/pwa-plan.md)** &mdash; &#9989; verified &middot; 2026-07-30  
-  Approved plan (Bryson, 2026-07-29/30) to turn the OS (index.html, served at the repo-root Netlify site) into an installable PWA so it launches from an icon on his phone + computer, then wire web-push so OS alerts hit his phone. UPDATE 2026-07-30 — **Phase 1 (installable) is BUILT + verified; see `pwa-build` for the implementation.** Phase 2 (web-push) still pending. Switch to app.boldlinemedia.com once the domain transfer finishes (he re-installs once — trivial).  
+- **[pwa-plan](../knowledge/pwa-plan.md)** &mdash; &#9989; verified &middot; 2026-07-31  
+  Approved plan (Bryson, 2026-07-29/30) to turn the OS (index.html, served at the repo-root Netlify site) into an installable PWA so it launches from an icon on his phone + computer, then wire web-push so OS alerts hit his phone. UPDATE 2026-07-31 — **BOTH phases BUILT + deployed: Phase 1 (installable) → `pwa-build`; Phase 2 (web-push) → `pwa-push` (needs a one-time VAPID env + Supabase table setup to activate).** Remaining: switch to app.boldlinemedia.com once the domain transfer finishes (he re-installs once — trivial).  
   <sub>*task:* turn the BoldLine OS into an installable desktop + mobile app (PWA) with push notifications &nbsp;|&nbsp; *keywords:* pwa, app, installable, manifest, service worker, add to home screen, desktop app, mobile app, push notifications, web push, VAPID, standalone, icon</sub>
+- **[pwa-push](../knowledge/pwa-push.md)** &mdash; &#9989; verified &middot; 2026-07-31  
+  Phase 2 of the PWA is BUILT (2026-07-31) — OS alerts now deliver as phone/desktop push notifications via a third fail-soft channel inside dispatchAlert, so EVERY major-issue alert (billing, approvals, perf crash, no-leads, CPL blowout, login, job failures, upgrade requests) reaches subscribed devices automatically. Needs one-time setup: 2 Netlify env vars (VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY) + a Supabase push_subscriptions table. Dormant + harmless until configured.  
+  <sub>*task:* web-push notifications — make OS alerts buzz Bryson's phone/desktop; set up VAPID keys + the push_subscriptions table; debug push not arriving &nbsp;|&nbsp; *keywords:* web push, push notification, VAPID, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, push_subscriptions, pushManager, service worker push, dispatchAlert, sendPushToAll, push-shared, notificationclick, PushToggle, applicationServerKey, userVisibleOnly</sub>
 - **[reports-cadence](../knowledge/reports-cadence.md)** &mdash; &#9989; verified &middot; 2026-07-25  
   Three scheduled report jobs, restructured 2026-07-25 to Bryson's spec. WEEKLY (Mon) = a client-facing weekly report for weekly-tier clients + an internal briefing to Bryson on EVERY active client (even monthly-tier, so he stays current). MONTHLY (per-contract-date, daily-gated) = the client-facing monthly report for monthly-tier clients + an exact COPY to Bryson of what the client got. OS HEALTH = ARIA's business+system report with OS-improvement recommendations, now MONTHLY (1st) and owner-only — this is Bryson's "monthly report: only ARIA, about the OS." All in netlify/lib/report-shared.mjs; schedules in netlify.toml.  
   <sub>*task:* who gets which report and when — the weekly/monthly client reports, Bryson's internal briefings, and ARIA's monthly OS health report &nbsp;|&nbsp; *keywords:* reports, weekly report, monthly report, OS health report, ARIA report, internal briefing, cadence, report-shared, runReportJob, runOSHealthReport, lastOwnerBriefing, lastReportSent, owner copy</sub>
