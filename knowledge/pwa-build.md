@@ -11,7 +11,9 @@ verified: 2026-07-30
 **What Phase 1 shipped (installable app):** the OS (`index.html`, repo-root Netlify site) is now an
 installable PWA. Files added **at the repo root** (the OS site's web root — NOT marketing-site/):
 
-- **`manifest.webmanifest`** — `name` "BoldLine OS", `short_name` "BoldLine", `display: standalone`,
+- **`manifest.webmanifest`** — `name` "BoldLine OS", `short_name` "BoldLine OS" (the home-screen icon
+  label; changed from "BoldLine" on 2026-07-31 — installed WebAPKs update the label on Chrome's periodic
+  manifest refresh or on reinstall, not instantly), `display: standalone`,
   `start_url`/`scope` `/`, `theme_color`/`background_color` `#070810` (matches the app bg), `id: "/"`,
   and 4 icons (192 + 512, each in `purpose: "any"` and `purpose: "maskable"`).
 - **`service-worker.js`** — **network-first** (see strategy below). `CACHE_VERSION = "v1"` — bump it to
