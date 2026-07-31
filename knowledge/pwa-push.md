@@ -101,8 +101,15 @@ failure was a paste error or an OS-level notification setting):**
 - **Notification `tag`:** do NOT set a shared per-severity tag (`"boldline-"+severity`) — two same-severity
   alerts then collapse into one (second replaces first). Left tag unset so each alert is its own notification.
 - **`urgency:high`** on `webpush.sendNotification` helps the push service wake the device promptly (mobile).
-- **Diagnostics:** a temporary `?action=debug` (subscription count / push-service host / hasKeys — no
-  secrets) was added to inspect stored subs, then REMOVED after verification. Re-add from git if needed.
+- **Duplicate subscriptions on one phone:** browser-side "turn off" via Chrome/Android settings does NOT
+  delete the stored DB row (only the in-app Turn-off button, which calls `?action=unsubscribe`, does), so
+  duplicates can linger and each still gets `sent`. Resolved with a TEMPORARY `?action=reset` (wipe all)
+  then a single re-subscribe from the installed app. `sent:0 "no subscriptions"` after a reset + a failed
+  Turn-on means the site's notification permission is BLOCKED — re-allow it (long-press app → App info →
+  Notifications → On, or Chrome → Site settings → Notifications → the site → Allow), reopen the app, Turn on.
+- **Diagnostics:** temporary `?action=debug` (sub count / push-service host / hasKeys — no secrets) and
+  `?action=reset` (wipe all subs) were added to troubleshoot, then REMOVED after verification. Re-add from
+  git history if ever needed again.
 
 **Verified (2026-07-31):** all modules `node --check` clean; `web-push` imports; index.html Babel-transforms
 clean; full app boots with 0 pageerrors (render harness); `PushToggle` renders in the bell sheet on-brand

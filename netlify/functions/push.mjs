@@ -5,7 +5,7 @@
 // service worker, then POST ?action=subscribe with the subscription to store it.
 // ?action=test lets the owner verify delivery from the OS UI once configured.
 
-import { getVapidPublicKey, pushConfigured, saveSubscription, deleteSubscription, sendPushToAll, listSubscriptions } from "../lib/push-shared.mjs";
+import { getVapidPublicKey, pushConfigured, saveSubscription, deleteSubscription, sendPushToAll } from "../lib/push-shared.mjs";
 
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -33,16 +33,6 @@ export default async (req) => {
     if (action === "unsubscribe") {
       try { await deleteSubscription(body && body.endpoint); return json({ ok: true }); }
       catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); }
-    }
-
-    // TEMPORARY one-shot cleanup: wipe every stored subscription so the owner can
-    // re-subscribe once from the installed app for a single clean device. Remove after use.
-    if (action === "reset") {
-      try {
-        const subs = await listSubscriptions();
-        for (const r of subs) await deleteSubscription(r.subscription && r.subscription.endpoint);
-        return json({ ok: true, deleted: subs.length });
-      } catch (e) { return json({ ok: false, error: String((e && e.message) || e) }, 500); }
     }
 
     if (action === "test") {
