@@ -8,7 +8,7 @@
  *
  * Bump CACHE_VERSION on any breaking change to force a clean cache rollover.
  */
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
@@ -60,4 +60,40 @@ self.addEventListener("fetch", (event) => {
       })
       .catch(() => caches.match(req))
   );
+});
+
+/* ── Web Push (PWA Phase 2): show OS alerts as phone/desktop notifications. ──
+ * The server (push-shared.mjs) sends a JSON payload {title, body, severity, url};
+ * we always show a notification (required under userVisibleOnly), and a click
+ * focuses the open OS window or opens it. */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch { data = { title: "BoldLine OS", body: event.data ? event.data.text() : "" }; }
+  const title = data.title || "BoldLine OS";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: "boldline-" + (data.severity || "alert"),
+    renotify: true,
+    vibrate: [80, 40, 80],
+    data: { url: data.url || "/" },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of wins) {
+      if ("focus" in c) {
+        await c.focus();
+        if (target && target !== "/" && "navigate" in c) c.navigate(target).catch(() => {});
+        return;
+      }
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(target);
+  })());
 });

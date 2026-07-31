@@ -52,6 +52,14 @@ export const dispatchAlert = async ({ title, body = "", severity = "red", smsTex
     result.sms = "sent";
   } catch (e) { result.sms = "failed"; console.error("dispatchAlert sms failed:", e.message); }
 
+  // Web Push (PWA Phase 2): deliver to the owner's installed app / subscribed
+  // devices. Lazy-loaded so web-push only initializes when an alert actually fires,
+  // and fully fail-soft (no subscriptions / unconfigured → harmless no-op).
+  try {
+    const { sendPushToAll } = await import("./push-shared.mjs");
+    result.push = await sendPushToAll({ title, body: body || smsText || title, severity, url: "/" });
+  } catch (e) { result.push = "failed"; console.error("dispatchAlert push failed:", e.message); }
+
   return result;
 };
 
