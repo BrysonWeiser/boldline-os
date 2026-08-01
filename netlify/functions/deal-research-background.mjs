@@ -69,13 +69,14 @@ const runResearch = async (input) => {
   let messages = [{ role: "user", content: userLines.join("\n") }];
   let response;
   // Web search runs a server-side loop; if it hits the internal cap it returns
-  // pause_turn — re-send with the assistant turn appended to resume (up to 6x).
-  for (let i = 0; i < 6; i++) {
+  // pause_turn — re-send with the assistant turn appended to resume. Keep max_uses
+  // modest so a run reliably finishes inside the OS's polling window.
+  for (let i = 0; i < 4; i++) {
     response = await anthropic.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 12000,
       thinking: { type: "adaptive" },
-      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 6 }],
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
       system: buildSystem(leadFee),
       messages,
     });

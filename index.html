@@ -1356,8 +1356,10 @@ function DealPrepScreen({onBack,isDesktop}){
   const [state,setState]=useState("form"); // form | working | done | error
   const [msg,setMsg]=useState("");
   const [result,setResult]=useState(null);
+  const [recent,setRecent]=useState(null); // null = hidden; [] = loaded
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
+  const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
   const set=(key)=>(e)=>{ const v=e.target.value; setForm(f=>({...f,[key]:v})); };
 
   const run=async()=>{
@@ -1378,6 +1380,20 @@ function DealPrepScreen({onBack,isDesktop}){
         else if(r&&r.ok===false&&r.error){ clearInterval(pollRef.current); setState("error"); setMsg(/deal_briefs|relation|does not exist|schema cache|could not find/i.test(r.error) ? "Setup needed: the deal_briefs table isn't in Supabase yet. Run the setup SQL (see the deal_briefs table step), then try again." : ("Server error: "+r.error)); }
       }catch{}
     },3000);
+  };
+
+  const toggleRecent=async()=>{
+    if(recent){ setRecent(null); return; }
+    const token=await authToken(); if(!token) return;
+    try{ const r=await fetch("/.netlify/functions/deal-research?action=recent",{headers:{"Authorization":"Bearer "+token}}).then(x=>x.json()); setRecent((r&&r.briefs)||[]); }
+    catch{ setRecent([]); }
+  };
+  const openBrief=async(b)=>{
+    if(b.status!=="done"){ setState("error"); setMsg(b.status==="error"?"That brief errored out — run it again.":"That brief is still running — give it a moment."); return; }
+    const token=await authToken(); if(!token) return;
+    try{ const r=await fetch("/.netlify/functions/deal-research?action=get&id="+encodeURIComponent(b.id),{headers:{"Authorization":"Bearer "+token}}).then(x=>x.json());
+      if(r&&r.status==="done"&&r.result){ setResult({...r.result,_prospect:(b.input&&b.input.companyName)||"Prospect"}); setState("done"); setRecent(null); } }
+    catch{}
   };
 
   const leadFee=result&&result.nicheLeadFee;
@@ -1411,6 +1427,21 @@ function DealPrepScreen({onBack,isDesktop}){
             <button onClick={run} disabled={state==="working"} style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",background:state==="working"?"rgba(255,255,255,.06)":C.gradB,color:state==="working"?C.textMuted:"#1a1400",cursor:state==="working"?"default":"pointer"}}>{state==="working"?"Researching…":"🎯 Research & Build My Pitch"}</button>
             {msg&&<div style={{fontSize:12,color:state==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
           </div>
+        </div>
+      )}
+
+      {(state==="form"||state==="error")&&(
+        <div style={{maxWidth:640,marginTop:10}}>
+          <button onClick={toggleRecent} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:600,cursor:"pointer",padding:"4px 2px"}}>{recent?"Hide recent briefs":"↺ Pull up a recent brief"}</button>
+          {recent&&(recent.length?recent.map(b=>(
+            <button key={b.id} onClick={()=>openBrief(b)} style={{display:"flex",width:"100%",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginTop:5,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{...S.t13b,...S.ovh}}>{(b.input&&b.input.companyName)||"—"}</div>
+                <div style={{fontSize:10.5,color:C.textMuted}}>{(b.input&&b.input.niche)||""}</div>
+              </div>
+              <span style={{fontSize:11,fontWeight:700,color:b.status==="done"?C.green:b.status==="error"?C.red:C.amber,flexShrink:0}}>{b.status==="done"?"View ›":b.status}</span>
+            </button>
+          )):<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs yet.</div>)}
         </div>
       )}
 
