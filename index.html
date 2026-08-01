@@ -1370,11 +1370,12 @@ function DealPrepScreen({onBack,isDesktop}){
     fetch("/.netlify/functions/deal-research-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({id,...form})}).catch(()=>{});
     const started=Date.now();
     pollRef.current=setInterval(async()=>{
-      if(Date.now()-started>180000){ clearInterval(pollRef.current); setState("error"); setMsg("This is taking longer than expected — it may still finish. Try again in a moment."); return; }
+      if(Date.now()-started>240000){ clearInterval(pollRef.current); setState("error"); setMsg("This is taking longer than expected — it may still finish. Try again in a moment."); return; }
       try{
         const r=await fetch("/.netlify/functions/deal-research?action=get&id="+encodeURIComponent(id),{headers:{"Authorization":"Bearer "+token}}).then(x=>x.json());
         if(r&&r.status==="done"&&r.result){ clearInterval(pollRef.current); setResult({...r.result,_prospect:form.companyName}); setState("done"); }
         else if(r&&r.status==="error"){ clearInterval(pollRef.current); setState("error"); setMsg(r.error||"The research run hit an error. Try again."); }
+        else if(r&&r.ok===false&&r.error){ clearInterval(pollRef.current); setState("error"); setMsg(/deal_briefs|relation|does not exist|schema cache|could not find/i.test(r.error) ? "Setup needed: the deal_briefs table isn't in Supabase yet. Run the setup SQL (see the deal_briefs table step), then try again." : ("Server error: "+r.error)); }
       }catch{}
     },3000);
   };
