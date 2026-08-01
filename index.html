@@ -1330,7 +1330,125 @@ function LandingPreview({client}){
   return <iframe srcDoc={html} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:520,border:"none",display:"block",background:"#fff",opacity:state==="ok"?1:.45,transition:"opacity .2s"}}/>;
 }
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenMyAds,hasMyAccount,isDesktop}) {
+// ─── DEAL PREP (pre-call research + package recommendation) ───────────────────
+// Bryson types a prospect's details; a Netlify BACKGROUND function web-researches
+// the company + recommends a package (netlify/functions/deal-research*.mjs). We
+// kick it off (fire-and-forget 202), then poll deal-research(get) until it lands.
+const briefMdToNodes = (md) => {
+  const lines = String(md||"").replace(/\r\n/g,"\n").split("\n");
+  const out=[]; let bullets=null; let k=0;
+  const inline=(t)=>String(t).split(/(\*\*[^*]+\*\*)/g).map((p,i)=>
+    p.startsWith("**")&&p.endsWith("**") ? <strong key={i} style={{color:C.text}}>{p.slice(2,-2)}</strong> : <React.Fragment key={i}>{p}</React.Fragment>);
+  const flush=()=>{ if(bullets){ out.push(<ul key={"u"+(k++)} style={{margin:"0 0 12px",paddingLeft:18}}>{bullets.map((b,i)=><li key={i} style={{fontSize:13,color:C.textDim,lineHeight:1.55,marginBottom:5}}>{inline(b)}</li>)}</ul>); bullets=null; } };
+  for(const raw of lines){ const line=raw.trim();
+    if(!line){ flush(); continue; }
+    const h=line.match(/^\*\*(.+?)\*\*:?$/);
+    if(h){ flush(); out.push(<div key={"h"+(k++)} style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold,margin:"18px 0 8px",paddingBottom:5,borderBottom:`1px solid ${C.gold}22`}}>{h[1]}</div>); continue; }
+    const b=line.match(/^[-*]\s+(.*)$/);
+    if(b){ (bullets=bullets||[]).push(b[1]); continue; }
+    flush(); out.push(<p key={"p"+(k++)} style={{fontSize:13,color:C.textDim,lineHeight:1.6,margin:"0 0 12px"}}>{inline(line)}</p>);
+  }
+  flush(); return out;
+};
+
+function DealPrepScreen({onBack,isDesktop}){
+  const [form,setForm]=useState({companyName:"",niche:"",website:"",location:"",notes:""});
+  const [state,setState]=useState("form"); // form | working | done | error
+  const [msg,setMsg]=useState("");
+  const [result,setResult]=useState(null);
+  const pollRef=useRef(null);
+  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
+  const set=(key)=>(e)=>{ const v=e.target.value; setForm(f=>({...f,[key]:v})); };
+
+  const run=async()=>{
+    if(!form.companyName.trim()||!form.niche.trim()){ setMsg("Company name and niche are required."); return; }
+    setState("working"); setMsg("Researching the company and building your briefing — this takes about 30–60 seconds."); setResult(null);
+    const id="brief-"+uid()+Date.now().toString(36);
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token){ setState("error"); setMsg("Your session expired — refresh the page and try again."); return; }
+    fetch("/.netlify/functions/deal-research-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({id,...form})}).catch(()=>{});
+    const started=Date.now();
+    pollRef.current=setInterval(async()=>{
+      if(Date.now()-started>180000){ clearInterval(pollRef.current); setState("error"); setMsg("This is taking longer than expected — it may still finish. Try again in a moment."); return; }
+      try{
+        const r=await fetch("/.netlify/functions/deal-research?action=get&id="+encodeURIComponent(id),{headers:{"Authorization":"Bearer "+token}}).then(x=>x.json());
+        if(r&&r.status==="done"&&r.result){ clearInterval(pollRef.current); setResult({...r.result,_prospect:form.companyName}); setState("done"); }
+        else if(r&&r.status==="error"){ clearInterval(pollRef.current); setState("error"); setMsg(r.error||"The research run hit an error. Try again."); }
+      }catch{}
+    },3000);
+  };
+
+  const leadFee=result&&result.nicheLeadFee;
+  const recId=result&&result.recommendedPackageId;
+  const back = !isDesktop && (
+    <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
+  );
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+        {back}
+        <div>
+          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Deal Prep</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Research a prospect and get your pitch before the call.</div>
+        </div>
+      </div>
+
+      {(state==="form"||state==="working"||state==="error")&&(
+        <div style={{...card,maxWidth:640,marginTop:14}}>
+          <div style={S.col12}>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Company name *</div><input value={form.companyName} onChange={set("companyName")} placeholder="e.g. Summit Roofing" style={inp}/></div>
+              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Industry / niche *</div><input value={form.niche} onChange={set("niche")} placeholder="e.g. Roofing, Med Spa, Personal Injury Law" style={inp}/></div>
+            </div>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Website <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><input value={form.website} onChange={set("website")} placeholder="theircompany.com" style={inp}/></div>
+              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Location <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><input value={form.location} onChange={set("location")} placeholder="Phoenix, AZ" style={inp}/></div>
+            </div>
+            <div><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Anything you already know <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><textarea value={form.notes} onChange={set("notes")} placeholder="Owner's name, how you got the lead, budget hints, what they said…" rows={3} style={{...inp,resize:"vertical",fontFamily:"inherit"}}/></div>
+            <button onClick={run} disabled={state==="working"} style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",background:state==="working"?"rgba(255,255,255,.06)":C.gradB,color:state==="working"?C.textMuted:"#1a1400",cursor:state==="working"?"default":"pointer"}}>{state==="working"?"Researching…":"🎯 Research & Build My Pitch"}</button>
+            {msg&&<div style={{fontSize:12,color:state==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
+          </div>
+        </div>
+      )}
+
+      {state==="done"&&result&&(
+        <div style={{maxWidth:720,marginTop:14}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <div style={{fontSize:13,color:C.textDim}}>Briefing for <span style={{color:C.text,fontWeight:700}}>{result._prospect}</span></div>
+            <button onClick={()=>{setState("form");setResult(null);setMsg("");}} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>+ New prospect</button>
+          </div>
+          <div style={{...card}}>{briefMdToNodes(result.brief)}</div>
+          <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold,margin:"22px 0 10px"}}>Packages {leadFee?`· $${leadFee}/lead for this niche`:""}</div>
+          {[["Google Ads","google"],["Meta Ads","meta"],["Google + Meta","combined"],["E-commerce","ecom"]].map(([label,key])=>(
+            <div key={key} style={{marginBottom:12}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>{label}</div>
+              {(PACKAGES_DB[key]||[]).map(pkg=>{ const rec=pkg.id===recId; return (
+                <div key={pkg.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginBottom:5,border:`1px solid ${rec?C.gold+"66":C.border}`,background:rec?"rgba(200,168,75,0.08)":C.bg3}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                      <span style={{fontSize:12.5,fontWeight:700,color:C.text}}>{pkg.name}</span>
+                      {rec&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:"#1a1400",background:C.gradB,padding:"2px 6px",borderRadius:5}}>★ Recommended</span>}
+                    </div>
+                    <div style={{fontSize:10.5,color:C.textMuted,marginTop:2}}>ad spend {pkg.adSpend}</div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${pkg.price}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/mo</span></div>
+                    <div style={{fontSize:9.5,color:C.textMuted}}>${pkg.setup} setup{pkg.leadFee&&leadFee?` · $${leadFee}/lead`:""}</div>
+                  </div>
+                </div>
+              );})}
+            </div>
+          ))}
+          <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,hasMyAccount,isDesktop}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -1386,6 +1504,16 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenM
           <button onClick={onLogout} style={{padding:"6px 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Log Out</button>
         </div>
       )}
+
+      {/* Deal Prep entry — research a prospect before a sales call */}
+      <button onClick={onDealPrep} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"13px 15px",borderRadius:13,marginBottom:16,border:`1px solid ${C.gold}33`,background:"linear-gradient(135deg,rgba(200,168,75,0.13),rgba(200,168,75,0.03))",cursor:"pointer",textAlign:"left"}}>
+        <div style={{width:38,height:38,borderRadius:10,background:C.gradB,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:18}}>🎯</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:800,color:C.text}}>Deal Prep</div>
+          <div style={{fontSize:11.5,color:C.textDim,marginTop:1}}>Research a prospect + get your pitch before a call</div>
+        </div>
+        <IconChevron size={16} color={C.gold}/>
+      </button>
 
       {/* MRR hero + KPI tiles. Mobile: hero on top, 3-up stats below. Desktop: one row. */}
       {(()=>{
@@ -5929,7 +6057,7 @@ function useIsDesktop(bp=1024){
 // ─── DESKTOP SIDEBAR ──────────────────────────────────────────────────────────
 // Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden
 // there. Same destinations as BottomNav plus a first-class Revenue entry.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -5966,6 +6094,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
         <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
         <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
+        <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
       </div>
       <div style={{height:1,background:C.border,margin:"16px 6px"}}/>
       {/* Tools */}
@@ -6215,10 +6344,11 @@ function App({onLogout}) {
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>setScreen("dealprep")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
+        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>setScreen("dealprep")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
+        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
