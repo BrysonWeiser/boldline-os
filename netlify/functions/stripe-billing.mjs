@@ -32,6 +32,11 @@
 //          term-discount clawback) as an auto-charged standalone invoice and
 //          sets the subscription to cancel at period end. Returns
 //          { ok, invoiceId, invoiceUrl, paid }.
+//   { action:"charge-leads", customerId, count, amount, clientName? }
+//       -> bills a batch of qualified leads (count × per-lead rate = amount) as a
+//          single pending invoice item that rides the client's next monthly
+//          subscription invoice. Owner reviews + one-tap approves in the OS.
+//          Returns { ok, itemId, count, amount }.
 //   { action:"portal", customerId, origin }
 //       -> creates a Stripe Billing Portal session so the card/bank can be
 //          updated and invoices viewed. Returns { ok, url }.
@@ -416,6 +421,34 @@ export default async (req) => {
         } catch { /* subscription may already be gone — non-fatal */ }
       }
       return json({ ok: true, invoiceId: inv.id, invoiceUrl: hostedUrl, paid });
+    }
+
+    // ── Bill the per-qualified-lead fees on the NEXT monthly invoice ───────────
+    // Every qualified lead we deliver is billable at the client's per-lead rate.
+    // The owner reviews + one-tap approves a batch in the OS; this drops ONE
+    // pending invoice item on the customer. Unlike the ETF (a standalone
+    // auto-charge invoice), this rides the client's next recurring subscription
+    // invoice — Stripe automatically sweeps pending invoice items onto the next
+    // subscription invoice, same mechanism the late-interest watcher uses. So the
+    // client sees "N qualified leads — $X" as a line on their normal monthly bill,
+    // charged to the card/bank already on the subscription. Never touches ad spend.
+    if (action === "charge-leads") {
+      const { customerId, clientName } = body;
+      const count = Math.max(0, Math.floor(Number(body.count) || 0));
+      const amount = Number(body.amount) || 0;
+      if (!customerId) return json({ ok: false, error: "No billing set up for this client — start the subscription first." }, 400);
+      if (count <= 0) return json({ ok: false, error: "No billable leads to charge." }, 400);
+      if (!(amount > 0)) return json({ ok: false, error: "Per-lead amount must be greater than $0." }, 400);
+
+      const item = await stripe("invoiceitems", {
+        body: {
+          customer: customerId,
+          amount: dollars(amount),
+          currency: "usd",
+          description: `Qualified leads delivered — ${count} lead${count === 1 ? "" : "s"}${clientName ? " for " + clientName : ""} (rides next monthly invoice)`,
+        },
+      });
+      return json({ ok: true, itemId: item.id, count, amount });
     }
 
     // ── Billing Portal session (update card/bank, view invoices) ──────────────
