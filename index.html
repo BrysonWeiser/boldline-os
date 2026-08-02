@@ -2049,6 +2049,7 @@ function EmailCenterTab({client,pkg,onUpdate}) {
   const [busy,setBusy]=useState(false);
   const [sentId,setSentId]=useState(null);
   const [msg,setMsg]=useState("");
+  const [payUrl,setPayUrl]=useState("");   // real Stripe hosted-invoice URL for the invoice email
 
   const buildCtx=()=>({
     businessName: client.name||"",
@@ -2057,7 +2058,7 @@ function EmailCenterTab({client,pkg,onUpdate}) {
     monthly: client.billingMonthly!=null?client.billingMonthly:((pkg&&pkg.price)||0),
     setup: client.billingSetup!=null?client.billingSetup:((pkg&&pkg.setup)||0),
     portalUrl: client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"",
-    payUrl: "",
+    payUrl: payUrl || client.billingCheckoutUrl || "",
     date: fmt(new Date()),
   });
 
@@ -2072,6 +2073,14 @@ function EmailCenterTab({client,pkg,onUpdate}) {
   };
 
   useEffect(()=>{ (async()=>{ try{ const d=await call("types"); setTypes(d.types||[]); }catch(e){ setMsg(e.message); } setLoadingTypes(false); })(); },[]);
+  // Resolve a real Stripe pay link for the invoice email: hosted invoice URL
+  // (pay page + scan-to-pay QR) → else the Checkout link → else the portal (in template).
+  useEffect(()=>{ (async()=>{
+    try{
+      if(client.stripeCustomerId){ const d=await stripeBilling("invoice-link",{customerId:client.stripeCustomerId}); setPayUrl((d&&d.url)||client.billingCheckoutUrl||""); }
+      else { setPayUrl(client.billingCheckoutUrl||""); }
+    }catch(e){ setPayUrl(client.billingCheckoutUrl||""); }
+  })(); },[client.stripeCustomerId,client.billingCheckoutUrl]);
 
   const preview=async(t)=>{
     setBusy(true); setMsg("");
