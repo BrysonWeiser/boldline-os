@@ -2667,6 +2667,10 @@ function BillingCard({client,pkg,onUpdate}) {
   const [msg,setMsg]=useState("");
   const [copied,setCopied]=useState(false);
   const [adjusting,setAdjusting]=useState(false);
+  const [leadBusy,setLeadBusy]=useState(false);   // per-lead billing approve in flight
+  const [leadMsg,setLeadMsg]=useState("");
+  const [editRate,setEditRate]=useState(false);    // inline per-lead rate editor
+  const [rateInput,setRateInput]=useState("");
   // Prefer the agreed rate (set at renewal / checkout / manual adjust) over the
   // package default, so discounts and term pricing flow into checkout + contract.
   const monthly=client.billingMonthly||(pkg&&pkg.price)||0;
@@ -2731,6 +2735,47 @@ function BillingCard({client,pkg,onUpdate}) {
   const badge = status==="active"?{t:"Billing Active",c:C.green}:status==="past_due"?{t:"Payment Failed",c:C.red}:status==="awaiting_payment"?{t:"Awaiting Payment",c:C.amber}:status==="canceled"?{t:"Canceled",c:C.textMuted}:{t:"Not Set Up",c:C.textMuted};
   const btn=(bg,extra)=>({width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:bg,color:"#fff",cursor:busy?"default":"pointer",opacity:busy?.7:1,...extra});
 
+  // ── Per-qualified-lead billing ───────────────────────────────────────────────
+  // Every delivered lead is billable at the client's per-lead rate. The owner
+  // reviews the batch, toggles off any junk/spam, then one-tap approves — the
+  // total drops onto the client's NEXT monthly Stripe invoice as one line item.
+  // Rate defaults to the niche fee (PER_LEAD); billingPerLead overrides it (most
+  // niches have no default, so the inline editor sets the rate).
+  const perLeadRate = client.billingPerLead!=null ? client.billingPerLead : (PER_LEAD[client.niche]||0);
+  const leadLog = client.leadsLog||[];
+  // Keep the real leadsLog index with each lead so toggles/mutations hit the
+  // right object even though only unbilled leads are shown.
+  const unbilledLeads = leadLog.map((lead,idx)=>({lead,idx})).filter(x=>!x.lead.billed);
+  const billableLeads = unbilledLeads.filter(x=>!x.lead.notBillable);
+  const billableCount = billableLeads.length;
+  const excludedCount = unbilledLeads.length - billableCount;
+  const billedCount = leadLog.filter(l=>l.billed).length;
+  const leadAmount = billableCount*perLeadRate;
+  const toggleLeadExclude=(realIdx)=>{
+    const updated=leadLog.map((l,i)=> i===realIdx ? {...l,notBillable:!l.notBillable} : l);
+    onUpdate&&onUpdate({...client,leadsLog:updated});
+  };
+  const saveRate=()=>{
+    const r=Math.max(0,Number(rateInput)||0);
+    onUpdate&&onUpdate({...client,billingPerLead:r});
+    setEditRate(false); setLeadMsg("");
+  };
+  const chargeLeads=async()=>{
+    if(!client.stripeCustomerId){ setLeadMsg("Set up recurring billing first — per-lead fees ride the client's monthly invoice."); return; }
+    if(billableCount<=0){ setLeadMsg("No billable leads right now."); return; }
+    if(!(perLeadRate>0)){ setLeadMsg("Set a per-lead rate above $0 first."); return; }
+    setLeadBusy(true); setLeadMsg("");
+    try{
+      await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:leadAmount,clientName:client.name});
+      const billedAt=new Date().toISOString();
+      const updatedLog=leadLog.map(l=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt} : l);
+      const entry={date:fmt(billedAt),note:`Billed ${billableCount} qualified lead${billableCount===1?"":"s"} — ${money(leadAmount)} added to next invoice`,cat:"billing",ts:Date.now()};
+      onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])]});
+      setLeadMsg(`✓ ${money(leadAmount)} for ${billableCount} lead${billableCount===1?"":"s"} added to the next invoice.`);
+    }catch(e){ setLeadMsg(e.message); }
+    setLeadBusy(false);
+  };
+
   return (
     <Card style={{borderColor:status==="active"?"rgba(34,211,160,.28)":status==="past_due"?"rgba(248,113,113,.3)":C.border,backgroundColor:status==="active"?"rgba(34,211,160,.05)":status==="past_due"?"rgba(248,113,113,.05)":"rgba(200,168,75,.04)"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -2783,6 +2828,54 @@ function BillingCard({client,pkg,onUpdate}) {
         <div style={S.row7}>
           <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Manage in Stripe"}</button>
           <button onClick={refresh} disabled={!!busy} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="sync"?"…":"Refresh"}</button>
+        </div>
+
+        {/* Per-qualified-lead billing — review + one-tap approve onto next invoice */}
+        <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Per-Lead Billing</span>
+            {billedCount>0&&<span style={{fontSize:10,color:C.textMuted}}>{billedCount} already billed</span>}
+          </div>
+          {!editRate
+            ? <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>
+                Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/lead</strong>
+                {client.billingPerLead!=null&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold}}>custom</span>}
+                <button onClick={()=>{setRateInput(String(perLeadRate));setEditRate(true);}} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>edit</button>
+              </div>
+            : <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
+                <span style={{fontSize:12,color:C.textMuted}}>$</span>
+                <input value={rateInput} onChange={e=>setRateInput(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder="per lead" style={{flex:1,minWidth:0,padding:"6px 8px",fontSize:12,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
+                <button onClick={saveRate} style={{padding:"6px 10px",fontSize:11,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Save</button>
+                <button onClick={()=>setEditRate(false)} style={{padding:"6px 9px",fontSize:12,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>×</button>
+              </div>}
+          {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-lead rate for {client.niche||"this niche"} — set one above to bill leads.</div>}
+
+          {unbilledLeads.length===0
+            ? <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>No new leads to bill. Delivered leads show up here to review and add to the next invoice.</div>
+            : <>
+                <div style={{fontSize:10,color:C.textMuted,marginBottom:6,lineHeight:1.5}}>Toggle off any junk/spam so the client isn&rsquo;t billed for it, then approve.</div>
+                <div style={{maxHeight:186,overflowY:"auto",marginBottom:8,display:"flex",flexDirection:"column",gap:5}}>
+                  {unbilledLeads.map(({lead,idx})=>{
+                    const ex=!!lead.notBillable;
+                    const meta=[lead.source&&lead.source!=="unknown"?lead.source:null,lead.receivedAt?fmt(lead.receivedAt):null].filter(Boolean).join(" · ");
+                    return (
+                      <div key={idx} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"6px 8px",borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:ex?"rgba(255,255,255,.02)":"rgba(255,255,255,.045)"}}>
+                        <div style={{minWidth:0,flex:1}}>
+                          <div style={{fontSize:11,fontWeight:600,color:ex?C.textMuted:C.text,textDecoration:ex?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name||"Unknown lead"}</div>
+                          <div style={{fontSize:9,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{meta||"—"}</div>
+                        </div>
+                        <button onClick={()=>toggleLeadExclude(idx)} style={{flexShrink:0,padding:"4px 9px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${ex?C.green+"55":C.border}`,backgroundColor:ex?C.green+"12":"transparent",color:ex?C.green:C.textMuted,cursor:"pointer"}}>{ex?"Include":"Exclude"}</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:8,fontSize:11}}>
+                  <span style={{color:C.textDim}}>{billableCount} billable{excludedCount>0?` · ${excludedCount} excluded`:""}</span>
+                  <span style={{fontWeight:800,color:C.text,whiteSpace:"nowrap"}}>{billableCount} × {money(perLeadRate)} = {money(leadAmount)}</span>
+                </div>
+                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Adding…":`Approve — add ${money(leadAmount)} to next invoice`}</button>
+              </>}
+          {leadMsg&&<div style={{fontSize:11,color:leadMsg.charAt(0)==="✓"?C.green:C.red,marginTop:8,lineHeight:1.6}}>{leadMsg}</div>}
         </div>
       </>}
 

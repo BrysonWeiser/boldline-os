@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 75 task-keyed entries under `knowledge/`. They surface automatically via the
+> 76 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**75 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**76 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -228,6 +228,9 @@
 - **[os-screenshot-harness](../knowledge/os-screenshot-harness.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   A committed render harness (tools/os-screenshot.js) that boots the REAL index.html in headless Chromium with a stubbed Supabase and captures desktop + mobile PNGs, so I can eyeball layout/overflow/popup-position myself instead of asking Bryson for a screenshot for the obvious stuff. Known limit — no browser chrome, so vh/dvh mobile bugs won't reproduce.  
   <sub>*task:* self-QA the OS/portal layout, screenshot the real app headless, check a UI change before shipping &nbsp;|&nbsp; *keywords:* screenshot, render, headless, playwright, chromium, self-qa, harness, visual, layout, mobile, desktop, os-screenshot, tools</sub>
+- **[per-lead-billing](../knowledge/per-lead-billing.md)** &mdash; &#9989; verified &middot; 2026-08-02  
+  Per-qualified-lead billing — BUILT 2026-08-02. Every delivered lead is billable at the client's per-lead rate; the owner reviews the batch on the Billing card (Contract tab), toggles off any junk/spam, then one-tap approves and the total rides the client's NEXT monthly Stripe invoice as one line item (pending invoice item, same auto-sweep the late-interest watcher uses — NOT a standalone charge). Review-first by design so a client is never auto-billed for junk. Rate = client.billingPerLead override, else PER_LEAD[niche] (only Roofing/Med Spa/Auto Detailing have defaults) — inline rate editor is essential for every other niche. No new Supabase table (uses client.leadsLog) and no new env vars. Verified headlessly at all four widths + a live exclude-toggle recompute (4×$75=$300 → exclude junk → 3×$75=$225).  
+  <sub>*task:* change how per-qualified-lead fees are billed to clients, the lead-billing review panel, or which leads count as billable &nbsp;|&nbsp; *keywords:* charge-leads, billingPerLead, PER_LEAD, leadsLog, notBillable, billed, billableCount, perLeadRate, invoiceitems, per-lead fee, junk lead, exclude lead, qualified lead</sub>
 - **[portal-connect-ad-accounts](../knowledge/portal-connect-ad-accounts.md)** &mdash; &#9989; verified &middot; 2026-07-22  
   Client portal (My Info tab) has a "Connect Your Ad Accounts" section that shows ONLY the platform(s) the client's package runs (Google/Meta/both). Each has a walkthrough-video slot + click-by-click steps + input fields so the client self-enters their IDs (googleAdsCustomerId / metaAdAccountId / metaPageId), which save to the client record and drive the OS ad-runners. Built 2026-07-22.  
   <sub>*task:* the client-portal "Connect Your Ad Accounts" tutorials + self-entry of ad IDs, and how to add the walkthrough videos &nbsp;|&nbsp; *keywords:* portal, connect, tutorial, video, googleAdsCustomerId, metaAdAccountId, metaPageId, GOOGLE_CONNECT_VIDEO, META_CONNECT_VIDEO, META_BUSINESS_ID, sanitizeFields, conditional-by-platform</sub>
