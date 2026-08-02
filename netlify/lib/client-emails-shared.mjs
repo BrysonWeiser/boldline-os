@@ -138,7 +138,7 @@ const T = {
         p(`Hi ${escapeHTML(firstName(c.contactName))}, here's your invoice for ${b(escapeHTML(c.businessName || "your account"))}. You can pay securely online in a few taps:`) +
         detailBox(rows) +
         button("Pay Securely Online", c.payUrl || c.portalUrl || SITE) +
-        small("Payments are processed securely by Stripe. A receipt is emailed automatically once payment clears. This invoice covers BoldLine management fees only — your ad spend is billed separately by Google/Meta directly to you.") +
+        small("On the secure Stripe page you can pay by card or bank — or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine management fees only — your ad spend is billed separately by Google/Meta directly to you.") +
         signoff(),
     };
   },

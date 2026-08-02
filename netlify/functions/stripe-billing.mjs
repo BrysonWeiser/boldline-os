@@ -37,6 +37,13 @@
 //          single pending invoice item that rides the client's next monthly
 //          subscription invoice. Owner reviews + one-tap approves in the OS.
 //          Returns { ok, itemId, count, amount }.
+//   { action:"preview-invoice", customerId }
+//       -> returns the upcoming subscription invoice (fee + pending lead/interest
+//          items) as { ok, upcoming:{ total, subtotal, chargeDate, lines } } — the
+//          one bundled bill preview shown on the Billing card. upcoming:null soft-fails.
+//   { action:"invoice-link", customerId }
+//       -> returns a real Stripe hosted-invoice URL (pay page w/ card/bank + QR)
+//          for the branded invoice email: { ok, url, status }. url:null if none yet.
 //   { action:"portal", customerId, origin }
 //       -> creates a Stripe Billing Portal session so the card/bank can be
 //          updated and invoices viewed. Returns { ok, url }.
@@ -484,6 +491,26 @@ export default async (req) => {
           lines,
         },
       });
+    }
+
+    // ── Get a real Stripe hosted-invoice URL for the branded invoice email ────
+    // Stripe's hosted invoice page is a genuine pay page (card/bank + a scan-to-pay
+    // QR code). Prefer an OPEN (unpaid, payable) invoice; otherwise the most recent
+    // invoice that has a hosted URL (so "view your latest bill" still works). The
+    // caller falls back to the Checkout link / portal when there's no URL yet.
+    if (action === "invoice-link") {
+      const { customerId } = body;
+      if (!customerId) return json({ ok: true, url: null });
+      let invs;
+      try {
+        invs = await stripe(`invoices?customer=${encodeURIComponent(customerId)}&limit=5`, { method: "GET" });
+      } catch (e) {
+        return json({ ok: true, url: null, note: e.message || "no invoices" });
+      }
+      const data = (invs && invs.data) || [];
+      const open = data.find((i) => i.status === "open" && i.hosted_invoice_url);
+      const any = open || data.find((i) => i.hosted_invoice_url);
+      return json({ ok: true, url: any ? any.hosted_invoice_url : null, status: any ? any.status : null });
     }
 
     // ── Billing Portal session (update card/bank, view invoices) ──────────────
