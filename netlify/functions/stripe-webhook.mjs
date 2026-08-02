@@ -1,10 +1,13 @@
-// Stripe webhook — keeps each client's billingStatus in sync with reality.
+// Stripe webhook — keeps each client's billingStatus in sync with reality AND
+// auto-sends the matching branded client email.
 //
 // Stripe calls this endpoint on payment events (paid, failed, canceled, etc.).
 // It is PUBLIC (no owner session) but every request is verified against the
 // endpoint's signing secret, so only genuine Stripe calls are honored. It then
 // writes the new billing state onto the matching client's `data` blob via the
-// Supabase service role.
+// Supabase service role, and fires the branded client email for the event:
+// Welcome+Portal on checkout.session.completed, Payment Receipt on invoice.paid,
+// Payment Past-Due on invoice.payment_failed (idempotent via cl.emailAuto flags).
 //
 // The client is located by `clientId`, which we stamp into metadata on the
 // Customer, the Checkout Session, and the Subscription in stripe-billing.mjs.
@@ -20,6 +23,7 @@
 
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 const WHSEC = process.env.STRIPE_WEBHOOK_SECRET;
@@ -128,9 +132,33 @@ export default async (req) => {
     const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
     const { data: row, error: readErr } = await supabase.from("clients").select("data").eq("id", clientId).single();
     if (readErr || !row) return json({ ok: true, note: "client not found", clientId });
-    const next = { ...row.data, ...patch };
+    const cl = row.data || {};
+
+    // ── Auto-send the matching branded client email ───────────────────────────
+    // Welcome on first payment, Receipt on each paid invoice, Past-Due on a
+    // failed charge. Idempotent via cl.emailAuto flags so a Stripe retry / repeat
+    // event never double-sends. Logged to commLog (clears the OS reminder).
+    const emailAuto = { ...(cl.emailAuto || {}) };
+    let emailLog = null;
+    try {
+      if (event.type === "checkout.session.completed" && !emailAuto.welcome) {
+        const r = await autoSendClientEmail(cl, "welcome");
+        if (r.sent) { emailAuto.welcome = true; emailLog = r.logEntry; }
+      } else if (event.type === "invoice.paid" && emailAuto.receiptInvoiceId !== obj.id && (obj.amount_paid || 0) > 0) {
+        const r = await autoSendClientEmail(cl, "receipt", { amount: (obj.amount_paid || 0) / 100 });
+        if (r.sent) { emailAuto.receiptInvoiceId = obj.id; emailLog = r.logEntry; }
+      } else if (event.type === "invoice.payment_failed" && emailAuto.pastDueInvoiceId !== obj.id) {
+        const r = await autoSendClientEmail(cl, "past_due", { payUrl: obj.hosted_invoice_url || "" });
+        if (r.sent) { emailAuto.pastDueInvoiceId = obj.id; emailLog = r.logEntry; }
+      }
+    } catch (e) { console.error("stripe-webhook auto-email failed:", e.message); }
+
+    const next = {
+      ...cl, ...patch, emailAuto,
+      ...(emailLog ? { commLog: [emailLog, ...(cl.commLog || [])] } : {}),
+    };
     await supabase.from("clients").update({ data: next, updated_at: new Date().toISOString() }).eq("id", clientId);
-    return json({ ok: true, applied: event.type, clientId });
+    return json({ ok: true, applied: event.type, clientId, emailed: !!emailLog });
   } catch (e) {
     // Return 500 so Stripe retries later (transient DB error).
     return json({ ok: false, error: e.message }, 500);

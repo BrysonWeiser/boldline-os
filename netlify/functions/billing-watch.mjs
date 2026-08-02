@@ -14,6 +14,8 @@
 //      once per cycle, fires a review reminder ~7 days before the invoice
 //      auto-charges IF there are undecided leads to review (so the good ones ride
 //      that same bundled monthly invoice). Fires via dispatchAlert (push + email).
+//   5. Auto-sends the CLIENT the branded Renewal Reminder email once, ~30 days
+//      before contractEnd (idempotent via cl.emailAuto.renewalForEnd).
 //
 // Charges the management fee side ONLY — never ad spend (hard business rule).
 //
@@ -23,6 +25,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
+import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 const MONTHLY_RATE = 0.015; // 1.5%/mo per Agreement §3.4
@@ -160,6 +163,21 @@ export default withFailureAlert("billing-watch", async () => {
           }
         }
       } catch (e) { console.error(`billing-watch: ${cl.name || row.id} invoice-reminder check failed:`, e.message); }
+
+      // ── Renewal reminder email — auto-sent to the CLIENT once, ~30 days out ──
+      try {
+        if (!cl.internal && cl.email && cl.contractStatus === "active" && cl.contractEnd) {
+          const dEnd = Math.ceil((new Date(cl.contractEnd).getTime() - Date.now()) / 864e5);
+          const ea = cl.emailAuto || {};
+          if (dEnd >= 0 && dEnd <= 30 && ea.renewalForEnd !== cl.contractEnd) {
+            const r = await autoSendClientEmail(cl, "renewal");
+            if (r.sent) {
+              patch.emailAuto = { ...ea, renewalForEnd: cl.contractEnd };
+              patch.commLog = [r.logEntry, ...(cl.commLog || [])];
+            }
+          }
+        }
+      } catch (e) { console.error(`billing-watch: ${cl.name || row.id} renewal-email check failed:`, e.message); }
 
       const changed = JSON.stringify(next) !== JSON.stringify(cl.billingLate || null) || (prevStatus !== cl.billingStatus) || Object.keys(patch).length > 0;
       if (changed) {
