@@ -271,7 +271,7 @@
 ## Ops / procedures
 
 - **[client-lifecycle](../knowledge/client-lifecycle.md)** &mdash; &#9989; verified &middot; 2026-07-30  
-  The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails are HYBRID-automated (receipts/past-due auto; rest one-tap w/ getAlerts reminders — see client-email-center).  
+  The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails: as of 2026-08-02 Welcome, Receipt, Past-Due, Renewal AUTO-send on their triggers (Stripe webhook + billing-watch); Invoice, Ad-Account Access, Thank-You stay one-tap w/ getAlerts reminders — see client-email-center.  
   <sub>*task:* the standard procedure for onboarding, renewing, and offboarding a client (and which emails fire at each step) &nbsp;|&nbsp; *keywords:* onboarding, offboarding, renewal, client procedure, lifecycle, welcome, ad account access, contract, invoice, thank you, approval, portal approval</sub>
 
 ## Pending

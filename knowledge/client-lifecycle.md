@@ -4,7 +4,7 @@ topic: Ops / procedures
 task: the standard procedure for onboarding, renewing, and offboarding a client (and which emails fire at each step)
 keywords: [onboarding, offboarding, renewal, client procedure, lifecycle, welcome, ad account access, contract, invoice, thank you, approval, portal approval]
 status: verified
-summary: The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails are HYBRID-automated (receipts/past-due auto; rest one-tap w/ getAlerts reminders — see client-email-center).
+summary: The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails: as of 2026-08-02 Welcome, Receipt, Past-Due, Renewal AUTO-send on their triggers (Stripe webhook + billing-watch); Invoice, Ad-Account Access, Thank-You stay one-tap w/ getAlerts reminders — see client-email-center.
 verified: 2026-07-30
 ---
 
@@ -28,7 +28,7 @@ verified: 2026-07-30
 2. Remove BoldLine **manager access** (client keeps the account + everything built), pause/hand off campaigns, settle any final invoice/ETF (Contract tab), then **archive** the client.
 
 ## Email automation
-HYBRID (Bryson 2026-07-30): transactional (Receipt, Past-Due) auto; relationship emails one-tap with milestone reminders. Full detail + what's built vs pending in **client-email-center**.
+HYBRID (Bryson 2026-07-30; expanded 2026-08-02): AUTO-sent = Welcome+Portal (Stripe checkout.session.completed), Receipt (invoice.paid), Past-Due (invoice.payment_failed), Renewal (billing-watch ~30d before end). ONE-TAP w/ OS alert = Invoice (needs lead review), Ad-Account Access, Thank-You. Full detail in **client-email-center**.
 
 ## ⏳ PENDING — client-side approval in the portal (Bryson 2026-07-30, NOT BUILT YET)
 Bryson: "When there's something the client needs to approve (e.g. the landing page), there must be a spot in their Client View to review + approve it, and they must be auto-notified about anything needing approval."
