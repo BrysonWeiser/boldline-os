@@ -2051,16 +2051,23 @@ function EmailCenterTab({client,pkg,onUpdate}) {
   const [msg,setMsg]=useState("");
   const [payUrl,setPayUrl]=useState("");   // real Stripe hosted-invoice URL for the invoice email
 
-  const buildCtx=()=>({
-    businessName: client.name||"",
-    contactName: client.contactName||"",
-    packageName: (pkg&&pkg.name)||"",
-    monthly: client.billingMonthly!=null?client.billingMonthly:((pkg&&pkg.price)||0),
-    setup: client.billingSetup!=null?client.billingSetup:((pkg&&pkg.setup)||0),
-    portalUrl: client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"",
-    payUrl: payUrl || client.billingCheckoutUrl || "",
-    date: fmt(new Date()),
-  });
+  const buildCtx=()=>{
+    // Leads to bill this cycle = delivered, not yet billed, not excluded (same set
+    // the Billing card totals). Feeds the invoice email's per-lead line.
+    const perLeadRate = client.billingPerLead!=null ? client.billingPerLead : (PER_LEAD[client.niche]||0);
+    const leadCount = (client.leadsLog||[]).filter(l=>!l.billed && !l.notBillable).length;
+    return {
+      businessName: client.name||"",
+      contactName: client.contactName||"",
+      packageName: (pkg&&pkg.name)||"",
+      monthly: client.billingMonthly!=null?client.billingMonthly:((pkg&&pkg.price)||0),
+      setup: client.billingSetup!=null?client.billingSetup:((pkg&&pkg.setup)||0),
+      leadCount, leadRate: perLeadRate, leadTotal: leadCount*perLeadRate,
+      portalUrl: client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"",
+      payUrl: payUrl || client.billingCheckoutUrl || "",
+      date: fmt(new Date()),
+    };
+  };
 
   const call=async(action,extra)=>{
     const { data:{ session } }=await supabaseClient.auth.getSession();
