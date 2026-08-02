@@ -451,6 +451,41 @@ export default async (req) => {
       return json({ ok: true, itemId: item.id, count, amount });
     }
 
+    // ── Preview the client's NEXT monthly invoice (one bundled bill) ───────────
+    // Returns the upcoming subscription invoice exactly as Stripe will render it:
+    // the recurring management fee + every pending invoice item (approved per-lead
+    // fees, any late interest) on ONE invoice, plus the date it auto-charges. This
+    // is what proves "everything lands on the same monthly invoice" in the UI.
+    if (action === "preview-invoice") {
+      const { customerId } = body;
+      if (!customerId) return json({ ok: false, error: "No billing set up for this client yet." }, 400);
+      let up = null;
+      // `invoices/upcoming` is the long-standing endpoint; if this account is on a
+      // newer API version that moved it, fail soft (UI just hides the preview).
+      try {
+        up = await stripe(`invoices/upcoming?customer=${encodeURIComponent(customerId)}`, { method: "GET" });
+      } catch (e) {
+        const none = (e.detail && (e.detail.code === "invoice_upcoming_none")) || /no upcoming invoices/i.test(e.message || "");
+        if (none) return json({ ok: true, upcoming: null });
+        return json({ ok: true, upcoming: null, note: e.message || "preview unavailable" });
+      }
+      if (!up) return json({ ok: true, upcoming: null });
+      const lines = ((up.lines && up.lines.data) || []).map((l) => ({
+        description: l.description || (l.price && (l.price.nickname)) || (l.plan && l.plan.nickname) || "Charge",
+        amount: (l.amount || 0) / 100,
+      }));
+      const chargeTs = up.next_payment_attempt || up.period_end || null;
+      return json({
+        ok: true,
+        upcoming: {
+          total: (up.total != null ? up.total : up.amount_due || 0) / 100,
+          subtotal: (up.subtotal || 0) / 100,
+          chargeDate: chargeTs ? new Date(chargeTs * 1000).toISOString() : null,
+          lines,
+        },
+      });
+    }
+
     // ── Billing Portal session (update card/bank, view invoices) ──────────────
     if (action === "portal") {
       const customerId = body.customerId;
