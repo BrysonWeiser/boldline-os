@@ -10,6 +10,10 @@
 //   3. Emails the owner on state changes: payment newly late, interest started
 //      accruing, and payment recovered. The OS alert system (getAlerts) reads
 //      the stored billingLate data for the in-app red/yellow alerts.
+//   4. Refreshes each active client's next-invoice date (billingNextCharge) and,
+//      once per cycle, fires a review reminder ~7 days before the invoice
+//      auto-charges IF there are undecided leads to review (so the good ones ride
+//      that same bundled monthly invoice). Fires via dispatchAlert (push + email).
 //
 // Charges the management fee side ONLY — never ad spend (hard business rule).
 //
@@ -18,7 +22,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS } from "../lib/report-shared.mjs";
-import { withFailureAlert } from "../lib/alerts-shared.mjs";
+import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
 const MONTHLY_RATE = 0.015; // 1.5%/mo per Agreement §3.4
@@ -127,9 +131,39 @@ export default withFailureAlert("billing-watch", async () => {
         if (cl.billingStatus === "past_due") cl.billingStatus = "active";
       }
 
-      const changed = JSON.stringify(next) !== JSON.stringify(cl.billingLate || null) || (prevStatus !== cl.billingStatus);
+      // ── Next-invoice date refresh + pre-invoice lead-review reminder ─────────
+      // Auto-charge is review-gated (Bryson, 2026-08-02): a week before the
+      // invoice auto-charges, nudge the owner to review that cycle's leads so the
+      // good ones ride the same bundled bill. Once per cycle, active clients only.
+      const patch = {};
+      try {
+        const subs = await stripe(`subscriptions?customer=${encodeURIComponent(cl.stripeCustomerId)}&limit=1&status=active`, { method: "GET" });
+        const sub = subs.data && subs.data[0];
+        const periodEndIso = sub && sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null;
+        if (periodEndIso && periodEndIso !== cl.billingNextCharge) patch.billingNextCharge = periodEndIso;
+        if (cl.billingStatus === "active" && periodEndIso) {
+          const dLeft = Math.ceil((new Date(periodEndIso).getTime() - Date.now()) / 864e5);
+          const undecided = (cl.leadsLog || []).filter((l) => !l.billed && !l.notBillable).length;
+          if (dLeft >= 0 && dLeft <= 7 && undecided > 0 && cl.invoiceReminderSent !== periodEndIso) {
+            let totalStr = "";
+            try {
+              const up = await stripe(`invoices/upcoming?customer=${encodeURIComponent(cl.stripeCustomerId)}`, { method: "GET" });
+              if (up && up.total != null) totalStr = ` (~${money(up.total / 100)})`;
+            } catch { /* preview is optional */ }
+            await dispatchAlert({
+              title: `${cl.name}: invoice in ${dLeft} day${dLeft !== 1 ? "s" : ""}`,
+              body: `${cl.name}'s monthly invoice${totalStr} auto-charges on ${new Date(periodEndIso).toLocaleDateString()}. You have ${undecided} lead${undecided !== 1 ? "s" : ""} to review — open the client's Contract tab, approve the good ones so they ride this invoice, and exclude any junk.`,
+              severity: "yellow",
+              smsText: `BoldLine: ${cl.name} invoice in ${dLeft}d — review ${undecided} lead(s) before it auto-charges.`,
+            });
+            patch.invoiceReminderSent = periodEndIso;
+          }
+        }
+      } catch (e) { console.error(`billing-watch: ${cl.name || row.id} invoice-reminder check failed:`, e.message); }
+
+      const changed = JSON.stringify(next) !== JSON.stringify(cl.billingLate || null) || (prevStatus !== cl.billingStatus) || Object.keys(patch).length > 0;
       if (changed) {
-        const nextData = { ...cl, billingLate: next };
+        const nextData = { ...cl, ...patch, billingLate: next };
         if (!next) delete nextData.billingLate;
         await supabase.from("clients").update({ data: nextData, updated_at: new Date().toISOString() }).eq("id", row.id);
         updated++;
