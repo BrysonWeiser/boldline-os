@@ -125,10 +125,15 @@ const T = {
   invoice: (c) => {
     const setup = Number(c.setup || 0);
     const monthly = Number(c.monthly || 0);
+    const leadCount = Math.max(0, Math.floor(Number(c.leadCount || 0)));
+    const leadRate = Number(c.leadRate || 0);
+    const leadTotal = c.leadTotal != null ? Number(c.leadTotal) : leadCount * leadRate;
     const rows = [];
     if (setup > 0) rows.push(["One-time setup", money(setup)]);
     rows.push([`Monthly management${c.packageName ? " — " + c.packageName : ""}`, money(monthly)]);
-    const total = setup + monthly;
+    // Per-qualified-lead charges, itemized: count × rate = total.
+    if (leadCount > 0 && leadTotal > 0) rows.push([`Qualified leads — ${leadCount} × ${money(leadRate)}`, money(leadTotal)]);
+    const total = setup + monthly + (leadCount > 0 ? leadTotal : 0);
     rows.push(["Amount due", money(total), GOLD]);
     return {
       subject: `Invoice from BoldLine Media — ${money(total)} due`,
@@ -138,7 +143,7 @@ const T = {
         p(`Hi ${escapeHTML(firstName(c.contactName))}, here's your invoice for ${b(escapeHTML(c.businessName || "your account"))}. You can pay securely online in a few taps:`) +
         detailBox(rows) +
         button("Pay Securely Online", c.payUrl || c.portalUrl || SITE) +
-        small("On the secure Stripe page you can pay by card or bank — or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine management fees only — your ad spend is billed separately by Google/Meta directly to you.") +
+        small("On the secure Stripe page you can pay by card or bank — or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine management and per-lead fees only — your ad spend is billed separately by Google/Meta directly to you.") +
         signoff(),
     };
   },
