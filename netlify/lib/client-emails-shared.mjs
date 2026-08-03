@@ -242,10 +242,10 @@ const T = {
   lead_milestone: (c) => {
     const n = Number(c.milestone || c.leadCount || 0);
     return {
-      subject: `🎉 ${n} leads and counting for ${c.businessName || "your business"}`,
+      subject: `${n} leads and counting for ${c.businessName || "your business"}`,
       preheader: `You've reached ${n} leads with BoldLine — here's to the next milestone.`,
       bodyHtml:
-        h1(`${n} leads delivered — nice work 🎉`) +
+        h1(`${n} leads delivered`) +
         p(`Hi ${escapeHTML(firstName(c.contactName))} — quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(escapeHTML(c.businessName || "your business"))}. Every one is a real potential customer who raised their hand for you.`) +
         p("We're just getting warmed up — your campaigns keep running and optimizing. You can see every lead anytime in your portal:") +
         button("See Your Leads", c.portalUrl || SITE) +
