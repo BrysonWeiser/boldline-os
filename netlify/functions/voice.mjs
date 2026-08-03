@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, appendLead } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, appendLead, notifyOwnerOfLead } from "../lib/report-shared.mjs";
 
 const xml = (body) => new Response(body, { status: 200, headers: { "content-type": "text/xml; charset=utf-8" } });
 
@@ -38,11 +38,15 @@ export default async (req) => {
     source: "call_tracking",
     receivedAt: new Date().toISOString(),
   };
-  try {
-    await appendLead(supabaseAdmin, data, lead);
-  } catch (err) {
-    console.error("Call lead logging failed:", err);
-  }
+  // Log the call as a lead AND ping the owner with the same branded "New Lead"
+  // email a form lead gets. Run both in parallel so the caller isn't kept waiting
+  // any longer than one round-trip before the call forwards. (leads+1 so the
+  // email's "Lead #N" matches the count appendLead is about to write.)
+  const forOwner = { ...client, leads: (client.leads || 0) + 1 };
+  await Promise.all([
+    appendLead(supabaseAdmin, data, lead).catch((err) => console.error("Call lead logging failed:", err)),
+    notifyOwnerOfLead(forOwner, lead).catch((err) => console.error("Call lead owner notify failed:", err)),
+  ]);
 
   return xml(`<?xml version="1.0" encoding="UTF-8"?><Response><Dial>${escXML(forwardTo)}</Dial></Response>`);
 };

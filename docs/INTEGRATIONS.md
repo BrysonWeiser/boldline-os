@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 76 task-keyed entries under `knowledge/`. They surface automatically via the
+> 77 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**76 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**77 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -69,6 +69,9 @@
 
 ## Forms/Leads
 
+- **[call-tracking](../knowledge/call-tracking.md)** &mdash; &#9989; verified &middot; 2026-08-03  
+  Phone-call lead tracking = a dedicated Twilio number that forwards to the real phone AND logs each inbound call as a lead. Provision/release from the OS (Client detail → Client View tab → Assets → Call Tracking card; same card works for a client OR the internal My Ads account — forwards to that record's businessPhone). call-tracking.mjs buys a Twilio local number (optional area code) and points its VoiceUrl at voice.mjs?token=<leadToken>; on an inbound call voice.mjs logs a lead (source "call_tracking", caller ID as phone) then TwiML <Dial>s the client's businessPhone. Needs TWILIO_ACCOUNT_SID + TWILIO_AUTH_TOKEN and businessPhone set. BLOCKED for real use until Twilio is upgraded off the free trial (trial only holds 1 number, forwards to verified numbers only, plays a trial greeting). 2026-08-03: call leads now also fire the branded "New Lead" owner email (shared notifyOwnerOfLead). Attribution truth: a BARE real number can't attribute ad calls — you need a distinct tracking number (or Google's own call reporting).  
+  <sub>*task:* set up, debug, or change phone-call lead tracking (tracking numbers, call forwarding, call leads) &nbsp;|&nbsp; *keywords:* call-tracking.mjs, voice.mjs, callTrackingNumber, callTrackingNumberSid, Twilio, IncomingPhoneNumbers, VoiceUrl, Dial, forward, businessPhone, notifyOwnerOfLead, source call_tracking, dynamic number insertion, Google call reporting</sub>
 - **[netlify-forms-wiring](../knowledge/netlify-forms-wiring.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Two static forms (contact + recommendation) are Netlify-Forms-wired (data-netlify=true, name, hidden form-name input, bot-field honeypot, AJAX-POST urlencoded to /). Netlify detects them at build; they appear under the marketing site's Forms tab. Enable notifications in the dashboard; a submission-created function also fires per verified submission.  
   <sub>*task:* wire up or debug marketing-site form capture and email notifications &nbsp;|&nbsp; *keywords:* data-netlify, form-name, bot-field, honeypot, submission-created, recommendation-form</sub>
