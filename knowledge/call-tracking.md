@@ -41,6 +41,10 @@ need Twilio **upgraded to paid (~$20/mo)** — the same upgrade that unlocks SMS
 Trial limits: one number only, forwards to *verified* numbers only, and a trial greeting plays before
 connecting. Code is fully built and waiting on the paid account. Env var NAMES: `TWILIO_ACCOUNT_SID`,
 `TWILIO_AUTH_TOKEN` (+ `TWILIO_FROM_NUMBER` for SMS).
+**DECISION (Bryson, 2026-08-03): do NOT upgrade Twilio until the first client lands** — hold the
+~$20/mo (+SMS) until there's revenue, same as the pre-client-readiness plan. Approach chosen =
+Twilio tracking numbers (not Google call reporting / DNI), because per-lead billing needs the
+individual call records.
 
 **"Can we track calls with just the client's real number, no tracking number?" (Bryson, 2026-08-03) —
 answer: not with real attribution.** A bare real number on an ad can't tell an ad call from a search /
