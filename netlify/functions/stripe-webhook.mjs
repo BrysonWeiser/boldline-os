@@ -145,7 +145,13 @@ export default async (req) => {
         const r = await autoSendClientEmail(cl, "welcome");
         if (r.sent) { emailAuto.welcome = true; emailLog = r.logEntry; }
       } else if (event.type === "invoice.paid" && emailAuto.receiptInvoiceId !== obj.id && (obj.amount_paid || 0) > 0) {
-        const r = await autoSendClientEmail(cl, "receipt", { amount: (obj.amount_paid || 0) / 100 });
+        // Itemize the receipt from the paid invoice's own line items, and link the
+        // hosted Stripe invoice (full breakdown + downloadable PDF).
+        const lines = ((obj.lines && obj.lines.data) || []).map((l) => ({
+          description: String(l.description || (l.price && l.price.nickname) || "Charge").replace(/\s*\(rides next monthly invoice\)\s*$/i, ""),
+          amount: (l.amount || 0) / 100,
+        }));
+        const r = await autoSendClientEmail(cl, "receipt", { amount: (obj.amount_paid || 0) / 100, lines, invoiceUrl: obj.hosted_invoice_url || "" });
         if (r.sent) { emailAuto.receiptInvoiceId = obj.id; emailLog = r.logEntry; }
       } else if (event.type === "invoice.payment_failed" && emailAuto.pastDueInvoiceId !== obj.id) {
         const r = await autoSendClientEmail(cl, "past_due", { payUrl: obj.hosted_invoice_url || "" });

@@ -24,7 +24,7 @@ verified: 2026-08-02
 **Automation model — AUTO + one-tap hybrid (Bryson 2026-07-30, expanded 2026-08-02 → "flip the safe ones to automatic"):**
 - **✅ AUTO-SENT server-side (BUILT 2026-08-02)** via `netlify/lib/client-email-auto.mjs` (`autoSendClientEmail(cl,type,extra)` + `buildClientCtx` — server twin of EmailCenterTab.buildCtx; portal URL from `process.env.URL`, package name from pricing-shared PACKAGES; fail-soft, never throws; logs the same `Sent "<label>" email … (automatic)` commLog line so the OS reminder clears):
   - **Welcome + Portal** ← Stripe `checkout.session.completed` (stripe-webhook.mjs)
-  - **Payment Receipt** ← Stripe `invoice.paid` (amount from `amount_paid`)
+  - **Payment Receipt** ← Stripe `invoice.paid`. **ITEMIZED (2026-08-02):** the webhook passes the paid invoice's own `lines.data` (management fee + "Qualified leads delivered — N leads" + any interest, cleaned of the "(rides next monthly invoice)" suffix) + `hosted_invoice_url`; the receipt template renders each line + a green "Total paid" + a **View / Download Invoice** button to the Stripe hosted invoice (full breakdown + PDF). Falls back to the old flat "Amount paid" + Open-Portal button when no line data. This is the client's automatic monthly itemized statement (auto-charge model — they're charged, this is the detailed receipt, not a pay-me email).
   - **Payment Past-Due** ← Stripe `invoice.payment_failed` (payUrl = the failed invoice's `hosted_invoice_url`)
   - **Renewal Reminder** ← billing-watch.mjs daily, ~30 days before `contractEnd`
   - **Idempotency:** flags on `cl.emailAuto` — `welcome` (bool), `receiptInvoiceId`, `pastDueInvoiceId`, `renewalForEnd` (= the contractEnd it fired for; re-arms each term). A Stripe retry / repeat event never double-sends.

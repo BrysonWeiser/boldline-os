@@ -150,18 +150,30 @@ const T = {
 
   receipt: (c) => {
     const amount = c.amount != null ? Number(c.amount) : Number(c.monthly || 0);
-    const rows = [["Amount paid", money(amount), "#22D3A0"]];
+    // Itemize from the paid Stripe invoice's line items when we have them
+    // (management fee + qualified leads + any interest); else just the total.
+    const lines = Array.isArray(c.lines) ? c.lines.filter((l) => l && l.description) : [];
+    const rows = [];
+    if (lines.length) {
+      lines.forEach((l) => rows.push([l.description, money(Number(l.amount) || 0)]));
+      rows.push(["Total paid", money(amount), "#22D3A0"]);
+    } else {
+      rows.push(["Amount paid", money(amount), "#22D3A0"]);
+      if (c.packageName) rows.push(["Plan", c.packageName]);
+    }
     if (c.date) rows.push(["Date", c.date]);
-    if (c.packageName) rows.push(["Plan", c.packageName]);
     return {
       subject: `Payment received — thank you`,
       preheader: `We received your payment of ${money(amount)}. Thank you!`,
       bodyHtml:
         h1("Payment received — thank you") +
-        p(`Thanks ${escapeHTML(firstName(c.contactName))}! We've received your payment and your account is all squared away.`) +
+        p(`Thanks ${escapeHTML(firstName(c.contactName))}! We've received your payment of ${b(money(amount))} for ${b(escapeHTML(c.businessName || "your account"))}. Here's your itemized receipt:`) +
         detailBox(rows) +
+        (c.invoiceUrl
+          ? button("View / Download Invoice", c.invoiceUrl) +
+            small("Your full invoice, with a downloadable PDF, is on the secure Stripe page. It covers BoldLine management and per-lead fees only — your ad spend is billed separately by Google/Meta directly to you.")
+          : button("Open Your Portal", c.portalUrl || SITE)) +
         p("Nothing else needed on your end — we're hard at work on your campaigns. You can see everything anytime in your portal.") +
-        button("Open Your Portal", c.portalUrl || SITE) +
         signoff(),
     };
   },
