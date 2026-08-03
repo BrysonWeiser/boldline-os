@@ -224,6 +224,34 @@ const T = {
       p("If you ever want to pick things back up or need a hand down the road, our door is always open — just reply to this email. Wishing you huge success ahead.") +
       signoff(),
   }),
+
+  // Auto-nudge for a signed client who hasn't finished their intake yet.
+  onboarding_nudge: (c) => ({
+    subject: `Quick step to launch ${c.businessName || "your campaigns"}`,
+    preheader: "One short form stands between you and live campaigns — about 5 minutes.",
+    bodyHtml:
+      h1("Let's get your campaigns live") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))} — we're ready to start building for ${b(escapeHTML(c.businessName || "your business"))}, and there's just one quick step on your side: finishing your onboarding details in the portal.`) +
+      p("It takes about five minutes and tells us exactly who to target and what makes you the obvious choice:") +
+      button("Finish Your Onboarding", c.portalUrl || SITE) +
+      small("The sooner this is done, the sooner your ads go live and the leads start coming in. Stuck on anything? Just reply — we're happy to walk you through it.") +
+      signoff(),
+  }),
+
+  // Auto-celebration when a client crosses a lead milestone (10/25/50/100…).
+  lead_milestone: (c) => {
+    const n = Number(c.milestone || c.leadCount || 0);
+    return {
+      subject: `🎉 ${n} leads and counting for ${c.businessName || "your business"}`,
+      preheader: `You've reached ${n} leads with BoldLine — here's to the next milestone.`,
+      bodyHtml:
+        h1(`${n} leads delivered — nice work 🎉`) +
+        p(`Hi ${escapeHTML(firstName(c.contactName))} — quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(escapeHTML(c.businessName || "your business"))}. Every one is a real potential customer who raised their hand for you.`) +
+        p("We're just getting warmed up — your campaigns keep running and optimizing. You can see every lead anytime in your portal:") +
+        button("See Your Leads", c.portalUrl || SITE) +
+        small("Thanks for trusting us with your growth. Here's to the next milestone."),
+    };
+  },
 };
 
 // public catalog for the OS UI
@@ -236,6 +264,8 @@ export const EMAIL_TYPES = [
   { id: "past_due", label: "Payment Past-Due", icon: "⏰", desc: "Polite heads-up that a payment didn't process, with an update link." },
   { id: "renewal", label: "Renewal Reminder", icon: "🔄", desc: "Nudge before the term ends — keep the campaigns running." },
   { id: "thank_you", label: "Thank-You / Offboarding", icon: "🙏", desc: "Gracious wrap-up when a contract ends and isn't renewed." },
+  { id: "onboarding_nudge", label: "Onboarding Nudge", icon: "⏳", desc: "Auto-nudges a new client to finish their intake so campaigns can launch (day 2 + 5)." },
+  { id: "lead_milestone", label: "Lead Milestone", icon: "🎉", desc: "Auto-celebrates a client hitting a lead milestone (10 / 25 / 50 / 100…)." },
 ];
 
 export function renderClientEmail(type, ctx = {}) {

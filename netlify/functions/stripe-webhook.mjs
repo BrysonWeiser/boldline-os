@@ -143,7 +143,7 @@ export default async (req) => {
     try {
       if (event.type === "checkout.session.completed" && !emailAuto.welcome) {
         const r = await autoSendClientEmail(cl, "welcome");
-        if (r.sent) { emailAuto.welcome = true; emailLog = r.logEntry; }
+        if (r.sent) { emailAuto.welcome = true; emailAuto.welcomeAt = new Date().toISOString(); emailLog = r.logEntry; }
       } else if (event.type === "invoice.paid" && emailAuto.receiptInvoiceId !== obj.id && (obj.amount_paid || 0) > 0) {
         // Itemize the receipt from the paid invoice's own line items, and link the
         // hosted Stripe invoice (full breakdown + downloadable PDF).
