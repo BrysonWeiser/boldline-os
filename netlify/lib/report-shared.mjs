@@ -99,7 +99,7 @@ Internal Notes: ${client.notes || "None"}`;
 };
 
 const buildClientPrompt = (client, period, data) => ({
-  system: `You are writing the body of a performance report email that will be sent directly to a BoldLine Media client. Write in professional plain English. Never mention AI or bots.
+  system: `You are writing the body of a performance report email that will be sent directly to a BoldLine Media client. Write in professional plain English with no emojis or decorative symbols. Never mention AI or bots.
 
 CLIENT DATA:
 ${data.text}

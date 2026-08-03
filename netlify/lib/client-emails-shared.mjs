@@ -115,7 +115,7 @@ const T = {
     subject: `You're all set — your BoldLine agreement is signed`,
     preheader: "Your agreement is signed and on file. Here's what's next.",
     bodyHtml:
-      h1("You're all set ✓") +
+      h1("You're all set") +
       p(`Thanks ${escapeHTML(firstName(c.contactName))} — your BoldLine Media agreement is ${b("signed and on file.")} A copy is always available in your portal.`) +
       p("Next up, we'll get your billing and ad account connected, then start building. You'll approve everything before anything goes live.") +
       button("View in Your Portal", c.portalUrl || SITE) +

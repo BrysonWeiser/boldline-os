@@ -48,6 +48,12 @@ automated.
   Before merging any UI change, verify it headlessly at those four widths (Playwright recipe
   + current coverage map in KB `responsive-standards`). Cards/sections that share a container
   should share a width — no mixed-width stacks.
+- **No emojis in anything a CLIENT sees — standing rule (Bryson, 2026-08-03).** Emojis read
+  unprofessional. Keep every client-facing surface emoji-free: all client/lead/subscriber emails,
+  the AI performance reports, the client portal, the marketing site, and any future client-facing
+  copy. Functional monochrome UI glyphs (✓ ✕ ▶ → carets) are fine — they're not emojis.
+  Internal-only surfaces Bryson alone sees (OS UI icons, owner alert severity emojis) are exempt.
+  Details + what was stripped in KB `client-email-center`.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
