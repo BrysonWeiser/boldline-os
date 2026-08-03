@@ -47,6 +47,13 @@
 [functions."alerts-watch"]
   schedule = "0 17 * * *"
 
+# Daily client-nurture: the onboarding + retention email touches that aren't
+# Stripe-triggered — Ad-Account Access ~1 day after Welcome, an onboarding nudge
+# on day 2 + 5 while intake is incomplete, and a celebratory Lead-Milestone email
+# at 10/25/50/100+ leads. Idempotent per client; most runs are cheap no-ops.
+[functions."client-nurture"]
+  schedule = "0 16 * * *"
+
 # Every 15 min: publishes scheduled drafts at their exact time + keeps >=1
 # scheduled post in the review pipeline. Nearly every run is a cheap no-op.
 [functions."blog-autopublish"]

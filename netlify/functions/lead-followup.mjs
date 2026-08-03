@@ -9,6 +9,8 @@ const DAY = 864e5;
 const STEPS = [
   { id: "day1", afterDays: 1 },
   { id: "day3", afterDays: 3 },
+  { id: "day7", afterDays: 7 },
+  { id: "day14", afterDays: 14 },
 ];
 
 const findDueStep = (lead) => {
@@ -24,12 +26,19 @@ const buildFollowUp = (client, lead, stepId) => {
   const reachedOut = lead.source === "call_tracking" ? `you called ${client.name} recently` : `you reached out to ${client.name} recently`;
   const phoneLine = client.businessPhone ? ` You can also call us anytime at ${client.businessPhone}.` : "";
 
-  const body = stepId === "day1"
-    ? `${greeting} just following up — ${reachedOut} and we don't want you to slip through the cracks. Reply here anytime and we'll take care of you.${phoneLine}`
-    : `${greeting} last check-in — ${reachedOut}, and we're still happy to help whenever you're ready. Just reply or call.${phoneLine}`;
-
-  const subject = stepId === "day1" ? `Following up — ${client.name}` : `Still here when you're ready — ${client.name}`;
-  return { body, subject };
+  const BODIES = {
+    day1:  `${greeting} just following up — ${reachedOut} and we don't want you to slip through the cracks. Reply here anytime and we'll take care of you.${phoneLine}`,
+    day3:  `${greeting} circling back — ${reachedOut}, and we'd still love to help. A quick reply is all it takes and we'll get you sorted.${phoneLine}`,
+    day7:  `${greeting} still thinking it over? No rush — ${reachedOut}, and whenever the timing's right we're ready to jump in. Just reply or call.${phoneLine}`,
+    day14: `${greeting} last check-in from us — we don't want to crowd your inbox. Since ${reachedOut}, our door stays open: reply anytime down the road and we'll pick right up.${phoneLine}`,
+  };
+  const SUBJECTS = {
+    day1:  `Following up — ${client.name}`,
+    day3:  `Circling back — ${client.name}`,
+    day7:  `Still here when you're ready — ${client.name}`,
+    day14: `One last note — ${client.name}`,
+  };
+  return { body: BODIES[stepId] || BODIES.day1, subject: SUBJECTS[stepId] || SUBJECTS.day1 };
 };
 
 const sendFollowUp = async (client, lead, due) => {
