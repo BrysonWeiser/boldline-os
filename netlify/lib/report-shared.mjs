@@ -267,6 +267,40 @@ export const appendLead = async (supabaseAdmin, row, lead) => {
   return nextData;
 };
 
+// Branded "New Lead" notification to the owner (OWNER_EMAIL). Shared by
+// lead-intake (form / website leads) and voice (inbound tracking-number calls)
+// so every new lead — form OR phone call — pings Bryson the same way. Fail-soft.
+export const notifyOwnerOfLead = async (client, lead) => {
+  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL || !process.env.OWNER_EMAIL) return;
+  const rows = [
+    ["Name", lead.name],
+    ["Phone", lead.phone],
+    ["Email", lead.email],
+    ["Source", lead.source],
+    ["Message", lead.message],
+  ].filter(([, v]) => v);
+  const rowsHTML = rows
+    .map(([k, v]) => `<div style="margin-bottom:10px"><div style="font-size:10px;font-weight:700;letter-spacing:.05em;color:#9CA3AF;text-transform:uppercase">${escapeHTML(k)}</div><div style="font-size:14px;color:#1F2937;margin-top:2px">${escapeHTML(String(v))}</div></div>`)
+    .join("") || `<div style="font-size:13px;color:#6B7280">No details were sent with this lead.</div>`;
+  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
+<div style="max-width:480px;margin:0 auto;padding:28px 20px">
+  <div style="margin-bottom:18px;text-align:center">
+    <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
+    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
+    <div style="font-size:11px;color:#6B7280;margin-top:10px">New Lead — ${escapeHTML(client.name)}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:22px 22px">${rowsHTML}</div>
+  <div style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center">Lead #${client.leads} for ${escapeHTML(client.name)}. Logged automatically by BoldLine OS.</div>
+</div>
+</body></html>`;
+  const text = rows.map(([k, v]) => `${k}: ${v}`).join("\n") || "No details were sent with this lead.";
+  try {
+    await sendEmail({ to: process.env.OWNER_EMAIL, subject: `New Lead — ${client.name}`, html, text });
+  } catch (err) {
+    console.error("Lead notification email failed:", err);
+  }
+};
+
 // Branded wrapper for a short transactional message sent to one of a client's
 // own leads — headlined with the client's business name, not BoldLine's,
 // since from the lead's perspective this email comes from the business they
