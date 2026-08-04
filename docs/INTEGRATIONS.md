@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 77 task-keyed entries under `knowledge/`. They surface automatically via the
+> 78 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**77 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**78 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -33,6 +33,12 @@
 - **[business-constraint-ad-spend](../knowledge/business-constraint-ad-spend.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   HARD RULE — the client always owns and is billed for their own ad account; BoldLine never fronts, holds, or is financially exposed for client ad spend, and only ever holds manager-level access. Stripe (not started) will bill BoldLine's service fee ONLY, never ad spend.  
   <sub>*task:* make any billing, ad-account, Stripe, or Meta decision without violating the ad-spend ownership rule &nbsp;|&nbsp; *keywords:* ad-spend, MCC, manager-access, stripe, service-fee, client-owns-account</sub>
+
+## Business/ops
+
+- **[business-taxes-accounting](../knowledge/business-taxes-accounting.md)** &mdash; &#9989; verified &middot; 2026-08-03  
+  Tax/accounting guidance discussed with Bryson 2026-08-03 (general info, NOT professional tax advice). His write-offs are legit; there's a solid longer list. KEY CORRECTION: the "pay myself a $15k salary so I only make $15k on paper" idea does NOT work for a sole prop / single-member LLC — ALL net profit is taxed to him regardless of draws; the salary/distribution split only exists for an S-CORP (and only pays off ~$40–50k+ profit). WHO TO HIRE (what he'll ask for later): a small-business/self-employed CPA (primary), or a cheaper Enrolled Agent, + optional bookkeeper; the AZ business attorney can refer one; a payroll service (Gusto) only once S-corp. Legal tax AVOIDANCE (deductions + retirement + eventual S-corp) = yes; under-reporting income = illegal evasion = no. Not acted on yet — revisit + hire a CPA around the time he lands first clients / plans to quit the CNA job.  
+  <sub>*task:* BoldLine business taxes, write-offs, entity structure (LLC / S-corp), and WHO to hire to handle taxes/accounting &nbsp;|&nbsp; *keywords:* taxes, tax write-off, deductions, LLC, S-corp, self-employment tax, CPA, accountant, bookkeeper, enrolled agent, quarterly estimated taxes, SEP-IRA, Solo 401k, home office, mileage, reasonable salary, distributions, Bryson quit job</sub>
 
 ## Client portal
 
