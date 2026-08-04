@@ -17,15 +17,15 @@ Bigger picture beyond BoldLine: **build more income streams / businesses**, and 
 
 ## Daily schedule + hard constraints (shape the brief around these)
 - **Wakes 8:00 AM every day; asleep by ~midnight.**
-- **Day job: Monday–Friday, 2:00–10:00 PM.** So his ONLY BoldLine/business window on weekdays is the **morning, ~8:10 AM–12:30 PM.**
-- Within that morning block he trains **1–1.5h at the gym.**
+- **Day job: Monday–Friday, 2:00–10:00 PM.** So his ONLY BoldLine/business window on weekdays is the **morning, ~8:00 AM–1:00 PM.**
+- **He does NOT train first (updated 2026-08-03).** He wakes and goes STRAIGHT into BoldLine build work with Claude; his gym cue is **Claude credits running out (~10:30 AM).**
 - **Realistic weekday timeline the brief should assume:**
-  - 8:15–9:45 — gym (see split below)
-  - 9:45–10:15 — shower, food, pull up the call list
-  - 10:15–12:15 — **cold calls** (prime B2B window — owners are in) + log leads in the OS
-  - 12:15–12:30 — quick OS check (Alerts, approvals), fire off follow-up emails
-  - 2:00–10:00 — day job
-- **Weekends:** no day job → the morning block extends and the focus shifts from cold-calling (businesses closed) to **building** (new business, BoldLine branches, reselling) + recovery. Don't put "cold call" on a Sat/Sun brief.
+  - 8:00–~10:30 — **BoldLine BUILD work with Claude** (OS, content, HVAC list/script, prep) until credits run out (~10–11 AM). He starts here, NOT the gym.
+  - ~10:30–12:00 — **gym** (cue = credits ran out), 45–60 min
+  - ~12:00–1:00 — **power hour:** OS check + follow-ups, cold calls WHEN outreach is live, eat a prepped meal
+  - 1:00–1:40 — get ready + leave for the day job (out the door by **1:40** latest)
+  - 2:00–10:00 — day job (CNA); asleep by ~midnight
+- **Weekends (Sat & Sun):** no day job → longer build window. Per Bryson's call the weekend focus is **building** (new income / branches / reselling / HVAC prep) + **Sunday meal prep** + recovery — historically NOT cold-calling (owners less reachable). *(If the tighter weekday window pushes him to add weekend outreach once live, update this.)*
 
 ## Categories the brief should cover (priority order)
 
@@ -46,7 +46,7 @@ Pull the LIVE state each morning from `knowledge/` + `docs/DEPLOYS.md` — don't
 **⛔ STATUS: ON HOLD until Meta App Review is approved + verified working (Bryson's call).** Until then, do NOT push a daily cold-call target — the brief should treat client-getting as *prep only* (optional: build the HVAC list + script) and keep the real top priority on finishing Meta + build/OS work. When Meta is confirmed working, delete this hold line and activate the targets below.
 - *(ACTIVATE WHEN META IS LIVE)* Niche = **HVAC, Phoenix metro.** Target: **20 cold calls/day** week 1 (build the habit + script), then **25–30/day + 5 follow-up emails.**
 - *(when active)* The metric that matters is **booked meetings, not dials — aim for 1 booked call/day.** ~25 dials ≈ 4–6 real conversations ≈ 1 booked once the pitch is tight.
-- *(when active)* Best calling window: **~10:00 AM–12:15 PM** (after the gym). Work warm leads in the OS **Leads** tab → book → close.
+- *(when active)* Best calling window is now the **~12:00–1:00 PM power hour** (after the gym) — tighter than before, since he now spends the early morning building with Claude, not calling. Make each dial count; work warm leads in the OS **Leads** tab → book → close.
 
 ### 💡 New businesses & more income
 - **Reselling** (current side hustle for extra cash): one concrete action/day — source a deal, list an item, or ship/reprice. Weekends = the bigger sourcing/listing push.
