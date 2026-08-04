@@ -17,14 +17,15 @@ Bigger picture beyond BoldLine: **build more income streams / businesses**, and 
 
 ## Daily schedule + hard constraints (shape the brief around these)
 - **Wakes 8:00 AM every day; asleep by ~midnight.**
-- **Day job: Monday–Friday, 2:00–10:00 PM.** So his ONLY BoldLine/business window on weekdays is the **morning, ~8:00 AM–1:00 PM.**
+- **Day job: Monday–Friday, 2:00–10:00 PM.** His weekday BoldLine windows are the **morning ~8:00 AM–1:00 PM** AND a **second build block ~10:00 PM–midnight** after the shift (Claude credits have reset by then, so it's real build time — not cold-calling, businesses are closed).
 - **He does NOT train first (updated 2026-08-03).** He wakes and goes STRAIGHT into BoldLine build work with Claude; his gym cue is **Claude credits running out (~10:30 AM).**
 - **Realistic weekday timeline the brief should assume:**
   - 8:00–~10:30 — **BoldLine BUILD work with Claude** (OS, content, HVAC list/script, prep) until credits run out (~10–11 AM). He starts here, NOT the gym.
   - ~10:30–12:00 — **gym** (cue = credits ran out), 45–60 min
   - ~12:00–1:00 — **power hour:** OS check + follow-ups, cold calls WHEN outreach is live, eat a prepped meal
   - 1:00–1:40 — get ready + leave for the day job (out the door by **1:40** latest)
-  - 2:00–10:00 — day job (CNA); asleep by ~midnight
+  - 2:00–10:00 — day job (CNA)
+  - ~10:00–11:45 PM — **second BoldLine BUILD block** (credits have reset) — build / OS / content / HVAC prep; then screens off, **asleep by ~midnight**
 - **Weekends (Sat & Sun):** no day job → longer build window. Per Bryson's call the weekend focus is **building** (new income / branches / reselling / HVAC prep) + **Sunday meal prep** + recovery — historically NOT cold-calling (owners less reachable). *(If the tighter weekday window pushes him to add weekend outreach once live, update this.)*
 
 ## Categories the brief should cover (priority order)
