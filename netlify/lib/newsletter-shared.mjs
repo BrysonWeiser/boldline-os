@@ -161,18 +161,20 @@ export async function sendDueNewsletters(supabase) {
   return { enabled: true, sent, pending: due.length - sent };
 }
 
-// Resend Broadcast send. Finalize the exact audience wiring when the domain is
-// verified (see KB email-list-newsletter). Requires RESEND_API_KEY +
-// REPORTS_FROM_EMAIL (verified sender) + RESEND_AUDIENCE_ID.
+// Resend Broadcast send. Resend replaced "Audiences" with "Segments" (2026):
+// contacts are account-level, and a broadcast now targets a SEGMENT_ID (a named
+// group of contacts). Requires RESEND_API_KEY + REPORTS_FROM_EMAIL (verified
+// sender) + RESEND_SEGMENT_ID (an "all subscribers" segment made in Resend →
+// Audience → Segments). See KB email-list-newsletter / domain-dns-wix.
 export async function sendBroadcast(em) {
   const key = process.env.RESEND_API_KEY;
   const from = process.env.REPORTS_FROM_EMAIL;
-  const audienceId = process.env.RESEND_AUDIENCE_ID;
-  if (!key || !from || !audienceId) throw new Error("Sending not configured (need RESEND_API_KEY, REPORTS_FROM_EMAIL, RESEND_AUDIENCE_ID)");
+  const segmentId = process.env.RESEND_SEGMENT_ID;
+  if (!key || !from || !segmentId) throw new Error("Sending not configured (need RESEND_API_KEY, REPORTS_FROM_EMAIL, RESEND_SEGMENT_ID)");
   const create = await fetch("https://api.resend.com/broadcasts", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ audience_id: audienceId, from, subject: em.subject, html: em.body_html }),
+    body: JSON.stringify({ segment_id: segmentId, from, subject: em.subject, html: em.body_html }),
   });
   if (!create.ok) throw new Error(`Resend broadcast create ${create.status}: ${await create.text()}`);
   const { id } = await create.json();
