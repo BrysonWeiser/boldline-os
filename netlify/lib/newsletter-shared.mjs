@@ -64,32 +64,41 @@ Write: a subject line (curiosity + value, under 60 chars, no clickbait), a one-l
   return { subject, preview, body_html: renderNewsletterHTML({ post, preview, paragraphs, ctaText }) };
 }
 
-// ── Branded HTML (matches the report/alert email styling) ──────────────────
+// ── Branded DARK-theme HTML (matches the client-email dark shell) ──────────
+// Explicit dark backgrounds on every wrapper + `color-scheme: dark only` so
+// Gmail/Apple Mail render it dark (and don't auto-invert). Table-based layout
+// for the button so it survives Outlook. Keeps the newsletter unsubscribe
+// footer (broadcasts need the {{{RESEND_UNSUBSCRIBE_URL}}} tag in the body).
 export function renderNewsletterHTML({ post, preview, paragraphs, ctaText }) {
   const url = `${SITE_URL}/blog/${post.slug}/`;
-  const paras = (paragraphs || []).map((p) =>
-    `<p style="margin:0 0 15px;line-height:1.65;color:#1F2937;font-size:15px">${escapeHTML(p)}</p>`).join("");
+  const D = { bg:"#070810", card:"#0C0D18", cardBorder:"rgba(255,255,255,.08)", head:"#F5F3EA", body:"#C6CAE0", faint:"#5A6078" };
+  const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+  const SERIF = "Georgia,'Times New Roman',serif";
+  const paras = (paragraphs || []).map((para) =>
+    `<p style="margin:0 0 15px;font-family:${SANS};font-size:15px;line-height:1.65;color:${D.body}">${escapeHTML(para)}</p>`).join("");
   const previewSpan = preview
-    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHTML(preview)}</div>` : "";
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:${D.bg}">${escapeHTML(preview)}</div>` : "";
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark only"><meta name="supported-color-schemes" content="dark"></head>
+<body style="margin:0;padding:0;background:${D.bg};-webkit-text-size-adjust:100%">
 ${previewSpan}
-<div style="max-width:560px;margin:0 auto;padding:28px 20px">
-  <div style="margin-bottom:20px;text-align:center">
-    <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
-    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:28px 26px">
-    <div style="font-size:20px;font-weight:800;color:#111;margin-bottom:14px;line-height:1.25">${escapeHTML(post.title)}</div>
-    ${paras}
-    <div style="text-align:center;margin:24px 0 4px">
-      <a href="${url}" style="display:inline-block;background:${GOLD};color:#15110A;font-weight:700;font-size:14px;text-decoration:none;padding:13px 30px;border-radius:10px">${escapeHTML(ctaText)} →</a>
-    </div>
-  </div>
-  <div style="margin-top:18px;font-size:11px;color:#9CA3AF;text-align:center;line-height:1.6">
-    You're getting this because you subscribed at boldlinemedia.com.<br>
-    <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#9CA3AF;text-decoration:underline">Unsubscribe</a>
-  </div>
-</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${D.bg};padding:28px 12px">
+  <tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
+      <tr><td align="center" style="padding:4px 0 22px">
+        <div style="font-family:${SERIF};font-size:22px;font-weight:700;letter-spacing:.04em;color:${GOLD}">BoldLine Media</div>
+        <div style="margin:9px auto 0;height:2px;width:40px;background:${GOLD};opacity:.85"></div>
+      </td></tr>
+      <tr><td style="background:${D.card};border:1px solid ${D.cardBorder};border-top:3px solid ${GOLD};border-radius:16px;padding:30px 28px">
+        <h1 style="margin:0 0 16px;font-family:${SERIF};font-size:23px;font-weight:700;line-height:1.3;color:${D.head}">${escapeHTML(post.title)}</h1>
+        ${paras}
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px auto 4px"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${url}" style="display:inline-block;padding:13px 32px;font-family:${SANS};font-size:14px;font-weight:700;color:#15110A;text-decoration:none;border-radius:10px">${escapeHTML(ctaText)} &rarr;</a></td></tr></table>
+      </td></tr>
+      <tr><td align="center" style="padding:18px 10px 0">
+        <div style="font-family:${SANS};font-size:11px;line-height:1.65;color:${D.faint}">You're getting this because you subscribed at boldlinemedia.com.<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:${D.faint};text-decoration:underline">Unsubscribe</a></div>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
 </body></html>`;
 }
 
