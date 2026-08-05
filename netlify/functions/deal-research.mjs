@@ -31,9 +31,18 @@ export default async (req) => {
   }
 
   if (action === "recent") {
-    const { data, error } = await supabase.from("deal_briefs").select("id, status, input, created_at").order("created_at", { ascending: false }).limit(10);
+    const { data, error } = await supabase.from("deal_briefs").select("id, status, input, created_at").order("created_at", { ascending: false }).limit(50);
     if (error) return json({ ok: false, error: error.message }, 500);
     return json({ ok: true, briefs: data || [] });
+  }
+
+  if (action === "delete") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    const id = url.searchParams.get("id") || "";
+    if (!id) return json({ ok: false, error: "id required" }, 400);
+    const { error } = await supabase.from("deal_briefs").delete().eq("id", id);
+    if (error) return json({ ok: false, error: error.message }, 500);
+    return json({ ok: true });
   }
 
   return json({ ok: false, error: "unknown action" }, 400);
