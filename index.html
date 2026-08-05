@@ -1419,6 +1419,7 @@ function DealPrepScreen({onBack,isDesktop}){
   const [msg,setMsg]=useState("");
   const [result,setResult]=useState(null);
   const [recent,setRecent]=useState(null); // null = hidden; [] = loaded
+  const [nicheFilter,setNicheFilter]=useState("all");
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
   const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
@@ -1457,6 +1458,15 @@ function DealPrepScreen({onBack,isDesktop}){
       if(r&&r.status==="done"&&r.result){ setResult({...r.result,_prospect:(b.input&&b.input.companyName)||"Prospect"}); setState("done"); setRecent(null); } }
     catch{}
   };
+  const deleteBrief=async(b)=>{
+    if(!window.confirm(`Delete the brief for ${(b.input&&b.input.companyName)||"this prospect"}? This can't be undone.`)) return;
+    const token=await authToken(); if(!token) return;
+    try{ await fetch("/.netlify/functions/deal-research?action=delete&id="+encodeURIComponent(b.id),{method:"POST",headers:{"Authorization":"Bearer "+token}});
+      setRecent(rs=>(rs||[]).filter(x=>x.id!==b.id)); }
+    catch{}
+  };
+  const recentNiches = recent ? [...new Set(recent.map(b=>(b.input&&b.input.niche)||"").filter(Boolean))].sort((a,z)=>a.localeCompare(z)) : [];
+  const shownRecent = recent ? recent.filter(b=>nicheFilter==="all"||((b.input&&b.input.niche)||"")===nicheFilter) : [];
 
   const leadFee=result&&result.nicheLeadFee;
   const recId=result&&result.recommendedPackageId;
@@ -1495,15 +1505,28 @@ function DealPrepScreen({onBack,isDesktop}){
       {(state==="form"||state==="error")&&(
         <div style={{maxWidth:640,marginTop:10}}>
           <button onClick={toggleRecent} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:600,cursor:"pointer",padding:"4px 2px"}}>{recent?"Hide recent briefs":"↺ Pull up a recent brief"}</button>
-          {recent&&(recent.length?recent.map(b=>(
-            <button key={b.id} onClick={()=>openBrief(b)} style={{display:"flex",width:"100%",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginTop:5,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left"}}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{...S.t13b,...S.ovh}}>{(b.input&&b.input.companyName)||"—"}</div>
-                <div style={{fontSize:10.5,color:C.textMuted}}>{(b.input&&b.input.niche)||""}</div>
+          {recent&&(recent.length?(<>
+            {recentNiches.length>1&&(
+              <div style={{display:"flex",alignItems:"center",gap:8,margin:"8px 0 2px"}}>
+                <span style={{fontSize:10.5,color:C.textMuted,fontWeight:600,flexShrink:0}}>Filter</span>
+                <select value={nicheFilter} onChange={e=>setNicheFilter(e.target.value)} style={{flex:1,minWidth:0,padding:"7px 9px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,cursor:"pointer"}}>
+                  <option value="all">All categories ({recent.length})</option>
+                  {recentNiches.map(n=>(<option key={n} value={n}>{n} ({recent.filter(b=>((b.input&&b.input.niche)||"")===n).length})</option>))}
+                </select>
               </div>
-              <span style={{fontSize:11,fontWeight:700,color:b.status==="done"?C.green:b.status==="error"?C.red:C.amber,flexShrink:0}}>{b.status==="done"?"View ›":b.status}</span>
-            </button>
-          )):<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs yet.</div>)}
+            )}
+            {shownRecent.map(b=>(
+              <div key={b.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginTop:5,border:`1px solid ${C.border}`,background:C.bg3}}>
+                <div onClick={()=>openBrief(b)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
+                  <div style={{...S.t13b,...S.ovh}}>{(b.input&&b.input.companyName)||"—"}</div>
+                  <div style={{fontSize:10.5,color:C.textMuted}}>{(b.input&&b.input.niche)||""}</div>
+                </div>
+                <span onClick={()=>openBrief(b)} style={{fontSize:11,fontWeight:700,color:b.status==="done"?C.green:b.status==="error"?C.red:C.amber,flexShrink:0,cursor:"pointer"}}>{b.status==="done"?"View ›":b.status}</span>
+                <button onClick={()=>deleteBrief(b)} title="Delete brief" style={{flexShrink:0,width:24,height:24,borderRadius:6,border:"none",background:"rgba(255,255,255,.05)",color:C.textMuted,cursor:"pointer",fontSize:12,lineHeight:1}}>✕</button>
+              </div>
+            ))}
+            {!shownRecent.length&&<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs in this category.</div>}
+          </>):<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs yet.</div>)}
         </div>
       )}
 
