@@ -1278,6 +1278,41 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
 <div class="sxd" aria-hidden="true"><i></i></div>
 
+<section id="lead-leak">
+  <div class="contact-box reveal" style="text-align:center">
+    <div class="eyebrow">Free, no obligation</div>
+    <h2>Get a free Lead-Leak Check.</h2>
+    <p style="max-width:580px;margin:0 auto 24px">Not ready for a call? Send us your website and we'll show you where your business is quietly losing customers &mdash; a slow or unclear site, ad spend going to the wrong searches, leads that never get followed up &mdash; plus the 2&ndash;3 quickest fixes. Free, and no call required.</p>
+    <form id="leakForm" style="max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:10px;text-align:left">
+      <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <input id="lk-website" type="text" placeholder="Your website (e.g. yourbusiness.com)" autocomplete="url" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-email" type="email" placeholder="Where should we send it? (email)" autocomplete="email" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <button class="btn" type="submit" id="lkBtn" style="margin-top:2px">Get my free Lead-Leak Check &rarr;</button>
+      <div id="lkMsg" role="status" style="font-size:13px;color:#9CA3AF;min-height:18px;text-align:center"></div>
+    </form>
+  </div>
+</section>
+<script>
+(function(){
+  var f=document.getElementById('leakForm'); if(!f) return;
+  var EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var w=document.getElementById('lk-website'),em=document.getElementById('lk-email'),b=document.getElementById('lkBtn'),m=document.getElementById('lkMsg');
+    var website=(w.value||'').trim(),email=(em.value||'').trim();
+    if(f.company&&f.company.value){return;}
+    if(!website){m.textContent='Please add your website.';return;}
+    if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
+    b.disabled=true;var old=b.textContent;b.textContent='Sending…';m.textContent='';
+    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'homepage'})})
+      .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it &mdash; your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
+      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong &mdash; email us at theboldlinemedia@gmail.com.';});
+  });
+})();
+</script>
+
+<div class="sxd" aria-hidden="true"><i></i></div>
+
 <section id="contact">
   <div class="contact-box reveal">
     <div class="eyebrow">Get Started</div>
@@ -2101,5 +2136,13 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
 })();
 </script>
 
+<a class="mobile-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Call &rarr;</a>
+<style>
+.mobile-cta{display:none}
+@media(max-width:760px){
+  .mobile-cta{position:fixed;left:12px;right:12px;bottom:12px;z-index:60;display:block;text-align:center;padding:15px 16px;border-radius:12px;background:#C8A84B;color:#15110A;font-weight:800;font-size:15px;letter-spacing:.01em;text-decoration:none;box-shadow:0 10px 34px -8px rgba(0,0,0,.7)}
+  body{padding-bottom:84px}
+}
+</style>
 </body>
 </html>
