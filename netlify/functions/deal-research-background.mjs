@@ -25,7 +25,15 @@ ${packagesPromptBlock(leadFee)}
 
 For this prospect's industry, BoldLine's per-qualified-lead fee is about $${leadFee} (service packages only; e-commerce uses a ROAS bonus instead).
 
-RESEARCH with web search: what the company does, size, years in business, service area, reputation (Google/Yelp reviews + rating), and their current digital presence — do they have a website, is it any good, are they visibly running Google or Meta ads, how's their SEO/reviews, any recent news or expansion. Look up typical customer/job value in their industry to ground the ROI math. NEVER fabricate — if you can't confirm something, say "couldn't confirm."
+RESEARCH with web search: what the company does, size, years in business, service area, reputation (Google/Yelp reviews + rating), and their current digital presence — do they have a website, is it any good, are they visibly running Google or Meta ads, how's their SEO/reviews, any recent news or expansion. Look up typical customer/job value in their industry to ground the ROI math.
+
+ACCURACY RULES — read carefully. Bryson sometimes personally knows these owners and will instantly lose trust if the brief states anything wrong:
+- Use ONLY facts you actually found via web search this run. Do NOT guess, infer from the industry, or fill gaps with what's "typical" — if you didn't find it, write "couldn't confirm."
+- NEVER invent specifics: owner or staff names, review counts or star ratings, years in business, address, phone, or whether they're running ads. Every specific fact must trace to a source you actually saw.
+- Prefer RECENT sources and account for staleness: if the strongest info you find looks old (an outdated-looking site, a years-old article or review), say so and mark it "(may be outdated)" instead of presenting it as current.
+- Mark anything you are not fully sure of with "(unconfirmed)" so Bryson knows to verify it live.
+- Treat the "What Bryson already knows" notes as GROUND TRUTH — build on them and never contradict or overwrite them with a guess (if he gives the owner's name, use exactly that; never substitute a different name you found).
+- Keep company FACTS (which must be sourced) separate from your ANALYSIS — the package fit, ROI math, and objection handling are your reasoning and are expected.
 
 OUTPUT — respond with EXACTLY this, nothing before it:
 First line, alone: RECOMMENDED: <one package id from the list above>
