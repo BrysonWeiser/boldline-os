@@ -1600,21 +1600,33 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const ymdOf = (d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
   const [view,setView]=useState(new Date(now0.getFullYear(),now0.getMonth(),1));
   const [sel,setSel]=useState(ymdOf(now0));
-  const [nl,setNl]=useState([]); const [bl,setBl]=useState([]); const [mt,setMt]=useState([]);
+  const [nl,setNl]=useState([]); const [bl,setBl]=useState([]); const [mt,setMt]=useState([]); const [manual,setManual]=useState([]);
   const [loading,setLoading]=useState(true); const [calCfg,setCalCfg]=useState(true);
+  const [showAdd,setShowAdd]=useState(false); const [saving,setSaving]=useState(false);
+  const [addForm,setAddForm]=useState({title:"",date:"",time:"",kind:"meeting",note:""});
+  const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
+  const cal=async(body)=>{ const token=await authToken(); if(!token) return {}; return fetch("/.netlify/functions/calendar",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)}).then(r=>r.json()).catch(()=>({})); };
+  const loadManual=async()=>{ const r=await cal({action:"list"}); setManual((r&&r.events)||[]); };
   useEffect(()=>{ let alive=true; (async()=>{
-    const { data:{ session } }=await supabaseClient.auth.getSession(); const token=session&&session.access_token;
+    const token=await authToken();
     if(!token){ if(alive) setLoading(false); return; }
     const post=(fn,body)=>fetch("/.netlify/functions/"+fn,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)}).then(r=>r.json()).catch(()=>({}));
     const get=(fn)=>fetch("/.netlify/functions/"+fn,{headers:{"Authorization":"Bearer "+token}}).then(r=>r.json()).catch(()=>({}));
-    const [a,b,c]=await Promise.all([post("newsletter-admin",{action:"list"}),post("blog-admin",{action:"list"}),get("calendly")]);
+    const [a,b,c,d]=await Promise.all([post("newsletter-admin",{action:"list"}),post("blog-admin",{action:"list"}),get("calendly"),post("calendar",{action:"list"})]);
     if(!alive) return;
-    setNl((a&&a.emails)||[]); setBl((b&&b.posts)||[]); setMt((c&&c.meetings)||[]); if(c&&c.configured===false) setCalCfg(false); setLoading(false);
+    setNl((a&&a.emails)||[]); setBl((b&&b.posts)||[]); setMt((c&&c.meetings)||[]); setManual((d&&d.events)||[]); if(c&&c.configured===false) setCalCfg(false); setLoading(false);
   })(); return ()=>{ alive=false; }; },[]);
+  const addEvent=async()=>{ if(!addForm.title.trim()||!addForm.date) return; setSaving(true);
+    const r=await cal({action:"add",event_date:addForm.date,event_time:addForm.time||null,title:addForm.title.trim(),kind:addForm.kind,note:addForm.note.trim()||null});
+    setSaving(false);
+    if(r&&r.ok===false){ window.alert(/relation|does not exist|schema cache|could not find/i.test(r.error||"")?"One-time setup: run docs/sql/calendar-schema.sql in Supabase, then try again.":("Couldn't save: "+(r.error||"error"))); return; }
+    await loadManual(); setSel(addForm.date); setShowAdd(false); setAddForm({title:"",date:"",time:"",kind:"meeting",note:""}); };
+  const deleteManual=async(id)=>{ if(!window.confirm("Delete this event?")) return; await cal({action:"delete",id}); setManual(m=>(m||[]).filter(x=>x.id!==id)); };
 
-  const events=buildCalendarEvents({clients,newsletter:nl,blog:bl,meetings:mt});
+  const manualEvents=(manual||[]).map(m=>({ymd:m.event_date,kind:m.kind||"other",title:m.title,sub:[m.event_time,m.note].filter(Boolean).join(" · "),manual:true,id:m.id}));
+  const events=[...buildCalendarEvents({clients,newsletter:nl,blog:bl,meetings:mt}),...manualEvents];
   const byDay={}; events.forEach(e=>{ (byDay[e.ymd]=byDay[e.ymd]||[]).push(e); });
-  const KC={ meeting:C.red, invoice:C.gold, review:C.gold, contract:C.amber, renewal:C.amber, newsletter:C.blue, blog:C.blue };
+  const KC={ meeting:C.red, invoice:C.gold, review:C.gold, contract:C.amber, renewal:C.amber, newsletter:C.blue, blog:C.blue, task:C.green, reminder:C.purple, other:C.purple };
   const kc=k=>KC[k]||C.textMuted;
 
   const y=view.getFullYear(), mo=view.getMonth();
@@ -1627,7 +1639,8 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const selLabel=new Date(sel+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});
   const openEvent=(e)=>{ if(e.clientId){ const c=(clients||[]).find(x=>x.id===e.clientId); if(c){ onSelect&&onSelect(c); return; } } if(e.kind==="meeting"&&e.joinUrl){ window.open(e.joinUrl,"_blank","noopener"); } };
   const navBtn={width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",fontSize:15,flexShrink:0};
-  const legendItems=[["Meetings",C.red],["Billing",C.gold],["Contracts",C.amber],["Content",C.blue]];
+  const lbl={fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"};
+  const legendItems=[["Meetings",C.red],["Tasks",C.green],["Reminders",C.purple],["Billing",C.gold],["Contracts",C.amber],["Content",C.blue]];
   const back = !isDesktop && (<button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>);
 
   return (
@@ -1638,6 +1651,7 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
           <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Calendar</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every scheduled thing across the OS, in one place.</div>
         </div>
+        <button onClick={()=>{ setAddForm(f=>({...f,date:sel})); setShowAdd(true); }} style={{marginLeft:"auto",padding:"9px 14px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>+ Add</button>
       </div>
 
       <div style={{maxWidth:820}}>
@@ -1676,12 +1690,35 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
                 <div style={{fontSize:13,fontWeight:700,color:C.text,...S.ovh}}>{e.title}</div>
                 {e.sub&&<div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{e.sub}</div>}
               </div>
-              {(e.clientId||e.joinUrl)&&<span style={{fontSize:15,color:C.textMuted,flexShrink:0}}>›</span>}
+              {e.manual
+                ? <button onClick={(ev)=>{ev.stopPropagation();deleteManual(e.id);}} title="Delete event" style={{flexShrink:0,width:24,height:24,borderRadius:6,border:"none",background:"rgba(255,255,255,.05)",color:C.textMuted,cursor:"pointer",fontSize:12,lineHeight:1}}>✕</button>
+                : (e.clientId||e.joinUrl)&&<span style={{fontSize:15,color:C.textMuted,flexShrink:0}}>›</span>}
             </div>
           ))}
           {!calCfg&&<div style={{fontSize:11,color:C.textDim,marginTop:10,lineHeight:1.55,padding:"9px 11px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>Meetings aren't syncing yet — add a <b>CALENDLY_API_TOKEN</b> on the OS site to auto-pull your Calendly bookings here.</div>}
         </div>
       </div>
+
+      {showAdd&&(
+        <div onClick={()=>setShowAdd(false)} style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:400,background:C.bg2,border:`1px solid ${C.border}`,borderRadius:16,padding:20,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontSize:16,fontWeight:800,color:C.text,marginBottom:14}}>Add to calendar</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div><div style={lbl}>Title</div><input value={addForm.title} onChange={e=>setAddForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Call with Brendon" style={inp}/></div>
+              <div style={{display:"flex",gap:10}}>
+                <div style={{flex:1,minWidth:0}}><div style={lbl}>Date</div><input type="date" value={addForm.date} onChange={e=>setAddForm(f=>({...f,date:e.target.value}))} style={inp}/></div>
+                <div style={{flex:1,minWidth:0}}><div style={lbl}>Time</div><input type="time" value={addForm.time} onChange={e=>setAddForm(f=>({...f,time:e.target.value}))} style={inp}/></div>
+              </div>
+              <div><div style={lbl}>Type</div><select value={addForm.kind} onChange={e=>setAddForm(f=>({...f,kind:e.target.value}))} style={{...inp,cursor:"pointer"}}><option value="meeting">Meeting</option><option value="task">Task</option><option value="reminder">Reminder</option></select></div>
+              <div><div style={lbl}>Note (optional)</div><textarea value={addForm.note} onChange={e=>setAddForm(f=>({...f,note:e.target.value}))} rows={2} style={{...inp,resize:"vertical",fontFamily:"inherit"}}/></div>
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button onClick={()=>setShowAdd(false)} style={{flex:1,padding:"11px",fontSize:13,fontWeight:700,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+                <button onClick={addEvent} disabled={saving||!addForm.title.trim()||!addForm.date} style={{flex:1,padding:"11px",fontSize:13,fontWeight:800,borderRadius:10,border:"none",background:(saving||!addForm.title.trim()||!addForm.date)?"rgba(255,255,255,.06)":C.gradB,color:(saving||!addForm.title.trim()||!addForm.date)?C.textMuted:"#1a1400",cursor:"pointer"}}>{saving?"Saving…":"Add"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
