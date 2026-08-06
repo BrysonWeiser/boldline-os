@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 78 task-keyed entries under `knowledge/`. They surface automatically via the
+> 79 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**78 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**79 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -174,6 +174,12 @@
 - **[two-netlify-sites](../knowledge/two-netlify-sites.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   One git repo deploys as TWO separate Netlify sites, both from main — the OS (repo-root netlify.toml, index.html at /*) and the marketing site (base dir marketing-site, its own netlify.toml). Each has its OWN env-var list.  
   <sub>*task:* understand or configure the two separate Netlify sites (OS vs marketing) and which branch and base dir each uses &nbsp;|&nbsp; *keywords:* netlify.toml, marketing-site, base-directory, boldline-media.netlify.app, second-netlify-site</sub>
+
+## OS
+
+- **[os-calendar](../knowledge/os-calendar.md)** &mdash; &#9989; verified &middot; 2026-08-06  
+  Built 2026-08-06 (Bryson). A CalendarScreen in the OS (desktop sidebar "Calendar" + mobile "More" sheet) shows a month grid + selected-day agenda that AGGREGATES every dated thing — pure client-side data, NO AI, so it works regardless of Anthropic API-credit balance. Sources: Calendly meetings (via new calendly.mjs), invoice auto-charges + "review leads" reminders (7d before), contract renewals/expiries (+30d-before window), and scheduled newsletter + blog content. Color-coded dots (meeting=red, billing=gold, contract=amber, content=blue); tap an event to jump to its client. Meetings need CALENDLY_API_TOKEN (a Calendly Personal Access Token — requires a PAID Calendly plan; API access isn't on the free tier). Fail-soft: no token = calendar still renders, meetings just omitted with a "connect Calendly" hint.  
+  <sub>*task:* the built-in OS Calendar (month view + agenda), what dated events it aggregates, how meetings sync from Calendly, and the mobile "More" nav &nbsp;|&nbsp; *keywords:* calendar, CalendarScreen, buildCalendarEvents, calendly.mjs, CALENDLY_API_TOKEN, scheduled events, meetings sync, agenda, MoreSheet, mobile nav parity, month grid</sub>
 
 ## OS Architecture
 
