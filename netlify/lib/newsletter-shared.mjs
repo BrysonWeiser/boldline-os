@@ -122,9 +122,22 @@ export async function ensureCompanionDraft(supabase) {
     .from("newsletter_emails").select("id").eq("post_slug", post.slug).limit(1);
   if (existing && existing.length) return null; // already has a companion email
 
-  const email = await generateNewsletterEmail(post);
+  // Enforce ONE newsletter per week (each tied to that week's blog post): if a
+  // newsletter is already scheduled/sent in the same calendar week as this
+  // post's send slot, don't create a second one. (Blog is already one-per-week,
+  // so this is belt-and-suspenders against any double-up.)
   const sendAt = new Date(new Date(post.published_at).getTime() + 2 * 3600 * 1000);
-  const scheduledFor = (sendAt.getTime() <= Date.now() ? new Date(Date.now() + 2 * 3600 * 1000) : sendAt).toISOString();
+  const slot = sendAt.getTime() <= Date.now() ? new Date(Date.now() + 2 * 3600 * 1000) : sendAt;
+  const wkStart = new Date(slot); wkStart.setHours(0, 0, 0, 0);
+  wkStart.setDate(wkStart.getDate() - ((wkStart.getDay() + 6) % 7)); // back to Monday
+  const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 7);
+  const { data: sameWeek } = await supabase
+    .from("newsletter_emails").select("id").neq("status", "deleted")
+    .gte("scheduled_for", wkStart.toISOString()).lt("scheduled_for", wkEnd.toISOString()).limit(1);
+  if (sameWeek && sameWeek.length) return null; // already a newsletter this week
+
+  const email = await generateNewsletterEmail(post);
+  const scheduledFor = slot.toISOString();
 
   const { data: row, error: insErr } = await supabase
     .from("newsletter_emails")
