@@ -65,6 +65,12 @@
 [functions."newsletter-autopublish"]
   schedule = "0 * * * *"
 
+# Daily 14:00 UTC = 7:00 AM America/Phoenix (AZ has no DST): the morning agenda
+# digest — emails + pushes everything on today's calendar (meetings, invoices,
+# contract dates, content). Only sends when there's >=1 item that day.
+[functions."calendar-digest"]
+  schedule = "0 14 * * *"
+
 # PWA: the service worker must never be cached by the browser/CDN, or code updates
 # won't roll to installed apps. Force revalidation on every load. (The SW itself is
 # network-first, so the app shell also always refreshes online — see service-worker.js.)
