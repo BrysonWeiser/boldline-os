@@ -30,16 +30,39 @@ export default async (req) => {
   // Durable capture as a lead the owner works in the OS (form:"lead_leak" is NOT
   // filtered out of the sales-Leads list, unlike newsletter rows). Fail-soft so
   // the visitor always gets a success response for a valid email.
+  let leadId = null;
   if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-      await supabase.from("website_leads").insert({
-        form: "lead_leak", email,
+      const { data, error } = await supabase.from("website_leads").insert({
+        form: "lead_leak", email, name,
         payload: { website, name, source, kind: "Lead-Leak Check request" },
-      });
+      }).select("id").single();
+      if (error) throw error;
+      leadId = data && data.id;
     } catch (e) {
       console.error("lead-leak capture failed:", e && e.message);
     }
+  }
+
+  // Fire the automated Lead-Leak Check bot (best-effort). It lives on the OS
+  // site as a Netlify *-background* function, so it returns 202 immediately and
+  // does the slow fetch + AI + email work asynchronously — the visitor never
+  // waits on it. Guarded by a shared secret set on both sites; if the secret
+  // isn't set the bot simply doesn't run and the lead is handled manually.
+  if (leadId && process.env.AUDIT_TRIGGER_SECRET) {
+    const osOrigin = process.env.OS_ORIGIN || "https://boldlinemedia.netlify.app";
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      await fetch(`${osOrigin}/.netlify/functions/lead-leak-audit-background`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ leadId, website, email, name, secret: process.env.AUDIT_TRIGGER_SECRET }),
+        signal: ctrl.signal,
+      }).catch(() => {});
+      clearTimeout(timer);
+    } catch { /* fire-and-forget: never block or fail the visitor's response */ }
   }
 
   return json({ ok: true });
