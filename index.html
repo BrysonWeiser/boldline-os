@@ -2886,6 +2886,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                   <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns here — the same tools you use for clients. Set your budget, add your payment card, and connect your accounts below, then build a campaign further down.</div>
                 </Card>
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
+            {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
             {(()=>{
@@ -5331,6 +5332,149 @@ function NicheSelect({value,onChange}){
       <option value="__custom__">+ Add a custom niche…</option>
     </select>
   );
+}
+
+// My Ads insights (internal-only, top of the Campaigns tab): a "start here"
+// setup checklist, a budget-pacing gauge, and an acquisition-ROI funnel
+// (spend -> leads -> calls booked -> clients won -> cost per client). Fetches the
+// house account's live Google/Meta campaigns ONCE for spend + pacing + whether a
+// campaign is live; the funnel + close rate come from the account's own leadsLog
+// (ground truth for BoldLine's prospects). Built 2026-08-07 (Bryson: add all 3).
+function MyAdsInsights({client,onUpdate}){
+  const hasG=!!client.googleAdsCustomerId, hasM=!!client.metaAdAccountId;
+  const [camps,setCamps]=useState(null); // null = loading; array = loaded
+  const [loadErr,setLoadErr]=useState("");
+  useEffect(()=>{
+    let dead=false;
+    (async()=>{
+      if(!hasG&&!hasM){ setCamps([]); return; }
+      setCamps(null); setLoadErr("");
+      try{
+        let all=[];
+        if(hasG){ const d=await gadsCall({action:"campaigns",customerId:client.googleAdsCustomerId}); all=all.concat((d.campaigns||[]).map(c=>({...c,_plat:"google"}))); }
+        if(hasM){ const d=await metaCall({action:"campaigns",adAccountId:client.metaAdAccountId}); all=all.concat((d.campaigns||[]).map(c=>({...c,_plat:"meta"}))); }
+        if(!dead) setCamps(all);
+      }catch(e){ if(!dead){ setLoadErr(e.message||"Couldn't load live ad data."); setCamps([]); } }
+    })();
+    return ()=>{ dead=true; };
+  },[client.googleAdsCustomerId,client.metaAdAccountId]);
+
+  const money=(n)=> "$"+Math.round(n).toLocaleString();
+  const pct=(a,b)=> b>0?Math.round(a/b*100):0;
+  const isOn=(c)=> c._plat==="google" ? String(c.status).toUpperCase()==="ENABLED" : String(c.status).toUpperCase()==="ACTIVE";
+  const loaded=Array.isArray(camps);
+  const spend30=loaded?camps.reduce((s,c)=>s+Number(c.cost||c.spend||0),0):0;
+  const dailyLive=loaded?camps.filter(isOn).reduce((s,c)=>s+Number(c.dailyBudget||0),0):0;
+  const projMonthly=Math.round(dailyLive*30.4);
+  const anyLive=loaded&&camps.some(isOn);
+  const monthlyBudget=Number(String(client.adBudget||"").replace(/[^0-9.]/g,""))||0;
+
+  const leads=client.leadsLog||[];
+  const nLeads=leads.length;
+  const nBooked=leads.filter(l=>["meeting","won"].includes(l.status||"new")).length;
+  const nWon=leads.filter(l=>(l.status||"new")==="won").length;
+  const now=Date.now();
+  const leads30=leads.filter(l=>l.receivedAt&&(now-new Date(l.receivedAt).getTime())<=30*864e5).length;
+  const costPerLead=(leads30>0&&spend30>0)?spend30/leads30:null;
+  const closeRate=nLeads>0?nWon/nLeads:0;
+  const projCAC=(costPerLead!=null&&closeRate>0)?costPerLead/closeRate:null;
+
+  const cardAdded=!!(client.myAdsSetup&&client.myAdsSetup.cardAdded);
+  const steps=[
+    {k:"budget",  label:"Set your monthly budget",                  done:monthlyBudget>0},
+    {k:"card",    label:"Add your payment card to Google / Meta",   done:cardAdded, manual:true},
+    {k:"connect", label:"Connect your ad accounts (paste the IDs)", done:hasG||hasM},
+    {k:"page",    label:"Build a landing page for your ads",        done:!!(client.landingPage&&client.landingPage.published)},
+    {k:"live",    label:"Launch a campaign",                        done:anyLive},
+  ];
+  const doneCount=steps.filter(s=>s.done).length;
+  const toggleCard=()=> onUpdate({...client, myAdsSetup:{...(client.myAdsSetup||{}), cardAdded:!cardAdded}});
+
+  const pacePct=monthlyBudget>0?Math.min(100,Math.round(projMonthly/monthlyBudget*100)):0;
+  const overBudget=loaded&&monthlyBudget>0&&dailyLive>0&&projMonthly>monthlyBudget;
+  const paceColor=overBudget?C.red:(monthlyBudget>0&&projMonthly>monthlyBudget*0.85?C.amber:C.green);
+
+  const tile=(label,value,sub,color)=>(
+    <div style={{flex:"1 1 92px",minWidth:0,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 11px"}}>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:3}}>{label}</div>
+      <div style={{fontSize:18,fontWeight:800,color:color||C.text,lineHeight:1}}>{value}</div>
+      {sub&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:3,lineHeight:1.35}}>{sub}</div>}
+    </div>
+  );
+
+  return (<>
+    {overBudget&&(
+      <Card style={{borderColor:`${C.red}55`,background:`${C.red}12`}}>
+        <div style={{fontSize:12.5,fontWeight:800,color:C.red,marginBottom:3}}>⚠ Over budget</div>
+        <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>Your live campaigns are pacing to about {money(projMonthly)}/mo — over your {money(monthlyBudget)} budget. Lower a daily budget on a campaign below, or raise your budget.</div>
+      </Card>
+    )}
+
+    {/* Start-here checklist */}
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:9}}>
+        <Label>Start Here — Setup</Label>
+        <span style={{fontSize:11,fontWeight:800,color:doneCount===steps.length?C.green:C.gold,flexShrink:0}}>{doneCount}/{steps.length} done</span>
+      </div>
+      <div style={{height:6,borderRadius:4,background:C.bg3,overflow:"hidden",marginBottom:12}}>
+        <div style={{height:"100%",width:`${pct(doneCount,steps.length)}%`,background:doneCount===steps.length?C.green:C.gold,borderRadius:4,transition:"width .3s"}}/>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {steps.map(s=>(
+          <div key={s.k} style={{display:"flex",alignItems:"center",gap:9}}>
+            <span onClick={s.manual?toggleCard:undefined} style={{width:19,height:19,borderRadius:6,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",border:`1px solid ${s.done?C.green:C.border}`,background:s.done?`${C.green}22`:"transparent",color:C.green,fontSize:12,fontWeight:900,cursor:s.manual?"pointer":"default"}}>{s.done?"✓":""}</span>
+            <span style={{fontSize:12.5,color:s.done?C.textDim:C.text,flex:1,minWidth:0,lineHeight:1.4,textDecoration:s.done?"line-through":"none"}}>{s.label}</span>
+            {s.manual&&<span onClick={toggleCard} style={{fontSize:10,fontWeight:700,color:C.textMuted,cursor:"pointer",flexShrink:0}}>{s.done?"undo":"mark done"}</span>}
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    {/* Budget pacing */}
+    <Card>
+      <Label>Budget Pacing</Label>
+      {!loaded ? <div style={{fontSize:11.5,color:C.textMuted,marginTop:6}}>Loading live spend…</div>
+       : (!hasG&&!hasM) ? <div style={{fontSize:11.5,color:C.textMuted,marginTop:6,lineHeight:1.6}}>Connect your ad accounts below to track spend against your budget.</div>
+       : <div style={{marginTop:6}}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:monthlyBudget>0&&dailyLive>0?11:0}}>
+            {tile("Monthly budget",monthlyBudget>0?money(monthlyBudget):"—")}
+            {tile("Live daily",dailyLive>0?money(dailyLive)+"/day":"—",dailyLive>0?`≈ ${money(projMonthly)}/mo projected`:null)}
+            {tile("Spent (30d)",money(spend30))}
+          </div>
+          {monthlyBudget>0&&dailyLive>0&&<>
+            <div style={{height:7,borderRadius:4,background:C.bg3,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${pacePct}%`,background:paceColor,borderRadius:4,transition:"width .3s"}}/>
+            </div>
+            <div style={{fontSize:11,color:overBudget?C.red:C.textMuted,marginTop:7,lineHeight:1.6}}>
+              {overBudget?`Pacing to ~${money(projMonthly)}/mo — over your ${money(monthlyBudget)} budget.`:`Pacing to ~${money(projMonthly)}/mo of your ${money(monthlyBudget)} budget.`}
+            </div>
+          </>}
+          {monthlyBudget===0&&<div style={{fontSize:11,color:C.textMuted,marginTop:8,lineHeight:1.6}}>Set a monthly budget below and this tracks your live campaigns against it.</div>}
+          {loadErr&&<div style={{fontSize:11,color:C.textMuted,marginTop:8}}>{loadErr}</div>}
+         </div>}
+    </Card>
+
+    {/* Acquisition ROI funnel */}
+    <Card>
+      <Label>Acquisition ROI</Label>
+      {nLeads===0
+        ? <div style={{fontSize:11.5,color:C.textMuted,marginTop:6,lineHeight:1.6}}>Once your ads bring in leads, your funnel shows up here — leads, calls booked, clients won, and what each new client costs you.</div>
+        : <div style={{marginTop:6}}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Funnel (all time)</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:13}}>
+              {tile("Leads",nLeads)}
+              {tile("Calls booked",nBooked,nLeads>0?`${pct(nBooked,nLeads)}% of leads`:null,C.purple)}
+              {tile("Clients won",nWon,nBooked>0?`${pct(nWon,nBooked)}% of calls`:null,C.green)}
+            </div>
+            <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Ad economics</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {tile("Spent (30d)",money(spend30))}
+              {tile("Cost / lead",costPerLead!=null?money(costPerLead):"—",costPerLead!=null?"last 30 days":"needs 30d leads + spend")}
+              {tile("Cost / client",projCAC!=null?money(projCAC):"—",projCAC!=null?"projected at your close rate":(nWon===0?"no clients won yet":"—"),C.gold)}
+            </div>
+          </div>}
+    </Card>
+  </>);
 }
 
 // My Ads (internal house account) — the Campaigns-tab setup block: set a monthly
