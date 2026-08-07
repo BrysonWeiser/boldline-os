@@ -180,9 +180,9 @@
 
 ## OS
 
-- **[os-calendar](../knowledge/os-calendar.md)** &mdash; &#9989; verified &middot; 2026-08-06  
+- **[os-calendar](../knowledge/os-calendar.md)** &mdash; &#9989; verified &middot; 2026-08-07  
   Built 2026-08-06 (Bryson). A CalendarScreen in the OS (desktop sidebar "Calendar" + mobile "More" sheet) shows a month grid + selected-day agenda that AGGREGATES every dated thing — pure client-side data, NO AI, so it works regardless of Anthropic API-credit balance. Sources: Calendly meetings (via new calendly.mjs), invoice auto-charges + "review leads" reminders (7d before), contract renewals/expiries (+30d-before window), and scheduled newsletter + blog content. Color-coded dots (meeting=red, billing=gold, contract=amber, content=blue); tap an event to jump to its client. Meetings need CALENDLY_API_TOKEN (a Calendly Personal Access Token — requires a PAID Calendly plan; API access isn't on the free tier). Fail-soft: no token = calendar still renders, meetings just omitted with a "connect Calendly" hint. MANUAL events (meeting/task/reminder) can be added by hand via a "+ Add" button → calendar_events Supabase table (calendar.mjs CRUD) — the meetings path while Calendly stays free (Bryson is on free Calendly, 2026-08-06).  
-  <sub>*task:* the built-in OS Calendar (month view + agenda), what dated events it aggregates, how meetings sync from Calendly, and the mobile "More" nav &nbsp;|&nbsp; *keywords:* calendar, CalendarScreen, buildCalendarEvents, calendly.mjs, CALENDLY_API_TOKEN, scheduled events, meetings sync, agenda, MoreSheet, mobile nav parity, month grid</sub>
+  <sub>*task:* the built-in OS Calendar (month view + agenda), what dated events it aggregates, how meetings sync from Calendly, and the mobile "More" nav &nbsp;|&nbsp; *keywords:* calendar, CalendarScreen, buildCalendarEvents, calendly.mjs, CALENDLY_API_TOKEN, scheduled events, meetings sync, agenda, MoreSheet, mobile nav parity, month grid, calendar-digest, morning digest, agenda notification, reminders, push notification, upcoming meetings</sub>
 
 ## OS Architecture
 
