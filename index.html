@@ -272,7 +272,25 @@ const getBotLogs = (client, pkg) => {
   };
 };
 
-const NICHES    = ["Roofing","Med Spa","Auto Detailing","E-Commerce"];
+// Grouped niche catalog for the client/My-Ads dropdowns. Kept long on purpose
+// (Bryson, 2026-08-07: "a very long list… or a way to custom add"). The four
+// original strings (Roofing, Med Spa, Auto Detailing, E-Commerce) are preserved
+// verbatim so their tailored ad angles + per-lead rates still match; every other
+// niche (and any custom one typed in) falls back to generic ad angles + the
+// default per-lead fee, which is safe — nothing breaks on an unknown niche.
+const NICHE_GROUPS = {
+  "Home Services": ["Roofing","HVAC","Plumbing","Electrician","Landscaping & Lawn Care","Pest Control","Garage Doors","Windows & Doors","Solar","Remodeling & Contractors","Painting","Flooring","Pool Service","Cleaning Services","Moving & Storage","Fencing","Concrete & Masonry","Tree Service","Handyman","Water Damage & Restoration"],
+  "Health & Medical": ["Med Spa","Dental","Orthodontics","Chiropractic","Dermatology","Physical Therapy","Optometry","Cosmetic & Plastic Surgery","Mental Health & Therapy","Urgent Care","Weight Loss Clinic","Fertility Clinic","Hearing / Audiology","Home Health & Senior Care","Medical Practice (General)"],
+  "Beauty & Personal Care": ["Hair Salon","Barbershop","Nail Salon","Lash & Brow","Skincare & Facials","Massage Therapy","Tattoo & Piercing","Spa & Wellness"],
+  "Legal & Financial": ["Personal Injury Law","Family Law","Criminal Defense","Estate Planning","Immigration Law","Business Law","Bankruptcy Law","Accounting & Tax","Financial Advisor","Insurance Agency","Mortgage & Lending","Bookkeeping"],
+  "Professional & Local": ["Real Estate Agent","Property Management","Photography","Event Planning","Wedding Services","Interior Design","Marketing Agency","IT Services & MSP","Security Systems","Locksmith","Auto Repair","Auto Detailing","Car Dealership","Towing"],
+  "Fitness & Recreation": ["Gym & Fitness Studio","Personal Training","Yoga & Pilates","Martial Arts","Dance Studio","Golf & Sports","Youth Sports & Camps"],
+  "Food & Hospitality": ["Restaurant","Cafe & Coffee","Bar & Nightlife","Catering","Food Truck","Bakery","Hotel & Lodging"],
+  "Retail & E-Commerce": ["E-Commerce","Clothing & Apparel Brand","Jewelry & Accessories","Beauty & Cosmetics Brand","Furniture & Home Goods","Electronics & Gadgets","Health & Supplements","Pet Products","Specialty Food & Beverage","Subscription Box"],
+  "Education & Family": ["Childcare & Daycare","Tutoring & Test Prep","Music Lessons","Pet Grooming & Boarding","Dog Training","Coaching & Consulting"],
+  "B2B & Other": ["SaaS & Software","B2B Services","Manufacturing","Wholesale & Distribution","Nonprofit","Franchise","Other Local Service"],
+};
+const NICHES    = Object.values(NICHE_GROUPS).flat();
 const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
 
 // ── Junk / spam lead flagger ──────────────────────────────────────────────────
@@ -1937,7 +1955,7 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenM
           <div>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:7}}>Niche</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              {[["all","All Niches"],...NICHES.map(n=>[n,n])].map(([k,l])=>(
+              {[["all","All Niches"],...[...new Set(clients.map(c=>c.niche).filter(Boolean))].sort((a,z)=>String(a).localeCompare(String(z))).map(n=>[n,n])].map(([k,l])=>(
                 <button key={k} onClick={()=>setNicheF(k)} style={{
                   padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:20,
                   border:`1px solid ${nicheFilter===k?C.gold:C.border}`,
@@ -2446,12 +2464,13 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
   // Internal "My Ads" account (BoldLine's own): it's not a client, so drop the
-  // client-only tabs (Contract + the client-delivery Pipeline), rename "Package"
+  // client-only tabs (Contract, the client-delivery Pipeline, Emails, and the
+  // communication Log — no client to log comms with), rename "Package"
   // → "Campaigns" (no service tier — just the launch cards), and rename the
   // "Client View" tab → "Assets" (keeps the landing-page/media/call-tracking
   // tools needed to run ads; the client-portal preview inside it is hidden).
   const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="pipeline"||k==="emails")))
+                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="pipeline"||k==="emails"||k==="log")))
                    .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
@@ -2864,9 +2883,10 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {client.internal
               ? <Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
                   <Label>Run Your Own Ads</Label>
-                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns below — the same tools you use for clients. First link your ad account on the <b style={{color:C.gold}}>Overview → Edit</b> screen (your Google Ads Customer ID / Meta Ad Account ID), then build a campaign here.</div>
+                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns here — the same tools you use for clients. Set your budget, add your payment card, and connect your accounts below, then build a campaign further down.</div>
                 </Card>
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
+            {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
@@ -5287,6 +5307,126 @@ function ARIABuilderTab({ariaSystem}) {
 
 
 // ─── EDIT CLIENT SHEET ────────────────────────────────────────────────────────
+// Niche picker: grouped long dropdown + a "custom" escape hatch so any niche can
+// be typed (Bryson, 2026-08-07). Shared by the Edit + Add client sheets.
+function NicheSelect({value,onChange}){
+  const inList = !value || NICHES.includes(value);
+  const [custom,setCustom] = useState(!inList);
+  if(custom){
+    return (
+      <div style={{display:"flex",gap:6,alignItems:"stretch"}}>
+        <input value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Type your niche…" style={{...inp,flex:1}} autoFocus/>
+        <button type="button" onClick={()=>{setCustom(false);onChange("");}} title="Pick from the list instead" style={{flexShrink:0,padding:"0 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>List</button>
+      </div>
+    );
+  }
+  return (
+    <select value={value||""} onChange={e=>{ const v=e.target.value; if(v==="__custom__"){setCustom(true);onChange("");} else onChange(v); }} style={inp}>
+      <option value="">Select niche…</option>
+      {Object.entries(NICHE_GROUPS).map(([g,arr])=>(
+        <optgroup key={g} label={g}>
+          {arr.map(n=><option key={n} value={n} style={{backgroundColor:C.bg2}}>{n}</option>)}
+        </optgroup>
+      ))}
+      <option value="__custom__">+ Add a custom niche…</option>
+    </select>
+  );
+}
+
+// My Ads (internal house account) — the Campaigns-tab setup block: set a monthly
+// budget, learn how to add a payment card to Google/Meta, and connect the ad
+// accounts to the bots by pasting the IDs. Everything saves to the client record
+// via onUpdate (same fields the Edit sheet uses). Internal-only (Bryson's eyes).
+function MyAdsSetupCards({client,onUpdate}){
+  const parseNum = (s)=> Number(String(s||"").replace(/[^0-9.]/g,""))||0;
+  const [budget,setBudget] = useState(()=>{ const n=parseNum(client.adBudget); return n?String(n):""; });
+  const [ids,setIds] = useState({googleAdsCustomerId:client.googleAdsCustomerId||"",metaAdAccountId:client.metaAdAccountId||"",metaPageId:client.metaPageId||""});
+  const [openPay,setOpenPay] = useState(false);
+  const [openConnect,setOpenConnect] = useState(false);
+  const [savedB,setSavedB] = useState(false);
+  const [savedI,setSavedI] = useState(false);
+  const setId = (k,v)=> setIds(p=>({...p,[k]:v}));
+  const monthly = parseNum(budget);
+  const daily = monthly? Math.round(monthly/30.4) : 0;
+  const saveBudget = ()=>{ onUpdate({...client, adBudget: monthly? "$"+monthly.toLocaleString()+"/mo" : ""}); setSavedB(true); setTimeout(()=>setSavedB(false),1500); };
+  const saveIds = ()=>{ onUpdate({...client, googleAdsCustomerId:(ids.googleAdsCustomerId||"").trim(), metaAdAccountId:(ids.metaAdAccountId||"").trim(), metaPageId:(ids.metaPageId||"").trim()}); setSavedI(true); setTimeout(()=>setSavedI(false),1500); };
+
+  const btnGold = {padding:"9px 15px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}55`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer",whiteSpace:"nowrap"};
+  const toggleBtn = {width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:0,background:"transparent",border:"none",cursor:"pointer",color:C.text,fontSize:13,fontWeight:700,textAlign:"left"};
+  const stepOl = {margin:"6px 0 2px",paddingLeft:18,color:C.textDim,fontSize:12,lineHeight:1.85};
+  const subHead = {fontSize:10.5,fontWeight:800,letterSpacing:".03em",color:C.gold,marginTop:9,textTransform:"uppercase"};
+
+  return (<>
+    <Card>
+      <Label>Monthly Ad Budget</Label>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,margin:"3px 0 10px"}}>What you plan to spend across your ads each month. You pay Google / Meta directly for this — BoldLine never holds it. When you build a campaign below, enter the <b style={{color:C.textDim}}>daily</b> figure shown here.</div>
+      <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+        <div style={{position:"relative",flex:1,minWidth:0}}>
+          <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:C.textMuted,fontSize:13,pointerEvents:"none"}}>$</span>
+          <input type="number" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="2000" style={{...inp,paddingLeft:22}}/>
+        </div>
+        <div style={{fontSize:12,color:C.textMuted,whiteSpace:"nowrap",flexShrink:0}}>/mo{daily>0&&<> &nbsp;·&nbsp; ≈ <b style={{color:C.gold}}>${daily}/day</b></>}</div>
+      </div>
+      <button onClick={saveBudget} style={btnGold}>{savedB?"✓ Saved":"Save budget"}</button>
+    </Card>
+
+    <Card>
+      <button onClick={()=>setOpenPay(o=>!o)} style={toggleBtn}>
+        <span style={{flex:1,minWidth:0}}>Step 1 — Add your payment card to Google &amp; Meta</span>
+        <span style={{color:C.textMuted,fontSize:11,flexShrink:0}}>{openPay?"▾":"▸"}</span>
+      </button>
+      {openPay&&<div style={{marginTop:9}}>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>You pay the platforms directly for ad spend — add a card on each one you're running.</div>
+        <div style={subHead}>Google Ads</div>
+        <ol style={stepOl}>
+          <li>Sign in at <b>ads.google.com</b>.</li>
+          <li>Left menu → <b>Billing</b> (credit-card icon) → <b>Payments</b>.</li>
+          <li><b>Add payment method</b> → enter your card → <b>Save</b>.</li>
+        </ol>
+        <div style={subHead}>Meta — Facebook &amp; Instagram</div>
+        <ol style={stepOl}>
+          <li>Go to <b>business.facebook.com</b> → <b>Billing &amp; payments</b> (or Settings → Payments).</li>
+          <li><b>Payment settings</b> → <b>Add payment method</b> → enter your card → <b>Save</b>.</li>
+          <li>If asked, set this card as the <b>primary</b> method for your ad account.</li>
+        </ol>
+        <div style={{fontSize:11,color:C.textMuted,marginTop:8,lineHeight:1.6,fontStyle:"italic"}}>You're only adding a card here — nothing is charged until a campaign is live and spending.</div>
+      </div>}
+    </Card>
+
+    <Card>
+      <button onClick={()=>setOpenConnect(o=>!o)} style={toggleBtn}>
+        <span style={{flex:1,minWidth:0}}>Step 2 — Connect your accounts to the bots (the ID numbers)</span>
+        <span style={{color:C.textMuted,fontSize:11,flexShrink:0}}>{openConnect?"▾":"▸"}</span>
+      </button>
+      {openConnect&&<div style={{marginTop:9}}>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>These are BoldLine's own accounts, so they already sit inside your MCC / Business Manager — no manager request to approve. Just paste the IDs so the bots know which account to run and can read live performance.</div>
+        <div style={subHead}>Google Ads Customer ID</div>
+        <ol style={stepOl}>
+          <li>Sign in at <b>ads.google.com</b> on the account you run BoldLine's ads from.</li>
+          <li>Your <b>Customer ID</b> is the 10-digit number at the <b>top-right</b>, like <b>123-456-7890</b>.</li>
+          <li>Paste it below and tap <b>Save IDs</b>.</li>
+        </ol>
+        <div style={subHead}>Meta Ad Account ID + Page ID</div>
+        <ol style={stepOl}>
+          <li><b>business.facebook.com</b> → <b>Settings</b> (gear icon).</li>
+          <li><b>Accounts → Ad accounts</b> → your account → copy the <b>Ad account ID</b> (digits only).</li>
+          <li><b>Accounts → Pages</b> → your Page → copy the <b>Page ID</b>.</li>
+          <li>Paste both below and tap <b>Save IDs</b>.</li>
+        </ol>
+        <div style={{marginTop:11,display:"flex",flexDirection:"column",gap:9}}>
+          {[{k:"googleAdsCustomerId",l:"Google Ads Customer ID",ph:"123-456-7890"},{k:"metaAdAccountId",l:"Meta Ad Account ID",ph:"digits only"},{k:"metaPageId",l:"Facebook Page ID",ph:"e.g. 1098765432109876"}].map(({k,l,ph})=>(
+            <div key={k}>
+              <label style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4,display:"block"}}>{l}</label>
+              <input type="text" value={ids[k]} onChange={e=>setId(k,e.target.value)} placeholder={ph} style={inp}/>
+            </div>
+          ))}
+          <button onClick={saveIds} style={{...btnGold,alignSelf:"flex-start"}}>{savedI?"✓ Saved":"Save IDs"}</button>
+        </div>
+      </div>}
+    </Card>
+  </>);
+}
+
 function EditClientSheet({client,onSave,onClose,onDelete}) {
   const [section,setSection] = useState("info"); // info | campaign | status | bots | notes
   const [form,setForm] = useState({...client});
@@ -5387,10 +5527,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               ))}
               <div style={fieldStyle}>
                 <label style={fieldLabelStyle}>Niche</label>
-                <select value={form.niche||""} onChange={e=>set("niche",e.target.value)} style={inp}>
-                  <option value="">Select niche…</option>
-                  {NICHES.map(n=><option key={n} value={n} style={{backgroundColor:C.bg2}}>{n}</option>)}
-                </select>
+                <NicheSelect value={form.niche} onChange={v=>set("niche",v)}/>
               </div>
             </Card>
             <Card>
@@ -5691,7 +5828,7 @@ function AddClientSheet({onSave,onClose}) {
               <div key={k} style={{marginBottom:11}}><div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>{l}</div><input type={t} value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/></div>
             ))}
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>Niche</div>
-            <select value={form.niche} onChange={e=>set("niche",e.target.value)} style={inp}><option value="">Select niche…</option>{NICHES.map(n=><option key={n} value={n} style={{backgroundColor:C.bg2}}>{n}</option>)}</select>
+            <NicheSelect value={form.niche} onChange={v=>set("niche",v)}/>
           </Card>
           <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}33`}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:10,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".07em"}}>Package</div><span style={{fontSize:9,padding:"2px 7px",borderRadius:20,backgroundColor:`${C.gold}18`,border:`1px solid ${C.gold}33`,color:C.gold,fontWeight:700}}>Only you can set this</span></div>
