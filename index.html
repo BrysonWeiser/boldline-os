@@ -1621,10 +1621,18 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const [nl,setNl]=useState([]); const [bl,setBl]=useState([]); const [mt,setMt]=useState([]); const [manual,setManual]=useState([]);
   const [loading,setLoading]=useState(true); const [calCfg,setCalCfg]=useState(true);
   const [showAdd,setShowAdd]=useState(false); const [saving,setSaving]=useState(false);
+  const [digestState,setDigestState]=useState(""); // "" | sending | sent | error
   const [addForm,setAddForm]=useState({title:"",date:"",time:"",kind:"meeting",note:""});
   const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
   const cal=async(body)=>{ const token=await authToken(); if(!token) return {}; return fetch("/.netlify/functions/calendar",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(body)}).then(r=>r.json()).catch(()=>({})); };
   const loadManual=async()=>{ const r=await cal({action:"list"}); setManual((r&&r.events)||[]); };
+  // On-demand "send today's agenda now" — hits the owner-authed digest trigger
+  // (scheduled functions can't be poked by HTTP, so this uses calendar-digest-run).
+  const sendDigest=async()=>{ if(digestState==="sending") return; setDigestState("sending");
+    const token=await authToken(); if(!token){ setDigestState("error"); setTimeout(()=>setDigestState(""),2600); return; }
+    try{ const r=await fetch("/.netlify/functions/calendar-digest-run",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token}}).then(x=>x.json()).catch(()=>null); setDigestState(r&&r.ok?"sent":"error"); }
+    catch{ setDigestState("error"); }
+    setTimeout(()=>setDigestState(""),2600); };
   useEffect(()=>{ let alive=true; (async()=>{
     const token=await authToken();
     if(!token){ if(alive) setLoading(false); return; }
@@ -1663,13 +1671,16 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,rowGap:10,flexWrap:"wrap",marginBottom:14}}>
         {back}
-        <div>
+        <div style={{minWidth:0,flex:"1 1 auto"}}>
           <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Calendar</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every scheduled thing across the OS, in one place.</div>
         </div>
-        <button onClick={()=>{ setAddForm(f=>({...f,date:sel})); setShowAdd(true); }} style={{marginLeft:"auto",padding:"9px 14px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>+ Add</button>
+        <div style={{marginLeft:"auto",display:"flex",gap:8,flexShrink:0}}>
+          <button onClick={sendDigest} disabled={digestState==="sending"} title="Send today's agenda to your phone + email now" style={{padding:"9px 12px",fontSize:12,fontWeight:700,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:digestState==="sent"?C.green:digestState==="error"?C.red:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>{digestState==="sending"?"Sending…":digestState==="sent"?"✓ Sent":digestState==="error"?"Failed":"Send agenda"}</button>
+          <button onClick={()=>{ setAddForm(f=>({...f,date:sel})); setShowAdd(true); }} style={{padding:"9px 14px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer",whiteSpace:"nowrap"}}>+ Add</button>
+        </div>
       </div>
 
       <div style={{maxWidth:820}}>
