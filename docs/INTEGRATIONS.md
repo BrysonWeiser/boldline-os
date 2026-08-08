@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 80 task-keyed entries under `knowledge/`. They surface automatically via the
+> 81 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**80 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**81 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -150,6 +150,9 @@
 - **[site-seo-cro-audit](../knowledge/site-seo-cro-audit.md)** &mdash; &#9989; verified &middot; 2026-08-07  
   Site audit done 2026-08-06 (Bryson asked to research current Google ranking + conversion best practices and compare to boldlinemedia.com). 2026 landscape: E-E-A-T + helpful content + Core Web Vitals + backlinks for SEO; GEO/AI-Overviews read the first ~200 words + entity signals + llms.txt; conversion needs value-prop-in-5s, social proof, low-friction forms, speed, strong CTA, risk-reversal. IMPLEMENTED (3 deploys): llms.txt, Organization founder + Service JSON-LD, answer-first keyword hero line, hero risk-reversal trust bar, a "Lead-Leak Check" lead magnet, mobile sticky Book-a-Call bar, and blog E-E-A-T (named Person author Bryson Weiser + byline + author-bio box). The Lead-Leak Check is now FULLY AUTOMATED (2026-08-07, "go full auto"): a prospect's request triggers an OS background bot that fetches their site, runs Claude+web-search for an honest 2-4 "leak" mini-audit, and emails a branded dark report straight to them (copying Bryson) in ~1 min. PENDING = Bryson's DIY: Google Business Profile (highest leverage + fixes the entity/logo mixup), backlinks/citations, PageSpeed/Core-Web-Vitals check, phone/click-to-call (Twilio, deferred), pricing-grid trim, A/B testing. Bryson must set AUDIT_TRIGGER_SECRET on both sites + fund the Anthropic API account (console.anthropic.com Billing — the ANTHROPIC_API_KEY wallet, SEPARATE from claude.ai/Claude Code credits) for the bot to generate.  
   <sub>*task:* the 2026 SEO / GEO / conversion audit of boldlinemedia.com — what was researched, what got implemented, and what's left (mostly Bryson's DIY) &nbsp;|&nbsp; *keywords:* SEO, GEO, AI Overviews, conversion, CRO, E-E-A-T, llms.txt, schema, Service schema, lead magnet, Lead-Leak Check, audit.mjs, lead-leak-audit-background, automated audit bot, AUDIT_TRIGGER_SECRET, LEAD_LEAK_REVIEW_ONLY, mobile sticky CTA, blog author byline, Google Business Profile, backlinks, Core Web Vitals, ranking, front page</sub>
+- **[website-reviews](../knowledge/website-reviews.md)** &mdash; &#9989; verified &middot; 2026-08-08  
+  Built 2026-08-08 (Bryson: "a place on the website for people to leave reviews"). Approach = collect → approve → display (his pick, options 1+3), NOT a public wall. Nothing shows publicly until Bryson approves it (spam/fake-proof). Flow: a #reviews section on boldlinemedia.com (star rating + name/business/text form) → marketing review-submit.mjs inserts a `reviews` row status:"pending" + emails Bryson a "new review to approve" ping → Bryson approves in the OS Website tab (ReviewsManagementCard → reviews-admin.mjs) → marketing reviews-list.mjs serves status:"approved" rows → the section's script renders them as testimonial cards (hidden until ≥1). "Feature" pins a review to the top. Also scaffolded #3 the Google-review button (GOOGLE_REVIEW_URL const in the marketing #reviews script, empty until Bryson sets his Google Business Profile review link). SETUP: run docs/sql/reviews-schema.sql once; set up Google Business Profile + paste its review link into GOOGLE_REVIEW_URL for the Google button.  
+  <sub>*task:* collect + approve + display customer reviews on boldlinemedia.com, and the Google-review button; how submissions flow, get moderated, and publish &nbsp;|&nbsp; *keywords:* reviews, testimonials, review-submit, reviews-list, reviews-admin, ReviewsManagementCard, reviews table, star rating, Google review, GOOGLE_REVIEW_URL, social proof, moderation, approve review, featured review</sub>
 
 ## Marketing site / brand
 
