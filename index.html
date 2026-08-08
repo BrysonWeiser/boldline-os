@@ -5201,6 +5201,84 @@ function NewsletterManagementCard() {
 // ─── WEBSITE SCREEN ───────────────────────────────────────────────────────────
 // Everything for boldlinemedia.com in one place: quick links to the live pages
 // and the full blog manager (cadence, write-now, edit, AI rewrite, delete).
+// Reviews moderation (Website tab). Reviews submitted on boldlinemedia.com land
+// as "pending"; approving one publishes it to the site's testimonials (reviews-list).
+// Owner-JWT via reviews-admin. Built 2026-08-08 (Bryson: a place for reviews).
+function ReviewsManagementCard() {
+  const [reviews,setReviews]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [busyId,setBusyId]=useState(null);
+  const [confirmId,setConfirmId]=useState(null);
+  const [msg,setMsg]=useState("");
+
+  const call=async(action,extra)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token) throw new Error("Session expired — refresh the page and log in again.");
+    const r=await fetch("/.netlify/functions/reviews-admin",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action,...extra})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok) throw new Error(d.error||"Request failed.");
+    return d;
+  };
+  const load=async()=>{ setLoading(true); setMsg(""); try{ const d=await call("list"); setReviews(d.reviews||[]); }catch(e){ setMsg(e.message); } setLoading(false); };
+  useEffect(()=>{ load(); },[]);
+
+  const act=async(id,fn)=>{ setBusyId(id); setMsg(""); try{ await fn(); await load(); }catch(e){ setMsg(e.message); } setBusyId(null); setConfirmId(null); };
+  const setStatus=(id,status)=>act(id,()=>call("set-status",{id,status}));
+  const feature=(id,featured)=>act(id,()=>call("feature",{id,featured}));
+  const del=(id)=>act(id,()=>call("delete",{id}));
+
+  const starStr=(n)=> n?((new Array(n+1)).join("★")+(new Array(6-n)).join("☆")):"";
+  const pending=reviews.filter(r=>r.status==="pending");
+  const approved=reviews.filter(r=>r.status==="approved");
+  const rejected=reviews.filter(r=>r.status==="rejected");
+  const aBtn=(color)=>({padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${color}44`,background:"transparent",color,cursor:"pointer",whiteSpace:"nowrap"});
+  const secHead={fontSize:9,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:C.textMuted,margin:"12px 0 2px"};
+
+  const renderRow=(r)=>(
+    <div key={r.id} style={{padding:"11px 0",borderBottom:`1px solid ${C.border2}`,opacity:busyId===r.id?.5:1}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+        {r.rating?<span style={{color:C.gold,fontSize:12,letterSpacing:1}}>{starStr(r.rating)}</span>:null}
+        <span style={{fontSize:12.5,fontWeight:700,color:C.text}}>{[r.name,r.business].filter(Boolean).join(" · ")||"Anonymous"}</span>
+        {r.featured&&r.status==="approved"?<span style={{fontSize:9,fontWeight:800,color:C.gold,border:`1px solid ${C.borderAccent}`,borderRadius:5,padding:"1px 5px"}}>FEATURED</span>:null}
+        <span style={{marginLeft:"auto",fontSize:10,color:C.textMuted}}>{r.created_at?new Date(r.created_at).toLocaleDateString("en-US",{month:"short",day:"numeric"}):""}</span>
+      </div>
+      <div style={{fontSize:12.5,color:C.textDim,lineHeight:1.6,marginBottom:8}}>“{r.body}”</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+        {r.status!=="approved"&&<button onClick={()=>setStatus(r.id,"approved")} disabled={busyId===r.id} style={aBtn(C.green)}>Approve</button>}
+        {r.status==="approved"&&<button onClick={()=>feature(r.id,!r.featured)} disabled={busyId===r.id} style={aBtn(C.gold)}>{r.featured?"Unfeature":"Feature"}</button>}
+        {r.status==="approved"&&<button onClick={()=>setStatus(r.id,"pending")} disabled={busyId===r.id} style={aBtn(C.textDim)}>Unpublish</button>}
+        {r.status==="pending"&&<button onClick={()=>setStatus(r.id,"rejected")} disabled={busyId===r.id} style={aBtn(C.textMuted)}>Reject</button>}
+        {r.status==="rejected"&&<button onClick={()=>setStatus(r.id,"pending")} disabled={busyId===r.id} style={aBtn(C.textDim)}>Restore</button>}
+        {confirmId===r.id
+          ? <span style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center"}}><span style={{fontSize:10,color:C.textMuted}}>Delete?</span><button onClick={()=>del(r.id)} style={aBtn(C.red)}>Yes</button><button onClick={()=>setConfirmId(null)} style={aBtn(C.textMuted)}>No</button></span>
+          : <button onClick={()=>setConfirmId(r.id)} disabled={busyId===r.id} style={{...aBtn(C.red),marginLeft:"auto"}}>Delete</button>}
+      </div>
+    </div>
+  );
+
+  return (
+    <Card style={{marginTop:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+        <Label>Reviews</Label>
+        {pending.length>0&&<span style={{fontSize:10,fontWeight:800,color:C.gold,background:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:20,padding:"1px 8px"}}>{pending.length} to review</span>}
+        <button onClick={load} disabled={loading} style={{marginLeft:"auto",fontSize:10,fontWeight:700,color:C.textDim,background:"transparent",border:`1px solid ${C.border}`,borderRadius:7,padding:"4px 10px",cursor:"pointer"}}>Refresh</button>
+      </div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Reviews left on boldlinemedia.com. Approve one to publish it to the site's testimonials — nothing shows publicly until you do. Feature pins a review to the top.</div>
+      {loading
+        ? <div style={{fontSize:12,color:C.textMuted}}>Loading…</div>
+        : reviews.length===0
+          ? <div style={{fontSize:12,color:C.textMuted,lineHeight:1.6}}>No reviews yet. When someone leaves one on the site, it shows here for you to approve.</div>
+          : <>
+              {pending.length>0&&<><div style={secHead}>Pending — needs your review ({pending.length})</div>{pending.map(renderRow)}</>}
+              {approved.length>0&&<><div style={secHead}>Published on the site ({approved.length})</div>{approved.map(renderRow)}</>}
+              {rejected.length>0&&<><div style={secHead}>Rejected ({rejected.length})</div>{rejected.map(renderRow)}</>}
+            </>}
+      {msg&&<div style={{fontSize:11,color:C.amber,marginTop:8,lineHeight:1.5}}>{msg}</div>}
+    </Card>
+  );
+}
+
 function WebsiteScreen() {
   const LINKS=[
     ["Homepage","https://boldlinemedia.com/"],
@@ -5224,6 +5302,7 @@ function WebsiteScreen() {
       <GA4AnalyticsCard/>
       <BlogManagementCard/>
       <NewsletterManagementCard/>
+      <ReviewsManagementCard/>
     </div>
   );
 }

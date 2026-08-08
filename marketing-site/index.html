@@ -1261,6 +1261,100 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
 <div class="sxd" aria-hidden="true"><i></i></div>
 
+<section id="reviews">
+  <div class="section-head reveal">
+    <div class="eyebrow">Reviews</div>
+    <h2>What our clients say.</h2>
+  </div>
+
+  <!-- Approved testimonials — populated by the script below; hidden until there is at least one -->
+  <div id="reviewsDisplay" style="display:none;max-width:1000px;margin:0 auto 30px">
+    <div id="reviewsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px"></div>
+  </div>
+
+  <div class="contact-box reveal" style="max-width:520px;margin:0 auto;text-align:center">
+    <div class="eyebrow">Worked with us?</div>
+    <h2 style="font-size:clamp(22px,3vw,28px)">Leave a review.</h2>
+    <p style="margin:0 auto 20px">A quick note on your experience helps other business owners decide. Thank you.</p>
+    <div id="grev" style="margin-bottom:14px"></div>
+    <form id="revForm" style="display:flex;flex-direction:column;gap:10px;text-align:left">
+      <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <div>
+        <div style="font-size:13px;color:#9CA3AF;margin-bottom:6px">Your rating</div>
+        <div id="revStars" role="radiogroup" aria-label="Your rating" style="display:flex;gap:6px;font-size:30px;line-height:1;color:#3A3F55">
+          <span data-v="1" role="radio" aria-label="1 star" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="2" role="radio" aria-label="2 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="3" role="radio" aria-label="3 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="4" role="radio" aria-label="4 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="5" role="radio" aria-label="5 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+        </div>
+      </div>
+      <input id="rev-name" type="text" placeholder="Your name" autocomplete="name" style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="rev-biz" type="text" placeholder="Your business (optional)" autocomplete="organization" style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <textarea id="rev-body" rows="4" placeholder="How did we do? What results did you see?" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px;resize:vertical;font-family:inherit"></textarea>
+      <button class="btn" type="submit" id="revBtn" style="margin-top:2px">Submit review &rarr;</button>
+      <div id="revMsg" role="status" style="font-size:13px;color:#9CA3AF;min-height:18px;text-align:center"></div>
+    </form>
+  </div>
+</section>
+<script>
+(function(){
+  // Set this to your Google Business Profile "write a review" link once GBP is live,
+  // then redeploy — the "Leave us a Google review" button appears automatically.
+  var GOOGLE_REVIEW_URL='';
+  var f=document.getElementById('revForm'); if(!f) return;
+
+  if(GOOGLE_REVIEW_URL){ var g=document.getElementById('grev'); if(g){ g.innerHTML='<a class="btn" href="'+GOOGLE_REVIEW_URL+'" target="_blank" rel="noopener noreferrer" style="margin-top:0">Leave us a Google review &rarr;</a><div style="font-size:12px;color:#6B7280;margin-top:8px">Prefer Google? One click.</div>'; } }
+
+  // Star rating input
+  var rating=0, stars=[].slice.call(document.querySelectorAll('#revStars span'));
+  function paint(n){ stars.forEach(function(s){ var v=+s.getAttribute('data-v'); s.style.color=v<=n?'#C8A84B':'#3A3F55'; s.setAttribute('aria-checked', v===rating?'true':'false'); }); }
+  stars.forEach(function(s){
+    s.addEventListener('click',function(){ rating=+s.getAttribute('data-v'); paint(rating); });
+    s.addEventListener('mouseenter',function(){ paint(+s.getAttribute('data-v')); });
+    s.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); rating=+s.getAttribute('data-v'); paint(rating); } });
+  });
+  var box=document.getElementById('revStars'); if(box) box.addEventListener('mouseleave',function(){ paint(rating); });
+
+  // Render approved testimonials
+  function starStr(n){ n=Math.max(0,Math.min(5,Math.round(n||0))); return (new Array(n+1)).join('★')+(new Array(6-n)).join('☆'); }
+  fetch('/.netlify/functions/reviews-list').then(function(r){return r.json();}).then(function(d){
+    var list=(d&&d.reviews)||[]; if(!list.length) return;
+    var grid=document.getElementById('reviewsGrid'); if(!grid) return;
+    list.forEach(function(rv){
+      var card=document.createElement('div');
+      card.style.cssText='background:#0D0F16;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:10px';
+      if(rv.rating){ var st=document.createElement('div'); st.style.cssText='color:#C8A84B;font-size:15px;letter-spacing:2px'; st.textContent=starStr(rv.rating); card.appendChild(st); }
+      var body=document.createElement('p'); body.style.cssText='margin:0;font-size:14px;line-height:1.6;color:#D5D8E5'; body.textContent='“'+rv.body+'”'; card.appendChild(body);
+      var who=document.createElement('div'); who.style.cssText='font-size:12px;color:#9CA3AF;font-weight:600'; who.textContent=[rv.name,rv.business].filter(Boolean).join(' · ')||'Verified client'; card.appendChild(who);
+      grid.appendChild(card);
+    });
+    document.getElementById('reviewsDisplay').style.display='block';
+  }).catch(function(){});
+
+  // Submit
+  var EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var bodyEl=document.getElementById('rev-body'), b=document.getElementById('revBtn'), m=document.getElementById('revMsg');
+    var text=(bodyEl.value||'').trim();
+    if(f.company&&f.company.value){return;}
+    if(text.length<3){ m.textContent='Please write a short review.'; return; }
+    b.disabled=true; var old=b.textContent; b.textContent='Sending…'; m.textContent='';
+    fetch('/.netlify/functions/review-submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:(document.getElementById('rev-name').value||'').trim(),business:(document.getElementById('rev-biz').value||'').trim(),rating:rating,body:text,source:'website'})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(!d||!d.ok){ b.disabled=false; b.textContent=old; m.textContent=(d&&d.error)||'Something went wrong — please try again.'; return; }
+        var extra=GOOGLE_REVIEW_URL?'<a class="btn" href="'+GOOGLE_REVIEW_URL+'" target="_blank" rel="noopener noreferrer" style="margin-top:12px">Also leave us a Google review &rarr;</a>':'';
+        f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Thank you — your review has been submitted and will appear once we approve it.</div>'+extra;
+      })
+      .catch(function(){ b.disabled=false; b.textContent=old; m.textContent='Something went wrong — email theboldlinemedia@gmail.com.'; });
+  });
+})();
+</script>
+
+<div class="sxd" aria-hidden="true"><i></i></div>
+
 <section id="faq">
   <div class="section-head reveal">
     <div class="eyebrow">Questions</div>
