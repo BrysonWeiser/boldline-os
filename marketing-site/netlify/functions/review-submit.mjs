@@ -60,5 +60,25 @@ export default async (req) => {
   }
 
   await notifyOwner({ name, business, rating, body: text.slice(0, 600) });
+
+  // Best-effort phone push via the OS push system (the Web Push infra lives on the
+  // OS site). Secret-gated with the shared AUDIT_TRIGGER_SECRET; never blocks or
+  // fails the visitor's response. If the secret/push aren't set up, the email
+  // alert above still covers it.
+  if (process.env.AUDIT_TRIGGER_SECRET) {
+    const osOrigin = process.env.OS_ORIGIN || "https://boldlinemedia.netlify.app";
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      await fetch(`${osOrigin}/.netlify/functions/review-notify`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ secret: process.env.AUDIT_TRIGGER_SECRET, name, business, rating }),
+        signal: ctrl.signal,
+      }).catch(() => {});
+      clearTimeout(timer);
+    } catch { /* fire-and-forget */ }
+  }
+
   return json({ ok: true });
 };
