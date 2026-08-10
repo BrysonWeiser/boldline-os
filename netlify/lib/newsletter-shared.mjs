@@ -23,7 +23,13 @@ export const getSupabase = () => createClient(SUPABASE_URL, process.env.SUPABASE
 
 // ── AI: write the companion email for a blog post ──────────────────────────
 export async function generateNewsletterEmail(post) {
-  const prompt = `You are writing a short marketing-tips newsletter email for BoldLine Media that promotes this week's blog post. The reader is a busy small/mid-size business owner. Give them ONE genuinely useful, self-contained takeaway from the post in a few tight lines, then invite them to read the full post for more. Friendly, plain, no hype, no emojis, never mention AI.
+  const prompt = `You are writing this week's BoldLine Media newsletter email. It pairs with the blog post that publishes the same week. The reader is a busy small/mid-size business owner.
+
+Make the email genuinely worth reading on its own: deliver 2 to 3 concrete, useful takeaways from the post — enough that the reader actually learns something they can act on today — in tight, plain paragraphs.
+
+But do NOT give away the whole post. Hold back the full step-by-step, the detailed examples, the deeper nuance, and the complete framework — those are the reason to click through and read it. Give the useful gist plus a clear reason the full post is worth their time. Aim for "helpful preview," not "the whole article condensed."
+
+Friendly, plain, no hype, no emojis, never mention AI.
 
 ${BLOG_FACTS}
 
@@ -32,20 +38,20 @@ Title: ${post.title}
 Category: ${post.category || ""}
 Summary: ${post.excerpt || post.meta_description || ""}
 
-Write: a subject line (curiosity + value, under 60 chars, no clickbait), a one-line inbox preview, 2-3 very short paragraphs that deliver a real tip the reader can act on today (so the email is worth opening even if they never click), and the button text. Do not include a greeting or sign-off — the template adds those.`;
+Write: a subject line (curiosity + value, under 60 chars, no clickbait), a one-line inbox preview, 3 to 4 short paragraphs that deliver 2-3 real takeaways (worth their time, but not the full depth of the post) and end by pointing them to the post for the rest, and the button text. Do not include a greeting or sign-off — the template adds those.`;
 
   const response = await anthropic.messages.create({
     model: "claude-opus-4-8",
-    max_tokens: 900,
+    max_tokens: 1300,
     tools: [{
       name: "newsletter_email",
-      description: "A short teaser email promoting a blog post.",
+      description: "A useful teaser email promoting a blog post — worth reading on its own, but holding back the post's full depth.",
       input_schema: {
         type: "object",
         properties: {
           subject: { type: "string", description: "Email subject line, under 60 characters." },
           preview: { type: "string", description: "One-line inbox preview text." },
-          paragraphs: { type: "array", items: { type: "string" }, description: "2-3 short paragraphs delivering one actionable tip.", minItems: 2, maxItems: 3 },
+          paragraphs: { type: "array", items: { type: "string" }, description: "3-4 short paragraphs delivering 2-3 genuinely useful takeaways, ending by pointing to the full post for the rest.", minItems: 3, maxItems: 5 },
           cta_text: { type: "string", description: "Button text, e.g. 'Read the full post'." },
         },
         required: ["subject", "preview", "paragraphs", "cta_text"],
@@ -102,11 +108,14 @@ ${previewSpan}
 </body></html>`;
 }
 
-// ── Ensure a companion draft exists for the newest reviewable post ─────────
-// Mirrors the blog's "always ≥1 awaiting review" idea: if the most recent
-// non-deleted post has no newsletter email yet, write one as a draft scheduled
-// for the post's go-live + 2h (so the "read the full post" link is live when it
-// sends). Returns the created row or null.
+// ── Ensure a companion newsletter exists for this week's blog post ─────────
+// Pairs 1:1 with the blog. The newest non-deleted post is normally the upcoming
+// SCHEDULED draft (status "draft", published_at = the coming Monday 08:00 AZ),
+// which the blog automation creates the preceding TUESDAY. So this writes the
+// matching newsletter that same Tuesday as a scheduled draft, set to SEND on
+// that Monday (post go-live + 2h, so the "read the full post" link is live).
+// Net effect: one newsletter per week, auto-generated Tuesday, sent Monday, tied
+// to that week's post — reviewable in the OS in between. Returns the row or null.
 export async function ensureCompanionDraft(supabase) {
   const { data: posts, error } = await supabase
     .from("blog_posts")
