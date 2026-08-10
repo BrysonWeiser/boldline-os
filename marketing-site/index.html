@@ -121,6 +121,13 @@ html.js-tabs .hero-inner>.hero-mq{animation:heroIn .8s cubic-bezier(.2,.7,.2,1) 
 @keyframes heroIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .hero p{font-size:17px;color:var(--muted);max-width:520px;margin:0 auto 38px;line-height:1.7}
 .hero p .hl{color:var(--gold);font-weight:600}
+/* Hero trust row: sizes to its content so the 3 items sit on ONE row on desktop
+   (breaking out of .hero-inner's 760px cap), and wraps cleanly on smaller screens
+   because max-width is capped to the viewport. */
+.hero-trust{list-style:none;margin:24px auto 0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:10px 20px;width:max-content;max-width:calc(100vw - 40px)}
+.hero-trust li{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px;white-space:nowrap}
+.hero-trust .tk{color:var(--gold);font-weight:700}
+@media (max-width:520px){.hero-trust{gap:8px 16px}.hero-trust li{font-size:12px;white-space:normal}}
 /* Platform marquee — a slow seamless loop of the service strip (replaces the
    static pills). Two identical .mq-set copies; the track slides -50% (= one
    set) per cycle. Edge fade via mask. Reduced-motion: static wrapped pills. */
@@ -823,10 +830,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </h1>
     <p>It's not bad luck. It means no one has built a system to bring work in. <strong>BoldLine Media is a Phoenix agency that plans, builds, and runs your Google &amp; Meta ads</strong> — plus the landing pages behind them — so your business shows up <span class="hl">steadily and predictably</span>, without ever landing on your to-do list.</p>
     <a class="btn" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
-    <ul aria-label="How BoldLine works" style="list-style:none;margin:24px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:9px 22px">
-      <li style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px"><span aria-hidden="true" style="color:var(--gold);font-weight:700">&#10003;</span>You always own your ad account</li>
-      <li style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px"><span aria-hidden="true" style="color:var(--gold);font-weight:700">&#10003;</span>Month-to-month after the first 90 days</li>
-      <li style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:7px"><span aria-hidden="true" style="color:var(--gold);font-weight:700">&#10003;</span>We tell you before you spend if you're not ready</li>
+    <ul class="hero-trust" aria-label="How BoldLine works">
+      <li><span class="tk" aria-hidden="true">&#10003;</span>You always own your ad account</li>
+      <li><span class="tk" aria-hidden="true">&#10003;</span>Month-to-month after the first 90 days</li>
+      <li><span class="tk" aria-hidden="true">&#10003;</span>We tell you before you spend if you're not ready</li>
     </ul>
     <div class="hero-mq" role="img" aria-label="Google Ads, Meta Ads, Landing Pages, Call Tracking, CRM Routing">
       <div class="mq-track" aria-hidden="true">
@@ -2230,13 +2237,5 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
 })();
 </script>
 
-<a class="mobile-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Call &rarr;</a>
-<style>
-.mobile-cta{display:none}
-@media(max-width:760px){
-  .mobile-cta{position:fixed;left:12px;right:12px;bottom:12px;z-index:60;display:block;text-align:center;padding:15px 16px;border-radius:12px;background:#C8A84B;color:#15110A;font-weight:800;font-size:15px;letter-spacing:.01em;text-decoration:none;box-shadow:0 10px 34px -8px rgba(0,0,0,.7)}
-  body{padding-bottom:84px}
-}
-</style>
 </body>
 </html>

@@ -34,3 +34,13 @@ If you add a mobile bottom CTA later, don't re-enable `.mobile-cta` or unhide `.
 mobile — that's exactly the "Book a Call over another Book a Call" Bryson flagged. Verified
 headless at 390 (pill only, no bar, no in-card) + 1280 (in-card CTAs, no pill). Deploy row
 2026-07-19.
+
+## REGRESSION + refix (2026-08-10)
+The site-audit "batch 2" (`site-seo-cro-audit`) violated this rule: it appended a SECOND
+`<a class="mobile-cta">Book a Free Call →</a>` at the end of `<body>` with its own
+`<style>` that set `.mobile-cta{display:block}` at `≤760px`. That `display:block` (later in
+source, so it won) un-hid **both** `.mobile-cta` elements on phones, so the sticky pill and a
+full-width gold bar showed at once — the exact overlapping-double-CTA Bryson re-flagged.
+**Fix:** deleted that trailing element + `<style>` block entirely. Only the `.sticky-cta`
+pill shows on mobile again. Playwright-verified @390: exactly ONE visible CTA (`.sticky-cta`),
+0 overflow. Lesson stands — do NOT add another fixed/bottom mobile CTA; the pill is the one.

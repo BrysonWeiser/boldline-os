@@ -32,4 +32,6 @@ verified: 2026-08-07
 4. **Phone / click-to-call** — ties to the deferred Twilio tracking number (post-first-client).
 5. **Pricing-grid trim** to "3 starting points" (I can do). 6. **A/B test** headlines/CTAs ~2–3/mo once there's traffic.
 
+**Post-launch layout fixes (2026-08-10, Bryson flagged):** (1) the hero **risk-reversal trust bar** wrapped 2+1 because the 3 items (~790px) exceed `.hero-inner`'s 760px cap — moved to a `.hero-trust` class using `width:max-content;max-width:calc(100vw - 40px)` so it sits on ONE row on desktop (breaking out of the cap) and wraps cleanly on mobile. (2) the **mobile sticky CTA (#5)** was a REGRESSION — batch 2's extra `.mobile-cta` bar overlapped the pre-existing `.sticky-cta` pill (see `marketing-mobile-cta`); removed the redundant bar, one pill again. (3) blog **author-bio box** butted against the post-CTA — added `margin-top:40px` to `.post-cta` in blog.css. All Playwright-verified (0 overflow @390; trust bar one row @1280).
+
 **Deploys:** rollback/20260806T173621Z (batch 1) + rollback/20260806T175721Z (batch 2) + rollback/20260807T062150Z (Lead-Leak Check bot / full auto). See docs/DEPLOYS.md.
