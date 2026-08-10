@@ -20,6 +20,7 @@ import { createClient } from "@supabase/supabase-js";
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 const OWNER_EMAIL = "theboldlinemedia@gmail.com";
 const GOLD = "#C8A84B";
+const CALENDLY_URL = "https://calendly.com/theboldlinemedia/30min";
 
 const esc = (s) =>
   String(s == null ? "" : s)
@@ -150,6 +151,37 @@ const emailOwner = async (formName, data, createdAt) => {
   });
 };
 
+// Instant auto-acknowledgment to the LEAD (speed-to-lead). Fires on every valid
+// contact/quiz submission so the prospect gets a friendly reply within seconds —
+// with a Calendly link so the ready-to-talk ones can book immediately instead of
+// waiting on Bryson. Branded DARK (client-facing → no emojis). Fail-soft; only
+// sends when a verified sender + a lead email exist.
+const firstNameOf = (data) => {
+  const n = clean(data.name);
+  return (n && n.trim().split(/\s+/)[0]) || "there";
+};
+const autoReplyHTML = (firstName) => `<!doctype html><html><body style="margin:0;padding:0;background:#0a0c11">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0c11;padding:28px 14px"><tr><td align="center">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#12141b;border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;font-family:'Helvetica Neue',Arial,sans-serif">
+      <tr><td style="padding:22px 28px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:14px;font-weight:bold;letter-spacing:2.5px;color:${GOLD};text-transform:uppercase">BoldLine Media</span></td></tr>
+      <tr><td style="padding:28px 28px 6px">
+        <h1 style="margin:0 0 14px;font-size:20px;color:#ffffff;font-weight:bold">Thanks for reaching out, ${esc(firstName)}.</h1>
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.65;color:#C6CAE0">I got your message and I'll get back to you personally, usually within one business day.</p>
+        <p style="margin:0 0 4px;font-size:14px;line-height:1.65;color:#C6CAE0">If you'd rather not wait, grab a time that works for you and we'll talk it through &mdash; where you want more customers, and whether we're a good fit. No pressure, no obligation.</p>
+      </td></tr>
+      <tr><td style="padding:16px 28px 26px"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${CALENDLY_URL}" style="display:inline-block;padding:13px 30px;font-size:14px;font-weight:bold;color:#15110A;text-decoration:none;border-radius:10px">Book a quick call &rarr;</a></td></tr></table></td></tr>
+      <tr><td style="padding:16px 28px;border-top:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.015)"><p style="margin:0;color:#8A90A6;font-size:12px;line-height:1.7">Talk soon,<br><strong style="color:#C6CAE0">Bryson &middot; BoldLine Media</strong><br>Google &amp; Meta ads and landing pages, managed for you.</p></td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+const emailLead = async (data) => {
+  if (!process.env.RESEND_API_KEY || !process.env.REPORTS_FROM_EMAIL) return;
+  const email = clean(data.email);
+  if (!email) return;
+  const firstName = firstNameOf(data);
+  const text = `Thanks for reaching out, ${firstName}.\n\nI got your message and I'll get back to you personally, usually within one business day.\n\nIf you'd rather not wait, grab a time that works for you: ${CALENDLY_URL}\n\nTalk soon,\nBryson · BoldLine Media`;
+  await sendEmail({ to: email, subject: "Thanks for reaching out to BoldLine Media", html: autoReplyHTML(firstName), text });
+};
+
 export const handler = async (event) => {
   let payload = {};
   try { payload = (JSON.parse(event.body || "{}")).payload || {}; }
@@ -157,16 +189,16 @@ export const handler = async (event) => {
   const data = payload.data || {};
   const formName = payload.form_name || "form";
 
-  // Both steps are best-effort and independent: a failure in one is logged but
-  // never blocks the other, and never fails the submission (always return 200).
+  // All three are best-effort and independent: a failure in one is logged but
+  // never blocks the others, and never fails the submission (always return 200).
   const results = await Promise.allSettled([
     saveLead(formName, data),
     emailOwner(formName, data, payload.created_at),
+    emailLead(data),
   ]);
+  const labels = ["DB save", "owner email", "lead auto-reply"];
   results.forEach((r, i) => {
-    if (r.status === "rejected") {
-      console.error(`submission-created ${i === 0 ? "DB save" : "email"} failed:`, r.reason && r.reason.message);
-    }
+    if (r.status === "rejected") console.error(`submission-created ${labels[i]} failed:`, r.reason && r.reason.message);
   });
 
   return { statusCode: 200, body: "ok" };
