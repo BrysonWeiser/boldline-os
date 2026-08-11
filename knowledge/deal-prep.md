@@ -70,3 +70,9 @@ Auto Detailing 15, Personal Injury 125, Dentist 55 / Dental Implants 75, Solar 9
 index.html Babel-transforms clean; full app boots 0 errors; DealPrepScreen renders on-brand at 390px (form +
 gold CTA, no overflow). Live end-to-end (real web research) is Bryson's to confirm after creating the table.
 See `pricing-shared.mjs` for pricing, `service-agreement` for how packages/per-lead fees flow into contracts.
+
+**2026-08-11 — fed by Lead Scout.** `DealPrepScreen` now takes `seed` / `onSeedUsed` props. Lead Scout's
+**Deal Prep →** button prefills company/niche/website/location and packs its researched facts (owner,
+phone, employees, years, rating, ad status, gaps) into the notes field — which the research prompt already
+treats as GROUND TRUTH — so the briefing builds on the scout's findings instead of starting cold. The seed
+is consumed once and cleared. See `lead-scout`.

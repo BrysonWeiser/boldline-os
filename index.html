@@ -1431,7 +1431,7 @@ const briefMdToNodes = (md) => {
   flush(); return out;
 };
 
-function DealPrepScreen({onBack,isDesktop}){
+function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
   const [form,setForm]=useState({companyName:"",niche:"",website:"",location:"",notes:""});
   const [state,setState]=useState("form"); // form | working | done | error
   const [msg,setMsg]=useState("");
@@ -1440,6 +1440,14 @@ function DealPrepScreen({onBack,isDesktop}){
   const [nicheFilter,setNicheFilter]=useState("all");
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
+  // Lead Scout hands a prospect straight over: prefill the form with everything it
+  // already researched so the briefing builds on that instead of starting cold.
+  useEffect(()=>{
+    if(!seed) return;
+    setForm({companyName:seed.companyName||"",niche:seed.niche||"",website:seed.website||"",location:seed.location||"",notes:seed.notes||""});
+    setState("form"); setResult(null); setMsg("Prefilled from Lead Scout — add anything you know, then run it.");
+    if(onSeedUsed) onSeedUsed();
+  },[seed]);
   const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
   const set=(key)=>(e)=>{ const v=e.target.value; setForm(f=>({...f,[key]:v})); };
 
@@ -1577,6 +1585,476 @@ function DealPrepScreen({onBack,isDesktop}){
             </div>
           ))}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AI LEAD SCOUT (find prospects -> score them -> hand to Deal Prep) ────────
+// Pick a niche + the exact areas you want to work, and a background function
+// (netlify/functions/lead-scout*.mjs) web-researches real businesses, pulls the
+// need-to-know facts, and scores each one 0-100 on "should I call them". Results
+// land in a permanent, de-duplicated call list you can work through and push
+// straight into Deal Prep.
+const SCOUT_NICHES = [
+  { g:"Home Services & Trades", k:"service", n:["Roofing","HVAC / Heating & Air","Plumbing","Electrical","Garage Door","Pest Control","Landscaping / Lawn Care","Hardscaping & Pavers","Tree Service","Fencing","Deck & Patio Builders","Painting (Residential)","Painting (Commercial)","Flooring","Windows & Doors","Siding","Gutters","Concrete & Paving","Epoxy / Garage Floor Coating","Pressure Washing","Window Cleaning","House Cleaning / Maid Service","Carpet & Upholstery Cleaning","Water Damage Restoration","Mold Remediation","Fire & Smoke Restoration","Foundation Repair","Insulation","Solar Installation","Pool Construction","Pool Service & Repair","Septic Services","Well Drilling","Chimney Sweep","Locksmith","Handyman","Appliance Repair","Junk Removal","Dumpster Rental","Moving Company","Self Storage","Home Remodeling (General)","Kitchen Remodeling","Bathroom Remodeling","Custom Home Builder","General Contractor","Smart Home / AV Install","Security & Alarm Install"] },
+  { g:"Legal", k:"service", n:["Personal Injury Law","Car Accident Law","Truck Accident Law","Workers Compensation Law","Medical Malpractice Law","Mass Tort / Class Action","Criminal Defense","DUI Defense","Family Law / Divorce","Estate Planning & Probate","Bankruptcy Law","Immigration Law","Employment Law","Business & Corporate Law","Real Estate Law","Intellectual Property / Patent Law","Social Security Disability","Elder Law"] },
+  { g:"Medical & Dental", k:"service", n:["General Dentistry","Cosmetic Dentistry","Dental Implants","Orthodontics","Pediatric Dentistry","Oral Surgery","Periodontics","Endodontics","Chiropractic","Physical Therapy","Podiatry","Dermatology","Plastic Surgery","Cosmetic Surgery","LASIK / Ophthalmology","Optometry","ENT","Urgent Care","Primary Care / Family Medicine","Concierge Medicine","Fertility Clinic","Weight Loss Clinic","Hormone / TRT Clinic","IV Therapy","Sleep Clinic","Pain Management","Addiction Treatment / Rehab","Mental Health / Therapy Practice","Audiology & Hearing Aids","Regenerative Medicine","Veterinary Clinic"] },
+  { g:"Beauty, Wellness & Fitness", k:"service", n:["Med Spa","Day Spa","Hair Salon","Barbershop","Nail Salon","Lash & Brow Studio","Waxing Studio","Massage Therapy","Tattoo Studio","Permanent Makeup","Botox & Injectables","Body Contouring / CoolSculpting","Laser Hair Removal","Hair Restoration","Gym / Fitness Club","Boutique Fitness Studio","CrossFit Box","Yoga / Pilates Studio","Personal Training","Martial Arts / BJJ","Dance Studio","Nutrition / Dietitian","Cryotherapy & Recovery Studio"] },
+  { g:"Automotive", k:"service", n:["Auto Repair / Mechanic","Transmission Shop","Auto Body / Collision","Tire Shop","Quick Lube / Oil Change","Mobile Mechanic","Auto Detailing","Mobile Detailing","Car Wash","Window Tinting","PPF / Ceramic Coating","Car Audio & Accessories","Auto Glass","Used Car Dealership","New Car Dealership","RV Dealer & Service","Motorcycle / Powersports","Boat & Marine Service","Truck & Fleet Repair","Towing / Roadside Assistance","Vehicle Wraps","Performance & Tuning","EV Service & Charging"] },
+  { g:"Professional & Financial Services", k:"service", n:["Accounting / CPA Firm","Bookkeeping","Tax Resolution","Financial Advisor / Wealth Management","Insurance Agency (Property & Casualty)","Insurance Agency (Life & Health)","Medicare Insurance Agency","Mortgage Broker","Hard Money / Private Lending","Real Estate Agent / Team","Real Estate Brokerage","Property Management","Title Company","Home Inspection","Appraisal Services","Business Consulting","IT Services / MSP","Cybersecurity Services","Web Design Agency","Marketing Agency","Staffing & Recruiting","Payroll & HR Services","Notary & Signing Services","Private Investigation"] },
+  { g:"B2B & Commercial", k:"service", n:["Commercial Cleaning / Janitorial","Commercial Landscaping","Commercial Roofing","Commercial HVAC","Facilities Maintenance","Fire Protection Services","Security Guard Services","Industrial Supply","Equipment Rental","Freight & Logistics","3PL / Warehousing","Manufacturing (Job Shop)","Machine Shop","Welding & Fabrication","Printing & Signage","Promotional Products","Packaging Supplier","Wholesale Distribution","Commercial Real Estate","Construction Materials","Commercial Solar"] },
+  { g:"Education & Childcare", k:"service", n:["Private School","Preschool / Daycare","Tutoring Center","Test Prep","Music School","Driving School","Trade / Vocational School","Language School","Coding Bootcamp","Summer Camp","ABA Therapy / Special Needs Services"] },
+  { g:"Hospitality, Events & Food", k:"service", n:["Restaurant","Fast Casual","Catering","Food Truck","Bakery","Coffee Shop","Brewery / Winery","Bar / Nightclub","Hotel / Boutique Hotel","Vacation Rental Management","Event Venue","Wedding Venue","Wedding Planner","Photographer","Videographer","DJ & Entertainment","Party & Event Rentals","Florist","Golf Course / Country Club"] },
+  { g:"Senior Care & Health Services", k:"service", n:["Home Care Agency","Assisted Living","Memory Care","Hospice Care","Skilled Nursing","Companion Care","Medical Staffing","Medical Billing","Durable Medical Equipment"] },
+  { g:"Pets", k:"service", n:["Pet Grooming","Dog Training","Dog Boarding / Kennel","Doggy Daycare","Mobile Veterinary","Pet Sitting & Walking","Pet Waste Removal"] },
+  { g:"E-Commerce — Apparel & Fashion", k:"ecom", n:["Women's Apparel","Men's Apparel","Streetwear","Activewear / Athleisure","Swimwear","Lingerie & Intimates","Plus-Size Apparel","Kids & Baby Clothing","Footwear / Sneakers","Outerwear","Workwear & Uniforms","Custom / Print-on-Demand Apparel"] },
+  { g:"E-Commerce — Jewelry & Accessories", k:"ecom", n:["Fine Jewelry","Fashion Jewelry","Engagement Rings","Watches","Handbags","Sunglasses & Eyewear","Belts & Leather Goods","Hats & Headwear"] },
+  { g:"E-Commerce — Beauty & Personal Care", k:"ecom", n:["Skincare","Cosmetics / Makeup","Haircare","Men's Grooming","Fragrance","Nail Products","Beauty Tools & Devices","Clean / Organic Beauty","Sun Care","Oral Care"] },
+  { g:"E-Commerce — Health & Supplements", k:"ecom", n:["Vitamins & Supplements","Protein & Sports Nutrition","Nootropics","Weight Management","Functional Beverages","Greens & Superfoods","CBD / Hemp (ad-restricted)","OTC & Medical Devices","Mobility & Braces"] },
+  { g:"E-Commerce — Home & Living", k:"ecom", n:["Furniture","Mattresses & Bedding","Home Decor","Kitchenware & Cookware","Small Appliances","Cleaning Products","Candles & Home Fragrance","Rugs & Textiles","Storage & Organization","Garden & Outdoor","Lighting","Bath & Towels"] },
+  { g:"E-Commerce — Electronics & Tech", k:"ecom", n:["Consumer Electronics","Phone Accessories","Audio & Headphones","Smart Home Devices","Computer & PC Parts","Gaming Accessories","Drones","Wearables & Fitness Tech","Cameras & Optics","Power & Charging"] },
+  { g:"E-Commerce — Food & Beverage", k:"ecom", n:["Specialty Food","Coffee & Tea","Snacks","Meal Kits","Beverages & Energy Drinks","Alcohol / Spirits DTC (ad-restricted)","Baked Goods","Sauces & Condiments","Subscription Food Boxes","Health & Diet Foods"] },
+  { g:"E-Commerce — Pets", k:"ecom", n:["Pet Food & Treats","Pet Accessories","Pet Supplements","Pet Toys","Pet Beds & Furniture"] },
+  { g:"E-Commerce — Baby & Kids", k:"ecom", n:["Baby Gear","Toys & Games","Kids Furniture","Maternity","Educational Toys","Baby Care & Feeding"] },
+  { g:"E-Commerce — Sports & Outdoors", k:"ecom", n:["Fitness Equipment","Home Gym","Cycling","Golf","Hunting & Shooting (ad-restricted)","Fishing","Camping & Hiking","Water Sports","Team Sports Gear","Ski & Snowboard"] },
+  { g:"E-Commerce — Automotive Aftermarket", k:"ecom", n:["Car Parts","Car Care & Detailing Products","Truck & Jeep Accessories","Motorcycle Gear","EV Accessories","Tools & Garage Equipment"] },
+  { g:"E-Commerce — Hobby & Specialty", k:"ecom", n:["Arts & Crafts","Musical Instruments","Board Games & TCG","Collectibles","Books & Stationery","Photography Gear","Model & RC","Gardening Supplies","Home Brewing","Occult / Novelty Gifts"] },
+  { g:"E-Commerce — Digital & Subscription", k:"ecom", n:["SaaS","Online Courses / Info Products","Digital Downloads","Subscription Boxes","Membership Sites","Mobile Apps"] },
+  { g:"E-Commerce — Business Models", k:"ecom", n:["Amazon FBA Brand","Shopify Dropshipping Brand","Handmade / Etsy Seller","Refurbished & Resale","B2B / Wholesale E-Commerce","Multi-Channel Marketplace Seller"] },
+];
+const SCOUT_TIER_META = {
+  call_first:{label:"Call first",   color:"#22D3A0"},
+  strong:    {label:"Strong lead",  color:"#C8A84B"},
+  maybe:     {label:"Maybe",        color:"#FBBF24"},
+  low:       {label:"Low priority", color:"#8B91B8"},
+  skip:      {label:"Skip",         color:"#F87171"},
+};
+const scoutTier = (score)=>{ const s=Math.max(0,Math.min(100,Number(score)||0));
+  return s>=80?SCOUT_TIER_META.call_first:s>=62?SCOUT_TIER_META.strong:s>=42?SCOUT_TIER_META.maybe:s>=22?SCOUT_TIER_META.low:SCOUT_TIER_META.skip; };
+const SCOUT_STATUSES = [
+  {id:"new",       label:"New",           color:C.blue},
+  {id:"contacted", label:"Contacted",     color:C.amber},
+  {id:"meeting",   label:"Meeting booked",color:C.green},
+  {id:"client",    label:"Won",           color:"#059669"},
+  {id:"dead",      label:"Not a fit",     color:C.textMuted},
+];
+
+function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
+  const [tab,setTab]=useState("search"); // search | list
+  const [nicheKey,setNicheKey]=useState("");
+  const [customNiche,setCustomNiche]=useState("");
+  const [areas,setAreas]=useState([]);
+  const [areaInput,setAreaInput]=useState("");
+  const [count,setCount]=useState(12);
+  const [filters,setFilters]=useState({websiteState:"any",adsState:"any",minEmployees:0});
+  const [notes,setNotes]=useState("");
+  const [showAdv,setShowAdv]=useState(false);
+  const [runState,setRunState]=useState("idle"); // idle | running | done | error
+  const [progress,setProgress]=useState(null);
+  const [runResult,setRunResult]=useState(null);
+  const [msg,setMsg]=useState("");
+  const [list,setList]=useState([]);
+  const [facets,setFacets]=useState(null);
+  const [listLoading,setListLoading]=useState(false);
+  const [lf,setLf]=useState({niche:"",area:"",status:"",minScore:0,q:""});
+  const [openId,setOpenId]=useState(null);
+  const pollRef=useRef(null);
+  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
+
+  const selected = (()=>{ if(nicheKey==="custom") return {label:customNiche.trim(),group:"Custom",kind:"service"};
+    const [gi,ii]=String(nicheKey).split("."); const g=SCOUT_NICHES[Number(gi)];
+    if(!g) return null; const label=g.n[Number(ii)]; if(!label) return null; return {label,group:g.g,kind:g.k}; })();
+  const isEcom = !!(selected&&selected.kind==="ecom");
+
+  const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
+  const api=async(qs,opts)=>{ const token=await authToken(); if(!token) throw new Error("Session expired — refresh the page.");
+    const r=await fetch("/.netlify/functions/lead-scout?"+qs,{...(opts||{}),headers:{"Authorization":"Bearer "+token,...((opts&&opts.headers)||{})}});
+    const d=await r.json().catch(()=>({})); if(!r.ok||d.ok===false) throw new Error(d.error||"Request failed"); return d; };
+
+  const loadList=async()=>{
+    setListLoading(true);
+    try{
+      const qs=new URLSearchParams({action:"prospects"});
+      if(lf.niche) qs.set("niche",lf.niche); if(lf.area) qs.set("area",lf.area);
+      if(lf.status) qs.set("status",lf.status); if(lf.minScore>0) qs.set("minScore",String(lf.minScore));
+      if(lf.q.trim()) qs.set("q",lf.q.trim());
+      const [p,f]=await Promise.all([api(qs.toString()),api("action=facets")]);
+      setList(p.prospects||[]); setFacets(f);
+    }catch(e){ setMsg(String(e.message||e)); }
+    setListLoading(false);
+  };
+  useEffect(()=>{ if(tab==="list") loadList(); },[tab,lf.niche,lf.area,lf.status,lf.minScore]);
+
+  const addArea=()=>{ const v=areaInput.trim().replace(/,+$/,""); if(!v) return;
+    if(!areas.some(a=>a.toLowerCase()===v.toLowerCase())) setAreas(a=>[...a,v]); setAreaInput(""); };
+  const areaKey=(e)=>{ if(e.key==="Enter"||e.key===","){ e.preventDefault(); addArea(); }
+    else if(e.key==="Backspace"&&!areaInput&&areas.length){ setAreas(a=>a.slice(0,-1)); } };
+
+  const run=async()=>{
+    if(!selected||!selected.label){ setMsg("Pick a niche first."); return; }
+    if(!isEcom&&!areas.length){ setMsg("Add at least one area to search — the scout stays strictly inside the areas you list."); return; }
+    setRunState("running"); setRunResult(null); setProgress({stage:"starting",message:"Starting the search…"});
+    setMsg(""); setTab("search");
+    const id="scout-"+uid()+Date.now().toString(36);
+    const token=await authToken();
+    if(!token){ setRunState("error"); setMsg("Your session expired — refresh the page and try again."); return; }
+    fetch("/.netlify/functions/lead-scout-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({id,niche:selected.label,nicheGroup:selected.group,nicheKind:selected.kind,areas,count,filters,notes})}).catch(()=>{});
+    const started=Date.now();
+    pollRef.current=setInterval(async()=>{
+      if(Date.now()-started>780000){ clearInterval(pollRef.current); setRunState("error"); setMsg("This run is taking unusually long — it may still finish. Check your list in a minute."); return; }
+      try{
+        const r=await api("action=run&id="+encodeURIComponent(id));
+        if(r.progress) setProgress(r.progress);
+        if(r.status==="done"){ clearInterval(pollRef.current); setRunResult(r.result||null); setRunState("done"); loadList(); }
+        else if(r.status==="error"){ clearInterval(pollRef.current); setRunState("error");
+          setMsg(/scout_runs|scout_prospects|relation|does not exist|schema cache|could not find/i.test(r.error||"")
+            ? "Setup needed: the scout_runs / scout_prospects tables aren't in Supabase yet. Run the setup SQL, then try again."
+            : (r.error||"The run hit an error. Try again.")); }
+      }catch(e){ /* transient — keep polling */ }
+    },4000);
+  };
+
+  const setStatus=async(p,status)=>{
+    setList(l=>l.map(x=>x.id===p.id?{...x,status}:x));
+    try{ await api("action=status&id="+encodeURIComponent(p.id),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); }
+    catch(e){ setMsg(String(e.message||e)); }
+  };
+  const removeProspect=async(p)=>{
+    if(!window.confirm(`Remove ${p.name} from your list? It can be found again by a future search.`)) return;
+    setList(l=>l.filter(x=>x.id!==p.id));
+    try{ await api("action=delete&id="+encodeURIComponent(p.id),{method:"POST"}); }catch(e){ setMsg(String(e.message||e)); }
+  };
+  const toDealPrep=(d,fallbackNiche)=>{
+    if(!onDealPrep) return;
+    const known=[d.ownerName?`Owner: ${d.ownerName}${d.ownerTitle?` (${d.ownerTitle})`:""}`:"",
+      d.phone?`Phone: ${d.phone}`:"", d.employees?`Employees: ${d.employees}`:"",
+      d.yearsInBusiness?`In business: ${d.yearsInBusiness}`:"",
+      d.rating?`Rating: ${d.rating}★${d.reviewCount?` (${d.reviewCount} reviews)`:""}`:"",
+      `Ads: Google ${d.googleAds||"unknown"}, Meta ${d.metaAds||"unknown"}`,
+      (d.gaps&&d.gaps.length)?`Gaps found: ${d.gaps.join("; ")}`:"" ].filter(Boolean).join("\n");
+    onDealPrep({companyName:d.name,niche:d.niche||fallbackNiche||"",website:d.websiteRaw||d.website||"",
+      location:[d.city,d.state].filter(Boolean).join(", "),notes:known});
+  };
+
+  const exportCSV=()=>{
+    const cols=[["Company","name"],["Owner","ownerName"],["Owner title","ownerTitle"],["Company phone","phone"],["Owner phone","ownerPhone"],
+      ["Email","email"],["Owner email","ownerEmail"],["Website","websiteRaw"],["Employees","employees"],["Years","yearsInBusiness"],
+      ["City","city"],["State","state"],["Rating","rating"],["Reviews","reviewCount"],["Google ads","googleAds"],["Meta ads","metaAds"],
+      ["Score","score"],["Verdict","verdict"],["Best opener","bestHook"]];
+    const esc=(v)=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
+    const rows=[cols.map(c=>esc(c[0])).concat([esc("Status")]).join(",")].concat(
+      list.map(p=>{ const d=p.data||{}; return cols.map(c=>esc(d[c[1]])).concat([esc(p.status)]).join(","); }));
+    const blob=new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8;"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=`boldline-prospects-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  };
+
+  // ── small presentational helpers ───────────────────────────────────────────
+  const lbl={fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"};
+  const chipBtn=(on)=>({padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:999,cursor:"pointer",
+    border:`1px solid ${on?C.gold+"66":C.border}`,background:on?"rgba(200,168,75,0.12)":"rgba(255,255,255,.03)",color:on?C.gold:C.textDim});
+  const Fact=({k,v,href})=>(
+    <div style={{minWidth:0}}>
+      <div style={{fontSize:9.5,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em",marginBottom:2}}>{k}</div>
+      {v?(href?<a href={href} style={{fontSize:12,color:C.gold,fontWeight:600,textDecoration:"none",wordBreak:"break-word"}}>{v}</a>
+         :<div style={{fontSize:12,color:C.text,fontWeight:600,wordBreak:"break-word"}}>{v}</div>)
+       :<div style={{fontSize:12,color:C.textMuted,fontStyle:"italic"}}>not found</div>}
+    </div>
+  );
+  const adsPill=(state,label)=>{
+    const c=state==="yes"?C.green:state==="no"?C.textMuted:C.amber;
+    const t=state==="yes"?"running":state==="no"?"not running":"unconfirmed";
+    return <span style={{fontSize:10,fontWeight:700,color:c,border:`1px solid ${c}44`,background:c+"14",borderRadius:7,padding:"3px 7px",whiteSpace:"nowrap"}}>{label}: {t}</span>;
+  };
+  const ScoreBadge=({score})=>{ const t=scoutTier(score); return (
+    <div style={{flexShrink:0,textAlign:"center",minWidth:52}}>
+      <div style={{width:44,height:44,borderRadius:"50%",border:`2px solid ${t.color}`,background:t.color+"18",
+        display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:t.color,margin:"0 auto"}}>{score}</div>
+      <div style={{fontSize:8.5,fontWeight:800,color:t.color,textTransform:"uppercase",letterSpacing:".04em",marginTop:3}}>{t.label}</div>
+    </div>
+  );};
+
+  const ProspectCard=({p})=>{
+    const d=(p&&p.data)||{}; const open=openId===p.id;
+    const st=SCOUT_STATUSES.find(s=>s.id===p.status)||SCOUT_STATUSES[0];
+    return (
+      <div style={{...card,padding:"13px 14px",marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
+          <ScoreBadge score={p.score}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:14.5,fontWeight:800,color:C.text,lineHeight:1.25}}>{d.name||p.name}</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
+              {[[d.city,d.state].filter(Boolean).join(", "),p.niche].filter(Boolean).join(" · ")}
+              {d.rating?<span style={{color:C.amber}}>{"  ★ "+d.rating}{d.reviewCount?` (${d.reviewCount})`:""}</span>:null}
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}}>
+              {adsPill(d.googleAds,"Google")}{adsPill(d.metaAds,"Meta")}
+              {d.websiteQuality&&d.websiteQuality!=="unknown"&&(
+                <span style={{fontSize:10,fontWeight:700,color:C.textDim,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 7px"}}>site: {d.websiteQuality}</span>)}
+              {typeof d.completeness==="number"&&(
+                <span style={{fontSize:10,fontWeight:700,color:d.completeness>=70?C.green:d.completeness>=40?C.amber:C.textMuted,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 7px"}}>{d.completeness}% verified</span>)}
+            </div>
+          </div>
+        </div>
+
+        {d.verdict&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.55,marginTop:10}}>{d.verdict}</div>}
+
+        <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,minmax(0,1fr))":"repeat(2,minmax(0,1fr))",gap:10,marginTop:12}}>
+          <Fact k="Owner" v={d.ownerName?d.ownerName+(d.ownerTitle?` · ${d.ownerTitle}`:""):""}/>
+          <Fact k="Company phone" v={d.phone} href={d.phone?"tel:"+d.phone.replace(/[^\d+]/g,""):null}/>
+          <Fact k="Owner phone" v={d.ownerPhone} href={d.ownerPhone?"tel:"+d.ownerPhone.replace(/[^\d+]/g,""):null}/>
+          <Fact k="Employees" v={d.employees}/>
+          <Fact k="Website" v={d.website||d.websiteRaw} href={d.website?"https://"+d.website:null}/>
+          <Fact k="Email" v={d.ownerEmail||d.email} href={(d.ownerEmail||d.email)?"mailto:"+(d.ownerEmail||d.email):null}/>
+          <Fact k="In business" v={d.yearsInBusiness}/>
+          <Fact k="Revenue est." v={d.revenueEstimate}/>
+        </div>
+
+        {open&&(
+          <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:12}}>
+            {d.bestHook&&(
+              <div style={{padding:"10px 12px",borderRadius:10,background:"rgba(200,168,75,0.08)",border:`1px solid ${C.gold}33`}}>
+                <div style={{fontSize:9.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Your opener</div>
+                <div style={{fontSize:12.5,color:C.text,lineHeight:1.55,fontStyle:"italic"}}>“{d.bestHook}”</div>
+              </div>)}
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr",gap:12}}>
+              {!!(d.whyContact&&d.whyContact.length)&&(
+                <div><div style={{fontSize:9.5,fontWeight:800,color:C.green,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>Why call them</div>
+                  <ul style={{margin:0,paddingLeft:16}}>{d.whyContact.map((x,i)=><li key={i} style={{fontSize:12,color:C.textDim,lineHeight:1.5,marginBottom:4}}>{x}</li>)}</ul></div>)}
+              {!!(d.whyNot&&d.whyNot.length)&&(
+                <div><div style={{fontSize:9.5,fontWeight:800,color:C.red,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>What could kill it</div>
+                  <ul style={{margin:0,paddingLeft:16}}>{d.whyNot.map((x,i)=><li key={i} style={{fontSize:12,color:C.textDim,lineHeight:1.5,marginBottom:4}}>{x}</li>)}</ul></div>)}
+            </div>
+            {!!(d.gaps&&d.gaps.length)&&(
+              <div><div style={{fontSize:9.5,fontWeight:800,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>Gaps BoldLine fixes</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{d.gaps.map((x,i)=>
+                  <span key={i} style={{fontSize:11,color:C.textDim,border:`1px solid ${C.border}`,background:C.bg3,borderRadius:7,padding:"4px 8px"}}>{x}</span>)}</div></div>)}
+            {d.adsEvidence&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Ad evidence:</b> {d.adsEvidence}</div>}
+            {d.seoNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Search presence:</b> {d.seoNote}</div>}
+            {d.ownerSource&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Owner info from:</b> {d.ownerSource}</div>}
+            {d.dataNotes&&<div style={{fontSize:11,color:C.amber,lineHeight:1.5}}><b>Verify before quoting:</b> {d.dataNotes}</div>}
+            {!!(d.sources&&d.sources.length)&&(
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{d.sources.map((s,i)=>
+                <a key={i} href={s} target="_blank" rel="noopener noreferrer" style={{fontSize:10.5,color:C.blue,textDecoration:"none",wordBreak:"break-all"}}>source {i+1} ↗</a>)}</div>)}
+          </div>
+        )}
+
+        {/* Status + delete lead the row so that when it wraps at ~390px you get two
+            tidy lines (state controls, then the two actions) instead of a stray ✕. */}
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:12,justifyContent:"flex-end"}}>
+          <select value={p.status} onChange={e=>setStatus(p,e.target.value)}
+            style={{padding:"7px 9px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${st.color}44`,background:st.color+"14",color:st.color,cursor:"pointer"}}>
+            {SCOUT_STATUSES.map(s=><option key={s.id} value={s.id} style={{background:C.bg3,color:C.text}}>{s.label}</option>)}
+          </select>
+          <button onClick={()=>removeProspect(p)} title="Remove from list" style={{marginRight:"auto",width:28,height:28,borderRadius:8,border:"none",background:"rgba(255,255,255,.05)",color:C.textMuted,cursor:"pointer",fontSize:12}}>✕</button>
+          <button onClick={()=>setOpenId(open?null:p.id)} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{open?"Less":"Full detail"}</button>
+          <button onClick={()=>toDealPrep(d,p.niche)} style={{padding:"7px 13px",fontSize:11.5,fontWeight:800,borderRadius:9,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer"}}>Deal Prep →</button>
+        </div>
+      </div>
+    );
+  };
+
+  const back = !isDesktop && (
+    <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
+  );
+  const newProspects=(runResult&&runResult.prospects)||[];
+  const stats=(runResult&&runResult.stats)||null;
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        {back}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Lead Scout</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Find businesses worth calling, ranked worst-to-best-use-of-your-time.</div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        <button onClick={()=>setTab("search")} style={chipBtn(tab==="search")}>New search</button>
+        <button onClick={()=>setTab("list")} style={chipBtn(tab==="list")}>My call list{facets&&facets.total?` (${facets.total})`:""}</button>
+      </div>
+
+      {tab==="search"&&(
+        <div style={{maxWidth:760}}>
+          <div style={{...card}}>
+            <div style={S.col12}>
+              <div>
+                <div style={lbl}>Industry / niche *</div>
+                <select value={nicheKey} onChange={e=>setNicheKey(e.target.value)}
+                  style={{...inp,cursor:"pointer",appearance:"none"}}>
+                  <option value="">Choose a niche…</option>
+                  {SCOUT_NICHES.map((g,gi)=>(
+                    <optgroup key={gi} label={g.g}>
+                      {g.n.map((n,ii)=><option key={ii} value={`${gi}.${ii}`}>{n}</option>)}
+                    </optgroup>
+                  ))}
+                  <optgroup label="Other"><option value="custom">Custom niche…</option></optgroup>
+                </select>
+                {nicheKey==="custom"&&(
+                  <input value={customNiche} onChange={e=>setCustomNiche(e.target.value)} placeholder="Type the niche, e.g. Mobile IV Hydration"
+                    style={{...inp,marginTop:8}}/>)}
+                {isEcom&&(
+                  <div style={{fontSize:11,color:C.textDim,marginTop:7,lineHeight:1.5}}>
+                    E-commerce brands sell online, so the area filter is optional — leave it empty to search nationwide, or add areas to find brands based near you.
+                  </div>)}
+              </div>
+
+              <div>
+                <div style={lbl}>{isEcom?"Areas (optional for online brands)":"Areas to search *"}</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:areas.length?8:0}}>
+                  {areas.map(a=>(
+                    <span key={a} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"5px 8px 5px 11px",borderRadius:999,
+                      border:`1px solid ${C.gold}44`,background:"rgba(200,168,75,0.10)",fontSize:11.5,fontWeight:700,color:C.gold}}>
+                      {a}
+                      <button onClick={()=>setAreas(x=>x.filter(v=>v!==a))} style={{border:"none",background:"none",color:C.gold,cursor:"pointer",fontSize:12,lineHeight:1,padding:0}}>✕</button>
+                    </span>))}
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <input value={areaInput} onChange={e=>setAreaInput(e.target.value)} onKeyDown={areaKey}
+                    placeholder="e.g. Phoenix, AZ — press Enter to add" style={{...inp,flex:1,minWidth:0}}/>
+                  <button onClick={addArea} style={{padding:"0 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.05)",color:C.textDim,cursor:"pointer",flexShrink:0}}>Add</button>
+                </div>
+                <div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.5}}>
+                  Add as many as you want — a city, a ZIP, or a region like “East Valley, AZ”. Results are verified against these areas and anything outside them is thrown out.
+                </div>
+              </div>
+
+              <div>
+                <div style={lbl}>How many to find</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {[6,12,20,30].map(n=><button key={n} onClick={()=>setCount(n)} style={chipBtn(count===n)}>{n}</button>)}
+                </div>
+              </div>
+
+              <button onClick={()=>setShowAdv(v=>!v)} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"2px 0",textAlign:"left"}}>
+                {showAdv?"− Hide filters":"+ Narrow it down (website, ads, size)"}
+              </button>
+              {showAdv&&(
+                <div style={{display:"flex",flexDirection:"column",gap:12,padding:"12px 13px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
+                  <div>
+                    <div style={lbl}>Website</div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {[["any","Doesn't matter"],["none","No / weak site (easy sell)"],["has","Has a real site"]].map(([v,t])=>
+                        <button key={v} onClick={()=>setFilters(f=>({...f,websiteState:v}))} style={chipBtn(filters.websiteState===v)}>{t}</button>)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={lbl}>Currently advertising</div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {[["any","Doesn't matter"],["not","Not advertising (untapped)"],["running","Already advertising (has budget)"]].map(([v,t])=>
+                        <button key={v} onClick={()=>setFilters(f=>({...f,adsState:v}))} style={chipBtn(filters.adsState===v)}>{t}</button>)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={lbl}>Minimum size</div>
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {[[0,"Any size"],[3,"3+ employees"],[10,"10+ employees"],[25,"25+ employees"]].map(([v,t])=>
+                        <button key={v} onClick={()=>setFilters(f=>({...f,minEmployees:v}))} style={chipBtn(filters.minEmployees===v)}>{t}</button>)}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={lbl}>Anything else the scout should know <span style={{color:C.textMuted,fontWeight:500,textTransform:"none"}}>(optional)</span></div>
+                    <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2}
+                      placeholder="e.g. skip anyone I've already called, focus on family-owned shops…" style={{...inp,resize:"vertical",fontFamily:"inherit"}}/>
+                  </div>
+                </div>)}
+
+              <button onClick={run} disabled={runState==="running"}
+                style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",
+                  background:runState==="running"?"rgba(255,255,255,.06)":C.gradB,color:runState==="running"?C.textMuted:"#1a1400",cursor:runState==="running"?"default":"pointer"}}>
+                {runState==="running"?"Scouting…":"🔎 Find prospects"}
+              </button>
+              <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,textAlign:"center"}}>
+                A run does live web research on every business it finds — expect 2–6 minutes and a few cents to about a dollar of API usage depending on how many you ask for.
+              </div>
+              {msg&&<div style={{fontSize:12,color:runState==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
+            </div>
+          </div>
+
+          {runState==="running"&&progress&&(
+            <div style={{...card,marginTop:12}}>
+              <div style={{fontSize:12.5,color:C.text,fontWeight:700}}>{progress.message||"Working…"}</div>
+              <div style={{height:6,borderRadius:99,background:"rgba(255,255,255,.06)",marginTop:10,overflow:"hidden"}}>
+                <div style={{height:"100%",borderRadius:99,background:C.gradB,transition:"width .4s",
+                  width:progress.total?`${Math.max(6,Math.round((progress.enriched/progress.total)*100))}%`:"18%"}}/>
+              </div>
+              <div style={{fontSize:10.5,color:C.textMuted,marginTop:7,lineHeight:1.5}}>
+                Keep this tab open. Results are saved to your call list either way — you can come back to them.
+              </div>
+            </div>)}
+
+          {runState==="done"&&runResult&&(
+            <div style={{marginTop:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:12}}>
+                <div style={{fontSize:13,color:C.text,fontWeight:700}}>{runResult.message}</div>
+                {stats&&(
+                  <div style={{fontSize:10.5,color:C.textMuted,marginLeft:"auto"}}>
+                    {stats.found} found · {stats.duplicates||0} already on your list · {stats.outOfArea||0} outside your areas
+                  </div>)}
+              </div>
+              {runResult.coverageNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginBottom:12}}>{runResult.coverageNote}</div>}
+              {newProspects.map((d,i)=>(
+                <ProspectCard key={d.name+i} p={{id:"new-"+i,name:d.name,niche:d.niche||(selected&&selected.label),score:d.score,status:"new",data:d}}/>
+              ))}
+              {!newProspects.length&&(
+                <div style={{...card,fontSize:12.5,color:C.textDim,lineHeight:1.6}}>
+                  Nothing new this time. Try adding more areas, widening the niche, or raising the count — and remember the scout deliberately skips anything already on your list.
+                </div>)}
+            </div>)}
+        </div>
+      )}
+
+      {tab==="list"&&(
+        <div style={{maxWidth:900}}>
+          <div style={{...card,marginBottom:14}}>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+              <div style={{flex:"1 1 200px",minWidth:0}}>
+                <div style={lbl}>Search</div>
+                <input value={lf.q} onChange={e=>setLf(f=>({...f,q:e.target.value}))} onKeyDown={e=>{ if(e.key==="Enter") loadList(); }}
+                  placeholder="Company name…" style={inp}/>
+              </div>
+              <div style={{flex:"1 1 160px",minWidth:0}}>
+                <div style={lbl}>Niche</div>
+                <select value={lf.niche} onChange={e=>setLf(f=>({...f,niche:e.target.value}))} style={{...inp,cursor:"pointer"}}>
+                  <option value="">All niches</option>
+                  {facets&&facets.niches.map(n=><option key={n.value} value={n.value}>{n.value} ({n.count})</option>)}
+                </select>
+              </div>
+              <div style={{flex:"1 1 160px",minWidth:0}}>
+                <div style={lbl}>Area</div>
+                <select value={lf.area} onChange={e=>setLf(f=>({...f,area:e.target.value}))} style={{...inp,cursor:"pointer"}}>
+                  <option value="">All areas</option>
+                  {facets&&facets.areas.map(n=><option key={n.value} value={n.value}>{n.value} ({n.count})</option>)}
+                </select>
+              </div>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
+                <div style={lbl}>Status</div>
+                <select value={lf.status} onChange={e=>setLf(f=>({...f,status:e.target.value}))} style={{...inp,cursor:"pointer"}}>
+                  <option value="">All</option>
+                  {SCOUT_STATUSES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:12}}>
+              <span style={{fontSize:10.5,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em"}}>Min score</span>
+              {[0,42,62,80].map(v=><button key={v} onClick={()=>setLf(f=>({...f,minScore:v}))} style={chipBtn(lf.minScore===v)}>{v===0?"Any":v+"+"}</button>)}
+              <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+                <button onClick={loadList} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Refresh</button>
+                <button onClick={exportCSV} disabled={!list.length} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:list.length?C.textDim:C.textMuted,cursor:list.length?"pointer":"default"}}>Export CSV</button>
+              </div>
+            </div>
+          </div>
+
+          {listLoading?<div style={{fontSize:12,color:C.textMuted,padding:"20px 2px"}}>Loading your list…</div>
+           :list.length?list.map(p=><ProspectCard key={p.id} p={p}/>)
+           :<div style={{...card,fontSize:12.5,color:C.textDim,lineHeight:1.6}}>
+              No prospects yet{facets&&facets.total?" for these filters":""}. Run a search and they'll collect here — the same business never gets added twice.
+            </div>}
         </div>
       )}
     </div>
@@ -1752,7 +2230,7 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   );
 }
 
-function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,hasMyAccount,isDesktop}) {
+function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,onLeadScout,hasMyAccount,isDesktop}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -1809,15 +2287,25 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenM
         </div>
       )}
 
-      {/* Deal Prep entry — research a prospect before a sales call */}
-      <button onClick={onDealPrep} style={{width:"100%",display:"flex",alignItems:"center",gap:12,padding:"13px 15px",borderRadius:13,marginBottom:16,border:`1px solid ${C.gold}33`,background:"linear-gradient(135deg,rgba(200,168,75,0.13),rgba(200,168,75,0.03))",cursor:"pointer",textAlign:"left"}}>
-        <div style={{width:38,height:38,borderRadius:10,background:C.gradB,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:18}}>🎯</div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14,fontWeight:800,color:C.text}}>Deal Prep</div>
-          <div style={{fontSize:11.5,color:C.textDim,marginTop:1}}>Research a prospect + get your pitch before a call</div>
-        </div>
-        <IconChevron size={16} color={C.gold}/>
-      </button>
+      {/* Prospecting entries — find who to call (Lead Scout), then how to close them (Deal Prep) */}
+      {(()=>{
+        const entry=(icon,title,sub,onClick)=>(
+          <button onClick={onClick} style={{flex:"1 1 260px",minWidth:0,display:"flex",alignItems:"center",gap:12,padding:"13px 15px",borderRadius:13,border:`1px solid ${C.gold}33`,background:"linear-gradient(135deg,rgba(200,168,75,0.13),rgba(200,168,75,0.03))",cursor:"pointer",textAlign:"left"}}>
+            <div style={{width:38,height:38,borderRadius:10,background:C.gradB,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,fontSize:18}}>{icon}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:800,color:C.text}}>{title}</div>
+              <div style={{fontSize:11.5,color:C.textDim,marginTop:1}}>{sub}</div>
+            </div>
+            <IconChevron size={16} color={C.gold}/>
+          </button>
+        );
+        return (
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
+            {entry("📍","Lead Scout","Find + rank businesses worth cold calling",onLeadScout)}
+            {entry("🎯","Deal Prep","Research a prospect + get your pitch before a call",onDealPrep)}
+          </div>
+        );
+      })()}
 
       {/* MRR hero + KPI tiles. Mobile: hero on top, 3-up stats below. Desktop: one row. */}
       {(()=>{
@@ -6660,10 +7148,10 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
       </button>
 
       {/* More */}
-      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="revenue")}>
-        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="revenue")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue")}>
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
-          color:(screen==="calendar"||screen==="dealprep"||screen==="revenue")?"#C8A84B":C.textMuted}}>More</span>
+          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue")?"#C8A84B":C.textMuted}}>More</span>
       </button>
     </div>
   );
@@ -6672,7 +7160,7 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // Mobile "More" bottom sheet — the overflow destinations that don't fit in the
 // bottom bar (Calendar, Deal Prep, Revenue). Keeps mobile at feature parity
 // with the desktop sidebar.
-function MoreSheet({ onClose, onCalendar, onDealPrep, onRevenue }) {
+function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue }) {
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:13,width:"100%",padding:"14px 14px",borderRadius:13,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left",marginBottom:9}}>
       <span style={{width:38,height:38,borderRadius:10,background:"rgba(200,168,75,0.10)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
@@ -6691,6 +7179,7 @@ function MoreSheet({ onClose, onCalendar, onDealPrep, onRevenue }) {
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:12,paddingLeft:2}}>More</div>
         {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
         {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
+        {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
         {row(sv(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>),"Revenue","MRR + revenue breakdown",onRevenue)}
       </div>
     </div>
@@ -6894,7 +7383,7 @@ function useIsDesktop(bp=1024){
 // ─── DESKTOP SIDEBAR ──────────────────────────────────────────────────────────
 // Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden
 // there. Same destinations as BottomNav plus a first-class Revenue entry.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onCalendar}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -6931,6 +7420,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
         <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
         <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
+        <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
         <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
         <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
       </div>
@@ -6966,6 +7456,10 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
   const [showMore,setShowMore]         = useState(false);
   const [leads,setLeads]               = useState([]);
+  // Set by Lead Scout when you push a prospect into Deal Prep; DealPrepScreen
+  // consumes it once and clears it so re-opening the screen starts clean.
+  const [dealSeed,setDealSeed]         = useState(null);
+  const openDealPrep = (seed) => { setDealSeed(seed || null); setScreen("dealprep"); };
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
     if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions && c.googleAdsCustomerId!==undefined) return c;
@@ -7183,11 +7677,12 @@ function App({onLogout}) {
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>setScreen("dealprep")} onCalendar={()=>setScreen("calendar")}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>setScreen("dealprep")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
-        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
+        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
+        {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
@@ -7197,7 +7692,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{setScreen("dealprep");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}}/>}
       {toasts.length>0&&(
         <div style={isDesktop
           ? {position:"fixed",right:20,bottom:20,left:"auto",zIndex:300,display:"flex",flexDirection:"column",gap:8,width:300,pointerEvents:"none"}
