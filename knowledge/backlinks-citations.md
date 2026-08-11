@@ -28,7 +28,7 @@ signal.
 | LinkedIn — Company Page | ⛔ blocked | "not enough connections" (2026-08-11). Needs ~50 connections + an account that isn't brand new. Copy is ready to paste in `linkedin-brand-presence`. Retry in 2-3 days. |
 | Facebook Page | ✅ done | see below |
 | Instagram | ✅ done | see below |
-| **Bing Places** | ⬜ next | One-click import from the Google Business Profile. Underrated: Bing feeds DuckDuckGo, Yahoo, Microsoft Copilot, and ChatGPT web search — this is how you show up in AI answers. |
+| **Bing Places** | ✅ done | see below |
 | Apple Business Connect | ⬜ todo | Free, puts him on Apple Maps (the default for every iPhone "near me" search) |
 | Yelp for Business | ⬜ todo | Free listing, high domain authority |
 | Clutch / UpCity / DesignRush | ⏸ later | Agency directories — real backlinks + occasional leads, but the listing looks thin until there's a client review. Revisit after client #1. |
@@ -74,10 +74,41 @@ investing hours in it**. Instagram is a slow, low-intent channel for a B2B agenc
 pipeline is cold calling + referrals. The only levers that would actually work there are
 Reels + commenting on target accounts, which is real time he doesn't have pre-first-client.
 
-## Open questions to resolve
-- **Which Google account owns the Google Business Profile?** Not recorded in
-  `account-email-map`. Bing Places' import requires signing into that exact account.
-  Record it in `account-email-map` once known.
-- Does Bryson have a **Microsoft account**? Bing Places requires one (can be created using
-  `theboldlinemedia@gmail.com` as the address — a Microsoft account doesn't need an
-  @outlook address).
+## Bing Places — done 2026-08-11
+Microsoft account = `brysonaweiser@gmail.com` (see `account-email-map`). Store code
+`01799870380496599947`. Status after setup: **verified**, "Pending publish, ETA 7-12 days"
+(normal for a new Bing listing — nothing is broken).
+
+- **Setup path that worked:** bingplaces.com → sign in → **Import from Google Business
+  Profile** → sign into the Google account that owns the GBP → select BoldLine Media →
+  Import. That carried over name, phone `(602) 784-4228`, website
+  `https://boldlinemedia.com/`, category "Marketing agency", hours, and the full
+  description. Verification was automatic via the Google sync (no phone/postcard step).
+  Address correctly left blank — service-area business.
+- **The import does NOT carry:** photos, email, services, or social profiles. Filled in
+  manually: email `theboldlinemedia@gmail.com`, Facebook + personal LinkedIn added to
+  Social profiles (Instagram came across on its own), photos reused from the GBP set.
+- **GOTCHA — Bing's Services field is a FIXED CATALOG, not free text.** I first gave Bryson
+  Google-style free-text service names ("Google Ads Management", "Meta Ads Management",
+  "Landing Page Design"…) and all seven landed in the *"Add a new service type"* pending-
+  review queue instead of applying — only "Lead Generation" matched a real chip. **Always
+  pick from Bing's existing chips.** The nine that fit BoldLine: Digital Marketing, Paid
+  Advertising, Pay Per Click Consulting, Lead Generation, Social Media Marketing, Web
+  Design, Email Marketing, Marketing Reports, Marketing Analysis. Deliberately NOT selected
+  (he doesn't sell them, and listing them invites unqualified inquiries + price-shoppers):
+  Search Engine Optimization / Seo Services, Branding, Logo Design, Graphic Design,
+  Content Management, Affiliate Marketing.
+- **Microsoft Advertising `$500 for $250` credit** was flagged to Bryson as a real later
+  opportunity (not chased): Microsoft Ads has a one-click **import from Google Ads**, CPCs
+  are typically cheaper, and the audience skews older/higher-income/desktop. Revisit once
+  his own Google campaigns are running and converting — it's also a service almost no small
+  agency offers clients.
+
+## Follow-ups
+- **When the LinkedIn Company Page goes live, SWAP the personal LinkedIn for it** in every
+  listing's social-profile field — Bing Places and the Google Business Profile both point at
+  `linkedin.com/in/brysonweiser` right now, which was the correct call while the Company Page
+  doesn't exist (solo founder, headline names BoldLine, better than an empty slot). Also add
+  the Company Page to the marketing site's Organization JSON-LD `sameAs` and the site footer.
+- **Which Google account owns the Google Business Profile?** Still not recorded in
+  `account-email-map` — add it next time it comes up (the Bing import needed it).
