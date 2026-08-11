@@ -714,7 +714,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
    nothing here hides content by default — .sr/.sr-in are added ONLY by JS, and only
    to elements below the viewport at arm time, so no-JS visitors, crawlers, and
    screenshots always get fully visible content. */
-.sr{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--srd,0s)}
+.sr{opacity:0;transform:translateY(var(--sry,22px));transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);transition-delay:var(--srd,0s)}
 .sr-in{opacity:1;transform:none}
 .sr-in .divider{animation:drawX .9s cubic-bezier(.2,.7,.2,1) .15s both}
 @keyframes drawX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
@@ -2221,33 +2221,65 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
   }, { passive: true });
   paint();
 
-  /* ── Scroll-settle reveals (safe pattern — see knowledge/content-visibility-no-js):
-        we only ever arm elements that are BELOW the viewport right now, so nothing
-        visible (or crawlable) is ever hidden; JS then plays the settle as they enter. ── */
+  /* ── Scroll-settle reveals — REPEATING, both directions (Bryson, 2026-08-11:
+        "always a scroll animation even after the page is fully loaded ... for
+        scrolling down and up").
+
+        Was one-shot: reveal on first entry, then unobserve, so nothing ever
+        replayed. Now every section re-plays its settle each time it comes back
+        into view, entering from whichever edge you scrolled from.
+
+        Two observers on purpose. Re-arming (hiding again) must NEVER happen
+        while any part of the element is on screen or you get a visible flicker,
+        so the "out" observer uses no rootMargin and fires only at ratio 0 —
+        fully off screen, where the user cannot see the reset. The "in" observer
+        keeps a negative bottom margin so the settle triggers a beat after the
+        element clears the fold, which is what makes it read as deliberate.
+
+        The old code's 12000px top rootMargin (an anti-stuck-hidden guard) is
+        gone and no longer needed: nothing is unobserved now, so an element that
+        gets jumped past is re-evaluated the moment it is on screen again.
+
+        Still safe for SEO / no-JS: .sr is only ever added by JS, and anything
+        already visible at load gets .sr and .sr-in in the SAME frame, so
+        visible content is never hidden even for a moment. ── */
   if(!reduce && 'IntersectionObserver' in window){
     var groups = ['.section-head', '.boutique-card', '.pkg', '.incl', '.faq-item',
                   '.fit-check', '.fit-budget', '.founder-card', '.contact-box',
                   '.cap-note', '.equal-effort'];
-    var io = new IntersectionObserver(function(entries){
+
+    var ioIn = new IntersectionObserver(function(entries){
       entries.forEach(function(e){
-        if(e.isIntersecting){ e.target.classList.add('sr-in'); io.unobserve(e.target); }
+        if(e.isIntersecting) e.target.classList.add('sr-in');
       });
-    }, { rootMargin: '12000px 0px -7% 0px', threshold: 0.06 });
-    // The huge TOP margin guarantees nothing can get stuck hidden: anything the
-    // user jumps past (End key, nav glide) is instantly "intersecting" once it is
-    // at/above the viewport, so only entrances from below play the settle.
+    }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 });
+
+    var ioOut = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting) return;                 // still on screen — leave it alone
+        var el = e.target;
+        // Re-arm from the edge it will come back through: slid down if it left
+        // over the top, up if it left below. Scrolling back up therefore settles
+        // downward instead of replaying the "from below" entrance backwards.
+        el.style.setProperty('--sry', e.boundingClientRect.top < 0 ? '-22px' : '22px');
+        el.classList.remove('sr-in');
+      });
+    }, { threshold: 0 });
+
     var vh = window.innerHeight;
     document.querySelectorAll(groups.join(',')).forEach(function(el){
-      if(el.getBoundingClientRect().top > vh * 0.92){
-        // .reveal's finished fadeUp (fill-mode both) pins opacity:1 forever and
-        // would override .sr — the same animation-vs-class trap as the nav bug
-        el.classList.remove('reveal');
-        // stagger siblings that share a parent grid (packages, cards, faq)
-        var sibs = el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0;
-        el.style.setProperty('--srd', Math.min(sibs * 70, 420) + 'ms');
-        el.classList.add('sr');
-        io.observe(el);
-      }
+      // .reveal's finished fadeUp (fill-mode both) pins opacity:1 forever and
+      // would override .sr — the same animation-vs-class trap as the nav bug
+      el.classList.remove('reveal');
+      // stagger siblings that share a parent grid (packages, cards, faq)
+      var sibs = el.parentElement ? Array.prototype.indexOf.call(el.parentElement.children, el) : 0;
+      el.style.setProperty('--srd', Math.min(sibs * 70, 420) + 'ms');
+      el.classList.add('sr');
+      // Anything on screen right now is revealed in the same frame — no flash,
+      // no visible content ever hidden. It still re-plays once scrolled away.
+      if(el.getBoundingClientRect().top <= vh * 0.92) el.classList.add('sr-in');
+      ioIn.observe(el);
+      ioOut.observe(el);
     });
   }
 
