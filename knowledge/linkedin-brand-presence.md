@@ -54,9 +54,9 @@ and any future profile/directory copy.
   non-connections can message free (free inbound lead channel).
   Description (330/500):
   > I build and manage Google & Meta Ads campaigns paired with custom, high-converting landing pages, so your ad spend turns into booked customers instead of just clicks. Done-for-you setup, ongoing optimization, and straight reporting on what's actually working. Based in Phoenix, working with businesses across the U.S. and remotely.
-- **Public URL:** was the auto-generated `linkedin.com/in/bryson-weiser-649b70369`;
-  told to change to `linkedin.com/in/brysonweiser` (Public profile & URL → pencil →
-  Edit your custom URL). **Confirm the final value and record it here.**
+- **Public URL: `https://www.linkedin.com/in/brysonweiser`** (confirmed 2026-08-11).
+  Was the auto-generated `linkedin.com/in/bryson-weiser-649b70369`; changed via
+  Public profile & URL → pencil → Edit your custom URL.
 
 ## Company Page — NOT CREATED YET (approved copy, ready to paste)
 Create at `linkedin.com/company/setup/new` (or grid icon "For Business" → Create a
@@ -110,5 +110,15 @@ top/bottom on mobile).
 
 ## Open items
 - [ ] Bryson sends the **Company Page URL** → add to Organization JSON-LD `sameAs` in `marketing-site/index.html`
-- [ ] Confirm the final **personal custom URL** and record it above
+- [ ] Add a **LinkedIn link in the marketing-site footer** next to Instagram (the reciprocal link)
+- [x] ~~Confirm the final personal custom URL~~ → `linkedin.com/in/brysonweiser` (2026-08-11)
 - [ ] Continue the backlink list past LinkedIn (citations/directories next)
+
+## GOTCHA — brand-new accounts can be blocked from creating a Company Page
+LinkedIn gates Page creation behind personal-profile requirements: a profile photo, a
+listed **current position at the company you're creating the page for**, some
+**connections**, and an account that isn't brand new (roughly a week / "Intermediate"
+profile strength). Bryson's account was created 2026-08-11, so if "Create page" errors
+out ("we couldn't create your page / complete your profile and try again"), it is NOT a
+copy problem — send ~20-30 connection requests, confirm the Founder position is listed,
+and retry in a few days. Everything else in this entry is ready to paste when it unblocks.
