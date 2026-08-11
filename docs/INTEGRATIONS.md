@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 81 task-keyed entries under `knowledge/`. They surface automatically via the
+> 82 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**81 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**82 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -159,6 +159,12 @@
 - **[brand-palette-decision](../knowledge/brand-palette-decision.md)** &mdash; &#9989; verified &middot; 2026-07-05  
   DECISION (2026-07-05) — keep the current dark + gold brand palette. A green/beige earth-tone rebrand was explored in depth and Bryson rejected it ("let's just stick with the colors we have"). Do NOT re-propose a rebrand unless he asks.  
   <sub>*task:* change, rebrand, or recolor the site palette / brand colors &nbsp;|&nbsp; *keywords:* rebrand, palette, recolor, green, beige, earth-tone, brass, gold, C8A84B, brand-colors, quiet-luxury, dark-green</sub>
+
+## Marketing/SEO
+
+- **[linkedin-brand-presence](../knowledge/linkedin-brand-presence.md)** &mdash; &#9989; verified &middot; 2026-08-11  
+  LinkedIn is backlink source #1 of the backlink push (started 2026-08-11). Personal profile "Bryson Weiser" is LIVE; the BoldLine Media Company Page is NOT created yet. HARD POSITIONING RULE from Bryson — never say "local businesses" anywhere; he serves businesses nationally/remotely. Approved copy for every field (headline, About, services, tagline, page About) is recorded here verbatim so it stays consistent with the GBP wording. LinkedIn image assets are generated + committed at brand/linkedin/.  
+  <sub>*task:* set up, edit, or reference BoldLine's LinkedIn personal profile + Company Page (copy, positioning, images, backlinks) &nbsp;|&nbsp; *keywords:* linkedin, company-page, personal-brand, headline, backlinks, sameAs, banner, cover-image, profile-url, services, positioning, not-local, national</sub>
 
 ## Mobile/CSS
 
