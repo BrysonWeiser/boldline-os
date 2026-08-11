@@ -1,10 +1,21 @@
-# Long-cache the images (they change rarely; HTML/CSS/JS keep Netlify's
-# default revalidation so edits show up immediately)
+# Fonts are self-hosted and content-stable — if a face ever changes, the file is
+# renamed, so these can be cached hard. Immutable removes the revalidation entirely.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Images change rarely. 30 days (not a year) because these filenames aren't
+# content-hashed — a logo swap still needs to reach people in reasonable time.
 /logo.png
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=2592000
 /og-image.png
-  Cache-Control: public, max-age=604800
-/founder.jpg
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=2592000
 /og-image.jpg
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=2592000
+/founder.jpg
+  Cache-Control: public, max-age=2592000
+/icon.png
+  Cache-Control: public, max-age=2592000
+/favicon.ico
+  Cache-Control: public, max-age=2592000
+
+# HTML/CSS/JS keep Netlify's default revalidation so edits show up immediately.

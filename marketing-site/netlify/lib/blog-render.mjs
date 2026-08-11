@@ -48,7 +48,8 @@ export const headerHTML = () => `<header>
     <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
   </div>
 </header>
-<script>(function(){var h=document.querySelector('header');if(!h)return;h.classList.add('nav-in');var s=function(){h.classList.toggle('scrolled',window.scrollY>12)};s();window.addEventListener('scroll',s,{passive:true});var t=h.querySelector('.nav-toggle'),m=h.querySelector('.nav-mobile');if(t&&m){t.addEventListener('click',function(){var o=m.classList.toggle('open');t.classList.toggle('open',o);t.setAttribute('aria-expanded',o?'true':'false')});m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){m.classList.remove('open');t.classList.remove('open');t.setAttribute('aria-expanded','false')})})}})();</script>`;
+<script>(function(){var h=document.querySelector('header');if(!h)return;h.classList.add('nav-in');var s=function(){h.classList.toggle('scrolled',window.scrollY>12)};s();window.addEventListener('scroll',s,{passive:true});var t=h.querySelector('.nav-toggle'),m=h.querySelector('.nav-mobile');if(t&&m){t.addEventListener('click',function(){var o=m.classList.toggle('open');t.classList.toggle('open',o);t.setAttribute('aria-expanded',o?'true':'false')});m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){m.classList.remove('open');t.classList.remove('open');t.setAttribute('aria-expanded','false')})})}})();</script>
+<main id="main">`;
 
 // Email-list signup — self-contained (own <style> + <script>) so it drops into
 // any page (blog pages here, plus the homepage footer) with no CSS dependency.
@@ -100,6 +101,7 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
 </script>`;
 
 export const footerHTML = () => `${newsletterHTML("blog")}
+</main>
 <footer>
   <div class="word">BoldLine Media</div>
   <div class="copy">© 2026 BoldLine Media. All rights reserved.</div>
@@ -128,11 +130,24 @@ export const postCtaHTML = () => `<div class="post-cta reveal">
 // Analytics on every blog page. GA4 was previously only on the homepage, so
 // blog traffic — the whole point of the SEO work — went unmeasured. Both IDs
 // are public by design, so they are inline rather than env vars.
-const ANALYTICS = `<!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MG7T0687RT"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-MG7T0687RT');</script>
-<!-- Microsoft Clarity (session recordings + heatmaps) -->
-<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","y0tivdizq8");</script>`;
+const ANALYTICS = `<!-- Analytics (GA4 + Microsoft Clarity), deferred off the critical path.
+     gtag.js alone is ~499KB and was the bulk of mobile main-thread time. The
+     command queues below are defined synchronously, so any early gtag()/clarity()
+     call is buffered and replayed once the real scripts land. Loading starts on
+     the first user interaction, or when the browser goes idle after load —
+     whichever happens first. -->
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','G-MG7T0687RT');
+window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+(function(){var done=false;
+  function load(){if(done)return;done=true;
+    ['https://www.googletagmanager.com/gtag/js?id=G-MG7T0687RT','https://www.clarity.ms/tag/y0tivdizq8']
+      .forEach(function(src){var s=document.createElement('script');s.async=true;s.src=src;document.head.appendChild(s);});}
+  ['pointerdown','keydown','touchstart','scroll'].forEach(function(e){addEventListener(e,load,{once:true,passive:true});});
+  addEventListener('load',function(){(window.requestIdleCallback||function(f){setTimeout(f,1800);})(load,{timeout:3500});});
+})();
+</script>`;
 
 export const headTags = ({ title, ogTitle, description, canonical, ogType = "website", jsonLd }) => `<meta charset="UTF-8">
 ${ANALYTICS}
@@ -155,9 +170,8 @@ ${ANALYTICS}
 <script type="application/ld+json">
 ${JSON.stringify(jsonLd)}
 </script>` : ""}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/playfair-display-latin.woff2" crossorigin>
 <link rel="stylesheet" href="/blog.css">
 <link rel="stylesheet" href="/glossary.css">
 <script src="/glossary.js" defer></script>`;

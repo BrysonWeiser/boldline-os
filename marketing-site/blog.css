@@ -1,7 +1,15 @@
+/* Self-hosted variable fonts. Google Fonts' stylesheet was render-blocking
+   (~900ms on mobile) and cost two extra DNS+TLS handshakes before any text
+   could paint. One woff2 per family covers every weight; latin-ext only
+   downloads when a page actually contains those characters. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/inter-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/inter-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url('/fonts/playfair-display-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url('/fonts/playfair-display-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
 :root{
   --gold:#C8A84B;--gold-soft:rgba(200,168,75,.12);--gold-line:rgba(200,168,75,.28);
   --bg:#080A0F;--card:#0D0F16;--line:rgba(255,255,255,.08);
-  --ink:#F5F3ED;--muted:#9CA3AF;--faint:#6B7280;
+  --ink:#F5F3ED;--muted:#9CA3AF;--faint:#7D8394;
   --serif:'Playfair Display',Georgia,'Times New Roman',serif;
   --sans:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
 }
@@ -54,7 +62,7 @@ header.scrolled .nav-inner{background:rgba(8,10,15,.9);border-color:rgba(255,255
 footer{position:relative;padding:36px 28px;text-align:center;border-top:1px solid var(--line)}
 footer::before{content:"";position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:140px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
 footer .word{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
-footer .copy{font-size:11px;color:#4B5260}
+footer .copy{font-size:11px;color:var(--faint)}
 footer nav{margin-top:14px;display:flex;justify-content:center;gap:20px}
 footer nav a{font-size:11.5px;color:var(--muted);text-decoration:none}
 footer nav a:hover{color:var(--gold)}
