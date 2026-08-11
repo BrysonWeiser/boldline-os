@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 83 task-keyed entries under `knowledge/`. They surface automatically via the
+> 84 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**83 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**84 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -165,6 +165,9 @@
 - **[backlinks-citations](../knowledge/backlinks-citations.md)** &mdash; &#9989; verified &middot; 2026-08-11  
   Running list of every off-site profile that links to / cites boldlinemedia.com, with status. Started 2026-08-11 after the on-site SEO work was done. DONE - Facebook Page (username + links), Instagram (2 links + nationwide bio), Google Business Profile, personal LinkedIn. BLOCKED - LinkedIn Company Page (needs ~50 connections). NEXT - Bing Places, Apple Business Connect, Yelp. Social links are nofollow, so their value is entity/NAP consistency, not ranking power.  
   <sub>*task:* work the off-site backlink / citation push for boldlinemedia.com (social profiles, map listings, directories) or check what's already claimed &nbsp;|&nbsp; *keywords:* backlinks, citations, NAP, bing-places, apple-business-connect, yelp, facebook-page, instagram, clutch, upcity, directories, off-site-seo, nofollow</sub>
+- **[indexnow-instant-indexing](../knowledge/indexnow-instant-indexing.md)** &mdash; &#9989; verified &middot; 2026-08-11  
+  Built 2026-08-11. Every blog publish POSTs the new URL to api.indexnow.org, so Bing/Yandex/Naver/Seznam index it within minutes instead of waiting on a crawl. netlify/lib/indexnow-shared.mjs owns the protocol; all three publish paths call it. Key is PUBLIC and hardcoded (no env var) with the proof file at marketing-site/<key>.txt. Verified live — a real POST returned HTTP 202. Google does NOT participate (sitemap still covers it).  
+  <sub>*task:* understand, debug, or change how new blog posts get pushed to search engines instantly (IndexNow) &nbsp;|&nbsp; *keywords:* indexnow, instant-indexing, bing, key-file, blog-publish, crawl, api.indexnow.org, pingIndexNow, webmaster-tools</sub>
 - **[linkedin-brand-presence](../knowledge/linkedin-brand-presence.md)** &mdash; &#9989; verified &middot; 2026-08-11  
   LinkedIn is backlink source #1 of the backlink push (started 2026-08-11). Personal profile "Bryson Weiser" is LIVE; the BoldLine Media Company Page is NOT created yet. HARD POSITIONING RULE from Bryson — never say "local businesses" anywhere; he serves businesses nationally/remotely. Approved copy for every field (headline, About, services, tagline, page About) is recorded here verbatim so it stays consistent with the GBP wording. LinkedIn image assets are generated + committed at brand/linkedin/.  
   <sub>*task:* set up, edit, or reference BoldLine's LinkedIn personal profile + Company Page (copy, positioning, images, backlinks) &nbsp;|&nbsp; *keywords:* linkedin, company-page, personal-brand, headline, backlinks, sameAs, banner, cover-image, profile-url, services, positioning, not-local, national</sub>
