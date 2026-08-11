@@ -18,6 +18,22 @@ verified: 2026-07-22
 
 **Tag install:** gtag snippet added to **`marketing-site/index.html`** `<head>` (right after the js-tabs inline, before `<title>`). No CSP on the marketing site (`_headers`/`netlify.toml`) so nothing to allowlist. Deployed via main. Verify live: GA4 → Reports → Realtime while visiting boldlinemedia.com (or the stream's "View tag instructions" flips from "No data received" to green).
 
+**⚠️ COVERAGE BUG FOUND + FIXED 2026-08-11 — GA4 was ONLY on the homepage.** From
+2026-07-22 until 2026-08-11 the gtag lived solely in `marketing-site/index.html`, so **the
+entire blog, `/get-started`, `/privacy`, `/terms` and `/404` were completely unmeasured** —
+every auto-published post, all the SEO/IndexNow work, and a conversion page, invisible.
+Found while installing Microsoft Clarity (see `microsoft-clarity`). Now both tags ship
+together on **every** page:
+- blog pages → the shared `ANALYTICS` const injected into `headTags()` in
+  `marketing-site/netlify/lib/blog-render.mjs` (covers blog-index + blog-post in one place)
+- static pages → inline in each `<head>` (`index.html`, `404.html`, `privacy.html`,
+  `terms.html`, `get-started/index.html`)
+
+**Expect a step-change in GA4 numbers dated 2026-08-11** — that is previously uncounted
+traffic becoming visible, NOT a traffic spike. Don't read it as growth.
+**If a new page/route is ever added, it needs the tags too** (or must render through
+`headTags`).
+
 **Scope decision:** tag is on the **marketing site only** (public visitor/lead tracking), NOT the OS app. That was the right call — GA4 is for marketing traffic.
 
 **✅ BUILT — "GA4 data inside the OS" (2026-07-23).** A **"📊 Site Analytics"** card on the OS **Website tab** (above the blog manager — the Website tab is "everything for boldlinemedia.com," so site analytics belong there). Shows last-28-days **Users / Sessions / Page Views / Conversions** each with a **% trend vs the prior 28 days** (green ▲ / red ▼), plus **Top Channels** (by sessions) and **Top Pages** (by views), and an "Open full GA4 ↗" link. Read-only. Verified: OS compiles clean, 0px overflow at 390/768/1280/1600, full-width on desktop (no cramped column).

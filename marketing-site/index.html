@@ -4,16 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script>document.documentElement.classList.add('js-tabs')</script>
-<!-- Google Analytics 4 -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MG7T0687RT"></script>
+<!-- Analytics (GA4 + Microsoft Clarity), deferred off the critical path.
+     gtag.js alone is ~499KB and was the bulk of mobile main-thread time. The
+     command queues below are defined synchronously, so any early gtag()/clarity()
+     call is buffered and replayed once the real scripts land. Loading starts on
+     the first user interaction, or when the browser goes idle after load —
+     whichever happens first. -->
 <script>
-window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-MG7T0687RT');
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','G-MG7T0687RT');
+window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+(function(){var done=false;
+  function load(){if(done)return;done=true;
+    ['https://www.googletagmanager.com/gtag/js?id=G-MG7T0687RT','https://www.clarity.ms/tag/y0tivdizq8']
+      .forEach(function(src){var s=document.createElement('script');s.async=true;s.src=src;document.head.appendChild(s);});}
+  ['pointerdown','keydown','touchstart','scroll'].forEach(function(e){addEventListener(e,load,{once:true,passive:true});});
+  addEventListener('load',function(){(window.requestIdleCallback||function(f){setTimeout(f,1800);})(load,{timeout:3500});});
+})();
 </script>
-<!-- Microsoft Clarity (session recordings + heatmaps) -->
-<script type="text/javascript">(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","y0tivdizq8");</script>
 <title>BoldLine Media | Google and Meta Ads, Managed For You</title>
 <meta name="description" content="BoldLine plans, builds, and runs your Google and Meta ads, plus the landing pages behind them. You always own your ad account. We just manage it.">
 <link rel="canonical" href="https://boldlinemedia.com/">
@@ -41,9 +49,8 @@ gtag('config', 'G-MG7T0687RT');
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How much does this cost?","acceptedAnswer":{"@type":"Answer","text":"Management starts at $350/month depending on the platforms and tier that fit your goals; every package on our site shows its starting price, and we walk through exact pricing on a call. Separately, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta. You always own your account."}},{"@type":"Question","name":"Do I own my ad account?","acceptedAnswer":{"@type":"Answer","text":"Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them, and we never hold, front, or touch your ad spend."}},{"@type":"Question","name":"Why is there a three month minimum to start?","acceptedAnswer":{"@type":"Answer","text":"Because paid ads compound. The first month is mostly learning which keywords and audiences actually convert, the second puts that data to work, and by the third the system has real momentum you can judge fairly. After those first three months we earn it month to month, and your budget never scales without your sign-off."}},{"@type":"Question","name":"How fast will I see results?","acceptedAnswer":{"@type":"Answer","text":"The first few weeks are mostly learning which keywords and audiences convert. Paid ads compound; they are not a light switch. And if your offer or follow-up isn't ready to make the most of the clicks, we tell you before you spend."}},{"@type":"Question","name":"What if it's not working?","acceptedAnswer":{"@type":"Answer","text":"We review every account on a set cadence against real performance data and report in plain English. If something isn't working we change it, and if we're genuinely not the right fit we say so."}},{"@type":"Question","name":"Which platforms do you run?","acceptedAnswer":{"@type":"Answer","text":"Google Ads and Meta ads across Facebook and Instagram, on their own or as one coordinated system, plus the landing pages, call tracking, and lead routing behind them."}}]}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/playfair-display-latin.woff2" crossorigin>
 <!-- Calendly popup widget: keeps booking on-site in a modal instead of navigating away.
      CSS loads non-blocking (media=print until loaded) so it never delays first paint;
      it's only needed once the popup opens. -->
@@ -52,10 +59,18 @@ gtag('config', 'G-MG7T0687RT');
 <noscript><link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet"></noscript>
 <script src="https://assets.calendly.com/assets/external/widget.js" async></script>
 <style>
+/* Self-hosted variable fonts. Google Fonts' stylesheet was render-blocking
+   (~900ms on mobile) and cost two extra DNS+TLS handshakes before any text
+   could paint. One woff2 per family covers every weight; latin-ext only
+   downloads when a page actually contains those characters. */
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/inter-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/inter-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url('/fonts/playfair-display-latin.woff2') format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;src:url('/fonts/playfair-display-latin-ext.woff2') format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF}
 :root{
   --gold:#C8A84B;--gold-soft:rgba(200,168,75,.12);--gold-line:rgba(200,168,75,.28);
   --bg:#080A0F;--card:#0D0F16;--line:rgba(255,255,255,.08);
-  --ink:#F5F3ED;--muted:#9CA3AF;--faint:#6B7280;
+  --ink:#F5F3ED;--muted:#9CA3AF;--faint:#7D8394;
   --serif:'Playfair Display',Georgia,'Times New Roman',serif;
   --sans:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
 }
@@ -198,7 +213,7 @@ section{padding:104px 28px}
 footer{position:relative;padding:36px 28px;text-align:center;border-top:1px solid var(--line)}
 footer::before{content:"";position:absolute;top:-1px;left:50%;transform:translateX(-50%);width:140px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
 footer .word{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
-footer .copy{font-size:11px;color:#4B5260}
+footer .copy{font-size:11px;color:var(--faint)}
 footer nav{margin-top:14px;display:flex;justify-content:center;flex-wrap:wrap;gap:18px}
 footer nav a{font-size:11.5px;color:var(--muted);text-decoration:none;transition:color .2s}
 footer nav a:hover{color:var(--gold)}
@@ -825,6 +840,8 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   </div>
 </header>
 
+<main id="main">
+
 <div class="hero">
   <div class="grid-bg"></div>
   <div class="hero-inner">
@@ -1294,12 +1311,12 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       <div>
         <div style="font-size:13px;color:#9CA3AF;margin-bottom:6px">Your rating</div>
-        <div id="revStars" role="radiogroup" aria-label="Your rating" style="display:flex;gap:6px;font-size:30px;line-height:1;color:#3A3F55">
-          <span data-v="1" role="radio" aria-label="1 star" tabindex="0" style="cursor:pointer">&#9733;</span>
-          <span data-v="2" role="radio" aria-label="2 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
-          <span data-v="3" role="radio" aria-label="3 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
-          <span data-v="4" role="radio" aria-label="4 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
-          <span data-v="5" role="radio" aria-label="5 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+        <div id="revStars" role="radiogroup" aria-label="Your rating" style="display:flex;gap:6px;font-size:30px;line-height:1;color:#5B6171">
+          <span data-v="1" role="radio" aria-checked="false" aria-label="1 star" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="2" role="radio" aria-checked="false" aria-label="2 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="3" role="radio" aria-checked="false" aria-label="3 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="4" role="radio" aria-checked="false" aria-label="4 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
+          <span data-v="5" role="radio" aria-checked="false" aria-label="5 stars" tabindex="0" style="cursor:pointer">&#9733;</span>
         </div>
       </div>
       <input id="rev-name" type="text" placeholder="Your name" autocomplete="name" style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
@@ -1317,11 +1334,11 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   var GOOGLE_REVIEW_URL='https://g.page/r/CSBqWru1WFp7EBM/review';
   var f=document.getElementById('revForm'); if(!f) return;
 
-  if(GOOGLE_REVIEW_URL){ var g=document.getElementById('grev'); if(g){ g.innerHTML='<a class="btn" href="'+GOOGLE_REVIEW_URL+'" target="_blank" rel="noopener noreferrer" style="margin-top:0">Leave us a Google review &rarr;</a><div style="font-size:12px;color:#6B7280;margin-top:8px">Prefer Google? One click.</div>'; } }
+  if(GOOGLE_REVIEW_URL){ var g=document.getElementById('grev'); if(g){ g.innerHTML='<a class="btn" href="'+GOOGLE_REVIEW_URL+'" target="_blank" rel="noopener noreferrer" style="margin-top:0">Leave us a Google review &rarr;</a><div style="font-size:12px;color:#7D8394;margin-top:8px">Prefer Google? One click.</div>'; } }
 
   // Star rating input
   var rating=0, stars=[].slice.call(document.querySelectorAll('#revStars span'));
-  function paint(n){ stars.forEach(function(s){ var v=+s.getAttribute('data-v'); s.style.color=v<=n?'#C8A84B':'#3A3F55'; s.setAttribute('aria-checked', v===rating?'true':'false'); }); }
+  function paint(n){ stars.forEach(function(s){ var v=+s.getAttribute('data-v'); s.style.color=v<=n?'#C8A84B':'#5B6171'; s.setAttribute('aria-checked', v===rating?'true':'false'); }); }
   stars.forEach(function(s){
     s.addEventListener('click',function(){ rating=+s.getAttribute('data-v'); paint(rating); });
     s.addEventListener('mouseenter',function(){ paint(+s.getAttribute('data-v')); });
@@ -1528,6 +1545,8 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
   return false;
 };
 </script>
+
+</main>
 
 <footer>
   <div class="word">BoldLine Media</div>
