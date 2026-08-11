@@ -33,6 +33,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { createAndPublishPost, createScheduledPost, nextOpenWeeklySlotISO, regeneratePost, respaceScheduledDrafts } from "../lib/blog-shared.mjs";
+import { pingPostPublished } from "../lib/indexnow-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -93,6 +94,7 @@ export default async (req) => {
         .select("id, slug, title, category, excerpt, status, source, read_minutes, published_at, created_at")
         .single();
       if (error) throw error;
+      await pingPostPublished(data.slug);   // fail-soft
       return json({ ok: true, action, post: data });
     }
 

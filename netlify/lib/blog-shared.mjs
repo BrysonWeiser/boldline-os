@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "./report-shared.mjs";
+import { pingIndexNow } from "./indexnow-shared.mjs";
 
 const anthropic = new Anthropic();
 
@@ -192,6 +193,7 @@ export async function createAndPublishPost() {
     .select()
     .single();
   if (error) throw error;
+  await pingIndexNow([`/blog/${data.slug}/`, "/blog/"]);   // fail-soft
   return data;
 }
 

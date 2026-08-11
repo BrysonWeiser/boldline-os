@@ -24,6 +24,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, GOLD, escapeHTML } from "../lib/report-shared.mjs";
 import { createScheduledPost, azMostRecent } from "../lib/blog-shared.mjs";
+import { pingPostPublished } from "../lib/indexnow-shared.mjs";
 
 const SITE_URL = "https://boldlinemedia.com";
 
@@ -121,6 +122,7 @@ export default async (req) => {
       const { error } = await supabase.from("blog_posts").update({ status: "published" }).eq("id", post.id);
       if (error) throw error;
       console.log(`blog-autopublish: published scheduled post "${post.title}" (${post.slug})`);
+      await pingPostPublished(post.slug);   // fail-soft; never blocks the publish
       try {
         await sendEmail({
           to: process.env.OWNER_EMAIL,
