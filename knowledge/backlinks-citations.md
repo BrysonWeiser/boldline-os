@@ -139,7 +139,7 @@ consistency is the whole point of this push:**
 | Phone | `(602) 784-4228` |
 | Website | `https://boldlinemedia.com` |
 | Category | Marketing / Advertising agency |
-| Location | **Gilbert, AZ 85234** — city/state/ZIP only; the street-address field is optional on Yelp, so LEAVE IT BLANK (the preview then shows just "Gilbert, AZ"). Gilbert is Bryson's real city; Google has no city at all, so there is nothing to conflict with. |
+| Location | **Gilbert, AZ 85296** — city/state/ZIP only; the street-address field is optional on Yelp, so LEAVE IT BLANK (the preview then shows just "Gilbert, AZ"). Gilbert is Bryson's real city; Google has no city at all, so there is nothing to conflict with. |
 | Login email | **`theboldlinemedia@gmail.com`** — confirmed by Bryson 2026-08-11, recorded in `account-email-map` |
 
 **Description** — reuse the GBP/Bing wording verbatim so all listings match:
