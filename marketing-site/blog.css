@@ -58,6 +58,10 @@ footer .copy{font-size:11px;color:#4B5260}
 footer nav{margin-top:14px;display:flex;justify-content:center;gap:20px}
 footer nav a{font-size:11.5px;color:var(--muted);text-decoration:none}
 footer nav a:hover{color:var(--gold)}
+footer .social{margin-top:16px;display:flex;justify-content:center;gap:12px}
+footer .social a{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid var(--line);border-radius:9px;color:var(--muted);transition:color .2s,border-color .2s,transform .2s}
+footer .social a:hover{color:var(--gold);border-color:var(--gold-line);transform:translateY(-2px)}
+footer .social svg{width:15px;height:15px;fill:currentColor;display:block}
 
 .reveal{animation:fadeUp .8s ease both}
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
