@@ -104,6 +104,30 @@ Microsoft account = `brysonaweiser@gmail.com` (see `account-email-map`). Store c
   his own Google campaigns are running and converting — it's also a service almost no small
   agency offers clients.
 
+## Outbound links FROM the site (added 2026-08-11)
+Bryson asked to "add any backlinks we can to the website (facebook, instagram, linkedin)".
+**Terminology correction given to him:** links from his site TO a profile are not backlinks
+(a backlink points the other way) — but they still matter, because they complete the entity
+graph so Google can confirm those profiles belong to the same business.
+
+- **Footer social row** — Instagram, Facebook, LinkedIn as inline monochrome SVG icons
+  (34x34 bordered squares, gold on hover, `rel="noopener noreferrer me"`). Added to every
+  footer that has a nav: `index.html`, `404.html`, `privacy.html`, `terms.html`, and all
+  blog pages via `netlify/lib/blog-render.mjs`. CSS lives in both `index.html` and
+  `blog.css` (the two stylesheets). **`get-started/index.html` deliberately left bare** —
+  it's a conversion page and social links only leak clicks off it.
+- **Organization JSON-LD `sameAs`** → Instagram + the Facebook Page (org-owned profiles).
+- **`founder` Person `sameAs`** → the personal LinkedIn. Deliberate: a personal profile
+  does NOT belong on the Organization; on the founder object it links Bryson-the-person to
+  BoldLine-the-business. **The LinkedIn Company Page goes on Organization `sameAs` when it
+  exists.**
+- **Fixed two "local" contradictions in the schema** (Bryson's standing not-just-local
+  rule): `areaServed` was `"Arizona"` on Organization and `{State: Arizona}` on Service —
+  both now `{Country: United States}` — and the Service description said "for local service
+  businesses", now "for businesses across the United States, served locally and remotely."
+- Verified headlessly at 390/768/1280/1600 (three icons, one row, inside the footer, zero
+  overflow) and all three JSON-LD blocks re-parsed after editing.
+
 ## Follow-ups
 - **When the LinkedIn Company Page goes live, SWAP the personal LinkedIn for it** in every
   listing's social-profile field — Bing Places and the Google Business Profile both point at

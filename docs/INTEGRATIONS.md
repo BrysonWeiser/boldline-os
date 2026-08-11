@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 84 task-keyed entries under `knowledge/`. They surface automatically via the
+> 85 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**84 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**85 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -135,6 +135,9 @@
 - **[marketing-site-design-system](../knowledge/marketing-site-design-system.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The homepage's visual language — dark --card boxes with a --line border, rounded corners, gold accents. Match this vocabulary when adding or restyling a component so nothing looks out of place.  
   <sub>*task:* keep the marketing site visually uniform or restyle a component to match the rest of the site &nbsp;|&nbsp; *keywords:* design-tokens, card, boutique, section-head, eyebrow, uniform, border-radius</sub>
+- **[microsoft-clarity](../knowledge/microsoft-clarity.md)** &mdash; &#9989; verified &middot; 2026-08-11  
+  Microsoft Clarity installed 2026-08-11 on EVERY marketing-site page (project y0tivdizq8, B2B Services, under the brysonaweiser@gmail.com Microsoft account). Free + unlimited session recordings and heatmaps — the CRO tool GA4 can't replace. Ships alongside GA4 via the shared ANALYTICS const in blog-render.mjs (blog) and inline heads (static pages). Verified live on /, /blog/, /privacy.html.  
+  <sub>*task:* use, debug, or change Microsoft Clarity session recordings / heatmaps on boldlinemedia.com &nbsp;|&nbsp; *keywords:* clarity, microsoft-clarity, session-recordings, heatmaps, rage-clicks, dead-clicks, scroll-depth, y0tivdizq8, cro</sub>
 - **[nav-scroll-hide-reveal](../knowledge/nav-scroll-hide-reveal.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Header auto-hides (slides up) on >60px continuous scroll-down and reveals on >10px scroll-up or near top. Two shipped bugs fixed same day — per-event delta (never tripped on trackpads) AND the intro animation's fill-mode:both permanently overriding the hide transform. See Gotchas.  
   <sub>*task:* change or tune how the header/nav bar behaves while the page is scrolled (not nav-link clicks) &nbsp;|&nbsp; *keywords:* nav-hidden, onScroll, lastY, runStartY, runDir, header.scrolled, translateY, auto-hide nav, sticky header, momentum scrolling, per-event delta, animation-fill-mode, nav-in, navDown, fill-mode both, animation overrides transform</sub>
