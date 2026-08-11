@@ -29,7 +29,7 @@ signal.
 | Facebook Page | ✅ done | see below |
 | Instagram | ✅ done | see below |
 | **Bing Places** | ✅ done | see below |
-| Apple Business Connect | ⬜ todo | Free, puts him on Apple Maps (the default for every iPhone "near me" search) |
+| Apple Business Connect | ⛔ blocked | 2026-08-11: Apple Account creation failed with "Your account cannot be created at this time" — Apple's fraud/rate-limit block, not a user error. Bryson has NO Apple device (Samsung S25), which is fine: Business Connect is a website and Apple supports SMS 2FA. **Decision: use `brysonaweiser@gmail.com`** (he'll want that Apple Account on a future iPhone; two accounts sharing one phone number causes 2FA-code ambiguity + iMessage routing bugs). Workarounds, in order: incognito + no VPN/adblock, switch networks, create the account through the **Apple Music Android app** (far more permissive than the web form), or wait ~24h. |
 | Yelp for Business | ⬜ todo | Free listing, high domain authority |
 | Clutch / UpCity / DesignRush | ⏸ later | Agency directories — real backlinks + occasional leads, but the listing looks thin until there's a client review. Revisit after client #1. |
 | BBB | ❌ skip | Costs money, low return pre-revenue |
@@ -127,6 +127,39 @@ graph so Google can confirm those profiles belong to the same business.
   businesses", now "for businesses across the United States, served locally and remotely."
 - Verified headlessly at 390/768/1280/1600 (three icons, one row, inside the footer, zero
   overflow) and all three JSON-LD blocks re-parsed after editing.
+
+## NEXT UP: Yelp for Business — everything a cold session needs
+Bryson asked to do Yelp next (2026-08-11). Claim/create at `biz.yelp.com`. Free listing,
+high domain authority. **Use these exact values so the NAP matches every other listing —
+consistency is the whole point of this push:**
+
+| Field | Value |
+|---|---|
+| Business name | `BoldLine Media` |
+| Phone | `(602) 784-4228` |
+| Website | `https://boldlinemedia.com` |
+| Category | Marketing / Advertising agency |
+| Location | Phoenix, Arizona — **hide the street address** (service-area business, no storefront; same as GBP and Bing) |
+| Login email | `theboldlinemedia@gmail.com` is the natural fit (business listing platform), but confirm with Bryson and then RECORD IT in `account-email-map` |
+
+**Description** — reuse the GBP/Bing wording verbatim so all listings match:
+> BoldLine Media is a digital marketing agency that helps businesses get more customers
+> through paid advertising. We plan, build, and manage Google Ads and Meta (Facebook and
+> Instagram) campaigns, and build custom landing pages designed to turn clicks into calls
+> and leads. Based in Phoenix, we work with clients across the U.S. and remotely, so it
+> doesn't matter where you are.
+
+**Carry these rules in:**
+- **Never write "local businesses"** anywhere — hard standing rule (see `linkedin-brand-presence`).
+  Location fields say Phoenix; the pitch stays national/remote.
+- **There is NO inbox at boldlinemedia.com** — Resend only SENDS from
+  `hello@boldlinemedia.com`. Any "verify via your business domain email" flow silently
+  fails. **Choose phone verification.**
+- Expect a services/category picker that may be a **fixed catalog** (the Bing gotcha) —
+  pick from what's offered rather than typing custom names, and don't claim SEO, branding,
+  or logo design, which Bryson doesn't sell.
+- Yelp will hard-sell paid ads during signup. Decline; the free listing is the whole goal.
+- Add photos from the same set used on GBP/Bing, and the social links.
 
 ## Follow-ups
 - **When the LinkedIn Company Page goes live, SWAP the personal LinkedIn for it** in every

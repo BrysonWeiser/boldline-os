@@ -4,7 +4,7 @@ topic: Marketing site
 task: diagnose or change boldlinemedia.com page speed, Core Web Vitals, fonts, analytics loading, or Lighthouse accessibility
 keywords: [pagespeed, lighthouse, core-web-vitals, LCP, FCP, TBT, self-hosted-fonts, woff2, variable-font, render-blocking, deferred-analytics, contrast, wcag, main-landmark, aria-checked, icon-png]
 status: verified
-summary: 2026-08-11 performance + accessibility pass. Baseline was mobile 60 (FCP 3.9s / LCP 5.4s) vs desktop 94 — the gap was render-blocking Google Fonts plus a 499KB gtag.js on a throttled CPU. Fixed by self-hosting Inter + Playfair as variable woff2, deferring GA4/Clarity to first-interaction-or-idle behind synchronous command-queue shims, shrinking icon.png 79KB→15KB, and closing the Lighthouse a11y gaps (main landmark, aria-checked, three WCAG-AA contrast lifts). Verified live.
+summary: 2026-08-11 performance + accessibility pass. Mobile PageSpeed 60 → 95, desktop 94 → 99 (LCP 5.4s → 2.1s, FCP 3.9s → 1.0s, TBT 330ms → 140ms, CLS 0 throughout). Four fixes plus one late one: self-hosted Inter + Playfair as variable woff2, GA4/Clarity deferred to first-interaction-or-idle behind synchronous command-queue shims, icon.png 79KB→15KB, WCAG-AA a11y fixes — and finally inlining glossary.css, which turned out to be THE LCP culprit (a render-blocking link mid-body).
 verified: 2026-08-11
 ---
 
@@ -87,9 +87,35 @@ propagate).
   `index.html` instead of the marketing site's. Caught by `git status` and reverted.
   **Use absolute paths in every command.**
 
+## 5. The one that actually fixed LCP — inline `glossary.css`
+After fixes 1-4 the score was **80**, but LCP had barely moved (5.4s → 5.0s) even though
+FCP was 0.9s and TBT 10ms. Nothing was blocking, so the delay had to be a resource the
+parser was waiting on. It was **`glossary.css`: a `<link rel="stylesheet">` sitting in the
+MIDDLE OF THE BODY** (~line 751). A stylesheet link blocks rendering of everything after
+it, so on Slow 4G the parser stalled a full round trip (~150ms latency + connection setup)
+before the hero could paint. Inlined the 1.8KB into the homepage → **LCP 5.0s → 2.1s,
+score 80 → 95.** The file stays on disk for the blog, which loads it separately.
+
+**Lesson: a render-blocking `<link>` below the fold still delays the ABOVE-fold paint.**
+Check for stylesheet links outside `<head>` before theorising about animations or fonts.
+
+## Final numbers (2026-08-11, after)
+| | Mobile | Desktop |
+|---|---|---|
+| Performance | **95** (was 60) | **99** (was 94) |
+| FCP | 1.0s (was 3.9s) | — |
+| LCP | 2.1s (was 5.4s) | — |
+| TBT | 140ms (was 330ms) | — |
+| CLS | 0 | 0 |
+
+**Stop here — the rest is diminishing returns.** What Lighthouse still lists is minor and
+mostly has a real trade-off: "unused JavaScript 69KiB" IS the deferred analytics (it no
+longer blocks, which is the point), "efficient cache lifetimes 17KiB" is the deliberate
+30-day image cache, and Speed Index 4.3s is the hero's staggered entrance animations,
+which are a design choice.
+
 ## Still open
 - **Desktop Best Practices 96: "Browser errors were logged to the console."** Not
   reproducible from here (no outbound network in headless Chromium) and not
   `reviews-list` (that returns 200 live). Bryson needs to open the site, F12 → Console,
   and report what's red.
-- Re-run PageSpeed after this deploy to confirm the mobile score.
