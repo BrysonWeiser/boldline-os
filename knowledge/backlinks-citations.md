@@ -140,7 +140,7 @@ consistency is the whole point of this push:**
 | Website | `https://boldlinemedia.com` |
 | Category | Marketing / Advertising agency |
 | Location | Phoenix, Arizona — **hide the street address** (service-area business, no storefront; same as GBP and Bing) |
-| Login email | `theboldlinemedia@gmail.com` is the natural fit (business listing platform), but confirm with Bryson and then RECORD IT in `account-email-map` |
+| Login email | **`theboldlinemedia@gmail.com`** — confirmed by Bryson 2026-08-11, recorded in `account-email-map` |
 
 **Description** — reuse the GBP/Bing wording verbatim so all listings match:
 > BoldLine Media is a digital marketing agency that helps businesses get more customers

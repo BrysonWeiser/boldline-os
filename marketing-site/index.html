@@ -1511,10 +1511,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
     <form class="lead-form" id="leadForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
       <input type="hidden" name="form-name" value="contact">
-      <p class="lead-hp"><label>Leave this empty: <input name="bot-field"></label></p>
-      <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" required></div>
-      <div class="frow"><label for="lf-biz">Business</label><input id="lf-biz" type="text" name="business" required></div>
-      <div class="frow"><label for="lf-email">Email</label><input id="lf-email" type="email" name="email" required></div>
+      <p class="lead-hp"><label>Leave this empty: <input name="bot-field" autocomplete="off" tabindex="-1"></label></p>
+      <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" autocomplete="name" required></div>
+      <div class="frow"><label for="lf-biz">Business</label><input id="lf-biz" type="text" name="business" autocomplete="organization" required></div>
+      <div class="frow"><label for="lf-email">Email</label><input id="lf-email" type="email" name="email" autocomplete="email" required></div>
       <div class="frow"><label for="lf-msg">What's your biggest challenge right now?</label><textarea id="lf-msg" name="message"></textarea></div>
       <button class="btn" type="submit">Send Message</button>
     </form>
@@ -1644,9 +1644,9 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
       <form class="rec-email" id="recEmailForm" name="recommendation" method="POST" data-netlify="true" netlify-honeypot="bot-field">
         <input type="hidden" name="form-name" value="recommendation">
         <input type="hidden" name="recommended" id="recRecommended" value="">
-        <p class="lead-hp"><label>Leave this empty: <input name="bot-field"></label></p>
+        <p class="lead-hp"><label>Leave this empty: <input name="bot-field" autocomplete="off" tabindex="-1"></label></p>
         <label for="re-email">Not ready to book? Drop your email and we'll follow up with a plan for your business. No spam.</label>
-        <div class="re-row"><input id="re-email" type="email" name="email" placeholder="you@business.com"><button type="submit">Send it</button></div>
+        <div class="re-row"><input id="re-email" type="email" name="email" autocomplete="email" placeholder="you@business.com"><button type="submit">Send it</button></div>
       </form>
       <div class="rec-email re-done" id="recEmailDone" hidden>Got it, we'll be in touch. ✓</div>
       <p class="modal-fine">A starting point, not a quote. We'll confirm the right fit with you on the call. Your ad account always stays owned and paid for by you.</p>
