@@ -4,7 +4,7 @@ topic: Marketing/SEO
 task: work the off-site backlink / citation push for boldlinemedia.com (social profiles, map listings, directories) or check what's already claimed
 keywords: [backlinks, citations, NAP, bing-places, apple-business-connect, yelp, facebook-page, instagram, clutch, upcity, directories, off-site-seo, nofollow]
 status: in-progress
-summary: Running list of every off-site profile that links to / cites boldlinemedia.com, with status. Started 2026-08-11 after the on-site SEO work was done. DONE - Facebook Page (username + links), Instagram (2 links + nationwide bio), Google Business Profile, personal LinkedIn. BLOCKED - LinkedIn Company Page (needs ~50 connections). NEXT - Bing Places, Apple Business Connect, Yelp. Social links are nofollow, so their value is entity/NAP consistency, not ranking power.
+summary: Running list of every off-site profile that links to / cites boldlinemedia.com, with status. Started 2026-08-11 after the on-site SEO work was done. DONE - Facebook Page (username + links), Instagram (2 links + nationwide bio), Google Business Profile, personal LinkedIn. BLOCKED - LinkedIn Company Page (needs ~50 connections). Bing Places + Yelp done (Yelp awaiting Yelp's moderation review). BLOCKED - Apple Business Connect (Apple signup rate-limit). Social links are nofollow, so their value is entity/NAP consistency, not ranking power.
 verified: 2026-08-11
 ---
 
@@ -22,7 +22,7 @@ signal.
 
 | Source | Status | Notes |
 |---|---|---|
-| Google Business Profile | ✅ done | Set up 2026-08-08/09. Review link `https://g.page/r/CSBqWru1WFp7EBM/review` wired into the site (`website-reviews`). Description is deliberately national: "Based in Phoenix and working with businesses locally and remotely across the U.S." |
+| Google Business Profile | ✅ done | **Business location = "No location; deliveries and home services only" (NO address at all). Service area = United States** (confirmed in GBP → Edit profile → Location, 2026-08-11). That is the correct setting for the not-just-local positioning — keep it. It also means there is NO city on Google to match citations against, so a city-anchored listing elsewhere (Yelp needs one) creates no NAP conflict. Set up 2026-08-08/09. Review link `https://g.page/r/CSBqWru1WFp7EBM/review` wired into the site (`website-reviews`). Description is deliberately national: "Based in Phoenix and working with businesses locally and remotely across the U.S." |
 | Google Search Console | ✅ done | 2026-07-07, domain property + sitemap (`pending-seo-next-steps`) |
 | LinkedIn — personal | ✅ done | `linkedin.com/in/brysonweiser` — see `linkedin-brand-presence` |
 | LinkedIn — Company Page | ⛔ blocked | "not enough connections" (2026-08-11). Needs ~50 connections + an account that isn't brand new. Copy is ready to paste in `linkedin-brand-presence`. Retry in 2-3 days. |
@@ -30,7 +30,7 @@ signal.
 | Instagram | ✅ done | see below |
 | **Bing Places** | ✅ done | see below |
 | Apple Business Connect | ⛔ blocked | 2026-08-11: Apple Account creation failed with "Your account cannot be created at this time" — Apple's fraud/rate-limit block, not a user error. Bryson has NO Apple device (Samsung S25), which is fine: Business Connect is a website and Apple supports SMS 2FA. **Decision: use `brysonaweiser@gmail.com`** (he'll want that Apple Account on a future iPhone; two accounts sharing one phone number causes 2FA-code ambiguity + iMessage routing bugs). Workarounds, in order: incognito + no VPN/adblock, switch networks, create the account through the **Apple Music Android app** (far more permissive than the web form), or wait ~24h. |
-| Yelp for Business | ⬜ todo | Free listing, high domain authority |
+| Yelp for Business | ✅ set up, ⏳ awaiting moderation | Claimed + phone-verified 2026-08-11 on `theboldlinemedia@gmail.com`. Yelp human-reviews every new listing before it goes public, so there is no URL yet — see below. |
 | Clutch / UpCity / DesignRush | ⏸ later | Agency directories — real backlinks + occasional leads, but the listing looks thin until there's a client review. Revisit after client #1. |
 | BBB | ❌ skip | Costs money, low return pre-revenue |
 
@@ -128,10 +128,15 @@ graph so Google can confirm those profiles belong to the same business.
 - Verified headlessly at 390/768/1280/1600 (three icons, one row, inside the footer, zero
   overflow) and all three JSON-LD blocks re-parsed after editing.
 
-## NEXT UP: Yelp for Business — everything a cold session needs
-Bryson asked to do Yelp next (2026-08-11). Claim/create at `biz.yelp.com`. Free listing,
-high domain authority. **Use these exact values so the NAP matches every other listing —
-consistency is the whole point of this push:**
+## Yelp for Business — ✅ SET UP 2026-08-11 (awaiting Yelp moderation)
+Created + **claimed + phone-verified** at `biz.yelp.com` on `theboldlinemedia@gmail.com`.
+**Not public yet** — Yelp shows "won't appear on Yelp until Yelp moderators approve your
+business" (a human review of every new listing, usually a few business days). **The public
+URL therefore does not exist yet — get it once approved and add it to the Organization
+JSON-LD `sameAs` in `marketing-site/index.html`** (NOT the footer social row — that row is
+for social profiles and Yelp isn't one).
+
+Values used:
 
 | Field | Value |
 |---|---|
@@ -139,7 +144,7 @@ consistency is the whole point of this push:**
 | Phone | `(602) 784-4228` |
 | Website | `https://boldlinemedia.com` |
 | Category | Marketing / Advertising agency |
-| Location | Phoenix, Arizona — **hide the street address** (service-area business, no storefront; same as GBP and Bing) |
+| Location | **Gilbert, AZ 85296** — city/state/ZIP only; the street-address field is optional on Yelp, so LEAVE IT BLANK (the preview then shows just "Gilbert, AZ"). Gilbert is Bryson's real city; Google has no city at all, so there is nothing to conflict with. |
 | Login email | **`theboldlinemedia@gmail.com`** — confirmed by Bryson 2026-08-11, recorded in `account-email-map` |
 
 **Description** — reuse the GBP/Bing wording verbatim so all listings match:
@@ -159,6 +164,27 @@ consistency is the whole point of this push:**
   pick from what's offered rather than typing custom names, and don't claim SEO, branding,
   or logo design, which Bryson doesn't sell.
 - Yelp will hard-sell paid ads during signup. Decline; the free listing is the whole goal.
+- **GOTCHA hit live:** unchecking a sub-service inside the category dialog did NOT stick —
+  the Marketing card still listed "Brand Management" afterwards. Re-open Edit on the
+  category and confirm the card's summary line, don't trust the dialog.
+- Yelp's **services are nested**: category → service → "Marketing channel" checkboxes.
+  Final state chosen: Marketing → Advertising → **Online search + Social media** only
+  (Google + Meta). Brand management, Market research, Billboards, Direct mail, Email,
+  Print, Radio/podcasts, SMS, TV/digital video all deliberately OFF.
+- **Amenities are storefront-oriented** (parking, ADA entrance, Venmo, flower delivery).
+  Leave the physical-location ones BLANK, not "No" — "No" to "ADA-compliant main
+  entrance" implies you have a non-compliant one. Skipped entirely; it changes nothing.
+- **Business hours left blank**, matching GBP's "Open with no main hours". Narrow hours
+  would display a red "Closed" in the evenings — exactly when owners research agencies.
+- **Yelp publicly shows your message response rate/time**, so message notifications must
+  stay on; an ignored Yelp inbox is worse than no listing.
+- Paid and skipped: **Logo, Business Highlights, Portfolio, Page Upgrades, Yelp Ads**
+  (the "Free" badge on Yelp Ads is a trial hook) and the 20%-off **Yelp Deal**, which
+  would undercut pricing before a prospect ever books a call.
+- Photos: the four crop-safe cards from `brand/yelp/` + the founder headshot. See
+  `site-performance`-adjacent note in that folder's script — Yelp renders one upload as
+  BOTH a square thumbnail and a wide banner, so 1200x630 and full-bleed square logos both
+  crop badly.
 - Add photos from the same set used on GBP/Bing, and the social links.
 
 ## Follow-ups
