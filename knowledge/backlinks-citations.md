@@ -22,7 +22,7 @@ signal.
 
 | Source | Status | Notes |
 |---|---|---|
-| Google Business Profile | ✅ done | Set up 2026-08-08/09. Review link `https://g.page/r/CSBqWru1WFp7EBM/review` wired into the site (`website-reviews`). Description is deliberately national: "Based in Phoenix and working with businesses locally and remotely across the U.S." |
+| Google Business Profile | ✅ done | **Business location = "No location; deliveries and home services only" (NO address at all). Service area = United States** (confirmed in GBP → Edit profile → Location, 2026-08-11). That is the correct setting for the not-just-local positioning — keep it. It also means there is NO city on Google to match citations against, so a city-anchored listing elsewhere (Yelp needs one) creates no NAP conflict. Set up 2026-08-08/09. Review link `https://g.page/r/CSBqWru1WFp7EBM/review` wired into the site (`website-reviews`). Description is deliberately national: "Based in Phoenix and working with businesses locally and remotely across the U.S." |
 | Google Search Console | ✅ done | 2026-07-07, domain property + sitemap (`pending-seo-next-steps`) |
 | LinkedIn — personal | ✅ done | `linkedin.com/in/brysonweiser` — see `linkedin-brand-presence` |
 | LinkedIn — Company Page | ⛔ blocked | "not enough connections" (2026-08-11). Needs ~50 connections + an account that isn't brand new. Copy is ready to paste in `linkedin-brand-presence`. Retry in 2-3 days. |
@@ -139,7 +139,7 @@ consistency is the whole point of this push:**
 | Phone | `(602) 784-4228` |
 | Website | `https://boldlinemedia.com` |
 | Category | Marketing / Advertising agency |
-| Location | Phoenix, Arizona — **hide the street address** (service-area business, no storefront; same as GBP and Bing) |
+| Location | **Gilbert, AZ 85234** — city/state/ZIP only; the street-address field is optional on Yelp, so LEAVE IT BLANK (the preview then shows just "Gilbert, AZ"). Gilbert is Bryson's real city; Google has no city at all, so there is nothing to conflict with. |
 | Login email | **`theboldlinemedia@gmail.com`** — confirmed by Bryson 2026-08-11, recorded in `account-email-map` |
 
 **Description** — reuse the GBP/Bing wording verbatim so all listings match:
