@@ -115,6 +115,38 @@ export const tierFor = (score) => {
 // what stops it quietly inventing an owner's cell number to fill a blank.
 const str = (description) => ({ type: "string", description });
 const strArr = (description) => ({ type: "array", items: { type: "string" }, description });
+const objArr = (description, properties) => ({
+  type: "array", description,
+  items: { type: "object", properties, required: Object.keys(properties), additionalProperties: false },
+});
+
+// Every phone/email is carried as its own record with WHOSE it is and WHERE it came
+// from, so the OS can show a real Contact block (main line, direct line, cell, alt)
+// instead of one anonymous number — and so a verified provider number is visibly
+// different from one the model read off a web page.
+const PHONE_PROPS = {
+  number:     str("The phone number, formatted normally."),
+  kind:       { type: "string", enum: ["main", "direct", "mobile", "secondary", "toll_free", "unknown"], description: "main = the published business line. direct = a desk line that bypasses reception. mobile = a cell. secondary = another published line." },
+  whose:      { type: "string", enum: ["business", "owner", "unknown"], description: "Whose phone this reaches." },
+  label:      str('What this number is for, e.g. "main office", "sales", "owner cell". Short.'),
+  source:     str("Where you found it — the specific page or listing."),
+  confidence: { type: "string", enum: ["high", "medium", "low"], description: "How sure you are this number is current and correct." },
+};
+const EMAIL_PROPS = {
+  address:    str("The email address."),
+  whose:      { type: "string", enum: ["business", "owner", "unknown"], description: "Whose inbox this reaches." },
+  source:     str("Where you found it."),
+  confidence: { type: "string", enum: ["high", "medium", "low"], description: "How sure you are it is current and monitored." },
+};
+// The model scores five factors; `budget` is deliberately NOT in this list because
+// BoldLine computes affordability itself in scout-scoring.mjs. Letting the model
+// improvise arithmetic about whether someone can pay is exactly the wrong division
+// of labour.
+const FACTOR_PROPS = {
+  factor: { type: "string", enum: ["demand", "gap", "reach", "momentum", "risk"], description: "Which scoring factor this is." },
+  points: { type: "integer", description: "Points awarded. Maximums: demand 25, gap 25, reach 15, momentum 10. risk is NEGATIVE only (0 down to -40)." },
+  why:    str("One specific sentence justifying these points, citing what you actually found. This is shown to Bryson as the reason for the score."),
+};
 
 const PROSPECT_PROPS = {
   name:              str('Legal/trading business name as it appears on their own site or listing.'),
@@ -125,12 +157,10 @@ const PROSPECT_PROPS = {
   address:           str('Street address, or "unknown".'),
   area_match:        str("The EXACT requested search area string this business belongs to. Copy it verbatim from the list you were given."),
   website:           str('Their website, or "none" if they genuinely have no site, or "unknown" if you could not confirm.'),
-  phone:             str('Main business phone, digits formatted normally, or "unknown".'),
-  email:             str('Public business email, or "unknown".'),
+  phones:            objArr("EVERY phone number you found for this business, each tagged. Always include the main published business line if one exists. Include an owner direct line or cell ONLY if it is genuinely published somewhere — never repeat the main line as the owner's. Empty array if you found none.", PHONE_PROPS),
+  emails:            objArr("Every email address you found, each tagged. Empty array if none.", EMAIL_PROPS),
   owner_name:        str('Owner / founder / principal decision-maker full name, or "unknown". NEVER guess a name.'),
   owner_title:       str('Their title (Owner, President, Managing Partner...), or "unknown".'),
-  owner_phone:       str('A direct line or cell for the owner ONLY if publicly listed, or "unknown". Do not repeat the main business number here.'),
-  owner_email:       str('The owner\'s direct email if publicly listed, or "unknown".'),
   owner_source:      str('Where the owner details came from (e.g. "About page", "state corporation filing", "LinkedIn"), or "unknown".'),
   contact_confidence: { type: "string", enum: ["high", "medium", "low", "none"], description: "How confident you are the contact details reach a real decision-maker." },
   employees:         str('Headcount as a range or number, e.g. "6-15", or "unknown".'),
@@ -147,7 +177,7 @@ const PROSPECT_PROPS = {
   website_quality:   { type: "string", enum: ["none", "poor", "dated", "decent", "strong", "unknown"], description: "Honest read on whether their site is built to convert." },
   services:          strArr("Their main services or product lines (up to 6)."),
   gaps:              strArr("The specific marketing gaps BoldLine could fix (up to 4)."),
-  score:             { type: "integer", description: "Fit score 0-100 per the rubric. Higher = call them sooner." },
+  score_factors:     objArr("Score the four positive factors (demand, gap, reach, momentum) and the risk penalty. Return exactly these five, each with a specific reason. Do NOT score budget — BoldLine computes affordability itself.", FACTOR_PROPS),
   verdict:           str("One sentence: should Bryson call them, and why or why not."),
   why_contact:       strArr("Up to 4 concrete reasons this is a good prospect."),
   why_not:           strArr("Up to 3 honest reasons this could be a waste of time. Never leave this empty — there is always a risk."),
@@ -253,25 +283,28 @@ You will be given a small batch of businesses in the "${niche}" space${(areas ||
 
 RESEARCH EACH BUSINESS FOR:
 - Who owns/runs it. Check the About/Team page, state business registration filings, LinkedIn, local news, and review responses (owners often reply to reviews by name). If the owner is not publicly named, the answer is "unknown".
-- Contact routes: main phone, public email, and a direct owner line ONLY if it is genuinely published somewhere.
-- Size: headcount from their team page, LinkedIn company size, or a hiring page. Number of locations and trucks/chairs/bays counts as a size signal.
+- EVERY phone number, into the phones array. Always include the main published business line if one exists — that is the number Bryson dials most often, so it must never be missing when the business has one. Also capture any secondary/branch/sales line, and a direct or cell line for the owner ONLY if it is genuinely published. Tag each with whose it is and where you found it.
+- Every email address, into the emails array, tagged the same way.
+- Size: headcount from their team page, LinkedIn company size, or a hiring page. Number of locations and trucks/chairs/bays counts as a size signal. This drives the affordability math, so a defensible estimate matters more here than anywhere else — say the number you can support and put 0 if you genuinely cannot tell.
 - Website: does one exist, and is it actually built to convert (clear offer, phone above the fold, a form, mobile-friendly, not obviously a decade old)?
 - Advertising RIGHT NOW: search for them and see if a paid result appears; check the Meta Ad Library for their page; look for tracking/landing-page tells. Report what you actually observed in ads_evidence, and answer "unknown" if you could not check.
 - Reputation: star rating, review count, and what the reviews complain about or praise.
 - Years in business, service area, and any growth signals (new location, hiring, recent press).
 
-SCORING — score 0-100 for "should Bryson call this business", weighing:
-+ Lead-dependence: does this business live or die on inbound customer flow? (highest weight)
-+ Ability to pay: enough size/revenue to afford management fees plus real ad spend, without being a corporate chain.
-+ Opportunity gap: no site, weak site, no ads, or thin reviews all mean upside BoldLine can create.
-+ Reachability: an actual named decision-maker with a phone number is worth far more than an anonymous info@ address.
-+ Momentum: hiring, expanding, recently invested in the business.
-- Penalties: national franchise or corporate-owned (no local marketing decision), already running a big well-managed campaign with an agency, obviously dormant or closed, solo operator with no budget, terrible reputation BoldLine cannot fix, or an industry Google/Meta restrict (CBD, firearms, alcohol, adult, some supplements and financial offers) — flag that in why_not.
-Anchor the scale: 80+ = drop everything and call. 62-79 = solid, call this week. 42-61 = worth a shot with the right angle. 22-41 = only if the list runs dry. Under 22 = do not bother. Be willing to score low — a list where everything scores 85 is useless to him.
+SCORING — you do NOT return an overall score. You return five factors in score_factors, and BoldLine adds them up. Every factor needs a specific reason, because Bryson is shown your reasons as the justification for the number:
+- "demand" (0-25): does this business live or die on inbound customer flow? A roofer or injury lawyer with no leads has no business; a shop with a captive contract does not care.
+- "gap" (0-25): how much is broken today that BoldLine can fix — no site, weak site, no ads running, invisible in the map pack, thin reviews. More broken = more upside = more points.
+- "reach" (0-15): can Bryson actually get the decision-maker on the phone? A named owner with a direct line is the full 15; a generic info@ inbox and a reception line is 3.
+- "momentum" (0-10): hiring, opening a location, recently invested, growing review velocity.
+- "risk" (0 to -40, NEGATIVE ONLY): national franchise or corporate-owned (no local marketing decision), already running a big well-managed agency campaign, obviously dormant or closed, terrible reputation BoldLine cannot fix, or a vertical Google/Meta restrict (CBD, firearms, alcohol, adult, some supplements and financial offers). No risk found = 0, and say so.
+Do NOT score "budget" — BoldLine calculates affordability from headcount and revenue itself, and a business that cannot cover the entry cost has its total capped automatically. Your job on the money is simply to report the size signals accurately.
+Be willing to award low points. A list where everything scores 85 is useless to him.
 
 BoldLine's packages (pick ONE id for recommended_package_id):
 ${PACKAGES.map((p) => `- ${p.id} — "${p.name}" (${p.platform}): $${p.price}/mo + $${p.setup} setup${p.leadFee ? ` + $${leadFee}/lead` : " (ecom ROAS bonus)"}. Client ad spend ${p.adSpend}.`).join("\n")}
 ${kind === "ecom" ? "This is an e-commerce brand, so recommend one of the e- packages." : "This is a lead-gen service business, so recommend a g-, m-, or c- package sized to what they can realistically spend."}
+
+VERIFIED DATA: some businesses arrive with a "VERIFIED FACTS" block from Google Places or Apollo. That data is authoritative — treat it as GROUND TRUTH. Never contradict it, never replace a verified phone number or address with one you found on a web page, and do not restate verified values as if they were your own findings. Your job on those businesses is to add what the providers cannot: whether they are running ads, what their website is actually like, the gaps, the score factors, and the opener. If your research genuinely conflicts with a verified fact (e.g. the site lists a different phone), add BOTH — put yours in the array as a secondary number with lower confidence and note the conflict in data_notes.
 
 ${HONESTY}
 

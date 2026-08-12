@@ -1660,6 +1660,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const [listLoading,setListLoading]=useState(false);
   const [lf,setLf]=useState({niche:"",area:"",status:"",minScore:0,q:""});
   const [openId,setOpenId]=useState(null);
+  const [providers,setProviders]=useState(null);
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
 
@@ -1686,6 +1687,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     setListLoading(false);
   };
   useEffect(()=>{ if(tab==="list") loadList(); },[tab,lf.niche,lf.area,lf.status,lf.minScore]);
+  useEffect(()=>{ api("action=providers").then(r=>setProviders(r.providers)).catch(()=>setProviders({places:false,apollo:false})); },[]);
 
   const addArea=()=>{ const v=areaInput.trim().replace(/,+$/,""); if(!v) return;
     if(!areas.some(a=>a.toLowerCase()===v.toLowerCase())) setAreas(a=>[...a,v]); setAreaInput(""); };
@@ -1740,13 +1742,27 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   };
 
   const exportCSV=()=>{
-    const cols=[["Company","name"],["Owner","ownerName"],["Owner title","ownerTitle"],["Company phone","phone"],["Owner phone","ownerPhone"],
-      ["Email","email"],["Owner email","ownerEmail"],["Website","websiteRaw"],["Employees","employees"],["Years","yearsInBusiness"],
-      ["City","city"],["State","state"],["Rating","rating"],["Reviews","reviewCount"],["Google ads","googleAds"],["Meta ads","metaAds"],
-      ["Score","score"],["Verdict","verdict"],["Best opener","bestHook"]];
+    // Derived columns so the CSV carries every number found, not just the primaries —
+    // this is the file that gets loaded into a dialer.
+    const cols=[
+      ["Company",p=>p.name],["Owner",p=>p.ownerName],["Owner title",p=>p.ownerTitle],
+      ["Business phone",p=>p.phone],["Owner phone",p=>p.ownerPhone],
+      ["All phones",p=>(p.phones||[]).map(x=>`${x.number} (${x.whose}/${x.kind})`).join(" | ")],
+      ["Business email",p=>p.email],["Owner email",p=>p.ownerEmail],
+      ["Website",p=>p.websiteRaw],["Address",p=>p.address],["City",p=>p.city],["State",p=>p.state],
+      ["Employees",p=>p.employees],["Years",p=>p.yearsInBusiness],["Revenue est",p=>p.revenueEstimate],
+      ["Budget capacity/mo",p=>p.affordability&&p.affordability.known?Math.round(p.affordability.monthlyCapacity):""],
+      ["Affordability",p=>p.affordability?(p.affordability.band||"unknown"):""],
+      ["Rating",p=>p.rating],["Reviews",p=>p.reviewCount],
+      ["Google ads",p=>p.googleAds],["Meta ads",p=>p.metaAds],
+      ["Score",p=>p.score],["Score reasons",p=>(p.scoreFactors||[]).map(f=>`${f.label} ${f.points}${f.max?"/"+f.max:""}: ${f.why}`).join(" | ")],
+      ["Capped",p=>p.capReason||""],
+      ["Recommended package",p=>p.recommendedPackageId],
+      ["Verdict",p=>p.verdict],["Best opener",p=>p.bestHook],["Verified by",p=>(p.verifiedBy||[]).join(" + ")],
+    ];
     const esc=(v)=>`"${String(v==null?"":v).replace(/"/g,'""')}"`;
     const rows=[cols.map(c=>esc(c[0])).concat([esc("Status")]).join(",")].concat(
-      list.map(p=>{ const d=p.data||{}; return cols.map(c=>esc(d[c[1]])).concat([esc(p.status)]).join(","); }));
+      list.map(p=>{ const d=p.data||{}; return cols.map(c=>esc(c[1](d))).concat([esc(p.status)]).join(","); }));
     const blob=new Blob([rows.join("\n")],{type:"text/csv;charset=utf-8;"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
     a.download=`boldline-prospects-${new Date().toISOString().slice(0,10)}.csv`;
@@ -1803,19 +1819,104 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
 
         {d.verdict&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.55,marginTop:10}}>{d.verdict}</div>}
 
+        {/* CONTACT — every number and address found, each labelled with whose it is
+            and where it came from. Tap any of them to dial straight from the phone. */}
+        <div style={{marginTop:12,padding:"11px 12px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
+            <span style={{fontSize:9.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>Contact</span>
+            {!!(d.verifiedBy&&d.verifiedBy.length)&&(
+              <span style={{fontSize:9.5,fontWeight:700,color:C.green,border:`1px solid ${C.green}44`,background:C.green+"14",borderRadius:6,padding:"2px 6px"}}>verified by {d.verifiedBy.join(" + ")}</span>)}
+          </div>
+          {(d.phones&&d.phones.length)||(d.emails&&d.emails.length)?(
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(2,minmax(0,1fr))":"1fr",gap:8}}>
+              {(d.phones||[]).map((ph,i)=>(
+                <a key={"p"+i} href={"tel:"+String(ph.number).replace(/[^\d+]/g,"")}
+                  style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",borderRadius:9,textDecoration:"none",
+                    border:`1px solid ${ph.whose==="owner"?C.gold+"44":C.border}`,background:ph.whose==="owner"?"rgba(200,168,75,0.07)":"rgba(255,255,255,.02)"}}>
+                  <span style={{fontSize:13,flexShrink:0}}>{ph.whose==="owner"?"👤":"🏢"}</span>
+                  <span style={{flex:1,minWidth:0}}>
+                    <span style={{display:"block",fontSize:13,fontWeight:800,color:ph.whose==="owner"?C.gold:C.text}}>{ph.number}</span>
+                    <span style={{display:"block",fontSize:9.5,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                      {[ph.whose==="owner"?"owner":"business",ph.kind!=="unknown"?ph.kind.replace("_"," "):"",ph.label].filter(Boolean).join(" · ")} — {ph.source}
+                    </span>
+                  </span>
+                </a>))}
+              {(d.emails||[]).map((em,i)=>(
+                <a key={"e"+i} href={"mailto:"+em.address}
+                  style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",borderRadius:9,textDecoration:"none",
+                    border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+                  <span style={{fontSize:13,flexShrink:0}}>✉️</span>
+                  <span style={{flex:1,minWidth:0}}>
+                    <span style={{display:"block",fontSize:12,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis"}}>{em.address}</span>
+                    <span style={{display:"block",fontSize:9.5,color:C.textMuted,marginTop:1}}>{em.whose==="owner"?"owner":"business"} — {em.source}</span>
+                  </span>
+                </a>))}
+            </div>
+          ):<div style={{fontSize:11.5,color:C.textMuted,fontStyle:"italic"}}>No phone or email found — this one has to be reached in person or skipped.</div>}
+        </div>
+
         <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,minmax(0,1fr))":"repeat(2,minmax(0,1fr))",gap:10,marginTop:12}}>
-          <Fact k="Owner" v={d.ownerName?d.ownerName+(d.ownerTitle?` · ${d.ownerTitle}`:""):""}/>
-          <Fact k="Company phone" v={d.phone} href={d.phone?"tel:"+d.phone.replace(/[^\d+]/g,""):null}/>
-          <Fact k="Owner phone" v={d.ownerPhone} href={d.ownerPhone?"tel:"+d.ownerPhone.replace(/[^\d+]/g,""):null}/>
+          <Fact k="Owner" v={d.ownerName?d.ownerName+(d.ownerTitle?` · ${d.ownerTitle}`:""):""} href={d.ownerLinkedin||null}/>
           <Fact k="Employees" v={d.employees}/>
           <Fact k="Website" v={d.website||d.websiteRaw} href={d.website?"https://"+d.website:null}/>
-          <Fact k="Email" v={d.ownerEmail||d.email} href={(d.ownerEmail||d.email)?"mailto:"+(d.ownerEmail||d.email):null}/>
           <Fact k="In business" v={d.yearsInBusiness}/>
           <Fact k="Revenue est." v={d.revenueEstimate}/>
+          <Fact k="Budget capacity" v={d.affordability&&d.affordability.known?`~$${Math.round(d.affordability.monthlyCapacity).toLocaleString()}/mo`:""}/>
+          <Fact k="Address" v={d.address}/>
+          <Fact k="Best package" v={(function(){ const pk=ALL_PKGS.find(x=>x.id===d.recommendedPackageId); return pk?`${pk.name} · $${pk.price}/mo`:""; })()}/>
         </div>
+
+        {d.capReason&&(
+          <div style={{marginTop:10,padding:"9px 11px",borderRadius:9,background:"rgba(248,113,113,0.08)",border:`1px solid ${C.red}33`,fontSize:11.5,color:C.red,lineHeight:1.5}}>
+            {d.capReason}
+          </div>)}
 
         {open&&(
           <div style={{marginTop:14,paddingTop:12,borderTop:`1px solid ${C.border}`,display:"flex",flexDirection:"column",gap:12}}>
+            {/* WHY IT SCORED THAT — the score is the sum of these, so the number and
+                the reasoning can never disagree. */}
+            {!!(d.scoreFactors&&d.scoreFactors.length)&&(
+              <div>
+                <div style={{fontSize:9.5,fontWeight:800,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em",marginBottom:8}}>
+                  Why it scored {p.score}{d.scoreCappedFrom?` (capped down from ${d.scoreCappedFrom})`:""}
+                </div>
+                {d.scoreFactors.map((f,i)=>{
+                  const neg=f.points<0, pct=f.max?Math.max(0,Math.min(100,(f.points/f.max)*100)):0;
+                  const col=neg?C.red:pct>=70?C.green:pct>=40?C.gold:C.textMuted;
+                  return (
+                    <div key={i} style={{marginBottom:9}}>
+                      <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                        <span style={{fontSize:11.5,fontWeight:700,color:C.text,flex:1,minWidth:0}}>{f.label}</span>
+                        <span style={{fontSize:11.5,fontWeight:800,color:col,flexShrink:0}}>{neg?f.points:`${f.points}/${f.max}`}</span>
+                      </div>
+                      {!neg&&f.max>0&&(
+                        <div style={{height:4,borderRadius:99,background:"rgba(255,255,255,.06)",margin:"4px 0 4px",overflow:"hidden"}}>
+                          <div style={{height:"100%",width:pct+"%",borderRadius:99,background:col}}/>
+                        </div>)}
+                      {f.why&&<div style={{fontSize:11,color:C.textDim,lineHeight:1.5}}>{f.why}</div>}
+                    </div>);
+                })}
+              </div>)}
+
+            {/* THE MONEY — computed from headcount/revenue, not guessed. */}
+            {d.affordability&&(
+              <div style={{padding:"11px 12px",borderRadius:10,background:C.bg3,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:9.5,fontWeight:800,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em",marginBottom:7}}>Can they afford you — the math</div>
+                {(d.affordability.lines||[]).map((l,i)=>(
+                  <div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,display:"flex",gap:7}}>
+                    <span style={{color:C.textMuted,flexShrink:0}}>{i===(d.affordability.lines.length-1)?"=":"·"}</span><span>{l}</span>
+                  </div>))}
+                {d.affordability.verdict&&(
+                  <div style={{fontSize:11.5,fontWeight:700,marginTop:7,color:d.affordability.band==="comfortable"?C.green:d.affordability.band==="workable"?C.gold:C.red}}>
+                    {d.affordability.verdict}
+                  </div>)}
+                {!d.affordability.known&&<div style={{fontSize:11.5,color:C.amber,lineHeight:1.55,marginTop:2}}>{d.affordability.note}</div>}
+                {d.packageDowngradedFrom&&(
+                  <div style={{fontSize:11,color:C.amber,lineHeight:1.5,marginTop:6}}>
+                    Recommendation stepped down from {(function(){const x=ALL_PKGS.find(y=>y.id===d.packageDowngradedFrom);return x?x.name:d.packageDowngradedFrom;})()} — don't pitch above their budget.
+                  </div>)}
+              </div>)}
+
             {d.bestHook&&(
               <div style={{padding:"10px 12px",borderRadius:10,background:"rgba(200,168,75,0.08)",border:`1px solid ${C.gold}33`}}>
                 <div style={{fontSize:9.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Your opener</div>
@@ -1881,6 +1982,21 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
 
       {tab==="search"&&(
         <div style={{maxWidth:760}}>
+          {/* Which real-data sources are live. AI research always runs; the two
+              providers upgrade it from "researched" to "verified". */}
+          {providers&&(
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+              <span style={{fontSize:10,fontWeight:800,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em"}}>Data sources</span>
+              {[["AI web research",true,"always on"],
+                ["Google Places",providers.places,"verified phone + address"],
+                ["Apollo",providers.apollo,"owner name + direct contact"]].map(([label,on,hint])=>(
+                <span key={label} title={hint} style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:10.5,fontWeight:700,padding:"4px 9px",borderRadius:999,
+                  border:`1px solid ${on?C.green+"44":C.border}`,background:on?C.green+"12":"rgba(255,255,255,.03)",color:on?C.green:C.textMuted}}>
+                  {on?"✓":"○"} {label}
+                </span>))}
+              {(!providers.places||!providers.apollo)&&(
+                <span style={{fontSize:10.5,color:C.textMuted}}>— add the missing API keys in Netlify for verified data</span>)}
+            </div>)}
           <div style={{...card}}>
             <div style={S.col12}>
               <div>
