@@ -174,6 +174,76 @@ export const apolloDecisionMaker = async ({ domain, companyName }) => {
   };
 };
 
+// ─── AD-TECH DETECTION (is this business actually advertising?) ──────────────
+// Bryson asked for the Meta Ad Library. It can't answer this: `ads_archive` only
+// covers political/social-issue ads in the US, so a Gilbert HVAC company's commercial
+// ads are visible in the Ad Library WEB UI but never through the API. Wiring it up
+// literally would return "no ads" for nearly everyone — a false negative, which is
+// strictly worse than the honest "unknown" it replaces.
+//
+// What DOES work is reading their own homepage for the tracking tags that advertising
+// requires. A Google Ads conversion tag or a Meta Pixel is real, checkable evidence
+// that they are set up to advertise on that platform.
+//
+// IMPORTANT ASYMMETRY: finding a tag is strong evidence ("likely"). NOT finding one
+// proves nothing — plenty of sites inject their tags through Tag Manager, so the raw
+// HTML won't contain them. This therefore never reports "no", only "likely" or
+// "unknown". Overclaiming here would put Bryson on a call saying "I noticed you're not
+// running Google Ads" to someone who is.
+const SIGNALS = [
+  { platform: "google", re: /AW-\d{6,}/,                          note: "Google Ads conversion tag (AW-) in the page source" },
+  { platform: "google", re: /googleadservices\.com\/pagead\/conversion/i, note: "Google Ads conversion script" },
+  { platform: "google", re: /googleads\.g\.doubleclick\.net/i,    note: "Google Ads remarketing tag" },
+  { platform: "meta",   re: /connect\.facebook\.net\/[^"']*\/fbevents\.js/i, note: "Meta Pixel (fbevents.js)" },
+  { platform: "meta",   re: /fbq\s*\(\s*['"]init['"]/i,           note: "Meta Pixel init call" },
+  { platform: "meta",   re: /facebook\.com\/tr\?id=/i,            note: "Meta Pixel noscript beacon" },
+];
+const OTHER = [
+  { re: /googletagmanager\.com\/gtm\.js/i, note: "Google Tag Manager (tags may be injected at runtime, so platform tags can be hidden)" },
+  { re: /gtag\/js\?id=G-/i,               note: "GA4 analytics" },
+  { re: /snap\.licdn\.com/i,              note: "LinkedIn Insight tag" },
+  { re: /analytics\.tiktok\.com/i,        note: "TikTok pixel" },
+];
+
+export const inspectAdTech = async (website) => {
+  const raw = String(website || "").trim();
+  if (!raw || /^(none|unknown)$/i.test(raw)) return null;
+  const url = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  let html = "";
+  try {
+    const res = await fetch(url, {
+      redirect: "follow", signal: ctrl.signal,
+      headers: { "user-agent": "Mozilla/5.0 (compatible; BoldLineScout/1.0; +https://boldlinemedia.com)" },
+    });
+    if (!res.ok) return { reachable: false, note: `site returned HTTP ${res.status}` };
+    html = (await res.text()).slice(0, 400000);
+  } catch (e) {
+    return { reachable: false, note: String((e && e.name) === "AbortError" ? "site timed out" : "site unreachable") };
+  } finally { clearTimeout(timer); }
+
+  const hits = SIGNALS.filter((s) => s.re.test(html));
+  const google = hits.filter((h) => h.platform === "google").map((h) => h.note);
+  const meta = hits.filter((h) => h.platform === "meta").map((h) => h.note);
+  const other = OTHER.filter((o) => o.re.test(html)).map((o) => o.note);
+
+  return {
+    reachable: true,
+    // "likely", never "yes" — a tag proves the plumbing, not a live campaign today.
+    googleAds: google.length ? "likely" : "unknown",
+    metaAds: meta.length ? "likely" : "unknown",
+    evidence: [...google, ...meta, ...other],
+    gtmOnly: !google.length && !meta.length && other.some((o) => /Tag Manager/.test(o)),
+  };
+};
+
+// A deep link into the Ad Library web UI, which DOES show commercial ads — one click
+// gives a definitive answer the API cannot.
+export const adLibraryUrl = (name, country = "US") =>
+  `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=${encodeURIComponent(country)}&q=${encodeURIComponent(String(name || "").trim())}&search_type=keyword_unordered`;
+
 // ─── Merge ───────────────────────────────────────────────────────────────────
 // Runs whatever providers are configured for one candidate and returns a verified
 // fact block. Never throws.
@@ -195,10 +265,18 @@ export const enrichFromProviders = async (cand) => {
     out.sources.push("Google Places");
   }
 
-  const [org, person] = await Promise.all([
+  // Ad-tech detection needs no API key — it is just their public homepage — so it
+  // runs on every prospect regardless of which providers are configured.
+  const [org, person, adTech] = await Promise.all([
     apolloOrganization(domain).catch(() => null),
     apolloDecisionMaker({ domain, companyName: cand.name }).catch(() => null),
+    inspectAdTech(cand.website).catch(() => null),
   ]);
+  if (adTech) {
+    out.verified.adTech = adTech;
+    if (adTech.reachable && adTech.evidence.length) out.sources.push("site tags");
+  }
+  out.verified.adLibraryUrl = adLibraryUrl(cand.name);
 
   if (org) {
     out.sources.push("Apollo");

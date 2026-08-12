@@ -170,8 +170,8 @@ const PROSPECT_PROPS = {
   rating:            str('Google/Yelp star rating as a number string, e.g. "4.7", or "unknown".'),
   review_count:      { type: "integer", description: "Number of reviews behind that rating. Use 0 when unknown." },
   review_source:     str('Where the rating came from, e.g. "Google", or "unknown".'),
-  google_ads:        { type: "string", enum: ["yes", "no", "unknown"], description: "Are they visibly running Google Ads right now?" },
-  meta_ads:          { type: "string", enum: ["yes", "no", "unknown"], description: "Are they visibly running Facebook/Instagram ads right now? Check the Meta Ad Library." },
+  google_ads:        { type: "string", enum: ["yes", "likely", "no", "unknown"], description: 'Are they advertising on Google? "yes" only if you SAW a paid result or a verified tag was reported to you; "likely" if the evidence is indirect; "unknown" if you could not check. Do not answer "no" unless you actively searched their main terms and saw no paid placement.' },
+  meta_ads:          { type: "string", enum: ["yes", "likely", "no", "unknown"], description: 'Are they advertising on Meta? "yes" only if you saw actual live ads; "likely" if a Meta Pixel or similar indirect evidence exists; "unknown" otherwise. Never answer "no" from absence of evidence.' },
   ads_evidence:      str('What you actually saw that proves the ads answer, or "unknown".'),
   seo_note:          str("One line on how they show up organically / in the map pack."),
   website_quality:   { type: "string", enum: ["none", "poor", "dated", "decent", "strong", "unknown"], description: "Honest read on whether their site is built to convert." },
@@ -287,7 +287,7 @@ RESEARCH EACH BUSINESS FOR:
 - Every email address, into the emails array, tagged the same way.
 - Size: headcount from their team page, LinkedIn company size, or a hiring page. Number of locations and trucks/chairs/bays counts as a size signal. This drives the affordability math, so a defensible estimate matters more here than anywhere else — say the number you can support and put 0 if you genuinely cannot tell.
 - Website: does one exist, and is it actually built to convert (clear offer, phone above the fold, a form, mobile-friendly, not obviously a decade old)?
-- Advertising RIGHT NOW: search for them and see if a paid result appears; check the Meta Ad Library for their page; look for tracking/landing-page tells. Report what you actually observed in ads_evidence, and answer "unknown" if you could not check.
+- Advertising: search their main commercial terms and see whether a paid result appears. Some businesses arrive with an AD TECH block listing tracking tags found on their own website — a Google Ads conversion tag or a Meta Pixel means they are set up to advertise on that platform, which is "likely", not "yes". Absence of a tag proves NOTHING (many sites inject tags via Tag Manager), so never answer "no" just because no tag was reported. Put the concrete evidence in ads_evidence.
 - Reputation: star rating, review count, and what the reviews complain about or praise.
 - Years in business, service area, and any growth signals (new location, hiring, recent press).
 

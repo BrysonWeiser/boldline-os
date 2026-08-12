@@ -108,6 +108,25 @@ block the model is told to treat as ground truth and never contradict (conflicts
 secondary number with lower confidence + a note). `?action=providers` reports which keys are live so the
 search screen can show a Data sources strip.
 
+**Ad detection — why NOT the Meta Ad Library API (Bryson asked for it 2026-08-11).** `ads_archive`
+only covers political / social-issue ads in the US; a local HVAC company's commercial ads appear in the
+Ad Library **web UI** but are never exposed through the API (all-ads API access is EU/DSA only). Wiring
+it literally would have returned "no ads" for nearly every prospect — a **false negative**, strictly
+worse than the honest "unknown" it replaced, and the kind of thing that puts Bryson on a call saying
+"I noticed you're not running Google Ads" to someone who is. Built instead:
+1. **`inspectAdTech(website)`** — fetches their public homepage (no API key needed, so it runs on every
+   prospect regardless of provider config) and looks for the tags advertising requires: `AW-` conversion
+   tags / `googleadservices.com` / `googleads.g.doubleclick.net` for Google, `fbevents.js` / `fbq('init'`
+   / `facebook.com/tr?id=` for Meta, plus GTM / GA4 / LinkedIn / TikTok as context.
+2. **A `likely` state** added to the `google_ads` / `meta_ads` enum. **CRITICAL ASYMMETRY: a tag found
+   is evidence ("likely"); a tag NOT found proves nothing** — plenty of sites inject tags through Tag
+   Manager — so this path can only ever raise `unknown` → `likely`, never produce a `no`, and never
+   downgrade a confirmed sighting. The prompt tells the model the same rule.
+3. **A per-prospect "Check Meta ads ↗" deep link** into the Ad Library web UI filtered to that business
+   — one click for the definitive answer the API cannot give.
+Unit-tested against synthetic HTML for both platforms, GTM-only (must stay `unknown`), a bare page, and
+an unreachable site.
+
 **Contact block (Bryson: "I also want a section where I get the businesses number as well").** `phones`
 and `emails` are arrays of records — `{number, kind: main|direct|mobile|secondary|toll_free, whose:
 business|owner, label, source, confidence}` — replacing the old single phone/email fields. The card
