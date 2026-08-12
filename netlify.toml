@@ -47,6 +47,17 @@
 [functions."alerts-watch"]
   schedule = "0 17 * * *"
 
+# Every 6 hours: pulls LIVE campaign spend from Google Ads + Meta for every client
+# with a linked ad account (the My Ads house account included), stores it on the
+# client record, and alerts the owner the first time an account paces over its
+# monthly budget or a linked account stops reading at all. Read-only — it never
+# changes a campaign. This is the live-spend feed alerts-watch was missing.
+# Four runs a day (not one) because it is also the app's continuous Ads API
+# traffic, which Meta requires before granting Marketing API standard access —
+# see KB meta-marketing-api. Well inside every rate limit.
+[functions."ads-sync"]
+  schedule = "0 */6 * * *"
+
 # Daily client-nurture: the onboarding + retention email touches that aren't
 # Stripe-triggered — Ad-Account Access ~1 day after Welcome, an onboarding nudge
 # on day 2 + 5 while intake is incomplete, and a celebratory Lead-Milestone email
