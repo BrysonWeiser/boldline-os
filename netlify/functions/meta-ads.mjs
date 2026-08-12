@@ -85,7 +85,7 @@ async function graph(stage, path, { method = "GET", params = {}, token } = {}) {
   const auth = { access_token: tok, ...(proof ? { appsecret_proof: proof } : {}) };
   let url = `${BASE}/${path}`;
   const opts = { method };
-  if (method === "GET") {
+  if (method === "GET" || method === "DELETE") {
     const qs = new URLSearchParams({ ...params, ...auth });
     url += `?${qs.toString()}`;
   } else {
@@ -277,6 +277,24 @@ async function setStatus(campaignId, status) {
   return graph("setStatus", `${campaignId}`, { method: "POST", params: { status: s } });
 }
 
+// ── Destructive: delete a campaign ───────────────────────────────────────────
+// Meta's DELETE on a campaign node removes the campaign along with its ad sets
+// and ads. IRREVERSIBLE — it cannot be un-deleted, only rebuilt. Historical
+// spend stays on the ad account's billing record either way.
+// A live campaign is PAUSED first, so spend stops even if the delete then fails
+// for any reason (a half-finished delete must never leave ads running).
+async function deleteCampaign(campaignId, { wasLive } = {}) {
+  if (!campaignId) {
+    const e = new Error("campaignId required"); e.stage = "deleteCampaign"; throw e;
+  }
+  if (wasLive) {
+    try { await setStatus(campaignId, "PAUSED"); }
+    catch (e) { console.warn("deleteCampaign: pre-pause failed, continuing to delete:", e && e.message); }
+  }
+  await graph("deleteCampaign", `${campaignId}`, { method: "DELETE" });
+  return { deleted: true, campaignId: String(campaignId) };
+}
+
 // ── Upload an image to the ad account, return its hash (for the creative). ────
 async function uploadImage(adAccountId, imageUrl) {
   const r = await fetch(imageUrl);
@@ -457,6 +475,12 @@ export default async (req) => {
         return json({ ok: false, error: "campaignId, status required" }, 400);
       const result = await setStatus(body.campaignId, body.status);
       return json({ ok: true, action, result });
+    }
+
+    if (action === "deleteCampaign") {
+      if (!body.campaignId) return json({ ok: false, error: "campaignId required" }, 400);
+      const result = await deleteCampaign(body.campaignId, { wasLive: !!body.wasLive });
+      return json({ ok: true, action, ...result });
     }
 
     if (action === "createCampaign") {
