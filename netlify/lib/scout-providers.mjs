@@ -111,13 +111,17 @@ const apolloHeaders = () => ({
   "x-api-key": env("APOLLO_API_KEY"),
 });
 
-export const apolloOrganization = async (domain) => {
+// Apollo failures used to return a bare null, so a wrong key or an empty credit
+// balance looked identical to "this company isn't in their database". Every path now
+// reports a reason, which the run surfaces.
+export const apolloOrganization = async (domain, notes = []) => {
   const key = env("APOLLO_API_KEY");
-  if (!key || !domain) return null;
+  if (!key) return null;
+  if (!domain) { notes.push("Apollo org: skipped (no website to match on)"); return null; }
   const r = await fetchJSON(`https://api.apollo.io/api/v1/organizations/enrich?domain=${encodeURIComponent(domain)}`, { method: "GET", headers: apolloHeaders() });
-  if (!r.ok) return null;
+  if (!r.ok) { notes.push(`Apollo org lookup failed (${r.status || ""} ${r.error}`.trim() + ")"); return null; }
   const o = (r.body && (r.body.organization || r.body.account)) || null;
-  if (!o) return null;
+  if (!o) { notes.push(`Apollo has no company record for ${domain}`); return null; }
   return {
     name: o.name || "",
     phone: o.phone || o.primary_phone && o.primary_phone.number || "",
@@ -140,7 +144,7 @@ const realEmail = (e) => {
   return s && !/not_unlocked|email_not_unlocked|^n\/a$/.test(s) && /@/.test(s) ? s : "";
 };
 
-export const apolloDecisionMaker = async ({ domain, companyName }) => {
+export const apolloDecisionMaker = async ({ domain, companyName }, notes = []) => {
   const key = env("APOLLO_API_KEY");
   if (!key || (!domain && !companyName)) return null;
 
@@ -149,10 +153,10 @@ export const apolloDecisionMaker = async ({ domain, companyName }) => {
   else body.q_organization_name = companyName;
 
   const r = await fetchJSON("https://api.apollo.io/api/v1/mixed_people/search", { method: "POST", headers: apolloHeaders(), body: JSON.stringify(body) }, 15000);
-  if (!r.ok) return null;
+  if (!r.ok) { notes.push(`Apollo people search failed (${r.status || ""} ${r.error}`.trim() + ")"); return null; }
 
   const people = (r.body && (r.body.people || r.body.contacts)) || [];
-  if (!people.length) return null;
+  if (!people.length) { notes.push(`Apollo has no owner/founder listed for ${domain || companyName}`); return null; }
 
   // Prefer the most senior title we asked for.
   const rank = (t) => { const i = OWNER_TITLES.findIndex((x) => String(t || "").toLowerCase().includes(x)); return i < 0 ? 99 : i; };
@@ -274,7 +278,7 @@ export const adLibraryUrl = (name, country = "US") =>
 // Runs whatever providers are configured for one candidate and returns a verified
 // fact block. Never throws.
 export const enrichFromProviders = async (cand) => {
-  const out = { phones: [], emails: [], sources: [], verified: {} };
+  const out = { phones: [], emails: [], sources: [], verified: {}, notes: [] };
   const domain = host(cand.website || "");
 
   // Google Places already ran during discovery — carry its facts through.
@@ -294,8 +298,8 @@ export const enrichFromProviders = async (cand) => {
   // Ad-tech detection needs no API key — it is just their public homepage — so it
   // runs on every prospect regardless of which providers are configured.
   const [org, person, adTech] = await Promise.all([
-    apolloOrganization(domain).catch(() => null),
-    apolloDecisionMaker({ domain, companyName: cand.name }).catch(() => null),
+    apolloOrganization(domain, out.notes).catch((e) => { out.notes.push(`Apollo org threw: ${e && e.message}`); return null; }),
+    apolloDecisionMaker({ domain, companyName: cand.name }, out.notes).catch((e) => { out.notes.push(`Apollo people threw: ${e && e.message}`); return null; }),
     inspectAdTech(cand.website).catch(() => null),
   ]);
   if (adTech) {
@@ -312,6 +316,9 @@ export const enrichFromProviders = async (cand) => {
     if (org.founded) out.verified.founded = org.founded;
     if (org.linkedin) out.verified.companyLinkedin = org.linkedin;
     if (!out.verified.website && org.website) out.verified.website = org.website;
+  }
+  if (person && person.name && !person.email && !person.phones.length) {
+    out.notes.push(`Apollo found ${person.name} (${person.title || "no title"}) but revealed no email or phone — that usually needs Apollo credits or a paid plan.`);
   }
   if (person && person.name) {
     if (!out.sources.includes("Apollo")) out.sources.push("Apollo");

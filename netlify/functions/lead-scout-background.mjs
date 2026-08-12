@@ -387,8 +387,20 @@ const doRun = async (supabase, id, input) => {
   const enrichments = await pool(candidates, 4, (c) => enrichFromProviders(c));
   candidates.forEach((c, i) => {
     const e = enrichments[i];
-    c.provider = (e && !e.__error) ? e : { phones: [], emails: [], sources: [], verified: {} };
+    c.provider = (e && !e.__error) ? e : { phones: [], emails: [], sources: [], verified: {}, notes: [] };
   });
+  // Roll the per-prospect provider notes up into a few distinct lines on the run, so
+  // a bad Apollo key or an empty credit balance announces itself instead of just
+  // producing blank owner fields.
+  if (prov.apollo) {
+    const seen = new Set();
+    candidates.forEach((c) => (c.provider.notes || []).forEach((n) => {
+      const generic = n.replace(/for .*$/, "").trim();
+      if (/failed|threw|credits|paid plan/i.test(n) && !seen.has(generic)) { seen.add(generic); providerNotes.push(n); }
+    }));
+    const withOwner = candidates.filter((c) => c.provider.verified && c.provider.verified.ownerName).length;
+    providerNotes.push(`Apollo matched a named decision-maker for ${withOwner} of ${candidates.length} businesses.`);
+  }
 
   // ── Phase 2: AI enrichment, in small batches ───────────────────────────────
   const batches = [];
