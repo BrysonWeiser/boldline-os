@@ -5042,6 +5042,234 @@ function MetaLaunchCard({client, onUpdate}) {
 // ON from inside the OS — the launch cards only BUILD campaigns (paused). Enabling
 // starts real spend, so it's confirmed first. Reads via gadsCall/metaCall
 // "campaigns" and writes via "setStatus" (same functions ARIA's approval queue uses).
+// ─── CAMPAIGN MANAGER ─────────────────────────────────────────────────────────
+// One screen listing EVERY campaign across EVERY linked ad account — the My Ads
+// house account and all clients — with Start / Pause / Delete on each. Built
+// 2026-08-12 (Bryson, after four stray test campaigns appeared the moment he
+// linked the ad account: "I need a way to access them and to be able to delete
+// them if I want… a clean spot where I can see all the paused and active
+// campaigns"). LiveCampaignsCard stays as the per-client view inside a client;
+// this is the cross-account one.
+function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
+  const linked=(clients||[]).filter(c=>c.googleAdsCustomerId||c.metaAdAccountId);
+  const [rows,setRows]=useState([]);
+  const [errors,setErrors]=useState([]);
+  const [state,setState]=useState("loading");   // loading | ready
+  const [busy,setBusy]=useState(null);
+  const [actionErr,setActionErr]=useState("");
+  const [fStatus,setFStatus]=useState("all");   // all | live | paused
+  const [fPlatform,setFPlatform]=useState("all");
+  const [fClient,setFClient]=useState("all");
+
+  const load=async()=>{
+    setState("loading"); setActionErr("");
+    const out=[], errs=[];
+    await Promise.all(linked.map(async(cl)=>{
+      if(cl.googleAdsCustomerId){
+        try{
+          const d=await gadsCall({action:"campaigns",customerId:cl.googleAdsCustomerId});
+          (d.campaigns||[]).forEach(c=>out.push({platform:"google",client:cl,c}));
+        }catch(e){ errs.push({name:cl.name||"Unnamed",platform:"Google Ads",msg:e.message||"Couldn't load campaigns."}); }
+      }
+      if(cl.metaAdAccountId){
+        try{
+          const d=await metaCall({action:"campaigns",adAccountId:cl.metaAdAccountId});
+          (d.campaigns||[]).forEach(c=>out.push({platform:"meta",client:cl,c}));
+        }catch(e){ errs.push({name:cl.name||"Unnamed",platform:"Meta Ads",msg:e.message||"Couldn't load campaigns."}); }
+      }
+    }));
+    setRows(out); setErrors(errs); setState("ready");
+  };
+  useEffect(()=>{ load(); },[linked.length]);
+
+  const isOn=(r)=>r.platform==="google"
+    ? String(r.c.status||"").toUpperCase()==="ENABLED"
+    : String(r.c.status||"").toUpperCase()==="ACTIVE";
+  // Meta only: the campaign switch says ACTIVE but delivery is blocked further
+  // down (ad set paused, no active ads). Worth surfacing — it looks "Live" but
+  // spends nothing, which is exactly the sort of thing you find out too late.
+  const notDelivering=(r)=>r.platform==="meta"&&isOn(r)
+    &&!!r.c.effectiveStatus&&String(r.c.effectiveStatus).toUpperCase()!=="ACTIVE";
+  const keyOf=(r)=>r.platform==="google"?r.c.campaignResourceName:r.c.id;
+  const spendOf=(r)=>Number((r.platform==="google"?r.c.cost:r.c.spend)||0);
+
+  const toggle=async(r)=>{
+    const on=isOn(r);
+    if(!on&&!window.confirm(`Start "${r.c.name}"?\n\nThis turns the ads ON and begins REAL ad spend on ${r.client.internal?"BoldLine's own":(r.client.name||"the client")+"'s"} ${r.platform==="google"?"Google":"Meta"} account. You can pause it again any time.`)) return;
+    setBusy(keyOf(r)); setActionErr("");
+    try{
+      if(r.platform==="google") await gadsCall({action:"setStatus",customerId:r.client.googleAdsCustomerId,campaignResourceName:r.c.campaignResourceName,status:on?"PAUSED":"ENABLED"});
+      else await metaCall({action:"setStatus",campaignId:r.c.id,status:on?"PAUSED":"ACTIVE"});
+      await load();
+    }catch(e){ setActionErr(e.message||"Couldn't update the campaign."); }
+    setBusy(null);
+  };
+
+  const remove=async(r)=>{
+    const on=isOn(r);
+    const whose=r.client.internal?"BoldLine's own":(r.client.name||"the client")+"'s";
+    const plat=r.platform==="google"?"Google Ads":"Meta";
+    let msg=`Delete "${r.c.name}"?\n\nThis permanently removes the campaign from ${whose} ${plat} account. It can NOT be undone — rebuilding it from scratch is the only way back.`;
+    if(r.platform==="google") msg+=`\n\nGoogle marks it REMOVED, which is permanent — a removed campaign can never be re-enabled.`;
+    msg+=`\n\nAlready-spent money stays on the ad account's billing record either way.`;
+    if(on) msg+=`\n\n⚠ This campaign is LIVE right now. It will be paused, then deleted.`;
+    if(!window.confirm(msg)) return;
+    if(on&&!window.confirm(`Last check — "${r.c.name}" is actively spending.\n\nDelete it for good?`)) return;
+    setBusy(keyOf(r)); setActionErr("");
+    try{
+      if(r.platform==="google") await gadsCall({action:"removeCampaign",customerId:r.client.googleAdsCustomerId,campaignResourceName:r.c.campaignResourceName,wasLive:on});
+      else await metaCall({action:"deleteCampaign",campaignId:r.c.id,wasLive:on});
+      await load();
+    }catch(e){ setActionErr(e.message||"Couldn't delete the campaign."); }
+    setBusy(null);
+  };
+
+  const visible=rows.filter(r=>{
+    if(fStatus==="live"&&!isOn(r)) return false;
+    if(fStatus==="paused"&&isOn(r)) return false;
+    if(fPlatform!=="all"&&r.platform!==fPlatform) return false;
+    if(fClient!=="all"&&String(r.client.id)!==String(fClient)) return false;
+    return true;
+  });
+  const liveCount=rows.filter(isOn).length;
+  const liveDaily=rows.filter(isOn).reduce((s,r)=>s+Number(r.c.dailyBudget||0),0);
+  const spend30=rows.reduce((s,r)=>s+spendOf(r),0);
+
+  // Group the visible rows by client so it reads as "whose ads are these".
+  const groups=[];
+  visible.forEach(r=>{
+    let g=groups.find(x=>String(x.client.id)===String(r.client.id));
+    if(!g){ g={client:r.client,items:[]}; groups.push(g); }
+    g.items.push(r);
+  });
+  groups.sort((a,b)=>(b.client.internal?1:0)-(a.client.internal?1:0)||String(a.client.name||"").localeCompare(String(b.client.name||"")));
+
+  const chipBtn=(active)=>({padding:"6px 13px",fontSize:11.5,fontWeight:700,borderRadius:9,cursor:"pointer",
+    border:`1px solid ${active?C.gold:C.border}`,backgroundColor:active?"rgba(200,168,75,0.12)":"transparent",color:active?C.gold:C.textDim});
+  const back=!isDesktop&&(
+    <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
+  );
+  const Tile=({label,value,tint})=>(
+    <div style={{flex:"1 1 130px",minWidth:130,backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"11px 13px"}}>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:5}}>{label}</div>
+      <div style={{fontSize:20,fontWeight:800,color:tint||C.text,lineHeight:1}}>{value}</div>
+    </div>
+  );
+
+  const row=(r)=>{
+    const on=isOn(r), k=keyOf(r), working=busy===k, stalled=notDelivering(r);
+    return (
+      <div key={k} style={{padding:"11px 0",borderBottom:`1px solid ${C.border2}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5,flexWrap:"wrap"}}>
+          <span style={{fontSize:9,fontWeight:800,padding:"1px 6px",borderRadius:5,backgroundColor:r.platform==="google"?"rgba(66,133,244,.14)":"rgba(24,119,242,.14)",color:r.platform==="google"?"#7CA9FF":"#5B9BFF",flexShrink:0}}>{r.platform==="google"?"Google":"Meta"}</span>
+          <span style={{fontSize:12.5,fontWeight:700,color:C.text,flex:"1 1 160px",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.c.name}</span>
+          <Chip label={on?"Live":"Paused"} color={on?C.green:C.textMuted} small/>
+          {stalled&&<Chip label="Not delivering" color={C.amber} small/>}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:10,color:C.textMuted}}>
+            {Number(r.c.impressions||0).toLocaleString()} impr · {Number(r.c.clicks||0).toLocaleString()} clicks · ${spendOf(r).toLocaleString()} · {Number(r.c.conversions||r.c.leads||0)} conv <span style={{opacity:.6}}>(30d)</span>
+            {Number(r.c.dailyBudget||0)>0?<span style={{opacity:.75}}> · ${Number(r.c.dailyBudget).toLocaleString()}/day</span>:null}
+          </span>
+          <span style={{marginLeft:"auto",display:"flex",gap:7,flexShrink:0}}>
+            <button onClick={()=>toggle(r)} disabled={working} style={{padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
+            <button onClick={()=>remove(r)} disabled={working} title="Delete this campaign permanently" style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.red}44`,cursor:working?"default":"pointer",backgroundColor:"transparent",color:C.red,opacity:working?.6:1}}>Delete</button>
+          </span>
+        </div>
+        {stalled&&<div style={{fontSize:10,color:C.amber,marginTop:5,lineHeight:1.5}}>Meta says this campaign is on, but it isn't serving ({String(r.c.effectiveStatus).toLowerCase().replace(/_/g," ")}) — usually the ad set or the ad underneath is paused. Fix it in Meta Ads Manager.</div>}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        {back}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Campaigns</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every campaign on every linked ad account — yours and your clients'.</div>
+        </div>
+        <button onClick={load} disabled={state==="loading"} style={{fontSize:11.5,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:state==="loading"?"default":"pointer",opacity:state==="loading"?.5:1,flexShrink:0}}>↻ Refresh</button>
+      </div>
+
+      <div style={{maxWidth:1180}}>
+        {linked.length===0&&(
+          <Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>No ad accounts are linked yet, so there's nothing to show. Open <b style={{color:C.gold}}>My Ads</b> (or any client) → <b>Campaigns → Step 2</b> and paste the ad-account ID. Campaigns you build will all appear here.</div></Card>
+        )}
+
+        {linked.length>0&&<>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
+            <Tile label="Campaigns" value={rows.length}/>
+            <Tile label="Live now" value={liveCount} tint={liveCount>0?C.green:C.text}/>
+            <Tile label="Live daily budget" value={"$"+liveDaily.toLocaleString()}/>
+            <Tile label="Spend (30d)" value={"$"+Math.round(spend30).toLocaleString()}/>
+          </div>
+
+          <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
+            {[["all","All"],["live","Live"],["paused","Paused"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setFStatus(k)} style={chipBtn(fStatus===k)}>{l}</button>
+            ))}
+            <span style={{width:1,background:C.border,margin:"2px 3px"}}/>
+            {[["all","Both"],["google","Google"],["meta","Meta"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setFPlatform(k)} style={chipBtn(fPlatform===k)}>{l}</button>
+            ))}
+            {linked.length>1&&(
+              <select value={fClient} onChange={e=>setFClient(e.target.value)} style={{padding:"6px 10px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:C.bg2,color:C.textDim,cursor:"pointer"}}>
+                <option value="all">All accounts</option>
+                {linked.map(c=><option key={c.id} value={c.id}>{c.internal?"My Ads (BoldLine)":(c.name||"Unnamed")}</option>)}
+              </select>
+            )}
+          </div>
+
+          {errors.length>0&&(
+            <Card style={{borderColor:`${C.red}44`,marginBottom:12}}>
+              <Label>Couldn't load {errors.length===1?"one account":`${errors.length} accounts`}</Label>
+              {errors.map((e,i)=>(
+                <div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginTop:5}}>
+                  <b style={{color:C.text}}>{e.name}</b> · {e.platform} — <span style={{color:C.red}}>{e.msg}</span>
+                </div>
+              ))}
+              <div style={{fontSize:10.5,color:C.textMuted,marginTop:8,lineHeight:1.6}}>Everything else below still loaded. A failure here usually means the ad-account ID is wrong, or that platform's credentials need attention.</div>
+            </Card>
+          )}
+
+          {actionErr&&<Card style={{borderColor:`${C.red}44`,marginBottom:12}}><div style={{fontSize:12,color:C.red,lineHeight:1.6}}>{actionErr}</div></Card>}
+
+          {state==="loading"&&<Card><div style={{fontSize:12,color:C.textMuted}}>Loading campaigns from every linked account…</div></Card>}
+
+          {state==="ready"&&rows.length===0&&errors.length===0&&(
+            <Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>No campaigns on any linked account yet. Build one from <b style={{color:C.gold}}>My Ads → Campaigns</b> (or a client's Campaigns tab) — it'll show up here, paused, ready to start.</div></Card>
+          )}
+
+          {state==="ready"&&rows.length>0&&visible.length===0&&(
+            <Card><div style={{fontSize:12,color:C.textMuted}}>No campaigns match these filters. <button onClick={()=>{setFStatus("all");setFPlatform("all");setFClient("all");}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0}}>Clear filters</button></div></Card>
+          )}
+
+          {state==="ready"&&groups.map(g=>(
+            <Card key={g.client.id} style={{marginBottom:12,borderColor:g.client.internal?`${C.gold}2a`:C.border}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
+                <Label>{g.client.internal?"My Ads — BoldLine Media":(g.client.name||"Unnamed")}</Label>
+                {g.client.internal&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:"#1a1400",background:C.gold,padding:"2px 6px",borderRadius:5}}>Internal</span>}
+                <span style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:C.textMuted}}>{g.items.length} shown</span>
+                  {onSelectClient&&<button onClick={()=>onSelectClient(g.client)} style={{fontSize:11,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0}}>Open ›</button>}
+                </span>
+              </div>
+              {g.items.map(row)}
+            </Card>
+          ))}
+
+          {state==="ready"&&rows.length>0&&(
+            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.7,marginTop:4}}>
+              Campaigns are built <b>Paused</b> so nothing spends by accident. <b style={{color:C.green}}>Start Ads</b> takes one live, <b>Pause</b> stops spend instantly, and <b style={{color:C.red}}>Delete</b> removes it for good. Every change applies straight to the real ad account. Figures are the last 30 days.
+            </div>
+          )}
+        </>}
+      </div>
+    </div>
+  );
+}
+
 function LiveCampaignsCard({client}) {
   const hasG=!!client.googleAdsCustomerId, hasM=!!client.metaAdAccountId;
   const [state,setState]=useState("loading"); // loading | ready | error | none
@@ -7338,10 +7566,10 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
       </button>
 
       {/* More */}
-      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue")}>
-        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns")}>
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
-          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue")?"#C8A84B":C.textMuted}}>More</span>
+          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns")?"#C8A84B":C.textMuted}}>More</span>
       </button>
     </div>
   );
@@ -7350,7 +7578,7 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // Mobile "More" bottom sheet — the overflow destinations that don't fit in the
 // bottom bar (Calendar, Deal Prep, Revenue). Keeps mobile at feature parity
 // with the desktop sidebar.
-function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue }) {
+function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, onCampaigns }) {
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:13,width:"100%",padding:"14px 14px",borderRadius:13,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left",marginBottom:9}}>
       <span style={{width:38,height:38,borderRadius:10,background:"rgba(200,168,75,0.10)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
@@ -7367,6 +7595,7 @@ function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue }) 
       <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:C.bg2,borderTopLeftRadius:20,borderTopRightRadius:20,borderTop:`1px solid ${C.border}`,padding:"16px 16px calc(20px + env(safe-area-inset-bottom))",animation:"fadeIn .2s ease both"}}>
         <div style={{width:38,height:4,borderRadius:2,background:"rgba(255,255,255,0.15)",margin:"0 auto 14px"}}/>
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:12,paddingLeft:2}}>More</div>
+        {row(sv(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>),"Campaigns","Every ad campaign — start, pause, delete",onCampaigns)}
         {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
         {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
         {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
@@ -7573,7 +7802,7 @@ function useIsDesktop(bp=1024){
 // ─── DESKTOP SIDEBAR ──────────────────────────────────────────────────────────
 // Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden
 // there. Same destinations as BottomNav plus a first-class Revenue entry.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar,onCampaigns}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -7610,6 +7839,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
         <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
         <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
+        <button onClick={onCampaigns} style={item(screen==="campaigns")}>{bar(screen==="campaigns")}{svg(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>,col("campaigns"))}Campaigns</button>
         <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
         <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
         <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
@@ -7867,12 +8097,13 @@ function App({onLogout}) {
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
+        {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>setScreen("home")} isDesktop={isDesktop} onSelectClient={selectClient}/>}
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
@@ -7882,7 +8113,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}}/>}
       {toasts.length>0&&(
         <div style={isDesktop
           ? {position:"fixed",right:20,bottom:20,left:"auto",zIndex:300,display:"flex",flexDirection:"column",gap:8,width:300,pointerEvents:"none"}

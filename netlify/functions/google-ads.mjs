@@ -182,6 +182,34 @@ async function setStatus(accessToken, customerId, campaignResourceName, status) 
   return data;
 }
 
+// ── Destructive: remove a campaign ───────────────────────────────────────────
+// Google has no hard delete — "remove" sets the campaign to REMOVED, which is
+// PERMANENT: a removed campaign can never be re-enabled, only rebuilt. It stops
+// serving immediately and drops out of the OS list. Its historical stats stay in
+// the Google Ads account for reporting.
+// A live campaign is PAUSED first so serving stops even if the remove then fails.
+async function removeCampaign(accessToken, customerId, campaignResourceName, { wasLive } = {}) {
+  const cid = digits(customerId);
+  if (!cid || !campaignResourceName) {
+    const e = new Error("customerId and campaignResourceName required"); e.stage = "removeCampaign"; throw e;
+  }
+  if (wasLive) {
+    try { await setStatus(accessToken, cid, campaignResourceName, "PAUSED"); }
+    catch (e) { console.warn("removeCampaign: pre-pause failed, continuing to remove:", e && e.message); }
+  }
+  const resp = await fetch(`${ADS_BASE}/customers/${cid}/campaigns:mutate`, {
+    method: "POST",
+    headers: baseHeaders(accessToken),
+    body: JSON.stringify({ operations: [{ remove: campaignResourceName }] }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("removeCampaign", resp.status, data));
+    e.stage = "removeCampaign"; e.detail = data; throw e;
+  }
+  return { deleted: true, campaignResourceName };
+}
+
 // ── Create a full Search campaign, ALL PAUSED ─────────────────────────────────
 // One atomic googleAds:mutate using temp (negative) resource names so budget →
 // campaign → ad group → responsive search ad → keywords all reference each other
@@ -342,6 +370,13 @@ export default async (req) => {
         return json({ ok: false, error: "customerId, campaignResourceName, status required" }, 400);
       const result = await setStatus(accessToken, body.customerId, body.campaignResourceName, body.status);
       return json({ ok: true, action, result });
+    }
+
+    if (action === "removeCampaign") {
+      if (!digits(body.customerId) || !body.campaignResourceName)
+        return json({ ok: false, error: "customerId, campaignResourceName required" }, 400);
+      const result = await removeCampaign(accessToken, body.customerId, body.campaignResourceName, { wasLive: !!body.wasLive });
+      return json({ ok: true, action, ...result });
     }
 
     if (action === "createCampaign") {
