@@ -137,7 +137,15 @@ const mergeContacts = (providerRows, aiRows, keyOf, cap) => {
 
 const sanitize = (p, ctx) => {
   const { verified = {}, providerPhones = [], providerEmails = [], nicheGroup = "", kind = "service", providerSources = [] } = ctx || {};
-  const tri = (v) => (["yes", "no", "unknown"].includes(String(v)) ? String(v) : "unknown");
+  const tri = (v) => (["yes", "likely", "no", "unknown"].includes(String(v)) ? String(v) : "unknown");
+  // A tracking tag on their own site is real evidence, so it can upgrade an
+  // "unknown" to "likely" — but it must never downgrade a confirmed sighting, and
+  // absence of a tag can never produce a "no".
+  const adsState = (aiVal, tagVal) => {
+    const ai = tri(aiVal);
+    if (ai === "yes" || ai === "no") return ai;
+    return tagVal === "likely" ? "likely" : ai;
+  };
   const conf = (v) => (["high", "medium", "low"].includes(String(v)) ? String(v) : "medium");
 
   // ── Contact block ────────────────────────────────────────────────────────
@@ -219,9 +227,10 @@ const sanitize = (p, ctx) => {
     reviewCount: Math.max(0, Math.round(Number(pick(verified.reviewCount, p.review_count)) || 0)),
     reviewSource: rating ? (verified.rating ? "Google" : clean(p.review_source)) : "",
 
-    googleAds: tri(p.google_ads),
-    metaAds: tri(p.meta_ads),
-    adsEvidence: clean(p.ads_evidence),
+    googleAds: adsState(p.google_ads, verified.adTech && verified.adTech.googleAds),
+    metaAds: adsState(p.meta_ads, verified.adTech && verified.adTech.metaAds),
+    adsEvidence: [clean(p.ads_evidence), (verified.adTech && verified.adTech.reachable && verified.adTech.evidence.length) ? `Site tags: ${verified.adTech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
+    adLibraryUrl: verified.adLibraryUrl || "",
     seoNote: clean(p.seo_note),
     websiteQuality: ["none", "poor", "dated", "decent", "strong", "unknown"].includes(String(p.website_quality)) ? String(p.website_quality) : "unknown",
     services: list(p.services, 6),
@@ -371,16 +380,14 @@ const doRun = async (supabase, id, input) => {
   // Apollo gives the decision-maker + headcount + revenue; Places already gave the
   // real phone and address. This runs BEFORE the AI so the model is handed facts to
   // build on instead of numbers to guess at.
-  if (prov.places || prov.apollo) {
-    await setProgress({ stage: "enriching", message: `Pulling verified contact data for ${candidates.length} businesses…`, found: candidates.length, enriched: 0, total: candidates.length });
-    const enrichments = await pool(candidates, 4, (c) => enrichFromProviders(c));
-    candidates.forEach((c, i) => {
-      const e = enrichments[i];
-      c.provider = (e && !e.__error) ? e : { phones: [], emails: [], sources: [], verified: {} };
-    });
-  } else {
-    candidates.forEach((c) => { c.provider = { phones: [], emails: [], sources: [], verified: {} }; });
-  }
+  // Runs unconditionally: ad-tech detection only needs their public homepage, so it
+  // works with no API keys at all.
+  await setProgress({ stage: "enriching", message: `Checking contact data and ad tracking for ${candidates.length} businesses…`, found: candidates.length, enriched: 0, total: candidates.length });
+  const enrichments = await pool(candidates, 4, (c) => enrichFromProviders(c));
+  candidates.forEach((c, i) => {
+    const e = enrichments[i];
+    c.provider = (e && !e.__error) ? e : { phones: [], emails: [], sources: [], verified: {} };
+  });
 
   // ── Phase 2: AI enrichment, in small batches ───────────────────────────────
   const batches = [];
@@ -399,6 +406,9 @@ const doRun = async (supabase, id, input) => {
       v.revenueEstimate ? `revenue ${v.revenueEstimate}` : "",
       v.rating ? `${v.rating}★ from ${v.reviewCount || "?"} reviews` : "",
       v.founded ? `founded ${v.founded}` : "",
+      v.adTech && v.adTech.reachable && v.adTech.evidence.length
+        ? `AD TECH on their website: ${v.adTech.evidence.join("; ")} (a tag means they are SET UP to advertise = "likely", not proof of a live campaign)`
+        : v.adTech && !v.adTech.reachable ? `website could not be fetched (${v.adTech.note}) — no ad-tech read` : "",
       (c.provider.phones || []).filter((p) => p.whose === "owner").map((p) => `owner ${p.kind} ${p.number}`).join(", "),
       (c.provider.emails || []).map((e) => `${e.whose} email ${e.address}`).join(", "),
     ].filter(Boolean);

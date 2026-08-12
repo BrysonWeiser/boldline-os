@@ -1813,9 +1813,12 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
        :<div style={{fontSize:12,color:C.textMuted,fontStyle:"italic"}}>not found</div>}
     </div>
   );
+  // "likely" = a tracking tag for that platform was found on their own website. It
+  // proves they're set up to advertise, not that a campaign is live today — so it
+  // reads differently from a confirmed sighting.
   const adsPill=(state,label)=>{
-    const c=state==="yes"?C.green:state==="no"?C.textMuted:C.amber;
-    const t=state==="yes"?"running":state==="no"?"not running":"unconfirmed";
+    const c=state==="yes"?C.green:state==="likely"?C.gold:state==="no"?C.textMuted:C.textDim;
+    const t=state==="yes"?"running":state==="likely"?"likely (tag found)":state==="no"?"not running":"unconfirmed";
     return <span style={{fontSize:10,fontWeight:700,color:c,border:`1px solid ${c}44`,background:c+"14",borderRadius:7,padding:"3px 7px",whiteSpace:"nowrap"}}>{label}: {t}</span>;
   };
   const ScoreBadge=({score})=>{ const t=scoutTier(score); return (
@@ -1841,6 +1844,10 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
             </div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}}>
               {adsPill(d.googleAds,"Google")}{adsPill(d.metaAds,"Meta")}
+              {d.adLibraryUrl&&(
+                <a href={d.adLibraryUrl} target="_blank" rel="noopener noreferrer"
+                  title="Opens Meta's Ad Library filtered to this business — the definitive answer on whether their Facebook/Instagram ads are live"
+                  style={{fontSize:10,fontWeight:700,color:C.blue,border:`1px solid ${C.blue}44`,background:C.blue+"14",borderRadius:7,padding:"3px 7px",textDecoration:"none",whiteSpace:"nowrap"}}>Check Meta ads ↗</a>)}
               {d.websiteQuality&&d.websiteQuality!=="unknown"&&(
                 <span style={{fontSize:10,fontWeight:700,color:C.textDim,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 7px"}}>site: {d.websiteQuality}</span>)}
               {typeof d.completeness==="number"&&(
