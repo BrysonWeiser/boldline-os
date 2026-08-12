@@ -142,6 +142,24 @@ OPTIONAL (Netlify → Site configuration → Environment variables, OS site): **
 credit covers normal use) and **`APOLLO_API_KEY`** (Apollo → Settings → Integrations → API → new key).
 Neither is required; the Data sources strip on the search screen shows which are live.
 
+**GOTCHA — a silent hang that looked like a stuck run (hit live 2026-08-11, FIXED same day).** The
+UI's `api()` helper throws on `{ok:false}`, and the poll's `catch` swallowed everything as "transient",
+so a PERSISTENT error (most likely: the Supabase migration was never run) polled forever behind the
+local "Starting the search…" text — which is the UI's own initial state, not something the server sent,
+so it looked like a working run rather than a failure. Three fixes: (1) a **preflight** `action=facets`
+call before the background function is even invoked, so a missing table is caught in a second instead of
+after minutes of API spend; (2) the poll now counts consecutive failures, surfaces the setup message
+immediately when the error text names a missing relation, and gives up after 3 strikes; (3) `status:
+"unknown"` for >40s (the row was never written) now reports "the search never started" instead of
+spinning. The background function also checks the initial `scout_runs` upsert error and returns 500
+rather than researching businesses it can never save. **Lesson: never let a catch-all swallow a poll
+error — a persistent failure and a slow success look identical from the outside.**
+
+**GOTCHA — comma in the area chip input (hit live 2026-08-11, FIXED same day).** Comma was a commit key
+alongside Enter, which made the natural "Gilbert, AZ" physically untypeable — it fired on the comma and
+left you adding " AZ" as a second chip. **Enter is now the only commit key.** Regression-tested by
+typing the string character-by-character and asserting one chip.
+
 **Gotchas:**
 - Must be a **background** function — a run takes 2-6 minutes.
 - `web_search_20260209` needs no beta header on `claude-opus-5`; do NOT also declare `code_execution`

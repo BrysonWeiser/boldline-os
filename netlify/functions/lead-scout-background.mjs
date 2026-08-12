@@ -476,12 +476,18 @@ export default async (req) => {
     },
   };
 
-  await supabase.from("scout_runs").upsert({
+  // Fail fast if the tables aren't there. Without this check the run would go on to
+  // spend several minutes of API budget researching businesses it can never save.
+  const { error: initErr } = await supabase.from("scout_runs").upsert({
     id, status: "running", niche: input.niche, niche_group: input.nicheGroup,
     areas: input.areas, options: { count: input.count, filters: input.filters, nicheKind: input.nicheKind, notes: input.notes },
     progress: { stage: "starting", message: "Starting the search…" },
     result: null, error: null, updated_at: new Date().toISOString(),
   });
+  if (initErr) {
+    console.error("lead-scout could not write scout_runs:", initErr.message);
+    return json({ ok: false, error: initErr.message }, 500);
+  }
 
   try {
     const result = await doRun(supabase, id, input);
