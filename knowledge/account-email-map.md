@@ -33,3 +33,14 @@ verified: 2026-07-08
 - `lleatherboy@gmail.com` is NOT one of Bryson's logins anywhere (a mistaken Meta invite went there 2026-07-07).
 - One legal entity = one bank account, always — future LLCs get their own accounts/orgs under the same Mercury login, never shared funds.
 - When any new external account is created, add it here immediately.
+
+**Apollo.io** (Lead Scout owner/decision-maker enrichment) — signed up 2026-08-11 with **Sign in with
+Google** on the BUSINESS gmail (theboldlinemedia). No separate password; log in via Google SSO. API key
+lives only in Netlify env `APOLLO_API_KEY` on the OS site. See `lead-scout`.
+
+**Google Cloud / Google Maps Platform** (Lead Scout Places lookups) — created 2026-08-11 on the BUSINESS
+gmail. The Places API key ended up in the auto-created project **"My First Project"**, not the
+"BoldLine OS" project that was made first — cosmetic only, the key works and billing is attached there.
+Key is restricted to Places API (New), stored only in Netlify env `GOOGLE_PLACES_API_KEY` on the OS
+site. On the free trial ($300 / 90 days from 2026-08-11) — **not** activated to full pay-as-you-go, so
+the trial expiry is a future to-do. See `lead-scout`.
