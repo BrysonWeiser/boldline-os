@@ -2180,6 +2180,11 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                   {runResult.errors.map((e,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.55,marginBottom:4,wordBreak:"break-word"}}>{e}</div>)}
                   <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Send this text to Claude — it names the exact cause.</div>
                 </div>)}
+              {!!(runResult.providerNotes&&runResult.providerNotes.length)&&(
+                <div style={{...card,marginBottom:12,border:`1px solid ${C.border}`}}>
+                  <div style={{fontSize:10,fontWeight:800,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6}}>Data providers</div>
+                  {runResult.providerNotes.map((n,i)=><div key={i} style={{fontSize:11.5,color:/fail|threw|credit|paid plan/i.test(n)?C.amber:C.textDim,lineHeight:1.55,marginBottom:3}}>{n}</div>)}
+                </div>)}
               {runResult.engine&&<div style={{fontSize:10.5,color:C.textMuted,marginBottom:10}}>Research engine: {runResult.engine}</div>}
               {newProspects.map((d,i)=>(
                 <ProspectCard key={d.name+i} p={{id:"new-"+i,name:d.name,niche:d.niche||(selected&&selected.label),score:d.score,status:"new",data:d}}/>
