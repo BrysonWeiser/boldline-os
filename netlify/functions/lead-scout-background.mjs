@@ -320,6 +320,12 @@ const doRun = async (supabase, id, input) => {
     candidates.push(cand);
   }
 
+  // "How many to find" is a promise, not a suggestion. Google Places returns up to 20
+  // per area, so without this trim a 6-count run over one area researched 16
+  // businesses — roughly 3x the time and 3x the spend Bryson asked for, and close to
+  // the 15-minute background-function ceiling.
+  if (candidates.length > count) { stats.trimmed = candidates.length - count; candidates.length = count; }
+
   if (!candidates.length) {
     return {
       prospects: [], stats, coverageNote, providers: prov, providerNotes,
@@ -367,8 +373,25 @@ const doRun = async (supabase, id, input) => {
     return rows.length ? `\n   VERIFIED FACTS (${(c.provider.sources || []).join(" + ") || "provider"}) — treat as ground truth: ${rows.join("; ")}` : "";
   };
 
-  let enrichedCount = 0;
-  const results = await pool(batches, CONCURRENCY, async (batch) => {
+  // Persist as each batch lands rather than all at once at the end. A run that hits
+  // the 15-minute ceiling used to lose everything; now the batches that finished are
+  // already in the call list.
+  const save = async (rows) => {
+    if (!rows.length) return;
+    const { error } = await supabase.from("scout_prospects").upsert(rows, { onConflict: "dedupe_key", ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
+  };
+
+  const prospects = [];
+  const errors = [];
+  let doneCount = 0, startedCount = 0;
+
+  await pool(batches, CONCURRENCY, async (batch) => {
+    // Report on batch START too — with 3 calls in flight and minutes per call, a bar
+    // that only moves on completion looks frozen.
+    startedCount += batch.length;
+    await setProgress({ stage: "enriching", message: `Researching ${Math.min(startedCount, candidates.length)} of ${candidates.length} businesses…`, found: candidates.length, enriched: doneCount, total: candidates.length });
+
     const userText = `Research these ${batch.length} businesses and return one record each, in this order:\n\n${batch
       .map((c, i) => `${i + 1}. ${c.name} — ${[c.city, c.state].filter(Boolean).join(", ")}${c.website ? ` — ${c.website}` : ""}${c.phone ? ` — ${c.phone}` : ""}\n   (found in requested area: ${c.area_match || c.city})${verifiedBlock(c)}`)
       .join("\n")}\n\nSearch the web for each one now, then call emit_prospects.`;
@@ -377,22 +400,13 @@ const doRun = async (supabase, id, input) => {
       system: enrichSystem({ niche, kind: nicheKind, leadFee, areas }),
       userText,
       tool: PROSPECT_TOOL,
-      maxUses: 6 * batch.length,
+      maxUses: 5 * batch.length,
       maxTokens: 32000,
     });
 
-    enrichedCount += batch.length;
-    await setProgress({ stage: "enriching", message: `Researching businesses… ${Math.min(enrichedCount, candidates.length)} of ${candidates.length}`, found: candidates.length, enriched: Math.min(enrichedCount, candidates.length), total: candidates.length });
-    return { batch, prospects: Array.isArray(out.prospects) ? out.prospects : [] };
-  });
-
-  const prospects = [];
-  const errors = [];
-  for (const r of results) {
-    if (!r) continue;
-    if (r.__error) { errors.push(r.__error); continue; }
-    r.prospects.forEach((raw, i) => {
-      const fallback = r.batch[i] || {};
+    const rows = [];
+    (Array.isArray(out.prospects) ? out.prospects : []).forEach((raw, i) => {
+      const fallback = batch[i] || {};
       const fp = fallback.provider || { phones: [], emails: [], sources: [], verified: {} };
       const p = sanitize(
         { ...raw, name: clean(raw.name) || fallback.name, city: clean(raw.city) || fallback.city },
@@ -404,30 +418,22 @@ const doRun = async (supabase, id, input) => {
       if (!key || knownKeys.has(key)) { stats.duplicates++; return; }
       knownKeys.add(key);
       prospects.push({ key, data: p });
+      rows.push({
+        run_id: id, dedupe_key: key, name: p.name, domain: p.website || null, niche,
+        area: p.area_match || [p.city, p.state].filter(Boolean).join(", "),
+        score: p.score, tier: p.tier, status: "new", data: p, updated_at: new Date().toISOString(),
+      });
     });
-  }
+
+    // onConflict on the unique dedupe_key means a race or a re-run can never create a
+    // second copy of a business — the insert is simply skipped.
+    await save(rows);
+
+    doneCount += batch.length;
+    await setProgress({ stage: "enriching", message: `Researched ${Math.min(doneCount, candidates.length)} of ${candidates.length} — ${prospects.length} saved so far…`, found: candidates.length, enriched: Math.min(doneCount, candidates.length), total: candidates.length });
+  }).then((rs) => (rs || []).forEach((r) => { if (r && r.__error) errors.push(r.__error); }));
 
   prospects.sort((a, b) => b.data.score - a.data.score);
-
-  // Persist. onConflict on the unique dedupe_key means a race or a re-run can never
-  // create a second copy of a business — the insert is simply skipped.
-  if (prospects.length) {
-    const rows = prospects.map((p) => ({
-      run_id: id,
-      dedupe_key: p.key,
-      name: p.data.name,
-      domain: p.data.website || null,
-      niche,
-      area: p.data.area_match || [p.data.city, p.data.state].filter(Boolean).join(", "),
-      score: p.data.score,
-      tier: p.data.tier,
-      status: "new",
-      data: p.data,
-      updated_at: new Date().toISOString(),
-    }));
-    const { error } = await supabase.from("scout_prospects").upsert(rows, { onConflict: "dedupe_key", ignoreDuplicates: true });
-    if (error) throw new Error(error.message);
-  }
 
   return {
     prospects: prospects.map((p) => p.data),
@@ -435,7 +441,7 @@ const doRun = async (supabase, id, input) => {
     coverageNote, providers: prov, providerNotes,
     errors: errors.slice(0, 3),
     message: prospects.length
-      ? `${prospects.length} new prospect${prospects.length === 1 ? "" : "s"} added to your list.`
+      ? `${prospects.length} new prospect${prospects.length === 1 ? "" : "s"} added to your list.${stats.trimmed ? ` (${stats.trimmed} more were found — raise "how many to find" to research them too.)` : ""}`
       : "Everything found was either a duplicate or outside your areas.",
   };
 };
