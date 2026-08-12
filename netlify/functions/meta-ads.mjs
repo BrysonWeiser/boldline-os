@@ -209,7 +209,9 @@ function leadsFromActions(actions) {
     .reduce((s, a) => s + Number(a.value || 0), 0);
 }
 
-async function getCampaigns(adAccountId) {
+// Exported so the scheduled ads-sync job can read performance without going back
+// out over HTTP (and without needing an owner session). Same call, same shape.
+export async function getCampaigns(adAccountId) {
   const a = acct(adAccountId);
   const camps = await graph("campaigns", `${a}/campaigns`, {
     params: {

@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 87 task-keyed entries under `knowledge/`. They surface automatically via the
+> 88 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**87 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**88 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -213,6 +213,9 @@
 
 ## OS app
 
+- **[ads-sync](../knowledge/ads-sync.md)** &mdash; &#9989; verified &middot; 2026-08-12  
+  `netlify/functions/ads-sync.mjs` runs every 6 hours, reads live campaigns + last-30-day metrics from Google Ads and Meta for EVERY client with a linked ad account (the internal My Ads house account included, unlike alerts-watch), stores a snapshot at `client.data.adPerf`, and fires transition-only owner alerts — RED when an account paces over its monthly ad budget, YELLOW the first time a linked account stops reading at all. Read-only; never writes a campaign. Built 2026-08-12 for two reasons at once: it is the live-spend feed `alerts-watch.mjs:16` had a standing TODO for, AND it is the continuous Ads API traffic Meta requires before granting Marketing API standard access (see `meta-marketing-api`). 44-case harness, all passing.  
+  <sub>*task:* the scheduled job that pulls live ad spend from Google + Meta, alerts on over-budget pacing, and keeps continuous Ads API traffic flowing &nbsp;|&nbsp; *keywords:* ads-sync, scheduled function, live spend, budget pacing, over budget, adPerf, adSyncState, ad api traffic, marketing api tier, dead token alert, netlify schedule, stub-tree test harness</sub>
 - **[billing-automation](../knowledge/billing-automation.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Contract-enforcement automation — BUILT 2026-07-16. (1) Fee adjust/waive UI on the BillingCard (billingMonthly/billingSetup overrides flow into contract doc + checkout; setup $0 = "Waived" on the contract). (2) getAlerts now raises red/yellow billing alerts (past_due, interest accruing, checkout unpaid, ETF owed). (3) billing-watch.mjs (daily 14:30 UTC Netlify schedule) syncs unpaid invoices from Stripe, stores billingLate{days,amountDue,interest} on the client, accrues 1.5%/mo interest pro-rated daily AFTER a 10-day grace as ONE pending Stripe invoice item (auto-rides the next monthly invoice), and emails OWNER_EMAIL on transitions (newly late / interest started / recovered). (4) Early-termination panel on the Contract tab auto-computes ETF = 1 month fee + term-discount clawback and can bill it via new stripe-billing action charge-etf (standalone auto-charge invoice + cancel_at_period_end). No new env vars needed. TEST-MODE E2E VERIFIED 2026-07-16 (waiver + discount + checkout-skip + ETF auto-charge all green on the third round; late-watch Part B confirmed next morning).  
   <sub>*task:* change how billing enforcement works — fee waivers/discounts, late-payment tracking, late interest, or early-termination billing &nbsp;|&nbsp; *keywords:* billing-watch.mjs, charge-etf, billingLate, billingSetup, waive setup fee, discount, late interest, 1.5%, past_due, early termination fee, ETF, invoice item, getAlerts billing, Adjust Fees</sub>

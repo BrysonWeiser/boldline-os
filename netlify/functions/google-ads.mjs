@@ -61,7 +61,7 @@ function apiErrMsg(stage, status, data) {
 }
 
 // ── OAuth: refresh token -> access token ──────────────────────────────────────
-async function getAccessToken() {
+export async function getAccessToken() {
   const resp = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -110,7 +110,9 @@ async function listAccessibleCustomers(accessToken) {
 }
 
 // ── GAQL read: campaigns + last-30-day metrics ────────────────────────────────
-async function getCampaigns(accessToken, customerId) {
+// Exported (with getAccessToken above) so the scheduled ads-sync job can read
+// performance directly instead of re-entering this function over HTTP.
+export async function getCampaigns(accessToken, customerId) {
   const query = `SELECT campaign.id, campaign.name, campaign.status,
       campaign.resource_name, campaign_budget.resource_name,
       campaign_budget.amount_micros, metrics.impressions, metrics.clicks,
