@@ -143,6 +143,28 @@ asymmetry as everywhere else.
 Unit-tested against synthetic HTML for both platforms, GTM-only (must stay `unknown`), a bare page, and
 an unreachable site.
 
+**APOLLO IS A DEAD END ON THE FREE PLAN (live-tested 2026-08-11).** Key created, master key enabled,
+green tick showing — and every people lookup 403s:
+`"The api/v1/mixed_people/search API is not included in your Free plan and is not accessible, even with
+a master key. All paid plans include full API access."` So on Free, Apollo contributes **no owner names,
+no emails, no direct dials** — the entire reason it was wired in. Handled gracefully: the 403 is detected
+once (`apolloBlocked.people`), the endpoint is skipped for the rest of the run instead of paying latency
+on it per prospect, and the run reports one plain line explaining owner details are coming from AI
+research instead.
+
+**RECOMMENDATION (mine, 2026-08-11): do NOT pay for Apollo for this use case.** Apollo is built on B2B /
+tech data and its coverage of a 2-6 person Gilbert roofing LLC is thin. Meanwhile the AI research path is
+already producing owner names from the *correct* source for local trades — **state business registries**
+(it found "Trevor Hebb · Owner / Member" and "Kevin Lewis · Owner (brother Kenneth listed as Member)"
+straight off AZ Corporation Commission filings). Paying ~$50-60/mo would mostly duplicate that for a
+market segment Apollo covers badly. The one thing Apollo would uniquely add is direct-dial mobiles, and
+for a three-truck LLC it probably doesn't have those either. **The enrichment prompt was therefore
+strengthened to put the state Secretary of State / Corporation Commission entity search FIRST**, ahead of
+About pages and LinkedIn, plus licensing boards (contractor/medical/legal boards publish licence-holder
+names) — i.e. invest in the path that is demonstrably working rather than the paid one that isn't.
+Leaving `APOLLO_API_KEY` set is harmless (org enrichment may still return headcount/revenue); remove it
+if the noise annoys.
+
 **Contact block (Bryson: "I also want a section where I get the businesses number as well").** `phones`
 and `emails` are arrays of records — `{number, kind: main|direct|mobile|secondary|toll_free, whose:
 business|owner, label, source, confidence}` — replacing the old single phone/email fields. The card
