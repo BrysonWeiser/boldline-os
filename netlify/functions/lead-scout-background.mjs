@@ -231,6 +231,7 @@ const sanitize = (p, ctx) => {
     metaAds: adsState(p.meta_ads, verified.adTech && verified.adTech.metaAds),
     adsEvidence: [clean(p.ads_evidence), (verified.adTech && verified.adTech.reachable && verified.adTech.evidence.length) ? `Site tags: ${verified.adTech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
     adLibraryUrl: verified.adLibraryUrl || "",
+    adTechNote: (verified.adTech && verified.adTech.note) || "",
     seoNote: clean(p.seo_note),
     websiteQuality: ["none", "poor", "dated", "decent", "strong", "unknown"].includes(String(p.website_quality)) ? String(p.website_quality) : "unknown",
     services: list(p.services, 6),

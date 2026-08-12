@@ -1662,6 +1662,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const [openId,setOpenId]=useState(null);
   const [providers,setProviders]=useState(null);
   const [elapsed,setElapsed]=useState(0);
+  const [recheck,setRecheck]=useState("");
   const pollRef=useRef(null);
   const tickRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); if(tickRef.current) clearInterval(tickRef.current); },[]);
@@ -1771,6 +1772,16 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
       (d.gaps&&d.gaps.length)?`Gaps found: ${d.gaps.join("; ")}`:"" ].filter(Boolean).join("\n");
     onDealPrep({companyName:d.name,niche:d.niche||fallbackNiche||"",website:d.websiteRaw||d.website||"",
       location:[d.city,d.state].filter(Boolean).join(", "),notes:known});
+  };
+
+  // Free backfill: re-reads saved prospects' websites for ad tags. No AI involved.
+  const recheckAds=async()=>{
+    setRecheck("working"); setMsg("");
+    try{ const r=await api("action=recheck-ads",{method:"POST"});
+      setMsg(`Ad check done — ${r.checked} sites read, ${r.found} showing advertising tags.`);
+      await loadList(); }
+    catch(e){ setMsg("Ad re-check failed: "+((e&&e.message)||e)); }
+    setRecheck("");
   };
 
   const exportCSV=()=>{
@@ -1974,6 +1985,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{d.gaps.map((x,i)=>
                   <span key={i} style={{fontSize:11,color:C.textDim,border:`1px solid ${C.border}`,background:C.bg3,borderRadius:7,padding:"4px 8px"}}>{x}</span>)}</div></div>)}
             {d.adsEvidence&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Ad evidence:</b> {d.adsEvidence}</div>}
+            {d.adTechNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Ad-tag check:</b> {d.adTechNote}</div>}
             {d.seoNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Search presence:</b> {d.seoNote}</div>}
             {d.ownerSource&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Owner info from:</b> {d.ownerSource}</div>}
             {d.dataNotes&&<div style={{fontSize:11,color:C.amber,lineHeight:1.5}}><b>Verify before quoting:</b> {d.dataNotes}</div>}
@@ -2215,6 +2227,8 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               <span style={{fontSize:10.5,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em"}}>Min score</span>
               {[0,42,62,80].map(v=><button key={v} onClick={()=>setLf(f=>({...f,minScore:v}))} style={chipBtn(lf.minScore===v)}>{v===0?"Any":v+"+"}</button>)}
               <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+                <button onClick={recheckAds} disabled={recheck==="working"} title="Re-reads every saved prospect's website for Google/Meta ad tracking tags. Free — no AI, no credits."
+                  style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:recheck==="working"?C.textMuted:C.textDim,cursor:recheck==="working"?"default":"pointer"}}>{recheck==="working"?"Checking…":"Re-check ads"}</button>
                 <button onClick={loadList} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Refresh</button>
                 <button onClick={exportCSV} disabled={!list.length} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:list.length?C.textDim:C.textMuted,cursor:list.length?"pointer":"default"}}>Export CSV</button>
               </div>

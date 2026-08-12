@@ -210,32 +210,58 @@ export const inspectAdTech = async (website) => {
   if (!raw || /^(none|unknown)$/i.test(raw)) return null;
   const url = /^https?:\/\//i.test(raw) ? raw : "https://" + raw;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10000);
-  let html = "";
-  try {
-    const res = await fetch(url, {
-      redirect: "follow", signal: ctrl.signal,
-      headers: { "user-agent": "Mozilla/5.0 (compatible; BoldLineScout/1.0; +https://boldlinemedia.com)" },
-    });
-    if (!res.ok) return { reachable: false, note: `site returned HTTP ${res.status}` };
-    html = (await res.text()).slice(0, 400000);
-  } catch (e) {
-    return { reachable: false, note: String((e && e.name) === "AbortError" ? "site timed out" : "site unreachable") };
-  } finally { clearTimeout(timer); }
+  // A custom bot user-agent gets refused by Cloudflare and most small-business WAFs,
+  // which silently turned every ad-tech read into "unknown". Present as a real
+  // browser — we are only reading a public homepage, exactly as a visitor would.
+  const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+  const get = async (target) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(target, {
+        redirect: "follow", signal: ctrl.signal,
+        headers: {
+          "user-agent": BROWSER_UA,
+          accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "accept-language": "en-US,en;q=0.9",
+        },
+      });
+      if (!res.ok) return { ok: false, note: `HTTP ${res.status}` };
+      return { ok: true, html: (await res.text()).slice(0, 500000) };
+    } catch (e) {
+      return { ok: false, note: String((e && e.name) === "AbortError" ? "timed out" : (e && e.message) || "unreachable") };
+    } finally { clearTimeout(timer); }
+  };
+
+  let r = await get(url);
+  // Some hosts only answer on the www host (or only on the bare one).
+  if (!r.ok) {
+    const alt = /^https:\/\/www\./i.test(url) ? url.replace(/^https:\/\/www\./i, "https://") : url.replace(/^https:\/\//i, "https://www.");
+    if (alt !== url) { const r2 = await get(alt); if (r2.ok) r = r2; }
+  }
+  if (!r.ok) return { reachable: false, note: `couldn't read their site (${r.note})`, googleAds: "unknown", metaAds: "unknown", evidence: [] };
+  const html = r.html;
 
   const hits = SIGNALS.filter((s) => s.re.test(html));
   const google = hits.filter((h) => h.platform === "google").map((h) => h.note);
   const meta = hits.filter((h) => h.platform === "meta").map((h) => h.note);
   const other = OTHER.filter((o) => o.re.test(html)).map((o) => o.note);
 
+  const gtmOnly = !google.length && !meta.length && other.some((o) => /Tag Manager/.test(o));
   return {
     reachable: true,
     // "likely", never "yes" — a tag proves the plumbing, not a live campaign today.
     googleAds: google.length ? "likely" : "unknown",
     metaAds: meta.length ? "likely" : "unknown",
     evidence: [...google, ...meta, ...other],
-    gtmOnly: !google.length && !meta.length && other.some((o) => /Tag Manager/.test(o)),
+    gtmOnly,
+    // Always say what the check concluded, so an "unknown" is explained rather than
+    // just absent — the third time in this feature that a silent nothing wasted an hour.
+    note: hits.length
+      ? `Read their homepage: ${[...google, ...meta].join("; ")}`
+      : gtmOnly
+        ? "Read their homepage: only Google Tag Manager, which hides whatever it loads — ad tags can't be confirmed either way from the source."
+        : "Read their homepage: no advertising tags in the page source (they may still advertise — tags are often injected at runtime).",
   };
 };
 
