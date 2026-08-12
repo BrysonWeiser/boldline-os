@@ -12,6 +12,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { providerStatus } from "../lib/scout-providers.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -31,6 +32,10 @@ export default async (req) => {
   const url = new URL(req.url);
   const action = url.searchParams.get("action") || "prospects";
   const id = url.searchParams.get("id") || "";
+
+  // Which real-data providers are wired up, so the UI can say what it's working with
+  // (and what Bryson is missing) before he spends a run finding out.
+  if (action === "providers") return json({ ok: true, providers: providerStatus() });
 
   // ── Poll one run ───────────────────────────────────────────────────────────
   if (action === "run") {

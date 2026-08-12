@@ -22,8 +22,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import {
   CANDIDATE_TOOL, PROSPECT_TOOL, discoverySystem, enrichSystem,
-  normName, normDomain, dedupeKeyFor, areaMatches, tierFor, getNicheLeadFee,
+  normName, normDomain, dedupeKeyFor, areaMatches, tierFor, getNicheLeadFee, PACKAGES,
 } from "../lib/scout-shared.mjs";
+import { assessAffordability, buildScore } from "../lib/scout-scoring.mjs";
+import { providerStatus, placesSearch, enrichFromProviders } from "../lib/scout-providers.mjs";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-opus-5";
@@ -85,44 +87,106 @@ const clean = (v) => { const s = String(v == null ? "" : v).trim(); return BLANK
 const digits = (v) => String(v || "").replace(/\D/g, "");
 const list = (v, n) => (Array.isArray(v) ? v.map(clean).filter(Boolean).slice(0, n) : []);
 
-const sanitize = (p) => {
-  const phone = clean(p.phone);
-  let ownerPhone = clean(p.owner_phone);
-  // A "direct owner line" identical to the switchboard is not a direct owner line.
-  if (ownerPhone && digits(ownerPhone) === digits(phone)) ownerPhone = "";
+// Last 10 digits — the comparison key for "is this the same number".
+const phoneKey = (v) => { const d = digits(v); return d.length > 10 ? d.slice(-10) : d; };
 
-  const rating = clean(p.rating);
-  const ratingNum = Number(rating);
-  const validRating = rating && !Number.isNaN(ratingNum) && ratingNum > 0 && ratingNum <= 5 ? String(ratingNum) : "";
+// Verified provider records are added FIRST so they own the slot; the model's
+// findings only fill numbers the providers didn't already supply.
+const mergeContacts = (providerRows, aiRows, keyOf, cap) => {
+  const out = [], seen = new Set();
+  const add = (r) => {
+    const k = keyOf(r);
+    if (!k || seen.has(k)) return;
+    seen.add(k); out.push(r);
+  };
+  providerRows.forEach(add); aiRows.forEach(add);
+  return out.slice(0, cap);
+};
 
-  const score = Math.max(0, Math.min(100, Math.round(Number(p.score) || 0)));
+const sanitize = (p, ctx) => {
+  const { verified = {}, providerPhones = [], providerEmails = [], nicheGroup = "", kind = "service", providerSources = [] } = ctx || {};
   const tri = (v) => (["yes", "no", "unknown"].includes(String(v)) ? String(v) : "unknown");
+  const conf = (v) => (["high", "medium", "low"].includes(String(v)) ? String(v) : "medium");
+
+  // ── Contact block ────────────────────────────────────────────────────────
+  const aiPhones = (Array.isArray(p.phones) ? p.phones : []).map((x) => ({
+    number: clean(x && x.number),
+    kind: ["main", "direct", "mobile", "secondary", "toll_free", "unknown"].includes(String(x && x.kind)) ? String(x.kind) : "unknown",
+    whose: ["business", "owner", "unknown"].includes(String(x && x.whose)) ? String(x.whose) : "unknown",
+    label: clean(x && x.label),
+    source: clean(x && x.source) || "AI research",
+    confidence: conf(x && x.confidence),
+  })).filter((x) => phoneKey(x.number).length >= 7);
+
+  const aiEmails = (Array.isArray(p.emails) ? p.emails : []).map((x) => ({
+    address: clean(x && x.address).toLowerCase(),
+    whose: ["business", "owner", "unknown"].includes(String(x && x.whose)) ? String(x.whose) : "unknown",
+    source: clean(x && x.source) || "AI research",
+    confidence: conf(x && x.confidence),
+  })).filter((x) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(x.address));
+
+  const phones = mergeContacts(
+    providerPhones.map((x) => ({ ...x, label: x.label || (x.whose === "owner" ? "owner" : "main office") })),
+    aiPhones, (r) => phoneKey(r.number), 6);
+  const emails = mergeContacts(providerEmails, aiEmails, (r) => r.address, 4);
+
+  // The primary business line is what Bryson dials first, so it gets its own field.
+  const businessPhone = (phones.find((x) => x.whose === "business" && x.kind === "main")
+    || phones.find((x) => x.whose === "business")
+    || phones.find((x) => x.whose === "unknown") || null);
+  const bizKey = businessPhone ? phoneKey(businessPhone.number) : "";
+  // A "direct owner line" identical to the switchboard is not a direct owner line —
+  // this is the single most common way a record gets padded to look complete.
+  const ownerPhoneRow = phones.find((x) => x.whose === "owner" && phoneKey(x.number) !== bizKey) || null;
+  const businessEmail = emails.find((x) => x.whose === "business") || emails.find((x) => x.whose === "unknown") || null;
+  const ownerEmailRow = emails.find((x) => x.whose === "owner") || null;
+
+  // ── Verified provider values override the model everywhere they exist ────
+  const pick = (v, ai) => (v !== undefined && v !== null && v !== "" ? v : ai);
+  const ratingRaw = pick(verified.rating, clean(p.rating));
+  const ratingNum = Number(ratingRaw);
+  const rating = ratingRaw && !Number.isNaN(ratingNum) && ratingNum > 0 && ratingNum <= 5 ? String(ratingNum) : "";
+  const employeesEstimate = Math.max(0, Math.round(Number(pick(verified.employeesEstimate, p.employees_estimate)) || 0));
+  const revenueEstimate = pick(verified.revenueEstimate, clean(p.revenue_estimate));
+  const websiteRaw = pick(verified.website, clean(p.website));
 
   const out = {
     name: clean(p.name),
     dba: clean(p.dba),
-    city: clean(p.city),
-    state: clean(p.state),
-    postal: clean(p.postal),
-    address: clean(p.address),
+    city: pick(verified.city, clean(p.city)),
+    state: pick(verified.state, clean(p.state)),
+    postal: pick(verified.postal, clean(p.postal)),
+    address: pick(verified.address, clean(p.address)),
     area_match: clean(p.area_match),
-    website: normDomain(p.website),
-    websiteRaw: clean(p.website),
-    phone,
-    email: clean(p.email),
-    ownerName: clean(p.owner_name),
-    ownerTitle: clean(p.owner_title),
-    ownerPhone,
-    ownerEmail: clean(p.owner_email),
-    ownerSource: clean(p.owner_source),
+    website: normDomain(websiteRaw),
+    websiteRaw,
+    mapsUrl: verified.mapsUrl || "",
+
+    phones, emails,
+    phone: businessPhone ? businessPhone.number : "",
+    phoneLabel: businessPhone ? businessPhone.label : "",
+    phoneSource: businessPhone ? businessPhone.source : "",
+    ownerPhone: ownerPhoneRow ? ownerPhoneRow.number : "",
+    ownerPhoneKind: ownerPhoneRow ? ownerPhoneRow.kind : "",
+    ownerPhoneSource: ownerPhoneRow ? ownerPhoneRow.source : "",
+    email: businessEmail ? businessEmail.address : "",
+    ownerEmail: ownerEmailRow ? ownerEmailRow.address : "",
+
+    ownerName: pick(verified.ownerName, clean(p.owner_name)),
+    ownerTitle: pick(verified.ownerTitle, clean(p.owner_title)),
+    ownerLinkedin: verified.ownerLinkedin || "",
+    companyLinkedin: verified.companyLinkedin || "",
+    ownerSource: verified.ownerName ? "Apollo" : clean(p.owner_source),
     contactConfidence: ["high", "medium", "low", "none"].includes(String(p.contact_confidence)) ? String(p.contact_confidence) : "none",
-    employees: clean(p.employees),
-    employeesEstimate: Math.max(0, Math.round(Number(p.employees_estimate) || 0)),
-    yearsInBusiness: clean(p.years_in_business),
-    revenueEstimate: clean(p.revenue_estimate),
-    rating: validRating,
-    reviewCount: Math.max(0, Math.round(Number(p.review_count) || 0)),
-    reviewSource: validRating ? clean(p.review_source) : "",
+
+    employees: clean(p.employees) || (employeesEstimate ? String(employeesEstimate) : ""),
+    employeesEstimate,
+    yearsInBusiness: clean(p.years_in_business) || (verified.founded ? `since ${verified.founded}` : ""),
+    revenueEstimate,
+    rating,
+    reviewCount: Math.max(0, Math.round(Number(pick(verified.reviewCount, p.review_count)) || 0)),
+    reviewSource: rating ? (verified.rating ? "Google" : clean(p.review_source)) : "",
+
     googleAds: tri(p.google_ads),
     metaAds: tri(p.meta_ads),
     adsEvidence: clean(p.ads_evidence),
@@ -130,8 +194,7 @@ const sanitize = (p) => {
     websiteQuality: ["none", "poor", "dated", "decent", "strong", "unknown"].includes(String(p.website_quality)) ? String(p.website_quality) : "unknown",
     services: list(p.services, 6),
     gaps: list(p.gaps, 4),
-    score,
-    tier: tierFor(score).id,
+
     verdict: clean(p.verdict),
     whyContact: list(p.why_contact, 4),
     whyNot: list(p.why_not, 3),
@@ -139,10 +202,32 @@ const sanitize = (p) => {
     recommendedPackageId: clean(p.recommended_package_id).toLowerCase(),
     dataNotes: clean(p.data_notes),
     sources: list(p.sources, 6),
+    verifiedBy: providerSources,
   };
 
-  // How much of the "need to know" set actually came back verified — shown in the UI
-  // so a thin record is visibly thin instead of quietly looking complete.
+  // ── The money math + the score, computed here rather than guessed ────────
+  const aff = assessAffordability({ employeesEstimate: out.employeesEstimate, revenueEstimate: out.revenueEstimate, nicheGroup, kind });
+  const scored = buildScore(p.score_factors, aff);
+  out.affordability = aff;
+  out.scoreFactors = scored.factors;
+  out.scoreSubtotal = scored.subtotal;
+  out.scoreCappedFrom = scored.cappedFrom;
+  out.capReason = scored.capReason;
+  out.score = scored.score;
+  out.tier = tierFor(scored.score).id;
+
+  // Never let him pitch above what the math says they can carry.
+  if (aff.known && aff.affordableId && out.recommendedPackageId) {
+    const rec = PACKAGES.find((x) => x.id === out.recommendedPackageId);
+    const afford = PACKAGES.find((x) => x.id === aff.affordableId);
+    if (rec && afford && rec.price > afford.price) {
+      out.packageDowngradedFrom = rec.id;
+      out.recommendedPackageId = afford.id;
+    }
+  }
+
+  // How much of the "need to know" set actually came back — shown in the UI so a thin
+  // record looks thin instead of quietly looking complete.
   const wanted = [out.ownerName, out.phone, out.website, out.employees, out.rating,
     out.googleAds !== "unknown" ? "y" : "", out.yearsInBusiness, out.ownerPhone || out.ownerEmail || out.email];
   out.completeness = Math.round((wanted.filter(Boolean).length / wanted.length) * 100);
@@ -182,17 +267,38 @@ const doRun = async (supabase, id, input) => {
     .map((r) => (r.city ? `${r.name} (${r.city})` : r.name));
 
   // ── Phase 1: discovery ─────────────────────────────────────────────────────
-  await setProgress({ stage: "searching", message: `Searching for ${niche} businesses…`, found: 0, enriched: 0, total: 0 });
+  const prov = providerStatus();
+  const providerNotes = [];
+  await setProgress({ stage: "searching", message: prov.places ? `Pulling ${niche} businesses from Google Places…` : `Searching for ${niche} businesses…`, found: 0, enriched: 0, total: 0 });
 
-  const discovery = await runToolCall({
-    system: discoverySystem({ niche, nicheGroup, kind: nicheKind, areas, count, exclude: excludeNames, filters }),
-    userText: `Find up to ${count} ${niche} businesses${(areas || []).length ? ` in: ${areas.join(" | ")}` : " (online brands, any location)"}.${notes ? `\n\nExtra context from Bryson: ${notes}` : ""}\n\nSearch the web now, then call emit_candidates.`,
-    tool: CANDIDATE_TOOL,
-    maxUses: 14,
-    maxTokens: 20000,
-  });
+  let rawCandidates = [];
+  let coverageNote = "";
 
-  const rawCandidates = Array.isArray(discovery.candidates) ? discovery.candidates : [];
+  // Google Places first when it's configured: it returns real addresses and real
+  // phone numbers, which makes both the area filter and the main business line
+  // authoritative instead of a model's best guess.
+  if (prov.places && (areas || []).length) {
+    for (const area of areas) {
+      const res = await placesSearch({ niche, area, maxResults: 20 });
+      if (!res.ok) { if (!res.off) providerNotes.push(`Google Places failed for ${area}: ${res.error}`); continue; }
+      res.results.forEach((r) => rawCandidates.push({ ...r, area_match: area, evidence: `Google Places listing (${r.category || niche})` }));
+    }
+    if (rawCandidates.length) coverageNote = `${rawCandidates.length} businesses pulled from Google Places across ${areas.length} area${areas.length === 1 ? "" : "s"}.`;
+  }
+
+  // AI discovery fills in when Places is off, can't be used (online brands have no
+  // storefront to find), or came back thin.
+  if (rawCandidates.length < count) {
+    await setProgress({ stage: "searching", message: `Searching the web for more ${niche} businesses…`, found: rawCandidates.length, enriched: 0, total: 0 });
+    const already = rawCandidates.map((c) => `${c.name} (${c.city})`);
+    const discovery = await runToolCall({
+      system: discoverySystem({ niche, nicheGroup, kind: nicheKind, areas, count: count - rawCandidates.length, exclude: excludeNames.concat(already), filters }),
+      userText: `Find up to ${count - rawCandidates.length} ${niche} businesses${(areas || []).length ? ` in: ${areas.join(" | ")}` : " (online brands, any location)"}.${notes ? `\n\nExtra context from Bryson: ${notes}` : ""}\n\nSearch the web now, then call emit_candidates.`,
+      tool: CANDIDATE_TOOL, maxUses: 14, maxTokens: 20000,
+    });
+    (Array.isArray(discovery.candidates) ? discovery.candidates : []).forEach((c) => rawCandidates.push(c));
+    coverageNote = [coverageNote, clean(discovery.coverage_note)].filter(Boolean).join(" ");
+  }
 
   // Dedupe + strict area enforcement happen HERE, in code, before we spend money
   // enriching anything.
@@ -202,7 +308,9 @@ const doRun = async (supabase, id, input) => {
   for (const c of rawCandidates) {
     const name = clean(c.name);
     if (!name) continue;
-    const cand = { name, city: clean(c.city), state: clean(c.state), area_match: clean(c.area_match), website: clean(c.website), phone: clean(c.phone) };
+    const cand = { name, city: clean(c.city), state: clean(c.state), postal: clean(c.postal), address: clean(c.address),
+      area_match: clean(c.area_match), website: clean(c.website), phone: clean(c.phone),
+      placeId: c.placeId || "", rating: c.rating || "", reviewCount: c.reviewCount || 0, mapsUrl: c.mapsUrl || "", source: c.source || "" };
     if (!areaMatches(cand, areas)) { stats.outOfArea++; continue; }
     const key = dedupeKeyFor(cand);
     const domain = normDomain(cand.website);
@@ -214,24 +322,55 @@ const doRun = async (supabase, id, input) => {
 
   if (!candidates.length) {
     return {
-      prospects: [], stats,
-      coverageNote: clean(discovery.coverage_note),
+      prospects: [], stats, coverageNote, providers: prov, providerNotes,
       message: stats.found
         ? `Found ${stats.found} businesses but none were new and inside your areas (${stats.duplicates} already on your list, ${stats.outOfArea} outside the areas). Try different areas or a wider niche.`
         : "No businesses matched. Try a broader niche or a larger area.",
     };
   }
 
-  // ── Phase 2: enrichment, in small batches ──────────────────────────────────
+  // ── Phase 1.5: verified provider data ──────────────────────────────────────
+  // Apollo gives the decision-maker + headcount + revenue; Places already gave the
+  // real phone and address. This runs BEFORE the AI so the model is handed facts to
+  // build on instead of numbers to guess at.
+  if (prov.places || prov.apollo) {
+    await setProgress({ stage: "enriching", message: `Pulling verified contact data for ${candidates.length} businesses…`, found: candidates.length, enriched: 0, total: candidates.length });
+    const enrichments = await pool(candidates, 4, (c) => enrichFromProviders(c));
+    candidates.forEach((c, i) => {
+      const e = enrichments[i];
+      c.provider = (e && !e.__error) ? e : { phones: [], emails: [], sources: [], verified: {} };
+    });
+  } else {
+    candidates.forEach((c) => { c.provider = { phones: [], emails: [], sources: [], verified: {} }; });
+  }
+
+  // ── Phase 2: AI enrichment, in small batches ───────────────────────────────
   const batches = [];
   for (let i = 0; i < candidates.length; i += BATCH_SIZE) batches.push(candidates.slice(i, i + BATCH_SIZE));
 
   await setProgress({ stage: "enriching", message: `Found ${candidates.length} new businesses — researching each one…`, found: candidates.length, enriched: 0, total: candidates.length });
 
+  // What the providers already proved, handed to the model as ground truth.
+  const verifiedBlock = (c) => {
+    const v = (c.provider && c.provider.verified) || {};
+    const rows = [
+      c.phone ? `main phone ${c.phone}` : "",
+      v.address ? `address ${v.address}` : "",
+      v.ownerName ? `owner ${v.ownerName}${v.ownerTitle ? `, ${v.ownerTitle}` : ""}` : "",
+      v.employeesEstimate ? `~${v.employeesEstimate} employees` : "",
+      v.revenueEstimate ? `revenue ${v.revenueEstimate}` : "",
+      v.rating ? `${v.rating}★ from ${v.reviewCount || "?"} reviews` : "",
+      v.founded ? `founded ${v.founded}` : "",
+      (c.provider.phones || []).filter((p) => p.whose === "owner").map((p) => `owner ${p.kind} ${p.number}`).join(", "),
+      (c.provider.emails || []).map((e) => `${e.whose} email ${e.address}`).join(", "),
+    ].filter(Boolean);
+    return rows.length ? `\n   VERIFIED FACTS (${(c.provider.sources || []).join(" + ") || "provider"}) — treat as ground truth: ${rows.join("; ")}` : "";
+  };
+
   let enrichedCount = 0;
   const results = await pool(batches, CONCURRENCY, async (batch) => {
     const userText = `Research these ${batch.length} businesses and return one record each, in this order:\n\n${batch
-      .map((c, i) => `${i + 1}. ${c.name} — ${[c.city, c.state].filter(Boolean).join(", ")}${c.website ? ` — ${c.website}` : ""}${c.phone ? ` — ${c.phone}` : ""}\n   (found in requested area: ${c.area_match || c.city})`)
+      .map((c, i) => `${i + 1}. ${c.name} — ${[c.city, c.state].filter(Boolean).join(", ")}${c.website ? ` — ${c.website}` : ""}${c.phone ? ` — ${c.phone}` : ""}\n   (found in requested area: ${c.area_match || c.city})${verifiedBlock(c)}`)
       .join("\n")}\n\nSearch the web for each one now, then call emit_prospects.`;
 
     const out = await runToolCall({
@@ -254,7 +393,10 @@ const doRun = async (supabase, id, input) => {
     if (r.__error) { errors.push(r.__error); continue; }
     r.prospects.forEach((raw, i) => {
       const fallback = r.batch[i] || {};
-      const p = sanitize({ ...raw, name: clean(raw.name) || fallback.name, city: clean(raw.city) || fallback.city });
+      const fp = fallback.provider || { phones: [], emails: [], sources: [], verified: {} };
+      const p = sanitize(
+        { ...raw, name: clean(raw.name) || fallback.name, city: clean(raw.city) || fallback.city },
+        { verified: fp.verified, providerPhones: fp.phones, providerEmails: fp.emails, providerSources: fp.sources, nicheGroup, kind: nicheKind });
       if (!p.name) return;
       // Re-check the area after enrichment — the deep research often corrects the city.
       if (!areaMatches({ city: p.city, state: p.state, postal: p.postal, area_match: p.area_match }, areas)) { stats.outOfArea++; return; }
@@ -290,7 +432,7 @@ const doRun = async (supabase, id, input) => {
   return {
     prospects: prospects.map((p) => p.data),
     stats: { ...stats, kept: prospects.length },
-    coverageNote: clean(discovery.coverage_note),
+    coverageNote, providers: prov, providerNotes,
     errors: errors.slice(0, 3),
     message: prospects.length
       ? `${prospects.length} new prospect${prospects.length === 1 ? "" : "s"} added to your list.`
