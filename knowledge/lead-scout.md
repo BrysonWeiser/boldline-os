@@ -171,6 +171,22 @@ ceiling keeps what finished), and progress is reported on batch **start** as wel
 elapsed clock in the UI — with 3 calls in flight and minutes per call, a bar that only moves on
 completion reads as frozen. Per-business web-search budget trimmed 6 -> 5.
 
+**GOTCHA — every AI research batch failed instantly and it looked like "found nothing" (hit live
+2026-08-11).** Symptom: a run returned in seconds with "Everything found was either a duplicate or
+outside your areas" while the stats said 20 found / 0 duplicates / 1 out of area — i.e. 19 should have
+survived. Places discovery was fine; the ENRICHMENT call was throwing immediately on every batch, the
+`errors` array captured it, and **nothing ever displayed it**. Three things in the Lead Scout call
+differ from the known-good `deal-research-background` call (`claude-opus-4-8`, no `output_config`, no
+strict tool): the model **`claude-opus-5`**, **`output_config: {effort}`**, and **`strict: true`** tool
+use — against SDK `^0.69.0`. Any of the three can be rejected outright. Rather than guess, `runToolCall`
+now walks an **ATTEMPT LADDER** — opus-5+effort+strict → opus-5 plain → **opus-4-8 fallback** — dropping
+one risky parameter per rung, sticking to the winning rung for the rest of the run, and recording it as
+`result.engine` so the cause is visible in the UI. Content-level failures (a refusal, or a finish with
+no tool call) skip the ladder, since dropping parameters cannot fix those. Errors are now rendered in a
+red "Research errors" card, and a 0-prospect run says "the research step failed" rather than blaming
+duplicates. **Lesson (second time this bit): a collected-but-never-displayed error is the same as no
+error handling at all.**
+
 **Gotchas:**
 - Must be a **background** function — a run takes 2-6 minutes.
 - `web_search_20260209` needs no beta header on `claude-opus-5`; do NOT also declare `code_execution`

@@ -40,41 +40,73 @@ const MAX_COUNT = 30;
 // The server-side search loop can return pause_turn when it hits its internal cap;
 // resume by re-sending with the assistant turn appended. We stream because the
 // output is large and non-streaming requests hit SDK HTTP timeouts above ~16k.
+// ATTEMPT LADDER. The first live runs failed instantly on every batch, and because
+// the error was only collected and never shown, it looked like "found nothing".
+// Three things here differ from the known-good deal-research call (which uses
+// claude-opus-4-8, no output_config, no strict tool) and any of them can be rejected
+// outright by an older SDK or an account without access: the model, output_config,
+// and strict tool use. Rather than guess which, each rung drops one more of them and
+// the winning rung is recorded on the run so the cause is visible instead of inferred.
+const ATTEMPTS = [
+  { model: "claude-opus-5", effort: true, strict: true, label: "opus-5 + effort + strict" },
+  { model: "claude-opus-5", effort: false, strict: false, label: "opus-5, no effort/strict" },
+  { model: "claude-opus-4-8", effort: false, strict: false, label: "opus-4-8 fallback" },
+];
+const diag = { rung: "", tried: [] };
+
 const runToolCall = async ({ system, userText, tool, maxUses, maxTokens }) => {
-  let messages = [{ role: "user", content: userText }];
-  let response = null;
+  const errs = [];
 
-  for (let i = 0; i < 6; i++) {
-    const stream = anthropic.messages.stream({
-      model: MODEL,
-      max_tokens: maxTokens,
-      thinking: { type: "adaptive" },
-      output_config: { effort: "high" },
-      system,
-      tools: [
-        { type: "web_search_20260209", name: "web_search", max_uses: maxUses },
-        tool,
-      ],
-      messages,
-    });
-    response = await stream.finalMessage();
+  for (const attempt of ATTEMPTS) {
+    // Skip rungs already proven to fail earlier in this run.
+    if (diag.rung && attempt.label !== diag.rung) continue;
+    try {
+      const toolDef = attempt.strict ? tool : (({ strict, ...rest }) => rest)(tool);
+      let messages = [{ role: "user", content: userText }];
+      let response = null;
 
-    if (response.stop_reason === "pause_turn") {
-      messages = [...messages, { role: "assistant", content: response.content }];
-      continue;
+      for (let i = 0; i < 6; i++) {
+        const req = {
+          model: attempt.model,
+          max_tokens: maxTokens,
+          thinking: { type: "adaptive" },
+          system,
+          tools: [{ type: "web_search_20260209", name: "web_search", max_uses: maxUses }, toolDef],
+          messages,
+        };
+        if (attempt.effort) req.output_config = { effort: "high" };
+
+        const stream = anthropic.messages.stream(req);
+        response = await stream.finalMessage();
+
+        if (response.stop_reason === "pause_turn") {
+          messages = [...messages, { role: "assistant", content: response.content }];
+          continue;
+        }
+        break;
+      }
+
+      if (response && response.stop_reason === "refusal") {
+        throw new Error("The research model declined this request. Try a different niche or wording.");
+      }
+      const block = ((response && response.content) || []).find((b) => b.type === "tool_use" && b.name === tool.name);
+      if (!block) {
+        const text = ((response && response.content) || []).filter((b) => b.type === "text").map((b) => b.text).join(" ").trim();
+        throw new Error(`The model finished without returning structured results${text ? `: ${text.slice(0, 240)}` : "."}`);
+      }
+
+      if (!diag.rung) { diag.rung = attempt.label; diag.tried = errs.slice(); }
+      return block.input;
+    } catch (e) {
+      const msg = `${attempt.label}: ${String((e && e.message) || e).slice(0, 300)}`;
+      console.error("lead-scout attempt failed —", msg);
+      errs.push(msg);
+      // A refusal or an empty answer is about the CONTENT, not the request shape —
+      // dropping parameters won't help, so don't burn the other rungs on it.
+      if (/declined this request|without returning structured results/.test(String((e && e.message) || e))) throw e;
     }
-    break;
   }
-
-  if (response && response.stop_reason === "refusal") {
-    throw new Error("The research model declined this request. Try a different niche or wording.");
-  }
-  const block = (response && response.content || []).find((b) => b.type === "tool_use" && b.name === tool.name);
-  if (!block) {
-    const text = ((response && response.content) || []).filter((b) => b.type === "text").map((b) => b.text).join(" ").trim();
-    throw new Error(`The model finished without returning structured results${text ? `: ${text.slice(0, 240)}` : "."}`);
-  }
-  return block.input;
+  throw new Error(errs.join(" | ") || "All research attempts failed.");
 };
 
 // ─── Sanitisation ────────────────────────────────────────────────────────────
@@ -440,9 +472,15 @@ const doRun = async (supabase, id, input) => {
     stats: { ...stats, kept: prospects.length },
     coverageNote, providers: prov, providerNotes,
     errors: errors.slice(0, 3),
+    engine: diag.rung || "",
+    // A run that researched businesses and produced nothing is either a genuine
+    // no-match or a broken research step. Say which — the first version reported
+    // both as "everything was a duplicate", which sent us hunting in the wrong place.
     message: prospects.length
       ? `${prospects.length} new prospect${prospects.length === 1 ? "" : "s"} added to your list.${stats.trimmed ? ` (${stats.trimmed} more were found — raise "how many to find" to research them too.)` : ""}`
-      : "Everything found was either a duplicate or outside your areas.",
+      : errors.length
+        ? `The research step failed on every batch, so nothing could be saved. ${errors[0]}`
+        : "Everything found was either already on your list or outside your areas.",
   };
 };
 
