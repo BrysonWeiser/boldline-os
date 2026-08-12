@@ -1661,8 +1661,10 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const [lf,setLf]=useState({niche:"",area:"",status:"",minScore:0,q:""});
   const [openId,setOpenId]=useState(null);
   const [providers,setProviders]=useState(null);
+  const [elapsed,setElapsed]=useState(0);
   const pollRef=useRef(null);
-  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
+  const tickRef=useRef(null);
+  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); if(tickRef.current) clearInterval(tickRef.current); },[]);
 
   const selected = (()=>{ if(nicheKey==="custom") return {label:customNiche.trim(),group:"Custom",kind:"service"};
     const [gi,ii]=String(nicheKey).split("."); const g=SCOUT_NICHES[Number(gi)];
@@ -1718,15 +1720,18 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     fetch("/.netlify/functions/lead-scout-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
       body:JSON.stringify({id,niche:selected.label,nicheGroup:selected.group,nicheKind:selected.kind,areas,count,filters,notes})}).catch(()=>{});
     const started=Date.now();
+    setElapsed(0);
+    if(tickRef.current) clearInterval(tickRef.current);
+    tickRef.current=setInterval(()=>setElapsed(Math.floor((Date.now()-started)/1000)),1000);
     let fails=0, sawRow=false;
-    const stop=(text)=>{ clearInterval(pollRef.current); setRunState("error"); setMsg(text); };
+    const stop=(text)=>{ clearInterval(pollRef.current); clearInterval(tickRef.current); setRunState("error"); setMsg(text); };
     pollRef.current=setInterval(async()=>{
       if(Date.now()-started>780000){ stop("This run is taking unusually long — it may still finish. Check your call list in a minute."); return; }
       try{
         const r=await api("action=run&id="+encodeURIComponent(id));
         fails=0;
         if(r.progress) setProgress(r.progress);
-        if(r.status==="done"){ clearInterval(pollRef.current); setRunResult(r.result||null); setRunState("done"); loadList(); return; }
+        if(r.status==="done"){ clearInterval(pollRef.current); clearInterval(tickRef.current); setRunResult(r.result||null); setRunState("done"); loadList(); return; }
         if(r.status==="error"){ stop(setupMsg(r.error)||r.error||"The run hit an error. Try again."); return; }
         if(r.status==="unknown"){
           // The background function never wrote its row. After ~40s that is a real
@@ -2121,13 +2126,20 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
 
           {runState==="running"&&progress&&(
             <div style={{...card,marginTop:12}}>
-              <div style={{fontSize:12.5,color:C.text,fontWeight:700}}>{progress.message||"Working…"}</div>
+              <div style={{display:"flex",alignItems:"baseline",gap:10}}>
+                <div style={{fontSize:12.5,color:C.text,fontWeight:700,flex:1,minWidth:0}}>{progress.message||"Working…"}</div>
+                {/* A visible clock so a slow run reads as "working" rather than "frozen". */}
+                <div style={{fontSize:11,color:C.textMuted,fontVariantNumeric:"tabular-nums",flexShrink:0}}>
+                  {Math.floor(elapsed/60)}:{String(elapsed%60).padStart(2,"0")}
+                </div>
+              </div>
               <div style={{height:6,borderRadius:99,background:"rgba(255,255,255,.06)",marginTop:10,overflow:"hidden"}}>
                 <div style={{height:"100%",borderRadius:99,background:C.gradB,transition:"width .4s",
                   width:progress.total?`${Math.max(6,Math.round((progress.enriched/progress.total)*100))}%`:"18%"}}/>
               </div>
               <div style={{fontSize:10.5,color:C.textMuted,marginTop:7,lineHeight:1.5}}>
-                Keep this tab open. Results are saved to your call list either way — you can come back to them.
+                Deep research takes 30–60 seconds per business, several at a time — a full run is usually 2–6 minutes.
+                Prospects are saved to your call list as each batch finishes, so you can close this and come back.
               </div>
             </div>)}
 

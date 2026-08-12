@@ -160,6 +160,17 @@ alongside Enter, which made the natural "Gilbert, AZ" physically untypeable — 
 left you adding " AZ" as a second chip. **Enter is now the only commit key.** Regression-tested by
 typing the string character-by-character and asserting one chip.
 
+**GOTCHA — "how many to find" was not honoured (hit live 2026-08-11, FIXED same day).** Google Places
+returns up to 20 results per area and the discovery loop pushed all of them in; `count` only limited the
+AI top-up. A 6-count run over one area researched **16** businesses — ~3x the time and spend asked for,
+and close to the 15-minute background ceiling, which is what made the first live run look hung.
+`candidates` is now trimmed to `count` after dedupe + area filtering, and `stats.trimmed` tells him how
+many were held back so he can raise the count deliberately. Two robustness fixes came out of the same
+incident: prospects are now **saved per batch** instead of all at once at the end (a run that hits the
+ceiling keeps what finished), and progress is reported on batch **start** as well as completion, with an
+elapsed clock in the UI — with 3 calls in flight and minutes per call, a bar that only moves on
+completion reads as frozen. Per-business web-search budget trimmed 6 -> 5.
+
 **Gotchas:**
 - Must be a **background** function — a run takes 2-6 minutes.
 - `web_search_20260209` needs no beta header on `claude-opus-5`; do NOT also declare `code_execution`
