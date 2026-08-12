@@ -124,6 +124,22 @@ worse than the honest "unknown" it replaced, and the kind of thing that puts Bry
    downgrade a confirmed sighting. The prompt tells the model the same rule.
 3. **A per-prospect "Check Meta ads ↗" deep link** into the Ad Library web UI filtered to that business
    — one click for the definitive answer the API cannot give.
+**GOTCHA — the first ad-tech build detected nothing (hit live 2026-08-11, FIXED same day).** It sent
+`user-agent: BoldLineScout/1.0`, which Cloudflare and most small-business WAFs refuse, so every fetch
+failed and every prospect fell back to `unknown` — silently, for the third time in this feature. Fixed
+by presenting a **normal browser user-agent** (we are reading a public homepage exactly as a visitor
+would) plus `accept`/`accept-language` headers and a **www ↔ bare-host retry**, and by always returning
+a `note` explaining what the check concluded so an `unknown` is never unexplained again. LIVE-PROVEN on
+Bryson's own prospects: `preciseairandheating.com` → Google Ads conversion tag; `aroundthesunaz.com` →
+Meta Pixel (×3 signals); `georgebrazilhvac.com` → Google Ads remarketing tag; `parkerandsons.com` →
+nothing in source despite being a huge advertiser, which is exactly why absence never means "no".
+
+**`?action=recheck-ads`** re-runs ONLY the tag check over saved prospects (6 at a time, max 300) and
+patches `googleAds`/`metaAds`/`adsEvidence`/`adTechNote` in place. **No AI, so it is free** — added so
+the 16 prospects researched before the fix could be backfilled without paying to re-research them.
+Surfaced as a "Re-check ads" button on the call list. It can only upgrade `unknown` → `likely`, same
+asymmetry as everywhere else.
+
 Unit-tested against synthetic HTML for both platforms, GTM-only (must stay `unknown`), a bare page, and
 an unreachable site.
 

@@ -12,7 +12,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { providerStatus } from "../lib/scout-providers.mjs";
+import { providerStatus, inspectAdTech, adLibraryUrl } from "../lib/scout-providers.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -119,6 +119,47 @@ export default async (req) => {
     const { error } = await supabase.from("scout_prospects").delete().eq("id", id);
     if (error) return json({ ok: false, error: error.message }, 500);
     return json({ ok: true });
+  }
+
+  // Re-check advertising tags on already-saved prospects. This only fetches public
+  // homepages — no AI, no credits — so backfilling the whole list is free. Added
+  // because the first ad-tech build shipped with a bot user-agent that WAFs blocked,
+  // and re-running the full research just to fix that would have cost real money.
+  if (action === "recheck-ads") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    let q = supabase.from("scout_prospects").select("id, name, data").limit(300);
+    if (id) q = q.eq("id", id);
+    const { data, error } = await q;
+    if (error) return json({ ok: false, error: error.message }, 500);
+
+    const rows = data || [];
+    let updated = 0, found = 0;
+    // Small concurrency so a list of 300 doesn't open 300 sockets at once.
+    const queue = rows.slice();
+    const worker = async () => {
+      while (queue.length) {
+        const row = queue.shift();
+        const d = row.data || {};
+        const tech = await inspectAdTech(d.websiteRaw || d.website).catch(() => null);
+        if (!tech) continue;
+        const keep = (ai, tag) => (ai === "yes" || ai === "no" ? ai : (tag === "likely" ? "likely" : ai || "unknown"));
+        const next = {
+          ...d,
+          googleAds: keep(d.googleAds, tech.googleAds),
+          metaAds: keep(d.metaAds, tech.metaAds),
+          adTechNote: tech.note || "",
+          adLibraryUrl: d.adLibraryUrl || adLibraryUrl(row.name),
+          adsEvidence: [String(d.adsEvidence || "").replace(/\s*·?\s*Site tags:.*$/, "").trim(),
+            (tech.reachable && tech.evidence.length) ? `Site tags: ${tech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
+        };
+        if (next.googleAds === "likely" || next.metaAds === "likely") found++;
+        const { error: upErr } = await supabase.from("scout_prospects")
+          .update({ data: next, updated_at: new Date().toISOString() }).eq("id", row.id);
+        if (!upErr) updated++;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(6, rows.length) }, worker));
+    return json({ ok: true, checked: rows.length, updated, found });
   }
 
   if (action === "delete-run") {
