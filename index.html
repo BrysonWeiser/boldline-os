@@ -2153,6 +2153,15 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                   </div>)}
               </div>
               {runResult.coverageNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginBottom:12}}>{runResult.coverageNote}</div>}
+              {/* Surface research failures. These used to be collected and silently
+                  dropped, so a broken research step looked like "found nothing new". */}
+              {!!(runResult.errors&&runResult.errors.length)&&(
+                <div style={{...card,marginBottom:12,border:`1px solid ${C.red}44`,background:"rgba(248,113,113,0.06)"}}>
+                  <div style={{fontSize:11,fontWeight:800,color:C.red,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6}}>Research errors</div>
+                  {runResult.errors.map((e,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.55,marginBottom:4,wordBreak:"break-word"}}>{e}</div>)}
+                  <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Send this text to Claude — it names the exact cause.</div>
+                </div>)}
+              {runResult.engine&&<div style={{fontSize:10.5,color:C.textMuted,marginBottom:10}}>Research engine: {runResult.engine}</div>}
               {newProspects.map((d,i)=>(
                 <ProspectCard key={d.name+i} p={{id:"new-"+i,name:d.name,niche:d.niche||(selected&&selected.label),score:d.score,status:"new",data:d}}/>
               ))}
