@@ -105,6 +105,12 @@ export const placesSearch = async ({ niche, area, maxResults = 20 }) => {
 // find the decision-maker. Both are best-effort.
 const OWNER_TITLES = ["owner", "founder", "co-founder", "president", "ceo", "chief executive officer", "managing partner", "managing director", "principal", "general manager", "partner"];
 
+// Apollo's Free plan 403s people search outright ("not included in your Free plan...
+// even with a master key"). Once we've seen that, there is no point paying the
+// latency on it for every remaining prospect in the run — record it once and skip.
+const apolloBlocked = { people: false, reason: "" };
+const isPlanBlock = (msg) => /not included in your .* plan|not accessible|upgrade your plan/i.test(String(msg || ""));
+
 const apolloHeaders = () => ({
   "content-type": "application/json",
   accept: "application/json",
@@ -147,13 +153,23 @@ const realEmail = (e) => {
 export const apolloDecisionMaker = async ({ domain, companyName }, notes = []) => {
   const key = env("APOLLO_API_KEY");
   if (!key || (!domain && !companyName)) return null;
+  if (apolloBlocked.people) { notes.push(apolloBlocked.reason); return null; }
 
   const body = { person_titles: OWNER_TITLES, page: 1, per_page: 5 };
   if (domain) body.q_organization_domains_list = [domain];
   else body.q_organization_name = companyName;
 
   const r = await fetchJSON("https://api.apollo.io/api/v1/mixed_people/search", { method: "POST", headers: apolloHeaders(), body: JSON.stringify(body) }, 15000);
-  if (!r.ok) { notes.push(`Apollo people search failed (${r.status || ""} ${r.error}`.trim() + ")"); return null; }
+  if (!r.ok) {
+    if (isPlanBlock(r.error)) {
+      apolloBlocked.people = true;
+      apolloBlocked.reason = "Apollo people search needs a PAID plan — the Free plan blocks it even with a master key, so no owner names/emails/direct dials come from Apollo. Owner details are coming from AI research instead.";
+      notes.push(apolloBlocked.reason);
+      return null;
+    }
+    notes.push(`Apollo people search failed (${r.status || ""} ${r.error}`.trim() + ")");
+    return null;
+  }
 
   const people = (r.body && (r.body.people || r.body.contacts)) || [];
   if (!people.length) { notes.push(`Apollo has no owner/founder listed for ${domain || companyName}`); return null; }
