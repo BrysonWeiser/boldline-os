@@ -171,6 +171,14 @@ ceiling keeps what finished), and progress is reported on batch **start** as wel
 elapsed clock in the UI — with 3 calls in flight and minutes per call, a bar that only moves on
 completion reads as frozen. Per-business web-search budget trimmed 6 -> 5.
 
+**⚠️ FIRST THING TO CHECK when every batch fails instantly: ANTHROPIC API CREDITS.** That was the
+actual root cause on 2026-08-11 — the account ran dry mid-testing and every enrichment call returned a
+billing error in milliseconds. Symptom is unmistakable once you know it: sub-second "completion", zero
+prospects, and a run summary blaming duplicates. Reloading credits fixed it immediately (16 HVAC
+companies landed on the first run after). **Check the balance before debugging anything else** — the
+model/parameter theory below was wrong, though the ladder it produced is still worth keeping as
+defence.
+
 **GOTCHA — every AI research batch failed instantly and it looked like "found nothing" (hit live
 2026-08-11).** Symptom: a run returned in seconds with "Everything found was either a duplicate or
 outside your areas" while the stats said 20 found / 0 duplicates / 1 out of area — i.e. 19 should have
@@ -185,7 +193,9 @@ one risky parameter per rung, sticking to the winning rung for the rest of the r
 no tool call) skip the ladder, since dropping parameters cannot fix those. Errors are now rendered in a
 red "Research errors" card, and a 0-prospect run says "the research step failed" rather than blaming
 duplicates. **Lesson (second time this bit): a collected-but-never-displayed error is the same as no
-error handling at all.**
+error handling at all.** In the end the ladder was NOT what fixed it — credits were — but the
+error-surfacing half of the same change is what would have diagnosed it in one minute instead of an
+hour. Display the error first, theorise second.
 
 **Gotchas:**
 - Must be a **background** function — a run takes 2-6 minutes.
@@ -199,6 +209,15 @@ error handling at all.**
 - `max_tokens` 32k on enrichment; must stream or the SDK times out.
 - Poll timeout in the UI is 13 min (background limit is 15). Results are saved regardless, so closing
   the tab mid-run doesn't lose them — they appear in My call list.
+
+**LIVE-VERIFIED 2026-08-11** — a real Gilbert, AZ HVAC run returned 16 scored companies with the
+Google Places path confirmed end to end: green "verified by Google Places" badges, real main numbers
+sourced "— Google Places", real street addresses, owner names, and the affordability math computing
+sensible capacities (e.g. 2-6 employees -> ~$3,500/mo, matching 4 x $150k x 7% / 12). Apollo still
+unconfigured at that point. **Known gap from that run: `google_ads` / `meta_ads` came back
+"unconfirmed" on every card** — web search alone is not reliably establishing whether a business is
+currently advertising, which was one of Bryson's explicit need-to-know fields. Candidate fixes: a
+targeted Meta Ad Library lookup, or accepting "unknown" and leaning on the other signals.
 
 **Verified (2026-08-11, second pass):** all five modules `node --check`; affordability model
 sanity-checked across 15 company profiles (solo nail tech + food truck correctly hard-capped to 15 with
