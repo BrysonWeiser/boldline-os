@@ -1673,6 +1673,11 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const api=async(qs,opts)=>{ const token=await authToken(); if(!token) throw new Error("Session expired — refresh the page.");
     const r=await fetch("/.netlify/functions/lead-scout?"+qs,{...(opts||{}),headers:{"Authorization":"Bearer "+token,...((opts&&opts.headers)||{})}});
     const d=await r.json().catch(()=>({})); if(!r.ok||d.ok===false) throw new Error(d.error||"Request failed"); return d; };
+  // A missing Supabase table is the one failure with a specific fix, so it gets a
+  // specific message instead of a raw Postgres error.
+  const setupMsg=(text)=>/scout_runs|scout_prospects|relation|does not exist|schema cache|could not find/i.test(String(text||""))
+    ? "Setup needed — the Lead Scout tables aren't in Supabase yet. Open Supabase → SQL Editor → New query, paste docs/sql/lead-scout-schema.sql, click Run, then try again."
+    : "";
 
   const loadList=async()=>{
     setListLoading(true);
@@ -1691,7 +1696,9 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
 
   const addArea=()=>{ const v=areaInput.trim().replace(/,+$/,""); if(!v) return;
     if(!areas.some(a=>a.toLowerCase()===v.toLowerCase())) setAreas(a=>[...a,v]); setAreaInput(""); };
-  const areaKey=(e)=>{ if(e.key==="Enter"||e.key===","){ e.preventDefault(); addArea(); }
+  // Enter is the ONLY commit key. Comma used to commit too, which made "Gilbert, AZ"
+  // impossible to type — it fired on the comma and left you adding " AZ" separately.
+  const areaKey=(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addArea(); }
     else if(e.key==="Backspace"&&!areaInput&&areas.length){ setAreas(a=>a.slice(0,-1)); } };
 
   const run=async()=>{
@@ -1702,20 +1709,40 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     const id="scout-"+uid()+Date.now().toString(36);
     const token=await authToken();
     if(!token){ setRunState("error"); setMsg("Your session expired — refresh the page and try again."); return; }
+    // Preflight: prove the tables exist BEFORE kicking off a run. Without this a
+    // missing migration burns several minutes of API spend on work that can never
+    // be saved.
+    try{ await api("action=facets"); }
+    catch(e){ const m=setupMsg((e&&e.message)||e);
+      setRunState("error"); setMsg(m||("Couldn't reach the server: "+((e&&e.message)||e))); return; }
     fetch("/.netlify/functions/lead-scout-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
       body:JSON.stringify({id,niche:selected.label,nicheGroup:selected.group,nicheKind:selected.kind,areas,count,filters,notes})}).catch(()=>{});
     const started=Date.now();
+    let fails=0, sawRow=false;
+    const stop=(text)=>{ clearInterval(pollRef.current); setRunState("error"); setMsg(text); };
     pollRef.current=setInterval(async()=>{
-      if(Date.now()-started>780000){ clearInterval(pollRef.current); setRunState("error"); setMsg("This run is taking unusually long — it may still finish. Check your list in a minute."); return; }
+      if(Date.now()-started>780000){ stop("This run is taking unusually long — it may still finish. Check your call list in a minute."); return; }
       try{
         const r=await api("action=run&id="+encodeURIComponent(id));
+        fails=0;
         if(r.progress) setProgress(r.progress);
-        if(r.status==="done"){ clearInterval(pollRef.current); setRunResult(r.result||null); setRunState("done"); loadList(); }
-        else if(r.status==="error"){ clearInterval(pollRef.current); setRunState("error");
-          setMsg(/scout_runs|scout_prospects|relation|does not exist|schema cache|could not find/i.test(r.error||"")
-            ? "Setup needed: the scout_runs / scout_prospects tables aren't in Supabase yet. Run the setup SQL, then try again."
-            : (r.error||"The run hit an error. Try again.")); }
-      }catch(e){ /* transient — keep polling */ }
+        if(r.status==="done"){ clearInterval(pollRef.current); setRunResult(r.result||null); setRunState("done"); loadList(); return; }
+        if(r.status==="error"){ stop(setupMsg(r.error)||r.error||"The run hit an error. Try again."); return; }
+        if(r.status==="unknown"){
+          // The background function never wrote its row. After ~40s that is a real
+          // failure, not a slow start — don't leave him staring at a spinner.
+          if(Date.now()-started>40000&&!sawRow) stop("The search never started. That usually means the Supabase tables aren't set up yet (run docs/sql/lead-scout-schema.sql), or the site needs a redeploy.");
+          return;
+        }
+        sawRow=true;
+      }catch(e){
+        // A persistent failure here used to be swallowed forever, so a missing table
+        // looked identical to a slow run. Three strikes and we say what happened.
+        fails++;
+        const text=String((e&&e.message)||e);
+        if(setupMsg(text)){ stop(setupMsg(text)); return; }
+        if(fails>=3) stop("Lost contact with the server while the search was running: "+text+" — your results may still land in My call list.");
+      }
     },4000);
   };
 
