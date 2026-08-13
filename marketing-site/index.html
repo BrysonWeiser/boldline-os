@@ -2387,5 +2387,66 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
 })();
 </script>
 
+<!-- CS:META-SOON:START notice -->
+<style>
+  #metaSoonToast{position:fixed;left:0;right:0;bottom:0;z-index:9000;display:flex;justify-content:center;
+    padding:0 12px calc(14px + env(safe-area-inset-bottom));pointer-events:none}
+  #metaSoonToast[hidden]{display:none!important}
+  #metaSoonToast .mst-card{pointer-events:auto;position:relative;width:100%;max-width:440px;
+    background:#0F121A;border:1px solid rgba(200,168,75,.34);border-radius:15px;padding:15px 42px 15px 16px;
+    box-shadow:0 26px 60px -22px rgba(0,0,0,.92);animation:mstIn .22s ease both}
+  @keyframes mstIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  #metaSoonToast .mst-h{margin:0 0 6px;font-size:14px;font-weight:800;color:#C8A84B;line-height:1.35}
+  #metaSoonToast .mst-b{margin:0;font-size:12.5px;line-height:1.6;color:#C6CAE0}
+  #metaSoonToast .mst-b b{color:#F0F2FF}
+  #metaSoonToast .mst-cta{display:inline-block;margin-top:11px;font-size:12.5px;font-weight:800;
+    color:#C8A84B;text-decoration:none;border-bottom:1px solid rgba(200,168,75,.45);padding-bottom:1px}
+  #metaSoonToast .mst-x{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:8px;
+    border:none;background:transparent;color:#8B91B8;font-size:19px;line-height:1;cursor:pointer}
+  @media (min-width:820px){#metaSoonToast{justify-content:flex-end;padding-right:22px;padding-bottom:22px}}
+  @media (prefers-reduced-motion:reduce){#metaSoonToast .mst-card{animation:none}}
+</style>
+<div id="metaSoonToast" role="status" aria-live="polite" hidden>
+  <div class="mst-card">
+    <button class="mst-x" type="button" aria-label="Dismiss">&times;</button>
+    <p class="mst-h">Meta Ads aren&rsquo;t available yet</p>
+    <p class="mst-b">Facebook and Instagram campaigns are still going through platform approval &mdash; estimated <b>October 2026</b>. <b>Google Ads is live and taking clients today.</b></p>
+    <a class="mst-cta" href="#contact" id="mstGo">Join the waitlist &rarr;</a>
+  </div>
+</div>
+<script>
+(function(){
+  var el = document.getElementById('metaSoonToast');
+  if(!el) return;
+  var timer = null;
+  function show(){ el.hidden = false; clearTimeout(timer); timer = setTimeout(hide, 9000); }
+  function hide(){ el.hidden = true; clearTimeout(timer); }
+  el.querySelector('.mst-x').addEventListener('click', hide);
+  el.querySelector('#mstGo').addEventListener('click', hide);
+
+  // Any CTA inside a Meta-dependent pane explains itself before it goes anywhere.
+  var BLOCKED = '[data-panel="meta"] .pkg-cta, [data-panel="combined"] .pkg-cta, [data-panel="ecom"] .pkg-cta';
+  document.addEventListener('click', function(e){
+    var t = e.target && e.target.closest ? e.target.closest(BLOCKED) : null;
+    if(!t) return;
+    e.preventDefault();
+    e.stopPropagation();   // the nav-glide handler is registered earlier; beat it
+    show();
+  }, true);                // capture phase, for the same reason
+
+  // Get-started wizard: picking Meta or Both pops the same notice. An INLINE note
+  // does not work here — the wizard advances to the next step on selection and
+  // hides the step it would have lived in, so it would flash and vanish.
+  var opts = document.querySelector('.opts[data-key="platform"]');
+  if(opts){
+    opts.addEventListener('click', function(e){
+      var b = e.target && e.target.closest ? e.target.closest('button[data-val]') : null;
+      if(!b) return;
+      if(String(b.getAttribute('data-val')).indexOf('Meta') !== -1) show();
+    });
+  }
+})();
+</script>
+<!-- CS:META-SOON:END notice -->
 </body>
 </html>
