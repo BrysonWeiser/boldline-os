@@ -145,7 +145,7 @@ export async function getCampaigns(accessToken, customerId) {
 }
 
 // ── Guarded write: change a campaign's daily budget ───────────────────────────
-async function setBudget(accessToken, customerId, budgetResourceName, dollars) {
+export async function setBudget(accessToken, customerId, budgetResourceName, dollars) {
   const body = { operations: [{
     update: { resourceName: budgetResourceName, amountMicros: String(dollarsToMicros(dollars)) },
     updateMask: "amount_micros",
@@ -162,7 +162,7 @@ async function setBudget(accessToken, customerId, budgetResourceName, dollars) {
 }
 
 // ── Guarded write: pause / enable a campaign ──────────────────────────────────
-async function setStatus(accessToken, customerId, campaignResourceName, status) {
+export async function setStatus(accessToken, customerId, campaignResourceName, status) {
   const s = String(status || "").toUpperCase();
   if (s !== "PAUSED" && s !== "ENABLED") {
     const e = new Error("status must be PAUSED or ENABLED"); e.stage = "setStatus"; throw e;

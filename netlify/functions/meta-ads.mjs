@@ -259,7 +259,7 @@ export async function getCampaigns(adAccountId) {
 
 // ── Guarded write: campaign daily budget (assumes campaign-level/CBO budget, ──
 // which is how createCampaign builds them). ───────────────────────────────────
-async function setBudget(campaignId, dollars) {
+export async function setBudget(campaignId, dollars) {
   return graph("setBudget", `${campaignId}`, {
     method: "POST",
     params: { daily_budget: String(dollarsToCents(dollars)) },
@@ -267,7 +267,7 @@ async function setBudget(campaignId, dollars) {
 }
 
 // ── Guarded write: pause / activate a campaign ────────────────────────────────
-async function setStatus(campaignId, status) {
+export async function setStatus(campaignId, status) {
   const s = String(status || "").toUpperCase();
   if (s !== "PAUSED" && s !== "ACTIVE") {
     const e = new Error("status must be PAUSED or ACTIVE");
