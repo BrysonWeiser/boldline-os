@@ -376,5 +376,76 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
   }
 })();
 </script>
+<script>
+/* ── CONVERSION TRACKING ──────────────────────────────────────────────────────
+   What counts as a lead, and how the ad platforms hear about it.
+
+   Two lead events, both reported to every platform that is configured:
+     "book"  — a Calendly meeting was actually SCHEDULED (not just opened)
+     "form"  — the backup get-started form was submitted
+
+   Calendly fires a postMessage on its parent window when a booking completes;
+   `calendly.event_scheduled` is the only one that means a real booking, so we
+   listen for exactly that. Opening the popup is NOT a lead — plenty of people
+   open it and leave, and counting those would teach Google to buy the wrong
+   clicks, which is worse than counting nothing.
+
+   TO TURN ON GOOGLE ADS CONVERSIONS: create the conversion action in Google Ads
+   (Goals -> Conversions -> New -> Website -> "Book a call"), then paste the two
+   values it gives you below. Until then this stays dormant and only sends the
+   GA4 event — nothing breaks, nothing is double-counted.
+   TO TURN ON THE META PIXEL: paste the pixel id below. */
+window.BL_TRACK = {
+  googleAdsId:    "",   // e.g. "AW-1234567890"
+  bookLabel:      "",   // e.g. "abcDEF_ghIJ" — the label for the Book-a-call action
+  formLabel:      "",   // e.g. "klmNOP_qrST" — optional, a separate form action
+  metaPixelId:    ""    // e.g. "1234567890123456"
+};
+
+(function(){
+  var T = window.BL_TRACK, fired = {};
+
+  function loadPixel(id){
+    if(!id || window.fbq) return;
+    /* Standard Meta pixel bootstrap, loaded only when an id is actually set. */
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+    n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+    (window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    window.fbq('init', id); window.fbq('track', 'PageView');
+  }
+  loadPixel(T.metaPixelId);
+
+  window.blConversion = function(kind){
+    if(fired[kind]) return;            // one lead per visitor per kind
+    fired[kind] = true;
+
+    // GA4 — always on, so there is a record even before the ad platforms are wired.
+    try { if(window.gtag) gtag('event', 'generate_lead', { method: kind }); } catch(e){}
+
+    // Google Ads — dormant until the conversion id + label are pasted above.
+    try {
+      var label = kind === 'book' ? T.bookLabel : (T.formLabel || T.bookLabel);
+      if(window.gtag && T.googleAdsId && label){
+        gtag('event', 'conversion', { send_to: T.googleAdsId + '/' + label });
+      }
+    } catch(e){}
+
+    // Meta — Lead is the standard event; Schedule is more specific for a booking.
+    try { if(window.fbq) fbq('track', kind === 'book' ? 'Schedule' : 'Lead'); } catch(e){}
+  };
+
+  // A real Calendly booking, not merely opening the popup.
+  window.addEventListener('message', function(e){
+    if(!e || !e.data || typeof e.data !== 'object') return;
+    if(String(e.data.event || '') === 'calendly.event_scheduled') window.blConversion('book');
+  });
+
+  // The backup form. Netlify posts it normally, so fire just before it leaves.
+  var form = document.querySelector('form[name="get-started"]');
+  if(form) form.addEventListener('submit', function(){ window.blConversion('form'); });
+})();
+</script>
 </body>
 </html>
