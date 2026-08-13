@@ -4785,15 +4785,24 @@ function GoogleLaunchCard({client, onUpdate}) {
   const seed0 = client.internal ? agencySeed("") : { name:`${client.name} — Search`, headlines:headlineSeed, descriptions:descSeed, keywords:kwSeed };
 
   const [audience,setAudience] = useState("");
+  const monthlyBudget = monthlyBudgetNum(client);
+  const autoDaily = dailyFromMonthly(monthlyBudget);
+  const [budgetTouched,setBudgetTouched] = useState(false);
   const [f,setF] = useState({
     name: seed0.name,
-    dailyBudgetDollars: 20,
+    dailyBudgetDollars: autoDaily > 0 ? autoDaily : 20,
     landingUrl: landingDefault,
     matchType: "PHRASE",
     headlinesText: seed0.headlines.join("\n"),
     descriptionsText: seed0.descriptions.join("\n"),
     keywordsText: seed0.keywords.join("\n"),
   });
+  // Editing the monthly budget (Campaigns tab, or Edit -> Campaign) flows straight
+  // through to here. Stops the moment he types his own number, so an override sticks.
+  useEffect(()=>{
+    if(budgetTouched || autoDaily <= 0) return;
+    setF(p => (Number(p.dailyBudgetDollars) === autoDaily ? p : {...p, dailyBudgetDollars: autoDaily}));
+  },[autoDaily,budgetTouched]);
   const fillFromAudience = () => {
     const s = agencySeed(audience);
     setF(p=>({...p, name:s.name, headlinesText:s.headlines.join("\n"), descriptionsText:s.descriptions.join("\n"), keywordsText:s.keywords.join("\n")}));
@@ -4865,7 +4874,17 @@ function GoogleLaunchCard({client, onUpdate}) {
       ].map(({k,l,t})=>(
         <div key={k} style={{marginBottom:9}}>
           <label style={lbl}>{l}</label>
-          <input type={t} value={f[k]} onChange={e=>set(k,e.target.value)} style={box}/>
+          <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
+          {k==="dailyBudgetDollars"&&(
+            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
+              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo"}
+              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled from your ${monthlyBudget.toLocaleString()}/mo budget</span>}
+              {monthlyBudget>0&&budgetTouched&&(
+                <span> &middot; overriding ${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
+              )}
+              {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
+            </div>
+          )}
         </div>
       ))}
       <div style={{marginBottom:9}}>
@@ -4918,9 +4937,12 @@ function MetaLaunchCard({client, onUpdate}) {
     description: "",
   };
   const [audience,setAudience] = useState("");
+  const monthlyBudget = monthlyBudgetNum(client);
+  const autoDaily = dailyFromMonthly(monthlyBudget);
+  const [budgetTouched,setBudgetTouched] = useState(false);
   const [f,setF] = useState({
     name: mseed0.name,
-    dailyBudgetDollars: 20,
+    dailyBudgetDollars: autoDaily > 0 ? autoDaily : 20,
     landingUrl: landingDefault,
     headline: mseed0.headline,
     primaryText: mseed0.primaryText,
@@ -4930,6 +4952,12 @@ function MetaLaunchCard({client, onUpdate}) {
     country: "US",
     imageUrl: (firstImg && firstImg.url) || "",
   });
+  // Editing the monthly budget (Campaigns tab, or Edit -> Campaign) flows straight
+  // through to here. Stops the moment he types his own number, so an override sticks.
+  useEffect(()=>{
+    if(budgetTouched || autoDaily <= 0) return;
+    setF(p => (Number(p.dailyBudgetDollars) === autoDaily ? p : {...p, dailyBudgetDollars: autoDaily}));
+  },[autoDaily,budgetTouched]);
   const fillFromAudience = () => {
     const s = metaAgencySeed(audience);
     setF(p=>({...p, name:s.name, headline:s.headline, primaryText:s.primaryText, description:s.description}));
@@ -5022,7 +5050,17 @@ function MetaLaunchCard({client, onUpdate}) {
       ].map(({k,l,t})=>(
         <div key={k} style={{marginBottom:9}}>
           <label style={lbl}>{l}</label>
-          <input type={t} value={f[k]} onChange={e=>set(k,e.target.value)} style={box}/>
+          <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
+          {k==="dailyBudgetDollars"&&(
+            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
+              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo"}
+              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled from your ${monthlyBudget.toLocaleString()}/mo budget</span>}
+              {monthlyBudget>0&&budgetTouched&&(
+                <span> &middot; overriding ${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
+              )}
+              {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
+            </div>
+          )}
         </div>
       ))}
       <div style={{display:"flex",gap:8,marginBottom:9}}>
@@ -5047,6 +5085,14 @@ function MetaLaunchCard({client, onUpdate}) {
 // ON from inside the OS — the launch cards only BUILD campaigns (paused). Enabling
 // starts real spend, so it's confirmed first. Reads via gadsCall/metaCall
 // "campaigns" and writes via "setStatus" (same functions ARIA's approval queue uses).
+// ─── BUDGET LINKING ───────────────────────────────────────────────────────────
+// One monthly figure drives every daily field. Parsed the same way as
+// MyAdsInsights / ads-sync / ads-autopilot so no two screens can disagree, and
+// rounded the same way MyAdsSetupCards already displays it ($200/mo -> $7/day).
+const monthlyBudgetNum = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
+const dailyFromMonthly = (m) => (m > 0 ? Math.round(m / 30.4) : 0);
+const monthlyFromDaily = (d) => Math.round((Number(d) || 0) * 30.4);
+
 // ─── CONTENT STUDIO ───────────────────────────────────────────────────────────
 // Video ideas + shootable scripts for BoldLine's own channels — short-form
 // (Reels/TikTok/Shorts) and long-form (YouTube/podcast), for the business AND
