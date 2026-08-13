@@ -713,7 +713,7 @@ function ChatBar({value,onChange,onSend,disabled,placeholder}) {
 }
 function Sheet({children,onClose,zIndex=60,height="93vh",accentBorder}) {
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+    <div onClick={onClose} className="os-sheet-overlay" style={{position:"fixed",inset:0,zIndex,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
       <div onClick={e=>e.stopPropagation()} className="os-sheet" style={{width:"100%",maxWidth:640,height,"--sh-dvh":(typeof height==="string"?height.replace("vh","dvh"):height),backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${accentBorder||C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {children}
       </div>
@@ -7294,7 +7294,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
       </div>
 
       {/* Save button */}
-      <div style={{padding:"11px 14px 24px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8}}>
+      <div className="os-sheet-actions" style={{padding:"11px 14px 16px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8,backgroundColor:C.bg2,boxShadow:"0 -8px 20px -12px rgba(0,0,0,.9)"}}>
         <button onClick={onClose} style={{flex:1,padding:11,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
         <button onClick={handleSave} style={{
           flex:2,padding:11,fontSize:13,fontWeight:700,borderRadius:10,border:"none",
@@ -7468,7 +7468,7 @@ function AddClientSheet({onSave,onClose}) {
           </Card>}
         </>}
       </div>
-      <div style={{padding:"11px 14px 24px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8}}>
+      <div className="os-sheet-actions" style={{padding:"11px 14px 16px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8,backgroundColor:C.bg2,boxShadow:"0 -8px 20px -12px rgba(0,0,0,.9)"}}>
         {step===1?<>
           <button onClick={onClose} style={{flex:1,padding:10,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
           <button onClick={()=>setStep(2)} disabled={!form.name||!form.email||!form.packageId} style={{flex:2,padding:10,fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:(!form.name||!form.email||!form.packageId)?"rgba(255,255,255,.05)":"#1D4ED8",color:(!form.name||!form.email||!form.packageId)?C.textMuted:"#fff",cursor:"pointer"}}>Next →</button>
@@ -7691,7 +7691,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
   const totalCount = upgradeClients.length + urgentClients.length + expiringSoon.length + pendingApprovals.length + intakeClients.length;
 
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:80,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+    <div onClick={onClose} className="os-sheet-overlay" style={{position:"fixed",inset:0,zIndex:80,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
       <div onClick={e=>e.stopPropagation()} className="os-sheet" style={{width:"100%",maxWidth:640,height:"88vh","--sh-dvh":"88dvh",backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {/* Header */}
         <div style={{padding:"14px 16px 12px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
@@ -8515,6 +8515,13 @@ function App({onLogout}) {
         /* Bottom sheets: prefer dynamic viewport height so the header isn't clipped
            behind mobile browser chrome (vh counts the area behind it); vh stays as fallback */
         .os-sheet{height:var(--sh-dvh)!important}
+        /* The overlay must track the SAME viewport the sheet is sized against.
+           inset:0 alone can resolve to the large viewport (the area behind the
+           mobile browser's chrome), which pushed the sheet's flex-end bottom —
+           and the pinned Save bar with it — below the visible fold. */
+        .os-sheet-overlay{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh}
+        /* Pinned action bars clear the phone's home indicator / gesture bar. */
+        .os-sheet-actions{padding-bottom:calc(16px + env(safe-area-inset-bottom))!important}
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
