@@ -3585,6 +3585,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               const runsGoogle = client.internal ? plats.some(p=>/google/i.test(p)) : /google/i.test((pkg&&pkg.platform)||"");
               const runsMeta   = client.internal ? plats.some(p=>/meta|facebook|instagram/i.test(p)) : /meta|facebook|instagram/i.test((pkg&&pkg.platform)||"");
               return (<>
+                {/* Above the launch cards on purpose: make the image first, then
+                    build the campaign that consumes it. Scoped to the house
+                    account for now — a client's creative needs their brand, not
+                    BoldLine's (see KB ad-creative-studio). */}
+                {client.internal && runsMeta && <AdCreativeStudio client={client} onUpdate={onUpdate}/>}
                 {runsGoogle && <GoogleLaunchCard client={client} onUpdate={onUpdate}/>}
                 {runsMeta && <MetaLaunchCard client={client} onUpdate={onUpdate}/>}
                 {client.internal && !runsGoogle && !runsMeta && (
@@ -5042,6 +5047,422 @@ function MetaLaunchCard({client, onUpdate}) {
 // ON from inside the OS — the launch cards only BUILD campaigns (paused). Enabling
 // starts real spend, so it's confirmed first. Reads via gadsCall/metaCall
 // "campaigns" and writes via "setStatus" (same functions ARIA's approval queue uses).
+// ─── AD CREATIVE STUDIO ───────────────────────────────────────────────────────
+// Draws finished ad images in the browser on a <canvas>, then pushes them into
+// the client's media library — which the Meta launch card ALREADY auto-reads to
+// pick `imageUrl`. So generating a creative here makes Build Campaign produce
+// artwork as well as copy, with nothing uploaded by hand.
+//
+// Built 2026-08-12 (Bryson: "wont the ai make the images and everything for the
+// ad?"). He was right that it was a gap: copy was already auto-written and the
+// image was already auto-SELECTED, but nothing ever CREATED one, so an empty
+// media library meant there was nothing to select.
+//
+// Canvas, not a headless browser on the server: no new dependency, no Chromium
+// in a Lambda, and it runs today. The trade-off is that it only renders while
+// the OS is open — a bot building a campaign unattended needs this moved
+// server-side later (see KB ad-creative-studio).
+//
+// Same two hard rules as the offline generator (KB ad-creatives): NO drawn
+// buttons (a painted-on button can't be tapped and Meta prohibits non-functional
+// buttons), and no claims about results BoldLine hasn't produced.
+
+const AD_SIZES = [
+  { id:"square",    w:1080, h:1080, label:"Feed square",   dim:"1080 × 1080", on:true  },
+  { id:"portrait",  w:1080, h:1350, label:"Feed portrait", dim:"1080 × 1350", on:true  },
+  { id:"landscape", w:1200, h:628,  label:"Link / wide",   dim:"1200 × 628",  on:true  },
+  { id:"story",     w:1080, h:1920, label:"Story / Reel",  dim:"1080 × 1920", on:false },
+];
+
+// Angle templates. `niche` is who the ad is aimed at ("Roofers"), `city` is
+// optional. Each returns the full editable starting point — every field can be
+// rewritten before rendering.
+const AD_ANGLES = [
+  { id:"top-of-google", name:"Competitors are outbidding you",
+    build:(n,c)=>({
+      kicker:"Google Ads Management",
+      head:c?["Your competitors in",`${c} are buying`,"the top of Google."]:["Your competitors are","buying the top","of Google."],
+      accent:c?2:1,
+      sub:"We run the ads that put you there instead — and build the page they land on." }) },
+
+  { id:"phone-ringing", name:"Ads that make the phone ring",
+    build:(n,c)=>({
+      kicker:n?`For ${n}`:"For Local Service Businesses",
+      head:[`${n||"Ads"}${n?":":""}`,"ads that make","the phone ring."].filter((x,i)=>!(i===0&&!n)),
+      accent:n?0:1,
+      sub:"Managed Google Ads plus a landing page built to turn the click into a booked job." }) },
+
+  { id:"be-first", name:"Be the name they see",
+    build:(n,c)=>({
+      kicker:n?`For ${n}${c?` · ${c}, AZ`:""}`:"Google Ads Management",
+      head:[`When ${c||"someone"}`,"searches for you,","be the name they see."],
+      accent:2,
+      sub:"Managed Google Ads plus a landing page built to turn the click into a phone call." }) },
+
+  { id:"shared-leads", name:"Stop buying shared leads",
+    build:(n,c)=>({
+      kicker:n?`For ${n}${c?` · ${c}, AZ`:""}`:"How We Work",
+      head:[`${c?c+" ":""}${n||"Business owners"}:`,"stop buying","shared leads."],
+      accent:0,
+      sub:"Your own campaign and your own landing page. Every lead is yours alone." }) },
+
+  { id:"own-account", name:"You own your ad account",
+    build:()=>({
+      kicker:"How We Work",
+      head:["You own your","ad account.","Always."],
+      accent:1,
+      sub:"Your account, your billing, your data. We manage it — we never hold it hostage." }) },
+];
+
+const AD_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
+
+// Shrink until the longest line fits the available width — a hand-typed headline
+// must never render clipped.
+function adFitSize(ctx,lines,maxW,start,weight){
+  let size=start;
+  while(size>18){
+    ctx.font=`${weight} ${size}px ${AD_FONT}`;
+    if(lines.every(l=>ctx.measureText(l).width<=maxW)) break;
+    size-=2;
+  }
+  return size;
+}
+function adWrap(ctx,text,maxW){
+  const words=String(text||"").split(/\s+/).filter(Boolean), out=[];
+  let line="";
+  words.forEach(word=>{
+    const next=line?line+" "+word:word;
+    if(ctx.measureText(next).width>maxW&&line){ out.push(line); line=word; }
+    else line=next;
+  });
+  if(line) out.push(line);
+  return out;
+}
+
+// The renderer. `photo` (optional HTMLImageElement) is drawn cover-fit under a
+// scrim — that's the path a CLIENT's creative takes, using their own photography.
+function drawAdCreative(cv,o){
+  const w=o.w,h=o.h,ctx=cv.getContext("2d");
+  cv.width=w; cv.height=h;
+  const wide=w>h, story=h/w>1.6;
+  const k=wide?0.8:(story?1.12:(h>w?1.04:1));
+  const padX=Math.round(wide?76:96);
+  const padY=Math.round(story?300:(wide?58:96));
+  const innerW=w-padX*2;
+  const GOLD_C=C.gold, DIM_C="#9AA0BE";
+
+  ctx.fillStyle="#070810"; ctx.fillRect(0,0,w,h);
+
+  if(o.photo){
+    const ir=o.photo.width/o.photo.height, cr=w/h;
+    let dw,dh;
+    if(ir>cr){ dh=h; dw=h*ir; } else { dw=w; dh=w/ir; }
+    ctx.drawImage(o.photo,(w-dw)/2,(h-dh)/2,dw,dh);
+    const scrim=ctx.createLinearGradient(0,0,w*0.95,h);
+    scrim.addColorStop(0,"rgba(7,8,16,0.95)");
+    scrim.addColorStop(0.55,"rgba(7,8,16,0.82)");
+    scrim.addColorStop(1,"rgba(7,8,16,0.55)");
+    ctx.fillStyle=scrim; ctx.fillRect(0,0,w,h);
+  } else {
+    const bloom=ctx.createRadialGradient(w*0.95,h*0.02,0,w*0.95,h*0.02,w*0.95);
+    bloom.addColorStop(0,"rgba(200,168,75,0.20)");
+    bloom.addColorStop(0.45,"rgba(200,168,75,0.06)");
+    bloom.addColorStop(1,"rgba(200,168,75,0)");
+    ctx.fillStyle=bloom; ctx.fillRect(0,0,w,h);
+    const bloom2=ctx.createRadialGradient(w*0.04,h*0.99,0,w*0.04,h*0.99,w*0.75);
+    bloom2.addColorStop(0,"rgba(139,92,246,0.13)");
+    bloom2.addColorStop(1,"rgba(139,92,246,0)");
+    ctx.fillStyle=bloom2; ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle="rgba(255,255,255,0.028)"; ctx.lineWidth=1;
+    const step=Math.round(72*k);
+    for(let x=step;x<w;x+=step){ ctx.beginPath(); ctx.moveTo(x+.5,0); ctx.lineTo(x+.5,h); ctx.stroke(); }
+    for(let y=step;y<h;y+=step){ ctx.beginPath(); ctx.moveTo(0,y+.5); ctx.lineTo(w,y+.5); ctx.stroke(); }
+  }
+
+  const rule=ctx.createLinearGradient(0,0,w,0);
+  rule.addColorStop(0,GOLD_C); rule.addColorStop(0.55,"#8B6914"); rule.addColorStop(1,"rgba(200,168,75,0)");
+  ctx.fillStyle=rule; ctx.fillRect(0,0,w,Math.round(9*k));
+
+  // ── top lockup ──
+  const logoS=Math.round(78*k);
+  let tx=padX;
+  if(o.logo){ ctx.drawImage(o.logo,padX,padY,logoS,logoS); tx=padX+logoS+Math.round(20*k); }
+  ctx.textBaseline="alphabetic";
+  const brandS=Math.round(31*k);
+  ctx.font=`900 ${brandS}px ${AD_FONT}`;
+  const brandY=padY+Math.round(logoS*0.46);
+  ctx.fillStyle="#F4F5FB"; ctx.fillText("BoldLine ",tx,brandY);
+  const bw=ctx.measureText("BoldLine ").width;
+  ctx.fillStyle=GOLD_C; ctx.fillText("Media",tx+bw,brandY);
+  const kickS=Math.round(19*k);
+  ctx.font=`800 ${kickS}px ${AD_FONT}`;
+  ctx.fillStyle=GOLD_C;
+  const kick=String(o.kicker||"").toUpperCase();
+  // letter-spacing has no canvas equivalent in older engines — draw per glyph.
+  let kx=tx;
+  for(const ch of kick){ ctx.fillText(ch,kx,brandY+Math.round(30*k)); kx+=ctx.measureText(ch).width+kickS*0.16; }
+
+  // ── footer (hairline + text; NO button shape, ever) ──
+  const urlS=Math.round(27*k), offerS=Math.round(24*k);
+  const footBase=h-padY;
+  const hair=ctx.createLinearGradient(padX,0,w-padX,0);
+  hair.addColorStop(0,"rgba(200,168,75,0.55)"); hair.addColorStop(1,"rgba(200,168,75,0.06)");
+  const hairY=footBase-Math.round(urlS+22*k);
+  ctx.fillStyle=hair; ctx.fillRect(padX,hairY,innerW,Math.max(1,Math.round(2*k)));
+  ctx.font=`900 ${urlS}px ${AD_FONT}`; ctx.fillStyle=GOLD_C;
+  const domain=o.domain||"boldlinemedia.com";
+  ctx.fillText(domain,padX,footBase);
+  const dw2=ctx.measureText(domain).width;
+  if(o.offer){
+    ctx.font=`600 ${offerS}px ${AD_FONT}`; ctx.fillStyle=DIM_C;
+    ctx.fillText("·  "+o.offer,padX+dw2+Math.round(14*k),footBase);
+  }
+
+  // ── middle: headline + sub, centred between lockup and footer ──
+  const headLines=(o.head||[]).filter(l=>String(l).trim());
+  const headS=adFitSize(ctx,headLines,innerW,Math.round((wide?82:92)*k),900);
+  const headLH=headS*1.06;
+  ctx.font=`500 ${Math.round(31*k)}px ${AD_FONT}`;
+  const subLines=o.sub?adWrap(ctx,o.sub,innerW*(wide?0.88:0.94)):[];
+  const subS=Math.round(31*k), subLH=subS*1.5;
+  const gap=Math.round(30*k);
+  const blockH=headLines.length*headLH+(subLines.length?gap+subLines.length*subLH:0);
+  const zoneTop=padY+logoS+Math.round(40*k);
+  const zoneBot=hairY-Math.round(34*k);
+  let y=zoneTop+Math.max(0,((zoneBot-zoneTop)-blockH)/2)+headS*0.82;
+
+  ctx.font=`900 ${headS}px ${AD_FONT}`;
+  headLines.forEach((line,i)=>{
+    ctx.fillStyle=(i===o.accent)?GOLD_C:"#F4F5FB";
+    ctx.fillText(line,padX,y);
+    y+=headLH;
+  });
+  if(subLines.length){
+    y+=gap-headLH+subS*0.9;
+    ctx.font=`500 ${subS}px ${AD_FONT}`; ctx.fillStyle=DIM_C;
+    subLines.forEach(line=>{ ctx.fillText(line,padX,y); y+=subLH; });
+  }
+  return cv;
+}
+
+const adLoadImage=(src)=>new Promise((res,rej)=>{
+  const im=new Image();
+  im.crossOrigin="anonymous"; // media-library URLs are public Supabase storage
+  im.onload=()=>res(im);
+  im.onerror=()=>rej(new Error("Couldn't load that image."));
+  im.src=src;
+});
+
+function AdCreativeStudio({client,onUpdate}){
+  const [angleId,setAngleId]=useState(AD_ANGLES[0].id);
+  const [niche,setNiche]=useState("");
+  const [city,setCity]=useState("");
+  const [f,setF]=useState(()=>{ const a=AD_ANGLES[0].build("",""); return {kicker:a.kicker,head:a.head.join("\n"),accent:a.accent,sub:a.sub,offer:"Free 30-minute strategy call"}; });
+  const [sizes,setSizes]=useState(()=>AD_SIZES.filter(s=>s.on).map(s=>s.id));
+  const [photoPath,setPhotoPath]=useState("");
+  const [shots,setShots]=useState([]);      // {id,label,dim,url,blob,w,h}
+  const [busy,setBusy]=useState("");
+  const [err,setErr]=useState("");
+  const [saved,setSaved]=useState(0);
+
+  const photos=(client.mediaLibrary||[]).filter(m=>m.url&&m.category!=="video");
+
+  // Re-seed the editable fields from the chosen angle + niche/city.
+  const reseed=(id,n,c)=>{
+    const a=AD_ANGLES.find(x=>x.id===id)||AD_ANGLES[0];
+    const built=a.build(String(n||"").trim(),String(c||"").trim());
+    setF(prev=>({...prev,kicker:built.kicker,head:built.head.join("\n"),accent:built.accent,sub:built.sub}));
+  };
+
+  const generate=async()=>{
+    setBusy("render"); setErr(""); setSaved(0);
+    try{
+      let photo=null;
+      if(photoPath){
+        const m=photos.find(p=>p.path===photoPath);
+        if(m) photo=await adLoadImage(m.url);
+      }
+      let logo=null;
+      try{ logo=await adLoadImage(LOGO); }catch(e){ /* lockup still renders without it */ }
+      const head=String(f.head||"").split("\n").map(s=>s.trim()).filter(Boolean);
+      if(!head.length){ setErr("Add at least one headline line."); setBusy(""); return; }
+      const out=[];
+      for(const s of AD_SIZES.filter(x=>sizes.indexOf(x.id)>=0)){
+        const cv=document.createElement("canvas");
+        drawAdCreative(cv,{w:s.w,h:s.h,kicker:f.kicker,head,accent:Number(f.accent),sub:f.sub,offer:f.offer,logo,photo});
+        const blob=await new Promise(r=>cv.toBlob(r,"image/jpeg",0.92));
+        out.push({id:s.id,label:s.label,dim:s.dim,w:s.w,h:s.h,blob,url:URL.createObjectURL(blob)});
+      }
+      setShots(out);
+    }catch(e){ setErr(e.message||"Couldn't render the creative."); }
+    setBusy("");
+  };
+
+  // Push into the media library through the SAME sign -> PUT -> confirm flow the
+  // client portal uses, so the launch card's existing auto-pick finds them.
+  const saveAll=async()=>{
+    if(!client.portalToken){ setErr("This account has no media token — reopen it from My Ads and try again."); return; }
+    setBusy("save"); setErr(""); let n=0, lib=client.mediaLibrary||[];
+    try{
+      const stamp=Date.now();
+      for(const s of shots){
+        const name=`ad-${(angleId||"creative")}-${s.w}x${s.h}-${stamp}.jpg`;
+        const sign=await fetch(`/.netlify/functions/media?action=sign&token=${encodeURIComponent(client.portalToken)}`,
+          {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({filename:name,category:"ad-creative"})});
+        const sd=await sign.json().catch(()=>({}));
+        if(!sign.ok||!sd.ok) throw new Error(sd.error||"Couldn't get an upload URL.");
+        const put=await fetch(sd.signedUrl,{method:"PUT",headers:{"Content-Type":"image/jpeg"},body:s.blob});
+        if(!put.ok) throw new Error("Upload failed.");
+        const conf=await fetch(`/.netlify/functions/media?action=confirm&token=${encodeURIComponent(client.portalToken)}`,
+          {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:sd.path,category:"ad-creative",label:name})});
+        const cd=await conf.json().catch(()=>({}));
+        if(!conf.ok||!cd.ok) throw new Error(cd.error||"Couldn't save to the media library.");
+        if(cd.mediaLibrary) lib=cd.mediaLibrary;
+        n++;
+      }
+      onUpdate({...client,mediaLibrary:lib});
+      setSaved(n);
+    }catch(e){ setErr(`${e.message||"Save failed."} ${n>0?`(${n} of ${shots.length} saved before it stopped.)`:""}`); }
+    setBusy("");
+  };
+
+  const inp={width:"100%",padding:"9px 11px",fontSize:12.5,borderRadius:9,border:`1px solid ${C.border}`,
+    backgroundColor:C.bg2,color:C.text,fontFamily:"inherit",outline:"none"};
+  const lbl={fontSize:9.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:C.textMuted,marginBottom:5,display:"block"};
+  const head4=String(f.head||"").split("\n").filter(l=>l.trim());
+
+  return (
+    <Card style={{borderColor:`${C.gold}2a`,marginBottom:12}}>
+      <Label>Ad Creative Studio</Label>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.65,marginBottom:13}}>
+        Generates the ad image so you never have to make one. Pick an angle, tweak the words, hit Generate,
+        then Save — it lands in this account's media library and the <b style={{color:C.gold}}>Launch Meta Campaign</b> card
+        below picks it up automatically.
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:11}}>
+        <div>
+          <span style={lbl}>Who is it aimed at</span>
+          <input value={niche} onChange={e=>{setNiche(e.target.value);reseed(angleId,e.target.value,city);}}
+            placeholder="e.g. Roofers" style={inp}/>
+        </div>
+        <div>
+          <span style={lbl}>City (optional)</span>
+          <input value={city} onChange={e=>{setCity(e.target.value);reseed(angleId,niche,e.target.value);}}
+            placeholder="e.g. Gilbert" style={inp}/>
+        </div>
+      </div>
+
+      <div style={{marginBottom:11}}>
+        <span style={lbl}>Angle</span>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+          {AD_ANGLES.map(a=>(
+            <button key={a.id} onClick={()=>{setAngleId(a.id);reseed(a.id,niche,city);}}
+              style={{padding:"6px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,cursor:"pointer",
+                border:`1px solid ${angleId===a.id?C.gold:C.border}`,
+                backgroundColor:angleId===a.id?"rgba(200,168,75,0.12)":"transparent",
+                color:angleId===a.id?C.gold:C.textDim}}>{a.name}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{marginBottom:11}}>
+        <span style={lbl}>Headline — one line per row</span>
+        <textarea value={f.head} onChange={e=>setF({...f,head:e.target.value})} rows={4}
+          style={{...inp,resize:"vertical",lineHeight:1.5}}/>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:7,alignItems:"center"}}>
+          <span style={{fontSize:10.5,color:C.textMuted}}>Gold line:</span>
+          {head4.map((l,i)=>(
+            <button key={i} onClick={()=>setF({...f,accent:i})}
+              style={{padding:"3px 9px",fontSize:10.5,fontWeight:700,borderRadius:7,cursor:"pointer",maxWidth:150,
+                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                border:`1px solid ${Number(f.accent)===i?C.gold:C.border}`,
+                backgroundColor:Number(f.accent)===i?"rgba(200,168,75,0.12)":"transparent",
+                color:Number(f.accent)===i?C.gold:C.textDim}}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{marginBottom:11}}>
+        <span style={lbl}>Supporting line</span>
+        <textarea value={f.sub} onChange={e=>setF({...f,sub:e.target.value})} rows={2} style={{...inp,resize:"vertical",lineHeight:1.5}}/>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:11}}>
+        <div>
+          <span style={lbl}>Kicker (small gold line)</span>
+          <input value={f.kicker} onChange={e=>setF({...f,kicker:e.target.value})} style={inp}/>
+        </div>
+        <div>
+          <span style={lbl}>Footer offer</span>
+          <input value={f.offer} onChange={e=>setF({...f,offer:e.target.value})} style={inp}/>
+        </div>
+      </div>
+
+      {photos.length>0&&(
+        <div style={{marginBottom:11}}>
+          <span style={lbl}>Background photo (optional)</span>
+          <select value={photoPath} onChange={e=>setPhotoPath(e.target.value)} style={{...inp,cursor:"pointer"}}>
+            <option value="">None — brand background</option>
+            {photos.map(p=><option key={p.path} value={p.path}>{p.label}</option>)}
+          </select>
+          <div style={{fontSize:10,color:C.textMuted,marginTop:5,lineHeight:1.55}}>Drawn full-bleed under a dark scrim so the headline stays readable.</div>
+        </div>
+      )}
+
+      <div style={{marginBottom:13}}>
+        <span style={lbl}>Sizes</span>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+          {AD_SIZES.map(s=>{
+            const on=sizes.indexOf(s.id)>=0;
+            return (
+              <button key={s.id} onClick={()=>setSizes(on?sizes.filter(x=>x!==s.id):sizes.concat(s.id))}
+                style={{padding:"6px 12px",fontSize:11,fontWeight:700,borderRadius:9,cursor:"pointer",textAlign:"left",
+                  border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,0.12)":"transparent",
+                  color:on?C.gold:C.textDim}}>
+                {on?"✓ ":""}{s.label} <span style={{opacity:.65,fontWeight:600}}>{s.dim}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+        <button onClick={generate} disabled={!!busy||!sizes.length}
+          style={{padding:"9px 17px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",
+            cursor:busy||!sizes.length?"default":"pointer",backgroundColor:C.gold,color:"#120E02",opacity:busy||!sizes.length?.6:1}}>
+          {busy==="render"?"Drawing…":"Generate"}
+        </button>
+        {shots.length>0&&(
+          <button onClick={saveAll} disabled={!!busy}
+            style={{padding:"9px 17px",fontSize:12,fontWeight:800,borderRadius:9,cursor:busy?"default":"pointer",
+              border:`1px solid ${C.green}55`,backgroundColor:"transparent",color:C.green,opacity:busy?.6:1}}>
+            {busy==="save"?"Saving…":`Save ${shots.length} to media library`}
+          </button>
+        )}
+        {saved>0&&<span style={{fontSize:11.5,color:C.green,fontWeight:700}}>✓ Saved {saved} — the Meta launch card will use the newest one.</span>}
+      </div>
+
+      {err&&<div style={{fontSize:11.5,color:C.red,marginTop:10,lineHeight:1.6}}>{err}</div>}
+
+      {shots.length>0&&(
+        <div style={{display:"flex",gap:11,flexWrap:"wrap",marginTop:14}}>
+          {shots.map(s=>(
+            <div key={s.id} style={{width:150}}>
+              <img src={s.url} alt={s.label} style={{width:"100%",borderRadius:9,border:`1px solid ${C.border}`,display:"block"}}/>
+              <div style={{fontSize:9.5,color:C.textMuted,marginTop:4,display:"flex",gap:6,alignItems:"baseline",flexWrap:"wrap"}}>
+                <span style={{fontWeight:700,color:C.textDim}}>{s.label}</span>
+                <span>{s.dim}</span>
+                <a href={s.url} download={`boldline-ad-${s.w}x${s.h}.jpg`} style={{color:C.gold,fontWeight:700,textDecoration:"none",marginLeft:"auto"}}>Download</a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ─── CAMPAIGN MANAGER ─────────────────────────────────────────────────────────
 // One screen listing EVERY campaign across EVERY linked ad account — the My Ads
 // house account and all clients — with Start / Pause / Delete on each. Built
