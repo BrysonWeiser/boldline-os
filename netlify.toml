@@ -58,6 +58,17 @@
 [functions."ads-sync"]
   schedule = "0 */6 * * *"
 
+# Every 2 hours: the ONLY job allowed to change a live ad account, and only ever
+# in the direction of spending LESS — pauses a campaign that is pacing over budget
+# or burning money with zero conversions, and (opt-in per client) shifts budget
+# between campaigns without raising the account total. Never creates a campaign,
+# never enables one, never raises a budget. Runs on Netlify's servers, so it works
+# with nothing open anywhere. Global kill switch: set ADS_AUTOPILOT=off in Netlify.
+# Two-hourly rather than daily because an overspend caught 20 hours late has
+# already cost the money. See KB ads-autopilot.
+[functions."ads-autopilot"]
+  schedule = "15 */2 * * *"
+
 # Daily client-nurture: the onboarding + retention email touches that aren't
 # Stripe-triggered — Ad-Account Access ~1 day after Welcome, an onboarding nudge
 # on day 2 + 5 while intake is incomplete, and a celebratory Lead-Milestone email

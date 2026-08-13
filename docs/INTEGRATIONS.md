@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 93 task-keyed entries under `knowledge/`. They surface automatically via the
+> 94 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**93 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**94 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -225,6 +225,9 @@
 - **[ad-creative-studio](../knowledge/ad-creative-studio.md)** &mdash; &#9989; verified &middot; 2026-08-12  
   `AdCreativeStudio` + `drawAdCreative()` in index.html draw finished ad images on a browser `<canvas>` and push them into the client's media library via the existing media.mjs sign→PUT→confirm flow — which `MetaLaunchCard` ALREADY reads to auto-pick `imageUrl`, so Build Campaign now produces artwork as well as copy with nothing uploaded by hand. Five angle templates parameterized by niche + city, every field editable, four Meta sizes, auto-shrinking headlines, and an optional media-library photo drawn cover-fit under a scrim (the path a CLIENT creative takes). Built 2026-08-12. Scoped to the internal house account for now. 31-case Playwright suite, all passing.  
   <sub>*task:* generate the ad IMAGE inside the OS so Build Campaign produces artwork as well as copy &nbsp;|&nbsp; *keywords:* ad creative studio, AdCreativeStudio, drawAdCreative, canvas ad image, generate ad image, media library, ad-creative category, imageUrl auto-pick, meta launch card image, photo background scrim, adFitSize</sub>
+- **[ads-autopilot](../knowledge/ads-autopilot.md)** &mdash; &#9989; verified &middot; 2026-08-13  
+  `netlify/functions/ads-autopilot.mjs` runs every 2 hours on Netlify's servers (nothing open anywhere) and is the FIRST and ONLY job permitted to write to a live ad account. One safety rule governs everything: **the bot may always spend LESS without asking, and may NEVER spend more without asking.** It pauses campaigns pacing 30%+ over the monthly budget, pauses campaigns that burned real money over 30 days with zero conversions, and (opt-in per client, default OFF) shifts daily budget from the worst to the best cost-per-conversion campaign without raising the account total by a cent. It never creates a campaign, never enables one, never raises a budget, never touches targeting. Global kill switch `ADS_AUTOPILOT=off`; per-client `autopilot.enabled=false`. Built 2026-08-13. 32-case harness, all passing.  
+  <sub>*task:* the only job allowed to change a live ad account on its own — auto-pause on overspend or dead spend, opt-in budget rebalance &nbsp;|&nbsp; *keywords:* ads autopilot, auto pause, overspend trip, dead spend, rebalance, guarded write, ADS_AUTOPILOT, kill switch, cooldown, blast radius, spend less never more, offline bots</sub>
 - **[ads-sync](../knowledge/ads-sync.md)** &mdash; &#9989; verified &middot; 2026-08-12  
   `netlify/functions/ads-sync.mjs` runs every 6 hours, reads live campaigns + last-30-day metrics from Google Ads and Meta for EVERY client with a linked ad account (the internal My Ads house account included, unlike alerts-watch), stores a snapshot at `client.data.adPerf`, and fires transition-only owner alerts — RED when an account paces over its monthly ad budget, YELLOW the first time a linked account stops reading at all. Read-only; never writes a campaign. Built 2026-08-12 for two reasons at once: it is the live-spend feed `alerts-watch.mjs:16` had a standing TODO for, AND it is the continuous Ads API traffic Meta requires before granting Marketing API standard access (see `meta-marketing-api`). 44-case harness, all passing.  
   <sub>*task:* the scheduled job that pulls live ad spend from Google + Meta, alerts on over-budget pacing, and keeps continuous Ads API traffic flowing &nbsp;|&nbsp; *keywords:* ads-sync, scheduled function, live spend, budget pacing, over budget, adPerf, adSyncState, ad api traffic, marketing api tier, dead token alert, netlify schedule, stub-tree test harness</sub>
