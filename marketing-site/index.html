@@ -2434,6 +2434,17 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
     show();
   }, true);                // capture phase, for the same reason
 
+  // Tapping the Meta / Combined / E-Commerce TAB pops the notice too. This is the
+  // one Bryson kept hitting on mobile: the tab just swapped panes silently, and the
+  // pane notice is easy to scroll straight past on a phone. Capture phase for the
+  // same registration-order reason as above, but deliberately NO preventDefault or
+  // stopPropagation — the pane must still switch so he can read the packages.
+  var BLOCKED_TABS = '.tab[data-tab="meta"], .tab[data-tab="combined"], .tab[data-tab="ecom"]';
+  document.addEventListener('click', function(e){
+    var tab = e.target && e.target.closest ? e.target.closest(BLOCKED_TABS) : null;
+    if(tab) show();
+  }, true);
+
   // Get-started wizard: picking Meta or Both pops the same notice. An INLINE note
   // does not work here — the wizard advances to the next step on selection and
   // hides the step it would have lived in, so it would flash and vanish.
