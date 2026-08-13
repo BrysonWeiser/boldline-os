@@ -1,0 +1,30 @@
+---
+name: conversion-tracking
+topic: Marketing
+task: what counts as a lead on BoldLine's own ads, and how Google/Meta are told about it
+keywords: [conversion tracking, what counts as a lead, calendly event_scheduled, generate_lead, BL_TRACK, google ads conversion action, meta pixel, AW- label, tracking gate, autopilot false pause]
+status: verified
+summary: BoldLine's ad landing page (`/get-started`) now reports two lead events — `book` (a Calendly meeting actually SCHEDULED) and `form` (the backup form submitted) — to GA4 always, and to Google Ads + Meta once their IDs are pasted into the `BL_TRACK` config block at the bottom of the page. Opening the Calendly popup is deliberately NOT a lead. Before this, NOTHING counted: the page had GA4 analytics only, no `AW-` conversion tag and no Meta pixel, so a booked call registered as a failure. That also would have made `ads-autopilot` pause a working campaign around day 21 for "zero conversions" — now gated. Built 2026-08-13. 12 + 40 cases passing.
+verified: 2026-08-13
+---
+
+**Why (Bryson, 2026-08-13, about to take his first campaign live):** *"what counts as a lead because all the buttons right now go to my calendly."* The honest audit: **nothing counted.** `/get-started` carried GA4 (`G-MG7T0687RT`) and Microsoft Clarity — analytics only. **No `AW-` Google Ads conversion tag, no Meta Pixel, and nothing firing on a Calendly booking.** A prospect could click the ad, book a call, and the ad platform would record the visit as a failure. Calendly's own email was the only signal, and the OS can't read Calendly either (its reader needs a PAID plan; he is on free — KB `os-calendar`).
+
+**THE DANGEROUS INTERACTION, caught by the same question.** `ads-autopilot` pauses any campaign with **zero conversions** after it spends `max($150, 25% of budget)`. With no tracking, conversions are permanently zero — so at $7/day it would have **paused a perfectly working campaign around day 21**, and the pause would have looked like a bug in the bot rather than a hole in the tracking. **Fixed with a gate:** if the ENTIRE account has never recorded a conversion in the window, autopilot cannot distinguish "the ads aren't working" from "tracking was never set up" — those need opposite responses — so it **refuses to pause for zero conversions** and instead sends one cooldown-limited yellow alert saying tracking looks unconfigured. Once a single conversion exists anywhere in the account, the rule protects normally again.
+
+**What counts as a lead (two events, deliberately):**
+| Event | Fires on | GA4 | Google Ads | Meta |
+|---|---|---|---|---|
+| `book` | Calendly `calendly.event_scheduled` — a meeting actually booked | `generate_lead` (method=book) | conversion @ `bookLabel` | `Schedule` |
+| `form` | the backup `get-started` Netlify form submitted | `generate_lead` (method=form) | conversion @ `formLabel` | `Lead` |
+
+**Opening the popup is NOT a lead, on purpose.** Calendly also emits `profile_page_viewed` and `date_and_time_selected`; counting those would teach Google to buy clicks from people who open and leave, which is worse than counting nothing. Only `event_scheduled` means a real booking.
+
+**Config lives in `window.BL_TRACK`** at the bottom of `marketing-site/get-started/index.html`: `googleAdsId` (`AW-…`), `bookLabel`, `formLabel` (optional; falls back to `bookLabel`), `metaPixelId`. **All empty by default and completely dormant** — GA4 still records the lead so there is a history from day one, and no half-configured platform gets a partial signal. The Meta pixel bootstrap only loads if an id is present.
+
+**De-duped:** one lead per visitor per kind (`fired[kind]`), so a repeated postMessage or a double submit cannot inflate the count.
+
+**HOW TO TURN IT ON (Google Ads):** Google Ads → Goals → Conversions → New conversion action → Website → skip the scan, "Add manually" → category **Submit lead form**, name "Book a call", value: leave unset or set what a booked call is worth → Create → **"Use Google tag" → the panel shows a Conversion ID (`AW-…`) and a Conversion label**. Paste those into `googleAdsId` and `bookLabel`. Repeat for a second action if a separate form label is wanted.
+**Meta:** Events Manager → Data sources → your pixel → copy the pixel ID into `metaPixelId`. (Meta client campaigns are still gated on App Review — KB `meta-marketing-api` — but the pixel can collect from day one.)
+
+**Verified 2026-08-13 — 12 page cases** (hermetic; tag scripts blocked, assertions on the gtag/fbq queues): tracker installs, no pixel loads with an empty id, a booking fires GA4 but sends no Google Ads conversion while unconfigured, viewing / selecting a time counts nothing, with IDs pasted the booking sends `AW-…/bookLabel` + Meta `Schedule`, a repeat booking does not double-count, and the form fires with its own label + Meta `Lead`. Plus **40 autopilot cases** including the new tracking gate (no pause without proof, one warning not repeated every 2h, and normal pausing restored once a conversion exists).

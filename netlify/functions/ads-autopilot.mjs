@@ -134,8 +134,26 @@ export default withFailureAlert("ads-autopilot", async () => {
     };
 
     // ── 1. DEAD SPEND: real money, zero conversions, still running ──
+    // GATE: if the ENTIRE account has never recorded a single conversion in the
+    // window, we cannot tell "the ads aren't working" from "conversion tracking
+    // was never set up" — and those need opposite responses. Pausing on the
+    // second one would kill a campaign that is actually producing booked calls.
+    // So: no proof of tracking, no dead-spend pausing. Tell him instead, once.
+    const trackingProven = live.some((t) => t.conv > 0);
+    const spentReal = sum(live, (t) => t.spend) >= Math.max(DEAD_MIN_SPEND, monthly * DEAD_MIN_SHARE);
+    if (!trackingProven && spentReal && !onCooldown("tracking-warning")) {
+      await dispatchAlert({
+        title: `No conversions are being tracked for ${who}`,
+        body: `${who} has spent $${round2(sum(live, (t) => t.spend))} over 30 days and the ad platform has recorded ZERO conversions across every campaign.\n\nThat usually means conversion tracking was never wired up, not that the ads failed — a booked call or a form fill that the platform never hears about looks identical to no leads at all.\n\nAutopilot will NOT pause anything for zero conversions until at least one is recorded, because it cannot tell the two apart. Check the conversion setup, then this rule protects you properly.`,
+        severity: "yellow",
+        smsText: `BoldLine: ${who} has spend but ZERO tracked conversions — conversion tracking is probably not set up. Autopilot is holding off on dead-spend pauses.`,
+      });
+      actions.push({ key: "tracking-warning", at: new Date().toISOString(), action: "notice",
+        name: "Conversion tracking", platform: "n/a", reason: "spend recorded with zero conversions account-wide — tracking looks unconfigured" });
+    }
+
     const deadFloor = Math.max(DEAD_MIN_SPEND, monthly * DEAD_MIN_SHARE);
-    for (const t of live) {
+    for (const t of (trackingProven ? live : [])) {
       if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
       if (t.conv > 0 || t.spend < deadFloor || onCooldown(t.key)) continue;
       try {
@@ -198,16 +216,23 @@ export default withFailureAlert("ads-autopilot", async () => {
     // ── persist + tell the owner ──
     if (actions.length) {
       const log = actions.concat(recent).slice(0, 60);
+      // Persist BEFORE the early-continue below, so a notice records its cooldown.
       await supabase.from("clients")
         .update({ data: { ...cl, autopilot: { ...ap, log, lastRun: new Date().toISOString() } }, updated_at: new Date().toISOString() })
         .eq("id", row.id);
 
-      const lines = actions.map((a) => `${a.action === "pause" ? "PAUSED" : "REBALANCED"} — ${a.name} (${a.platform === "google" ? "Google" : "Meta"})\n  ${a.reason}`);
+      const changed = actions.filter((a) => a.action !== "notice");
+      if (!changed.length) {
+        // Notice-only run: the alert already went out above; just persist and move on.
+        console.log(`ads-autopilot: ${who} — notice only, no campaign changed.`);
+        continue;
+      }
+      const lines = changed.map((a) => `${a.action === "pause" ? "PAUSED" : "REBALANCED"} — ${a.name} (${a.platform === "google" ? "Google" : "Meta"})\n  ${a.reason}`);
       await dispatchAlert({
         title: `Autopilot acted on ${who}`,
-        body: `Autopilot made ${actions.length} change${actions.length > 1 ? "s" : ""} to protect the budget:\n\n${lines.join("\n\n")}\n\nNothing was started and no budget was increased. Review it in BoldLine OS → Campaigns.`,
-        severity: actions.some((a) => a.action === "pause") ? "red" : "yellow",
-        smsText: `BoldLine Autopilot: ${actions.length} change(s) on ${who} — ${actions[0].action === "pause" ? "paused " + actions[0].name : "rebalanced budget"}.`.slice(0, 300),
+        body: `Autopilot made ${changed.length} change${changed.length > 1 ? "s" : ""} to protect the budget:\n\n${lines.join("\n\n")}\n\nNothing was started and no budget was increased. Review it in BoldLine OS → Campaigns.`,
+        severity: changed.some((a) => a.action === "pause") ? "red" : "yellow",
+        smsText: `BoldLine Autopilot: ${changed.length} change(s) on ${who} — ${changed[0].action === "pause" ? "paused " + changed[0].name : "rebalanced budget"}.`.slice(0, 300),
       });
     }
   }
