@@ -5047,6 +5047,257 @@ function MetaLaunchCard({client, onUpdate}) {
 // ON from inside the OS — the launch cards only BUILD campaigns (paused). Enabling
 // starts real spend, so it's confirmed first. Reads via gadsCall/metaCall
 // "campaigns" and writes via "setStatus" (same functions ARIA's approval queue uses).
+// ─── CONTENT STUDIO ───────────────────────────────────────────────────────────
+// Video ideas + shootable scripts for BoldLine's own channels — short-form
+// (Reels/TikTok/Shorts) and long-form (YouTube/podcast), for the business AND
+// Bryson's personal brand. Built 2026-08-13.
+//
+// Saved ideas live on the My Ads house-account record (`contentIdeas`), which
+// rides the existing clients-table save path — no new Supabase table, no
+// migration to run, and it syncs across his phone and desktop for free.
+const CONTENT_PILLARS = [
+  { id:"build",      label:"Building in public" },
+  { id:"teach",      label:"Teaching ads" },
+  { id:"teardown",   label:"Teardowns" },
+  { id:"contrarian", label:"Contrarian takes" },
+  { id:"personal",   label:"Personal brand" },
+  { id:"sales",      label:"Sales + cold calling" },
+];
+
+async function contentCall(payload){
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  const token = session && session.access_token;
+  if(!token) throw new Error("Session expired — refresh the page and log in again.");
+  const r = await fetch("/.netlify/functions/content-studio",{
+    method:"POST",
+    headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+    body:JSON.stringify(payload),
+  });
+  const d = await r.json().catch(()=>({}));
+  if(!r.ok||!d.ok) throw new Error(d.error||"Content Studio request failed");
+  return d;
+}
+
+function ContentStudioScreen({onBack,isDesktop,account,onSaveAccount}){
+  const [tab,setTab]=useState("new");            // new | saved
+  const [mode,setMode]=useState("short");        // short | long
+  const [pillar,setPillar]=useState("");
+  const [topic,setTopic]=useState("");
+  const [minutes,setMinutes]=useState(8);
+  const [ideas,setIdeas]=useState([]);
+  const [busy,setBusy]=useState("");
+  const [err,setErr]=useState("");
+  const [open,setOpen]=useState(null);           // index of the expanded idea
+  const [scripts,setScripts]=useState({});       // key -> script
+
+  const saved=(account&&account.contentIdeas)||[];
+  const keyOf=(idea)=>String(idea&&idea.title||"").slice(0,90);
+
+  const generate=async()=>{
+    setBusy("ideas"); setErr(""); setOpen(null);
+    try{
+      // Everything already on screen or saved goes in the avoid list, so a second
+      // press gives genuinely new ideas instead of rewording the first batch.
+      const avoid=ideas.map(i=>i.title).concat(saved.map(s=>s.idea&&s.idea.title)).filter(Boolean);
+      const d=await contentCall({action:"ideas",mode,pillar:pillar||undefined,topic:topic.trim()||undefined,avoid});
+      setIdeas(d.ideas||[]);
+    }catch(e){ setErr(e.message||"Couldn't generate ideas."); }
+    setBusy("");
+  };
+
+  const writeScript=async(idea,i)=>{
+    const k=keyOf(idea);
+    setBusy("script:"+i); setErr("");
+    try{
+      const d=await contentCall({action:"script",mode,idea,minutes:mode==="long"?minutes:undefined});
+      setScripts(prev=>({...prev,[k]:d.script}));
+      setOpen(i);
+    }catch(e){ setErr(e.message||"Couldn't write the script."); }
+    setBusy("");
+  };
+
+  const save=(idea)=>{
+    if(!account||!onSaveAccount) return;
+    const k=keyOf(idea);
+    const entry={id:(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():String(Date.now()),
+      savedAt:new Date().toISOString(),mode,idea,script:scripts[k]||null};
+    onSaveAccount({...account,contentIdeas:[entry].concat(saved)});
+  };
+  const unsave=(id)=>{
+    if(!account||!onSaveAccount) return;
+    if(!window.confirm("Remove this from your saved list?")) return;
+    onSaveAccount({...account,contentIdeas:saved.filter(s=>s.id!==id)});
+  };
+
+  const copy=(text)=>{ try{ navigator.clipboard.writeText(text); }catch(e){} };
+  const scriptText=(s)=>[
+    s.title,"",
+    "HOOK: "+s.hook,"",
+    ...(s.blocks||[]).map(b=>`[${b.timing}] ${b.label}\n${b.say}\n(${b.direction})`),
+    "","CTA: "+s.cta,
+    "","CAPTION:\n"+s.caption,
+    "","HASHTAGS: "+((s.hashtags||[]).join(" ")),
+    "","ON SCREEN: "+((s.onScreenText||[]).join(" | ")),
+    "","SHOOT NOTES: "+s.shotNotes,
+  ].join("\n");
+
+  const chip=(active)=>({padding:"6px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,cursor:"pointer",
+    border:`1px solid ${active?C.gold:C.border}`,backgroundColor:active?"rgba(200,168,75,0.12)":"transparent",
+    color:active?C.gold:C.textDim});
+  const inp={width:"100%",padding:"9px 11px",fontSize:12.5,borderRadius:9,border:`1px solid ${C.border}`,
+    backgroundColor:C.bg2,color:C.text,fontFamily:"inherit",outline:"none"};
+  const back=!isDesktop&&(
+    <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
+  );
+
+  const ScriptView=({s})=>(
+    <div style={{marginTop:11,paddingTop:11,borderTop:`1px solid ${C.border2}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9,flexWrap:"wrap"}}>
+        <Label>Script</Label>
+        <button onClick={()=>copy(scriptText(s))} style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer"}}>Copy all</button>
+      </div>
+      <div style={{fontSize:12.5,fontWeight:800,color:C.gold,lineHeight:1.5,marginBottom:9}}>“{s.hook}”</div>
+      {(s.blocks||[]).map((b,i)=>(
+        <div key={i} style={{marginBottom:11,paddingLeft:11,borderLeft:`2px solid ${C.border}`}}>
+          <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:3}}>
+            {b.label} <span style={{opacity:.7,fontWeight:600}}>· {b.timing}</span>
+          </div>
+          <div style={{fontSize:12.5,color:C.text,lineHeight:1.65,whiteSpace:"pre-wrap"}}>{b.say}</div>
+          {b.direction&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,marginTop:4,fontStyle:"italic"}}>{b.direction}</div>}
+        </div>
+      ))}
+      <div style={{fontSize:12,color:C.text,lineHeight:1.6,marginTop:9}}><b style={{color:C.textMuted,fontSize:10.5}}>CTA — </b>{s.cta}</div>
+      {s.caption&&<div style={{marginTop:10}}>
+        <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:4}}>Caption</div>
+        <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{s.caption}</div>
+      </div>}
+      {(s.hashtags||[]).length>0&&<div style={{fontSize:11,color:C.blue,marginTop:7,lineHeight:1.6}}>{s.hashtags.join("  ")}</div>}
+      {(s.onScreenText||[]).length>0&&<div style={{marginTop:10}}>
+        <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:4}}>Burn on screen</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{s.onScreenText.map((t,i)=><span key={i} style={{fontSize:11,padding:"3px 8px",borderRadius:6,backgroundColor:"rgba(255,255,255,.05)",color:C.textDim}}>{t}</span>)}</div>
+      </div>}
+      {(s.titleOptions||[]).length>0&&<div style={{marginTop:10}}>
+        <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:4}}>Other titles</div>
+        {s.titleOptions.map((t,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.7}}>· {t}</div>)}
+      </div>}
+      {s.shotNotes&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:10,paddingTop:9,borderTop:`1px solid ${C.border2}`}}><b>Before you record: </b>{s.shotNotes}</div>}
+    </div>
+  );
+
+  const IdeaCard=({idea,i,savedEntry})=>{
+    const k=keyOf(idea);
+    const s=(savedEntry&&savedEntry.script)||scripts[k];
+    const isOpen=open===(savedEntry?"s"+savedEntry.id:i);
+    const working=busy===("script:"+i);
+    const already=saved.some(x=>x.idea&&x.idea.title===idea.title);
+    return (
+      <Card style={{marginBottom:11}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:9,marginBottom:7,flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 200px",minWidth:0}}>
+            <div style={{fontSize:14,fontWeight:800,color:C.text,lineHeight:1.35}}>{idea.title}</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6,alignItems:"center"}}>
+              <Chip label={idea.audience==="business"?"Business":idea.audience==="personal"?"Personal":"Both"} color={idea.audience==="personal"?C.purple:idea.audience==="both"?C.blue:C.gold} small/>
+              <Chip label={idea.effort==="easy"?"Easy shoot":idea.effort==="involved"?"Involved":"Medium"} color={idea.effort==="easy"?C.green:idea.effort==="involved"?C.amber:C.textMuted} small/>
+              <span style={{fontSize:10,color:C.textMuted}}>{idea.lengthHint} · {(idea.platforms||[]).join(", ")}</span>
+            </div>
+          </div>
+          {savedEntry
+            ? <button onClick={()=>unsave(savedEntry.id)} style={{fontSize:11,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:"pointer",flexShrink:0}}>Remove</button>
+            : <button onClick={()=>save(idea)} disabled={already} style={{fontSize:11,fontWeight:700,color:already?C.green:C.gold,background:"none",border:"none",cursor:already?"default":"pointer",flexShrink:0}}>{already?"✓ Saved":"Save"}</button>}
+        </div>
+
+        <div style={{fontSize:12.5,fontWeight:700,color:C.gold,lineHeight:1.55,marginBottom:8}}>“{idea.hook}”</div>
+        {(idea.beats||[]).map((b,bi)=><div key={bi} style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>· {b}</div>)}
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:8}}>{idea.why}</div>
+
+        <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+          {s
+            ? <button onClick={()=>setOpen(isOpen?null:(savedEntry?"s"+savedEntry.id:i))} style={{padding:"6px 13px",fontSize:11.5,fontWeight:800,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{isOpen?"Hide script":"Show script"}</button>
+            : <button onClick={()=>writeScript(idea,i)} disabled={!!busy} style={{padding:"6px 13px",fontSize:11.5,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#120E02",cursor:busy?"default":"pointer",opacity:busy?.6:1}}>{working?"Writing…":"Write the script"}</button>}
+          <button onClick={()=>copy(`${idea.title}\n\nHook: ${idea.hook}\n\n${(idea.beats||[]).map(b=>"- "+b).join("\n")}`)} style={{padding:"6px 13px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>Copy idea</button>
+        </div>
+        {isOpen&&s&&<ScriptView s={s}/>}
+      </Card>
+    );
+  };
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        {back}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Content Studio</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Video ideas and scripts for the agency and your personal brand.</div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:16}}>
+        <button onClick={()=>setTab("new")} style={chip(tab==="new")}>New ideas</button>
+        <button onClick={()=>setTab("saved")} style={chip(tab==="saved")}>Saved{saved.length?` (${saved.length})`:""}</button>
+      </div>
+
+      <div style={{maxWidth:820}}>
+        {tab==="new"&&<>
+          <Card style={{marginBottom:14}}>
+            <Label>What are we making</Label>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:11}}>
+              <button onClick={()=>setMode("short")} style={chip(mode==="short")}>Short-form <span style={{opacity:.7,fontWeight:600}}>Reels · TikTok · Shorts</span></button>
+              <button onClick={()=>setMode("long")} style={chip(mode==="long")}>Long-form <span style={{opacity:.7,fontWeight:600}}>YouTube · Podcast</span></button>
+            </div>
+
+            <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:C.textMuted,marginBottom:6}}>Angle (optional)</div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:11}}>
+              <button onClick={()=>setPillar("")} style={chip(!pillar)}>Mix it up</button>
+              {CONTENT_PILLARS.map(p=><button key={p.id} onClick={()=>setPillar(p.id)} style={chip(pillar===p.id)}>{p.label}</button>)}
+            </div>
+
+            <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:C.textMuted,marginBottom:6}}>Anything specific? (optional)</div>
+            <input value={topic} onChange={e=>setTopic(e.target.value)} placeholder="e.g. why roofers waste money on shared leads" style={inp}/>
+
+            {mode==="long"&&(
+              <div style={{marginTop:11}}>
+                <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:C.textMuted,marginBottom:6}}>Target length: {minutes} min</div>
+                <input type="range" min={4} max={20} value={minutes} onChange={e=>setMinutes(Number(e.target.value))} style={{width:"100%",accentColor:C.gold}}/>
+              </div>
+            )}
+
+            <button onClick={generate} disabled={!!busy} style={{marginTop:13,padding:"10px 18px",fontSize:12.5,fontWeight:800,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#120E02",cursor:busy?"default":"pointer",opacity:busy?.6:1}}>
+              {busy==="ideas"?"Thinking…":ideas.length?"Give me 6 more":"Generate 6 ideas"}
+            </button>
+            {ideas.length>0&&<span style={{fontSize:11,color:C.textMuted,marginLeft:10}}>New batch skips everything you've already got.</span>}
+          </Card>
+
+          {err&&<Card style={{borderColor:`${C.red}44`,marginBottom:12}}><div style={{fontSize:12,color:C.red,lineHeight:1.6}}>{err}</div></Card>}
+
+          {busy==="ideas"&&<Card><div style={{fontSize:12,color:C.textMuted}}>Writing 6 ideas — about 10 seconds.</div></Card>}
+
+          {!busy&&!ideas.length&&!err&&(
+            <Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>
+              Pick short or long, optionally choose an angle, and hit Generate. Every idea comes with the exact opening line and the beats it moves through — then you can have the full script written for the ones you like.
+              <br/><br/><b style={{color:C.textDim}}>It will never invent client results or testimonials</b> — you don't have clients yet, and the ideas are built around that honestly rather than pretending otherwise.
+            </div></Card>
+          )}
+
+          {ideas.map((idea,i)=><IdeaCard key={i} idea={idea} i={i}/>)}
+        </>}
+
+        {tab==="saved"&&<>
+          {!account&&<Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>Saved ideas live on your <b style={{color:C.gold}}>My Ads</b> account. Open My Ads once from the dashboard to create it, then saving will work here.</div></Card>}
+          {account&&!saved.length&&<Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>Nothing saved yet. Generate some ideas and hit <b style={{color:C.gold}}>Save</b> on the ones worth shooting — they'll wait here with their scripts.</div></Card>}
+          {saved.map(entry=>(
+            <div key={entry.id}>
+              <div style={{fontSize:10,color:C.textMuted,marginBottom:4,marginLeft:2}}>
+                {entry.mode==="long"?"Long-form":"Short-form"} · saved {new Date(entry.savedAt).toLocaleDateString()}
+              </div>
+              <IdeaCard idea={entry.idea} i={entry.id} savedEntry={entry}/>
+            </div>
+          ))}
+        </>}
+      </div>
+    </div>
+  );
+}
+
 // ─── AD CREATIVE STUDIO ───────────────────────────────────────────────────────
 // Draws finished ad images in the browser on a <canvas>, then pushes them into
 // the client's media library — which the Meta launch card ALREADY auto-reads to
@@ -7987,10 +8238,10 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
       </button>
 
       {/* More */}
-      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns")}>
-        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+      <button onClick={onMore} style={btnStyle(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns"||screen==="content")}>
+        <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns"||screen==="content")?"#C8A84B":C.textMuted} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         <span style={{fontSize:9,fontWeight:700,letterSpacing:".06em",textTransform:"uppercase",
-          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns")?"#C8A84B":C.textMuted}}>More</span>
+          color:(screen==="calendar"||screen==="dealprep"||screen==="leadscout"||screen==="revenue"||screen==="campaigns"||screen==="content")?"#C8A84B":C.textMuted}}>More</span>
       </button>
     </div>
   );
@@ -7999,7 +8250,7 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // Mobile "More" bottom sheet — the overflow destinations that don't fit in the
 // bottom bar (Calendar, Deal Prep, Revenue). Keeps mobile at feature parity
 // with the desktop sidebar.
-function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, onCampaigns }) {
+function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, onCampaigns, onContent }) {
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:13,width:"100%",padding:"14px 14px",borderRadius:13,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left",marginBottom:9}}>
       <span style={{width:38,height:38,borderRadius:10,background:"rgba(200,168,75,0.10)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
@@ -8017,6 +8268,7 @@ function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, on
         <div style={{width:38,height:4,borderRadius:2,background:"rgba(255,255,255,0.15)",margin:"0 auto 14px"}}/>
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:12,paddingLeft:2}}>More</div>
         {row(sv(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>),"Campaigns","Every ad campaign — start, pause, delete",onCampaigns)}
+        {row(sv(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>),"Content Studio","Video ideas + scripts, short and long form",onContent)}
         {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
         {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
         {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
@@ -8223,7 +8475,7 @@ function useIsDesktop(bp=1024){
 // ─── DESKTOP SIDEBAR ──────────────────────────────────────────────────────────
 // Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden
 // there. Same destinations as BottomNav plus a first-class Revenue entry.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar,onCampaigns}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -8261,6 +8513,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
         <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
         <button onClick={onCampaigns} style={item(screen==="campaigns")}>{bar(screen==="campaigns")}{svg(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>,col("campaigns"))}Campaigns</button>
+        <button onClick={onContent} style={item(screen==="content")}>{bar(screen==="content")}{svg(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>,col("content"))}Content</button>
         <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
         <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
         <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
@@ -8525,13 +8778,14 @@ function App({onLogout}) {
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>setScreen("home")} isDesktop={isDesktop} onSelectClient={selectClient}/>}
+        {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
@@ -8541,7 +8795,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
       {toasts.length>0&&(
         <div style={isDesktop
           ? {position:"fixed",right:20,bottom:20,left:"auto",zIndex:300,display:"flex",flexDirection:"column",gap:8,width:300,pointerEvents:"none"}

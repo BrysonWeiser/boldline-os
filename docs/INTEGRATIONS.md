@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 91 task-keyed entries under `knowledge/`. They surface automatically via the
+> 92 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**91 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**92 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Blog
 
@@ -237,6 +237,9 @@
 - **[client-email-center](../knowledge/client-email-center.md)** &mdash; &#9989; verified &middot; 2026-08-02  
   A per-client "Emails" tab lets Bryson preview, edit, and one-click-send 8 polished DARK-THEME lifecycle emails with the client's details auto-filled — welcome+portal, ad-account access, contract-signed, invoice, receipt, past-due, renewal, thank-you/offboarding. Templates + branding live server-side (client-emails-shared.mjs); client-email.mjs (owner-JWT) renders/sends via the existing Resend sender (report-shared.sendEmail), so they send today with no new config. Built 2026-07-30. 2026-08-02: invoice email's Pay button now resolves a REAL Stripe hosted-invoice URL (pay page + scan-to-pay QR) via new stripe-billing `invoice-link` action, falling back to the Checkout link then the portal; welcome+portal and thank-you/offboarding confirmed fully working (thank-you is prompted by the getAlerts `email_thankyou` alert when a contract ends).  
   <sub>*task:* send branded, professional client emails (welcome, invoice, renewal, thank-you, etc.) from within the OS with one click &nbsp;|&nbsp; *keywords:* client emails, email center, EmailCenterTab, client-email, client-emails-shared, welcome email, invoice email, receipt, past due, renewal, thank you, onboarding, ad account access, branded email, dark theme email, lifecycle emails, EMAIL_TYPES</sub>
+- **[content-studio](../knowledge/content-studio.md)** &mdash; &#9989; verified &middot; 2026-08-13  
+  `ContentStudioScreen` (nav item "Content") + `netlify/functions/content-studio.mjs` generate 6 video ideas at a time — short-form (Reels/TikTok/Shorts) or long-form (YouTube/podcast) — each with the literal opening hook, 3-5 beats, audience (business vs personal) and shoot effort; then write a full block-by-block script with timings, camera direction, caption, hashtags, on-screen text and shoot notes. Six content pillars. Saved ideas + scripts persist on the My Ads house-account record (`contentIdeas`) — no new Supabase table, no migration, syncs across devices. Hard guardrail: the model may NEVER invent client results, testimonials or case studies, because BoldLine has no clients yet. Built 2026-08-13. 27-case Playwright suite, all passing.  
+  <sub>*task:* generate video ideas and shootable scripts for BoldLine's channels and Bryson's personal brand &nbsp;|&nbsp; *keywords:* content studio, video ideas, video scripts, short form, reels, tiktok, shorts, youtube, podcast, personal brand, content pillars, contentIdeas, content-studio.mjs, no fake results</sub>
 - **[contract-renewal-pricing](../knowledge/contract-renewal-pricing.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Term-based renewal pricing — BUILT 2026-07-15, TEST-MODE E2E VERIFIED 2026-07-16. New clients always start on a 3-month term at the standard package rate. At RENEWAL the client picks 1/3/6/12 months; month-to-month is +10%, 3mo is the standard anchor (0%), 6mo −5%, 12mo −10%, applied to the package's monthly price. v1 = pricing math + renewal UI (per-term price + savings) + contract doc reflect the term & effective rate. v2 = renewal pushes the new monthly to the live Stripe subscription automatically via `update-subscription` (no manual Stripe edit) — proven end-to-end in Stripe test mode after two real Stripe-quirk fixes (see gotchas). Charges management fee ONLY, never ad spend.  
   <sub>*task:* change how contract renewal pricing / term discounts work, or the renewal flow on the Contract tab &nbsp;|&nbsp; *keywords:* termMonthly, termRate, termRateLabel, TERM_RATE, renewMonths, handleRenew, contractTermMonths, billingMonthly, update-subscription, renewal discount, month-to-month premium</sub>
