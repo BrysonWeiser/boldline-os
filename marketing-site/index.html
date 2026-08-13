@@ -941,6 +941,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   /* On the ACTIVE tab the pill sits on gold, so gold-on-gold makes it vanish
      (see KB css-gold-on-gold-specificity). Flip it to dark-on-gold. */
   .tab.active .soon{background:rgba(12,9,0,.22);border-color:rgba(12,9,0,.30);color:#2A2000}
+  /* [hidden] is a low-specificity UA rule; .btn's display beats it. Force it,
+     or the gated Book-a-Call button stays visible while JS thinks it's hidden. */
+  #recBook[hidden],#recSoon[hidden]{display:none!important}
   .soon-note{margin:0 0 22px;padding:15px 17px;border-radius:13px;
     background:rgba(200,168,75,.06);border:1px solid rgba(200,168,75,.24)}
   .soon-note b{color:#C8A84B}
@@ -1022,7 +1025,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <span class="tag">Most Popular</span>
@@ -1036,7 +1039,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="retargeting">Retargeting</span> &amp; <span class="term" tabindex="0" data-term="audience-building">audience building</span></li>
             <li><span class="term" tabindex="0" data-term="split-testing">Split testing</span></li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
@@ -1050,7 +1053,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="split-testing">Split testing</span></li>
             <li><span class="term" tabindex="0" data-term="multi-campaign">Multi-campaign structure</span></li>
           </ul>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
       </div>
     </div>
@@ -1075,7 +1078,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
           </ul>
           <div class="note">Bundled pricing that runs more efficiently than two separate single-platform engagements.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <span class="tag">Most Powerful</span>
@@ -1091,7 +1094,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="crm-integration">CRM integration</span></li>
           </ul>
           <div class="note">Bundled pricing that runs more efficiently than two separate single-platform engagements.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
       </div>
     </div>
@@ -1115,7 +1118,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
           </ul>
           <div class="note">Performance bonus available once your store is consistently hitting strong <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <span class="tag">Recommended</span>
@@ -1130,7 +1133,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="split-testing">Split testing</span></li>
           </ul>
           <div class="note">Performance bonus available once your store is consistently hitting strong <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <h3>Store Domination</h3>
@@ -1145,7 +1148,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="multi-campaign">Multi-campaign structure</span></li>
           </ul>
           <div class="note">Performance bonus available once your store is consistently hitting strong <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
-          <a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
       </div>
     </div>
@@ -1684,6 +1687,13 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
       <h3 id="recHeadline"></h3>
       <p class="modal-why" id="recWhy"></p>
       <div class="modal-actions">
+        <!-- CS:META-SOON:START rec-notice -->
+        <div class="soon-note" id="recSoon" hidden style="margin:0 0 14px;text-align:left">
+          <p><b>Heads up &mdash; this one isn&rsquo;t open yet.</b></p>
+          <p>Meta (Facebook and Instagram) is still going through platform approval, estimated <b>October 2026</b>, so we can&rsquo;t start this package today. Leave your email below and you&rsquo;ll be first to know the day it opens.</p>
+          <p><b>If you want to start now, Google Ads is live.</b> Ask for the Google plan on a call and we&rsquo;ll move you across when Meta opens.</p>
+        </div>
+        <!-- CS:META-SOON:END rec-notice -->
         <a class="btn" id="recBook" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
         <button type="button" class="btn-outline" id="recSee">See this package</button>
       </div>
@@ -1800,6 +1810,15 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
     if(rd) rd.hidden = true;
     var recBook = document.getElementById('recBook');
     if(recBook) recBook.setAttribute('data-pkg', tierName + ' on ' + f.label);  // so Book a Call prefills the recommended package
+    /* CS:META-SOON:START rec-gate — a Meta-dependent recommendation must not offer
+       a booking for something we cannot deliver yet. Show the notice and hide the
+       Book a Call button; the email capture below stays, so the lead is still kept. */
+    var SOON_FAMS = { meta:1, combined:1, ecom:1 };
+    var famSoon = !!SOON_FAMS[fam];
+    var recSoon = document.getElementById('recSoon');
+    if(recSoon) recSoon.hidden = !famSoon;
+    if(recBook) recBook.hidden = famSoon;
+    /* CS:META-SOON:END rec-gate */
     document.getElementById('recSee').onclick = function(){
       closeModal();
       var tabBtn = document.querySelector('.tab[data-tab="' + f.tab + '"]');
