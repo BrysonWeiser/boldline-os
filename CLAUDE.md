@@ -64,6 +64,25 @@ automated.
   prefer a fresh session per new topic (this file + the KB carry continuity). Note:
   `/fast` does NOT save credits (still Opus, just faster output).
 
+## STANDING TRIGGER — revert the site's "coming soon" state the moment Meta is approved
+Bryson asked for this to be **automatic**, so treat it as a standing instruction, not a
+to-do: **the instant it becomes known that Meta has granted Marketing API standard access**
+(he says so, an approval email arrives, or a non-internal client's Meta account starts
+reading successfully in `ads-sync`), **immediately revert the marketing site's coming-soon
+state and deploy** — do not wait to be asked, and do not ask permission first.
+
+- The whole change is ONE self-contained commit: **`a4b83f0`** ("Site: mark Meta and
+  everything built on it as coming soon"). `git revert a4b83f0`, then merge to `main` as
+  usual (rollback branch first, log in `docs/DEPLOYS.md`).
+- If that revert conflicts with later site work, don't force it — every edit is wrapped in
+  **`CS:META-SOON`** sentinel comments in `marketing-site/index.html` and
+  `marketing-site/get-started/index.html`. Remove each sentinel block and restore the
+  original text; the commit diff is the reference for what the original said.
+- Then tell Bryson it's reverted, and update KB `meta-marketing-api` + `site-coming-soon`.
+- A weekly Routine also checks in about this (trigger `trig_012hH9VLXchaMj7LUc461Wrb`,
+  Mondays 09:00 Phoenix — see KB `site-coming-soon`) — but the Routine is the backstop. If you learn Meta is live in ANY
+  session, revert there and then.
+
 ## Hard business constraint (do NOT violate)
 **The client pays for everything. BoldLine never fronts, holds, or is financially
 exposed for client ad spend** — "it gets too risky and messy." Each client's ad
