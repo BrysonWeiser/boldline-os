@@ -928,14 +928,34 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
   <div class="section-head reveal">
     <div class="eyebrow">Services</div>
     <h2>Where your customers already are.</h2>
-    <p>One platform or both, run as a single coordinated system rather than two disconnected efforts. Pick a platform to see how each tier is structured.</p>
+    <!-- CS:META-SOON:START intro -->
+    <p><b>Google Ads is open and taking clients now.</b> Meta &mdash; and anything built on it &mdash; is still going through platform approval, estimated October 2026. Pick a platform to see how each tier is structured.</p>
+    <!-- CS:META-SOON:END intro -->
   </div>
 
-  <div class="tabs" role="tablist">
+  <!-- CS:META-SOON:START styles — remove this whole block when Meta goes live -->
+<style>
+  .tab .soon{display:inline-block;margin-left:7px;padding:2px 6px;border-radius:5px;font-size:9px;
+    font-weight:800;letter-spacing:.05em;text-transform:uppercase;vertical-align:middle;
+    background:rgba(200,168,75,.16);border:1px solid rgba(200,168,75,.34);color:#C8A84B}
+  /* On the ACTIVE tab the pill sits on gold, so gold-on-gold makes it vanish
+     (see KB css-gold-on-gold-specificity). Flip it to dark-on-gold. */
+  .tab.active .soon{background:rgba(12,9,0,.22);border-color:rgba(12,9,0,.30);color:#2A2000}
+  .soon-note{margin:0 0 22px;padding:15px 17px;border-radius:13px;
+    background:rgba(200,168,75,.06);border:1px solid rgba(200,168,75,.24)}
+  .soon-note b{color:#C8A84B}
+  .soon-note p{margin:0;font-size:14px;line-height:1.65;color:#C6CAE0}
+  .soon-note p + p{margin-top:9px}
+  .soon-note .eta{display:inline-block;margin-top:10px;font-size:12px;font-weight:700;
+    letter-spacing:.04em;text-transform:uppercase;color:#8B91B8}
+  @media (max-width:600px){.soon-note{padding:13px 14px}.soon-note p{font-size:13.5px}}
+</style>
+<!-- CS:META-SOON:END styles -->
+<div class="tabs" role="tablist">
     <button class="tab active" data-tab="google" role="tab" aria-selected="true">Google Ads</button>
-    <button class="tab" data-tab="meta" role="tab" aria-selected="false">Meta Ads</button>
-    <button class="tab" data-tab="combined" role="tab" aria-selected="false">Combined Systems</button>
-    <button class="tab" data-tab="ecom" role="tab" aria-selected="false">E-Commerce</button>
+    <button class="tab" data-tab="meta" role="tab" aria-selected="false">Meta Ads<!-- CS:META-SOON --><span class="soon">Coming soon</span></button>
+    <button class="tab" data-tab="combined" role="tab" aria-selected="false">Combined Systems<!-- CS:META-SOON --><span class="soon">Coming soon</span></button>
+    <button class="tab" data-tab="ecom" role="tab" aria-selected="false">E-Commerce<!-- CS:META-SOON --><span class="soon">Coming soon</span></button>
   </div>
 
   <div class="tab-panels">
@@ -985,6 +1005,14 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </div>
 
     <div class="tab-panel" data-panel="meta">
+      <!-- CS:META-SOON:START note-meta -->
+      <div class="soon-note">
+        <p><b>Meta Ads campaigns are not open yet.</b></p>
+        <p>Facebook and Instagram campaigns are still going through Meta&rsquo;s advertising-platform approval. We expect to be running them by <b>October 2026</b>. The packages below are final &mdash; the start date isn&rsquo;t.</p>
+        <p><b>Google Ads is live and taking clients today.</b> If you want Meta when it opens, book a call now and we&rsquo;ll hold your spot and start you on Google in the meantime.</p>
+        <span class="eta">Estimated availability &mdash; October 2026</span>
+      </div>
+      <!-- CS:META-SOON:END note-meta -->
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Launch System</h3>
@@ -1028,6 +1056,14 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </div>
 
     <div class="tab-panel" data-panel="combined">
+      <!-- CS:META-SOON:START note-combined -->
+      <div class="soon-note">
+        <p><b>The Meta half of these isn&rsquo;t open yet.</b></p>
+        <p>Combined systems run Google and Meta together, and Meta is still going through platform approval &mdash; expected <b>October 2026</b>.</p>
+        <p><b>You can start the Google side today</b> and we&rsquo;ll switch you onto the combined plan the moment Meta opens, at the combined price. Nothing extra to sign.</p>
+        <span class="eta">Estimated availability &mdash; October 2026</span>
+      </div>
+      <!-- CS:META-SOON:END note-combined -->
       <div class="pkg-grid cols-2">
         <div class="pkg">
           <span class="tag">Best Value</span>
@@ -1061,6 +1097,14 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     </div>
 
     <div class="tab-panel" data-panel="ecom">
+      <!-- CS:META-SOON:START note-ecom -->
+      <div class="soon-note">
+        <p><b>E-Commerce systems open with Meta.</b></p>
+        <p>Our store packages lean on Facebook and Instagram for the bulk of the work, and Meta is still going through platform approval &mdash; expected <b>October 2026</b>.</p>
+        <p><b>If your store gets real search demand, the Google packages are live now.</b> Book a call and we&rsquo;ll tell you honestly whether that&rsquo;s worth doing on its own for your product.</p>
+        <span class="eta">Estimated availability &mdash; October 2026</span>
+      </div>
+      <!-- CS:META-SOON:END note-ecom -->
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Store Launch</h3>
@@ -1475,8 +1519,10 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="q-label">What do you need help with?</div>
         <div class="opts" data-key="platform">
           <button type="button" data-val="Google Ads">Google Ads</button>
-          <button type="button" data-val="Meta Ads">Facebook / Instagram</button>
-          <button type="button" data-val="Google + Meta">Both</button>
+          <!-- CS:META-SOON:START wizard -->
+          <button type="button" data-val="Meta Ads">Facebook / Instagram <span style="opacity:.62">(soon)</span></button>
+          <button type="button" data-val="Google + Meta">Both <span style="opacity:.62">(soon)</span></button>
+          <!-- CS:META-SOON:END wizard -->
           <button type="button" data-val="Not sure yet">Not sure yet</button>
         </div>
       </div>
