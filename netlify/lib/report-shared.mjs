@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
+import { pipelineProgress } from "./pipeline-shared.mjs";
 
 export const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -56,10 +57,8 @@ export const calcHealth = (cl) => {
   if (days>30)  score += 1;
   else if (days>7) score += 0.5;
 
-  const statuses = Object.values(cl.botStatuses||{});
-  const done = statuses.filter(s=>s==="done").length;
-  const total = statuses.length||1;
-  score += (done/total) * 1;
+  // Effective statuses, so a client's health here matches the OS screen exactly.
+  score += pipelineProgress(cl).fraction * 1;
 
   if (!cl.intakeComplete && cl.stage!=="onboarding") score -= 0.5;
   if (cl.contractStatus==="expired") score -= 1;
@@ -75,9 +74,10 @@ const buildDataBlock = (client, pkg) => {
   const health = calcHealth(client);
   const onTarget = client.cpl > 0 && client.cpl <= (perLead || 75);
   const daysLeft = daysUntil(client.contractEnd);
-  const botsComplete = Object.values(client.botStatuses || {}).filter((s) => s === "done").length;
-  const botsTotal = Object.values(client.botStatuses || {}).length;
-  const pendingSteps = Object.entries(client.botStatuses || {}).filter(([, s]) => s !== "done").map(([k]) => k);
+  const pipeline = pipelineProgress(client);
+  const botsComplete = pipeline.done;
+  const botsTotal = pipeline.total;
+  const pendingSteps = pipeline.pending;
 
   const text = `Business: ${client.name}
 Contact: ${client.contactName || "Not provided"}
