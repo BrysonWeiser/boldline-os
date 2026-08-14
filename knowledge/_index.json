@@ -296,7 +296,7 @@
     "noindex": 1,
     "conversion": 4,
     "get more customers": 1,
-    "more": 5,
+    "more": 6,
     "customers": 1,
     "boldlinemedia": 16,
     "campaigns": 8,
@@ -685,7 +685,7 @@
     "blog_settings": 1,
     "settings": 1,
     "blog-shared.mjs": 1,
-    "shared": 16,
+    "shared": 17,
     "blog-admin.mjs": 1,
     "admin": 3,
     "blog-autopublish.mjs": 1,
@@ -2637,6 +2637,7 @@
     "artifact": 1,
     "guessed": 1,
     "remembered": 1,
+    "module": 1,
     ".sel": 1,
     "sel": 1,
     "most popular": 1,
@@ -10268,7 +10269,7 @@
         "waiting active done"
       ],
       "status": "verified",
-      "summary": "The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases.",
+      "summary": "The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases in the OS, 25 more on the shared module.",
       "verified": "2026-08-14",
       "terms": {
         "bot pipeline": 3,
@@ -10349,7 +10350,10 @@
         "always": 1.5,
         "wins": 1.5,
         "remembered": 1.5,
-        "cases": 1.5
+        "cases": 1.5,
+        "more": 1.5,
+        "shared": 1.5,
+        "module": 1.5
       }
     },
     {

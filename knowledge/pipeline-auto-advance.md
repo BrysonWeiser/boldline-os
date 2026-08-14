@@ -4,7 +4,7 @@ topic: OS app
 task: how the 20-bot delivery pipeline advances, and which steps are still manual
 keywords: [bot pipeline, botStatuses, auto advance, deriveBotStatuses, effectiveBotStatus, botStatusManual, MANUAL_BOTS, pipeline progress, stage, waiting active done]
 status: verified
-summary: The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases.
+summary: The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases in the OS, 25 more on the shared module.
 verified: 2026-08-14
 ---
 
@@ -48,4 +48,12 @@ verified: 2026-08-14
 
 **Verified by 71 cases** running the shipped `deriveBotStatuses` / `effectiveBotStatus` extracted from `index.html`: a blank record leaves all 14 derivable steps waiting; each signal moves exactly the step it should; the landing-page and campaign chains progress in order; Meta's `effectiveStatus` counts as live; ongoing steps never reach done even on a fully-live record; manual bots are never derived and explain themselves; an override wins, says "Set by hand", does not leak to other bots, and reverts when cleared; and all the wiring is in place. Plus a Babel parse-check, and the geo/budget/copy/house suites re-run clean (24/36/26/32).
 
-**NOT done: the server side.** `deriveBotStatuses` lives in `index.html`, so scheduled jobs (weekly-report, monthly-report, os-report) still read raw stored `botStatuses`. Their pipeline numbers can therefore lag what the OS shows until the record is next saved. Moving the function into `netlify/lib/` shared code is the fix and is unbuilt.
+**✅ SERVER SIDE DONE 2026-08-14** (same day, immediately after). `netlify/lib/pipeline-shared.mjs` now holds the derivation, and `report-shared.mjs` uses it in **both** places that read the pipeline: the health score (`score += pipelineProgress(cl).fraction`) and the report data block. Before this the emailed weekly/monthly reports counted the raw stored `botStatuses` map, so after auto-advance shipped they would have quoted a **different number from the screen** — a client report saying "6/20 steps complete" while the OS showed 11.
+
+**The copy is duplicated ON PURPOSE, and guarded.** The OS is a single static `index.html` with in-browser Babel and no bundler, so it cannot `import` from `netlify/lib/`. `MANUAL_BOTS`, `deriveBotStatuses` and `effectiveBotStatus` therefore exist in both files, fenced by a `COPY BELOW MUST MATCH index.html EXACTLY` comment. **A test asserts the two copies are character-for-character identical** and names which function drifted, so the duplication cannot rot silently. Do not "fix" the duplication by deleting one side.
+
+**`pipelineProgress(client)`** is the one call for server consumers: `{ steps, done, total, active, pending, fraction }`, with `pending` in human names ("Client Intake") rather than bot ids, because it gets read aloud on client calls.
+
+**Reference numbers for a fully-running client:** 11 done, 4 active, 5 pending-manual. The 4 ongoing steps cap at active by design, so 11 + 4 = the 15 derived steps.
+
+**Flagged, NOT fixed (pre-existing):** the OS's `calcHealth` and `report-shared`'s `calcHealth` are two different formulas — the server one includes the pipeline fraction, the OS one does not use the pipeline at all. So the health score in the OS and in an emailed report can differ. That divergence predates this work; unifying them is a separate job.
