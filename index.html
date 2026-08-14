@@ -179,10 +179,31 @@ const PACKAGES_DB = {
   ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
-const findPkg  = (id) => ALL_PKGS.find(p => p.id === id);
+
+// ─── HOUSE ACCOUNT PACKAGE ────────────────────────────────────────────────────
+// Standing expectation (Bryson, 2026-08-14): "I also expect I will always receive
+// the full services the company offers." So the internal My Ads account is not on
+// a sellable tier — it gets a package of its own carrying EVERY feature and every
+// capability flag. Built as the UNION of every tier's feature list rather than a
+// hand-written one, so adding a feature to any package anywhere automatically
+// grants it to the house account too, with nothing to remember.
+// Deliberately NOT in PACKAGES_DB: it must never appear in a package picker, on
+// the marketing site, or in an upgrade list. findPkg resolves it separately.
+const HOUSE_PKG_ID = "bl-house";
+PKG_FEATURES[HOUSE_PKG_ID] = [...new Set(Object.values(PKG_FEATURES).flat())];
+const HOUSE_PKG = {
+  id: HOUSE_PKG_ID, name: "Full System (House Account)", platform: "Google + Meta",
+  price: 0, setup: 0, leadFee: false, tag: "Internal", adSpend: "",
+  optimizationFreq: "weekly", callTracking: true, weeklyOptimization: true,
+  customLandingPage: true, retargeting: true, splitTesting: true,
+  crmIntegration: true, multiCampaign: true,
+};
+const findPkg  = (id) => (id === HOUSE_PKG_ID ? HOUSE_PKG : ALL_PKGS.find(p => p.id === id));
 const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(featureId);
 
 const getUpgradeOptions = (currentPkgId) => {
+  // The house account is already on everything, and there is nobody to sell to.
+  if (currentPkgId === HOUSE_PKG_ID) return [];
   const cur = findPkg(currentPkgId);
   if (!cur) return [];
   return ALL_PKGS.filter(p =>
@@ -3153,13 +3174,14 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
   // Internal "My Ads" account (BoldLine's own): it's not a client, so drop the
-  // client-only tabs (Contract, the client-delivery Pipeline, Emails, and the
-  // communication Log — no client to log comms with), rename "Package"
+  // tabs that need a counterparty (Contract, Emails, and the communication Log).
+  // PIPELINE STAYS (Bryson, 2026-08-14: he wants his own campaign's build status
+  // in the same stage/bot view a client gets), rename "Package"
   // → "Campaigns" (no service tier — just the launch cards), and rename the
   // "Client View" tab → "Assets" (keeps the landing-page/media/call-tracking
   // tools needed to run ads; the client-portal preview inside it is hidden).
   const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="pipeline"||k==="emails"||k==="log")))
+                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log")))
                    .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
@@ -3270,7 +3292,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
           <div style={S.f1min}>
             <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{client.name}{client.internal&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:C.gold,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:6,padding:"1px 6px",verticalAlign:"middle"}}>My Ads</span>}</div>
             <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:1}}>
-              <Chip label={client.internal?"Internal — house account":stage.label} color={stage.color} small/>
+              <>{client.internal&&<Chip label="House account" color={C.textMuted} small/>}<Chip label={stage.label} color={stage.color} small/></>
               {!client.internal&&<span style={{fontSize:10,fontWeight:600,color:healthColor(calcHealth(client))}}>⬡ {calcHealth(client).toFixed(1)}/10</span>}
               {!client.internal&&days<=30&&days>=0&&<span style={{fontSize:10,color:days<=7?C.red:C.amber,fontWeight:700}}>{days}d left</span>}
             </div>
@@ -7392,7 +7414,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
     { id:"status",   label:"Status" },
     { id:"bots",     label:"Pipeline" },
     { id:"notes",    label:"Notes" },
-  ].filter(s=>!(client.internal&&(s.id==="status"||s.id==="bots")));
+  ];
 
   const fieldStyle = { marginBottom:12 };
   const fieldLabelStyle = { fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4,display:"block" };
@@ -7694,7 +7716,8 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
 // list, MRR/revenue/billing, and has no portal/contract. Used to run BoldLine's
 // own ads AND to dogfood the real client flow end-to-end.
 function makeInternalClient() {
-  const packageId = "c-growth"; // combined → both Google + Meta launch cards on the Package tab
+  // The house account gets EVERY service BoldLine sells, not a sellable tier.
+  const packageId = HOUSE_PKG_ID;
   const pkg = findPkg(packageId);
   const botStatuses = Object.fromEntries(buildBots(pkg).map(b => [b.id, "active"]));
   return {
@@ -8683,7 +8706,11 @@ function App({onLogout}) {
   const openDealPrep = (seed) => { setDealSeed(seed || null); setScreen("dealprep"); };
 
   const ensureTokens = async (list) => Promise.all(list.map(async (c) => {
-    if (c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions && c.googleAdsCustomerId!==undefined) return c;
+    // The house account predates the all-services house package (it was created on
+    // the sellable "c-growth" tier), so migrate it in place rather than making
+    // Bryson recreate the record and lose its linked ad accounts and media.
+    const needsHousePkg = c.internal && c.packageId !== HOUSE_PKG_ID;
+    if (!needsHousePkg && c.portalToken && c.leadToken && c.campaignSetup && c.brandVoice && c.mediaLibrary && c.landingSlug && c.landingPage && c.businessPhone!==undefined && c.callTrackingNumberSid!==undefined && c.pendingActions && c.googleAdsCustomerId!==undefined) return c;
     const next = {...c,
       portalToken: c.portalToken||crypto.randomUUID(),
       leadToken: c.leadToken||crypto.randomUUID(),
@@ -8699,6 +8726,15 @@ function App({onLogout}) {
       googleAdsCustomerId: c.googleAdsCustomerId||"",
       metaAdAccountId: c.metaAdAccountId||"",
       metaPageId: c.metaPageId||"",
+      ...(needsHousePkg ? {
+        packageId: HOUSE_PKG_ID,
+        // Bots the old tier never included have no status yet; seed them so the
+        // Pipeline tab shows the full stack instead of blank rows.
+        botStatuses: {
+          ...Object.fromEntries(buildBots(HOUSE_PKG).map(b => [b.id, "active"])),
+          ...(c.botStatuses || {}),
+        },
+      } : {}),
     };
     const { error } = await supabaseClient.from("clients").update({ data:next, updated_at:new Date().toISOString() }).eq("id",next.id);
     if (error) console.error("Token backfill failed:", error);
