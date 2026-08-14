@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 101 task-keyed entries under `knowledge/`. They surface automatically via the
+> 102 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**101 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**102 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -102,6 +102,12 @@
 - **[git-relay-proxy-recovery](../knowledge/git-relay-proxy-recovery.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   If git push fails with "could not read Username", the remote may have been reset to an api.anthropic.com ingress URL — set origin back to the GitHub HTTPS URL (the proxy's insteadOf rewrite handles auth) and retry. A one-off workaround relayed a commit via the GitHub MCP push_files.  
   <sub>*task:* recover git push when it fails with "could not read Username" because the relay/proxy auth broke &nbsp;|&nbsp; *keywords:* could-not-read-username, GIT_ASKPASS, insteadOf, push_files, api.anthropic.com, git-relay</sub>
+
+## Infra
+
+- **[netlify-secret-scan-deploys](../knowledge/netlify-secret-scan-deploys.md)** &mdash; &#9989; verified &middot; 2026-08-14  
+  7 consecutive production builds failed on "Exposed secrets detected - META_APP_ID" while every merge reported success in git, so the OS silently ran day-old code. The tell was that git and the live site disagreed. Fixed by adding META_APP_ID to SECRETS_SCAN_OMIT_KEYS - it is a PUBLIC identifier (embedded in every client-side Meta SDK snippet), not a credential. Deleting the offending id from docs was tried first and was the wrong approach: the first candidate turned out to already be in the last SUCCESSFUL deploy.  
+  <sub>*task:* diagnose why the OS is running old code, and fix a failing Netlify secret scan &nbsp;|&nbsp; *keywords:* netlify, deploy failed, exposed secrets detected, SECRETS_SCAN_OMIT_KEYS, META_APP_ID, stale OS, old code, build failed, PWA cache, service worker</sub>
 
 ## Marketing
 
