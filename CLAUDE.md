@@ -54,6 +54,19 @@ automated.
   copy. Functional monochrome UI glyphs (✓ ✕ ▶ → carets) are fine — they're not emojis.
   Internal-only surfaces Bryson alone sees (OS UI icons, owner alert severity emojis) are exempt.
   Details + what was stripped in KB `client-email-center`.
+- **Nothing may read as AI-written — standing rule for ALL copy (Bryson, 2026-08-14).**
+  The tell he named is the **em dash**: never use `—` or `–` in ad copy, creatives, emails,
+  the marketing site, landing pages, blog/newsletter, or AI-generated content. Write two
+  sentences or use a comma. Also avoid the rest of the giveaways: "it's not just X, it's Y",
+  "in today's world", "let's dive in", unlock/elevate/leverage/seamless/robust/game-changer,
+  rule-of-three lists where two would do, every line opening on a rhetorical question, and
+  uniform sentence length. Use contractions; write how he'd say it out loud. **Enforced, not
+  just remembered:** `humanizeAdCopy()` in `index.html` rewrites any dash out of every ad
+  field at submit time, and the Content Studio prompt bans them explicitly (the prompt itself
+  is written without them, because a model mirrors the style it's given). Exempt: internal
+  campaign names, OS UI labels Bryson alone sees, and code comments. Details in KB `ad-copy-voice`.
+- **Never say "local businesses" — he serves businesses nationally/remotely (standing).**
+  Applies to all public copy. See KB `linkedin-brand-presence`.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a

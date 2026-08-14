@@ -55,10 +55,10 @@ const CREATIVES = [
   { id: "top-of-google", kicker: "Google Ads Management",
     head: ["Your competitors are", "buying the top of Google."],
     headAccent: 1,
-    sub: "We run the ads that put you there instead — and build the page they land on.",
+    sub: "We run the ads that put you there instead, and build the page they land on.",
     cta: "Free 30-minute strategy call" },
 
-  { id: "phone-ringing", kicker: "For Local Service Businesses",
+  { id: "phone-ringing", kicker: "For Service Businesses",
     head: ["Ads that make", "the phone ring."],
     headAccent: 1,
     sub: "Managed Google Ads plus a landing page built to turn clicks into booked jobs.",
@@ -79,7 +79,7 @@ const CREATIVES = [
   { id: "own-your-account", kicker: "How We Work",
     head: ["You own your", "ad account.", "Always."],
     headAccent: 1,
-    sub: "Your account, your billing, your data. We manage it — we never hold it hostage.",
+    sub: "Your account, your billing, your data. We manage it, we never hold it hostage.",
     cta: "Free 30-minute strategy call" },
 
   { id: "niche-roofing", kicker: "For Roofing Companies", niche: true,

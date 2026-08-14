@@ -4760,8 +4760,8 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const diff = bv.differentiator || "";
   const cl30 = (s) => String(s||"").trim().slice(0,30);
   const cl90 = (s) => String(s||"").trim().slice(0,90);
-  const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Free Quote — Get Started", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
-  const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust — fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
+  const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Get Your Free Quote Today", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
+  const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust. Fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
   const kwSeed = [...new Set([niche, niche&&area?`${niche} ${area}`:"", niche?`${niche} near me`:"", niche?`best ${niche}`:""].map(s=>String(s||"").trim()).filter(Boolean))].slice(0,8);
 
   // House account: BoldLine advertises to WIN a given kind of business as a client.
@@ -4834,8 +4834,8 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"};
   const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
   const launch=async()=>{
-    const headlines=f.headlinesText.split("\n").map(s=>s.trim()).filter(Boolean);
-    const descriptions=f.descriptionsText.split("\n").map(s=>s.trim()).filter(Boolean);
+    const headlines=f.headlinesText.split("\n").map(humanizeAdCopy).filter(Boolean);
+    const descriptions=f.descriptionsText.split("\n").map(humanizeAdCopy).filter(Boolean);
     const keywords=f.keywordsText.split("\n").map(s=>s.trim()).filter(Boolean);
     if(!(Number(f.dailyBudgetDollars)>0)){ setState("error"); setMsg("Daily budget must be greater than 0."); return; }
     if(!f.landingUrl){ setState("error"); setMsg("A landing page URL is required."); return; }
@@ -4960,8 +4960,8 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       name: `BoldLine Media — ${general ? "General" : A}`,
       headline: general ? "More Customers, On Autopilot" : `More ${A} Customers`,
       primaryText: general
-        ? "Struggling to get new customers? BoldLine plans, builds, and runs your Google and Meta ads for you — plus the landing pages and instant lead follow-up behind them. You own your ad account, we manage it. Book a free strategy call and we'll map out a plan for your business."
-        : `${A}: tired of slow months? BoldLine runs your Google and Meta ads for you — plus the landing pages and lead follow-up behind them — so you get a steady flow of new customers. You own your ad account, we manage it. Book a free strategy call.`,
+        ? "Struggling to get new customers? BoldLine plans, builds, and runs your Google and Meta ads for you, plus the landing pages and instant lead follow-up behind them. You own your ad account, we manage it. Book a free strategy call and we'll map out a plan for your business."
+        : `${A}: tired of slow months? BoldLine runs your Google and Meta ads for you, plus the landing pages and lead follow-up behind them, so you get a steady flow of new customers. You own your ad account, we manage it. Book a free strategy call.`,
       description: "Done-for-you ad management. Book a free call.",
     };
   };
@@ -5028,7 +5028,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         adAccountId:client.metaAdAccountId, pageId:client.metaPageId,
         landingUrl:f.landingUrl, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
         geo:{countries:[f.country||"US"]}, ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
-        headline:f.headline, primaryText:f.primaryText, description:f.description,
+        headline:humanizeAdCopy(f.headline), primaryText:humanizeAdCopy(f.primaryText), description:humanizeAdCopy(f.description),
         ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}), clientName:client.name,
       });
       setState("done"); setMsg(`✓ Campaign created PAUSED (campaign ${d.campaignId}). It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
@@ -5132,6 +5132,23 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
 // cards both taking the full monthly figure spend the month's budget in half a
 // month — caught by Bryson 2026-08-14: "$7/day for both ads would burn through
 // the monthly ad spend twice as quick."
+// ─── AD COPY: DON'T SOUND AI-WRITTEN ──────────────────────────────────────────
+// Standing rule (Bryson, 2026-08-14): no ad may read as AI-generated, and the
+// em dash is the tell he named. Seed copy is written without them, but copy also
+// gets hand-typed and will later be model-written, so this runs on every field
+// at submit time as the backstop. A dash joining two clauses becomes two plain
+// sentences, which is how a person would have written it in the first place.
+// Applied to headlines/descriptions/primary text only — never to keywords (a
+// dash there is a real search term) and never to campaign names (internal only).
+const humanizeAdCopy = (s) => String(s == null ? "" : s)
+  .replace(/\s*[—–]\s*$/, "")                  // trailing dash: drop it
+  .replace(/^\s*[—–]\s*/, "")                  // leading dash: drop it
+  .replace(/\s*[—–]\s*/g, ". ")                // joining dash: two sentences
+  .replace(/\s*\.\s*\.\s*/g, ". ")             // never ".."
+  .replace(/([.!?])\s+([a-z])/g, (m, p, c) => p + " " + c.toUpperCase())
+  .replace(/\s{2,}/g, " ")
+  .trim();
+
 const monthlyBudgetNum = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
 const dailyFromMonthly = (m, platforms) => {
   const share = Math.max(1, Number(platforms) || 1);
@@ -5436,11 +5453,11 @@ const AD_ANGLES = [
       kicker:"Google Ads Management",
       head:c?["Your competitors in",`${c} are buying`,"the top of Google."]:["Your competitors are","buying the top","of Google."],
       accent:c?2:1,
-      sub:"We run the ads that put you there instead — and build the page they land on." }) },
+      sub:"We run the ads that put you there instead, and build the page they land on." }) },
 
   { id:"phone-ringing", name:"Ads that make the phone ring",
     build:(n,c)=>({
-      kicker:n?`For ${n}`:"For Local Service Businesses",
+      kicker:n?`For ${n}`:"For Service Businesses",
       head:[`${n||"Ads"}${n?":":""}`,"ads that make","the phone ring."].filter((x,i)=>!(i===0&&!n)),
       accent:n?0:1,
       sub:"Managed Google Ads plus a landing page built to turn the click into a booked job." }) },
@@ -5464,7 +5481,7 @@ const AD_ANGLES = [
       kicker:"How We Work",
       head:["You own your","ad account.","Always."],
       accent:1,
-      sub:"Your account, your billing, your data. We manage it — we never hold it hostage." }) },
+      sub:"Your account, your billing, your data. We manage it, we never hold it hostage." }) },
 ];
 
 const AD_FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif';
