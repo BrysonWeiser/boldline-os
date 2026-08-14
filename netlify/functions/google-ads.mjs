@@ -210,16 +210,63 @@ async function removeCampaign(accessToken, customerId, campaignResourceName, { w
   return { deleted: true, campaignResourceName };
 }
 
+// ── Resolve plain location names -> geo target constants ─────────────────────
+// "Gilbert, Arizona" -> geoTargetConstants/1015226. Google's suggest endpoint is
+// the only sane way to do this; hard-coding IDs rots and silently targets the
+// wrong city (there is a Phoenix in Arizona and one in New York).
+// Not customer-scoped, so no login-customer-id — same as listAccessibleCustomers.
+const ENGLISH_LANGUAGE_CONSTANT = "languageConstants/1000";
+
+async function resolveGeoTargets(accessToken, names, countryCode = "US") {
+  const wanted = (Array.isArray(names) ? names : []).map((n) => String(n || "").trim()).filter(Boolean).slice(0, 20);
+  if (!wanted.length) return [];
+  const resp = await fetch(`${ADS_BASE}/geoTargetConstants:suggest`, {
+    method: "POST",
+    headers: baseHeaders(accessToken, false),
+    body: JSON.stringify({ locale: "en", countryCode, locationNames: { names: wanted } }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("resolveGeoTargets", resp.status, data));
+    e.stage = "resolveGeoTargets"; e.detail = data; throw e;
+  }
+  const suggestions = data.geoTargetConstantSuggestions || [];
+  const resolved = [];
+  const unresolved = [];
+  for (const name of wanted) {
+    // Match this suggestion back to the term the caller asked for — the endpoint
+    // returns every suggestion in one flat list, not grouped per input.
+    const hit = suggestions.find((s) =>
+      s && s.geoTargetConstant &&
+      String(s.geoTargetConstant.status || "ENABLED").toUpperCase() === "ENABLED" &&
+      String(s.searchTerm || "").toLowerCase() === name.toLowerCase());
+    if (hit) {
+      resolved.push({
+        resourceName: hit.geoTargetConstant.resourceName,
+        canonicalName: hit.geoTargetConstant.canonicalName || hit.geoTargetConstant.name || name,
+        requested: name,
+      });
+    } else {
+      unresolved.push(name);
+    }
+  }
+  // Dedupe — "Phoenix" and "Phoenix, Arizona" resolve to the same constant, and
+  // Google rejects a campaign that targets the same location twice.
+  const seen = new Set();
+  const unique = resolved.filter((r) => (seen.has(r.resourceName) ? false : (seen.add(r.resourceName), true)));
+  return Object.assign(unique, { unresolved });
+}
+
 // ── Create a full Search campaign, ALL PAUSED ─────────────────────────────────
 // One atomic googleAds:mutate using temp (negative) resource names so budget →
-// campaign → ad group → responsive search ad → keywords all reference each other
-// in a single all-or-nothing request. Manual CPC (no conversion tracking needed),
+// campaign → location + language + negative criteria → ad group → responsive
+// search ad → keywords all reference each other in a single all-or-nothing request. Manual CPC (no conversion tracking needed),
 // Search network only. Everything PAUSED — nothing spends until it's enabled.
 // Runs on the CLIENT's own linked account (their customerId + their billing).
 // ⚠ NOT yet verified against a live linked account — the Google Ads API is strict;
 // expect first-run tweaks (bidding-strategy rules, RSA asset minimums, budget-name
 // uniqueness). Dry-run against a real linked client before relying on it.
-async function createCampaign(accessToken, p) {
+export async function createCampaign(accessToken, p) {
   const cid = digits(p.customerId);
   const err = (m) => Object.assign(new Error(`createCampaign: ${m}`), { stage: "createCampaign" });
   if (!cid) throw err("customerId required");
@@ -232,6 +279,15 @@ async function createCampaign(accessToken, p) {
   if (headlines.length < 3) throw err("at least 3 headlines required (Google requires 3+ for a responsive search ad; each ≤30 chars)");
   if (descriptions.length < 2) throw err("at least 2 descriptions required (each ≤90 chars)");
   if (!keywords.length) throw err("at least 1 keyword required");
+  // A Search campaign created with NO location criteria targets ALL COUNTRIES AND
+  // TERRITORIES. On a small daily budget that is the single fastest way to burn a
+  // month of spend on clicks that could never become customers, and it looks like
+  // the ads failed rather than like a targeting hole. So: locations are REQUIRED.
+  const locationNames = (Array.isArray(p.locations) ? p.locations : [])
+    .map((l) => String(l || "").trim()).filter(Boolean).slice(0, 20);
+  if (!locationNames.length) throw err("at least 1 target location required (e.g. \"Gilbert, Arizona\") — without one Google targets every country on earth");
+  const negativeKeywords = (Array.isArray(p.negativeKeywords) ? p.negativeKeywords : [])
+    .map((k) => String(k || "").trim()).filter(Boolean).slice(0, 50);
   const badH = headlines.find((h) => h.length > 30);
   if (badH) throw err(`headline over 30 characters: "${badH}"`);
   const badD = descriptions.find((d) => d.length > 90);
@@ -244,6 +300,11 @@ async function createCampaign(accessToken, p) {
   const campaignRN = `customers/${cid}/campaigns/-2`;
   const adGroupRN = `customers/${cid}/adGroups/-3`;
   const cpcMicros = String(dollarsToMicros(Number(p.cpcBidDollars) > 0 ? p.cpcBidDollars : 2));
+
+  const geo = await resolveGeoTargets(accessToken, locationNames, p.countryCode || "US");
+  if (!geo.length) {
+    throw err(`could not resolve any of these locations: ${locationNames.join(", ")}. Use a form Google recognises, e.g. "Gilbert, Arizona" or "Phoenix, Arizona".`);
+  }
 
   const mutateOperations = [
     { campaignBudgetOperation: { create: {
@@ -266,7 +327,33 @@ async function createCampaign(accessToken, p) {
         targetContentNetwork: false,
         targetPartnerSearchNetwork: false,
       },
+      // PRESENCE, not the PRESENCE_OR_INTEREST default: only show to people who
+      // are actually IN the targeted area. The default also serves anyone merely
+      // "interested in" it — someone in another state reading about Phoenix —
+      // which is useless for a local service business paying per click.
+      geoTargetTypeSetting: {
+        positiveGeoTargetType: "PRESENCE",
+        negativeGeoTargetType: "PRESENCE",
+      },
     } } },
+    // Location + language targeting. Without these the campaign is worldwide and
+    // all-languages; both are campaign-level criteria, so they attach to the temp
+    // campaign resource name inside this same atomic mutate.
+    ...geo.map((g) => ({ campaignCriterionOperation: { create: {
+      campaign: campaignRN,
+      location: { geoTargetConstant: g.resourceName },
+    } } })),
+    { campaignCriterionOperation: { create: {
+      campaign: campaignRN,
+      language: { languageConstant: ENGLISH_LANGUAGE_CONSTANT },
+    } } },
+    // Campaign-level negatives: block the whole class of searchers who will never
+    // buy (job hunters, students, freebie seekers) before they cost a click.
+    ...negativeKeywords.map((k) => ({ campaignCriterionOperation: { create: {
+      campaign: campaignRN,
+      negative: true,
+      keyword: { text: k, matchType: "BROAD" },
+    } } })),
     { adGroupOperation: { create: {
       resourceName: adGroupRN,
       name: `${name} — Ad Group`.slice(0, 120),
@@ -309,6 +396,9 @@ async function createCampaign(accessToken, p) {
     adGroupResourceName: rn("adGroupResult"),
     adResourceName: rn("adGroupAdResult"),
     keywordsCreated: results.filter((x) => x && x.adGroupCriterionResult).length,
+    locationsTargeted: geo.map((g) => g.canonicalName),
+    locationsUnresolved: geo.unresolved || [],
+    negativeKeywordsCreated: negativeKeywords.length,
     status: "PAUSED",
     note: "Created PAUSED — review it in Google Ads, then enable to start spend. Nothing spends until you do.",
   };
