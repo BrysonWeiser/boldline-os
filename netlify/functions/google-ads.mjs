@@ -273,12 +273,48 @@ export async function createCampaign(accessToken, p) {
   if (!p.landingUrl) throw err("landingUrl required");
   if (!/^https?:\/\//i.test(String(p.landingUrl))) throw err("landingUrl must start with http:// or https://");
   if (!(Number(p.dailyBudgetDollars) > 0)) throw err("dailyBudgetDollars must be > 0");
-  const headlines = (Array.isArray(p.headlines) ? p.headlines : []).map((h) => String(h || "").trim()).filter(Boolean).slice(0, 15);
-  const descriptions = (Array.isArray(p.descriptions) ? p.descriptions : []).map((d) => String(d || "").trim()).filter(Boolean).slice(0, 4);
-  const keywords = (Array.isArray(p.keywords) ? p.keywords : []).map((k) => String(k || "").trim()).filter(Boolean).slice(0, 20);
-  if (headlines.length < 3) throw err("at least 3 headlines required (Google requires 3+ for a responsive search ad; each ≤30 chars)");
-  if (descriptions.length < 2) throw err("at least 2 descriptions required (each ≤90 chars)");
-  if (!keywords.length) throw err("at least 1 keyword required");
+  // TWO INPUT SHAPES. `adGroups[]` is the real one: several tightly themed groups,
+  // each with its own keywords and its own ad, so the ad can actually match the
+  // search. The flat headlines/descriptions/keywords shape is the original
+  // single-group call, kept working because the OS and any older caller still use
+  // it — it is normalised into a one-element adGroups array immediately.
+  const dfltMt = ["BROAD", "PHRASE", "EXACT"].includes(String(p.matchType || "").toUpperCase())
+    ? String(p.matchType).toUpperCase() : "PHRASE";
+  const norm = (g) => ({
+    name: String(g.name || "Ad Group").trim().slice(0, 120),
+    headlines: (Array.isArray(g.headlines) ? g.headlines : []).map((h) => String(h || "").trim()).filter(Boolean).slice(0, 15),
+    descriptions: (Array.isArray(g.descriptions) ? g.descriptions : []).map((d) => String(d || "").trim()).filter(Boolean).slice(0, 4),
+    // Keywords arrive either as plain strings (legacy) or {text, matchType} (generated).
+    keywords: (Array.isArray(g.keywords) ? g.keywords : []).map((k) => {
+      const text = String((k && k.text !== undefined ? k.text : k) || "").trim();
+      const mt = String((k && k.matchType) || dfltMt).toUpperCase();
+      return text ? { text, matchType: ["BROAD", "PHRASE", "EXACT"].includes(mt) ? mt : dfltMt } : null;
+    }).filter(Boolean).slice(0, 100),
+  });
+
+  const adGroups = (Array.isArray(p.adGroups) && p.adGroups.length
+    ? p.adGroups
+    : [{ name: `${String(p.name || "Search")} — Ad Group`, headlines: p.headlines, descriptions: p.descriptions, keywords: p.keywords }]
+  ).map(norm);
+
+  if (!adGroups.length) throw err("at least 1 ad group required");
+  for (const g of adGroups) {
+    if (g.headlines.length < 3) throw err(`ad group "${g.name}": at least 3 headlines required (Google requires 3+ for a responsive search ad; each ≤30 chars)`);
+    if (g.descriptions.length < 2) throw err(`ad group "${g.name}": at least 2 descriptions required (each ≤90 chars)`);
+    if (!g.keywords.length) throw err(`ad group "${g.name}": at least 1 keyword required`);
+    const bh = g.headlines.find((h) => h.length > 30);
+    if (bh) throw err(`ad group "${g.name}": headline over 30 characters: "${bh}"`);
+    const bd = g.descriptions.find((d) => d.length > 90);
+    if (bd) throw err(`ad group "${g.name}": description over 90 characters: "${bd}"`);
+  }
+  // The same keyword in two ad groups makes them bid against each other and splits
+  // the data, so this is a hard error rather than a silent dedupe.
+  const kwSeen = new Map();
+  for (const g of adGroups) for (const k of g.keywords) {
+    const key = `${k.text}|${k.matchType}`;
+    if (kwSeen.has(key)) throw err(`keyword "${k.text}" (${k.matchType}) appears in both "${kwSeen.get(key)}" and "${g.name}" — each keyword belongs to exactly one ad group`);
+    kwSeen.set(key, g.name);
+  }
   // A Search campaign created with NO location criteria targets ALL COUNTRIES AND
   // TERRITORIES. On a small daily budget that is the single fastest way to burn a
   // month of spend on clicks that could never become customers, and it looks like
@@ -288,17 +324,9 @@ export async function createCampaign(accessToken, p) {
   if (!locationNames.length) throw err("at least 1 target location required (e.g. \"Gilbert, Arizona\") — without one Google targets every country on earth");
   const negativeKeywords = (Array.isArray(p.negativeKeywords) ? p.negativeKeywords : [])
     .map((k) => String(k || "").trim()).filter(Boolean).slice(0, 50);
-  const badH = headlines.find((h) => h.length > 30);
-  if (badH) throw err(`headline over 30 characters: "${badH}"`);
-  const badD = descriptions.find((d) => d.length > 90);
-  if (badD) throw err(`description over 90 characters: "${badD}"`);
-
   const name = String(p.name || "BoldLine Search Campaign").slice(0, 120);
-  const mtRaw = String(p.matchType || "PHRASE").toUpperCase();
-  const matchType = ["BROAD", "PHRASE", "EXACT"].includes(mtRaw) ? mtRaw : "PHRASE";
   const budgetRN = `customers/${cid}/campaignBudgets/-1`;
   const campaignRN = `customers/${cid}/campaigns/-2`;
-  const adGroupRN = `customers/${cid}/adGroups/-3`;
   const cpcMicros = String(dollarsToMicros(Number(p.cpcBidDollars) > 0 ? p.cpcBidDollars : 2));
 
   const geo = await resolveGeoTargets(accessToken, locationNames, p.countryCode || "US");
@@ -354,30 +382,37 @@ export async function createCampaign(accessToken, p) {
       negative: true,
       keyword: { text: k, matchType: "BROAD" },
     } } })),
-    { adGroupOperation: { create: {
-      resourceName: adGroupRN,
-      name: `${name} — Ad Group`.slice(0, 120),
-      campaign: campaignRN,
-      status: "PAUSED",
-      type: "SEARCH_STANDARD",
-      cpcBidMicros: cpcMicros,
-    } } },
-    { adGroupAdOperation: { create: {
-      adGroup: adGroupRN,
-      status: "PAUSED",
-      ad: {
-        finalUrls: [String(p.landingUrl)],
-        responsiveSearchAd: {
-          headlines: headlines.map((t) => ({ text: t })),
-          descriptions: descriptions.map((t) => ({ text: t })),
-        },
-      },
-    } } },
-    ...keywords.map((k) => ({ adGroupCriterionOperation: { create: {
-      adGroup: adGroupRN,
-      status: "ENABLED", // keywords enabled is fine — the campaign itself is PAUSED, so $0
-      keyword: { text: k, matchType },
-    } } })),
+    // One ad group + its own ad + its own keywords, per theme. Temp resource names
+    // count down from -3 so every group is distinct inside this single atomic mutate.
+    ...adGroups.flatMap((g, i) => {
+      const agRN = `customers/${cid}/adGroups/${-(3 + i)}`;
+      return [
+        { adGroupOperation: { create: {
+          resourceName: agRN,
+          name: g.name.slice(0, 120),
+          campaign: campaignRN,
+          status: "PAUSED",
+          type: "SEARCH_STANDARD",
+          cpcBidMicros: cpcMicros,
+        } } },
+        { adGroupAdOperation: { create: {
+          adGroup: agRN,
+          status: "PAUSED",
+          ad: {
+            finalUrls: [String(p.landingUrl)],
+            responsiveSearchAd: {
+              headlines: g.headlines.map((t) => ({ text: t })),
+              descriptions: g.descriptions.map((t) => ({ text: t })),
+            },
+          },
+        } } },
+        ...g.keywords.map((k) => ({ adGroupCriterionOperation: { create: {
+          adGroup: agRN,
+          status: "ENABLED", // keywords enabled is fine — the campaign itself is PAUSED, so $0
+          keyword: { text: k.text, matchType: k.matchType },
+        } } })),
+      ];
+    }),
   ];
 
   const resp = await fetch(`${ADS_BASE}/customers/${cid}/googleAds:mutate`, {
@@ -395,6 +430,8 @@ export async function createCampaign(accessToken, p) {
     budgetResourceName: rn("campaignBudgetResult"),
     adGroupResourceName: rn("adGroupResult"),
     adResourceName: rn("adGroupAdResult"),
+    adGroupsCreated: results.filter((x) => x && x.adGroupResult).length,
+    adGroupNames: adGroups.map((g) => g.name),
     keywordsCreated: results.filter((x) => x && x.adGroupCriterionResult).length,
     locationsTargeted: geo.map((g) => g.canonicalName),
     locationsUnresolved: geo.unresolved || [],
