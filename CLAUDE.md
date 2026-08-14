@@ -126,6 +126,16 @@ manager-level access. This governs all billing / ad-account / Stripe / Meta work
   appears in a committed file. So keep *all* env-var values out of code/docs — refer
   to them by name only. If a non-secret value genuinely must appear as a code default,
   add its key to `SECRETS_SCAN_OMIT_KEYS` in netlify.toml.
+- **PUBLIC PLATFORM IDs ARE THE DOCUMENTED EXCEPTION (Bryson decided 2026-08-14: "lets
+  keep them").** Meta app / dataset / pixel / ad-account ids and Google Ads customer ids
+  are **identifiers, not credentials** — Meta ships its app id in every client-side SDK
+  snippet. They stay written out in `knowledge/` and `docs/` on purpose, because every
+  Meta problem in this project has turned on *which id is which*, and "the app-scoped
+  one" is far weaker than the number when debugging months later. **Do NOT strip them
+  to satisfy the rule above.** If Netlify's scanner flags one, add that KEY to
+  `SECRETS_SCAN_OMIT_KEYS` (as `META_APP_ID` already is) rather than deleting the value.
+  Real credentials — tokens, secrets, service-role keys — are still never committed.
+  Diagnosis runbook in KB `netlify-secret-scan-deploys`.
 
 ## Detailed state
 Per-platform setup status, env-var names, decisions, gotchas, and pending items live in the
