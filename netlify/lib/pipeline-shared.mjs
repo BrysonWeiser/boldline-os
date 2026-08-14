@@ -40,12 +40,18 @@ const deriveBotStatuses = (cl) => {
   if (!cl) return {};
   const cs   = cl.campaignSetup || {};
   const lp   = cl.landingPage || {};
-  const perf = cl.adPerf || {};                      // written by the scheduled ads-sync job
-  const camps = Array.isArray(perf.campaigns) ? perf.campaigns : [];
-  const anyCampaign = camps.length > 0;
-  const anyLive     = camps.some((c) => c && (c.live || String(c.status || "").toUpperCase() === "ENABLED" || String(c.effectiveStatus || "").toUpperCase() === "ACTIVE"));
-  const spend       = Number(perf.spend30 || perf.spend || 0);
-  const convs       = camps.reduce((n, c) => n + Number((c && c.conversions) || 0), 0);
+  // ads-sync writes COUNTS, not a campaign array: {google,meta}.{campaigns,live,...}
+  // plus a rolled-up `totals` and a `budget` block. Reading a `campaigns` array here
+  // silently never matched, which left every campaign-driven step stuck forever.
+  const perf   = cl.adPerf || {};                    // written by the scheduled ads-sync job
+  const totals = perf.totals || {};
+  const g = perf.google || {}, m = perf.meta || {};
+  const campaignCount = Number(g.campaigns || 0) + Number(m.campaigns || 0);
+  const liveCount     = Number(totals.liveCampaigns != null ? totals.liveCampaigns : (Number(g.live || 0) + Number(m.live || 0)));
+  const anyCampaign   = campaignCount > 0 || liveCount > 0;
+  const anyLive       = liveCount > 0;
+  const spend         = Number(totals.spend30d || 0);
+  const convs         = Number(totals.conversions || 0);
   const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
   const leads       = Number(cl.leads || 0);
   const s = (status, why) => ({ status, why });
