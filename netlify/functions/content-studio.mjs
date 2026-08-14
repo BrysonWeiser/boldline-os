@@ -25,7 +25,7 @@ const json = (body, status = 200) =>
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
 export const PILLARS = [
-  { id: "build",     label: "Building in public",   note: "the honest zero-to-one story — no clients yet, and that IS the story" },
+  { id: "build",     label: "Building in public",   note: "the honest zero-to-one story. No clients yet, and that IS the story" },
   { id: "teach",     label: "Teaching ads",         note: "how Google/Meta ads actually work for a local business owner" },
   { id: "teardown",  label: "Teardowns",            note: "pick apart a real local business's ads/site/landing page and show the fix" },
   { id: "contrarian",label: "Contrarian takes",     note: "shared leads, agencies holding ad accounts hostage, retainer myths" },
@@ -36,17 +36,23 @@ export const PILLARS = [
 // The single most important guardrail: BoldLine has no clients yet, so ANY
 // result, testimonial or case-study number would be a lie — and the internet
 // punishes a young founder for that harder than for having no results at all.
-const GROUND_RULES = `HARD RULES — these override everything else:
+const GROUND_RULES = `HARD RULES. These override everything else:
 - BoldLine Media has NO CLIENTS YET and NO RESULTS YET. Never invent client results, revenue figures, lead counts, ROAS, testimonials, case studies, "I helped X get Y", or any social proof. Not as an example, not as a placeholder, not as "imagine if".
 - Where a results-based hook would normally go, use one of these instead: the honest build-in-public angle, a teaching angle, a teardown of a PUBLIC business's visible marketing, or a contrarian opinion.
 - Bryson is a young founder starting an agency. His credibility comes from being useful and honest, not from claiming success he hasn't had.
-- NO EMOJIS anywhere in the output — not in titles, hooks, captions, or on-screen text. This is a standing brand rule for anything the public sees.
+- NO EMOJIS anywhere in the output. Not in titles, hooks, captions, or on-screen text. This is a standing brand rule for anything the public sees.
 - No hype-bro voice. No "crushing it", no fake urgency, no "secret nobody tells you" clickbait he'd be embarrassed by. Direct, specific, confident.
-- Every idea must be shootable ALONE, on a phone, with no crew, no b-roll he doesn't have, and no paid tools.`;
+- Every idea must be shootable ALONE, on a phone, with no crew, no b-roll he doesn't have, and no paid tools.
+- NOTHING may read as AI-written. Standing rule. In particular:
+  - NEVER use an em dash or en dash (— or –). Write two sentences, or use a comma. This is the single biggest tell and Bryson calls it out on sight.
+  - No "it's not just X, it's Y". No "in today's world". No "let's dive in". No "unlock/elevate/leverage/seamless/robust/game-changer/supercharge". No "the truth is". No rule-of-three lists where two would do.
+  - Don't open every line with a rhetorical question, and don't end on a neat inspirational bow.
+  - Vary sentence length. Real speech is uneven. A wall of same-length balanced clauses is what a model sounds like.
+  - Contractions are fine and preferred. Write how he'd actually say it out loud.`;
 
 const BUSINESS = `WHO THIS IS FOR:
-Bryson Weiser, founder of BoldLine Media (Phoenix / Gilbert, Arizona). The agency runs Google Ads and Meta Ads for businesses and builds the custom landing pages those ads point to. Target clients are local service businesses (roofing, HVAC, med spa, auto detailing, home services) plus e-commerce. Differentiators worth working into content: the CLIENT always owns and is billed for their own ad account (BoldLine never holds it or fronts spend), every campaign gets a purpose-built landing page rather than pointing at a homepage, and the whole operation is automated by software he built himself.
-He is building two audiences at once: (1) BUSINESS — local business owners who could hire him, (2) PERSONAL — a founder audience who follow the building-in-public story. Say which one each idea serves.`;
+Bryson Weiser, founder of BoldLine Media (Phoenix / Gilbert, Arizona). The agency runs Google Ads and Meta Ads for businesses and builds the custom landing pages those ads point to. Target clients are service businesses (roofing, HVAC, med spa, auto detailing, home services) plus e-commerce. He works with them remotely and nationally, so NEVER describe the audience as "local businesses" in any output. Differentiators worth working into content: the CLIENT always owns and is billed for their own ad account (BoldLine never holds it or fronts spend), every campaign gets a purpose-built landing page rather than pointing at a homepage, and the whole operation is automated by software he built himself.
+He is building two audiences at once: (1) BUSINESS: business owners who could hire him, (2) PERSONAL: a founder audience who follow the building-in-public story. Say which one each idea serves.`;
 
 const IDEA_TOOL = {
   name: "video_ideas",
@@ -163,7 +169,7 @@ export default async (req) => {
       const avoid = (Array.isArray(body.avoid) ? body.avoid : []).slice(0, 40).map((t) => String(t).slice(0, 140));
 
       const shape = mode === "short"
-        ? "SHORT-FORM: vertical video, 20-60 seconds, for Reels / TikTok / YouTube Shorts. The hook has to land in the first 2 seconds or the video is dead. One idea per video — no listicles that need 5 points."
+        ? "SHORT-FORM: vertical video, 20-60 seconds, for Reels / TikTok / YouTube Shorts. The hook has to land in the first 2 seconds or the video is dead. One idea per video. No listicles that need 5 points."
         : "LONG-FORM: 6-15 minute YouTube videos, or podcast episodes/segments. These can breathe: build an argument, walk through something real on screen, tell the full story. The hook still matters but you have 30 seconds, not 2.";
 
       const { data, model } = await runTool({
@@ -171,9 +177,9 @@ export default async (req) => {
         maxTokens: 2000,
         system: `You are a content strategist who makes founders sound like themselves, not like a marketing account.\n\n${BUSINESS}\n\n${GROUND_RULES}`,
         prompt: `Give me 6 ${mode === "short" ? "short-form" : "long-form"} video ideas.\n\n${shape}\n`
-          + (pillar ? `\nFOCUS THIS ROUND ON: ${pillar.label} — ${pillar.note}. All 6 ideas should sit in that lane, but attack it from 6 genuinely different angles.\n` : `\nMix the pillars: building in public, teaching ads, teardowns, contrarian takes, personal brand, sales/cold calling. Do not give me 6 variations of one idea.\n`)
+          + (pillar ? `\nFOCUS THIS ROUND ON: ${pillar.label}. ${pillar.note}. All 6 ideas should sit in that lane, but attack it from 6 genuinely different angles.\n` : `\nMix the pillars: building in public, teaching ads, teardowns, contrarian takes, personal brand, sales/cold calling. Do not give me 6 variations of one idea.\n`)
           + (topic ? `\nHE SPECIFICALLY WANTS IDEAS ABOUT: ${topic}\n` : "")
-          + (avoid.length ? `\nHe already has these — do not repeat them or produce near-duplicates:\n${avoid.map((t) => `- ${t}`).join("\n")}\n` : "")
+          + (avoid.length ? `\nHe already has these, do not repeat them or produce near-duplicates:\n${avoid.map((t) => `- ${t}`).join("\n")}\n` : "")
           + `\nMake the hooks specific enough that only he could have said them. A hook that any agency could post is a wasted idea.`,
       });
       const ideas = Array.isArray(data.ideas) ? data.ideas.slice(0, 6) : [];
@@ -187,8 +193,8 @@ export default async (req) => {
       const minutes = mode === "long" ? Math.min(20, Math.max(4, Number(body.minutes) || 8)) : 0;
 
       const shape = mode === "short"
-        ? `SHORT-FORM script, 30-50 seconds spoken. Structure it as 4-6 short blocks with second-by-second timings. Every sentence must earn the next one — cut anything a viewer would swipe past. Write it the way he'd actually talk, contractions and all.`
-        : `LONG-FORM script for a roughly ${minutes}-minute video. Use 5-8 blocks with minute ranges. It does not need to be word-for-word throughout — write the hook and the close verbatim, and give tight talking points for the middle so he sounds natural rather than read. Include what to show on screen.`;
+        ? `SHORT-FORM script, 30-50 seconds spoken. Structure it as 4-6 short blocks with second-by-second timings. Every sentence must earn the next one. Cut anything a viewer would swipe past. Write it the way he'd actually talk, contractions and all.`
+        : `LONG-FORM script for a roughly ${minutes}-minute video. Use 5-8 blocks with minute ranges. It does not need to be word-for-word throughout. Write the hook and the close verbatim, and give tight talking points for the middle so he sounds natural rather than read. Include what to show on screen.`;
 
       const { data, model } = await runTool({
         tool: SCRIPT_TOOL,
