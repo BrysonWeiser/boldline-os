@@ -4,7 +4,7 @@ topic: OS app
 task: how the 20-bot delivery pipeline advances, and which steps are still manual
 keywords: [bot pipeline, botStatuses, auto advance, deriveBotStatuses, effectiveBotStatus, botStatusManual, MANUAL_BOTS, pipeline progress, stage, waiting active done]
 status: verified
-summary: The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases in the OS, 25 more on the shared module.
+summary: The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases in the OS, 25 on the shared module, 28 on the unified health score.
 verified: 2026-08-14
 ---
 
@@ -56,4 +56,10 @@ verified: 2026-08-14
 
 **Reference numbers for a fully-running client:** 11 done, 4 active, 5 pending-manual. The 4 ongoing steps cap at active by design, so 11 + 4 = the 15 derived steps.
 
-**Flagged, NOT fixed (pre-existing):** the OS's `calcHealth` and `report-shared`'s `calcHealth` are two different formulas — the server one includes the pipeline fraction, the OS one does not use the pipeline at all. So the health score in the OS and in an emailed report can differ. That divergence predates this work; unifying them is a separate job.
+**✅ HEALTH SCORE UNIFIED 2026-08-14.** Correction to what was written here first: the OS's `calcHealth` **did** use the pipeline, it just counted the raw stored `botStatuses` map (`done / statuses.length`) while the server counted the derived one. Everything else in the two formulas was already identical. The OS now calls `pipelineProgress(cl).fraction` too, so **the number in the app and the number in an emailed report are the same by construction**. `BOT_IDS`, `BOT_NAMES` and `pipelineProgress` joined the mirrored block, and a dead `const pkg = findPkg(...)` binding in `calcHealth` (declared, never read) was removed.
+
+**Why it mattered:** the stored map is a snapshot that can be arbitrarily stale. A client whose 20 stored statuses all read `done` from an old "Mark All Done" click scored a full pipeline point even with nothing built — the OS showed one health number and the emailed report showed another for the same client at the same moment.
+
+**One subtlety the tests pin down:** the stored map still legitimately drives the **5 manual steps** (they have no derived value to fall back to), and must be ignored entirely for the **15 derived ones**. A first version of the test asserted the stored map was ignored wholesale and correctly failed. The assertion now checks exactly that split.
+
+**Verified by 28 cases** that build the OS's `calcHealth` in isolation out of `index.html` and run it against the imported server `calcHealth` on nine records — blank, onboarding, building, live-with-leads, scaling, expired, overdue-intake, manual-overrides, and stale-stored-statuses — asserting an identical score every time (1, 2, 5.1, 7.8, 8.3, 1.6, 3, 6.7, 6.4) and a 1-10 range, plus the six-function identity guard.

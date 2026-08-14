@@ -572,6 +572,22 @@ const deriveBotStatuses = (cl) => {
 
 // Manual always wins. Cycling a bot by hand records it in `botStatusManual` so the
 // derivation stops fighting him on that one, and only that one.
+const BOT_IDS = [
+  "intake", "ceo", "research", "avatar", "offer", "funnel", "architect", "copy",
+  "builder", "keywords", "ads", "tracking", "automation", "qc", "budget", "terms",
+  "leads", "perf", "scaling", "success",
+];
+
+const BOT_NAMES = {
+  intake: "Client Intake", ceo: "CEO Director", research: "Market Research",
+  avatar: "Customer Avatar", offer: "Offer Creation", funnel: "Funnel Director",
+  architect: "Page Architect", copy: "Copy Chief", builder: "Page Builder",
+  keywords: "Keyword Research", ads: "Ads Builder", tracking: "Tracking Engineer",
+  automation: "Automation Engineer", qc: "Quality Control", budget: "Budget Manager",
+  terms: "Search Term Analyst", leads: "Lead Quality Analyst", perf: "Performance Analyst",
+  scaling: "Scaling Specialist", success: "Client Success",
+};
+
 const effectiveBotStatus = (cl, botId, derived) => {
   const manual = (cl && cl.botStatusManual) || {};
   const stored = (cl && cl.botStatuses) || {};
@@ -580,6 +596,23 @@ const effectiveBotStatus = (cl, botId, derived) => {
   if (d) return { status: d.status, why: d.why, auto: true };
   return { status: stored[botId] || "waiting", why: "Tracked by hand (no automatic signal for this step)", manual: true };
 };
+
+function pipelineProgress(client) {
+  const derived = deriveBotStatuses(client);
+  const steps = BOT_IDS.map((id) => {
+    const e = effectiveBotStatus(client, id, derived);
+    return { id, name: BOT_NAMES[id] || id, status: e.status, why: e.why, auto: !!e.auto };
+  });
+  const done = steps.filter((s) => s.status === "done");
+  return {
+    steps,
+    done: done.length,
+    total: steps.length,
+    active: steps.filter((s) => s.status === "active").length,
+    pending: steps.filter((s) => s.status !== "done").map((s) => s.name),
+    fraction: steps.length ? done.length / steps.length : 0,
+  };
+}
 
 const getAlerts = (cl) => {
   const a = [...(cl.alerts||[])];
@@ -678,7 +711,6 @@ const stageInfo   = (id) => STAGES.find(s=>s.id===id)||STAGES[0];
 // ─── AUTO HEALTH SCORE ────────────────────────────────────────────────────────
 const calcHealth = (cl) => {
   let score = 0;
-  const pkg = findPkg(cl.packageId);
   const days = daysUntil(cl.contractEnd);
 
   // ── Foundation (max 2 pts) ─────────────────────────────────────────────────
@@ -709,10 +741,9 @@ const calcHealth = (cl) => {
   else if (days>7) score += 0.5;    // getting close
 
   // ── Bot pipeline progress (max 1 pt) ──────────────────────────────────────
-  const statuses = Object.values(cl.botStatuses||{});
-  const done = statuses.filter(s=>s==="done").length;
-  const total = statuses.length||1;
-  score += (done/total) * 1;
+  // Effective statuses via the same helper the server uses, so the health score
+  // in the app and the one in an emailed report can never disagree.
+  score += pipelineProgress(cl).fraction * 1;
 
   // ── Deductions ────────────────────────────────────────────────────────────
   if (cl.upgradeRequest) score -= 0;  // upgrade request is positive signal, no penalty

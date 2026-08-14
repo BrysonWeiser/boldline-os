@@ -296,7 +296,7 @@
     "noindex": 1,
     "conversion": 4,
     "get more customers": 1,
-    "more": 6,
+    "more": 5,
     "customers": 1,
     "boldlinemedia": 16,
     "campaigns": 8,
@@ -1823,7 +1823,7 @@
     "running ads": 1,
     "meta ad library": 1,
     "fit score": 1,
-    "score": 1,
+    "score": 2,
     "call first": 1,
     "waste of time": 1,
     "score breakdown": 1,
@@ -1963,7 +1963,7 @@
     "inefficient": 1,
     "beyond": 1,
     "trips": 1,
-    "health": 2,
+    "health": 3,
     "14d": 1,
     "target": 3,
     "crashing": 1,
@@ -2638,6 +2638,7 @@
     "guessed": 1,
     "remembered": 1,
     "module": 1,
+    "unified": 1,
     ".sel": 1,
     "sel": 1,
     "most popular": 1,
@@ -10269,7 +10270,7 @@
         "waiting active done"
       ],
       "status": "verified",
-      "summary": "The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases in the OS, 25 more on the shared module.",
+      "summary": "The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases in the OS, 25 on the shared module, 28 on the unified health score.",
       "verified": "2026-08-14",
       "terms": {
         "bot pipeline": 3,
@@ -10351,9 +10352,11 @@
         "wins": 1.5,
         "remembered": 1.5,
         "cases": 1.5,
-        "more": 1.5,
         "shared": 1.5,
-        "module": 1.5
+        "module": 1.5,
+        "unified": 1.5,
+        "health": 1.5,
+        "score": 1.5
       }
     },
     {
