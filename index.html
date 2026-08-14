@@ -3590,8 +3590,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                     account for now — a client's creative needs their brand, not
                     BoldLine's (see KB ad-creative-studio). */}
                 {client.internal && runsMeta && <AdCreativeStudio client={client} onUpdate={onUpdate}/>}
-                {runsGoogle && <GoogleLaunchCard client={client} onUpdate={onUpdate}/>}
-                {runsMeta && <MetaLaunchCard client={client} onUpdate={onUpdate}/>}
+                {runsGoogle && <GoogleLaunchCard client={client} onUpdate={onUpdate} platformCount={(runsGoogle?1:0)+(runsMeta?1:0)}/>}
+                {runsMeta && <MetaLaunchCard client={client} onUpdate={onUpdate} platformCount={(runsGoogle?1:0)+(runsMeta?1:0)}/>}
                 {client.internal && !runsGoogle && !runsMeta && (
                   <Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>Pick <b style={{color:C.gold}}>Google Ads</b> and/or <b style={{color:C.gold}}>Meta Ads</b> in <b style={{color:C.textDim}}>Edit → Info → Platforms Running</b> and the campaign builder for each will appear here.</div></Card>
                 )}
@@ -4746,7 +4746,7 @@ function MetaAdsTestCard() {
 // CLIENT's own linked Google Ads account, ALL PAUSED. Pre-fills from client data;
 // owner reviews + edits + launches. Nothing spends until it's enabled.
 // NOT yet verified against a live linked account — see google-ads.mjs createCampaign.
-function GoogleLaunchCard({client, onUpdate}) {
+function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
   const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
@@ -4801,7 +4801,10 @@ function GoogleLaunchCard({client, onUpdate}) {
 
   const [audience,setAudience] = useState("");
   const monthlyBudget = monthlyBudgetNum(client);
-  const autoDaily = dailyFromMonthly(monthlyBudget);
+  // Split the monthly budget across the platforms actually being run — otherwise
+  // Google and Meta each take the full figure and the month burns twice as fast.
+  const platShare = Math.max(1, Number(platformCount) || 1);
+  const autoDaily = dailyFromMonthly(monthlyBudget, platShare);
   const [budgetTouched,setBudgetTouched] = useState(false);
   const [f,setF] = useState({
     name: seed0.name,
@@ -4899,10 +4902,10 @@ function GoogleLaunchCard({client, onUpdate}) {
           <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
           {k==="dailyBudgetDollars"&&(
             <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
-              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo"}
-              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled from your ${monthlyBudget.toLocaleString()}/mo budget</span>}
+              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo on Google"}
+              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled &mdash; {platShare>1?<>half of your ${monthlyBudget.toLocaleString()}/mo, <b style={{color:C.textDim}}>split evenly with Meta</b></>:<>your full ${monthlyBudget.toLocaleString()}/mo budget</>}</span>}
               {monthlyBudget>0&&budgetTouched&&(
-                <span> &middot; overriding ${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
+                <span> &middot; overriding {platShare>1?"your half of ":""}${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
               )}
               {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
             </div>
@@ -4943,7 +4946,7 @@ function GoogleLaunchCard({client, onUpdate}) {
   );
 }
 
-function MetaLaunchCard({client, onUpdate}) {
+function MetaLaunchCard({client, onUpdate, platformCount}) {
   const linked = client.metaAdAccountId && client.metaPageId;
   const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
     : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
@@ -4970,7 +4973,10 @@ function MetaLaunchCard({client, onUpdate}) {
   };
   const [audience,setAudience] = useState("");
   const monthlyBudget = monthlyBudgetNum(client);
-  const autoDaily = dailyFromMonthly(monthlyBudget);
+  // Split the monthly budget across the platforms actually being run — otherwise
+  // Google and Meta each take the full figure and the month burns twice as fast.
+  const platShare = Math.max(1, Number(platformCount) || 1);
+  const autoDaily = dailyFromMonthly(monthlyBudget, platShare);
   const [budgetTouched,setBudgetTouched] = useState(false);
   const [f,setF] = useState({
     name: mseed0.name,
@@ -5085,10 +5091,10 @@ function MetaLaunchCard({client, onUpdate}) {
           <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
           {k==="dailyBudgetDollars"&&(
             <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
-              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo"}
-              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled from your ${monthlyBudget.toLocaleString()}/mo budget</span>}
+              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo on Meta"}
+              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled &mdash; {platShare>1?<>half of your ${monthlyBudget.toLocaleString()}/mo, <b style={{color:C.textDim}}>split evenly with Google</b></>:<>your full ${monthlyBudget.toLocaleString()}/mo budget</>}</span>}
               {monthlyBudget>0&&budgetTouched&&(
-                <span> &middot; overriding ${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
+                <span> &middot; overriding {platShare>1?"your half of ":""}${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
               )}
               {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
             </div>
@@ -5121,9 +5127,27 @@ function MetaLaunchCard({client, onUpdate}) {
 // One monthly figure drives every daily field. Parsed the same way as
 // MyAdsInsights / ads-sync / ads-autopilot so no two screens can disagree, and
 // rounded the same way MyAdsSetupCards already displays it ($200/mo -> $7/day).
+// The monthly budget is the TOTAL across every platform being run, so a daily
+// figure has to be divided by how many platforms will each spend it. Two launch
+// cards both taking the full monthly figure spend the month's budget in half a
+// month — caught by Bryson 2026-08-14: "$7/day for both ads would burn through
+// the monthly ad spend twice as quick."
 const monthlyBudgetNum = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
-const dailyFromMonthly = (m) => (m > 0 ? Math.round(m / 30.4) : 0);
+const dailyFromMonthly = (m, platforms) => {
+  const share = Math.max(1, Number(platforms) || 1);
+  return m > 0 ? Math.round(m / 30.4 / share) : 0;
+};
 const monthlyFromDaily = (d) => Math.round((Number(d) || 0) * 30.4);
+// Mirrors the runsGoogle/runsMeta detection the Campaigns tab uses to decide
+// which launch cards to render, so the split can never disagree with the number
+// of cards on screen.
+const adPlatformsOf = (cl, pkg) => {
+  const plats = (cl && cl.platforms) || [];
+  const pkgPlat = (pkg && pkg.platform) || "";
+  const google = (cl && cl.internal) ? plats.some((p) => /google/i.test(p)) : /google/i.test(pkgPlat);
+  const meta   = (cl && cl.internal) ? plats.some((p) => /meta|facebook|instagram/i.test(p)) : /meta|facebook|instagram/i.test(pkgPlat);
+  return { google, meta, count: (google ? 1 : 0) + (meta ? 1 : 0) };
+};
 
 // ─── CONTENT STUDIO ───────────────────────────────────────────────────────────
 // Video ideas + shootable scripts for BoldLine's own channels — short-form
@@ -7237,7 +7261,12 @@ function MyAdsSetupCards({client,onUpdate}){
   const [savedI,setSavedI] = useState(false);
   const setId = (k,v)=> setIds(p=>({...p,[k]:v}));
   const monthly = parseNum(budget);
-  const daily = monthly? Math.round(monthly/30.4) : 0;
+  // The monthly figure is the TOTAL. Show what each platform actually gets, or
+  // the launch cards get told to spend the whole budget twice over.
+  const platsHere = adPlatformsOf(client, null);
+  const platShare = Math.max(1, platsHere.count);
+  const daily = dailyFromMonthly(monthly, 1);
+  const dailyEach = dailyFromMonthly(monthly, platShare);
   const saveBudget = ()=>{ onUpdate({...client, adBudget: monthly? "$"+monthly.toLocaleString()+"/mo" : ""}); setSavedB(true); setTimeout(()=>setSavedB(false),1500); };
   const saveIds = ()=>{ onUpdate({...client, googleAdsCustomerId:(ids.googleAdsCustomerId||"").trim(), metaAdAccountId:(ids.metaAdAccountId||"").trim(), metaPageId:(ids.metaPageId||"").trim()}); setSavedI(true); setTimeout(()=>setSavedI(false),1500); };
 
@@ -7249,14 +7278,17 @@ function MyAdsSetupCards({client,onUpdate}){
   return (<>
     <Card>
       <Label>Monthly Ad Budget</Label>
-      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,margin:"3px 0 10px"}}>What you plan to spend across your ads each month. You pay Google / Meta directly for this — BoldLine never holds it. When you build a campaign below, enter the <b style={{color:C.textDim}}>daily</b> figure shown here.</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,margin:"3px 0 10px"}}>What you plan to spend across <b style={{color:C.textDim}}>all</b> your ads each month. You pay Google / Meta directly for this — BoldLine never holds it. The launch cards below fill their own daily budget from this figure, splitting it evenly across the platforms you run — you don't need to do the maths.</div>
       <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
         <div style={{position:"relative",flex:1,minWidth:0}}>
           <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:C.textMuted,fontSize:13,pointerEvents:"none"}}>$</span>
           <input type="number" value={budget} onChange={e=>setBudget(e.target.value)} placeholder="2000" style={{...inp,paddingLeft:22}}/>
         </div>
-        <div style={{fontSize:12,color:C.textMuted,whiteSpace:"nowrap",flexShrink:0}}>/mo{daily>0&&<> &nbsp;·&nbsp; ≈ <b style={{color:C.gold}}>${daily}/day</b></>}</div>
+        <div style={{fontSize:12,color:C.textMuted,whiteSpace:"nowrap",flexShrink:0}}>/mo{daily>0&&<> &nbsp;·&nbsp; ≈ <b style={{color:C.gold}}>${daily}/day</b> total</>}</div>
       </div>
+      {daily>0&&platShare>1&&(
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,margin:"-4px 0 10px"}}>Running <b style={{color:C.textDim}}>Google + Meta</b>, so that splits to about <b style={{color:C.gold}}>${dailyEach}/day each</b>. Each launch card fills in its own half — don't put the ${daily} total into both, or you'll spend the month's budget in half a month.</div>
+      )}
       <button onClick={saveBudget} style={btnGold}>{savedB?"✓ Saved":"Save budget"}</button>
     </Card>
 
