@@ -12,8 +12,8 @@
 
 ## Ads
 
-- **[campaign-geo-targeting](../knowledge/campaign-geo-targeting.md)** &mdash; &#9989; verified &middot; 2026-08-13  
-  `createCampaign` used to build budget → campaign → ad group → responsive search ad → keywords and NO campaign criteria at all — which means Google targets ALL COUNTRIES AND TERRITORIES and all languages. On a $5/day budget bidding agency terms that burns the month on clicks that can never convert, and it reads as "the ads failed" rather than "targeting was never set". Fixed 2026-08-13: locations are now REQUIRED (the call refuses without one), resolved from plain names via `geoTargetConstants:suggest`, attached as campaign criteria alongside English-language targeting, with `geoTargetTypeSetting = PRESENCE` so only people physically in the area see the ads. Campaign-level negative keywords added too. 24 hermetic cases.  
+- **[campaign-geo-targeting](../knowledge/campaign-geo-targeting.md)** &mdash; &#9989; verified &middot; 2026-08-14  
+  `createCampaign` used to build budget → campaign → ad group → responsive search ad → keywords and NO campaign criteria at all — which means Google targets ALL COUNTRIES AND TERRITORIES and all languages. On a $5/day budget bidding agency terms that burns the month on clicks that can never convert, and it reads as "the ads failed" rather than "targeting was never set". Fixed 2026-08-14: locations are now REQUIRED (the call refuses without one), resolved from plain names via `geoTargetConstants:suggest`, attached as campaign criteria alongside English-language targeting, with `geoTargetTypeSetting = PRESENCE` so only people physically in the area see the ads. Campaign-level negative keywords added too. 24 hermetic cases.  
   <sub>*task:* why a Google Search campaign built from the OS targets the right places, and what happens if it doesn't &nbsp;|&nbsp; *keywords:* geo targeting, location targeting, geoTargetConstants, suggest endpoint, PRESENCE, presence or interest, negative keywords, language targeting, worldwide targeting, createCampaign, budget waste, GoogleLaunchCard</sub>
 
 ## Blog
