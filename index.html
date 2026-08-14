@@ -76,6 +76,45 @@ function useLiveData(load, { table, interval = 15000, active = true, channel } =
   }, [load, table, interval, active, channel]);
 }
 
+// ─── adGenBackground ── fire the long job, then poll for its result ──────────
+// The Google campaign action returned a 504 as a synchronous call: Netlify gives a
+// sync function ~10 seconds and this writes 3-5 full responsive search ads. The
+// background function answers immediately and stores its result on the client
+// record (no new Supabase table, so there is no migration to forget), and this
+// polls `ad-generator` action:"poll" until it lands.
+async function adGenBackground(payload, { intervalMs = 3000, timeoutMs = 240000 } = {}) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const token = session && session.access_token;
+  if (!token) throw new Error("Session expired — refresh the page and log in again.");
+  const headers = { "Content-Type": "application/json", Authorization: "Bearer " + token };
+
+  const kick = await fetch("/.netlify/functions/ad-generator-background", {
+    method: "POST", headers, body: JSON.stringify(payload),
+  });
+  // A background function answers 202 before it has finished. Anything that is not
+  // 2xx is a real refusal (bad session, missing key) and should surface now.
+  if (!kick.ok && kick.status !== 202) {
+    const d = await kick.json().catch(() => ({}));
+    throw new Error(d.error || `Could not start the generator (${kick.status})`);
+  }
+
+  const started = Date.now();
+  for(;;){
+    await new Promise(r => setTimeout(r, intervalMs));
+    const r = await fetch("/.netlify/functions/ad-generator", {
+      method: "POST", headers, body: JSON.stringify({ action:"poll", clientId: payload.clientId }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.ok && d.ok && d.job) {
+      if (d.job.status === "done" && d.job.result) return d.job.result;
+      if (d.job.status === "error") throw new Error(d.job.error || "Generation failed.");
+    }
+    if (Date.now() - started > timeoutMs) {
+      throw new Error("The generator is taking longer than four minutes. It may still finish — press Generate again in a moment to pick up the result.");
+    }
+  }
+}
+
 // ─── adGenCall ── owner-authed call to the AI ad generator ────────────────────
 // Replaces the string-template "Fill copy": real ad-group structure, intent-tiered
 // keywords, the full 15 headlines Google allows, and niche-specific negatives.
@@ -5099,9 +5138,12 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const [genState,setGenState] = useState("idle"); // idle | working | error
   const [genMsg,setGenMsg] = useState("");
   const generate = async () => {
-    setGenState("working"); setGenMsg("");
+    setGenState("working"); setGenMsg("Writing the campaign. This takes a minute or two.");
     try{
-      const d = await adGenCall({ action:"google", agency: !!client.internal,
+      // Fire-and-poll. A synchronous call 504'd here: Netlify gives a sync function
+      // ~10 seconds and this writes 3-5 full ads. The background function answers
+      // immediately and stores its result on the client record.
+      const d = await adGenBackground({ action:"google", clientId: client.id, agency: !!client.internal,
         name: client.internal ? "BoldLine Media" : client.name,
         niche: client.internal ? (audience || "any business owner") : (client.niche||""),
         offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : (cs.mainOffer||""),
