@@ -4784,6 +4784,21 @@ function GoogleLaunchCard({client, onUpdate}) {
   };
   const seed0 = client.internal ? agencySeed("") : { name:`${client.name} — Search`, headlines:headlineSeed, descriptions:descSeed, keywords:kwSeed };
 
+  // Google targets EVERY country if a campaign is created with no location criteria,
+  // so these are required, not optional. House account = the metro Bryson actually
+  // cold calls; a client = whatever service area their intake captured.
+  const locationDefault = client.internal
+    ? "Gilbert, Arizona\nChandler, Arizona\nMesa, Arizona\nTempe, Arizona\nPhoenix, Arizona\nScottsdale, Arizona"
+    : String(cs.serviceArea || cs.targetLocations || "").split(/[,;\n]/).map(s=>s.trim()).filter(Boolean).join("\n");
+  // The searchers who can never buy. Cheap to exclude, expensive to leave in on a
+  // small daily budget — these are the classic budget-eaters on agency terms.
+  const negativeDefault = [
+    "free","cheap","jobs","job","salary","hiring","career","careers","intern","internship",
+    "course","courses","training","tutorial","how to","diy","udemy","certification",
+    "software","tool","tools","template","reddit","wikipedia","meaning","definition",
+    "resume","entry level",
+  ].join("\n");
+
   const [audience,setAudience] = useState("");
   const monthlyBudget = monthlyBudgetNum(client);
   const autoDaily = dailyFromMonthly(monthlyBudget);
@@ -4796,6 +4811,8 @@ function GoogleLaunchCard({client, onUpdate}) {
     headlinesText: seed0.headlines.join("\n"),
     descriptionsText: seed0.descriptions.join("\n"),
     keywordsText: seed0.keywords.join("\n"),
+    locationsText: locationDefault,
+    negativeKeywordsText: negativeDefault,
   });
   // Editing the monthly budget (Campaigns tab, or Edit -> Campaign) flows straight
   // through to here. Stops the moment he types his own number, so an override sticks.
@@ -4822,12 +4839,17 @@ function GoogleLaunchCard({client, onUpdate}) {
     if(headlines.length<3){ setState("error"); setMsg("Add at least 3 headlines (each ≤30 characters), one per line."); return; }
     if(descriptions.length<2){ setState("error"); setMsg("Add at least 2 descriptions (each ≤90 characters), one per line."); return; }
     if(!keywords.length){ setState("error"); setMsg("Add at least 1 keyword, one per line."); return; }
+    const locations=f.locationsText.split("\n").map(s=>s.trim()).filter(Boolean);
+    const negativeKeywords=f.negativeKeywordsText.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(!locations.length){ setState("error"); setMsg("Add at least 1 target location, one per line — without one Google shows your ads in every country on earth."); return; }
     setState("creating"); setMsg("");
     try{
       const d=await gadsCall({action:"createCampaign",
         customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
-        landingUrl:f.landingUrl, headlines, descriptions, keywords, matchType:f.matchType, clientName:client.name});
-      setState("done"); setMsg(`✓ Campaign created PAUSED (${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}). It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
+        landingUrl:f.landingUrl, headlines, descriptions, keywords, matchType:f.matchType, clientName:client.name,
+        locations, negativeKeywords});
+      const missed=(d.locationsUnresolved||[]);
+      setState("done"); setMsg(`✓ Campaign created PAUSED — ${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}, targeting ${(d.locationsTargeted||[]).join(", ")||"—"}${d.negativeKeywordsCreated?`, ${d.negativeKeywordsCreated} negative keywords`:""}.${missed.length?` ⚠ Google did not recognise: ${missed.join(", ")} — these are NOT targeted.`:""} It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
       const gcid=String(d.campaignResourceName||"").split("/").pop();
       if(gcid&&onUpdate){
         const upd={...client, pendingActions:[
@@ -4904,6 +4926,16 @@ function GoogleLaunchCard({client, onUpdate}) {
         <select value={f.matchType} onChange={e=>set("matchType",e.target.value)} style={box}>
           {["PHRASE","BROAD","EXACT"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o[0]+o.slice(1).toLowerCase()}</option>)}
         </select>
+      </div>
+      <div style={{marginBottom:9}}>
+        <label style={lbl}>Target locations — one per line (required)</label>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nPhoenix, Arizona"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Write them the way Google does — <b style={{color:C.textDim}}>City, State</b>. Ads show only to people <b style={{color:C.textDim}}>physically in</b> these areas, not people merely interested in them. Leave this empty and Google targets every country on earth.</div>
+      </div>
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>Negative keywords — one per line</label>
+        <textarea value={f.negativeKeywordsText} onChange={e=>set("negativeKeywordsText",e.target.value)} rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Searches that will never buy — job hunters, students, freebie seekers. Blocking them is the cheapest money you'll save on a small budget.</div>
       </div>
       <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
