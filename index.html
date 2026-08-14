@@ -76,6 +76,23 @@ function useLiveData(load, { table, interval = 15000, active = true, channel } =
   }, [load, table, interval, active, channel]);
 }
 
+// ─── adGenCall ── owner-authed call to the AI ad generator ────────────────────
+// Replaces the string-template "Fill copy": real ad-group structure, intent-tiered
+// keywords, the full 15 headlines Google allows, and niche-specific negatives.
+async function adGenCall(payload) {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const token = session && session.access_token;
+  if (!token) throw new Error("Session expired — refresh the page and log in again.");
+  const r = await fetch("/.netlify/functions/ad-generator", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify(payload),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || !d.ok) throw new Error(d.error || `Generator failed (${r.status})`);
+  return d;
+}
+
 // ─── gadsCall ── owner-authed call to the google-ads function ─────────────────
 // Shared by ARIA's live-campaign reads and the approve→execute path. Throws with
 // the function's stage-tagged message on any failure.
@@ -5070,6 +5087,30 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     locationsText: locationDefault,
     negativeKeywordsText: negativeDefault,
   });
+  // Generated structure. When present, the campaign is built from THESE ad groups
+  // (several themed groups, each with its own ad) instead of the single group the
+  // manual fields below describe.
+  const [gen,setGen] = useState(null);         // {adGroups, negativeKeywords, notes, totals}
+  const [genState,setGenState] = useState("idle"); // idle | working | error
+  const [genMsg,setGenMsg] = useState("");
+  const generate = async () => {
+    setGenState("working"); setGenMsg("");
+    try{
+      const d = await adGenCall({ action:"google", agency: !!client.internal,
+        name: client.internal ? "BoldLine Media" : client.name,
+        niche: client.internal ? (audience || "any business owner") : (client.niche||""),
+        offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : (cs.mainOffer||""),
+        locations: f.locationsText.split("\n").map(x=>x.trim()).filter(Boolean).join(", "),
+        avgTicket: cs.avgTicket||"", differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
+        landingUrl: f.landingUrl, avoid: cs.excludedKeywords||"" });
+      setGen(d);
+      // Fold the generated negatives into the box so they are visible and editable.
+      const negs = [...new Set([...f.negativeKeywordsText.split("\n").map(x=>x.trim()).filter(Boolean), ...(d.negativeKeywords||[])])];
+      setF(prev=>({...prev, negativeKeywordsText: negs.join("\n")}));
+      setGenState("idle");
+      setGenMsg(`${d.totals.adGroups} ad groups · ${d.totals.keywords} keywords · ${d.totals.headlines} headlines · ${d.totals.negatives} negatives`);
+    }catch(e){ setGenState("error"); setGenMsg(e.message||"Generation failed."); }
+  };
   // Editing the monthly budget (Campaigns tab, or Edit -> Campaign) flows straight
   // through to here. Stops the moment he types his own number, so an override sticks.
   useEffect(()=>{
@@ -5102,10 +5143,15 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     try{
       const d=await gadsCall({action:"createCampaign",
         customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
-        landingUrl:f.landingUrl, headlines, descriptions, keywords, matchType:f.matchType, clientName:client.name,
-        locations, negativeKeywords});
+        landingUrl:f.landingUrl, matchType:f.matchType, clientName:client.name,
+        locations, negativeKeywords,
+        // Generated structure wins. Falling back to the single manual group keeps the
+        // card usable with no AI call (and if the generator is ever unavailable).
+        ...(gen && gen.adGroups && gen.adGroups.length
+          ? { adGroups: gen.adGroups }
+          : { headlines, descriptions, keywords })});
       const missed=(d.locationsUnresolved||[]);
-      setState("done"); setMsg(`✓ Campaign created PAUSED — ${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}, targeting ${(d.locationsTargeted||[]).join(", ")||"—"}${d.negativeKeywordsCreated?`, ${d.negativeKeywordsCreated} negative keywords`:""}.${missed.length?` ⚠ Google did not recognise: ${missed.join(", ")} — these are NOT targeted.`:""} It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
+      setState("done"); setMsg(`✓ Campaign created PAUSED — ${d.adGroupsCreated||1} ad group${(d.adGroupsCreated||1)===1?"":"s"} (${(d.adGroupNames||[]).join(", ")}), ${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}, targeting ${(d.locationsTargeted||[]).join(", ")||"—"}${d.negativeKeywordsCreated?`, ${d.negativeKeywordsCreated} negative keywords`:""}.${missed.length?` ⚠ Google did not recognise: ${missed.join(", ")} — these are NOT targeted.`:""} It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
       const gcid=String(d.campaignResourceName||"").split("/").pop();
       if(gcid&&onUpdate){
         const upd={...client, pendingActions:[
@@ -5145,6 +5191,37 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the campaign for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</div>
         </div>
       )}
+      <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,border:`1px solid ${gen?C.green+"55":C.border}`,backgroundColor:gen?"rgba(34,211,160,0.06)":"transparent"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:gen?9:6}}>
+          <button onClick={generate} disabled={genState==="working"} style={{flex:1,padding:"9px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",backgroundColor:genState==="working"?C.border:C.gold,color:genState==="working"?C.textMuted:"#15110A",cursor:genState==="working"?"default":"pointer"}}>
+            {genState==="working"?"Writing the campaign…":gen?"↻ Regenerate campaign":"✨ Generate full campaign"}
+          </button>
+        </div>
+        {!gen&&genState!=="error"&&(
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55}}>Writes the whole structure: several <b style={{color:C.textDim}}>themed ad groups</b>, each with its own keywords and its own ad, all 15 headlines Google allows, and negatives specific to this business. Without this you get one ad group and one ad, which is why a basic campaign underperforms.</div>
+        )}
+        {genMsg&&<div style={{fontSize:10.5,lineHeight:1.55,color:genState==="error"?C.red:C.green,wordBreak:"break-word"}}>{genMsg}</div>}
+        {gen&&gen.adGroups&&(
+          <div style={{marginTop:9}}>
+            {gen.adGroups.map((g,i)=>(
+              <div key={i} style={{padding:"7px 0",borderTop:`1px solid ${C.border2}`}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                  <span style={{fontSize:11.5,fontWeight:800,color:C.textDim}}>{g.name}</span>
+                  <span style={{fontSize:9,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>{g.intent}</span>
+                  <span style={{marginLeft:"auto",fontSize:9.5,color:C.textMuted,fontFamily:"monospace",flexShrink:0}}>{g.keywords.length}kw · {g.headlines.length}h</span>
+                </div>
+                <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.45,marginTop:2}}>{g.theme}</div>
+                <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3,wordBreak:"break-word"}}>
+                  {g.keywords.slice(0,6).map(k=>`${k.matchType==="EXACT"?"["+k.text+"]":k.matchType==="PHRASE"?'"'+k.text+'"':k.text}`).join("  ")}
+                  {g.keywords.length>6?`  +${g.keywords.length-6} more`:""}
+                </div>
+              </div>
+            ))}
+            {gen.notes&&<div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.55,marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border2}`}}><b style={{color:C.textDim}}>What to watch: </b>{gen.notes}</div>}
+            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:7}}>Build Campaign will use these ad groups. The single-group fields below are the manual fallback and are ignored while this is here. <button onClick={()=>{setGen(null);setGenMsg("");}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>discard</button></div>
+          </div>
+        )}
+      </div>
       {[
         {k:"name",l:"Campaign name",t:"text"},
         {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
@@ -5880,6 +5957,30 @@ function AdCreativeStudio({client,onUpdate}){
   const [angleId,setAngleId]=useState(AD_ANGLES[0].id);
   const [niche,setNiche]=useState("");
   const [city,setCity]=useState("");
+  // AI angles replace the five fixed templates when generated. They carry the same
+  // shape ({id,label,kicker,head[],accent,sub}) so the picker and the canvas
+  // renderer need no special case.
+  const [aiAngles,setAiAngles]=useState([]);
+  const [angleState,setAngleState]=useState("idle"); // idle | working | error
+  const [angleMsg,setAngleMsg]=useState("");
+  const angleList = aiAngles.length ? aiAngles : AD_ANGLES;
+  const generateAngles = async () => {
+    setAngleState("working"); setAngleMsg("");
+    try{
+      const d = await adGenCall({ action:"creatives", agency: !!client.internal,
+        name: client.internal ? "BoldLine Media" : client.name,
+        niche: niche || (client.internal ? "any business owner" : (client.niche||"")),
+        locations: city, offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),
+        differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"" });
+      setAiAngles(d.angles||[]);
+      if((d.angles||[]).length){
+        const a=d.angles[0];
+        setAngleId(a.id);
+        setF(prev=>({...prev,kicker:a.kicker,head:a.head.join("\n"),accent:a.accent,sub:a.sub}));
+      }
+      setAngleState("idle"); setAngleMsg(`${(d.angles||[]).length} angles written for ${niche||"this business"}`);
+    }catch(e){ setAngleState("error"); setAngleMsg(e.message||"Generation failed."); }
+  };
   const [f,setF]=useState(()=>{ const a=AD_ANGLES[0].build("",""); return {kicker:a.kicker,head:a.head.join("\n"),accent:a.accent,sub:a.sub,offer:"Free 30-minute strategy call"}; });
   const [sizes,setSizes]=useState(()=>AD_SIZES.filter(s=>s.on).map(s=>s.id));
   const [photoPath,setPhotoPath]=useState("");
@@ -5892,7 +5993,10 @@ function AdCreativeStudio({client,onUpdate}){
 
   // Re-seed the editable fields from the chosen angle + niche/city.
   const reseed=(id,n,c)=>{
-    const a=AD_ANGLES.find(x=>x.id===id)||AD_ANGLES[0];
+    const a=angleList.find(x=>x.id===id)||angleList[0];
+    // AI angles are already built for this niche; template angles still need the
+    // niche/city substituted in.
+    if(a && !a.build){ setAngleId(id); setF(prev=>({...prev,kicker:a.kicker,head:a.head.join("\n"),accent:a.accent,sub:a.sub})); return; }
     const built=a.build(String(n||"").trim(),String(c||"").trim());
     setF(prev=>({...prev,kicker:built.kicker,head:built.head.join("\n"),accent:built.accent,sub:built.sub}));
   };
@@ -5979,13 +6083,24 @@ function AdCreativeStudio({client,onUpdate}){
       <div style={{marginBottom:11}}>
         <span style={lbl}>Angle</span>
         <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-          {AD_ANGLES.map(a=>(
+          {angleList.map(a=>(
             <button key={a.id} onClick={()=>{setAngleId(a.id);reseed(a.id,niche,city);}}
               style={{padding:"6px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,cursor:"pointer",
                 border:`1px solid ${angleId===a.id?C.gold:C.border}`,
                 backgroundColor:angleId===a.id?"rgba(200,168,75,0.12)":"transparent",
-                color:angleId===a.id?C.gold:C.textDim}}>{a.name}</button>
+                color:angleId===a.id?C.gold:C.textDim}}>{a.label||a.name}</button>
           ))}
+        </div>
+        <div style={{marginTop:9}}>
+          <button onClick={generateAngles} disabled={angleState==="working"} style={{width:"100%",padding:"8px 12px",fontSize:11.5,fontWeight:800,borderRadius:9,border:`1px solid ${C.gold}55`,backgroundColor:angleState==="working"?"transparent":C.goldDim,color:angleState==="working"?C.textMuted:C.gold,cursor:angleState==="working"?"default":"pointer"}}>
+            {angleState==="working"?"Writing angles…":aiAngles.length?"↻ Rewrite angles for this niche":"✨ Write angles for this niche"}
+          </button>
+          <div style={{fontSize:9.5,lineHeight:1.5,marginTop:4,color:angleState==="error"?C.red:C.textMuted}}>
+            {angleMsg || "The five above are fixed templates. This writes angles from the actual niche and city, so two different businesses stop getting the same ad."}
+          </div>
+          {aiAngles.length>0&&(()=>{ const cur=aiAngles.find(x=>x.id===angleId); return cur&&cur.why?(
+            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:5}}><b style={{color:C.textDim}}>Why this one: </b>{cur.why}</div>
+          ):null; })()}
         </div>
       </div>
 
