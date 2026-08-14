@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 99 task-keyed entries under `knowledge/`. They surface automatically via the
+> 100 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**99 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**100 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -315,6 +315,9 @@
 - **[per-lead-billing](../knowledge/per-lead-billing.md)** &mdash; &#9989; verified &middot; 2026-08-02  
   Per-qualified-lead billing — BUILT 2026-08-02, EXTENDED same day (junk flagger + one-bill preview + pre-invoice reminder). Every delivered lead is billable at the client's per-lead rate; the owner reviews the batch on the Billing card (Contract tab), toggles off junk/spam, then one-tap approves and the total rides the client's NEXT monthly Stripe invoice as one line item (pending invoice item, same auto-sweep the late-interest watcher uses — NOT a standalone charge). A heuristic junk flagger marks likely-junk leads WITH the reason (never auto-excludes — Bryson's call). An "Upcoming Invoice" preview (stripe-billing preview-invoice → invoices/upcoming) shows fee+setup+leads+interest bundled on ONE bill with the auto-charge date. billing-watch fires a review reminder (push+email, once/cycle) ~7 days before the invoice auto-charges when there are undecided leads. Invoicing model = AUTO-CHARGE, REVIEW-GATED (Bryson chose this 2026-08-02 over hold-until-send / emailed-invoice). Rate = client.billingPerLead override, else PER_LEAD[niche] (only Roofing/Med Spa/Auto Detailing have defaults) — inline rate editor essential elsewhere. No new Supabase table (uses client.leadsLog) and no new env vars. Verified headlessly at all 4 widths + unit-tested flagger (false positive "Dana Cole"→placeholder-substring fixed).  
   <sub>*task:* change how per-qualified-lead fees are billed to clients, the lead-billing review panel, or which leads count as billable &nbsp;|&nbsp; *keywords:* charge-leads, preview-invoice, billingPerLead, PER_LEAD, leadsLog, notBillable, billed, billableCount, perLeadRate, invoiceitems, per-lead fee, junk lead, spam lead, flagLead, exclude lead, qualified lead, invoice_review, billingNextCharge, invoiceReminderSent, upcoming invoice</sub>
+- **[pipeline-auto-advance](../knowledge/pipeline-auto-advance.md)** &mdash; &#9989; verified &middot; 2026-08-14  
+  The bot pipeline never advanced by itself for ANYONE — every writer of `botStatuses` was a creation default, a seed row, or a button Bryson clicks, and the demo clients only looked staged because their statuses are hand-written in INIT_CLIENTS. Now 15 of the 20 steps derive from facts the OS can observe (intake fields, landing page, built/live campaign, linked account, conversions, spend, leads) and each row shows the REASON for its state. 5 steps with no observable artifact stay manual and say so rather than being guessed at. A hand-set status always wins and is remembered per-bot. 71 cases.  
+  <sub>*task:* how the 20-bot delivery pipeline advances, and which steps are still manual &nbsp;|&nbsp; *keywords:* bot pipeline, botStatuses, auto advance, deriveBotStatuses, effectiveBotStatus, botStatusManual, MANUAL_BOTS, pipeline progress, stage, waiting active done</sub>
 - **[portal-connect-ad-accounts](../knowledge/portal-connect-ad-accounts.md)** &mdash; &#9989; verified &middot; 2026-07-22  
   Client portal (My Info tab) has a "Connect Your Ad Accounts" section that shows ONLY the platform(s) the client's package runs (Google/Meta/both). Each has a walkthrough-video slot + click-by-click steps + input fields so the client self-enters their IDs (googleAdsCustomerId / metaAdAccountId / metaPageId), which save to the client record and drive the OS ad-runners. Built 2026-07-22.  
   <sub>*task:* the client-portal "Connect Your Ad Accounts" tutorials + self-entry of ad IDs, and how to add the walkthrough videos &nbsp;|&nbsp; *keywords:* portal, connect, tutorial, video, googleAdsCustomerId, metaAdAccountId, metaPageId, GOOGLE_CONNECT_VIDEO, META_CONNECT_VIDEO, META_BUSINESS_ID, sanitizeFields, conditional-by-platform</sub>

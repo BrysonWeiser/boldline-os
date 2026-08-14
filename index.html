@@ -493,6 +493,94 @@ const buildBots = (pkg) => {
   ];
 };
 
+// ─── PIPELINE AUTO-ADVANCE ────────────────────────────────────────────────────
+// Bryson, 2026-08-14: he wants the bot pipeline to advance on its own. Worth being
+// exact about the starting point — it never did, for anyone. Every writer of
+// `botStatuses` was a creation default, a seed row, or a button he clicks; the demo
+// clients only LOOK staged because their statuses are hand-written in INIT_CLIENTS.
+//
+// So this derives status from things the OS can actually OBSERVE on the record. A
+// timer that walks stages forward would be theatre: the bar would move while nothing
+// happened, which is worse than an honest "waiting".
+//
+// Three states: waiting -> active -> done. Stages that are ONGOING work (budget,
+// search terms, lead quality, performance) cap at "active" and never read "done",
+// because they are never finished while ads run.
+//
+// Bots with NO observable artifact stay manual and are listed here honestly rather
+// than guessed at: research, avatar, funnel, scaling, success. They describe work
+// that produces nothing the OS stores, so deriving them would be inventing progress.
+// If those ever get real artifacts, add a rule and they start advancing too.
+const MANUAL_BOTS = ["research", "avatar", "funnel", "scaling", "success"];
+
+const deriveBotStatuses = (cl) => {
+  if (!cl) return {};
+  const cs   = cl.campaignSetup || {};
+  const lp   = cl.landingPage || {};
+  const perf = cl.adPerf || {};                      // written by the scheduled ads-sync job
+  const camps = Array.isArray(perf.campaigns) ? perf.campaigns : [];
+  const anyCampaign = camps.length > 0;
+  const anyLive     = camps.some((c) => c && (c.live || String(c.status || "").toUpperCase() === "ENABLED" || String(c.effectiveStatus || "").toUpperCase() === "ACTIVE"));
+  const spend       = Number(perf.spend30 || perf.spend || 0);
+  const convs       = camps.reduce((n, c) => n + Number((c && c.conversions) || 0), 0);
+  const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
+  const leads       = Number(cl.leads || 0);
+  const s = (status, why) => ({ status, why });
+
+  const out = {
+    intake:    cl.intakeComplete ? s("done", "Intake marked complete")
+               : (cs.mainOffer || cs.serviceArea || cs.targetLocations) ? s("active", "Campaign details partly filled in")
+               : s("waiting", "No intake details yet"),
+    ceo:       cl.intakeComplete ? s("done", "Brief is complete, so the plan is set")
+               : s("waiting", "Waiting on a complete intake"),
+    offer:     cs.mainOffer ? s("done", `Main offer set: ${cs.mainOffer}`)
+               : s("waiting", "No main offer set"),
+    architect: lp.headline ? s("done", "Landing page structure exists")
+               : s("waiting", "No landing page started"),
+    copy:      (lp.subheadline && (lp.bullets || []).length) ? s("done", "Landing page copy written")
+               : lp.headline ? s("active", "Headline written, rest of the copy pending")
+               : s("waiting", "No copy yet"),
+    builder:   lp.published ? s("done", "Landing page is published")
+               : lp.headline ? s("active", "Page drafted, not published")
+               : s("waiting", "Nothing to build yet"),
+    keywords:  anyCampaign ? s("done", "Keywords shipped with the built campaign")
+               : s("waiting", "No campaign built yet"),
+    ads:       anyLive ? s("done", "Campaign is live")
+               : anyCampaign ? s("active", "Campaign built, awaiting launch")
+               : s("waiting", "No campaign built yet"),
+    tracking:  convs > 0 ? s("done", "Conversions are being recorded")
+               : linked ? s("active", "Ad account linked, no conversion recorded yet")
+               : s("waiting", "No ad account linked"),
+    automation: cl.leadToken ? s("done", "Lead capture and auto-reply are live")
+               : s("waiting", "No lead pipeline yet"),
+    qc:        anyLive ? s("done", "Signed off and live")
+               : anyCampaign ? s("active", "Built and paused, awaiting sign-off")
+               : s("waiting", "Nothing to check yet"),
+    budget:    (anyLive && monthlyBudgetNum(cl) > 0) ? s("active", "Watching spend against the monthly budget")
+               : monthlyBudgetNum(cl) > 0 ? s("waiting", "Budget set, nothing running yet")
+               : s("waiting", "No monthly budget set"),
+    terms:     spend > 0 ? s("active", "Reviewing search terms as clicks come in")
+               : s("waiting", "No spend to review yet"),
+    leads:     leads > 0 ? s("active", `Scoring ${leads} lead${leads === 1 ? "" : "s"}`)
+               : s("waiting", "No leads yet"),
+    perf:      spend > 0 ? s("active", "Reporting on live campaign data")
+               : s("waiting", "No campaign data yet"),
+  };
+  for (const id of MANUAL_BOTS) delete out[id];
+  return out;
+};
+
+// Manual always wins. Cycling a bot by hand records it in `botStatusManual` so the
+// derivation stops fighting him on that one, and only that one.
+const effectiveBotStatus = (cl, botId, derived) => {
+  const manual = (cl && cl.botStatusManual) || {};
+  const stored = (cl && cl.botStatuses) || {};
+  if (manual[botId]) return { status: stored[botId] || "waiting", why: "Set by hand", manual: true };
+  const d = (derived || {})[botId];
+  if (d) return { status: d.status, why: d.why, auto: true };
+  return { status: stored[botId] || "waiting", why: "Tracked by hand (no automatic signal for this step)", manual: true };
+};
+
 const getAlerts = (cl) => {
   const a = [...(cl.alerts||[])];
   if (!cl.intakeComplete) a.push({type:"intake",msg:"Intake form not yet complete.",severity:"yellow"});
@@ -3169,7 +3257,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const [mediaBusy,setMediaBusy] = useState(null);
   const [mediaErr,setMediaErr]   = useState(null);
   const pkg    = findPkg(client.packageId);
-  const bots   = buildBots(pkg).map(b=>({...b,status:(client.botStatuses && client.botStatuses[b.id])||"waiting"}));
+  const derivedBots = deriveBotStatuses(client);
+  const bots   = buildBots(pkg).map(b=>{ const e=effectiveBotStatus(client,b.id,derivedBots); return {...b,status:e.status,why:e.why,auto:!!e.auto,manual:!!e.manual}; });
   const alerts = getAlerts(client);
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
@@ -3361,7 +3450,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 {l:"CPL on target",          ok:client.cpl>0&&client.cpl<=(PER_LEAD[client.niche]||50), pts:"0.5"},
                 {l:"Contract active",        ok:client.contractStatus==="active", pts:"1.0"},
                 {l:"Contract runway (30d+)", ok:daysUntil(client.contractEnd)>30, pts:"1.0"},
-                {l:"Pipeline progress",      ok:Object.values(client.botStatuses||{}).filter(s=>s==="done").length>5, pts:"1.0"},
+                {l:"Pipeline progress",      ok:bots.filter(b=>b.status==="done").length>5, pts:"1.0"},
               ];
               return (
                 <Card style={{borderColor:`${healthColor(h)}33`,backgroundColor:`${healthColor(h)}06`}}>
@@ -4173,8 +4262,11 @@ function ReportsTabContent({client,pkg}) {
   const health  = calcHealth(client);
   const onTarget= client.cpl>0 && client.cpl<=(perLead||75);
   const daysLeft= daysUntil(client.contractEnd);
-  const botsComplete = Object.values(client.botStatuses||{}).filter(s=>s==="done").length;
-  const botsTotal    = Object.values(client.botStatuses||{}).length;
+  // Same effective statuses the Pipeline tab shows, so a report can never quote a
+  // different number from the screen Bryson is looking at.
+  const reportBots   = buildBots(findPkg(client.packageId)).map(b=>effectiveBotStatus(client,b.id,deriveBotStatuses(client)));
+  const botsComplete = reportBots.filter(b=>b.status==="done").length;
+  const botsTotal    = reportBots.length;
 
   const SYS=`You are generating a client performance report for Bryson Weiser at BoldLine Media. Write in professional plain English Bryson can read aloud on a client call. Never mention AI or bots.
 
@@ -7631,19 +7723,35 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
           <Card>
             <Label>Bot Pipeline Status</Label>
             <div style={{fontSize:11,color:C.textMuted,marginBottom:12,lineHeight:1.6}}>
-              Tap the status badge on any bot to cycle through: Waiting → Running → Complete → Needs You.
+              Most steps now advance <b style={{color:C.textDim}}>automatically</b> from what the OS can see: intake, the landing page, the built campaign, tracking, spend and leads. Tap a badge to override one by hand (Waiting → Running → Complete → Needs You); it then stays where you put it. Tap <b style={{color:C.textDim}}>auto</b> to hand it back.
             </div>
             {bots.map(bot=>{
-              const current = (form.botStatuses && form.botStatuses[bot.id])||"waiting";
+              const derivedHere = deriveBotStatuses(form);
+              const eff = effectiveBotStatus(form, bot.id, derivedHere);
+              const current = eff.status;
               const nextStatus = { waiting:"active", active:"done", done:"needs_input", needs_input:"waiting" };
-              const cycle = () => set("botStatuses",{...form.botStatuses,[bot.id]:nextStatus[current]});
+              // Overriding pins BOTH the value and the fact that it was set by hand,
+              // or the derivation would immediately overwrite it on the next render.
+              const cycle = () => setForm(p=>({...p,
+                botStatuses:{...p.botStatuses,[bot.id]:nextStatus[current]},
+                botStatusManual:{...(p.botStatusManual||{}),[bot.id]:true},
+              }));
+              const clearOverride = () => setForm(p=>{ const m={...(p.botStatusManual||{})}; delete m[bot.id]; return {...p, botStatusManual:m}; });
               const dot = statusDot[current]||"#374151";
               const pulse = current==="active"||current==="needs_input";
               return (
                 <div key={bot.id} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 0",borderBottom:`1px solid ${C.border2}`}}>
                   <span style={{fontSize:10,fontFamily:"monospace",color:C.textMuted,width:16,flexShrink:0}}>{String(bot.step).padStart(2,"0")}</span>
                   <span style={{fontSize:14,flexShrink:0}}>{bot.icon}</span>
-                  <span style={{fontSize:12,fontWeight:600,color:C.textDim,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:C.textDim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</div>
+                    {/* The REASON the step is where it is. Without this an auto status
+                        is just a colour, and an unexplained colour is not trustworthy. */}
+                    <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.4,marginTop:1}}>{eff.why}</div>
+                  </div>
+                  {eff.manual && !MANUAL_BOTS.includes(bot.id) && (
+                    <button onClick={clearOverride} title="Hand this step back to automatic" style={{fontSize:9,fontWeight:700,padding:"3px 7px",borderRadius:20,border:`1px solid ${C.border}`,background:"transparent",color:C.textMuted,cursor:"pointer",flexShrink:0}}>auto</button>
+                  )}
                   <button onClick={cycle} style={{
                     display:"flex",alignItems:"center",gap:5,padding:"4px 9px",
                     borderRadius:20,border:`1px solid ${dot}44`,
@@ -7662,7 +7770,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   <div style={{fontSize:11,color:C.textDim,marginBottom:7}}>Reset all bots to Waiting? Clears all current statuses.</div>
                   <div style={{display:"flex",gap:7}}>
                     <button onClick={()=>setResetConfirm(false)} style={{flex:1,padding:"6px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
-                    <button onClick={()=>{ set("botStatuses",Object.fromEntries(bots.map(b=>[b.id,"waiting"]))); setResetConfirm(false); }} style={{flex:1,padding:"6px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer"}}>Yes, Reset All</button>
+                    <button onClick={()=>{ setForm(p=>({...p,botStatuses:Object.fromEntries(bots.map(b=>[b.id,"waiting"])),botStatusManual:{}})); setResetConfirm(false); }} style={{flex:1,padding:"6px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(248,113,113,0.15)",color:C.red,cursor:"pointer"}}>Yes, Reset All</button>
                   </div>
                 </div>
               ):doneConfirm?(
@@ -7670,7 +7778,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   <div style={{fontSize:11,color:C.textDim,marginBottom:7}}>Mark all bots Complete? Use when full campaign is live.</div>
                   <div style={{display:"flex",gap:7}}>
                     <button onClick={()=>setDoneConfirm(false)} style={{flex:1,padding:"6px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
-                    <button onClick={()=>{ set("botStatuses",Object.fromEntries(bots.map(b=>[b.id,"done"]))); setDoneConfirm(false); }} style={{flex:1,padding:"6px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(34,211,160,0.15)",color:C.green,cursor:"pointer"}}>Yes, Mark All Done</button>
+                    <button onClick={()=>{ setForm(p=>({...p,botStatuses:Object.fromEntries(bots.map(b=>[b.id,"done"])),botStatusManual:Object.fromEntries(bots.map(b=>[b.id,true]))})); setDoneConfirm(false); }} style={{flex:1,padding:"6px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"rgba(34,211,160,0.15)",color:C.green,cursor:"pointer"}}>Yes, Mark All Done</button>
                   </div>
                 </div>
               ):(
