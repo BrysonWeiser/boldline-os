@@ -517,12 +517,18 @@ const deriveBotStatuses = (cl) => {
   if (!cl) return {};
   const cs   = cl.campaignSetup || {};
   const lp   = cl.landingPage || {};
-  const perf = cl.adPerf || {};                      // written by the scheduled ads-sync job
-  const camps = Array.isArray(perf.campaigns) ? perf.campaigns : [];
-  const anyCampaign = camps.length > 0;
-  const anyLive     = camps.some((c) => c && (c.live || String(c.status || "").toUpperCase() === "ENABLED" || String(c.effectiveStatus || "").toUpperCase() === "ACTIVE"));
-  const spend       = Number(perf.spend30 || perf.spend || 0);
-  const convs       = camps.reduce((n, c) => n + Number((c && c.conversions) || 0), 0);
+  // ads-sync writes COUNTS, not a campaign array: {google,meta}.{campaigns,live,...}
+  // plus a rolled-up `totals` and a `budget` block. Reading a `campaigns` array here
+  // silently never matched, which left every campaign-driven step stuck forever.
+  const perf   = cl.adPerf || {};                    // written by the scheduled ads-sync job
+  const totals = perf.totals || {};
+  const g = perf.google || {}, m = perf.meta || {};
+  const campaignCount = Number(g.campaigns || 0) + Number(m.campaigns || 0);
+  const liveCount     = Number(totals.liveCampaigns != null ? totals.liveCampaigns : (Number(g.live || 0) + Number(m.live || 0)));
+  const anyCampaign   = campaignCount > 0 || liveCount > 0;
+  const anyLive       = liveCount > 0;
+  const spend         = Number(totals.spend30d || 0);
+  const convs         = Number(totals.conversions || 0);
   const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
   const leads       = Number(cl.leads || 0);
   const s = (status, why) => ({ status, why });
@@ -709,7 +715,77 @@ const healthColor = (s) => s>=8?C.green:s>=6?C.amber:C.red;
 const stageInfo   = (id) => STAGES.find(s=>s.id===id)||STAGES[0];
 
 // ─── AUTO HEALTH SCORE ────────────────────────────────────────────────────────
+// ─── HOUSE-ACCOUNT HEALTH ─────────────────────────────────────────────────────
+// The client formula scores a RELATIONSHIP: contract signed, contract status,
+// runway to contract end, intake returned. None of that exists on BoldLine's own
+// account, so it scored the house account on things that can never be true —
+// `contractStatus` is "internal" (not "active") and `contractEnd` is empty, so it
+// forfeited 2 points permanently and was hard-capped at 6.6/10 with perfect ads.
+// Two of the points it DID earn were free (contractSigned/intakeComplete are
+// hardcoded true on the record), so the number moved for no real reason.
+//
+// This scores the only question that matters for his own ads: is the machine
+// running and producing? Seven observable factors summing to exactly 10, each
+// carrying the reason it scored what it did — same visible-factor approach as
+// Lead Scout, so a number is never unexplained. Client scoring is UNTOUCHED.
+const houseHealthFactors = (cl) => {
+  const perf   = (cl && cl.adPerf) || {};
+  const totals = perf.totals || {};
+  const budget = perf.budget || {};
+  const g = perf.google || {}, m = perf.meta || {};
+  const plats = adPlatformsOf(cl, null);
+  const lp = (cl && cl.landingPage) || {};
+  const leads = Number((cl && cl.leads) || 0);
+  const monthly = monthlyBudgetNum(cl);
+  const liveCount = Number(totals.liveCampaigns != null ? totals.liveCampaigns : (Number(g.live || 0) + Number(m.live || 0)));
+  const campaignCount = Number(g.campaigns || 0) + Number(m.campaigns || 0);
+  const convs = Number(totals.conversions || 0);
+
+  // Linked: every platform being run needs its account attached, so running both
+  // and linking one is genuinely half done rather than finished.
+  const wantG = plats.google, wantM = plats.meta;
+  const haveG = !!(cl && cl.googleAdsCustomerId), haveM = !!(cl && cl.metaAdAccountId);
+  const wanted = (wantG ? 1 : 0) + (wantM ? 1 : 0);
+  const have = (wantG && haveG ? 1 : 0) + (wantM && haveM ? 1 : 0);
+  const linkPts = wanted === 0 ? 0 : (have / wanted) * 1;
+
+  const f = (label, pts, max, why) => ({ label, pts: Math.round(pts * 100) / 100, max, why });
+  return [
+    f("Ad accounts linked", linkPts, 1,
+      wanted === 0 ? "No platforms selected on this account"
+      : have === wanted ? "Every platform you run is linked"
+      : `${have} of ${wanted} platforms linked`),
+    f("Conversion tracking proven", convs > 0 ? 1.5 : (haveG || haveM) ? 0.5 : 0, 1.5,
+      convs > 0 ? `${convs} conversion${convs === 1 ? "" : "s"} recorded`
+      : (haveG || haveM) ? "Account linked, but nothing has converted yet"
+      : "No ad account linked yet"),
+    f("Campaign live", liveCount > 0 ? 2 : campaignCount > 0 ? 1 : 0, 2,
+      liveCount > 0 ? `${liveCount} campaign${liveCount === 1 ? "" : "s"} running`
+      : campaignCount > 0 ? "Built, but still paused"
+      : "No campaign built yet"),
+    f("Monthly budget set", monthly > 0 ? 1 : 0, 1,
+      monthly > 0 ? `$${monthly.toLocaleString()}/mo` : "No monthly budget set"),
+    f("Spending within budget",
+      monthly <= 0 ? 0 : budget.state === "over" ? 0 : budget.state === "warn" ? 0.75 : liveCount > 0 ? 1.5 : 0.75, 1.5,
+      monthly <= 0 ? "No budget to measure against"
+      : budget.pct != null ? `Pacing at ${budget.pct}% of budget`
+      : "Set, but nothing has spent yet"),
+    f("Leads arriving", leads > 15 ? 2 : leads > 5 ? 1.5 : leads > 0 ? 1 : 0, 2,
+      leads > 0 ? `${leads} lead${leads === 1 ? "" : "s"} so far` : "No leads yet"),
+    f("Landing page published", lp.published ? 1 : lp.headline ? 0.5 : 0, 1,
+      lp.published ? "Published and taking traffic" : lp.headline ? "Drafted, not published" : "No landing page yet"),
+  ];
+};
+
+const calcHouseHealth = (cl) => {
+  const total = houseHealthFactors(cl).reduce((n, x) => n + x.pts, 0);
+  return Math.max(1, Math.min(10, Math.round(total * 10) / 10));
+};
+
 const calcHealth = (cl) => {
+  // BoldLine's own account is scored on whether the ADS work, not on a contract
+  // it will never have. Client scoring below is deliberately unchanged.
+  if (cl && cl.internal) return calcHouseHealth(cl);
   let score = 0;
   const days = daysUntil(cl.contractEnd);
 
@@ -3471,6 +3547,38 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>${pkg.setup.toLocaleString()} setup {client.niche&&PER_LEAD[client.niche]?`· $${PER_LEAD[client.niche]}/lead`:""}</div>
             </Card>}
             {/* Live health score breakdown */}
+            {client.internal&&(()=>{
+              // Same card, house factors. Each row carries the REASON it scored
+              // what it did, so the number is never just a number.
+              const h = calcHealth(client);
+              const factors = houseHealthFactors(client);
+              return (
+                <Card style={{borderColor:`${healthColor(h)}33`,backgroundColor:`${healthColor(h)}06`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                    <Label>Ad Health Score</Label>
+                    <div style={{fontSize:24,fontWeight:900,color:healthColor(h),lineHeight:1}}>{h.toFixed(1)}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/10</span></div>
+                  </div>
+                  <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginBottom:10}}>Scores whether your own advertising is actually running and producing. Nothing here is about contracts, because you don't have one with yourself.</div>
+                  <div style={{height:5,backgroundColor:C.border2,borderRadius:3,overflow:"hidden",marginBottom:12}}>
+                    <div style={{height:"100%",width:`${h*10}%`,backgroundColor:healthColor(h),borderRadius:3,transition:"width .4s"}}/>
+                  </div>
+                  {factors.map(({label,pts,max,why})=>{
+                    const full = pts >= max, none = pts <= 0;
+                    const col = full ? C.green : none ? C.textMuted : C.gold;
+                    return (
+                      <div key={label} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"6px 0",borderBottom:`1px solid ${C.border2}`}}>
+                        <span style={{color:col,fontSize:12,fontWeight:700,flexShrink:0,width:12,textAlign:"center",lineHeight:1.5}}>{full?"\u2713":none?"\u00b7":"\u2022"}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:12,fontWeight:600,color:C.textDim}}>{label}</div>
+                          <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.4,marginTop:1}}>{why}</div>
+                        </div>
+                        <span style={{fontSize:10,fontWeight:700,color:col,flexShrink:0,fontFamily:"monospace"}}>{pts.toFixed(2).replace(/0$/,"")}/{max}</span>
+                      </div>
+                    );
+                  })}
+                </Card>
+              );
+            })()}
             {!client.internal&&(()=>{
               const h = calcHealth(client);
               const factors = [
