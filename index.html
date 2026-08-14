@@ -5028,8 +5028,13 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const offer = cs.mainOffer || "";
   const area = cs.serviceArea || cs.targetLocations || "";
   const diff = bv.differentiator || "";
-  const cl30 = (s) => String(s||"").trim().slice(0,30);
-  const cl90 = (s) => String(s||"").trim().slice(0,90);
+  // Trim back to a whole word, never mid-word. A plain slice put "ringi" on a real
+  // creative; a field that is simply shorter always beats one that looks broken.
+  // If not even the first word fits, drop it so no fragment ever ships.
+  const clWords = (s,max) => { const t=String(s||"").trim().replace(/\s{2,}/g," "); if(t.length<=max) return t;
+    const sp=t.slice(0,max+1).lastIndexOf(" "); return sp<=0?"":t.slice(0,sp).replace(/[\s,;:.\-]+$/,""); };
+  const cl30 = (s) => clWords(s,30);
+  const cl90 = (s) => clWords(s,90);
   const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Get Your Free Quote Today", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
   const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust. Fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
   const kwSeed = [...new Set([niche, niche&&area?`${niche} ${area}`:"", niche?`${niche} near me`:"", niche?`best ${niche}`:""].map(s=>String(s||"").trim()).filter(Boolean))].slice(0,8);
