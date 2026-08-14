@@ -38,7 +38,8 @@ const VOICE = `HOW THE COPY MUST READ:
 - No "unlock", "elevate", "leverage", "seamless", "robust", "game-changer", "supercharge", "in today's world", "it's not just X, it's Y".
 - Write how a person talks. Contractions are good. Vary sentence length.
 - No emojis anywhere.
-- Specific beats clever. "Roof leak fixed today" beats "Excellence in roofing".`;
+- Specific beats clever. "Roof leak fixed today" beats "Excellence in roofing".
+- COUNT THE CHARACTERS on every limited field and finish the thought inside the limit. Never hand back a phrase that runs past it and has to be cut, and never end mid-word or mid-sentence. If an idea does not fit, write a shorter idea.`;
 
 const HONESTY = `WHAT YOU MAY NOT CLAIM:
 - No invented statistics, review counts, years in business, awards, certifications, guarantees, or customer numbers. If you were not given it, you do not have it.
@@ -172,6 +173,31 @@ const stripDashes = (s) => String(s == null ? "" : s)
   .replace(/([.!?])\s+([a-z])/g, (m, p, c) => p + " " + c.toUpperCase())
   .replace(/\s{2,}/g, " ").trim();
 
+// ── Truncation that never cuts a word in half ────────────────────────────────
+// A plain .slice() produced "When the calls should be ringi" on a real creative.
+// Copy that stops mid-word reads broken and is worse than copy that is simply
+// shorter, so these trim back to a whole word (or a whole sentence) instead.
+// If even the first word does not fit, the field is dropped rather than mangled.
+export const fitWords = (s, max) => {
+  const t = String(s == null ? "" : s).trim().replace(/\s{2,}/g, " ");
+  if (t.length <= max) return t;
+  const sp = t.slice(0, max + 1).lastIndexOf(" ");
+  if (sp <= 0) return "";
+  return t.slice(0, sp).replace(/[\s,;:.\-]+$/, "");
+};
+
+// For prose, prefer ending on a finished sentence; fall back to a whole word.
+export const fitSentence = (s, max) => {
+  const t = String(s == null ? "" : s).trim().replace(/\s{2,}/g, " ");
+  if (t.length <= max) return t;
+  const window = t.slice(0, max + 1);
+  const end = Math.max(window.lastIndexOf(". "), window.lastIndexOf("! "), window.lastIndexOf("? "));
+  if (end > 0) return t.slice(0, end + 1);
+  const solo = window.match(/^.*[.!?]$/);
+  if (solo && solo[0].length <= max) return solo[0];
+  return fitWords(t, max);
+};
+
 const fitAll = (arr, max) => (Array.isArray(arr) ? arr : [])
   .map(stripDashes).filter(Boolean)
   .filter((t) => t.length <= max)
@@ -194,7 +220,7 @@ export function cleanGoogle(data) {
       // first group to claim a term keeps it.
       .filter((k) => (seenKw.has(k.text) ? false : (seenKw.add(k.text), true)));
     return {
-      name: stripDashes(g.name).slice(0, 120) || "Ad Group",
+      name: fitWords(stripDashes(g.name), 120) || "Ad Group",
       theme: stripDashes(g.theme),
       intent: String(g.intent || "medium"),
       keywords,
@@ -304,9 +330,9 @@ Headline 40 characters or fewer. Description 30 or fewer. Primary text can run l
       });
       const variants = (Array.isArray(data && data.variants) ? data.variants : []).map((v) => ({
         awareness: String(v.awareness || ""), angle: stripDashes(v.angle),
-        headline: stripDashes(v.headline).slice(0, 40),
+        headline: fitWords(stripDashes(v.headline), 40),
         primaryText: stripDashes(v.primaryText),
-        description: stripDashes(v.description).slice(0, 30),
+        description: fitWords(stripDashes(v.description), 30),
       })).filter((v) => v.headline && v.primaryText);
       if (!variants.length) return json({ ok: false, error: "The model returned no usable variants. Try again." }, 502);
       return json({ ok: true, model, variants });
@@ -328,11 +354,11 @@ Give me 5 to 7 angles that make genuinely different arguments. Not one idea rewo
         const head = fitAll(a.head, 24).slice(0, 3);
         return {
           id: String(a.id || `angle-${i + 1}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40),
-          label: stripDashes(a.label).slice(0, 40) || `Angle ${i + 1}`,
-          kicker: stripDashes(a.kicker).slice(0, 30),
+          label: fitWords(stripDashes(a.label), 40) || `Angle ${i + 1}`,
+          kicker: fitWords(stripDashes(a.kicker), 30),
           head,
           accent: Math.max(0, Math.min(head.length - 1, Number(a.accent) || 0)),
-          sub: stripDashes(a.sub).slice(0, 90),
+          sub: fitSentence(stripDashes(a.sub), 90),
           why: stripDashes(a.why),
         };
       }).filter((a) => a.head.length >= 2);
