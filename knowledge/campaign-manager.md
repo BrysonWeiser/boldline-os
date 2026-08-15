@@ -31,3 +31,15 @@ verified: 2026-08-12
 **Verified 2026-08-12 — 26 Playwright cases, all passing**, driving the REAL component in a real Chromium with `gadsCall`/`metaCall` monkey-patched: per-account reads, grouping, unlinked-client exclusion, all four summary tiles' arithmetic ($56.58 live daily from 6.58+5+45; $1,465 30d), the ADSET_PAUSED flag, delete-declined sends no API call, a live campaign requires TWO confirmations and sends `wasLive:true`, all three filters, a failing account rendering alongside successful ones, and **0px horizontal overflow at 390/768/1280/1600**.
 
 **GOTCHA — headless harness against index.html:** Chromium in the sandbox has no route to unpkg, so the four CDN `<script src>` URLs must be **vendored locally and rewritten by the test server** (curl needs `-L`; unpkg's `@18` specifiers are redirects, and without it you silently get 56-byte files). Also, `Label` and the tile labels are CSS-uppercased, so `innerText` assertions must be case-insensitive. Full harness: `scratchpad/verify-campaigns.js` pattern — worth rebuilding rather than hunting for.
+
+**🔴 GHOST CAMPAIGNS + AN UNDELETABLE ROW — fixed 2026-08-14.** Bryson tried to delete two campaigns and got `removeCampaign: The operation is not allowed for removed resources. [contextError=OPERATION_NOT_PERMITTED_FOR_REMOVED_RESOURCE]`. Google was saying **they are already deleted** — he was looking at rows that no longer existed and could never be acted on.
+
+**Cause, and it is two bugs stacked:**
+1. **`getCampaigns` never filtered out REMOVED campaigns.** A removed campaign keeps its historical metrics rows, so `WHERE segments.date DURING LAST_30_DAYS` returns it **forever**. The list showed ghosts. Fixed with `AND campaign.status != 'REMOVED'`, which also corrects the campaign COUNT that `ads-sync` stores and therefore the `keywords`/`ads` pipeline steps derived from it.
+2. **Delete was not idempotent.** Deleting something already deleted is *the outcome the caller asked for*, but it surfaced as a red error and left the row on screen looking broken. `isAlreadyRemoved()` now detects it by Google's error **code** (with the message as a fallback, because the code is the reliable half and the message is the readable one) and returns success.
+
+**Tolerance is opt-in, per call.** Only the three delete paths pass `tolerateRemoved` — campaign, ad group, ad and keyword removes. A **pause** or an **add** hitting a removed resource is a genuine error the operator must see, and the tests assert exactly that: same fake Google failure, delete succeeds, pause and add still raise.
+
+**Also fixed while in there:** `setAdGroupStatus(..., "REMOVED")` was sending a status *update*. Google models ad-group removal as a `remove` operation, the same way ad removal already was.
+
+**Verified by 16 cases** using Google's verbatim error body, including that an unrelated failure still raises, the detector survives a malformed body, and exactly three call sites are tolerant.

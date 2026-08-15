@@ -138,6 +138,7 @@ export async function getCampaigns(accessToken, customerId) {
       metrics.cost_micros, metrics.conversions
     FROM campaign
     WHERE segments.date DURING LAST_30_DAYS
+      AND campaign.status != 'REMOVED'
     ORDER BY metrics.cost_micros DESC`;
   const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/googleAds:search`, {
     method: "POST",
@@ -207,12 +208,27 @@ export async function setStatus(accessToken, customerId, campaignResourceName, s
 // serving immediately and drops out of the OS list. Its historical stats stay in
 // the Google Ads account for reporting.
 // A live campaign is PAUSED first so serving stops even if the remove then fails.
+// Google reports "already removed" as a contextError, not a plain message. Both
+// the code and the wording are checked because the code is the reliable half and
+// the message is the readable one.
+function isAlreadyRemoved(data) {
+  const failure = data && data.error && data.error.details && data.error.details[0];
+  const errs = (failure && failure.errors) || [];
+  return errs.some((e) => {
+    const code = e && e.errorCode ? Object.values(e.errorCode)[0] : "";
+    return String(code) === "OPERATION_NOT_PERMITTED_FOR_REMOVED_RESOURCE"
+      || /not allowed for removed resources/i.test(String((e && e.message) || ""));
+  });
+}
+
 async function removeCampaign(accessToken, customerId, campaignResourceName, { wasLive } = {}) {
   const cid = digits(customerId);
   if (!cid || !campaignResourceName) {
     const e = new Error("customerId and campaignResourceName required"); e.stage = "removeCampaign"; throw e;
   }
   if (wasLive) {
+    // A removed campaign cannot be paused either, so a failure here is expected in
+    // that case and must not stop the remove that follows.
     try { await setStatus(accessToken, cid, campaignResourceName, "PAUSED"); }
     catch (e) { console.warn("removeCampaign: pre-pause failed, continuing to remove:", e && e.message); }
   }
@@ -223,6 +239,10 @@ async function removeCampaign(accessToken, customerId, campaignResourceName, { w
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
+    // Already removed in Google is the outcome the caller wanted. Surfacing a red
+    // error for "it is already gone" is the wrong answer to a delete request, and
+    // it leaves the row on screen looking undeletable.
+    if (isAlreadyRemoved(data)) return { deleted: true, alreadyRemoved: true, campaignResourceName };
     const e = new Error(apiErrMsg("removeCampaign", resp.status, data));
     e.stage = "removeCampaign"; e.detail = data; throw e;
   }
@@ -562,12 +582,16 @@ export async function getCampaignDetail(accessToken, customerId, campaignId) {
 // ── Guarded writes on the pieces inside a campaign ───────────────────────────
 // REMOVED is permanent in Google Ads; PAUSED is not. Every delete path here is
 // explicit about which one it is doing.
-const mutate = async (accessToken, customerId, endpoint, operations, stage) => {
+const mutate = async (accessToken, customerId, endpoint, operations, stage, { tolerateRemoved = false } = {}) => {
   const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/${endpoint}:mutate`, {
     method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ operations }),
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
+    // Deleting something already deleted is the outcome the caller asked for. Only
+    // delete paths pass tolerateRemoved; a pause or an add hitting a removed
+    // resource is a genuine error the operator needs to see.
+    if (tolerateRemoved && isAlreadyRemoved(data)) return { results: [], alreadyRemoved: true };
     try { console.error(`${stage} rejected:`, JSON.stringify(data && data.error ? data.error : data).slice(0, 3000)); } catch (_) {}
     const e = new Error(apiErrMsg(stage, resp.status, data));
     e.stage = stage; e.detail = data; throw e;
@@ -580,6 +604,9 @@ export async function setAdGroupStatus(accessToken, customerId, adGroupResourceN
   if (!["ENABLED", "PAUSED", "REMOVED"].includes(s)) {
     const e = new Error("status must be ENABLED, PAUSED or REMOVED"); e.stage = "setAdGroupStatus"; throw e;
   }
+  if (s === "REMOVED") {
+    return mutate(accessToken, customerId, "adGroups", [{ remove: adGroupResourceName }], "setAdGroupStatus", { tolerateRemoved: true });
+  }
   return mutate(accessToken, customerId, "adGroups",
     [{ update: { resourceName: adGroupResourceName, status: s }, updateMask: "status" }], "setAdGroupStatus");
 }
@@ -590,7 +617,7 @@ export async function setAdStatus(accessToken, customerId, adResourceName, statu
     const e = new Error("status must be ENABLED, PAUSED or REMOVED"); e.stage = "setAdStatus"; throw e;
   }
   // An ad is removed by its own operation shape, not a status update.
-  if (s === "REMOVED") return mutate(accessToken, customerId, "adGroupAds", [{ remove: adResourceName }], "setAdStatus");
+  if (s === "REMOVED") return mutate(accessToken, customerId, "adGroupAds", [{ remove: adResourceName }], "setAdStatus", { tolerateRemoved: true });
   return mutate(accessToken, customerId, "adGroupAds",
     [{ update: { resourceName: adResourceName, status: s }, updateMask: "status" }], "setAdStatus");
 }
@@ -598,7 +625,7 @@ export async function setAdStatus(accessToken, customerId, adResourceName, statu
 export async function removeKeywords(accessToken, customerId, resourceNames) {
   const list = (Array.isArray(resourceNames) ? resourceNames : [resourceNames]).filter(Boolean);
   if (!list.length) { const e = new Error("removeKeywords: nothing to remove"); e.stage = "removeKeywords"; throw e; }
-  return mutate(accessToken, customerId, "adGroupCriteria", list.map((rn) => ({ remove: rn })), "removeKeywords");
+  return mutate(accessToken, customerId, "adGroupCriteria", list.map((rn) => ({ remove: rn })), "removeKeywords", { tolerateRemoved: true });
 }
 
 export async function addKeywords(accessToken, customerId, adGroupResourceName, keywords) {
