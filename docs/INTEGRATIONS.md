@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 106 task-keyed entries under `knowledge/`. They surface automatically via the
+> 107 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**106 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**107 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -381,6 +381,12 @@
 - **[client-lifecycle](../knowledge/client-lifecycle.md)** &mdash; &#9989; verified &middot; 2026-07-30  
   The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails: as of 2026-08-02 Welcome, Receipt, Past-Due, Renewal AUTO-send on their triggers (Stripe webhook + billing-watch); Invoice, Ad-Account Access, Thank-You stay one-tap w/ getAlerts reminders — see client-email-center.  
   <sub>*task:* the standard procedure for onboarding, renewing, and offboarding a client (and which emails fire at each step) &nbsp;|&nbsp; *keywords:* onboarding, offboarding, renewal, client procedure, lifecycle, welcome, ad account access, contract, invoice, thank you, approval, portal approval</sub>
+
+## Packages/Sales
+
+- **[package-multi-campaign](../knowledge/package-multi-campaign.md)** &mdash; &#9989; verified &middot; 2026-08-15  
+  Only 3 of 11 packages include multi-campaign — Google Acquisition ($900), Meta Acquisition ($850), Store Domination ($1,200). Everything else is single-campaign. BUT the thing a prospect usually wants (a service-specific ad for a service-specific search) is AD GROUPS, which every tier already gets 3-5 of; separate campaigns only buy separate budget/geo/schedule/bidding per service, and at Launch-tier spend splitting the budget makes results worse. The flag is a scope promise with ZERO code enforcement, though the client portal does show it in the not-included column.  
+  <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign &nbsp;|&nbsp; *keywords:* multi_campaign, multiCampaign, Multi-Campaign Strategy, g-acquisition, m-acquisition, e-domination, g-launch, c-growth, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES</sub>
 
 ## Pending
 
