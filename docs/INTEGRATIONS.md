@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 105 task-keyed entries under `knowledge/`. They surface automatically via the
+> 106 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**105 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**106 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -291,6 +291,9 @@
 - **[house-account-full-services](../knowledge/house-account-full-services.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   The internal My Ads account used to sit on the sellable "c-growth" tier (18 of 32 features) with its Pipeline tab, Status section and stage chip hidden as "client-only". Bryson 2026-08-14 wanted both changed — he wants to watch his own campaign move through the same build stages a client does, and expects the house account to always carry the full service stack. Added a non-sellable `bl-house` package whose feature list is the UNION of every tier (so a new feature anywhere is granted automatically), unhid Pipeline + Status, and migrated the existing record in place on load so no linked ad accounts or media are lost. 32 cases.  
   <sub>*task:* why the internal My Ads account carries every service and shows a client-style pipeline &nbsp;|&nbsp; *keywords:* house account, my ads, internal client, bl-house, HOUSE_PKG, full services, pipeline tab, bot statuses, stage, c-growth, package features, dogfooding</sub>
+- **[house-account-reporting](../knowledge/house-account-reporting.md)** &mdash; &#9989; verified &middot; 2026-08-14  
+  The house account was excluded from every scheduled report by TWO independent things — `isReportable` requires `!client.internal`, AND the server's `findPkg` had no `bl-house` entry so it resolved no package and skipped silently even before the gate. Both fixed: a new `isOwnerBriefable` gate sends Bryson a WEEKLY briefing on his own ads (never a client-facing report, there is no client), the briefing prompt now reads as his own money rather than a client account, and live ads-sync numbers were added to the data block. The Pipeline tab also gained the visual progress read clients get in their portal. 32 cases.  
+  <sub>*task:* weekly reports and the visual pipeline for BoldLine's own ads &nbsp;|&nbsp; *keywords:* house account report, weekly briefing, isOwnerBriefable, isReportable, my ads report, findPkg bl-house, visual pipeline, pipeline progress bar, adPerf in report</sub>
 - **[house-health-score](../knowledge/house-health-score.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   The client health formula scores a RELATIONSHIP (contract signed, contract active, runway to contract end), none of which exists on the house account — so it forfeited 2 points permanently, was hard-capped at 6.6/10 with perfect ads, and 2 of the points it did earn were free because `contractSigned`/`intakeComplete` are hardcoded true. Added `calcHouseHealth`: seven observable factors summing to exactly 10, each carrying the reason it scored what it did, shown in an "Ad Health Score" card. Client scoring is untouched. Also fixed a real bug found while building it — `deriveBotStatuses` read an `adPerf.campaigns` ARRAY that ads-sync never writes. 34 cases.  
   <sub>*task:* how BoldLine's own ad account is scored, and why it is not the client formula &nbsp;|&nbsp; *keywords:* health score, house account, my ads, calcHouseHealth, houseHealthFactors, ad health, internal client health, adPerf shape, ads-sync snapshot</sub>

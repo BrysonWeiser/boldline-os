@@ -3705,10 +3705,46 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
 
         {tab==="pipeline"&&(
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`,marginBottom:2}}>
-              <div style={{fontSize:12,fontWeight:600,color:C.gold,marginBottom:2}}>Package: {(pkg && pkg.name)} — {(pkg && pkg.platform)}</div>
-              <div style={{fontSize:11,color:C.textMuted}}>Tap any bot to see what it's working on and chat with it. Bots are scoped to this package — they cannot build beyond what's included.</div>
-            </Card>
+            {/* The visual read clients get in their portal: how far along, what is
+                running right now, and what is next. A list of 20 rows answers
+                "what exists"; this answers "where are we". */}
+            {(()=>{
+              const done=bots.filter(b=>b.status==="done").length;
+              const running=bots.filter(b=>b.status==="active");
+              const attention=bots.filter(b=>b.status==="needs_input");
+              const pct=bots.length?Math.round((done/bots.length)*100):0;
+              const nextUp=bots.find(b=>b.status==="waiting");
+              const col=(st)=>st==="done"?C.green:st==="active"?C.gold:st==="needs_input"?C.red:C.border2;
+              return (
+                <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`,marginBottom:2}}>
+                  <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                    <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{client.internal?"Your ad build":(pkg&&pkg.name)}</span>
+                    <span style={{fontSize:10.5,color:C.textMuted}}>{(pkg&&pkg.platform)||""}</span>
+                    <span style={{marginLeft:"auto",fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{done}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/{bots.length} steps</span></span>
+                  </div>
+                  {/* One segment per step, in order, coloured by state. */}
+                  <div style={{display:"flex",gap:2,marginBottom:8}}>
+                    {bots.map(b=>(
+                      <div key={b.id} title={`${b.name} — ${b.status.replace("_"," ")}`}
+                        style={{flex:1,height:6,borderRadius:2,backgroundColor:col(b.status),
+                          boxShadow:b.status==="active"?`0 0 6px ${C.gold}`:"none"}}/>
+                    ))}
+                  </div>
+                  <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6}}>
+                    <b style={{color:C.text}}>{pct}% complete</b>
+                    {running.length>0&&<> · <b style={{color:C.gold}}>Running now:</b> {running.map(b=>b.name).join(", ")}</>}
+                    {attention.length>0&&<> · <b style={{color:C.red}}>Needs you:</b> {attention.map(b=>b.name).join(", ")}</>}
+                    {!running.length&&!attention.length&&nextUp&&<> · <b style={{color:C.textDim}}>Next up:</b> {nextUp.name}</>}
+                    {!running.length&&!attention.length&&!nextUp&&<> · every step complete</>}
+                  </div>
+                  <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>
+                    {client.internal
+                      ? <>Most steps move on their own as the work actually lands. Tap any step to see what it is doing, or override it by hand in <b style={{color:C.textDim}}>Edit → Pipeline</b>.</>
+                      : <>Tap any bot to see what it's working on and chat with it. Bots are scoped to this package — they cannot build beyond what's included.</>}
+                  </div>
+                </Card>
+              );
+            })()}
             {bots.map(bot=>{
               const sc={waiting:{dot:"#374151",label:"Waiting"},active:{dot:C.green,label:"Running",pulse:true},done:{dot:"#4B5563",label:"Complete"},needs_input:{dot:C.blue,label:"Needs You",pulse:true}}[bot.status]||{dot:"#374151",label:"Waiting"};
               const clientLogs = getBotLogs(client, pkg);
