@@ -26,7 +26,11 @@ export const PACKAGES_DB = {
   ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
-export const findPkg = (id) => ALL_PKGS.find((p) => p.id === id);
+// The internal My Ads house account runs on a package that is not for sale, so it
+// is not in PACKAGES_DB (that table feeds client-facing pickers). Without this the
+// server resolves no package for the house account and every job skips it silently.
+const HOUSE_PKG = { id: "bl-house", name: "Full System (House Account)", platform: "Google + Meta", optimizationFreq: "weekly" };
+export const findPkg = (id) => (id === HOUSE_PKG.id ? HOUSE_PKG : ALL_PKGS.find((p) => p.id === id));
 
 export const PER_LEAD = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
 export const daysUntil = (s) => Math.ceil((new Date(s) - new Date()) / 864e5);
@@ -93,6 +97,14 @@ Ad Budget: ${client.adBudget || "Not set"}
 Contract: ${client.contractStart} → ${client.contractEnd} (${daysLeft > 0 ? daysLeft + "d remaining" : "expired"})
 Intake Complete: ${client.intakeComplete ? "Yes" : "No"}
 Pipeline Progress: ${botsComplete}/${botsTotal} steps complete${pendingSteps.length ? " (pending: " + pendingSteps.join(", ") + ")" : ""}
+${(() => {
+  // Live ad numbers from the scheduled ads-sync snapshot. Without these an owner
+  // briefing can only talk about the CRM record, not what the ads actually did.
+  const ap = client.adPerf || {}; const t = ap.totals || {}; const b = ap.budget || {};
+  if (!ap.syncedAt) return "Live Ad Data: none yet (no ad account linked, or ads-sync has not run)";
+  return `Live Ad Data (as of ${ap.syncedAt}): ${t.liveCampaigns || 0} live campaign(s), ${Number(t.impressions || 0).toLocaleString()} impressions, ${Number(t.clicks || 0).toLocaleString()} clicks, $${Number(t.spend30d || 0).toLocaleString()} spent over 30d, ${t.conversions || 0} conversions`
+    + (b.monthly > 0 ? `\nBudget Pacing: $${Number(b.pacing || 0).toLocaleString()} against a $${Number(b.monthly).toLocaleString()}/mo budget (${b.pct}%, ${b.state})` : "");
+})()}
 Internal Notes: ${client.notes || "None"}`;
 
   return { text, daysLeft };
@@ -119,7 +131,12 @@ Keep it concise. Write it as a finished, polished update — no placeholders, no
 });
 
 const buildOwnerPrompt = (client, period, data) => ({
-  system: `You are writing a private internal account briefing for Bryson Weiser, owner of BoldLine Media, about one of his clients. This is for his eyes only — be direct and specific, not diplomatic. Never mention AI or bots.
+  // The house account is not a client. Calling it one produces a briefing that
+  // talks about "the client" and "the contract" when the account is Bryson's own
+  // money, which reads as a template rather than a read on his own advertising.
+  system: `${client.internal
+    ? `You are writing a private ${period} briefing for Bryson Weiser about BOLDLINE MEDIA'S OWN advertising. This is not a client account, it is his own money buying his own leads. There is no contract, no client to keep happy, and no billing to discuss. Judge it the way an owner would: is the spend producing booked calls, what is working, what should change this week. Be blunt. Never mention AI or bots.`
+    : `You are writing a private internal account briefing for Bryson Weiser, owner of BoldLine Media, about one of his clients. This is for his eyes only — be direct and specific, not diplomatic. Never mention AI or bots.`}
 
 CLIENT DATA:
 ${data.text}
@@ -368,8 +385,19 @@ const OWNER_BRIEFING_GAP_DAYS = 5;
 // A client is in scope for reporting at all if it's a real (non-internal),
 // active account with a known package and an email on file. The internal
 // "My Ads" house account is excluded — ARIA's monthly OS report covers it.
+// CLIENT-FACING reports: a real client, active, with somewhere to send it.
 const isReportable = (client, pkg) =>
   !!pkg && !client.internal && client.contractStatus === "active" && !!client.email;
+
+// OWNER briefings are a different question. They go to Bryson, not to a client, so
+// they need no client email and no contract — and the house account is exactly the
+// one he most wants a weekly read on, since it is his own money. It qualifies once
+// an ad account is linked; before that there is nothing to report.
+const isOwnerBriefable = (client, pkg) => {
+  if (!pkg) return false;
+  if (client.internal) return !!(client.googleAdsCustomerId || client.metaAdAccountId);
+  return client.contractStatus === "active";
+};
 
 const logEntry = (note, cat) => ({
   date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
@@ -382,10 +410,14 @@ const logEntry = (note, cat) => ({
 const processWeekly = async (supabaseAdmin, row, testMode = false) => {
   const client = row.data;
   const pkg = findPkg(client.packageId);
-  if (!isReportable(client, pkg)) return { id: row.id, skipped: "not a reportable client" };
+  // Two independent gates. The house account gets the OWNER half and never the
+  // client half, because there is no client to send anything to.
+  const ownerOk = isOwnerBriefable(client, pkg);
+  const clientOk = isReportable(client, pkg);
+  if (!ownerOk && !clientOk) return { id: row.id, skipped: "not a reportable client" };
 
-  const ownerDue = testMode || gapOk(client.lastOwnerBriefing, OWNER_BRIEFING_GAP_DAYS);
-  const clientDue = pkg.optimizationFreq === "weekly" && (testMode || gapOk(client.lastReportSent, 5));
+  const ownerDue = ownerOk && (testMode || gapOk(client.lastOwnerBriefing, OWNER_BRIEFING_GAP_DAYS));
+  const clientDue = clientOk && pkg.optimizationFreq === "weekly" && (testMode || gapOk(client.lastReportSent, 5));
   if (!ownerDue && !clientDue) return { id: row.id, skipped: "nothing due this week" };
 
   const data = buildDataBlock(client, pkg);
