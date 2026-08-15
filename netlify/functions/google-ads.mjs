@@ -382,6 +382,14 @@ export async function createCampaign(accessToken, p) {
         positiveGeoTargetType: "PRESENCE",
         negativeGeoTargetType: "PRESENCE",
       },
+      // REQUIRED by Google on every campaign create (the EU Transparency and
+      // Targeting of Political Advertising regulation). Omitting it fails the whole
+      // build with a bare "The required field was not present" — that is what broke
+      // the first real Build attempt, 2026-08-14. BoldLine and its clients run
+      // commercial lead-gen, never political advertising, so this is always the
+      // negative declaration. If a genuinely political advertiser is ever onboarded
+      // this must become a per-client field, and that client needs EU verification.
+      containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
     } } },
     // Location + language targeting. Without these the campaign is worldwide and
     // all-languages; both are campaign-level criteria, so they attach to the temp
