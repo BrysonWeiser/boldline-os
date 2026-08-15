@@ -471,6 +471,166 @@ export async function createCampaign(accessToken, p) {
   };
 }
 
+// ── Campaign detail: ad groups, their ads, and their keywords ────────────────
+// Structure and metrics are fetched SEPARATELY on purpose. A metrics query carries
+// a date range, and a brand-new or long-paused ad group has no rows inside it — so
+// asking for both at once silently hides exactly the ad groups you most want to see
+// after a build. Structure first, metrics merged on top where they exist.
+async function gaql(accessToken, customerId, query, stage) {
+  const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/googleAds:search`, {
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ query, pageSize: 1000 }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg(stage, resp.status, data));
+    e.stage = stage; e.detail = data; throw e;
+  }
+  return data.results || [];
+}
+
+const perf = (r) => ({
+  impressions: Number((r.metrics && r.metrics.impressions) || 0),
+  clicks: Number((r.metrics && r.metrics.clicks) || 0),
+  cost: microsToDollars(r.metrics && r.metrics.costMicros),
+  conversions: Number((r.metrics && r.metrics.conversions) || 0),
+});
+
+export async function getCampaignDetail(accessToken, customerId, campaignId) {
+  const cid = digits(campaignId);
+  if (!cid) { const e = new Error("campaignDetail: campaignId required"); e.stage = "campaignDetail"; throw e; }
+
+  const [groups, groupPerf, ads, adPerf, kws, kwPerf] = await Promise.all([
+    gaql(accessToken, customerId, `SELECT ad_group.id, ad_group.name, ad_group.status, ad_group.resource_name, ad_group.cpc_bid_micros FROM ad_group WHERE campaign.id = ${cid}`, "campaignDetail"),
+    gaql(accessToken, customerId, `SELECT ad_group.id, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM ad_group WHERE campaign.id = ${cid} AND segments.date DURING LAST_30_DAYS`, "campaignDetail"),
+    gaql(accessToken, customerId, `SELECT ad_group.id, ad_group_ad.ad.id, ad_group_ad.resource_name, ad_group_ad.status, ad_group_ad.ad.responsive_search_ad.headlines, ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.final_urls FROM ad_group_ad WHERE campaign.id = ${cid} AND ad_group_ad.status != 'REMOVED'`, "campaignDetail"),
+    gaql(accessToken, customerId, `SELECT ad_group_ad.ad.id, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM ad_group_ad WHERE campaign.id = ${cid} AND segments.date DURING LAST_30_DAYS`, "campaignDetail"),
+    gaql(accessToken, customerId, `SELECT ad_group.id, ad_group_criterion.criterion_id, ad_group_criterion.resource_name, ad_group_criterion.status, ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type, ad_group_criterion.negative FROM ad_group_criterion WHERE campaign.id = ${cid} AND ad_group_criterion.type = 'KEYWORD' AND ad_group_criterion.status != 'REMOVED'`, "campaignDetail"),
+    gaql(accessToken, customerId, `SELECT ad_group_criterion.criterion_id, metrics.impressions, metrics.clicks, metrics.cost_micros, metrics.conversions FROM keyword_view WHERE campaign.id = ${cid} AND segments.date DURING LAST_30_DAYS`, "campaignDetail"),
+  ]);
+
+  const byGroup = new Map(groupPerf.map((r) => [String(r.adGroup && r.adGroup.id), perf(r)]));
+  const byAd = new Map(adPerf.map((r) => [String(r.adGroupAd && r.adGroupAd.ad && r.adGroupAd.ad.id), perf(r)]));
+  const byKw = new Map(kwPerf.map((r) => [String(r.adGroupCriterion && r.adGroupCriterion.criterionId), perf(r)]));
+  const zero = { impressions: 0, clicks: 0, cost: 0, conversions: 0 };
+
+  const adsFor = (gid) => ads.filter((r) => String(r.adGroup && r.adGroup.id) === gid).map((r) => {
+    const a = (r.adGroupAd && r.adGroupAd.ad) || {};
+    const rsa = a.responsiveSearchAd || {};
+    return {
+      id: String(a.id || ""),
+      resourceName: r.adGroupAd && r.adGroupAd.resourceName,
+      status: r.adGroupAd && r.adGroupAd.status,
+      headlines: (rsa.headlines || []).map((h) => h.text).filter(Boolean),
+      descriptions: (rsa.descriptions || []).map((d) => d.text).filter(Boolean),
+      finalUrls: a.finalUrls || [],
+      ...(byAd.get(String(a.id)) || zero),
+    };
+  });
+
+  const kwFor = (gid) => kws.filter((r) => String(r.adGroup && r.adGroup.id) === gid).map((r) => {
+    const c = r.adGroupCriterion || {};
+    return {
+      id: String(c.criterionId || ""),
+      resourceName: c.resourceName,
+      status: c.status,
+      negative: !!c.negative,
+      text: (c.keyword && c.keyword.text) || "",
+      matchType: (c.keyword && c.keyword.matchType) || "",
+      ...(byKw.get(String(c.criterionId)) || zero),
+    };
+  });
+
+  return {
+    adGroups: groups.map((r) => {
+      const g = r.adGroup || {};
+      const gid = String(g.id || "");
+      return {
+        id: gid,
+        resourceName: g.resourceName,
+        name: g.name,
+        status: g.status,
+        cpcBid: microsToDollars(g.cpcBidMicros),
+        ...(byGroup.get(gid) || zero),
+        ads: adsFor(gid),
+        keywords: kwFor(gid).filter((k) => !k.negative),
+        negatives: kwFor(gid).filter((k) => k.negative),
+      };
+    }),
+  };
+}
+
+// ── Guarded writes on the pieces inside a campaign ───────────────────────────
+// REMOVED is permanent in Google Ads; PAUSED is not. Every delete path here is
+// explicit about which one it is doing.
+const mutate = async (accessToken, customerId, endpoint, operations, stage) => {
+  const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/${endpoint}:mutate`, {
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ operations }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    try { console.error(`${stage} rejected:`, JSON.stringify(data && data.error ? data.error : data).slice(0, 3000)); } catch (_) {}
+    const e = new Error(apiErrMsg(stage, resp.status, data));
+    e.stage = stage; e.detail = data; throw e;
+  }
+  return data;
+};
+
+export async function setAdGroupStatus(accessToken, customerId, adGroupResourceName, status) {
+  const s = String(status || "").toUpperCase();
+  if (!["ENABLED", "PAUSED", "REMOVED"].includes(s)) {
+    const e = new Error("status must be ENABLED, PAUSED or REMOVED"); e.stage = "setAdGroupStatus"; throw e;
+  }
+  return mutate(accessToken, customerId, "adGroups",
+    [{ update: { resourceName: adGroupResourceName, status: s }, updateMask: "status" }], "setAdGroupStatus");
+}
+
+export async function setAdStatus(accessToken, customerId, adResourceName, status) {
+  const s = String(status || "").toUpperCase();
+  if (!["ENABLED", "PAUSED", "REMOVED"].includes(s)) {
+    const e = new Error("status must be ENABLED, PAUSED or REMOVED"); e.stage = "setAdStatus"; throw e;
+  }
+  // An ad is removed by its own operation shape, not a status update.
+  if (s === "REMOVED") return mutate(accessToken, customerId, "adGroupAds", [{ remove: adResourceName }], "setAdStatus");
+  return mutate(accessToken, customerId, "adGroupAds",
+    [{ update: { resourceName: adResourceName, status: s }, updateMask: "status" }], "setAdStatus");
+}
+
+export async function removeKeywords(accessToken, customerId, resourceNames) {
+  const list = (Array.isArray(resourceNames) ? resourceNames : [resourceNames]).filter(Boolean);
+  if (!list.length) { const e = new Error("removeKeywords: nothing to remove"); e.stage = "removeKeywords"; throw e; }
+  return mutate(accessToken, customerId, "adGroupCriteria", list.map((rn) => ({ remove: rn })), "removeKeywords");
+}
+
+export async function addKeywords(accessToken, customerId, adGroupResourceName, keywords) {
+  const ops = (Array.isArray(keywords) ? keywords : []).map((k) => {
+    const text = String((k && k.text !== undefined ? k.text : k) || "").trim().toLowerCase();
+    const mt = String((k && k.matchType) || "PHRASE").toUpperCase();
+    if (!text) return null;
+    return { create: { adGroup: adGroupResourceName, status: "ENABLED",
+      keyword: { text, matchType: ["EXACT", "PHRASE", "BROAD"].includes(mt) ? mt : "PHRASE" } } };
+  }).filter(Boolean);
+  if (!ops.length) { const e = new Error("addKeywords: no valid keywords"); e.stage = "addKeywords"; throw e; }
+  return mutate(accessToken, customerId, "adGroupCriteria", ops, "addKeywords");
+}
+
+// Adds a SECOND responsive search ad to an existing ad group. This is the split
+// test: budget lives on the campaign, so another ad inside the same group cannot
+// increase spend — it only changes which creative that spend buys.
+export async function addResponsiveSearchAd(accessToken, customerId, adGroupResourceName, { headlines, descriptions, finalUrl, status = "ENABLED" }) {
+  const h = (Array.isArray(headlines) ? headlines : []).map((x) => String(x || "").trim()).filter(Boolean).slice(0, 15);
+  const d = (Array.isArray(descriptions) ? descriptions : []).map((x) => String(x || "").trim()).filter(Boolean).slice(0, 4);
+  const err = (m) => Object.assign(new Error(`addResponsiveSearchAd: ${m}`), { stage: "addResponsiveSearchAd" });
+  if (h.length < 3) throw err("at least 3 headlines required (each ≤30 chars)");
+  if (d.length < 2) throw err("at least 2 descriptions required (each ≤90 chars)");
+  const bh = h.find((x) => x.length > 30); if (bh) throw err(`headline over 30 characters: "${bh}"`);
+  const bd = d.find((x) => x.length > 90); if (bd) throw err(`description over 90 characters: "${bd}"`);
+  if (!finalUrl) throw err("finalUrl required");
+  return mutate(accessToken, customerId, "adGroupAds", [{ create: {
+    adGroup: adGroupResourceName, status: String(status).toUpperCase() === "PAUSED" ? "PAUSED" : "ENABLED",
+    ad: { finalUrls: [String(finalUrl)], responsiveSearchAd: { headlines: h.map((t) => ({ text: t })), descriptions: d.map((t) => ({ text: t })) } },
+  } }], "addResponsiveSearchAd");
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -534,6 +694,35 @@ export default async (req) => {
         return json({ ok: false, error: "customerId, campaignResourceName required" }, 400);
       const result = await removeCampaign(accessToken, body.customerId, body.campaignResourceName, { wasLive: !!body.wasLive });
       return json({ ok: true, action, ...result });
+    }
+
+    if (action === "campaignDetail") {
+      return json({ ok: true, ...(await getCampaignDetail(accessToken, body.customerId, body.campaignId)) });
+    }
+
+    if (action === "setAdGroupStatus") {
+      await setAdGroupStatus(accessToken, body.customerId, body.adGroupResourceName, body.status);
+      return json({ ok: true, adGroupResourceName: body.adGroupResourceName, status: String(body.status).toUpperCase() });
+    }
+
+    if (action === "setAdStatus") {
+      await setAdStatus(accessToken, body.customerId, body.adResourceName, body.status);
+      return json({ ok: true, adResourceName: body.adResourceName, status: String(body.status).toUpperCase() });
+    }
+
+    if (action === "removeKeywords") {
+      const r = await removeKeywords(accessToken, body.customerId, body.resourceNames);
+      return json({ ok: true, removed: (r.results || []).length });
+    }
+
+    if (action === "addKeywords") {
+      const r = await addKeywords(accessToken, body.customerId, body.adGroupResourceName, body.keywords);
+      return json({ ok: true, added: (r.results || []).length });
+    }
+
+    if (action === "addAd") {
+      const r = await addResponsiveSearchAd(accessToken, body.customerId, body.adGroupResourceName, body);
+      return json({ ok: true, adResourceName: (r.results && r.results[0] && r.results[0].resourceName) || null });
     }
 
     if (action === "createCampaign") {

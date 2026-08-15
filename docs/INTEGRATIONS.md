@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 104 task-keyed entries under `knowledge/`. They surface automatically via the
+> 105 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**104 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**105 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -21,6 +21,9 @@
 - **[campaign-build-failures](../knowledge/campaign-build-failures.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   First real Build attempt failed on both platforms. META was a genuine bug — `imageUrl` was a `useState` INITIAL value, evaluated once on mount, so creatives saved from the Ad Creative Studio afterwards never reached the card and Build failed with "an ad image is required" while four images sat in the library. Fixed with an effect that follows `client.mediaLibrary`, preferring `category:"ad-creative"`, newest first, and stopping the moment a URL is typed by hand. GOOGLE returned "The required field was not present." with NO field named — the error formatter now surfaces the exact `fieldPathElements` path, the Google error code, and the count of additional errors, and logs the whole failure. The Google cause WAS then named by that very error: Google now requires `containsEuPoliticalAdvertising` on every campaign create (EU TTPA regulation). One field, fixed.  
   <sub>*task:* diagnose a failed Build Campaign, and why the Meta card said no image when images were saved &nbsp;|&nbsp; *keywords:* createCampaign failed, required field was not present, an ad image is required, meta ad image, media library, imageUrl, useState initial value, apiErrMsg, fieldPathElements, google ads error</sub>
+- **[campaign-detail-and-split-testing](../knowledge/campaign-detail-and-split-testing.md)** &mdash; &#9989; verified &middot; 2026-08-14  
+  Two features. (1) Any Google campaign in the Campaigns screen now expands to show its ad groups, each with its ads (headlines + per-ad metrics) and keywords, with pause/start/delete on the ad group and the ad, remove on any keyword, and inline keyword adding with a per-add match type. (2) `ads-autopilot` now runs SPLIT TESTS unattended: it writes an AI challenger ad into a live ad group that has one ad and enough traffic, then pauses the loser once both ads clear a click floor and the winner shows real lift. Both stay inside the founding invariant, because budget lives on the CAMPAIGN and a second ad inside an ad group cannot raise spend. 45 cases.  
+  <sub>*task:* inspect and edit the inside of a Google campaign, and let autopilot run split tests unattended &nbsp;|&nbsp; *keywords:* campaign detail, ad groups, keywords, ad group ad, split test, A/B, challenger ad, ads-autopilot, setAdGroupStatus, setAdStatus, removeKeywords, addKeywords, addResponsiveSearchAd, campaignDetail</sub>
 - **[campaign-geo-targeting](../knowledge/campaign-geo-targeting.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   `createCampaign` used to build budget → campaign → ad group → responsive search ad → keywords and NO campaign criteria at all — which means Google targets ALL COUNTRIES AND TERRITORIES and all languages. On a $5/day budget bidding agency terms that burns the month on clicks that can never convert, and it reads as "the ads failed" rather than "targeting was never set". Fixed 2026-08-14: locations are now REQUIRED (the call refuses without one), resolved from plain names via `geoTargetConstants:suggest`, attached as campaign criteria alongside English-language targeting, with `geoTargetTypeSetting = PRESENCE` so only people physically in the area see the ads. Campaign-level negative keywords added too. 24 hermetic cases.  
   <sub>*task:* why a Google Search campaign built from the OS targets the right places, and what happens if it doesn't &nbsp;|&nbsp; *keywords:* geo targeting, location targeting, geoTargetConstants, suggest endpoint, PRESENCE, presence or interest, negative keywords, language targeting, worldwide targeting, createCampaign, budget waste, GoogleLaunchCard</sub>

@@ -6281,6 +6281,28 @@ function AdCreativeStudio({client,onUpdate}){
 // them if I want… a clean spot where I can see all the paused and active
 // campaigns"). LiveCampaignsCard stays as the per-client view inside a client;
 // this is the cross-account one.
+// Add keywords to an existing ad group without leaving the campaign view. Match
+// type is chosen per add, because pasting ten terms that should all be EXACT and
+// getting PHRASE is the kind of thing you only notice on the invoice.
+function AddKeywordRow({onAdd,busy}){
+  const [text,setText]=useState("");
+  const [mt,setMt]=useState("PHRASE");
+  const list=text.split(/[\n,]/).map(x=>x.trim()).filter(Boolean).map(t=>({text:t,matchType:mt}));
+  return (
+    <div style={{display:"flex",gap:6,marginTop:7,alignItems:"center",flexWrap:"wrap"}}>
+      <input value={text} onChange={e=>setText(e.target.value)} placeholder="add keywords, comma separated"
+        style={{flex:"1 1 180px",minWidth:0,padding:"5px 8px",fontSize:10.5,borderRadius:7,border:`1px solid ${C.border}`,background:C.bg2,color:C.text}}/>
+      <select value={mt} onChange={e=>setMt(e.target.value)} style={{padding:"5px 7px",fontSize:10,borderRadius:7,border:`1px solid ${C.border}`,background:C.bg2,color:C.textDim}}>
+        {["PHRASE","EXACT","BROAD"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o[0]+o.slice(1).toLowerCase()}</option>)}
+      </select>
+      <button disabled={!list.length||busy} onClick={()=>{ onAdd(list); setText(""); }}
+        style={{padding:"5px 10px",fontSize:10,fontWeight:800,borderRadius:7,border:"none",cursor:list.length&&!busy?"pointer":"default",backgroundColor:list.length&&!busy?C.goldDim:"transparent",color:list.length&&!busy?C.gold:C.textMuted}}>
+        {busy?"…":`Add${list.length?` ${list.length}`:""}`}
+      </button>
+    </div>
+  );
+}
+
 function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
   const linked=(clients||[]).filter(c=>c.googleAdsCustomerId||c.metaAdAccountId);
   const [rows,setRows]=useState([]);
@@ -6291,6 +6313,33 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
   const [fStatus,setFStatus]=useState("all");   // all | live | paused
   const [fPlatform,setFPlatform]=useState("all");
   const [fClient,setFClient]=useState("all");
+  // Expanded campaign detail: ad groups -> their ads and keywords, loaded on demand
+  // because it costs 6 GAQL queries per campaign and most rows are never opened.
+  const [openKey,setOpenKey]=useState(null);
+  const [detail,setDetail]=useState({});      // key -> {state, adGroups, error}
+  const [pieceBusy,setPieceBusy]=useState(null);
+
+  const loadDetail=async(r,{force}={})=>{
+    const k=keyOf(r);
+    if(r.platform!=="google"){ setDetail(d=>({...d,[k]:{state:"unsupported"}})); return; }
+    if(!force && detail[k] && detail[k].state==="ready") return;
+    setDetail(d=>({...d,[k]:{state:"loading"}}));
+    try{
+      const res=await gadsCall({action:"campaignDetail",customerId:r.client.googleAdsCustomerId,campaignId:r.c.id});
+      setDetail(d=>({...d,[k]:{state:"ready",adGroups:res.adGroups||[]}}));
+    }catch(e){ setDetail(d=>({...d,[k]:{state:"error",error:e.message||"Could not load"}})); }
+  };
+  const toggleOpen=(r)=>{ const k=keyOf(r); if(openKey===k){ setOpenKey(null); return; } setOpenKey(k); loadDetail(r); };
+
+  // Every piece-level write re-reads the campaign afterwards, so the screen always
+  // shows what Google actually has rather than what we hoped it did.
+  const pieceAction=async(r,id,fn,confirmMsg)=>{
+    if(confirmMsg&&!window.confirm(confirmMsg)) return;
+    setPieceBusy(id); setActionErr("");
+    try{ await fn(); await loadDetail(r,{force:true}); }
+    catch(e){ setActionErr(e.message||"That did not work."); }
+    finally{ setPieceBusy(null); }
+  };
 
   const load=async()=>{
     setState("loading"); setActionErr("");
@@ -6404,9 +6453,72 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
           </span>
           <span style={{marginLeft:"auto",display:"flex",gap:7,flexShrink:0}}>
             <button onClick={()=>toggle(r)} disabled={working} style={{padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
+            {r.platform==="google"&&(
+              <button onClick={()=>toggleOpen(r)} style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer",backgroundColor:"transparent",color:openKey===k?C.gold:C.textDim}}>{openKey===k?"▾ Hide":"▸ Inside"}</button>
+            )}
             <button onClick={()=>remove(r)} disabled={working} title="Delete this campaign permanently" style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.red}44`,cursor:working?"default":"pointer",backgroundColor:"transparent",color:C.red,opacity:working?.6:1}}>Delete</button>
           </span>
         </div>
+        {openKey===k&&(()=>{
+          const d=detail[k]||{};
+          if(d.state==="loading") return <div style={{fontSize:11,color:C.textMuted,padding:"10px 0 4px"}}>Reading the ad groups…</div>;
+          if(d.state==="error")   return <div style={{fontSize:11,color:C.red,padding:"10px 0 4px",lineHeight:1.5}}>{d.error}</div>;
+          if(d.state!=="ready")   return null;
+          if(!(d.adGroups||[]).length) return <div style={{fontSize:11,color:C.textMuted,padding:"10px 0 4px"}}>No ad groups on this campaign.</div>;
+          return (
+            <div style={{marginTop:9,paddingLeft:isDesktop?12:0,borderLeft:isDesktop?`2px solid ${C.border2}`:"none"}}>
+              {d.adGroups.map(g=>{
+                const gLive=String(g.status||"").toUpperCase()==="ENABLED";
+                return (
+                  <div key={g.id} style={{padding:"9px 0",borderTop:`1px solid ${C.border2}`}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                      <span style={{fontSize:11.5,fontWeight:800,color:C.textDim,flex:"1 1 140px",minWidth:0}}>{g.name}</span>
+                      <Chip label={gLive?"Live":String(g.status||"").toLowerCase()} color={gLive?C.green:C.textMuted} small/>
+                      <span style={{fontSize:9.5,color:C.textMuted,fontFamily:"monospace"}}>{Number(g.impressions).toLocaleString()} impr · {g.clicks} clicks · ${g.cost.toLocaleString()} · {g.conversions} conv</span>
+                      <span style={{display:"flex",gap:6,marginLeft:"auto"}}>
+                        <button disabled={pieceBusy===g.id} onClick={()=>pieceAction(r,g.id,()=>gadsCall({action:"setAdGroupStatus",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,status:gLive?"PAUSED":"ENABLED"}),
+                          gLive?null:`Start the ad group "${g.name}"?\n\nIts ads become eligible to spend the campaign's budget.`)}
+                          style={{padding:"3px 9px",fontSize:10,fontWeight:800,borderRadius:7,border:"none",cursor:"pointer",backgroundColor:gLive?"rgba(255,255,255,.06)":"#059669",color:gLive?C.textDim:"#fff",opacity:pieceBusy===g.id?.6:1}}>{pieceBusy===g.id?"…":gLive?"Pause":"Start"}</button>
+                        <button disabled={pieceBusy===g.id} onClick={()=>pieceAction(r,g.id,()=>gadsCall({action:"setAdGroupStatus",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,status:"REMOVED"}),
+                          `Delete the ad group "${g.name}"?\n\nIts ads and ${(g.keywords||[]).length} keyword(s) go with it. In Google Ads a removal is PERMANENT — it cannot be undone.`)}
+                          style={{padding:"3px 9px",fontSize:10,fontWeight:800,borderRadius:7,border:`1px solid ${C.red}44`,cursor:"pointer",backgroundColor:"transparent",color:C.red,opacity:pieceBusy===g.id?.6:1}}>Delete</button>
+                      </span>
+                    </div>
+                    {(g.ads||[]).length>1&&<div style={{fontSize:9.5,color:C.gold,marginTop:4}}>Split test running: {(g.ads||[]).length} ads sharing this budget.</div>}
+                    {(g.ads||[]).map(a=>{
+                      const aLive=String(a.status||"").toUpperCase()==="ENABLED";
+                      return (
+                        <div key={a.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0 5px 10px",marginTop:4,borderLeft:`2px solid ${aLive?C.green+"55":C.border2}`}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:10.5,color:C.textDim,lineHeight:1.45}}>{(a.headlines||[]).slice(0,3).join(" · ")||"(no headlines)"}</div>
+                            <div style={{fontSize:9.5,color:C.textMuted,marginTop:2}}>{aLive?"Live":"Paused"} · {a.impressions.toLocaleString()} impr · {a.clicks} clicks · {a.conversions} conv · {(a.headlines||[]).length}h/{(a.descriptions||[]).length}d</div>
+                          </div>
+                          <button disabled={pieceBusy===a.id} onClick={()=>pieceAction(r,a.id,()=>gadsCall({action:"setAdStatus",customerId:r.client.googleAdsCustomerId,adResourceName:a.resourceName,status:aLive?"PAUSED":"ENABLED"}))}
+                            style={{flexShrink:0,padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",opacity:pieceBusy===a.id?.6:1}}>{pieceBusy===a.id?"…":aLive?"Pause ad":"Start ad"}</button>
+                          <button disabled={pieceBusy===a.id} onClick={()=>pieceAction(r,a.id,()=>gadsCall({action:"setAdStatus",customerId:r.client.googleAdsCustomerId,adResourceName:a.resourceName,status:"REMOVED"}),`Delete this ad permanently? Google removals cannot be undone.`)}
+                            style={{flexShrink:0,padding:"3px 7px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${C.red}33`,background:"transparent",color:C.red,cursor:"pointer",opacity:pieceBusy===a.id?.6:1}}>✕</button>
+                        </div>
+                      );
+                    })}
+                    {(g.keywords||[]).length>0&&(
+                      <div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:5}}>
+                        {g.keywords.map(kw=>(
+                          <span key={kw.id} title={`${kw.impressions} impr · ${kw.clicks} clicks · $${kw.cost} · ${kw.conversions} conv`}
+                            style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:9.5,padding:"2px 6px",borderRadius:6,border:`1px solid ${C.border}`,color:C.textMuted}}>
+                            {kw.matchType==="EXACT"?`[${kw.text}]`:kw.matchType==="PHRASE"?`"${kw.text}"`:kw.text}
+                            <button disabled={pieceBusy===kw.id} onClick={()=>pieceAction(r,kw.id,()=>gadsCall({action:"removeKeywords",customerId:r.client.googleAdsCustomerId,resourceNames:[kw.resourceName]}),`Remove the keyword ${kw.text}? This is permanent in Google Ads.`)}
+                              style={{background:"none",border:"none",color:C.red,cursor:"pointer",padding:0,fontSize:10,lineHeight:1,opacity:pieceBusy===kw.id?.4:1}}>✕</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <AddKeywordRow onAdd={(list)=>pieceAction(r,`add-${g.id}`,()=>gadsCall({action:"addKeywords",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,keywords:list}))} busy={pieceBusy===`add-${g.id}`}/>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
         {stalled&&<div style={{fontSize:10,color:C.amber,marginTop:5,lineHeight:1.5}}>Meta says this campaign is on, but it isn't serving ({String(r.c.effectiveStatus).toLowerCase().replace(/_/g," ")}) — usually the ad set or the ad underneath is paused. Fix it in Meta Ads Manager.</div>}
       </div>
     );

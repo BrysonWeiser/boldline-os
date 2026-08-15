@@ -36,7 +36,9 @@ import { getCampaigns as metaCampaigns, setStatus as metaSetStatus, setBudget as
 import {
   getAccessToken as gadsToken, getCampaigns as gadsCampaigns,
   setStatus as gadsSetStatus, setBudget as gadsSetBudget,
+  getCampaignDetail as gadsDetail, addResponsiveSearchAd as gadsAddAd, setAdStatus as gadsSetAdStatus,
 } from "./google-ads.mjs";
+import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle } from "../lib/ad-gen-shared.mjs";
 
 const DAYS_PER_MONTH = 30.4;
 
@@ -48,6 +50,20 @@ const DEAD_MIN_SHARE = 0.25;   // …or 25% of the monthly budget, whichever is 
 const COOLDOWN_HOURS = 24;     // never touch the same campaign twice in a day
 const REBALANCE_MAX_SHIFT = 0.15; // ±15% of a campaign's daily budget, per run
 const MAX_ACTIONS_PER_CLIENT = 4;  // a blast radius cap, whatever the maths says
+
+// ── SPLIT TESTING (Google only; Meta creative testing is a separate job) ─────
+// This is the ONE thing autopilot creates rather than pauses, and it stays inside
+// the founding invariant — "may always spend LESS, may NEVER spend more without
+// asking" — because BUDGET LIVES ON THE CAMPAIGN. A second ad inside an existing
+// ad group changes which creative the same money buys; it cannot raise the bill.
+// It never creates a campaign, never creates an ad group, never enables anything
+// that was paused, and never touches budget.
+const SPLIT_MIN_IMPRESSIONS = 500;   // per ad group before a challenger is worth writing
+const SPLIT_MIN_CLICKS_EACH = 30;    // per ad before a winner may be declared
+const SPLIT_MIN_DAYS = 7;            // and it must have had a week to run
+const SPLIT_MIN_LIFT = 0.25;         // the winner must beat the loser by 25%+, or it is noise
+const SPLIT_MAX_ADS_PER_GROUP = 2;   // one challenger at a time, never a pile
+const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
 
 const monthlyBudgetOf = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
@@ -84,6 +100,7 @@ export default withFailureAlert("ads-autopilot", async () => {
 
   const now = Date.now();
   let clientsChecked = 0, paused = 0, rebalanced = 0, skipped = 0, failures = 0;
+  let splitChallengers = 0, splitWinners = 0;
 
   for (const row of rows || []) {
     const cl = row.data || {};
@@ -213,6 +230,89 @@ export default withFailureAlert("ads-autopilot", async () => {
       }
     }
 
+    // ── SPLIT TESTING ────────────────────────────────────────────────────────
+    // Two halves, both bounded: write a CHALLENGER into an ad group that only has
+    // one ad and enough traffic to judge, and PAUSE THE LOSER once two ads have
+    // each had a fair run. Budget is never touched, so the invariant holds.
+    // Opt-out per client with autopilot.splitTest === false.
+    if (ap.splitTest !== false && gid && accessToken && actions.length < MAX_ACTIONS_PER_CLIENT) {
+      const liveGoogle = stillLive().filter((t) => t.p === "google");
+      for (const t of liveGoogle) {
+        if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
+        let detail;
+        try { detail = await gadsDetail(accessToken, gid, t.c.id); }
+        catch (e) { failures++; console.error("ads-autopilot: split read failed:", e && e.message); continue; }
+
+        for (const g of (detail.adGroups || [])) {
+          if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
+          if (String(g.status || "").toUpperCase() !== "ENABLED") continue;
+          const splitKey = `split:${g.id}`;
+          if (recent.some((a) => a.key === splitKey && (now - new Date(a.at).getTime()) < SPLIT_COOLDOWN_HOURS * 3600e3)) continue;
+          const runningAds = (g.ads || []).filter((a) => String(a.status || "").toUpperCase() === "ENABLED");
+
+          // ── Declare a winner ────────────────────────────────────────────────
+          if (runningAds.length >= 2) {
+            const judged = runningAds.filter((a) => a.clicks >= SPLIT_MIN_CLICKS_EACH);
+            if (judged.length < 2) continue;
+            // Conversion rate decides when there are conversions to divide by;
+            // CTR only when there are none. Judging on CTR while conversions exist
+            // optimises for clicks, which is how you win a test and lose the money.
+            const anyConv = judged.some((a) => a.conversions > 0);
+            const score = (a) => (anyConv ? (a.clicks > 0 ? a.conversions / a.clicks : 0)
+                                          : (a.impressions > 0 ? a.clicks / a.impressions : 0));
+            const ranked = judged.slice().sort((a, b) => score(b) - score(a));
+            const win = ranked[0], lose = ranked[ranked.length - 1];
+            if (!win || !lose || win.id === lose.id) continue;
+            const ls = score(lose), ws = score(win);
+            if (!(ls >= 0 && ws > ls * (1 + SPLIT_MIN_LIFT))) continue;  // too close to call
+            try {
+              await gadsSetAdStatus(accessToken, gid, lose.resourceName, "PAUSED");
+              actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-winner",
+                name: `${t.c.name} / ${g.name}`, platform: "google",
+                reason: `paused the losing ad variant. Winner ${anyConv ? `converted at ${(ws * 100).toFixed(1)}%` : `had a ${(ws * 100).toFixed(2)}% CTR`} vs ${anyConv ? `${(ls * 100).toFixed(1)}%` : `${(ls * 100).toFixed(2)}%`} over ${win.clicks + lose.clicks} clicks. Budget unchanged.` });
+              splitWinners++;
+            } catch (e) { failures++; console.error("ads-autopilot: pause loser failed:", e && e.message); }
+            continue;
+          }
+
+          // ── Write a challenger ──────────────────────────────────────────────
+          if (runningAds.length !== 1) continue;
+          if (runningAds.length >= SPLIT_MAX_ADS_PER_GROUP) continue;
+          if (g.impressions < SPLIT_MIN_IMPRESSIONS) continue;
+          const champion = runningAds[0];
+          const finalUrl = (champion.finalUrls || [])[0];
+          if (!finalUrl) continue;
+          try {
+            const { data } = await runTool({
+              tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(!!cl.internal),
+              prompt: `Write ONE challenger responsive search ad to split test against the ad currently running.
+
+THE AD GROUP: "${g.name}" in campaign "${t.c.name}".
+Its keywords: ${(g.keywords || []).slice(0, 12).map((k) => k.text).join(", ") || "unknown"}.
+
+THE AD RUNNING NOW (this is what you must BEAT, so do not rewrite it):
+Headlines: ${(champion.headlines || []).join(" | ")}
+Descriptions: ${(champion.descriptions || []).join(" | ")}
+
+Take a genuinely DIFFERENT angle. If the current ad leads on speed, try trust or price clarity. If it leads on the service, try the problem. A reworded version of the same idea teaches nothing and wastes the test.
+
+Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 30 characters or fewer and 4 descriptions at 90 characters or fewer. Reuse the same keywords, they are not being changed.`,
+            });
+            const cleaned = cleanGoogle(data);
+            const cand = (cleaned.adGroups || [])[0];
+            if (!cand || cand.headlines.length < 3 || cand.descriptions.length < 2) continue;
+            await gadsAddAd(accessToken, gid, g.resourceName, {
+              headlines: cand.headlines, descriptions: cand.descriptions, finalUrl, status: "ENABLED",
+            });
+            actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-challenger",
+              name: `${t.c.name} / ${g.name}`, platform: "google",
+              reason: `added a second ad to split test against the one running (${g.impressions} impressions so far). Same budget, different creative.` });
+            splitChallengers++;
+          } catch (e) { failures++; console.error("ads-autopilot: challenger failed:", e && e.message); }
+        }
+      }
+    }
+
     // ── persist + tell the owner ──
     if (actions.length) {
       const log = actions.concat(recent).slice(0, 60);
@@ -227,18 +327,19 @@ export default withFailureAlert("ads-autopilot", async () => {
         console.log(`ads-autopilot: ${who} — notice only, no campaign changed.`);
         continue;
       }
-      const lines = changed.map((a) => `${a.action === "pause" ? "PAUSED" : "REBALANCED"} — ${a.name} (${a.platform === "google" ? "Google" : "Meta"})\n  ${a.reason}`);
+      const VERB = { pause: "PAUSED", rebalance: "REBALANCED", "split-challenger": "SPLIT TEST STARTED", "split-winner": "SPLIT TEST DECIDED" };
+      const lines = changed.map((a) => `${VERB[a.action] || a.action.toUpperCase()} — ${a.name} (${a.platform === "google" ? "Google" : "Meta"})\n  ${a.reason}`);
       await dispatchAlert({
         title: `Autopilot acted on ${who}`,
-        body: `Autopilot made ${changed.length} change${changed.length > 1 ? "s" : ""} to protect the budget:\n\n${lines.join("\n\n")}\n\nNothing was started and no budget was increased. Review it in BoldLine OS → Campaigns.`,
-        severity: changed.some((a) => a.action === "pause") ? "red" : "yellow",
-        smsText: `BoldLine Autopilot: ${changed.length} change(s) on ${who} — ${changed[0].action === "pause" ? "paused " + changed[0].name : "rebalanced budget"}.`.slice(0, 300),
+        body: `Autopilot made ${changed.length} change${changed.length > 1 ? "s" : ""}:\n\n${lines.join("\n\n")}\n\nNo budget was increased and no campaign was started. Split tests only change which creative the existing spend buys. Review it in BoldLine OS → Campaigns.`,
+        severity: changed.some((a) => a.action === "pause") ? "red" : changed.every((a) => String(a.action).startsWith("split")) ? "blue" : "yellow",
+        smsText: `BoldLine Autopilot: ${changed.length} change(s) on ${who} — ${changed[0].action === "pause" ? "paused " + changed[0].name : changed[0].action === "split-challenger" ? "started a split test on " + changed[0].name : changed[0].action === "split-winner" ? "picked a split-test winner on " + changed[0].name : "rebalanced budget"}.`.slice(0, 300),
       });
     }
   }
 
-  console.log(`ads-autopilot: checked ${clientsChecked} account(s) — ${paused} paused, ${rebalanced} rebalanced, ${skipped} skipped, ${failures} failed.`);
-  return new Response(JSON.stringify({ ok: true, clientsChecked, paused, rebalanced, skipped, failures }), {
+  console.log(`ads-autopilot: checked ${clientsChecked} account(s) — ${paused} paused, ${rebalanced} rebalanced, ${splitChallengers} split test(s) started, ${splitWinners} decided, ${skipped} skipped, ${failures} failed.`);
+  return new Response(JSON.stringify({ ok: true, clientsChecked, paused, rebalanced, splitChallengers, splitWinners, skipped, failures }), {
     status: 200, headers: { "content-type": "application/json" },
   });
 });
