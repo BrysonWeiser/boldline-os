@@ -3,8 +3,8 @@ name: campaign-build-failures
 topic: Ads
 task: diagnose a failed Build Campaign, and why the Meta card said no image when images were saved
 keywords: [createCampaign failed, required field was not present, an ad image is required, meta ad image, media library, imageUrl, useState initial value, apiErrMsg, fieldPathElements, google ads error]
-status: partial
-summary: First real Build attempt failed on both platforms. META was a genuine bug — `imageUrl` was a `useState` INITIAL value, evaluated once on mount, so creatives saved from the Ad Creative Studio afterwards never reached the card and Build failed with "an ad image is required" while four images sat in the library. Fixed with an effect that follows `client.mediaLibrary`, preferring `category:"ad-creative"`, newest first, and stopping the moment a URL is typed by hand. GOOGLE returned "The required field was not present." with NO field named — the error formatter now surfaces the exact `fieldPathElements` path, the Google error code, and the count of additional errors, and logs the whole failure. The Google cause is NOT yet identified; the next attempt will name it.
+status: verified
+summary: First real Build attempt failed on both platforms. META was a genuine bug — `imageUrl` was a `useState` INITIAL value, evaluated once on mount, so creatives saved from the Ad Creative Studio afterwards never reached the card and Build failed with "an ad image is required" while four images sat in the library. Fixed with an effect that follows `client.mediaLibrary`, preferring `category:"ad-creative"`, newest first, and stopping the moment a URL is typed by hand. GOOGLE returned "The required field was not present." with NO field named — the error formatter now surfaces the exact `fieldPathElements` path, the Google error code, and the count of additional errors, and logs the whole failure. The Google cause WAS then named by that very error: Google now requires `containsEuPoliticalAdvertising` on every campaign create (EU TTPA regulation). One field, fixed.
 verified: 2026-08-14
 ---
 
@@ -21,20 +21,23 @@ verified: 2026-08-14
 - **A typed URL wins and stays won** (`imgTouched`), with an inline link back to the newest saved creative. Without that flag the effect would overwrite anything hand-entered on the next render.
 - The empty state now says why Build will fail and exactly which button fixes it, rather than failing at the API.
 
-## 🟡 GOOGLE — cause still unknown, but the next error will name it
+## 🟢 GOOGLE — diagnosed and fixed by the better error
 
-**Symptom:** `createCampaign — createCampaign: The required field was not present.`
+**Symptom:** `createCampaign: The required field was not present.` — naming nothing.
 
-That message is Google's, and on its own it is close to useless: it does not say **which** field, on **which** operation, out of a mutate carrying a budget, a campaign, location + language + negative criteria, three ad groups, three ads and 26 keywords. Guessing costs a round-trip each time.
+**The improved formatter paid for itself on the very next press:**
+```
+[field: mutate_operations[1].campaign_operation.create.contains_eu_political_advertising | fieldError=REQUIRED]
+```
 
-**What changed:** `apiErrMsg` now pulls up
-- the **field path** from `location.fieldPathElements`, rendered like `operations[7].ad_group_ad_operation.create.ad.final_urls`,
-- the **Google error code** (`fieldError=REQUIRED`),
-- the **trigger** value when present,
-- and **how many other errors came with it** — a mutate can fail several ways at once, and fixing one at a time is how three attempts become nine.
+**Cause:** Google now **requires `containsEuPoliticalAdvertising` on every campaign create** — the EU Transparency and Targeting of Political Advertising (TTPA) regulation. It is not optional and has no default, so every campaign build failed at operation 1 before any ad group was even reached. Nothing to do with the multi-ad-group work; `createCampaign` had simply never completed against the live API since the day it was written.
 
-The full `error` object is also `console.error`'d, so the Netlify function log has everything if the surfaced line still is not enough.
+**Fix:** one field, always the negative declaration, since BoldLine and its clients run commercial lead-gen and never political advertising:
+```js
+containsEuPoliticalAdvertising: "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+```
+**If a genuinely political advertiser is ever onboarded** this must become a per-client field and that client needs EU verification. Recorded here so nobody hard-codes their way into a compliance problem.
 
-**NOT diagnosed yet.** The honest state: the cause is unidentified. The next Build attempt will name the field, and the fix follows from that. Do not guess at candidate fields before that error arrives — `createCampaign` has never completed against the live API (it carried a "NOT yet verified against a live linked account" warning from the day it was written), so the failure may be pre-existing rather than anything the multi-ad-group change introduced.
+**The lesson worth keeping:** the first instinct was to guess which field was missing. Guessing costs a full round-trip per attempt and had already been wrong once that day (the Netlify secret). Spending one round-trip on making the ERROR better instead turned an unbounded guessing game into a one-line fix. Any Google Ads failure from here names its own field, error code, trigger, and how many other errors came with it.
 
-**Verified by 16 cases:** the picker prefers an ad-creative over an older photo, falls back to a photo when no creative exists, skips videos, and returns nothing rather than crashing on an empty library; the effect exists, stops on a hand-typed URL, and offers a way back; and the error formatter renders the field path, the error code, the extra-error count, a sensible message for a bare failure, and no false "more errors" claim for a single one.
+**Verified by 34 + 16 cases:** the declaration is asserted on both the multi-ad-group and legacy single-group build paths; the Meta picker prefers an ad-creative over an older photo, falls back to a photo, skips videos and survives an empty library; the effect exists, stops on a hand-typed URL and offers a way back; and the error formatter renders the field path, the code, the extra-error count, a sensible bare-failure message, and no false "more errors" claim on a single one.
