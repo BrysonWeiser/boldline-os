@@ -5327,7 +5327,13 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   const linked = client.metaAdAccountId && client.metaPageId;
   const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
     : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
-  const firstImg = (client.mediaLibrary||[]).find(m=>m.url && m.category!=="video");
+  // Newest image wins, and ad creatives beat stock photos: the Creative Studio saves
+  // with category "ad-creative" and its own hint promises the launch card uses the
+  // newest one. Sorted by savedAt/ts when present, otherwise the library is
+  // append-newest-first already.
+  const usableImgs = (client.mediaLibrary||[]).filter(m=>m.url && m.category!=="video");
+  const creativeImgs = usableImgs.filter(m=>String(m.category||"")==="ad-creative");
+  const firstImg = (creativeImgs.length?creativeImgs:usableImgs)[0];
   // House account: BoldLine advertising to WIN a given kind of business as a client.
   const metaAgencySeed = (aud) => {
     const raw = String(aud||"").trim();
@@ -5373,6 +5379,16 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     if(budgetTouched || autoDaily <= 0) return;
     setF(p => (Number(p.dailyBudgetDollars) === autoDaily ? p : {...p, dailyBudgetDollars: autoDaily}));
   },[autoDaily,budgetTouched]);
+  // Saving from the Ad Creative Studio updates client.mediaLibrary AFTER this card
+  // mounted. `imageUrl` was a useState initial value, so it stayed empty forever and
+  // Build failed with "an ad image is required" even though images had just been
+  // saved. Follow the library instead, and stop the moment a URL is typed by hand.
+  const [imgTouched,setImgTouched] = useState(false);
+  const autoImg = (firstImg && firstImg.url) || "";
+  useEffect(()=>{
+    if(imgTouched || !autoImg) return;
+    setF(p => (p.imageUrl === autoImg ? p : {...p, imageUrl: autoImg}));
+  },[autoImg,imgTouched]);
   const fillFromAudience = () => {
     const s = metaAgencySeed(audience);
     setF(p=>({...p, name:s.name, headline:s.headline, primaryText:s.primaryText, description:s.description}));
@@ -5465,7 +5481,16 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       ].map(({k,l,t})=>(
         <div key={k} style={{marginBottom:9}}>
           <label style={lbl}>{l}</label>
-          <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
+          <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); if(k==="imageUrl") setImgTouched(true); set(k,e.target.value); }} style={box}/>
+          {k==="imageUrl"&&(
+            <div style={{fontSize:9.5,lineHeight:1.5,marginTop:3,color:f.imageUrl?C.textMuted:C.red}}>
+              {f.imageUrl
+                ? (imgTouched
+                    ? <>Using the URL you typed. <button onClick={()=>{setImgTouched(false);set("imageUrl",autoImg);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>use the newest saved creative</button></>
+                    : <>Auto-filled from your newest saved creative{firstImg&&firstImg.category==="ad-creative"?" (Ad Creative Studio)":""}. Save a new one above and this follows it.</>)
+                : <>Meta link ads must have an image, so Build will fail without one. Generate one in the Ad Creative Studio above and press <b style={{color:C.textDim}}>Save to media library</b>, and it lands here automatically.</>}
+            </div>
+          )}
           {k==="dailyBudgetDollars"&&(
             <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
               {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo on Meta"}

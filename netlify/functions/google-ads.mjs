@@ -52,12 +52,31 @@ const digits = (id) => String(id || "").replace(/[^0-9]/g, "");
 const dollarsToMicros = (d) => Math.round(Number(d) * 1e6);
 const microsToDollars = (m) => Number(m || 0) / 1e6;
 
-// Google Ads nests the useful error message a few levels down.
+// Google Ads nests the useful message a few levels down, and the message ALONE is
+// often useless: "The required field was not present" does not say which field, on
+// which operation. The field path and error code do, so they are pulled up too —
+// without them a build failure costs a guessing round-trip.
 function apiErrMsg(stage, status, data) {
-  const ge = data && data.error && data.error.details && data.error.details[0]
-    && data.error.details[0].errors && data.error.details[0].errors[0];
+  const failure = data && data.error && data.error.details && data.error.details[0];
+  const ge = failure && failure.errors && failure.errors[0];
   const msg = (ge && ge.message) || (data && data.error && data.error.message) || `HTTP ${status}`;
-  return `${stage}: ${msg}`;
+  if (!ge) return `${stage}: ${msg}`;
+
+  // "operations[7].ad_group_ad_operation.create.ad.final_urls" — the exact spot.
+  const path = ((ge.location && ge.location.fieldPathElements) || [])
+    .map((f) => (f.index !== undefined && f.index !== null ? `${f.fieldName}[${f.index}]` : f.fieldName))
+    .filter(Boolean).join(".");
+  // errorCode is a one-key object like { fieldError: "REQUIRED" }.
+  const codeObj = ge.errorCode || {};
+  const codeKey = Object.keys(codeObj)[0];
+  const code = codeKey ? `${codeKey}=${codeObj[codeKey]}` : "";
+
+  const extra = [path && `field: ${path}`, code, ge.trigger && ge.trigger.stringValue && `trigger: ${ge.trigger.stringValue}`]
+    .filter(Boolean).join(" | ");
+  // More than one thing can be wrong at once; say so rather than fixing one and
+  // hitting the next on the following attempt.
+  const more = failure.errors && failure.errors.length > 1 ? ` (+${failure.errors.length - 1} more error${failure.errors.length > 2 ? "s" : ""})` : "";
+  return `${stage}: ${msg}${extra ? ` [${extra}]` : ""}${more}`;
 }
 
 // ── OAuth: refresh token -> access token ──────────────────────────────────────
@@ -420,6 +439,9 @@ export async function createCampaign(accessToken, p) {
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
+    // Full failure to the function log: a campaign build that fails on the tenth
+    // operation is very hard to reason about from one surfaced line.
+    try { console.error("createCampaign rejected:", JSON.stringify(data && data.error ? data.error : data).slice(0, 4000)); } catch (_) {}
     const e = new Error(apiErrMsg("createCampaign", resp.status, data));
     e.stage = "createCampaign"; e.detail = data; throw e;
   }

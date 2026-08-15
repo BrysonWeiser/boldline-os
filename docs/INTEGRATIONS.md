@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 103 task-keyed entries under `knowledge/`. They surface automatically via the
+> 104 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**103 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**104 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -18,6 +18,9 @@
 - **[budget-split](../knowledge/budget-split.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   A monthly ad budget is the TOTAL across every platform, so it is now divided by how many platforms are actually running before it fills a daily-budget field. Before this both launch cards independently derived the FULL monthly figure — $200/mo showed $7/day on Google AND $7/day on Meta, which spends $400/mo and burns the budget in half a month. Caught by Bryson 2026-08-14. Fixed with a `platformCount` prop threaded from the Campaigns tab (the same place that decides which cards render, so the split can never disagree with the cards on screen), plus corrected copy on the setup card, which had literally been instructing him to type the total into each campaign. 36 cases.  
   <sub>*task:* how one monthly ad budget becomes the daily budget on each platform &nbsp;|&nbsp; *keywords:* budget split, monthly budget, daily budget, dailyFromMonthly, platformCount, platShare, adPlatformsOf, double spend, Google and Meta both running, burn through budget twice as fast</sub>
+- **[campaign-build-failures](../knowledge/campaign-build-failures.md)** &mdash; &#9989; verified &middot; 2026-08-14  
+  First real Build attempt failed on both platforms. META was a genuine bug — `imageUrl` was a `useState` INITIAL value, evaluated once on mount, so creatives saved from the Ad Creative Studio afterwards never reached the card and Build failed with "an ad image is required" while four images sat in the library. Fixed with an effect that follows `client.mediaLibrary`, preferring `category:"ad-creative"`, newest first, and stopping the moment a URL is typed by hand. GOOGLE returned "The required field was not present." with NO field named — the error formatter now surfaces the exact `fieldPathElements` path, the Google error code, and the count of additional errors, and logs the whole failure. The Google cause is NOT yet identified; the next attempt will name it.  
+  <sub>*task:* diagnose a failed Build Campaign, and why the Meta card said no image when images were saved &nbsp;|&nbsp; *keywords:* createCampaign failed, required field was not present, an ad image is required, meta ad image, media library, imageUrl, useState initial value, apiErrMsg, fieldPathElements, google ads error</sub>
 - **[campaign-geo-targeting](../knowledge/campaign-geo-targeting.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   `createCampaign` used to build budget → campaign → ad group → responsive search ad → keywords and NO campaign criteria at all — which means Google targets ALL COUNTRIES AND TERRITORIES and all languages. On a $5/day budget bidding agency terms that burns the month on clicks that can never convert, and it reads as "the ads failed" rather than "targeting was never set". Fixed 2026-08-14: locations are now REQUIRED (the call refuses without one), resolved from plain names via `geoTargetConstants:suggest`, attached as campaign criteria alongside English-language targeting, with `geoTargetTypeSetting = PRESENCE` so only people physically in the area see the ads. Campaign-level negative keywords added too. 24 hermetic cases.  
   <sub>*task:* why a Google Search campaign built from the OS targets the right places, and what happens if it doesn't &nbsp;|&nbsp; *keywords:* geo targeting, location targeting, geoTargetConstants, suggest endpoint, PRESENCE, presence or interest, negative keywords, language targeting, worldwide targeting, createCampaign, budget waste, GoogleLaunchCard</sub>
