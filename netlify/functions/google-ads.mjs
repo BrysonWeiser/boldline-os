@@ -498,7 +498,10 @@ export async function createCampaign(accessToken, p) {
 // after a build. Structure first, metrics merged on top where they exist.
 async function gaql(accessToken, customerId, query, stage) {
   const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/googleAds:search`, {
-    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ query, pageSize: 1000 }),
+    // No pageSize: Google Ads rejects it outright (PAGE_SIZE_NOT_SUPPORTED) and
+    // fixes search responses at 10000 rows, which is far more than one campaign's
+    // ad groups, ads or keywords will ever be.
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ query }),
   });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) {
