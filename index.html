@@ -938,10 +938,17 @@ const calcHealth = (cl) => {
   return Math.max(1, Math.min(10, Math.round(score * 10) / 10));
 };
 
+// Seeded ONLY when the clients table is completely empty, which in practice means a
+// brand-new install. These are sample data, so they carry `demo: true` for the same
+// reason makeDemoClient() does: the weekly-report job and lead-followup read every
+// client row and would happily email invented numbers to whatever address they hold.
+// Their emails were plausible real domains (apexroofing.com, luxemedspa.com,
+// detailkingatl.com) with active contracts; now example.com, reserved by RFC 2606 and
+// unable to receive mail.
 const INIT_CLIENTS = [
-  { id:"c1", name:"Apex Roofing",   contactName:"Mike Thornton",  email:"owner@apexroofing.com",    businessAddress:"1234 Peachtree Rd, Atlanta, GA 30309", niche:"Roofing",        packageId:"g-growth",  stage:"building",   platforms:["Google Ads"],             adBudget:"$2,500/mo", contractStart:fmt(addDays(today,-45)), contractEnd:fmt(addDays(today,45)),  notes:"Storm season starting.", intakeComplete:true,  contractSigned:true,  contractStatus:"active",  healthScore:null, leads:24, cpl:62, alerts:[], commLog:[{date:fmt(addDays(today,-3)),note:"Called to check on build. Very happy.",cat:"call",ts:Date.now()-3*864e5}], upgradeRequest:null, botStatuses:{intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"done",copy:"done",builder:"active",keywords:"waiting",ads:"waiting",tracking:"waiting",automation:"waiting",qc:"waiting",budget:"waiting",terms:"waiting",leads:"waiting",perf:"waiting",scaling:"waiting",success:"waiting"} },
-  { id:"c2", name:"Luxe Med Spa",   contactName:"Sarah Chen",     email:"hello@luxemedspa.com",      businessAddress:"5678 Buckhead Ave, Atlanta, GA 30305",  niche:"Med Spa",        packageId:"c-growth",  stage:"active",     platforms:["Google Ads","Meta Ads"],  adBudget:"$3,000/mo", contractStart:fmt(addDays(today,-60)), contractEnd:fmt(addDays(today,30)),  notes:"Prefers email. Bi-weekly check-ins.", intakeComplete:true,  contractSigned:true,  contractStatus:"active",  healthScore:null, leads:41, cpl:29, alerts:[], commLog:[{date:fmt(addDays(today,-7)),note:"Bi-weekly check-in. CPL at $29. Client very happy with results.",cat:"call",ts:Date.now()-7*864e5}], upgradeRequest:null, botStatuses:{intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"done",copy:"done",builder:"done",keywords:"done",ads:"done",tracking:"done",automation:"done",qc:"done",budget:"active",terms:"active",leads:"active",perf:"active",scaling:"active",success:"active"} },
-  { id:"c3", name:"DetailKing ATL", contactName:"James Rivera",   email:"contact@detailkingatl.com", businessAddress:"910 Ponce de Leon Ave, Atlanta, GA 30306",niche:"Auto Detailing", packageId:"m-launch",  stage:"onboarding", platforms:["Meta Ads"],               adBudget:"$1,000/mo", contractStart:fmt(today),             contractEnd:fmt(addDays(today,90)),  notes:"New client. Intake not yet complete.", intakeComplete:false, contractSigned:false, contractStatus:"pending", healthScore:null, leads:0,  cpl:0,  alerts:[], commLog:[], upgradeRequest:null, botStatuses:{intake:"waiting",ceo:"waiting",research:"waiting",avatar:"waiting",offer:"waiting",funnel:"waiting",architect:"waiting",copy:"waiting",builder:"waiting",keywords:"waiting",ads:"waiting",tracking:"waiting",automation:"waiting",qc:"waiting",budget:"waiting",terms:"waiting",leads:"waiting",perf:"waiting",scaling:"waiting",success:"waiting"} },
+  { demo:true, id:"c1", name:"Apex Roofing",   contactName:"Mike Thornton",  email:"owner@example.com",    businessAddress:"1234 Peachtree Rd, Atlanta, GA 30309", niche:"Roofing",        packageId:"g-growth",  stage:"building",   platforms:["Google Ads"],             adBudget:"$2,500/mo", contractStart:fmt(addDays(today,-45)), contractEnd:fmt(addDays(today,45)),  notes:"Storm season starting.", intakeComplete:true,  contractSigned:true,  contractStatus:"active",  healthScore:null, leads:24, cpl:62, alerts:[], commLog:[{date:fmt(addDays(today,-3)),note:"Called to check on build. Very happy.",cat:"call",ts:Date.now()-3*864e5}], upgradeRequest:null, botStatuses:{intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"done",copy:"done",builder:"active",keywords:"waiting",ads:"waiting",tracking:"waiting",automation:"waiting",qc:"waiting",budget:"waiting",terms:"waiting",leads:"waiting",perf:"waiting",scaling:"waiting",success:"waiting"} },
+  { demo:true, id:"c2", name:"Luxe Med Spa",   contactName:"Sarah Chen",     email:"hello@example.com",      businessAddress:"5678 Buckhead Ave, Atlanta, GA 30305",  niche:"Med Spa",        packageId:"c-growth",  stage:"active",     platforms:["Google Ads","Meta Ads"],  adBudget:"$3,000/mo", contractStart:fmt(addDays(today,-60)), contractEnd:fmt(addDays(today,30)),  notes:"Prefers email. Bi-weekly check-ins.", intakeComplete:true,  contractSigned:true,  contractStatus:"active",  healthScore:null, leads:41, cpl:29, alerts:[], commLog:[{date:fmt(addDays(today,-7)),note:"Bi-weekly check-in. CPL at $29. Client very happy with results.",cat:"call",ts:Date.now()-7*864e5}], upgradeRequest:null, botStatuses:{intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"done",copy:"done",builder:"done",keywords:"done",ads:"done",tracking:"done",automation:"done",qc:"done",budget:"active",terms:"active",leads:"active",perf:"active",scaling:"active",success:"active"} },
+  { demo:true, id:"c3", name:"DetailKing ATL", contactName:"James Rivera",   email:"contact@example.com", businessAddress:"910 Ponce de Leon Ave, Atlanta, GA 30306",niche:"Auto Detailing", packageId:"m-launch",  stage:"onboarding", platforms:["Meta Ads"],               adBudget:"$1,000/mo", contractStart:fmt(today),             contractEnd:fmt(addDays(today,90)),  notes:"New client. Intake not yet complete.", intakeComplete:false, contractSigned:false, contractStatus:"pending", healthScore:null, leads:0,  cpl:0,  alerts:[], commLog:[], upgradeRequest:null, botStatuses:{intake:"waiting",ceo:"waiting",research:"waiting",avatar:"waiting",offer:"waiting",funnel:"waiting",architect:"waiting",copy:"waiting",builder:"waiting",keywords:"waiting",ads:"waiting",tracking:"waiting",automation:"waiting",qc:"waiting",budget:"waiting",terms:"waiting",leads:"waiting",perf:"waiting",scaling:"waiting",success:"waiting"} },
 ];
 // ─── AI HOOK ─────────────────────────────────────────────────────────────────
 function useAI(system, opts) {
@@ -5486,6 +5493,43 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   // mounted. `imageUrl` was a useState initial value, so it stayed empty forever and
   // Build failed with "an ad image is required" even though images had just been
   // saved. Follow the library instead, and stop the moment a URL is typed by hand.
+  // ── AI variants ────────────────────────────────────────────────────────────
+  // The `meta` action has existed in the generator since it shipped but nothing
+  // called it, so this card still used its template seed. It writes one complete
+  // variant per AWARENESS STAGE, because the words that land on someone who has
+  // never considered the problem are not the words for someone already comparing
+  // providers. Picking a variant fills the three copy fields; the image, budget,
+  // audience and landing URL are untouched.
+  const [gen,setGen] = useState(null);          // [{awareness, angle, headline, primaryText, description}]
+  const [genPick,setGenPick] = useState(0);
+  const [genState,setGenState] = useState("idle"); // idle | working | error
+  const [genMsg,setGenMsg] = useState("");
+  const generateMeta = async () => {
+    setGenState("working"); setGenMsg("Writing variants. This takes a minute.");
+    try{
+      // Same fire-and-poll path as the Google card: this is a background job because
+      // a synchronous Netlify function gets ~10 seconds and this writes several full ads.
+      const d = await adGenBackground({ action:"meta", clientId: client.id, agency: !!client.internal,
+        name: client.internal ? "BoldLine Media" : client.name,
+        niche: client.internal ? (audience || "any business owner") : (client.niche||""),
+        offer: client.internal ? "Google and Meta ad management plus the landing pages behind them"
+                               : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),
+        avgTicket: (client.campaignSetup&&client.campaignSetup.avgTicket)||"",
+        differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
+        landingUrl: f.landingUrl,
+        avoid: (client.campaignSetup&&client.campaignSetup.excludedKeywords)||"" });
+      const vs = (d && d.variants) || [];
+      if(!vs.length) throw new Error("The model returned no usable variants. Try again.");
+      setGen(vs); setGenPick(0); applyVariant(vs[0]);
+      setGenState("idle"); setGenMsg(`${vs.length} variant${vs.length===1?"":"s"} written. Pick one below.`);
+    }catch(e){ setGenState("error"); setGenMsg(e.message||"Generation failed."); }
+  };
+  const applyVariant = (v) => {
+    if(!v) return;
+    setF(p=>({...p, headline: humanizeAdCopy(v.headline), primaryText: humanizeAdCopy(v.primaryText),
+      description: humanizeAdCopy(v.description||"")}));
+  };
+
   const [imgTouched,setImgTouched] = useState(false);
   const autoImg = (firstImg && firstImg.url) || "";
   useEffect(()=>{
@@ -5566,6 +5610,34 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
           <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the ad for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad. (Tip: also narrow the age/country below for tighter targeting.)</div>
         </div>
       )}
+      <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,border:`1px solid ${gen?C.green+"55":C.border}`,backgroundColor:gen?"rgba(34,211,160,0.06)":"transparent"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:gen?9:6}}>
+          <button onClick={generateMeta} disabled={genState==="working"} style={{flex:1,padding:"9px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",backgroundColor:genState==="working"?C.border:C.gold,color:genState==="working"?C.textMuted:"#15110A",cursor:genState==="working"?"default":"pointer"}}>
+            {genState==="working"?"Writing variants…":gen?"↻ Regenerate variants":"✨ Write the ad with AI"}
+          </button>
+        </div>
+        {!gen&&genState!=="error"&&(
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55}}>Writes one complete ad per <b style={{color:C.textDim}}>awareness stage</b>, because the words that work on someone who has never thought about the problem are not the words for someone already comparing providers. Pick one and it fills the copy fields below.</div>
+        )}
+        {genMsg&&<div style={{fontSize:10.5,lineHeight:1.55,color:genState==="error"?C.red:C.green,wordBreak:"break-word"}}>{genMsg}</div>}
+        {gen&&(
+          <div style={{marginTop:9}}>
+            {gen.map((v,i)=>(
+              <button key={i} onClick={()=>{ setGenPick(i); applyVariant(v); }} style={{display:"block",width:"100%",textAlign:"left",padding:"8px 9px",marginBottom:6,borderRadius:8,cursor:"pointer",
+                border:`1px solid ${genPick===i?C.green+"88":C.border}`,backgroundColor:genPick===i?"rgba(34,211,160,0.08)":C.bg2}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:3}}>
+                  <span style={{fontSize:8.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",padding:"1px 5px",borderRadius:3,border:`1px solid ${C.border}`,color:C.textMuted}}>{v.awareness||`variant ${i+1}`}</span>
+                  {genPick===i&&<span style={{fontSize:9,fontWeight:800,color:C.green}}>IN USE</span>}
+                </div>
+                <div style={{fontSize:11.5,fontWeight:800,color:C.textDim,lineHeight:1.4}}>{v.headline}</div>
+                <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{String(v.primaryText||"").slice(0,120)}{String(v.primaryText||"").length>120?"…":""}</div>
+                {v.angle&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:3,fontStyle:"italic"}}>{v.angle}</div>}
+              </button>
+            ))}
+            <button onClick={()=>{ setGen(null); setGenMsg(""); }} style={{fontSize:10,color:C.textMuted,background:"none",border:"none",cursor:"pointer",padding:"2px 0",textDecoration:"underline"}}>Discard these and go back to the manual copy</button>
+          </div>
+        )}
+      </div>
       <div style={{background:C.bg2,border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 10px",marginBottom:11}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <button onClick={readPage} disabled={pgState==="reading"} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:"none",backgroundColor:pgState==="ok"?"#059669":"#1D4ED8",color:"#fff",cursor:pgState==="reading"?"default":"pointer",opacity:pgState==="reading"?.7:1,whiteSpace:"nowrap"}}>{pgState==="reading"?"Reading…":pgState==="ok"?"✓ Page read":"📄 Read Page"}</button>

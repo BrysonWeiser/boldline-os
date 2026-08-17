@@ -34,10 +34,43 @@ function findChrome() {
   return p && fs.existsSync(p) ? p : undefined; // undefined => Playwright default
 }
 
-const nm = (m) => path.dirname(require.resolve(m + "/package.json"));
+// 🔴 RESOLVE FROM THE TEMP INSTALL, NOT FROM THE REPO. This file lives in tools/, so a
+// bare require.resolve searches the REPO's own node_modules first — and the repo has
+// @babel/standalone 8.x for unrelated tooling while index.html pins 7.23.5 from unpkg.
+// The harness silently copied Babel 8, whose output the page cannot run as a classic
+// script, and every run died with "Cannot use import statement outside a module" before
+// React ever mounted. Search NODE_PATH and the cwd (where the documented run installs
+// its deps) ahead of the default paths so the harness renders with the SAME toolchain
+// production does.
+const searchPaths = [
+  ...(process.env.NODE_PATH || "").split(path.delimiter).filter(Boolean),
+  path.join(process.cwd(), "node_modules"),
+  process.cwd(),
+];
+const nm = (m) => {
+  try { return path.dirname(require.resolve(m + "/package.json", { paths: searchPaths })); }
+  catch { return path.dirname(require.resolve(m + "/package.json")); }
+};
+
+// Whatever index.html pins is the only version worth testing against. Read it out of the
+// page rather than restating it here, so a version bump cannot leave the harness behind.
+const indexSrc = fs.readFileSync(path.join(REPO, "index.html"), "utf8");
+const pinned = (indexSrc.match(/@babel\/standalone@([\d.]+)/) || [])[1];
+const babelDir = nm("@babel/standalone");
+const babelVer = JSON.parse(fs.readFileSync(path.join(babelDir, "package.json"), "utf8")).version;
+if (pinned && babelVer !== pinned) {
+  console.error(
+    `\n✕ @babel/standalone mismatch: harness resolved ${babelVer} (${babelDir}),\n` +
+    `  but index.html pins ${pinned}. Rendering with a different Babel is not a valid test.\n` +
+    `  Install the pinned version into your temp dir and re-run:\n` +
+    `    npm install @babel/standalone@${pinned}\n`
+  );
+  process.exit(1);
+}
+
 fs.copyFileSync(path.join(nm("react"), "umd/react.production.min.js"), path.join(RENDER, "react.js"));
 fs.copyFileSync(path.join(nm("react-dom"), "umd/react-dom.production.min.js"), path.join(RENDER, "react-dom.js"));
-fs.copyFileSync(path.join(nm("@babel/standalone"), "babel.min.js"), path.join(RENDER, "babel.js"));
+fs.copyFileSync(path.join(babelDir, "babel.min.js"), path.join(RENDER, "babel.js"));
 
 const bs = { intake:"done",ceo:"done",research:"done",avatar:"done",offer:"done",funnel:"done",architect:"active",copy:"waiting" };
 const base = (o) => Object.assign({
