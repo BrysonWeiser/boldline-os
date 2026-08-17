@@ -2,9 +2,9 @@
 name: package-multi-campaign
 topic: Packages/Sales
 task: answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing
-keywords: [multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages]
+keywords: [c-acquisition, Full System Acquisition, multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages]
 status: verified
-summary: Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 391 committed assertions in tests/verify-packages.mjs.
+summary: Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, c-acquisition $1,500, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 473 committed assertions in tests/verify-packages.mjs.
 verified: 2026-08-17
 ---
 
@@ -139,22 +139,63 @@ the additive rule alone would not stop cross-line selling: `m-growth` genuinely 
 superset of `e-launch`, so a store client would have been offered a Meta lead-gen package. Asserted
 in the test so neither guard gets removed as redundant.
 
-## 🟡 STILL OPEN: two Acquisition tiers now have no upgrade path
+## ✅ RESOLVED: new top rung `c-acquisition` closes both dead ends
 
-Enforcing the rule correctly **revealed a gap rather than creating one**. `g-acquisition` ($900) and
-`m-acquisition` ($850) previously pointed at `c-growth` ($1,000), which does not carry
-`scaling_roadmap` or `priority_comms` (nor `full_funnel`, which `m-acquisition` has). Both are now
-ladder tops with nowhere to spend more.
+Enforcing the additive rule left `g-acquisition` ($900) and `m-acquisition` ($850) with nowhere to
+go, because `c-growth` lacks `scaling_roadmap`, `priority_comms` and `full_funnel`. Bryson
+(2026-08-17): *"do your recommendation."* Built **`c-acquisition` "Full System — Acquisition"**.
 
-**Recommendation given to Bryson: add a "Full System — Acquisition" rung** carrying everything from
-both Acquisition tiers plus the cross-channel extras. It clears both dead ends at once and gives the
-best clients an upsell. **Rejected alternative:** adding those three features to `c-growth` at
-$1,000 would make it a superset of two packages costing $1,750 together, i.e. underpriced on
-arrival. Pricing is Bryson's call, so no package was invented. Awaiting a price.
+| | |
+|---|---|
+| Price | **$1,500/mo**, **$4,900** setup |
+| Platform | Google + Meta, `leadFee: true` |
+| Features | **23**, the exact union of `g-acquisition` + `m-acquisition` + `c-growth` |
+| Ad spend band | $9,000–$35,000+/mo |
+| Tag | **Most Powerful** (moved off `c-growth`, which is now untagged) |
+| Savings | Save $250/mo vs buying both Acquisition tiers separately |
 
-`c-growth` and `e-domination` remain ladder tops by design.
+**Pricing derivation, not a guess.** The combined bundle discount already escalates by tier:
+`c-launch` saves $100/mo, `c-growth` saves $150/mo, so $250/mo continues it
+($900 + $850 = $1,750, less $250). Setup discounts run $250 → $400 → $600
+($3,000 + $2,500 = $5,500, less $600 = $4,900). Management lands at 4–17% of the spend band.
+**Bryson delegated the number; it is one edit in five files if he wants it different.**
 
-## Guarded by `tests/verify-packages.mjs` — 391 assertions, IN THE REPO
+**Feature list is the UNION and nothing more** — asserted in both directions, because "carries
+everything the three below it carry" is exactly what makes it a legal upgrade from all three, and
+"invents nothing" is what stops it quietly becoming a different product. `std_landing` and
+`monthly_opt` are correctly absent (superseded by `custom_landing` / `weekly_opt`). Deliberately
+does **not** include the five `e-domination`-only perks (`ugc_consulting`, `crm_input`, `page_cro`,
+`strategy_calls`, `slack_access`) — those are e-commerce scope and one of them promises a tool that
+does not exist yet (see KB `slack-access-promise`).
+
+**Resulting ladder — every lead-gen package now has a path, and no path loses anything:**
+
+```
+g-launch  → g-growth, c-launch, g-acquisition, c-growth, c-acquisition
+g-growth  → g-acquisition, c-growth, c-acquisition
+g-acq     → c-acquisition
+m-launch  → m-growth, c-launch, m-acquisition, c-growth, c-acquisition
+m-growth  → m-acquisition, c-growth, c-acquisition
+m-acq     → c-acquisition
+c-launch  → c-growth, c-acquisition
+c-growth  → c-acquisition
+c-acq     → (top)          e-launch → e-growth, e-domination → (top)
+```
+
+**FIVE copies now, not four.** `report-shared.mjs` and `pricing-shared.mjs` also carry the package
+(the latter feeds the Deal Prep quoting prompt, so a missing entry means the AI cannot quote the
+top tier). Full list: `index.html`, `portal.mjs`, `contract-shared.cjs`, `report-shared.mjs`,
+`pricing-shared.mjs`, plus the marketing site card.
+
+**🔴 MARKETING SITE: the new card is Meta-gated and carries a `CS:META-SOON` sentinel.** Combined
+packages depend on Meta, so its CTA is "Join the waitlist" → `#contact`, not Calendly, matching the
+other two. The combined grid moved from `.pkg-grid.cols-2` to the default 3-column `.pkg-grid`.
+The site's package recommender `tiers.high` for the combined family now points at
+`Full System: Acquisition` (was `Full System: Growth`). **`git revert a4b83f0` will NOT restore this
+card's CTA** because the card postdates that commit — when Meta is approved, grep `CS:META-SOON`
+and flip this one by hand too.
+
+## Guarded by `tests/verify-packages.mjs` — 473 assertions, IN THE REPO
 
 Run `node tests/verify-packages.mjs`. It extracts the real blocks out of each file rather than
 restating the catalog (a restatement would just be a fifth copy to drift), and asserts: all four

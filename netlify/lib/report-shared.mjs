@@ -18,6 +18,7 @@ export const PACKAGES_DB = {
   combined: [
     { id:"c-launch", name:"Full System — Launch", platform:"Google + Meta", optimizationFreq:"monthly" },
     { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", optimizationFreq:"weekly"  },
+    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", optimizationFreq:"weekly"  },
   ],
   ecom: [
     { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      optimizationFreq:"monthly" },
