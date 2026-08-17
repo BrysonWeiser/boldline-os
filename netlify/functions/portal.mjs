@@ -17,7 +17,7 @@ const PACKAGES_DB = {
   ],
   combined: [
     { id:"c-launch", name:"Full System — Launch", platform:"Google + Meta", price:650,  setup:1100, leadFee:true, tag:"Best Value",    adSpend:"$1,000–$4,000/mo",  optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Save $100/mo" },
-    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:1000, setup:2300, leadFee:true, tag:"Most Powerful", adSpend:"$3,000–$12,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:false, crmIntegration:true,  multiCampaign:false, savings:"Save $150/mo" },
+    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:1000, setup:2300, leadFee:true, tag:"Most Powerful", adSpend:"$3,000–$12,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true,  savings:"Save $150/mo" },
   ],
   ecom: [
     { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      price:450,  setup:800,  leadFee:false, tag:"",            adSpend:"$500–$1,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, roas:"+$200 bonus at 3x ROAS" },
@@ -71,20 +71,29 @@ const PKG_FEATURES = {
   "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
   "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
   "c-launch":      ["search_ads","meta_ads","keyword_research","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt","unified_reporting"],
-  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","unified_reporting","advanced_reporting","monthly_report"],
+  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
   "e-growth":      ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
-  "e-domination":  ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","full_funnel","ugc_consulting","crm_input","page_cro","strategy_calls","slack_access","advanced_reporting","monthly_report"],
+  "e-domination":  ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","abandoned_cart","full_funnel","ugc_consulting","crm_input","page_cro","strategy_calls","slack_access","advanced_reporting","monthly_report"],
 };
 const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId] || []).includes(featureId);
 
+// Family-scoped upgrade ladders — keep in step with index.html's copy of this.
+// The old `platform` string matching leaked across product lines ("Meta + Google"
+// contains "Google"), so the portal offered a lead-gen client on c-growth exactly
+// one upgrade: "Store Domination", an e-commerce package. E-commerce and lead gen
+// never cross-sell, and a combined client is never offered a single-platform
+// package that would drop a channel they already pay for.
+const PKG_FAMILY = (id) => String(id || "").split("-")[0];
+const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"] };
 const getUpgradeOptions = (currentPkgId) => {
   const cur = findPkg(currentPkgId);
   if (!cur) return [];
+  const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
   return ALL_PKGS.filter((p) =>
     p.id !== currentPkgId &&
     p.price > cur.price &&
-    (p.platform === cur.platform || p.platform.includes(cur.platform.split(" ")[0]) || cur.platform.includes(p.platform.split(" ")[0]) || p.id.startsWith(currentPkgId[0]))
+    allowed.includes(PKG_FAMILY(p.id))
   ).sort((a, b) => a.price - b.price);
 };
 
