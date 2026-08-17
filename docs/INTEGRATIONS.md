@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 107 task-keyed entries under `knowledge/`. They surface automatically via the
+> 108 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**107 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**108 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -384,9 +384,9 @@
 
 ## Packages/Sales
 
-- **[package-multi-campaign](../knowledge/package-multi-campaign.md)** &mdash; &#9989; verified &middot; 2026-08-15  
-  Only 3 of 11 packages include multi-campaign — Google Acquisition ($900), Meta Acquisition ($850), Store Domination ($1,200). Everything else is single-campaign. BUT the thing a prospect usually wants (a service-specific ad for a service-specific search) is AD GROUPS, which every tier already gets 3-5 of; separate campaigns only buy separate budget/geo/schedule/bidding per service, and at Launch-tier spend splitting the budget makes results worse. The flag is a scope promise with ZERO code enforcement, though the client portal does show it in the not-included column.  
-  <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign &nbsp;|&nbsp; *keywords:* multi_campaign, multiCampaign, Multi-Campaign Strategy, g-acquisition, m-acquisition, e-domination, g-launch, c-growth, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES</sub>
+- **[package-multi-campaign](../knowledge/package-multi-campaign.md)** &mdash; &#9989; verified &middot; 2026-08-17  
+  Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 366 committed assertions in tests/verify-packages.mjs.  
+  <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing &nbsp;|&nbsp; *keywords:* multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages</sub>
 
 ## Pending
 
@@ -414,4 +414,10 @@
 - **[verification-harness](../knowledge/verification-harness.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Sandbox has no live Supabase/Netlify CLI/ANTHROPIC_API_KEY. Verify with node --check on every file; a real Babel transformSync() of the extracted JSX (index.html has no build step); import/export cross-checks; and headless Chromium/Playwright against a LOCAL HTTP server (not file://) with full-page desktop+mobile shots + a javaScriptEnabled:false pass.  
   <sub>*task:* verify a code change in this sandbox (no live Supabase/Netlify/Anthropic) before shipping &nbsp;|&nbsp; *keywords:* node-check, transformSync, javaScriptEnabled, playwright, chromium, xss-payload</sub>
+
+## Workflow
+
+- **[repo-tests](../knowledge/repo-tests.md)** &mdash; &#9989; verified &middot; 2026-08-17  
+  Verification suites written into the session scratchpad DO NOT SURVIVE — the container is reclaimed between sessions, so "16 suites passing" was true when reported and then simply gone. Anything guarding a live invariant belongs in `tests/` in git. Also records the Playwright launch fix for this container (the bundled browser build does not match /opt/pw-browsers, so pass executablePath explicitly).  
+  <sub>*task:* write or re-run verification tests for this project, or find out why an earlier session's test suites are missing &nbsp;|&nbsp; *keywords:* tests, verify suites, scratchpad, ephemeral container, tests/verify-packages.mjs, playwright executablePath, chromium-1194, pw-browsers, regression test</sub>
 
