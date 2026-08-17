@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 109 task-keyed entries under `knowledge/`. They surface automatically via the
+> 110 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**109 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**110 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -369,6 +369,12 @@
 - **[visual-editor](../knowledge/visual-editor.md)** &mdash; &#9989; verified &middot; 2026-07-29  
   The blog and newsletter editors used to show the raw HTML of body_html in a textarea, which Bryson couldn't read. Both now use a shared VisualEditor (index.html, just above the BLOG MANAGEMENT section) — a contentEditable WYSIWYG that renders the content formatted and lets you edit the words in place, with a one-tap "Edit raw HTML ▶" toggle kept for power edits. For a full-document email, splitDoc peels off the <body> wrapper before editing and re-stitches prefix+editedInner+suffix on save so the email's <head>/styles/<body> attributes are never lost; blog posts are HTML fragments and edit directly. Built 2026-07-29.  
   <sub>*task:* edit blog posts and newsletter emails as readable content instead of raw HTML &nbsp;|&nbsp; *keywords:* visual editor, WYSIWYG, contentEditable, splitDoc, blog editor, newsletter editor, body_html, edit raw HTML, readable, review content, BlogManagementCard, NewsletterManagementCard</sub>
+
+## OS/Data
+
+- **[demo-client](../knowledge/demo-client.md)** &mdash; &#9989; verified &middot; 2026-08-17  
+  Home screen has a "Load a demo client to look around" button (shown only while there are zero clients) that inserts `makeDemoClient()` through the same save path as a real client. The account is mid-pipeline with contract history and 3 leads so the screens actually populate. `demo: true` is LOAD-BEARING, not a label - without it the Monday weekly-report job would email a report built from invented numbers, and lead-followup would text and email the sample leads. Gated in report-shared (isReportable + isOwnerBriefable) and lead-followup (main loop + test mode). Contact details are also unroutable (example.com per RFC 2606, 555-01xx reserved range) as a second layer. 18 checks in tests/verify-demo-client.mjs.  
+  <sub>*task:* put a fake or sample client into the OS so the screens render, or check what stops test data reaching real inboxes &nbsp;|&nbsp; *keywords:* demo client, makeDemoClient, fake client, sample client, demo flag, Cornerstone Plumbing, INIT_CLIENTS, seed clients, example.com, 555-01, lead-followup, isReportable, isOwnerBriefable, verify-demo-client</sub>
 
 ## Ops / automation
 
