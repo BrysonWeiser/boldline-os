@@ -86,14 +86,35 @@ const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId] || []).includes
 // package that would drop a channel they already pay for.
 const PKG_FAMILY = (id) => String(id || "").split("-")[0];
 const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"] };
+
+// An upgrade must never take something away — this is the surface where it matters most,
+// because the portal shows the client only what an upgrade GAINS. Offering a package that
+// quietly drops their call tracking would be a misrepresentation. Two features are
+// replaced by a better version rather than lost; everything else lost is really lost.
+// Keep in step with index.html's copy of this.
+const FEATURE_SUPERSEDES = {
+  custom_landing: ["std_landing"],
+  weekly_opt:     ["monthly_opt"],
+};
+const coversFeature = (targetFeats, feat) =>
+  targetFeats.indexOf(feat) >= 0 ||
+  targetFeats.some((t) => (FEATURE_SUPERSEDES[t] || []).indexOf(feat) >= 0);
+const keepsEverything = (fromId, toId) => {
+  const to = PKG_FEATURES[toId] || [];
+  return (PKG_FEATURES[fromId] || []).every((f) => coversFeature(to, f));
+};
+
 const getUpgradeOptions = (currentPkgId) => {
   const cur = findPkg(currentPkgId);
   if (!cur) return [];
   const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
+  const curFeats = PKG_FEATURES[currentPkgId] || [];
   return ALL_PKGS.filter((p) =>
     p.id !== currentPkgId &&
     p.price > cur.price &&
-    allowed.includes(PKG_FAMILY(p.id))
+    allowed.includes(PKG_FAMILY(p.id)) &&
+    keepsEverything(currentPkgId, p.id) &&
+    (PKG_FEATURES[p.id] || []).some((f) => curFeats.indexOf(f) < 0)
   ).sort((a, b) => a.price - b.price);
 };
 

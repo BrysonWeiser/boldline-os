@@ -6,8 +6,8 @@
     "200": 3,
     "202": 1,
     "301": 1,
-    "366": 1,
     "390": 3,
+    "391": 1,
     "400": 1,
     "404": 3,
     "430": 1,
@@ -10850,11 +10850,11 @@
         "verify-packages"
       ],
       "status": "verified",
-      "summary": "Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 366 committed assertions in tests/verify-packages.mjs.",
+      "summary": "Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 391 committed assertions in tests/verify-packages.mjs.",
       "verified": "2026-08-17",
       "terms": {
         "200": 1.5,
-        "366": 1.5,
+        "391": 1.5,
         "850": 1.5,
         "900": 1.5,
         "multi_campaign": 3,

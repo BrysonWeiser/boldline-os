@@ -4,7 +4,7 @@ topic: Packages/Sales
 task: answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing
 keywords: [multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages]
 status: verified
-summary: Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 366 committed assertions in tests/verify-packages.mjs.
+summary: Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 391 committed assertions in tests/verify-packages.mjs.
 verified: 2026-08-17
 ---
 
@@ -103,21 +103,58 @@ offered a single-platform package** (it would drop a channel they already pay fo
 Adding a "Full System — Acquisition" rung is a pricing decision for Bryson, not something to fake
 with a cross-sell.
 
-## 🟡 STILL OPEN: one upgrade path trades away features
+## 🔴 AN UPGRADE MAY NEVER TAKE SOMETHING AWAY (Bryson, 2026-08-17)
 
-`g-growth` ($600) is still offered `c-launch` ($650), which **adds** Meta ads, pixel and unified
-reporting but **removes** call tracking, the custom landing page, weekly optimization, competitor
-research, CRM integration and advanced reporting. The portal only renders what an upgrade
-**gains**, so the client is never told what they would lose. Not a strict downgrade (it trades
-depth for breadth, which is arguable), so it was left alone rather than silently redesigned.
+*"I want to make sure that each time a client upgrades they keep what they paid for before and they
+gain each time they upgrade."* Now **enforced in `getUpgradeOptions`**, not trusted to the catalog.
+An upgrade is offered only if it costs more, **carries everything the client already has**, and adds
+at least one thing. This matters because the portal shows the client only what an upgrade **gains**,
+so one that dropped their call tracking would never have shown them the loss.
 
-**Why the obvious fix was rejected:** filtering upgrades to strict feature supersets would break
-the most basic path of all, `g-launch → g-growth`, because `g-growth` swaps `std_landing` for
-`custom_landing` and so is not a superset. Modelling "custom supersedes standard" is real product
-work. Two honest options when Bryson wants it: model feature supersession, or have the portal show
-a "what changes" list instead of a gains-only list.
+**Measured first.** Every family-allowed, price-increasing pair was checked for what it would cost
+the client. Four paths were real downgrades sold as upgrades:
 
-## Guarded by `tests/verify-packages.mjs` — 366 assertions, IN THE REPO
+| Removed path | What the client would have lost |
+|---|---|
+| `g-growth` $600 → `c-launch` $650 | custom landing page, call tracking, weekly optimization, competitor research, CRM integration, advanced targeting, advanced reporting |
+| `m-growth` $550 → `c-launch` $650 | custom landing page, weekly optimization, retargeting, lookalikes, split testing, advanced reporting |
+| `g-acquisition` $900 → `c-growth` $1,000 | scaling roadmap, priority communication |
+| `m-acquisition` $850 → `c-growth` $1,000 | full funnel strategy, scaling roadmap, priority communication |
+
+**TWO FEATURES ARE REPLACED, NOT LOST — and a naive superset test breaks without them.** A literal
+"must have everything" check would reject `g-launch → g-growth`, the most basic upgrade in the
+business, because Growth swaps the standard landing page for a custom one and monthly optimization
+for weekly. Modelled explicitly, and these are the **only** real pairs in the catalog (every other
+disappearance on a price increase is a genuine loss):
+
+```js
+const FEATURE_SUPERSEDES = {
+  custom_landing: ["std_landing"],   // a custom page replaces the standard one
+  weekly_opt:     ["monthly_opt"],   // weekly optimization replaces monthly
+};
+```
+
+**Both guards are load-bearing.** The family rule alone would not stop the additive violations, and
+the additive rule alone would not stop cross-line selling: `m-growth` genuinely **is** a feature
+superset of `e-launch`, so a store client would have been offered a Meta lead-gen package. Asserted
+in the test so neither guard gets removed as redundant.
+
+## 🟡 STILL OPEN: two Acquisition tiers now have no upgrade path
+
+Enforcing the rule correctly **revealed a gap rather than creating one**. `g-acquisition` ($900) and
+`m-acquisition` ($850) previously pointed at `c-growth` ($1,000), which does not carry
+`scaling_roadmap` or `priority_comms` (nor `full_funnel`, which `m-acquisition` has). Both are now
+ladder tops with nowhere to spend more.
+
+**Recommendation given to Bryson: add a "Full System — Acquisition" rung** carrying everything from
+both Acquisition tiers plus the cross-channel extras. It clears both dead ends at once and gives the
+best clients an upsell. **Rejected alternative:** adding those three features to `c-growth` at
+$1,000 would make it a superset of two packages costing $1,750 together, i.e. underpriced on
+arrival. Pricing is Bryson's call, so no package was invented. Awaiting a price.
+
+`c-growth` and `e-domination` remain ladder tops by design.
+
+## Guarded by `tests/verify-packages.mjs` — 391 assertions, IN THE REPO
 
 Run `node tests/verify-packages.mjs`. It extracts the real blocks out of each file rather than
 restating the catalog (a restatement would just be a fifth copy to drift), and asserts: all four
@@ -127,7 +164,13 @@ combined package keeps everything from both tiers it bundles and costs less than
 separately; **no cheaper package is strictly better equipped than a dearer one within a product
 line** (the sales-call optics problem, now mechanical); upgrade ladders never cross product lines,
 never drop a channel, always cost more and always add something; `c-growth` and `e-domination` are
-ladder tops; the house account carries every feature; and the marketing site's multi-campaign and
+ladder tops; **every offered upgrade keeps everything the client paid for and adds at least one
+thing**; the four removed downgrade paths stay removed; the supersession map stays small and real
+(both sides must be actual features, and no package may hold a pair, which would prove one does not
+replace the other); the basic `g-launch → g-growth` and `c-launch → c-growth` paths survive the
+rule; both guards are proven load-bearing; the **ladder tops are locked to an explicit list**, so a
+future catalog edit that strands a package fails loudly instead of shipping a client with no upgrade
+path; the house account carries every feature; and the marketing site's multi-campaign and
 split-testing bullet counts equal the number of packages carrying those flags, so the site cannot
 drift from what the OS believes it sells.
 

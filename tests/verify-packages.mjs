@@ -52,7 +52,7 @@ const loadCatalog = (path) => {
   const block = src.slice(Math.min(...starts), src.indexOf("const getUpgradeOptions"));
   const upgrade = sliceBlock(src.slice(src.indexOf("const getUpgradeOptions")), "const getUpgradeOptions", "\n};");
   // eslint-disable-next-line no-new-func
-  return new Function(`${block}\n${upgrade}\nreturn { ALL_FEATURES, PKG_FEATURES, PACKAGES_DB, ALL_PKGS, getUpgradeOptions, pkgHasFeature };`)();
+  return new Function(`${block}\n${upgrade}\nreturn { ALL_FEATURES, PKG_FEATURES, PACKAGES_DB, ALL_PKGS, getUpgradeOptions, pkgHasFeature, FEATURE_SUPERSEDES, keepsEverything, coversFeature };`)();
 };
 
 const os = loadCatalog("index.html");
@@ -139,10 +139,68 @@ for (const id of SELLABLE) {
     ok(`${id} -> ${up} adds something`, gains.length > 0, "an upgrade with nothing new is not an upgrade");
   }
 }
-eq("c-growth is the top of the lead-gen ladder", os.getUpgradeOptions("c-growth").length, 0);
 eq("house account is never sold anything", os.getUpgradeOptions("bl-house").length, 0);
 ok("g-launch is no longer offered an e-commerce package",
   !os.getUpgradeOptions("g-launch").some((p) => fam(p.id) === "e"));
+
+// ── 5b. AN UPGRADE NEVER TAKES SOMETHING AWAY ────────────────────────────────
+// Bryson, 2026-08-17: "each time a client upgrades they keep what they paid for
+// before and they gain each time they upgrade." The portal shows the client only
+// what an upgrade GAINS, so offering one that silently drops a paid-for feature is
+// a misrepresentation, not just an inelegance.
+for (const id of SELLABLE) {
+  for (const up of os.getUpgradeOptions(id)) {
+    const lost = os.PKG_FEATURES[id].filter((f) => !os.coversFeature(os.PKG_FEATURES[up.id], f));
+    ok(`${id} -> ${up.id} keeps everything paid for`, lost.length === 0, `loses ${lost.join(",")}`);
+  }
+}
+// Supersession is the ONLY reason a literal superset test is not used, so the map has
+// to stay small and real: both sides must be actual features, and the replacement must
+// never be cheaper-tier than the thing it replaces.
+for (const [better, replaced] of Object.entries(os.FEATURE_SUPERSEDES)) {
+  ok(`supersession target ${better} is a real feature`, os.ALL_FEATURES.some((f) => f.id === better));
+  for (const r of replaced) {
+    ok(`superseded feature ${r} is a real feature`, os.ALL_FEATURES.some((f) => f.id === r));
+    ok(`${better} and ${r} never appear in the same package`,
+      !SELLABLE.some((id) => os.PKG_FEATURES[id].includes(better) && os.PKG_FEATURES[id].includes(r)),
+      "if a package has both, one does not replace the other");
+  }
+}
+same("supersession map agrees (os vs portal)",
+  Object.keys(portal.FEATURE_SUPERSEDES), Object.keys(os.FEATURE_SUPERSEDES));
+// The basic ladder must survive the rule — this is what a naive superset test broke.
+ok("g-launch -> g-growth is still offered (std_landing becomes custom_landing)",
+  os.getUpgradeOptions("g-launch").some((p) => p.id === "g-growth"));
+ok("c-launch -> c-growth is still offered (monthly_opt becomes weekly_opt)",
+  os.getUpgradeOptions("c-launch").some((p) => p.id === "c-growth"));
+
+// The four paths that violated the rule must stay gone.
+for (const [from, to, why] of [
+  ["g-growth", "c-launch", "strips the custom landing page, call tracking, weekly optimization and more"],
+  ["m-growth", "c-launch", "strips the custom landing page, retargeting, lookalikes and split testing"],
+  ["g-acquisition", "c-growth", "drops the scaling roadmap and priority communication"],
+  ["m-acquisition", "c-growth", "drops the full funnel, scaling roadmap and priority communication"],
+]) {
+  ok(`${from} is NOT offered ${to}`, !os.getUpgradeOptions(from).some((p) => p.id === to), why);
+}
+
+// Both guards are load-bearing. Without the family rule, an e-commerce store on
+// e-launch would be offered m-growth, which IS a feature superset of it — the
+// "keeps everything" test alone would let that through.
+ok("m-growth really is a superset of e-launch (so the family guard is doing work)",
+  os.keepsEverything("e-launch", "m-growth"));
+ok("but e-launch is never offered m-growth",
+  !os.getUpgradeOptions("e-launch").some((p) => p.id === "m-growth"));
+
+// Dead ends are locked in deliberately: if a catalog edit strands a package that
+// used to have somewhere to go, this fails and forces the decision to be made
+// rather than silently shipping a client with no upgrade path.
+const LADDER_TOPS = ["g-acquisition", "m-acquisition", "c-growth", "e-domination"];
+for (const id of SELLABLE) {
+  const opts = os.getUpgradeOptions(id).map((p) => p.id);
+  if (LADDER_TOPS.includes(id)) eq(`${id} is a ladder top (no upgrade)`, opts.length, 0);
+  else ok(`${id} has somewhere to upgrade to`, opts.length > 0, "stranded with no upgrade path");
+}
 
 // ── 6. The marketing site matches what the OS believes it sells ──────────────
 // A prospect reads the site; the contract and portal have to agree with it.
