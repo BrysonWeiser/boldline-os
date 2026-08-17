@@ -65,9 +65,7 @@ Belt and braces, in case a gate is ever missed:
 - Every sample lead is status `contacted` or `won`, never `new`, so `findDueStep` returns null even
   if the gate were bypassed.
 
-**Note the pre-existing `INIT_CLIENTS` seed does NOT follow this** — it uses plausible real domains
-(`owner@apexroofing.com`, `hello@luxemedspa.com`) with `contractStatus: "active"`. If that seed ever
-fires on an empty table, those addresses are reportable. Worth fixing if the seed is ever revived.
+`INIT_CLIENTS` now follows the same rules (see the section below) — it originally did not.
 
 ## Guarded by `tests/verify-demo-client.mjs` — 18 checks, IN THE REPO
 
@@ -78,14 +76,23 @@ genuinely mid-flight rather than all-done, and no ad account is linked. It then 
 files to assert each gate is present. **The gate assertions were proved to fail** by temporarily
 removing the `isReportable` gate: 1 failure, exactly the right one, then restored.
 
-## 🟡 Unrelated pre-existing breakage found while verifying
+## ✅ The seed clients were fixed too (2026-08-17)
 
-**`tools/os-screenshot.js` does not run.** Both viewports fail with
-`Failed to execute 'appendChild' on 'Node': Cannot use import statement outside a module`, then time
-out. **Confirmed pre-existing** by stashing all local changes and running it against a clean tree,
-where it fails identically. Not investigated further. It means the OS render harness (KB
-`os-screenshot-harness`) is currently unavailable for self-QA of OS layout.
+`INIT_CLIENTS` (Apex Roofing, Luxe Med Spa, DetailKing ATL) carried **active contracts and plausible
+real domains** — `owner@apexroofing.com`, `hello@luxemedspa.com`, `contact@detailkingatl.com`. Latent
+rather than live, since the seed only fires on a completely empty clients table, but if it ever
+fired the Monday job would have emailed invented performance numbers to real businesses. All three
+are now `@example.com` and carry **`demo: true`**, so the gates above cover them as well.
 
-**Gotcha when re-testing that:** the harness needs `react`/`react-dom`/`@babel/standalone` on
-`NODE_PATH`, and `cd`-ing into the scratchpad resets the shell cwd, so a following `git stash pop`
-runs outside the repo and fails. Pop the stash from the repo root.
+## ✅ The render harness turned out to be fixable (corrected 2026-08-17)
+
+An earlier version of this entry recorded `tools/os-screenshot.js` as pre-existing breakage and left
+it. **The "broken" part was right; the diagnosis was wrong.** It was not inherent to the app: the
+harness sits in `tools/`, so bare `require.resolve` found the **repo's `@babel/standalone` 8.0.4**
+instead of the **7.23.5 that `index.html` pins**, and Babel 8's output cannot run as a classic
+script. Fixed by resolving from `NODE_PATH`/cwd first and refusing to run on a version mismatch.
+Full write-up in KB `os-screenshot-harness`. The harness now renders all 10 screenshots clean, so OS
+layout self-QA is available again.
+
+**Diagnostic worth keeping:** a copy of the script in the scratchpad worked while the original in
+`tools/` did not. Same file, different directory means module resolution, not application code.

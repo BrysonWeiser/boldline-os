@@ -4,7 +4,7 @@ topic: Packages/Sales
 task: answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing
 keywords: [c-acquisition, Full System Acquisition, multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages]
 status: verified
-summary: Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, c-acquisition $1,500, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 473 committed assertions in tests/verify-packages.mjs.
+summary: Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, c-acquisition $1,500, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 665 committed assertions in tests/verify-packages.mjs.
 verified: 2026-08-17
 ---
 
@@ -195,7 +195,7 @@ The site's package recommender `tiers.high` for the combined family now points a
 card's CTA** because the card postdates that commit — when Meta is approved, grep `CS:META-SOON`
 and flip this one by hand too.
 
-## Guarded by `tests/verify-packages.mjs` — 473 assertions, IN THE REPO
+## Guarded by `tests/verify-packages.mjs` — 665 assertions, IN THE REPO
 
 Run `node tests/verify-packages.mjs`. It extracts the real blocks out of each file rather than
 restating the catalog (a restatement would just be a fifth copy to drift), and asserts: all four
