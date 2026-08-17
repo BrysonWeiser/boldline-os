@@ -61,6 +61,10 @@ const sendFollowUp = async (client, lead, due) => {
 
 const processClient = async (supabaseAdmin, row) => {
   const client = row.data;
+  // A demo client carries sample leads so the OS has something to render. Those leads
+  // are invented, but this job does not care — it would text and email whatever contact
+  // details they hold. Nothing outbound may ever fire for a demo account.
+  if (client && client.demo) return { id: row.id, skipped: "demo client" };
   const leadsLog = client.leadsLog || [];
   if (!leadsLog.length) return { id: row.id, skipped: "no leads" };
 
@@ -104,6 +108,7 @@ export default async (req) => {
     let candidate = null;
     for (const row of data || []) {
       const client = row.data;
+      if (client && client.demo) continue;   // same rule in test mode, so a demo lead is never the sample
       const lead = (client.leadsLog || []).find((l) => findDueStep(l));
       if (lead) {
         candidate = { client, lead, due: findDueStep(lead) };
