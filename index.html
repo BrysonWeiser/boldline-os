@@ -270,16 +270,44 @@ const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(f
 // decision for Bryson, not something to fake with a cross-sell.
 const PKG_FAMILY = (id) => String(id || "").split("-")[0];
 const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"] };
+
+// AN UPGRADE MUST NEVER TAKE SOMETHING AWAY (Bryson, 2026-08-17: "each time a client
+// upgrades they keep what they paid for before and they gain each time they upgrade").
+// Enforced here rather than trusted to the catalog, because four paths violated it:
+// g-growth and m-growth were both offered c-launch, which strips the custom landing
+// page, weekly optimization and more; and both Acquisition tiers were offered c-growth,
+// which drops the scaling roadmap and priority communication.
+//
+// A literal superset test is too blunt: it would reject the most basic upgrade in the
+// business, g-launch -> g-growth, because two features are REPLACED BY A BETTER VERSION
+// rather than lost. Those two pairs are the only real ones in the catalog (measured, not
+// assumed — every other loss on every price-increasing path is a genuine loss).
+const FEATURE_SUPERSEDES = {
+  custom_landing: ["std_landing"],   // a custom page replaces the standard one
+  weekly_opt:     ["monthly_opt"],   // weekly optimization replaces monthly
+};
+const coversFeature = (targetFeats, feat) =>
+  targetFeats.indexOf(feat) >= 0 ||
+  targetFeats.some(t => (FEATURE_SUPERSEDES[t] || []).indexOf(feat) >= 0);
+// True when `toId` carries everything `fromId` had, counting a supersession as kept.
+const keepsEverything = (fromId, toId) => {
+  const to = PKG_FEATURES[toId] || [];
+  return (PKG_FEATURES[fromId] || []).every(f => coversFeature(to, f));
+};
+
 const getUpgradeOptions = (currentPkgId) => {
   // The house account is already on everything, and there is nobody to sell to.
   if (currentPkgId === HOUSE_PKG_ID) return [];
   const cur = findPkg(currentPkgId);
   if (!cur) return [];
   const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
+  const curFeats = PKG_FEATURES[currentPkgId] || [];
   return ALL_PKGS.filter(p =>
     p.id !== currentPkgId &&
     p.price > cur.price &&
-    allowed.includes(PKG_FAMILY(p.id))
+    allowed.includes(PKG_FAMILY(p.id)) &&
+    keepsEverything(currentPkgId, p.id) &&
+    (PKG_FEATURES[p.id] || []).some(f => curFeats.indexOf(f) < 0)
   ).sort((a,b) => a.price - b.price);
 };
 
