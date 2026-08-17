@@ -8,7 +8,12 @@
  *
  * Bump CACHE_VERSION on any breaking change to force a clean cache rollover.
  */
-const CACHE_VERSION = "v4";
+// v5 (2026-08-17): bumped after Bryson still saw the old "Priority Support + Slack
+// Access" label on an app that had already deployed the rename. The SW is network-first,
+// so a cached shell should never win while online, but an already-running installed PWA
+// keeps the code it booted with. Bumping wipes every prior cache on activate, which
+// guarantees the next launch boots the current deploy rather than the one in memory.
+const CACHE_VERSION = "v5";
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
