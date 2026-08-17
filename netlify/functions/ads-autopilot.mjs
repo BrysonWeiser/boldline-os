@@ -39,6 +39,7 @@ import {
   getCampaignDetail as gadsDetail, addResponsiveSearchAd as gadsAddAd, setAdStatus as gadsSetAdStatus,
 } from "./google-ads.mjs";
 import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle } from "../lib/ad-gen-shared.mjs";
+import { getLocalConditions, conditionsFingerprint } from "../lib/local-conditions.mjs";
 
 const DAYS_PER_MONTH = 30.4;
 
@@ -104,6 +105,10 @@ export default withFailureAlert("ads-autopilot", async () => {
 
   for (const row of rows || []) {
     const cl = row.data || {};
+    // Live local conditions for this client, fetched at most once per run and only if a
+    // challenger ad actually gets written. Declared here so it is per-client, never shared
+    // between two clients in different states.
+    let localCond = null;
     const ap = cl.autopilot || {};
     if (ap.enabled === false) { skipped++; continue; }   // per-client opt-out
     const gid = cl.googleAdsCustomerId, mid = cl.metaAdAccountId;
@@ -283,6 +288,13 @@ export default withFailureAlert("ads-autopilot", async () => {
           const finalUrl = (champion.finalUrls || [])[0];
           if (!finalUrl) continue;
           try {
+            // Fetched lazily and cached for this client, so a run that writes no
+            // challengers makes no network calls at all.
+            if (!localCond) {
+              localCond = await getLocalConditions({
+                locations: (cl.campaignSetup && cl.campaignSetup.targetLocations) || "",
+              });
+            }
             const { data } = await runTool({
               tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(!!cl.internal),
               prompt: `Write ONE challenger responsive search ad to split test against the ad currently running.
@@ -296,6 +308,11 @@ Descriptions: ${(champion.descriptions || []).join(" | ")}
 
 Take a genuinely DIFFERENT angle. If the current ad leads on speed, try trust or price clarity. If it leads on the service, try the problem. A reworded version of the same idea teaches nothing and wastes the test.
 
+WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
+${localCond.block}
+
+If the conditions above genuinely drive demand for this business, that is a strong angle for the challenger, and one the ad running now is probably missing. If they do not, ignore them and win on something else.
+
 Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 30 characters or fewer and 4 descriptions at 90 characters or fewer. Reuse the same keywords, they are not being changed.`,
             });
             const cleaned = cleanGoogle(data);
@@ -304,9 +321,13 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
             await gadsAddAd(accessToken, gid, g.resourceName, {
               headlines: cand.headlines, descriptions: cand.descriptions, finalUrl, status: "ENABLED",
             });
+            const condNote = localCond.usable.length
+              ? ` Written against current conditions: ${localCond.usable.map((a) => a.event).join(", ")}.`
+              : "";
             actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-challenger",
               name: `${t.c.name} / ${g.name}`, platform: "google",
-              reason: `added a second ad to split test against the one running (${g.impressions} impressions so far). Same budget, different creative.` });
+              conditions: conditionsFingerprint(localCond.summary),
+              reason: `added a second ad to split test against the one running (${g.impressions} impressions so far). Same budget, different creative.${condNote}` });
             splitChallengers++;
           } catch (e) { failures++; console.error("ads-autopilot: challenger failed:", e && e.message); }
         }

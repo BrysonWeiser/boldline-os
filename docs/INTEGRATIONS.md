@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 110 task-keyed entries under `knowledge/`. They surface automatically via the
+> 111 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**110 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**111 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -27,6 +27,9 @@
 - **[campaign-geo-targeting](../knowledge/campaign-geo-targeting.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   `createCampaign` used to build budget → campaign → ad group → responsive search ad → keywords and NO campaign criteria at all — which means Google targets ALL COUNTRIES AND TERRITORIES and all languages. On a $5/day budget bidding agency terms that burns the month on clicks that can never convert, and it reads as "the ads failed" rather than "targeting was never set". Fixed 2026-08-14: locations are now REQUIRED (the call refuses without one), resolved from plain names via `geoTargetConstants:suggest`, attached as campaign criteria alongside English-language targeting, with `geoTargetTypeSetting = PRESENCE` so only people physically in the area see the ads. Campaign-level negative keywords added too. 24 hermetic cases.  
   <sub>*task:* why a Google Search campaign built from the OS targets the right places, and what happens if it doesn't &nbsp;|&nbsp; *keywords:* geo targeting, location targeting, geoTargetConstants, suggest endpoint, PRESENCE, presence or interest, negative keywords, language targeting, worldwide targeting, createCampaign, budget waste, GoogleLaunchCard</sub>
+- **[local-conditions](../knowledge/local-conditions.md)** &mdash; &#9989; verified &middot; 2026-08-17  
+  Every ad writer (Google campaign builder, Meta variants, creative angles, and the always-on challenger writer) now receives the LIVE weather alerts for the client's own service area plus today's date and season, pulled from the free US National Weather Service API (no key, no account). Facts are fetched in code because the model has no live data and would otherwise guess, and a guessed weather claim in a live ad is a lie with money behind it. Emergencies (wildfire, tornado, evacuation, flash flood, civil) are HARD-EXCLUDED from ad angles on both policy and decency grounds. Area matching is exact-place so a Bend, Oregon client is never claimed to be covered by an alert for "Gila Bend". A weather outage never blocks ad generation. 91 checks.  
+  <sub>*task:* make ads reflect what is actually happening in the target area right now (weather, season, local demand), or check why an ad did or did not use a weather angle &nbsp;|&nbsp; *keywords:* local-conditions, seasonal ads, weather angle, api.weather.gov, National Weather Service, NWS alerts, Extreme Heat Warning, monsoon, storm damage roofing, HVAC summer, conditionsFingerprint, isAdvertisable, parseAreas, verify-local-conditions</sub>
 
 ## Blog
 
