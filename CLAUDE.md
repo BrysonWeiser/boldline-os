@@ -29,6 +29,17 @@ automated.
   Never silently perform/configure a setup and only report it done — he needs the HOW,
   step by step, every time. (Code I write is mine to implement, but I still explain
   what it does and how he interacts with it.) He has explicitly + repeatedly asked.
+- **PLAIN ENGLISH ALWAYS — he does not code (Bryson, 2026-08-17: "make sure when your
+  telling me stuff its very simple because remember I dont know anything about coding
+  databases or anything like that").** This governs every reply, not just setup steps.
+  Do NOT name files, functions, variables, tables, commits, branches, or test counts
+  unless he asks — those are noise to him. Say what CHANGED for him, WHERE he sees it,
+  and WHAT he should do. One idea per sentence. If a technical detail genuinely matters
+  (a risk, a cost, a thing he must decide), explain it with an everyday comparison, not
+  the jargon term. Never assume he knows what a database, deploy, cache, API, repo, or
+  test suite is. Keep answers SHORT — a wall of text is its own kind of unclear. The
+  full technical record belongs in `knowledge/` and `docs/DEPLOYS.md`, which is exactly
+  what they are for; his replies do not need it.
 - **Record to the knowledge base AUTOMATICALLY — Bryson must never have to ask whether
   I saved it.** The moment anything worth remembering happens (a finished unit of work,
   a decision, a status change, a gotcha + its fix, a credential/env-var NAME, a stated
