@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 108 task-keyed entries under `knowledge/`. They surface automatically via the
+> 109 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**108 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**109 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -382,11 +382,17 @@
   The end-to-end BoldLine client procedure agreed with Bryson 2026-07-30, with the branded lifecycle emails mapped to each step. Onboarding = create → contract → (Welcome+Access emails) → billing (Invoice→Receipt) → portal intake → build → owner approves campaign → live → reports. Renewal = 30-day alert → Renewal email → Renew on Contract tab. Offboarding = contract ends → Thank-You email → remove manager access (client keeps account) → archive. Emails: as of 2026-08-02 Welcome, Receipt, Past-Due, Renewal AUTO-send on their triggers (Stripe webhook + billing-watch); Invoice, Ad-Account Access, Thank-You stay one-tap w/ getAlerts reminders — see client-email-center.  
   <sub>*task:* the standard procedure for onboarding, renewing, and offboarding a client (and which emails fire at each step) &nbsp;|&nbsp; *keywords:* onboarding, offboarding, renewal, client procedure, lifecycle, welcome, ad account access, contract, invoice, thank you, approval, portal approval</sub>
 
+## Packages/Delivery
+
+- **[slack-access-promise](../knowledge/slack-access-promise.md)** &mdash; &#9989; verified &middot; 2026-08-17  
+  `slack_access` ("Priority Support + Slack Access") sits on exactly ONE package, `e-domination` (Store Domination, $1,200/mo e-commerce top tier). Bryson has never set up a Slack workspace, so it is a contract deliverable with nothing behind it. Not urgent today because all e-commerce packages are Meta-dependent and behind the coming-soon gate, so nobody can buy it. It is NOT on the marketing site, but it IS in the OS feature list, the client portal's included list, and the signed service agreement. Four sibling features on the same package are also human-delivered and unbuilt.  
+  <sub>*task:* find out what a package feature actually commits BoldLine to deliver, or check which sold features have no system behind them yet &nbsp;|&nbsp; *keywords:* slack_access, Priority Support + Slack Access, strategy_calls, ugc_consulting, crm_input, page_cro, e-domination, Store Domination, undeliverable feature, contract deliverable, Slack Connect</sub>
+
 ## Packages/Sales
 
 - **[package-multi-campaign](../knowledge/package-multi-campaign.md)** &mdash; &#9989; verified &middot; 2026-08-17  
-  Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 391 committed assertions in tests/verify-packages.mjs.  
-  <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing &nbsp;|&nbsp; *keywords:* multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages</sub>
+  Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, c-acquisition $1,500, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 473 committed assertions in tests/verify-packages.mjs.  
+  <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing &nbsp;|&nbsp; *keywords:* c-acquisition, Full System Acquisition, multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages</sub>
 
 ## Pending
 

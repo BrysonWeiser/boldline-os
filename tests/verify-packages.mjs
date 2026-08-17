@@ -102,7 +102,7 @@ for (const id of SELLABLE) {
 // feature present in either half must survive the bundle. c-growth was missing
 // split_testing, which m-growth has at $550 while c-growth costs $1,000.
 const union = (a, b) => [...new Set([...os.PKG_FEATURES[a], ...os.PKG_FEATURES[b]])];
-for (const [combined, g, m] of [["c-launch","g-launch","m-launch"], ["c-growth","g-growth","m-growth"]]) {
+for (const [combined, g, m] of [["c-launch","g-launch","m-launch"], ["c-growth","g-growth","m-growth"], ["c-acquisition","g-acquisition","m-acquisition"]]) {
   const missing = union(g, m).filter((f) => !os.PKG_FEATURES[combined].includes(f));
   ok(`${combined} keeps everything from ${g} + ${m}`, missing.length === 0, `missing ${missing.join(",")}`);
   ok(`${combined} costs less than ${g} + ${m} separately`,
@@ -174,6 +174,27 @@ ok("g-launch -> g-growth is still offered (std_landing becomes custom_landing)",
 ok("c-launch -> c-growth is still offered (monthly_opt becomes weekly_opt)",
   os.getUpgradeOptions("c-launch").some((p) => p.id === "c-growth"));
 
+// The top rung closes both Acquisition dead ends. Assert the paths exist AND that they
+// are genuinely additive, since that was the whole reason c-growth could not serve here.
+for (const from of ["g-acquisition", "m-acquisition", "c-growth", "c-launch"]) {
+  const opts = os.getUpgradeOptions(from).map((p) => p.id);
+  ok(`${from} can upgrade to c-acquisition`, opts.includes("c-acquisition"), `only offered ${opts.join(",") || "nothing"}`);
+}
+ok("c-acquisition carries everything from both Acquisition tiers and c-growth", (() => {
+  const need = [...new Set([...os.PKG_FEATURES["g-acquisition"], ...os.PKG_FEATURES["m-acquisition"], ...os.PKG_FEATURES["c-growth"]])];
+  return need.every((f) => os.coversFeature(os.PKG_FEATURES["c-acquisition"], f));
+})());
+ok("c-acquisition invents no feature of its own", (() => {
+  const need = [...new Set([...os.PKG_FEATURES["g-acquisition"], ...os.PKG_FEATURES["m-acquisition"], ...os.PKG_FEATURES["c-growth"]])];
+  return os.PKG_FEATURES["c-acquisition"].every((f) => need.includes(f));
+})(), "it is defined as the union of what it bundles, nothing more");
+ok("c-acquisition is cheaper than buying both Acquisition tiers separately",
+  osPkgs["c-acquisition"].price < osPkgs["g-acquisition"].price + osPkgs["m-acquisition"].price);
+ok("c-acquisition setup is cheaper than both separately",
+  osPkgs["c-acquisition"].setup < osPkgs["g-acquisition"].setup + osPkgs["m-acquisition"].setup);
+eq("only c-acquisition carries the Most Powerful tag",
+  os.ALL_PKGS.filter((p) => p.tag === "Most Powerful").map((p) => p.id).join(","), "c-acquisition");
+
 // The four paths that violated the rule must stay gone.
 for (const [from, to, why] of [
   ["g-growth", "c-launch", "strips the custom landing page, call tracking, weekly optimization and more"],
@@ -195,7 +216,7 @@ ok("but e-launch is never offered m-growth",
 // Dead ends are locked in deliberately: if a catalog edit strands a package that
 // used to have somewhere to go, this fails and forces the decision to be made
 // rather than silently shipping a client with no upgrade path.
-const LADDER_TOPS = ["g-acquisition", "m-acquisition", "c-growth", "e-domination"];
+const LADDER_TOPS = ["c-acquisition", "e-domination"];
 for (const id of SELLABLE) {
   const opts = os.getUpgradeOptions(id).map((p) => p.id);
   if (LADDER_TOPS.includes(id)) eq(`${id} is a ladder top (no upgrade)`, opts.length, 0);
