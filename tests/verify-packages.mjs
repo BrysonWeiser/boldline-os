@@ -233,6 +233,25 @@ const bulletCount = (term) => liBullets.filter((li) => li.includes(`data-term="$
 const flagCount = (flag) => os.ALL_PKGS.filter((p) => p[flag]).length;
 eq("site multi-campaign bullets match multiCampaign packages", bulletCount("multi-campaign"), flagCount("multiCampaign"));
 eq("site split-testing bullets match splitTesting packages", bulletCount("split-testing"), flagCount("splitTesting"));
+// EVERY package, price and budget band on the site must match the catalog, in order.
+// Previously only two feature bullets were checked, so a price could drift silently and
+// a prospect would read one number on the site and hear another on the call.
+const cards = [...site.matchAll(/<h3>([^<]+)<\/h3>[\s\S]{0,400}?Management starting at <b>\$([\d,]+)\/mo<\/b>[\s\S]{0,200}?Typical ad budget: ([^<]+)</g)]
+  .map((m) => ({ title: m[1].trim(), price: Number(m[2].replace(/,/g, "")), budget: m[3].trim() }));
+eq("site shows every package", cards.length, os.ALL_PKGS.length);
+// The site writes "Full System: Launch", the catalog "Full System — Launch". Same product.
+const norm = (n) => n.replace(/\s*[—:]\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+os.ALL_PKGS.forEach((p, i) => {
+  const c = cards[i];
+  ok(`site card ${i + 1} is ${p.id}`, !!c && norm(c.title) === norm(p.name), c ? `site says "${c.title}"` : "missing");
+  if (!c) return;
+  eq(`${p.id} price matches the site`, c.price, p.price);
+  eq(`${p.id} ad budget matches the site`, c.budget.replace(/\u2013|\u2014/g, "-"), String(p.adSpend).replace(/\u2013|\u2014/g, "-"));
+});
+// The site deliberately does not publish setup or per-lead fees (those come up on the
+// call). If that ever changes, these numbers have to be kept in step too.
+ok("site still does not publish setup fees", !/setup fee/i.test(site));
+
 ok("Full System: Growth card advertises split testing and multi-campaign", (() => {
   const i = site.indexOf("<h3>Full System: Growth</h3>");
   if (i < 0) return false;
