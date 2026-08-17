@@ -61,6 +61,9 @@ const contractSrc = readFileSync("netlify/lib/contract-shared.cjs", "utf8");
 const contract = new Function(
   `${sliceBlock(contractSrc, "const PKG_FEATURES = {", "\n};")}\nreturn PKG_FEATURES;`
 )();
+const contractFeatures = new Function(
+  `${sliceBlock(contractSrc, "const ALL_FEATURES = [", "\n];")}\nreturn ALL_FEATURES;`
+)();
 const site = readFileSync("marketing-site/index.html", "utf8");
 
 const byId = (cat) => Object.fromEntries(cat.ALL_PKGS.map((p) => [p.id, p]));
@@ -240,6 +243,28 @@ for (const card of ["Full System: Launch"]) {
   const i = site.indexOf(`<h3>${card}</h3>`);
   const body = site.slice(i, site.indexOf("</ul>", i));
   ok(`${card} card still does NOT claim multi-campaign`, !body.includes('data-term="multi-campaign"'));
+}
+
+// ── 6b. No sold feature may promise a tool that does not exist ──────────────
+// "Priority Support + Slack Access" shipped on Store Domination for months with no
+// BoldLine Slack workspace behind it, in the OS, the portal AND the signed service
+// agreement. Renamed 2026-08-17. This stops it, or anything like it, coming back.
+const VAPOUR = [/slack/i, /discord/i, /whatsapp/i, /telegram/i];
+for (const f of os.ALL_FEATURES) {
+  for (const re of VAPOUR) {
+    ok(`feature label "${f.label}" names no tool we do not run`, !re.test(f.label),
+      `matches ${re} — do not sell a channel that does not exist`);
+  }
+}
+// All three copies must carry the same labels, not just the same ids: the contract renders
+// from its own copy, so a stale label there is what a client actually signs.
+for (const f of os.ALL_FEATURES) {
+  const pf = portal.ALL_FEATURES.find((x) => x.id === f.id);
+  const cf = contractFeatures.find((x) => x.id === f.id);
+  ok(`portal label matches for ${f.id}`, !!pf && pf.label === f.label,
+    pf ? `portal says "${pf.label}"` : "missing from portal");
+  ok(`contract label matches for ${f.id}`, !!cf && cf.label === f.label,
+    cf ? `contract says "${cf.label}"` : "missing from contract");
 }
 
 // ── 7. Every sellable package still resolves and is priced ──────────────────

@@ -191,7 +191,13 @@ const ALL_FEATURES = [
   { id:"crm_input",       label:"Offer + Pricing Optimization Input",category:"Both" },
   { id:"page_cro",        label:"Product Page CRO Input",           category:"Both" },
   { id:"strategy_calls",  label:"Weekly Strategy Calls",            category:"Both" },
-  { id:"slack_access",    label:"Priority Support + Slack Access",  category:"Both" },
+  // Renamed 2026-08-17 (Bryson: "yea rename it"). This used to read "Priority Support +
+  // Slack Access" and was the only sold feature naming a tool that does not exist — there is
+  // no BoldLine Slack workspace. The id stays `slack_access` because feature ids are never
+  // persisted per client (clients store packageId only), so renaming it would be churn for
+  // nothing. Distinct from `priority_comms` below, and no single client ever sees both:
+  // this one is e-commerce only, that one is lead-gen only, and upgrade ladders never cross.
+  { id:"slack_access",    label:"Priority Support (same-day replies)", category:"Both" },
   { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
   { id:"priority_comms",  label:"Priority Communication",           category:"Both" },
   { id:"advanced_reporting",label:"Advanced Reporting Dashboard",   category:"Both" },

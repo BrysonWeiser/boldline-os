@@ -2,9 +2,9 @@
 name: slack-access-promise
 topic: Packages/Delivery
 task: find out what a package feature actually commits BoldLine to deliver, or check which sold features have no system behind them yet
-keywords: [slack_access, Priority Support + Slack Access, strategy_calls, ugc_consulting, crm_input, page_cro, e-domination, Store Domination, undeliverable feature, contract deliverable, Slack Connect]
+keywords: [slack_access, Priority Support same-day replies, vapourware feature, Priority Support + Slack Access, strategy_calls, ugc_consulting, crm_input, page_cro, e-domination, Store Domination, undeliverable feature, contract deliverable, Slack Connect]
 status: verified
-summary: `slack_access` ("Priority Support + Slack Access") sits on exactly ONE package, `e-domination` (Store Domination, $1,200/mo e-commerce top tier). Bryson has never set up a Slack workspace, so it is a contract deliverable with nothing behind it. Not urgent today because all e-commerce packages are Meta-dependent and behind the coming-soon gate, so nobody can buy it. It is NOT on the marketing site, but it IS in the OS feature list, the client portal's included list, and the signed service agreement. Four sibling features on the same package are also human-delivered and unbuilt.
+summary: RESOLVED 2026-08-17 — the feature that read "Priority Support + Slack Access" is now "Priority Support (same-day replies)", so nothing BoldLine sells promises a Slack workspace that does not exist. It sat on exactly ONE package, `e-domination` (Store Domination, $1,200/mo), and was absent from the marketing site but present in the OS, the client portal AND the signed service agreement. Nobody could buy it (e-commerce is Meta-gated), so nothing was mis-sold. Renamed in the three files carrying ALL_FEATURES; id kept because feature ids are never persisted per client. A test now blocks any feature label naming a tool BoldLine does not run, and blocks label drift between the three copies.
 verified: 2026-08-17
 ---
 
@@ -57,16 +57,39 @@ odd one out and worth a decision.
 Also worth knowing: `cross_retargeting` ("Cross-Channel Retargeting") is the only feature unique to
 `c-growth`, so it is a single point of failure in the combined ladder's differentiation.
 
-## Options, with a recommendation
+## ✅ RESOLVED — renamed (Bryson, 2026-08-17: *"yea rename it"*)
 
-1. **Set up a free Slack workspace + a Slack Connect channel per client.** Free tier is enough for
-   this. Real work, and one more surface to monitor before there is a single client.
-2. **RECOMMENDED — rename the feature and drop the Slack commitment.** Something like
-   "Priority Support (same-day replies)" keeps the value and stops promising a tool he does not run.
-   The feature id stays `slack_access` so no data migrates; only the `label` changes, in the three
-   files that carry `ALL_FEATURES` (`index.html`, `portal.mjs`, `contract-shared.cjs`).
-3. **Leave it and build it when the first e-commerce client signs.** Defensible given the Meta gate,
-   but it means a contract clause is true only if he remembers it at signing.
+**`slack_access` label is now `"Priority Support (same-day replies)"`.** Changed in the three files
+that carry `ALL_FEATURES`: `index.html`, `netlify/functions/portal.mjs`,
+`netlify/lib/contract-shared.cjs`. Verified end to end by rendering an `e-domination` service
+agreement: the deliverable line reads the new wording and **the word "Slack" appears nowhere in the
+contract**.
 
-**Not changed yet — awaiting Bryson's choice**, since renaming a sold feature is a product decision,
-not a bug fix.
+**The id stayed `slack_access` on purpose.** Feature ids are never persisted per client (a client
+record stores `packageId`, and the feature list is derived from static config at render time), so
+renaming the id would have been churn with no benefit. A comment at the declaration explains the
+history so the id does not mislead later.
+
+**Why not "Priority Support" plain:** `priority_comms` ("Priority Communication") already exists on
+the lead-gen top tiers. The two labels are close, but **no single client can ever see both** —
+`slack_access` is e-commerce only, `priority_comms` is lead-gen only, and upgrade ladders never cross
+product lines (KB `package-multi-campaign`). The parenthetical keeps them distinguishable for Bryson
+reading the full list.
+
+**Considered and rejected:** setting up a real Slack workspace + Slack Connect per client. It is one
+more surface to monitor before the first client exists, and the value ("we reply fast") does not
+depend on the tool.
+
+## 🔴 GUARD ADDED so this class of bug cannot return
+
+`tests/verify-packages.mjs` now asserts that **no feature label names a tool BoldLine does not run**
+(`/slack/i`, `/discord/i`, `/whatsapp/i`, `/telegram/i`) and that **all three copies carry identical
+labels, not just identical ids** — the contract renders from its own copy, so a stale label there is
+what a client actually signs. Both assertions were **proved to fail** by temporarily reintroducing
+the old label: 3 failures, exactly the right ones, then restored. Suite at **665 assertions**.
+
+## The four siblings are fine, and stay
+
+`ugc_consulting`, `crm_input`, `page_cro`, `strategy_calls` remain `e-domination`-only and unbuilt,
+but each is simply **Bryson's own time**, deliverable on day one with no system required. Only the
+Slack one named third-party infrastructure, which is what made it the outlier.
