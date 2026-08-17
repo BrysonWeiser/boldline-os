@@ -386,9 +386,16 @@ const OWNER_BRIEFING_GAP_DAYS = 5;
 // A client is in scope for reporting at all if it's a real (non-internal),
 // active account with a known package and an email on file. The internal
 // "My Ads" house account is excluded — ARIA's monthly OS report covers it.
+// DEMO ACCOUNTS NEVER RECEIVE ANYTHING. A demo client exists so the OS has something
+// to render when there are no real clients, and it carries an active contract and an
+// email precisely so the screens look alive. Without this gate the Monday 15:00 UTC
+// weekly job would email a real performance report, built from invented numbers, to
+// whatever address the demo carries. Checked first, before every other condition.
+const isDemo = (client) => !!(client && client.demo);
+
 // CLIENT-FACING reports: a real client, active, with somewhere to send it.
 const isReportable = (client, pkg) =>
-  !!pkg && !client.internal && client.contractStatus === "active" && !!client.email;
+  !!pkg && !client.internal && !isDemo(client) && client.contractStatus === "active" && !!client.email;
 
 // OWNER briefings are a different question. They go to Bryson, not to a client, so
 // they need no client email and no contract — and the house account is exactly the
@@ -396,6 +403,7 @@ const isReportable = (client, pkg) =>
 // an ad account is linked; before that there is nothing to report.
 const isOwnerBriefable = (client, pkg) => {
   if (!pkg) return false;
+  if (isDemo(client)) return false;   // fake numbers must never reach a real inbox, his included
   if (client.internal) return !!(client.googleAdsCustomerId || client.metaAdAccountId);
   return client.contractStatus === "active";
 };

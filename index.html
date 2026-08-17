@@ -2745,7 +2745,7 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   );
 }
 
-function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,onLeadScout,hasMyAccount,isDesktop}) {
+function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,onLeadScout,hasMyAccount,isDesktop}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -2903,6 +2903,17 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenM
         <span style={{fontSize:20,lineHeight:1}}>+</span> Add New Client
       </button>
 
+      {/* Demo client — only offered while there are no clients at all, so it stops
+          cluttering the screen the moment a real one exists. */}
+      {clients.length===0&&onAddDemo&&(
+        <button onClick={onAddDemo} style={{width:"100%",padding:"11px",fontSize:12,fontWeight:600,
+          borderRadius:12,border:`1px dashed ${C.border}`,backgroundColor:"transparent",
+          color:C.textMuted,cursor:"pointer",marginBottom:14,
+          display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+          Load a demo client to look around
+        </button>
+      )}
+
       {/* ── SEARCH BAR ── */}
       <div style={{position:"relative",marginBottom:8}}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="2" strokeLinecap="round"
@@ -3031,7 +3042,10 @@ function HomeScreen({clients,onSelect,onAdd,onLogout,onRevenue,onSegment,onOpenM
                   {cl.name[0]}
                 </div>
                 <div style={S.f1min}>
-                  <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{cl.name}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>
+                    {cl.name}
+                    {cl.demo&&<span style={{fontSize:9,fontWeight:800,letterSpacing:".08em",padding:"1px 5px",marginLeft:6,borderRadius:3,border:`1px solid ${C.border}`,color:C.textMuted,verticalAlign:"middle"}}>DEMO</span>}
+                  </div>
                   <div style={{fontSize:11,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pkg && pkg.platform)} · {(pkg && pkg.name)}</div>
                 </div>
                 <AlertBadge alerts={alerts}/>
@@ -8376,6 +8390,72 @@ function makeInternalClient() {
   };
 }
 
+// ─── DEMO CLIENT ──────────────────────────────────────────────────────────────
+// A throwaway account so the OS has something to render when there are no real
+// clients yet (Bryson, 2026-08-17: "can you generate a fake client in the os I
+// deleted all the old ones"). Deliberately mid-pipeline with real-looking history,
+// because an empty client teaches nothing about how the screens behave.
+//
+// 🔴 `demo: true` IS LOAD-BEARING, NOT A LABEL. Server-side jobs read every client
+// row and do not care that the numbers are invented: without this flag the Monday
+// weekly-report job would email a performance report built from fake data, and
+// lead-followup would text and email the sample leads below. Both now skip on it
+// (report-shared.mjs, lead-followup.mjs). Anything outbound added later must too.
+//
+// The email and phone are also unroutable on purpose: example.com is reserved by
+// RFC 2606 and can never receive mail, and 555-01xx is the reserved fictional range.
+// Belt and braces, so a missed gate still cannot reach a real person.
+function makeDemoClient() {
+  const packageId = "g-growth";
+  const pkg = findPkg(packageId);
+  const bots = buildBots(pkg);
+  // Mid-build: everything through the page build done, ads in progress, rest queued.
+  const doneThrough = ["intake","ceo","research","avatar","offer","funnel","architect","copy","builder","keywords"];
+  const botStatuses = Object.fromEntries(bots.map(b => [
+    b.id,
+    doneThrough.indexOf(b.id) >= 0 ? "done" : b.id === "ads" ? "active" : "waiting",
+  ]));
+  const day = (n) => fmt(addDays(today, n));
+  return {
+    id: uid(), demo: true, internal: false,
+    name: "Cornerstone Plumbing (DEMO)", contactName: "Ray Delgado",
+    email: "ray@example.com", businessPhone: "(602) 555-0142",
+    businessAddress: "2210 W Broadway Rd, Tempe, AZ 85282",
+    niche: "Plumbing", website: "https://example.com",
+    packageId, stage: "building", platforms: ["Google Ads"], adBudget: "$2,000/mo",
+    notes: "Sample account for trying out the OS. Safe to delete at any time.",
+    contractStart: day(-21), contractEnd: day(69), contractTermMonths: 3,
+    portalToken: crypto.randomUUID(), leadToken: crypto.randomUUID(),
+    intakeComplete: true, contractSigned: true, contractStatus: "active",
+    healthScore: null, leads: 18, cpl: 54,
+    alerts: [], upgradeRequest: null, botStatuses,
+    commLog: [
+      { date: day(-2),  note: "Sent the first ad drafts over. He wants emergency call-outs pushed harder.", cat: "email",  ts: Date.now() - 2 * 864e5 },
+      { date: day(-9),  note: "Kickoff call. Books out 3 weeks in summer, wants water heater jobs.",        cat: "call",   ts: Date.now() - 9 * 864e5 },
+      { date: day(-21), note: "Signed the Growth System agreement.",                                        cat: "update", ts: Date.now() - 21 * 864e5 },
+    ],
+    // Every lead is already "contacted" so nothing looks overdue, and the follow-up
+    // job skips demo accounts anyway.
+    leadsLog: [
+      { id: uid(), name: "Dana Whitfield", phone: "(480) 555-0119", email: "dana@example.com",  status: "contacted", source: "landing_page", createdAt: new Date(Date.now() - 1 * 864e5).toISOString(), notes: "Burst pipe, quoted same day.", followUps: [] },
+      { id: uid(), name: "Marcus Hoyt",    phone: "(602) 555-0176", email: "marcus@example.com", status: "contacted", source: "google_ads",   createdAt: new Date(Date.now() - 4 * 864e5).toISOString(), notes: "Water heater replacement.",  followUps: [] },
+      { id: uid(), name: "Priya Raman",    phone: "(480) 555-0188", email: "priya@example.com",  status: "won",       source: "landing_page", createdAt: new Date(Date.now() - 8 * 864e5).toISOString(), notes: "Booked. Repipe job.",       followUps: [] },
+    ],
+    campaignSetup: {
+      serviceArea: "Tempe, Mesa, Chandler", mainOffer: "$49 drain clearing, same day",
+      avgTicket: "$650", targetLocations: "Tempe, AZ; Mesa, AZ; Chandler, AZ",
+      excludedKeywords: "free, diy, jobs, salary, courses",
+      leadDestination: "ray@example.com", crmSystem: "",
+    },
+    brandVoice: { tone: "Straightforward, no fluff", competitors: "", differentiator: "Answers the phone at 2am, flat pricing up front" },
+    callTrackingNumber: "", callTrackingNumberSid: "", mediaLibrary: [],
+    landingSlug: makeSlug("Cornerstone Plumbing Demo"),
+    landingPage: { headline: "", subheadline: "", bullets: [], ctaText: "", published: false, generatedAt: null },
+    pendingActions: [],
+    googleAdsCustomerId: "", metaAdAccountId: "", metaPageId: "",
+  };
+}
+
 function AddClientSheet({onSave,onClose}) {
   const [step,setStep]     = useState(1);
   const [termMonths,setTermM] = useState(3);
@@ -9497,6 +9577,9 @@ function App({onLogout}) {
     supabaseClient.from("clients").insert({ id:cl.id, data:cl })
       .then(({error})=>{ if(error) console.error("Save failed:", error); });
   };
+  // Same save path as a real client on purpose — a demo account that took a special
+  // route would not prove the real one works.
+  const addDemoClient = useCallback(() => { addClient(makeDemoClient()); }, []);
 
   // BoldLine's own "My Ads" house account is kept out of the client list and all
   // business metrics (MRR/revenue/count/billing). It's reached via its own
@@ -9579,7 +9662,7 @@ function App({onLogout}) {
       {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
+        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>setScreen("home")} isDesktop={isDesktop} onSelectClient={selectClient}/>}
