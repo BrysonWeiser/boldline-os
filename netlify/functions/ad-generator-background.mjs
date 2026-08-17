@@ -17,6 +17,7 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import {
   TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanGoogle, cleanMeta, brief, systemFor, promptFor, friendlyError,
 } from "../lib/ad-gen-shared.mjs";
+import { getLocalConditions } from "../lib/local-conditions.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -56,9 +57,17 @@ export default async (req) => {
   await writeJob(supabase, clientId, { id, action, status: "running", startedAt: new Date().toISOString(), result: null, error: null });
 
   try {
+    // What is actually happening in the service area right now, so the copy can lead on
+    // real demand (an active heat warning, the season) instead of generic benefits. Facts
+    // only, fetched here because the model has no live data of its own. Never fatal.
+    const cond = await getLocalConditions({ locations: body.locations });
     const { data, model } = await runTool({
       tool: TOOL_FOR[action], maxTokens: MAX_TOKENS_FOR[action],
-      system: systemFor(!!body.agency), prompt: promptFor(action, brief(body)),
+      system: systemFor(!!body.agency),
+      prompt: `${promptFor(action, brief(body))}
+
+WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
+${cond.block}`,
     });
 
     let result;

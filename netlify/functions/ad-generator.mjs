@@ -19,6 +19,7 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import {
   TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanCreatives, brief, systemFor, promptFor, friendlyError,
 } from "../lib/ad-gen-shared.mjs";
+import { getLocalConditions } from "../lib/local-conditions.mjs";
 export { LIMITS, fitWords, fitSentence, cleanGoogle } from "../lib/ad-gen-shared.mjs";
 
 const json = (body, status = 200) =>
@@ -56,9 +57,16 @@ export default async (req) => {
 
   if (action === "creatives") {
     try {
+      // Same live context the campaign builder gets: a creative angle about beating the
+      // heat is only worth writing when it is actually hot where the ads run.
+      const cond = await getLocalConditions({ locations: body.locations });
       const { data, model } = await runTool({
         tool: TOOL_FOR.creatives, maxTokens: MAX_TOKENS_FOR.creatives,
-        system: systemFor(!!body.agency), prompt: promptFor("creatives", brief(body)),
+        system: systemFor(!!body.agency),
+        prompt: `${promptFor("creatives", brief(body))}
+
+WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
+${cond.block}`,
       });
       const angles = cleanCreatives(data);
       if (!angles.length) return json({ ok: false, error: "The model returned no usable angles. Try again." }, 502);
