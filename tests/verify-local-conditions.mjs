@@ -188,7 +188,17 @@ for (const [file, label] of [
   const src = readFileSync("netlify/functions/ads-autopilot.mjs", "utf8");
   const perClient = src.indexOf("let localCond = null;");
   const loopStart = src.indexOf("for (const row of rows || []) {");
-  ok("autopilot scopes conditions inside the client loop", perClient > loopStart && perClient - loopStart < 400);
+  // Asserted STRUCTURALLY, not by character distance. The original version required the
+  // declaration within 400 characters of the loop opening, which is not the invariant —
+  // adding an unrelated guard and a comment at the top of the loop broke it while the
+  // scoping stayed perfectly correct. What actually matters is that `localCond` is
+  // declared INSIDE the loop and nowhere above it, so one client's weather can never be
+  // read by the next.
+  ok("autopilot declares conditions inside the client loop", perClient > loopStart, "declared before the loop");
+  eq("autopilot declares localCond exactly once", (src.match(/let localCond\b/g) || []).length, 1);
+  ok("autopilot never declares localCond at module scope",
+    src.slice(0, loopStart).indexOf("localCond") < 0,
+    "a shared binding would leak one client's weather into the next");
   ok("autopilot uses the client's own target locations", /campaignSetup && cl\.campaignSetup\.targetLocations/.test(src));
   ok("autopilot computes the fingerprint once per client", /const condFp = conditionsFingerprint\(localCond\.summary\)/.test(src));
   ok("autopilot records the conditions on the action", /conditions: condFp/.test(src));

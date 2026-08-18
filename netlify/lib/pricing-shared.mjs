@@ -48,6 +48,10 @@ export const PACKAGES = [
   { id: "m-acquisition", name: "Acquisition System", platform: "Meta Ads",      price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      minBudget: 10000, maxBudget: null, tier: "acquisition" },
   { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 700,  setup: 2300, leadFee: true, pricingModel: "per_lead", adSpend: "$5,000–$10,000/mo", minBudget: 5000, maxBudget: 10000, tier: "growth"     },
   { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1200, setup: 4900, leadFee: true, pricingModel: "per_lead", adSpend: "$10,000+/mo", minBudget: 10000, maxBudget: null, tier: "acquisition" },
+  // One-time build, no management. $1,500 sits below managed Launch across its
+  // 3-month minimum ($750 + 3 x $400 = $1,950) but above the $750 managed setup,
+  // which is deliberately underpriced because it buys a recurring client.
+  { id: "h-handoff",     name: "Launch & Hand Off",  platform: "Google Ads",           price: 0,    setup: 1500, leadFee: false, pricingModel: "one_time", adSpend: "Any budget", minBudget: 0, maxBudget: null, tier: "handoff" },
   { id: "e-launch",      name: "Store Launch",       platform: "Meta Ads (ecom)",      price: 400,  setup: 800,  leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$500–$2,500/mo",   minBudget: 500, maxBudget: 2500, tier: "launch"      },
   { id: "e-growth",      name: "Store Growth",       platform: "Meta Ads (ecom)",      price: 700,  setup: 1400, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$2,500–$10,000/mo", minBudget: 2500, maxBudget: 10000, tier: "growth"     },
   { id: "e-domination",  name: "Store Domination",   platform: "Meta + Google (ecom)", price: 1200, setup: 2500, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 12, adSpend: "$10,000+/mo",      minBudget: 10000, maxBudget: null, tier: "acquisition" },
@@ -56,6 +60,9 @@ export const PACKAGES = [
 // The one billing calculation — "whichever is more". Mirrors index.html's copy.
 export const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
   if (!pkg) return { floor: 0, earned: 0, billed: 0, atFloor: false, model: "none" };
+  // A one-time build has no monthly side at all.
+  if (pkg.pricingModel === "one_time")
+    return { floor: 0, earned: 0, billed: 0, atFloor: false, model: "one_time" };
   const floor = Number(pkg.price) || 0;
   const pctModel = pkg.pricingModel === "ad_spend_pct";
   const earned = pctModel
@@ -70,9 +77,11 @@ export const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpe
 // call, which is exactly the structure a prospect already turned down.
 export const packagesPromptBlock = (leadFee) =>
   PACKAGES.map((p) =>
-    `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} one-time setup, then $${p.price}/mo MINIMUM or ${
-      p.leadFee ? `$${leadFee}/qualified lead` : `${p.adSpendPct}% of ad spend`
-    }, whichever is higher (never both). Client ad budget: ${p.adSpend}.`
+    p.pricingModel === "one_time"
+      ? `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} ONCE and nothing after that. No monthly fee, no per-lead fee, no contract term. BoldLine builds the campaign and the landing page in the client's own account, runs two optimization passes over the first 30 days, hands over a written playbook and a training call, and then it is entirely theirs to run. This is the option for a business below the $${MIN_AD_BUDGET}/mo ad-budget floor, or one that wants the build without the monthly. If they move onto a managed plan within 6 months, the managed setup fee is waived because they already paid for the build.`
+      : `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} one-time setup, then $${p.price}/mo MINIMUM or ${
+          p.leadFee ? `$${leadFee}/qualified lead` : `${p.adSpendPct}% of ad spend`
+        }, whichever is higher (never both). Client ad budget: ${p.adSpend}.`
   ).join("\n");
 
 // Which package an ad budget qualifies for. `family` is "g" | "m" | "c" | "e".
@@ -80,6 +89,9 @@ export const packagesPromptBlock = (leadFee) =>
 // than a smaller combined tier, because no such tier exists on purpose.
 export const packageForBudget = (budget, family = "g") => {
   const n = Number(budget) || 0;
+  // Below the floor there is no MANAGED plan, which is exactly when the hand-off is the
+  // right answer. Callers asking for the hand-off family get it at any budget.
+  if (family === "h") return PACKAGES.find((p) => p.id.startsWith("h-")) || null;
   if (n < MIN_AD_BUDGET) return null;
   const inFamily = PACKAGES.filter((p) => p.id.startsWith(family + "-"));
   return inFamily.find((p) => n >= p.minBudget && (p.maxBudget === null || n < p.maxBudget)) || null;

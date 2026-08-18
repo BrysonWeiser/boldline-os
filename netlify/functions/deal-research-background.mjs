@@ -25,6 +25,8 @@ ${packagesPromptBlock(leadFee)}
 
 For this prospect's industry, BoldLine's per-qualified-lead fee is about $${leadFee} (service packages only; e-commerce pays a percentage of ad spend instead).
 
+WHEN TO RECOMMEND THE HAND-OFF. If this prospect plainly cannot fund $500/mo of ad spend, recommend the h-handoff package rather than a monthly plan, and say why in plain terms: below that there is not enough data for a managed campaign to learn, so a monthly plan would take their money and underperform. Do NOT reach for it just because a prospect looks small. It is the right answer for a genuine budget problem and the wrong answer for a negotiation.
+
 RESEARCH with web search: what the company does, size, years in business, service area, reputation (Google/Yelp reviews + rating), and their current digital presence — do they have a website, is it any good, are they visibly running Google or Meta ads, how's their SEO/reviews, any recent news or expansion. Look up typical customer/job value in their industry to ground the ROI math.
 
 ACCURACY RULES — read carefully. Bryson sometimes personally knows these owners and will instantly lose trust if the brief states anything wrong:

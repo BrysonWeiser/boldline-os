@@ -23,6 +23,9 @@ A 30-minute structure for the Calendly call, built to close on that call.
 > of ad budget. E-commerce pays **15% of ad spend** (12% at the top tier) instead of a
 > per-lead fee, because a store has no lead to count.
 >
+> **Below $500/mo of ad budget there is no monthly plan.** There is **Launch & Hand Off**:
+> $1,500 once, no monthly, no per-lead fee, no contract. See the downsell script below.
+>
 > **Get the per-lead number from the OS before the call** — Deal Prep, "What should I charge
 > per lead?". It works it out from their job value and close rate and shows you the arithmetic
 > so you can say it out loud.
@@ -163,6 +166,63 @@ Objection answers are below. When they say yes:
 
 **Do not end the call without a signed agreement or a booked follow-up with a date and time.**
 "I'll get back to you" is a no with extra steps.
+
+---
+
+## The downsell: Launch & Hand Off
+
+**Use it when the honest answer is "a monthly plan will not work for you."** That is any of:
+their ad budget is under $500, they cannot commit to three months, or they have said no to
+the monthly twice and you believe them.
+
+**Do NOT lead with it.** It is a smaller sale, and offering it early gives a prospect who
+could afford managed an easy way to spend less and get less. Managed makes them more money,
+so managed is the recommendation until it plainly is not.
+
+> "Let me offer you something different, because I don't think the monthly plan is right
+> for you and I'd rather say that than sell it to you anyway.
+>
+> At your budget there isn't enough data coming through for me to optimize anything
+> meaningfully month to month. You'd be paying me to watch a campaign that doesn't have
+> enough to learn from. So instead: I build the whole thing once, properly. The campaign,
+> a landing page, call tracking, all of it in your account, in your name.
+>
+> I run it for the first 30 days and fix what needs fixing. Then I write you a plain
+> English playbook, we do a call so you know exactly what to look at each week, and it's
+> yours. **$1,500, one time. No monthly, no per-lead fee, nothing after that.**
+>
+> And if you grow into it and want me running it later, the setup fee comes off, because
+> you already paid me to build it."
+
+**The three things that make this close.**
+1. **You are turning down money.** Saying "the monthly isn't right for you" after they were
+   ready to hear a pitch is the most credible thing you will say all call.
+2. **The number is smaller than three months of managed.** $1,500 against $1,950. If they
+   do the maths out loud, let them.
+3. **The waiver removes the risk.** Nothing is wasted if they come back.
+
+### "Why is the one-time build more than your setup fee?"
+
+Fair question, answer it straight.
+
+> "Because the setup fee on a monthly plan is deliberately cheap. I make it back over the
+> months you stay. Here there are no months, so the build has to pay for itself. You're
+> also getting more than a setup: the first 30 days of me fixing things, and the playbook
+> and the call so you can actually run it."
+
+### "Can I just do the one-time and then hire you monthly later?"
+
+> "That's exactly how it's meant to work, and if you do it within six months I'll waive the
+> setup fee. You already paid me to build it, so charging you twice for the same campaign
+> would be a bit rich."
+
+### Walk away from a hand-off too if
+
+- **They want the price of a hand-off and the service of a plan.** Say no once, plainly.
+  Doing free management on a one-time build teaches them the wrong thing and costs you the
+  months you should have been paid for.
+- **They will not answer the phone.** Same rule as managed. A campaign they never respond
+  to fails, and they hand it back to you as your fault.
 
 ---
 

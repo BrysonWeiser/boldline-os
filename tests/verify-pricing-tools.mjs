@@ -10,6 +10,7 @@
 // payment landing in the wrong month). So both are exercised against stubbed inputs.
 
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import * as shared from "../netlify/lib/pricing-shared.mjs";
 
 let pass = 0; const fails = [];
@@ -187,6 +188,55 @@ const os = readFileSync("index.html", "utf8");
   // With no period at all, fall back rather than dropping the invoice on the floor.
   const noPeriod = roll([{ status: "paid", amount_paid: 20000, created: AUG }]);
   eq("an invoice with no period still counts", noPeriod["2026-08"].net, 200);
+}
+
+// ── 4b. The contract renders TWO different agreements ───────────────────────
+// A hand-off signed on a managed agreement is the dispute this product invites: the
+// client has a signed contract for "advertising management services" with nothing in
+// writing saying when they stop. So the term, fees and termination sections swap
+// wholesale, and both shapes are asserted here — including that neither leaks into the
+// other, which a conditional-patching approach would have made easy to get wrong.
+{
+  // CommonJS module, so it is required rather than imported: a CJS default export
+  // arrives as `.default` under `import()` and destructuring would silently yield
+  // undefined, making every assertion below throw instead of fail.
+  const require_ = createRequire(import.meta.url);
+  const { makeContractHTML } = require_("../netlify/lib/contract-shared.cjs");
+  const handoff = makeContractHTML(
+    { name: "A Client", niche: "Roofing", packageId: "h-handoff", id: "h1", email: "a@b.com" },
+    { id: "h-handoff", name: "Launch & Hand Off", platform: "Google Ads", price: 0, setup: 1500,
+      pricingModel: "one_time", adSpend: "Any budget", optimizationFreq: "none" }, "");
+  const managed = makeContractHTML(
+    { name: "B Client", niche: "Roofing", packageId: "g-growth", contractTermMonths: 3, id: "g1", email: "c@d.com" },
+    { id: "g-growth", name: "Growth System", platform: "Google Ads", price: 700, setup: 1500,
+      pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", optimizationFreq: "weekly" }, "");
+
+  // The hand-off agreement must END, in writing.
+  ok("hand-off states the total fee once", /Total Fee<\/div><div class="meta-value">\$1,500 one time/.test(handoff));
+  ok("hand-off states there are no ongoing fees", /Ongoing Fees[\s\S]{0,80}None/.test(handoff));
+  ok("hand-off has no committed term", /None \(one-time project\)/.test(handoff));
+  ok("hand-off ends on handover", /ends automatically on completion of handover/.test(handoff));
+  ok("hand-off discharges obligations in caps", /OBLIGATIONS UNDER THIS AGREEMENT ARE FULLY DISCHARGED/.test(handoff));
+  ok("hand-off denies any subscription in caps", /CLIENT IS NOT ENROLLED IN ANY SUBSCRIPTION/.test(handoff));
+  ok("hand-off writes down the 6-month setup waiver", /waive that plan&rsquo;s setup fee in full/.test(handoff));
+  ok("hand-off charges no early-termination fee", /there is no early-termination fee/.test(handoff));
+  // Clauses that would be false on a one-time build.
+  ok("hand-off has no holdover clause", !/Holdover/.test(handoff));
+  ok("hand-off has no monthly-minimum billing clause", !/Monthly Minimum is billed monthly/.test(handoff));
+  ok("hand-off has no performance-fee section", !/Monthly Minimum and Performance Fee/.test(handoff));
+  ok("hand-off promises no ongoing optimization cadence", /then none/.test(handoff));
+  // The hard business rule survives in both shapes.
+  for (const [label, doc] of [["hand-off", handoff], ["managed", managed]])
+    ok(`${label} still says the client owns the ad account`, /Client owns the accounts/.test(doc));
+
+  // The managed agreement must be untouched by any of it.
+  ok("managed keeps its monthly minimum", /Monthly Minimum<\/div><div class="meta-value">\$700\/mo/.test(managed));
+  ok("managed keeps the 3-month commitment", /minimum commitment of three \(3\) months/.test(managed));
+  ok("managed keeps its holdover clause", /Holdover/.test(managed));
+  ok("managed keeps the greater-of rule", /NEVER CHARGED TOGETHER/.test(managed));
+  ok("managed keeps its early-termination fee", /early-termination fee equal to/.test(managed));
+  ok("no hand-off clause leaks into a managed agreement", !/FULLY DISCHARGED/.test(managed));
+  ok("no hand-off waiver leaks into a managed agreement", !/setup fee in full/.test(managed));
 }
 
 // ── 5. The wiring is actually there ─────────────────────────────────────────

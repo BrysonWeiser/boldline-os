@@ -4,7 +4,7 @@ topic: Pricing
 task: quote a price, change package pricing, explain what a client pays, or work out why a bill is what it is
 keywords: [pricing, monthly minimum, greater of, whichever is higher, per-lead fee, ad spend percentage, package price, retainer, management fee, tier, ad budget, MIN_AD_BUDGET, COMBO_MIN_BUDGET, calcMonthlyBill, packageForBudget, pricingModel, adSpendPct, minBudget, combined unlock, Stencil, setup fee, e-commerce pricing, ROAS bonus]
 status: verified
-summary: Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 968 assertions in tests/verify-packages.mjs.
+summary: Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 1,140 assertions in tests/verify-packages.mjs.
 verified: 2026-08-18
 ---
 
@@ -134,11 +134,12 @@ per-lead and ROAS-bonus sections are gone. Key Terms say **"Monthly Minimum"**, 
   money but flag me after we get to 3-5 clients."* **RAISE IT WITH HIM ONCE HE HAS 3-5 CLIENTS.**
   At $500 of spend a $400 minimum is 80% of their budget, which is the Stencil problem in
   miniature. It is survivable while he has no portfolio and not afterwards.
-- **A build-and-hand-off offer for sub-floor prospects** was recommended and not built. One-time
-  fee, they own the campaign, no monthly. Stencil would have taken it.
+- ~~A build-and-hand-off offer for sub-floor prospects.~~ **BUILT 2026-08-18** — see KB
+  `hand-off-product`. $1,500 once, no monthly, and the setup fee is waived if they convert to
+  managed within 6 months.
 
 ## Related
 
 `package-multi-campaign` (the catalog bugs this rewrite inherited), `contract-renewal-pricing`
 (term discounts still apply, they just move the floor), `business-constraint-ad-spend` (the
-client always pays the platform directly), `per-lead-fee-finder`, `revenue-tracking`.
+client always pays the platform directly), `per-lead-fee-finder`, `revenue-tracking`, `hand-off-product`.

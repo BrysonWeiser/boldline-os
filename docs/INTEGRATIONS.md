@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 115 task-keyed entries under `knowledge/`. They surface automatically via the
+> 116 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**115 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**116 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -426,11 +426,14 @@
 
 ## Pricing
 
+- **[hand-off-product](../knowledge/hand-off-product.md)** &mdash; &#9989; verified &middot; 2026-08-18  
+  BUILT 2026-08-18. A one-time build for businesses below the $500/mo ad-budget floor, or who want the build without the monthly. $1,500 once, no monthly, no per-lead fee, no term. Includes the same build a managed client gets, two optimization passes over 30 days, a written handover playbook and a training call. Then BoldLine is finished, and every recurring job stops touching the account. If they move onto a managed plan within 6 months the setup fee is WAIVED automatically. Stripe sells it as mode:"payment", the contract swaps its term/fees/termination sections wholesale, and the OS tracks the whole lifecycle on one card.  
+  <sub>*task:* sell, build, deliver or price the one-time Launch & Hand Off, or work out what happens when a hand-off client comes back &nbsp;|&nbsp; *keywords:* hand off, handoff, one-time build, h-handoff, Launch and Hand Off, one_time, pricingModel one_time, no monthly, setup waiver, 6 month credit, handoffPaidAt, settle-in, HANDOFF_SETTLE_IN_DAYS, handover pack, handover playbook, handoffIsFinished, downsell, sub-floor budget, Stencil</sub>
 - **[per-lead-fee-finder](../knowledge/per-lead-fee-finder.md)** &mdash; &#9989; verified &middot; 2026-08-18  
   OS tool (BUILT 2026-08-18) — type a niche and any company detail, get a defensible per-qualified-lead fee back in seconds with the arithmetic shown: job value, close rate, what a lead is therefore worth, and the fee as a share of that. Ends on a month projection that flags when the fee is too low to ever clear the monthly minimum. Reachable from Deal Prep and from a client's Billing card, where "use this rate" writes it straight onto the client. Synchronous Netlify function, no web search, no new Supabase table.  
   <sub>*task:* work out what to charge a client per qualified lead, or change how that number is calculated &nbsp;|&nbsp; *keywords:* per-lead fee, lead fee finder, what should I charge per lead, lead-fee function, LeadFeeFinder, getNicheLeadFee, LEAD_FEE_TABLE, DEFAULT_LEAD_FEE, job value, close rate, lead value, CPL, billingPerLead, fee clamp, Deal Prep fee</sub>
 - **[pricing-model](../knowledge/pricing-model.md)** &mdash; &#9989; verified &middot; 2026-08-18  
-  Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 968 assertions in tests/verify-packages.mjs.  
+  Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 1,140 assertions in tests/verify-packages.mjs.  
   <sub>*task:* quote a price, change package pricing, explain what a client pays, or work out why a bill is what it is &nbsp;|&nbsp; *keywords:* pricing, monthly minimum, greater of, whichever is higher, per-lead fee, ad spend percentage, package price, retainer, management fee, tier, ad budget, MIN_AD_BUDGET, COMBO_MIN_BUDGET, calcMonthlyBill, packageForBudget, pricingModel, adSpendPct, minBudget, combined unlock, Stencil, setup fee, e-commerce pricing, ROAS bonus</sub>
 
 ## Supabase

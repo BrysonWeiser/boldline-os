@@ -6,7 +6,9 @@ const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
 const MIN_AD_BUDGET   = 500;   // hard floor to be a managed client at all
 const COMBO_MIN_BUDGET = 5000; // below this, one platform only
-const TIER_RANK = { launch: 1, growth: 2, acquisition: 3 };
+// Hand-off ranks BELOW Launch: it is the entry point, and every managed tier is a
+// step up from it.
+const TIER_RANK = { handoff: 0, launch: 1, growth: 2, acquisition: 3 };
 
 const PACKAGES_DB = {
   google: [
@@ -36,6 +38,29 @@ const PACKAGES_DB = {
     { id:"e-growth",     name:"Store Growth",     platform:"Meta Ads",      price:700,  setup:1400, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:15, tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Recommended", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:false },
     { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:12, tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:true },
   ],
+  // ─── ONE-TIME BUILD, NO MANAGEMENT ────────────────────────────────────────
+  // Bryson, 2026-08-18: "build the hand off and properly price it."
+  //
+  // The honest answer for a business below MIN_AD_BUDGET, or one that wants the build
+  // without the monthly. Stencil & Thread was exactly this prospect: willing to pay for
+  // the work, unwilling to pay a fee bigger than his ad budget every month. Turning that
+  // away is turning away cash and a future managed client.
+  //
+  // PRICED AT $1,500 for three reasons, in order:
+  //  1. It must not undercut managed. Managed Launch across its 3-month minimum is
+  //     $750 setup + 3 x $400 = $1,950, so hand-off is genuinely the cheaper door while
+  //     buying strictly less: no ongoing management at all.
+  //  2. It is ABOVE the $750 managed setup on purpose. That setup fee is deliberately
+  //     underpriced because it buys a recurring client. With no recurring revenue behind
+  //     it, the build has to pay for itself.
+  //  3. A one-time campaign + landing page build from an agency runs $1,500-$3,500.
+  //     This sits at the honest bottom of that range.
+  //
+  // `price: 0` because there IS no monthly — not because it is free. Every surface that
+  // quotes a price checks `pricingModel` first.
+  handoff: [
+    { id:"h-handoff", name:"Launch & Hand Off", platform:"Google Ads", price:0, setup:1500, leadFee:false, pricingModel:"one_time", tier:"handoff", minBudget:0, maxBudget:null, tag:"One-Time Build", adSpend:"Any budget", optimizationFreq:"none", callTracking:true, weeklyOptimization:false, customLandingPage:true, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Setup waived if you move to managed within 6 months" },
+  ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 
@@ -45,6 +70,12 @@ const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 // marketing site) runs this, so none of them can disagree with the invoice.
 const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
   if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
+  // A one-time build has no monthly side at all. Returning a zero floor rather than
+  // falling through matters: `atFloor` false stops the billing card telling the owner a
+  // hand-off client is "under the minimum" every month forever.
+  if (pkg.pricingModel === "one_time")
+    return { floor:0, earned:0, billed:0, atFloor:false, model:"one_time",
+             basis:`one-time build, $${Number(pkg.setup||0).toLocaleString()}` };
   const floor = Number(pkg.price) || 0;
   const pctModel = pkg.pricingModel === "ad_spend_pct";
   const pct = Number(pkg.adSpendPct) || 0;
@@ -102,6 +133,8 @@ const ALL_FEATURES = [
   // nothing. Distinct from `priority_comms` below, and no single client ever sees both:
   // this one is e-commerce only, that one is lead-gen only, and upgrade ladders never cross.
   { id:"slack_access",    label:"Priority Support (same-day replies)", category:"Both" },
+  { id:"handover_docs",   label:"Written Handover Playbook + Training Call", category:"Both" },
+  { id:"settle_in",       label:"30-Day Settle-In (two optimization passes)",category:"Both" },
   { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
   { id:"priority_comms",  label:"Priority Communication",           category:"Both" },
   { id:"advanced_reporting",label:"Advanced Reporting Dashboard",   category:"Both" },
@@ -118,6 +151,8 @@ const PKG_FEATURES = {
   "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
   "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
+  // One-time build: the good build minus everything ongoing. Keep in step with index.html.
+  "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","call_tracking","handover_docs","settle_in"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
   // Meta-only below $10k of ad budget — Google Shopping would split a budget that
   // cannot afford two platforms. Keep in step with index.html.
@@ -133,7 +168,8 @@ const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId] || []).includes
 // never cross-sell, and a combined client is never offered a single-platform
 // package that would drop a channel they already pay for.
 const PKG_FAMILY = (id) => String(id || "").split("-")[0];
-const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"] };
+// `h` moves onto any managed lead-gen plan; nothing ever upgrades INTO a hand-off.
+const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"], h: ["g","m","c"] };
 
 // An upgrade must never take something away — this is the surface where it matters most,
 // because the portal shows the client only what an upgrade GAINS. Offering a package that
@@ -157,14 +193,18 @@ const getUpgradeOptions = (currentPkgId) => {
   if (!cur) return [];
   const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
   const curFeats = PKG_FEATURES[currentPkgId] || [];
+  // Everything in a hand-off is a one-time deliverable the client already owns, so no
+  // managed plan can take it away and the ongoing-entitlement rule must not apply.
+  // Keep in step with index.html.
+  const oneTimeSource = cur.pricingModel === "one_time";
   // Ranked by TIER, not price: a single platform and the combined system share a
   // monthly minimum at the same tier, so `p.price > cur.price` would hide the best
   // upsell there is (same minimum, one more channel). Keep in step with index.html.
   return ALL_PKGS.filter((p) =>
     p.id !== currentPkgId &&
-    (TIER_RANK[p.tier] || 0) >= (TIER_RANK[cur.tier] || 0) &&
+    (oneTimeSource || (TIER_RANK[p.tier] || 0) >= (TIER_RANK[cur.tier] || 0)) &&
     allowed.includes(PKG_FAMILY(p.id)) &&
-    keepsEverything(currentPkgId, p.id) &&
+    (oneTimeSource || keepsEverything(currentPkgId, p.id)) &&
     (PKG_FEATURES[p.id] || []).some((f) => curFeats.indexOf(f) < 0)
   ).sort((a, b) => (TIER_RANK[a.tier]||0) - (TIER_RANK[b.tier]||0) || a.price - b.price || a.setup - b.setup);
 };

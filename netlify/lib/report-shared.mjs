@@ -21,6 +21,11 @@ export const PACKAGES_DB = {
     { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", optimizationFreq:"weekly"  },
     { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", optimizationFreq:"weekly"  },
   ],
+  // One-time build, no ongoing management. It carries `optimizationFreq:"none"` so any
+  // job that keys off a cadence skips it by data rather than by a special case.
+  handoff: [
+    { id:"h-handoff", name:"Launch & Hand Off", platform:"Google Ads", optimizationFreq:"none" },
+  ],
   ecom: [
     { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      optimizationFreq:"monthly" },
     { id:"e-growth",     name:"Store Growth",     platform:"Meta Ads",      optimizationFreq:"weekly"  },
@@ -394,9 +399,30 @@ const OWNER_BRIEFING_GAP_DAYS = 5;
 // whatever address the demo carries. Checked first, before every other condition.
 const isDemo = (client) => !!(client && client.demo);
 
+// ─── HAND-OFF: WHEN BOLDLINE'S OBLIGATIONS END ───────────────────────────────
+// A Launch & Hand Off client bought a ONE-TIME BUILD plus 30 days of settle-in. After
+// that, BoldLine is finished by agreement. Every recurring job has to know it, or a
+// business that was promised nothing further keeps receiving performance reports,
+// follow-up emails and optimization from an agency it no longer pays — which is worse
+// than sloppy, it is doing unpaid work while implying an ongoing relationship.
+export const HANDOFF_SETTLE_IN_DAYS = 30;
+export const handoffIsFinished = (client) => {
+  if (!client || !client.handoffPaidAt) return false;
+  const paid = new Date(client.handoffPaidAt);
+  if (isNaN(paid)) return false;
+  const ends = new Date(paid);
+  ends.setDate(ends.getDate() + HANDOFF_SETTLE_IN_DAYS);
+  return Date.now() >= ends.getTime();
+};
+// During settle-in a hand-off client IS still worked on, so it is only the finished
+// state that excludes them — not the package type.
+const handoffDone = (client, pkg) =>
+  !!pkg && pkg.optimizationFreq === "none" && handoffIsFinished(client);
+
 // CLIENT-FACING reports: a real client, active, with somewhere to send it.
 const isReportable = (client, pkg) =>
-  !!pkg && !client.internal && !isDemo(client) && client.contractStatus === "active" && !!client.email;
+  !!pkg && !client.internal && !isDemo(client) && !handoffDone(client, pkg)
+  && client.contractStatus === "active" && !!client.email;
 
 // OWNER briefings are a different question. They go to Bryson, not to a client, so
 // they need no client email and no contract — and the house account is exactly the
@@ -405,6 +431,7 @@ const isReportable = (client, pkg) =>
 const isOwnerBriefable = (client, pkg) => {
   if (!pkg) return false;
   if (isDemo(client)) return false;   // fake numbers must never reach a real inbox, his included
+  if (handoffDone(client, pkg)) return false;  // nothing left to brief on — the work is over
   if (client.internal) return !!(client.googleAdsCustomerId || client.metaAdAccountId);
   return client.contractStatus === "active";
 };
