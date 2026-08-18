@@ -52,3 +52,29 @@ verified: 2026-08-13
 **TAB TAP (2026-08-13, fourth pass — Bryson: "it still lets me click on meta ads on mobile").** First check was whether the change was even live: `curl https://boldlinemedia.com` confirmed all sentinels deployed, and the marketing site has **no service worker**, so it was neither a deploy nor a cache problem. The real gap: the **tab button itself** swapped panes silently. The pane notice was there, but on a phone it is easy to scroll straight past — so tapping "Meta Ads" felt like it simply worked. Tapping any blocked TAB now pops the same notice, bound in the capture phase but deliberately **without** preventDefault/stopPropagation so the pane still switches and the packages stay readable. Google's tab pops nothing.
 **Still deliberately ungated:** the floating mobile "Book a Call" bar (`#mobileCta`) — it is a generic call CTA, not tied to a package, and blocking it would also block legitimate Google bookings from someone who happened to browse Meta. Flagged to Bryson rather than changed silently.
 **46 assertions now**, at 390x844 and 1280x900.
+
+## 🔴 THE FLIP IS NOW CHECKLIST-DRIVEN, NOT REVERT-DRIVEN (2026-08-17)
+
+**Bryson:** *"make sure from now on any updates we do to the website are saved for when we flip the
+website back to normal"*.
+
+`git revert a4b83f0` **is no longer sufficient on its own.** A revert only touches lines that
+existed when the commit was made, so anything added to the site afterwards survives it. The **Full
+System: Acquisition** card proved this the same day it was added: its waitlist button would have
+outlived the revert and stayed wrong, with nobody noticing until a prospect clicked it.
+
+**`docs/META-FLIP-CHECKLIST.md`** is now the procedure: every `CS:META-SOON` marker with what it
+becomes. Current inventory is **9 buttons, 10 blocks, 3 inline pills**.
+
+**`tests/verify-meta-flip.mjs` (56 checks) keeps it honest, and that is the actual answer to what
+Bryson asked for.** While the site is gated it fails if a sentinel is missing from the checklist, if
+the checklist names one that no longer exists, if a waitlist button carries no marker, or if a
+Google card ever gets gated. After the flip it **switches its own expectations** and asserts all 12
+packages book and no marker survives, so the post-flip half is not dead code. Proved by three
+simulated mistakes (a new gated card left unrecorded, a waitlist button with no marker, a Google
+card accidentally gated) — each failed by name, then restored.
+
+**Two gotchas found while testing the flip, both now in the checklist:** `rec-gate` is a JavaScript
+comment rather than an HTML one, and `styles` and `rec-gate` carry a trailing note after the id. A
+naive find-and-replace silently skips both — which is exactly what happened on the first attempt,
+and the test correctly refused to call that half-done flip "flipped".
