@@ -106,6 +106,11 @@ state and deploy** — do not wait to be asked, and do not ask permission first.
 - A weekly Routine also checks in about this (trigger `trig_012hH9VLXchaMj7LUc461Wrb`,
   Mondays 09:00 Phoenix — see KB `site-coming-soon`) — but the Routine is the backstop. If you learn Meta is live in ANY
   session, revert there and then.
+- **Then RAISE (do not silently build) the work parked behind Meta approval** — Meta creative
+  split testing and the conditions-triggered Meta refresh. Full list, why each is blocked, and
+  what each is worth in KB **`meta-parked-work`** (Bryson, 2026-08-17: *"mark the meta thing for
+  later once meta is approved"*). The site revert is automatic; these are features, so surface
+  them with a recommended order and let him choose.
 
 ## Hard business constraint (do NOT violate)
 **The client pays for everything. BoldLine never fronts, holds, or is financially

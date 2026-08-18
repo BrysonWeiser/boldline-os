@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 111 task-keyed entries under `knowledge/`. They surface automatically via the
+> 112 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**111 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**112 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -30,6 +30,9 @@
 - **[local-conditions](../knowledge/local-conditions.md)** &mdash; &#9989; verified &middot; 2026-08-17  
   Every ad writer AND the landing-page writer (Google campaign builder, Meta variants, creative angles, landing pages, and the always-on challenger writer) now receives the LIVE weather alerts for the client's own service area plus today's date and season, pulled from the free US National Weather Service API (no key, no account). Facts are fetched in code because the model has no live data and would otherwise guess, and a guessed weather claim in a live ad is a lie with money behind it. Emergencies (wildfire, tornado, evacuation, flash flood, civil) are HARD-EXCLUDED from ad angles on both policy and decency grounds. Area matching is exact-place so a Bend, Oregon client is never claimed to be covered by an alert for "Gila Bend". A weather outage never blocks ad generation. 119 checks.  
   <sub>*task:* make ads reflect what is actually happening in the target area right now (weather, season, local demand), or check why an ad did or did not use a weather angle &nbsp;|&nbsp; *keywords:* local-conditions, landing page seasonal, conditions change trigger, CONDITIONS_DWELL_HOURS, CONDITIONS_COOLDOWN_HOURS, conditionsWatch, seasonal ads, weather angle, api.weather.gov, National Weather Service, NWS alerts, Extreme Heat Warning, monsoon, storm damage roofing, HVAC summer, conditionsFingerprint, isAdvertisable, parseAreas, verify-local-conditions</sub>
+- **[meta-parked-work](../knowledge/meta-parked-work.md)** &mdash; &#9989; verified &middot; 2026-08-17  
+  The running list of work deliberately NOT built because Meta has not granted Marketing API standard access. Meta creative split testing is the big one (Google has it, Meta does not), which in turn blocks the conditions-triggered ad refresh on Meta. Also parked: 9 of 12 packages stay on "Join the waitlist", and the marketing site's coming-soon state. Nothing here is broken or half-done, it is scoped out on purpose. Bryson asked for it to be marked so it resurfaces at approval rather than being rediscovered.  
+  <sub>*task:* find out what work is waiting on Meta approval, or decide what to build the moment Meta grants standard access &nbsp;|&nbsp; *keywords:* meta parked, blocked on meta, once meta is approved, meta split testing, meta creative testing, conditions trigger meta, meta standard access, development tier, MetaLaunchCard, meta-ads.mjs, waitlist</sub>
 
 ## Blog
 

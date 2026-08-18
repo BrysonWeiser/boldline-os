@@ -173,5 +173,6 @@ fire, and reverting the quiet-run persistence made its own assertion fail.
   the date already carry the signal. Worth adding if a client needs "next week's high" precision.
 - **Local events beyond weather** (festivals, road closures, sports) would need a search API and
   carries a much higher rate of irrelevant angles.
-- **Meta creative refresh on a conditions change.** The trigger is Google-only, because the Meta
-  split-testing path does not exist yet (KB `campaign-detail-and-split-testing`).
+- **Meta creative refresh on a conditions change.** The trigger is Google-only, because it rides on
+  the split-testing path, which does not exist for Meta yet. **Parked until Meta approval — tracked
+  in KB `meta-parked-work`** (Bryson asked for it to be marked, 2026-08-17).

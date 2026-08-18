@@ -8,6 +8,10 @@ summary: App Review came back 2026-08-12 PARTIALLY APPROVED — ads_management, 
 verified: 2026-08-12
 ---
 
+> **What to BUILD the moment the tier is granted is tracked separately in KB
+> `meta-parked-work`** — Meta creative split testing, then the conditions-triggered refresh
+> that rides on it. Raise that list at approval rather than rediscovering it.
+
 **🟨 APP REVIEW DECIDED 2026-08-12 — PARTIAL APPROVAL. 5 of 7 granted; the 2 rejections do NOT block the OS's own account, only CLIENT accounts.**
 
 **APPROVED:** `ads_management`, `business_management`, `pages_show_list`, `pages_read_engagement`, `public_profile`.
