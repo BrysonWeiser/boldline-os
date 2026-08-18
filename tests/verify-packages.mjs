@@ -251,7 +251,7 @@ for (const p of os.ALL_PKGS) {
   const q = shared.PACKAGES.find((x) => x.id === p.id);
   ok(`pricing-shared knows ${p.id}`, !!q);
   if (!q) continue;
-  for (const f of ["name", "price", "setup", "leadFee", "pricingModel", "adSpendPct", "tier", "adSpend"]) {
+  for (const f of ["name", "price", "setup", "leadFee", "pricingModel", "adSpendPct", "tier", "adSpend", "minBudget", "maxBudget"]) {
     eq(`${p.id}.${f} agrees (os vs pricing-shared)`, q[f], p[f]);
   }
 }

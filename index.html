@@ -1855,6 +1855,143 @@ const briefMdToNodes = (md) => {
   flush(); return out;
 };
 
+// ─── PER-LEAD FEE FINDER ─────────────────────────────────────────────────────
+// Bryson, 2026-08-18: "I want to build something where I can put in the niche and or
+// details about a specific company and I quickly get a per lead fee generated."
+//
+// Under the greater-of pricing model the per-lead fee is the ONLY number that varies by
+// client, so it is the one number that has to be right and the one he has to defend out
+// loud. This shows the chain rather than a bare figure: what a customer is worth, how
+// many they close, what a lead is therefore worth, and the fee as a share of that.
+//
+// Rendered in two places with the same component: on Deal Prep (before a call) and on a
+// client's Billing card (to set or sanity-check a live rate), where `onUse` writes the
+// number straight onto the client so it can never be mistyped in transit.
+function LeadFeeFinder({defaults,onUse,isDesktop}){
+  const [form,setForm]=useState({
+    niche:(defaults&&defaults.niche)||"", company:(defaults&&defaults.company)||"",
+    location:(defaults&&defaults.location)||"", adBudget:(defaults&&defaults.adBudget)||"",
+    notes:"",
+  });
+  const [state,setState]=useState("form");   // form | working | done | error
+  const [msg,setMsg]=useState("");
+  const [res,setRes]=useState(null);
+  const set=(k)=>(e)=>{ const v=e.target.value; setForm(f=>({...f,[k]:v})); };
+
+  // Re-seed when the caller's context changes (opening the finder on a different client
+  // must not show the last one's niche).
+  useEffect(()=>{
+    if(!defaults) return;
+    setForm(f=>({...f,niche:defaults.niche||f.niche,company:defaults.company||f.company,
+      location:defaults.location||f.location,adBudget:defaults.adBudget||f.adBudget}));
+  },[defaults&&defaults.niche,defaults&&defaults.company,defaults&&defaults.adBudget]);
+
+  const run=async()=>{
+    if(!form.niche.trim()&&!form.company.trim()){ setMsg("Type a niche or a company name first."); setState("error"); return; }
+    setState("working"); setMsg(""); setRes(null);
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token){ setState("error"); setMsg("Your session expired — refresh the page and try again."); return; }
+      const r=await fetch("/.netlify/functions/lead-fee",{method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body:JSON.stringify({...form,packageId:(defaults&&defaults.packageId)||undefined})}).then(x=>x.json());
+      if(!r||!r.ok){ setState("error"); setMsg((r&&r.error)||"Could not work out a fee. Try again."); return; }
+      setRes(r); setState("done");
+    }catch{ setState("error"); setMsg("Could not reach the fee finder. Check your connection and try again."); }
+  };
+
+  const lbl={fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"};
+  const CONF={high:{t:"Confident",c:C.green},medium:{t:"Reasonable estimate",c:C.gold},low:{t:"Rough — verify on the call",c:C.amber}};
+
+  return (
+    <div style={S.col12}>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 200px",minWidth:0}}><div style={lbl}>Niche or trade</div>
+          <input value={form.niche} onChange={set("niche")} placeholder="e.g. Roofing, Med Spa, Personal Injury Law" style={inp}/></div>
+        <div style={{flex:"1 1 200px",minWidth:0}}><div style={lbl}>Company <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div>
+          <input value={form.company} onChange={set("company")} placeholder="Summit Roofing" style={inp}/></div>
+      </div>
+      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 200px",minWidth:0}}><div style={lbl}>Market <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div>
+          <input value={form.location} onChange={set("location")} placeholder="Phoenix, AZ" style={inp}/></div>
+        <div style={{flex:"1 1 200px",minWidth:0}}><div style={lbl}>Their monthly ad budget <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div>
+          <input value={form.adBudget} onChange={set("adBudget")} placeholder="$3,000" style={inp}/></div>
+      </div>
+      <div><div style={lbl}>Anything that changes the maths <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div>
+        <textarea value={form.notes} onChange={set("notes")} rows={2} placeholder="Only does commercial re-roofs. Average job about $80,000." style={{...inp,resize:"vertical",fontFamily:"inherit"}}/></div>
+      <button onClick={run} disabled={state==="working"} style={{width:"100%",padding:"11px",fontSize:13.5,fontWeight:800,borderRadius:11,border:"none",background:state==="working"?"rgba(255,255,255,.06)":C.gradB,color:state==="working"?C.textMuted:"#1a1400",cursor:state==="working"?"default":"pointer"}}>
+        {state==="working"?"Working it out…":(res?"Work it out again":"Find the per-lead fee")}</button>
+      {msg&&<div style={{fontSize:12,color:state==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
+
+      {state==="done"&&res&&(<>
+        {/* The number, and the range around it, because a call needs room to move */}
+        <div style={{padding:isDesktop?"16px 18px":"14px",borderRadius:13,background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.03))",border:`1px solid ${C.borderAccent}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap"}}>
+            <div style={S.f1min}>
+              <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,opacity:.75}}>Charge per qualified lead</div>
+              <div style={{fontSize:isDesktop?34:29,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1.15}}>${res.fee}</div>
+              <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>Room to move: ${res.feeLow} to ${res.feeHigh}</div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:10,fontWeight:700,color:(CONF[res.confidence]||CONF.medium).c}}>{(CONF[res.confidence]||CONF.medium).t}</div>
+              <div style={{fontSize:9.5,color:C.textMuted,marginTop:2}}>Table said ${res.anchor}{res.anchorIsDefault?" (generic)":""}</div>
+            </div>
+          </div>
+          {onUse&&<button onClick={()=>onUse(res.fee)} style={{marginTop:12,width:"100%",padding:"9px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",backgroundColor:C.green,color:"#04110b",cursor:"pointer"}}>Use ${res.fee}/lead for this client</button>}
+        </div>
+
+        {/* The chain, so he can say it out loud without doing sums live */}
+        <div style={{padding:"12px 14px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:8}}>How that number was reached</div>
+          {[
+            ["One customer is worth", `$${Number(res.jobValue).toLocaleString()}`, res.jobValueBasis],
+            ["They close about", `${res.closeRate}% of leads`, "Be conservative here. If they are slow to call back it is lower."],
+            ["So one lead is worth", `$${Number(res.leadValue).toLocaleString()}`, "That is expected revenue per qualified lead, not profit."],
+            ["Your fee is", res.sharePct!=null?`${res.sharePct}% of that`:"—", "A small slice of what the lead is worth to them."],
+            ["They pay Google about", `$${Number(res.cpl).toLocaleString()}/lead`, res.vsCpl!=null?`Your fee is ${res.vsCpl}% on top of that.`:""],
+          ].map(([k,v,note],i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:10,padding:"5px 0",borderTop:i?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{fontSize:11.5,color:C.textDim}}>{k}</div>
+                {note&&<div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.45,marginTop:1}}>{note}</div>}
+              </div>
+              <div style={{fontSize:13,fontWeight:800,color:C.text,whiteSpace:"nowrap",flexShrink:0}}>{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* What it means for the invoice. A fee that never clears the minimum makes the
+            performance pitch fiction, and that is worth knowing BEFORE the call. */}
+        {res.month&&(
+          <div style={{padding:"12px 14px",borderRadius:11,backgroundColor:res.month.atFloor?"rgba(245,158,11,0.07)":"rgba(34,211,160,0.06)",border:`1px solid ${res.month.atFloor?"rgba(245,158,11,0.28)":"rgba(34,211,160,0.22)"}`}}>
+            <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:res.month.atFloor?C.amber:C.green,marginBottom:6}}>What a month looks like</div>
+            <div style={{fontSize:12,color:C.textDim,lineHeight:1.65}}>
+              On {res.month.packageName} at ${Number(res.month.adBudget).toLocaleString()}/mo of ad budget, expect about <strong style={{color:C.text}}>{res.month.leads} qualified leads</strong>, worth <strong style={{color:C.text}}>${Number(res.month.earned).toLocaleString()}</strong> in lead fees against a <strong style={{color:C.text}}>${Number(res.month.floor).toLocaleString()}</strong> minimum.
+              {res.month.atFloor
+                ? <> That is <strong style={{color:C.amber}}>under the minimum</strong>, so they would pay the minimum and your pricing is effectively flat for them. Either their budget needs to be bigger or the fee does.</>
+                : <> They pay <strong style={{color:C.green}}>${Number(res.month.billed).toLocaleString()}</strong>, which is <strong style={{color:C.green}}>{res.month.pctOfSpend}%</strong> of what they spend on ads.</>}
+            </div>
+          </div>
+        )}
+
+        {res.rationale&&(
+          <div style={{padding:"12px 14px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:6}}>Say this on the call</div>
+            <div style={{fontSize:12.5,color:C.textDim,lineHeight:1.7}}>{res.rationale}</div>
+          </div>
+        )}
+        {res.cautions&&res.cautions.length>0&&(
+          <div style={{padding:"11px 13px",borderRadius:11,backgroundColor:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.22)"}}>
+            <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.amber,marginBottom:5}}>Check before you quote it</div>
+            {res.cautions.map((c,i)=>(<div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginTop:i?4:0}}>• {c}</div>))}
+          </div>
+        )}
+      </>)}
+    </div>
+  );
+}
+
 function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
   const [form,setForm]=useState({companyName:"",niche:"",website:"",location:"",notes:""});
   const [state,setState]=useState("form"); // form | working | done | error
@@ -1862,6 +1999,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
   const [result,setResult]=useState(null);
   const [recent,setRecent]=useState(null); // null = hidden; [] = loaded
   const [nicheFilter,setNicheFilter]=useState("all");
+  const [showFee,setShowFee]=useState(false);   // per-lead fee finder, collapsed by default
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
   // Lead Scout hands a prospect straight over: prefill the form with everything it
@@ -1932,6 +2070,24 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
           <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Deal Prep</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Research a prospect and get your pitch before the call.</div>
         </div>
+      </div>
+
+      {/* Quick per-lead fee, without waiting on a full brief. The full brief also
+          returns a fee, but it takes about a minute and this answers in seconds — which
+          is the difference between having a number on a live call and not. */}
+      <div style={{maxWidth:640,marginTop:14}}>
+        <button onClick={()=>setShowFee(v=>!v)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:12,border:`1px solid ${showFee?C.borderAccent:C.border}`,backgroundColor:showFee?"rgba(200,168,75,0.06)":"rgba(255,255,255,0.03)",cursor:"pointer",textAlign:"left"}}>
+          <div style={S.f1min}>
+            <div style={{fontSize:13,fontWeight:800,color:C.text}}>What should I charge per lead?</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>Type a niche, get a defensible number in seconds</div>
+          </div>
+          <span style={{fontSize:15,color:C.gold,flexShrink:0,transform:showFee?"rotate(90deg)":"none",transition:"transform .15s"}}>›</span>
+        </button>
+        {showFee&&(
+          <div style={{...card,marginTop:10}}>
+            <LeadFeeFinder isDesktop={isDesktop} defaults={{niche:form.niche,company:form.companyName,location:form.location}}/>
+          </div>
+        )}
       </div>
 
       {(state==="form"||state==="working"||state==="error")&&(
@@ -2851,6 +3007,9 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
   const [sortBy,setSortBy]     = useState("name"); // name | health | leads | expiry
   const [showFilters,setShowF] = useState(false);
 
+  // The GUARANTEED FLOOR, not revenue: under the greater-of model this is the least
+  // every client can bill in a month, and a good month bills more. Actual invoiced
+  // revenue lives on the Revenue screen, which reads it from Stripe.
   const MRR       = clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const active    = clients.filter(c=>c.stage==="active").length;
   const allAlerts = clients.flatMap(c=>getAlerts(c));
@@ -2931,11 +3090,11 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
             <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",
               background:"radial-gradient(circle,rgba(200,168,75,0.12),transparent 70%)"}}/>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
-              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,opacity:.8}}>Monthly Recurring Revenue</div>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,opacity:.8}}>Guaranteed Monthly Floor</div>
               <span style={{fontSize:10,fontWeight:700,color:C.gold,opacity:.7,display:"flex",alignItems:"center",gap:3}}>Breakdown ›</span>
             </div>
             <div style={{fontSize:isDesktop?36:32,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1,marginBottom:4}}>${MRR.toLocaleString()}</div>
-            <div style={{fontSize:11,color:C.textMuted}}>management fees · {active} active of {clients.length} total</div>
+            <div style={{fontSize:11,color:C.textMuted}}>the least you bill this month · {active} active of {clients.length} total</div>
           </button>
         );
         const tiles = [
@@ -3182,49 +3341,188 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
   );
 }
 
-// ─── REVENUE BREAKDOWN SCREEN ────────────────────────────────────────────────
+// ─── REVENUE SCREEN ──────────────────────────────────────────────────────────
+// Bryson, 2026-08-18: "track how much I am making per month or maybe the previous month
+// based on the invoices sent since we now dont have a monthly recurring revenue."
+//
+// WHY THIS WAS REBUILT. It used to add up package prices and call the total "Monthly
+// Recurring Revenue". Under the greater-of pricing model a package price is a FLOOR:
+// a good month bills more than it, and no month bills less. So that number was never
+// what he earned, and after the pricing change it stopped even being a decent guess.
+//
+// The real figure lives in Stripe, so it is read from Stripe. Reconstructing it from the
+// OS's own records would drift the first time an invoice was voided, refunded, or paid
+// late. The floor is still shown, clearly labelled as the floor, because it is the one
+// number he CAN count on next month.
 function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
-  // One row per client: their monthly management fee (package price), sorted high → low.
-  const rows = clients
-    .map(cl=>{ const pkg=findPkg(cl.packageId); return {cl,pkg,price:(pkg&&pkg.price)||0,setup:(pkg&&pkg.setup)||0}; })
-    .sort((a,b)=>b.price-a.price);
-  const MRR   = rows.reduce((s,r)=>s+r.price,0);
-  const paying= rows.filter(r=>r.price>0).length;
+  const [data,setData]=useState(null);      // null = loading, [] = loaded empty
+  const [err,setErr]=useState("");
+  const [openMonth,setOpenMonth]=useState(null);
+
+  const load=useCallback(async()=>{
+    setErr("");
+    try{ const d=await stripeBilling("revenue",{months:6}); setData((d&&d.months)||[]); }
+    catch(e){ setErr(e.message||"Could not load revenue."); setData([]); }
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+
+  // The floor: what BoldLine bills next month even if not a single lead comes in.
+  // Demo and internal accounts are excluded — they are not customers.
+  const real = clients.filter(c=>!c.demo&&!c.internal);
+  const floorRows = real
+    .map(cl=>{ const pkg=findPkg(cl.packageId); return {cl,pkg,floor:(cl.billingMonthly!=null?cl.billingMonthly:((pkg&&pkg.price)||0)),setup:(pkg&&pkg.setup)||0}; })
+    .sort((a,b)=>b.floor-a.floor);
+  const floorTotal = floorRows.reduce((s,r)=>s+r.floor,0);
+  const paying = floorRows.filter(r=>r.floor>0).length;
+
+  const monthLabel=(key)=>{
+    const [y,m]=String(key||"").split("-");
+    const d=new Date(Date.UTC(Number(y),Number(m)-1,1));
+    return d.toLocaleDateString("en-US",{month:"long",year:"numeric",timeZone:"UTC"});
+  };
+  const cur  = data&&data[0];
+  const prev = data&&data[1];
+  // Only compare against a FINISHED month. Comparing a half-finished month to a whole
+  // one always reads as a collapse, which is the kind of number that ruins a morning
+  // for no reason.
+  const done = data ? data.filter(m=>!m.isCurrent) : [];
+  const avg  = done.length ? Math.round(done.reduce((s,m)=>s+m.net,0)/done.length) : 0;
+  const trend = (prev&&prev.net>0&&done.length>1)
+    ? Math.round(((done[0].net-done[1].net)/done[1].net)*100) : null;
+  const money0=(n)=>"$"+Math.round(Number(n)||0).toLocaleString();
+
+  const tile=(label,value,sub,color)=>(
+    <div style={{flex:"1 1 150px",minWidth:0,padding:"13px 15px",borderRadius:13,backgroundColor:C.bg2,border:`1px solid ${C.border}`}}>
+      <div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted}}>{label}</div>
+      <div style={{fontSize:isDesktop?23:20,fontWeight:900,color:color||C.text,letterSpacing:"-0.02em",lineHeight:1.2,marginTop:3}}>{value}</div>
+      {sub&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:2,lineHeight:1.45}}>{sub}</div>}
+    </div>
+  );
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Header bar */}
       <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
         <div style={{padding:isDesktop?"18px 32px":"12px 14px",display:"flex",alignItems:"center",gap:10}}>
           {!isDesktop&&<button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
             border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
-            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            ‹
-          </button>}
-          <div>
-            <div style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>Revenue by Client</div>
-            <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>Monthly management fees</div>
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>‹</button>}
+          <div style={S.f1min}>
+            <div style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>Revenue</div>
+            <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>What you actually invoiced</div>
           </div>
+          <button onClick={load} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",flexShrink:0}}>{data===null?"…":"Refresh"}</button>
         </div>
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"20px 32px 60px":"14px 14px 100px"}}>
-        {/* Total */}
+        {/* ── This month, headline ──────────────────────────────────────────── */}
         <div className="os-card" style={{background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
-          border:"1px solid rgba(200,168,75,0.2)",borderRadius:16,padding:"18px 20px",marginBottom:14,position:"relative",overflow:"hidden"}}>
+          border:"1px solid rgba(200,168,75,0.2)",borderRadius:16,padding:isDesktop?"20px 22px":"17px 18px",marginBottom:12,position:"relative",overflow:"hidden"}}>
           <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",
             background:"radial-gradient(circle,rgba(200,168,75,0.12),transparent 70%)"}}/>
-          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,marginBottom:4,opacity:.8}}>Total Monthly Recurring Revenue</div>
-          <div style={{fontSize:32,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1,marginBottom:4}}>${MRR.toLocaleString()}<span style={{fontSize:13,fontWeight:400,color:C.textMuted}}>/mo</span></div>
-          <div style={{fontSize:11,color:C.textMuted}}>{paying} paying client{paying!==1?"s":""} of {clients.length} total</div>
+          <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".08em",color:C.gold,marginBottom:4,opacity:.8}}>
+            {cur?monthLabel(cur.month):"This month"} · so far
+          </div>
+          <div style={{fontSize:isDesktop?34:29,fontWeight:900,color:C.gold,letterSpacing:"-0.02em",lineHeight:1,marginBottom:5}}>
+            {data===null?"…":money0(cur?cur.net:0)}
+          </div>
+          <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55}}>
+            {data===null?"Reading your invoices…"
+              :cur&&cur.outstanding>0
+                ? <>{money0(cur.collected)} collected, {money0(cur.outstanding)} still unpaid across {cur.invoices} invoice{cur.invoices===1?"":"s"}.</>
+                : cur&&cur.invoices>0 ? <>All {cur.invoices} invoice{cur.invoices===1?"":"s"} paid.</>
+                : <>Nothing invoiced yet this month.</>}
+          </div>
         </div>
 
-        {/* Per-client rows (grid on desktop, single column on mobile) */}
-        {rows.length===0
-          ? <div style={{textAlign:"center",color:C.textMuted,fontSize:13,padding:"40px 0"}}>No clients yet.</div>
+        {err&&<div style={{fontSize:11.5,color:C.amber,lineHeight:1.6,marginBottom:12,padding:"11px 13px",borderRadius:11,backgroundColor:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.22)"}}>
+          Could not read Stripe: {err} The floor below still works, it comes from your own records.
+        </div>}
+
+        <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:14}}>
+          {tile("Last full month", data===null?"…":money0(done[0]?done[0].net:0),
+            done[0]?monthLabel(done[0].month):"No finished month yet",
+            trend!=null?(trend>=0?C.green:C.red):C.text)}
+          {tile("Average month", data===null?"…":money0(avg),
+            done.length?`Across ${done.length} finished month${done.length===1?"":"s"}`:"Needs a finished month",C.text)}
+          {/* The one number he can count on, kept visually separate from earned money
+              so the two can never be read as the same thing. */}
+          {tile("Guaranteed floor", money0(floorTotal),
+            `${paying} client${paying===1?"":"s"} on a minimum. Every month bills at least this.`,C.textDim)}
+        </div>
+
+        {trend!=null&&(
+          <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:14,padding:"11px 13px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
+            {trend>=0
+              ? <>Up <strong style={{color:C.green}}>{trend}%</strong> on the month before. </>
+              : <>Down <strong style={{color:C.red}}>{Math.abs(trend)}%</strong> on the month before. </>}
+            Only finished months are compared, so a part-way month never looks like a crash.
+          </div>
+        )}
+
+        {/* ── Month by month, expandable to per-client ──────────────────────── */}
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,margin:"0 0 8px 2px"}}>Month by month</div>
+        {data===null
+          ? <div style={{textAlign:"center",color:C.textMuted,fontSize:12.5,padding:"26px 0"}}>Loading…</div>
+          : data.length===0
+          ? <div style={{textAlign:"center",color:C.textMuted,fontSize:12.5,padding:"26px 0",lineHeight:1.7}}>No invoices yet. Once a client is set up on billing, every month you invoice shows up here.</div>
+          : <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+              {data.map(m=>{
+                const open=openMonth===m.month;
+                const peak=Math.max(1,...data.map(x=>x.net));
+                return (
+                  <div key={m.month} style={{backgroundColor:C.bg2,border:`1px solid ${open?C.borderAccent:C.border}`,borderRadius:12,overflow:"hidden"}}>
+                    <button onClick={()=>setOpenMonth(open?null:m.month)} style={{width:"100%",textAlign:"left",padding:"12px 14px",background:"none",border:"none",cursor:"pointer"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <div style={S.f1min}>
+                          <div style={{fontSize:13.5,fontWeight:700,color:C.text}}>
+                            {monthLabel(m.month)}{m.isCurrent&&<span style={{fontSize:9,fontWeight:800,letterSpacing:".07em",padding:"1px 5px",marginLeft:7,borderRadius:3,border:`1px solid ${C.border}`,color:C.textMuted,verticalAlign:"middle"}}>IN PROGRESS</span>}
+                          </div>
+                          <div style={{fontSize:10.5,color:C.textMuted,marginTop:2}}>
+                            {m.invoices===0?"No invoices":`${m.invoices} invoice${m.invoices===1?"":"s"}`}
+                            {m.outstanding>0?` · ${money0(m.outstanding)} unpaid`:""}
+                            {m.refunded>0?` · ${money0(m.refunded)} refunded`:""}
+                          </div>
+                        </div>
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          <div style={{fontSize:16,fontWeight:800,color:m.net>0?C.gold:C.textMuted,lineHeight:1}}>{money0(m.net)}</div>
+                        </div>
+                        <span style={{fontSize:15,color:C.textMuted,flexShrink:0,transform:open?"rotate(90deg)":"none",transition:"transform .15s"}}>›</span>
+                      </div>
+                      <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginTop:9}}>
+                        <div style={{height:"100%",width:`${Math.round((m.net/peak)*100)}%`,backgroundColor:C.gold,opacity:.55,borderRadius:2}}/>
+                      </div>
+                    </button>
+                    {open&&(
+                      <div style={{padding:"0 14px 12px"}}>
+                        {m.clients.length===0
+                          ? <div style={{fontSize:11.5,color:C.textMuted,paddingTop:4}}>Nothing invoiced this month.</div>
+                          : m.clients.map((c,i)=>(
+                              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:10,padding:"7px 0",borderTop:`1px solid rgba(255,255,255,0.04)`}}>
+                                <span style={{fontSize:12,color:C.textDim,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</span>
+                                <span style={{fontSize:12,fontWeight:700,color:C.text,whiteSpace:"nowrap",flexShrink:0}}>
+                                  {money0(c.collected)}
+                                  {c.outstanding>0&&<span style={{color:C.amber,fontWeight:600}}> +{money0(c.outstanding)} due</span>}
+                                </span>
+                              </div>
+                            ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>}
+
+        {/* ── The floor, per client ─────────────────────────────────────────── */}
+        <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,margin:"0 0 3px 2px"}}>Guaranteed floor by client</div>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,margin:"0 0 9px 2px"}}>
+          The minimum each client pays even in a dead month. Lead fees only add to the bill once they pass it, so a good month lands above these numbers, never below.
+        </div>
+        {floorRows.length===0
+          ? <div style={{textAlign:"center",color:C.textMuted,fontSize:13,padding:"30px 0"}}>No clients yet.</div>
           : <div style={isDesktop?{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:10}:{display:"flex",flexDirection:"column",gap:8}}>
-            {rows.map(({cl,pkg,price,setup})=>{
-              const share = MRR>0 ? Math.round((price/MRR)*100) : 0;
+            {floorRows.map(({cl,pkg,floor,setup})=>{
+              const share = floorTotal>0 ? Math.round((floor/floorTotal)*100) : 0;
               return (
                 <button key={cl.id} onClick={()=>onSelect(cl)} className="os-card" style={{textAlign:"left",width:"100%",cursor:"pointer",
                   backgroundColor:C.bg2,border:`1px solid ${C.border}`,borderRadius:12,padding:"12px 14px",display:"block"}}>
@@ -3236,12 +3534,11 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
                       </div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:16,fontWeight:800,color:price>0?C.gold:C.textMuted,lineHeight:1}}>${price.toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+                      <div style={{fontSize:16,fontWeight:800,color:floor>0?C.gold:C.textMuted,lineHeight:1}}>${floor.toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
                       {setup>0&&<div style={{fontSize:10,color:C.textMuted,marginTop:2}}>${setup.toLocaleString()} setup</div>}
                     </div>
                     <span style={{fontSize:16,color:C.textMuted,flexShrink:0}}>›</span>
                   </div>
-                  {/* share-of-revenue bar */}
                   <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginTop:9}}>
                     <div style={{height:"100%",width:`${share}%`,backgroundColor:C.gold,opacity:.55,borderRadius:2}}/>
                   </div>
@@ -4151,6 +4448,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const [adjusting,setAdjusting]=useState(false);
   const [leadBusy,setLeadBusy]=useState(false);   // per-lead billing approve in flight
   const [leadMsg,setLeadMsg]=useState("");
+  const [showFeeFinder,setShowFeeFinder]=useState(false);
   const [editRate,setEditRate]=useState(false);    // inline per-lead rate editor
   const [rateInput,setRateInput]=useState("");
   const [upcoming,setUpcoming]=useState(null);      // bundled next-invoice preview
@@ -4366,6 +4664,7 @@ function BillingCard({client,pkg,onUpdate}) {
                 Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/lead</strong>
                 {client.billingPerLead!=null&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold}}>custom</span>}
                 <button onClick={()=>{setRateInput(String(perLeadRate));setEditRate(true);}} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>edit</button>
+                <button onClick={()=>setShowFeeFinder(v=>!v)} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>{showFeeFinder?"hide":"what should this be?"}</button>
               </div>
             : <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
                 <span style={{fontSize:12,color:C.textMuted}}>$</span>
@@ -4373,7 +4672,16 @@ function BillingCard({client,pkg,onUpdate}) {
                 <button onClick={saveRate} style={{padding:"6px 10px",fontSize:11,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Save</button>
                 <button onClick={()=>setEditRate(false)} style={{padding:"6px 9px",fontSize:12,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>×</button>
               </div>}
-          {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-lead rate for {client.niche||"this niche"} — set one above to bill leads.</div>}
+          {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-lead rate for {client.niche||"this niche"} — set one above, or tap "what should this be?" to work one out.</div>}
+          {/* Same finder as Deal Prep. `onUse` writes the rate straight onto the client so
+              the number cannot be mistyped between reading it and saving it. */}
+          {showFeeFinder&&(
+            <div style={{marginBottom:10,padding:"12px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`}}>
+              <LeadFeeFinder
+                defaults={{niche:client.niche,company:client.name,location:client.targetLocations||client.location,adBudget:client.adBudget,packageId:client.packageId}}
+                onUse={(f)=>{ onUpdate&&onUpdate({...client,billingPerLead:f}); setShowFeeFinder(false); setLeadMsg(`✓ Per-lead rate set to ${money(f)}.`); }}/>
+            </div>
+          )}
 
           {unbilledLeads.length===0
             ? <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>No new leads to bill. Delivered leads show up here to review and add to the next invoice.</div>
@@ -5107,7 +5415,7 @@ function ARIAPanel({clients,onClose,onDelete,onUpdate}) {
   const MRR=realClients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
   const upgradeRequests=realClients.filter(c=>c.upgradeRequest);
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
-STATE: ${realClients.length} clients | ${realClients.filter(c=>c.stage==="active").length} active | MRR $${MRR.toLocaleString()} | ${realClients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
+STATE: ${realClients.length} clients | ${realClients.filter(c=>c.stage==="active").length} active | guaranteed monthly floor $${MRR.toLocaleString()} (the MINIMUM billed; actual revenue is whichever is higher of that or the month's lead fees) | ${realClients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
 CLIENTS:
 ${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}${c.internal?" [INTERNAL: BoldLine's OWN house ad account, not a paying client — help run/optimize its ads, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
@@ -5157,7 +5465,7 @@ ${adsLines?`GOOGLE ADS:\n${adsLines}\n`:""}${metaLines?`META ADS:\n${metaLines}\
       <div style={{padding:"13px 14px 11px",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
           <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.purple},#1D4ED8)`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>✦</div>
-          <div style={{flex:1}}><div style={{fontSize:15,fontWeight:700,color:C.text}}>ARIA</div><div style={{fontSize:11,color:C.textMuted}}>Agency-wide AI · {clients.length} clients · ${MRR.toLocaleString()}/mo MRR</div></div>
+          <div style={{flex:1}}><div style={{fontSize:15,fontWeight:700,color:C.text}}>ARIA</div><div style={{fontSize:11,color:C.textMuted}}>Agency-wide AI · {clients.length} clients · ${MRR.toLocaleString()}/mo floor</div></div>
           <CloseBtn onClick={onClose}/>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -9336,7 +9644,7 @@ function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, on
         {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
         {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
         {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
-        {row(sv(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>),"Revenue","MRR + revenue breakdown",onRevenue)}
+        {row(sv(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>),"Revenue","What you actually invoiced, by month",onRevenue)}
       </div>
     </div>
   );

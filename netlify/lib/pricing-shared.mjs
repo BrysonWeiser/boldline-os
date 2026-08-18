@@ -40,17 +40,17 @@ export const MIN_AD_BUDGET = 500;    // hard floor to be a managed client at all
 export const COMBO_MIN_BUDGET = 5000; // below this, one platform only
 
 export const PACKAGES = [
-  { id: "g-launch",      name: "Launch System",      platform: "Google Ads",    price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500–$2,500/mo",   tier: "launch"      },
-  { id: "g-growth",      name: "Growth System",      platform: "Google Ads",    price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", tier: "growth"     },
-  { id: "g-acquisition", name: "Acquisition System", platform: "Google Ads",    price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      tier: "acquisition" },
-  { id: "m-launch",      name: "Launch System",      platform: "Meta Ads",      price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500–$2,500/mo",   tier: "launch"      },
-  { id: "m-growth",      name: "Growth System",      platform: "Meta Ads",      price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", tier: "growth"     },
-  { id: "m-acquisition", name: "Acquisition System", platform: "Meta Ads",      price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      tier: "acquisition" },
-  { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 700,  setup: 2300, leadFee: true, pricingModel: "per_lead", adSpend: "$5,000–$10,000/mo", tier: "growth"     },
-  { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1200, setup: 4900, leadFee: true, pricingModel: "per_lead", adSpend: "$10,000+/mo", tier: "acquisition" },
-  { id: "e-launch",      name: "Store Launch",       platform: "Meta Ads (ecom)",      price: 400,  setup: 800,  leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$500–$2,500/mo",   tier: "launch"      },
-  { id: "e-growth",      name: "Store Growth",       platform: "Meta Ads (ecom)",      price: 700,  setup: 1400, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$2,500–$10,000/mo", tier: "growth"     },
-  { id: "e-domination",  name: "Store Domination",   platform: "Meta + Google (ecom)", price: 1200, setup: 2500, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 12, adSpend: "$10,000+/mo",      tier: "acquisition" },
+  { id: "g-launch",      name: "Launch System",      platform: "Google Ads",    price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500–$2,500/mo",   minBudget: 500, maxBudget: 2500, tier: "launch"      },
+  { id: "g-growth",      name: "Growth System",      platform: "Google Ads",    price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", minBudget: 2500, maxBudget: 10000, tier: "growth"     },
+  { id: "g-acquisition", name: "Acquisition System", platform: "Google Ads",    price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      minBudget: 10000, maxBudget: null, tier: "acquisition" },
+  { id: "m-launch",      name: "Launch System",      platform: "Meta Ads",      price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500–$2,500/mo",   minBudget: 500, maxBudget: 2500, tier: "launch"      },
+  { id: "m-growth",      name: "Growth System",      platform: "Meta Ads",      price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", minBudget: 2500, maxBudget: 10000, tier: "growth"     },
+  { id: "m-acquisition", name: "Acquisition System", platform: "Meta Ads",      price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      minBudget: 10000, maxBudget: null, tier: "acquisition" },
+  { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 700,  setup: 2300, leadFee: true, pricingModel: "per_lead", adSpend: "$5,000–$10,000/mo", minBudget: 5000, maxBudget: 10000, tier: "growth"     },
+  { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1200, setup: 4900, leadFee: true, pricingModel: "per_lead", adSpend: "$10,000+/mo", minBudget: 10000, maxBudget: null, tier: "acquisition" },
+  { id: "e-launch",      name: "Store Launch",       platform: "Meta Ads (ecom)",      price: 400,  setup: 800,  leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$500–$2,500/mo",   minBudget: 500, maxBudget: 2500, tier: "launch"      },
+  { id: "e-growth",      name: "Store Growth",       platform: "Meta Ads (ecom)",      price: 700,  setup: 1400, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$2,500–$10,000/mo", minBudget: 2500, maxBudget: 10000, tier: "growth"     },
+  { id: "e-domination",  name: "Store Domination",   platform: "Meta + Google (ecom)", price: 1200, setup: 2500, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 12, adSpend: "$10,000+/mo",      minBudget: 10000, maxBudget: null, tier: "acquisition" },
 ];
 
 // The one billing calculation — "whichever is more". Mirrors index.html's copy.
@@ -74,3 +74,13 @@ export const packagesPromptBlock = (leadFee) =>
       p.leadFee ? `$${leadFee}/qualified lead` : `${p.adSpendPct}% of ad spend`
     }, whichever is higher (never both). Client ad budget: ${p.adSpend}.`
   ).join("\n");
+
+// Which package an ad budget qualifies for. `family` is "g" | "m" | "c" | "e".
+// Combined is a deliberate budget unlock: below COMBO_MIN_BUDGET it returns null rather
+// than a smaller combined tier, because no such tier exists on purpose.
+export const packageForBudget = (budget, family = "g") => {
+  const n = Number(budget) || 0;
+  if (n < MIN_AD_BUDGET) return null;
+  const inFamily = PACKAGES.filter((p) => p.id.startsWith(family + "-"));
+  return inFamily.find((p) => n >= p.minBudget && (p.maxBudget === null || n < p.maxBudget)) || null;
+};
