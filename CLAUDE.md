@@ -95,13 +95,19 @@ to-do: **the instant it becomes known that Meta has granted Marketing API standa
 reading successfully in `ads-sync`), **immediately revert the marketing site's coming-soon
 state and deploy** — do not wait to be asked, and do not ask permission first.
 
-- The whole change is ONE self-contained commit: **`a4b83f0`** ("Site: mark Meta and
-  everything built on it as coming soon"). `git revert a4b83f0`, then merge to `main` as
-  usual (rollback branch first, log in `docs/DEPLOYS.md`).
-- If that revert conflicts with later site work, don't force it — every edit is wrapped in
-  **`CS:META-SOON`** sentinel comments in `marketing-site/index.html` and
-  `marketing-site/get-started/index.html`. Remove each sentinel block and restore the
-  original text; the commit diff is the reference for what the original said.
+- **WORK FROM `docs/META-FLIP-CHECKLIST.md`, NOT from the old revert.** `git revert a4b83f0`
+  is no longer sufficient on its own: anything added to the site AFTER that commit is
+  invisible to it (the Full System: Acquisition card already proved this — its waitlist
+  button would survive the revert). The **`CS:META-SOON` sentinels are the source of truth**,
+  and the checklist lists every one of them with what it becomes. Use `git show a4b83f0` only
+  as a reference for the original wording of the blocks that predate it. Then merge to `main`
+  as usual (rollback branch first, log in `docs/DEPLOYS.md`).
+- **`node tests/verify-meta-flip.mjs` polices this.** While the site is gated it fails if any
+  sentinel is missing from the checklist, or the checklist names one that no longer exists, or
+  a waitlist button carries no marker, or a Google card ever gets gated. After the flip it
+  switches expectations and asserts all 12 packages book and no marker survives. **So any new
+  gated site change is automatically recorded** (Bryson, 2026-08-17: *"make sure from now on any
+  updates we do to the website are saved for when we flip the website back to normal"*).
 - Then tell Bryson it's reverted, and update KB `meta-marketing-api` + `site-coming-soon`.
 - A weekly Routine also checks in about this (trigger `trig_012hH9VLXchaMj7LUc461Wrb`,
   Mondays 09:00 Phoenix — see KB `site-coming-soon`) — but the Routine is the backstop. If you learn Meta is live in ANY
