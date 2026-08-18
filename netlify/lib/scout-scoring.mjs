@@ -83,7 +83,7 @@ export const parseRevenue = (s) => {
   return Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
 };
 
-// Low end of a package's client ad spend, from "$750–$2,500/mo".
+// Low end of a package's client ad spend, from "$500–$2,500/mo".
 export const adSpendLow = (pkg) => {
   const m = String((pkg && pkg.adSpend) || "").match(/[\d,]+/);
   return m ? Number(m[0].replace(/,/g, "")) : 0;
@@ -100,7 +100,9 @@ const fmt = (n) => "$" + Math.round(n).toLocaleString();
 // Returns everything needed to both SCORE the prospect and SHOW Bryson the math.
 export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheGroup, kind }) => {
   const entry = entryPackageFor(kind) || PACKAGES[0];
-  const entryMonthly = entry.price + adSpendLow(entry);   // management fee + minimum viable ad spend
+  // Monthly minimum (the floor BoldLine bills even in a dead month) + the smallest ad
+  // budget the package can actually work on. That sum is what the prospect must cover.
+  const entryMonthly = entry.price + adSpendLow(entry);
   const entrySetup = entry.setup;
 
   const statedRevenue = parseRevenue(revenueEstimate);
@@ -115,7 +117,7 @@ export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheG
   if (!annualRevenue) {
     return {
       known: false, entryId: entry.id, entryName: entry.name, entryMonthly, entrySetup,
-      note: `Company size unknown, so their budget could not be calculated. The cheapest way in is ${entry.name} at ${fmt(entry.price)}/mo plus at least ${fmt(adSpendLow(entry))}/mo of their own ad spend and a ${fmt(entrySetup)} setup — confirm they can cover roughly ${fmt(entryMonthly)}/mo before you spend real time on them.`,
+      note: `Company size unknown, so their budget could not be calculated. The cheapest way in is ${entry.name} at a ${fmt(entry.price)}/mo minimum plus at least ${fmt(adSpendLow(entry))}/mo of their own ad spend and a ${fmt(entrySetup)} setup — confirm they can cover roughly ${fmt(entryMonthly)}/mo before you spend real time on them.`,
       lines: [`Cheapest entry: ${entry.name} — ${fmt(entryMonthly)}/mo all-in + ${fmt(entrySetup)} setup`, "Size unknown — verify budget on the call"],
     };
   }
@@ -145,7 +147,7 @@ export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheG
     lines: [
       `Revenue estimate: ${fmt(annualRevenue)}/yr — ${basis}`,
       `Marketing budget capacity: ~${fmt(monthlyCapacity)}/mo (${Math.round(pct * 100)}% of revenue, ${nicheGroup || "general"} benchmark)`,
-      `Cheapest way in: ${entry.name} — ${fmt(entry.price)}/mo fee + ${fmt(adSpendLow(entry))}/mo minimum ad spend = ${fmt(entryMonthly)}/mo, plus ${fmt(entrySetup)} setup`,
+      `Cheapest way in: ${entry.name} — ${fmt(entry.price)}/mo minimum + ${fmt(adSpendLow(entry))}/mo minimum ad spend = ${fmt(entryMonthly)}/mo, plus ${fmt(entrySetup)} setup`,
       `That is ${ratio >= 1 ? `${ratio.toFixed(1)}× their capacity — ${band}` : `${Math.round(ratio * 100)}% of what they can afford — ${band}`}`,
       affordable ? `Realistic ceiling: ${affordable.name} (${affordable.platform}) at ${fmt(affordable.price)}/mo` : "Cannot afford any package at a viable ad spend",
     ],

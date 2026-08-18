@@ -15,14 +15,15 @@ export const PACKAGES_DB = {
     { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      optimizationFreq:"weekly"  },
     { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      optimizationFreq:"weekly"  },
   ],
+  // No combined Launch tier: Google + Meta starts at $5,000/mo of ad budget, because
+  // splitting less than that across two platforms means neither one learns.
   combined: [
-    { id:"c-launch", name:"Full System — Launch", platform:"Google + Meta", optimizationFreq:"monthly" },
     { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", optimizationFreq:"weekly"  },
     { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", optimizationFreq:"weekly"  },
   ],
   ecom: [
     { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      optimizationFreq:"monthly" },
-    { id:"e-growth",     name:"Store Growth",     platform:"Meta + Google", optimizationFreq:"weekly"  },
+    { id:"e-growth",     name:"Store Growth",     platform:"Meta Ads",      optimizationFreq:"weekly"  },
     { id:"e-domination", name:"Store Domination", platform:"Meta + Google", optimizationFreq:"weekly"  },
   ],
 };

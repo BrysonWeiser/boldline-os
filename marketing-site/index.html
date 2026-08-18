@@ -44,7 +44,7 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 {"@context":"https://schema.org","@type":"Organization","name":"BoldLine Media","alternateName":"BoldLine","url":"https://boldlinemedia.com/","logo":"https://boldlinemedia.com/icon.png","image":"https://boldlinemedia.com/icon.png","description":"BoldLine plans, builds, and runs Google and Meta ad campaigns, plus the landing pages behind them, for a small roster of businesses.","email":"theboldlinemedia@gmail.com","founder":{"@type":"Person","name":"Bryson Weiser","sameAs":["https://www.linkedin.com/in/brysonweiser"]},"sameAs":["https://www.instagram.com/boldlinemedia","https://www.facebook.com/BoldLineMedia"],"areaServed":{"@type":"Country","name":"United States"},"knowsAbout":["Google Ads management","Meta Ads management","Landing page design","Call tracking","CRM lead routing"]}
 </script>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Service","serviceType":"Digital advertising management","name":"Google & Meta Ads Management + Landing Pages","provider":{"@type":"Organization","name":"BoldLine Media","url":"https://boldlinemedia.com/"},"areaServed":{"@type":"Country","name":"United States"},"description":"Managed Google Ads and Meta (Facebook/Instagram) advertising plus custom landing pages for businesses across the United States, served locally and remotely. The client always owns and pays for their own ad account; BoldLine only manages it.","offers":{"@type":"Offer","priceCurrency":"USD","price":"350","description":"Management starting at $350 per month"}}
+{"@context":"https://schema.org","@type":"Service","serviceType":"Digital advertising management","name":"Google & Meta Ads Management + Landing Pages","provider":{"@type":"Organization","name":"BoldLine Media","url":"https://boldlinemedia.com/"},"areaServed":{"@type":"Country","name":"United States"},"description":"Managed Google Ads and Meta (Facebook/Instagram) advertising plus custom landing pages for businesses across the United States, served locally and remotely. The client always owns and pays for their own ad account; BoldLine only manages it.","offers":{"@type":"Offer","priceCurrency":"USD","price":"400","description":"From $400 per month, or a fee per qualified lead, whichever is higher"}}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"How much does this cost?","acceptedAnswer":{"@type":"Answer","text":"Management starts at $350/month depending on the platforms and tier that fit your goals; every package on our site shows its starting price, and we walk through exact pricing on a call. Separately, most clients run an ad budget of around $1,000/month or more, paid directly to Google or Meta. You always own your account."}},{"@type":"Question","name":"Do I own my ad account?","acceptedAnswer":{"@type":"Answer","text":"Always. Your Google and Meta accounts stay in your name and are billed directly to you. We only ever hold manager-level access to run them, and we never hold, front, or touch your ad spend."}},{"@type":"Question","name":"Why is there a three month minimum to start?","acceptedAnswer":{"@type":"Answer","text":"Because paid ads compound. The first month is mostly learning which keywords and audiences actually convert, the second puts that data to work, and by the third the system has real momentum you can judge fairly. After those first three months we earn it month to month, and your budget never scales without your sign-off."}},{"@type":"Question","name":"How fast will I see results?","acceptedAnswer":{"@type":"Answer","text":"The first few weeks are mostly learning which keywords and audiences convert. Paid ads compound; they are not a light switch. And if your offer or follow-up isn't ready to make the most of the clicks, we tell you before you spend."}},{"@type":"Question","name":"What if it's not working?","acceptedAnswer":{"@type":"Answer","text":"We review every account on a set cadence against real performance data and report in plain English. If something isn't working we change it, and if we're genuinely not the right fit we say so."}},{"@type":"Question","name":"Which platforms do you run?","acceptedAnswer":{"@type":"Answer","text":"Google Ads and Meta ads across Facebook and Instagram, on their own or as one coordinated system, plus the landing pages, call tracking, and lead routing behind them."}}]}
@@ -258,7 +258,9 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .pkg-grid:has(.pkg:hover) .pkg:has(.tag):not(:hover):not(.sel){box-shadow:none}
 .pkg .tag{position:absolute;top:-11px;left:28px;background:var(--gold);color:#15110A;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:20px}
 .pkg h3{font-size:17px;font-weight:700;color:#fff;margin-bottom:6px}
-.pkg .price{font-size:13px;color:var(--muted);margin:0 0 6px}
+.pkg .price{font-size:13px;color:var(--muted);margin:0 0 4px}
+.pkg .pnote{font-size:11.5px;color:var(--muted);margin:0 0 8px;line-height:1.5}
+.pkg .pnote b{color:var(--gold);font-weight:700}
 .pkg .price b{color:var(--gold);font-size:17px;font-weight:700}
 .sys-flow{display:flex;align-items:stretch;max-width:1150px;margin:0 auto}
 .sys-step{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px 18px;text-align:center;transition:transform .3s ease,border-color .3s ease}
@@ -273,6 +275,12 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .pkg ul li{font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:flex-start;line-height:1.5}
 .pkg ul li::before{content:"✓";color:var(--gold);font-weight:700;flex-shrink:0}
 .pkg .note{font-size:11.5px;color:var(--gold);margin-bottom:18px;line-height:1.55}
+.rule-note{margin:0 0 22px;padding:14px 16px;border-radius:13px;background:rgba(255,255,255,.028);
+  border:1px solid rgba(255,255,255,.075)}
+.rule-note p{margin:0;font-size:13.5px;line-height:1.65;color:var(--muted)}
+.rule-note p + p{margin-top:8px}
+.rule-note b{color:var(--gold)}
+@media (max-width:600px){.rule-note{padding:12px 13px}.rule-note p{font-size:13px}}
 /* Full-width package CTA button (was a small underlined text link) — bottom-
    aligned across the row via margin-top:auto so every card's button lines up */
 .pkg-cta{display:block;margin-top:auto;text-align:center;padding:13px 18px;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);text-decoration:none;background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:9px;transition:background .22s ease,color .22s ease,border-color .22s ease,transform .22s ease,box-shadow .22s ease}
@@ -966,8 +974,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Launch System</h3>
-          <div class="price">Management starting at <b>$400/mo</b></div>
-          <div class="budget">Typical ad budget: $750–$2,500/mo</div>
+          <div class="price">From <b>$400/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $500–$2,500/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -977,8 +986,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Most Popular</span>
           <h3>Growth System</h3>
-          <div class="price">Management starting at <b>$600/mo</b></div>
-          <div class="budget">Typical ad budget: $2,000–$8,000/mo</div>
+          <div class="price">From <b>$700/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $2,500–$10,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -990,8 +1000,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
-          <div class="price">Management starting at <b>$900/mo</b></div>
-          <div class="budget">Typical ad budget: $5,000–$20,000+/mo</div>
+          <div class="price">From <b>$1,200/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $10,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1019,8 +1030,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Launch System</h3>
-          <div class="price">Management starting at <b>$350/mo</b></div>
-          <div class="budget">Typical ad budget: $500–$2,000/mo</div>
+          <div class="price">From <b>$400/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $500–$2,500/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1030,8 +1042,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <div class="pkg">
           <span class="tag">Most Popular</span>
           <h3>Growth System</h3>
-          <div class="price">Management starting at <b>$550/mo</b></div>
-          <div class="budget">Typical ad budget: $1,500–$5,000/mo</div>
+          <div class="price">From <b>$700/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $2,500–$10,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1043,8 +1056,9 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         </div>
         <div class="pkg">
           <h3>Acquisition System</h3>
-          <div class="price">Management starting at <b>$850/mo</b></div>
-          <div class="budget">Typical ad budget: $4,000–$15,000+/mo</div>
+          <div class="price">From <b>$1,200/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $10,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1067,23 +1081,17 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
         <span class="eta">Estimated availability &mdash; October 2026</span>
       </div>
       <!-- CS:META-SOON:END note-combined -->
-      <div class="pkg-grid">
+      <div class="rule-note">
+        <p><b>Running both platforms starts at $5,000 a month in ad budget.</b> Below that we put everything behind one channel instead.</p>
+        <p>It isn't a sales rule, it's how the platforms work. Split a small budget in two and neither side gets enough data to learn, so both underperform. One well-fed channel beats two starving ones every time.</p>
+      </div>
+      <div class="pkg-grid cols-2">
         <div class="pkg">
           <span class="tag">Best Value</span>
-          <h3>Full System: Launch</h3>
-          <div class="price">Management starting at <b>$650/mo</b></div>
-          <div class="budget">Typical ad budget: $1,000–$4,000/mo</div>
-          <ul>
-            <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
-            <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
-          </ul>
-          <div class="note">Bundled pricing that runs more efficiently than two separate single-platform engagements.</div>
-          <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
-        </div>
-        <div class="pkg">
           <h3>Full System: Growth</h3>
-          <div class="price">Management starting at <b>$1,000/mo</b></div>
-          <div class="budget">Typical ad budget: $3,000–$12,000/mo</div>
+          <div class="price">From <b>$700/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $5,000–$10,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1094,14 +1102,15 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="crm-integration">CRM integration</span></li>
             <li><span class="term" tabindex="0" data-term="multi-campaign">Multi-campaign structure</span></li>
           </ul>
-          <div class="note">Bundled pricing that runs more efficiently than two separate single-platform engagements.</div>
+          <div class="note">Both channels for the same monthly minimum as running one. You only pay more to build it, not to run it.</div>
           <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <span class="tag">Most Powerful</span>
           <h3>Full System: Acquisition</h3>
-          <div class="price">Management starting at <b>$1,500/mo</b></div>
-          <div class="budget">Typical ad budget: $9,000–$35,000+/mo</div>
+          <div class="price">From <b>$1,200/mo</b></div>
+          <div class="pnote">Or a fee per <b>qualified lead</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $10,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1114,7 +1123,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li>Full funnel strategy, cold traffic through to sold</li>
             <li>Strategic scaling roadmap</li>
           </ul>
-          <div class="note">Everything in both Acquisition systems, run as one operation. $250/mo less than buying them separately.</div>
+          <div class="note">Everything in both Acquisition systems, run as one operation, for the same monthly minimum as running one.</div>
           <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
       </div>
@@ -1132,20 +1141,22 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
       <div class="pkg-grid">
         <div class="pkg">
           <h3>Store Launch</h3>
-          <div class="price">Management starting at <b>$450/mo</b></div>
-          <div class="budget">Typical ad budget: $500–$1,500/mo</div>
+          <div class="price">From <b>$400/mo</b></div>
+          <div class="pnote">Or <b>15% of your ad spend</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $500–$2,500/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Monthly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
           </ul>
-          <div class="note">Performance bonus available once your store is consistently hitting strong <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
+          <div class="note">A store has no lead to count, so the performance half is a share of your ad spend. Your bill tracks your spend, and your spend tracks your <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
           <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <span class="tag">Recommended</span>
           <h3>Store Growth</h3>
-          <div class="price">Management starting at <b>$750/mo</b></div>
-          <div class="budget">Typical ad budget: $1,500–$5,000/mo</div>
+          <div class="price">From <b>$700/mo</b></div>
+          <div class="pnote">Or <b>15% of your ad spend</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $2,500–$10,000/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1153,13 +1164,14 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="retargeting">Retargeting</span> &amp; <span class="term" tabindex="0" data-term="audience-building">audience building</span></li>
             <li><span class="term" tabindex="0" data-term="split-testing">Split testing</span></li>
           </ul>
-          <div class="note">Performance bonus available once your store is consistently hitting strong <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
+          <div class="note">A store has no lead to count, so the performance half is a share of your ad spend. Your bill tracks your spend, and your spend tracks your <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
           <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
         <div class="pkg">
           <h3>Store Domination</h3>
-          <div class="price">Management starting at <b>$1,200/mo</b></div>
-          <div class="budget">Typical ad budget: $4,000–$15,000+/mo</div>
+          <div class="price">From <b>$1,200/mo</b></div>
+          <div class="pnote">Or <b>12% of your ad spend</b> &mdash; whichever is higher, never both.</div>
+          <div class="budget">Typical ad budget: $10,000+/mo</div>
           <ul>
             <li><span class="term" tabindex="0" data-term="landing-page">Landing page</span> included</li>
             <li>Weekly <span class="term" tabindex="0" data-term="optimization">optimization &amp; reporting</span></li>
@@ -1168,11 +1180,16 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
             <li><span class="term" tabindex="0" data-term="split-testing">Split testing</span></li>
             <li><span class="term" tabindex="0" data-term="multi-campaign">Multi-campaign structure</span></li>
           </ul>
-          <div class="note">Performance bonus available once your store is consistently hitting strong <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
+          <div class="note">A store has no lead to count, so the performance half is a share of your ad spend. Your bill tracks your spend, and your spend tracks your <span class="term" tabindex="0" data-term="roas">ROAS</span>.</div>
           <a class="pkg-cta" href="#contact">Join the waitlist</a><!-- CS:META-SOON cta -->
         </div>
       </div>
     </div>
+  </div>
+
+  <div class="rule-note reveal">
+    <p><b>You pay one number, not two.</b> Every month you pay the minimum for your plan, or the performance fee your results earned, whichever of those is higher. Never both added together.</p>
+    <p>Your ad budget is separate and goes straight to Google or Meta on your own card. We never hold it, mark it up, or bill you for it. <b>The smallest budget we'll take on is $500 a month</b>, because below that there isn't enough data for any of this to work.</p>
   </div>
 
   <div class="equal-effort reveal">
@@ -1673,9 +1690,10 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
       <div class="q" data-q="budget">
         <div class="q-label">What's your monthly ad budget?</div>
         <div class="opts">
-          <button type="button" data-val="low">Under $1,500</button>
-          <button type="button" data-val="mid">$1,500–$5,000</button>
-          <button type="button" data-val="high">$5,000+</button>
+          <button type="button" data-val="low">Under $2,500</button>
+          <button type="button" data-val="mid">$2,500–$5,000</button>
+          <button type="button" data-val="midplus">$5,000–$10,000</button>
+          <button type="button" data-val="high">$10,000+</button>
         </div>
       </div>
 
@@ -1783,18 +1801,24 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
   });
 
   var FAMILIES = {
-    google:   { tab:'google',   label:'Google Ads',       tiers:{ low:'Launch System',        mid:'Growth System',        high:'Acquisition System' } },
-    meta:     { tab:'meta',     label:'Meta Ads',         tiers:{ low:'Launch System',        mid:'Growth System',        high:'Acquisition System' } },
-    combined: { tab:'combined', label:'Combined Systems', tiers:{ low:'Full System: Launch',  mid:'Full System: Growth', high:'Full System: Acquisition' } },
-    ecom:     { tab:'ecom',     label:'E-Commerce',       tiers:{ low:'Store Launch',          mid:'Store Growth',         high:'Store Domination' } }
+    google:   { tab:'google',   label:'Google Ads',       tiers:{ low:'Launch System', mid:'Growth System', midplus:'Growth System', high:'Acquisition System' } },
+    meta:     { tab:'meta',     label:'Meta Ads',         tiers:{ low:'Launch System', mid:'Growth System', midplus:'Growth System', high:'Acquisition System' } },
+    combined: { tab:'combined', label:'Combined Systems', tiers:{ midplus:'Full System: Growth', high:'Full System: Acquisition' } },
+    ecom:     { tab:'ecom',     label:'E-Commerce',       tiers:{ low:'Store Launch', mid:'Store Growth', midplus:'Store Growth', high:'Store Domination' } }
   };
+
+  // Running both platforms needs $5,000/mo of ad budget, so the recommender must not
+  // recommend one below that. Falling back to a single channel here is the same honest
+  // advice the pricing page gives: a split small budget means neither side learns.
+  var COMBO_MIN_BAND = { midplus:1, high:1 };
 
   function pickFamily(){
     if(answers.type === 'ecom') return 'ecom';
-    if(answers.type === 'both') return 'combined';
+    var wantsBoth = (answers.type === 'both') || (answers.channel === 'ads');
+    if(wantsBoth) return COMBO_MIN_BAND[answers.budget] ? 'combined'
+      : (answers.channel === 'social' ? 'meta' : 'google');
     // local or unsure -> infer from how they get clients today
     if(answers.channel === 'social') return 'meta';
-    if(answers.channel === 'ads') return 'combined';
     // word of mouth, search, or nothing yet -> capture high-intent demand first
     return 'google';
   }
@@ -1825,7 +1849,13 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
     var tierName = f.tiers[tierKey];
     document.getElementById('recHeadline').innerHTML =
       'We’d start you with the <strong>' + tierName + '</strong> on <strong>' + f.label + '</strong>.';
-    document.getElementById('recWhy').textContent = recBody(answers.channel, fam, tierName, f.label);
+    var why = recBody(answers.channel, fam, tierName, f.label);
+    // Someone who asked for both and got one deserves the reason, or it reads as a
+    // downsell. It is the opposite: it is the advice that makes their budget work.
+    if(fam !== 'combined' && (answers.type === 'both' || answers.channel === 'ads')){
+      why += ' Running Google and Meta together starts at $5,000 a month in ad budget. Below that, splitting it means neither side gets enough data to learn, so we put the whole budget behind one channel first and add the second when the numbers earn it.';
+    }
+    document.getElementById('recWhy').textContent = why;
     var rf = document.getElementById('recEmailForm'), rd = document.getElementById('recEmailDone');
     if(rf){ rf.reset(); rf.hidden = false; var recd = rf.querySelector('#recRecommended'); if(recd) recd.value = tierName + ' on ' + f.label; }
     if(rd) rd.hidden = true;
