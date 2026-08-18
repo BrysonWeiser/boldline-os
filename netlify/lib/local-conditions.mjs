@@ -179,7 +179,7 @@ export const summariseAlerts = (alerts, cities = []) => {
 
 // The block that goes into the prompt. Facts only, clearly labelled, with the rule
 // attached to them rather than buried elsewhere.
-export const conditionsBlock = ({ locations, now = new Date(), alerts = [], cities = [] }) => {
+export const conditionsBlock = ({ locations, now = new Date(), alerts = [], cities = [], mode = "ads" }) => {
   const { month, season, date } = seasonContext(now);
   const L = [`Today's date: ${date} (${month}, ${season} in the northern hemisphere).`];
   if (locations && String(locations).trim()) L.push(`Service area: ${String(locations).trim()}`);
@@ -204,6 +204,22 @@ export const conditionsBlock = ({ locations, now = new Date(), alerts = [], citi
       "These are active emergencies. Do not reference them, hint at them, or build urgency from them.");
   }
 
+  // A LANDING PAGE OUTLIVES THE WEATHER. An ad can be swapped tomorrow; a page sits at the
+  // same URL for months. "Storm damage today" is stale by Thursday and makes the business
+  // look asleep, so pages get the durable framing (the season, the recurring pattern) while
+  // ads may use the specific alert running right now.
+  if (mode === "landing") {
+    L.push("",
+      "HOW TO USE THIS ON A LANDING PAGE:",
+      "- This page stays up for months. Write for the SEASON and the recurring local pattern, never for today's specific alert. \"Monsoon season roof repair\" ages well. \"Storm damage today\" is wrong by Thursday and makes the business look asleep.",
+      "- Match the page to the ads pointing at it. If the ads lead on heat, the page must too, or the click is wasted.",
+      "- Use it ONLY where it genuinely drives demand for THIS business. Forcing it in reads as gimmicky.",
+      "- Invent nothing, and never reference a disaster, damage to others, or danger to life.",
+      "- Seasonal timing matters for e-commerce too: shipping cutoffs, gifting, back-to-school, end of season clearance.",
+    );
+    return L.join("\n");
+  }
+
   L.push("",
     "HOW TO USE THIS:",
     "- Use it ONLY where it genuinely drives demand for THIS business. A heat warning matters to an HVAC company and means nothing to a bookkeeper. Forcing it in reads as gimmicky and wastes a headline.",
@@ -217,7 +233,7 @@ export const conditionsBlock = ({ locations, now = new Date(), alerts = [], citi
 
 // One call for callers: parse the area, fetch what is happening, build the block.
 export const getLocalConditions = async (
-  { locations, now = new Date(), fetchImpl = fetch } = {}
+  { locations, now = new Date(), fetchImpl = fetch, mode = "ads" } = {}
 ) => {
   const { states, cities } = parseAreas(locations);
   let alerts = [];
@@ -227,7 +243,7 @@ export const getLocalConditions = async (
   return {
     states, cities, alerts, summary,
     usable: summary.filter((a) => isAdvertisable(a.event)),
-    block: conditionsBlock({ locations, now, alerts, cities }),
+    block: conditionsBlock({ locations, now, alerts, cities, mode }),
   };
 };
 

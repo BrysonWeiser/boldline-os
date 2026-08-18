@@ -190,7 +190,90 @@ for (const [file, label] of [
   const loopStart = src.indexOf("for (const row of rows || []) {");
   ok("autopilot scopes conditions inside the client loop", perClient > loopStart && perClient - loopStart < 400);
   ok("autopilot uses the client's own target locations", /campaignSetup && cl\.campaignSetup\.targetLocations/.test(src));
-  ok("autopilot records what the conditions were", /conditions: conditionsFingerprint/.test(src));
+  ok("autopilot computes the fingerprint once per client", /const condFp = conditionsFingerprint\(localCond\.summary\)/.test(src));
+  ok("autopilot records the conditions on the action", /conditions: condFp/.test(src));
+}
+
+// ── Landing pages get DURABLE framing, not today's alert ────────────────────
+// A page sits at the same URL for months. "Storm damage today" is wrong by Thursday.
+{
+  const a = [alert("Extreme Heat Warning", "Central Phoenix")];
+  const ads = conditionsBlock({ locations: "Phoenix, AZ", alerts: a, cities: ["Phoenix"] });
+  const page = conditionsBlock({ locations: "Phoenix, AZ", alerts: a, cities: ["Phoenix"], mode: "landing" });
+  ok("landing mode gives different guidance", ads !== page);
+  ok("landing mode says the page outlives the weather", /stays up for months/.test(page));
+  ok("landing mode steers to the season, not today", /never for today's specific alert/i.test(page));
+  ok("landing mode tells it to match the ads", /Match the page to the ads/.test(page));
+  ok("landing mode still forbids inventing", /Invent nothing/.test(page));
+  ok("landing mode still forbids disasters", /never reference a disaster/i.test(page));
+  ok("ad mode still allows the specific alert", /AC out in this heat/.test(ads));
+  ok("both modes still list the live alert", /Extreme Heat Warning/.test(page));
+}
+{
+  const src = readFileSync("netlify/functions/generate-landing.mjs", "utf8");
+  ok("landing writer imports the conditions", /from "\.\.\/lib\/local-conditions\.mjs"/.test(src));
+  ok("landing writer asks for landing mode", /mode:\s*"landing"/.test(src));
+  ok("landing writer uses the client's service area", /targetLocations \|\| cs\.serviceArea/.test(src));
+  ok("landing writer puts it in the prompt", /WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW/.test(src));
+}
+
+// ── 🔴 The conditions-change trigger must not churn live ads ────────────────
+// Replays the trigger day by day using the REAL constants out of the file, so the
+// brakes are tested rather than described.
+{
+  const src = readFileSync("netlify/functions/ads-autopilot.mjs", "utf8");
+  const DWELL = Number((src.match(/CONDITIONS_DWELL_HOURS = (\d+)/) || [])[1]);
+  const COOL = Number((src.match(/CONDITIONS_COOLDOWN_HOURS = (\d+)/) || [])[1]);
+  ok("a dwell period exists and is at least a day", DWELL >= 24, String(DWELL));
+  ok("a cooldown exists and is at least a week", COOL >= 168, String(COOL));
+
+  const H = 3600e3;
+  const replay = (days, impressions = 0) => {
+    let ap = {}, recent = [], fired = [];
+    days.forEach((condFp, d) => {
+      const now = Date.parse("2026-08-01T12:00:00Z") + d * 24 * H;
+      const prev = (ap.conditionsWatch && ap.conditionsWatch.fp === condFp) ? ap.conditionsWatch : null;
+      const watch = { fp: condFp, since: prev ? prev.since : new Date(now).toISOString() };
+      const settled = (now - Date.parse(watch.since)) >= DWELL * H;
+      const last = recent.filter((a) => a.conditions).sort((x, y) => Date.parse(y.at) - Date.parse(x.at))[0];
+      const changed = settled && condFp !== "none"
+        && (!last || last.conditions !== condFp)
+        && (!last || (now - Date.parse(last.at)) >= COOL * H);
+      if (impressions >= 500 || changed) {
+        recent = [{ at: new Date(now).toISOString(), conditions: condFp }, ...recent];
+        fired.push(d);
+      }
+      ap = { ...ap, conditionsWatch: watch };   // saved every run, quiet or not
+    });
+    return fired;
+  };
+  const heat = "AZ:Extreme Heat Warning*", wind = "AZ:High Wind Warning*";
+
+  eq("an advisory flapping daily never rewrites an ad",
+    replay(["none", heat, "none", heat, "none", heat, "none", heat]).length, 0);
+  eq("quiet weather never rewrites an ad", replay(Array(30).fill("none")).length, 0);
+  eq("weather that settles rewrites exactly once",
+    replay(["none", ...Array(9).fill(heat)]).length, 1);
+  ok("and only after the dwell has passed",
+    replay(["none", ...Array(9).fill(heat)])[0] >= 1 + DWELL / 24, "fired too early");
+  eq("two real season changes rewrite twice",
+    replay([...Array(20).fill(heat), ...Array(20).fill(wind)]).length, 2);
+  ok("and they are a cooldown apart", (() => {
+    const f = replay([...Array(20).fill(heat), ...Array(20).fill(wind)]);
+    return (f[1] - f[0]) * 24 >= COOL;
+  })());
+  eq("a season change straight back and forth still respects cooldown",
+    replay([...Array(5).fill(heat), ...Array(5).fill(wind), ...Array(5).fill(heat)]).length, 1);
+
+  // The wiring these depend on.
+  ok("the trigger ignores the impressions floor on a real change", /!enoughTraffic && !condChanged/.test(src));
+  ok("the trigger requires settled conditions", /condSettled/.test(src));
+  ok("the trigger skips quiet weather", /condFp !== "none"/.test(src));
+  ok("the action records which trigger fired", /trigger: condChanged && !enoughTraffic/.test(src));
+  // 🔴 The bug that made the whole feature dead: the watch was saved only when autopilot
+  // acted, so on quiet days `since` reset and dwell never accumulated.
+  ok("the watch is saved even on a run with no actions", /actions\.length \|\| watchChanged/.test(src));
+  ok("and lastRun is still only stamped when it acted", /actions\.length \? \{ lastRun/.test(src));
 }
 
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
