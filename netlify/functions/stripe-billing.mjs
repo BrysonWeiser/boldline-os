@@ -33,10 +33,11 @@
 //          sets the subscription to cancel at period end. Returns
 //          { ok, invoiceId, invoiceUrl, paid }.
 //   { action:"charge-leads", customerId, count, amount, clientName? }
-//       -> bills a batch of qualified leads (count × per-lead rate = amount) as a
-//          single pending invoice item that rides the client's next monthly
-//          subscription invoice. Owner reviews + one-tap approves in the OS.
-//          Returns { ok, itemId, count, amount }.
+//       -> bills the part of a month's qualified-lead value that EXCEEDS the package's
+//          monthly minimum (already charged by the subscription) as a single pending
+//          invoice item riding the next monthly invoice. `amount` is that excess, NOT
+//          count × rate — the OS works it out, because the minimum and the performance
+//          fee are never both charged. Returns { ok, itemId, count, amount }.
 //   { action:"preview-invoice", customerId }
 //       -> returns the upcoming subscription invoice (fee + pending lead/interest
 //          items) as { ok, upcoming:{ total, subtotal, chargeDate, lines } } — the
@@ -183,7 +184,7 @@ export default async (req) => {
         {
           price_data: {
             currency: "usd",
-            product_data: { name: `BoldLine Media — ${packageName || "Management"} (monthly management fee)` },
+            product_data: { name: `BoldLine Media — ${packageName || "Management"} (monthly minimum)` },
             unit_amount: dollars(monthly),
             recurring: { interval: "month" },
           },
@@ -322,7 +323,7 @@ export default async (req) => {
       }
       if (!productId) {
         const prod = await stripe("products", {
-          body: { name: `BoldLine Media — ${packageName || "Management"} (monthly management fee)` },
+          body: { name: `BoldLine Media — ${packageName || "Management"} (monthly minimum)` },
         });
         productId = prod.id;
       }
@@ -349,7 +350,7 @@ export default async (req) => {
     }
 
     // ── Bill the early-termination amounts and wind down the subscription ─────
-    // Agreement terms: ETF = one month's management fee, plus the term-discount
+    // Agreement terms: ETF = one month's monthly minimum, plus the term-discount
     // clawback. Creates invoice items, collects them on a standalone auto-charge
     // invoice against the client's saved payment method, and sets the
     // subscription to cancel at period end (the 30-day notice period).
@@ -363,7 +364,7 @@ export default async (req) => {
       if (etfFee > 0) {
         await stripe("invoiceitems", {
           body: { customer: customerId, amount: dollars(etfFee), currency: "usd",
-            description: `Early termination fee — one month's management fee (Agreement, Termination section)` },
+            description: `Early termination fee — one month's minimum (Agreement, Termination section)` },
         });
       }
       if (clawback > 0) {
@@ -445,14 +446,17 @@ export default async (req) => {
       const amount = Number(body.amount) || 0;
       if (!customerId) return json({ ok: false, error: "No billing set up for this client — start the subscription first." }, 400);
       if (count <= 0) return json({ ok: false, error: "No billable leads to charge." }, 400);
-      if (!(amount > 0)) return json({ ok: false, error: "Per-lead amount must be greater than $0." }, 400);
+      if (!(amount > 0)) return json({ ok: false, error: "Nothing to charge — the month's lead value has not passed the monthly minimum yet." }, 400);
 
       const item = await stripe("invoiceitems", {
         body: {
           customer: customerId,
           amount: dollars(amount),
           currency: "usd",
-          description: `Qualified leads delivered — ${count} lead${count === 1 ? "" : "s"}${clientName ? " for " + clientName : ""} (rides next monthly invoice)`,
+          // Under the 2026-08-18 model `amount` is the part of the month's lead value
+          // that EXCEEDS the monthly minimum already billed, not the full lead value, so
+          // the description has to say so or the client's own arithmetic will not check out.
+          description: `Performance fee above monthly minimum — ${count} qualified lead${count === 1 ? "" : "s"} delivered${clientName ? " for " + clientName : ""} (rides next monthly invoice)`,
         },
       });
       return json({ ok: true, itemId: item.id, count, amount });
@@ -460,8 +464,9 @@ export default async (req) => {
 
     // ── Preview the client's NEXT monthly invoice (one bundled bill) ───────────
     // Returns the upcoming subscription invoice exactly as Stripe will render it:
-    // the recurring management fee + every pending invoice item (approved per-lead
-    // fees, any late interest) on ONE invoice, plus the date it auto-charges. This
+    // the recurring monthly minimum + every pending invoice item (performance fees
+    // above the minimum, any late interest) on ONE invoice, plus the date it
+    // auto-charges. This
     // is what proves "everything lands on the same monthly invoice" in the UI.
     if (action === "preview-invoice") {
       const { customerId } = body;

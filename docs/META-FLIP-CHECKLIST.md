@@ -37,7 +37,7 @@ relying on it would leave parts of the site half-flipped:
 
 ## The checklist
 
-### Buttons — 9 total, all in `marketing-site/index.html`
+### Buttons — 8 total, all in `marketing-site/index.html`
 
 Each currently reads **"Join the waitlist"** and points at `#contact`. Each becomes **"Book a Call"**
 pointing at the Calendly link, exactly like the three Google cards do today.
@@ -47,12 +47,16 @@ pointing at the Calendly link, exactly like the three Google cards do today.
 | 1 | Meta Ads | Launch System |
 | 2 | Meta Ads | Growth System |
 | 3 | Meta Ads | Acquisition System |
-| 4 | Combined | Full System: Launch |
-| 5 | Combined | Full System: Growth |
-| 6 | Combined | **Full System: Acquisition** — added after the revert commit, see the warning above |
-| 7 | E-Commerce | Store Launch |
-| 8 | E-Commerce | Store Growth |
-| 9 | E-Commerce | Store Domination |
+| 4 | Combined | Full System: Growth |
+| 5 | Combined | **Full System: Acquisition** — added after the revert commit, see the warning above |
+| 6 | E-Commerce | Store Launch |
+| 7 | E-Commerce | Store Growth |
+| 8 | E-Commerce | Store Domination |
+
+> **Was 9.** The **Full System: Launch** card was deleted on 2026-08-18 when pricing moved
+> to the greater-of model: running both platforms now starts at $5,000/mo of ad budget, so a
+> combined Launch tier could only ever be sold to someone it hurts. There is nothing to
+> un-gate for it — do not go looking for it in `git show a4b83f0`.
 
 Copy the exact markup from any Google card, which is the untouched reference:
 `<a class="pkg-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>`
@@ -95,6 +99,15 @@ that follows it.
 | Meta Ads |
 | Combined Systems |
 | E-Commerce |
+
+---
+
+## 🟡 Pricing changed underneath this checklist (2026-08-18)
+
+The site now quotes **"From $X/mo"** plus a **"whichever is higher, never both"** line on every
+card, and carries two permanent notes (the $5,000 combined unlock, and the $500 minimum ad
+budget). **None of that is gated** — it is the live pricing model, not coming-soon copy, so the
+flip must leave all of it alone. The only thing the flip changes is who can book.
 
 ---
 

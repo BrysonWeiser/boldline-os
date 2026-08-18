@@ -212,40 +212,115 @@ const PKG_FEATURES = {
   "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt"],
   "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
   "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "c-launch":      ["search_ads","meta_ads","keyword_research","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt","unified_reporting"],
+  // No c-launch: combined starts at COMBO_MIN_BUDGET, which is above the Launch tier.
   "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
   // Top of the lead-gen ladder. Built as the UNION of g-acquisition, m-acquisition and
   // c-growth — nothing invented — so both Acquisition tiers finally have somewhere to
   // upgrade to without giving up their scaling roadmap, priority comms or full funnel.
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
-  "e-growth":      ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
+  // Meta-only: Google Shopping would split a sub-$10k budget across two platforms,
+  // which is the same mistake COMBO_MIN_BUDGET exists to prevent on the lead-gen side.
+  "e-growth":      ["meta_ads","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
   "e-domination":  ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","abandoned_cart","full_funnel","ugc_consulting","crm_input","page_cro","strategy_calls","slack_access","advanced_reporting","monthly_report"],
 };
 
+// ─── PRICING MODEL (rewritten 2026-08-18) ────────────────────────────────────
+// Replaces "monthly management fee + per-lead fee", which Stencil & Thread turned
+// down on the maths: at $800/mo of ad spend the old model billed ~134% of their ad
+// spend. Bryson, 2026-08-18: "we set a monthly bottom so if we would only make $180
+// off of the leads we generated but the bottom is $200 then they pay the $200 but if
+// we make more than the bottom then we take whichever is more."
+//
+// So there is no separate management fee any more. `price` is the monthly MINIMUM —
+// a floor, not an additional charge — and the performance fee counts toward it.
+// Lead gen bills per qualified lead; e-commerce bills a % of that month's ad spend,
+// because a store has no lead to count.
+//
+// THREE RULES THAT SHAPE THIS TABLE:
+//  1. THE AD BUDGET DECIDES THE TIER. Not the platform, not the salesperson. A $900
+//     budget genuinely cannot support weekly optimization or split testing — there
+//     is not enough traffic for either to mean anything.
+//  2. PLATFORM IS A CHOICE, NOT A PRICE. g-* and m-* are identical in monthly minimum
+//     AND setup at the same tier. The old catalog charged $600 for Google Growth and
+//     $550 for Meta Growth for no defensible reason, and prospects notice that.
+//  3. COMBINED IS A BUDGET UNLOCK. Splitting a small budget across two platforms means
+//     neither learns, so Google + Meta starts at COMBO_MIN_BUDGET. That is why there is
+//     no combined Launch tier — it would only ever be sold to someone it hurts.
+const MIN_AD_BUDGET   = 500;   // hard floor to be a managed client at all
+const COMBO_MIN_BUDGET = 5000; // below this, one platform only
+const TIER_RANK = { launch: 1, growth: 2, acquisition: 3 };
+
 const PACKAGES_DB = {
   google: [
-    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, tag:"",            adSpend:"$750–$2,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
-    { id:"g-growth",      name:"Growth System",      platform:"Google Ads",    price:600,  setup:1500, leadFee:true, tag:"Most Popular", adSpend:"$2,000–$8,000/mo",   optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:false, splitTesting:false, crmIntegration:true,  multiCampaign:false },
-    { id:"g-acquisition", name:"Acquisition System", platform:"Google Ads",    price:900,  setup:3000, leadFee:true, tag:"",            adSpend:"$5,000–$20,000+/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true  },
+    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"g-growth",      name:"Growth System",      platform:"Google Ads",    price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:false, splitTesting:false, crmIntegration:true,  multiCampaign:false },
+    { id:"g-acquisition", name:"Acquisition System", platform:"Google Ads",    price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true  },
   ],
   meta: [
-    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:350,  setup:600,  leadFee:true, tag:"",            adSpend:"$500–$2,000/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
-    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:550,  setup:1200, leadFee:true, tag:"Most Popular", adSpend:"$1,500–$5,000/mo",   optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false },
-    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:850,  setup:2500, leadFee:true, tag:"",            adSpend:"$4,000–$15,000+/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true  },
+    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false },
+    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true  },
   ],
+  // No combined Launch tier on purpose — see rule 3 above. Combined costs MORE to
+  // build (two campaign sets) but carries the SAME monthly minimum as one platform
+  // at the same tier, which is the whole point of rule 2.
   combined: [
-    { id:"c-launch", name:"Full System — Launch", platform:"Google + Meta", price:650,  setup:1100, leadFee:true, tag:"Best Value",    adSpend:"$1,000–$4,000/mo",  optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Save $100/mo" },
-    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:1000, setup:2300, leadFee:true, tag:"",               adSpend:"$3,000–$12,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true,  savings:"Save $150/mo" },
-    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1500, setup:4900, leadFee:true, tag:"Most Powerful", adSpend:"$9,000–$35,000+/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true,  savings:"Save $250/mo" },
+    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:700,  setup:2300, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:5000,  maxBudget:10000, tag:"Best Value",    adSpend:"$5,000–$10,000/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
+    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1200, setup:4900, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null, tag:"Most Powerful", adSpend:"$10,000+/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
   ],
+  // E-commerce cannot use per-lead pricing: there is no lead, there is a sale, and it
+  // happens without BoldLine touching it. So the performance half is a % of ad spend.
+  // The old ROAS bonus is gone — it was a second fee stacked on a retainer, which is
+  // the exact thing this rewrite removes. Store Growth is Meta-only because adding
+  // Google Shopping below COMBO_MIN_BUDGET splits a budget that cannot afford it.
   ecom: [
-    { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      price:450,  setup:800,  leadFee:false, tag:"",            adSpend:"$500–$1,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, roas:"+$200 bonus at 3x ROAS" },
-    { id:"e-growth",     name:"Store Growth",     platform:"Meta + Google", price:750,  setup:1400, leadFee:false, tag:"Recommended", adSpend:"$1,500–$5,000/mo",   optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false, roas:"+$350 bonus at 4x ROAS" },
-    { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, tag:"",            adSpend:"$4,000–$15,000+/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true,  roas:"+$500 bonus at 5x ROAS" },
+    { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      price:400,  setup:800,  leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:15, tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"e-growth",     name:"Store Growth",     platform:"Meta Ads",      price:700,  setup:1400, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:15, tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Recommended", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:false },
+    { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:12, tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:true },
   ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
+
+// ─── THE ONE BILLING CALCULATION ─────────────────────────────────────────────
+// "Whichever is more" — the floor or what the month actually earned. Every surface
+// that quotes a number (deal prep, the billing card, the contract, the portal, the
+// marketing site) runs this, so none of them can disagree with the invoice.
+const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
+  if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
+  const floor = Number(pkg.price) || 0;
+  const pctModel = pkg.pricingModel === "ad_spend_pct";
+  const pct = Number(pkg.adSpendPct) || 0;
+  const spend = Number(adSpend) || 0;
+  const leads = Number(qualifiedLeads) || 0;
+  const fee = Number(perLeadFee) || 0;
+  const earned = pctModel ? Math.round((spend * pct) / 100) : Math.round(leads * fee);
+  return {
+    floor, earned, billed: Math.max(floor, earned), atFloor: earned < floor,
+    model: pctModel ? "ad_spend_pct" : "per_lead",
+    basis: pctModel ? `${pct}% of $${spend.toLocaleString()} ad spend`
+                    : `${leads} qualified lead${leads === 1 ? "" : "s"} × $${fee}`,
+  };
+};
+// How heavy the bill is against what they spend on ads — the number Stencil ran and
+// BoldLine did not. Shown wherever a deal is priced so a lopsided one is visible.
+const feeAsPctOfSpend = (billed, adSpend) => {
+  const s = Number(adSpend) || 0;
+  return s > 0 ? Math.round((Number(billed) || 0) / s * 100) : null;
+};
+
+// LABEL HELPERS. Every "$400/mo" in this file used to be a fixed retainer and is now a
+// floor, so a bare price is a misquote. `min` reads as a minimum; `perf` names the half
+// that varies. Used on every card, sheet, portal page and email that quotes a package.
+const pkgMinLabel = (pkg) => `$${Number((pkg && pkg.price) || 0).toLocaleString()}`;
+const pkgPerfLabel = (pkg, perLeadFee) => {
+  if (!pkg) return "";
+  if (pkg.pricingModel === "ad_spend_pct") return `${pkg.adSpendPct}% of ad spend`;
+  return perLeadFee ? `$${perLeadFee} per qualified lead` : "per qualified lead";
+};
+// One line a client can read without a diagram: "from $400/mo — whichever is higher".
+const pkgPriceSummary = (pkg, perLeadFee) =>
+  !pkg ? "—" : `from ${pkgMinLabel(pkg)}/mo, or ${pkgPerfLabel(pkg, perLeadFee)} — whichever is higher`;
 
 // ─── HOUSE ACCOUNT PACKAGE ────────────────────────────────────────────────────
 // Standing expectation (Bryson, 2026-08-14): "I also expect I will always receive
@@ -261,6 +336,7 @@ PKG_FEATURES[HOUSE_PKG_ID] = [...new Set(Object.values(PKG_FEATURES).flat())];
 const HOUSE_PKG = {
   id: HOUSE_PKG_ID, name: "Full System (House Account)", platform: "Google + Meta",
   price: 0, setup: 0, leadFee: false, tag: "Internal", adSpend: "",
+  pricingModel: "none", tier: "acquisition", minBudget: 0, maxBudget: null,
   optimizationFreq: "weekly", callTracking: true, weeklyOptimization: true,
   customLandingPage: true, retargeting: true, splitTesting: true,
   crmIntegration: true, multiCampaign: true,
@@ -276,9 +352,6 @@ const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(f
 //   2. A combined client is never offered a single-platform package, which would
 //      drop a channel they are already paying for. Broadening up (g-* or m-* into
 //      c-*) is a real upgrade; narrowing never is.
-// c-growth having NO upgrade option is the honest answer, not a bug: it is the top
-// of the lead-gen ladder. Adding a "Full System — Acquisition" rung is a pricing
-// decision for Bryson, not something to fake with a cross-sell.
 const PKG_FAMILY = (id) => String(id || "").split("-")[0];
 const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"] };
 
@@ -313,13 +386,18 @@ const getUpgradeOptions = (currentPkgId) => {
   if (!cur) return [];
   const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
   const curFeats = PKG_FEATURES[currentPkgId] || [];
+  // Ranked by TIER, not by price. Under the 2026-08-18 model a single platform and
+  // the combined system carry the SAME monthly minimum at the same tier, so the old
+  // `p.price > cur.price` test hid the most valuable upsell in the catalog: Google
+  // Growth -> Full System Growth costs the same monthly and adds an entire channel.
+  // Gaining a feature while keeping everything is what makes it an upgrade now.
   return ALL_PKGS.filter(p =>
     p.id !== currentPkgId &&
-    p.price > cur.price &&
+    (TIER_RANK[p.tier] || 0) >= (TIER_RANK[cur.tier] || 0) &&
     allowed.includes(PKG_FAMILY(p.id)) &&
     keepsEverything(currentPkgId, p.id) &&
     (PKG_FEATURES[p.id] || []).some(f => curFeats.indexOf(f) < 0)
-  ).sort((a,b) => a.price - b.price);
+  ).sort((a,b) => (TIER_RANK[a.tier]||0) - (TIER_RANK[b.tier]||0) || a.price - b.price || a.setup - b.setup);
 };
 
 // ─── DYNAMIC BOT WORK LOGS ───────────────────────────────────────────────────
@@ -1211,12 +1289,12 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
           <div style={{padding:"12px",borderRadius:10,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.textMuted,marginBottom:5}}>Current</div>
             <div style={{fontSize:13,fontWeight:700,color:C.textDim}}>{(cur && cur.name)}</div>
-            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>${(cur && cur.price)}/mo</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>from ${(cur && cur.price)}/mo</div>
           </div>
           <div style={{padding:"12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.08)",border:`1px solid rgba(200,168,75,0.25)`}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,marginBottom:5}}>Upgrading To</div>
             <div style={{fontSize:13,fontWeight:700,color:C.text}}>{selectedPkg.name}</div>
-            <div style={{fontSize:11,color:C.gold,marginTop:1}}>${selectedPkg.price}/mo</div>
+            <div style={{fontSize:11,color:C.gold,marginTop:1}}>from ${selectedPkg.price}/mo</div>
           </div>
         </div>
         {/* What's new */}
@@ -1249,7 +1327,7 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div style={{flex:1}}>
             <div style={{fontSize:15,fontWeight:700,color:C.text}}>Upgrade Your Package</div>
-            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>Currently on {(cur && cur.name)} · ${(cur && cur.price)}/mo</div>
+            <div style={{fontSize:11,color:C.textMuted,marginTop:1}}>Currently on {(cur && cur.name)} · from ${(cur && cur.price)}/mo</div>
           </div>
           <CloseBtn onClick={onClose}/>
         </div>
@@ -1281,8 +1359,8 @@ function UpgradeSheet({currentPkgId,clientName,onRequest,onClose}) {
                       <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{pkg.platform} · {pkg.adSpend}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                      <div style={{fontSize:19,fontWeight:800,color:C.gold}}>${pkg.price}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo</span></div>
-                      <div style={{fontSize:10,color:C.green,fontWeight:600}}>+${diff}/mo more</div>
+                      <div style={{fontSize:19,fontWeight:800,color:C.gold}}>${pkg.price}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
+                      <div style={{fontSize:10,color:C.green,fontWeight:600}}>{diff>0?`+$${diff}/mo minimum`:"Same monthly minimum"}</div>
                     </div>
                   </div>
                   {/* New features preview */}
@@ -1357,11 +1435,11 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
           <div style={S.f1min}>
             <div style={{fontSize:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>{(pkg && pkg.name)}</div>
             <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{(pkg && pkg.platform)} · {(pkg && pkg.adSpend)}</div>
-            {(pkg && pkg.roas)&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.roas}</div>}
+            {(pkg && pkg.savings)&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.savings}</div>}
           </div>
           <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${(pkg && pkg.price).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo</span></div>
-            {perLead&&<div style={{fontSize:10,color:C.textDim,marginTop:2}}>+${perLead}/lead</div>}
+            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${(pkg && pkg.price).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
+            <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead)} — whichever is higher</div>
             <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${(pkg && pkg.setup).toLocaleString()} setup (one-time)</div>
           </div>
         </div>
@@ -1434,7 +1512,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
                 <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{p.platform}</div>
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.gold}}>${p.price}/mo</div>
+                <div style={{fontSize:13,fontWeight:700,color:C.gold}}>from ${p.price}/mo</div>
                 <div style={{fontSize:9,color:C.textMuted}}>${p.setup.toLocaleString()} setup</div>
               </div>
             </button>
@@ -1446,7 +1524,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
             <div style={{fontSize:11,color:C.textDim,marginBottom:4}}>
               {client.name}: <span style={{color:C.textMuted}}>{(pkg && pkg.name)}</span> → <span style={{color:C.gold,fontWeight:700}}>{(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).name)}</span>
             </div>
-            <div style={{fontSize:10,color:C.textMuted,marginBottom:10}}>New rate: ${(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).price)}/mo · ${(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).setup)} setup. Send updated invoice separately.</div>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:10}}>New monthly minimum: ${(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).price)}/mo · ${(findPkg(selectedManualPkg) && findPkg(selectedManualPkg).setup)} setup. Send updated invoice separately.</div>
             <div style={{display:"flex",gap:7}}>
               <button onClick={()=>setApplyConfirm(false)} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
               <button onClick={()=>{ applyManualUpgrade(); setApplyConfirm(false); }} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.purple,color:"#fff",cursor:"pointer"}}>Confirm Change</button>
@@ -1490,8 +1568,14 @@ const makeContractHTML=(cl,pkg)=>{
   const agreementNo= esc(String(cl.id||"").slice(-8).toUpperCase() || "—");
   // Section numbering: 1 Services, 2 Term, 3 Fees are fixed; Per-Lead (if any) and
   // Performance Bonus (if any) slot in after 3; everything later shifts accordingly.
-  const hasBonus = !!(pkg&&pkg.roas);
-  const nBase = 3 + (pl?1:0) + (hasBonus?1:0);
+  // 2026-08-18 pricing model: there is no management fee. The Monthly Minimum is a
+  // FLOOR and the Performance Fee counts toward it — whichever is higher is the whole
+  // fee for that month, never both. Lead gen bills per qualified lead; e-commerce bills
+  // a percentage of ad spend, because a store has no lead to count.
+  const pctFee   = (pkg && pkg.pricingModel === "ad_spend_pct") ? Number(pkg.adSpendPct)||0 : 0;
+  const perLeadFee = (pkg && pkg.pricingModel === "per_lead") ? (pl||0) : 0;
+  const hasPerf  = pctFee > 0 || perLeadFee > 0;
+  const nBase = 3 + (hasPerf?1:0);
   const nAd=nBase+1, nResp=nBase+2, nNoG=nBase+3, nTerm=nBase+4, nIP=nBase+5, nConf=nBase+6,
         nData=nBase+7, nLiab=nBase+8, nInd=nBase+9, nRel=nBase+10, nLaw=nBase+11, nGen=nBase+12;
 
@@ -1499,24 +1583,33 @@ const makeContractHTML=(cl,pkg)=>{
   const meta =
     metaItem("Service Package",(pkg&&pkg.name)||"—")
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
-   +metaItem("Monthly Management Fee",money(effMonthly)+"/mo")
+   +metaItem("Monthly Minimum",money(effMonthly)+"/mo")
    +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived")
    +metaItem("Committed Term",monthsLabel(termMo))
    +metaItem("Start Date",esc(cl.contractStart)||"—")
    +metaItem("End Date",esc(cl.contractEnd)||"—")
    +metaItem("Optimization Cadence",((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
-   +(pl?metaItem("Per-Qualified-Lead Fee",money(pl)+" per lead"):"")
-   +(pkg&&pkg.roas?metaItem("Performance Bonus",esc(pkg.roas)):"")
+   +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" per qualified lead"):"")
+   +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
+   +(hasPerf?metaItem("How the two combine","Whichever is higher, never both"):"")
    +(cl.adBudget?metaItem("Client Ad Budget (paid to platforms)",esc(cl.adBudget)):(pkg&&pkg.adSpend?metaItem("Recommended Ad Budget (paid to platforms)",esc(pkg.adSpend)):""));
 
-  const perLeadSection = pl ? (
-    '<h2>4. Per-Lead Fees</h2>'
-   +'<p>4.1 In addition to the Management Fee, Client shall pay the Per-Qualified-Lead Fee stated above for each Qualified Lead generated by the Campaigns. A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.</p>'
-   +'<p>4.2 Per-lead fees are calculated from campaign tracking data and invoiced monthly in arrears. If Client believes a lead was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any lead it reasonably determines was not a Qualified Lead. Invoices not disputed within that period are deemed accepted. <strong>Per-lead fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong></p>'
-  ) : '';
-  const bonusSection = (pkg&&pkg.roas) ? (
-    '<h2>'+(pl?'5':'4')+'. Performance Bonus</h2>'
-   +'<p>Where the Key Terms state a Performance Bonus, Client shall pay Agency the stated bonus for each calendar month in which the Campaigns achieve the stated return-on-ad-spend (ROAS) threshold, as measured by the advertising platform&rsquo;s reported conversion value divided by ad spend for that month. The bonus is invoiced with the following month&rsquo;s Management Fee. Platform-reported attribution is the definitive measurement for this purpose.</p>'
+  // ONE section covers both billing models, because the RULE is the same in both:
+  // the minimum is a floor, the performance fee counts against it, and the client pays
+  // whichever is higher. Spelling that out is the point — the previous model billed a
+  // retainer AND a per-lead fee, which is what a prospect turned down in writing.
+  const perfSection = hasPerf ? (
+    '<h2>4. Monthly Minimum and Performance Fee</h2>'
+   +'<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>'
+   +(perLeadFee ? (
+      '<p>4.2 <strong>Performance Fee (per qualified lead).</strong> The Performance Fee for a month is the Per-Qualified-Lead Fee stated above multiplied by the number of Qualified Leads generated by the Campaigns in that month. A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.</p>'
+    ) : (
+      '<p>4.2 <strong>Performance Fee (percentage of ad spend).</strong> The Performance Fee for a month is the percentage stated above of Client&rsquo;s total advertising spend across the Campaigns for that month, as reported by the advertising platforms. Advertising spend is paid by Client directly to the platforms and is never held or advanced by Agency; the percentage is a measure of Agency&rsquo;s fee, not a charge for or markup on ad spend.</p>'
+    ))
+   +'<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>'
+   +(perLeadFee
+      ? '<p>4.4 Lead counts are calculated from campaign tracking data. If Client believes a lead was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any lead it reasonably determines was not a Qualified Lead. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong></p>'
+      : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
   ) : '';
   // Section numbers after the conditional ones stay fixed by rendering both slots
   // (empty string when absent) and numbering the rest from 6 onward.
@@ -1565,17 +1658,16 @@ const makeContractHTML=(cl,pkg)=>{
 
    +'<h2>2. Term, Renewal, and Holdover</h2>'
    +'<p>2.1 This Agreement begins on the Start Date and continues for the Committed Term shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment.</p>'
-   +'<p>2.2 At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Management Fee for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Management Fee stated in the Key Commercial Terms.</p>'
-   +'<p>2.3 <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month rate for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
+   +'<p>2.2 At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>'
+   +'<p>2.3 <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
 
    +'<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
-   +'<p>3.2 <strong>Management Fee.</strong> The Monthly Management Fee is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+   +'<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
-   +perLeadSection
-   +bonusSection
+   +perfSection
 
    +'<h2>'+nAd+'. Advertising Spend and Account Ownership</h2>'
    +'<p>(a) <strong>Client pays ad spend directly.</strong> Advertising budget is separate from all Agency fees and is paid by Client directly to the advertising platforms (Google, Meta, or others) using Client&rsquo;s own payment method on Client&rsquo;s own ad accounts. <span class="caps">AGENCY NEVER HOLDS, ADVANCES, OR GUARANTEES CLIENT AD SPEND, IS NOT A PARTY TO CLIENT&rsquo;S AGREEMENTS WITH ANY ADVERTISING PLATFORM, AND HAS NO LIABILITY FOR AMOUNTS CLIENT OWES ANY PLATFORM.</span></p>'
@@ -1591,7 +1683,7 @@ const makeContractHTML=(cl,pkg)=>{
 
    +'<h2>'+nTerm+'. Termination</h2>'
    +'<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>'
-   +'<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Management Fee</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>'
+   +'<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>'
    +'<p>(c) <strong>By Agency, early.</strong> Agency may terminate before the End Date on thirty (30) days&rsquo; written notice. In that case Agency will refund any prepaid fees covering periods after the effective termination date and, if Agency terminates before the Campaigns launch, the unearned portion of any Setup Fee; no early-termination fee applies to Client.</p>'
    +'<p>(d) <strong>For cause.</strong> Either party may terminate immediately by written notice if the other party materially breaches this Agreement and fails to cure within fifteen (15) days of written notice describing the breach (no cure period applies to Client&rsquo;s non-payment beyond the periods in Section 3.4, or to a breach of confidentiality). Termination for Client&rsquo;s uncured breach does not relieve Client of subsection (b) amounts.</p>'
    +'<p>(e) <strong>Effect.</strong> On termination: all unpaid amounts become immediately due; Agency will stop campaigns as directed, relinquish account access, and deliver any Client-owned materials in its possession; and each party will return or delete the other&rsquo;s Confidential Information on request. Sections addressing fees owed, ownership, confidentiality, data, liability, indemnification, and disputes survive termination.</p>'
@@ -1909,7 +2001,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
                     <div style={{fontSize:10.5,color:C.textMuted,marginTop:2}}>ad spend {pkg.adSpend}</div>
                   </div>
                   <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${pkg.price}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/mo</span></div>
+                    <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${pkg.price}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/mo min</span></div>
                     <div style={{fontSize:9.5,color:C.textMuted}}>${pkg.setup} setup{pkg.leadFee&&leadFee?` · $${leadFee}/lead`:""}</div>
                   </div>
                 </div>
@@ -2245,7 +2337,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
           <Fact k="Revenue est." v={d.revenueEstimate}/>
           <Fact k="Budget capacity" v={d.affordability&&d.affordability.known?`~$${Math.round(d.affordability.monthlyCapacity).toLocaleString()}/mo`:""}/>
           <Fact k="Address" v={d.address}/>
-          <Fact k="Best package" v={(function(){ const pk=ALL_PKGS.find(x=>x.id===d.recommendedPackageId); return pk?`${pk.name} · $${pk.price}/mo`:""; })()}/>
+          <Fact k="Best package" v={(function(){ const pk=ALL_PKGS.find(x=>x.id===d.recommendedPackageId); return pk?`${pk.name} · from $${pk.price}/mo`:""; })()}/>
         </div>
 
         {d.capReason&&(
@@ -3519,7 +3611,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   ];
 
   const handleUpgradeRequest = (newPkg) => {
-    onUpdate({...client, upgradeRequest:`${newPkg.name} (${newPkg.platform}) — $${newPkg.price}/mo`});
+    onUpdate({...client, upgradeRequest:`${newPkg.name} (${newPkg.platform}) — from $${newPkg.price}/mo`});
   };
   const handleManualUpgrade = (newPkgId) => {
     const newPkg = findPkg(newPkgId);
@@ -3666,14 +3758,14 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {(client.internal
                 ? [{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Landing Page",v:(client.landingPage&&client.landingPage.published)?"Published":"Not built"}]
-                : [{l:"Package",v:(pkg && pkg.name)||"—"},{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Revenue",v:pkg?`$${pkg.price}/mo`:"—"}]
+                : [{l:"Package",v:(pkg && pkg.name)||"—"},{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Monthly minimum",v:pkg?`$${pkg.price}/mo`:"—"}]
               ).map(({l,v})=>(
                 <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
               ))}
             </div>
             {!client.internal&&pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
               <Label>Monthly Revenue</Label>
-              <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+              <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
               <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>${pkg.setup.toLocaleString()} setup {client.niche&&PER_LEAD[client.niche]?`· $${PER_LEAD[client.niche]}/lead`:""}</div>
             </Card>}
             {/* Live health score breakdown */}
@@ -4143,6 +4235,23 @@ function BillingCard({client,pkg,onUpdate}) {
   const excludedCount = unbilledLeads.length - billableCount;
   const billedCount = leadLog.filter(l=>l.billed).length;
   const leadAmount = billableCount*perLeadRate;
+
+  // ── GREATER-OF, NOT BOTH (2026-08-18) ──────────────────────────────────────
+  // The subscription already charged the package's monthly MINIMUM in advance, so
+  // adding the full lead value on top would bill the client twice for the same month
+  // — precisely the "retainer plus per-lead" structure this pricing model replaced.
+  // Only the amount by which the month's lead value EXCEEDS the minimum is added.
+  //
+  // Tracked per calendar month because the owner can approve several batches in one
+  // month: each approval tops the invoice up to (earned − floor), never re-charges
+  // what an earlier batch in the same month already covered.
+  const billPeriod = new Date().toISOString().slice(0,7);           // "YYYY-MM"
+  const periodState = (client.billingLeadPeriod && client.billingLeadPeriod.period===billPeriod)
+    ? client.billingLeadPeriod : { period: billPeriod, earned: 0, charged: 0 };
+  const monthlyFloor = client.billingMonthly!=null ? client.billingMonthly : ((pkg&&pkg.price)||0);
+  const earnedAfter  = periodState.earned + leadAmount;
+  const owedAfter    = Math.max(0, earnedAfter - monthlyFloor);
+  const chargeNow    = Math.max(0, Math.round(owedAfter - periodState.charged));
   const toggleLeadExclude=(realIdx)=>{
     const updated=leadLog.map((l,i)=> i===realIdx ? {...l,notBillable:!l.notBillable} : l);
     onUpdate&&onUpdate({...client,leadsLog:updated});
@@ -4153,17 +4262,28 @@ function BillingCard({client,pkg,onUpdate}) {
     setEditRate(false); setLeadMsg("");
   };
   const chargeLeads=async()=>{
-    if(!client.stripeCustomerId){ setLeadMsg("Set up recurring billing first — per-lead fees ride the client's monthly invoice."); return; }
+    if(!client.stripeCustomerId){ setLeadMsg("Set up recurring billing first — lead fees ride the client's monthly invoice."); return; }
     if(billableCount<=0){ setLeadMsg("No billable leads right now."); return; }
     if(!(perLeadRate>0)){ setLeadMsg("Set a per-lead rate above $0 first."); return; }
     setLeadBusy(true); setLeadMsg("");
     try{
-      await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:leadAmount,clientName:client.name});
+      // Marking the leads billed still happens when nothing is owed: they ARE accounted
+      // for, they just did not clear the minimum. Skipping the Stripe call in that case
+      // avoids a $0 invoice item, which Stripe rejects anyway.
+      if(chargeNow>0){
+        await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:chargeNow,clientName:client.name});
+      }
       const billedAt=new Date().toISOString();
       const updatedLog=leadLog.map(l=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt} : l);
-      const entry={date:fmt(billedAt),note:`Billed ${billableCount} qualified lead${billableCount===1?"":"s"} — ${money(leadAmount)} added to next invoice`,cat:"billing",ts:Date.now()};
-      onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])]});
-      setLeadMsg(`✓ ${money(leadAmount)} for ${billableCount} lead${billableCount===1?"":"s"} added to the next invoice.`);
+      const note = chargeNow>0
+        ? `Approved ${billableCount} qualified lead${billableCount===1?"":"s"} (${money(leadAmount)}) — ${money(chargeNow)} above the ${money(monthlyFloor)} minimum added to next invoice`
+        : `Approved ${billableCount} qualified lead${billableCount===1?"":"s"} (${money(leadAmount)}) — under the ${money(monthlyFloor)} monthly minimum, nothing extra billed`;
+      const entry={date:fmt(billedAt),note,cat:"billing",ts:Date.now()};
+      onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])],
+        billingLeadPeriod:{ period:billPeriod, earned:earnedAfter, charged:periodState.charged+chargeNow }});
+      setLeadMsg(chargeNow>0
+        ? `✓ ${money(chargeNow)} added to the next invoice (${money(leadAmount)} earned, ${money(monthlyFloor)} minimum already billed).`
+        : `✓ ${billableCount} lead${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`);
       loadUpcoming();
     }catch(e){ setLeadMsg(e.message); }
     setLeadBusy(false);
@@ -4238,7 +4358,7 @@ function BillingCard({client,pkg,onUpdate}) {
         {/* Per-qualified-lead billing — review + one-tap approve onto next invoice */}
         <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Per-Lead Billing</span>
+            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Lead Billing (whichever is higher)</span>
             <span style={{fontSize:10,color:C.textMuted}}>{flaggedBillable>0&&<span style={{color:C.amber,fontWeight:700}}>{flaggedBillable} flagged</span>}{flaggedBillable>0&&billedCount>0?" · ":""}{billedCount>0?`${billedCount} billed`:""}</span>
           </div>
           {!editRate
@@ -4280,11 +4400,18 @@ function BillingCard({client,pkg,onUpdate}) {
                     );
                   })}
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:8,fontSize:11}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:4,fontSize:11}}>
                   <span style={{color:C.textDim}}>{billableCount} billable{excludedCount>0?` · ${excludedCount} excluded`:""}</span>
                   <span style={{fontWeight:800,color:C.text,whiteSpace:"nowrap"}}>{billableCount} × {money(perLeadRate)} = {money(leadAmount)}</span>
                 </div>
-                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Adding…":`Approve — add ${money(leadAmount)} to next invoice`}</button>
+                {/* The greater-of, shown as arithmetic so it can be checked at a glance. */}
+                <div style={{marginBottom:8,padding:"7px 9px",borderRadius:8,backgroundColor:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,fontSize:10,color:C.textMuted,lineHeight:1.55}}>
+                  {periodState.earned>0&&<div>{money(periodState.earned)} already approved this month{periodState.charged>0?` · ${money(periodState.charged)} already invoiced`:""}</div>}
+                  {chargeNow>0
+                    ? <div>{money(earnedAfter)} earned this month is above the {money(monthlyFloor)} minimum — <strong style={{color:C.green}}>{money(chargeNow)}</strong> gets added to the next invoice.</div>
+                    : <div>{money(earnedAfter)} earned this month is under the {money(monthlyFloor)} minimum — <strong style={{color:C.text}}>they pay the minimum, nothing extra.</strong></div>}
+                </div>
+                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow>0?`Approve — add ${money(chargeNow)} to next invoice`:`Approve ${billableCount} lead${billableCount===1?"":"s"} — nothing extra to bill`)}</button>
               </>}
           {leadMsg&&<div style={{fontSize:11,color:leadMsg.charAt(0)==="✓"?C.green:C.red,marginTop:8,lineHeight:1.6}}>{leadMsg}</div>}
         </div>
@@ -8586,7 +8713,7 @@ function AddClientSheet({onSave,onClose}) {
               <button key={pkg.id} onClick={()=>set("packageId",pkg.id)} style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1px solid ${form.packageId===pkg.id?C.gold:C.border}`,backgroundColor:form.packageId===pkg.id?`${C.gold}10`:"rgba(255,255,255,.02)",cursor:"pointer",textAlign:"left",marginBottom:5}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={S.f1min}>{pkg.tag&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",backgroundColor:C.gold,color:"#0a0800",borderRadius:3,marginRight:5}}>{pkg.tag}</span>}<span style={{fontSize:12,fontWeight:700,color:C.text}}>{pkg.name}</span><div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{pkg.platform}</div></div>
-                  <div style={{textAlign:"right",flexShrink:0}}><span style={{fontSize:14,fontWeight:800,color:C.gold}}>${pkg.price}</span><span style={{fontSize:10,color:C.textMuted}}>/mo</span></div>
+                  <div style={{textAlign:"right",flexShrink:0}}><span style={{fontSize:14,fontWeight:800,color:C.gold}}>${pkg.price}</span><span style={{fontSize:10,color:C.textMuted}}>/mo min</span></div>
                 </div>
               </button>
             ))}
@@ -8647,7 +8774,7 @@ function AddClientSheet({onSave,onClose}) {
             <div style={{fontSize:12,color:C.textDim,lineHeight:2.1}}>
               <div><strong style={{color:C.text}}>Client:</strong> {form.name}</div>
               <div><strong style={{color:C.text}}>Niche:</strong> {form.niche||"—"}</div>
-              <div><strong style={{color:C.text}}>Package:</strong> {selPkg.name} — ${selPkg.price}/mo + ${selPkg.setup} setup</div>
+              <div><strong style={{color:C.text}}>Package:</strong> {selPkg.name} — from ${selPkg.price}/mo + ${selPkg.setup} setup</div>
               <div><strong style={{color:C.text}}>Platform:</strong> {selPkg.platform}</div>
               <div><strong style={{color:C.text}}>Contract:</strong> {form.contractStart||"—"} → {form.contractEnd||"—"} ({monthsLabel(termMonths)})</div>
               {form.adBudget&&<div><strong style={{color:C.text}}>Ad Budget:</strong> {form.adBudget}</div>}
@@ -8908,7 +9035,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                     <div style={S.f1min}>
                       <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
                       <div style={{fontSize:11,color:C.purple,marginTop:1}}>Requested: {cl.upgradeRequest}</div>
-                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Current: {(findPkg(cl.packageId) && findPkg(cl.packageId).name)} · ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Current: {(findPkg(cl.packageId) && findPkg(cl.packageId).name)} · from ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
                     </div>
                     <IconChevron size={14} color={C.purple}/>
                   </div>
@@ -9015,7 +9142,7 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                       <div style={{flex:1}}>
                         <div style={{fontSize:13,fontWeight:700,color:C.text}}>{cl.name}</div>
                         <div style={{fontSize:11,color:C.amber,marginTop:1}}>Expires in {d} days. Tap to open contract.</div>
-                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
+                        <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{cl.email} · from ${(findPkg(cl.packageId) && findPkg(cl.packageId).price)}/mo</div>
                       </div>
                       <IconChevron size={14} color={C.amber}/>
                       {dismissBtn(cl,`c30:${cl.contractEnd}`)}

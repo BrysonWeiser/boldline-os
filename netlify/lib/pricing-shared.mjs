@@ -28,26 +28,49 @@ export const getNicheLeadFee = (niche) => {
   return DEFAULT_LEAD_FEE;
 };
 
-// Full package catalog (prices + setup + per-lead applicability) — a backend copy of
-// index.html's PACKAGES_DB so the research prompt can quote real numbers. Keep the two
-// in sync if pricing changes (dual-copy, same pattern as report-shared's PACKAGES_DB).
+// ─── PRICING MODEL (rewritten 2026-08-18) ────────────────────────────────────
+// There is no monthly management fee any more. `price` is the monthly MINIMUM and the
+// performance fee counts toward it — the client pays whichever is higher, never both.
+// Bryson, 2026-08-18: "we set a monthly bottom so if we would only make $180 off of the
+// leads we generated but the bottom is $200 then they pay the $200 but if we make more
+// than the bottom then we take whichever is more."
+// Backend copy of index.html's PACKAGES_DB. Keep the two in sync (dual-copy, same
+// pattern as report-shared's PACKAGES_DB) — tests/verify-packages.mjs compares them.
+export const MIN_AD_BUDGET = 500;    // hard floor to be a managed client at all
+export const COMBO_MIN_BUDGET = 5000; // below this, one platform only
+
 export const PACKAGES = [
-  { id: "g-launch",      name: "Launch System",      platform: "Google Ads",    price: 400,  setup: 750,  leadFee: true,  adSpend: "$750–$2,500/mo",     tier: "entry" },
-  { id: "g-growth",      name: "Growth System",      platform: "Google Ads",    price: 600,  setup: 1500, leadFee: true,  adSpend: "$2,000–$8,000/mo",   tier: "mid"  },
-  { id: "g-acquisition", name: "Acquisition System", platform: "Google Ads",    price: 900,  setup: 3000, leadFee: true,  adSpend: "$5,000–$20,000+/mo", tier: "top"  },
-  { id: "m-launch",      name: "Launch System",      platform: "Meta Ads",      price: 350,  setup: 600,  leadFee: true,  adSpend: "$500–$2,000/mo",     tier: "entry" },
-  { id: "m-growth",      name: "Growth System",      platform: "Meta Ads",      price: 550,  setup: 1200, leadFee: true,  adSpend: "$1,500–$5,000/mo",   tier: "mid"  },
-  { id: "m-acquisition", name: "Acquisition System", platform: "Meta Ads",      price: 850,  setup: 2500, leadFee: true,  adSpend: "$4,000–$15,000+/mo", tier: "top"  },
-  { id: "c-launch",      name: "Full System — Launch", platform: "Google + Meta", price: 650,  setup: 1100, leadFee: true, adSpend: "$1,000–$4,000/mo",  tier: "mid"  },
-  { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 1000, setup: 2300, leadFee: true, adSpend: "$3,000–$12,000/mo", tier: "mid"  },
-  { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1500, setup: 4900, leadFee: true, adSpend: "$9,000–$35,000+/mo", tier: "top"  },
-  { id: "e-launch",      name: "Store Launch",       platform: "Meta Ads (ecom)",      price: 450,  setup: 800,  leadFee: false, adSpend: "$500–$1,500/mo",    tier: "entry" },
-  { id: "e-growth",      name: "Store Growth",       platform: "Meta + Google (ecom)", price: 750,  setup: 1400, leadFee: false, adSpend: "$1,500–$5,000/mo",  tier: "mid"  },
-  { id: "e-domination",  name: "Store Domination",   platform: "Meta + Google (ecom)", price: 1200, setup: 2500, leadFee: false, adSpend: "$4,000–$15,000+/mo", tier: "top" },
+  { id: "g-launch",      name: "Launch System",      platform: "Google Ads",    price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500–$2,500/mo",   tier: "launch"      },
+  { id: "g-growth",      name: "Growth System",      platform: "Google Ads",    price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", tier: "growth"     },
+  { id: "g-acquisition", name: "Acquisition System", platform: "Google Ads",    price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      tier: "acquisition" },
+  { id: "m-launch",      name: "Launch System",      platform: "Meta Ads",      price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500–$2,500/mo",   tier: "launch"      },
+  { id: "m-growth",      name: "Growth System",      platform: "Meta Ads",      price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500–$10,000/mo", tier: "growth"     },
+  { id: "m-acquisition", name: "Acquisition System", platform: "Meta Ads",      price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      tier: "acquisition" },
+  { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 700,  setup: 2300, leadFee: true, pricingModel: "per_lead", adSpend: "$5,000–$10,000/mo", tier: "growth"     },
+  { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1200, setup: 4900, leadFee: true, pricingModel: "per_lead", adSpend: "$10,000+/mo", tier: "acquisition" },
+  { id: "e-launch",      name: "Store Launch",       platform: "Meta Ads (ecom)",      price: 400,  setup: 800,  leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$500–$2,500/mo",   tier: "launch"      },
+  { id: "e-growth",      name: "Store Growth",       platform: "Meta Ads (ecom)",      price: 700,  setup: 1400, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 15, adSpend: "$2,500–$10,000/mo", tier: "growth"     },
+  { id: "e-domination",  name: "Store Domination",   platform: "Meta + Google (ecom)", price: 1200, setup: 2500, leadFee: false, pricingModel: "ad_spend_pct", adSpendPct: 12, adSpend: "$10,000+/mo",      tier: "acquisition" },
 ];
 
-// Compact catalog block for the research prompt.
+// The one billing calculation — "whichever is more". Mirrors index.html's copy.
+export const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
+  if (!pkg) return { floor: 0, earned: 0, billed: 0, atFloor: false, model: "none" };
+  const floor = Number(pkg.price) || 0;
+  const pctModel = pkg.pricingModel === "ad_spend_pct";
+  const earned = pctModel
+    ? Math.round(((Number(adSpend) || 0) * (Number(pkg.adSpendPct) || 0)) / 100)
+    : Math.round((Number(qualifiedLeads) || 0) * (Number(perLeadFee) || 0));
+  return { floor, earned, billed: Math.max(floor, earned), atFloor: earned < floor,
+           model: pctModel ? "ad_spend_pct" : "per_lead" };
+};
+
+// Compact catalog block for the research prompt. The wording matters: a model told
+// "$400/mo management + $45/lead" will quote a retainer plus a fee on a live sales
+// call, which is exactly the structure a prospect already turned down.
 export const packagesPromptBlock = (leadFee) =>
   PACKAGES.map((p) =>
-    `- ${p.id} — "${p.name}" (${p.platform}): $${p.price}/mo management + $${p.setup} one-time setup${p.leadFee ? ` + $${leadFee}/qualified lead` : " (e-commerce ROAS bonus model, no per-lead fee)"}. Client ad spend: ${p.adSpend}.`
+    `- ${p.id} — "${p.name}" (${p.platform}): $${p.setup} one-time setup, then $${p.price}/mo MINIMUM or ${
+      p.leadFee ? `$${leadFee}/qualified lead` : `${p.adSpendPct}% of ad spend`
+    }, whichever is higher (never both). Client ad budget: ${p.adSpend}.`
   ).join("\n");

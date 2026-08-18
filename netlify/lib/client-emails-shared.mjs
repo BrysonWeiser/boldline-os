@@ -143,7 +143,7 @@ const T = {
         p(`Hi ${escapeHTML(firstName(c.contactName))}, here's your invoice for ${b(escapeHTML(c.businessName || "your account"))}. You can pay securely online in a few taps:`) +
         detailBox(rows) +
         button("Pay Securely Online", c.payUrl || c.portalUrl || SITE) +
-        small("On the secure Stripe page you can pay by card or bank — or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine management and per-lead fees only — your ad spend is billed separately by Google/Meta directly to you.") +
+        small("On the secure Stripe page you can pay by card or bank — or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine fees only — your ad spend is billed separately by Google/Meta directly to you.") +
         signoff(),
     };
   },
@@ -171,7 +171,7 @@ const T = {
         detailBox(rows) +
         (c.invoiceUrl
           ? button("View / Download Invoice", c.invoiceUrl) +
-            small("Your full invoice, with a downloadable PDF, is on the secure Stripe page. It covers BoldLine management and per-lead fees only — your ad spend is billed separately by Google/Meta directly to you.")
+            small("Your full invoice, with a downloadable PDF, is on the secure Stripe page. It covers BoldLine fees only — your ad spend is billed separately by Google/Meta directly to you.")
           : button("Open Your Portal", c.portalUrl || SITE)) +
         p("Nothing else needed on your end — we're hard at work on your campaigns. You can see everything anytime in your portal.") +
         signoff(),

@@ -4,29 +4,68 @@ import { withLambda } from "../lib/lambda-adapter.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
+const MIN_AD_BUDGET   = 500;   // hard floor to be a managed client at all
+const COMBO_MIN_BUDGET = 5000; // below this, one platform only
+const TIER_RANK = { launch: 1, growth: 2, acquisition: 3 };
+
 const PACKAGES_DB = {
   google: [
-    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, tag:"",            adSpend:"$750–$2,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
-    { id:"g-growth",      name:"Growth System",      platform:"Google Ads",    price:600,  setup:1500, leadFee:true, tag:"Most Popular", adSpend:"$2,000–$8,000/mo",   optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:false, splitTesting:false, crmIntegration:true,  multiCampaign:false },
-    { id:"g-acquisition", name:"Acquisition System", platform:"Google Ads",    price:900,  setup:3000, leadFee:true, tag:"",            adSpend:"$5,000–$20,000+/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true  },
+    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"g-growth",      name:"Growth System",      platform:"Google Ads",    price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:false, splitTesting:false, crmIntegration:true,  multiCampaign:false },
+    { id:"g-acquisition", name:"Acquisition System", platform:"Google Ads",    price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true  },
   ],
   meta: [
-    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:350,  setup:600,  leadFee:true, tag:"",            adSpend:"$500–$2,000/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
-    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:550,  setup:1200, leadFee:true, tag:"Most Popular", adSpend:"$1,500–$5,000/mo",   optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false },
-    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:850,  setup:2500, leadFee:true, tag:"",            adSpend:"$4,000–$15,000+/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true  },
+    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false },
+    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true  },
   ],
+  // No combined Launch tier on purpose — see rule 3 above. Combined costs MORE to
+  // build (two campaign sets) but carries the SAME monthly minimum as one platform
+  // at the same tier, which is the whole point of rule 2.
   combined: [
-    { id:"c-launch", name:"Full System — Launch", platform:"Google + Meta", price:650,  setup:1100, leadFee:true, tag:"Best Value",    adSpend:"$1,000–$4,000/mo",  optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Save $100/mo" },
-    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:1000, setup:2300, leadFee:true, tag:"",               adSpend:"$3,000–$12,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true,  savings:"Save $150/mo" },
-    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1500, setup:4900, leadFee:true, tag:"Most Powerful", adSpend:"$9,000–$35,000+/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true,  savings:"Save $250/mo" },
+    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:700,  setup:2300, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:5000,  maxBudget:10000, tag:"Best Value",    adSpend:"$5,000–$10,000/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
+    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1200, setup:4900, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null, tag:"Most Powerful", adSpend:"$10,000+/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
   ],
+  // E-commerce cannot use per-lead pricing: there is no lead, there is a sale, and it
+  // happens without BoldLine touching it. So the performance half is a % of ad spend.
+  // The old ROAS bonus is gone — it was a second fee stacked on a retainer, which is
+  // the exact thing this rewrite removes. Store Growth is Meta-only because adding
+  // Google Shopping below COMBO_MIN_BUDGET splits a budget that cannot afford it.
   ecom: [
-    { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      price:450,  setup:800,  leadFee:false, tag:"",            adSpend:"$500–$1,500/mo",     optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, roas:"+$200 bonus at 3x ROAS" },
-    { id:"e-growth",     name:"Store Growth",     platform:"Meta + Google", price:750,  setup:1400, leadFee:false, tag:"Recommended", adSpend:"$1,500–$5,000/mo",   optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false, roas:"+$350 bonus at 4x ROAS" },
-    { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, tag:"",            adSpend:"$4,000–$15,000+/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true,  roas:"+$500 bonus at 5x ROAS" },
+    { id:"e-launch",     name:"Store Launch",     platform:"Meta Ads",      price:400,  setup:800,  leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:15, tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"e-growth",     name:"Store Growth",     platform:"Meta Ads",      price:700,  setup:1400, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:15, tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Recommended", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:false },
+    { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:12, tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:true },
   ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
+
+// ─── THE ONE BILLING CALCULATION ─────────────────────────────────────────────
+// "Whichever is more" — the floor or what the month actually earned. Every surface
+// that quotes a number (deal prep, the billing card, the contract, the portal, the
+// marketing site) runs this, so none of them can disagree with the invoice.
+const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
+  if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
+  const floor = Number(pkg.price) || 0;
+  const pctModel = pkg.pricingModel === "ad_spend_pct";
+  const pct = Number(pkg.adSpendPct) || 0;
+  const spend = Number(adSpend) || 0;
+  const leads = Number(qualifiedLeads) || 0;
+  const fee = Number(perLeadFee) || 0;
+  const earned = pctModel ? Math.round((spend * pct) / 100) : Math.round(leads * fee);
+  return {
+    floor, earned, billed: Math.max(floor, earned), atFloor: earned < floor,
+    model: pctModel ? "ad_spend_pct" : "per_lead",
+    basis: pctModel ? `${pct}% of $${spend.toLocaleString()} ad spend`
+                    : `${leads} qualified lead${leads === 1 ? "" : "s"} × $${fee}`,
+  };
+};
+// How heavy the bill is against what they spend on ads — the number Stencil ran and
+// BoldLine did not. Shown wherever a deal is priced so a lopsided one is visible.
+const feeAsPctOfSpend = (billed, adSpend) => {
+  const s = Number(adSpend) || 0;
+  return s > 0 ? Math.round((Number(billed) || 0) / s * 100) : null;
+};
+
 const findPkg = (id) => ALL_PKGS.find((p) => p.id === id);
 
 const ALL_FEATURES = [
@@ -77,11 +116,12 @@ const PKG_FEATURES = {
   "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt"],
   "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
   "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "c-launch":      ["search_ads","meta_ads","keyword_research","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt","unified_reporting"],
   "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
-  "e-growth":      ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
+  // Meta-only below $10k of ad budget — Google Shopping would split a budget that
+  // cannot afford two platforms. Keep in step with index.html.
+  "e-growth":      ["meta_ads","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
   "e-domination":  ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","abandoned_cart","full_funnel","ugc_consulting","crm_input","page_cro","strategy_calls","slack_access","advanced_reporting","monthly_report"],
 };
 const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId] || []).includes(featureId);
@@ -117,13 +157,16 @@ const getUpgradeOptions = (currentPkgId) => {
   if (!cur) return [];
   const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
   const curFeats = PKG_FEATURES[currentPkgId] || [];
+  // Ranked by TIER, not price: a single platform and the combined system share a
+  // monthly minimum at the same tier, so `p.price > cur.price` would hide the best
+  // upsell there is (same minimum, one more channel). Keep in step with index.html.
   return ALL_PKGS.filter((p) =>
     p.id !== currentPkgId &&
-    p.price > cur.price &&
+    (TIER_RANK[p.tier] || 0) >= (TIER_RANK[cur.tier] || 0) &&
     allowed.includes(PKG_FAMILY(p.id)) &&
     keepsEverything(currentPkgId, p.id) &&
     (PKG_FEATURES[p.id] || []).some((f) => curFeats.indexOf(f) < 0)
-  ).sort((a, b) => a.price - b.price);
+  ).sort((a, b) => (TIER_RANK[a.tier]||0) - (TIER_RANK[b.tier]||0) || a.price - b.price || a.setup - b.setup);
 };
 
 const PER_LEAD = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
