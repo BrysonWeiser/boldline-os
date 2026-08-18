@@ -66,6 +66,20 @@ const SPLIT_MIN_LIFT = 0.25;         // the winner must beat the loser by 25%+, 
 const SPLIT_MAX_ADS_PER_GROUP = 2;   // one challenger at a time, never a pile
 const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
 
+// ── CONDITIONS-TRIGGERED REWRITES ───────────────────────────────────────────
+// When the weather in the client's area genuinely turns — monsoon starts, the first
+// hard freeze — the ad running is about the wrong thing, and waiting for the normal
+// impressions floor wastes the season. So a settled change may write a challenger on
+// its own. Two brakes stop that churning live ads:
+//   DWELL     the new conditions must HOLD for this long first. An advisory that posts
+//             at noon and expires at dusk must never rewrite anything.
+//   COOLDOWN  at most one conditions-triggered rewrite per ad group per fortnight.
+//             Seasons turn a handful of times a year, not weekly.
+// Emergencies are already excluded from the fingerprint, so a wildfire can never be
+// the thing that triggers a rewrite.
+const CONDITIONS_DWELL_HOURS = 48;
+const CONDITIONS_COOLDOWN_HOURS = 336;
+
 const monthlyBudgetOf = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 const sum = (a, f) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
@@ -109,6 +123,10 @@ export default withFailureAlert("ads-autopilot", async () => {
     // challenger ad actually gets written. Declared here so it is per-client, never shared
     // between two clients in different states.
     let localCond = null;
+    // Remembered between runs so "these conditions have held for 48h" can actually be
+    // known. Without persistence every run would look like a fresh change and nothing
+    // would ever settle.
+    let conditionsWatch = null;
     const ap = cl.autopilot || {};
     if (ap.enabled === false) { skipped++; continue; }   // per-client opt-out
     const gid = cl.googleAdsCustomerId, mid = cl.metaAdAccountId;
@@ -242,6 +260,19 @@ export default withFailureAlert("ads-autopilot", async () => {
     // Opt-out per client with autopilot.splitTest === false.
     if (ap.splitTest !== false && gid && accessToken && actions.length < MAX_ACTIONS_PER_CLIENT) {
       const liveGoogle = stillLive().filter((t) => t.p === "google");
+      // Read the conditions once for this client, then decide whether they have SETTLED.
+      // `since` is when this exact fingerprint was first seen; it only resets when the
+      // fingerprint actually changes, so a flapping advisory never accumulates dwell.
+      if (!localCond) {
+        localCond = await getLocalConditions({
+          locations: (cl.campaignSetup && cl.campaignSetup.targetLocations) || "",
+        });
+      }
+      const condFp = conditionsFingerprint(localCond.summary);
+      const watchPrev = (ap.conditionsWatch && ap.conditionsWatch.fp === condFp) ? ap.conditionsWatch : null;
+      conditionsWatch = { fp: condFp, since: watchPrev ? watchPrev.since : new Date().toISOString() };
+      const condSettled = (now - new Date(conditionsWatch.since).getTime()) >= CONDITIONS_DWELL_HOURS * 3600e3;
+
       for (const t of liveGoogle) {
         if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
         let detail;
@@ -283,18 +314,27 @@ export default withFailureAlert("ads-autopilot", async () => {
           // ── Write a challenger ──────────────────────────────────────────────
           if (runningAds.length !== 1) continue;
           if (runningAds.length >= SPLIT_MAX_ADS_PER_GROUP) continue;
-          if (g.impressions < SPLIT_MIN_IMPRESSIONS) continue;
+
+          // Two independent reasons to write a challenger.
+          //  1. ENOUGH TRAFFIC — the normal case: the group has earned a real test.
+          //  2. CONDITIONS TURNED — the season changed under a still-running ad. This
+          //     one deliberately IGNORES the impressions floor, because relevance is
+          //     not a question of sample size: if it is 115F and the ad talks about
+          //     spring tune-ups, that ad is wrong whether or not anyone has seen it.
+          const enoughTraffic = g.impressions >= SPLIT_MIN_IMPRESSIONS;
+          const lastCondAction = recent
+            .filter((a) => a.key === splitKey && a.conditions)
+            .sort((x, y) => new Date(y.at) - new Date(x.at))[0];
+          const condChanged = condSettled
+            && condFp !== "none"
+            && (!lastCondAction || lastCondAction.conditions !== condFp)
+            && (!lastCondAction || (now - new Date(lastCondAction.at).getTime()) >= CONDITIONS_COOLDOWN_HOURS * 3600e3);
+          if (!enoughTraffic && !condChanged) continue;
+
           const champion = runningAds[0];
           const finalUrl = (champion.finalUrls || [])[0];
           if (!finalUrl) continue;
           try {
-            // Fetched lazily and cached for this client, so a run that writes no
-            // challengers makes no network calls at all.
-            if (!localCond) {
-              localCond = await getLocalConditions({
-                locations: (cl.campaignSetup && cl.campaignSetup.targetLocations) || "",
-              });
-            }
             const { data } = await runTool({
               tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(!!cl.internal),
               prompt: `Write ONE challenger responsive search ad to split test against the ad currently running.
@@ -324,10 +364,13 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
             const condNote = localCond.usable.length
               ? ` Written against current conditions: ${localCond.usable.map((a) => a.event).join(", ")}.`
               : "";
+            const why = condChanged && !enoughTraffic
+              ? `local conditions changed and held for ${CONDITIONS_DWELL_HOURS}h, so the ad running was written for different weather`
+              : `added a second ad to split test against the one running (${g.impressions} impressions so far)`;
             actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-challenger",
               name: `${t.c.name} / ${g.name}`, platform: "google",
-              conditions: conditionsFingerprint(localCond.summary),
-              reason: `added a second ad to split test against the one running (${g.impressions} impressions so far). Same budget, different creative.${condNote}` });
+              conditions: condFp, trigger: condChanged && !enoughTraffic ? "conditions" : "traffic",
+              reason: `${why}. Same budget, different creative.${condNote}` });
             splitChallengers++;
           } catch (e) { failures++; console.error("ads-autopilot: challenger failed:", e && e.message); }
         }
@@ -335,13 +378,25 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
     }
 
     // ── persist + tell the owner ──
-    if (actions.length) {
-      const log = actions.concat(recent).slice(0, 60);
+    // 🔴 THE WATCH MUST BE SAVED EVEN ON A QUIET RUN. It was originally written inside
+    // `if (actions.length)`, which meant that on any day autopilot did nothing — most
+    // days — the fingerprint's `since` reset to now on the next run, dwell never
+    // accumulated past a single day, and the conditions trigger could never fire.
+    const watchChanged = !!conditionsWatch && (!ap.conditionsWatch
+      || ap.conditionsWatch.fp !== conditionsWatch.fp
+      || ap.conditionsWatch.since !== conditionsWatch.since);
+
+    if (actions.length || watchChanged) {
+      const log = actions.length ? actions.concat(recent).slice(0, 60) : recent;
       // Persist BEFORE the early-continue below, so a notice records its cooldown.
       await supabase.from("clients")
-        .update({ data: { ...cl, autopilot: { ...ap, log, lastRun: new Date().toISOString() } }, updated_at: new Date().toISOString() })
+        .update({ data: { ...cl, autopilot: { ...ap, log,
+          ...(actions.length ? { lastRun: new Date().toISOString() } : {}),
+          ...(conditionsWatch ? { conditionsWatch } : {}) } }, updated_at: new Date().toISOString() })
         .eq("id", row.id);
+    }
 
+    if (actions.length) {
       const changed = actions.filter((a) => a.action !== "notice");
       if (!changed.length) {
         // Notice-only run: the alert already went out above; just persist and move on.

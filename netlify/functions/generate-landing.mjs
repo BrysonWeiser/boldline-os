@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { getLocalConditions } from "../lib/local-conditions.mjs";
 
 const anthropic = new Anthropic();
 
@@ -124,6 +125,14 @@ Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
     ? `\n\nAVAILABLE MEDIA (uploaded by the client — using any of it is OPTIONAL; pick only what makes the page stronger, never feel obligated to use everything):\n${media.map((m, i) => `${i}. [${m.category || "photo"}] ${m.label || "untitled"}`).join("\n")}${viewable.length ? "\n\nThe images themselves are attached to the user message, each preceded by its asset number. Judge them VISUALLY when picking heroIndex: choose the sharpest, best-lit photo that shows real work or results (a logo only if no photo is strong enough). Skip anything blurry, dark, cluttered, or off-topic — picking nothing (-1) is better than picking a weak image. Videos are never attached and can never be the hero." : ""}`
     : "";
 
+  // The page must lead on the same thing the ads do, or the click is wasted. "landing" mode
+  // gives the durable framing (season, recurring pattern) rather than today's alert, because
+  // this page sits at the same URL for months.
+  const cond = await getLocalConditions({
+    locations: cs.targetLocations || cs.serviceArea || "",
+    mode: "landing",
+  });
+
   const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
 
 Also write 3-4 honest FAQs (faqs) that overcome common objections for this kind of service — pricing approach, timing, what to expect, guarantees ONLY if the business actually offers them. Keep answers to 1-2 sentences, general and truthful. If the client's website logo/main image is attached, use it to judge the real brand colors + theme.
@@ -134,6 +143,9 @@ ${dataBlock}${mediaBlock}${websiteBlock}
 Match the page to the client's OWN brand identity — set brandColor and theme (light/dark) from their actual logo/photos/industry, not a generic look. A dark, premium, or bold brand should get a dark page with their accent color; a clean, bright brand should get a light one. Never impose a default bright/white theme on a brand that isn't bright.
 
 Also fill in the DESIGN directives (layout, font, motion, background, benefits, shape, order) so this page's STRUCTURE and feel suit THIS business specifically. Two different clients should end up with visibly different pages, not the same template recolored — so vary these choices to fit each brand's personality (e.g. an elegant med spa: overlay or centered layout, elegant serif type, soft shapes; a bold roofing company: split layout, bold type, sharp shapes, cards). Reuse good ideas, but do not pick the same combination every time.
+
+WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
+${cond.block}
 
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
