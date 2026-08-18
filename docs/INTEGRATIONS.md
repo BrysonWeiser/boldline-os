@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 112 task-keyed entries under `knowledge/`. They surface automatically via the
+> 115 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**112 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**115 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -33,6 +33,12 @@
 - **[meta-parked-work](../knowledge/meta-parked-work.md)** &mdash; &#9989; verified &middot; 2026-08-17  
   The running list of work deliberately NOT built because Meta has not granted Marketing API standard access. Meta creative split testing is the big one (Google has it, Meta does not), which in turn blocks the conditions-triggered ad refresh on Meta. Also parked: 9 of 12 packages stay on "Join the waitlist", and the marketing site's coming-soon state. Nothing here is broken or half-done, it is scoped out on purpose. Bryson asked for it to be marked so it resurfaces at approval rather than being rediscovered.  
   <sub>*task:* find out what work is waiting on Meta approval, or decide what to build the moment Meta grants standard access &nbsp;|&nbsp; *keywords:* meta parked, blocked on meta, once meta is approved, meta split testing, meta creative testing, conditions trigger meta, meta standard access, development tier, MetaLaunchCard, meta-ads.mjs, waitlist</sub>
+
+## Billing
+
+- **[revenue-tracking](../knowledge/revenue-tracking.md)** &mdash; &#9989; verified &middot; 2026-08-18  
+  REBUILT 2026-08-18. The revenue screen used to add up package prices and call it "Monthly Recurring Revenue" — under the greater-of pricing model that is a FLOOR, not income, so it under-reported every good month. Actual revenue now comes from Stripe invoices via a new `revenue` action, keyed on the period each invoice COVERS so a late payment lands in the month it was for. Drafts, voids and write-offs excluded; credit notes subtracted. Month-on-month comparison uses only FINISHED months. The floor is still shown, clearly labelled and visually separate.  
+  <sub>*task:* see how much BoldLine actually earned in a month, or work out why the revenue screen shows what it shows &nbsp;|&nbsp; *keywords:* revenue, MRR, monthly recurring revenue, guaranteed floor, invoices by month, stripe revenue action, RevenueScreen, collected, outstanding, refunded, credit notes, period_end, draft invoice, void invoice, month on month</sub>
 
 ## Blog
 
@@ -403,7 +409,7 @@
 ## Packages/Sales
 
 - **[package-multi-campaign](../knowledge/package-multi-campaign.md)** &mdash; &#9989; verified &middot; 2026-08-17  
-  Multi-campaign is the TOP RUNG of each ladder — g-acquisition $900, m-acquisition $850, c-growth $1,000, c-acquisition $1,500, e-domination $1,200. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by 665 committed assertions in tests/verify-packages.mjs.  
+  Multi-campaign is the TOP RUNG of each ladder. ⚠️ PRICES HERE ARE PRE-2026-08-18 and no longer correct — see KB `pricing-model` for the current numbers; the multi-campaign ANSWER below is unchanged. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by tests/verify-packages.mjs (968 assertions after the 2026-08-18 pricing rewrite).  
   <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing &nbsp;|&nbsp; *keywords:* c-acquisition, Full System Acquisition, multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages</sub>
 
 ## Pending
@@ -417,6 +423,15 @@
 - **[pre-client-readiness](../knowledge/pre-client-readiness.md)** &mdash; &#9989; verified &middot; 2026-07-19  
   As of 2026-07-19 almost nothing blocks SELLING/onboarding a Google-ads client — Stripe live, Google Ads live + approve→execute built, Search Console done. Remaining are timed-to-the-deal (DocuSign production cutover — parked by choice, same-day flip), a should-do (AZ attorney review of the contract draft), and in-flight (Meta verification submitted 2026-07-19 ~2-day review, then App Review weeks — only gates Meta-ads clients). Optional credibility: custom-domain email, Twilio paid upgrade.  
   <sub>*task:* know what remains before BoldLine can sign and onboard its first real client &nbsp;|&nbsp; *keywords:* first-client, readiness, launch-checklist, stripe-not-started, docusign-go-live, basic-access-resubmit, business-verification, approve-execute</sub>
+
+## Pricing
+
+- **[per-lead-fee-finder](../knowledge/per-lead-fee-finder.md)** &mdash; &#9989; verified &middot; 2026-08-18  
+  OS tool (BUILT 2026-08-18) — type a niche and any company detail, get a defensible per-qualified-lead fee back in seconds with the arithmetic shown: job value, close rate, what a lead is therefore worth, and the fee as a share of that. Ends on a month projection that flags when the fee is too low to ever clear the monthly minimum. Reachable from Deal Prep and from a client's Billing card, where "use this rate" writes it straight onto the client. Synchronous Netlify function, no web search, no new Supabase table.  
+  <sub>*task:* work out what to charge a client per qualified lead, or change how that number is calculated &nbsp;|&nbsp; *keywords:* per-lead fee, lead fee finder, what should I charge per lead, lead-fee function, LeadFeeFinder, getNicheLeadFee, LEAD_FEE_TABLE, DEFAULT_LEAD_FEE, job value, close rate, lead value, CPL, billingPerLead, fee clamp, Deal Prep fee</sub>
+- **[pricing-model](../knowledge/pricing-model.md)** &mdash; &#9989; verified &middot; 2026-08-18  
+  Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 968 assertions in tests/verify-packages.mjs.  
+  <sub>*task:* quote a price, change package pricing, explain what a client pays, or work out why a bill is what it is &nbsp;|&nbsp; *keywords:* pricing, monthly minimum, greater of, whichever is higher, per-lead fee, ad spend percentage, package price, retainer, management fee, tier, ad budget, MIN_AD_BUDGET, COMBO_MIN_BUDGET, calcMonthlyBill, packageForBudget, pricingModel, adSpendPct, minBudget, combined unlock, Stencil, setup fee, e-commerce pricing, ROAS bonus</sub>
 
 ## Supabase
 
@@ -437,5 +452,5 @@
 
 - **[repo-tests](../knowledge/repo-tests.md)** &mdash; &#9989; verified &middot; 2026-08-17  
   Verification suites written into the session scratchpad DO NOT SURVIVE — the container is reclaimed between sessions, so "16 suites passing" was true when reported and then simply gone. Anything guarding a live invariant belongs in `tests/` in git. Also records the Playwright launch fix for this container (the bundled browser build does not match /opt/pw-browsers, so pass executablePath explicitly).  
-  <sub>*task:* write or re-run verification tests for this project, or find out why an earlier session's test suites are missing &nbsp;|&nbsp; *keywords:* tests, verify suites, scratchpad, ephemeral container, tests/verify-packages.mjs, playwright executablePath, chromium-1194, pw-browsers, regression test</sub>
+  <sub>*task:* write or re-run verification tests for this project, or find out why an earlier session's test suites are missing &nbsp;|&nbsp; *keywords:* tests, verify suites, scratchpad, ephemeral container, tests/verify-packages.mjs, verify-pricing-tools, playwright executablePath, chromium-1194, pw-browsers, regression test</sub>
 

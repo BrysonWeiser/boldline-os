@@ -5,15 +5,27 @@ to follow or steps to follow to close the call on the meeting."*
 
 A 30-minute structure for the Calendly call, built to close on that call.
 
-> **🟡 PRICING IS UNDER REVIEW (2026-08-17).** Stencil & Thread turned down the current
-> structure: *"I don't really understand paying a retainer fee plus a per-lead fee. That's a
-> personal opinion, that it should be one or the other. Or at least, not doubling my ad spend."*
-> They were right on the maths. At $800/mo of ad spend, the current model bills them roughly
-> **134% of their ad spend**, against an industry norm nearer 10-20%.
+> **✅ PRICING REWRITTEN 2026-08-18.** Stencil & Thread turned down the old structure:
+> *"I don't really understand paying a retainer fee plus a per-lead fee. That's a personal
+> opinion, that it should be one or the other. Or at least, not doubling my ad spend."*
+> He was right on the maths, so it is now **one or the other**.
 >
-> **The structure, questions, objection answers and walk-away rules below all still hold.**
-> Only the numbers in the "Price" step are pending. Do not quote from this file until the new
-> model is agreed.
+> **The rule, in one sentence: they pay the monthly minimum for their plan, or the fee their
+> leads earned, whichever is higher. Never both.**
+>
+> | Their ad budget | Monthly minimum | Setup (one platform) | Setup (both) |
+> |---|---|---|---|
+> | $500 to $2,500 | $400 | $750 | not available |
+> | $2,500 to $10,000 | $700 | $1,500 | $2,300 (needs $5,000+) |
+> | $10,000+ | $1,200 | $3,000 | $4,900 |
+>
+> Google and Meta cost **the same** at the same budget. Running both starts at **$5,000/mo**
+> of ad budget. E-commerce pays **15% of ad spend** (12% at the top tier) instead of a
+> per-lead fee, because a store has no lead to count.
+>
+> **Get the per-lead number from the OS before the call** — Deal Prep, "What should I charge
+> per lead?". It works it out from their job value and close rate and shows you the arithmetic
+> so you can say it out loud.
 
 ---
 
@@ -86,19 +98,28 @@ This is the pivot. Do it slowly and let them arrive at it.
 > Say we get you **[a deliberately modest number]** qualified leads a month. If you close even one
 > in four, that's **[X]** jobs, so about **[X times their job value]** in work.
 >
-> What that costs you is **[monthly]** to me, **[per-lead fee]** per lead so **[total lead fees]**,
-> and your ad budget which goes straight to Google, call it **[budget]**. So roughly
-> **[total]** out, against **[revenue]** in.
+> Here's what that costs you. **[per-lead fee]** a lead, so **[leads × fee]**. That's it from me,
+> there's no retainer on top. And your ad budget, which goes straight to Google on your own card,
+> call it **[budget]**. So roughly **[total]** out, against **[revenue]** in.
 >
 > Does that maths look right to you?"
 
-**Three rules here:**
+**Four rules here:**
 1. **Use a modest lead number.** Undersell it. If you say 40 leads and deliver 15 you have lost the
    client. If you say 10 and deliver 15 you have one for years.
 2. **Never say the word "guarantee."** You are showing what the numbers have to look like, not
    promising them.
 3. **Ask "does that look right"** and wait. If they argue the close rate down, use their number.
    It is still going to work, and now it is their maths and not yours.
+4. **Say "there's no retainer on top" out loud.** It is the single biggest difference between you
+   and everyone else they will talk to, and it is the exact thing that lost the Stencil deal when
+   it was not true. Do not let them assume the old shape.
+
+**If their lead number lands below the minimum**, say so plainly rather than hiding it:
+
+> "Some months that maths won't clear the minimum, and then you just pay the **[minimum]**. That's
+> the floor, it's not on top. In a good month you pay the lead fees instead and I'd rather have the
+> good month, because that's the one that means it's working."
 
 ### 14 to 19 — What you actually do
 
@@ -119,12 +140,15 @@ call.
 
 Give one recommendation. Not three options. Three options makes them shop instead of decide.
 
-> "Based on what you told me I'd start you on the **[package]**. That's **$[monthly]** a month for
-> me to run it, **$[setup]** one time to build everything, and **$[fee]** per qualified lead. Your
-> ad budget is separate and goes straight to Google, and for your market I'd start around
-> **$[budget]** a month.
+> "Based on what you told me I'd start you on the **[package]**. It's **$[setup]** one time to
+> build everything. Then each month it's **$[fee]** per qualified lead, with a **$[minimum]**
+> minimum. You pay whichever of those is higher, never both. Your ad budget is separate and goes
+> straight to Google on your own card, and for your market I'd start around **$[budget]** a month.
 >
 > I've got room to start one new client this week. Want me to get you going?"
+
+**Say the "whichever is higher, never both" line every time.** Prospects have been quoted a
+retainer plus a fee by every other agency, so they will hear yours that way unless you stop them.
 
 **Then be quiet.** Whoever speaks first loses. Count to ten in your head if you have to.
 
@@ -197,11 +221,25 @@ Good news. This one is easy and it builds trust.
 > when. If the numbers aren't going the right way by week three, we change the approach, and you'll
 > see that in the report rather than hearing it from me after the fact."
 
-### "Why am I paying monthly AND per lead?"
+### "So am I paying the monthly AND the per-lead?"
 
-> "Because it keeps us on the same side. The monthly covers running and improving the thing. The
-> per-lead part means I only get the rest of it when you actually get something you can sell to.
-> If I just took a flat fee I'd get paid the same whether your phone rang or not."
+**No, and this is the whole point.** Answer it flatly, then stop.
+
+> "No. Whichever is higher, and that's it. If your leads add up to more than the minimum, you pay
+> the leads and the minimum doesn't exist. If it's a slow month and they don't, you pay the
+> minimum and nothing else. It's never both."
+
+### "Then what's the minimum for?"
+
+> "It's what keeps me able to do the work in a month that doesn't go well. The campaign still gets
+> managed, the page still gets updated, the reports still get built. What it isn't is a retainer,
+> because the second your leads clear it, it goes away."
+
+If they push further, give them the real reason and let them judge it:
+
+> "Honestly, it's also what stops me taking on a client I can't do a good job for. If your budget
+> can't produce enough leads to clear the minimum, that tells us both something before we start
+> rather than three months in."
 
 ### "Can you just handle the ad spend and bill me one number?"
 
@@ -224,8 +262,12 @@ Saying no to a bad client is worth more than the fee, especially when you only h
 
 - **They can't handle more work.** More leads make an already-drowning business worse, they will
   blame you, and they will churn.
-- **They won't spend the minimum ad budget** for their tier. Underfunded campaigns cannot learn, so
-  it fails and it is your name on it.
+- **They won't spend at least $500 a month on ads.** That is the hard floor. Below it there is not
+  enough data for the campaign to learn, so it fails and it is your name on it. Say it kindly and
+  tell them to come back when they can.
+- **They want Google and Meta on less than $5,000 a month.** Not a no to the deal, a no to that
+  shape of it. Put the whole budget behind one channel and add the second when the numbers earn
+  it. Split small and neither side learns.
 - **They want you to front or absorb the ad spend.** Never. This is a hard business rule.
 - **They want a guarantee** after you have explained why you do not give one.
 - **They don't answer their phone.** Ads cannot fix a business that misses calls. Tell them that

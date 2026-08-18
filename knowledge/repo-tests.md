@@ -2,7 +2,7 @@
 name: repo-tests
 topic: Workflow
 task: write or re-run verification tests for this project, or find out why an earlier session's test suites are missing
-keywords: [tests, verify suites, scratchpad, ephemeral container, tests/verify-packages.mjs, playwright executablePath, chromium-1194, pw-browsers, regression test]
+keywords: [tests, verify suites, scratchpad, ephemeral container, tests/verify-packages.mjs, verify-pricing-tools, playwright executablePath, chromium-1194, pw-browsers, regression test]
 status: verified
 summary: Verification suites written into the session scratchpad DO NOT SURVIVE — the container is reclaimed between sessions, so "16 suites passing" was true when reported and then simply gone. Anything guarding a live invariant belongs in `tests/` in git. Also records the Playwright launch fix for this container (the bundled browser build does not match /opt/pw-browsers, so pass executablePath explicitly).
 verified: 2026-08-17
@@ -27,9 +27,24 @@ on it. A regression in any of those areas would not be caught today.
 (one-off curl, a scratch parse check, an exploratory screenshot) can stay in the scratchpad. The
 distinction is whether a future session needs to be able to re-run it.
 
-First committed suite: **`tests/verify-packages.mjs`** (366 assertions) — run with
-`node tests/verify-packages.mjs`, no dependencies. It guards the four-way-duplicated package
-catalog (see KB `package-multi-campaign`). Pattern worth copying:
+## The committed suites (run them all before merging anything)
+
+```
+for t in tests/*.mjs; do node "$t"; done
+```
+
+| Suite | Guards | Size |
+|---|---|---|
+| `verify-packages.mjs` | the five-way-duplicated package catalog, the greater-of billing maths, tier/budget bands, and that the marketing site quotes the same model the contract will | 968 |
+| `verify-pricing-tools.mjs` | the per-lead fee finder's guard rails and the revenue-by-month rollup (KB `per-lead-fee-finder`, `revenue-tracking`) | 1,937 |
+| `verify-local-conditions.mjs` | live-weather ad context and the never-advertise policy gate | 119 |
+| `verify-meta-flip.mjs` | the coming-soon sentinels match `docs/META-FLIP-CHECKLIST.md` | 56 |
+| `verify-meta-generator.mjs` | the Meta ad generator is wired to its background action | 26 |
+| `verify-demo-client.mjs` | the demo client is safely fake (no real emails, no reports) | 18 |
+
+None have dependencies; all run with plain `node`.
+
+Patterns worth copying, learned from `verify-packages.mjs`:
 
 - **Extract the real data out of the source files** (slice the block, evaluate it) rather than
   restating it in the test. Restating a duplicated catalog just creates one more copy to drift.
@@ -38,6 +53,13 @@ catalog (see KB `package-multi-campaign`). Pattern worth copying:
   found it immediately.
 - **Compute expectations from the data, don't hardcode counts.** The site-bullet assertions compare
   against the number of packages carrying each flag, so adding a package cannot silently pass.
+- **If a test must re-implement logic it cannot import, PIN THE ORIGINAL.**
+  `verify-pricing-tools.mjs` re-implements the fee clamp and the invoice rollup (the modules need
+  Supabase and Anthropic at import time), so it also asserts the exact expressions still exist in
+  the source. Move a bound and the test fails by name, which forces the re-implementation to be
+  updated rather than quietly testing a fossil.
+- **Prove the guard is load-bearing before believing it.** Every suite here has had a deliberate
+  break introduced and confirmed to fail it. A guard that has never failed has never been tested.
 
 ## Playwright in this container: pass `executablePath`
 
