@@ -1685,7 +1685,12 @@ const makeContractHTML=(cl,pkg)=>{
   const pctFee   = (pkg && pkg.pricingModel === "ad_spend_pct") ? Number(pkg.adSpendPct)||0 : 0;
   const perLeadFee = (pkg && pkg.pricingModel === "per_lead") ? (pl||0) : 0;
   const hasPerf  = pctFee > 0 || perLeadFee > 0;
-  const nBase = 3 + (hasPerf?1:0);
+  // A one-time build (Launch & Hand Off) has no monthly fee, no performance fee and no
+  // committed term. Sections 2, 3 and 4 swap WHOLESALE rather than being patched with
+  // conditionals — a half-adapted agreement reads worse than either version and is the
+  // kind of document a dispute turns on.
+  const oneTime  = !!(pkg && pkg.pricingModel === "one_time");
+  const nBase = 3 + (hasPerf?1:0) + (oneTime?1:0);
   const nAd=nBase+1, nResp=nBase+2, nNoG=nBase+3, nTerm=nBase+4, nIP=nBase+5, nConf=nBase+6,
         nData=nBase+7, nLiab=nBase+8, nInd=nBase+9, nRel=nBase+10, nLaw=nBase+11, nGen=nBase+12;
 
@@ -1693,12 +1698,15 @@ const makeContractHTML=(cl,pkg)=>{
   const meta =
     metaItem("Service Package",(pkg&&pkg.name)||"—")
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
-   +metaItem("Monthly Minimum",money(effMonthly)+"/mo")
-   +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived")
-   +metaItem("Committed Term",monthsLabel(termMo))
+   +(oneTime
+      ? metaItem("Total Fee",money(setupFee)+" one time")+metaItem("Ongoing Fees","None")
+      : metaItem("Monthly Minimum",money(effMonthly)+"/mo")
+        +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived"))
+   +metaItem("Committed Term",oneTime?"None (one-time project)":monthsLabel(termMo))
    +metaItem("Start Date",esc(cl.contractStart)||"—")
    +metaItem("End Date",esc(cl.contractEnd)||"—")
-   +metaItem("Optimization Cadence",((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
+   +metaItem("Optimization Cadence",oneTime?"Two passes during the 30-day settle-in, then none"
+       :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
    +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" per qualified lead"):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
    +(hasPerf?metaItem("How the two combine","Whichever is higher, never both"):"")
@@ -1708,6 +1716,17 @@ const makeContractHTML=(cl,pkg)=>{
   // the minimum is a floor, the performance fee counts against it, and the client pays
   // whichever is higher. Spelling that out is the point — the previous model billed a
   // retainer AND a per-lead fee, which is what a prospect turned down in writing.
+  // 🔴 THE CLAUSE THAT MAKES A HAND-OFF HONEST. Without it the client has a signed
+  // agreement for "advertising management services" and nothing in writing saying when
+  // they stop, which is exactly the dispute a one-time product invites. It says what
+  // they get, when the work ends, and that nothing recurring exists.
+  const handoffSection = oneTime ? (
+    '<h2>4. One-Time Build, Settle-In, and Handover</h2>'
+   +'<p>4.1 <strong>This is a one-time project, not a retainer.</strong> Agency will build the Campaigns and the landing page described above inside Client&rsquo;s own advertising account, configure conversion and call tracking, and deliver the items listed in Section 1. <span class="caps">THERE IS NO MONTHLY FEE, NO PER-LEAD FEE, AND NO RECURRING CHARGE OF ANY KIND UNDER THIS AGREEMENT.</span></p>'
+   +'<p>4.2 <strong>Settle-in period.</strong> For thirty (30) days after the Campaigns go live, Agency will perform two (2) optimization passes and remain available for questions about the build. This is included in the Total Fee.</p>'
+   +'<p>4.3 <strong>Handover, and the end of Agency&rsquo;s obligations.</strong> At or before the end of the settle-in period Agency will deliver a written handover playbook covering the ongoing routine, the settings that must not be changed, and the warning signs to watch for, together with one (1) training call. <span class="caps">ON COMPLETION OF HANDOVER, AGENCY&rsquo;S OBLIGATIONS UNDER THIS AGREEMENT ARE FULLY DISCHARGED.</span> Agency will relinquish access to Client&rsquo;s advertising account and will not monitor, manage, optimize, or report on the Campaigns thereafter. Client is solely responsible for operating, funding, and maintaining the Campaigns from that point onward.</p>'
+   +'<p>4.4 <strong>Credit toward managed services.</strong> If Client engages Agency on a managed monthly plan within six (6) months of the Effective Date, Agency will <strong>waive that plan&rsquo;s setup fee in full</strong>, in recognition that Client has already paid for the build. The credit is not redeemable for cash, does not reduce any monthly minimum or performance fee, and expires at the end of that six-month period.</p>'
+  ) : '';
   const perfSection = hasPerf ? (
     '<h2>4. Monthly Minimum and Performance Fee</h2>'
    +'<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>'
@@ -1766,17 +1785,29 @@ const makeContractHTML=(cl,pkg)=>{
    +'<p>1.2 The Services are limited to the Service Package selected. Work outside that scope (including additional platforms, campaigns, pages, or service tiers) requires a written package upgrade or separate agreement, at Agency&rsquo;s then-current rates. Agency may use subcontractors and automated tooling to perform the Services, and remains responsible for the Services performed.</p>'
    +'<p>1.3 Agency will determine campaign structure, targeting, bidding, and creative in its professional judgment, subject to Client&rsquo;s approval rights over ad copy and landing-page content that names Client or makes claims about Client&rsquo;s products or services. No advertising spend will be initiated or increased without Client&rsquo;s sign-off on the associated budget.</p>'
 
-   +'<h2>2. Term, Renewal, and Holdover</h2>'
+   +(oneTime
+     ? '<h2>2. Term</h2>'
+       +'<p>2.1 This Agreement begins on the Start Date and <strong>ends automatically on completion of handover</strong> under Section 4.3. There is no minimum commitment, no renewal, no holdover, and no notice period, because there is no ongoing service to continue.</p>'
+       +'<p>2.2 Client may engage Agency again at any time under a separate agreement. Nothing here obliges either party to do so.</p>'
+     : '<h2>2. Term, Renewal, and Holdover</h2>'
    +'<p>2.1 This Agreement begins on the Start Date and continues for the Committed Term shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment.</p>'
    +'<p>2.2 At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>'
    +'<p>2.3 <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
-
-   +'<h2>3. Fees and Payment</h2>'
+     )
+   +(oneTime
+     ? '<h2>3. Fees and Payment</h2>'
+       +'<p>3.1 <strong>Total Fee.</strong> The Total Fee shown in the Key Commercial Terms is payable once, before build begins, and is the entire amount payable under this Agreement.</p>'
+       +'<p>3.2 <strong>No recurring charges.</strong> <span class="caps">CLIENT IS NOT ENROLLED IN ANY SUBSCRIPTION.</span> No card or bank account is stored for recurring billing under this Agreement, and no monthly, per-lead, or percentage fee is or becomes payable.</p>'
+       +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income.</p>'
+       +'<p>3.4 <strong>No refunds once work has begun.</strong> The Total Fee compensates account configuration, research, and build labor actually performed, and is non-refundable once Agency has commenced work.</p>'
+     : '<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
    +'<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
+     )
+   +handoffSection
    +perfSection
 
    +'<h2>'+nAd+'. Advertising Spend and Account Ownership</h2>'
@@ -1793,7 +1824,9 @@ const makeContractHTML=(cl,pkg)=>{
 
    +'<h2>'+nTerm+'. Termination</h2>'
    +'<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>'
-   +'<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>'
+   +(oneTime
+     ? '<p>(b) <strong>By Client.</strong> Because this is a one-time project with no committed term, there is no early-termination fee. If Client cancels after Agency has commenced work, fees for work already performed remain payable under Section 3.4.</p>'
+     : '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>')
    +'<p>(c) <strong>By Agency, early.</strong> Agency may terminate before the End Date on thirty (30) days&rsquo; written notice. In that case Agency will refund any prepaid fees covering periods after the effective termination date and, if Agency terminates before the Campaigns launch, the unearned portion of any Setup Fee; no early-termination fee applies to Client.</p>'
    +'<p>(d) <strong>For cause.</strong> Either party may terminate immediately by written notice if the other party materially breaches this Agreement and fails to cure within fifteen (15) days of written notice describing the breach (no cure period applies to Client&rsquo;s non-payment beyond the periods in Section 3.4, or to a breach of confidentiality). Termination for Client&rsquo;s uncured breach does not relieve Client of subsection (b) amounts.</p>'
    +'<p>(e) <strong>Effect.</strong> On termination: all unpaid amounts become immediately due; Agency will stop campaigns as directed, relinquish account access, and deliver any Client-owned materials in its possession; and each party will return or delete the other&rsquo;s Confidential Information on request. Sections addressing fees owed, ownership, confidentiality, data, liability, indemnification, and disputes survive termination.</p>'

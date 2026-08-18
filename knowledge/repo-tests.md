@@ -35,10 +35,10 @@ for t in tests/*.mjs; do node "$t"; done
 
 | Suite | Guards | Size |
 |---|---|---|
-| `verify-packages.mjs` | the five-way-duplicated package catalog, the greater-of billing maths, tier/budget bands, and that the marketing site quotes the same model the contract will | 968 |
-| `verify-pricing-tools.mjs` | the per-lead fee finder's guard rails and the revenue-by-month rollup (KB `per-lead-fee-finder`, `revenue-tracking`) | 1,937 |
-| `verify-local-conditions.mjs` | live-weather ad context and the never-advertise policy gate | 119 |
-| `verify-meta-flip.mjs` | the coming-soon sentinels match `docs/META-FLIP-CHECKLIST.md` | 56 |
+| `verify-packages.mjs` | the five-way-duplicated package catalog, the greater-of billing maths, tier/budget bands, the one-time hand-off, and that the marketing site quotes the same model the contract will | 1,140 |
+| `verify-pricing-tools.mjs` | the per-lead fee finder's guard rails, the revenue-by-month rollup, and that the contract renders two independent agreements (KB `per-lead-fee-finder`, `revenue-tracking`, `hand-off-product`) | 1,958 |
+| `verify-local-conditions.mjs` | live-weather ad context and the never-advertise policy gate | 121 |
+| `verify-meta-flip.mjs` | the coming-soon sentinels match `docs/META-FLIP-CHECKLIST.md` | 57 |
 | `verify-meta-generator.mjs` | the Meta ad generator is wired to its background action | 26 |
 | `verify-demo-client.mjs` | the demo client is safely fake (no real emails, no reports) | 18 |
 
@@ -60,6 +60,12 @@ Patterns worth copying, learned from `verify-packages.mjs`:
   updated rather than quietly testing a fossil.
 - **Prove the guard is load-bearing before believing it.** Every suite here has had a deliberate
   break introduced and confirmed to fail it. A guard that has never failed has never been tested.
+- **🔴 ASSERT THE INVARIANT, NOT A PROXY FOR IT.** `verify-local-conditions` required
+  `let localCond` within **400 characters** of the loop opening, as a stand-in for "declared
+  inside the loop". Adding an unrelated guard and a comment at the top of that loop broke the
+  test while the scoping stayed perfectly correct. It now asserts structurally: declared after
+  the loop opens, exactly once, and nowhere above it. A proxy assertion fails on the wrong
+  things and, worse, tempts you to loosen it rather than fix it.
 
 ## Playwright in this container: pass `executablePath`
 

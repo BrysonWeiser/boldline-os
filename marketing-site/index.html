@@ -248,7 +248,10 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 
 .pkg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto}
 .pkg-grid.cols-2{grid-template-columns:repeat(2,1fr);max-width:760px}
-.pkg-grid.cols-1{grid-template-columns:1fr;max-width:400px;margin-top:0}
+/* One column, sized to match EXACTLY one column of the 3-up grid above it
+   ((1100 - 2 x 20 gap) / 3), so the hand-off card lines up with the managed cards
+   instead of sitting slightly wider than them. */
+.pkg-grid.cols-1{grid-template-columns:1fr;max-width:353px;margin-top:0}
 .pkg{position:relative;display:flex;flex-direction:column;background-color:var(--card);background-image:linear-gradient(115deg,transparent 0%,transparent 42%,rgba(200,168,75,.08) 50%,transparent 58%,transparent 100%);background-size:240% 100%;background-position:130% 0;border:1px solid var(--line);border-radius:12px;padding:34px 28px;transition:transform .3s ease,border-color .3s ease,box-shadow .3s ease,background-position .8s ease}
 .pkg:hover{transform:translateY(-6px);border-color:var(--gold-line);box-shadow:0 24px 48px -24px rgba(0,0,0,.6);background-position:-30% 0}
 .pkg:has(.tag){box-shadow:0 0 0 1px var(--gold-line),0 30px 60px -30px rgba(200,168,75,.18)}
@@ -1714,7 +1717,8 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
       <div class="q" data-q="budget">
         <div class="q-label">What's your monthly ad budget?</div>
         <div class="opts">
-          <button type="button" data-val="low">Under $2,500</button>
+          <button type="button" data-val="tiny">Under $500</button>
+          <button type="button" data-val="low">$500&ndash;$2,500</button>
           <button type="button" data-val="mid">$2,500–$5,000</button>
           <button type="button" data-val="midplus">$5,000–$10,000</button>
           <button type="button" data-val="high">$10,000+</button>
@@ -1825,10 +1829,10 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
   });
 
   var FAMILIES = {
-    google:   { tab:'google',   label:'Google Ads',       tiers:{ low:'Launch System', mid:'Growth System', midplus:'Growth System', high:'Acquisition System' } },
-    meta:     { tab:'meta',     label:'Meta Ads',         tiers:{ low:'Launch System', mid:'Growth System', midplus:'Growth System', high:'Acquisition System' } },
+    google:   { tab:'google',   label:'Google Ads',       tiers:{ tiny:'Launch & Hand Off', low:'Launch System', mid:'Growth System', midplus:'Growth System', high:'Acquisition System' } },
+    meta:     { tab:'meta',     label:'Meta Ads',         tiers:{ tiny:'Launch & Hand Off', low:'Launch System', mid:'Growth System', midplus:'Growth System', high:'Acquisition System' } },
     combined: { tab:'combined', label:'Combined Systems', tiers:{ midplus:'Full System: Growth', high:'Full System: Acquisition' } },
-    ecom:     { tab:'ecom',     label:'E-Commerce',       tiers:{ low:'Store Launch', mid:'Store Growth', midplus:'Store Growth', high:'Store Domination' } }
+    ecom:     { tab:'ecom',     label:'E-Commerce',       tiers:{ tiny:'Launch & Hand Off', low:'Store Launch', mid:'Store Growth', midplus:'Store Growth', high:'Store Domination' } }
   };
 
   // Running both platforms needs $5,000/mo of ad budget, so the recommender must not
@@ -1837,6 +1841,10 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
   var COMBO_MIN_BAND = { midplus:1, high:1 };
 
   function pickFamily(){
+    // Below the managed floor there is no monthly plan to recommend, on any platform.
+    // The hand-off lives on the Google panel, which is also the only platform we can
+    // actually deliver today.
+    if(answers.budget === 'tiny') return 'google';
     if(answers.type === 'ecom') return 'ecom';
     var wantsBoth = (answers.type === 'both') || (answers.channel === 'ads');
     if(wantsBoth) return COMBO_MIN_BAND[answers.budget] ? 'combined'
@@ -1874,6 +1882,11 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
     document.getElementById('recHeadline').innerHTML =
       'We’d start you with the <strong>' + tierName + '</strong> on <strong>' + f.label + '</strong>.';
     var why = recBody(answers.channel, fam, tierName, f.label);
+    // A sub-floor budget gets a different pitch entirely: it is not a smaller plan, it
+    // is a different product, and pretending otherwise sets up a failure.
+    if(answers.budget === 'tiny'){
+      why = 'At under $500 a month in ad budget there is not enough data for a managed campaign to learn, so a monthly plan would take your money and underperform. We would rather build it properly once and hand it to you. You get the campaign, the landing page and the tracking in your own account, two optimization passes over the first 30 days, and a playbook so you can run it. If you grow into a monthly budget within six months, we waive the setup fee because you already paid for the build.';
+    }
     // Someone who asked for both and got one deserves the reason, or it reads as a
     // downsell. It is the opposite: it is the advice that makes their budget work.
     if(fam !== 'combined' && (answers.type === 'both' || answers.channel === 'ads')){
