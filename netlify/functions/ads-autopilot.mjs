@@ -30,7 +30,7 @@
 //      ADS_AUTOPILOT=off  -> global kill switch, checked first, every run.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, handoffIsFinished } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import { getCampaigns as metaCampaigns, setStatus as metaSetStatus, setBudget as metaSetBudget } from "./meta-ads.mjs";
 import {
@@ -119,6 +119,11 @@ export default withFailureAlert("ads-autopilot", async () => {
 
   for (const row of rows || []) {
     const cl = row.data || {};
+    // A Launch & Hand Off client owns their account outright once settle-in is over.
+    // Autopilot changing bids or writing challenger ads in it after that is unpaid work
+    // inside somebody else's account, which is both a promise BoldLine did not make and
+    // one it should not be making silently.
+    if (handoffIsFinished(cl)) continue;
     // Live local conditions for this client, fetched at most once per run and only if a
     // challenger ad actually gets written. Declared here so it is per-client, never shared
     // between two clients in different states.

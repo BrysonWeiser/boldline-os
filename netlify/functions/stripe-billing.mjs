@@ -13,8 +13,10 @@
 //
 // POST body (JSON), by action:
 //   { action:"create-checkout", clientId, email, name, packageName,
-//     monthlyAmount, setupAmount, customerId?, origin }
-//       -> creates/reuses a Customer + a subscription Checkout Session.
+//     monthlyAmount, setupAmount, customerId?, origin, oneTime? }
+//       -> creates/reuses a Customer + a Checkout Session. `oneTime:true` sells a
+//          one-time build (mode:"payment", the setup amount only, no subscription) —
+//          used for Launch & Hand Off, which has no monthly side to renew.
 //          Returns { ok, url, customerId }. The owner sends `url` to the client
 //          (or opens it on the close call); the client enters card/bank once and
 //          the fee auto-charges monthly thereafter.
@@ -156,9 +158,18 @@ export default async (req) => {
       const origin = (body.origin || "").replace(/\/$/, "");
       const monthly = Number(monthlyAmount);
       const setup = Number(setupAmount) || 0;
+      // A hand-off is a ONE-TIME BUILD with no monthly side at all, so it cannot be sold
+      // as a subscription: Stripe has nothing to renew and the client would be signing up
+      // for a recurring charge that must never fire. `oneTime` switches the whole session
+      // to mode:"payment" instead of bolting a $0 recurring line onto a subscription.
+      const oneTime = !!body.oneTime;
       if (!clientId) return json({ ok: false, error: "Missing clientId" }, 400);
       if (!email) return json({ ok: false, error: "Add the client's email on the Overview tab first." }, 400);
-      if (!(monthly > 0)) return json({ ok: false, error: "Monthly fee must be greater than zero." }, 400);
+      if (oneTime) {
+        if (!(setup > 0)) return json({ ok: false, error: "A one-time build needs a fee greater than zero." }, 400);
+      } else if (!(monthly > 0)) {
+        return json({ ok: false, error: "Monthly fee must be greater than zero." }, 400);
+      }
       if (!origin) return json({ ok: false, error: "Missing origin" }, 400);
 
       // Reuse an existing customer if we already made one for this client — but
@@ -186,7 +197,7 @@ export default async (req) => {
       // billed on the FIRST invoice (Stripe supports mixing recurring + one-time
       // line items in mode:subscription). If a future Stripe change ever rejects
       // this, the equivalent is subscription_data[add_invoice_items].
-      const line_items = [
+      const line_items = oneTime ? [] : [
         {
           price_data: {
             currency: "usd",
@@ -197,7 +208,18 @@ export default async (req) => {
           quantity: 1,
         },
       ];
-      if (setup > 0) {
+      if (oneTime) {
+        line_items.push({
+          price_data: {
+            currency: "usd",
+            // Named for what it is. "Setup fee" on a one-time build invites the question
+            // "setup for what monthly?" and the answer is that there isn't one.
+            product_data: { name: `BoldLine Media — ${packageName || "Launch & Hand Off"} (one-time build, no ongoing fees)` },
+            unit_amount: dollars(setup),
+          },
+          quantity: 1,
+        });
+      } else if (setup > 0) {
         line_items.push({
           price_data: {
             currency: "usd",
@@ -210,19 +232,23 @@ export default async (req) => {
 
       const session = await stripe("checkout/sessions", {
         body: {
-          mode: "subscription",
+          mode: oneTime ? "payment" : "subscription",
           customer: customerId,
           payment_method_types: ["card", "us_bank_account"],
           line_items,
-          subscription_data: { metadata: { clientId } },
-          metadata: { clientId },
+          // subscription_data is rejected outright in payment mode, so it must be
+          // omitted rather than sent empty.
+          ...(oneTime
+            ? { payment_intent_data: { metadata: { clientId } } }
+            : { subscription_data: { metadata: { clientId } } }),
+          metadata: { clientId, oneTime: oneTime ? "1" : "0" },
           client_reference_id: clientId,
           success_url: `${origin}/?billing=success`,
           cancel_url: `${origin}/?billing=cancel`,
         },
       });
 
-      return json({ ok: true, url: session.url, customerId });
+      return json({ ok: true, url: session.url, customerId, oneTime });
     }
 
     // ── Sync billing state straight from Stripe (no webhook needed) ───────────

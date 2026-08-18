@@ -198,6 +198,8 @@ const ALL_FEATURES = [
   // nothing. Distinct from `priority_comms` below, and no single client ever sees both:
   // this one is e-commerce only, that one is lead-gen only, and upgrade ladders never cross.
   { id:"slack_access",    label:"Priority Support (same-day replies)", category:"Both" },
+  { id:"handover_docs",   label:"Written Handover Playbook + Training Call", category:"Both" },
+  { id:"settle_in",       label:"30-Day Settle-In (two optimization passes)",category:"Both" },
   { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
   { id:"priority_comms",  label:"Priority Communication",           category:"Both" },
   { id:"advanced_reporting",label:"Advanced Reporting Dashboard",   category:"Both" },
@@ -218,6 +220,10 @@ const PKG_FEATURES = {
   // c-growth — nothing invented — so both Acquisition tiers finally have somewhere to
   // upgrade to without giving up their scaling roadmap, priority comms or full funnel.
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
+  // The GOOD build (custom page, call tracking, real research) minus everything
+  // ongoing. No optimization cadence and no reporting, because there is nobody running
+  // it after the settle-in — promising a monthly report would be selling a ghost.
+  "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","call_tracking","handover_docs","settle_in"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
   // Meta-only: Google Shopping would split a sub-$10k budget across two platforms,
   // which is the same mistake COMBO_MIN_BUDGET exists to prevent on the lead-gen side.
@@ -249,7 +255,9 @@ const PKG_FEATURES = {
 //     no combined Launch tier — it would only ever be sold to someone it hurts.
 const MIN_AD_BUDGET   = 500;   // hard floor to be a managed client at all
 const COMBO_MIN_BUDGET = 5000; // below this, one platform only
-const TIER_RANK = { launch: 1, growth: 2, acquisition: 3 };
+// Hand-off ranks BELOW Launch: it is the entry point, and every managed tier is a
+// step up from it.
+const TIER_RANK = { handoff: 0, launch: 1, growth: 2, acquisition: 3 };
 
 const PACKAGES_DB = {
   google: [
@@ -279,6 +287,29 @@ const PACKAGES_DB = {
     { id:"e-growth",     name:"Store Growth",     platform:"Meta Ads",      price:700,  setup:1400, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:15, tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Recommended", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:false },
     { id:"e-domination", name:"Store Domination", platform:"Meta + Google", price:1200, setup:2500, leadFee:false, pricingModel:"ad_spend_pct", adSpendPct:12, tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly", callTracking:false, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:false, multiCampaign:true },
   ],
+  // ─── ONE-TIME BUILD, NO MANAGEMENT ────────────────────────────────────────
+  // Bryson, 2026-08-18: "build the hand off and properly price it."
+  //
+  // The honest answer for a business below MIN_AD_BUDGET, or one that wants the build
+  // without the monthly. Stencil & Thread was exactly this prospect: willing to pay for
+  // the work, unwilling to pay a fee bigger than his ad budget every month. Turning that
+  // away is turning away cash and a future managed client.
+  //
+  // PRICED AT $1,500 for three reasons, in order:
+  //  1. It must not undercut managed. Managed Launch across its 3-month minimum is
+  //     $750 setup + 3 x $400 = $1,950, so hand-off is genuinely the cheaper door while
+  //     buying strictly less: no ongoing management at all.
+  //  2. It is ABOVE the $750 managed setup on purpose. That setup fee is deliberately
+  //     underpriced because it buys a recurring client. With no recurring revenue behind
+  //     it, the build has to pay for itself.
+  //  3. A one-time campaign + landing page build from an agency runs $1,500-$3,500.
+  //     This sits at the honest bottom of that range.
+  //
+  // `price: 0` because there IS no monthly — not because it is free. Every surface that
+  // quotes a price checks `pricingModel` first.
+  handoff: [
+    { id:"h-handoff", name:"Launch & Hand Off", platform:"Google Ads", price:0, setup:1500, leadFee:false, pricingModel:"one_time", tier:"handoff", minBudget:0, maxBudget:null, tag:"One-Time Build", adSpend:"Any budget", optimizationFreq:"none", callTracking:true, weeklyOptimization:false, customLandingPage:true, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Setup waived if you move to managed within 6 months" },
+  ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 
@@ -288,6 +319,12 @@ const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 // marketing site) runs this, so none of them can disagree with the invoice.
 const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
   if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
+  // A one-time build has no monthly side at all. Returning a zero floor rather than
+  // falling through matters: `atFloor` false stops the billing card telling the owner a
+  // hand-off client is "under the minimum" every month forever.
+  if (pkg.pricingModel === "one_time")
+    return { floor:0, earned:0, billed:0, atFloor:false, model:"one_time",
+             basis:`one-time build, $${Number(pkg.setup||0).toLocaleString()}` };
   const floor = Number(pkg.price) || 0;
   const pctModel = pkg.pricingModel === "ad_spend_pct";
   const pct = Number(pkg.adSpendPct) || 0;
@@ -315,12 +352,16 @@ const feeAsPctOfSpend = (billed, adSpend) => {
 const pkgMinLabel = (pkg) => `$${Number((pkg && pkg.price) || 0).toLocaleString()}`;
 const pkgPerfLabel = (pkg, perLeadFee) => {
   if (!pkg) return "";
+  if (pkg.pricingModel === "one_time") return "no monthly fee";
   if (pkg.pricingModel === "ad_spend_pct") return `${pkg.adSpendPct}% of ad spend`;
   return perLeadFee ? `$${perLeadFee} per qualified lead` : "per qualified lead";
 };
+const isOneTime = (pkg) => !!pkg && pkg.pricingModel === "one_time";
 // One line a client can read without a diagram: "from $400/mo — whichever is higher".
 const pkgPriceSummary = (pkg, perLeadFee) =>
-  !pkg ? "—" : `from ${pkgMinLabel(pkg)}/mo, or ${pkgPerfLabel(pkg, perLeadFee)} — whichever is higher`;
+  !pkg ? "—"
+  : isOneTime(pkg) ? `$${Number(pkg.setup||0).toLocaleString()} once, then it's yours`
+  : `from ${pkgMinLabel(pkg)}/mo, or ${pkgPerfLabel(pkg, perLeadFee)} — whichever is higher`;
 
 // ─── HOUSE ACCOUNT PACKAGE ────────────────────────────────────────────────────
 // Standing expectation (Bryson, 2026-08-14): "I also expect I will always receive
@@ -353,7 +394,10 @@ const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(f
 //      drop a channel they are already paying for. Broadening up (g-* or m-* into
 //      c-*) is a real upgrade; narrowing never is.
 const PKG_FAMILY = (id) => String(id || "").split("-")[0];
-const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"] };
+// `h` (the one-time hand-off) can move onto any managed lead-gen plan. Nothing ever
+// upgrades INTO a hand-off: dropping a paying client onto a one-time build is a
+// cancellation, not an upgrade, so no family lists `h` as a target.
+const UPGRADE_FAMILIES = { g: ["g","c"], m: ["m","c"], c: ["c"], e: ["e"], h: ["g","m","c"] };
 
 // AN UPGRADE MUST NEVER TAKE SOMETHING AWAY (Bryson, 2026-08-17: "each time a client
 // upgrades they keep what they paid for before and they gain each time they upgrade").
@@ -386,6 +430,14 @@ const getUpgradeOptions = (currentPkgId) => {
   if (!cur) return [];
   const allowed = UPGRADE_FAMILIES[PKG_FAMILY(currentPkgId)] || [];
   const curFeats = PKG_FEATURES[currentPkgId] || [];
+  // 🔴 THE HAND-OFF IS EXEMPT FROM "KEEPS EVERYTHING", AND THAT IS NOT A LOOPHOLE.
+  // Everything in a hand-off is a ONE-TIME DELIVERABLE the client already owns: the
+  // landing page stays up, the tracking stays wired, the playbook is in their inbox.
+  // Moving onto a managed plan cannot take any of it away. Applying the ongoing-
+  // entitlement rule here would offer them NOTHING — a hand-off includes a custom page
+  // and call tracking, which Launch-tier management does not, so every managed plan
+  // would look like a downgrade on paper while obviously being an upgrade in reality.
+  const oneTimeSource = isOneTime(cur);
   // Ranked by TIER, not by price. Under the 2026-08-18 model a single platform and
   // the combined system carry the SAME monthly minimum at the same tier, so the old
   // `p.price > cur.price` test hid the most valuable upsell in the catalog: Google
@@ -393,9 +445,9 @@ const getUpgradeOptions = (currentPkgId) => {
   // Gaining a feature while keeping everything is what makes it an upgrade now.
   return ALL_PKGS.filter(p =>
     p.id !== currentPkgId &&
-    (TIER_RANK[p.tier] || 0) >= (TIER_RANK[cur.tier] || 0) &&
+    (oneTimeSource || (TIER_RANK[p.tier] || 0) >= (TIER_RANK[cur.tier] || 0)) &&
     allowed.includes(PKG_FAMILY(p.id)) &&
-    keepsEverything(currentPkgId, p.id) &&
+    (oneTimeSource || keepsEverything(currentPkgId, p.id)) &&
     (PKG_FEATURES[p.id] || []).some(f => curFeats.indexOf(f) < 0)
   ).sort((a,b) => (TIER_RANK[a.tier]||0) - (TIER_RANK[b.tier]||0) || a.price - b.price || a.setup - b.setup);
 };
@@ -807,6 +859,41 @@ function pipelineProgress(client) {
   };
 }
 
+// ─── THE HAND-OFF LIFECYCLE ──────────────────────────────────────────────────
+// Bryson, 2026-08-18: "if and when someone buys the one time setup how will that work
+// for me? how will I build it and give it to them and then track if they come back as
+// a recurring client within 6 months?"
+//
+// A hand-off has THREE dates, all derived from one stored field so they cannot drift:
+//   1. paid            — the day they bought it. Stamped by the Stripe webhook.
+//   2. settle-in ends  — paid + 30 days. Until then BoldLine is still working: two
+//                        optimization passes, then the handover. AFTER it, every
+//                        recurring job must leave this client alone, or a business that
+//                        was promised nothing further keeps getting agency emails.
+//   3. credit expires  — paid + 6 months. Inside this window, moving onto a managed
+//                        plan WAIVES the setup fee, because they already paid for the
+//                        build. Charging a second setup for the same campaign would be
+//                        indefensible, and the waiver is the whole reason a hand-off is
+//                        a lead rather than a dead end.
+const HANDOFF_SETTLE_IN_DAYS = 30;
+const HANDOFF_CREDIT_MONTHS  = 6;
+const handoffDates = (cl) => {
+  const paidAt = cl && cl.handoffPaidAt;
+  if (!paidAt) return null;
+  const paid = new Date(paidAt);
+  if (isNaN(paid)) return null;
+  const settleEnds = new Date(paid); settleEnds.setDate(settleEnds.getDate() + HANDOFF_SETTLE_IN_DAYS);
+  const creditEnds = new Date(paid); creditEnds.setMonth(creditEnds.getMonth() + HANDOFF_CREDIT_MONTHS);
+  const now = Date.now();
+  return {
+    paid, settleEnds, creditEnds,
+    inSettleIn: now < settleEnds.getTime(),
+    daysLeftInSettleIn: Math.ceil((settleEnds.getTime() - now) / 864e5),
+    creditLive: now < creditEnds.getTime(),
+    daysLeftOnCredit: Math.ceil((creditEnds.getTime() - now) / 864e5),
+  };
+};
+
 const getAlerts = (cl) => {
   const a = [...(cl.alerts||[])];
   if (!cl.intakeComplete) a.push({type:"intake",msg:"Intake form not yet complete.",severity:"yellow"});
@@ -826,6 +913,29 @@ const getAlerts = (cl) => {
     else                 a.push({type:"billing_late",msg:`Payment failed${amt}. Stripe is retrying automatically.`,severity:"red"});
   }
   if (cl.billingStatus==="awaiting_payment" && cl.billingCheckoutUrl) a.push({type:"billing_await",msg:"Billing set up but the client has not paid the checkout link yet.",severity:"yellow"});
+
+  // ── Hand-off milestones. Without these a one-time client is invisible: nothing
+  // expires, nothing renews, and the 6-month conversion window closes unnoticed.
+  {
+    const h = handoffDates(cl);
+    if (h) {
+      if (h.inSettleIn) {
+        if (!cl.handoffPackSent)
+          a.push({type:"handoff_pack",msg:`Settle-in ends in ${h.daysLeftInSettleIn} day${h.daysLeftInSettleIn!==1?"s":""} — send the handover pack and book the training call before it does.`,severity:h.daysLeftInSettleIn<=7?"red":"yellow"});
+        else if (h.daysLeftInSettleIn<=7)
+          a.push({type:"handoff_last_pass",msg:`Settle-in ends in ${h.daysLeftInSettleIn} day${h.daysLeftInSettleIn!==1?"s":""}. Do the final optimization pass, then you are done.`,severity:"yellow"});
+      } else if (!cl.handoffPackSent) {
+        // Worse than a missed deadline: they paid for a handover and did not get one.
+        a.push({type:"handoff_pack_overdue",msg:"Settle-in is over and the handover pack was never sent. They paid for it — send it today.",severity:"red"});
+      }
+      if (h.creditLive && !h.inSettleIn) {
+        const m = Math.ceil(h.daysLeftOnCredit/30);
+        a.push({type:"handoff_credit",msg:`Setup-fee waiver runs out in ${h.daysLeftOnCredit} days (about ${m} month${m!==1?"s":""}). If they move onto a managed plan before then, their setup is free — worth a call.`,severity:h.daysLeftOnCredit<=45?"yellow":"blue"});
+      }
+      if (!h.creditLive)
+        a.push({type:"handoff_credit_gone",msg:"The 6-month setup-fee waiver has expired. A managed plan now costs them the full setup fee.",severity:"blue"});
+    }
+  }
   if (cl.etf && !cl.etf.settled) a.push({type:"etf_due",msg:`Early termination recorded — $${Number(cl.etf.total).toLocaleString()} owed (${cl.etf.billed?"billed via Stripe, awaiting payment":"not yet billed"}).`,severity:cl.etf.billed?"yellow":"red"});
   // Review window before the monthly invoice auto-charges: undecided leads (not yet
   // billed and not excluded) still need a call so they ride this month's bill.
@@ -1854,6 +1964,177 @@ const briefMdToNodes = (md) => {
   }
   flush(); return out;
 };
+
+// ─── HAND-OFF DELIVERY CARD ──────────────────────────────────────────────────
+// Bryson, 2026-08-18: "how will I build it and give it to them and then track if they
+// come back as a recurring client within 6 months?"
+//
+// One card answering all three. It only renders for a Launch & Hand Off client, and it
+// is the only place in the OS that tracks a relationship with a defined END. Everything
+// else here assumes a client who stays.
+function HandOffCard({client,pkg,onUpdate,isDesktop}){
+  const [busy,setBusy]=useState("");
+  const [msg,setMsg]=useState("");
+  const [showPack,setShowPack]=useState(false);
+  const h=handoffDates(client);
+  const pack=client.handoverPack;
+  if(!isOneTime(pkg)) return null;
+
+  const generate=async()=>{
+    setBusy("gen"); setMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token) throw new Error("Your session expired — refresh the page and try again.");
+      const r=await fetch("/.netlify/functions/handover-pack",{method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body:JSON.stringify({clientId:client.id})}).then(x=>x.json());
+      if(!r||!r.ok) throw new Error((r&&r.error)||"Could not write the pack.");
+      onUpdate&&onUpdate({...client,handoverPack:r.pack});
+      setShowPack(true);
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  const markSent=()=>{
+    const now=new Date().toISOString();
+    onUpdate&&onUpdate({...client,handoffPackSent:now,
+      commLog:[{date:fmt(now),note:"Handover pack sent and training call booked. BoldLine's work on this build is complete.",cat:"handoff",ts:Date.now()},...(client.commLog||[])]});
+    setMsg("");
+  };
+  // Starting the clock by hand exists because the webhook stamps it on payment, and a
+  // client paid outside the normal flow (bank transfer, an invoice sent by hand) would
+  // otherwise never get a settle-in window or a conversion deadline at all.
+  const startClock=()=>{
+    if(!window.confirm("Start the hand-off clock from today? This sets the 30-day settle-in and the 6-month setup-fee waiver.")) return;
+    onUpdate&&onUpdate({...client,handoffPaidAt:new Date().toISOString()});
+  };
+
+  const step=(n,title,body,done,active)=>(
+    <div style={{display:"flex",gap:11,padding:"10px 0",borderTop:n===1?"none":`1px solid rgba(255,255,255,0.05)`}}>
+      <span style={{flexShrink:0,width:22,height:22,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",
+        fontSize:10,fontWeight:800,backgroundColor:done?C.green:(active?C.gold:"rgba(255,255,255,0.06)"),
+        color:(done||active)?"#0a0800":C.textMuted}}>{done?"✓":n}</span>
+      <div style={{minWidth:0,flex:1}}>
+        <div style={{fontSize:12.5,fontWeight:700,color:done?C.textDim:C.text}}>{title}</div>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:2}}>{body}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <Card style={{borderColor:C.borderAccent}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,marginBottom:4}}>
+        <Label>Launch &amp; Hand Off</Label>
+        <span style={{fontSize:9,fontWeight:800,letterSpacing:".07em",padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(200,168,75,.14)",border:"1px solid rgba(200,168,75,.3)",color:C.gold}}>ONE-TIME BUILD</span>
+      </div>
+
+      {!h ? (
+        <>
+          <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.7,marginBottom:10}}>
+            The clock starts the moment they pay, and it starts itself. If they paid some other way, start it by hand.
+          </div>
+          <button onClick={startClock} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Start the hand-off clock</button>
+        </>
+      ) : (
+        <>
+          {/* Where they are, in one line, because the whole product is a timeline. */}
+          <div style={{padding:"10px 12px",borderRadius:10,marginBottom:10,
+            backgroundColor:h.inSettleIn?"rgba(200,168,75,0.07)":(h.creditLive?"rgba(79,142,247,0.07)":"rgba(255,255,255,0.03)"),
+            border:`1px solid ${h.inSettleIn?"rgba(200,168,75,0.24)":(h.creditLive?"rgba(79,142,247,0.22)":C.border)}`}}>
+            <div style={{fontSize:12,fontWeight:700,color:h.inSettleIn?C.gold:(h.creditLive?C.blue:C.textDim)}}>
+              {h.inSettleIn?`Settle-in — ${h.daysLeftInSettleIn} day${h.daysLeftInSettleIn!==1?"s":""} left`
+               :(h.creditLive?`Handed over — waiver live for ${h.daysLeftOnCredit} more days`:"Handed over — waiver expired")}
+            </div>
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:3}}>
+              {h.inSettleIn
+                ? "You are still working on this one. Two optimization passes, then the handover."
+                : (h.creditLive
+                  ? "Nothing recurring runs for them any more. If they come back onto a managed plan before the waiver runs out, their setup is free."
+                  : "The setup-fee waiver has run out. A managed plan now costs them the full setup fee.")}
+            </div>
+          </div>
+
+          <div style={{marginBottom:4}}>
+            {step(1,"Build it",`Same build as a managed client: campaign, custom landing page, call tracking, conversion tracking. It all lives in ${client.name}'s own account, never yours.`,true,false)}
+            {step(2,"Two optimization passes",`Within the first ${HANDOFF_SETTLE_IN_DAYS} days. This is the part they paid for that a freelancer would not do, and it is what makes the campaign worth handing over.`,!h.inSettleIn,h.inSettleIn)}
+            {step(3,"Send the handover pack",pack?"Written and ready. Read it below, then send it and book the training call.":"A playbook written for their campaign: the weekly routine, what to leave alone, and the warning signs. Write it below.",!!client.handoffPackSent,h.inSettleIn&&!client.handoffPackSent)}
+            {step(4,"Remove your access","Drop your manager access to their ad account. They own it outright, and leaving yourself in it implies you are still watching.",!!client.handoffPackSent,!h.inSettleIn&&!client.handoffPackSent)}
+            {step(5,"Call them before the waiver runs out",h.creditLive?`${h.daysLeftOnCredit} days left. They have run it themselves for a while by now, which is the best possible moment to ask how it is going.`:"The window has closed. Still worth a call, it just costs them a setup fee now.",!h.creditLive,h.creditLive&&!h.inSettleIn)}
+          </div>
+
+          <div style={{display:"flex",gap:7,marginTop:10,flexWrap:"wrap"}}>
+            <button onClick={generate} disabled={!!busy} style={{flex:"1 1 150px",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",background:busy==="gen"?"rgba(255,255,255,.06)":C.gradB,color:busy==="gen"?C.textMuted:"#1a1400",cursor:busy?"default":"pointer"}}>
+              {busy==="gen"?"Writing…":(pack?"Rewrite the pack":"Write the handover pack")}</button>
+            {pack&&<button onClick={()=>setShowPack(v=>!v)} style={{flex:"1 1 110px",padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{showPack?"Hide":"Read it"}</button>}
+          </div>
+          {pack&&!client.handoffPackSent&&(
+            <button onClick={markSent} style={{width:"100%",marginTop:7,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.green,color:"#04110b",cursor:"pointer"}}>Mark handed over</button>
+          )}
+          {client.handoffPackSent&&(
+            <div style={{marginTop:8,fontSize:11,color:C.green,lineHeight:1.6}}>✓ Handed over {new Date(client.handoffPackSent).toLocaleDateString()}. Your work on this build is finished.</div>
+          )}
+          {msg&&<div style={{fontSize:11.5,color:C.red,marginTop:8,lineHeight:1.6}}>{msg}</div>}
+
+          {showPack&&pack&&<HandoverPackView pack={pack} client={client}/>}
+        </>
+      )}
+    </Card>
+  );
+}
+
+// The pack itself. Rendered in the OS so Bryson reads exactly what the client will read
+// before he sends it — a generated document nobody proofreads is a liability.
+function HandoverPackView({pack,client}){
+  const sec=(title,children)=>(
+    <div style={{marginTop:12}}>
+      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,marginBottom:6}}>{title}</div>
+      {children}
+    </div>
+  );
+  const bullets=(arr)=>(arr||[]).map((x,i)=>(
+    <div key={i} style={{display:"flex",gap:7,fontSize:11.5,color:C.textDim,lineHeight:1.65,marginTop:i?4:0}}>
+      <span style={{color:C.textMuted,flexShrink:0}}>•</span><span>{x}</span></div>
+  ));
+  const copyAll=()=>{
+    const L=[`Your campaign, handed over — ${client.name||""}`,"",pack.intro,"","WHAT YOU NOW OWN",
+      ...(pack.whatYouOwn||[]).map(x=>"- "+x),"","EVERY WEEK (under 30 minutes)",
+      ...(pack.weekly||[]).map(w=>`- ${w.task} (${w.howLong}): ${w.why}`),"","ONCE A MONTH",
+      ...(pack.monthly||[]).map(x=>"- "+x),"","LEAVE THESE ALONE",
+      ...(pack.leaveAlone||[]).map(x=>`- ${x.thing}: ${x.why}`),"","WARNING SIGNS",
+      ...(pack.warningSigns||[]).map(x=>"- "+x),"","CALL US IF",
+      ...(pack.callUsIf||[]).map(x=>"- "+x)].join("\n");
+    try{ navigator.clipboard.writeText(L); }catch{}
+  };
+  return (
+    <div style={{marginTop:12,padding:"14px",borderRadius:12,backgroundColor:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,marginBottom:8}}>
+        <div style={{fontSize:12,fontWeight:800,color:C.text}}>What they will read</div>
+        <button onClick={copyAll} style={{fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline",flexShrink:0}}>copy as text</button>
+      </div>
+      <div style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>{pack.intro}</div>
+      {sec("What you now own",bullets(pack.whatYouOwn))}
+      {sec("Every week",(pack.weekly||[]).map((w,i)=>(
+        <div key={i} style={{padding:"7px 0",borderTop:i?`1px solid rgba(255,255,255,0.04)`:"none"}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+            <span style={{fontSize:11.5,fontWeight:700,color:C.text}}>{w.task}</span>
+            <span style={{fontSize:10.5,color:C.textMuted,flexShrink:0}}>{w.howLong}</span>
+          </div>
+          <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:2}}>{w.why}</div>
+        </div>
+      )))}
+      {sec("Once a month",bullets(pack.monthly))}
+      {/* The section that earns the document. */}
+      {sec("Leave these alone",(pack.leaveAlone||[]).map((x,i)=>(
+        <div key={i} style={{padding:"7px 9px",borderRadius:8,marginTop:i?5:0,backgroundColor:"rgba(239,68,68,0.05)",border:"1px solid rgba(239,68,68,0.18)"}}>
+          <div style={{fontSize:11.5,fontWeight:700,color:C.text}}>{x.thing}</div>
+          <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:2}}>{x.why}</div>
+        </div>
+      )))}
+      {sec("Warning signs",bullets(pack.warningSigns))}
+      {sec("Call us if",bullets(pack.callUsIf))}
+    </div>
+  );
+}
 
 // ─── PER-LEAD FEE FINDER ─────────────────────────────────────────────────────
 // Bryson, 2026-08-18: "I want to build something where I can put in the niche and or
@@ -3915,8 +4196,23 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
     const bots   = buildBots(newPkg);
     const botStatuses = Object.fromEntries(bots.map(b=>[b.id,"waiting"]));
     botStatuses["intake"] = "done"; botStatuses["ceo"] = "done";
+    // 🔴 THE HAND-OFF WAIVER, APPLIED AUTOMATICALLY.
+    // A client who bought Launch & Hand Off already paid for this exact build. Charging
+    // them a second setup fee to start managing it would be indefensible, and it is
+    // precisely the kind of thing that gets forgotten in the excitement of a conversion.
+    // So the OS applies it rather than trusting anyone to remember, and says so in the
+    // alert. Outside the 6-month window the fee stands, which is also stated.
+    const h = handoffDates(client);
+    const wasHandoff = isOneTime(findPkg(client.packageId));
+    const waive = !!h && h.creditLive && wasHandoff && !isOneTime(newPkg);
+    const note = waive
+      ? `Converted from Launch & Hand Off to ${newPkg.name}. Setup fee WAIVED ($${Number(newPkg.setup||0).toLocaleString()}) — they already paid for this build. Invoice the monthly minimum only.`
+      : (wasHandoff && h && !h.creditLive
+        ? `Converted from Launch & Hand Off to ${newPkg.name}. The 6-month waiver has expired, so the $${Number(newPkg.setup||0).toLocaleString()} setup fee applies. Send invoice to ${client.email}`
+        : `Manually upgraded to ${newPkg.name} — send invoice to ${client.email}`);
     onUpdate({...client, packageId:newPkgId, upgradeRequest:null, botStatuses,
-      alerts:[...client.alerts, {type:"upgrade_done", msg:`Manually upgraded to ${newPkg.name} — send invoice to ${client.email}`, severity:"blue"}]
+      ...(waive ? { billingSetup: 0, handoffCreditApplied: new Date().toISOString() } : {}),
+      alerts:[...client.alerts, {type:"upgrade_done", msg:note, severity:waive?"green":"blue"}]
     });
   };
   const handleGenerateLanding = async () => {
@@ -4134,6 +4430,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 </Card>
               );
             })()}
+            <HandOffCard client={client} pkg={pkg} onUpdate={onUpdate} isDesktop={isDesktop}/>
             {!client.internal&&<Card>
               <Label>Contract Timeline</Label>
               <div style={{height:4,backgroundColor:C.border2,borderRadius:2,overflow:"hidden",marginBottom:6}}>
@@ -4455,6 +4752,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const [upcomingState,setUpcomingState]=useState("");// "" | "loading" | "error"
   // Prefer the agreed rate (set at renewal / checkout / manual adjust) over the
   // package default, so discounts and term pricing flow into checkout + contract.
+  const oneTime = isOneTime(pkg);
   const monthly=client.billingMonthly||(pkg&&pkg.price)||0;
   // billingSetup may legitimately be 0 (waived) — only fall back when unset.
   const setup=(client.billingSetup!=null?client.billingSetup:(pkg&&pkg.setup))||0;
@@ -4470,7 +4768,9 @@ function BillingCard({client,pkg,onUpdate}) {
   // fee). Flows everywhere automatically: contract doc, checkout, revenue views.
   const applyAdjust=()=>{
     const m=Math.max(0,Number(adjMonthly)||0), s=Math.max(0,Number(adjSetup)||0);
-    if(!(m>0)){ setMsg("Monthly fee must be greater than zero (Stripe requires a recurring amount)."); return; }
+    if(oneTime){
+      if(!(s>0)){ setMsg("A one-time build needs a fee greater than zero."); return; }
+    }else if(!(m>0)){ setMsg("Monthly fee must be greater than zero (Stripe requires a recurring amount)."); return; }
     setMsg("");
     onUpdate&&onUpdate({...client,billingMonthly:m,billingSetup:s});
     setAdjusting(false);
@@ -4484,7 +4784,7 @@ function BillingCard({client,pkg,onUpdate}) {
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
     setBusy("setup"); setMsg("");
     try{
-      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin});
+      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin,oneTime});
       onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_payment",billingCheckoutUrl:d.url,billingMonthly:monthly,billingSetup:setup});
     }catch(e){ setMsg(e.message); }
     setBusy("");
@@ -4646,7 +4946,23 @@ function BillingCard({client,pkg,onUpdate}) {
         <button onClick={refresh} disabled={!!busy} style={{...btn("transparent"),marginTop:8,border:`1px solid ${C.border}`,color:C.textMuted}}>{busy==="sync"?"Checking…":"Refresh Status"}</button>
       </>}
 
-      {status==="active"&&<>
+      {/* A one-time build is DONE once it is paid. There is no subscription to manage,
+          no leads to bill and no next invoice, so showing any of that would be inviting
+          the owner to charge a client who was promised nothing further. */}
+      {status==="active"&&oneTime&&(
+        <div style={{padding:"12px 14px",borderRadius:11,backgroundColor:"rgba(34,211,160,0.06)",border:"1px solid rgba(34,211,160,0.22)"}}>
+          <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:4}}>Paid in full — {money(client.billingSetup!=null?client.billingSetup:setup)} one-time</div>
+          <div style={{fontSize:11,color:C.textDim,lineHeight:1.65}}>
+            Nothing recurring is set up, which is correct for a hand-off. There is no monthly charge, no per-lead billing and no next invoice.
+            {client.lastPaymentAt?" Paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}
+          </div>
+          <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginTop:7}}>
+            If they move onto a managed plan within 6 months the setup fee is waived automatically — they already paid for this build.
+          </div>
+          <button onClick={openPortal} disabled={!!busy} style={{marginTop:10,width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="portal"?"Opening…":"View receipt in Stripe"}</button>
+        </div>
+      )}
+      {status==="active"&&!oneTime&&<>
         <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>Auto-charging {money(client.billingMonthly||monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</div>
         <div style={S.row7}>
           <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Manage in Stripe"}</button>

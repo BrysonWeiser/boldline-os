@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail, sendSMS, leadEmailHTML } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, sendEmail, sendSMS, leadEmailHTML, handoffIsFinished } from "../lib/report-shared.mjs";
 
 const DAY = 864e5;
 
@@ -65,6 +65,9 @@ const processClient = async (supabaseAdmin, row) => {
   // are invented, but this job does not care — it would text and email whatever contact
   // details they hold. Nothing outbound may ever fire for a demo account.
   if (client && client.demo) return { id: row.id, skipped: "demo client" };
+  // Hand-off clients run their own follow-up after settle-in. Ours chasing their
+  // leads would put BoldLine's name in front of a customer it no longer represents.
+  if (handoffIsFinished(client)) return { id: row.id, skipped: "handed off" };
   const leadsLog = client.leadsLog || [];
   if (!leadsLog.length) return { id: row.id, skipped: "no leads" };
 
@@ -109,6 +112,7 @@ export default async (req) => {
     for (const row of data || []) {
       const client = row.data;
       if (client && client.demo) continue;   // same rule in test mode, so a demo lead is never the sample
+      if (handoffIsFinished(client)) continue;
       const lead = (client.leadsLog || []).find((l) => findDueStep(l));
       if (lead) {
         candidate = { client, lead, due: findDueStep(lead) };

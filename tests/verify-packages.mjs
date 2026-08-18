@@ -78,6 +78,14 @@ const byId = (cat) => Object.fromEntries(cat.ALL_PKGS.map((p) => [p.id, p]));
 const osPkgs = byId(os);
 const SELLABLE = os.ALL_PKGS.map((p) => p.id);
 
+// Launch & Hand Off is a ONE-TIME BUILD, not a plan: no monthly, no tier band, no
+// ongoing entitlements. Almost every rule below is a rule about MANAGED plans, so the
+// two are separated once here rather than special-cased eleven times. Its own rules get
+// their own section (3h).
+const isOneTime = (p) => p.pricingModel === "one_time";
+const MANAGED = os.ALL_PKGS.filter((p) => !isOneTime(p)).map((p) => p.id);
+const ONE_TIME = os.ALL_PKGS.filter(isOneTime).map((p) => p.id);
+
 // ── 1. The four copies agree ──────────────────────────────────────────────────
 eq("catalog sizes match (os vs portal)", os.ALL_PKGS.length, portal.ALL_PKGS.length);
 const FLAGS = ["price","setup","leadFee","optimizationFreq","callTracking","weeklyOptimization",
@@ -146,7 +154,7 @@ const TIER_ORDER = ["launch", "growth", "acquisition"];
 const tierMin = (t) => os.ALL_PKGS.find((p) => p.tier === t).price;
 ok("tier minimums increase", tierMin("launch") < tierMin("growth") && tierMin("growth") < tierMin("acquisition"),
   TIER_ORDER.map((t) => `${t}=$${tierMin(t)}`).join(" "));
-for (const p of os.ALL_PKGS) {
+for (const p of os.ALL_PKGS.filter((x) => !isOneTime(x))) {
   ok(`${p.id} has a known tier`, TIER_ORDER.includes(p.tier), `got ${JSON.stringify(p.tier)}`);
   ok(`${p.id} has an ad-budget floor`, p.minBudget >= os.MIN_AD_BUDGET,
     `${p.minBudget} is below the ${os.MIN_AD_BUDGET} minimum ad budget`);
@@ -173,7 +181,7 @@ for (const p of os.ALL_PKGS.filter((x) => x.id.startsWith("c-"))) {
 }
 // Same reasoning on the e-commerce side: nothing below the combined floor runs two
 // platforms. Store Growth lost Google Shopping for exactly this reason.
-for (const p of os.ALL_PKGS) {
+for (const p of os.ALL_PKGS.filter((x) => !isOneTime(x))) {
   const twoPlatforms = /\+/.test(p.platform) || os.PKG_FEATURES[p.id].includes("google_shopping");
   if (!twoPlatforms) continue;
   ok(`${p.id} runs two platforms only above $${os.COMBO_MIN_BUDGET} of ad budget`,
@@ -181,7 +189,7 @@ for (const p of os.ALL_PKGS) {
 }
 
 // ── 3e. THE TWO BILLING MODELS ARE CLEANLY SPLIT ─────────────────────────────
-for (const p of os.ALL_PKGS) {
+for (const p of os.ALL_PKGS.filter((x) => !isOneTime(x))) {
   const ecom = p.id.startsWith("e-");
   eq(`${p.id} pricing model`, p.pricingModel, ecom ? "ad_spend_pct" : "per_lead");
   eq(`${p.id} leadFee flag matches its model`, !!p.leadFee, !ecom);
@@ -237,6 +245,76 @@ ok("no ROAS bonus survives in the contract copy", !/roas/i.test(contractSrc) || 
         os.calcMonthlyBill(osPkgs[id], args).billed);
     }
   }
+}
+
+// ── 3h. LAUNCH & HAND OFF: the one-time build ────────────────────────────────
+// Bryson, 2026-08-18: "build the hand off and properly price it."
+//
+// It is exempt from the ongoing-entitlement rule above, so it needs its own rules or the
+// exemption becomes a hole big enough to drive a downgrade through.
+{
+  eq("there is exactly one one-time product", ONE_TIME.length, 1);
+  const h = osPkgs["h-handoff"];
+  ok("the hand-off exists", !!h);
+
+  // PRICING. The three reasons the number is $1,500, asserted rather than described,
+  // because each is a relationship between numbers that a later edit could break.
+  const managedLaunch = osPkgs["g-launch"];
+  const overMinTerm = managedLaunch.setup + 3 * managedLaunch.price;   // the 3-month minimum term
+  ok("hand-off is cheaper than managed across its minimum term",
+    h.setup < overMinTerm, `$${h.setup} vs $${overMinTerm}`);
+  ok("hand-off costs MORE than the managed setup it replaces",
+    h.setup > managedLaunch.setup,
+    "the managed setup is deliberately underpriced because it buys a recurring client; with no recurring revenue behind it the build has to pay for itself");
+  ok("hand-off is not so cheap it undercuts a single managed month",
+    h.setup > managedLaunch.price, `$${h.setup} vs $${managedLaunch.price}/mo`);
+
+  // SHAPE. `price: 0` must mean "no monthly", and every billing path must agree.
+  eq("hand-off has no monthly", h.price, 0);
+  eq("hand-off charges no per-lead fee", h.leadFee, false);
+  ok("hand-off has no ad-spend percentage", h.adSpendPct === undefined);
+  eq("hand-off has no optimization cadence", h.optimizationFreq, "none");
+  eq("hand-off is single-platform", /\+/.test(h.platform), false);
+  for (const [label, bill] of [["os", os.calcMonthlyBill], ["portal", portal.calcMonthlyBill], ["pricing-shared", shared.calcMonthlyBill]]) {
+    const pkg = label === "pricing-shared" ? shared.PACKAGES.find((p) => p.id === "h-handoff")
+      : label === "portal" ? byId(portal)["h-handoff"] : h;
+    const b = bill(pkg, { qualifiedLeads: 50, perLeadFee: 75, adSpend: 9000 });
+    eq(`${label}: a hand-off never bills a monthly`, b.billed, 0);
+    // If this ever reported at-floor, the billing card would tell the owner a handed-off
+    // client is "under the minimum" every month forever, and invite him to chase it.
+    eq(`${label}: a hand-off is never "at floor"`, b.atFloor, false);
+    eq(`${label}: a hand-off is its own billing model`, b.model, "one_time");
+  }
+
+  // WHAT IT INCLUDES. The good build, minus everything ongoing. Selling a monthly report
+  // with nobody left to write it would be selling a ghost.
+  const F = os.PKG_FEATURES["h-handoff"];
+  for (const f of ["custom_landing", "call_tracking", "keyword_research", "competitor_research", "handover_docs", "settle_in"])
+    ok(`hand-off includes ${f}`, F.includes(f), "the build is the product, so it has to be the good build");
+  for (const f of ["monthly_report", "monthly_opt", "weekly_opt", "split_testing", "retargeting", "multi_campaign", "scaling_roadmap"])
+    ok(`hand-off does NOT include ${f}`, !F.includes(f), "there is nobody running it after settle-in");
+  // The build quality has to be at least a managed Growth build, or "we built you the
+  // same thing, you just run it" is not true.
+  for (const f of ["custom_landing", "call_tracking"])
+    ok(`hand-off matches managed Growth on ${f}`, F.includes(f) === os.PKG_FEATURES["g-growth"].includes(f));
+
+  // THE LADDER. Every managed lead-gen plan must be reachable, and nothing may ever
+  // upgrade INTO a hand-off — that is a cancellation wearing an upgrade's clothes.
+  const ups = os.getUpgradeOptions("h-handoff").map((p) => p.id);
+  for (const id of MANAGED.filter((x) => !x.startsWith("e-")))
+    ok(`hand-off can move onto ${id}`, ups.includes(id), `only offered ${ups.join(",") || "nothing"}`);
+  ok("hand-off is never offered an e-commerce package", !ups.some((x) => x.startsWith("e-")));
+  for (const id of SELLABLE) {
+    ok(`${id} is never offered a hand-off`, !os.getUpgradeOptions(id).some((p) => isOneTime(p)),
+      "dropping a paying client onto a one-time build is a cancellation, not an upgrade");
+  }
+  same("hand-off ladder agrees (os vs portal)", portal.getUpgradeOptions("h-handoff").map((p) => p.id), ups);
+
+  // THE EXEMPTION IS NARROW. Only a one-time SOURCE skips the keeps-everything rule; a
+  // managed client must never gain the same freedom to be downgraded.
+  ok("the exemption is keyed on the source being one-time", /oneTimeSource/.test(readFileSync("index.html", "utf8")));
+  ok("g-growth still cannot be downgraded into c-launch-style loss",
+    os.getUpgradeOptions("g-growth").every((p) => os.keepsEverything("g-growth", p.id)));
 }
 
 // ── 3g. The fifth copy (Deal Prep + lead scout) agrees ───────────────────────
@@ -313,7 +391,14 @@ ok("g-launch is no longer offered an e-commerce package",
 // before and they gain each time they upgrade." The portal shows the client only
 // what an upgrade GAINS, so offering one that silently drops a paid-for feature is
 // a misrepresentation, not just an inelegance.
-for (const id of SELLABLE) {
+// Deliberately MANAGED-only. Everything a hand-off client has is a one-time deliverable
+// they already own — the landing page stays up, the tracking stays wired, the playbook is
+// in their inbox — so no managed plan can take any of it away. Applying this rule to a
+// hand-off would offer them NOTHING, because a hand-off includes a custom page and call
+// tracking that Launch-tier management does not, making every managed plan look like a
+// downgrade on paper while obviously being an upgrade in reality. Section 3h asserts the
+// hand-off ladder separately and stops that exemption becoming a hole.
+for (const id of MANAGED) {
   for (const up of os.getUpgradeOptions(id)) {
     const lost = os.PKG_FEATURES[id].filter((f) => !os.coversFeature(os.PKG_FEATURES[up.id], f));
     ok(`${id} -> ${up.id} keeps everything paid for`, lost.length === 0, `loses ${lost.join(",")}`);
@@ -393,6 +478,12 @@ for (const id of SELLABLE) {
 
 // ── 6. The marketing site matches what the OS believes it sells ──────────────
 // A prospect reads the site; the contract and portal have to agree with it.
+const panelOfSite = (name) => {
+  const i = site.indexOf(`data-panel="${name}"`);
+  if (i < 0) return "";
+  const j = site.indexOf('data-panel="', i + 10);
+  return site.slice(i, j > 0 ? j : site.length);
+};
 const liBullets = site.match(/<li\b[^>]*>[\s\S]*?<\/li>/g) || [];
 const bulletCount = (term) => liBullets.filter((li) => li.includes(`data-term="${term}"`)).length;
 const flagCount = (flag) => os.ALL_PKGS.filter((p) => p[flag]).length;
@@ -401,21 +492,52 @@ eq("site split-testing bullets match splitTesting packages", bulletCount("split-
 // EVERY package, price and budget band on the site must match the catalog, in order.
 // Previously only two feature bullets were checked, so a price could drift silently and
 // a prospect would read one number on the site and hear another on the call.
-const cards = [...site.matchAll(/<h3>([^<]+)<\/h3>[\s\S]{0,400}?class="price">From <b>\$([\d,]+)\/mo<\/b>[\s\S]{0,60}?class="pnote">([\s\S]*?)<\/div>[\s\S]{0,200}?Typical ad budget: ([^<]+)</g)]
-  .map((m) => ({ title: m[1].trim(), price: Number(m[2].replace(/,/g, "")), perf: m[3].trim(), budget: m[4].trim() }));
-eq("site shows every package", cards.length, os.ALL_PKGS.length);
-// The site writes "Full System: Launch", the catalog "Full System — Launch". Same product.
-const norm = (n) => n.replace(/\s*[—:]\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
-os.ALL_PKGS.forEach((p, i) => {
-  const c = cards[i];
-  ok(`site card ${i + 1} is ${p.id}`, !!c && norm(c.title) === norm(p.name), c ? `site says "${c.title}"` : "missing");
+// Cards are read PER PANEL, which checks two things at once: that the numbers match, and
+// that each package is on the tab a prospect would look for it on. A Meta card rendered
+// on the Google panel would be a real bug and the old position-based match would have
+// sailed straight past it.
+//
+// Two price shapes: a managed plan quotes a monthly minimum, a one-time build quotes a
+// single fee. Both are captured so neither can drift unnoticed.
+const CARD_RE = /<h3>([^<]+)<\/h3>[\s\S]{0,400}?class="price">(?:From <b>\$([\d,]+)\/mo<\/b>|<b>\$([\d,]+)<\/b> once)[\s\S]{0,60}?class="pnote">([\s\S]*?)<\/div>[\s\S]{0,240}?Typical ad budget: ([^<]+)</g;
+const cardsIn = (panelName) => [...panelOfSite(panelName).matchAll(CARD_RE)].map((m) => ({
+  title: m[1].trim(),
+  price: m[2] ? Number(m[2].replace(/,/g, "")) : 0,
+  once: m[3] ? Number(m[3].replace(/,/g, "")) : null,
+  perf: m[4].trim(), budget: m[5].trim(),
+}));
+// The hand-off lives on the Google panel: it is the only platform BoldLine can deliver
+// today, and it is where a prospect who cannot afford managed actually lands.
+const PANEL_OF_FAMILY = { g: "google", h: "google", m: "meta", c: "combined", e: "ecom" };
+// The site writes "Full System: Launch" and "&amp;"; the catalog writes "Full System —
+// Launch" and "&". Same products.
+const norm = (n) => n.replace(/&amp;/g, "&").replace(/\s*[—:]\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+const allCards = ["google", "meta", "combined", "ecom"].flatMap(cardsIn);
+eq("site shows every package", allCards.length, os.ALL_PKGS.length);
+
+os.ALL_PKGS.forEach((p) => {
+  const panel = PANEL_OF_FAMILY[p.id.split("-")[0]];
+  const c = cardsIn(panel).find((x) => norm(x.title) === norm(p.name));
+  ok(`${p.id} is on the ${panel} tab`, !!c, `no card named "${p.name}" there`);
   if (!c) return;
-  eq(`${p.id} price matches the site`, c.price, p.price);
-  eq(`${p.id} ad budget matches the site`, c.budget.replace(/\u2013|\u2014/g, "-"), String(p.adSpend).replace(/\u2013|\u2014/g, "-"));
-  // The site must state the SAME billing model the contract will. A store card promising
-  // a per-lead fee, or a service card quoting a percentage, is a mis-sale on page one.
+  if (isOneTime(p)) {
+    eq(`${p.id} one-time fee matches the site`, c.once, p.setup);
+    eq(`${p.id} advertises no monthly`, c.price, 0);
+  } else {
+    eq(`${p.id} price matches the site`, c.price, p.price);
+    eq(`${p.id} is not sold as a one-time build`, c.once, null);
+  }
+  eq(`${p.id} ad budget matches the site`, c.budget.replace(/–|—/g, "-"), String(p.adSpend).replace(/–|—/g, "-"));
+  if (isOneTime(p)) {
+    // A one-time build has no "whichever is higher" — quoting one would be a lie about
+    // the shape of the deal, which is the single thing this product exists to avoid.
+    ok(`${p.id} does NOT claim a greater-of rule`, !/whichever is higher/.test(c.perf), c.perf);
+    ok(`${p.id} says there is no monthly fee`, /no monthly fee/i.test(c.perf), c.perf);
+    ok(`${p.id} says it is paid once`, /paid once/i.test(c.perf), c.perf);
+  } else
   ok(`${p.id} states the greater-of rule on the site`, /whichever is higher, never both/.test(c.perf), c.perf);
-  if (p.pricingModel === "ad_spend_pct")
+  if (isOneTime(p)) { /* no performance half to check */ }
+  else if (p.pricingModel === "ad_spend_pct")
     ok(`${p.id} quotes ${p.adSpendPct}% of ad spend on the site`, c.perf.includes(`${p.adSpendPct}% of your ad spend`), c.perf);
   else
     ok(`${p.id} quotes a per-lead fee on the site`, /qualified lead/.test(c.perf), c.perf);
@@ -432,7 +554,10 @@ ok("the recommender gates combined on the ad-budget band", /COMBO_MIN_BAND/.test
 ok("the recommender no longer offers a combined Launch tier", !/Full System: Launch/.test(site));
 // The site deliberately does not publish setup or per-lead fees (those come up on the
 // call). If that ever changes, these numbers have to be kept in step too.
-ok("site still does not publish setup fees", !/setup fee/i.test(site));
+// The rule was always "do not publish managed setup FIGURES" (those come up on the call).
+// The hand-off card legitimately mentions waiving a setup fee, so this now checks what it
+// was really protecting: no dollar amount is ever attached to the words "setup fee".
+ok("site publishes no setup fee amount", !/\$[\d,]+[^<]{0,40}setup fee|setup fee[^<]{0,40}\$[\d,]+/i.test(site));
 
 ok("Full System: Growth card advertises split testing and multi-campaign", (() => {
   const i = site.indexOf("<h3>Full System: Growth</h3>");
@@ -471,8 +596,15 @@ for (const f of os.ALL_FEATURES) {
 
 // ── 7. Every sellable package still resolves and is priced ──────────────────
 for (const id of SELLABLE) {
-  ok(`${id} has a positive price`, osPkgs[id].price > 0);
   ok(`${id} has features`, (os.PKG_FEATURES[id] || []).length > 0);
+  if (isOneTime(osPkgs[id])) {
+    // A one-time build's `price` is 0 because there IS no monthly, not because it is
+    // free. Its whole fee is the setup, so that is what must be positive.
+    eq(`${id} has no monthly`, osPkgs[id].price, 0);
+    ok(`${id} charges a real one-time fee`, osPkgs[id].setup > 0);
+  } else {
+    ok(`${id} has a positive price`, osPkgs[id].price > 0);
+  }
 }
 ok("house account carries every feature", (() => {
   const all = new Set(SELLABLE.flatMap((id) => os.PKG_FEATURES[id]));

@@ -95,6 +95,15 @@ export default async (req) => {
         stripeSubscriptionId: obj.subscription || undefined,
         billingCheckoutUrl: null, // link is spent
       };
+      // A ONE-TIME build (Launch & Hand Off) starts a clock the moment it is paid: 30
+      // days of settle-in, then BoldLine is finished, and a 6-month window in which
+      // moving onto a managed plan waives the setup fee. Stamping it here rather than
+      // in the OS means the clock starts when the money actually lands, not whenever
+      // somebody next opens the app. `mode` is checked as well as our own metadata so
+      // this still works for a session created outside the normal flow.
+      if (obj.metadata?.oneTime === "1" || obj.mode === "payment") {
+        patch.handoffPaidAt = new Date().toISOString();
+      }
       break;
     case "invoice.paid":
       patch = {

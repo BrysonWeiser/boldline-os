@@ -38,6 +38,8 @@ const ALL_FEATURES = [
   // nothing. Distinct from `priority_comms` below, and no single client ever sees both:
   // this one is e-commerce only, that one is lead-gen only, and upgrade ladders never cross.
   { id:"slack_access",    label:"Priority Support (same-day replies)", category:"Both" },
+  { id:"handover_docs",   label:"Written Handover Playbook + Training Call", category:"Both" },
+  { id:"settle_in",       label:"30-Day Settle-In (two optimization passes)",category:"Both" },
   { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
   { id:"priority_comms",  label:"Priority Communication",           category:"Both" },
   { id:"advanced_reporting",label:"Advanced Reporting Dashboard",   category:"Both" },
@@ -54,6 +56,7 @@ const PKG_FEATURES = {
   "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
   "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
+  "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","call_tracking","handover_docs","settle_in"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
   "e-growth":      ["meta_ads","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],
   "e-domination":  ["meta_ads","google_shopping","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","abandoned_cart","full_funnel","ugc_consulting","crm_input","page_cro","strategy_calls","slack_access","advanced_reporting","monthly_report"],
