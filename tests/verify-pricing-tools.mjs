@@ -239,6 +239,78 @@ const os = readFileSync("index.html", "utf8");
   ok("no hand-off waiver leaks into a managed agreement", !/setup fee in full/.test(managed));
 }
 
+// ── 4c. The landing-page export ─────────────────────────────────────────────
+// Bryson, 2026-08-19: the client hosts the page. The live page is rendered on request
+// from BoldLine's database on BoldLine's domain, so it is not a file and cannot be given
+// to anyone. Three things break when a naive copy leaves that domain, and ALL THREE FAIL
+// SILENTLY — the page looks fine while leads, calls and conversions stop.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const cl = {
+    name: "Acme Roofing", landingSlug: "acme", leadToken: "SECRET-LEAD-TOKEN",
+    callTrackingNumber: "+16025550100", campaignSetup: { serviceArea: "Phoenix, AZ" },
+    landingPage: { headline: "Roof leaking?", subheadline: "We fix it fast.",
+      bullets: ["Licensed", "Fast", "Fair"], ctaText: "Get a free quote", published: true },
+  };
+  const managed = renderLandingPage(cl);
+  const ho = renderLandingPage(cl, { handoff: { phone: "(602) 555-0199", conversionId: "AW-123456789", conversionLabel: "abcDEF123" } });
+  const bare = renderLandingPage(cl, { handoff: { phone: "(602) 555-0199" } });
+
+  // 1. THE FORM. On their host the BoldLine path 404s and every enquiry dies with an
+  // error the owner never sees. The hand-off form is a plain Netlify Form: no JS, no
+  // endpoint, submissions land in their own dashboard.
+  ok("hand-off never posts to the BoldLine lead endpoint", !ho.includes("lead-intake"));
+  ok("hand-off never leaks the lead token", !ho.includes("SECRET-LEAD-TOKEN"));
+  ok("hand-off form is a Netlify form", ho.includes('data-netlify="true"'));
+  ok("hand-off form carries the hidden form-name", ho.includes('name="form-name"'));
+  ok("hand-off form has a spam honeypot", ho.includes("netlify-honeypot"));
+  // A form whose inputs have only `id` and no `name` submits NOTHING. It would look
+  // perfect and deliver nothing, which is the exact failure mode this whole export exists
+  // to prevent, so it is asserted field by field.
+  for (const f of ["name", "phone", "email"])
+    ok(`hand-off form field "${f}" is named, not just id-ed`, ho.includes(`name="${f}"`),
+      "an input without a name attribute is not submitted at all");
+  ok("hand-off has no fetch submit handler to intercept the native POST",
+    !ho.includes("addEventListener('submit'"));
+  ok("hand-off shows the thank-you state after the redirect", ho.includes("sent=1"));
+
+  // 2. THE PHONE. A Twilio number BoldLine rents stops working when the rental stops.
+  ok("the tracking number is gone from the hand-off page", !ho.includes("6025550100"));
+  ok("their own number is used instead", ho.includes("602) 555-0199"));
+
+  // 3. CONVERSIONS. A Google campaign that stops receiving conversions cannot bid and
+  // degrades over weeks while appearing to run fine.
+  ok("their gtag is loaded", ho.includes("googletagmanager.com/gtag/js?id=AW-123456789"));
+  ok("the conversion fires on submit", ho.includes("AW-123456789/abcDEF123"));
+  ok("without a tag, the page says why that matters", /cannot bid on them/.test(bare));
+  ok("without a tag, no gtag is loaded", !bare.includes("googletagmanager"));
+
+  // The MANAGED page must be completely untouched by any of this.
+  ok("managed still posts to lead-intake", managed.includes("lead-intake"));
+  ok("managed still uses the tracking number", managed.includes("6025550100"));
+  ok("managed is not a Netlify form", !managed.includes("data-netlify"));
+  ok("managed loads no gtag", !managed.includes("googletagmanager"));
+  ok("managed keeps its JS submit handler", managed.includes("addEventListener('submit'"));
+
+  // The export endpoint refuses rather than shipping something broken.
+  const expSrc = readFileSync("netlify/functions/handover-export.mjs", "utf8");
+  ok("export requires the client's own phone number", /Enter the client&apos;s OWN phone number|Enter the client's OWN phone number/.test(expSrc));
+  ok("export validates the conversion id shape", /\^AW-\\d\+\$/.test(expSrc));
+  ok("export re-checks the built page for leaks", /Export blocked/.test(expSrc));
+  for (const leak of ["lead-intake", "leadToken", "callTrackingNumber"])
+    ok(`export leak guard covers ${leak}`, expSrc.includes(leak));
+  ok("export warns when there is no conversion tag", /stop receiving conversions/.test(expSrc));
+  ok("export reminds him to release the tracking number", /release the call tracking number/i.test(expSrc));
+
+  // The guide has to be followable by someone who has never deployed anything.
+  ok("guide names the exact host", /app\.netlify\.com\/drop/.test(expSrc));
+  ok("guide covers email notifications", /Form notifications/.test(expSrc));
+  ok("guide tells them to repoint the ads", /Final URL/.test(expSrc));
+  ok("guide warns against renaming the file", /Do not rename index\.html/.test(expSrc));
+  ok("guide warns against editing in Word", /Microsoft Word/.test(expSrc));
+  ok("guide has a troubleshooting section", /IF SOMETHING GOES WRONG/.test(expSrc));
+}
+
 // ── 5. The wiring is actually there ─────────────────────────────────────────
 // Sections 2 and 4 re-implement logic that lives in the functions, so they can only
 // stay honest if the originals are pinned. Change a bound in the source and these fail,
@@ -263,6 +335,9 @@ ok("lead-fee has a model fallback", /const MODELS = \[/.test(feeSrc));
 ok("the OS has a fee finder component", /function LeadFeeFinder\(/.test(os));
 ok("the fee finder calls its own function", /\/\.netlify\/functions\/lead-fee/.test(os));
 ok("Deal Prep offers the fee finder", /What should I charge per lead\?/.test(os));
+ok("the OS can export the landing page", /handover-export/.test(os));
+ok("the export step is in the hand-off card", /Hand over the landing page/.test(os));
+ok("the OS warns the tracking number must not be exported", /that one stops working when you release it/i.test(os));
 ok("the billing card offers the fee finder", /what should this be\?/.test(os));
 ok("the fee finder can write the rate onto the client", /billingPerLead:f/.test(os));
 
