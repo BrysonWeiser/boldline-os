@@ -58,7 +58,7 @@ export const GOOGLE_TOOL = {
                 required: ["text", "matchType"],
               },
             },
-            headlines: { type: "array", description: "Exactly 15 headlines, each 30 characters or fewer. Cover distinct angles: the service, the location, urgency, the offer, trust, and a call to action. Do not write 15 rewordings of one idea.", items: { type: "string" } },
+            headlines: { type: "array", description: "Exactly 15 headlines, each 30 characters or fewer INCLUDING spaces, and each a complete thought that ends where you meant it to end. Thirty characters is about four or five words, so never start an idea you cannot finish inside it. Cover distinct angles: the service, the location, urgency, the offer, trust, and a call to action. Do not write 15 rewordings of one idea.", items: { type: "string" } },
             descriptions: { type: "array", description: "Exactly 4 descriptions, each 90 characters or fewer.", items: { type: "string" } },
           },
           required: ["name", "theme", "intent", "keywords", "headlines", "descriptions"],
@@ -85,9 +85,9 @@ export const META_TOOL = {
           properties: {
             awareness: { type: "string", enum: ["unaware", "problem-aware", "solution-aware", "most-aware"] },
             angle: { type: "string", description: "One sentence: the argument this ad makes." },
-            headline: { type: "string", description: "40 characters or fewer." },
+            headline: { type: "string", description: "40 characters or fewer, INCLUDING spaces. Must be a complete thought that ends where you meant it to end." },
             primaryText: { type: "string", description: "The body. First sentence must stop the scroll on its own, because Meta truncates after roughly 125 characters." },
-            description: { type: "string", description: "30 characters or fewer, shown under the headline." },
+            description: { type: "string", description: "30 characters or fewer, INCLUDING spaces, shown under the headline. THIRTY CHARACTERS IS VERY SHORT: about four or five words. Count them. It must read as a finished phrase on its own, so it may not end on a word like 'not', 'just', 'the', 'and', 'to' or 'your' that leads into something you did not have room for. If your idea needs more than 30 characters, write a smaller idea instead of a cut-off one. Good: 'Roof leaks fixed fast'. Bad: 'Steady roofing leads, not just'." },
           },
           required: ["awareness", "angle", "headline", "primaryText", "description"],
         },
@@ -170,6 +170,67 @@ export const fitWords = (s, max) => {
   return t.slice(0, sp).replace(/[\s,;:.\-]+$/, "");
 };
 
+// ── Trimming that never stops mid-THOUGHT ───────────────────────────────────
+// Bryson, 2026-08-19, off a live Meta ad: the description read
+// "Steady roofing leads, not just".
+//
+// This is NOT the mid-word bug that was fixed before. `fitWords` did exactly its job:
+// that string is 30 characters and ends on a whole word. It is still broken English,
+// because a whole word is not a whole THOUGHT. A short hard-capped field (a 30-character
+// description, a 30-character Google headline) will nearly always land mid-clause if you
+// simply cut at the limit, so word-safety is not enough on its own.
+//
+// The fix walks BACK off dangling words until the text ends somewhere a person could
+// stop. On the reported string: "…, not just" -> drop "just" -> "…, not" -> drop "not"
+// -> "Steady roofing leads," -> strip the comma -> "Steady roofing leads". Twenty
+// characters, complete, and it says the same thing.
+//
+// If nothing survives, the field is DROPPED rather than shipped as a fragment — the same
+// principle as before, and safe here because these fields are optional.
+// 🔴 CONSERVATIVE ON PURPOSE. Only words that essentially CANNOT end an English
+// sentence belong here. A false positive is worse than a false negative: leaving a
+// slightly awkward ending merely reads plain, whereas deleting a good last word turns
+// working copy into worse copy. So phrasal-verb particles and adverbs that DO end
+// sentences are deliberately absent — "check it out", "call now", "members only",
+// "not yet", "back then", "we do that too", "start here" are all fine endings.
+const DANGLING = new Set([
+  // articles and determiners
+  "a", "an", "the", "this", "these", "those", "your", "our", "their", "its",
+  "my", "his", "her", "every", "each", "more", "most", "less",
+  // coordinating and subordinating conjunctions
+  "and", "or", "but", "nor", "so", "because", "if", "when", "while",
+  "although", "though", "unless", "until", "that", "which", "whose", "than",
+  // prepositions (particles like out/up/off are excluded — they end phrasal verbs)
+  "of", "to", "in", "on", "at", "by", "for", "with", "from", "into", "onto",
+  "about", "after", "before", "between", "through", "during", "without", "within",
+  "across", "against", "near", "per", "via",
+  // auxiliaries and copulas
+  "is", "are", "was", "were", "be", "been", "being", "am", "do", "does", "did",
+  "has", "have", "had", "will", "would", "can", "could", "should", "may", "might", "must",
+  // intensifiers and qualifiers that always lead into something
+  "not", "just", "very", "really", "quite",
+]);
+const isDangling = (w) => DANGLING.has(String(w || "").toLowerCase().replace(/[^a-z']/gi, ""));
+
+// The shortest thing worth shipping. Below this, a trimmed field says nothing useful and
+// an empty slot looks deliberate where a stub looks broken.
+const MIN_PHRASE_WORDS = 2;
+
+export const fitPhrase = (s, max) => {
+  const full = String(s == null ? "" : s).trim().replace(/\s{2,}/g, " ");
+  // 🔴 Only walk back when something was actually CUT. A field that already fits was
+  // written deliberately and is complete as-is; running the dangling check over it
+  // would edit copy nobody asked us to edit, which is exactly the false positive this
+  // whole comment block warns about.
+  if (full.length <= max) return full;
+  const t = fitWords(full, max);
+  if (!t) return "";
+  const words = t.split(" ").filter(Boolean);
+  while (words.length && isDangling(words[words.length - 1])) words.pop();
+  if (words.length < MIN_PHRASE_WORDS) return "";
+  return words.join(" ").replace(/[\s,;:.\-]+$/, "");
+};
+
 // For prose, prefer ending on a finished sentence; fall back to a whole word.
 export const fitSentence = (s, max) => {
   const t = String(s == null ? "" : s).trim().replace(/\s{2,}/g, " ");
@@ -179,11 +240,14 @@ export const fitSentence = (s, max) => {
   if (end > 0) return t.slice(0, end + 1);
   const solo = window.match(/^.*[.!?]$/);
   if (solo && solo[0].length <= max) return solo[0];
-  return fitWords(t, max);
+  return fitPhrase(t, max);
 };
 
+// Over-length entries are TRIMMED to a complete phrase rather than thrown away. Dropping
+// them used to be safe when there were 15 headlines to choose from, but a group that
+// loses too many falls under the 3-headline minimum and the whole ad group is discarded.
 const fitAll = (arr, max) => (Array.isArray(arr) ? arr : [])
-  .map(stripDashes).filter(Boolean)
+  .map((t) => fitPhrase(stripDashes(t), max)).filter(Boolean)
   .filter((t) => t.length <= max)
   .filter((t, i, a) => a.indexOf(t) === i);
 
@@ -242,9 +306,9 @@ export const cleanMeta = (data) =>
   (Array.isArray(data && data.variants) ? data.variants : []).map((v) => ({
     awareness: String(v.awareness || ""),
     angle: stripDashes(v.angle),
-    headline: fitWords(stripDashes(v.headline), 40),
+    headline: fitPhrase(stripDashes(v.headline), 40),
     primaryText: stripDashes(v.primaryText),
-    description: fitWords(stripDashes(v.description), 30),
+    description: fitPhrase(stripDashes(v.description), 30),
   })).filter((v) => v.headline && v.primaryText);
 
 export const cleanCreatives = (data) =>
@@ -253,7 +317,7 @@ export const cleanCreatives = (data) =>
     return {
       id: String(a.id || `angle-${i + 1}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40),
       label: fitWords(stripDashes(a.label), 40) || `Angle ${i + 1}`,
-      kicker: fitWords(stripDashes(a.kicker), 30),
+      kicker: fitPhrase(stripDashes(a.kicker), 30),
       head,
       accent: Math.max(0, Math.min(head.length - 1, Number(a.accent) || 0)),
       sub: fitSentence(stripDashes(a.sub), 90),
@@ -298,7 +362,9 @@ ${B}
 
 Meta is interruption, not search. Nobody asked to see this, so the first line has to earn the second. Write 3 to 4 complete variants, each aimed at a DIFFERENT awareness stage, because the same words cannot work on someone who has never thought about the problem and someone already comparing providers.
 
-Headline 40 characters or fewer. Description 30 or fewer. Primary text can run longer but Meta truncates around 125 characters, so the hook must land before that.`;
+Headline 40 characters or fewer. Description 30 or fewer, which is only about four or five words, so write a small finished phrase rather than the front half of a big one. Primary text can run longer but Meta truncates around 125 characters, so the hook must land before that.
+
+Count the characters on the headline and the description before you hand them back. A field that runs past its limit gets cut, and a cut field reads like a mistake to the person seeing the ad.`;
 
   return `Write angles for image ad creatives.
 

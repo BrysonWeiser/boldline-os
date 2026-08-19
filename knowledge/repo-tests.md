@@ -38,6 +38,7 @@ for t in tests/*.mjs; do node "$t"; done
 | `verify-packages.mjs` | the five-way-duplicated package catalog, the greater-of billing maths, tier/budget bands, the one-time hand-off, and that the marketing site quotes the same model the contract will | 1,140 |
 | `verify-pricing-tools.mjs` | the per-lead fee finder's guard rails, the revenue-by-month rollup, and that the contract renders two independent agreements (KB `per-lead-fee-finder`, `revenue-tracking`, `hand-off-product`) | 1,958 |
 | `verify-meta-creative-testing.mjs` | the second thing allowed to change a live ad account unattended: the spend-less-never-more invariant, the judging maths, the Development-tier gate, and the test/multi-angle switch (KB `meta-creative-testing`) | 114 |
+| `verify-ad-copy-fit.mjs` | ad copy never ships over the character limit AND never ships as a fragment, on both the server trimmers and the OS's own seeds (KB `ad-generator`) | 12 |
 | `verify-local-conditions.mjs` | live-weather ad context and the never-advertise policy gate | 121 |
 | `verify-meta-flip.mjs` | the coming-soon sentinels match `docs/META-FLIP-CHECKLIST.md` | 57 |
 | `verify-meta-generator.mjs` | the Meta ad generator is wired to its background action | 26 |
