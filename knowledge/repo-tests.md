@@ -37,6 +37,7 @@ for t in tests/*.mjs; do node "$t"; done
 |---|---|---|
 | `verify-packages.mjs` | the five-way-duplicated package catalog, the greater-of billing maths, tier/budget bands, the one-time hand-off, and that the marketing site quotes the same model the contract will | 1,140 |
 | `verify-pricing-tools.mjs` | the per-lead fee finder's guard rails, the revenue-by-month rollup, and that the contract renders two independent agreements (KB `per-lead-fee-finder`, `revenue-tracking`, `hand-off-product`) | 1,958 |
+| `verify-meta-creative-testing.mjs` | the second thing allowed to change a live ad account unattended: the spend-less-never-more invariant, the judging maths, and the Development-tier gate (KB `meta-creative-testing`) | 74 |
 | `verify-local-conditions.mjs` | live-weather ad context and the never-advertise policy gate | 121 |
 | `verify-meta-flip.mjs` | the coming-soon sentinels match `docs/META-FLIP-CHECKLIST.md` | 57 |
 | `verify-meta-generator.mjs` | the Meta ad generator is wired to its background action | 26 |
@@ -60,6 +61,11 @@ Patterns worth copying, learned from `verify-packages.mjs`:
   updated rather than quietly testing a fossil.
 - **Prove the guard is load-bearing before believing it.** Every suite here has had a deliberate
   break introduced and confirmed to fail it. A guard that has never failed has never been tested.
+- **🔴 A GUARD YOU HAVE NOT BROKEN IS NOT A GUARD.** The Meta tier-gate assertion was
+  `/cl\.internal/.test(block)` — which matched an unrelated `systemFor(!!cl.internal)` a few
+  lines away and **passed with the gate deleted**. It was guarding the one thing that would
+  have Meta rejecting writes every two hours forever. Nothing but deliberately breaking it
+  would have found that. Break every guard once, before believing any of them.
 - **🔴 ASSERT THE INVARIANT, NOT A PROXY FOR IT.** `verify-local-conditions` required
   `let localCond` within **400 characters** of the loop opening, as a stand-in for "declared
   inside the loop". Adding an unrelated guard and a comment at the top of that loop broke the

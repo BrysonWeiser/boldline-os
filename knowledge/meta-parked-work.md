@@ -4,7 +4,7 @@ topic: Ads
 task: find out what work is waiting on Meta approval, or decide what to build the moment Meta grants standard access
 keywords: [meta parked, blocked on meta, once meta is approved, meta split testing, meta creative testing, conditions trigger meta, meta standard access, development tier, MetaLaunchCard, meta-ads.mjs, waitlist]
 status: verified
-summary: The running list of work deliberately NOT built because Meta has not granted Marketing API standard access. Meta creative split testing is the big one (Google has it, Meta does not), which in turn blocks the conditions-triggered ad refresh on Meta. Also parked: 9 of 12 packages stay on "Join the waitlist", and the marketing site's coming-soon state. Nothing here is broken or half-done, it is scoped out on purpose. Bryson asked for it to be marked so it resurfaces at approval rather than being rediscovered.
+summary: The running list of work deliberately NOT built because Meta has not granted Marketing API standard access. ~~Meta creative split testing~~ **BUILT 2026-08-19 for BoldLine-owned accounts** (Development tier allows writes to own accounts) — see KB `meta-creative-testing`; one named condition (`META-TIER-GATE`) opens it to clients at approval. The conditions-triggered ad refresh rides the same path and now works on Meta too, for owned accounts. Also parked: 9 of 12 packages stay on "Join the waitlist", and the marketing site's coming-soon state. Nothing here is broken or half-done, it is scoped out on purpose. Bryson asked for it to be marked so it resurfaces at approval rather than being rediscovered.
 verified: 2026-08-17
 ---
 

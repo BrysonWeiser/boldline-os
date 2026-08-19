@@ -18,6 +18,11 @@
 //   "setStatus"      -> { adAccountId, campaignId, status } PAUSED|ACTIVE guarded write.
 //   "createCampaign" -> { adAccountId, pageId, landingUrl, ... } builds a full
 //                       lead-gen campaign (campaign→adset→creative→ad), ALL PAUSED
+//
+// Also exported for the scheduled ads-autopilot job (no HTTP, no owner session):
+//   getAdsForCampaign  -> ads in a campaign with ad-level 30-day insights
+//   addAdToAdset       -> one challenger ad into an EXISTING ad set (budget-neutral)
+//   setAdStatus        -> pause/resume ONE ad, leaving the ad set and budget alone
 //                       so nothing ever spends without an explicit activation.
 //
 // Required Netlify env vars:
@@ -255,6 +260,134 @@ export async function getCampaigns(adAccountId) {
       cpl: leads > 0 ? Number((spend / leads).toFixed(2)) : 0,
     };
   });
+}
+
+
+// ── Read: the ADS inside a campaign, with ad-level insights ──────────────────
+// Needed by autopilot's creative testing, which works one AD SET at a time: it can
+// only judge a test if it can see each ad's own numbers, and it can only write a
+// challenger if it can see what the champion already says (so it writes something
+// genuinely different rather than a reworded twin).
+//
+// Two Graph calls, merged by ad id — the same shape as getCampaigns, for the same
+// reason: Meta keeps delivery numbers on a separate insights edge.
+export async function getAdsForCampaign(adAccountId, campaignId) {
+  const a = acct(adAccountId);
+  const ads = await graph("ads", `${campaignId}/ads`, {
+    params: {
+      fields: "id,name,status,effective_status,adset_id,created_time," +
+        "creative{id,object_story_spec,effective_object_story_id}",
+      limit: "100",
+    },
+  });
+
+  let insightsById = {};
+  try {
+    const ins = await graph("ads", `${a}/insights`, {
+      params: {
+        level: "ad", date_preset: "last_30d",
+        fields: "ad_id,spend,impressions,clicks,actions",
+        limit: "500",
+      },
+    });
+    (ins.data || []).forEach((r) => { insightsById[r.ad_id] = r; });
+  } catch {
+    insightsById = {};   // a brand-new ad with no delivery is not an error
+  }
+
+  return (ads.data || []).map((ad) => {
+    const i = insightsById[ad.id] || {};
+    // The copy lives several levels down and any level can be absent on an ad built
+    // outside this system (in Ads Manager by hand, say). Read it defensively: a
+    // missing headline must not throw, it just means autopilot cannot judge that ad.
+    const spec = (ad.creative && ad.creative.object_story_spec) || {};
+    const link = spec.link_data || {};
+    return {
+      id: ad.id,
+      name: ad.name,
+      adsetId: ad.adset_id,
+      status: ad.status,
+      effectiveStatus: ad.effective_status,
+      createdTime: ad.created_time,
+      pageId: spec.page_id ? String(spec.page_id) : "",
+      headline: String(link.name || ""),
+      primaryText: String(link.message || ""),
+      description: String(link.description || ""),
+      linkUrl: String(link.link || ""),
+      imageHash: String(link.image_hash || ""),
+      ctaType: (link.call_to_action && link.call_to_action.type) || "",
+      impressions: Number(i.impressions || 0),
+      clicks: Number(i.clicks || 0),
+      spend: Number(i.spend || 0),
+      leads: leadsFromActions(i.actions),
+    };
+  });
+}
+
+// ── Guarded write: pause or resume ONE AD (not the campaign) ─────────────────
+// Pausing a losing ad leaves the ad set and its budget untouched. The same money
+// simply stops buying the worse creative.
+export async function setAdStatus(adId, status) {
+  const st = String(status || "").toUpperCase();
+  if (!["ACTIVE", "PAUSED"].includes(st)) {
+    throw Object.assign(new Error("setAdStatus: status must be ACTIVE or PAUSED"), { stage: "setAdStatus" });
+  }
+  await graph("setAdStatus", String(adId), { method: "POST", params: { status: st } });
+  return { adId: String(adId), status: st };
+}
+
+// ── Guarded write: add ONE AD to an EXISTING ad set ──────────────────────────
+// 🔴 THIS IS BUDGET-NEUTRAL, WHICH IS THE ONLY REASON AUTOPILOT MAY DO IT UNASKED.
+// Budget lives on the campaign (CBO) or the ad set, never on the ad. A second ad
+// inside an existing ad set changes WHICH CREATIVE the same money buys; it cannot
+// raise the bill by a cent. It creates no campaign, no ad set, and enables nothing
+// that was paused.
+//
+// The challenger reuses the champion's IMAGE by hash. That is deliberate: changing
+// the copy and the picture at once means a win teaches you nothing about which
+// change won.
+export async function addAdToAdset(adAccountId, p) {
+  const a = acct(adAccountId);
+  if (!p.adsetId) throw Object.assign(new Error("addAdToAdset: adsetId required"), { stage: "addAdToAdset" });
+  if (!p.pageId) throw Object.assign(new Error("addAdToAdset: pageId required"), { stage: "addAdToAdset" });
+  if (!p.linkUrl) throw Object.assign(new Error("addAdToAdset: linkUrl required"), { stage: "addAdToAdset" });
+  if (!p.headline) throw Object.assign(new Error("addAdToAdset: headline required"), { stage: "addAdToAdset" });
+
+  const linkData = {
+    message: String(p.primaryText || ""),
+    link: p.linkUrl,
+    name: String(p.headline),
+    description: String(p.description || ""),
+    call_to_action: { type: String(p.ctaType || "LEARN_MORE"), value: { link: p.linkUrl } },
+  };
+  // A link ad with no image is rejected by Meta, so an absent hash is a hard stop
+  // rather than something to discover from a 400 three lines later.
+  if (!p.imageHash) {
+    throw Object.assign(new Error("addAdToAdset: imageHash required — a Meta link ad must have an image"), { stage: "addAdToAdset" });
+  }
+  linkData.image_hash = p.imageHash;
+
+  const name = String(p.name || "Challenger");
+  const creative = await graph("addAdToAdset", `${a}/adcreatives`, {
+    method: "POST",
+    params: {
+      name: `${name} — Creative`,
+      object_story_spec: JSON.stringify({ page_id: String(p.pageId), link_data: linkData }),
+    },
+  });
+  const ad = await graph("addAdToAdset", `${a}/ads`, {
+    method: "POST",
+    params: {
+      name: `${name} — Ad`,
+      adset_id: String(p.adsetId),
+      creative: JSON.stringify({ creative_id: creative.id }),
+      // ACTIVE on purpose: a challenger that never runs is not a test. It sits inside
+      // an ad set that is ALREADY live and already spending, so this enables nothing
+      // that was off and raises no budget.
+      status: String(p.status || "ACTIVE").toUpperCase(),
+    },
+  });
+  return { creativeId: creative.id, adId: ad.id, adsetId: String(p.adsetId) };
 }
 
 // ── Guarded write: campaign daily budget (assumes campaign-level/CBO budget, ──
