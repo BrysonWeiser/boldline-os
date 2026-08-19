@@ -2,10 +2,10 @@
 name: ad-generator
 topic: Ads
 task: generate real campaign structure (ad groups, keywords, 15 headlines, negatives, creative angles) instead of string templates
-keywords: [ad generator, ad-generator.mjs, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed]
+keywords: [ad generator, ad-generator.mjs, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
 status: verified
 summary: "Fill copy" was string templates — 6-7 keywords in one undifferentiated bucket, 8 of Google's 15 headlines, 3 of 4 descriptions, and a SINGLE ad group, byte-identical on every press. New `netlify/functions/ad-generator.mjs` writes a real campaign with a model: 3-5 intent-themed ad groups each carrying its own keywords (with per-keyword match types) and its own full 15-headline ad, plus 15-30 business-specific negatives and an operator note. `createCampaign` now builds N ad groups in one atomic mutate. The Ad Creative Studio's five fixed angles can likewise be rewritten from the real niche. 32 + 27 + 22 + 31 cases.
-verified: 2026-08-14
+verified: 2026-08-19
 ---
 
 **Bryson, 2026-08-14:** *"the keywords the angles for the ad creative studio and everything is just to basic and isnt advanced at all."* Correct, and it was a known gap: the Ad Creative Studio was shipped with the honest note that *"the words are angle TEMPLATES, not a live model call"*.
@@ -59,5 +59,23 @@ verified: 2026-08-14
 The same bug existed in the OS's own template seeds (`cl30`/`cl90` in `GoogleLaunchCard` were `.trim().slice(0,30)`), so a long client name or offer could be cut mid-word there too. Both now route through a `clWords` helper with identical behaviour. The model is also instructed to count characters and finish the thought inside the limit, so trimming is the safety net rather than the mechanism.
 
 **Verified by 22 cases**, including a **400-string property test** asserting the output is never over the limit, is always a prefix of the input, and never ends mid-word; plus the exact reported string, a single over-long word being dropped rather than mangled, null/empty safety, and prose keeping a complete terminated sentence. Two assertions failed on the first run and were **wrong themselves** (one input was exactly at the limit so it was legitimately untouched, the other was malformed) — corrected to actually exercise the trim rather than loosened.
+
+**🔴 2026-08-19 — THE SAME BUG AGAIN, ONE LEVEL UP: copy was being cut mid-THOUGHT.** Bryson caught a live Meta ad whose description read **"Steady roofing leads, not just"**.
+
+**This was NOT a regression of the mid-word fix above.** That string is exactly 30 characters and ends on a whole word, so `fitWords` did precisely what it was written to do. It is still broken English, because **a whole word is not a whole thought**. The 2026-08-14 fix solved word-safety and stopped there; nothing ever checked whether the surviving text ended somewhere a person could actually stop.
+
+**Why short fields make this near-certain rather than rare.** The Meta description is capped at **30 characters**, about four or five words. Any sentence-shaped idea that overruns will land mid-clause when cut at the limit, so on a hard-capped field word-safety alone is not enough. The same exposure existed on the 30-character Google headline and the 30-character creative kicker.
+
+- **`fitPhrase(s, max)`** (new, in `ad-gen-shared.mjs`) — trims to a whole word, then **walks back off any trailing word that cannot end an English sentence** until it can, and drops the field if fewer than two words survive. On the reported string: `…, not just` → drop `just` → `…, not` → drop `not` → `Steady roofing leads,` → strip the comma → **"Steady roofing leads"**. Twenty characters, complete, same meaning.
+- **It only fires on text that was actually CUT.** A field already inside the limit is returned byte-for-byte. Without that guard the walk-back would edit copy nobody asked it to edit ("Tell us what you need" would lose its last word). This is pinned by its own test.
+- **The `DANGLING` list is deliberately conservative.** A false positive is worse than a false negative here: an awkward ending merely reads plain, but deleting a good final word turns working copy into worse copy. So phrasal-verb particles and adverbs that genuinely end sentences are **excluded on purpose** — "check it out", "call now", "members only", "we do that too", "start here" all survive. The first draft of the list included `now`/`only`/`out`/`here`/`there` and was tightened before shipping.
+
+**Wired into:** the Meta headline (40) and description (30), the creative kicker (30), `fitSentence`'s fallback, and `fitAll`. `fitAll` also changed behaviour: an over-length Google headline is now **trimmed instead of discarded**, because dropping them could pull a group under the 3-headline minimum and discard the whole ad group.
+
+**The OS's own seeds needed it too.** `cl30`/`cl90` in `index.html` pre-fill the campaign builder from the client's niche, offer and service area **before the AI is ever called**, and the server-side fix does not reach them. A long niche produced "Commercial Roofing And Restoration Experts" → **"Commercial Roofing And"**. The browser now carries its own copy of the walk-back (`clPhrase`, same word list, same only-when-cut rule), and the two agency seed arrays gained a `.filter(Boolean)` since a trimmed-to-nothing field must not ship as an empty headline.
+
+**The prompt carries its half.** Trimming is the safety net; the fix is the model finishing the thought inside the limit. The Meta `description` field description now states the limit in characters AND in words, requires a finished phrase, forbids ending on a leading word, and gives the reported string as the named bad example. The Google `headlines` field and the Meta prompt got the same treatment.
+
+**Verified by `tests/verify-ad-copy-fit.mjs` (12 checks, several sweeping every length).** The exact reported string end to end through `cleanMeta`; copy that already fits returned untouched, including strings that legitimately end on dangling-list words; legitimate endings surviving the walk-back; a sweep asserting nothing ever exceeds the limit at any length; a sweep asserting no trimmed output ends on a dangler; an unfittable word dropped rather than mangled; a long Google headline salvaged rather than discarded; and assertions that the tool schemas actually demand a complete thought. **Every guard was proved to fail when the fix is removed** (four separate deliberate breaks, server side and OS side). One expectation failed on the first run and was **my arithmetic, not the code** — I expected a 32-character result under a 30-character limit; corrected rather than loosened.
 
 **NOT built:** the `meta` action exists in the function but `MetaLaunchCard` still uses its template seed; wiring it is a small edit. Sitelinks, callouts and structured snippets are not generated (extra Google API surface). Neither is ad-group-level negative keywords.

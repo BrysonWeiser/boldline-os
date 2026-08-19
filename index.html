@@ -6130,8 +6130,22 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   // If not even the first word fits, drop it so no fragment ever ships.
   const clWords = (s,max) => { const t=String(s||"").trim().replace(/\s{2,}/g," "); if(t.length<=max) return t;
     const sp=t.slice(0,max+1).lastIndexOf(" "); return sp<=0?"":t.slice(0,sp).replace(/[\s,;:.\-]+$/,""); };
-  const cl30 = (s) => clWords(s,30);
-  const cl90 = (s) => clWords(s,90);
+  // A whole word is not a whole THOUGHT. A long niche made "Commercial Roofing And
+  // Restoration Experts" land as "Commercial Roofing And", which is broken English even
+  // though nothing was cut mid-word. So after trimming, walk back off any word that
+  // cannot end a sentence. Only applies when something was actually cut. Same list and
+  // same reasoning as fitPhrase on the server (netlify/lib/ad-gen-shared.mjs).
+  const CL_DANGLING = new Set("a an the this these those your our their its my his her every each more most less and or but nor so because if when while although though unless until that which whose than of to in on at by for with from into onto about after before between through during without within across against near per via is are was were be been being am do does did has have had will would can could should may might must not just very really quite".split(" "));
+  const clPhrase = (s,max) => {
+    const full=String(s||"").trim().replace(/\s{2,}/g," ");
+    if(full.length<=max) return full;
+    const t=clWords(full,max); if(!t) return "";
+    const w=t.split(" ").filter(Boolean);
+    while(w.length && CL_DANGLING.has(w[w.length-1].toLowerCase().replace(/[^a-z']/gi,""))) w.pop();
+    return w.length<2 ? "" : w.join(" ").replace(/[\s,;:.\-]+$/,"");
+  };
+  const cl30 = (s) => clPhrase(s,30);
+  const cl90 = (s) => clPhrase(s,90);
   const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Get Your Free Quote Today", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
   const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust. Fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
   const kwSeed = [...new Set([niche, niche&&area?`${niche} ${area}`:"", niche?`${niche} near me`:"", niche?`best ${niche}`:""].map(s=>String(s||"").trim()).filter(Boolean))].slice(0,8);
@@ -6145,10 +6159,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     const name = `BoldLine Media — ${general ? "General" : A}`;
     const headlines = (general
       ? ["More Customers On Autopilot","Google & Meta Ads For You","Get More Leads This Month","We Run Your Ads For You","Free Marketing Strategy Call","Stop Guessing With Ad Spend","Managed Ads That Grow You","Done-For-You Ad Management"]
-      : [`More ${A} Customers`,`${A} Marketing Experts`,`Get More ${A} Leads`,`We Run ${A} Ads For You`,`Free Strategy Call`,`Google & Meta Ads Managed`,`Fill Your ${A} Schedule`,`Stop Wasting Ad Spend`]).map(cl30);
+      : [`More ${A} Customers`,`${A} Marketing Experts`,`Get More ${A} Leads`,`We Run ${A} Ads For You`,`Free Strategy Call`,`Google & Meta Ads Managed`,`Fill Your ${A} Schedule`,`Stop Wasting Ad Spend`]).map(cl30).filter(Boolean);
     const descriptions = (general
       ? ["We plan, build, and run your Google and Meta ads so you get more customers.","Done-for-you ad management and landing pages. Book a free strategy call today.","You own your ad account, we manage it. Real reporting, no long contracts."]
-      : [`We run Google and Meta ads for ${raw} so you get a steady flow of new customers.`,`Done-for-you ads and landing pages built for ${raw}. Book a free strategy call.`,`You own your ad account, we manage it. Real reporting, no guesswork.`]).map(cl90);
+      : [`We run Google and Meta ads for ${raw} so you get a steady flow of new customers.`,`Done-for-you ads and landing pages built for ${raw}. Book a free strategy call.`,`You own your ad account, we manage it. Real reporting, no guesswork.`]).map(cl90).filter(Boolean);
     const keywords = general
       ? ["marketing agency","google ads management","facebook ads agency","get more customers online","small business advertising","lead generation agency","done for you marketing"]
       : [`marketing agency for ${raw}`,`${raw} advertising`,`google ads for ${raw}`,`${raw} lead generation`,`${raw} marketing`,`get more ${raw} customers`];
