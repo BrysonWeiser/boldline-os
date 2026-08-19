@@ -32,13 +32,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, handoffIsFinished } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
-import { getCampaigns as metaCampaigns, setStatus as metaSetStatus, setBudget as metaSetBudget } from "./meta-ads.mjs";
+import {
+  getCampaigns as metaCampaigns, setStatus as metaSetStatus, setBudget as metaSetBudget,
+  getAdsForCampaign as metaAds, addAdToAdset as metaAddAd, setAdStatus as metaSetAdStatus,
+} from "./meta-ads.mjs";
 import {
   getAccessToken as gadsToken, getCampaigns as gadsCampaigns,
   setStatus as gadsSetStatus, setBudget as gadsSetBudget,
   getCampaignDetail as gadsDetail, addResponsiveSearchAd as gadsAddAd, setAdStatus as gadsSetAdStatus,
 } from "./google-ads.mjs";
-import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle } from "../lib/ad-gen-shared.mjs";
+import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle, cleanMeta } from "../lib/ad-gen-shared.mjs";
 import { getLocalConditions, conditionsFingerprint } from "../lib/local-conditions.mjs";
 
 const DAYS_PER_MONTH = 30.4;
@@ -52,7 +55,7 @@ const COOLDOWN_HOURS = 24;     // never touch the same campaign twice in a day
 const REBALANCE_MAX_SHIFT = 0.15; // ±15% of a campaign's daily budget, per run
 const MAX_ACTIONS_PER_CLIENT = 4;  // a blast radius cap, whatever the maths says
 
-// ── SPLIT TESTING (Google only; Meta creative testing is a separate job) ─────
+// ── SPLIT TESTING ───────────────────────────────────────────────────────────
 // This is the ONE thing autopilot creates rather than pauses, and it stays inside
 // the founding invariant — "may always spend LESS, may NEVER spend more without
 // asking" — because BUDGET LIVES ON THE CAMPAIGN. A second ad inside an existing
@@ -65,6 +68,36 @@ const SPLIT_MIN_DAYS = 7;            // and it must have had a week to run
 const SPLIT_MIN_LIFT = 0.25;         // the winner must beat the loser by 25%+, or it is noise
 const SPLIT_MAX_ADS_PER_GROUP = 2;   // one challenger at a time, never a pile
 const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
+
+// ── META CREATIVE TESTING ───────────────────────────────────────────────────
+// Bryson, 2026-08-19: "I want it to automatically improve the meta ad."
+//
+// The same idea as the Google path above, one level down: Google tests ADS inside an
+// AD GROUP, Meta tests ADS inside an AD SET. The invariant survives for exactly the
+// same reason — budget lives on the campaign or the ad set, never on the ad, so a
+// second creative inside a live ad set changes what the money buys and cannot raise
+// the bill.
+//
+// 🔴 WHY IT IS RESTRICTED TO OWNED ACCOUNTS FOR NOW. Meta has BoldLine on Development
+// tier, which permits API writes to ad accounts BoldLine itself owns and refuses them
+// everywhere else. Running this against a client account today would not just fail, it
+// would fail repeatedly on a schedule and generate a failure alert every two hours. So
+// it is gated to the house account until standard access lands. AT APPROVAL: delete the
+// `cl.internal` condition on the line marked META-TIER-GATE and it covers every client,
+// with no other change. See KB meta-parked-work.
+//
+// Two differences from Google, both forced by the platform rather than chosen:
+//  1. META NEEDS LONGER TO JUDGE. Its delivery system deliberately front-loads whichever
+//     ad it thinks will win, so early numbers reflect Meta's guess as much as the copy.
+//     A higher click floor and a longer minimum run stop autopilot pausing a good ad
+//     because Meta had not got round to showing it yet.
+//  2. THE IMAGE IS HELD CONSTANT. The challenger reuses the champion's image hash. If
+//     the copy AND the picture change together, a win teaches nothing about which one won.
+const META_SPLIT_MIN_IMPRESSIONS = 1000;  // per ad set before a challenger is worth writing
+const META_SPLIT_MIN_CLICKS_EACH = 50;    // per ad before a winner may be declared
+const META_SPLIT_MAX_ADS_PER_SET = 2;     // one challenger at a time, never a pile
+const META_SPLIT_MIN_LIFT = 0.30;         // beat the loser by 30%+, or it is Meta's delivery talking
+const META_SPLIT_COOLDOWN_HOURS = 168;    // one action per ad set per week
 
 // ── CONDITIONS-TRIGGERED REWRITES ───────────────────────────────────────────
 // When the weather in the client's area genuinely turns — monsoon starts, the first
@@ -79,6 +112,37 @@ const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
 // the thing that triggers a rewrite.
 const CONDITIONS_DWELL_HOURS = 48;
 const CONDITIONS_COOLDOWN_HOURS = 336;
+
+// ── The judging maths, extracted so it can be tested directly ───────────────
+// Google and Meta run the same test and differ only in which field carries a
+// conversion (`conversions` vs `leads`). Pulling it out of both blocks means the
+// rule is defined once, and a test exercises the REAL function rather than a copy
+// that can drift away from it.
+//
+// Returns null whenever no decision may be made, and the caller pauses nothing.
+// Every one of those exits is a deliberate refusal, not a missing case:
+//   - fewer than two ads with enough clicks   -> not enough evidence yet
+//   - the lift is inside the noise threshold  -> too close to call
+//   - the winner and loser are the same ad    -> nothing to pause
+export const judgeSplit = (ads, { minClicks, minLift, convKey = "conversions" }) => {
+  const judged = (ads || []).filter((a) => Number(a.clicks || 0) >= minClicks);
+  if (judged.length < 2) return null;
+  // Conversion rate decides when there are conversions to divide by; click-through
+  // only when there are none. Judging on clicks while conversions exist optimises
+  // for traffic, which is how you win a test and lose the money.
+  const anyConv = judged.some((a) => Number(a[convKey] || 0) > 0);
+  const score = (a) => {
+    const clicks = Number(a.clicks || 0), imps = Number(a.impressions || 0);
+    return anyConv ? (clicks > 0 ? Number(a[convKey] || 0) / clicks : 0)
+                   : (imps > 0 ? clicks / imps : 0);
+  };
+  const ranked = judged.slice().sort((a, b) => score(b) - score(a));
+  const win = ranked[0], lose = ranked[ranked.length - 1];
+  if (!win || !lose || win.id === lose.id) return null;
+  const ws = score(win), ls = score(lose);
+  if (!(ls >= 0 && ws > ls * (1 + minLift))) return null;   // inside the noise
+  return { win, lose, ws, ls, anyConv, clicks: Number(win.clicks || 0) + Number(lose.clicks || 0) };
+};
 
 const monthlyBudgetOf = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
@@ -293,24 +357,15 @@ export default withFailureAlert("ads-autopilot", async () => {
 
           // ── Declare a winner ────────────────────────────────────────────────
           if (runningAds.length >= 2) {
-            const judged = runningAds.filter((a) => a.clicks >= SPLIT_MIN_CLICKS_EACH);
-            if (judged.length < 2) continue;
-            // Conversion rate decides when there are conversions to divide by;
-            // CTR only when there are none. Judging on CTR while conversions exist
-            // optimises for clicks, which is how you win a test and lose the money.
-            const anyConv = judged.some((a) => a.conversions > 0);
-            const score = (a) => (anyConv ? (a.clicks > 0 ? a.conversions / a.clicks : 0)
-                                          : (a.impressions > 0 ? a.clicks / a.impressions : 0));
-            const ranked = judged.slice().sort((a, b) => score(b) - score(a));
-            const win = ranked[0], lose = ranked[ranked.length - 1];
-            if (!win || !lose || win.id === lose.id) continue;
-            const ls = score(lose), ws = score(win);
-            if (!(ls >= 0 && ws > ls * (1 + SPLIT_MIN_LIFT))) continue;  // too close to call
+            const verdict = judgeSplit(runningAds, {
+              minClicks: SPLIT_MIN_CLICKS_EACH, minLift: SPLIT_MIN_LIFT, convKey: "conversions" });
+            if (!verdict) continue;
+            const { win, lose, ws, ls, anyConv } = verdict;
             try {
               await gadsSetAdStatus(accessToken, gid, lose.resourceName, "PAUSED");
               actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-winner",
                 name: `${t.c.name} / ${g.name}`, platform: "google",
-                reason: `paused the losing ad variant. Winner ${anyConv ? `converted at ${(ws * 100).toFixed(1)}%` : `had a ${(ws * 100).toFixed(2)}% CTR`} vs ${anyConv ? `${(ls * 100).toFixed(1)}%` : `${(ls * 100).toFixed(2)}%`} over ${win.clicks + lose.clicks} clicks. Budget unchanged.` });
+                reason: `paused the losing ad variant. Winner ${anyConv ? `converted at ${(ws * 100).toFixed(1)}%` : `had a ${(ws * 100).toFixed(2)}% CTR`} vs ${anyConv ? `${(ls * 100).toFixed(1)}%` : `${(ls * 100).toFixed(2)}%`} over ${verdict.clicks} clicks. Budget unchanged.` });
               splitWinners++;
             } catch (e) { failures++; console.error("ads-autopilot: pause loser failed:", e && e.message); }
             continue;
@@ -378,6 +433,117 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
               reason: `${why}. Same budget, different creative.${condNote}` });
             splitChallengers++;
           } catch (e) { failures++; console.error("ads-autopilot: challenger failed:", e && e.message); }
+        }
+      }
+    }
+
+    // ── 5. META CREATIVE TESTING ────────────────────────────────────────────
+    // Same shape as the Google block above, one level down: ads inside an AD SET.
+    // Budget is never touched, so the invariant holds.
+    // META-TIER-GATE: `cl.internal` is the Development-tier restriction. Delete it at
+    // standard access and this covers every client unchanged.
+    if (ap.splitTest !== false && mid && cl.internal && actions.length < MAX_ACTIONS_PER_CLIENT) {
+      const liveMeta = stillLive().filter((t) => t.p === "meta");
+      for (const t of liveMeta) {
+        if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
+        let ads;
+        try { ads = await metaAds(mid, t.c.id); }
+        catch (e) { failures++; console.error("ads-autopilot: meta ad read failed:", e && e.message); continue; }
+
+        // Group by ad set: a test is between ads competing for the SAME money.
+        const bySet = new Map();
+        for (const ad of ads) {
+          if (!ad.adsetId) continue;
+          if (!bySet.has(ad.adsetId)) bySet.set(ad.adsetId, []);
+          bySet.get(ad.adsetId).push(ad);
+        }
+
+        for (const [adsetId, setAds] of bySet) {
+          if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
+          const splitKey = `msplit:${adsetId}`;
+          if (recent.some((a) => a.key === splitKey && (now - new Date(a.at).getTime()) < META_SPLIT_COOLDOWN_HOURS * 3600e3)) continue;
+          const runningAds = setAds.filter((a) => String(a.effectiveStatus || a.status || "").toUpperCase() === "ACTIVE");
+
+          // ── Declare a winner ────────────────────────────────────────────────
+          if (runningAds.length >= 2) {
+            const verdict = judgeSplit(runningAds, {
+              minClicks: META_SPLIT_MIN_CLICKS_EACH, minLift: META_SPLIT_MIN_LIFT, convKey: "leads" });
+            if (!verdict) continue;
+            const { win, lose, ws, ls, anyConv: anyLead } = verdict;
+            try {
+              await metaSetAdStatus(lose.id, "PAUSED");
+              actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-winner",
+                name: `${t.c.name} / ad set ${adsetId}`, platform: "meta",
+                reason: `paused the losing Meta creative. Winner ${anyLead ? `converted at ${(ws * 100).toFixed(1)}%` : `had a ${(ws * 100).toFixed(2)}% click rate`} vs ${anyLead ? `${(ls * 100).toFixed(1)}%` : `${(ls * 100).toFixed(2)}%`} over ${verdict.clicks} clicks. Budget unchanged.` });
+              splitWinners++;
+            } catch (e) { failures++; console.error("ads-autopilot: meta pause loser failed:", e && e.message); }
+            continue;
+          }
+
+          // ── Write a challenger ──────────────────────────────────────────────
+          if (runningAds.length !== 1) continue;
+          if (runningAds.length >= META_SPLIT_MAX_ADS_PER_SET) continue;
+          const champion = runningAds[0];
+          const setImpressions = sum(setAds, (a) => a.impressions);
+          if (setImpressions < META_SPLIT_MIN_IMPRESSIONS) continue;
+          // An ad built by hand in Ads Manager may carry none of what a challenger needs.
+          // Skipping is the honest outcome: inventing a page id or a link would post an
+          // ad pointing somewhere nobody chose.
+          if (!champion.pageId || !champion.linkUrl || !champion.imageHash) continue;
+
+          if (!localCond) {
+            localCond = await getLocalConditions({
+              locations: (cl.campaignSetup && cl.campaignSetup.targetLocations) || "",
+            });
+          }
+          try {
+            const { data } = await runTool({
+              tool: TOOL_FOR.meta, maxTokens: MAX_TOKENS_FOR.meta, system: systemFor(!!cl.internal),
+              prompt: `Write ONE challenger Meta ad to split test against the ad currently running.
+
+THE CAMPAIGN: "${t.c.name}".
+
+THE AD RUNNING NOW (this is what you must BEAT, so do not rewrite it):
+Headline: ${champion.headline}
+Primary text: ${champion.primaryText}
+Description: ${champion.description}
+
+Take a genuinely DIFFERENT angle and a different awareness stage. If the current ad speaks to someone who already knows they need this, speak to someone who has not realised it yet. If it leads on the offer, lead on the problem. A reworded version of the same idea teaches nothing and wastes the test.
+
+The picture is NOT changing, only the words, so the copy has to carry the difference on its own.
+
+WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
+${localCond.block}
+
+If the conditions above genuinely drive demand for this business, that is a strong angle, and one the ad running now is probably missing. If they do not, ignore them and win on something else.
+
+Return exactly ONE variant.`,
+            });
+            const cand = cleanMeta(data)[0];
+            if (!cand || !cand.headline || !cand.primaryText) continue;
+            await metaAddAd(mid, {
+              adsetId,
+              pageId: champion.pageId,
+              linkUrl: champion.linkUrl,
+              imageHash: champion.imageHash,          // held constant on purpose
+              ctaType: champion.ctaType || "LEARN_MORE",
+              // cleanMeta already ran stripDashes over all three, which is the em-dash
+              // rule (KB ad-copy-voice) enforced in code rather than trusted to a prompt.
+              headline: cand.headline,
+              primaryText: cand.primaryText,
+              description: cand.description,
+              name: `Challenger ${new Date().toISOString().slice(0, 10)}`,
+              status: "ACTIVE",
+            });
+            const condNote = localCond.usable.length
+              ? ` Written against current conditions: ${localCond.usable.map((a) => a.event).join(", ")}.`
+              : "";
+            actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-challenger",
+              name: `${t.c.name} / ad set ${adsetId}`, platform: "meta",
+              conditions: conditionsFingerprint(localCond.summary), trigger: "traffic",
+              reason: `added a second Meta creative to split test against the one running (${setImpressions} impressions so far). Same picture, different words, same budget.${condNote}` });
+            splitChallengers++;
+          } catch (e) { failures++; console.error("ads-autopilot: meta challenger failed:", e && e.message); }
         }
       }
     }
