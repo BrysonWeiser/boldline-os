@@ -25,7 +25,7 @@
 // No network: everything is either a pure function or a source-level assertion.
 
 import { readFileSync } from "node:fs";
-import { judgeSplit } from "../netlify/functions/ads-autopilot.mjs";
+import { judgeSplit, creativeStrategy, CREATIVE_MODES } from "../netlify/functions/ads-autopilot.mjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
@@ -180,6 +180,93 @@ const ad = (id, { imps = 1000, clicks = 60, conv = 0, leads = 0 } = {}) =>
   }
 }
 
+// ── 3b. 🔴 TEST vs MULTI-ANGLE ──────────────────────────────────────────────
+// Bryson, 2026-08-19, after Brez Scales: multiple angles build awareness across
+// exposures, so the ad that "loses" may be the one that made the winner possible.
+//
+// Both platforms credit the LAST ad clicked, so test mode's judge will pause an
+// assisting ad and the winner can get worse afterwards. Multi-angle mode exists to stop
+// that, and the ONE property that must hold is: it may never pause an ad for merely
+// losing. If that leaks, the setting is decoration and the strategy is silently undone.
+{
+  // The default must not change behaviour for anyone who never touches the setting.
+  eq("the default is test mode", creativeStrategy({}).mode, "test");
+  eq("test mode still converges on a winner", creativeStrategy({}).pruneLosers, true);
+  eq("test mode still runs two ads", creativeStrategy({}).maxAds, 2);
+  eq("an unknown mode falls back to test", creativeStrategy({ creativeMode: "banana" }).mode, "test");
+  eq("a null autopilot object is not a crash", creativeStrategy(undefined).mode, "test");
+
+  // Multi-angle: the whole point.
+  const m = creativeStrategy({ creativeMode: "multi" });
+  eq("multi-angle mode is selectable", m.mode, "multi");
+  eq("🔴 multi-angle NEVER prunes losers", m.pruneLosers, false);
+  eq("multi-angle keeps 3 angles by default", m.maxAds, 3);
+
+  // The owner may ask for 2-5. Anything else is a typo, not an instruction.
+  eq("2 angles is allowed", creativeStrategy({ creativeMode: "multi", multiTarget: 2 }).maxAds, 2);
+  eq("5 angles is allowed", creativeStrategy({ creativeMode: "multi", multiTarget: 5 }).maxAds, 5);
+  eq("40 angles is clamped, not obeyed", creativeStrategy({ creativeMode: "multi", multiTarget: 40 }).maxAds, 5);
+  eq("1 angle is clamped up (one ad is not a strategy)", creativeStrategy({ creativeMode: "multi", multiTarget: 1 }).maxAds, 2);
+  eq("a negative target is clamped", creativeStrategy({ creativeMode: "multi", multiTarget: -3 }).maxAds, 2);
+  eq("a non-numeric target falls back to the default", creativeStrategy({ creativeMode: "multi", multiTarget: "lots" }).maxAds, 3);
+  // A target set while in test mode must not quietly widen test mode.
+  eq("a target is ignored in test mode", creativeStrategy({ creativeMode: "test", multiTarget: 5 }).maxAds, 2);
+
+  // Both modes must exist and differ in the one way that matters.
+  ok("the two modes disagree about pruning",
+    CREATIVE_MODES.test.pruneLosers !== CREATIVE_MODES.multi.pruneLosers);
+  ok("multi-angle runs more ads than test", CREATIVE_MODES.multi.maxAds > CREATIVE_MODES.test.maxAds);
+}
+
+// ── 3c. 🔴 THE PRUNE GATE IS ACTUALLY WIRED, ON BOTH PLATFORMS ──────────────
+// The setting is worthless if either block still judges unconditionally. Checked on the
+// SOURCE of each block, and each is checked separately so one being right cannot cover
+// for the other.
+{
+  const googleBlock = auto.slice(auto.indexOf("if (ap.splitTest !== false && gid"), auto.indexOf("// ── 5. META CREATIVE TESTING"));
+  for (const [label, block] of [["Google", googleBlock], ["Meta", metaBlock]]) {
+    ok(`${label}: declaring a winner is gated on test mode`,
+      /if \(strat\.pruneLosers && runningAds\.length >= 2\)/.test(block),
+      "without this gate, multi-angle mode would still pause an assisting ad");
+    ok(`${label}: judgeSplit is only reached inside that gate`,
+      block.indexOf("judgeSplit") > block.indexOf("strat.pruneLosers &&"),
+      "the judge must sit behind the gate, not beside it");
+    ok(`${label}: multi-angle kills only genuinely dead ads`,
+      /if \(!strat\.pruneLosers && runningAds\.length >= 2\)[\s\S]{0,220}deadCreatives\(/.test(block));
+    ok(`${label}: the ad cap comes from the setting, not a constant`,
+      /runningAds\.length >= strat\.maxAds/.test(block));
+    ok(`${label}: a hard-coded cap no longer overrides the setting`,
+      !/MAX_ADS_PER_(GROUP|SET)/.test(block));
+    ok(`${label}: the dead-ad action explains itself in plain English`,
+      /action: "split-dead"/.test(block) && /zero clicks/.test(block));
+  }
+  // "Genuinely dead" must mean NO ENGAGEMENT AT ALL, not "fewer conversions". An
+  // assisting ad still gets clicked; it just does not get the credit.
+  ok("dead means real spend AND zero clicks",
+    /Number\(a\.spend \|\| 0\) >= MULTI_DEAD_MIN_SPEND && Number\(a\.clicks \|\| 0\) === 0/.test(auto));
+  ok("the dead threshold is a real amount of money", /MULTI_DEAD_MIN_SPEND = \d+/.test(auto));
+  ok("multi-angle mode never consults conversions to kill",
+    !/deadCreatives[\s\S]{0,200}conversions/.test(auto));
+
+  // One setting, both platforms — a combined client must not behave two ways.
+  eq("the strategy is resolved exactly once per client",
+    (auto.match(/const strat = creativeStrategy\(ap\);/g) || []).length, 1);
+}
+
+// ── 3d. The switch is reachable and changeable ──────────────────────────────
+{
+  const os = readFileSync("index.html", "utf8");
+  ok("the OS has a strategy control", /function CreativeStrategyCard/.test(os));
+  ok("it writes the mode onto the client", /creativeMode:id/.test(os));
+  ok("it writes the angle count", /multiTarget:n/.test(os));
+  ok("it is shown for ANY client with a linked ad account, not just the house account",
+    /client\.internal \|\| client\.googleAdsCustomerId \|\| client\.metaAdAccountId\) && <CreativeStrategyCard/.test(os),
+    "Bryson: \"I also want this for clients in the future as well\"");
+  ok("it says flipping it changes nothing by itself", /never touches a live campaign by itself/.test(os));
+  ok("it explains the one thing multi-angle still pauses", /zero<\/strong> clicks/.test(os));
+  ok("it warns about splitting a small budget too thin", /Split too thin/.test(os));
+}
+
 // ── 4. The challenger is a real test, not a reworded twin ───────────────────
 {
   ok("the image is held constant", /imageHash: champion\.imageHash/.test(metaBlock));
@@ -209,7 +296,9 @@ const ad = (id, { imps = 1000, clicks = 60, conv = 0, leads = 0 } = {}) =>
     const m = auto.match(new RegExp(`${name}\\s*=\\s*([\\d.]+)`));
     return m ? Number(m[1]) : null;
   };
-  eq("one challenger at a time, never a pile", num("META_SPLIT_MAX_ADS_PER_SET"), 2);
+  // The per-set cap is no longer a constant — it comes from the creative strategy, so a
+  // hard-coded number here would be testing something that no longer decides anything.
+  eq("test mode still allows one challenger at a time", CREATIVE_MODES.test.maxAds, 2);
   ok("Meta needs more impressions than Google before a test is worth writing",
     num("META_SPLIT_MIN_IMPRESSIONS") > num("SPLIT_MIN_IMPRESSIONS"),
     "Meta front-loads whichever ad it thinks will win, so early numbers are its guess");
@@ -221,7 +310,7 @@ const ad = (id, { imps = 1000, clicks = 60, conv = 0, leads = 0 } = {}) =>
 
   ok("the cooldown is actually applied", /META_SPLIT_COOLDOWN_HOURS \* 3600e3/.test(metaBlock));
   ok("the impressions floor is actually applied", /setImpressions < META_SPLIT_MIN_IMPRESSIONS/.test(metaBlock));
-  ok("the per-set ad cap is actually applied", /META_SPLIT_MAX_ADS_PER_SET/.test(metaBlock));
+  ok("the per-set ad cap is actually applied", /runningAds\.length >= strat\.maxAds/.test(metaBlock));
   ok("the blast-radius cap applies to Meta too", /MAX_ACTIONS_PER_CLIENT/.test(metaBlock));
   ok("the global kill switch still covers it", /ADS_AUTOPILOT/.test(auto));
 
