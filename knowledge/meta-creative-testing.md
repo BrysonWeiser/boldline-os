@@ -2,9 +2,9 @@
 name: meta-creative-testing
 topic: Ads
 task: understand or change how Meta ads are automatically improved, or work out why autopilot did or did not write a Meta challenger
-keywords: [meta creative testing, meta split test, challenger ad, judgeSplit, META_SPLIT_MIN_IMPRESSIONS, META_SPLIT_MIN_CLICKS_EACH, META_SPLIT_MIN_LIFT, META_SPLIT_COOLDOWN_HOURS, META-TIER-GATE, addAdToAdset, getAdsForCampaign, setAdStatus, adset, image hash, development tier, budget neutral]
+keywords: [meta creative testing, meta split test, test vs multi angle, creativeMode, multiTarget, multi-angle, Brez Scales, Bergen Resnik, multi-touch, awareness, last click attribution, assisting ad, MULTI_DEAD_MIN_SPEND, creativeStrategy, CreativeStrategyCard, challenger ad, judgeSplit, META_SPLIT_MIN_IMPRESSIONS, META_SPLIT_MIN_CLICKS_EACH, META_SPLIT_MIN_LIFT, META_SPLIT_COOLDOWN_HOURS, META-TIER-GATE, addAdToAdset, getAdsForCampaign, setAdStatus, adset, image hash, development tier, budget neutral]
 status: verified
-summary: BUILT 2026-08-19. Autopilot now improves Meta ads on its own, mirroring the Google split-test path one level down (ads inside an AD SET rather than an ad group). It writes ONE challenger creative into a live ad set, then pauses the loser once both have had a fair run. Budget-neutral by construction — budget lives on the campaign/ad set, never on the ad — so the founding invariant holds. The image is held constant so a win means something. GATED to BoldLine-owned accounts while Meta is on Development tier; one named condition to delete at approval. 74 checks, five deliberate breaks confirmed to fail.
+summary: BUILT 2026-08-19. Autopilot now improves Meta ads on its own, mirroring the Google split-test path one level down (ads inside an AD SET rather than an ad group). It writes ONE challenger creative into a live ad set, then pauses the loser once both have had a fair run. Budget-neutral by construction — budget lives on the campaign/ad set, never on the ad — so the founding invariant holds. The image is held constant so a win means something. GATED to BoldLine-owned accounts while Meta is on Development tier; one named condition to delete at approval. Behaviour is switchable per client between `test` (converge on a winner) and `multi` (keep 2-5 angles alive, never prune for losing). 114 checks, ten deliberate breaks confirmed to fail.
 verified: 2026-08-19
 ---
 
@@ -102,6 +102,57 @@ rejecting writes on a schedule. Caught only by deliberately breaking it. It now 
 whole gate condition.
 
 **Lesson, again:** assert the invariant, not a string that happens to appear near it.
+
+## 🔴 TEST vs MULTI-ANGLE (added 2026-08-19, same day)
+
+**Bryson, after Brez Scales (Bergen Resnik, e-commerce media buyer):** *"if your running
+multiple ads with different images/angles/keywords that one might have high or whatever but
+itll be ok because thats what builds awareness and then the second ads builds it even more
+and then the third ad that they see will land them as a lead."*
+
+He is right, and it exposes a **real flaw in test mode** that was shipped hours earlier:
+
+> **Both platforms credit the LAST ad clicked.** If ad A warms someone over a week and ad B
+> catches the form fill, B takes the credit and A looks like a failure. `judgeSplit` pauses
+> A, and **B can then get worse, because A was feeding it.**
+
+Test mode silently assumes every ad is a self-contained attempt to convert. That assumption
+is wrong the moment the strategy is multi-touch. So the behaviour is now a **per-client
+setting**, changeable any time, honoured identically by Google and Meta.
+
+| | `test` (default) | `multi` |
+|---|---|---|
+| Ads kept running | 2 | **2-5, owner picks (default 3)** |
+| Prunes the loser | yes | **never** |
+| Only ever kills | the weaker of two, on a decisive lift | an ad with **real spend and ZERO clicks** |
+| Best when | still finding the message; small budget | spending enough for real frequency; retargeting exists |
+
+**"Genuinely dead" deliberately means no engagement at all, not fewer conversions.** An
+assisting ad still gets clicked; it just does not get the credit. Killing on conversions
+would re-create the exact bug the mode exists to avoid — asserted directly, and confirmed to
+fail when the criterion was swapped to conversions.
+
+`creativeStrategy(ap)` resolves `{ mode, maxAds, pruneLosers }` once per client. A
+`multiTarget` outside 2-5 is **clamped, not obeyed** ("keep 40 creatives alive" is a typo).
+The default is `test`, so nobody's behaviour changed without opting in.
+
+**In multi mode the challenger is written against the NEWEST running creative**, not the
+first: the set already holds several angles, and beating the oldest teaches least.
+
+### Where to change it
+
+`CreativeStrategyCard` on any client with a linked ad account — **not just the house
+account** (*"I also want this for clients in the future as well"*). Flipping it writes
+`autopilot.creativeMode` and takes effect on the next run; it never touches a live campaign
+by itself.
+
+### 🟡 The honest caveat, which is in the UI too
+
+Multi-angle is not free on a small budget. Split too thin and none of the creatives get
+enough data, so all of them stay mediocre. It earns its keep once there is enough spend for
+someone to genuinely see you several times, or once retargeting exists so the funnel stages
+are actually separate. On Google search it matters far less — that is people already looking
+for you — but the setting is honoured on both so a combined client cannot behave two ways.
 
 ## Related
 

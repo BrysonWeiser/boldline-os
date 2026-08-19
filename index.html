@@ -1998,6 +1998,92 @@ const briefMdToNodes = (md) => {
   flush(); return out;
 };
 
+// ─── CREATIVE STRATEGY: TEST vs MULTI-ANGLE ─────────────────────────────────
+// Bryson, 2026-08-19, after Brez Scales: "if your running multiple ads with different
+// images/angles/keywords that one might have high or whatever but itll be ok because
+// thats what builds awareness and then the second ads builds it even more and then the
+// third ad that they see will land them as a lead."
+//
+// He is right, and it exposes a real flaw in test mode: both platforms credit the LAST
+// ad clicked, so an ad that warms someone up looks like a failure and gets paused, and
+// the winner can get worse afterwards because the loser was feeding it.
+//
+// This is the switch. Per client, changeable any time, and it takes effect on the next
+// autopilot run — there is nothing to rebuild and no campaign is touched by flipping it.
+function CreativeStrategyCard({client, onUpdate}) {
+  const ap = client.autopilot || {};
+  const mode = ap.creativeMode === "multi" ? "multi" : "test";
+  const target = Math.min(5, Math.max(2, Math.round(Number(ap.multiTarget)) || 3));
+  const set = (patch) => onUpdate && onUpdate({...client, autopilot:{...ap, ...patch}});
+
+  const opt = (id, title, blurb, when) => {
+    const on = mode === id;
+    return (
+      <button key={id} onClick={()=>set({creativeMode:id})} style={{width:"100%",textAlign:"left",
+        padding:"11px 13px",borderRadius:11,marginBottom:7,cursor:"pointer",
+        border:`2px solid ${on?"#C8A84B":C.border}`,
+        backgroundColor:on?"rgba(200,168,75,0.07)":"rgba(255,255,255,0.02)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{width:15,height:15,borderRadius:"50%",flexShrink:0,
+            border:`2px solid ${on?"#C8A84B":C.textMuted}`,
+            backgroundColor:on?"#C8A84B":"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {on&&<span style={{width:5,height:5,borderRadius:"50%",backgroundColor:"#0a0800"}}/>}
+          </span>
+          <span style={{fontSize:13,fontWeight:700,color:on?C.text:C.textDim}}>{title}</span>
+        </div>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:5}}>{blurb}</div>
+        <div style={{fontSize:10.5,color:on?C.gold:C.textMuted,lineHeight:1.55,marginTop:5}}>{when}</div>
+      </button>
+    );
+  };
+
+  return (
+    <Card>
+      <Label>Ad Testing Strategy</Label>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,margin:"0 0 11px"}}>
+        How the bot decides what to do with your ads. Change it whenever you like, it takes effect on the next run and never touches a live campaign by itself.
+      </div>
+
+      {opt("test","Test to a winner",
+        "Runs two ads against each other and pauses the weaker one once there is enough data to be sure.",
+        "Best when you are still finding out which message works, and on a smaller budget where three ads would each get too little to learn from.")}
+
+      {opt("multi","Multi-angle",
+        `Keeps ${target} different ads running at once on purpose. It never pauses one just for performing worse.`,
+        "Best once you are spending enough that people see you several times. The first ad makes them aware, the second makes it familiar, the third is the one they act on.")}
+
+      {mode==="multi"&&(
+        <div style={{marginTop:4,padding:"11px 13px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.03)",border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.textDim,marginBottom:7}}>How many angles to keep running</div>
+          <div style={{display:"flex",gap:6}}>
+            {[2,3,4,5].map(n=>(
+              <button key={n} onClick={()=>set({multiTarget:n})} style={{flex:1,padding:"8px 0",fontSize:13,fontWeight:800,borderRadius:9,cursor:"pointer",
+                border:`1px solid ${target===n?"#C8A84B":C.border}`,
+                backgroundColor:target===n?"rgba(200,168,75,0.12)":"rgba(255,255,255,0.02)",
+                color:target===n?C.gold:C.textMuted}}>{n}</button>
+            ))}
+          </div>
+          {/* The one thing that still gets killed, said plainly, so "never pauses" is not
+              mistaken for "never touches anything". */}
+          <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:9}}>
+            An ad is only ever paused here if it spends real money and gets <strong style={{color:C.textDim}}>zero</strong> clicks. A losing ad might be the one warming people up. An ad nobody clicks is not warming anyone.
+          </div>
+        </div>
+      )}
+
+      {/* Honest about where it helps, because it is not free on a small budget. */}
+      {mode==="multi"&&!client.internal&&(
+        <div style={{marginTop:9,padding:"10px 12px",borderRadius:10,backgroundColor:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.22)",fontSize:10.5,color:C.textDim,lineHeight:1.6}}>
+          Worth checking their budget can feed {target} ads. Split too thin, none of them get enough data and all of them stay mediocre.
+        </div>
+      )}
+      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:9}}>
+        Applies to Google and Meta together. Most useful on Meta, where people need to see you a few times. Google search is people already looking for you, so it matters less there.
+      </div>
+    </Card>
+  );
+}
+
 // ─── HAND-OFF DELIVERY CARD ──────────────────────────────────────────────────
 // Bryson, 2026-08-18: "how will I build it and give it to them and then track if they
 // come back as a recurring client within 6 months?"
@@ -4790,6 +4876,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
+            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
               // in Edit → Info; for real clients they follow their package platform.

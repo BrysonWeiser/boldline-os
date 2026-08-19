@@ -66,7 +66,6 @@ const SPLIT_MIN_IMPRESSIONS = 500;   // per ad group before a challenger is wort
 const SPLIT_MIN_CLICKS_EACH = 30;    // per ad before a winner may be declared
 const SPLIT_MIN_DAYS = 7;            // and it must have had a week to run
 const SPLIT_MIN_LIFT = 0.25;         // the winner must beat the loser by 25%+, or it is noise
-const SPLIT_MAX_ADS_PER_GROUP = 2;   // one challenger at a time, never a pile
 const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
 
 // ── META CREATIVE TESTING ───────────────────────────────────────────────────
@@ -95,9 +94,53 @@ const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
 //     the copy AND the picture change together, a win teaches nothing about which one won.
 const META_SPLIT_MIN_IMPRESSIONS = 1000;  // per ad set before a challenger is worth writing
 const META_SPLIT_MIN_CLICKS_EACH = 50;    // per ad before a winner may be declared
-const META_SPLIT_MAX_ADS_PER_SET = 2;     // one challenger at a time, never a pile
 const META_SPLIT_MIN_LIFT = 0.30;         // beat the loser by 30%+, or it is Meta's delivery talking
 const META_SPLIT_COOLDOWN_HOURS = 168;    // one action per ad set per week
+
+// ── CREATIVE STRATEGY: TEST vs MULTI-ANGLE ──────────────────────────────────
+// Bryson, 2026-08-19, after Brez Scales (Bergen Resnik): "if your running multiple ads
+// with different images/angles/keywords that one might have high or whatever but itll be
+// ok because thats what builds awareness and then the second ads builds it even more and
+// then the third ad that they see will land them as a lead."
+//
+// He is describing multi-touch, and it is real: cold paid social rarely converts on first
+// exposure, and three angles beat the same ad three times.
+//
+// 🔴 IT ALSO EXPOSES A GENUINE FLAW IN TEST MODE, WHICH IS WHY THIS SETTING EXISTS.
+// Both platforms credit the LAST ad clicked. So if ad A warms someone over a week and ad
+// B catches the form fill, B takes the credit and A looks like a failure. `judgeSplit`
+// then pauses A — and B can get WORSE afterwards, because A was feeding it. Test mode
+// silently assumes every ad is a self-contained attempt to convert. That assumption is
+// wrong the moment the strategy is multi-touch.
+//
+//   test   converge on ONE winner. Two ads, prune the loser. Right while you are still
+//          finding out which MESSAGE works, and right on a small budget where three
+//          under-fed creatives all fail to learn.
+//   multi  keep several angles alive on purpose. Never prunes for "worse than its
+//          sibling" — only for genuinely DEAD, which means real spend and zero clicks.
+//          An assisting ad still gets clicked; it just does not get the credit.
+//
+// Default is `test`, so existing behaviour is unchanged unless someone opts in.
+// Most valuable on Meta. Google search is intent-driven and multi-touch matters far less
+// there, but the setting is honoured on both so a combined client cannot behave two ways.
+const MULTI_DEAD_MIN_SPEND = 25;   // $ over 30d with ZERO clicks before multi mode kills it
+const MULTI_MIN_ADS = 2, MULTI_MAX_ADS = 5;
+export const CREATIVE_MODES = {
+  test:  { maxAds: 2, pruneLosers: true },
+  multi: { maxAds: 3, pruneLosers: false },
+};
+// Reads the per-client setting into the numbers the blocks below use. `multiTarget` lets
+// the owner ask for 2-5 angles; anything outside that is clamped rather than obeyed,
+// because "keep 40 creatives alive" is a typo, not an instruction.
+export const creativeStrategy = (ap = {}) => {
+  const mode = CREATIVE_MODES[ap.creativeMode] ? ap.creativeMode : "test";
+  const base = CREATIVE_MODES[mode];
+  const wanted = Math.round(Number(ap.multiTarget));
+  const maxAds = mode === "multi" && Number.isFinite(wanted)
+    ? Math.min(MULTI_MAX_ADS, Math.max(MULTI_MIN_ADS, wanted))
+    : base.maxAds;
+  return { mode, maxAds, pruneLosers: base.pruneLosers };
+};
 
 // ── CONDITIONS-TRIGGERED REWRITES ───────────────────────────────────────────
 // When the weather in the client's area genuinely turns — monsoon starts, the first
@@ -210,6 +253,13 @@ export default withFailureAlert("ads-autopilot", async () => {
     const who = cl.internal ? "My Ads (BoldLine's own account)" : (cl.name || "A client");
     const recent = Array.isArray(ap.log) ? ap.log : [];
     const onCooldown = (key) => recent.some((a) => a.key === key && (now - new Date(a.at).getTime()) < COOLDOWN_HOURS * 3600e3);
+    // Test vs multi-angle, resolved once and honoured identically by both platforms so a
+    // combined client cannot behave one way on Google and another on Meta.
+    const strat = creativeStrategy(ap);
+    // In multi-angle mode an ad is only killed when it is doing NOTHING. An ad that is
+    // merely losing may be the one warming people up for the ad that gets the credit.
+    const deadCreatives = (ads) => ads.filter((a) =>
+      Number(a.spend || 0) >= MULTI_DEAD_MIN_SPEND && Number(a.clicks || 0) === 0);
 
     // ── gather live campaigns from both platforms ──
     const live = [];
@@ -355,8 +405,23 @@ export default withFailureAlert("ads-autopilot", async () => {
           if (recent.some((a) => a.key === splitKey && (now - new Date(a.at).getTime()) < SPLIT_COOLDOWN_HOURS * 3600e3)) continue;
           const runningAds = (g.ads || []).filter((a) => String(a.status || "").toUpperCase() === "ENABLED");
 
-          // ── Declare a winner ────────────────────────────────────────────────
-          if (runningAds.length >= 2) {
+          // ── Multi-angle: kill only what is genuinely dead ───────────────────
+          if (!strat.pruneLosers && runningAds.length >= 2) {
+            const dead = deadCreatives(runningAds)[0];
+            if (dead) {
+              try {
+                await gadsSetAdStatus(accessToken, gid, dead.resourceName, "PAUSED");
+                actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-dead",
+                  name: `${t.c.name} / ${g.name}`, platform: "google",
+                  reason: `paused an ad that spent $${round2(dead.spend)} and got zero clicks. Multi-angle mode keeps losing ads running on purpose, because a losing ad may be the one warming people up, but an ad nobody clicks at all is not warming anyone. Budget unchanged.` });
+                splitWinners++;
+              } catch (e) { failures++; console.error("ads-autopilot: pause dead ad failed:", e && e.message); }
+              continue;
+            }
+          }
+
+          // ── Declare a winner (TEST MODE ONLY) ───────────────────────────────
+          if (strat.pruneLosers && runningAds.length >= 2) {
             const verdict = judgeSplit(runningAds, {
               minClicks: SPLIT_MIN_CLICKS_EACH, minLift: SPLIT_MIN_LIFT, convKey: "conversions" });
             if (!verdict) continue;
@@ -372,8 +437,9 @@ export default withFailureAlert("ads-autopilot", async () => {
           }
 
           // ── Write a challenger ──────────────────────────────────────────────
-          if (runningAds.length !== 1) continue;
-          if (runningAds.length >= SPLIT_MAX_ADS_PER_GROUP) continue;
+          // Needs a champion to write AGAINST, and a free slot. In multi-angle mode
+          // there are several slots, filled one per cooldown rather than all at once.
+          if (runningAds.length < 1 || runningAds.length >= strat.maxAds) continue;
 
           // Two independent reasons to write a challenger.
           //  1. ENOUGH TRAFFIC — the normal case: the group has earned a real test.
@@ -464,8 +530,23 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
           if (recent.some((a) => a.key === splitKey && (now - new Date(a.at).getTime()) < META_SPLIT_COOLDOWN_HOURS * 3600e3)) continue;
           const runningAds = setAds.filter((a) => String(a.effectiveStatus || a.status || "").toUpperCase() === "ACTIVE");
 
-          // ── Declare a winner ────────────────────────────────────────────────
-          if (runningAds.length >= 2) {
+          // ── Multi-angle: kill only what is genuinely dead ───────────────────
+          if (!strat.pruneLosers && runningAds.length >= 2) {
+            const dead = deadCreatives(runningAds)[0];
+            if (dead) {
+              try {
+                await metaSetAdStatus(dead.id, "PAUSED");
+                actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-dead",
+                  name: `${t.c.name} / ad set ${adsetId}`, platform: "meta",
+                  reason: `paused a creative that spent $${round2(dead.spend)} and got zero clicks. Multi-angle mode keeps losing creatives running on purpose, because a losing creative may be the one building awareness, but one nobody clicks at all is not building anything. Budget unchanged.` });
+                splitWinners++;
+              } catch (e) { failures++; console.error("ads-autopilot: meta pause dead ad failed:", e && e.message); }
+              continue;
+            }
+          }
+
+          // ── Declare a winner (TEST MODE ONLY) ───────────────────────────────
+          if (strat.pruneLosers && runningAds.length >= 2) {
             const verdict = judgeSplit(runningAds, {
               minClicks: META_SPLIT_MIN_CLICKS_EACH, minLift: META_SPLIT_MIN_LIFT, convKey: "leads" });
             if (!verdict) continue;
@@ -481,9 +562,10 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
           }
 
           // ── Write a challenger ──────────────────────────────────────────────
-          if (runningAds.length !== 1) continue;
-          if (runningAds.length >= META_SPLIT_MAX_ADS_PER_SET) continue;
-          const champion = runningAds[0];
+          if (runningAds.length < 1 || runningAds.length >= strat.maxAds) continue;
+          // Write against the NEWEST running creative: in multi-angle mode the set already
+          // holds several angles, and beating the oldest one teaches least.
+          const champion = runningAds[runningAds.length - 1];
           const setImpressions = sum(setAds, (a) => a.impressions);
           if (setImpressions < META_SPLIT_MIN_IMPRESSIONS) continue;
           // An ad built by hand in Ads Manager may carry none of what a challenger needs.
