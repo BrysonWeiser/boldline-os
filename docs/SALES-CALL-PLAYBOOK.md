@@ -171,6 +171,10 @@ Objection answers are below. When they say yes:
 
 ## The downsell: Launch & Hand Off
 
+> **⚠️ NOT ADVERTISED.** It is not on the website, not in the recommender, not in any email.
+> It exists so you have something honest to offer when a monthly plan is the wrong answer.
+> **Full step-by-step for delivering one: `docs/HAND-OFF-RUNBOOK.md`.**
+
 **Use it when the honest answer is "a monthly plan will not work for you."** That is any of:
 their ad budget is under $500, they cannot commit to three months, or they have said no to
 the monthly twice and you believe them.

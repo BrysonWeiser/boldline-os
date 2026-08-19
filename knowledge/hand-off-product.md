@@ -2,7 +2,7 @@
 name: hand-off-product
 topic: Pricing
 task: sell, build, deliver or price the one-time Launch & Hand Off, or work out what happens when a hand-off client comes back
-keywords: [hand off, handoff, one-time build, landing page export, client hosts the page, handover-export, Netlify Drop, Netlify Forms, form-name, honeypot, conversion tag, AW- id, gtag, final URL, h-handoff, Launch and Hand Off, one_time, pricingModel one_time, no monthly, setup waiver, 6 month credit, handoffPaidAt, settle-in, HANDOFF_SETTLE_IN_DAYS, handover pack, handover playbook, handoffIsFinished, downsell, sub-floor budget, Stencil]
+keywords: [hand off, handoff, one-time build, hand-off runbook, not advertised, sales-call only, downsell, landing page export, client hosts the page, handover-export, Netlify Drop, Netlify Forms, form-name, honeypot, conversion tag, AW- id, gtag, final URL, h-handoff, Launch and Hand Off, one_time, pricingModel one_time, no monthly, setup waiver, 6 month credit, handoffPaidAt, settle-in, HANDOFF_SETTLE_IN_DAYS, handover pack, handover playbook, handoffIsFinished, downsell, sub-floor budget, Stencil]
 status: verified
 summary: BUILT 2026-08-18. A one-time build for businesses below the $500/mo ad-budget floor, or who want the build without the monthly. $1,500 once, no monthly, no per-lead fee, no term. Includes the same build a managed client gets, two optimization passes over 30 days, a written handover playbook and a training call. Then BoldLine is finished, and every recurring job stops touching the account. If they move onto a managed plan within 6 months the setup fee is WAIVED automatically. Stripe sells it as mode:"payment", the contract swaps its term/fees/termination sections wholesale, and the OS tracks the whole lifecycle on one card.
 verified: 2026-08-18
@@ -128,11 +128,35 @@ because it is exactly the thing that gets forgotten in the excitement of a conve
 
 ## Selling it
 
-**Do NOT lead with it.** It is a smaller sale and offering it early gives a prospect who could
-afford managed an easy way to spend less and get less. Full downsell script in
-`docs/SALES-CALL-PLAYBOOK.md`. The site card sits on the Google panel (permanent, NOT gated by
-the Meta flip), and the recommender has an "Under $500" budget band that routes here with a
-different pitch entirely.
+### 🔴 IT IS NOT ADVERTISED, ANYWHERE
+
+**Bryson, 2026-08-19:** *"i dont want to advertise it i just want it as an option for sales
+calls."*
+
+It was briefly on the marketing site and named by the package recommender. **Both were
+removed the same day.** Publishing it lets a prospect who could afford managed pick the
+cheaper thing before Bryson has said a word, and it takes away his chance to judge whether a
+sub-floor budget is a genuine constraint or a negotiating position.
+
+`tests/verify-packages.mjs` asserts its ABSENCE from several angles — the package name, the
+phrase "one-time build", the setup-waiver line, and any mention in the recommender — because
+"we forgot to remove it from one place" is exactly how it would leak back onto a public page.
+
+The recommender still has an **"Under $500"** budget band, and it still gives an honest
+answer (*"at under $500 a month a monthly plan is not the right fit"*) and still asks them to
+book a call. It just does not name the product. Bryson offers it live.
+
+**Do NOT lead with it on the call either.** It is a smaller sale, and offering it early gives
+a prospect who could afford managed an easy way to spend less and get less. Recommend managed
+first, every time. Full downsell script in `docs/SALES-CALL-PLAYBOOK.md`.
+
+### 📋 The runbook
+
+**`docs/HAND-OFF-RUNBOOK.md`** is the step-by-step for actually delivering one: what to say,
+what to collect before hanging up, get paid before building, the two settle-in passes,
+exporting the page, the training call, closing it out, and the six-month follow-up. Written
+so this never has to be re-derived or improvised. Includes a one-page timeline and a "things
+that will bite you" table.
 
 ## 🟡 Deliberately not built
 
