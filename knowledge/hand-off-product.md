@@ -2,7 +2,7 @@
 name: hand-off-product
 topic: Pricing
 task: sell, build, deliver or price the one-time Launch & Hand Off, or work out what happens when a hand-off client comes back
-keywords: [hand off, handoff, one-time build, h-handoff, Launch and Hand Off, one_time, pricingModel one_time, no monthly, setup waiver, 6 month credit, handoffPaidAt, settle-in, HANDOFF_SETTLE_IN_DAYS, handover pack, handover playbook, handoffIsFinished, downsell, sub-floor budget, Stencil]
+keywords: [hand off, handoff, one-time build, landing page export, client hosts the page, handover-export, Netlify Drop, Netlify Forms, form-name, honeypot, conversion tag, AW- id, gtag, final URL, h-handoff, Launch and Hand Off, one_time, pricingModel one_time, no monthly, setup waiver, 6 month credit, handoffPaidAt, settle-in, HANDOFF_SETTLE_IN_DAYS, handover pack, handover playbook, handoffIsFinished, downsell, sub-floor budget, Stencil]
 status: verified
 summary: BUILT 2026-08-18. A one-time build for businesses below the $500/mo ad-budget floor, or who want the build without the monthly. $1,500 once, no monthly, no per-lead fee, no term. Includes the same build a managed client gets, two optimization passes over 30 days, a written handover playbook and a training call. Then BoldLine is finished, and every recurring job stops touching the account. If they move onto a managed plan within 6 months the setup fee is WAIVED automatically. Stripe sells it as mode:"payment", the contract swaps its term/fees/termination sections wholesale, and the OS tracks the whole lifecycle on one card.
 verified: 2026-08-18
@@ -139,8 +139,64 @@ different pitch entirely.
 - **An e-commerce hand-off.** Bryson has never run an e-commerce client and Meta is not
   approved. Selling a hand-off he cannot support is worse than not offering it.
 - **A Meta hand-off.** Same reason. The card and the package are Google-only until Meta opens.
-- **Hosting the landing page after handover.** Not decided. If BoldLine keeps hosting it there
-  is an ongoing cost against a one-time fee. **Raise this with Bryson before the first sale.**
+(Hosting was the open question here and is now decided — see below.)
+
+## 🔴 THE CLIENT HOSTS THE LANDING PAGE (decided 2026-08-19)
+
+**Bryson:** *"for hosting the landing page i will have the client host it but how do I tell
+them and cleanly hand it off"*
+
+### Why this needed real code, not an instruction
+
+The live page at `/lp/<slug>` is **rendered on request** by `landing.mjs` from Supabase, on
+BoldLine's domain. **It is not a file.** It cannot be sent to anyone, and it disappears the
+day BoldLine stops running that function. "Right click, save as" produces something that
+looks right and is broken in three ways, **all of which fail silently**:
+
+| What breaks | Why it is invisible |
+|---|---|
+| **The lead form** posts to `/.netlify/functions/lead-intake`, a RELATIVE path | On their host it 404s. The business pays for clicks that can never reach them. |
+| **The phone number** is a Twilio number BoldLine rents | It works right up until the rental lapses, then the page shows a dead number. |
+| **Conversion tracking** reached Google through that same dead path | A Google campaign with no conversions **cannot bid**. It degrades over weeks while looking fine. |
+
+### How it works
+
+`renderLandingPage(cl, opts)` takes **`opts.handoff = { phone, conversionId, conversionLabel }`**.
+A hand-off render swaps all three: the form becomes a **plain Netlify Form** (no JS, no
+endpoint, hidden `form-name`, honeypot), the phone becomes **their** number, and **their**
+gtag fires the conversion on the `?sent=1` reload. The managed page is untouched.
+
+**Netlify was chosen for one reason above the others: it handles the FORM.** Drag the folder
+onto `app.netlify.com/drop`, submissions appear in a dashboard and arrive by email, free at
+this volume. Every other static host leaves the form dead unless they wire up a third-party
+service, and a business owner with a $400 ad budget will not do that.
+
+### 🔴 Two guards worth keeping
+
+1. **The export REFUSES without their real phone number.** Shipping with the tracking number
+   baked in hands them a page that stops taking calls later, and neither party would connect
+   the two events.
+2. **The built HTML is re-scanned for leaks before it is returned** (`lead-intake`, the lead
+   token, the tracking number). A future edit to the renderer could reintroduce any of them
+   and nobody would notice until a client's leads quietly stopped.
+
+**A form whose inputs have only `id` and no `name` submits nothing at all.** It renders
+perfectly and delivers nothing. Asserted field by field in `verify-pricing-tools`.
+
+### What the client gets
+
+Two files: `index.html` and `HOW-TO-PUT-THIS-ONLINE.txt`. The guide is written for someone
+who has never deployed anything: put the file in a folder, drag it to Netlify Drop, **turn
+on form email notifications** (skipping this collects leads and tells nobody), optionally
+point their domain at it, **repoint the Google Ads final URLs**, and check conversions are
+counting. Plus a what-not-to-do list (do not rename the file, do not delete the honeypot, do
+not edit it in Word) and a troubleshooting section.
+
+### Say it on the sales call
+
+It is an advantage, not a limitation: *"the page ends up on your hosting, not mine. It means
+nothing I own can switch off and take your page down with it."* Most agencies' pages die the
+day you stop paying. Script is in `docs/SALES-CALL-PLAYBOOK.md`.
 
 ## Related
 

@@ -80,6 +80,8 @@ WRITING RULES.
 - No emojis anywhere. This is a client-facing document.
 - Do not invent specifics you were not given. If you do not know their exact ad group names, say "your ad groups" rather than making names up.
 
+THEY HOST THE LANDING PAGE THEMSELVES. Treat it as something they own and must keep online, not something that is looked after for them. In "what you now own" say plainly that the page is a file on their own hosting and that lead enquiries go to their own inbox. In "warning signs" include checking that the page still loads and that a test enquiry still arrives, because a page that quietly goes down costs them every click they pay for after that.
+
 THE MOST IMPORTANT SECTION is "leave this alone". Think hard about what an untrained owner would plausibly change that would do real damage: pausing keywords that look expensive but convert, editing or deleting the conversion action, changing the landing page URL, turning on automatic recommendations, raising the budget too fast, editing headlines that are winning. Explain the consequence in terms of their money, not in terms of the platform.`;
 
 const buildPrompt = (cl, pkg) => {
@@ -91,6 +93,10 @@ const buildPrompt = (cl, pkg) => {
   L.push(`Platform built on: ${(pkg && pkg.platform) || "Google Ads"}`);
   if (cl.googleAdsCustomerId) L.push(`They own the Google Ads account (BoldLine's access is being removed at handover).`);
   if (cl.landingPage && cl.landingPage.url) L.push(`Landing page built for them: ${cl.landingPage.url}`);
+  // The client HOSTS THE PAGE THEMSELVES after handover (Bryson, 2026-08-19). The pack
+  // has to say so, because "your landing page" means something different once nobody is
+  // hosting it for them: it is a file they own and are responsible for keeping online.
+  L.push("IMPORTANT: they host the landing page themselves from now on. It was handed over as a single file with a separate step-by-step guide for putting it online (Netlify), turning on lead emails, and repointing their ads at the new address. The form on it submits to their own host, not to us.");
   if (cl.callTrackingNumber) L.push(`Call tracking number in use: ${cl.callTrackingNumber}`);
   if (cl.cpl > 0) L.push(`Cost per lead during the settle-in period: $${cl.cpl}`);
   if (cl.leads > 0) L.push(`Leads delivered during settle-in: ${cl.leads}`);

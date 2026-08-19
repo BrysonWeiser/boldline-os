@@ -194,6 +194,16 @@ so managed is the recommendation until it plainly is not.
 > And if you grow into it and want me running it later, the setup fee comes off, because
 > you already paid me to build it."
 
+**Say who hosts the page, on the call, before they ask.**
+
+> "One thing so there are no surprises later. The landing page ends up on your hosting,
+> not mine. I hand you the file and a step by step guide, it takes about three minutes and
+> it's free. That's deliberate. It means nothing I own can switch off and take your page
+> down with it."
+
+That is a genuine advantage over most agencies, where the page dies the day you stop
+paying. Do not let it sound like a limitation.
+
 **The three things that make this close.**
 1. **You are turning down money.** Saying "the monthly isn't right for you" after they were
    ready to hear a pitch is the most credible thing you will say all call.

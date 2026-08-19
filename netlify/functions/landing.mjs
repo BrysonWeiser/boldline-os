@@ -54,7 +54,30 @@ export function designConfig(cl) {
   };
 }
 
-export function renderLandingPage(cl) {
+// ─── HAND-OFF MODE ───────────────────────────────────────────────────────────
+// Bryson, 2026-08-19: a Launch & Hand Off client HOSTS THE PAGE THEMSELVES.
+//
+// Rendering a hand-off variant rather than post-processing the finished HTML, because
+// three things break the moment this page leaves BoldLine's domain and every one of them
+// fails QUIETLY, which is the worst kind:
+//
+//  1. THE LEAD FORM. It posts to `/.netlify/functions/lead-intake`, a RELATIVE path. On
+//     their host that path does not exist, so every enquiry hits a 404 and the visitor
+//     sees "something went wrong". The business would be paying for clicks that can never
+//     reach them and would have no way of knowing why. In hand-off mode the form becomes
+//     a plain Netlify Form: no JavaScript, no endpoint, submissions land in their own
+//     Netlify dashboard and get emailed to them.
+//  2. THE PHONE NUMBER. `callTrackingNumber` is a Twilio number BoldLine rents. It stops
+//     working the day BoldLine stops paying for it, and until then their calls route
+//     through an account they do not own. Hand-off mode uses THEIR real number.
+//  3. CONVERSION TRACKING. Conversions currently reach Google through lead-intake. Once
+//     that path is gone the campaign stops receiving conversion data, and a Google
+//     campaign with no conversions cannot bid — it degrades over weeks while looking
+//     fine. Hand-off mode fires their own Google Ads conversion tag on form submit.
+//
+// `opts.handoff` is `{ phone, conversionId, conversionLabel }`. Absent = normal page.
+export function renderLandingPage(cl, opts = {}) {
+  const HO = opts.handoff || null;
   const lp = cl.landingPage || {};
   const cs = cl.campaignSetup || {};
   const bv = cl.brandVoice || {};
@@ -66,7 +89,8 @@ export function renderLandingPage(cl) {
   const hero = mediaHero || (lp.heroUrl ? { url: lp.heroUrl, category: "photo", path: "__web" } : null);
   const logoUrl = lp.logo || cl.brandLogo || "";
   const bullets = Array.isArray(lp.bullets) ? lp.bullets : [];
-  const phone = cl.callTrackingNumber || "";
+  // Their own number in hand-off mode: the tracking number dies with the rental.
+  const phone = HO ? String(HO.phone || "") : (cl.callTrackingNumber || "");
   const area = cs.serviceArea || cs.targetLocations || "";
   const offer = cs.mainOffer || "";
   const differentiator = bv.differentiator || "";
@@ -251,14 +275,22 @@ a{color:inherit}
   const formCardHTML = `<div class="fcard reveal" id="lead-form">
     <div class="formtitle">${esc(cta)}</div>
     <div class="formsub">Takes 20 seconds. We'll be in touch shortly.</div>
-    <form id="lf">
+    ${HO ? `<form id="lf" name="leads" method="POST" data-netlify="true" netlify-honeypot="company-website" action="?sent=1">
+      <input type="hidden" name="form-name" value="leads">
+      <p style="display:none"><label>Do not fill this in: <input name="company-website"></label></p>
+      <input class="inp" name="name" placeholder="Your name" required>
+      <input class="inp" name="phone" placeholder="Phone number" required>
+      <input class="inp" name="email" type="email" placeholder="Email (optional)">
+      <button class="cta" type="submit" style="width:100%;justify-content:center">${esc(cta)}</button>
+      <div class="fine">🔒 Your info stays private. No spam, ever.</div>
+    </form>` : `<form id="lf">
       <input class="inp" id="lf-name" placeholder="Your name" required>
       <input class="inp" id="lf-phone" placeholder="Phone number" required>
       <input class="inp" id="lf-email" type="email" placeholder="Email (optional)">
       <div class="err" id="lf-err">Something went wrong — please try again.</div>
       <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
       <div class="fine">🔒 Your info stays private. No spam, ever.</div>
-    </form>
+    </form>`}
     <div class="thanks" id="lf-thanks"><h2>Got it — thank you!</h2><p>We'll be in touch shortly.</p></div>
   </div>`;
 
@@ -328,6 +360,38 @@ a{color:inherit}
   ${formCardHTML}
 </div></div></section>`;
 
+  // ── Form behaviour, chosen once ──────────────────────────────────────────
+  // Managed: JS posts to lead-intake on BoldLine's domain.
+  // Hand-off: no JS at all. The browser posts natively to Netlify Forms on the CLIENT's
+  // own site, which then reloads with ?sent=1 — that is where the thank-you state and
+  // their conversion fire. Fewer moving parts is the point: there is nobody left to fix
+  // it if it breaks.
+  const managedFormJS = `
+  var lf=document.getElementById('lf');
+  if(lf){lf.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
+    err.style.display='none';btn.disabled=true;btn.textContent='Sending…';
+    fetch('/.netlify/functions/lead-intake?token=${encodeURIComponent(cl.leadToken || "")}',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'})
+    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';})
+    .catch(function(){err.style.display='block';btn.disabled=false;btn.textContent=${JSON.stringify(cta)};});
+  });}`;
+  const conversionCall = (HO && HO.conversionId && HO.conversionLabel)
+    ? `if(typeof gtag==='function'){gtag('event','conversion',{'send_to':${JSON.stringify(HO.conversionId + "/" + HO.conversionLabel)}});}`
+    : `/* No conversion tag was supplied, so Google receives no conversions from this page
+         and the campaign cannot bid on them. Add one in Google Ads and paste it in. */`;
+  const handoffFormJS = `
+  try{
+    if(location.search.indexOf('sent=1')>=0){
+      var f=document.getElementById('lf'); if(f)f.style.display='none';
+      var t=document.getElementById('lf-thanks'); if(t){t.style.display='block';t.scrollIntoView({block:'center'});}
+      ${conversionCall}
+    }
+  }catch(e){}`;
+  const formJS = HO ? handoffFormJS : managedFormJS;
+
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const chips = [area ? `<div class="chip">📍 Serving ${esc(area)}</div>` : "", differentiator ? `<div class="chip">⭐ ${esc(differentiator.slice(0, 60))}</div>` : "", `<div class="chip">✅ Free quote — no obligation</div>`, phone ? `<div class="chip">⚡ Fast response</div>` : ""].filter(Boolean).join("");
   const bodyClass = `js lay-${D.layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
@@ -339,6 +403,8 @@ ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
 ${bottomBlock}
+${HO && HO.conversionId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(HO.conversionId)}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(HO.conversionId)});</script>` : ""}
 <footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">📞 Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
@@ -350,17 +416,7 @@ ${bottomBlock}
     els.forEach(function(el){io.observe(el);});
     setTimeout(showAll,1500);
   }catch(e){showAll();}
-  var lf=document.getElementById('lf');
-  if(lf){lf.addEventListener('submit',function(e){
-    e.preventDefault();
-    var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
-    err.style.display='none';btn.disabled=true;btn.textContent='Sending…';
-    fetch('/.netlify/functions/lead-intake?token=${encodeURIComponent(cl.leadToken || "")}',{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'})
-    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';})
-    .catch(function(){err.style.display='block';btn.disabled=false;btn.textContent=${JSON.stringify(cta)};});
-  });}
+${formJS}
 })();
 <\/script>
 </body></html>`;

@@ -2009,6 +2009,9 @@ function HandOffCard({client,pkg,onUpdate,isDesktop}){
   const [busy,setBusy]=useState("");
   const [msg,setMsg]=useState("");
   const [showPack,setShowPack]=useState(false);
+  const [showExport,setShowExport]=useState(false);
+  const [exp,setExp]=useState({phone:client.publicPhone||"",conversionId:"",conversionLabel:"",domain:""});
+  const [expOut,setExpOut]=useState(null);
   const h=handoffDates(client);
   const pack=client.handoverPack;
   if(!isOneTime(pkg)) return null;
@@ -2028,6 +2031,34 @@ function HandOffCard({client,pkg,onUpdate,isDesktop}){
     }catch(e){ setMsg(e.message); }
     setBusy("");
   };
+  // ── Exporting the landing page ─────────────────────────────────────────
+  // The live page is rendered on request from BoldLine's database on BoldLine's domain.
+  // It is not a file and cannot be "given" to anyone — it disappears the day the function
+  // stops running. So the hand-off produces a standalone copy with their own number,
+  // their own conversion tag, and a form that posts to a host THEY control.
+  const runExport=async()=>{
+    setBusy("export"); setMsg(""); setExpOut(null);
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const token=session&&session.access_token;
+      if(!token) throw new Error("Your session expired — refresh the page and try again.");
+      const r=await fetch("/.netlify/functions/handover-export",{method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body:JSON.stringify({clientId:client.id,...exp})}).then(x=>x.json());
+      if(!r||!r.ok) throw new Error((r&&r.error)||"Could not build the export.");
+      setExpOut(r);
+      onUpdate&&onUpdate({...client,publicPhone:exp.phone,handoffExportedAt:new Date().toISOString()});
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  // Two separate files rather than a zip: there is no zip library in the browser here,
+  // and "save both into one folder" is an instruction a business owner can follow.
+  const download=(text,filename,type)=>{
+    const url=URL.createObjectURL(new Blob([text],{type}));
+    const a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+
   const markSent=()=>{
     const now=new Date().toISOString();
     onUpdate&&onUpdate({...client,handoffPackSent:now,
@@ -2091,8 +2122,9 @@ function HandOffCard({client,pkg,onUpdate,isDesktop}){
             {step(1,"Build it",`Same build as a managed client: campaign, custom landing page, call tracking, conversion tracking. It all lives in ${client.name}'s own account, never yours.`,true,false)}
             {step(2,"Two optimization passes",`Within the first ${HANDOFF_SETTLE_IN_DAYS} days. This is the part they paid for that a freelancer would not do, and it is what makes the campaign worth handing over.`,!h.inSettleIn,h.inSettleIn)}
             {step(3,"Send the handover pack",pack?"Written and ready. Read it below, then send it and book the training call.":"A playbook written for their campaign: the weekly routine, what to leave alone, and the warning signs. Write it below.",!!client.handoffPackSent,h.inSettleIn&&!client.handoffPackSent)}
-            {step(4,"Remove your access","Drop your manager access to their ad account. They own it outright, and leaving yourself in it implies you are still watching.",!!client.handoffPackSent,!h.inSettleIn&&!client.handoffPackSent)}
-            {step(5,"Call them before the waiver runs out",h.creditLive?`${h.daysLeftOnCredit} days left. They have run it themselves for a while by now, which is the best possible moment to ask how it is going.`:"The window has closed. Still worth a call, it just costs them a setup fee now.",!h.creditLive,h.creditLive&&!h.inSettleIn)}
+            {step(4,"Hand over the landing page",client.handoffExportedAt?`Exported ${new Date(client.handoffExportedAt).toLocaleDateString()}. They host it from here.`:"The live page runs on our server and vanishes when we stop hosting it. Export a standalone copy with their own number and their own form.",!!client.handoffExportedAt,h.inSettleIn&&!client.handoffExportedAt)}
+            {step(5,"Remove your access","Drop your manager access to their ad account, and release the call tracking number so you stop paying for it.",!!client.handoffPackSent,!h.inSettleIn&&!client.handoffPackSent)}
+            {step(6,"Call them before the waiver runs out",h.creditLive?`${h.daysLeftOnCredit} days left. They have run it themselves for a while by now, which is the best possible moment to ask how it is going.`:"The window has closed. Still worth a call, it just costs them a setup fee now.",!h.creditLive,h.creditLive&&!h.inSettleIn)}
           </div>
 
           <div style={{display:"flex",gap:7,marginTop:10,flexWrap:"wrap"}}>
@@ -2106,6 +2138,51 @@ function HandOffCard({client,pkg,onUpdate,isDesktop}){
           {client.handoffPackSent&&(
             <div style={{marginTop:8,fontSize:11,color:C.green,lineHeight:1.6}}>✓ Handed over {new Date(client.handoffPackSent).toLocaleDateString()}. Your work on this build is finished.</div>
           )}
+          <button onClick={()=>setShowExport(v=>!v)} style={{width:"100%",marginTop:7,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${showExport?C.borderAccent:C.border}`,backgroundColor:showExport?"rgba(200,168,75,0.06)":"rgba(255,255,255,.04)",color:showExport?C.gold:C.textDim,cursor:"pointer"}}>
+            {showExport?"Hide the page export":"Export their landing page"}</button>
+          {showExport&&(
+            <div style={{marginTop:9,padding:"13px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`}}>
+              <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.7,marginBottom:10}}>
+                The live page runs on our server, so it is not a file you can send. This builds a standalone copy: <strong style={{color:C.text}}>their</strong> phone number, a form that posts to their own host, and their conversion tag.
+              </div>
+              <div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Their real phone number *</div>
+              <input value={exp.phone} onChange={e=>setExp(v=>({...v,phone:e.target.value}))} placeholder="(602) 555-0199" style={inp}/>
+              <div style={{fontSize:10,color:C.amber,lineHeight:1.55,margin:"5px 0 10px"}}>Not the tracking number. That one stops working when you release it, and their page would quietly stop taking calls.</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{flex:"1 1 150px",minWidth:0}}>
+                  <div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Conversion ID</div>
+                  <input value={exp.conversionId} onChange={e=>setExp(v=>({...v,conversionId:e.target.value}))} placeholder="AW-123456789" style={inp}/>
+                </div>
+                <div style={{flex:"1 1 150px",minWidth:0}}>
+                  <div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Conversion label</div>
+                  <input value={exp.conversionLabel} onChange={e=>setExp(v=>({...v,conversionLabel:e.target.value}))} placeholder="abcDEF123" style={inp}/>
+                </div>
+              </div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,margin:"5px 0 10px"}}>From their Google Ads account, under Goals. Leave blank if you have not got them yet, but their campaign will stop learning without it.</div>
+              <div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Their domain <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div>
+              <input value={exp.domain} onChange={e=>setExp(v=>({...v,domain:e.target.value}))} placeholder="offers.theircompany.com" style={inp}/>
+              <button onClick={runExport} disabled={!!busy} style={{width:"100%",marginTop:11,padding:"10px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",background:busy==="export"?"rgba(255,255,255,.06)":C.gradB,color:busy==="export"?C.textMuted:"#1a1400",cursor:busy?"default":"pointer"}}>
+                {busy==="export"?"Building…":"Build the export"}</button>
+
+              {expOut&&(
+                <div style={{marginTop:11}}>
+                  {(expOut.warnings||[]).map((w,i)=>(
+                    <div key={i} style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:6,padding:"8px 10px",borderRadius:8,backgroundColor:"rgba(245,158,11,0.06)",border:"1px solid rgba(245,158,11,0.22)"}}>{w}</div>
+                  ))}
+                  <div style={{fontSize:11.5,color:C.green,lineHeight:1.6,marginBottom:8}}>✓ Built. Save both into one folder, then send them that folder.</div>
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                    <button onClick={()=>download(expOut.html,"index.html","text/html")} style={{flex:"1 1 130px",padding:"9px",fontSize:11.5,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.green,color:"#04110b",cursor:"pointer"}}>Save index.html</button>
+                    <button onClick={()=>download(expOut.guide,"HOW-TO-PUT-THIS-ONLINE.txt","text/plain")} style={{flex:"1 1 130px",padding:"9px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Save the guide</button>
+                  </div>
+                  <details style={{marginTop:9}}>
+                    <summary style={{fontSize:11,color:C.gold,cursor:"pointer"}}>Read the guide they will get</summary>
+                    <pre style={{marginTop:8,padding:"11px",borderRadius:9,backgroundColor:"rgba(0,0,0,.28)",border:`1px solid ${C.border}`,fontSize:10.5,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap",maxHeight:280,overflowY:"auto"}}>{expOut.guide}</pre>
+                  </details>
+                </div>
+              )}
+            </div>
+          )}
+
           {msg&&<div style={{fontSize:11.5,color:C.red,marginTop:8,lineHeight:1.6}}>{msg}</div>}
 
           {showPack&&pack&&<HandoverPackView pack={pack} client={client}/>}
