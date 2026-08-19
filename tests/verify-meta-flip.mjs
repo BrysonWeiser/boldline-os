@@ -60,12 +60,10 @@ eq("no duplicate block ids", new Set(blockIds).size, blockIds.length);
 // Google is never gated. If this ever fails, the sellable half of the business went dark.
 {
   const g = ctasIn(panelOf("google"));
-  // 4 = the three managed Google tiers plus Launch & Hand Off, which lives on this panel
-  // because Google is the only platform BoldLine can deliver today. Hand-off is NOT
-  // gated: it is live pricing, not coming-soon copy.
-  eq("Google still has 4 cards", g.length, 4);
-  ok("the hand-off is on the Google panel and bookable",
-    /Launch &amp; Hand Off/.test(panelOf("google")));
+  eq("Google still has 3 cards", g.length, 3);
+  // The one-time hand-off is sold on calls, never advertised (Bryson, 2026-08-19), so it
+  // must not appear here — and if it ever does, that is a leak, not a gating question.
+  ok("the un-advertised hand-off is not on the site", !/Hand Off/.test(site));
   ok("every Google card books a call", g.every((c) => /calendly/.test(c.href)),
     g.map((c) => c.text).join(" | "));
   eq("no Google CTA is gated", (panelOf("google").match(/CS:META-SOON/g) || []).length, 0);

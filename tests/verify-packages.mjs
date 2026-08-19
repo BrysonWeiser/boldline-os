@@ -506,16 +506,34 @@ const cardsIn = (panelName) => [...panelOfSite(panelName).matchAll(CARD_RE)].map
   once: m[3] ? Number(m[3].replace(/,/g, "")) : null,
   perf: m[4].trim(), budget: m[5].trim(),
 }));
-// The hand-off lives on the Google panel: it is the only platform BoldLine can deliver
-// today, and it is where a prospect who cannot afford managed actually lands.
-const PANEL_OF_FAMILY = { g: "google", h: "google", m: "meta", c: "combined", e: "ecom" };
+// 🔴 THE HAND-OFF IS DELIBERATELY NOT ON THE SITE.
+// Bryson, 2026-08-19: "i dont want to advertise it i just want it as an option for sales
+// calls." Publishing it lets a prospect who could afford managed pick the cheaper thing
+// before he has said a word, and it removes his chance to judge whether it is genuinely
+// the right answer or just a negotiation. So it has NO panel, and its absence is
+// asserted rather than left to chance.
+const PANEL_OF_FAMILY = { g: "google", m: "meta", c: "combined", e: "ecom" };
 // The site writes "Full System: Launch" and "&amp;"; the catalog writes "Full System —
 // Launch" and "&". Same products.
 const norm = (n) => n.replace(/&amp;/g, "&").replace(/\s*[—:]\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
 const allCards = ["google", "meta", "combined", "ecom"].flatMap(cardsIn);
-eq("site shows every package", allCards.length, os.ALL_PKGS.length);
+const PUBLIC_PKGS = os.ALL_PKGS.filter((p) => !isOneTime(p));
+eq("site shows every PUBLIC package", allCards.length, PUBLIC_PKGS.length);
+// Checked from several angles, because "we forgot to remove it from one place" is exactly
+// how an un-advertised product leaks back onto a public page.
+for (const p of os.ALL_PKGS.filter(isOneTime)) {
+  ok(`${p.id} is NOT advertised on the site`, !site.includes(p.name),
+    "it is a sales-call option, not a published package");
+}
+ok("the site never mentions a one-time build", !/one-time build/i.test(site));
+ok("the site never mentions the setup waiver", !/waive the setup fee/i.test(site));
+ok("the recommender never names the hand-off", !/Hand Off/.test(site));
+// A sub-floor budget still gets an honest answer and still becomes a lead. He offers the
+// product on the call, where he can judge whether it is the right answer.
+ok("a sub-floor budget still gets an honest answer", /a monthly plan is not the right fit/.test(site));
+ok("and is still asked to book a call", /Book a call and we will tell you straight/.test(site));
 
-os.ALL_PKGS.forEach((p) => {
+PUBLIC_PKGS.forEach((p) => {
   const panel = PANEL_OF_FAMILY[p.id.split("-")[0]];
   const c = cardsIn(panel).find((x) => norm(x.title) === norm(p.name));
   ok(`${p.id} is on the ${panel} tab`, !!c, `no card named "${p.name}" there`);
