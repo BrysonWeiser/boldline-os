@@ -80,12 +80,12 @@ The same bug existed in the OS's own template seeds (`cl30`/`cl90` in `GoogleLau
 
 **🔴 2026-08-20 — THE SAME CLASS A THIRD TIME: a CHAIN of leading words.** Bryson, off another live ad: the description read **"Steady roof leads, no"**.
 
-**The walk-back was working.** The model wrote "Steady roof leads, no more guessing",  cut it to "…, no more", and **"more" WAS caught and popped**. It then stopped on **"no"**, which was missing from the list, leaving a one-word fragment.
+**The walk-back was working.** The model wrote "Steady roof leads, no more guessing", `fitWords` cut it to "…, no more", and **"more" WAS caught and popped**. It then stopped on **"no"**, which was missing from the list, leaving a one-word fragment.
 
-**The lesson is bigger than the missing word: popping one dangler routinely EXPOSES ANOTHER underneath it.** The list has to cover the whole chain, and a test that only pins the single reported string would not have caught this. Added the quantifiers , , , , ,  to both the server list and the OS copy.
+**The lesson is bigger than the missing word: popping one dangler routinely EXPOSES ANOTHER underneath it.** The list has to cover the whole chain, and a test that only pins the single reported string would not have caught this. Added the quantifiers `no`, `any`, `another`, `other`, `such`, `several` to both the server list and the OS copy.
 
-**Still conservative, and the omissions are deliberate:** , , ,  and  genuinely do end sentences ("we do both", "thanks so much") and stay out. **"no" is the one judgement call** — "the answer is no" is valid English but essentially never appears in ad copy, while "no contracts" and "no guessing" are everywhere.
+**Still conservative, and the omissions are deliberate:** `both`, `either`, `much`, `many` and `enough` genuinely do end sentences ("we do both", "thanks so much") and stay out. **"no" is the one judgement call** — "the answer is no" is valid English but essentially never appears in ad copy, while "no contracts" and "no guessing" are everywhere.
 
-**17 checks now, and the guards were broken BOTH WAYS**: removing the quantifiers brings the reported fragment back, and adding a word that legitimately ends a sentence (//) trips the over-correction test. That two-sided break is the point — this fix can fail by doing too little *or* too much.
+**17 checks now, and the guards were broken BOTH WAYS**: removing the quantifiers brings the reported fragment back, and adding a word that legitimately ends a sentence (`both` / `too` / `only`) trips the over-correction test. That two-sided break is the point — this fix can fail by doing too little *or* too much.
 
 **NOT built:** the `meta` action exists in the function but `MetaLaunchCard` still uses its template seed; wiring it is a small edit. Sitelinks, callouts and structured snippets are not generated (extra Google API surface). Neither is ad-group-level negative keywords.
