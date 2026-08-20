@@ -993,7 +993,32 @@ const getAlerts = (cl) => {
 // client.approvals in its OWN onUpdate (composing with any other change it's
 // making), then calls notifyClientApproval(updatedClient, item).
 const hasPendingApproval = (client, kind) => (client.approvals||[]).some(a=>a&&a.kind===kind&&a.status==="pending");
-const makeApproval = ({kind,title,body,previewUrl}) => ({id:"ap-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),kind,title,body:body||"",previewUrl:previewUrl||"",status:"pending",createdAt:new Date().toISOString(),source:"auto"});
+const makeApproval = ({kind,title,body,previewUrl,campaignId}) => ({id:"ap-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),kind,title,body:body||"",previewUrl:previewUrl||"",...(campaignId?{campaignId:String(campaignId)}:{}),status:"pending",createdAt:new Date().toISOString(),source:"auto"});
+
+// Deleting a campaign has to take its paperwork with it.
+//
+// Bryson, 2026-08-20: "if a campaign needs approve itll give me the notification but then
+// if i delete the campaign the notification is still there."
+//
+// Worse than untidy: the leftover notification still has an Approve button, and pressing
+// it re-reads the account, cannot find the campaign, and fails. So the queue ends up
+// holding an item that can never be cleared by doing what it asks.
+//
+// Two things are attached to a campaign and both have to go:
+//   - the OWNER's pendingAction ("Launch Meta campaign X"), matched on exec.campaignId
+//   - the CLIENT's pending approval ("Your campaign is ready to launch"), matched on the
+//     campaignId now stamped on it at creation time
+// A client approval that was already answered is LEFT ALONE — it is a record of what they
+// decided, not an outstanding request.
+const withoutCampaign = (client, campaignId, {note}={}) => {
+  const id=String(campaignId||""); if(!id) return client;
+  const pendingActions=(client.pendingActions||[]).filter(a=>String((a.exec&&a.exec.campaignId)||"")!==id);
+  const approvals=(client.approvals||[]).filter(a=>!(a.kind==="campaign"&&String(a.campaignId||"")===id&&a.status==="pending"));
+  const removed=((client.pendingActions||[]).length-pendingActions.length)+((client.approvals||[]).length-approvals.length);
+  if(!removed) return client;
+  return {...client, pendingActions, approvals,
+    commLog:[{date:fmt(new Date()),note:note||`Campaign deleted — cleared ${removed} pending approval${removed===1?"":"s"} for it`,cat:"update",ts:Date.now()},...(client.commLog||[])]};
+};
 const notifyClientApproval = async (client, item) => {
   try{
     const { data:{ session } }=await supabaseClient.auth.getSession();
@@ -6399,7 +6424,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         let campItem=null;
         if(!client.internal){
           const dly=Number(f.dailyBudgetDollars)||0, mo=Math.round(dly*30.4);
-          campItem=makeApproval({kind:"campaign",title:"Your Google ad campaign is ready to launch",body:`Your Google Search campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Google directly — we never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
+          campItem=makeApproval({kind:"campaign",campaignId:gcid,title:"Your Google ad campaign is ready to launch",body:`Your Google Search campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Google directly — we never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
           upd.approvals=[campItem,...(client.approvals||[])];
           upd.commLog=[{date:fmt(new Date()),note:`Auto-sent Google campaign + budget to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
         }
@@ -6693,7 +6718,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         let campItem=null;
         if(!client.internal){
           const dly=Number(f.dailyBudgetDollars)||0, mo=Math.round(dly*30.4);
-          campItem=makeApproval({kind:"campaign",title:"Your Meta ad campaign is ready to launch",body:`Your Facebook/Instagram campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Meta directly — we never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
+          campItem=makeApproval({kind:"campaign",campaignId:d.campaignId,title:"Your Meta ad campaign is ready to launch",body:`Your Facebook/Instagram campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Meta directly — we never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
           upd.approvals=[campItem,...(client.approvals||[])];
           upd.commLog=[{date:fmt(new Date()),note:`Auto-sent Meta campaign + budget to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
         }
@@ -7597,7 +7622,7 @@ function AddKeywordRow({onAdd,busy}){
   );
 }
 
-function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
+function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate}){
   const linked=(clients||[]).filter(c=>c.googleAdsCustomerId||c.metaAdAccountId);
   const [rows,setRows]=useState([]);
   const [errors,setErrors]=useState([]);
@@ -7638,20 +7663,49 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
   const load=async()=>{
     setState("loading"); setActionErr("");
     const out=[], errs=[];
+    // Which accounts answered, and what they hold. Both are needed for the sweep below:
+    // an account that FAILED to load must never be treated as "has no campaigns".
+    const seen={}, loaded={};
     await Promise.all(linked.map(async(cl)=>{
       if(cl.googleAdsCustomerId){
         try{
           const d=await gadsCall({action:"campaigns",customerId:cl.googleAdsCustomerId});
-          (d.campaigns||[]).forEach(c=>out.push({platform:"google",client:cl,c}));
+          (d.campaigns||[]).forEach(c=>{ out.push({platform:"google",client:cl,c}); seen[`${cl.id}|google|${c.id}`]=1; });
+          loaded[`${cl.id}|google`]=1;
         }catch(e){ errs.push({name:cl.name||"Unnamed",platform:"Google Ads",msg:e.message||"Couldn't load campaigns."}); }
       }
       if(cl.metaAdAccountId){
         try{
           const d=await metaCall({action:"campaigns",adAccountId:cl.metaAdAccountId});
-          (d.campaigns||[]).forEach(c=>out.push({platform:"meta",client:cl,c}));
+          (d.campaigns||[]).forEach(c=>{ out.push({platform:"meta",client:cl,c}); seen[`${cl.id}|meta|${c.id}`]=1; });
+          loaded[`${cl.id}|meta`]=1;
         }catch(e){ errs.push({name:cl.name||"Unnamed",platform:"Meta Ads",msg:e.message||"Couldn't load campaigns."}); }
       }
     }));
+
+    // SELF-HEAL: drop approval requests for campaigns that no longer exist.
+    //
+    // The delete button clears its own paperwork, but a campaign removed straight from
+    // Google Ads or Meta Ads Manager leaves the same dead notification behind, and so do
+    // any that were already orphaned before this fix existed. Both are cleared here.
+    //
+    // 🔴 ONLY for an account that actually ANSWERED. Treating a failed API call as "this
+    // account has no campaigns" would delete every pending approval the moment the ads
+    // API had a bad minute, and those are the items that authorise real spend.
+    if(onUpdate){
+      linked.forEach(cl=>{
+        const stale=(cl.pendingActions||[]).filter(a=>{
+          const ex=a.exec; if(!ex||!ex.campaignId) return false;
+          const plat=ex.platform==="meta"?"meta":"google";
+          if(!loaded[`${cl.id}|${plat}`]) return false;      // account did not answer
+          return !seen[`${cl.id}|${plat}|${ex.campaignId}`];  // answered, and it is gone
+        });
+        if(!stale.length) return;
+        let next=cl;
+        stale.forEach(a=>{ next=withoutCampaign(next,a.exec.campaignId,{note:`Cleared "${a.title}" — that campaign no longer exists on the ad account`}); });
+        if(next!==cl) onUpdate(next);
+      });
+    }
     setRows(out); setErrors(errs); setState("ready");
   };
   useEffect(()=>{ load(); },[linked.length]);
@@ -7693,6 +7747,11 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient}){
     try{
       if(r.platform==="google") await gadsCall({action:"removeCampaign",customerId:r.client.googleAdsCustomerId,campaignResourceName:r.c.campaignResourceName,wasLive:on});
       else await metaCall({action:"deleteCampaign",campaignId:r.c.id,wasLive:on});
+      // The campaign is gone, so anything still asking for it to be approved is now a
+      // dead end — its Approve button would re-read the account, not find it, and fail.
+      // Cleared here rather than left for the load() sweep below so it disappears the
+      // instant the campaign does.
+      if(onUpdate){ const next=withoutCampaign(r.client,r.c.id); if(next!==r.client) onUpdate(next); }
       await load();
     }catch(e){ setActionErr(e.message||"Couldn't delete the campaign."); }
     setBusy(null);
@@ -10856,7 +10915,7 @@ function App({onLogout}) {
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
-        {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>setScreen("home")} isDesktop={isDesktop} onSelectClient={selectClient}/>}
+        {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>setScreen("home")} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
