@@ -9848,7 +9848,15 @@ function AddClientSheet({onSave,onClose}) {
 }
 
 // ─── NOTIFICATIONS PANEL ─────────────────────────────────────────────────────
-const CATEGORY_LABELS = {budget:"💰 Budget",creative:"🎨 Creative",targeting:"🎯 Targeting",pause:"⏸ Pause",other:"📌 Other"};
+const CATEGORY_LABELS = {budget:"💰 Budget",creative:"🎨 Creative",targeting:"🎯 Targeting",pause:"⏸ Pause",launch:"🚀 Campaign launch",other:"📌 Other"};
+// Which platform an approval will act on, for labelling. Anything without an exec payload
+// acts on nothing, so it gets no platform name rather than a guessed one.
+const execPlatformLabel = (a) => !a || !a.exec ? "" : (a.exec.platform === "meta" ? "Meta Ads" : "Google Ads");
+// Launch approvals are created by the launch cards and carry `cat`; ARIA's proposals carry
+// `category`. Reading only one of them labelled every campaign launch "📌 Other".
+const approvalCategory = (a) => (a && (a.category || a.cat)) || "other";
+// …and calling a launch approval an "ARIA proposal" credits the wrong author entirely.
+const approvalSource = (a) => (a && (a.category || a.cat) === "launch") ? "You built this" : "ARIA proposal";
 
 // ─── WEB PUSH (PWA Phase 2) ──────────────────────────────────────────────────
 // Subscribe THIS device so OS alerts arrive as phone/desktop notifications. The
@@ -10136,17 +10144,17 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                     <div style={S.f1min}>
                       <div style={{fontSize:13,fontWeight:700,color:C.text}}>{action.title}{action.exec&&<span style={{marginLeft:7,fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(34,211,160,0.12)",border:"1px solid rgba(34,211,160,0.3)",color:C.green,whiteSpace:"nowrap",verticalAlign:"2px"}}>⚡ Executes on approve</span>}</div>
                       {action.detail&&<div style={{fontSize:11,color:C.textDim,marginTop:3,lineHeight:1.6}}>{action.detail}</div>}
-                      <div style={{fontSize:10,color:C.textMuted,marginTop:4}}>{cl.name} · {CATEGORY_LABELS[action.category]||CATEGORY_LABELS.other} · ARIA proposal</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:4}}>{cl.name} · {CATEGORY_LABELS[approvalCategory(action)]||CATEGORY_LABELS.other}{action.exec?` · ${execPlatformLabel(action)}`:""} · {approvalSource(action)}</div>
                       {execErrors[action.id]&&<div style={{fontSize:10.5,color:C.red,marginTop:5,lineHeight:1.5}}>⚠ {execErrors[action.id]}</div>}
                     </div>
                   </div>
                   <div style={S.row7}>
                     <button onClick={()=>decideAction(cl,action,"rejected")} disabled={executingId===action.id} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:executingId===action.id?.5:1}}>Reject</button>
-                    <button onClick={()=>decideAction(cl,action,"approved")} disabled={executingId===action.id} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}44`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer",opacity:executingId===action.id?.7:1}}>{executingId===action.id?"Executing in Google Ads…":execErrors[action.id]?"Retry Execution":"Approve"}</button>
+                    <button onClick={()=>decideAction(cl,action,"approved")} disabled={executingId===action.id} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}44`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer",opacity:executingId===action.id?.7:1}}>{executingId===action.id?`Executing in ${execPlatformLabel(action)||"the ad account"}…`:execErrors[action.id]?"Retry Execution":"Approve"}</button>
                   </div>
                 </div>
               ))}
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,padding:"2px 2px 0"}}>Approving a proposal marked ⚡ executes the change in the client's Google Ads account immediately (logged as "EXECUTED" in their activity log). Proposals without ⚡ are logged for you to carry out manually — that includes all Meta changes until Meta's API is verified. Rejecting only records your decision; nothing is ever changed.</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,padding:"2px 2px 0"}}>Approving an item marked ⚡ makes the change in that ad account immediately, on whichever platform the item names, and logs it as "EXECUTED" in the activity log. Items without ⚡ are just logged for you to carry out yourself. Rejecting only records your decision; nothing is ever changed.</div>
             </div>
           )}
 
