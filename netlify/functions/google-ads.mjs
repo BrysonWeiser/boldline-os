@@ -602,6 +602,52 @@ const mutate = async (accessToken, customerId, endpoint, operations, stage, { to
   return data;
 };
 
+// ── Guarded write: ACTUALLY START a campaign ─────────────────────────────────
+//
+// 🔴 Same bug as Meta's `activateCampaign`, same cause, same silence (found 2026-08-20).
+// `createCampaign` builds the campaign, its ad groups and its ads all PAUSED. Approving
+// only ever enabled the CAMPAIGN, and Google needs the campaign, the ad group and the ad
+// all enabled before a single impression is served. So the OS reported the campaign live,
+// the campaign list agreed, and nothing ran.
+//
+// One atomic mutate for the children, so a campaign is never left half-started.
+export async function activateCampaign(accessToken, customerId, campaignResourceName, campaignId) {
+  if (!campaignResourceName) {
+    const e = new Error("activateCampaign: campaignResourceName required"); e.stage = "activateCampaign"; throw e;
+  }
+  await setStatus(accessToken, customerId, campaignResourceName, "ENABLED");
+
+  const detail = await getCampaignDetail(accessToken, customerId, campaignId);
+  const ops = [];
+  for (const g of (detail && detail.adGroups) || []) {
+    if (g.resourceName && String(g.status || "").toUpperCase() !== "ENABLED") {
+      ops.push({ adGroupOperation: { update: { resourceName: g.resourceName, status: "ENABLED" }, updateMask: "status" } });
+    }
+    for (const a of g.ads || []) {
+      if (a.resourceName && String(a.status || "").toUpperCase() !== "ENABLED") {
+        ops.push({ adGroupAdOperation: { update: { resourceName: a.resourceName, status: "ENABLED" }, updateMask: "status" } });
+      }
+    }
+  }
+  // Ad groups and ads are different resource types, so this is a MIXED mutate and has to
+  // go to googleAds:mutate, not a per-resource endpoint. One call keeps it atomic: a
+  // campaign is never left with some ad groups on and some off.
+  if (ops.length) {
+    const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/googleAds:mutate`, {
+      method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ mutateOperations: ops }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      try { console.error("activateCampaign rejected:", JSON.stringify(data && data.error ? data.error : data).slice(0, 3000)); } catch (_) {}
+      const e = new Error(apiErrMsg("activateCampaign", resp.status, data));
+      e.stage = "activateCampaign"; e.detail = data; throw e;
+    }
+  }
+  const groups = ((detail && detail.adGroups) || []).length;
+  const ads = ((detail && detail.adGroups) || []).reduce((n, g) => n + ((g.ads || []).length), 0);
+  return { campaignId: String(campaignId), adGroups: groups, ads, enabled: ops.length };
+}
+
 export async function setAdGroupStatus(accessToken, customerId, adGroupResourceName, status) {
   const s = String(status || "").toUpperCase();
   if (!["ENABLED", "PAUSED", "REMOVED"].includes(s)) {
@@ -715,6 +761,15 @@ export default async (req) => {
     if (action === "setStatus") {
       if (!digits(body.customerId) || !body.campaignResourceName || !body.status)
         return json({ ok: false, error: "customerId, campaignResourceName, status required" }, 400);
+      // See the note on Meta's setStatus: enabling means DELIVERING, and that meaning
+      // belongs here rather than in each of the three callers that ask for it.
+      if (String(body.status).toUpperCase() === "ENABLED") {
+        // The campaign id is the last segment of "customers/<cid>/campaigns/<id>", so no
+        // caller has to start sending it separately.
+        const campaignId = body.campaignId || String(body.campaignResourceName).split("/").pop();
+        const result = await activateCampaign(accessToken, body.customerId, body.campaignResourceName, campaignId);
+        return json({ ok: true, action, result });
+      }
       const result = await setStatus(accessToken, body.customerId, body.campaignResourceName, body.status);
       return json({ ok: true, action, result });
     }
