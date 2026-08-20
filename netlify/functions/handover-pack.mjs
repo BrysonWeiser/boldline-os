@@ -30,6 +30,7 @@
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL, findPkg } from "../lib/report-shared.mjs";
+import { humanizeDeep } from "../lib/humanize.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
@@ -73,7 +74,7 @@ THE STAKES, WHICH SHAPE EVERYTHING. If this document is vague, one of two things
 
 WRITING RULES.
 - Plain English. Short sentences. No jargon without a plain-English gloss right beside it.
-- Never use an em dash or an en dash. Use two sentences or a comma.
+- NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 - No "unlock", "leverage", "seamless", "robust", "game-changer", "in today's world".
 - Write how a person talks. Use contractions.
 - Be honest, including about limits. Do not imply BoldLine is still watching, because it is not.
@@ -157,12 +158,7 @@ export default async (req) => {
   // Em dashes are banned in every client-facing surface (KB ad-copy-voice). The prompt
   // says so and the model usually complies; this makes it true regardless, because a
   // handover document is read once and judged on how human it sounds.
-  const deDash = (t) => String(t == null ? "" : t)
-    .replace(/\s*[—–]\s*$/, "").replace(/^\s*[—–]\s*/, "")
-    .replace(/\s*[—–]\s*/g, ", ").replace(/\s{2,}/g, " ").trim();
-  const clean = (v) => Array.isArray(v) ? v.map(clean)
-    : (v && typeof v === "object") ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clean(x)]))
-    : typeof v === "string" ? deDash(v) : v;
+  const clean = (v) => humanizeDeep(v, { join: ", " });
 
   const pack = { ...clean(out), generatedAt: new Date().toISOString(), clientName: cl.name || "" };
 

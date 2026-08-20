@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { humanize } from "./humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { pipelineProgress } from "./pipeline-shared.mjs";
 
@@ -119,6 +120,7 @@ Internal Notes: ${client.notes || "None"}`;
 
 const buildClientPrompt = (client, period, data) => ({
   system: `You are writing the body of a performance report email that will be sent directly to a BoldLine Media client. Write in professional plain English with no emojis or decorative symbols. Never mention AI or bots.
+NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 CLIENT DATA:
 ${data.text}
@@ -170,7 +172,8 @@ const generateText = async (system, user) => {
     messages: [{ role: "user", content: user }],
   });
   const textBlock = response.content.find((b) => b.type === "text");
-  return textBlock ? textBlock.text : "";
+  // The client reads this. Prose join, so a dash becomes a comma rather than a hard stop.
+  return textBlock ? humanize(textBlock.text, { join: ", " }) : "";
 };
 
 export const GOLD = "#C8A84B";

@@ -52,7 +52,7 @@ const TOOL = {
       fee: { type: "integer", description: "The recommended BoldLine fee per qualified lead, in whole dollars. Round to a sellable number (5s and 10s, not 47)." },
       feeLow: { type: "integer", description: "The lowest defensible fee for this prospect." },
       feeHigh: { type: "integer", description: "The highest fee this prospect would still say yes to." },
-      rationale: { type: "string", description: "2-4 sentences Bryson can say out loud on the call to justify the fee, in plain language, using the numbers above. No jargon, no em dashes." },
+      rationale: { type: "string", description: "2-4 sentences Bryson can say out loud on the call to justify the fee, in plain language, using the numbers above. No jargon. No dashes of any kind joining sentences, including a spaced hyphen." },
       cautions: { type: "array", items: { type: "string" }, description: "0-3 short warnings: what would make this fee wrong, or what to verify on the call.", maxItems: 3 },
       confidence: { type: "string", enum: ["high", "medium", "low"], description: "How sure you are, given how specific the input was." },
     },
@@ -79,7 +79,7 @@ THREE HARD SANITY CHECKS, applied after the arithmetic:
 
 THE ANCHOR. BoldLine's existing table suggests about $${anchor} per lead for this kind of business${isDefault ? " (this is the generic fallback, not a niche-specific figure, so weight it lightly)" : ""}. Treat it as a sanity check, not an instruction. Move away from it when the specific details justify it, and say why in the rationale. If the details are thin, stay near it.
 
-WRITING RULES. Bryson does not read jargon and reads every line out loud on calls. Short sentences. No em dashes or en dashes anywhere, use two sentences or a comma instead. No "unlock", "leverage", "seamless", "game-changer". Write how a person talks.
+WRITING RULES. Bryson does not read jargon and reads every line out loud on calls. Short sentences. NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour. No "unlock", "leverage", "seamless", "game-changer". Write how a person talks.
 
 Use ONLY what you were told plus your general knowledge of what these businesses charge. Do not invent facts about this specific company. If the input is just a niche with no company detail, price the niche and set confidence to medium or low.`;
 

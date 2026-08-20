@@ -2,10 +2,10 @@
 name: ad-copy-voice
 topic: Marketing
 task: keep ad copy and generated content from reading as AI-written
-keywords: [ad copy, AI generated, em dash, sounds like AI, humanizeAdCopy, voice, tone, ad tells, content studio ground rules, local businesses positioning]
+keywords: [plain hyphen, spaced hyphen, dash, humanize.mjs, humanizeDeep, NO_DASH_RULE, sounds AI written, AI tell, em dash, en dash, ad copy, AI generated, em dash, sounds like AI, humanizeAdCopy, voice, tone, ad tells, content studio ground rules, local businesses positioning]
 status: verified
 summary: Standing rule (Bryson, 2026-08-14) — no ad may read as AI-written, and the em dash is the tell he named. Every customer-facing string in the launch cards, the Ad Creative Studio angles and the 69 offline creatives was rewritten without dashes, `humanizeAdCopy()` now strips them from every ad field at submit time as a backstop for hand-typed and future model-written copy, and the Content Studio prompt bans them plus the usual AI giveaways. The prompt itself was de-dashed too, since a model mirrors the style it is given. Also fixed a violation of the older "never say local businesses" positioning rule found in the same sweep. 26 cases.
-verified: 2026-08-14
+verified: 2026-08-20
 ---
 
 **Bryson, 2026-08-14:** *"in the ads copy and this goes for all ads remember to not make it sound ai generated (the - as an example)."*
@@ -32,3 +32,73 @@ verified: 2026-08-14
 **Caught in the same sweep — a violation of an older standing rule.** `"For Local Service Businesses"` appeared as a creative kicker in both `index.html` and `scripts/build-ad-creatives.js`, against the recorded hard rule in KB `linkedin-brand-presence`: **never say "local businesses"; he serves businesses nationally/remotely.** Changed to `"For Service Businesses"`, and the Content Studio prompt now tells the model the same thing. **Note the distinction that makes this correct:** a CLIENT's own ad may say "local" (a roofer genuinely is local to their customers, and "fast, friendly, and local" survives above) — the rule governs how **BoldLine** describes its own audience. There is real tension with the geo-targeting work that limits the house campaign to the Phoenix metro; that is a targeting choice, not a positioning claim, and Bryson can overrule either way.
 
 **Verified by 26 cases** against the shipped files, with the sanitizer extracted from `index.html` and executed rather than reimplemented: joining dash becomes two sentences, en dash caught too, headline dash breaks cleanly, leading/trailing dashes dropped without stray punctuation, no `..` ever produced, clean copy passes through byte-identical, `boldlinemedia.com` not mangled, `Done-for-you` hyphens survive, null/undefined safe, output never contains a dash; no dash in any of the four copy regions; the sanitizer is wired into both cards; keywords are provably left alone; Content Studio carries the rules; the prompt contains exactly the one intentional dash; and `Local Service Businesses` appears nowhere.
+
+---
+
+## 🔴 2026-08-20 — THE PLAIN HYPHEN WAS NEVER CAUGHT, AND NINE SURFACES CLEANED NOTHING
+
+**Bryson:** *"make sure for all of the ad copy for my ads and clients and anything we write
+that we avoid using - because it makes it seem ai written."*
+
+He had already asked for this on 2026-08-14 and it kept reaching him. Two reasons, and the
+second is why it kept happening.
+
+### 1. Only the LONG dashes were ever matched
+
+Every implementation used `/[—–]/`. So `Roof repair - done right` shipped completely
+untouched. That is the same tell wearing the character that is **actually on a keyboard**,
+which is precisely the one a model reaches for. The prompts made it worse: they said *"never
+use an em dash or en dash"*, which a model can reasonably read as **permission to use a
+spaced hyphen instead**.
+
+### 2. Nine of thirteen model-writing surfaces cleaned NOTHING
+
+Measured, not assumed. Only `ad-gen-shared`, `blog-shared`, `newsletter-shared` and
+`handover-pack` touched model output at all. Everything else relied on the prompt, including:
+
+| Surface | Who reads it |
+|---|---|
+| `generate-landing` | **every visitor to a client's landing page** |
+| `report-shared` | **the client's monthly performance report** |
+| `lead-leak-audit-background` | **a prospect's inbox, as BoldLine's first impression** |
+| `portal-assistant` | **clients, live, in their portal** |
+| `content-studio` | video scripts and content ideas |
+| `deal-research-background` | Bryson, read out loud on sales calls |
+
+And the three that did clean had **already drifted**: `blog-shared` handled only the em dash,
+never the en dash.
+
+### The fix: one implementation, `netlify/lib/humanize.mjs`
+
+`humanize(s, {join})` and `humanizeDeep(v, {join})`, plus `NO_DASH_RULE`, the single prompt
+line every writer now carries. `join: ". "` splits into two sentences (ad copy);
+`join: ", "` keeps one sentence (prose, where a hard stop reads clipped).
+
+**A hyphen only counts when it has a real space on BOTH sides.** That is the whole reason
+this is not a find-and-replace, and the test pins all of it:
+
+```
+done-for-you   no-obligation   24-hour   e-commerce   day-to-day
+602-555-0199   AW-18269689296  act_1045064901242944  1080x1920
+```
+
+**Horizontal whitespace only (`[ \t]`, never `\s`).** Using `\s` treats a newline as a
+space and turns a bulleted list into a paragraph. That break was tested and does exactly
+that.
+
+Also fixed: a **hardcoded `&mdash;`** sitting in the prospect audit email's footer.
+
+### Verified by `tests/verify-no-dashes.mjs` — 39 checks
+
+The surface list is **discovered from the source**, not written by hand, so a copy-writing
+function added later is caught automatically instead of quietly shipping dashes. Each one is
+asserted to both clean its output and carry the rule.
+
+**🔴 THE TEST THAT COULD NOT FAIL, again.** The first version checked for the word
+`humanize` anywhere in the file, so when the actual CALL was deleted from `generate-landing`
+it still matched the leftover `import` and **passed**. Found only by deliberately breaking
+it. It now strips import lines and requires a real call. This is the second time in this
+project a source-matching assertion has passed on a mention rather than a use.
+
+Four breaks confirmed to fail: dropping the plain-hyphen rule, swapping `[ \t]` for `\s`,
+and removing the cleaning from `generate-landing` and from `report-shared`.

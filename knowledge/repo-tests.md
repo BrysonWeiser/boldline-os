@@ -40,6 +40,7 @@ for t in tests/*.mjs; do node "$t"; done
 | `verify-meta-creative-testing.mjs` | the second thing allowed to change a live ad account unattended: the spend-less-never-more invariant, the judging maths, the Development-tier gate, and the test/multi-angle switch (KB `meta-creative-testing`) | 114 |
 | `verify-campaign-launch.mjs` | the path between Build Campaign and money being spent: that starting a campaign starts its ad groups and ads too, that no campaign can quietly target the whole country, and that any location worldwide resolves (KB `campaign-launch-bugs`) | 104 |
 | `verify-approval-cleanup.mjs` | deleting a campaign takes its approval requests with it, the self-heal never fires on a failed API call, and the approval card names the platform it will actually act on (KB `campaign-launch-bugs`) | 46 |
+| `verify-no-dashes.mjs` | no copy BoldLine writes contains a joining dash of any kind, and every model-writing surface both cleans its output and carries the rule (KB `ad-copy-voice`) | 39 |
 | `verify-ad-copy-fit.mjs` | ad copy never ships over the character limit AND never ships as a fragment, on both the server trimmers and the OS's own seeds (KB `ad-generator`) | 12 |
 | `verify-local-conditions.mjs` | live-weather ad context, recent-weather history, county matching, and the never-advertise policy gate | 176 |
 | `verify-meta-flip.mjs` | the coming-soon sentinels match `docs/META-FLIP-CHECKLIST.md` | 57 |

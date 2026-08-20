@@ -24,6 +24,7 @@
 // OS site's Netlify env.
 
 import { createClient } from "@supabase/supabase-js";
+import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL, sendEmail, escapeHTML, GOLD } from "../lib/report-shared.mjs";
 import { emailShell } from "../lib/client-emails-shared.mjs";
@@ -97,6 +98,7 @@ You are given: (a) what we pulled from their homepage (title, meta description, 
 HARD ACCURACY RULES — this goes to a real stranger, so a single wrong claim kills the deal and the brand:
 - Base every observation on the actual page data provided or something you genuinely confirmed via web search. If you did NOT confirm something, do not assert it — either leave it out or phrase it as a question ("I couldn't find a Google Business Profile — if you don't have one yet, that's the single biggest quick win").
 - NEVER invent specifics: no made-up review counts, star ratings, owner names, traffic numbers, or "you're losing $X per month." No fabricated statistics of any kind.
+- NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 - Do not claim they are or aren't running ads unless web search actually shows it; otherwise frame it conditionally ("if you're running Google Ads...").
 - If their site is genuinely strong, say so honestly and focus the audit on the next level up (ads, landing pages, conversion tracking) instead of inventing problems.
 
@@ -154,7 +156,8 @@ const generateReport = async (site) => {
     break;
   }
 
-  const text = (response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  // Goes straight to a prospect's inbox as BoldLine's first impression.
+  const text = humanize((response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim(), { join: ", " });
   let subject = "Your free Lead-Leak Check from BoldLine Media";
   let bodyMd = text;
   const m = text.match(/^\s*SUBJECT:\s*(.+?)\s*(?:\n|$)/i);
@@ -206,7 +209,7 @@ const buildEmailHtml = ({ bodyMd, siteLabel }) => {
   return emailShell({
     preheader: "Your free Lead-Leak Check — where your site may be losing customers, and the top fixes.",
     bodyHtml,
-    footerNote: "BoldLine Media &mdash; Google &amp; Meta ads and landing pages, managed for you.",
+    footerNote: "BoldLine Media. Google &amp; Meta ads and landing pages, managed for you.",
   });
 };
 

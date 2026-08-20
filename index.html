@@ -6861,10 +6861,19 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
 // sentences, which is how a person would have written it in the first place.
 // Applied to headlines/descriptions/primary text only — never to keywords (a
 // dash there is a real search term) and never to campaign names (internal only).
+// 🔴 THE PLAIN HYPHEN COUNTS TOO (Bryson, 2026-08-20: "avoid using - because it makes it
+// seem ai written"). This matched only "—" and "–", so "Roof repair - done right" went
+// out untouched, and that is the version a model reaches for most because it is on every
+// keyboard. Mirrors netlify/lib/humanize.mjs; the browser cannot import it.
+//
+// A hyphen only counts when it has a real space on BOTH sides. Hyphens inside a word are
+// left alone on purpose: done-for-you, no-obligation, 24-hour, and 602-555-0199 must all
+// survive. Horizontal whitespace only, so a bullet on its own line is not swallowed.
 const humanizeAdCopy = (s) => String(s == null ? "" : s)
-  .replace(/\s*[—–]\s*$/, "")                  // trailing dash: drop it
-  .replace(/^\s*[—–]\s*/, "")                  // leading dash: drop it
-  .replace(/\s*[—–]\s*/g, ". ")                // joining dash: two sentences
+  .replace(/^\s*[—–]+\s*/, "").replace(/\s*[—–]+\s*$/, "")   // long dash, either end
+  .replace(/^[ \t]*-{1,2}[ \t]+/, "").replace(/[ \t]+-{1,2}[ \t]*$/, "") // hyphen, either end
+  .replace(/\s*[—–]+\s*/g, ". ")               // joining long dash: two sentences
+  .replace(/[ \t]+-{1,2}[ \t]+/g, ". ")        // joining spaced hyphen: same
   .replace(/\s*\.\s*\.\s*/g, ". ")             // never ".."
   .replace(/([.!?])\s+([a-z])/g, (m, p, c) => p + " " + c.toUpperCase())
   .replace(/\s{2,}/g, " ")

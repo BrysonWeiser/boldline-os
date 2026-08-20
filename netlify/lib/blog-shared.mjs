@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { humanize } from "./humanize.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "./report-shared.mjs";
 import { pingIndexNow } from "./indexnow-shared.mjs";
@@ -130,7 +131,7 @@ ${topicInstruction}
 ${avoidInstruction}
 
 WRITING STYLE (this is how NOT to sound like AI — follow it closely):
-- Never use em-dashes (the "—" character). Use a period or comma instead. This is the single biggest tell that writing is AI-generated.
+- NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour. This is the single biggest tell that writing is AI-generated.
 - Never use parentheses anywhere in the post. If an aside matters, write it as its own sentence; if it doesn't, cut it.
 - Vary your sentence length. Mix short, blunt sentences with longer ones. Avoid the steady, evenly-balanced rhythm AI defaults to.
 - Avoid these tics: "It's not X, it's Y" setups, rule-of-three triads, "here's the thing," "the truth is," "no fluff," "let's dive in," "in today's world," "when it comes to," and constant hedging.
@@ -154,7 +155,10 @@ Call the blog_post tool with the finished post. Do not write any other text.`;
   const post = toolUse.input;
   // Safety net behind the style prompt: guarantee no em-dashes ever ship, even
   // if the model slips. Replace "—" (with any surrounding spaces) with ", ".
-  const deDash = (s) => (typeof s === "string" ? s.replace(/\s*—\s*/g, ", ") : s);
+  // Shared humanizer: this used to match ONLY the em dash, so en dashes and spaced
+  // hyphens both survived into published posts. Prose join, so a dash becomes a comma
+  // rather than chopping a sentence in half.
+  const deDash = (s) => humanize(s, { join: ", " });
   return {
     slug: uniqueSlug(slugify(post.title), existingSlugs),
     title: clip(deDash(post.title), 150),
