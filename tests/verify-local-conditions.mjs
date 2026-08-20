@@ -444,7 +444,13 @@ const days = (n) => new Date(Date.UTC(2026, 7, 20 - n)).toISOString();
   const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const meta = src.slice(src.indexOf("function MetaLaunchCard"));
   const body = meta.slice(0, meta.indexOf("\nfunction "));
-  ok("the Meta generator sends a service area", /action:"meta"[\s\S]{0,900}?locations: metaLocations/.test(body),
+  // 🔴 ASSERT THE INVARIANT, NOT A CHARACTER WINDOW. This first read "within 900 characters
+  // of action:\"meta\"", and a comment added to that call later pushed it out of range while
+  // the wiring stayed perfectly correct — the same trap as the 400-character proxy recorded
+  // in KB repo-tests. So: slice the call itself and assert the field is IN it.
+  const genMeta = body.slice(body.indexOf('action:"meta"'));
+  const call = genMeta.slice(0, genMeta.indexOf("});"));
+  ok("the Meta generator sends a service area", /locations: metaLocations/.test(call),
     "without this Meta ads get no local conditions at all");
   ok("and it is derived from the client's own targeting", /targetLocations \|\| cs\.serviceArea/.test(body));
 

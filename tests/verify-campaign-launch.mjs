@@ -141,7 +141,7 @@ const os = read("../index.html");
   const body = fn.slice(0, fn.indexOf("// ── Guarded write: ACTUALLY START"));
   ok("it searches Meta's ad-geolocation index", /type: "adgeolocation"/.test(body));
   ok("it prefers a hit in the state that was typed", /String\(h\.region \|\| ""\)\.toLowerCase\(\) === wanted/.test(body));
-  ok("an unmatched name is reported, never guessed", /unresolved\.push\(raw\)/.test(body));
+  ok("an unmatched name is reported, never guessed", /unresolved\.push\(it\.raw\)/.test(body));
   ok("cities get a radius", /radius: 25/.test(body));
   ok("a lookup failure does not throw mid-build", /catch \(e\)[\s\S]{0,120}console\.warn/.test(body));
 }
@@ -180,8 +180,127 @@ const os = read("../index.html");
 
 // ── Google already refused a location-less build; keep it that way ─────────
 {
-  ok("Google still requires locations", /locations are required|Leave this empty and Google targets/.test(google + os));
+  // The refusal lives in the builder, not in the help text, so assert the builder.
+  ok("Google still refuses to build without locations",
+    /at least 1 target location required/.test(google));
+  ok("and both cards still mark the field required",
+    (os.match(/Target locations — one per line \(required\)/g) || []).length === 2);
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 3. ANYWHERE IN THE WORLD (2026-08-20)
+// ══════════════════════════════════════════════════════════════════════════════
+// Bryson: "we can be located in one state or area and be able to target anywhere in the
+// world we want." Both platforms search for a place WITHIN one country, and both had that
+// country hardcoded to US, so a client could only ever advertise inside America.
+{
+  const { parseLocation, parseLocations, countryCodeFor, isCountryOnly } =
+    await import("../netlify/lib/geo-parse.mjs");
+
+  const p = (t, d) => parseLocation(t, d);
+  eq("a US city keeps its state in the query", p("Gilbert, Arizona").query, "Gilbert, Arizona");
+  eq("and is routed to the US", p("Gilbert, Arizona").country, "US");
+  eq("a foreign city drops the country from the query", p("London, United Kingdom").query, "London");
+  eq("and is routed to that country", p("London, United Kingdom").country, "GB");
+  eq("a Canadian province is recognised without the country", p("Toronto, Ontario").country, "CA");
+  eq("a three-part entry keeps the province", p("Toronto, Ontario, Canada").query, "Toronto, Ontario");
+  eq("a country on its own targets the country", p("Canada").countryOnly, true);
+  eq("common abbreviations work", p("Dubai, UAE").country, "AE");
+  eq("so do informal ones", countryCodeFor("uk"), "GB");
+
+  // 🔴 The honesty rule: an entry we cannot place must be REPORTED, not silently
+  // searched in the default country and passed off as resolved.
+  eq("an unplaceable entry falls back", p("Shibuya, Tokyo").country, "US");
+  eq("but is marked as assumed", p("Shibuya, Tokyo").inferred, null);
+  eq("the batch reports which entries were assumed",
+    parseLocations("Gilbert, Arizona\nParis").assumed.join(","), "Paris");
+  eq("and groups by country for the lookups",
+    parseLocations("Gilbert, Arizona\nLondon, United Kingdom\nToronto, Ontario").countries.join(","), "US,GB,CA");
+  ok("a country-only entry is detected", isCountryOnly("Canada") && !isCountryOnly("Toronto, Ontario"));
+  eq("empty input is not a crash", parseLocations("").items.length, 0);
+}
+
+// Both platforms must USE the parser, not their own idea of a country.
+{
+  ok("Meta resolves per entry, not per box", /parseLocations\(names, defaultCountry\)/.test(meta));
+  ok("Meta targets a whole country without a lookup", /it\.countryOnly[\s\S]{0,120}countries\.push/.test(meta));
+  ok("Meta searches within the entry's own country", /country_code: it\.country/.test(meta));
+  ok("Meta no longer hardcodes a country in the search", !/country_code: countryCode/.test(meta));
+  ok("Meta passes country targets through to the ad set", /geo\.countries = r\.countries/.test(meta));
+
+  ok("Google groups its lookups by country", /for \(const \[country, group\] of byCountry\)/.test(google));
+  ok("and sends that country to the suggest call", /countryCode: country/.test(google));
+  ok("Google no longer hardcodes the country in the lookup", !/countryCode,\s*locationNames/.test(google));
+  ok("an unresolved Google location stops the build", /geo\.unresolved && geo\.unresolved\.length[\s\S]{0,200}throw err/.test(google));
+  ok("and reports it as the operator typed it", /backToRaw\.get/.test(google),
+    "naming a rewritten query the operator never wrote is not a usable error");
+}
+
+// 🔴 LANGUAGE WAS HARDCODED TO ENGLISH, which is silently wrong outside English markets.
+{
+  ok("Google resolves languages instead of pinning one", /async function resolveLanguages/.test(google));
+  ok("it looks them up rather than guessing an id", /FROM language_constant/.test(google),
+    "a wrong language id targets the wrong audience just as quietly as a wrong geo id");
+  ok("English stays the default", /return \{ resourceNames: \[ENGLISH_LANGUAGE_CONSTANT\]/.test(google));
+  ok("\"all\" removes language targeting", /\^all\$[\s\S]{0,80}resourceNames: \[\]/.test(google));
+  ok("an unknown language stops the build", /does not recognise the language/.test(google));
+  ok("the campaign attaches every resolved language", /lang\.resourceNames\.map/.test(google));
+  ok("and no longer pins the constant inline", !/language: \{ languageConstant: ENGLISH_LANGUAGE_CONSTANT \}/.test(google));
+}
+
+// The UI has to tell the truth about what the box accepts.
+{
+  eq("both cards say anywhere in the world", (os.match(/Anywhere in the world/g) || []).length, 2);
+  ok("and show a foreign example", /London, United Kingdom/.test(os));
+  ok("and a country-only example", /or a country on its own \(Canada\)/.test(os));
+  ok("the Meta country box is now only a fallback", /If unclear<\/label>/.test(os));
+  ok("and says so", /only a fallback/.test(os));
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 4. PARITY: what the house account can do, a client can do (2026-08-20)
+// ══════════════════════════════════════════════════════════════════════════════
+// Bryson: "make sure everything we are doing for my own ads is updated and added for
+// clients ads for the stuff that is applicable."
+{
+  // The house account could always aim a campaign at one niche and rebuild. A client had
+  // no equivalent, and needs one for the same reason: one ad group holding "roof repair"
+  // and "roof replacement" can never match either search well.
+  ok("the focus box is no longer house-account only",
+    !/\{client\.internal&&\(\s*<div style=\{\{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C\.goldDim/.test(os),
+    "this gate hid per-service campaigns from every client");
+  eq("both cards ask a client which service the campaign is for",
+    (os.match(/Which service is this campaign for\?/g) || []).length, 2);
+  ok("Google seeds a client campaign from that service", /const clientSeed = \(service\)/.test(os));
+  ok("Meta does too", /const metaClientSeed = \(service\)/.test(os));
+  ok("Google's fill honours which account it is", /client\.internal \? agencySeed\(audience\) : clientSeed\(audience\)/.test(os));
+  ok("Meta's fill honours which account it is", /client\.internal \? metaAgencySeed\(audience\) : metaClientSeed\(audience\)/.test(os));
+
+  // The AI brief has to agree with the campaign name and the seeds, or the ad is written
+  // for the whole trade while everything around it says one service.
+  eq("both generators send the chosen service as the niche",
+    (os.match(/\(audience \|\| client\.niche \|\| ""\)/g) || []).length, 2);
+  ok("Google's brief uses it as the offer too", /offer: client\.internal \? "Google and Meta ad management plus the landing pages behind them" : \(audience \|\| cs\.mainOffer \|\| ""\)/.test(os));
+
+  // Things that are house-only ON PURPOSE stay that way. Meta's split testing is blocked
+  // by Meta's own Development tier, not by a choice, and removing that gate would have
+  // Meta rejecting writes on a schedule.
+  const ap = read("../netlify/functions/ads-autopilot.mjs");
+  ok("Meta split testing is still tier-gated", /ap\.splitTest !== false && mid && cl\.internal &&/.test(ap),
+    "Development tier only permits writes to owned accounts");
+  ok("and the gate is still labelled for the day it can go", /META-TIER-GATE/.test(ap));
+  // Google has no such restriction, so clients already get creative testing there.
+  ok("Google split testing is NOT house-only",
+    !/splitTest !== false && gid && accessToken && cl\.internal/.test(ap),
+    "nothing blocks Google creative testing on a client account");
+
+  // Everything built in the last few days must reach clients too.
+  ok("the conditions card renders on both cards regardless of account",
+    (os.match(/<AreaConditionsCard locations=/g) || []).length === 2);
+  ok("the creative strategy switch is not house-only", !/internal&&<CreativeStrategyCard/.test(os));
+}
+
 
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-campaign-launch: ${pass} checks passed`);

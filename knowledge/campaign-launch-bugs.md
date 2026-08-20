@@ -2,7 +2,7 @@
 name: campaign-launch-bugs
 topic: Ads
 task: debug a campaign that was approved but is not delivering, or one spending on the wrong people; understand why starting a campaign touches ad groups and ads
-keywords: [activateCampaign, campaign not delivering, no impressions, zero spend, approved but nothing happened, ad set paused, ad group paused, effective_status, geo_locations, countries US, nationwide targeting, resolveGeoTargets, adgeolocation, geo key, toLocationLines, verify-campaign-launch]
+keywords: [activateCampaign, worldwide targeting, target another country, international ads, geo-parse, parseLocation, resolveLanguages, language targeting, per-service campaign, client parity, house account parity, campaign not delivering, no impressions, zero spend, approved but nothing happened, ad set paused, ad group paused, effective_status, geo_locations, countries US, nationwide targeting, resolveGeoTargets, adgeolocation, geo key, toLocationLines, verify-campaign-launch]
 status: verified
 summary: Two silent bugs found 2026-08-20 in a pre-launch sweep Bryson asked for before approving his first campaign. (1) Approving a campaign NEVER MADE IT DELIVER on either platform — the build correctly creates campaign, ad group/ad set and ad all paused, but approval only set the CAMPAIGN live, and both platforms need every level active to serve an impression. Every surface reported success. (2) Every Meta campaign targeted the ENTIRE UNITED STATES, because the launch card sent only a two-letter country. Both fixed at the handler level so no caller can reintroduce them. 53 checks, five deliberate breaks.
 verified: 2026-08-20
@@ -119,3 +119,85 @@ everything paused, since a campaign that is live the moment it is built cannot b
 One assertion failed on the first run and was **my own mistake, not the code**: it searched for the
 old nationwide default and matched the comment explaining the bug. Comments are now stripped before
 that check, so it tests behaviour rather than prose.
+
+---
+
+## ✅ 2026-08-20 (later) — TARGET ANYWHERE IN THE WORLD, and client/house parity
+
+**Bryson:** *"for the target location for my own ads and even clients that we can be located in one
+state or area and be able to target anywhere in the world we want. Also make sure everything we are
+doing for my own ads is updated and added for clients ads for the stuff that is applicable."*
+
+### The world was hardcoded to the United States, twice
+
+Both platforms look a place up **within one country**, and both had that country pinned:
+
+| | Before | Effect |
+|---|---|---|
+| Google | `countryCode: "US"` in `geoTargetConstants:suggest` | a location outside the US could never resolve |
+| Meta | `country_code: countryCode` defaulting to `"US"` | same |
+| Google language | `languageConstants/1000` (English) always | a campaign aimed at Mexico or Quebec shows to almost nobody, silently |
+
+**`netlify/lib/geo-parse.mjs` is shared on purpose.** Two separate country parsers would drift, and
+a drift here means advertising in the wrong country, which nobody notices until the money is gone.
+It reads the country off the END of each entry, so one box handles everything:
+
+```
+"Gilbert, Arizona"        -> query "Gilbert, Arizona"  in US   (state recognised)
+"London, United Kingdom"  -> query "London"            in GB   (country stripped from the query)
+"Toronto, Ontario"        -> query "Toronto, Ontario"  in CA   (province recognised)
+"Canada"                  -> the whole country, no lookup needed
+"Paris"                   -> falls back to the default, AND IS REPORTED AS ASSUMED
+```
+
+The trailing country is stripped from the query because both platforms already search inside a
+country and repeating it only hurts the match. A trailing **state is kept**, because it is what
+tells Phoenix, Arizona from Phoenix, Oregon.
+
+**🔴 It never guesses silently.** An entry whose country cannot be determined falls back to the
+default *and is returned in `assumed`*, so the caller can surface it. Combined with the existing
+rule that an **unresolvable location is fatal**, a mistyped place can neither be dropped nor
+quietly advertised in the wrong country.
+
+**Language is resolved, not hardcoded.** `resolveLanguages()` looks names or codes up against
+Google's own `language_constant` table, defaults to English (what every existing campaign already
+targeted), and accepts `"all"` to remove language targeting entirely. **The ids are deliberately
+not hardcoded**: guessing a language constant id and getting it wrong targets the wrong audience
+exactly as quietly as a wrong geo id, so it follows the same resolve-don't-guess rule as geo.
+
+The Meta card's two-letter Country box is now labelled **"If unclear"** and is only the fallback
+for a line that names no country of its own.
+
+### Parity: what the house account could do, a client now can
+
+The audit found the server-side `internal` branches are all **correct by design** — BoldLine does
+not email, nurture, invoice or report to itself. One real gap and one deliberate exception:
+
+**🟢 FIXED — per-service campaigns.** The house account could always type a NICHE and rebuild, so
+BoldLine runs one campaign per kind of business it chases. A client had no equivalent, and needs
+the same thing for the same structural reason: **one ad group holding "roof repair" and "roof
+replacement" can never match either search well.** Both launch cards now ask *"Which service is
+this campaign for?"* on a client, seed the name, copy and keywords from it, and — importantly —
+**pass it into the AI brief as the niche and the offer**, or the model writes for the whole trade
+while the campaign name and seeds say one service, and the two disagree.
+
+**🔴 DELIBERATE — Meta split testing stays house-only.** That is the `META-TIER-GATE`: Meta's
+Development tier only permits writes to owned accounts, so removing it would have Meta rejecting
+writes every two hours forever. **Google creative testing has no such restriction and already runs
+for clients.** The gate goes at Meta approval, along with the site flip.
+
+Everything else built this week reaches clients already: local conditions (both windows), the
+conditions card on both launch cards, the creative strategy switch, the delivery-chain activation,
+and the geo guards.
+
+### Verified — `verify-campaign-launch.mjs` now 104 checks
+
+Five more deliberate breaks confirmed to fail: Google reverting to a hardcoded country, language
+pinned back to English, the parser marking an unplaceable entry as confidently placed, the
+per-service box hidden from clients again, and the client's chosen service not reaching the AI.
+
+**One test failed for the second time on a character-window proxy.** `verify-local-conditions`
+asserted the Meta generator sends its service area *"within 900 characters of `action:"meta"`"*;
+a comment added to that call pushed it out of range while the wiring stayed correct. This is the
+**same trap as the 400-character proxy** already recorded in `repo-tests`. It now slices the call
+and asserts the field is inside it, and was re-confirmed to catch the real regression.
