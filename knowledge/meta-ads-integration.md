@@ -3,9 +3,9 @@ name: meta-ads-integration
 topic: OS app
 task: connect, test, debug, or extend the Meta (Facebook/Instagram) Ads integration in the OS
 keywords: [meta-ads.mjs, metaCall, MetaAdsTestCard, MetaLaunchCard, createCampaign, System User token, ads_management, metaAdAccountId, metaPageId, appsecret_proof]
-status: built-untested
+status: verified
 summary: Full Meta Marketing API integration BUILT 2026-07-20 (mirrors + extends the Google Ads side). netlify/functions/meta-ads.mjs — test / campaigns / setBudget / setStatus / createCampaign, owner-Supabase-session gated, System-User-token auth, Graph v25.0 (META_GRAPH_VERSION overrides). OS: Deploy-tab Test card, per-client metaAdAccountId + metaPageId in Edit→Campaign, ARIA reads live Meta campaigns + ⚡ approve→execute (exec.platform "google"|"meta"), and a Launch Meta Campaign form on the Package tab (builds campaign→adset→creative→ad ALL PAUSED). NOT yet runnable on client accounts — needs env vars set + Meta App Review (advanced ads_management). NOT tested against a live account.
-verified: 2026-07-20
+verified: 2026-08-20
 ---
 
 **Architecture (mirrors the Google MCC):** ONE business **System-User token** operates across every CLIENT ad account the client shares with BoldLine's business portfolio. BoldLine holds **manager access only** — every campaign runs on the CLIENT's own ad account + payment method + Facebook Page. BoldLine never fronts/pays ad spend (hard constraint enforced by design: the `adAccountId` is always the client's).
@@ -36,3 +36,26 @@ verified: 2026-07-20
 **⚠ STATUS on CLIENT accounts = still unverified.** With standard access the token only works on ad accounts the app's admins/devs own (verified above). CLIENT accounts require **App Review** for advanced `ads_management` (weeks; App Review needs a demo of the working integration — which now exists, so it's submittable). Likely first-run tweaks: the `createCampaign` field set (Meta is picky — objective/optimization_goal/special_ad_categories/targeting spec), city-radius geo targeting (currently country-level only; city targeting needs geo KEYS not names), and `optimization_goal` (LINK_CLICKS works without a pixel; switch to OFFSITE_CONVERSIONS once the client has a pixel + events). Render-verified headless (10/10 screens, zero errors); functions syntax-clean.
 
 **Business verification** (prerequisite) APPROVED 2026-07-19 — see `meta-marketing-api`.
+
+---
+
+## ✅ 2026-08-20 — FIRST REAL META CAMPAIGN IS LIVE
+
+Bryson published, then rebuilt, then approved "BoldLine Media — General" on the house account
+`act_1045064901242944`. $7.00/day, lead-gen, pointing at `/get-started`.
+
+**It had to be rebuilt once, and the reason is worth keeping.** The first build predated the same
+day's fixes, so it carried `LINK_CLICKS` as its performance goal. **Meta locks the performance goal
+the moment a campaign publishes** — the editor says so outright: *"The performance goal cannot be
+changed after the campaign has been published. To advertise with a different performance goal,
+create a new ad set."* The same is true of several other ad-set-level settings.
+
+**So the habit is: check it while it is still PAUSED in the OS, then approve.** Deleting and
+rebuilding is free right up until the moment it spends, and impossible to undo cheaply afterwards.
+
+**What the rebuild picked up automatically** (all defaults now, house and client alike): landing
+page views rather than link clicks, resolved city-level geo targeting rather than a bare country,
+and the full activate-the-whole-chain behaviour on approval.
+
+**Expect "Scheduled", not "Active", for the first hour** — `start_time` is set an hour ahead on
+purpose. See KB `campaign-launch-bugs`.
