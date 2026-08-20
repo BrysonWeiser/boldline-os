@@ -302,6 +302,28 @@ const os = read("../index.html");
 }
 
 
+
+// ── Meta optimises for arrivals, not taps (2026-08-20) ─────────────────────
+// A "link click" counts the tap; a "landing page view" counts the tap AND the page
+// loading. The difference is mis-taps and people who swiped away before it rendered, and
+// on LINK_CLICKS you pay for all of them because Meta optimised to produce taps.
+// LINK_CLICKS was originally chosen because the alternative needed a pixel and there was
+// none; Meta now serves it without one, and BoldLine's pixel is live.
+{
+  const create = meta.slice(meta.indexOf("async function createCampaign"), meta.indexOf("// ── Handler"));
+  const code = create.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  ok("Meta optimises for landing page views", /optimization_goal: "LANDING_PAGE_VIEWS"/.test(code));
+  ok("and no longer for raw link clicks", !/optimization_goal: "LINK_CLICKS"/.test(code),
+    "paying for taps that never became a page view");
+  // The billing event is what Meta CHARGES on and is deliberately unchanged.
+  ok("billing stays on impressions", /billing_event: "IMPRESSIONS"/.test(code));
+  // The one-hour delay is a safety buffer, not a bug: it is why a freshly published
+  // campaign reads "Scheduled" rather than "Active", which looks broken and is not.
+  ok("a new ad set still starts an hour out", /start_time: new Date\(Date\.now\(\) \+ 3600e3\)/.test(code),
+    "the buffer is what stops a campaign spending the second it is created");
+}
+
+
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-campaign-launch: ${pass} checks passed`);
 process.exit(fails.length ? 1 : 0);

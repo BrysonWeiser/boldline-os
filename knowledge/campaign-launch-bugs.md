@@ -274,3 +274,38 @@ label. An item with no exec payload names **no** platform rather than a guessed 
 
 **46 checks (was 29), three deliberate breaks confirmed to fail.** The routing itself is now
 pinned too, so a future label change cannot quietly disturb which account gets written to.
+
+---
+
+## ✅ 2026-08-20 — Meta now optimises for ARRIVALS, not taps
+
+Spotted in Meta's own ad-set editor while Bryson checked his first campaign, before it had
+spent anything.
+
+`optimization_goal` was **`LINK_CLICKS`**. It is now **`LANDING_PAGE_VIEWS`**.
+
+**The difference is what you pay for.** A link click counts the tap. A landing page view
+counts the tap *and* the page actually loading. The gap between them is mis-taps and people
+who swiped away on a slow connection before anything rendered — and under `LINK_CLICKS`
+Meta optimises to produce **taps**, so it finds exactly the people most likely to tap and
+least likely to arrive. You pay for every one.
+
+**Why it was LINK_CLICKS originally, and why that reasoning expired.** It was chosen because
+`LANDING_PAGE_VIEWS` used to require a pixel and there was none. Both halves have since
+changed: Meta now serves this goal **without** a pixel (it says so in the editor), and
+BoldLine's pixel `2164699294444030` is live and firing on `/get-started`.
+
+`billing_event` stays `IMPRESSIONS` — that is what Meta *charges* on and is unrelated.
+
+**Change it before a campaign spends.** Switching the goal afterwards resets Meta's learning
+phase, so the free moment is while it still reads "Scheduled" at $0.00.
+
+Applies to every campaign the OS builds, house and client alike. Guarded in
+`verify-campaign-launch.mjs`, break confirmed to fail.
+
+## "Scheduled" is not a bug
+
+A freshly published Meta campaign reads **Scheduled**, not Active, with $0.00 spent and no
+impressions. That is `start_time` being set **one hour ahead** on purpose, so a campaign can
+never begin spending the instant it is created, before anyone has looked at it. It flips to
+Active on its own. Worth remembering, because it looks exactly like a broken launch.
