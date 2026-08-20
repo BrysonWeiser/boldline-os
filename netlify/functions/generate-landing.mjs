@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { humanizeDeep } from "../lib/humanize.mjs";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
 
@@ -134,6 +135,7 @@ Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
   });
 
   const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
+NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Also write 3-4 honest FAQs (faqs) that overcome common objections for this kind of service — pricing approach, timing, what to expect, guarantees ONLY if the business actually offers them. Keep answers to 1-2 sentences, general and truthful. If the client's website logo/main image is attached, use it to judge the real brand colors + theme.
 
@@ -188,7 +190,9 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
 
-    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design, faqs } = toolUse.input;
+    // 🔴 A LANDING PAGE IS THE MOST-READ THING WE WRITE and it had no dash cleaning at
+    // all, only a line in the prompt. Prose join: a page reads worse chopped into stubs.
+    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design, faqs } = humanizeDeep(toolUse.input, { join: ", " });
     const dIn = design || {};
     const keep = (v, arr) => (arr.includes(v) ? v : undefined);
     const designOut = {};

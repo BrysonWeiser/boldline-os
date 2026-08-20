@@ -8,6 +8,7 @@
 //   id = a client-generated brief id the OS also polls on.
 
 import { createClient } from "@supabase/supabase-js";
+import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { getNicheLeadFee, packagesPromptBlock } from "../lib/pricing-shared.mjs";
@@ -17,6 +18,7 @@ const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 const buildSystem = (leadFee) => `You are a sharp B2B sales-intelligence analyst preparing Bryson Weiser, owner of BoldLine Media, for a sales call with a prospective client. BoldLine is a digital-marketing agency that runs managed Google Ads and builds custom landing pages for local/service businesses, priced as a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee each month, whichever is higher — never both. There is no separate retainer on top of the lead fee. The CLIENT always pays their own ad spend directly — BoldLine never fronts or holds ad spend.
+NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Your job: research the specific prospect using web search, then write a tight, honest pre-call briefing that helps Bryson build rapport, diagnose their gaps, recommend the right package, and close.
 
@@ -97,7 +99,8 @@ const runResearch = async (input) => {
     break;
   }
 
-  const text = (response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
+  // Internal, but Bryson reads lines from this out loud on a call.
+  const text = humanize((response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim(), { join: ", " });
   let recommendedPackageId = null;
   let brief = text;
   const m = text.match(/^\s*RECOMMENDED:\s*([a-z][a-z-]*)\s*/i);

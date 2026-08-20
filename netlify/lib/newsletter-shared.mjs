@@ -11,19 +11,23 @@
 // scheduling, subscribers, analytics. sendDueNewsletters() no-ops while disabled.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { humanize } from "./humanize.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, GOLD, escapeHTML } from "./report-shared.mjs";
 import { BLOG_FACTS } from "./blog-shared.mjs";
 
 const anthropic = new Anthropic();
 export const SITE_URL = "https://boldlinemedia.com";
-const deDash = (s) => (typeof s === "string" ? s.replace(/\s*—\s*/g, ", ") : s);
+// Shared humanizer: this matched only the em dash, so en dashes and spaced hyphens
+// both shipped to subscribers untouched.
+const deDash = (s) => humanize(s, { join: ", " });
 
 export const getSupabase = () => createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 // ── AI: write the companion email for a blog post ──────────────────────────
 export async function generateNewsletterEmail(post) {
   const prompt = `You are writing this week's BoldLine Media newsletter email. It pairs with the blog post that publishes the same week. The reader is a busy small/mid-size business owner.
+NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Make the email genuinely worth reading on its own: deliver 2 to 3 concrete, useful takeaways from the post — enough that the reader actually learns something they can act on today — in tight, plain paragraphs.
 

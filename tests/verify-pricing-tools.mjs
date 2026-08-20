@@ -329,7 +329,11 @@ ok("lead-fee resolves the package from the budget", /packageForBudget/.test(feeS
 ok("lead-fee projects the month with the shared maths", /calcMonthlyBill/.test(feeSrc));
 ok("lead-fee tells the model the fee and the minimum are never both charged",
   /WHICHEVER IS HIGHER/.test(feeSrc) && /Never both added together/.test(feeSrc));
-ok("lead-fee bans em dashes in what Bryson reads out", /No em dashes/.test(feeSrc));
+// Reworded 2026-08-20: the old rule said "no em dashes or en dashes", which a model can
+// read as permission to use a spaced hyphen instead. That is exactly what kept happening,
+// so the assertion now requires the stronger rule naming all three characters.
+ok("lead-fee bans every kind of joining dash in what Bryson reads out",
+  /NEVER use a dash/.test(feeSrc) && /plain hyphen/.test(feeSrc));
 ok("lead-fee has a model fallback", /const MODELS = \[/.test(feeSrc));
 
 ok("the OS has a fee finder component", /function LeadFeeFinder\(/.test(os));

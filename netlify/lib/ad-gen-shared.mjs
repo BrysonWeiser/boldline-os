@@ -6,6 +6,7 @@
 // cleaning must be IDENTICAL across both paths, so they live here once.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { humanize, NO_DASH_RULE } from "./humanize.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
@@ -18,7 +19,7 @@ export const LIMITS = { headline: 30, description: 90, keyword: 80, keywordWords
 // model mirrors the style of its prompt, so this is written the way the ads should
 // read: plain, short sentences, no dashes.
 export const VOICE = `HOW THE COPY MUST READ:
-- NEVER use an em dash or en dash. Write two sentences, or use a comma. This is the single biggest tell that copy was machine-written.
+- ${NO_DASH_RULE}
 - No "unlock", "elevate", "leverage", "seamless", "robust", "game-changer", "supercharge", "in today's world", "it's not just X, it's Y".
 - Write how a person talks. Contractions are good. Vary sentence length.
 - No emojis anywhere.
@@ -151,11 +152,9 @@ export async function runTool({ system, prompt, tool, maxTokens }) {
 // ── Output cleaning ──────────────────────────────────────────────────────────
 // The prompt asks for limits; this enforces them. A single over-length headline
 // fails the entire googleAds:mutate, so nothing over-length may reach the API.
-const stripDashes = (s) => String(s == null ? "" : s)
-  .replace(/\s*[—–]\s*$/, "").replace(/^\s*[—–]\s*/, "")
-  .replace(/\s*[—–]\s*/g, ". ").replace(/\s*\.\s*\.\s*/g, ". ")
-  .replace(/([.!?])\s+([a-z])/g, (m, p, c) => p + " " + c.toUpperCase())
-  .replace(/\s{2,}/g, " ").trim();
+// Now the SHARED humanizer (netlify/lib/humanize.mjs). The local version matched only
+// "—" and "–", so "Roof repair - done right" went out untouched.
+const stripDashes = (s) => humanize(String(s == null ? "" : s));
 
 // ── Truncation that never cuts a word in half ────────────────────────────────
 // A plain .slice() produced "When the calls should be ringi" on a real creative.

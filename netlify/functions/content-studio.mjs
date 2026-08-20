@@ -13,6 +13,7 @@
 // Env: ANTHROPIC_API_KEY, SUPABASE_SERVICE_ROLE_KEY.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { humanizeDeep } from "../lib/humanize.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 
@@ -44,7 +45,7 @@ const GROUND_RULES = `HARD RULES. These override everything else:
 - No hype-bro voice. No "crushing it", no fake urgency, no "secret nobody tells you" clickbait he'd be embarrassed by. Direct, specific, confident.
 - Every idea must be shootable ALONE, on a phone, with no crew, no b-roll he doesn't have, and no paid tools.
 - NOTHING may read as AI-written. Standing rule. In particular:
-  - NEVER use an em dash or en dash (— or –). Write two sentences, or use a comma. This is the single biggest tell and Bryson calls it out on sight.
+  - NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour. Bryson calls this out on sight.
   - No "it's not just X, it's Y". No "in today's world". No "let's dive in". No "unlock/elevate/leverage/seamless/robust/game-changer/supercharge". No "the truth is". No rule-of-three lists where two would do.
   - Don't open every line with a rhetorical question, and don't end on a neat inspirational bow.
   - Vary sentence length. Real speech is uneven. A wall of same-length balanced clauses is what a model sounds like.
@@ -130,7 +131,8 @@ async function runTool({ tool, system, prompt, maxTokens }) {
       });
       const use = (msg.content || []).find((b) => b.type === "tool_use");
       if (!use) throw new Error("The model replied without using the tool.");
-      return { data: use.input, model };
+      // Every string the model produced, dash-free. Was prompt-only before 2026-08-20.
+      return { data: humanizeDeep(use.input), model };
     } catch (e) {
       lastErr = e;
       const m = String((e && e.message) || e);
