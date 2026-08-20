@@ -134,7 +134,7 @@
 
 - **[netlify-secret-scan-deploys](../knowledge/netlify-secret-scan-deploys.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   7 consecutive production builds failed on "Exposed secrets detected - META_APP_ID" while every merge reported success in git, so the OS silently ran day-old code. The tell was that git and the live site disagreed. Fixed by adding META_APP_ID to SECRETS_SCAN_OMIT_KEYS - it is a PUBLIC identifier (embedded in every client-side Meta SDK snippet), not a credential. Deleting the offending id from docs was tried first and was the wrong approach: the first candidate turned out to already be in the last SUCCESSFUL deploy.  
-  <sub>*task:* diagnose why the OS is running old code, and fix a failing Netlify secret scan &nbsp;|&nbsp; *keywords:* netlify, deploy failed, exposed secrets detected, SECRETS_SCAN_OMIT_KEYS, META_APP_ID, stale OS, old code, build failed, PWA cache, service worker</sub>
+  <sub>*task:* diagnose why the OS is running old code, and fix a failing Netlify secret scan &nbsp;|&nbsp; *keywords:* build credits, build minutes, out of credits, deploy did not run, stale deploy, git and live site disagree, CACHE_VERSION check, netlify, deploy failed, exposed secrets detected, SECRETS_SCAN_OMIT_KEYS, META_APP_ID, stale OS, old code, build failed, PWA cache, service worker</sub>
 
 ## Marketing
 
