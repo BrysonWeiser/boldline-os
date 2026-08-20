@@ -201,3 +201,49 @@ asserted the Meta generator sends its service area *"within 900 characters of `a
 a comment added to that call pushed it out of range while the wiring stayed correct. This is the
 **same trap as the 400-character proxy** already recorded in `repo-tests`. It now slices the call
 and asserts the field is inside it, and was re-confirmed to catch the real regression.
+
+---
+
+## ✅ 2026-08-20 — deleting a campaign now clears its approval request
+
+**Bryson:** *"if a campaign needs approve itll give me the notification but then if i delete the
+campaign the notification is still there."*
+
+**Worse than untidy.** The leftover notification still carries an Approve button. Pressing it
+re-reads the ad account, cannot find the campaign, and fails — so the queue holds an item that
+**can never be cleared by doing what it asks**, and the bell count stays permanently wrong, which
+is how a real approval ends up ignored.
+
+**Two things are attached to a campaign and both had to go:** the owner's `pendingAction`
+("Launch Meta campaign X"), matched on `exec.campaignId`, and the CLIENT's pending approval
+("Your campaign is ready to launch"). The client approval carried no campaign id at all, so
+`makeApproval` now stamps one at creation and both launch cards pass it. Matching on the title
+would have been guesswork.
+
+**An already-ANSWERED client approval is kept.** It is a record of what they decided, not an
+outstanding request, and deleting it would erase that.
+
+**`withoutCampaign()` returns the SAME object when nothing matched.** The caller only saves when
+the object changed, so returning a fresh copy every time would write to the database on every
+screen load.
+
+### The self-heal, and the guard that matters more than the feature
+
+The delete button clears its own paperwork, but a campaign removed straight from Google Ads or
+Meta Ads Manager leaves the identical dead notification — as do any orphaned before this fix
+existed (Bryson already had one). So the Campaigns screen also sweeps on load.
+
+**🔴 It only prunes for an ad account that actually ANSWERED.** Treating a failed API call as
+"this account has no campaigns" would wipe every pending approval the moment the ads API had a bad
+minute, and those are the items that authorise real spend. Success is recorded only after the call
+returns, never in the catch. The sweep also matches on **platform as well as id**, since two
+platforms can hand out the same campaign id.
+
+**29 checks, four deliberate breaks confirmed to fail** — the delete no longer clearing, answered
+approvals being wiped, the self-heal ignoring whether the account answered, and the helper
+returning a new object when nothing changed. The pruning helper is **extracted from `index.html`
+and executed** rather than re-implemented, so the test cannot pass while the shipped version is
+broken.
+
+One assertion failed on the first run and was **my regex, not the code**: `[^>]*` inside a JSX
+prop matcher ends early on the `=>` of an arrow function.
