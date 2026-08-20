@@ -247,3 +247,30 @@ broken.
 
 One assertion failed on the first run and was **my regex, not the code**: `[^>]*` inside a JSX
 prop matcher ends early on the `=>` of an arrow function.
+
+---
+
+## ✅ 2026-08-20 — the approval card named the wrong platform
+
+**Bryson:** *"i just approved my campaign and i have it set to run meta only but why when i
+pressed approve it said google ads."*
+
+**The EXECUTION was correct.** `decideAction` branches on `exec.platform` and called Meta, so his
+campaign did go live on Meta. Three LABELS were wrong:
+
+| Wrong | Why it mattered |
+|---|---|
+| Button read **"Executing in Google Ads…"** always | Hardcoded, whatever the action was |
+| Item read **"📌 Other · ARIA proposal"** | Launch cards write `cat`, ARIA writes `category`, and the UI read only `category` — so every campaign launch fell through to "Other" and was credited to ARIA, who did not build it |
+| Footer claimed ⚡ executes in **"the client's Google Ads account"** and that *"all Meta changes"* are logged for manual work *"until Meta's API is verified"* | **Flatly false since 2026-07-20**, and it directly contradicted what the button had just done |
+
+**The footer was the one that could have cost money.** Told that Meta approvals are only logged
+for him to carry out by hand, the reasonable next step is to go into Ads Manager and start the
+campaign again. A UI that lies about what it did is worse than one that says nothing.
+
+Fixed with three small helpers next to `CATEGORY_LABELS` — `execPlatformLabel`,
+`approvalCategory` (reads `category || cat`) and `approvalSource` — plus a `launch` category
+label. An item with no exec payload names **no** platform rather than a guessed one.
+
+**46 checks (was 29), three deliberate breaks confirmed to fail.** The routing itself is now
+pinned too, so a future label change cannot quietly disturb which account gets written to.

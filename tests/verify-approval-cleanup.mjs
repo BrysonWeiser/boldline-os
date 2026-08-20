@@ -127,6 +127,62 @@ const client = () => ({
   ok("a Google load error does not mark it answered", /catch\(e\)\{ errs\.push/.test(gBlock) && !/catch[\s\S]{0,120}loaded\[/.test(gBlock));
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// THE APPROVAL CARD MUST NAME THE RIGHT PLATFORM (2026-08-20)
+// ══════════════════════════════════════════════════════════════════════════════
+// Bryson: "i just approved my campaign and i have it set to run meta only but why when i
+// pressed approve it said google ads".
+//
+// The EXECUTION was correct — it branches on exec.platform and called Meta. Three LABELS
+// were wrong, and the third was not merely cosmetic: the footer told him Meta approvals
+// are only logged for him to do by hand, which flatly contradicted what the button had
+// just done. A UI that lies about what it did is worse than one that says nothing, because
+// he would reasonably have gone into Ads Manager and started the campaign a second time.
+{
+  const helpers = os.slice(os.indexOf("const CATEGORY_LABELS ="), os.indexOf("// ─── WEB PUSH"));
+  const { execPlatformLabel, approvalCategory, approvalSource, CATEGORY_LABELS } =
+    new Function(helpers + "\nreturn { execPlatformLabel, approvalCategory, approvalSource, CATEGORY_LABELS };")();
+
+  eq("a Meta action is labelled Meta", execPlatformLabel({ exec: { platform: "meta" } }), "Meta Ads");
+  eq("a Google action is labelled Google", execPlatformLabel({ exec: { platform: "google" } }), "Google Ads");
+  eq("an action that executes nothing names no platform", execPlatformLabel({ title: "x" }), "");
+  eq("a null action is safe", execPlatformLabel(null), "");
+
+  // The launch cards write `cat`; ARIA writes `category`. Reading one labelled every
+  // campaign launch "Other".
+  eq("a launch approval is categorised as a launch", approvalCategory({ cat: "launch" }), "launch");
+  eq("an ARIA proposal keeps its own category", approvalCategory({ category: "budget" }), "budget");
+  eq("an uncategorised item falls back", approvalCategory({}), "other");
+  ok("the launch category has a label", !!CATEGORY_LABELS.launch);
+
+  // Crediting a campaign the owner built himself to ARIA is simply untrue.
+  eq("a launch is not credited to ARIA", approvalSource({ cat: "launch" }), "You built this");
+  eq("an ARIA proposal still is", approvalSource({ category: "budget" }), "ARIA proposal");
+
+  // The button.
+  ok("the button names the action's own platform",
+    /Executing in \$\{execPlatformLabel\(action\)\|\|"the ad account"\}/.test(os));
+  ok("and no longer hardcodes one", !/Executing in Google Ads…/.test(os));
+
+  // The footer.
+  const footer = os.slice(os.indexOf("Approving an item marked"), os.indexOf("Approving an item marked") + 420);
+  ok("the footer is platform-neutral", /on whichever platform the item names/.test(footer));
+  ok("the footer no longer claims Meta is manual-only",
+    !/all Meta changes until Meta's API is verified/.test(os),
+    "that was false and contradicted what the button had just done");
+}
+
+// The execution itself was never wrong. Pin it so a label fix cannot disturb the routing.
+{
+  const d = os.slice(os.indexOf("const decideAction=async"));
+  const body = d.slice(0, d.indexOf("\n  const "));
+  ok("approval routes on the action's platform", /ex\.platform==="meta"\?"meta":"google"/.test(body));
+  ok("Meta approvals call Meta", /if\(platform==="meta"\)\{[\s\S]{0,200}metaCall\(/.test(body));
+  ok("and check the right linked account", /platform==="meta"\?cl\.metaAdAccountId:cl\.googleAdsCustomerId/.test(body));
+}
+
+
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-approval-cleanup: ${pass} checks passed`);
 process.exit(fails.length ? 1 : 0);
