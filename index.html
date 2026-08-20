@@ -6250,7 +6250,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   // though nothing was cut mid-word. So after trimming, walk back off any word that
   // cannot end a sentence. Only applies when something was actually cut. Same list and
   // same reasoning as fitPhrase on the server (netlify/lib/ad-gen-shared.mjs).
-  const CL_DANGLING = new Set("a an the this these those your our their its my his her every each more most less and or but nor so because if when while although though unless until that which whose than of to in on at by for with from into onto about after before between through during without within across against near per via is are was were be been being am do does did has have had will would can could should may might must not just very really quite".split(" "));
+  const CL_DANGLING = new Set("a an the this these those your our their its my his her every each more most less no any another other such several and or but nor so because if when while although though unless until that which whose than of to in on at by for with from into onto about after before between through during without within across against near per via is are was were be been being am do does did has have had will would can could should may might must not just very really quite".split(" "));
   const clPhrase = (s,max) => {
     const full=String(s||"").trim().replace(/\s{2,}/g," ");
     if(full.length<=max) return full;

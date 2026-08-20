@@ -197,6 +197,17 @@ const DANGLING = new Set([
   // articles and determiners
   "a", "an", "the", "this", "these", "those", "your", "our", "their", "its",
   "my", "his", "her", "every", "each", "more", "most", "less",
+  // 🔴 QUANTIFIERS ADDED 2026-08-20, off a live ad reading "Steady roof leads, no".
+  // The walk-back was working: the model wrote "Steady roof leads, no more guessing",
+  // `fitWords` cut it to "…, no more", and "more" WAS caught and popped. It then stopped
+  // on "no", which was not listed, so a one-word fragment survived. The lesson is that the
+  // list has to cover a whole CHAIN of leading words, not just the last one, because
+  // popping one dangler routinely exposes another underneath it.
+  // Still conservative: "both", "either", "much", "many" and "enough" are deliberately
+  // ABSENT because they genuinely do end sentences ("we do both", "thanks so much").
+  // "no" is the one judgement call — "the answer is no" is valid English but essentially
+  // never appears in ad copy, whereas "no contracts" / "no guessing" is everywhere.
+  "no", "any", "another", "other", "such", "several",
   // coordinating and subordinating conjunctions
   "and", "or", "but", "nor", "so", "because", "if", "when", "while",
   "although", "though", "unless", "until", "that", "which", "whose", "than",
