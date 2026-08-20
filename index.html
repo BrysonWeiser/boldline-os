@@ -6113,6 +6113,71 @@ function MetaAdsTestCard() {
 // CLIENT's own linked Google Ads account, ALL PAUSED. Pre-fills from client data;
 // owner reviews + edits + launches. Nothing spends until it's enabled.
 // NOT yet verified against a live linked account — see google-ads.mjs createCampaign.
+// What is actually happening where the ads will run, shown right next to the copy fields.
+//
+// Bryson, 2026-08-20: "for the copy generation whether its the manual or the generated
+// variants make sure that also looks at whats going on in the area."
+//
+// The AI writers have had these facts since 2026-08-17, but only inside a server-side
+// prompt. When Bryson wrote a headline himself, or edited one the model gave him, he was
+// working from memory while the bot worked from data. He makes the final call on what
+// ships, so he gets the same facts, from the same source, in the same words.
+//
+// Loads itself when the locations are known and says nothing at all when there is nothing
+// worth saying, because a card that always shouts gets ignored.
+function AreaConditionsCard({locations}) {
+  const [state,setState]=React.useState("idle");
+  const [data,setData]=React.useState(null);
+  const loc=String(locations||"").trim();
+
+  React.useEffect(()=>{
+    if(!loc){ setData(null); setState("idle"); return; }
+    let cancelled=false;
+    (async()=>{
+      setState("working");
+      try{
+        const { data:{ session } }=await supabaseClient.auth.getSession();
+        const token=session&&session.access_token;
+        if(!token){ if(!cancelled) setState("error"); return; }
+        const r=await fetch("/.netlify/functions/area-conditions",{method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+          body:JSON.stringify({locations:loc})}).then(x=>x.json());
+        if(cancelled) return;
+        if(!r||!r.ok){ setState("error"); return; }
+        setData(r); setState("done");
+      }catch{ if(!cancelled) setState("error"); }
+    })();
+    return ()=>{ cancelled=true; };
+  },[loc]);
+
+  // A weather lookup failing must never look like the campaign is broken, so a failure is
+  // silent. The ad does not depend on this.
+  if(state!=="done"||!data) return null;
+  const now=(data.now||[]).filter(a=>a.inArea);
+  const past=(data.recent||[]).filter(a=>a.inArea&&a.days>=3);
+  if(!now.length&&!past.length) return null;
+
+  const row=(txt,key)=>(
+    <div key={key} style={{fontSize:10.5,color:C.textDim,lineHeight:1.55,marginTop:3}}>• {txt}</div>
+  );
+  return (
+    <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,border:`1px solid ${C.borderAccent}`,backgroundColor:C.goldDim}}>
+      <div style={{fontSize:10.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>What's going on in their area</div>
+      {now.length>0&&(<>
+        <div style={{fontSize:10,color:C.textMuted,fontWeight:700,marginTop:5}}>Right now</div>
+        {now.slice(0,4).map((a,i)=>row(`${a.event}${a.where&&a.where.length?` — ${a.where.join(", ")}`:""}`,"n"+i))}
+      </>)}
+      {past.length>0&&(<>
+        <div style={{fontSize:10,color:C.textMuted,fontWeight:700,marginTop:8}}>Last {past[0].window} days</div>
+        {past.slice(0,4).map((a,i)=>row(`${a.event} on ${a.days} of the last ${a.window} days`,"p"+i))}
+      </>)}
+      <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.55,marginTop:8,paddingTop:7,borderTop:`1px solid ${C.border2}`}}>
+        Live from the National Weather Service. The AI writer sees this too. <b style={{color:C.textDim}}>What already happened is usually the stronger angle</b> for roofing, restoration, tree work and glass — people call after they see the damage, not during the storm. Only use it if it genuinely fits this business.
+      </div>
+    </div>
+  );
+}
+
 function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
@@ -6299,6 +6364,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   return (
     <Card>
       <Label>📈 Launch Google Ads Campaign</Label>
+      <AreaConditionsCard locations={f.locationsText}/>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full Search campaign on <strong>your</strong> Google Ads account, pointing at your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full Search campaign (budget → ad group → responsive search ad → keywords) on <strong>{client.name}</strong>'s Google Ads account. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you enable it. They own the account + pay their own spend.</>}</div>
       {client.internal&&(
         <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
@@ -6466,6 +6532,16 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   const [genPick,setGenPick] = useState(0);
   const [genState,setGenState] = useState("idle"); // idle | working | error
   const [genMsg,setGenMsg] = useState("");
+  // The service area, for the weather lookup on the server and the card below. The Meta
+  // card targets by country and age rather than by city, so unlike the Google card there is
+  // no locations box here to read it from. The house account falls back to the metro Bryson
+  // actually works, which is what its Google twin defaults to as well.
+  const metaLocations = (() => {
+    const cs = client.campaignSetup || {};
+    const own = String(cs.targetLocations || cs.serviceArea || client.location || "").trim();
+    if (own) return own;
+    return client.internal ? "Gilbert, Arizona, Chandler, Arizona, Mesa, Arizona, Tempe, Arizona, Phoenix, Arizona, Scottsdale, Arizona" : "";
+  })();
   const generateMeta = async () => {
     setGenState("working"); setGenMsg("Writing variants. This takes a minute.");
     try{
@@ -6476,6 +6552,12 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         niche: client.internal ? (audience || "any business owner") : (client.niche||""),
         offer: client.internal ? "Google and Meta ad management plus the landing pages behind them"
                                : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),
+        // 🔴 WITHOUT THIS, META ADS GOT NO LOCAL CONDITIONS AT ALL. The server looks up the
+        // weather from `locations`, and this call simply never sent it, so every Meta variant
+        // since the conditions feature shipped was written with season-only context while the
+        // Google ones got live data. Found 2026-08-20. The Meta card has no locations field of
+        // its own (it targets by country and age), so the service area comes off the client.
+        locations: metaLocations,
         avgTicket: (client.campaignSetup&&client.campaignSetup.avgTicket)||"",
         differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
         landingUrl: f.landingUrl,
@@ -6561,6 +6643,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   return (
     <Card>
       <Label>📘 Launch Meta Campaign</Label>
+      <AreaConditionsCard locations={metaLocations}/>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full lead-gen campaign on <strong>your</strong> Meta ad account, driving to your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</>}</div>
       {client.internal&&(
         <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>

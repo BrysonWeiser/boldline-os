@@ -132,6 +132,20 @@ export const CREATIVE_MODES = {
 // Reads the per-client setting into the numbers the blocks below use. `multiTarget` lets
 // the owner ask for 2-5 angles; anything outside that is clamped rather than obeyed,
 // because "keep 40 creatives alive" is a typo, not an instruction.
+// What the challenger was written against, in one line for the owner alert. Names the
+// RECENT window separately from live conditions: "written for the storms of the last two
+// weeks" and "written for today's heat warning" are different decisions, and an alert that
+// blurs them leaves the owner unable to judge whether the bot was right.
+const condSummary = (lc) => {
+  if (!lc) return "";
+  const live = (lc.usable || []).map((a) => a.event);
+  const past = (lc.recentUsable || []).filter((a) => a.days >= 3).map((a) => `${a.event} on ${a.days} of the last ${a.window} days`);
+  const parts = [];
+  if (live.length) parts.push(`current conditions: ${live.join(", ")}`);
+  if (past.length) parts.push(`what the area has been through: ${past.slice(0, 3).join("; ")}`);
+  return parts.length ? ` Written against ${parts.join(", and ")}.` : "";
+};
+
 export const creativeStrategy = (ap = {}) => {
   const mode = CREATIVE_MODES[ap.creativeMode] ? ap.creativeMode : "test";
   const base = CREATIVE_MODES[mode];
@@ -387,7 +401,7 @@ export default withFailureAlert("ads-autopilot", async () => {
           locations: (cl.campaignSetup && cl.campaignSetup.targetLocations) || "",
         });
       }
-      const condFp = conditionsFingerprint(localCond.summary);
+      const condFp = conditionsFingerprint(localCond.summary, localCond.recentSummary);
       const watchPrev = (ap.conditionsWatch && ap.conditionsWatch.fp === condFp) ? ap.conditionsWatch : null;
       conditionsWatch = { fp: condFp, since: watchPrev ? watchPrev.since : new Date().toISOString() };
       const condSettled = (now - new Date(conditionsWatch.since).getTime()) >= CONDITIONS_DWELL_HOURS * 3600e3;
@@ -487,9 +501,7 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
             await gadsAddAd(accessToken, gid, g.resourceName, {
               headlines: cand.headlines, descriptions: cand.descriptions, finalUrl, status: "ENABLED",
             });
-            const condNote = localCond.usable.length
-              ? ` Written against current conditions: ${localCond.usable.map((a) => a.event).join(", ")}.`
-              : "";
+            const condNote = condSummary(localCond);
             const why = condChanged && !enoughTraffic
               ? `local conditions changed and held for ${CONDITIONS_DWELL_HOURS}h, so the ad running was written for different weather`
               : `added a second ad to split test against the one running (${g.impressions} impressions so far)`;
@@ -617,12 +629,10 @@ Return exactly ONE variant.`,
               name: `Challenger ${new Date().toISOString().slice(0, 10)}`,
               status: "ACTIVE",
             });
-            const condNote = localCond.usable.length
-              ? ` Written against current conditions: ${localCond.usable.map((a) => a.event).join(", ")}.`
-              : "";
+            const condNote = condSummary(localCond);
             actions.push({ key: splitKey, at: new Date().toISOString(), action: "split-challenger",
               name: `${t.c.name} / ad set ${adsetId}`, platform: "meta",
-              conditions: conditionsFingerprint(localCond.summary), trigger: "traffic",
+              conditions: conditionsFingerprint(localCond.summary, localCond.recentSummary), trigger: "traffic",
               reason: `added a second Meta creative to split test against the one running (${setImpressions} impressions so far). Same picture, different words, same budget.${condNote}` });
             splitChallengers++;
           } catch (e) { failures++; console.error("ads-autopilot: meta challenger failed:", e && e.message); }

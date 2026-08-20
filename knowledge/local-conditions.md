@@ -2,10 +2,10 @@
 name: local-conditions
 topic: Ads
 task: make ads reflect what is actually happening in the target area right now (weather, season, local demand), or check why an ad did or did not use a weather angle
-keywords: [local-conditions, landing page seasonal, conditions change trigger, CONDITIONS_DWELL_HOURS, CONDITIONS_COOLDOWN_HOURS, conditionsWatch, seasonal ads, weather angle, api.weather.gov, National Weather Service, NWS alerts, Extreme Heat Warning, monsoon, storm damage roofing, HVAC summer, conditionsFingerprint, isAdvertisable, parseAreas, verify-local-conditions]
+keywords: [local-conditions, recent weather, storms recently, past 14 days, aftermath, storm damage, county zone, Maricopa, areaDesc, fetchRecent, summariseRecent, resolveCounties, countyZones, Nominatim, area-conditions, AreaConditionsCard, manual ad copy, landing page seasonal, conditions change trigger, CONDITIONS_DWELL_HOURS, CONDITIONS_COOLDOWN_HOURS, conditionsWatch, seasonal ads, weather angle, api.weather.gov, National Weather Service, NWS alerts, Extreme Heat Warning, monsoon, storm damage roofing, HVAC summer, conditionsFingerprint, isAdvertisable, parseAreas, verify-local-conditions]
 status: verified
 summary: Every ad writer AND the landing-page writer (Google campaign builder, Meta variants, creative angles, landing pages, and the always-on challenger writer) now receives the LIVE weather alerts for the client's own service area plus today's date and season, pulled from the free US National Weather Service API (no key, no account). Facts are fetched in code because the model has no live data and would otherwise guess, and a guessed weather claim in a live ad is a lie with money behind it. Emergencies (wildfire, tornado, evacuation, flash flood, civil) are HARD-EXCLUDED from ad angles on both policy and decency grounds. Area matching is exact-place so a Bend, Oregon client is never claimed to be covered by an alert for "Gila Bend". A weather outage never blocks ad generation. 119 checks.
-verified: 2026-08-17
+verified: 2026-08-20
 ---
 
 **Bryson, 2026-08-17:** *"for any ads my own or for clients I want to make sure that the bots also
@@ -176,3 +176,111 @@ fire, and reverting the quiet-run persistence made its own assertion fail.
 - **Meta creative refresh on a conditions change.** The trigger is Google-only, because it rides on
   the split-testing path, which does not exist for Meta yet. **Parked until Meta approval — tracked
   in KB `meta-parked-work`** (Bryson asked for it to be marked, 2026-08-17).
+
+---
+
+## ✅ 2026-08-20 — THE PAST, THE COUNTY BUG, AND THE MANUAL PATH
+
+**Bryson:** *"for the copy generation whether its the manual or the generated variants make sure
+that also looks at whats going on in the area. Like right now for metro arizona there has been
+lots of storms recently."*
+
+Three separate problems came out of checking this, and two of them meant the feature was
+quietly wrong rather than merely incomplete.
+
+### 1. Active alerts alone MISSED HIS EXAMPLE ENTIRELY
+
+Measured live on the day he asked, against the real API:
+
+| Window | What Arizona actually had |
+|---|---|
+| **Active right now** | 11 alerts: 7 Extreme Heat Warnings, 3 Air Quality, 1 Flood Advisory. **Zero storms.** |
+| **Previous 14 days** | 437 alerts including **146 Severe Thunderstorm Warnings**, 84 Flash Flood, 11 Dust Storm |
+
+So a roofer's ad written that morning would have said nothing about storms, on exactly the day
+the metro was full of damaged roofs. **That is not an edge case, it is the normal shape of
+storm-driven trades: the demand arrives after the weather leaves.** Nobody calls a roofer during
+the storm, they call when they notice the ceiling stain. Roofing, restoration, tree work, glass,
+auto hail repair, fencing and landscaping all sell into the aftermath, and the aftermath was
+invisible to an "active alerts" query.
+
+**`fetchRecent(states, {days})`** now pulls a trailing 14-day window from the same NWS API
+(`/alerts?area=X&start=&end=`), and **`summariseRecent`** collapses it.
+
+**It counts DAYS, not rows, and that matters.** The NWS issues one alert per zone per event, so a
+single storm night across the Valley is dozens of rows. *"146 warnings"* sounds like the
+apocalypse and is useless; *"storms on 5 of the last 14 days, 2 of them covering Maricopa"* is the
+fact a person recognises. `MIN_RECENT_ROWS = 3` drops the single stray advisory, because one
+event eleven days ago is not a pattern and must not become an ad angle.
+
+The prompt gets the framing, not just the data: **live weather sells prevention, recent weather
+sells repair**, plus an explicit ban on manufacturing urgency out of the window. Landing pages get
+the durable version, where a run of events is evidence of the **seasonal pattern** rather than a
+reason to write "after last night's storm".
+
+### 2. 🔴 THE COUNTY BUG — the feature was telling the writer his own storms belonged elsewhere
+
+**The NWS uses two different zone schemes and the matcher only understood one:**
+
+```
+Extreme Heat Warning  ->  "Central Phoenix; Fountain Hills/East Mesa"   public zones, CITY names
+Severe Thunderstorm   ->  "Maricopa, AZ; Pinal, AZ"                     COUNTY zones
+```
+
+The exact-place city matcher handled the first perfectly. Against the second it matched nothing,
+so **every storm alert in Bryson's own metro was reported to the model as "elsewhere in the state,
+NOT this client's area"** even though Gilbert, Chandler, Mesa, Tempe, Phoenix and Scottsdale are
+all in Maricopa County. Watches, warnings and most severe weather are issued by county, so this
+was not a rare miss: **it was most of the severe weather, and it suppressed the exact angle he
+asked for.** It hit live alerts too, not only the new window: the active Air Quality Alert for
+"Maricopa, AZ" was being disclaimed as somebody else's.
+
+**Fix:** `countyZones()` recognises the `"Name, ST"` segment shape (a public zone never carries
+the state), and `resolveCounties()` resolves the client's own towns to their county through
+**OpenStreetMap Nominatim** — free, no key, cached per process, and only called at all when a
+county-issued alert actually turned up.
+
+**🔴 It fails soft in a SPECIFIC DIRECTION.** If the county cannot be resolved, the alert is
+reported as **county-issued and UNCONFIRMED** — never as "elsewhere", because that was the false
+statement being fixed. Three distinct states now exist where there were two: confirmed in-area,
+confirmed elsewhere, and honestly unknown. Uncertain and honest beats confident and wrong, and the
+unknown wording explicitly forbids claiming their customers are affected.
+
+### 3. 🔴 META WAS NEVER SENDING ITS SERVICE AREA
+
+The server reads the weather from `body.locations`. The Google launch card sent it. **The Meta
+card never did**, so every Meta variant since this feature shipped on 2026-08-17 was written with
+season-only context while the Google ones got live data. Nothing errored, which is why it went
+unnoticed. The Meta card has no locations box of its own (it targets by country and age), so it
+now derives one from the client's own `targetLocations`, falling back to the metro for the house
+account. Found while wiring the UI, three days before Bryson's first Meta campaign.
+
+### 4. The MANUAL path now sees what the bots see
+
+The facts had only ever existed inside a server-side prompt. When Bryson wrote a headline himself,
+or edited one the model gave him, **he was working from memory while the bot worked from data** —
+backwards, since he makes the final call on what ships.
+
+**`netlify/functions/area-conditions.mjs`** (read-only, owner-gated, writes nothing) hands the same
+facts to the browser, and **`AreaConditionsCard`** renders them at the top of both launch cards.
+Design rules that are asserted, not just intended:
+- **Only in-area conditions are shown.** An out-of-area alert sitting beside a copy field reads as
+  a suggestion.
+- **Only advertisable ones cross the wire.** An excluded emergency must never be rendered next to
+  an ad form at all.
+- **Silence when there is nothing to say**, and **silence on failure** — a weather lookup failing
+  must not look like the campaign is broken.
+
+### Verified — 176 checks (was 121), five deliberate breaks confirmed to fail
+
+Removing county matching, denying an unresolved county instead of flagging it, dropping the recent
+window from the change fingerprint, un-wiring Meta's service area, and letting the card show
+out-of-area alerts each produced failures. One assertion failed on the first run and was **my own
+mistake, not the code**: it searched the whole block for "elsewhere in the state" and matched the
+guidance paragraph that explains the phrase. Scoped to the alert list rather than loosened.
+
+**The change fingerprint buckets the recent window (none/some/many) rather than counting it.** A
+raw count would differ on almost every run as the 14-day window slides, so every run would look
+like "the weather changed" and autopilot would churn live ads forever. Bucketing means the
+signature only moves when the pattern moves. The 48-hour dwell and 14-day cooldown still apply on
+top.

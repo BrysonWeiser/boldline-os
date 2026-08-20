@@ -16,6 +16,7 @@ import { readFileSync } from "node:fs";
 import {
   parseAreas, seasonContext, summariseAlerts, isAdvertisable,
   conditionsBlock, getLocalConditions, conditionsFingerprint, fetchAlerts,
+  fetchRecent, summariseRecent, countyZones, resolveCounties,
 } from "../netlify/lib/local-conditions.mjs";
 
 let pass = 0; const fails = [];
@@ -200,7 +201,14 @@ for (const [file, label] of [
     src.slice(0, loopStart).indexOf("localCond") < 0,
     "a shared binding would leak one client's weather into the next");
   ok("autopilot uses the client's own target locations", /campaignSetup && cl\.campaignSetup\.targetLocations/.test(src));
-  ok("autopilot computes the fingerprint once per client", /const condFp = conditionsFingerprint\(localCond\.summary\)/.test(src));
+  // Both windows, or the trigger is half blind. Passing only `summary` still compiles and
+  // still returns a fingerprint, it just silently ignores everything the area has been
+  // through — which is the half that matters for storm-driven trades.
+  ok("autopilot computes the fingerprint once per client",
+    /const condFp = conditionsFingerprint\(localCond\.summary, localCond\.recentSummary\)/.test(src));
+  ok("no fingerprint call anywhere forgets the recent window",
+    !/conditionsFingerprint\(\s*localCond\.summary\s*\)/.test(src),
+    "a one-argument call drops the recent window out of the change trigger");
   ok("autopilot records the conditions on the action", /conditions: condFp/.test(src));
 }
 
@@ -285,6 +293,181 @@ for (const [file, label] of [
   ok("the watch is saved even on a run with no actions", /actions\.length \|\| watchChanged/.test(src));
   ok("and lastRun is still only stamped when it acted", /actions\.length \? \{ lastRun/.test(src));
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// WHAT THE AREA HAS BEEN THROUGH — the trailing window (2026-08-20)
+// ══════════════════════════════════════════════════════════════════════════════
+// Bryson: "make sure that also looks at whats going on in the area. Like right now for
+// metro arizona there has been lots of storms recently."
+//
+// Active alerts alone MISS THIS ENTIRELY. Measured on the day he asked, Arizona had 11
+// active alerts and not one was a storm, while the previous 14 days carried 146 Severe
+// Thunderstorm Warnings. Storm trades sell into the aftermath, so the aftermath has to be
+// visible to the writer.
+const past = (event, areaDesc, at, state = "AZ") => ({ state, event, areaDesc, severity: "Severe", headline: "", at });
+const days = (n) => new Date(Date.UTC(2026, 7, 20 - n)).toISOString();
+
+{
+  const rows = [
+    past("Severe Thunderstorm Warning", "Maricopa, AZ", days(1)),
+    past("Severe Thunderstorm Warning", "Maricopa, AZ", days(1)),   // same day, more zones
+    past("Severe Thunderstorm Warning", "Maricopa, AZ", days(4)),
+    past("Severe Thunderstorm Warning", "Pinal, AZ",    days(9)),
+  ];
+  const [s1] = summariseRecent(rows, [], new Set(["maricopa"]));
+  eq("recent counts DAYS, not rows", s1.days, 3);
+  eq("recent keeps the raw row count too", s1.rows, 4);
+  ok("recent matches the client's county", s1.namesClientArea);
+  eq("and counts how many of those days were in-area", s1.inAreaDays, 2);
+
+  // One stray advisory is not a pattern and must never become an ad angle.
+  const stray = summariseRecent([past("Dust Advisory", "Maricopa, AZ", days(11))], [], new Set(["maricopa"]));
+  eq("a single stray event is not reported as a pattern", stray.length, 0);
+
+  // Emergencies stay out of the recent window exactly as they stay out of the live one.
+  const fire = summariseRecent([1,2,3].map(n => past("Red Flag Warning", "Maricopa, AZ", days(n))), [], new Set(["maricopa"]));
+  ok("an emergency still summarises", fire.length === 1);
+  ok("but is never advertisable", !isAdvertisable(fire[0].event));
+}
+
+// ── 🔴 THE COUNTY BUG: the NWS uses two zone schemes ────────────────────────
+// Heat warnings name towns ("Central Phoenix"); storms name COUNTIES ("Maricopa, AZ").
+// The city matcher only understood the first, so every storm in Bryson's own metro was
+// reported as "elsewhere in the state, NOT this client's area" — the exact angle he asked
+// for, suppressed by a false negative.
+{
+  eq("a county zone is recognised", countyZones("Maricopa, AZ; Pinal, AZ").length, 2);
+  eq("and named correctly", countyZones("Maricopa, AZ")[0].county, "Maricopa");
+  eq("a public zone is NOT mistaken for a county", countyZones("Central Phoenix; East Mesa").length, 0);
+  eq("nor is a hyphenated public zone", countyZones("Lake Mead - AZ side").length, 0);
+
+  const storm = [alert("Severe Thunderstorm Warning", "Maricopa, AZ; Pinal, AZ")];
+  const withCounty = summariseAlerts(storm, ["Gilbert", "Mesa"], new Set(["maricopa"]));
+  ok("a county alert now matches a client in that county", withCounty[0].namesClientArea);
+  ok("and it is not flagged unconfirmed", !withCounty[0].unconfirmed);
+
+  // The regression guard: this is precisely what used to happen.
+  const cityOnly = summariseAlerts(storm, ["Gilbert", "Mesa"], new Set());
+  ok("without a resolved county it is NOT claimed as their area", !cityOnly[0].namesClientArea);
+  ok("but it is marked UNCONFIRMED rather than denied", cityOnly[0].unconfirmed,
+    "denying it is the false statement this fix exists to remove");
+
+  // A county that resolves and genuinely does not match is a real negative, not unknown.
+  const elsewhere = summariseAlerts(storm, ["Bend"], new Set(["deschutes"]));
+  ok("a resolved county that does not match is a firm no", !elsewhere[0].namesClientArea);
+  ok("and is not softened to unconfirmed", !elsewhere[0].unconfirmed);
+
+  // The old city path must still work, and still be strict.
+  const heat = summariseAlerts([alert("Extreme Heat Warning", "Central Phoenix; East Mesa")], ["Mesa"], new Set());
+  ok("city matching still works after the county change", heat[0].namesClientArea);
+  const gila = summariseAlerts([alert("Flood Advisory", "Gila Bend")], ["Bend"], new Set());
+  ok("and Gila Bend still never matches a Bend client", !gila[0].namesClientArea);
+}
+
+// ── The wording never states more than it knows ─────────────────────────────
+{
+  const storm = [alert("Severe Thunderstorm Warning", "Maricopa, AZ")];
+  const known = conditionsBlock({ locations: "Gilbert, AZ", alerts: storm, cities: ["Gilbert"], counties: new Set(["maricopa"]) });
+  ok("a matched county reads as their own area", /in this client's own service area/.test(known));
+
+  const unknown = conditionsBlock({ locations: "Gilbert, AZ", alerts: storm, cities: ["Gilbert"] });
+  ok("an unresolved county says so plainly", /NOT confirmed whether this client's towns are inside it/.test(unknown));
+  ok("and forbids claiming their customers are affected", /never say their customers are affected/.test(unknown));
+  // Scoped to the ALERT LIST, not the whole block: the guidance further down legitimately
+  // contains the phrase "elsewhere in the state" while explaining what it means.
+  const alertLines = unknown.slice(unknown.indexOf("LIVE WEATHER"), unknown.indexOf("HOW TO USE THIS"));
+  ok("an unresolved county is never called elsewhere", !/elsewhere in the state/.test(alertLines),
+    "that was the false statement");
+}
+
+// ── The recent window reaches the prompt, with the right framing ────────────
+{
+  const rows = [1,2,3,4,5,6].map(n => past("Severe Thunderstorm Warning", "Maricopa, AZ", days(n)));
+  const b = conditionsBlock({ locations: "Gilbert, AZ", alerts: [], recent: rows, cities: ["Gilbert"], counties: new Set(["maricopa"]) });
+  ok("the block reports what the area has been through", /WHAT THE AREA HAS BEEN THROUGH/.test(b));
+  ok("naming the event and the day count", /Severe Thunderstorm Warning in AZ on 6 of the last 14 days/.test(b));
+  ok("the aftermath is framed as the stronger angle", /ALREADY HAPPENED IS OFTEN THE STRONGER ANGLE/.test(b));
+  ok("it names the trades that sell into the aftermath", /roofing, restoration, tree work/i.test(b));
+  ok("and forbids manufacturing urgency from it", /Do not manufacture urgency/.test(b));
+
+  const page = conditionsBlock({ locations: "Gilbert, AZ", recent: rows, cities: ["Gilbert"], counties: new Set(["maricopa"]), mode: "landing" });
+  ok("a landing page treats a run of events as the SEASONAL pattern", /evidence of the SEASONAL PATTERN/.test(page));
+  ok("and still refuses last-night framing", /does not justify/.test(page));
+}
+
+// ── The change trigger sees the pattern, but is not shaken by noise ─────────
+// This signature drives live-ad rewrites. A raw count would move on almost every run as
+// the 14-day window slides, so it is bucketed.
+{
+  const live = [];
+  const mk = (n) => summariseRecent(Array.from({length: n}, (_, i) => past("Severe Thunderstorm Warning", "Maricopa, AZ", days(i + 1))), [], new Set(["maricopa"]));
+  eq("a quiet area fingerprints as none", conditionsFingerprint([], []), "none");
+  eq("one or two days does not move the signature", conditionsFingerprint(live, mk(2)), "none");
+  ok("a real run does", conditionsFingerprint(live, mk(4)) !== "none");
+  eq("and neighbouring counts inside a bucket are identical",
+    conditionsFingerprint(live, mk(4)), conditionsFingerprint(live, mk(5)));
+  ok("while a genuine escalation changes it",
+    conditionsFingerprint(live, mk(4)) !== conditionsFingerprint(live, mk(8)));
+  ok("live conditions still drive it on their own",
+    conditionsFingerprint(summariseAlerts([alert("Extreme Heat Warning", "Central Phoenix")], ["Phoenix"]), []) !== "none");
+}
+
+// ── Never blocks an ad, in either window ───────────────────────────────────
+{
+  const dead = async () => { throw new Error("nws down"); };
+  const c = await getLocalConditions({ locations: "Gilbert, AZ", fetchImpl: dead });
+  ok("a total outage still returns a usable block", typeof c.block === "string" && c.block.length > 0);
+  eq("with no invented alerts", c.usable.length, 0);
+  eq("and no invented history", c.recentUsable.length, 0);
+
+  const archiveOnly = async (url) => String(url).includes("alerts/active")
+    ? { ok: true, json: async () => ({ features: [] }) }
+    : { ok: false };
+  const c2 = await getLocalConditions({ locations: "Gilbert, AZ", fetchImpl: archiveOnly });
+  ok("the archive failing alone does not break the block", typeof c2.block === "string" && c2.block.length > 0);
+
+  eq("recent can be skipped entirely", (await getLocalConditions({
+    locations: "Gilbert, AZ", includeRecent: false,
+    fetchImpl: async () => ({ ok: true, json: async () => ({ features: [] }) }),
+  })).recent.length, 0);
+
+  eq("a non-US area makes no lookup at all", (await fetchRecent([], {})).length, 0);
+}
+
+// ── 🔴 META WAS NEVER SENDING ITS SERVICE AREA (2026-08-20) ────────────────
+// The server reads the weather from `locations`. The Meta launch card never sent it, so
+// every Meta variant since the conditions feature shipped was written with season-only
+// context while the Google ones got live data. The Meta card has no locations box of its
+// own, so it derives one from the client.
+{
+  const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const meta = src.slice(src.indexOf("function MetaLaunchCard"));
+  const body = meta.slice(0, meta.indexOf("\nfunction "));
+  ok("the Meta generator sends a service area", /action:"meta"[\s\S]{0,900}?locations: metaLocations/.test(body),
+    "without this Meta ads get no local conditions at all");
+  ok("and it is derived from the client's own targeting", /targetLocations \|\| cs\.serviceArea/.test(body));
+
+  // Both launch cards show the same facts to whoever is typing.
+  ok("the Google card shows conditions", /<AreaConditionsCard locations=\{f\.locationsText\}\/>/.test(src));
+  ok("the Meta card shows conditions", /<AreaConditionsCard locations=\{metaLocations\}\/>/.test(src));
+  ok("the card reads from the shared endpoint", /area-conditions/.test(src));
+
+  const card = src.slice(src.indexOf("function AreaConditionsCard"));
+  const cardBody = card.slice(0, card.indexOf("\nfunction "));
+  ok("the card only shows in-area conditions", /\.filter\(a=>a\.inArea\)/.test(cardBody),
+    "showing an out-of-area alert next to an ad form reads like a suggestion");
+  ok("and stays silent when there is nothing to say", /if\(!now\.length&&!past\.length\) return null/.test(cardBody));
+  ok("a lookup failure is silent, not an error banner", /if\(state!=="done"\|\|!data\) return null/.test(cardBody));
+
+  // The endpoint must never hand an emergency to a UI sitting beside a copy field.
+  const ep = readFileSync(new URL("../netlify/functions/area-conditions.mjs", import.meta.url), "utf8");
+  ok("the endpoint sends only advertisable conditions", /cond\.usable\.map/.test(ep) && /cond\.recentUsable\.map/.test(ep));
+  ok("and never the raw summary", !/summary: cond\.summary/.test(ep));
+  ok("the endpoint requires an owner session", /Invalid session/.test(ep) && /Not authenticated/.test(ep));
+  ok("and writes nothing", !/\.update\(|\.insert\(|\.upsert\(/.test(ep));
+}
+
 
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-local-conditions: ${pass} checks passed`);
