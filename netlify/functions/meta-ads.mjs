@@ -399,7 +399,107 @@ export async function setBudget(campaignId, dollars) {
   });
 }
 
+// ── Turning "Gilbert, Arizona" into something Meta can target ────────────────
+//
+// 🔴 THE BUG THIS EXISTS TO FIX (found 2026-08-20, before Bryson's first launch).
+// The Meta launch card only ever sent a two-letter COUNTRY, so `geo_locations` came out
+// as `{ countries: ["US"] }` and every campaign targeted ALL 340 MILLION PEOPLE IN THE
+// UNITED STATES. On a $500/month budget aimed at one metro that is not a small
+// inefficiency, it is the entire budget spent on the wrong people, and the campaign would
+// have looked like it simply did not work.
+//
+// The Google side has resolved city targets since it was built (`resolveGeoTargets`) and
+// refuses to build without locations. Meta never got the equivalent.
+//
+// WHY A LOOKUP IS REQUIRED: Meta does not accept place NAMES. It targets by numeric geo
+// KEY, so "Gilbert, Arizona" has to be resolved through the ad-geolocation search first.
+// That is why the field could not simply be passed through.
+export async function resolveGeoTargets(names, countryCode = "US") {
+  const list = (Array.isArray(names) ? names : String(names || "").split(/[\n;]/))
+    .map((s) => String(s || "").trim()).filter(Boolean).slice(0, 25);
+  const cities = [], regions = [], unresolved = [];
+
+  for (const raw of list) {
+    // "Gilbert, Arizona" -> q="Gilbert", with the state used to pick the right match.
+    const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const q = parts[0];
+    const region = parts[1] || "";
+    let found = null;
+    try {
+      const d = await graph("geoSearch", "search", {
+        params: {
+          type: "adgeolocation",
+          location_types: JSON.stringify(["city", "region"]),
+          q, country_code: countryCode, limit: "20",
+        },
+      });
+      const hits = (d && d.data) || [];
+      const wanted = region.toLowerCase();
+      // Prefer a hit whose region matches what was typed. Without this, "Gilbert" could
+      // resolve to a Gilbert in another state and quietly advertise the wrong place —
+      // the same class of mistake as the Gila Bend problem in local-conditions.
+      found = (wanted && hits.find((h) =>
+        String(h.region || "").toLowerCase() === wanted ||
+        String(h.region_id || "") === wanted)) ||
+        (!wanted && hits[0]) || null;
+    } catch (e) {
+      console.warn("meta geoSearch failed for", raw, e && e.message);
+    }
+    if (!found || !found.key) { unresolved.push(raw); continue; }
+    const entry = { key: String(found.key) };
+    if (found.type === "region") regions.push(entry);
+    else cities.push({ ...entry, radius: 25, distance_unit: "mile" });
+  }
+  return { cities, regions, unresolved };
+}
+
+// ── Guarded write: ACTUALLY START a campaign ─────────────────────────────────
+//
+// 🔴 THE BUG THIS EXISTS TO FIX (found 2026-08-20, before Bryson's first launch).
+// `createCampaign` builds all three levels PAUSED, which is correct and deliberate. But
+// approving a campaign only ever called `setStatus(campaignId, "ACTIVE")`, and in Meta
+// DELIVERY REQUIRES ALL THREE LEVELS TO BE ACTIVE. So the campaign flipped to ACTIVE, the
+// ad set and the ad stayed paused, and nothing ran.
+//
+// WHAT MADE IT DANGEROUS IS THAT EVERYTHING REPORTED SUCCESS. The OS said "activated", the
+// campaign list showed it live, and a campaign's own effective_status does not reflect a
+// paused child, so autopilot saw a live campaign too. The only symptom was $0 spend and no
+// impressions, which reads as "the ads aren't working" rather than "the ads never started".
+// Bryson could have sat on a dead campaign for days.
+//
+// So starting a campaign turns on the whole delivery chain, parent first.
+export async function activateCampaign(campaignId) {
+  const cid = String(campaignId || "");
+  if (!cid) throw Object.assign(new Error("activateCampaign: campaignId required"), { stage: "activateCampaign" });
+
+  // Campaign first. If this fails nothing below should run anyway.
+  await graph("activateCampaign", cid, { method: "POST", params: { status: "ACTIVE" } });
+
+  // Then every ad set under it, and every ad under those.
+  const sets = await graph("activateCampaign", `${cid}/adsets`, {
+    params: { fields: "id,status", limit: "100" },
+  });
+  const adsetIds = ((sets && sets.data) || []).map((s) => String(s.id)).filter(Boolean);
+  let adsStarted = 0;
+  for (const sid of adsetIds) {
+    await graph("activateCampaign", sid, { method: "POST", params: { status: "ACTIVE" } });
+    const ads = await graph("activateCampaign", `${sid}/ads`, {
+      params: { fields: "id,status", limit: "100" },
+    });
+    for (const ad of (ads && ads.data) || []) {
+      if (!ad || !ad.id) continue;
+      await graph("activateCampaign", String(ad.id), { method: "POST", params: { status: "ACTIVE" } });
+      adsStarted++;
+    }
+  }
+  // Reported back so the OS can say "1 ad set, 1 ad" rather than a bare success, and so a
+  // campaign with no ads at all is visible instead of silently doing nothing.
+  return { campaignId: cid, adSets: adsetIds.length, ads: adsStarted };
+}
+
 // ── Guarded write: pause / activate a campaign ────────────────────────────────
+// PAUSING stays campaign-level on purpose: pausing the parent stops all delivery
+// immediately, which is the safe direction. Only STARTING needs the full chain.
 export async function setStatus(campaignId, status) {
   const s = String(status || "").toUpperCase();
   if (s !== "PAUSED" && s !== "ACTIVE") {
@@ -492,10 +592,38 @@ async function createCampaign(p) {
 
   // 3) ad set — targeting + optimization. LINK_CLICKS keeps it working without a
   // pixel; swap to OFFSITE_CONVERSIONS once the client's pixel + events exist.
+  // 🔴 LOCATIONS ARE RESOLVED HERE, AND A FAILURE IS FATAL RATHER THAN NATIONWIDE.
+  // The old default of `{ countries: ["US"] }` meant a typo, an unrecognised town or a
+  // missing field silently bought the entire country. Falling back to "everyone" is the
+  // most expensive possible failure mode, so an unresolvable location stops the build and
+  // says which one. Country-only targeting is still POSSIBLE, but only when it is asked
+  // for explicitly and no service area was given.
+  let geo = null;
+  if (p.locations && String(p.locations).trim()) {
+    const r = await resolveGeoTargets(p.locations, p.country || "US");
+    if (r.unresolved.length) {
+      throw Object.assign(new Error(
+        `createCampaign: Meta did not recognise ${r.unresolved.map((x) => `"${x}"`).join(", ")}. ` +
+        `Write them as "City, State" (for example "Gilbert, Arizona"). Nothing was created — ` +
+        `building this would have targeted the whole country instead of the area you meant.`,
+      ), { stage: "createCampaign" });
+    }
+    if (!r.cities.length && !r.regions.length) {
+      throw Object.assign(new Error("createCampaign: no usable target locations. Nothing was created."), { stage: "createCampaign" });
+    }
+    geo = {};
+    if (r.cities.length) geo.cities = r.cities;
+    if (r.regions.length) geo.regions = r.regions;
+  } else if (p.geo && (p.geo.countries || p.geo.cities || p.geo.regions)) {
+    geo = p.geo;
+  } else {
+    throw Object.assign(new Error(
+      "createCampaign: target locations are required. Without them Meta shows the ad across the whole country and the budget is gone before it reaches anyone nearby.",
+    ), { stage: "createCampaign" });
+  }
+
   const targeting = {
-    geo_locations: p.geo && (p.geo.countries || p.geo.cities)
-      ? p.geo
-      : { countries: ["US"] },
+    geo_locations: geo,
     age_min: Number(p.ageMin) || 18,
     age_max: Number(p.ageMax) || 65,
   };
@@ -606,6 +734,15 @@ export default async (req) => {
     if (action === "setStatus") {
       if (!body.campaignId || !body.status)
         return json({ ok: false, error: "campaignId, status required" }, 400);
+      // 🔴 STARTING ROUTES THROUGH THE FULL CHAIN, AND IT IS FIXED HERE ON PURPOSE.
+      // Three separate call sites ask for ACTIVE (the approval queue, the Live Campaigns
+      // toggle, the Campaign Manager toggle). Fixing them one by one would leave the next
+      // caller free to reintroduce the bug. "Make this campaign live" can only ever mean
+      // "make it deliver", so the meaning lives here rather than in each caller.
+      if (String(body.status).toUpperCase() === "ACTIVE") {
+        const result = await activateCampaign(body.campaignId);
+        return json({ ok: true, action, result });
+      }
       const result = await setStatus(body.campaignId, body.status);
       return json({ ok: true, action, result });
     }

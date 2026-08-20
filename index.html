@@ -6125,6 +6125,31 @@ function MetaAdsTestCard() {
 //
 // Loads itself when the locations are known and says nothing at all when there is nothing
 // worth saying, because a card that always shouts gets ignored.
+// Free-text service areas into one "City, State" per line, which is the shape both ad
+// platforms want and the shape a person can check at a glance.
+//
+// The naive version paired every other comma-separated chunk, which works for
+// "Gilbert, Arizona, Mesa, Arizona" and produces NONSENSE like "Phoenix, Mesa" the moment
+// someone types a bare city. Targeting the wrong town is exactly the failure this whole
+// area of the code is meant to prevent, so it only pairs when the second half of each
+// pair actually looks like a state.
+const US_STATE = /^(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC|alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)$/i;
+function toLocationLines(text){
+  const raw=String(text||"").trim();
+  if(!raw) return "";
+  // Newlines and semicolons are unambiguous separators, so trust them when present.
+  const explicit=raw.split(/[;\n]/).map(x=>x.trim()).filter(Boolean);
+  if(explicit.length>1) return explicit.join("\n");
+  const parts=raw.split(",").map(x=>x.trim()).filter(Boolean);
+  if(parts.length<2) return parts.join("\n");
+  const out=[];
+  for(let i=0;i<parts.length;i++){
+    if(i+1<parts.length&&US_STATE.test(parts[i+1])){ out.push(parts[i]+", "+parts[i+1]); i++; }
+    else out.push(parts[i]);
+  }
+  return out.join("\n");
+}
+
 function AreaConditionsCard({locations}) {
   const [state,setState]=React.useState("idle");
   const [data,setData]=React.useState(null);
@@ -6509,6 +6534,9 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     ctaType: "LEARN_MORE",
     ageMin: 18, ageMax: 65,
     country: "US",
+    // Meta targets by resolved geo KEY, not by name, so these are looked up server-side.
+    // Empty means the build is refused rather than silently buying the whole country.
+    locationsText: toLocationLines(metaLocations),
     imageUrl: (firstImg && firstImg.url) || "",
   });
   // Editing the monthly budget (Campaigns tab, or Edit -> Campaign) flows straight
@@ -6611,7 +6639,8 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       const d=await metaCall({action:"createCampaign",
         adAccountId:client.metaAdAccountId, pageId:client.metaPageId,
         landingUrl:f.landingUrl, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
-        geo:{countries:[f.country||"US"]}, ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
+        locations:f.locationsText, country:f.country||"US",
+        ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
         headline:humanizeAdCopy(f.headline), primaryText:humanizeAdCopy(f.primaryText), description:humanizeAdCopy(f.description),
         ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}), clientName:client.name,
       });
@@ -6723,6 +6752,11 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
           )}
         </div>
       ))}
+      <div style={{marginBottom:9}}>
+        <label style={lbl}>Target locations — one per line (required)</label>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nPhoenix, Arizona"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Write them as <b style={{color:C.textDim}}>City, State</b>. Meta looks each one up and targets a 25 mile radius around it. <b style={{color:C.textDim}}>Leave this empty and the build is refused</b> &mdash; without it Meta shows your ad across the entire country and the budget is gone before it reaches anyone nearby.</div>
+      </div>
       <div style={{display:"flex",gap:8,marginBottom:9}}>
         <div style={{flex:1}}><label style={lbl}>CTA button</label>
           <select value={f.ctaType} onChange={e=>set("ctaType",e.target.value)} style={box}>
