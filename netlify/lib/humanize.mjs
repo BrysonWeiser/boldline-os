@@ -18,12 +18,23 @@
 //    prompt is guidance; this is the guarantee.
 //
 // 🔴 WHAT MUST NOT BE TOUCHED, which is why this is not a blanket find-and-replace:
-//    compound words  "done-for-you", "no-obligation", "24-hour", "e-commerce"
+//    real spellings  "e-commerce", "t-shirt", "self-employed", "follow-up", "24-hour"
 //    identifiers     "AW-18269689296", "act_1045064901242944"
 //    phone numbers   "602-555-0199"
 //    bullet lines    "\n- Fast service"
 // A hyphen only counts as a dash when it has a real space on BOTH sides. Everything above
 // either has no spaces or sits at the start of a line, so all of it survives untouched.
+//
+// 🔴 THE EXCEPTION: MARKETING COMPOUNDS (Bryson, 2026-08-20). "done-for-you" and
+// "no-obligation" ARE hyphens inside a word, and he called them out anyway: *"the done for
+// you doesnt need hyphens neither does the no obligation thats what makes it seem ai
+// written"*. He is right. Nobody says "done-for-you" out loud; the hyphens are a copywriting
+// tic that reads as marketing rather than as a person talking. So a SHORT, EXPLICIT list of
+// those phrases loses its hyphens.
+//
+// It is an explicit list and not a rule on purpose. "De-hyphenate any adjective compound"
+// would wreck "e-commerce", "self-employed", "part-time" and "follow-up", all of which are
+// simply how the words are spelled. Anything not on this list keeps its hyphen.
 
 // Horizontal whitespace only. Using \s here would treat a newline as a space and turn a
 // bulleted list into prose, which is how a "safe" cleanup quietly wrecks a blog post.
@@ -38,6 +49,25 @@ const LEAD_HYPHEN = new RegExp(`^${H}*-{1,2}${H}+`);
 const TRAIL_HYPHEN = new RegExp(`${H}+-{1,2}${H}*$`);
 const JOIN_HYPHEN = new RegExp(`${H}+-{1,2}${H}+`, "g");
 
+// Phrases we hyphenate out of copywriting habit, which a person speaking would not.
+// Deliberately short. Add to it when a new one shows up in real copy, never broaden it
+// into a pattern.
+const MARKETING_COMPOUNDS = [
+  "done-for-you", "no-obligation", "no-hassle", "hassle-free", "risk-free", "worry-free",
+  "stress-free", "no-nonsense", "full-service", "data-driven", "results-driven",
+  "family-owned", "locally-owned", "fully-managed", "ready-to-go", "custom-built",
+  "purpose-built", "same-day", "next-day", "top-rated", "best-in-class", "high-quality",
+  "cost-effective", "time-saving", "user-friendly", "hand-picked", "tried-and-tested",
+  "state-of-the-art", "up-front", "no-strings", "no-pressure", "no-commitment",
+];
+// Longest first, so "tried-and-tested" is matched before any shorter piece of it.
+const COMPOUND_RE = new RegExp(
+  `\\b(${MARKETING_COMPOUNDS.sort((a, b) => b.length - a.length).join("|")})\\b`, "gi");
+
+// Replace the hyphens with spaces while keeping whatever capitalisation was there, so
+// "Done-For-You" becomes "Done For You" and "done-for-you" becomes "done for you".
+const deCompound = (s) => s.replace(COMPOUND_RE, (m) => m.replace(/-/g, " "));
+
 /**
  * Remove dashes used as sentence connectors.
  * @param {*} s        input (non-strings are returned untouched)
@@ -47,7 +77,7 @@ const JOIN_HYPHEN = new RegExp(`${H}+-{1,2}${H}+`, "g");
  */
 export const humanize = (s, { join = ". " } = {}) => {
   if (typeof s !== "string") return s;
-  let t = s
+  let t = deCompound(s)
     .replace(LEAD_LONG, "").replace(TRAIL_LONG, "")
     .replace(LEAD_HYPHEN, "").replace(TRAIL_HYPHEN, "")
     .replace(JOIN_LONG, join)
@@ -79,4 +109,7 @@ export const NO_DASH_RULE =
   "NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, "
   + "and a plain hyphen with spaces around it. All three read as machine-written, and the "
   + "spaced hyphen is the most common tell of all. Write two sentences, or use a comma. "
-  + "Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.";
+  + "ALSO do not hyphenate marketing phrases nobody hyphenates when speaking: write "
+  + "\"done for you\", \"no obligation\", \"same day\", \"family owned\", \"risk free\". "
+  + "Keep the hyphen only where it is genuinely part of the spelling: e-commerce, t-shirt, "
+  + "self-employed, follow-up, 24-hour.";

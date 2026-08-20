@@ -197,7 +197,7 @@ const ALL_FEATURES = [
   // persisted per client (clients store packageId only), so renaming it would be churn for
   // nothing. Distinct from `priority_comms` below, and no single client ever sees both:
   // this one is e-commerce only, that one is lead-gen only, and upgrade ladders never cross.
-  { id:"slack_access",    label:"Priority Support (same-day replies)", category:"Both" },
+  { id:"slack_access",    label:"Priority Support (same day replies)", category:"Both" },
   { id:"handover_docs",   label:"Written Handover Playbook + Training Call", category:"Both" },
   { id:"settle_in",       label:"30-Day Settle-In (two optimization passes)",category:"Both" },
   { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
@@ -462,7 +462,7 @@ const getBotLogs = (client, pkg) => {
   const lp=pkg.customLandingPage?"custom":"standard";
   const hasCall=pkg.callTracking, hasRet=pkg.retargeting, hasCRM=pkg.crmIntegration;
   const nd={
-    Roofing:{buyer:"homeowner",trigger:"storm damage or leak",diff:"same-day estimate",neg:"DIY repair",angle:"storm damage urgency"},
+    Roofing:{buyer:"homeowner",trigger:"storm damage or leak",diff:"same day estimate",neg:"DIY repair",angle:"storm damage urgency"},
     "Med Spa":{buyer:"client",trigger:"upcoming event or self-care",diff:"results guarantee",neg:"budget seekers",angle:"transformation and confidence"},
     "Auto Detailing":{buyer:"vehicle owner",trigger:"upcoming event or vehicle sale",diff:"mobile convenience",neg:"DIY car wash",angle:"vehicle protection"},
     "E-Commerce":{buyer:"online shopper",trigger:"price drop or seasonal need",diff:"fast shipping + guarantee",neg:"window shoppers",angle:"offer + social proof"},
@@ -3209,7 +3209,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                   <div>
                     <div style={lbl}>Anything else the scout should know <span style={{color:C.textMuted,fontWeight:500,textTransform:"none"}}>(optional)</span></div>
                     <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2}
-                      placeholder="e.g. skip anyone I've already called, focus on family-owned shops…" style={{...inp,resize:"vertical",fontFamily:"inherit"}}/>
+                      placeholder="e.g. skip anyone I've already called, focus on family owned shops…" style={{...inp,resize:"vertical",fontFamily:"inherit"}}/>
                   </div>
                 </div>)}
 
@@ -6262,7 +6262,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const cl30 = (s) => clPhrase(s,30);
   const cl90 = (s) => clPhrase(s,90);
   const headlineSeed = [...new Set([client.name, offer, diff, niche?`${niche} Experts`:"", "Get Your Free Quote Today", area?`Serving ${area}`:"", "Fast, Friendly Service"].map(cl30).filter(Boolean))].slice(0,8);
-  const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust. Fast, friendly, and local.`:"", "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
+  const descSeed = [...new Set([lp.subheadline, offer?`${offer}. Get your free quote today.`:"", niche?`Professional ${niche} you can trust. Fast, friendly, and local.`:"", "Contact us today for a fast, no obligation quote."].map(cl90).filter(Boolean))].slice(0,4);
   const kwSeed = [...new Set([niche, niche&&area?`${niche} ${area}`:"", niche?`${niche} near me`:"", niche?`best ${niche}`:""].map(s=>String(s||"").trim()).filter(Boolean))].slice(0,8);
 
   // House account: BoldLine advertises to WIN a given kind of business as a client.
@@ -6273,11 +6273,11 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     const A = raw ? raw.charAt(0).toUpperCase()+raw.slice(1) : "";
     const name = `BoldLine Media — ${general ? "General" : A}`;
     const headlines = (general
-      ? ["More Customers On Autopilot","Google & Meta Ads For You","Get More Leads This Month","We Run Your Ads For You","Free Marketing Strategy Call","Stop Guessing With Ad Spend","Managed Ads That Grow You","Done-For-You Ad Management"]
+      ? ["More Customers On Autopilot","Google & Meta Ads For You","Get More Leads This Month","We Run Your Ads For You","Free Marketing Strategy Call","Stop Guessing With Ad Spend","Managed Ads That Grow You","Done For You Ad Management"]
       : [`More ${A} Customers`,`${A} Marketing Experts`,`Get More ${A} Leads`,`We Run ${A} Ads For You`,`Free Strategy Call`,`Google & Meta Ads Managed`,`Fill Your ${A} Schedule`,`Stop Wasting Ad Spend`]).map(cl30).filter(Boolean);
     const descriptions = (general
-      ? ["We plan, build, and run your Google and Meta ads so you get more customers.","Done-for-you ad management and landing pages. Book a free strategy call today.","You own your ad account, we manage it. Real reporting, no long contracts."]
-      : [`We run Google and Meta ads for ${raw} so you get a steady flow of new customers.`,`Done-for-you ads and landing pages built for ${raw}. Book a free strategy call.`,`You own your ad account, we manage it. Real reporting, no guesswork.`]).map(cl90).filter(Boolean);
+      ? ["We plan, build, and run your Google and Meta ads so you get more customers.","Done for you ad management and landing pages. Book a free strategy call today.","You own your ad account, we manage it. Real reporting, no long contracts."]
+      : [`We run Google and Meta ads for ${raw} so you get a steady flow of new customers.`,`Done for you ads and landing pages built for ${raw}. Book a free strategy call.`,`You own your ad account, we manage it. Real reporting, no guesswork.`]).map(cl90).filter(Boolean);
     const keywords = general
       ? ["marketing agency","google ads management","facebook ads agency","get more customers online","small business advertising","lead generation agency","done for you marketing"]
       : [`marketing agency for ${raw}`,`${raw} advertising`,`google ads for ${raw}`,`${raw} lead generation`,`${raw} marketing`,`get more ${raw} customers`];
@@ -6303,7 +6303,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       descriptions: [...new Set([lp.subheadline,
         subject?`Need ${subject}? Get your free quote today.`:"",
         subject?`Professional ${subject} you can trust. Fast, friendly, and reliable.`:"",
-        "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4),
+        "Contact us today for a fast, no obligation quote."].map(cl90).filter(Boolean))].slice(0,4),
       keywords: [...new Set([subject, subject&&area?`${subject} ${area}`:"", subject?`${subject} near me`:"",
         subject?`best ${subject}`:"", subject?`${subject} cost`:""].map(x=>String(x||"").trim()).filter(Boolean))].slice(0,8),
     };
@@ -6561,7 +6561,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       primaryText: general
         ? "Struggling to get new customers? BoldLine plans, builds, and runs your Google and Meta ads for you, plus the landing pages and instant lead follow-up behind them. You own your ad account, we manage it. Book a free strategy call and we'll map out a plan for your business."
         : `${A}: tired of slow months? BoldLine runs your Google and Meta ads for you, plus the landing pages and lead follow-up behind them, so you get a steady flow of new customers. You own your ad account, we manage it. Book a free strategy call.`,
-      description: "Done-for-you ad management. Book a free call.",
+      description: "Done for you ad management. Book a free call.",
     };
   };
   // Same parity point as the Google card: the house account could always aim a campaign at
@@ -6869,7 +6869,16 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
 // A hyphen only counts when it has a real space on BOTH sides. Hyphens inside a word are
 // left alone on purpose: done-for-you, no-obligation, 24-hour, and 602-555-0199 must all
 // survive. Horizontal whitespace only, so a bullet on its own line is not swallowed.
-const humanizeAdCopy = (s) => String(s == null ? "" : s)
+// Phrases we hyphenate out of copywriting habit that a person speaking would not
+// (Bryson, 2026-08-20: "the done for you doesnt need hyphens neither does the no obligation
+// thats what makes it seem ai written"). An explicit list, never a pattern: a rule like
+// "de-hyphenate adjective compounds" would wreck e-commerce, self-employed and follow-up,
+// which are simply how those words are spelled. Mirrors netlify/lib/humanize.mjs.
+const MARKETING_COMPOUNDS = ["done-for-you","no-obligation","no-hassle","hassle-free","risk-free","worry-free","stress-free","no-nonsense","full-service","data-driven","results-driven","family-owned","locally-owned","fully-managed","ready-to-go","custom-built","purpose-built","same-day","next-day","top-rated","best-in-class","high-quality","cost-effective","time-saving","user-friendly","hand-picked","tried-and-tested","state-of-the-art","up-front","no-strings","no-pressure","no-commitment"];
+const COMPOUND_RE = new RegExp("\\b(" + MARKETING_COMPOUNDS.sort((a,b)=>b.length-a.length).join("|") + ")\\b","gi");
+const deCompound = (s) => String(s==null?"":s).replace(COMPOUND_RE, (m)=>m.replace(/-/g," "));
+
+const humanizeAdCopy = (s) => deCompound(String(s == null ? "" : s))
   .replace(/^\s*[—–]+\s*/, "").replace(/\s*[—–]+\s*$/, "")   // long dash, either end
   .replace(/^[ \t]*-{1,2}[ \t]+/, "").replace(/[ \t]+-{1,2}[ \t]*$/, "") // hyphen, either end
   .replace(/\s*[—–]+\s*/g, ". ")               // joining long dash: two sentences

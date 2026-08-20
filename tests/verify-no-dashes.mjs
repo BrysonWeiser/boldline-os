@@ -45,9 +45,10 @@ t("a dash at either end is dropped, not converted", () => {
 // 🔴 THE HALF THAT MATTERS MORE. A blanket find-and-replace would wreck all of this, and
 // the damage would be invisible until a client noticed their phone number was mangled.
 t("hyphens inside words are untouchable", () => {
+  // NOTE: "done-for-you", "no-obligation" and "state-of-the-art" used to be listed here as
+  // must-survive. Bryson corrected that on 2026-08-20 — they are marketing hyphens, not
+  // spellings — so they moved to the de-hyphenate list and are asserted below instead.
   for (const s of [
-    "Done-for-you ad management",
-    "No-obligation quote",
     "24-hour emergency service",
     "e-commerce brands",
     "day-to-day running",
@@ -55,7 +56,6 @@ t("hyphens inside words are untouchable", () => {
     "Conversion id AW-18269689296",
     "act_1045064901242944",
     "1080x1920 story size",
-    "State-of-the-art equipment",
   ]) {
     assert.equal(humanize(s), s, `mangled: ${s}`);
   }
@@ -137,23 +137,97 @@ t("the shared rule names all three characters", () => {
   assert.ok(/em dash/i.test(NO_DASH_RULE));
   assert.ok(/en dash/i.test(NO_DASH_RULE));
   assert.ok(/plain hyphen/i.test(NO_DASH_RULE), "the spaced hyphen is the one that kept slipping through");
-  assert.ok(/INSIDE a word are fine/i.test(NO_DASH_RULE),
-    "without this the model avoids done-for-you and no-obligation too");
+});
+
+// 🔴 THIS ASSERTION USED TO REQUIRE THE OPPOSITE. It insisted the rule say hyphens inside a
+// word are "fine and expected: done-for-you, no-obligation", which is exactly the habit
+// Bryson then called out. A test can pin the wrong behaviour just as firmly as the right one.
+t("the rule tells the model not to hyphenate marketing phrases", () => {
+  assert.ok(/done for you/i.test(NO_DASH_RULE), "the phrase he named must appear unhyphenated");
+  assert.ok(/no obligation/i.test(NO_DASH_RULE));
+  assert.ok(!/done-for-you/i.test(NO_DASH_RULE), "the rule still shows the hyphenated form as acceptable");
+  assert.ok(/e-commerce/i.test(NO_DASH_RULE), "without a keep-list the model strips real spellings too");
+});
+
+// ── Marketing compounds lose the hyphen; real spellings keep it ──────────
+t("phrases nobody hyphenates out loud are de-hyphenated", () => {
+  assert.equal(humanize("Done-for-you ad management"), "Done for you ad management");
+  assert.equal(humanize("A fast, no-obligation quote"), "A fast, no obligation quote");
+  assert.equal(humanize("Same-day roof repair"), "Same day roof repair");
+  assert.equal(humanize("Family-owned since 1998"), "Family owned since 1998");
+  assert.equal(humanize("Risk-free trial"), "Risk free trial");
+});
+
+t("capitalisation is preserved when the hyphen goes", () => {
+  assert.equal(humanize("Done-For-You Ads"), "Done For You Ads");
+  assert.equal(humanize("DONE-FOR-YOU ADS"), "DONE FOR YOU ADS");
+});
+
+// 🔴 The list is explicit for a reason. A rule like "de-hyphenate adjective compounds"
+// would wreck every one of these, and they are simply how the words are spelled.
+t("real hyphenated spellings are never touched", () => {
+  for (const s of [
+    "e-commerce brands", "t-shirt printing", "self-employed clients", "follow-up call",
+    "24-hour service", "part-time staff", "long-term contract", "built-in tracking",
+    "one-off project", "x-ray clinic",
+  ]) {
+    assert.equal(humanize(s), s, `de-hyphenated a real spelling: ${s}`);
+  }
+});
+
+t("the longest compound wins, so a nested one is not half-matched", () => {
+  assert.equal(humanize("Tried-and-tested process"), "Tried and tested process");
+});
+
+// The OS carries its own copy of the list and must agree.
+t("the OS de-hyphenates the same phrases", () => {
+  const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const i = src.indexOf("const MARKETING_COMPOUNDS =");
+  const j = src.indexOf("\n  .trim();", i) + "\n  .trim();".length;
+  assert.ok(i > 0 && j > i, "the OS copy of the compound list is missing");
+  const { humanizeAdCopy } = new Function(src.slice(i, j) + "\nreturn { humanizeAdCopy };")();
+  assert.equal(humanizeAdCopy("Done-for-you ad management"), "Done for you ad management");
+  assert.equal(humanizeAdCopy("no-obligation quote"), "no obligation quote");
+  assert.equal(humanizeAdCopy("e-commerce brands"), "e-commerce brands");
+  assert.equal(humanizeAdCopy("24-hour service"), "24-hour service");
+});
+
+// ── Our own hardcoded copy must obey the rule too ───────────────────────
+// The runtime cleaner never sees a string that is baked into a template.
+t("no hardcoded marketing hyphen survives in client-facing copy", () => {
+  const files = [
+    "../index.html", "../netlify/functions/portal.mjs",
+    "../marketing-site/index.html", "../marketing-site/get-started/index.html",
+  ];
+  const offenders = [];
+  for (const f of files) {
+    let src; try { src = readFileSync(new URL(f, import.meta.url), "utf8"); } catch { continue; }
+    for (const line of src.split("\n")) {
+      // Skip the lists and the rule text, which necessarily contain the hyphenated forms.
+      if (/MARKETING_COMPOUNDS|COMPOUND_RE|NEVER use a dash|^\s*\/\//.test(line)) continue;
+      const m = line.match(/\b(done-for-you|no-obligation|same-day|family-owned|risk-free|hassle-free)\b/i);
+      if (m) offenders.push(`${f}: ${m[0]}`);
+    }
+  }
+  assert.equal(offenders.length, 0, `hardcoded marketing hyphen: ${offenders.join("; ")}`);
 });
 
 // ── The OS carries its own copy, and it must behave identically ──────────
 t("the browser-side humanizer matches the server", () => {
   const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  const i = src.indexOf("const humanizeAdCopy =");
+  // Slice from the compound list, not from humanizeAdCopy: it now calls deCompound, which
+  // is declared above it, so a narrower slice throws "deCompound is not defined".
+  const i = src.indexOf("const MARKETING_COMPOUNDS =");
   const j = src.indexOf("\n  .trim();", i) + "\n  .trim();".length;
-  assert.ok(i > 0 && j > i, "humanizeAdCopy not found in index.html");
+  assert.ok(i > 0 && j > i, "the OS humanizer block was not found in index.html");
   const { humanizeAdCopy } = new Function(src.slice(i, j) + "\nreturn { humanizeAdCopy };")();
 
   assert.equal(humanizeAdCopy("Roof repair - done right"), "Roof repair. Done right");
   assert.equal(humanizeAdCopy("Steady leads — not luck"), "Steady leads. Not luck");
   assert.equal(humanizeAdCopy("We fix roofs -- fast"), "We fix roofs. Fast");
   // and the same things must survive
-  for (const s of ["Done-for-you ads", "24-hour service", "Call 602-555-0199", "no-obligation quote"]) {
+  // Real spellings only: the marketing compounds are asserted de-hyphenated further down.
+  for (const s of ["24-hour service", "Call 602-555-0199", "e-commerce brands", "follow-up call"]) {
     assert.equal(humanizeAdCopy(s), s, `OS side mangled: ${s}`);
   }
 });

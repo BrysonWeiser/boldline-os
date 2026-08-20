@@ -102,3 +102,44 @@ project a source-matching assertion has passed on a mention rather than a use.
 
 Four breaks confirmed to fail: dropping the plain-hyphen rule, swapping `[ \t]` for `\s`,
 and removing the cleaning from `generate-landing` and from `report-shared`.
+
+---
+
+## 🔴 SAME DAY — Bryson corrected the rule I had just written
+
+*"the only things that shouldnt be touched are thing like phone numbers, and things like
+e-commerce but the done for you doesnt need hyphens neither does the no obligation thats
+what makes it seem ai written."*
+
+He is right, and the version shipped hours earlier had it **backwards**. It protected
+`done-for-you` and `no-obligation` as "hyphens inside a word are fine", and the prompt said
+so out loud, which actively told the model to keep writing them.
+
+**The distinction is not "inside a word" versus "between words". It is SPELLING versus
+COPYWRITING HABIT.** Nobody says "done-for-you" out loud. The hyphens are a marketing tic,
+and a tic is exactly what makes copy read as machine-written. Meanwhile `e-commerce`,
+`t-shirt`, `self-employed`, `follow-up` and `24-hour` are simply how those words are spelled,
+and stripping them would look illiterate rather than casual.
+
+So `humanize()` now also de-hyphenates a **short, explicit list** of marketing compounds
+(`MARKETING_COMPOUNDS`), preserving capitalisation: "Done-For-You" becomes "Done For You".
+
+**Explicit list, never a pattern, and that is the whole design.** A rule like "de-hyphenate
+adjective compounds" is the obvious implementation and would wreck every real spelling above.
+Anything not on the list keeps its hyphen. Add to the list when a new one turns up in real
+copy; do not generalise it.
+
+**Our own hardcoded copy had to be fixed too**, since the runtime cleaner never sees a string
+baked into a template. Five in `index.html` (the agency ad seeds and a Lead Scout
+placeholder) plus the package feature label **"Priority Support (same-day replies)"**, which
+turned out to live in THREE files — `index.html`, `portal.mjs` and `contract-shared.cjs`.
+`verify-packages` caught the third one, because it cross-checks that every copy of the
+catalog agrees.
+
+**46 checks. Three breaks confirmed to fail:** turning the de-hyphenation off, over-reaching
+so `e-commerce` gets stripped too, and reintroducing a hardcoded `Done-for-you` into a
+template.
+
+**A test can pin the wrong behaviour as firmly as the right one.** The suite had an assertion
+demanding the rule say `done-for-you` was "fine and expected". It passed, and it was wrong.
+Worth remembering the next time a green suite feels like proof.

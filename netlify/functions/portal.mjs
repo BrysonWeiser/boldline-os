@@ -132,7 +132,7 @@ const ALL_FEATURES = [
   // persisted per client (clients store packageId only), so renaming it would be churn for
   // nothing. Distinct from `priority_comms` below, and no single client ever sees both:
   // this one is e-commerce only, that one is lead-gen only, and upgrade ladders never cross.
-  { id:"slack_access",    label:"Priority Support (same-day replies)", category:"Both" },
+  { id:"slack_access",    label:"Priority Support (same day replies)", category:"Both" },
   { id:"handover_docs",   label:"Written Handover Playbook + Training Call", category:"Both" },
   { id:"settle_in",       label:"30-Day Settle-In (two optimization passes)",category:"Both" },
   { id:"scaling_roadmap", label:"Strategic Scaling Roadmap",        category:"Both" },
