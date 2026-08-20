@@ -178,4 +178,73 @@ t("the OS trims its own seed headlines to a complete phrase", () => {
     cl90("We run Google and Meta ads for commercial roofing contractors so you get a steady flow of brand new customers and")));
 });
 
+
+// ── 🔴 THE SECOND REPORT: a CHAIN of leading words (2026-08-20) ────────────
+// Bryson, off another live ad: the description read "Steady roof leads, no".
+//
+// The walk-back was working. The model wrote "Steady roof leads, no more guessing",
+// fitWords cut it to "…, no more", and "more" WAS caught and popped. It then stopped on
+// "no", which was missing from the list, leaving a one-word fragment.
+//
+// THE LESSON, which is bigger than the missing word: popping one dangler routinely
+// exposes another underneath it, so the list has to cover the whole CHAIN. These cases
+// pin that, not just the single word that was reported.
+t("the second reported string resolves fully", () => {
+  for (const src of [
+    "Steady roof leads, no more guessing",
+    "Steady roof leads, no more luck",
+    "Steady roof leads, no guesswork needed",
+  ]) {
+    assert.equal(fitPhrase(src, 30), "Steady roof leads", `left a fragment: ${fitPhrase(src, 30)}`);
+  }
+});
+
+t("a chain of leading words unwinds completely, not one link", () => {
+  assert.equal(fitPhrase("Roof leads that are not just any old thing", 30), "Roof leads");
+  assert.equal(fitPhrase("Get more of the very best roofing work now", 30), "Get more of the very best");
+  // Every intermediate state here is itself a dangler, so a single-pass fix stops early.
+  // "We fix any" is NOT a case for this: at 10 characters it already fits, and copy that
+  // fits is never edited. The walk-back only ever runs on text that was actually cut.
+  assert.equal(fitPhrase("We fix any", 30), "We fix any");
+  assert.equal(fitPhrase("We fix any roof problem you have", 11), "We fix");
+});
+
+t("the added quantifiers are caught", () => {
+  for (const w of ["no", "any", "another", "other", "such", "several"]) {
+    const src = `Great roofing work ${w} thing here`;
+    const out = fitPhrase(src, 20 + w.length);
+    assert.ok(!new RegExp(`\\s${w}$`, "i").test(out), `"${w}" survived as the last word: ${out}`);
+  }
+});
+
+// 🔴 The other half of the judgement: words that DO end a sentence must survive, or the
+// fix makes copy worse than the bug did. These were deliberately left out of the list.
+t("words that genuinely end a sentence are still left alone", () => {
+  for (const src of [
+    "We do roofs and gutters both",
+    "Roof repair, fast",
+    "Thanks so much",
+    "Roof repair for members only",
+    "We handle storm damage too",
+    "Call now",
+  ]) {
+    assert.equal(fitPhrase(src, 30), src, `edited good copy: ${src}`);
+  }
+  // And when trimming DOES happen, they still survive as endings.
+  assert.equal(fitPhrase("We do roofs and gutters both today", 28), "We do roofs and gutters both");
+});
+
+// The OS's own seed trimmer carries the same list, so it must learn the same lesson.
+t("the OS trimmer caught the chain too", () => {
+  const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const from = src.indexOf("const CL_DANGLING = new Set(");
+  const to = src.indexOf("\n", src.indexOf("const cl90 = (s) => clPhrase(s,90);"));
+  const { cl30 } = new Function(
+    src.slice(src.indexOf("const clWords = (s,max)"), to) + "\nreturn { cl30 };")();
+  assert.ok(from > 0);
+  assert.equal(cl30("Steady roof leads, no more guessing"), "Steady roof leads");
+  assert.equal(cl30("Roof Repair Done Right"), "Roof Repair Done Right");
+});
+
+
 console.log(`✅ ad copy fit: ${n} checks passed`);
