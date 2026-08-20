@@ -641,7 +641,19 @@ async function createCampaign(p) {
       name: `${name} — Ad Set`,
       campaign_id: camp.id,
       billing_event: "IMPRESSIONS",
-      optimization_goal: "LINK_CLICKS",
+      // LANDING_PAGE_VIEWS, not LINK_CLICKS (changed 2026-08-20, before the first real spend).
+      //
+      // A "link click" counts the tap. A "landing page view" counts the tap AND the page
+      // actually loading. The gap between them is people who mis-tapped, or swiped away on
+      // a slow connection before the page appeared — and on LINK_CLICKS you pay for every
+      // one of them, because Meta optimised to produce taps and that is what it found.
+      //
+      // LINK_CLICKS was chosen originally because LANDING_PAGE_VIEWS used to require a
+      // pixel and there was none. Both halves of that have changed: Meta now serves this
+      // goal without a pixel, and BoldLine's pixel is live and firing on /get-started.
+      //
+      // Same budget, fewer wasted clicks. Applies to every campaign, house and client.
+      optimization_goal: "LANDING_PAGE_VIEWS",
       // No bid_strategy here — it's set at the campaign level (CBO); Meta rejects
       // a duplicate/conflicting bid_strategy on the ad set when campaign budget is on.
       targeting: JSON.stringify(targeting),
