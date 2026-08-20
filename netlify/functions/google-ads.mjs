@@ -21,6 +21,7 @@
 //   (optional) GOOGLE_ADS_API_VERSION — see API_VERSION note below.
 
 import { createClient } from "@supabase/supabase-js";
+import { parseLocations } from "../lib/geo-parse.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -256,20 +257,34 @@ async function removeCampaign(accessToken, customerId, campaignResourceName, { w
 // Not customer-scoped, so no login-customer-id — same as listAccessibleCustomers.
 const ENGLISH_LANGUAGE_CONSTANT = "languageConstants/1000";
 
-async function resolveGeoTargets(accessToken, names, countryCode = "US") {
-  const wanted = (Array.isArray(names) ? names : []).map((n) => String(n || "").trim()).filter(Boolean).slice(0, 20);
-  if (!wanted.length) return [];
-  const resp = await fetch(`${ADS_BASE}/geoTargetConstants:suggest`, {
-    method: "POST",
-    headers: baseHeaders(accessToken, false),
-    body: JSON.stringify({ locale: "en", countryCode, locationNames: { names: wanted } }),
-  });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const e = new Error(apiErrMsg("resolveGeoTargets", resp.status, data));
-    e.stage = "resolveGeoTargets"; e.detail = data; throw e;
+// ANYWHERE IN THE WORLD (Bryson, 2026-08-20). `geoTargetConstants:suggest` searches
+// WITHIN one country, so a single hardcoded "US" meant a client could only ever advertise
+// inside the United States. The country is now read off each entry and the entries are
+// grouped, one lookup per country, so "Gilbert, Arizona" and "London, United Kingdom" can
+// sit in the same box.
+async function resolveGeoTargets(accessToken, names, defaultCountry = "US") {
+  const { items, byCountry, assumed } = parseLocations(names, defaultCountry);
+  if (!items.length) return Object.assign([], { unresolved: [], assumed: [] });
+
+  const suggestions = [];
+  for (const [country, group] of byCountry) {
+    const resp = await fetch(`${ADS_BASE}/geoTargetConstants:suggest`, {
+      method: "POST",
+      headers: baseHeaders(accessToken, false),
+      // The QUERY is used, not the raw entry: "London, United Kingdom" is searched as
+      // "London" within GB, because repeating the country in the term only hurts the match.
+      body: JSON.stringify({ locale: "en", countryCode: country, locationNames: { names: group.map((g) => g.query) } }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const e = new Error(apiErrMsg("resolveGeoTargets", resp.status, data));
+      e.stage = "resolveGeoTargets"; e.detail = data; throw e;
+    }
+    for (const s of data.geoTargetConstantSuggestions || []) suggestions.push(s);
   }
-  const suggestions = data.geoTargetConstantSuggestions || [];
+
+  const wanted = items.map((i) => i.query);
+  const backToRaw = new Map(items.map((i) => [i.query.toLowerCase(), i.raw]));
   const resolved = [];
   const unresolved = [];
   for (const name of wanted) {
@@ -286,14 +301,50 @@ async function resolveGeoTargets(accessToken, names, countryCode = "US") {
         requested: name,
       });
     } else {
-      unresolved.push(name);
+      // Report the entry the way the operator typed it, not the rewritten query, or the
+      // error names a string they never wrote.
+      unresolved.push(backToRaw.get(String(name).toLowerCase()) || name);
     }
   }
   // Dedupe — "Phoenix" and "Phoenix, Arizona" resolve to the same constant, and
   // Google rejects a campaign that targets the same location twice.
   const seen = new Set();
   const unique = resolved.filter((r) => (seen.has(r.resourceName) ? false : (seen.add(r.resourceName), true)));
-  return Object.assign(unique, { unresolved });
+  return Object.assign(unique, { unresolved, assumed });
+}
+
+// Language targeting, RESOLVED rather than hardcoded.
+//
+// The campaign used to pin `languageConstants/1000` (English) always. That is right for a
+// Phoenix roofer and wrong the moment anyone advertises into Mexico, Quebec or Japan, and
+// the failure is silent: the ads simply never show to most of the market.
+//
+// The ids are NOT hardcoded here either. Guessing a language constant id and getting it
+// wrong would target the wrong audience just as quietly, so they are looked up by name or
+// code against Google's own table, the same principle as geo targets.
+async function resolveLanguages(accessToken, customerId, names) {
+  const wanted = (Array.isArray(names) ? names : String(names || "").split(","))
+    .map((s) => String(s || "").trim()).filter(Boolean);
+  // No answer means English, which is what every existing campaign already targets.
+  if (!wanted.length) return { resourceNames: [ENGLISH_LANGUAGE_CONSTANT], unresolved: [] };
+  // "all" is a real choice: it removes language targeting entirely.
+  if (wanted.length === 1 && /^all$/i.test(wanted[0])) return { resourceNames: [], unresolved: [] };
+
+  const rows = await gaql(accessToken, customerId,
+    "SELECT language_constant.id, language_constant.name, language_constant.code, language_constant.resource_name FROM language_constant",
+    "resolveLanguages");
+  const byKey = new Map();
+  for (const r of rows) {
+    const l = r.languageConstant || {};
+    if (l.name) byKey.set(String(l.name).toLowerCase(), l.resourceName);
+    if (l.code) byKey.set(String(l.code).toLowerCase(), l.resourceName);
+  }
+  const resourceNames = [], unresolved = [];
+  for (const w of wanted) {
+    const hit = byKey.get(w.toLowerCase());
+    if (hit) resourceNames.push(hit); else unresolved.push(w);
+  }
+  return { resourceNames: [...new Set(resourceNames)], unresolved };
 }
 
 // ── Create a full Search campaign, ALL PAUSED ─────────────────────────────────
@@ -370,7 +421,20 @@ export async function createCampaign(accessToken, p) {
 
   const geo = await resolveGeoTargets(accessToken, locationNames, p.countryCode || "US");
   if (!geo.length) {
-    throw err(`could not resolve any of these locations: ${locationNames.join(", ")}. Use a form Google recognises, e.g. "Gilbert, Arizona" or "Phoenix, Arizona".`);
+    throw err(`could not resolve any of these locations: ${locationNames.join(", ")}. Use a form Google recognises, e.g. "Gilbert, Arizona", "London, United Kingdom" or "Canada".`);
+  }
+  // A location Google did not recognise is FATAL, not skipped. Silently dropping one
+  // builds a campaign that targets less than the operator asked for and says nothing.
+  if (geo.unresolved && geo.unresolved.length) {
+    throw err(`could not resolve ${geo.unresolved.map((x) => `"${x}"`).join(", ")}. Write them as "City, State" or "City, Country". Nothing was created.`);
+  }
+
+  // Language. Defaults to English, which is what every campaign built before this
+  // targeted, but a campaign aimed at Mexico or Quebec can now say so instead of quietly
+  // showing to almost nobody.
+  const lang = await resolveLanguages(accessToken, customerId, p.languages);
+  if (lang.unresolved.length) {
+    throw err(`Google does not recognise the language ${lang.unresolved.map((x) => `"${x}"`).join(", ")}. Use a name like "Spanish", a code like "es", or "all". Nothing was created.`);
   }
 
   const mutateOperations = [
@@ -418,10 +482,10 @@ export async function createCampaign(accessToken, p) {
       campaign: campaignRN,
       location: { geoTargetConstant: g.resourceName },
     } } })),
-    { campaignCriterionOperation: { create: {
+    ...lang.resourceNames.map((rn) => ({ campaignCriterionOperation: { create: {
       campaign: campaignRN,
-      language: { languageConstant: ENGLISH_LANGUAGE_CONSTANT },
-    } } },
+      language: { languageConstant: rn },
+    } } })),
     // Campaign-level negatives: block the whole class of searchers who will never
     // buy (job hunters, students, freebie seekers) before they cost a click.
     ...negativeKeywords.map((k) => ({ campaignCriterionOperation: { create: {

@@ -6258,6 +6258,31 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       : [`marketing agency for ${raw}`,`${raw} advertising`,`google ads for ${raw}`,`${raw} lead generation`,`${raw} marketing`,`get more ${raw} customers`];
     return { name, headlines, descriptions, keywords };
   };
+  // PARITY WITH THE HOUSE ACCOUNT (Bryson, 2026-08-20: "make sure everything we are doing
+  // for my own ads is updated and added for clients ads for the stuff that is applicable").
+  //
+  // The house account could always type a NICHE and rebuild, so BoldLine can run one
+  // campaign per kind of business it chases. A client had no equivalent, and needs the
+  // same thing for a different reason: a roofer wanting "roof repair" and "roof
+  // replacement" needs two campaigns, because one ad group holding both can never match
+  // either search well. So the same box now serves both, asking the question that fits.
+  const clientSeed = (service) => {
+    const svc = String(service||"").trim();
+    const S = svc ? svc.charAt(0).toUpperCase()+svc.slice(1) : "";
+    const subject = svc || niche;
+    return {
+      name: `${client.name} — ${S || "Search"}`,
+      headlines: [...new Set([client.name, svc?S:offer, diff, subject?`${subject} Experts`:"",
+        svc?`${S} Done Right`:"", "Get Your Free Quote Today", area?`Serving ${area}`:"", "Fast, Friendly Service"]
+        .map(cl30).filter(Boolean))].slice(0,8),
+      descriptions: [...new Set([lp.subheadline,
+        subject?`Need ${subject}? Get your free quote today.`:"",
+        subject?`Professional ${subject} you can trust. Fast, friendly, and reliable.`:"",
+        "Contact us today for a fast, no-obligation quote."].map(cl90).filter(Boolean))].slice(0,4),
+      keywords: [...new Set([subject, subject&&area?`${subject} ${area}`:"", subject?`${subject} near me`:"",
+        subject?`best ${subject}`:"", subject?`${subject} cost`:""].map(x=>String(x||"").trim()).filter(Boolean))].slice(0,8),
+    };
+  };
   const seed0 = client.internal ? agencySeed("") : { name:`${client.name} — Search`, headlines:headlineSeed, descriptions:descSeed, keywords:kwSeed };
 
   // Google targets EVERY country if a campaign is created with no location criteria,
@@ -6307,8 +6332,11 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       // immediately and stores its result on the client record.
       const d = await adGenBackground({ action:"google", clientId: client.id, agency: !!client.internal,
         name: client.internal ? "BoldLine Media" : client.name,
-        niche: client.internal ? (audience || "any business owner") : (client.niche||""),
-        offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : (cs.mainOffer||""),
+        // A client's chosen service narrows the brief the same way a niche narrows the
+        // house account's. Without this the AI writes for the whole trade while the
+        // campaign name and seeds say one service, and the two disagree.
+        niche: client.internal ? (audience || "any business owner") : (audience || client.niche || ""),
+        offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : (audience || cs.mainOffer || ""),
         locations: f.locationsText.split("\n").map(x=>x.trim()).filter(Boolean).join(", "),
         avgTicket: cs.avgTicket||"", differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
         landingUrl: f.landingUrl, avoid: cs.excludedKeywords||"" });
@@ -6327,7 +6355,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     setF(p => (Number(p.dailyBudgetDollars) === autoDaily ? p : {...p, dailyBudgetDollars: autoDaily}));
   },[autoDaily,budgetTouched]);
   const fillFromAudience = () => {
-    const s = agencySeed(audience);
+    const s = client.internal ? agencySeed(audience) : clientSeed(audience);
     setF(p=>({...p, name:s.name, headlinesText:s.headlines.join("\n"), descriptionsText:s.descriptions.join("\n"), keywordsText:s.keywords.join("\n")}));
     setState("idle"); setMsg("");
   };
@@ -6391,16 +6419,16 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       <Label>📈 Launch Google Ads Campaign</Label>
       <AreaConditionsCard locations={f.locationsText}/>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full Search campaign on <strong>your</strong> Google Ads account, pointing at your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full Search campaign (budget → ad group → responsive search ad → keywords) on <strong>{client.name}</strong>'s Google Ads account. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you enable it. They own the account + pay their own spend.</>}</div>
-      {client.internal&&(
-        <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
-          <label style={lbl}>Who should this ad target?</label>
-          <div style={{display:"flex",gap:6}}>
-            <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder="e.g. Roofers, Med spas — or blank for any business owner" style={{...box,flex:1}}/>
-            <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
-          </div>
-          <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the campaign for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</div>
+      <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
+        <label style={lbl}>{client.internal?"Who should this ad target?":"Which service is this campaign for?"}</label>
+        <div style={{display:"flex",gap:6}}>
+          <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder={client.internal?"e.g. Roofers, Med spas — or blank for any business owner":`e.g. roof repair, water heater install — or blank for ${niche||"everything"}`} style={{...box,flex:1}}/>
+          <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
         </div>
-      )}
+        <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>{client.internal
+          ? <>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the campaign for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</>
+          : <>Name <b style={{color:C.textDim}}>one service</b> and tap <b style={{color:C.textDim}}>Fill copy</b>, then Build. Change it and build again — each service gets its own campaign, which is how the ad ends up matching what was actually searched for. Leave blank to cover everything they do.</>}</div>
+      </div>
       <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,border:`1px solid ${gen?C.green+"55":C.border}`,backgroundColor:gen?"rgba(34,211,160,0.06)":"transparent"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:gen?9:6}}>
           <button onClick={generate} disabled={genState==="working"} style={{flex:1,padding:"9px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",backgroundColor:genState==="working"?C.border:C.gold,color:genState==="working"?C.textMuted:"#15110A",cursor:genState==="working"?"default":"pointer"}}>
@@ -6472,8 +6500,8 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       </div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Target locations — one per line (required)</label>
-        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nPhoenix, Arizona"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
-        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Write them the way Google does — <b style={{color:C.textDim}}>City, State</b>. Ads show only to people <b style={{color:C.textDim}}>physically in</b> these areas, not people merely interested in them. Leave this empty and Google targets every country on earth.</div>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Anywhere in the world, one per line. <b style={{color:C.textDim}}>City, State</b> at home (Gilbert, Arizona), <b style={{color:C.textDim}}>City, Country</b> abroad (London, United Kingdom), or a country on its own (Canada). You do not have to be based there. Ads show only to people <b style={{color:C.textDim}}>physically in</b> these areas, not people merely interested in them. Leave this empty and nothing gets built.</div>
       </div>
       <div style={{marginBottom:10}}>
         <label style={lbl}>Negative keywords — one per line</label>
@@ -6511,12 +6539,23 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       description: "Done-for-you ad management. Book a free call.",
     };
   };
-  const mseed0 = client.internal ? metaAgencySeed("") : {
-    name: `${client.name} — Leads`,
-    headline: (client.landingPage && client.landingPage.headline) || client.name,
-    primaryText: (client.landingPage && client.landingPage.subheadline) || "",
-    description: "",
+  // Same parity point as the Google card: the house account could always aim a campaign at
+  // one niche, and a client needs to aim one at a single SERVICE for the same reason.
+  const metaClientSeed = (service) => {
+    const svc = String(service||"").trim();
+    const S = svc ? svc.charAt(0).toUpperCase()+svc.slice(1) : "";
+    const lp0 = client.landingPage || {};
+    const nch = client.niche || "";
+    return {
+      name: `${client.name} — ${S || "Leads"}`,
+      headline: svc ? `${S} You Can Count On` : (lp0.headline || client.name),
+      primaryText: svc
+        ? `Need ${svc}? ${client.name} handles it start to finish. Tell us what's going on and we'll get you a quote.`
+        : (lp0.subheadline || ""),
+      description: svc ? `Fast ${svc} quotes` : (nch ? `Trusted ${nch}` : ""),
+    };
   };
+  const mseed0 = client.internal ? metaAgencySeed("") : metaClientSeed("");
   const [audience,setAudience] = useState("");
   const monthlyBudget = monthlyBudgetNum(client);
   // Split the monthly budget across the platforms actually being run — otherwise
@@ -6577,9 +6616,9 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       // a synchronous Netlify function gets ~10 seconds and this writes several full ads.
       const d = await adGenBackground({ action:"meta", clientId: client.id, agency: !!client.internal,
         name: client.internal ? "BoldLine Media" : client.name,
-        niche: client.internal ? (audience || "any business owner") : (client.niche||""),
+        niche: client.internal ? (audience || "any business owner") : (audience || client.niche || ""),
         offer: client.internal ? "Google and Meta ad management plus the landing pages behind them"
-                               : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),
+                               : (audience || (client.campaignSetup&&client.campaignSetup.mainOffer) || ""),
         // 🔴 WITHOUT THIS, META ADS GOT NO LOCAL CONDITIONS AT ALL. The server looks up the
         // weather from `locations`, and this call simply never sent it, so every Meta variant
         // since the conditions feature shipped was written with season-only context while the
@@ -6609,7 +6648,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     setF(p => (p.imageUrl === autoImg ? p : {...p, imageUrl: autoImg}));
   },[autoImg,imgTouched]);
   const fillFromAudience = () => {
-    const s = metaAgencySeed(audience);
+    const s = client.internal ? metaAgencySeed(audience) : metaClientSeed(audience);
     setF(p=>({...p, name:s.name, headline:s.headline, primaryText:s.primaryText, description:s.description}));
     setState("idle"); setMsg("");
   };
@@ -6674,16 +6713,16 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       <Label>📘 Launch Meta Campaign</Label>
       <AreaConditionsCard locations={metaLocations}/>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full lead-gen campaign on <strong>your</strong> Meta ad account, driving to your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</>}</div>
-      {client.internal&&(
-        <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
-          <label style={lbl}>Who should this ad target?</label>
-          <div style={{display:"flex",gap:6}}>
-            <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder="e.g. Roofers, Med spas — or blank for any business owner" style={{...box,flex:1}}/>
-            <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
-          </div>
-          <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the ad for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad. (Tip: also narrow the age/country below for tighter targeting.)</div>
+      <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
+        <label style={lbl}>{client.internal?"Who should this ad target?":"Which service is this campaign for?"}</label>
+        <div style={{display:"flex",gap:6}}>
+          <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder={client.internal?"e.g. Roofers, Med spas — or blank for any business owner":`e.g. roof repair, water heater install — or blank for ${client.niche||"everything"}`} style={{...box,flex:1}}/>
+          <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
         </div>
-      )}
+        <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>{client.internal
+          ? <>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the ad for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</>
+          : <>Name <b style={{color:C.textDim}}>one service</b> and tap <b style={{color:C.textDim}}>Fill copy</b>, then Build. Change it and build again — each service gets its own campaign, so the picture and the words can match that one job. Leave blank to cover everything they do.</>}</div>
+      </div>
       <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,border:`1px solid ${gen?C.green+"55":C.border}`,backgroundColor:gen?"rgba(34,211,160,0.06)":"transparent"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:gen?9:6}}>
           <button onClick={generateMeta} disabled={genState==="working"} style={{flex:1,padding:"9px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",backgroundColor:genState==="working"?C.border:C.gold,color:genState==="working"?C.textMuted:"#15110A",cursor:genState==="working"?"default":"pointer"}}>
@@ -6754,8 +6793,8 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       ))}
       <div style={{marginBottom:9}}>
         <label style={lbl}>Target locations — one per line (required)</label>
-        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nPhoenix, Arizona"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
-        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Write them as <b style={{color:C.textDim}}>City, State</b>. Meta looks each one up and targets a 25 mile radius around it. <b style={{color:C.textDim}}>Leave this empty and the build is refused</b> &mdash; without it Meta shows your ad across the entire country and the budget is gone before it reaches anyone nearby.</div>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Anywhere in the world, one per line. <b style={{color:C.textDim}}>City, State</b> at home (Gilbert, Arizona), <b style={{color:C.textDim}}>City, Country</b> abroad (London, United Kingdom), or a country on its own (Canada). You do not have to be based there. Cities get a 25 mile radius. <b style={{color:C.textDim}}>Leave this empty and the build is refused</b> &mdash; without it Meta shows your ad across a whole country and the budget is gone before it reaches anyone nearby.</div>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:9}}>
         <div style={{flex:1}}><label style={lbl}>CTA button</label>
@@ -6765,8 +6804,9 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         </div>
         <div style={{width:70}}><label style={lbl}>Age min</label><input type="number" value={f.ageMin} onChange={e=>set("ageMin",e.target.value)} style={box}/></div>
         <div style={{width:70}}><label style={lbl}>Age max</label><input type="number" value={f.ageMax} onChange={e=>set("ageMax",e.target.value)} style={box}/></div>
-        <div style={{width:70}}><label style={lbl}>Country</label><input type="text" value={f.country} onChange={e=>set("country",e.target.value.toUpperCase().slice(0,2))} style={box}/></div>
+        <div style={{width:96}}><label style={lbl}>If unclear</label><input type="text" value={f.country} onChange={e=>set("country",e.target.value.toUpperCase().slice(0,2))} style={box}/></div>
       </div>
+      <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:-3,marginBottom:9}}><b style={{color:C.textDim}}>If unclear</b> is only a fallback. Each location above carries its own country, so this is used when a line names none of its own (just &ldquo;Paris&rdquo;).</div>
       <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
     </Card>

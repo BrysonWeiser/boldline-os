@@ -36,6 +36,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
+import { parseLocations } from "../lib/geo-parse.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -414,14 +415,19 @@ export async function setBudget(campaignId, dollars) {
 // WHY A LOOKUP IS REQUIRED: Meta does not accept place NAMES. It targets by numeric geo
 // KEY, so "Gilbert, Arizona" has to be resolved through the ad-geolocation search first.
 // That is why the field could not simply be passed through.
-export async function resolveGeoTargets(names, countryCode = "US") {
-  const list = (Array.isArray(names) ? names : String(names || "").split(/[\n;]/))
-    .map((s) => String(s || "").trim()).filter(Boolean).slice(0, 25);
-  const cities = [], regions = [], unresolved = [];
+// ANYWHERE IN THE WORLD, not just where the client happens to sit (Bryson, 2026-08-20:
+// "we can be located in one state or area and be able to target anywhere in the world we
+// want"). The country is read off each entry rather than taken from one box, so
+// "Gilbert, Arizona" and "London, United Kingdom" can sit in the same list.
+export async function resolveGeoTargets(names, defaultCountry = "US") {
+  const { items, assumed } = parseLocations(names, defaultCountry);
+  const cities = [], regions = [], countries = [], unresolved = [];
 
-  for (const raw of list) {
-    // "Gilbert, Arizona" -> q="Gilbert", with the state used to pick the right match.
-    const parts = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  for (const it of items) {
+    // A whole country needs no lookup: Meta targets countries by their ISO code.
+    if (it.countryOnly) { countries.push(it.country); continue; }
+
+    const parts = it.query.split(",").map((s) => s.trim()).filter(Boolean);
     const q = parts[0];
     const region = parts[1] || "";
     let found = null;
@@ -430,7 +436,7 @@ export async function resolveGeoTargets(names, countryCode = "US") {
         params: {
           type: "adgeolocation",
           location_types: JSON.stringify(["city", "region"]),
-          q, country_code: countryCode, limit: "20",
+          q, country_code: it.country, limit: "20",
         },
       });
       const hits = (d && d.data) || [];
@@ -443,14 +449,14 @@ export async function resolveGeoTargets(names, countryCode = "US") {
         String(h.region_id || "") === wanted)) ||
         (!wanted && hits[0]) || null;
     } catch (e) {
-      console.warn("meta geoSearch failed for", raw, e && e.message);
+      console.warn("meta geoSearch failed for", it.raw, e && e.message);
     }
-    if (!found || !found.key) { unresolved.push(raw); continue; }
+    if (!found || !found.key) { unresolved.push(it.raw); continue; }
     const entry = { key: String(found.key) };
     if (found.type === "region") regions.push(entry);
     else cities.push({ ...entry, radius: 25, distance_unit: "mile" });
   }
-  return { cities, regions, unresolved };
+  return { cities, regions, countries: [...new Set(countries)], unresolved, assumed };
 }
 
 // ── Guarded write: ACTUALLY START a campaign ─────────────────────────────────
@@ -608,12 +614,13 @@ async function createCampaign(p) {
         `building this would have targeted the whole country instead of the area you meant.`,
       ), { stage: "createCampaign" });
     }
-    if (!r.cities.length && !r.regions.length) {
+    if (!r.cities.length && !r.regions.length && !r.countries.length) {
       throw Object.assign(new Error("createCampaign: no usable target locations. Nothing was created."), { stage: "createCampaign" });
     }
     geo = {};
     if (r.cities.length) geo.cities = r.cities;
     if (r.regions.length) geo.regions = r.regions;
+    if (r.countries.length) geo.countries = r.countries;
   } else if (p.geo && (p.geo.countries || p.geo.cities || p.geo.regions)) {
     geo = p.geo;
   } else {
