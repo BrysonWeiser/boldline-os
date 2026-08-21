@@ -72,6 +72,14 @@
 [functions."ads-sync"]
   schedule = "0 */6 * * *"
 
+# Every 15 minutes: mirrors BoldLine's OWN inbound leads (the website form, the quiz
+# and Calendly bookings, all of which land in website_leads) onto the My Ads house
+# account, so its lead count, cost-per-lead, health score, pipeline and ROI funnel are
+# built from real leads instead of a zero that could never move. Read-only against
+# website_leads; deduped on the lead's row id, so re-scanning is harmless.
+[functions."house-leads"]
+  schedule = "*/15 * * * *"
+
 # Every 2 hours: the ONLY job allowed to change a live ad account, and only ever
 # in the direction of spending LESS — pauses a campaign that is pacing over budget
 # or burning money with zero conversions, and (opt-in per client) shifts budget

@@ -40,6 +40,7 @@ for t in tests/*.mjs; do node "$t"; done
 | `verify-meta-creative-testing.mjs` | the second thing allowed to change a live ad account unattended: the spend-less-never-more invariant, the judging maths, the Development-tier gate, and the test/multi-angle switch (KB `meta-creative-testing`) | 114 |
 | `verify-campaign-launch.mjs` | the path between Build Campaign and money being spent: that starting a campaign starts its ad groups and ads too, that no campaign can quietly target the whole country, and that any location worldwide resolves (KB `campaign-launch-bugs`) | 104 |
 | `verify-approval-cleanup.mjs` | deleting a campaign takes its approval requests with it, the self-heal never fires on a failed API call, and the approval card names the platform it will actually act on (KB `campaign-launch-bugs`) | 46 |
+| `verify-house-leads.mjs` | BoldLine's own website leads reach the house account exactly once, a status he set by hand is never overwritten by the next poll, and a lead is never pruned for falling off a page (KB `house-leads-mirror`) | 49 |
 | `verify-calendly-leads.mjs` | a booked call becomes a lead exactly once, deduped on the Calendly event id so a repeating poll cannot duplicate it (KB `calendly-leads`) | 16 |
 | `verify-creative-safe-zone.mjs` | a story creative's footer stays clear of the CTA button Instagram paints over the image, on BOTH renderers (KB `ad-creatives`) | 7 |
 | `verify-no-dashes.mjs` | no copy BoldLine writes contains a joining dash of any kind, and every model-writing surface both cleans its output and carries the rule (KB `ad-copy-voice`) | 39 |
@@ -65,6 +66,14 @@ Patterns worth copying, learned from `verify-packages.mjs`:
   Supabase and Anthropic at import time), so it also asserts the exact expressions still exist in
   the source. Move a bound and the test fails by name, which forces the re-implementation to be
   updated rather than quietly testing a fossil.
+- **🔴 IF THE TEST OWNS A COPY OF THE LOGIC, BREAKING THE ORIGINAL PROVES NOTHING.**
+  `verify-house-leads` re-implemented its merge (the function imports Supabase and cannot be
+  imported bare) and pinned the source with regexes. Deleting the hand-set-status guard and
+  renaming the dedupe key BOTH left it green: the copy in the test was still right, and the
+  pins matched unrelated lines. The fix is structural, not a better regex — move the pure
+  logic to a `netlify/lib/*.mjs` module with no I/O and import the real thing, leaving regex
+  pins for only the wiring the logic cannot see. Prefer this over the "pin the original"
+  pattern below whenever the logic can be lifted out.
 - **Prove the guard is load-bearing before believing it.** Every suite here has had a deliberate
   break introduced and confirmed to fail it. A guard that has never failed has never been tested.
 - **🔴 A GUARD YOU HAVE NOT BROKEN IS NOT A GUARD.** The Meta tier-gate assertion was

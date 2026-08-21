@@ -769,7 +769,9 @@ const deriveBotStatuses = (cl) => {
   const spend         = Number(totals.spend30d || 0);
   const convs         = Number(totals.conversions || 0);
   const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
-  const leads       = Number(cl.leads || 0);
+  // The log is the truth; `leads` is a cache of its length that the website-lead
+  // mirror does not bump on every path.
+  const leads       = (cl.leadsLog || []).length || Number(cl.leads || 0);
   const s = (status, why) => ({ status, why });
 
   const out = {
@@ -1050,6 +1052,45 @@ const stageInfo   = (id) => STAGES.find(s=>s.id===id)||STAGES[0];
 // running and producing? Seven observable factors summing to exactly 10, each
 // carrying the reason it scored what it did — same visible-factor approach as
 // Lead Scout, so a number is never unexplained. Client scoring is UNTOUCHED.
+// ─── LIVE AD NUMBERS ON THE HOUSE ACCOUNT ────────────────────────────────────
+// Bryson, 2026-08-21, with his first Meta ad live and serving: "the os isnt taking
+// the data from the live ad". Two separate gaps, both real:
+//   1. the live spend/impressions/clicks the ads-sync job stores every 6 hours were
+//      only ever rendered on the Campaigns tab, so the Overview looked empty, and
+//   2. the lead count was structurally stuck at 0 — BoldLine's own leads land in the
+//      website_leads table, and nothing joined them to the house account (now fixed
+//      by the house-leads job, so `leadsLog` is real and the divisor below works).
+// Everything here reads the STORED snapshot rather than calling the ad platforms, so
+// opening the Overview is instant; the card says how old the snapshot is.
+const adPerfStats = (cl) => {
+  const perf   = (cl && cl.adPerf) || {};
+  const t      = perf.totals || {};
+  const g      = perf.google || {}, m = perf.meta || {};
+  const log    = (cl && cl.leadsLog) || [];
+  const now    = Date.now();
+  const leads30 = log.filter(l=>l.receivedAt && (now-new Date(l.receivedAt).getTime())<=30*864e5).length;
+  const spend30 = Number(t.spend30d||0);
+  const impressions = Number(t.impressions||0);
+  const clicks = Number(t.clicks||0);
+  return {
+    syncedAt: perf.syncedAt||null,
+    hasSnapshot: !!perf.syncedAt,
+    spend30, impressions, clicks,
+    conversions: Number(t.conversions||0),
+    ctr: impressions>0 ? clicks/impressions : null,
+    leadsTotal: log.length,
+    leads30,
+    // Cost per lead only means something with BOTH a spend and a lead in the window.
+    cpl: (leads30>0 && spend30>0) ? spend30/leads30 : null,
+    // A linked account that failed to read is the one thing worth shouting about —
+    // it is exactly the state where every number above is quietly stale.
+    errors: [
+      g.linked && g.ok===false ? `Google Ads: ${g.error||"could not be read"}` : null,
+      m.linked && m.ok===false ? `Meta Ads: ${m.error||"could not be read"}` : null,
+    ].filter(Boolean),
+  };
+};
+
 const houseHealthFactors = (cl) => {
   const perf   = (cl && cl.adPerf) || {};
   const totals = perf.totals || {};
@@ -1057,7 +1098,9 @@ const houseHealthFactors = (cl) => {
   const g = perf.google || {}, m = perf.meta || {};
   const plats = adPlatformsOf(cl, null);
   const lp = (cl && cl.landingPage) || {};
-  const leads = Number((cl && cl.leads) || 0);
+  // The log is the truth; the `leads` counter is a cache of its length and can lag
+  // behind (it is only bumped by the lead webhook, never by the website-lead mirror).
+  const leads = ((cl && cl.leadsLog) || []).length || Number((cl && cl.leads) || 0);
   const monthly = monthlyBudgetNum(cl);
   const liveCount = Number(totals.liveCampaigns != null ? totals.liveCampaigns : (Number(g.live || 0) + Number(m.live || 0)));
   const campaignCount = Number(g.campaigns || 0) + Number(m.campaigns || 0);
@@ -4571,12 +4614,77 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
           <div style={S.col11}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {(client.internal
-                ? [{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Landing Page",v:(client.landingPage&&client.landingPage.published)?"Published":"Not built"}]
-                : [{l:"Package",v:(pkg && pkg.name)||"—"},{l:"Platform",v:(pkg && pkg.platform)||"—"},{l:"Ad Budget",v:client.adBudget||"—"},{l:"Niche",v:client.niche||"—"},{l:"Leads",v:client.leads||0},{l:"Avg CPL",v:client.cpl?`$${client.cpl}`:"—"},{l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},{l:"Contract End",v:client.contractEnd||"—"},{l:"Monthly minimum",v:pkg?`$${pkg.price}/mo`:"—"}]
+                ? (()=>{ const st=adPerfStats(client); return [
+                    {l:"Platform",v:(pkg && pkg.platform)||"—"},
+                    {l:"Ad Budget",v:client.adBudget||"—"},
+                    {l:"Niche",v:client.niche||"—"},
+                    // Leads come from the log, which the house-leads job keeps in step
+                    // with every enquiry the website and Calendly take.
+                    {l:"Leads",v:st.leadsTotal},
+                    // Computed, not stored: 30-day ad spend divided by 30-day leads.
+                    {l:"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:"—"},
+                    {l:"Landing Page",v:(client.landingPage&&client.landingPage.published)?"Published":"Not built"},
+                  ]; })()
+                : (()=>{ const st=adPerfStats(client); return [
+                    {l:"Package",v:(pkg && pkg.name)||"—"},
+                    {l:"Platform",v:(pkg && pkg.platform)||"—"},
+                    {l:"Ad Budget",v:client.adBudget||"—"},
+                    {l:"Niche",v:client.niche||"—"},
+                    {l:"Leads",v:st.leadsTotal||client.leads||0},
+                    // Same live calculation the house account uses; the stored `cpl`
+                    // is only a fallback for a client whose spend has not synced yet.
+                    {l:"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:(client.cpl?`$${client.cpl}`:"—")},
+                    {l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},
+                    {l:"Contract End",v:client.contractEnd||"—"},
+                    {l:"Monthly minimum",v:pkg?`$${pkg.price}/mo`:"—"},
+                  ]; })()
               ).map(({l,v})=>(
                 <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
               ))}
             </div>
+            {/* Live ad performance — the numbers off the ad platforms themselves.
+                Stored by the ads-sync job every 6 hours, so this renders instantly and
+                always says how fresh it is. Live-to-the-second numbers are one tap away
+                on the Campaigns tab, which calls Google and Meta directly. */}
+            {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&(()=>{
+              const st = adPerfStats(client);
+              const ago = (iso)=>{ const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
+                if(!isFinite(m)||m<0) return ""; if(m<60) return `${m} min ago`;
+                const h=Math.round(m/60); return h<48?`${h} hour${h===1?"":"s"} ago`:`${Math.round(h/24)} days ago`; };
+              const cell=(label,value,sub)=>(
+                <div key={label} style={{flex:"1 1 90px",minWidth:0,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 11px"}}>
+                  <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:3}}>{label}</div>
+                  <div style={{fontSize:17,fontWeight:800,color:C.text,lineHeight:1}}>{value}</div>
+                  {sub&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:3,lineHeight:1.35}}>{sub}</div>}
+                </div>
+              );
+              return (
+                <Card>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:9}}>
+                    <Label>Live Ad Performance</Label>
+                    {st.syncedAt&&<span style={{fontSize:9.5,color:C.textMuted,flexShrink:0}}>Updated {ago(st.syncedAt)}</span>}
+                  </div>
+                  {!st.hasSnapshot
+                    ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{(client.googleAdsCustomerId||client.metaAdAccountId)
+                        ? `No numbers pulled in yet. ${client.internal?"Your":"This"} ad account is connected and this fills in within six hours of a campaign starting to serve.`
+                        : `Link ${client.internal?"your":"the"} ad account in Edit and the spend, views and clicks show up here.`}</div>
+                    : <>
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                          {cell("Views",st.impressions.toLocaleString(),"last 30 days")}
+                          {cell("Clicks",st.clicks.toLocaleString(),st.ctr!=null?`${(st.ctr*100).toFixed(1)}% of views`:null)}
+                          {cell("Spent","$"+Math.round(st.spend30).toLocaleString(),"last 30 days")}
+                          {cell("Leads",st.leads30,"last 30 days")}
+                          {cell("Cost / lead",st.cpl!=null?"$"+Math.round(st.cpl).toLocaleString():"—",st.cpl!=null?"spend ÷ leads":"needs a lead and some spend")}
+                        </div>
+                        {st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
+                      </>}
+                  {st.errors.length>0&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,background:`${C.amber}10`}}>
+                    <div style={{fontSize:10.5,fontWeight:800,color:C.amber,marginBottom:3}}>These numbers are stale</div>
+                    {st.errors.map(e=><div key={e} style={{fontSize:10.5,color:C.textDim,lineHeight:1.5}}>{e}</div>)}
+                  </div>}
+                </Card>
+              );
+            })()}
             {!client.internal&&pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
               <Label>Monthly Revenue</Label>
               <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
