@@ -150,8 +150,21 @@ function page(cr, size) {
   const k = SCALE[size.id];
   const story = size.id === "story";
   const wide = size.id === "landscape";
-  // Stories reserve dead space top and bottom for the platform's own UI.
-  const padY = story ? 300 : wide ? 58 : 96;
+  // Stories reserve dead space top and bottom for the platform's own UI, and the two ends
+  // need DIFFERENT amounts — which the single padY here got wrong.
+  //
+  // 🔴 MEASURED FROM A LIVE AD (Bryson, 2026-08-20, screenshotting his own campaign on
+  // Instagram): "the button covers the website url". With padY 300 the footer's baseline
+  // sat exactly 300px off the bottom edge, and Instagram paints its "Learn more" CTA over
+  // roughly the bottom 250-450px. So the URL line was underneath the button on every
+  // impression, on the one creative size where the CTA is drawn ON the image rather than
+  // beneath it.
+  //
+  // The top only carries the profile row, so 300 was over-generous there; the bottom needs
+  // far more. Split, and give the bottom enough clearance that a notch or a taller home
+  // indicator cannot eat into it either.
+  const padTop = story ? 260 : wide ? 58 : 96;
+  const padBottom = story ? 500 : wide ? 58 : 96;
   const padX = wide ? 76 : 96;
   const headSize = (wide ? 82 : 92) * k;
 
@@ -166,7 +179,7 @@ function page(cr, size) {
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased}
   .wrap{position:relative;width:100%;height:100%;display:flex;flex-direction:column;
-    justify-content:${wide ? "center" : "space-between"};padding:${padY}px ${padX}px;overflow:hidden}
+    justify-content:${wide ? "center" : "space-between"};padding:${padTop}px ${padX}px ${padBottom}px;overflow:hidden}
   /* Depth: a warm gold bloom off one corner + a fine grid, no stock imagery. */
   .bloom{position:absolute;width:${size.w * 1.25}px;height:${size.w * 1.25}px;border-radius:50%;
     top:${-size.w * 0.62}px;right:${-size.w * 0.5}px;pointer-events:none;

@@ -41,3 +41,57 @@ Niche-first beats generic — swap the niche word and rebuild for each vertical 
 **Regenerate:** `node scripts/build-ad-creatives.js [outDir]` (needs `playwright` installed; not a runtime dep — from a sandbox, `NODE_PATH=<dir-with-playwright>`). It **fails the run if any creative overflows its canvas**, so a headline edit can't silently ship clipped. Edit `CREATIVES` for copy, `CITIES` for coverage.
 
 **`CREATIVE_FORMAT=jpeg`** emits ad-ready JPEGs at quality 92 instead of PNGs — Meta accepts both, and the JPEG set is ~6MB against ~22MB for the same 69 PNGs with no visible banding (the designs are smooth dark gradients plus a faint grid, which dithers well). Use JPEG for anything being sent or uploaded; PNG is the lossless master. No image tooling (pngquant/optipng/Pillow) exists in this environment — Chromium's own JPEG encoder is the compression path.
+
+---
+
+## 🔴 2026-08-20 — THE CTA BUTTON WAS COVERING THE URL ON EVERY STORY
+
+**Bryson, having seen his own live ad served to him on Instagram:** *"we need to edit the
+images because the button covers the website url."*
+
+He was right, and it was measurable rather than a matter of taste. Rendering the story
+creative and reading the box positions out of the DOM:
+
+```
+hair   -> 359px clear of the bottom edge
+url    -> 300px clear of the bottom edge     <-- underneath the button
+```
+
+Instagram paints its **"Learn more" CTA over roughly the bottom 250-450px** of a 1080x1920
+story. The footer's baseline sat at exactly 300px, so the URL line was covered on **every
+impression**.
+
+**Cause: ONE padding value served both ends.** `padY = story ? 300` set the top and the
+bottom together. The top only carries the small logo row and wants to be tight; the bottom
+has a button drawn over it and needs far more. Tying them together meant the bottom could
+never be right.
+
+Now `padTop = 260` and `padBottom = 500`, which puts the footer 500px clear.
+
+**IT AFFECTED ONLY THE 1080x1920 STORY**, which is exactly why it survived every earlier
+check. Square, portrait and landscape place the CTA *underneath* the image, so their footers
+were always fine, and the existing overflow guard only ever asked whether content spilled
+OFF the canvas, never whether it landed somewhere unreadable. Non-story padding is
+deliberately unchanged.
+
+### 🔴 TWO RENDERERS DRAW THESE, AND BOTH HAD IT
+
+This is the part worth remembering. They share no code:
+
+| | |
+|---|---|
+| `scripts/build-ad-creatives.js` | the offline batch, 69 files |
+| `index.html` (Ad Creative Studio) | **the one that actually made his live ad** |
+
+Fixing only the script would have left the live path broken, and the live path is the one he
+uses. `verify-creative-safe-zone.mjs` pins both, asserts the top and bottom stay separate
+values, and was broken on each renderer independently to confirm it fails.
+
+**Regenerate the offline set after any change here:** `NODE_PATH=/opt/node22/lib/node_modules
+CREATIVE_FORMAT=jpeg node scripts/build-ad-creatives.js` (playwright is not a repo dependency,
+so the global one has to be on the path). All 69 re-render with no overflow.
+
+One assertion failed on the first run and was **my own mistake, not the code**: it searched
+for the old `padY` by name and matched the comment explaining the bug. Comments are stripped
+before that check now. That is the second time today a source-matching assertion has tripped
+on prose.
