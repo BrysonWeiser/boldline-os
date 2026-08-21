@@ -3,7 +3,7 @@ name: calendly-leads
 topic: Leads
 task: understand why a Calendly booking does or does not appear on the OS Leads screen, or change how booked calls are imported
 keywords: [calendly, booked call, book a call, calendly lead, calendly-leads, CALENDLY_API_TOKEN, website_leads, scheduled_events, invitees, questions_and_answers, dedupe, calendlyEventUri, booking questions, reschedule url]
-status: verified-token-live
+status: verified
 summary: A Calendly booking now creates a lead in the OS. Before this, "Book a Call" — the PRIMARY button on /get-started — produced a calendar entry and nothing else, so the better the prospect the less likely they existed in the OS. A scheduled poller reads Calendly every 15 minutes and writes each new booking to `website_leads`, deduped on the Calendly event id, carrying the invitee's answers, starting at status "meeting", and keeping the reschedule and cancel links. Needs CALENDLY_API_TOKEN, the same token the OS Calendar already uses.
 verified: 2026-08-20
 ---
@@ -85,7 +85,20 @@ generated a READ-ONLY Personal Access Token (Scheduling + User management read s
 no write, no webhooks, since this polls), set `CALENDLY_API_TOKEN` in Netlify and redeployed.
 **Confirmed by his Calendly meetings appearing in the OS Calendar**, which shares the token.
 
-**Still to confirm:** the first scheduled import writing an actual lead. The function returns
-**403 to a direct HTTP call, which is correct** — Netlify locks scheduled functions to their
-cron, so it cannot be triggered or tested from outside. It only runs on the quarter hour.
-The 14-day lookback means bookings made BEFORE the token was set are picked up on the first run.
+**✅ CONFIRMED WORKING END TO END, 2026-08-21.** Bryson booked test calls through the landing
+page and the leads appeared on the Leads screen on the next quarter-hour run. The 14-day
+lookback did its job: bookings made BEFORE the token was set were picked up on the first run.
+
+**The full chain is now proven with real data**, not inferred: Meta ad → /get-started →
+Calendly booking → lead in the OS.
+
+**Testing note for a future session:** the function returns **403 to a direct HTTP call, and
+that is correct** — Netlify locks scheduled functions to their cron, so it cannot be triggered
+from outside. Do not read that 403 as a fault. The only way to test it is to wait for the
+quarter hour, or temporarily remove the schedule.
+
+**Gotcha seen during setup, worth not re-diagnosing:** while Bryson was editing his Calendly
+event types, the booking popup showed *"This calendar is currently unavailable"* even though
+the direct link worked seconds later. That message means the event type is off, deleted, or
+MID-SAVE. It was transient and cleared on a retry in a private window. Check for a genuinely
+switched-off event type first, but do not assume a real fault until a clean retry also fails.

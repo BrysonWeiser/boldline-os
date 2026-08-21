@@ -5675,7 +5675,7 @@
         "booking questions",
         "reschedule url"
       ],
-      "status": "verified-token-live",
+      "status": "verified",
       "summary": "A Calendly booking now creates a lead in the OS. Before this, \"Book a Call\" — the PRIMARY button on /get-started — produced a calendar entry and nothing else, so the better the prospect the less likely they existed in the OS. A scheduled poller reads Calendly every 15 minutes and writes each new booking to `website_leads`, deduped on the Calendly event id, carrying the invitee's answers, starting at status \"meeting\", and keeping the reschedule and cancel links. Needs CALENDLY_API_TOKEN, the same token the OS Calendar already uses.",
       "verified": "2026-08-20",
       "terms": {
