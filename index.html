@@ -7757,6 +7757,42 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
     setBusy(null);
   };
 
+  // ── Swap the picture on a live ad, without stopping anything ───────────────
+  //
+  // Bryson, 2026-08-20: "so I don't have to fully delete and restart the ad."
+  //
+  // Meta will not let a published ad's image be edited, and replacing the file in the media
+  // library does nothing because Meta holds its own copy. So the only route is a new ad.
+  // The server adds it to the SAME live ad set and pauses the old one, which keeps the
+  // campaign, the targeting, the budget and Meta's delivery learning. Nothing here can
+  // raise spend: budget lives on the campaign and the ad set, never on an ad.
+  const [swapFor,setSwapFor]=useState(null);      // the row whose creative is being swapped
+  const [swapPick,setSwapPick]=useState("");      // chosen image url
+  const swapImages=(r)=>{
+    const lib=(r&&r.client&&r.client.mediaLibrary)||[];
+    const usable=lib.filter(m=>m&&m.url&&String(m.category||"")!=="video");
+    // Newest first, and creatives from the Studio ahead of general photos.
+    return [...usable.filter(m=>m.category==="ad-creative"),...usable.filter(m=>m.category!=="ad-creative")];
+  };
+  const openSwap=(r)=>{
+    const imgs=swapImages(r);
+    setSwapFor(r); setSwapPick(imgs.length?imgs[0].url:""); setActionErr("");
+  };
+  const doSwap=async()=>{
+    if(!swapFor||!swapPick) return;
+    const r=swapFor;
+    setBusy(keyOf(r)); setActionErr("");
+    try{
+      const d=await metaCall({action:"replaceCreative",adAccountId:r.client.metaAdAccountId,
+        campaignId:r.c.id,imageUrl:swapPick});
+      const res=(d&&d.result)||{};
+      setSwapFor(null); setSwapPick("");
+      if(res.retired===false) setActionErr("New ad is live with the new image, but the old one could not be paused. Pause it in Ads Manager so they are not both running.");
+      await load();
+    }catch(e){ setActionErr(e.message||"Couldn't swap the image."); }
+    setBusy(null);
+  };
+
   const remove=async(r)=>{
     const on=isOn(r);
     const whose=r.client.internal?"BoldLine's own":(r.client.name||"the client")+"'s";
@@ -7833,9 +7869,38 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
             {r.platform==="google"&&(
               <button onClick={()=>toggleOpen(r)} style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.border}`,cursor:"pointer",backgroundColor:"transparent",color:openKey===k?C.gold:C.textDim}}>{openKey===k?"▾ Hide":"▸ Inside"}</button>
             )}
+            {r.platform==="meta"&&(
+              <button onClick={()=>openSwap(r)} disabled={working} title="Put a new image on this ad without stopping the campaign" style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.borderAccent}`,cursor:working?"default":"pointer",backgroundColor:"transparent",color:C.gold,opacity:working?.6:1}}>Swap image</button>
+            )}
             <button onClick={()=>remove(r)} disabled={working} title="Delete this campaign permanently" style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.red}44`,cursor:working?"default":"pointer",backgroundColor:"transparent",color:C.red,opacity:working?.6:1}}>Delete</button>
           </span>
         </div>
+        {swapFor&&keyOf(swapFor)===k&&(()=>{
+          const imgs=swapImages(swapFor);
+          return (
+            <div style={{marginTop:10,padding:"12px 13px",borderRadius:11,border:`1px solid ${C.borderAccent}`,backgroundColor:C.goldDim}}>
+              <div style={{fontSize:11,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6}}>Put a new image on this ad</div>
+              <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>
+                The campaign keeps running. Your wording, targeting and budget stay exactly as they are, and Facebook keeps what it has learned. Only the picture changes: a new ad goes into the same ad set and the old one is paused.
+                {imgs.length?null:<b style={{color:C.amber}}> No images saved yet. Make one in the Ad Creative Studio first.</b>}
+              </div>
+              {imgs.length>0&&(
+                <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:6,marginBottom:10}}>
+                  {imgs.slice(0,12).map((m,i)=>(
+                    <button key={m.path||i} onClick={()=>setSwapPick(m.url)} title={m.label||""} style={{flexShrink:0,padding:0,borderRadius:9,cursor:"pointer",background:"none",
+                      border:`2px solid ${swapPick===m.url?C.gold:C.border}`,opacity:swapPick===m.url?1:.7}}>
+                      <img src={m.url} alt="" style={{display:"block",width:64,height:64,objectFit:"cover",borderRadius:7}}/>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{setSwapFor(null);setSwapPick("");}} style={{flex:1,padding:"7px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+                <button onClick={doSwap} disabled={!swapPick||working} style={{flex:2,padding:"7px",fontSize:11.5,fontWeight:800,borderRadius:8,border:"none",backgroundColor:(!swapPick||working)?C.border:C.gold,color:(!swapPick||working)?C.textMuted:"#15110A",cursor:(!swapPick||working)?"default":"pointer"}}>{working?"Swapping…":"Use this image"}</button>
+              </div>
+            </div>
+          );
+        })()}
         {openKey===k&&(()=>{
           const d=detail[k]||{};
           if(d.state==="loading") return <div style={{fontSize:11,color:C.textMuted,padding:"10px 0 4px"}}>Reading the ad groups…</div>;

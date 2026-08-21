@@ -324,6 +324,79 @@ const os = read("../index.html");
 }
 
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SWAPPING A LIVE AD'S IMAGE WITHOUT STOPPING THE CAMPAIGN (2026-08-20)
+// ══════════════════════════════════════════════════════════════════════════════
+// Bryson, after the story creative turned out to hide its URL under Instagram's button:
+// "Is there a way to just have you regenerate all the images ... so I don't have to fully
+// delete and restart the ad?"
+//
+// Replacing the file in storage does nothing: Meta copies the image into its own system at
+// ad-creation time, and refuses to edit a published ad's creative at all. So the only route
+// is a NEW AD. The question is what gets destroyed to get one, and deleting the campaign
+// throws away targeting, budget and every hour of delivery learning.
+{
+  const fn = meta.slice(meta.indexOf("export async function replaceCreative"));
+  const body = fn.slice(0, fn.indexOf("// ── Guarded write: campaign daily budget"));
+  const code = body.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+
+  ok("the swap exists", /export async function replaceCreative\(adAccountId, p\)/.test(meta));
+  ok("it adds the new ad to the EXISTING ad set", /adsetId: source\.adsetId/.test(code),
+    "a new ad set would have its own budget and its own learning to redo");
+
+  // 🔴 ORDER IS THE WHOLE SAFETY ARGUMENT. Pausing first risks an ad set with no active ad,
+  // which stops delivery; creating first means a failure leaves the old ad still running.
+  const iCreate = code.indexOf("addAdToAdset");
+  const iPause = code.indexOf('setAdStatus(source.id, "PAUSED")');
+  ok("it creates before it pauses", iCreate > 0 && iPause > iCreate,
+    "pausing first can leave an ad set with nothing running");
+  ok("a failed pause does not throw away the new ad", /catch \(e\)[\s\S]{0,220}retired = true|retired = true[\s\S]{0,220}catch/.test(code) || /console\.error\("replaceCreative/.test(code));
+  ok("and the caller is told the old one survived", /retired,/.test(code));
+
+  // The copy must be CLONED, never retyped, or an image swap silently rewrites the ad.
+  for (const field of ["headline", "primaryText", "description", "linkUrl", "pageId"]) {
+    ok(`it carries the existing ${field} across`, new RegExp(`${field}: source\\.${field}`).test(code),
+      "retyping copy during an image swap is how a headline changes by accident");
+  }
+
+  // 🔴 THE SPEND INVARIANT. Same argument as the creative-testing challenger: budget lives
+  // on the campaign and the ad set, never on an ad.
+  ok("the swap never touches a budget", !/daily_budget|setBudget|dailyBudget/.test(code),
+    "adding an ad must not be able to raise the bill");
+  ok("it never creates a campaign or an ad set", !/\/campaigns`|\/adsets`/.test(code));
+  ok("it never activates the campaign", !/activateCampaign|status: "ACTIVE" \}/.test(code));
+
+  // Swapping the creative on a PAUSED campaign must not start delivery.
+  ok("the new ad matches the status of the one it replaces",
+    /source\.status[\s\S]{0,80}"ACTIVE" \? "ACTIVE" : "PAUSED"/.test(code),
+    "otherwise the swap is a back door to starting a paused campaign");
+
+  // An ad built by hand in Ads Manager may not expose its copy; publishing an emptier
+  // replacement is worse than refusing.
+  ok("it refuses when the existing copy cannot be read", /could not read the existing ad's copy/.test(body));
+  ok("it refuses when there is no ad to replace", /has no ads to replace/.test(body));
+  ok("it requires a new image", /a new image is required/.test(body));
+}
+
+// The OS side.
+{
+  ok("the swap is reachable over HTTP", /action === "replaceCreative"/.test(meta));
+  ok("and it validates its inputs", /adAccountId, campaignId, imageUrl required/.test(meta));
+
+  const cm = os.slice(os.indexOf("function CampaignManagerScreen"));
+  const body = cm.slice(0, cm.indexOf("\nfunction ", 10));
+  ok("the OS calls it", /action:"replaceCreative"/.test(body));
+  ok("the button is Meta only", /r\.platform==="meta"&&\([\s\S]{0,300}openSwap\(r\)/.test(body),
+    "Google creatives are edited per ad group, not swapped wholesale");
+  ok("videos are never offered as an ad image", /String\(m\.category\|\|""\)!=="video"/.test(body));
+  ok("Studio creatives are offered first", /m\.category==="ad-creative"/.test(body));
+  ok("it says the campaign keeps running", /campaign keeps running/i.test(body));
+  ok("a half-done swap is surfaced, not swallowed", /could not be paused/.test(body),
+    "two ads sharing one budget is untidy and the owner has to know");
+}
+
+
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-campaign-launch: ${pass} checks passed`);
 process.exit(fails.length ? 1 : 0);
