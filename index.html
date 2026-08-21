@@ -7256,7 +7256,13 @@ function drawAdCreative(cv,o){
   const wide=w>h, story=h/w>1.6;
   const k=wide?0.8:(story?1.12:(h>w?1.04:1));
   const padX=Math.round(wide?76:96);
-  const padY=Math.round(story?300:(wide?58:96));
+  // 🔴 A STORY NEEDS DIFFERENT PADDING AT EACH END (Bryson, 2026-08-20, screenshotting his
+  // own live ad on Instagram: "the button covers the website url"). Instagram paints its
+  // "Learn more" CTA over roughly the bottom 250-450px of a story, and the footer was
+  // sitting exactly 300px up, so the URL was underneath the button on every impression.
+  // The top only carries the logo row, so it needs less. Mirrors scripts/build-ad-creatives.js.
+  const padTop=Math.round(story?260:(wide?58:96));
+  const padBottom=Math.round(story?500:(wide?58:96));
   const innerW=w-padX*2;
   const GOLD_C=C.gold, DIM_C="#9AA0BE";
 
@@ -7295,11 +7301,11 @@ function drawAdCreative(cv,o){
   // ── top lockup ──
   const logoS=Math.round(78*k);
   let tx=padX;
-  if(o.logo){ ctx.drawImage(o.logo,padX,padY,logoS,logoS); tx=padX+logoS+Math.round(20*k); }
+  if(o.logo){ ctx.drawImage(o.logo,padX,padTop,logoS,logoS); tx=padX+logoS+Math.round(20*k); }
   ctx.textBaseline="alphabetic";
   const brandS=Math.round(31*k);
   ctx.font=`900 ${brandS}px ${AD_FONT}`;
-  const brandY=padY+Math.round(logoS*0.46);
+  const brandY=padTop+Math.round(logoS*0.46);
   ctx.fillStyle="#F4F5FB"; ctx.fillText("BoldLine ",tx,brandY);
   const bw=ctx.measureText("BoldLine ").width;
   ctx.fillStyle=GOLD_C; ctx.fillText("Media",tx+bw,brandY);
@@ -7313,7 +7319,7 @@ function drawAdCreative(cv,o){
 
   // ── footer (hairline + text; NO button shape, ever) ──
   const urlS=Math.round(27*k), offerS=Math.round(24*k);
-  const footBase=h-padY;
+  const footBase=h-padBottom;
   const hair=ctx.createLinearGradient(padX,0,w-padX,0);
   hair.addColorStop(0,"rgba(200,168,75,0.55)"); hair.addColorStop(1,"rgba(200,168,75,0.06)");
   const hairY=footBase-Math.round(urlS+22*k);
@@ -7336,7 +7342,7 @@ function drawAdCreative(cv,o){
   const subS=Math.round(31*k), subLH=subS*1.5;
   const gap=Math.round(30*k);
   const blockH=headLines.length*headLH+(subLines.length?gap+subLines.length*subLH:0);
-  const zoneTop=padY+logoS+Math.round(40*k);
+  const zoneTop=padTop+logoS+Math.round(40*k);
   const zoneBot=hairY-Math.round(34*k);
   let y=zoneTop+Math.max(0,((zoneBot-zoneTop)-blockH)/2)+headS*0.82;
 
