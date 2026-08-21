@@ -391,6 +391,83 @@ export async function addAdToAdset(adAccountId, p) {
   return { creativeId: creative.id, adId: ad.id, adsetId: String(p.adsetId) };
 }
 
+// ── Swap the picture on a LIVE ad without stopping the campaign ─────────────
+//
+// Bryson, 2026-08-20, after the story creative turned out to have its URL hidden under
+// Instagram's own button: *"Is there a way to just have you regenerate all the images ...
+// so I don't have to fully delete and restart the ad?"*
+//
+// 🔴 WHY REPLACING THE FILE IN STORAGE DOES NOTHING. Meta copies the image into its own
+// system at ad-creation time and refers to it by hash from then on. Changing the file in
+// Supabase changes the library, not the ad. And Meta will not let you edit a published ad's
+// creative at all, the same immutability that locks the performance goal.
+//
+// So the ONLY way to change the picture is a new ad. The question is what you destroy to
+// get one. Deleting the campaign throws away the targeting, the budget, and every hour of
+// delivery learning Meta has done. This instead adds the new ad INTO THE SAME LIVE AD SET
+// and pauses the old one, which changes nothing except which creative the existing money
+// buys.
+//
+// Same budget invariant as the creative-testing challenger: budget lives on the campaign
+// and the ad set, never on an ad, so adding one cannot raise the bill by a cent.
+//
+// THE COPY IS CLONED FROM THE RUNNING AD, not re-entered. Retyping it is how a headline
+// silently changes during what was supposed to be an image swap.
+//
+// ORDER MATTERS. Create first, pause second. If creation fails, the old ad is still
+// running and nothing was lost. Pausing first would risk an ad set with no active ad,
+// which stops delivery entirely.
+export async function replaceCreative(adAccountId, p) {
+  const campaignId = String(p.campaignId || "");
+  if (!campaignId) throw Object.assign(new Error("replaceCreative: campaignId required"), { stage: "replaceCreative" });
+  if (!p.imageUrl) throw Object.assign(new Error("replaceCreative: a new image is required"), { stage: "replaceCreative" });
+
+  const ads = await getAdsForCampaign(adAccountId, campaignId);
+  const running = ads.filter((ad) => String(ad.status || "").toUpperCase() === "ACTIVE");
+  // Prefer the ad actually delivering; fall back to the newest, so a campaign whose ads are
+  // all paused can still have its creative fixed before it is switched on.
+  const source = running[0] || ads.slice().sort((a, b) => String(b.createdTime).localeCompare(String(a.createdTime)))[0];
+  if (!source) throw Object.assign(new Error("replaceCreative: this campaign has no ads to replace."), { stage: "replaceCreative" });
+  if (!source.adsetId) throw Object.assign(new Error("replaceCreative: could not read the ad set for that ad."), { stage: "replaceCreative" });
+  // An ad built by hand in Ads Manager may not expose its copy through the API. Refusing is
+  // right: creating a replacement without the headline would publish an emptier ad.
+  if (!source.pageId || !source.linkUrl || !source.headline) {
+    throw Object.assign(new Error(
+      "replaceCreative: could not read the existing ad's copy, so there is nothing to carry across. Rebuild this campaign instead."), { stage: "replaceCreative" });
+  }
+
+  const imageHash = await uploadImage(adAccountId, p.imageUrl);
+  const created = await addAdToAdset(adAccountId, {
+    adsetId: source.adsetId,
+    pageId: source.pageId,
+    linkUrl: source.linkUrl,
+    headline: source.headline,
+    primaryText: source.primaryText,
+    description: source.description,
+    ctaType: source.ctaType || "LEARN_MORE",
+    imageHash,
+    name: String(p.name || `${source.name || "Ad"} (new image)`),
+    // Match the ad it replaces. Swapping the creative on a paused campaign must not be a
+    // back door to starting delivery.
+    status: String(source.status || "").toUpperCase() === "ACTIVE" ? "ACTIVE" : "PAUSED",
+  });
+
+  // Only now is it safe to retire the old one.
+  let retired = false;
+  try {
+    await setAdStatus(source.id, "PAUSED");
+    retired = true;
+  } catch (e) {
+    // The new ad is live and correct; the old one is also still live. Two ads sharing one
+    // budget is untidy, not dangerous, so report it rather than throwing away the work.
+    console.error("replaceCreative: new ad created but pausing the old one failed:", e && e.message);
+  }
+  return {
+    newAdId: created.adId, oldAdId: source.id, adsetId: source.adsetId,
+    retired, carriedHeadline: source.headline,
+  };
+}
+
 // ── Guarded write: campaign daily budget (assumes campaign-level/CBO budget, ──
 // which is how createCampaign builds them). ───────────────────────────────────
 export async function setBudget(campaignId, dollars) {
@@ -764,6 +841,20 @@ export default async (req) => {
       }
       const result = await setStatus(body.campaignId, body.status);
       return json({ ok: true, action, result });
+    }
+
+    if (action === "replaceCreative") {
+      if (!body.adAccountId || !body.campaignId || !body.imageUrl)
+        return json({ ok: false, error: "adAccountId, campaignId, imageUrl required" }, 400);
+      const result = await replaceCreative(body.adAccountId, body);
+      return json({ ok: true, action, result });
+    }
+
+    if (action === "ads") {
+      if (!body.adAccountId || !body.campaignId)
+        return json({ ok: false, error: "adAccountId, campaignId required" }, 400);
+      const result = await getAdsForCampaign(body.adAccountId, body.campaignId);
+      return json({ ok: true, action, ads: result });
     }
 
     if (action === "deleteCampaign") {

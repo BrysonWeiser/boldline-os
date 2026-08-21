@@ -309,3 +309,48 @@ A freshly published Meta campaign reads **Scheduled**, not Active, with $0.00 sp
 impressions. That is `start_time` being set **one hour ahead** on purpose, so a campaign can
 never begin spending the instant it is created, before anyone has looked at it. It flips to
 Active on its own. Worth remembering, because it looks exactly like a broken launch.
+
+---
+
+## ✅ 2026-08-20 — SWAP A LIVE AD'S IMAGE WITHOUT RESTARTING THE CAMPAIGN
+
+**Bryson**, after the story creative turned out to hide its URL under Instagram's button:
+*"Is there a way to just have you regenerate all the images ... so I don't have to fully
+delete and restart the ad? ... can you delete the old images that are currently in assets?"*
+
+**The literal request could not work, for three reasons worth recording:**
+
+1. **No credentials here.** The Supabase storage keys live in Netlify env only, by design.
+2. **Only the finished image is stored**, not the spec that made it (`mediaLibrary` holds
+   `{category,label,url,path}`), so there is nothing to "regenerate the same" from.
+3. **🔴 The decisive one: replacing the file changes nothing.** Meta copies the image into
+   its own system at ad-creation time and refers to it by hash. And a published ad's
+   creative **cannot be edited at all** — the same immutability that locks the performance
+   goal. The only way to change the picture is a NEW AD.
+
+**So the real question was what gets destroyed to get one.** Deleting the campaign throws
+away the targeting, the budget and every hour of delivery learning. `replaceCreative()`
+instead adds the new ad **into the same live ad set** and pauses the old one.
+
+### The four properties that make it safe, all break-tested
+
+| | Why |
+|---|---|
+| **Create, THEN pause** | Pausing first can leave an ad set with no active ad, which stops delivery. Creating first means a failure leaves the old ad still running. |
+| **New ad matches the old ad's status** | Otherwise swapping a creative on a PAUSED campaign is a back door to starting delivery. |
+| **Copy is CLONED, never retyped** | Retyping during an image swap is how a headline silently changes. Headline, body, description, link and page all come off the running ad. |
+| **Never touches a budget** | Budget lives on the campaign and the ad set, never on an ad, so adding one cannot raise the bill. Same argument as the creative-testing challenger. |
+
+It **refuses** rather than degrade when the existing ad's copy cannot be read (an ad built by
+hand in Ads Manager may not expose it) — publishing an emptier replacement is worse than
+saying no. A pause that fails after a successful create is **reported, not thrown**: the new
+ad is correct and the owner is told to pause the old one, because two ads sharing one budget
+is untidy rather than dangerous.
+
+**UI:** a "Swap image" button on Meta rows in the Campaign Manager, with a thumbnail picker
+that puts Ad Creative Studio images first and never offers a video. Google is excluded on
+purpose: its creatives are edited per ad group inside the existing "Inside" panel.
+
+**133 checks in `verify-campaign-launch.mjs`. Four deliberate breaks confirmed to fail:**
+reordering pause before create, forcing the new ad ACTIVE, allowing the headline to be
+retyped, and offering videos in the picker.
