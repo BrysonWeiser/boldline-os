@@ -63,6 +63,12 @@
 # Four runs a day (not one) because it is also the app's continuous Ads API
 # traffic, which Meta requires before granting Marketing API standard access —
 # see KB meta-marketing-api. Well inside every rate limit.
+# A booked call is a LEAD, not just a calendar entry. Every 15 minutes, because the
+# whole point is that Bryson sees a prospect while they are still thinking about him.
+# Deduped on the Calendly event id, so re-scanning the same window is harmless.
+[functions."calendly-leads"]
+  schedule = "*/15 * * * *"
+
 [functions."ads-sync"]
   schedule = "0 */6 * * *"
 

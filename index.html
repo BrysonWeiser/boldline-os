@@ -10571,6 +10571,11 @@ function LeadCard({lead,onUpdate,onDelete}){
   const [copied,setCopied]=useState("");
   useEffect(()=>{ setNotes(lead.notes||""); setConfirmDel(false); setReachOpen(false); },[lead.id]);
   const isQuiz = lead.form==="recommendation";
+  // A booked call arrives from Calendly, not from a form. Worth its own badge: it is the
+  // strongest kind of lead BoldLine gets, and telling it apart from a form fill at a glance
+  // is the difference between calling the right person first and scrolling past them.
+  const isCall = lead.form==="calendly";
+  const cal = (lead.payload&&lead.payload.source==="calendly-poll") ? lead.payload : null;
   const title = lead.name || lead.business || lead.email || "New lead";
   const phone = lead.phone || (lead.payload && lead.payload.phone) || "";
   const first = String(lead.name||"there").trim().split(/\s+/)[0] || "there";
@@ -10589,10 +10594,17 @@ function LeadCard({lead,onUpdate,onDelete}){
           <div style={{fontSize:14,fontWeight:700,color:C.text}}>{title}</div>
           {lead.name&&lead.business&&<div style={{fontSize:11.5,color:C.textDim}}>{lead.business}</div>}
         </div>
-        <span style={{fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",whiteSpace:"nowrap",borderRadius:20,padding:"3px 9px",color:isQuiz?C.purple:C.gold,backgroundColor:isQuiz?"rgba(139,92,246,0.14)":C.goldDim}}>{isQuiz?"Quiz":"Contact"}</span>
+        <span style={{fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",whiteSpace:"nowrap",borderRadius:20,padding:"3px 9px",color:isCall?C.green:isQuiz?C.purple:C.gold,backgroundColor:isCall?"rgba(34,211,160,0.14)":isQuiz?"rgba(139,92,246,0.14)":C.goldDim}}>{isCall?"Booked call":isQuiz?"Quiz":"Contact"}</span>
       </div>
       {lead.email&&<a href={"mailto:"+lead.email} style={{fontSize:12.5,color:C.gold,textDecoration:"none",wordBreak:"break-all"}}>{lead.email}</a>}
       {lead.recommended&&<div style={{fontSize:12,color:C.textDim}}>Recommended: <span style={{color:C.text}}>{lead.recommended}</span></div>}
+      {cal&&(cal.rescheduleUrl||cal.cancelUrl)&&(
+        <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
+          {cal.rescheduleUrl&&<a href={cal.rescheduleUrl} target="_blank" rel="noopener noreferrer" style={{color:C.gold,textDecoration:"none",fontWeight:700}}>Reschedule</a>}
+          {cal.rescheduleUrl&&cal.cancelUrl&&<span style={{opacity:.5}}> · </span>}
+          {cal.cancelUrl&&<a href={cal.cancelUrl} target="_blank" rel="noopener noreferrer" style={{color:C.textMuted,textDecoration:"none"}}>Cancel</a>}
+        </div>
+      )}
       {lead.message&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{lead.message}</div>}
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <select value={lead.status} onChange={e=>onUpdate({...lead,status:e.target.value})} style={{...inp,width:"auto",padding:"7px 10px",fontSize:11.5}}>
