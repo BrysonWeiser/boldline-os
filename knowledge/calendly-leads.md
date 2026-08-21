@@ -3,7 +3,7 @@ name: calendly-leads
 topic: Leads
 task: understand why a Calendly booking does or does not appear on the OS Leads screen, or change how booked calls are imported
 keywords: [calendly, booked call, book a call, calendly lead, calendly-leads, CALENDLY_API_TOKEN, website_leads, scheduled_events, invitees, questions_and_answers, dedupe, calendlyEventUri, booking questions, reschedule url]
-status: built-unverified-live
+status: verified-token-live
 summary: A Calendly booking now creates a lead in the OS. Before this, "Book a Call" — the PRIMARY button on /get-started — produced a calendar entry and nothing else, so the better the prospect the less likely they existed in the OS. A scheduled poller reads Calendly every 15 minutes and writes each new booking to `website_leads`, deduped on the Calendly event id, carrying the invitee's answers, starting at status "meeting", and keeping the reschedule and cancel links. Needs CALENDLY_API_TOKEN, the same token the OS Calendar already uses.
 verified: 2026-08-20
 ---
@@ -80,6 +80,12 @@ A failed dedupe read **skips** rather than inserting, because treating a databas
 Four deliberate breaks confirmed to fail: removing the dedupe, treating a failed lookup as
 not-seen, recording a booked call as an ordinary new lead, and unscheduling the poller.
 
-**NOT yet verified against live Calendly** — it needs the token and a real booking. First
-real test is Bryson booking a call through the landing page and watching for a green "Booked
-call" badge on the Leads screen within 15 minutes.
+**✅ 2026-08-21 — THE TOKEN IS LIVE AND WORKING.** Bryson upgraded Calendly to the $10 plan,
+generated a READ-ONLY Personal Access Token (Scheduling + User management read scopes only;
+no write, no webhooks, since this polls), set `CALENDLY_API_TOKEN` in Netlify and redeployed.
+**Confirmed by his Calendly meetings appearing in the OS Calendar**, which shares the token.
+
+**Still to confirm:** the first scheduled import writing an actual lead. The function returns
+**403 to a direct HTTP call, which is correct** — Netlify locks scheduled functions to their
+cron, so it cannot be triggered or tested from outside. It only runs on the quarter hour.
+The 14-day lookback means bookings made BEFORE the token was set are picked up on the first run.
