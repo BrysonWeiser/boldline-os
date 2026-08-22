@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 121 task-keyed entries under `knowledge/`. They surface automatically via the
+> 122 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**121 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**122 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -279,6 +279,9 @@
 
 ## OS UI
 
+- **[house-pipeline-honesty](../knowledge/house-pipeline-honesty.md)** &mdash; &#9989; verified &middot; 2026-08-22  
+  Three complaints in one message, all the same root shape. A step's detail panel printed "has not started yet" purely because `getBotLogs` had no canned entry, and 10 of 20 steps have none, including the four that go Running off real signals. Three pipeline steps only exist because there IS a client, so they can never move on BoldLine's own account. And the OS scored the house account as having no landing page while showing a card elsewhere saying that same page is live.  
+  <sub>*task:* fix the My Ads pipeline showing a wrong status, a step whose detail panel disagrees with its row, steps that make no sense on the house account, or the OS saying there is no landing page when one is live &nbsp;|&nbsp; *keywords:* pipeline, bots, my ads, house account, says running but waiting, has not started yet, getBotLogs, work log, deriveBotStatuses, botsFor, HOUSE_HIDDEN_BOTS, intake, ceo director, client success, landing page not built, get-started, adLanding, HOUSE_LANDING_URL, ad health score landing page</sub>
 - **[sheet-layering](../knowledge/sheet-layering.md)** &mdash; &#9989; verified &middot; 2026-08-22  
   A panel's z-index stopped meaning anything because the screen wrapper `.os-content` animates opacity with `fill-mode: both`, which makes it a PERMANENT stacking context, so the fixed bottom nav (z-index 50) painted over overlays asking for 80, 200 and 400. Fixed twice over, `backwards` instead of `both` plus portalling every Sheet to <body>, both measured in a headless browser. Also records that a backtick inside the CSS template literal blanks the entire app.  
   <sub>*task:* fix a panel, sheet or modal in the OS whose bottom is hidden, cut off or covered by the bottom nav, or add a new full-screen overlay &nbsp;|&nbsp; *keywords:* bot chat, message box missing, chat bar hidden, bottom nav covering, z-index not working, stacking context, os-content, osIn animation, fill-mode both, createPortal, Sheet component, safe-area-inset-bottom, os-chatbar, os-sheet-actions, home indicator, white screen, template literal backtick</sub>
