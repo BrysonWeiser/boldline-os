@@ -732,6 +732,56 @@ const buildBots = (pkg) => {
   ];
 };
 
+// ─── WHERE THE ADS ACTUALLY LAND ─────────────────────────────────────────────
+// Bryson, 2026-08-22: "the landing page was made a while ago and is being used but
+// the os is still telling me there isn't a landing page that's been made".
+//
+// 🔴 SAME SHAPE AS THE LEADS BUG: the thing exists, the OS was looking in one place
+// and one place only. `client.landingPage` means a page the OS GENERATED and hosts at
+// /lp/<slug>. BoldLine's own ads have never used one. They point at /get-started on
+// the marketing site, which is written, live, taking traffic and booking calls, and
+// which both launch cards already hard-code as the default destination. So the OS knew
+// where his ads land in two places and still scored him as having no landing page.
+//
+// One helper, so the Overview tile, the health score and three pipeline steps can never
+// disagree about it again. Nothing changes for a real client: they have no site page of
+// ours to fall back to, so they still read straight off the generated page.
+const HOUSE_LANDING_URL = "https://boldlinemedia.com/get-started";
+
+const adLanding = (cl) => {
+  const lp = (cl && cl.landingPage) || {};
+  // A generated page that is published always wins, including on the house account —
+  // if he ever builds one for his own ads, that is deliberately the newer decision.
+  if (lp.published) {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return { published: true, written: true, source: "os", label: "Published",
+             url: cl && cl.landingSlug ? `${origin}/lp/${cl.landingSlug}` : "",
+             why: "Your generated landing page is published" };
+  }
+  if (cl && cl.internal) {
+    return { published: true, written: true, source: "site", label: "Live on your site",
+             url: HOUSE_LANDING_URL,
+             why: "Your ads point at /get-started, which is live" };
+  }
+  return { published: false, written: !!lp.headline, source: "os",
+           label: lp.headline ? "Drafted, not published" : "Not built", url: "",
+           why: lp.headline ? "Page drafted, not published" : "No landing page yet" };
+};
+
+// ─── STEPS THAT ONLY EXIST BECAUSE THERE IS A CLIENT ─────────────────────────
+// Bryson, 2026-08-22: "there are some bots that just don't make sense to have there".
+// He is right about these three. They are not "ad work done for someone", they are the
+// work of HAVING a someone: taking a brief off a client, assigning that brief across the
+// pipeline, and reporting back to them. On BoldLine's own account he is all three parties,
+// so each one is guaranteed to sit at a status that means nothing forever. Hiding them is
+// more honest than leaving three rows that can never move and drag the percentage down.
+// Everything that is real work on his own ads stays.
+const HOUSE_HIDDEN_BOTS = ["intake", "ceo", "success"];
+const botsFor = (cl, pkg) => {
+  const all = buildBots(pkg);
+  return (cl && cl.internal) ? all.filter((b) => !HOUSE_HIDDEN_BOTS.includes(b.id)) : all;
+};
+
 // ─── PIPELINE AUTO-ADVANCE ────────────────────────────────────────────────────
 // Bryson, 2026-08-14: he wants the bot pipeline to advance on its own. Worth being
 // exact about the starting point — it never did, for anyone. Every writer of
@@ -768,6 +818,7 @@ const deriveBotStatuses = (cl) => {
   const anyLive       = liveCount > 0;
   const spend         = Number(totals.spend30d || 0);
   const convs         = Number(totals.conversions || 0);
+  const land        = adLanding(cl);
   const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
   // The log is the truth; `leads` is a cache of its length that the website-lead
   // mirror does not bump on every path.
@@ -782,12 +833,15 @@ const deriveBotStatuses = (cl) => {
                : s("waiting", "Waiting on a complete intake"),
     offer:     cs.mainOffer ? s("done", `Main offer set: ${cs.mainOffer}`)
                : s("waiting", "No main offer set"),
-    architect: lp.headline ? s("done", "Landing page structure exists")
+    // All three read the SAME helper, so the page BoldLine's own ads actually use
+    // counts here exactly as it does on the Overview and in the health score.
+    architect: land.written ? s("done", land.source === "site" ? "Your /get-started page is built" : "Landing page structure exists")
                : s("waiting", "No landing page started"),
-    copy:      (lp.subheadline && (lp.bullets || []).length) ? s("done", "Landing page copy written")
+    copy:      land.source === "site" ? s("done", "Your /get-started page copy is written")
+               : (lp.subheadline && (lp.bullets || []).length) ? s("done", "Landing page copy written")
                : lp.headline ? s("active", "Headline written, rest of the copy pending")
                : s("waiting", "No copy yet"),
-    builder:   lp.published ? s("done", "Landing page is published")
+    builder:   land.published ? s("done", land.why)
                : lp.headline ? s("active", "Page drafted, not published")
                : s("waiting", "Nothing to build yet"),
     keywords:  anyCampaign ? s("done", "Keywords shipped with the built campaign")
@@ -846,7 +900,10 @@ const effectiveBotStatus = (cl, botId, derived) => {
 
 function pipelineProgress(client) {
   const derived = deriveBotStatuses(client);
-  const steps = BOT_IDS.map((id) => {
+  // The same steps the Pipeline tab shows. Counting hidden steps here would report a
+  // percentage the screen cannot explain.
+  const visible = (client && client.internal) ? BOT_IDS.filter((id) => !HOUSE_HIDDEN_BOTS.includes(id)) : BOT_IDS;
+  const steps = visible.map((id) => {
     const e = effectiveBotStatus(client, id, derived);
     return { id, name: BOT_NAMES[id] || id, status: e.status, why: e.why, auto: !!e.auto };
   });
@@ -1098,6 +1155,7 @@ const houseHealthFactors = (cl) => {
   const g = perf.google || {}, m = perf.meta || {};
   const plats = adPlatformsOf(cl, null);
   const lp = (cl && cl.landingPage) || {};
+  const land = adLanding(cl);
   // The log is the truth; the `leads` counter is a cache of its length and can lag
   // behind (it is only bumped by the lead webhook, never by the website-lead mirror).
   const leads = ((cl && cl.leadsLog) || []).length || Number((cl && cl.leads) || 0);
@@ -1137,8 +1195,7 @@ const houseHealthFactors = (cl) => {
       : "Set, but nothing has spent yet"),
     f("Leads arriving", leads > 15 ? 2 : leads > 5 ? 1.5 : leads > 0 ? 1 : 0, 2,
       leads > 0 ? `${leads} lead${leads === 1 ? "" : "s"} so far` : "No leads yet"),
-    f("Landing page published", lp.published ? 1 : lp.headline ? 0.5 : 0, 1,
-      lp.published ? "Published and taking traffic" : lp.headline ? "Drafted, not published" : "No landing page yet"),
+    f("Landing page published", land.published ? 1 : land.written ? 0.5 : 0, 1, land.why),
   ];
 };
 
@@ -1388,11 +1445,36 @@ function BotSheet({bot,clientName,client,pkg,onClose}) {
       {/* Work Log tab */}
       {botTab==="worklog"&&(
         <div style={{flex:1,overflowY:"auto",padding:"14px"}}>
+          {/* 🔴 THE STATUS COMES FIRST, AND IT IS THE SAME ONE THE ROW SHOWED.
+              Bryson, 2026-08-22: "Some things say running but when I press on them they
+              say they are waiting on the previous step". The row was right. This panel
+              was not even looking at the status: it printed "has not started yet" purely
+              because `getBotLogs` had no canned entry for that step, and TEN of the twenty
+              steps have none — including `ads`, `tracking`, `terms` and `leads`, which are
+              exactly the ones that go Running off real signals. So the steps most likely to
+              be live were the ones most likely to claim they had not begun.
+              `bot.why` is the derived reason behind the row's own badge, so the two
+              cannot contradict each other again. */}
+          <Card style={{borderColor:`${sc.dot}44`,backgroundColor:`${sc.dot}0d`,marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
+              <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:sc.dot,display:"inline-block",boxShadow:sc.pulse?`0 0 5px ${sc.dot}`:"none"}}/>
+              <Label>{sc.label}</Label>
+              {bot.manual&&<span style={{marginLeft:"auto",fontSize:9,fontWeight:700,letterSpacing:".04em",textTransform:"uppercase",color:C.textMuted}}>Set by hand</span>}
+            </div>
+            <div style={{fontSize:12.5,color:C.text,lineHeight:1.6}}>{bot.why||bot.description}</div>
+          </Card>
           {!log?(
-            <div style={{textAlign:"center",padding:"40px 20px",color:C.textMuted,fontSize:13}}>
-              <div style={{fontSize:28,marginBottom:10}}>{bot.icon}</div>
-              <div style={{fontWeight:700,color:C.textDim,marginBottom:6}}>{bot.name}</div>
-              <div>This bot has not started yet.<br/>It will begin when the previous step completes.</div>
+            <div style={S.col12}>
+              <Card>
+                <Label>What this step covers</Label>
+                <div style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>{bot.description}</div>
+              </Card>
+              {/* Honest about the gap rather than inventing a reason for it. */}
+              <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,padding:"0 2px"}}>
+                {bot.manual
+                  ? "There is no automatic signal for this step, so its status is whatever you set. Cycle it by hand from Edit → Pipeline."
+                  : "This step has no detailed log yet. The status above is read from what the OS can actually see on this account."}
+              </div>
             </div>
           ):(
             <div style={S.col12}>
@@ -4462,7 +4544,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const [mediaErr,setMediaErr]   = useState(null);
   const pkg    = findPkg(client.packageId);
   const derivedBots = deriveBotStatuses(client);
-  const bots   = buildBots(pkg).map(b=>{ const e=effectiveBotStatus(client,b.id,derivedBots); return {...b,status:e.status,why:e.why,auto:!!e.auto,manual:!!e.manual}; });
+  const bots   = botsFor(client,pkg).map(b=>{ const e=effectiveBotStatus(client,b.id,derivedBots); return {...b,status:e.status,why:e.why,auto:!!e.auto,manual:!!e.manual}; });
   const alerts = getAlerts(client);
   const stage  = stageInfo(client.stage);
   const days   = daysUntil(client.contractEnd);
@@ -4656,7 +4738,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                     {l:"Leads",v:st.leadsTotal},
                     // Computed, not stored: 30-day ad spend divided by 30-day leads.
                     {l:"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:"—"},
-                    {l:"Landing Page",v:(client.landingPage&&client.landingPage.published)?"Published":"Not built"},
+                    {l:"Landing Page",v:adLanding(client).label},
                   ]; })()
                 : (()=>{ const st=adPerfStats(client); return [
                     {l:"Package",v:(pkg && pkg.name)||"—"},
@@ -4963,12 +5045,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 </div>
                 <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.7,marginBottom:11}}>Point your ads at this hand-built page on your own site:</div>
                 <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:9,backgroundColor:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,marginBottom:11}}>
-                  <span style={{fontSize:13,fontWeight:700,color:C.gold,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>boldlinemedia.com/get-started</span>
+                  <span style={{fontSize:13,fontWeight:700,color:C.gold,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{HOUSE_LANDING_URL.replace(/^https?:\/\//,"")}</span>
                 </div>
                 <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:11}}>It's hidden from your site menu and Google, so only people who click your ad ever reach it — keeping your lead tracking clean. <b style={{color:C.textDim}}>Book a Call</b> opens your Calendly; the backup form sends leads to your <b style={{color:C.textDim}}>Leads</b> screen.</div>
                 <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                  <a href="https://boldlinemedia.com/get-started" target="_blank" rel="noopener noreferrer" style={{flex:1,textAlign:"center",padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,textDecoration:"none"}}>Preview Page ↗</a>
-                  <button onClick={()=>navigator.clipboard.writeText("https://boldlinemedia.com/get-started")} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Ad URL</button>
+                  <a href={HOUSE_LANDING_URL} target="_blank" rel="noopener noreferrer" style={{flex:1,textAlign:"center",padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,textDecoration:"none"}}>Preview Page ↗</a>
+                  <button onClick={()=>navigator.clipboard.writeText(HOUSE_LANDING_URL)} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Ad URL</button>
                 </div>
               </Card>
             ) : (
@@ -6372,7 +6454,7 @@ function AreaConditionsCard({locations}) {
 function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
-  const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
+  const landingDefault = client.internal ? HOUSE_LANDING_URL
     : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
   const niche = client.niche || "";
   const cs = client.campaignSetup || {};
@@ -6682,7 +6764,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
 
 function MetaLaunchCard({client, onUpdate, platformCount}) {
   const linked = client.metaAdAccountId && client.metaPageId;
-  const landingDefault = client.internal ? "https://boldlinemedia.com/get-started"
+  const landingDefault = client.internal ? HOUSE_LANDING_URL
     : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
   // Newest image wins, and ad creatives beat stock photos: the Creative Studio saves
   // with category "ad-creative" and its own hint promises the launch card uses the
@@ -9306,7 +9388,9 @@ function MyAdsInsights({client,onUpdate}){
     {k:"budget",  label:"Set your monthly budget",                  done:monthlyBudget>0},
     {k:"card",    label:"Add your payment card to Google / Meta",   done:cardAdded, manual:true},
     {k:"connect", label:"Connect your ad accounts (paste the IDs)", done:hasG||hasM},
-    {k:"page",    label:"Build a landing page for your ads",        done:!!(client.landingPage&&client.landingPage.published)},
+    // Same helper as everywhere else: his ads already land on a live page, so this step
+    // is genuinely done even though the OS did not generate that page.
+    {k:"page",    label:"Have a landing page for your ads",          done:adLanding(client).published},
     {k:"live",    label:"Launch a campaign",                        done:anyLive},
   ];
   const doneCount=steps.filter(s=>s.done).length;
