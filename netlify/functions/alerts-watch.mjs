@@ -19,7 +19,7 @@
 // campaign spend is live (see KB major-issue-alerts).
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 
 const ACTIVE_STAGES = ["active", "optimizing", "scaling"];
@@ -30,19 +30,24 @@ export const evalConditions = (cl) => {
   if (cl.internal || cl.contractStatus !== "active" || !ACTIVE_STAGES.includes(cl.stage)) return {};
   const health = calcHealth(cl);
   const target = PER_LEAD[cl.niche] || 50;
-  const leads = cl.leads || 0;
+  // 🔴 `cl.cpl` is never written by anything, so this alarm could never fire — a warning
+  // he believes is watching his money that structurally could not go off. `liveStats`
+  // computes it from the lead log and the ad-spend snapshot, the same two sources the
+  // OS screens use.
+  const lv = liveStats(cl);
+  const leads = lv.leads;
   const live = daysSince(cl.contractStart);
   return {
     perfCrash: health < 5,
     noLeads: !!cl.adBudget && leads === 0 && live != null && live >= 14,
-    cplBlowout: leads > 0 && cl.cpl > 0 && cl.cpl >= 2 * target,
+    cplBlowout: leads > 0 && lv.cpl > 0 && lv.cpl >= 2 * target,
   };
 };
 
 const MESSAGES = {
   perfCrash: (cl) => `health score has crashed to ${calcHealth(cl).toFixed(1)}/10`,
   noLeads: (cl) => `campaign has been live ${daysSince(cl.contractStart)} days with a budget set but ZERO leads — check targeting/tracking`,
-  cplBlowout: (cl) => `cost per lead is $${cl.cpl} — 2x+ the $${PER_LEAD[cl.niche] || 50} target (spend is inefficient)`,
+  cplBlowout: (cl) => `cost per lead is $${liveStats(cl).cpl} — 2x+ the $${PER_LEAD[cl.niche] || 50} target (spend is inefficient)`,
 };
 
 export default withFailureAlert("alerts-watch", async () => {
