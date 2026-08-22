@@ -1291,7 +1291,10 @@ function Typing() {
 }
 function ChatBar({value,onChange,onSend,disabled,placeholder}) {
   return (
-    <div style={{padding:"10px 14px 20px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+    // `os-chatbar` adds the phone's home-indicator inset to the bottom padding, the same
+    // way `os-sheet-actions` does for pinned Save bars. Without it the send button sits
+    // under the gesture bar on a modern iPhone.
+    <div className="os-chatbar" style={{padding:"10px 14px 20px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
       <div style={S.row8}>
         <input value={value} onChange={e=>onChange(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&onSend()} placeholder={placeholder||"Type…"} disabled={disabled} style={{flex:1,padding:"11px 14px",background:"rgba(255,255,255,.05)",border:`1px solid ${C.border}`,borderRadius:11,color:C.text,fontSize:14,outline:"none",fontFamily:"inherit"}}/>
         <button onClick={onSend} disabled={!value.trim()||disabled} style={{width:44,height:44,borderRadius:11,border:"none",fontSize:18,cursor:"pointer",flexShrink:0,backgroundColor:value.trim()&&!disabled?"#1D4ED8":"rgba(255,255,255,.05)",color:value.trim()&&!disabled?"#fff":C.textMuted}}>↑</button>
@@ -1299,14 +1302,44 @@ function ChatBar({value,onChange,onSend,disabled,placeholder}) {
     </div>
   );
 }
+// The app shell sets the typeface on itself, not on <body>, so a sheet portalled out
+// of the shell has to carry it or it renders in the browser's default serif.
+const APP_FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
+
+// ─── BOTTOM SHEET ────────────────────────────────────────────────────────────
+// 🔴 PORTALLED TO <body> ON PURPOSE, AND THE REASON IS NOT COSMETIC.
+//
+// Bryson, 2026-08-22: "when I try to chat with the bots I can't see the message box".
+// The box was there. The mobile bottom nav was painting on top of it.
+//
+// The nav is `position:fixed; bottom:0; z-index:50` and a sheet is `z-index:80`, so on
+// paper the sheet wins. It did not, because `.os-content` (the screen wrapper) runs a
+// fade-in animation, and an element animating opacity forms its OWN STACKING CONTEXT.
+// Every z-index inside it is then only comparable WITHIN it. `.os-content` itself sits
+// at the default level, so the nav — a sibling at z-index 50 — painted over the whole
+// wrapper and everything in it, no matter how high the sheet's own number was.
+//
+// This is why only the BOT sheet was affected: the notification, ARIA and More sheets
+// are rendered as siblings of the nav at the top level, while the bot sheet opens from
+// inside the client hub, deep inside `.os-content`. Same component, different ancestor,
+// completely different result — which is exactly what makes this class of bug hard to
+// spot by reading the component.
+//
+// Raising the z-index would not have fixed it (the number is not the problem, the
+// containing block is), and pushing the chat bar up above the nav would only have hidden
+// it. Portalling to <body> takes every sheet out of any screen's stacking context, so a
+// sheet is always above the nav wherever it happens to be opened from.
 function Sheet({children,onClose,zIndex=60,height="93vh",accentBorder}) {
-  return (
-    <div onClick={onClose} className="os-sheet-overlay" style={{position:"fixed",inset:0,zIndex,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+  const sheet = (
+    <div onClick={onClose} className="os-sheet-overlay" style={{position:"fixed",inset:0,zIndex,backgroundColor:"rgba(0,0,0,.82)",display:"flex",alignItems:"flex-end",justifyContent:"center",fontFamily:APP_FONT,color:C.text}}>
       <div onClick={e=>e.stopPropagation()} className="os-sheet" style={{width:"100%",maxWidth:640,height,"--sh-dvh":(typeof height==="string"?height.replace("vh","dvh"):height),backgroundColor:C.bg2,borderRadius:"20px 20px 0 0",border:`1px solid ${accentBorder||C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         {children}
       </div>
     </div>
   );
+  // React keeps portalled events bubbling through the component tree, so onClose and
+  // every handler inside still behave exactly as they read here.
+  return ReactDOM.createPortal(sheet, document.body);
 }
 function Divider() {
   return <div style={{height:1,backgroundColor:C.border2,margin:"4px 0"}}/>;
@@ -11170,7 +11203,16 @@ function App({onLogout}) {
         .os-ambient .grain{position:absolute;inset:0;opacity:.05;background-size:170px 170px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='osn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23osn)'/%3E%3C/svg%3E")}
         @keyframes obDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(46px,-34px,0) scale(1.12)}100%{transform:translate3d(-40px,40px,0) scale(.92)}}
         @keyframes osIn{from{opacity:0}to{opacity:1}}
-        .os-content{animation:osIn .35s ease both}
+        /* fill-mode backwards, NOT both. An element animating opacity forms its own
+           stacking context, and "both" keeps that animation filling forever after it
+           ends, so this screen wrapper permanently trapped every overlay opened inside
+           it BELOW the fixed bottom nav, whatever z-index the overlay asked for. That is
+           what hid the bot chat's message box. "backwards" still fades the screen in
+           from opacity 0 and still prevents the first-frame flash, but stops applying
+           once the animation ends, so the context is released. Measured both ways in a
+           headless browser: with "both" the nav paints on top, with "backwards" the
+           overlay does. See tests/verify-sheet-layering.mjs. */
+        .os-content{animation:osIn .35s ease backwards}
         .os-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
         .os-card:hover{transform:translateY(-2px);border-color:rgba(200,168,75,0.22);box-shadow:inset 0 1px 0 rgba(200,168,75,0.14),0 16px 34px -22px rgba(0,0,0,0.85)}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(200,168,75,0.22);border-radius:3px}
@@ -11185,6 +11227,7 @@ function App({onLogout}) {
         .os-sheet-overlay{height:100vh;height:100dvh;max-height:100vh;max-height:100dvh}
         /* Pinned action bars clear the phone's home indicator / gesture bar. */
         .os-sheet-actions{padding-bottom:calc(16px + env(safe-area-inset-bottom))!important}
+        .os-chatbar{padding-bottom:calc(20px + env(safe-area-inset-bottom))!important}
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>

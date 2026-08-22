@@ -13,7 +13,7 @@
 // so a cached shell should never win while online, but an already-running installed PWA
 // keeps the code it booted with. Bumping wipes every prior cache on activate, which
 // guarantees the next launch boots the current deploy rather than the one in memory.
-const CACHE_VERSION = "v26";  // v26: 2026-08-22 deleting a lead stays deleted
+const CACHE_VERSION = "v27";  // v27: 2026-08-22 the bot chat message box is visible again
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
