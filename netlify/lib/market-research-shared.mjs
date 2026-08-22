@@ -52,6 +52,80 @@ export const researchArea = (cl) => {
   return clip(cs.serviceArea || first(cs.targetLocations) || cl && cl.businessAddress || "", 120);
 };
 
+// ─── SOME BUSINESSES DO NOT HAVE A LOCAL MARKET ──────────────────────────────
+// Bryson, 2026-08-22: "when researching competitors don't just search only in Gilbert
+// search in other places as well because marketing agencies can be anywhere".
+//
+// He is right, and the first version had it wrong in a way that mattered. A roofer's
+// competitors are the roofers a customer could actually call, so one metro is the whole
+// market. BoldLine works with businesses remotely and nationally, so its competitors are
+// every agency a business owner could hire, wherever they sit. Searching only Gilbert
+// returned a handful of small shops and called that the market.
+//
+// This is derived, not hardcoded to the house account, because it is equally true of a
+// client who sells remotely and of every e-commerce brand: their buyer does not care
+// where they are.
+const NATIONAL_WORDS = /\b(nationwide|nationally|national|united states|u\.?s\.?a?|all 50|anywhere|remote(ly)?|online only|worldwide|global)\b/i;
+
+export const sellsNationally = (cl) => {
+  if (cl && cl.internal) return true;                       // BoldLine itself, always
+  const cs = (cl && cl.campaignSetup) || {};
+  if (NATIONAL_WORDS.test(`${cs.serviceArea || ""} ${cs.targetLocations || ""}`)) return true;
+  // An e-commerce brand ships to whoever buys. Its competitor is a store, not a neighbour.
+  return /e-?commerce|online store|subscription box|dtc/i.test(String((cl && cl.niche) || ""));
+};
+
+// 🔴 SPLITTING A SERVICE AREA IS A SOLVED PROBLEM IN THIS REPO, AND I RESOLVED IT WRONG
+// FIRST. The naive split on commas turns "Mesa, Arizona, Tempe, Arizona" into four
+// entries and searches for competitors in a place called "Arizona" and a place called
+// "Mesa" separately. `toLocationLines` in index.html hit exactly this and its comment
+// records the fix: only pair two chunks when the SECOND one actually looks like a state,
+// otherwise a bare list of cities silently becomes "Phoenix, Mesa", a place nobody meant.
+// Same rule here. There is a test pinning both known-bad inputs.
+const US_STATE = /^(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC|alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)$/i;
+
+export const splitAreas = (text) => {
+  const raw = String(text || "").trim();
+  if (!raw) return [];
+  // Newlines and semicolons are unambiguous, so trust them when they are there.
+  const explicit = raw.split(/[;\n]/).map((x) => x.trim()).filter(Boolean);
+  if (explicit.length > 1) return explicit.map((x) => clip(x, 120));
+  const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
+  const out = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (i + 1 < parts.length && US_STATE.test(parts[i + 1])) { out.push(`${parts[i]}, ${parts[i + 1]}`); i++; }
+    else out.push(parts[i]);
+  }
+  return out.map((x) => clip(x, 120)).filter(Boolean);
+};
+
+// A spread of the metros where agencies and remote-selling businesses actually cluster,
+// so a national search is not just one city repeated. Deliberately short: each entry is
+// another lookup, and past a handful the extra names stop changing the picture.
+export const NATIONAL_MARKETS = [
+  "Los Angeles, California", "New York, New York", "Dallas, Texas",
+  "Chicago, Illinois", "Atlanta, Georgia", "Miami, Florida",
+];
+
+// Everywhere worth looking, own market first. A local business gets its own area plus
+// the places its ads point at; a national one gets its own area plus the wider markets,
+// because leaving its own out would hide the competitors it bumps into most.
+export const researchAreas = (cl, max = 7) => {
+  const cs = (cl && cl.campaignSetup) || {};
+  const own = researchArea(cl);
+  const targets = splitAreas(cs.targetLocations);
+  const list = sellsNationally(cl)
+    ? [own, ...NATIONAL_MARKETS]
+    : [own, ...targets];
+  const seen = new Set();
+  return list.filter((a) => {
+    const k = a.toLowerCase().trim();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, max);
+};
+
 export const researchNiche = (cl) => clip((cl && cl.niche) || "", 80);
 
 // A business must never appear in its own competitor list. Matching is loose on purpose:
@@ -185,7 +259,7 @@ WHAT TO PRODUCE
 HOW TO WRITE
 Plain English, the way a person would say it out loud. NEVER use a dash to join or interrupt a sentence: not an em dash, not an en dash, not a hyphen with spaces around it. Write two sentences or use a comma. Hyphens inside a word are fine. Do not use marketing words like unlock, elevate, leverage, seamless, robust or game-changer.`;
 
-export const mrPrompt = ({ competitors, area, niche, placesOff }) => {
+export const mrPrompt = ({ competitors, area, areas, niche, placesOff, national }) => {
   const lines = (competitors || []).map((c, i) => {
     const bits = [
       c.rating ? `${c.rating} stars` : "",
@@ -197,8 +271,15 @@ export const mrPrompt = ({ competitors, area, niche, placesOff }) => {
     return `${i + 1}. ${c.name}${bits ? ` (${bits})` : ""}`;
   }).join("\n");
 
-  return `Research the market for ${niche || "this business"} in ${area || "their area"}.
+  const where = (areas && areas.length > 1)
+    ? `across ${areas.join(", ")}`
+    : `in ${area || "their area"}`;
 
+  return `Research the market for ${niche || "this business"} ${where}.
+
+${national
+  ? `🔴 THIS BUSINESS DOES NOT HAVE A LOCAL MARKET. It sells remotely, so its competitors are every business of this kind a buyer could choose, wherever they are based. Do not treat the areas above as a boundary. They are only where the verified listings were pulled from. The most relevant competitors may well be ones that operate entirely online and have no office anywhere near.\n`
+  : `These are the areas this business actually serves, so a competitor outside them is not really a competitor. Stay inside them.\n`}
 ${lines
   ? `VERIFIED COMPETITORS, pulled from Google's own business listings this run. The ratings, review counts and whether they are running ads are measured facts, so treat them as true and build on them:\n${lines}`
   : placesOff
