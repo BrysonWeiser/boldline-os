@@ -42,13 +42,14 @@ const src = [
   slice(/^const MANUAL_BOTS = /m, /\n\n/),
   slice(/^const monthlyBudgetNum = /m, /\n/),
   slice(/^const deriveBotStatuses = /m, /\n};\n/) + "\n};\n",
+  slice(/^const botWorkLog = /m, /\n};\n/) + "\n};\n",
   slice(/^const BOT_IDS = \[/m, /\n\];\n/) + "\n];\n",
 ].join("\n");
 
 // `window` is what adLanding reads for the origin of a generated page. Absent here, which
 // is the branch it already guards.
-const api = new Function(`${src}\nreturn { adLanding, deriveBotStatuses, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL, MANUAL_BOTS };`)();
-const { adLanding, deriveBotStatuses, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL } = api;
+const api = new Function(`${src}\nreturn { adLanding, deriveBotStatuses, botWorkLog, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL, MANUAL_BOTS };`)();
+const { adLanding, deriveBotStatuses, botWorkLog, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL } = api;
 
 const house = (over = {}) => ({
   internal: true, name: "BoldLine Media", adBudget: "$213",
@@ -175,6 +176,120 @@ const client = (over = {}) => ({
     (UI.match(/client\.internal \? HOUSE_LANDING_URL/g) || []).length === 2);
   ok("the Preview link and Copy button use it too",
     /<a href=\{HOUSE_LANDING_URL\}/.test(UI) && /writeText\(HOUSE_LANDING_URL\)/.test(UI));
+}
+
+// ── 6. The work log reports observed facts, never invented ones ───────────────
+// Bryson asked for the fabricated narrative to be replaced with what actually happened.
+// The old `getBotLogs` generated sentences like "Research complete: Buyer = homeowner
+// triggered by storm damage | No direct competitors currently leading with same day
+// estimate" — none of it looked up, all of it reading as a report on work nobody did.
+{
+  const PKG = { name: "Full System (House Account)", platform: "Google + Meta",
+                optimizationFreq: "weekly", callTracking: true, retargeting: true, customLandingPage: true };
+  const rich = house({
+    website: "https://boldlinemedia.com", niche: "Marketing Agency", leadToken: "t", portalToken: "p",
+    campaignSetup: { serviceArea: "Gilbert, Arizona", targetLocations: "Phoenix, Arizona" },
+    brandVoice: { tone: "Direct" },
+    leadsLog: [{ status: "meeting", receivedAt: new Date().toISOString(), source: "calendly" },
+               { status: "new", receivedAt: new Date().toISOString(), source: "website" }],
+    commLog: [{ date: "Aug 21, 2026", note: "New lead: Test (calendly)" },
+              { date: "Aug 20, 2026", note: "Launch Meta campaign approved" }],
+    adPerf: { syncedAt: new Date().toISOString(),
+      totals: { liveCampaigns: 1, liveDailyBudget: 7, projectedMonthly: 213, spend30d: 41, impressions: 284, clicks: 9, conversions: 0 },
+      meta: { campaigns: 1, live: 1, ok: true, linked: true }, google: { campaigns: 0, live: 0, linked: false },
+      budget: { monthly: 213, pacing: 213, pct: 100, state: "warn" } },
+  });
+
+  ok("the fabricated log generator is gone", !/const getBotLogs = /.test(UI));
+  // A sample of its invented prose. If any of this comes back, so has the problem.
+  // 🔴 Comments are stripped first: the code that REMOVED this prose quotes it while
+  // explaining why, so the naive check matched my own comment and failed. Third time
+  // this exact trap has bitten in this repo (see KB `repo-tests`).
+  const UI_CODE = UI.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  for (const phrase of ["Research complete:", "No direct competitors currently leading",
+                        "Brief complete:", "Avatar complete:", "Offers ranked:",
+                        "currentTask", "log.decisions"]) {
+    ok(`the invented phrase "${phrase}" is gone`, !UI_CODE.includes(phrase));
+  }
+
+  // 🔴 EVERY step must render something. The original bug was ten steps rendering a
+  // false sentence because they had no entry at all; silently rendering NOTHING would
+  // be the same failure wearing a different coat.
+  let empty = [];
+  for (const id of BOT_IDS) {
+    const l = botWorkLog(rich, PKG, id);
+    if (!l) { empty.push(id + " (null)"); continue; }
+    if ((l.facts || []).length === 0 && !l.unobservable) empty.push(id);
+  }
+  eq("no step renders an empty panel", empty.join(", "), "");
+
+  // Facts must be real. Every value is either something on the record or the honest
+  // placeholder, and a fact marked done must actually have a value behind it.
+  let bogus = [];
+  for (const id of BOT_IDS) {
+    for (const f of (botWorkLog(rich, PKG, id).facts || [])) {
+      if (typeof f.l !== "string" || typeof f.v !== "string" || !f.l || !f.v) bogus.push(`${id}.${f.l}`);
+      if (f.ok && /^(Not set|None|No|Not yet|Not set up)$/.test(f.v)) bogus.push(`${id}.${f.l} ticked while empty`);
+    }
+  }
+  eq("no fact is malformed or ticked while empty", bogus.join(", "), "");
+
+  // Specific values must come off the record, not from anywhere else.
+  const ads = botWorkLog(rich, PKG, "ads");
+  const val = (l, label) => (l.facts.find((f) => f.l === label) || {}).v;
+  eq("the ads step reports the real view count", val(ads, "Views (30 days)"), "284");
+  eq("and the real click count", val(ads, "Clicks (30 days)"), "9");
+  eq("and the real spend", val(ads, "Spent (30 days)"), "$41");
+  eq("and the real Meta campaign state", val(ads, "Meta campaigns"), "1 built, 1 running");
+  const leads = botWorkLog(rich, PKG, "leads");
+  eq("the leads step counts the real log", val(leads, "Total leads"), "2");
+  eq("and splits it by real status", val(leads, "Meetings booked"), "1");
+  const perf = botWorkLog(rich, PKG, "perf");
+  eq("cost per lead is computed from real spend and real leads", val(perf, "Cost per lead"), "$21");
+  eq("click rate is computed, not stored", val(perf, "Click rate"), "3.2%");
+
+  // An empty account must not invent numbers to fill the gaps.
+  const bare = botWorkLog({ internal: true, name: "BoldLine Media" }, PKG, "ads");
+  ok("an empty account says Not set rather than zero-dressed-as-data",
+    bare.facts.every((f) => !f.ok ? f.v === "Not set" : true));
+  ok("and offers a next step instead of a fake status", !!bare.next);
+
+  // The suggestion must never be a no-op: a finished step has nothing to suggest.
+  ok("a step with everything in place suggests nothing",
+    botWorkLog(rich, PKG, "budget").next === null);
+  ok("a step that is genuinely blocked does suggest something",
+    typeof botWorkLog(rich, PKG, "offer").next === "string");
+
+  // Events are the account's OWN log entries, verbatim, or nothing.
+  const adsEv = botWorkLog(rich, PKG, "ads").events;
+  ok("events come from the client's real activity log",
+    adsEv.length > 0 && adsEv.every((e) => rich.commLog.some((c) => c.note === e.note)));
+  eq("an account with no history shows no events",
+    botWorkLog({ internal: true, name: "x", commLog: [] }, PKG, "ads").events.length, 0);
+
+  // Google-only steps must not be judged on a Meta-only account's numbers.
+  const kw = botWorkLog(rich, PKG, "keywords");
+  ok("keywords tells him Google is not linked rather than reporting a problem",
+    /Google Ads account/.test(kw.next || ""));
+  const tm = botWorkLog(rich, PKG, "terms");
+  ok("search terms does the same", /Google/.test(tm.next || ""));
+
+  // Steps nothing can observe say so in words rather than showing a blank.
+  const unobs = BOT_IDS.filter((id) => (botWorkLog(rich, PKG, id) || {}).unobservable);
+  ok("the unobservable steps are named and explained", unobs.length > 0
+    && unobs.every((id) => botWorkLog(rich, PKG, id).unobservable.length > 30));
+}
+
+// ── 7. The screen renders those parts and nothing pretends ────────────────────
+{
+  ok("the panel renders the fact list", /<Label>On the record<\/Label>/.test(UI));
+  ok("the panel renders the real activity entries", /<Label>What actually happened<\/Label>/.test(UI));
+  ok("the panel renders the next step", /<Label>To move this forward<\/Label>/.test(UI));
+  ok("it states plainly that nothing is written for him",
+    /Nothing on this screen is written for you/.test(UI));
+  ok("the row subtitle shows the derived reason, not narrative",
+    /\{bot\.why&&<div style=\{\{fontSize:10,color:C\.textMuted/.test(UI));
+  ok("the sheet builds the observed log", /const log = botWorkLog\(client, pkg, bot\.id\);/.test(UI));
 }
 
 console.log(`verify-house-pipeline: ${pass} passed, ${fail} failed`);
