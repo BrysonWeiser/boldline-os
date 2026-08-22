@@ -22,6 +22,7 @@ import { dirname, join } from "node:path";
 import {
   cleanResearch, needsConfirmation, rankCompetitors, isSelf, researchArea, researchNiche,
   MR_TOOL, mrSystem, mrPrompt, BASES, MAX_DIFF,
+  researchAreas, sellsNationally, splitAreas, NATIONAL_MARKETS,
 } from "../netlify/lib/market-research-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -132,7 +133,13 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   // 🔴 Never invent one. Searching the wrong city returns real businesses that are the
   // wrong competitors, and every conclusion drawn from them is wrong.
   eq("no area means no guess", researchArea({ campaignSetup: {} }), "");
-  eq("and the function refuses to run without one", /if \(!area\) \{/.test(FN_CODE), true);
+  // The guard is on the LIST now, not one area: a national account has no single service
+  // area and does not need one, but nowhere to look at all is still a refusal.
+  eq("and the function refuses to run with nowhere to look", /if \(!areas\.length\) \{/.test(FN_CODE), true);
+  ok("it searches every market, not just the first", /areas\.map\(\(a\) =>\s*\n?\s*placesSearch/.test(FN_CODE));
+  ok("in parallel, so a national search is not a minute of waiting", /await Promise\.all\(areas\.map/.test(FN_CODE));
+  ok("and pools every market's results before ranking", /const pooled = searches\.flatMap/.test(FN_CODE));
+  ok("recording how many markets were searched", /markets: areas\.length/.test(FN_CODE));
   ok("saying so rather than failing silently", /No service area is set/.test(FN));
   eq("the niche comes off the record", researchNiche(cl), "Marketing Agency");
 }
@@ -220,6 +227,62 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
     /String\(t\.googleAds \|\| ""\)\.toLowerCase\(\) === "yes"/.test(FN_CODE));
   ok("the card distinguishes unknown from no", /c\.runningAds===true\?pill\("Running ads"/.test(UI)
     && /c\.runningAds===false\?pill\("No ads"/.test(UI) && /:null/.test(UI));
+}
+
+// ── 10. One city is not always the market ─────────────────────────────────────
+// Bryson, 2026-08-22: "don't just search only in Gilbert search in other places as well
+// because marketing agencies can be anywhere". A roofer's competitors are the roofers a
+// customer could actually call, so one metro IS the whole market. A business that sells
+// remotely has no local market at all, and searching one suburb returned a handful of
+// small shops and called that the competition.
+{
+  ok("BoldLine itself always searches nationally", sellsNationally({ internal: true }));
+  ok("so does anyone whose service area says nationwide",
+    sellsNationally({ campaignSetup: { serviceArea: "Nationwide" } }));
+  ok("or whose targets say United States",
+    sellsNationally({ campaignSetup: { targetLocations: "United States" } }));
+  ok("or who says they work remotely",
+    sellsNationally({ campaignSetup: { serviceArea: "Remote" } }));
+  // An e-commerce brand ships to whoever buys, so its competitor is a store, not a neighbour.
+  ok("an e-commerce brand does too", sellsNationally({ niche: "E-Commerce" }));
+  // 🔴 And a genuinely local business must NOT. A roofer in Mesa does not compete with a
+  // roofer in Miami, and pooling them would make every conclusion about the market wrong.
+  ok("a roofer in one metro does not", !sellsNationally({ niche: "Roofing", campaignSetup: { serviceArea: "Mesa, Arizona" } }));
+  ok("nor a dentist", !sellsNationally({ niche: "Dental", campaignSetup: { serviceArea: "Gilbert, Arizona", targetLocations: "Gilbert, Arizona" } }));
+
+  const house = researchAreas({ internal: true, campaignSetup: { serviceArea: "Gilbert, Arizona" } });
+  ok("a national search covers several markets", house.length > 3, `got ${house.length}`);
+  eq("and starts with his own, which is where he bumps into people most", house[0], "Gilbert, Arizona");
+  ok("and reaches beyond his state", house.some((a) => !/Arizona/.test(a)));
+  ok("every national market is a real place with a state", NATIONAL_MARKETS.every((m) => /, [A-Z][a-z]/.test(m)));
+
+  const local = researchAreas({ niche: "Roofing", campaignSetup: { serviceArea: "Mesa, Arizona", targetLocations: "Mesa, Arizona, Tempe, Arizona" } });
+  ok("a local business stays inside the places it serves",
+    local.every((a) => /Arizona/.test(a)), local.join(" | "));
+  ok("and is not padded out with national metros",
+    !local.some((a) => NATIONAL_MARKETS.includes(a)));
+  eq("with no duplicate of its own area", local.filter((a) => a === "Mesa, Arizona").length, 1);
+
+  // 🔴 SPLITTING A SERVICE AREA IS A SOLVED PROBLEM HERE AND I RESOLVED IT WRONG FIRST.
+  // The naive comma split turned "Mesa, Arizona, Tempe, Arizona" into four entries and
+  // would have searched for competitors in a place called "Arizona". `toLocationLines`
+  // in index.html hit exactly this; both of its known-bad inputs are pinned.
+  eq("city and state stay together",
+    splitAreas("Mesa, Arizona, Tempe, Arizona").join(" | "), "Mesa, Arizona | Tempe, Arizona");
+  eq("but bare cities are not glued into a place nobody meant",
+    splitAreas("Phoenix, Mesa, Tempe").join(" | "), "Phoenix | Mesa | Tempe");
+  eq("newlines are trusted when they are there",
+    splitAreas("Mesa, Arizona\nTempe, Arizona").join(" | "), "Mesa, Arizona | Tempe, Arizona");
+  eq("nothing in means nothing out", splitAreas("").length, 0);
+
+  // The prompt has to say which it is, or the model treats the markets as a boundary.
+  const nat = mrPrompt({ competitors: [], areas: ["Gilbert, Arizona", "Dallas, Texas"], niche: "Marketing Agency", national: true });
+  ok("a national brief says the areas are not a boundary", /DOES NOT HAVE A LOCAL MARKET/.test(nat));
+  ok("and that a remote competitor counts wherever it is based", /operate entirely online/.test(nat));
+  ok("and names every market searched", /Gilbert, Arizona, Dallas, Texas/.test(nat));
+  const loc = mrPrompt({ competitors: [], areas: ["Mesa, Arizona"], area: "Mesa, Arizona", niche: "Roofing", national: false });
+  ok("a local brief says to stay inside them", /Stay inside them/.test(loc));
+  ok("and does not claim there is no local market", !/DOES NOT HAVE A LOCAL MARKET/.test(loc));
 }
 
 console.log(`verify-market-research: ${pass} passed, ${fail} failed`);

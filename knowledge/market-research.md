@@ -2,7 +2,7 @@
 name: market-research
 topic: Ads
 task: run or change the automated competitor research, or work out where the ad differentiator and competitor list come from
-keywords: [market research, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
+keywords: [market research, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
 status: built
 summary: Market Research went from a hand-tracked step with no artifact to an automated one. It finds real competitors through Google Places, reads their sites to see who is actually buying ads, researches positioning with web search, and proposes up to four differentiators. It PROPOSES only, never writes brandVoice, and any proposal without evidence is dropped rather than shown with a caveat.
 verified: 2026-08-22
@@ -80,3 +80,48 @@ than a long invented one**.
 71 checks in `verify-market-research.mjs`, running the real gate. Guards broken and
 confirmed to fail: unevidenced claims allowed through, everything trusted without
 confirming, and a business becoming its own competitor.
+
+## Follow-up: one city is not always the market
+
+Bryson, minutes after it shipped: *"when researching competitors don't just search only in
+Gilbert search in other places as well because marketing agencies can be anywhere"*.
+
+He was right, and the first version was wrong in a way that mattered. **A roofer's
+competitors are the roofers a customer could actually call**, so one metro genuinely is
+the whole market. **BoldLine works with businesses remotely and nationally**, so its
+competitors are every agency a business owner could hire, wherever they sit. Searching one
+suburb returned a handful of small shops and called that the competition.
+
+`sellsNationally(cl)` is **derived, not hardcoded to the house account**, because the same
+is true of any client who sells remotely and of every e-commerce brand, whose buyer does
+not care where they are:
+
+- the internal account, always;
+- a service area or target list saying nationwide / nationally / United States / anywhere
+  / remote / worldwide;
+- an e-commerce, online store, subscription box or DTC niche.
+
+A national account searches its **own area first** (that is where it bumps into people
+most) plus six metros where agencies cluster. A local one searches its own area plus the
+places it actually serves, and **must not** be padded out with national metros, or every
+conclusion about its market would be wrong. There are tests for both directions.
+
+The prompt says which case it is. Without that, a model treats the searched markets as a
+boundary and reports "these six cities" as the whole picture, when the most relevant
+competitor may operate entirely online with no office anywhere near.
+
+Lookups run in parallel and every market's results are **pooled before ranking**, so the
+strongest competitors win on merit rather than on which city was searched first.
+
+### 🔴 Splitting a service area is a solved problem here and I resolved it wrong first
+
+The naive comma split turned `"Mesa, Arizona, Tempe, Arizona"` into **four** entries and
+would have searched for competitors in a place called "Arizona". `toLocationLines` in
+`index.html` hit exactly this and its comment records the fix: only pair two chunks when
+the **second** one actually looks like a state, or a bare list of cities silently becomes
+"Phoenix, Mesa", a place nobody meant. `splitAreas` applies the same rule and both
+known-bad inputs are pinned by test.
+
+**98 checks now.** Three more deliberate breaks confirmed to fail: a national search
+collapsing to one city, a local business being given national metros, and the naive comma
+split coming back.

@@ -39,7 +39,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { placesSearch, inspectAdTech } from "../lib/scout-providers.mjs";
 import {
-  MR_TOOL, mrSystem, mrPrompt, cleanResearch, rankCompetitors, researchArea, researchNiche,
+  MR_TOOL, mrSystem, mrPrompt, cleanResearch, rankCompetitors, researchArea, researchAreas,
+  researchNiche, sellsNationally,
 } from "../lib/market-research-shared.mjs";
 
 const anthropic = new Anthropic();
@@ -86,21 +87,37 @@ export default async (req) => {
   const isAgency = !!cl.internal;
   const niche = researchNiche(cl) || (isAgency ? "marketing agency" : "");
   const area  = researchArea(cl);
-  // Without an area the search returns real businesses in the wrong place, and every
+  // 🔴 ONE CITY IS NOT ALWAYS THE MARKET. Bryson, 2026-08-22: "don't just search only in
+  // Gilbert search in other places as well because marketing agencies can be anywhere".
+  // A roofer's competitors are the roofers a customer could actually call, so one metro
+  // IS the whole market. BoldLine works remotely and nationally, so its competitors are
+  // every agency a business owner could hire, wherever they sit. Searching one suburb
+  // returned a handful of small shops and called that the market.
+  const national = sellsNationally(cl);
+  const areas = researchAreas(cl);
+  // Without anywhere to look the search returns businesses in the wrong place, and every
   // conclusion drawn from them is wrong. Stopping is the honest outcome.
-  if (!area) {
+  if (!areas.length) {
     await write(supabase, clientId, { runId, status: "error", ranAt: new Date().toISOString(),
       error: "No service area is set, so there is nowhere to look. Add one in Edit and run this again." });
     return json({ ok: false, error: "no area" }, 200);
   }
 
-  await write(supabase, clientId, { runId, status: "running", startedAt: new Date().toISOString(), area, niche, error: "" });
+  await write(supabase, clientId, { runId, status: "running", startedAt: new Date().toISOString(), area, areas, national, niche, error: "" });
 
   try {
-    // ── 1. Real businesses, from Google's own listings ────────────────────────
-    const search = await placesSearch({ niche: niche || "business", area, maxResults: 20 });
-    const placesOff = !!search.off;
-    let competitors = rankCompetitors(search.results || [], cl, INSPECT_MAX + 4);
+    // ── 1. Real businesses, from Google's own listings, in every market ───────
+    // In parallel: each is an independent lookup, and doing them one after another turned
+    // a national search into a minute of waiting for nothing.
+    const searches = await Promise.all(areas.map((a) =>
+      placesSearch({ niche: niche || "business", area: a, maxResults: 20 })
+        .then((r) => ({ ...r, area: a }))
+        .catch(() => ({ ok: false, results: [], area: a }))));
+    const placesOff = searches.some((r) => r.off);
+    // Every market's results pooled, then deduped and ranked together, so the strongest
+    // competitors win on merit rather than on which city happened to be searched first.
+    const pooled = searches.flatMap((r) => (r.results || []).map((x) => ({ ...x, foundIn: r.area })));
+    let competitors = rankCompetitors(pooled, cl, INSPECT_MAX + 4);
 
     // ── 2. Are they actually buying ads? Read it off their own homepage ───────
     const inspected = await Promise.all(competitors.slice(0, INSPECT_MAX).map(async (c) => {
@@ -130,7 +147,7 @@ export default async (req) => {
         { type: "web_search_20260209", name: "web_search", max_uses: 5 },
         MR_TOOL,
       ],
-      messages: [{ role: "user", content: mrPrompt({ competitors, area, niche, placesOff }) }],
+      messages: [{ role: "user", content: mrPrompt({ competitors, area, areas, niche, placesOff, national }) }],
     });
 
     const call = (res.content || []).find((c) => c.type === "tool_use" && c.name === MR_TOOL.name);
@@ -142,24 +159,25 @@ export default async (req) => {
 
     const clean = cleanResearch(call.input, cl);
     await write(supabase, clientId, {
-      runId, status: "done", ranAt: new Date().toISOString(), area, niche, error: "",
+      runId, status: "done", ranAt: new Date().toISOString(), area, areas, national, niche, error: "",
       // Kept so the card can show WHERE each fact came from, and so a thin report is
       // visibly thin rather than looking like the market is empty.
       sources: {
         places: placesOff ? "off" : (search.ok ? "ok" : "failed"),
         placesNote: placesOff ? "Google Places is not connected, so the competitor list came from web search only." : "",
         found: competitors.length,
+        markets: areas.length,
       },
       competitors: competitors.map((c) => ({
         name: c.name, website: c.website || "", rating: c.rating || "",
-        reviewCount: Number(c.reviewCount || 0), city: c.city || "",
+        reviewCount: Number(c.reviewCount || 0), city: c.city || c.foundIn || "",
         runningAds: c.runningAds === true ? true : c.runningAds === false ? false : null,
         adsNote: c.adsNote || "",
       })),
       ...clean,
     });
 
-    console.log(`market-research: ${cl.name} — ${competitors.length} competitor(s), ${clean.differentiators.length} proposal(s).`);
+    console.log(`market-research: ${cl.name} \u2014 ${areas.length} market(s), ${competitors.length} competitor(s), ${clean.differentiators.length} proposal(s).`);
     return json({ ok: true, competitors: competitors.length, differentiators: clean.differentiators.length });
   } catch (e) {
     const msg = String((e && e.message) || e);

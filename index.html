@@ -2508,7 +2508,9 @@ function MarketResearchCard({client,onUpdate}){
       {!area
         ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.65}}>Set a service area in Edit first. Without one there is nowhere to look, and searching the wrong place returns real businesses that are the wrong competitors.</div>
         : <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:mr.status?10:0}}>
-            Finds who else is selling {client.niche||"this"} around {area}, checks which of them are actually buying ads, and works out what {client.internal?"you":client.name} could claim that they are not. Takes a minute or two.
+            {/* A business that sells remotely has no local market, so saying "around
+                Gilbert" would both understate the search and misdescribe the business. */}
+            Finds who else is selling {client.niche||"this"} {client.internal?"across the country, not just near you":`around ${area}`}, checks which of them are actually buying ads, and works out what {client.internal?"you":client.name} could claim that they are not. Takes a minute or two.
           </div>}
 
       {running&&<div style={{fontSize:11.5,color:C.gold,lineHeight:1.65,marginTop:8}}>Looking up businesses, reading their sites and checking who is running ads. You can leave this screen, it keeps going.</div>}
@@ -2535,6 +2537,7 @@ function MarketResearchCard({client,onUpdate}){
                   {c.runningAds===true?pill("Running ads",C.red):c.runningAds===false?pill("No ads",C.textMuted):null}
                 </div>
               ))}
+              {(mr.areas||[]).length>1&&<div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Searched {mr.areas.length} markets: {mr.areas.join(", ")}.{mr.national?" Competitors that work remotely count wherever they are based.":""}</div>}
               {mr.sources&&mr.sources.placesNote&&<div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:8}}>{mr.sources.placesNote}</div>}
               {mr.competitorsLine&&(
                 <button onClick={()=>use("competitors",mr.competitorsLine,"Saved the researched competitor list to brand voice")}
