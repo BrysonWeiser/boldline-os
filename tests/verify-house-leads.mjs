@@ -42,7 +42,7 @@ const ok = (name, cond, extra) => {
 };
 const eq = (name, got, want) => ok(name, Object.is(got, want), `got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
 
-import { mergeHouseLeads, mapStatus, sourceOf, HOUSE_STATUSES, PRUNE_LIMIT } from "../netlify/lib/house-leads-merge.mjs";
+import { mergeHouseLeads, mapStatus, sourceOf, isLeadRow, NON_LEAD_FORMS, HOUSE_STATUSES, PRUNE_LIMIT } from "../netlify/lib/house-leads-merge.mjs";
 
 // One name, so every call below reads like the job's own code path.
 const merge = mergeHouseLeads;
@@ -154,6 +154,80 @@ const wl = (id, over = {}) => ({
   eq("the fit quiz is labelled quiz", sourceOf({ form: "recommendation" }), "quiz");
   eq("the contact form is labelled website", sourceOf({ form: "contact" }), "website");
   eq("an unknown form still gets a label", sourceOf({}), "website");
+}
+
+// ── 6b. Rows that are NOT leads never reach the house account ─────────────────
+// Two kinds of row share this table without being enquiries. The first version of the
+// job mirrored both, so newsletter subscribers were landing on the house account as
+// leads — inflating the count AND the cost-per-lead that is divided by it.
+{
+  ok("a newsletter subscriber is not a lead", !isLeadRow({ form: "newsletter" }));
+  ok("a deleted-lead tombstone is not a lead", !isLeadRow({ form: "deleted" }));
+  ok("a contact form is a lead", isLeadRow({ form: "contact" }));
+  ok("a Calendly booking is a lead", isLeadRow({ form: "calendly" }));
+  // A DENYLIST, not an allowlist: a Netlify form added later must arrive as a lead by
+  // default rather than silently vanish because nobody updated a list.
+  ok("an unknown future form is still a lead", isLeadRow({ form: "quote-request-2027" }));
+  ok("a row with no form at all is still a lead", isLeadRow({}));
+
+  const mixed = [
+    wl("real", { form: "contact" }),
+    wl("sub", { form: "newsletter" }),
+    wl("tomb", { form: "deleted" }),
+    wl("book", { form: "calendly" }),
+  ];
+  const r = merge([], mixed);
+  eq("only the real enquiries are mirrored", r.added, 2);
+  ok("no subscriber reached the house account", !r.kept.some((l) => l.websiteLeadId === "sub"));
+  ok("no tombstone reached the house account", !r.kept.some((l) => l.websiteLeadId === "tomb"));
+
+  // Self-healing: subscribers mirrored before the filter existed must be pruned on the
+  // next run, not left behind forever.
+  const stale = merge([], mixed.map((m) => ({ ...m, form: "contact" }))).kept;
+  eq("four leads existed before the filter", stale.length, 4);
+  const healed = merge(stale, mixed);
+  eq("the two that are not leads get pruned", healed.pruned, 2);
+  eq("leaving only the real ones", healed.kept.length, 2);
+
+  // 🔴 The prune gate is measured on the RAW page. Filtering first would make a page that
+  // came back FULL look short, re-enabling pruning on an incomplete read — the exact data
+  // loss the gate exists to prevent.
+  const page = [wl("a", { form: "contact" }), wl("b", { form: "newsletter" }), wl("c", { form: "newsletter" })];
+  const seeded2 = merge([], [wl("a"), wl("z")], { limit: 99 }).kept;
+  eq("two leads mirrored", seeded2.length, 2);
+  const gated = merge(seeded2, page, { limit: 3 });   // 3 rows read, page size 3 = full
+  eq("a full page of mostly non-leads still prunes nothing", gated.pruned, 0);
+  eq("and keeps the lead it could not see", gated.kept.length, 2);
+}
+
+// ── 6c. Deleting a Calendly lead has to stay deleted ──────────────────────────
+// The bug he hit: the Calendly sync re-derives bookings from Calendly every 15 minutes
+// and asks whether a lead already carries the event id. A hard delete answered "no", so
+// the booking came straight back. The OS now re-files the row as a stripped tombstone.
+{
+  const del = UI.match(/const deleteLead = useCallback\(async \(lead\) => \{[\s\S]*?\n  \}, \[loadLeads\]\);/);
+  ok("the delete handler exists in its new form", !!del);
+  const body = del ? del[0] : "";
+  ok("a Calendly lead is re-filed rather than removed", /form: "deleted"/.test(body));
+  ok("the booking id is kept, which is the whole point",
+    /calendlyEventUri: uri/.test(body));
+  ok("every personal field is cleared",
+    ["name", "email", "business", "recommended", "notes"].every((f) => new RegExp(`${f}: null`).test(body)));
+  ok("a non-Calendly lead is still hard deleted", /\.delete\(\)\.eq\("id", id\)/.test(body));
+  ok("a refused delete is shown to the owner, not just logged",
+    /setLeadError\(/.test(body) && /loadLeads\(\)/.test(body));
+  ok("the whole lead is handed to the handler, not just its id", /onDelete\(lead\)/.test(UI));
+
+  // The Calendly sync's dedupe must still be the form-agnostic lookup the tombstone
+  // relies on. If it ever starts filtering by form, the tombstone stops working.
+  const SYNC = code(readFileSync(join(ROOT, "netlify/functions/calendly-leads.mjs"), "utf8"));
+  const dedupe = SYNC.match(/\.from\("website_leads"\)\.select\("id"\)[^;]*/);
+  ok("the sync still looks the booking id up across the whole table", !!dedupe
+    && /payload->>calendlyEventUri/.test(dedupe[0]) && !/\.eq\("form"/.test(dedupe[0]));
+
+  // And the tombstone must be invisible on the Leads screen.
+  ok("tombstones are filtered out of the Leads list",
+    /l\.form !== "newsletter" && l\.form !== "deleted"/.test(UI));
 }
 
 // ── 7. The wiring around the merge ────────────────────────────────────────────

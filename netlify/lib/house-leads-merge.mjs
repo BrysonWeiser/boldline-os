@@ -15,6 +15,20 @@
 // fell off the end of a page would be data loss, not cleanup.
 export const PRUNE_LIMIT = 1000;
 
+// 🔴 NOT EVERY ROW IN `website_leads` IS A LEAD, and the first version of this job mirrored
+// all of them. Two kinds of row are in that table without being enquiries:
+//   • `newsletter` — the durable backup of the Resend subscriber list. The OS Leads screen
+//     has always filtered these out; this job did not, so every newsletter subscriber was
+//     landing on the house account as a lead, inflating the count AND the cost-per-lead
+//     that is calculated from it.
+//   • `deleted`    — a lead the owner deleted, stripped of every personal field and re-filed
+//     under this form so the Calendly poller can still see its event id and knows not to
+//     recreate the booking. It carries that id and nothing else.
+// A DENYLIST, not an allowlist: real enquiry rows are named after whichever Netlify form
+// they came from, so a new form must arrive as a lead by default rather than vanish.
+export const NON_LEAD_FORMS = ["newsletter", "deleted"];
+export const isLeadRow = (row) => !NON_LEAD_FORMS.includes(String((row && row.form) || "").toLowerCase());
+
 // website_leads statuses are new | contacted | meeting | won | lost | archived. The house
 // Leads tab offers new | contacted | meeting | won | lost, so archived folds into lost and
 // anything unrecognised falls back to new.
@@ -64,8 +78,12 @@ export const toLeadEntry = (row) => ({
 // `leads`    — the website_leads rows this run read, newest first.
 // `limit`    — the page size that read used, so we know whether we saw everything.
 export function mergeHouseLeads(existing, leads, { limit = PRUNE_LIMIT } = {}) {
-  const rows = Array.isArray(leads) ? leads : [];
-  const complete = rows.length < limit;
+  const all = Array.isArray(leads) ? leads : [];
+  // Measured on the RAW page, before filtering. Filtering first would make a page that
+  // came back full look short, which would re-enable pruning on an incomplete read —
+  // the exact data loss the gate exists to prevent.
+  const complete = all.length < limit;
+  const rows = all.filter(isLeadRow);
   const byId = new Map(rows.map((r) => [String(r.id), r]));
   const prior = Array.isArray(existing) ? existing : [];
 
