@@ -2,10 +2,10 @@
 name: house-leads-mirror
 topic: Forms/Leads
 task: work out why BoldLine's own My Ads account shows no leads, no cost per lead or no live ad numbers, or change how website leads reach the house account
-keywords: [house account, my ads, internal client, website_leads, leadsLog, house-leads, mirror, leads 0, avg cpl, cost per lead, ad health score, adPerf, ads-sync, live ad performance, acquisition roi, leads arriving, house-leads-merge]
+keywords: [house account, my ads, internal client, website_leads, leadsLog, house-leads, mirror, leads 0, avg cpl, cost per lead, ad health score, adPerf, ads-sync, live ad performance, acquisition roi, leads arriving, house-leads-merge, delete lead, lead comes back, deleted lead reappears, tombstone, calendly re-insert, newsletter subscribers as leads, website_leads RLS insert]
 status: verified
 summary: BoldLine's own ads send people to /get-started, whose leads land in the `website_leads` table, but the house account keeps leads on the client record in `leadsLog`. Nothing joined them, so the My Ads overview read `leads: 0` forever and five separate things derived from that number were wrong with it. A 15-minute `house-leads` job now mirrors website leads onto the internal client (deduped on the row id, status synced one way until he moves it by hand), and the Overview gained a Live Ad Performance card that renders the ads-sync snapshot instead of hiding it on the Campaigns tab.
-verified: 2026-08-21
+verified: 2026-08-22
 ---
 
 ## What he saw
@@ -115,3 +115,66 @@ that is genuinely gone).
 - **Spend, views and clicks** refresh **every 6 hours** (`ads-sync`). The card says how old the
   snapshot is. For live-to-the-second numbers, the **Campaigns tab** calls Google and Meta
   directly on open.
+
+## Follow-up, same day: "the delete doesn't work"
+
+Within minutes of the mirror going live Bryson deleted his test leads and reported:
+*"every time I reload the app they are still there so the delete doesnt work"*. Two
+separate defects, one of them mine from an hour earlier.
+
+### 🔴 A Calendly lead is RE-DERIVED, so deleting the row cannot remove it
+
+`calendly-leads` runs every 15 minutes over a 14-day window and, for each booking Calendly
+returns, asks *"is there already a lead carrying this event id?"*. **Deleting the row
+answered no**, so the next run created it again. **The delete worked perfectly every single
+time** and the lead was rebuilt within the quarter hour, which is indistinguishable from a
+delete that never fired. A website form submission cannot come back this way — it is pushed
+once and never re-read — which is why only bookings behaved like this.
+
+This is the general hazard with any poller that re-derives records from an external source:
+**deletion is not a durable action unless something remembers the deletion**.
+
+**The fix is a tombstone, and it is the row itself.** Deleting a Calendly lead now clears
+every personal field (`name`, `email`, `business`, `recommended`, `notes`) and re-files the
+row as `form: "deleted"`, keeping nothing but the opaque `calendlyEventUri`. It disappears
+from the Leads screen and from the house account (both filter that form), and the sync's
+existing lookup finds the id and skips the booking permanently — **no change to the sync**,
+because its dedupe queries the whole table without filtering on form. A non-Calendly lead is
+still hard-deleted.
+
+**🔴 WHY NOT A SEPARATE TOMBSTONE ROW — this is the part worth remembering.** The obvious
+design is to insert a small marker row. It would have been **refused every time**:
+`website_leads` RLS grants the signed-in app **SELECT, UPDATE and DELETE but NOT INSERT**
+(only the marketing site's service-role key inserts, bypassing RLS). An update is allowed,
+and re-using the row is better anyway — it removes the person's details rather than keeping
+a second copy of them. **Before designing anything that writes to `website_leads` from the
+browser, check which verbs that table's policies actually grant.**
+
+### 🔴 Newsletter subscribers were being mirrored as leads (mine, one hour old)
+
+The first version of the mirror selected **every** row in `website_leads`. That table also
+holds the **durable backup of the Resend subscriber list** (`form: "newsletter"`), which the
+Leads screen has always filtered out and the mirror did not. So every subscriber was landing
+on the house account as a lead, **inflating both the lead count and the cost-per-lead that is
+divided by it** — a wrong number presented as a real one, which is worse than the zero it
+replaced. `isLeadRow()` now filters newsletter rows and tombstones.
+
+A **denylist, not an allowlist**: real enquiry rows are named after whichever Netlify form
+they came from, so a form added later must arrive as a lead by default rather than silently
+vanish. Subscribers mirrored before the filter existed are pruned automatically on the next
+run, since they are no longer in the incoming set.
+
+**One ordering detail that is load-bearing:** the prune gate measures the **raw** page length,
+before filtering. Filtering first would make a page that came back *full* look short, which
+would re-enable pruning on an incomplete read — exactly the data loss the gate exists to
+prevent. There is a test for that specific ordering.
+
+### A refused write no longer hides
+
+Both the lead save and the lead delete previously reported failure to the browser console
+only, and the screen carried on as though it had worked. They now surface a plain message on
+the Leads screen, and a refused delete **reloads the list** so what is shown matches what is
+actually stored. That also means if the delete ever is genuinely refused, he will be told
+rather than left guessing.
+
+**73 checks in `verify-house-leads.mjs`, seven more deliberate breaks confirmed to fail.**
