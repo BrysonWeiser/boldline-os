@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 120 task-keyed entries under `knowledge/`. They surface automatically via the
+> 121 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**120 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**121 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -276,6 +276,12 @@
 - **[live-auto-updates](../knowledge/live-auto-updates.md)** &mdash; &#9989; verified &middot; 2026-07-19  
   Every live surface in the OS runs through one useLiveData(load,{table,interval,active}) hook — Supabase realtime (instant, when the table is in supabase_realtime) + interval poll + tab-focus/visibility refetch, all re-running `load`. Wired for clients (15s), website_leads (20s), and blog posts (30s, function-backed). All three are now in the realtime publication (blog_posts added 2026-07-19), so all update instantly. No full-page reload needed for any of them.  
   <sub>*task:* understand or extend how OS views auto-update live without a full-page refresh &nbsp;|&nbsp; *keywords:* useLiveData, realtime, supabase_realtime, poll, visibilitychange, refreshClients, loadLeads, silentReload, blog_posts, clients-live, leads-live</sub>
+
+## OS UI
+
+- **[sheet-layering](../knowledge/sheet-layering.md)** &mdash; &#9989; verified &middot; 2026-08-22  
+  A panel's z-index stopped meaning anything because the screen wrapper `.os-content` animates opacity with `fill-mode: both`, which makes it a PERMANENT stacking context, so the fixed bottom nav (z-index 50) painted over overlays asking for 80, 200 and 400. Fixed twice over, `backwards` instead of `both` plus portalling every Sheet to <body>, both measured in a headless browser. Also records that a backtick inside the CSS template literal blanks the entire app.  
+  <sub>*task:* fix a panel, sheet or modal in the OS whose bottom is hidden, cut off or covered by the bottom nav, or add a new full-screen overlay &nbsp;|&nbsp; *keywords:* bot chat, message box missing, chat bar hidden, bottom nav covering, z-index not working, stacking context, os-content, osIn animation, fill-mode both, createPortal, Sheet component, safe-area-inset-bottom, os-chatbar, os-sheet-actions, home indicator, white screen, template literal backtick</sub>
 
 ## OS app
 
