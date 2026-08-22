@@ -120,12 +120,16 @@ for (const [name, src] of writers) {
     // the actual CALL was deleted — a test that could not fail, guarding the thing this
     // whole suite exists for. Found by deliberately breaking generate-landing.
     const body = src.split("\n").filter((l) => !/^\s*import\s/.test(l)).join("\n");
-    const cleans = /\b(humanize|humanizeDeep|stripDashes|deDash|cleanGoogle|cleanMeta|cleanCreatives)\s*\(/.test(body);
+    // `cleanResearch` is the Market Research equivalent of `cleanMeta`: it runs every
+    // string the model returned through `humanize` before anything can read it.
+    const cleans = /\b(humanize|humanizeDeep|stripDashes|deDash|cleanGoogle|cleanMeta|cleanCreatives|cleanResearch)\s*\(/.test(body);
     assert.ok(cleans, "model output reaches a reader without any dash cleaning");
   });
   t(`${name} tells the model the rule`, () => {
     // Either its own copy of the rule, or it inherits one of the shared prompt builders.
-    const has = /NEVER use a dash|NO_DASH_RULE|systemFor\(|VOICE/.test(src);
+    // `mrSystem(` is the Market Research equivalent of `systemFor(`: the shared builder
+    // that carries the rule into the prompt.
+    const has = /NEVER use a dash|NO_DASH_RULE|systemFor\(|mrSystem\(|VOICE/.test(src);
     assert.ok(has, "relies on the code alone; a model mirrors the style of its prompt");
   });
 }

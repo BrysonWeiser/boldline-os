@@ -569,14 +569,26 @@ const botWorkLog = (cl, pkg, botId) => {
       ],
       next: cl.intakeComplete ? null : "The plan follows the brief, so finish the intake first.",
     }),
-    research: () => ({
-      facts: [
-        F("Niche", cl.niche), F("Competitors you noted", bv.competitors),
-        F("What sets them apart", bv.differentiator), F("Tone", bv.tone),
-        F("Service area", cs.serviceArea),
-      ],
-      next: (bv.competitors && bv.differentiator) ? null : "Add competitors and a differentiator in Edit, and every ad the OS writes will use them.",
-    }),
+    research: () => {
+      const mr = cl.marketResearch || {};
+      const props = (mr.differentiators || []).length;
+      return {
+        facts: [
+          F("Niche", cl.niche), F("Area researched", mr.area || cs.serviceArea),
+          F("Last researched", mr.ranAt ? when(mr.ranAt) : ""),
+          F("Competitors found", (mr.competitors || []).length || ""),
+          F("Of those, buying ads", (mr.competitors || []).filter(c => c.runningAds === true).length || ""),
+          F("Positions proposed", props || ""),
+          F("Competitor list in use", bv.competitors),
+          F("Differentiator in use", bv.differentiator),
+        ],
+        note: "Every ad and landing page the OS writes reads the last two lines. Until they are set it writes without them.",
+        next: (bv.competitors && bv.differentiator) ? null
+              : mr.status === "done" && props ? "Open Market Research on the Campaigns tab and pick a position."
+              : mr.status === "running" ? "Research is running now."
+              : "Run Market Research on the Campaigns tab.",
+      };
+    },
     avatar: () => ({
       facts: [
         F("Niche", cl.niche), F("Target locations", cs.targetLocations),
@@ -1026,7 +1038,11 @@ const botsFor = (cl, pkg) => {
 // than guessed at: research, avatar, funnel, scaling, success. They describe work
 // that produces nothing the OS stores, so deriving them would be inventing progress.
 // If those ever get real artifacts, add a rule and they start advancing too.
-const MANUAL_BOTS = ["research", "avatar", "funnel", "scaling", "success"];
+// `research` came OFF this list on 2026-08-22, when Market Research got a real artifact
+// (`marketResearch` on the client record, written by market-research-background). It is
+// the first of the five to earn its way out. The other four still produce nothing the OS
+// stores, so deriving them would be inventing progress.
+const MANUAL_BOTS = ["avatar", "funnel", "scaling", "success"];
 
 const deriveBotStatuses = (cl) => {
   if (!cl) return {};
@@ -1045,6 +1061,8 @@ const deriveBotStatuses = (cl) => {
   const spend         = Number(totals.spend30d || 0);
   const convs         = Number(totals.conversions || 0);
   const land        = adLanding(cl);
+  const bv          = cl.brandVoice || {};
+  const mr          = cl.marketResearch || {};
   const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
   // The log is the truth; `leads` is a cache of its length that the website-lead
   // mirror does not bump on every path.
@@ -1057,6 +1075,13 @@ const deriveBotStatuses = (cl) => {
                : s("waiting", "No intake details yet"),
     ceo:       cl.intakeComplete ? s("done", "Brief is complete, so the plan is set")
                : s("waiting", "Waiting on a complete intake"),
+    // Done only when the research has actually been USED. A finished report that nobody
+    // acted on has changed nothing about the ads, so calling it done would be the same
+    // kind of false progress the invented work logs were.
+    research:  (bv.competitors && bv.differentiator) ? s("done", "Competitors and a differentiator are set, so every ad uses them")
+               : mr.status === "done" ? s("active", `Research done, ${(mr.differentiators || []).length} position${(mr.differentiators || []).length === 1 ? "" : "s"} waiting for you to pick one`)
+               : mr.status === "running" ? s("active", "Researching competitors now")
+               : s("waiting", "No competitor research run yet"),
     offer:     cs.mainOffer ? s("done", `Main offer set: ${cs.mainOffer}`)
                : s("waiting", "No main offer set"),
     // All three read the SAME helper, so the page BoldLine's own ads actually use
@@ -2421,6 +2446,167 @@ const briefMdToNodes = (md) => {
 //
 // This is the switch. Per client, changeable any time, and it takes effect on the next
 // autopilot run — there is nothing to rebuild and no campaign is touched by flipping it.
+// ─── MARKET RESEARCH ─────────────────────────────────────────────────────────
+// Bryson, 2026-08-22: "Can you automate that so that way the bots research my own
+// competitors (same thing for clients for the future) and then also ads what makes me
+// different". This is the step that used to have no artifact at all.
+//
+// 🔴 IT PROPOSES. IT NEVER WRITES. The two fields it feeds, `brandVoice.competitors` and
+// `brandVoice.differentiator`, go into every ad and every landing page the OS writes. A
+// differentiator is a promise made in public with money behind it, so a model that
+// invents "24 hour response" for a business that does not offer it has not written bad
+// copy, it has made a promise to customers on their behalf. Every proposal shows the
+// evidence behind it and waits for a person to press Use. Anything grounded in a GAP
+// rather than in what the business has already said is marked as needing confirming,
+// and that mark is computed in market-research-shared.mjs, not decided here.
+function MarketResearchCard({client,onUpdate}){
+  const [busy,setBusy] = useState(false);
+  const [err,setErr]   = useState("");
+  const mr = client.marketResearch || {};
+  const bv = client.brandVoice || {};
+  const running = busy || mr.status === "running";
+  const area = (client.campaignSetup&&client.campaignSetup.serviceArea) || "";
+
+  const run = async () => {
+    setErr(""); setBusy(true);
+    try{
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      const token = session && session.access_token;
+      if(!token) throw new Error("Session expired. Refresh the page and log in again.");
+      const r = await fetch("/.netlify/functions/market-research-background",{
+        method:"POST", headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+        body: JSON.stringify({ clientId: client.id, runId: String(Date.now()) }),
+      });
+      // A background function answers 202 before it has finished. The result lands on
+      // the client record and the OS's own live refresh brings it in, so there is
+      // nothing to poll here.
+      if(!r.ok && r.status!==202){ const d=await r.json().catch(()=>({})); throw new Error(d.error||`Could not start (${r.status})`); }
+    }catch(e){ setErr(e.message); }
+    setBusy(false);
+  };
+
+  const use = (key,value,label) => {
+    onUpdate({...client, brandVoice:{...bv,[key]:value},
+      commLog:[{date:fmt(new Date()),note:label,cat:"update",ts:Date.now()},...(client.commLog||[])]});
+  };
+
+  const pill = (text,color) => (
+    <span style={{fontSize:8.5,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color,
+      border:`1px solid ${color}55`,background:`${color}14`,borderRadius:20,padding:"2px 7px",whiteSpace:"nowrap"}}>{text}</span>
+  );
+
+  return (
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <Label>Market Research</Label>
+        <button onClick={run} disabled={running||!area} style={{padding:"5px 11px",fontSize:10.5,fontWeight:700,borderRadius:8,
+          border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,
+          cursor:(running||!area)?"default":"pointer",opacity:(running||!area)?.55:1,flexShrink:0}}>
+          {running?"Researching…":mr.status==="done"?"Run again":"Research competitors"}</button>
+      </div>
+
+      {!area
+        ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.65}}>Set a service area in Edit first. Without one there is nowhere to look, and searching the wrong place returns real businesses that are the wrong competitors.</div>
+        : <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:mr.status?10:0}}>
+            Finds who else is selling {client.niche||"this"} around {area}, checks which of them are actually buying ads, and works out what {client.internal?"you":client.name} could claim that they are not. Takes a minute or two.
+          </div>}
+
+      {running&&<div style={{fontSize:11.5,color:C.gold,lineHeight:1.65,marginTop:8}}>Looking up businesses, reading their sites and checking who is running ads. You can leave this screen, it keeps going.</div>}
+      {err&&<div style={{fontSize:11.5,color:C.red,lineHeight:1.6,marginTop:8}}>{err}</div>}
+      {mr.status==="error"&&!running&&<div style={{fontSize:11.5,color:C.amber,lineHeight:1.6,marginTop:8}}>{mr.error}</div>}
+
+      {mr.status==="done"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:4}}>
+          {mr.landscape&&<div style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>{mr.landscape}</div>}
+
+          {/* Measured facts first. Ratings and review counts come from Google's own
+              listings; "running ads" is read off each competitor's homepage. */}
+          {(mr.competitors||[]).length>0&&(
+            <div>
+              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Who you are up against</div>
+              {mr.competitors.map((c,i)=>(
+                <div key={c.name+i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<mr.competitors.length-1?`1px solid ${C.border2}`:"none"}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:12,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                    <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>
+                      {[c.rating?`${c.rating}★`:"",c.reviewCount?`${c.reviewCount} reviews`:"",c.city||""].filter(Boolean).join(" · ")||"no listing details"}
+                    </div>
+                  </div>
+                  {c.runningAds===true?pill("Running ads",C.red):c.runningAds===false?pill("No ads",C.textMuted):null}
+                </div>
+              ))}
+              {mr.sources&&mr.sources.placesNote&&<div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:8}}>{mr.sources.placesNote}</div>}
+              {mr.competitorsLine&&(
+                <button onClick={()=>use("competitors",mr.competitorsLine,"Saved the researched competitor list to brand voice")}
+                  disabled={bv.competitors===mr.competitorsLine}
+                  style={{marginTop:9,width:"100%",padding:"7px 10px",fontSize:10.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,
+                    backgroundColor:"rgba(255,255,255,.04)",color:bv.competitors===mr.competitorsLine?C.green:C.textDim,cursor:bv.competitors===mr.competitorsLine?"default":"pointer"}}>
+                  {bv.competitors===mr.competitorsLine?"✓ Saved as your competitor list":"Save this as your competitor list"}</button>
+              )}
+            </div>
+          )}
+
+          {(mr.commonClaims||[]).length>0&&(
+            <div>
+              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>What they all already say</div>
+              <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.75}}>{mr.commonClaims.join(" · ")}</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Leading with any of these makes an ad sound like everyone else's.</div>
+            </div>
+          )}
+
+          {/* The proposals. Evidence is shown with every one, because a claim with no
+              evidence is exactly what must not end up in a paid ad. */}
+          {(mr.differentiators||[]).length>0&&(
+            <div>
+              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:7}}>What you could own instead</div>
+              <div style={{display:"flex",flexDirection:"column",gap:9}}>
+                {mr.differentiators.map((d,i)=>{
+                  const inUse = bv.differentiator===d.text;
+                  return (
+                    <div key={i} style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${inUse?C.green+"55":C.border}`,background:inUse?`${C.green}0d`:"rgba(255,255,255,.02)"}}>
+                      <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:5}}>
+                        <div style={{fontSize:12.5,fontWeight:700,color:C.text,lineHeight:1.5,flex:1,minWidth:0}}>{d.text}</div>
+                        {d.needsConfirmation?pill("Check first",C.amber):pill("From your details",C.green)}
+                      </div>
+                      <div style={{fontSize:11,color:C.textDim,lineHeight:1.65,marginBottom:4}}>{d.why}</div>
+                      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6}}><b style={{color:C.textDim}}>Based on:</b> {d.evidence}</div>
+                      {d.needsConfirmation&&<div style={{fontSize:10.5,color:C.amber,lineHeight:1.6,marginTop:5}}>Nobody has confirmed {client.internal?"you":client.name} can deliver this. Only use it if it is true.</div>}
+                      <button onClick={()=>use("differentiator",d.text,`Set the ad differentiator to "${d.text}"`)} disabled={inUse}
+                        style={{marginTop:8,width:"100%",padding:"7px 10px",fontSize:10.5,fontWeight:700,borderRadius:8,
+                          border:`1px solid ${inUse?C.green+"55":C.borderAccent}`,backgroundColor:inUse?`${C.green}14`:"rgba(200,168,75,.1)",
+                          color:inUse?C.green:C.gold,cursor:inUse?"default":"pointer"}}>
+                        {inUse?"✓ In use in your ads":"Use this in my ads"}</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {(mr.gaps||[]).length>0&&(
+            <div>
+              <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Openings nobody is claiming</div>
+              {mr.gaps.map((g,i)=>(
+                <div key={i} style={{display:"flex",gap:9,padding:"6px 0"}}>
+                  <span style={{color:C.gold,fontWeight:700,fontSize:12,flexShrink:0}}>→</span>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>{g.gap}</div>
+                    <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:2}}>{g.why}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6}}>
+            Researched {mr.ranAt?new Date(mr.ranAt).toLocaleDateString("en-US",{month:"short",day:"numeric"}):""}. Nothing here changes your ads until you press Use.
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function CreativeStrategyCard({client, onUpdate}) {
   const ap = client.autopilot || {};
   const mode = ap.creativeMode === "multi" ? "multi" : "test";
@@ -4192,7 +4378,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
                     {cl.name}
                     {cl.demo&&<span style={{fontSize:9,fontWeight:800,letterSpacing:".08em",padding:"1px 5px",marginLeft:6,borderRadius:3,border:`1px solid ${C.border}`,color:C.textMuted,verticalAlign:"middle"}}>DEMO</span>}
                   </div>
-                  <div style={{fontSize:11,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pkg && pkg.platform)} · {(pkg && pkg.name)}</div>
+                  <div style={{fontSize:11,color:C.textMuted,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{platformLabel(cl,pkg)} · {(pkg && pkg.name)}</div>
                 </div>
                 <AlertBadge alerts={alerts}/>
                 <IconChevron size={14} color={C.textMuted}/>
@@ -4958,7 +5144,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {(client.internal
                 ? (()=>{ const st=adPerfStats(client); return [
-                    {l:"Platform",v:(pkg && pkg.platform)||"—"},
+                    {l:"Platform",v:platformLabel(client,pkg)},
                     {l:"Ad Budget",v:client.adBudget||"—"},
                     {l:"Niche",v:client.niche||"—"},
                     // Leads come from the log, which the house-leads job keeps in step
@@ -4970,13 +5156,17 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                   ]; })()
                 : (()=>{ const st=adPerfStats(client); return [
                     {l:"Package",v:(pkg && pkg.name)||"—"},
-                    {l:"Platform",v:(pkg && pkg.platform)||"—"},
+                    // Same helper as the house tile. For a client it returns their
+                    // package platform, which IS the right answer: it is what they bought.
+                    {l:"Platform",v:platformLabel(client,pkg)},
                     {l:"Ad Budget",v:client.adBudget||"—"},
                     {l:"Niche",v:client.niche||"—"},
                     {l:"Leads",v:st.leadsTotal||client.leads||0},
                     // Same live calculation the house account uses; the stored `cpl`
                     // is only a fallback for a client whose spend has not synced yet.
-                    {l:"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:(client.cpl?`$${client.cpl}`:"—")},
+                    // No fallback to `client.cpl`: nothing has ever written that field,
+                    // so the fallback could only ever show a seeded demo number.
+                    {l:"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:"—"},
                     {l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},
                     {l:"Contract End",v:client.contractEnd||"—"},
                     {l:"Monthly minimum",v:pkg?`$${pkg.price}/mo`:"—"},
@@ -5072,8 +5262,10 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 {l:"Contract signed",       ok:client.contractSigned,        pts:"1.0"},
                 {l:"Intake complete",        ok:client.intakeComplete,        pts:"1.0"},
                 {l:"Campaign stage",         ok:["active","optimizing","scaling"].includes(client.stage), pts:"2.0"},
-                {l:"Leads coming in",        ok:client.leads>0,               pts:"1.5"},
-                {l:"CPL on target",          ok:client.cpl>0&&client.cpl<=(PER_LEAD[client.niche]||50), pts:"0.5"},
+                // Live figures. `client.cpl` is never written, so this row could
+                // never tick and the leads row read a counter the log can outrun.
+                {l:"Leads coming in",        ok:adPerfStats(client).leadsTotal>0, pts:"1.5"},
+                {l:"CPL on target",          ok:(()=>{const c=adPerfStats(client).cpl; return c!=null&&c<=(PER_LEAD[client.niche]||50);})(), pts:"0.5"},
                 {l:"Contract active",        ok:client.contractStatus==="active", pts:"1.0"},
                 {l:"Contract runway (30d+)", ok:daysUntil(client.contractEnd)>30, pts:"1.0"},
                 {l:"Pipeline progress",      ok:bots.filter(b=>b.status==="done").length>5, pts:"1.0"},
@@ -5151,7 +5343,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                 <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}22`,marginBottom:2}}>
                   <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",marginBottom:8}}>
                     <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{client.internal?"Your ad build":(pkg&&pkg.name)}</span>
-                    <span style={{fontSize:10.5,color:C.textMuted}}>{(pkg&&pkg.platform)||""}</span>
+                    <span style={{fontSize:10.5,color:C.textMuted}}>{platformLabel(client,pkg)}</span>
                     <span style={{marginLeft:"auto",fontSize:20,fontWeight:900,color:C.text,lineHeight:1}}>{done}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/{bots.length} steps</span></span>
                   </div>
                   {/* One segment per step, in order, coloured by state. */}
@@ -5352,6 +5544,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
+            <MarketResearchCard client={client} onUpdate={onUpdate}/>
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
@@ -5989,11 +6182,16 @@ function ReportsTabContent({client,pkg}) {
 
   const perLead = PER_LEAD[client.niche];
   const health  = calcHealth(client);
-  const onTarget= client.cpl>0 && client.cpl<=(perLead||75);
+  // Live, computed here rather than read off the record: `client.cpl` is never written
+  // by anything, so every report ever generated said "Not yet tracked".
+  const st      = adPerfStats(client);
+  const onTarget= st.cpl!=null && st.cpl<=(perLead||75);
   const daysLeft= daysUntil(client.contractEnd);
-  // Same effective statuses the Pipeline tab shows, so a report can never quote a
-  // different number from the screen Bryson is looking at.
-  const reportBots   = buildBots(findPkg(client.packageId)).map(b=>effectiveBotStatus(client,b.id,deriveBotStatuses(client)));
+  // The same steps the Pipeline tab shows, so a report can never quote a different
+  // number from the screen he is looking at. `botsFor` and not `buildBots`: the house
+  // account hides three steps, and the comment below has been claiming this since
+  // before that was true.
+  const reportBots   = botsFor(client,findPkg(client.packageId)).map(b=>effectiveBotStatus(client,b.id,deriveBotStatuses(client)));
   const botsComplete = reportBots.filter(b=>b.status==="done").length;
   const botsTotal    = reportBots.length;
 
@@ -6005,11 +6203,12 @@ Niche: ${client.niche}
 Package: ${(pkg && pkg.name)} on ${(pkg && pkg.platform)}
 Campaign Stage: ${client.stage}
 Health Score: ${health.toFixed(1)}/10
-Leads Generated: ${client.leads}
-Average CPL: ${client.cpl>0?"$"+client.cpl:"Not yet tracked"}
+Leads Generated: ${st.leadsTotal}${st.leads30!==st.leadsTotal?` (${st.leads30} in the last 30 days)`:""}
+Average CPL: ${st.cpl!=null?"$"+Math.round(st.cpl):"Not yet tracked (needs a lead and some spend in the same 30 days)"}
 Target CPL: ${perLead?"$"+perLead+" (per-lead rate)":"—"}
-CPL Status: ${client.leads>0?(onTarget?"On target":"Above target — needs optimization"):"No leads yet"}
+CPL Status: ${st.cpl!=null?(onTarget?"On target":"Above target — needs optimization"):st.leadsTotal>0?"Leads arriving, cost per lead not measurable yet":"No leads yet"}
 Ad Budget: ${client.adBudget||"Not set"}
+Live Ad Data: ${st.hasSnapshot?`${st.impressions.toLocaleString()} views, ${st.clicks.toLocaleString()} clicks, $${Math.round(st.spend30).toLocaleString()} spent over the last 30 days, ${st.conversions} conversions recorded`:"none yet (no ad account linked, or the sync has not run)"}
 Contract: ${client.contractStart} → ${client.contractEnd} (${daysLeft>0?daysLeft+"d remaining":"expired"})
 Intake Complete: ${client.intakeComplete?"Yes":"No"}
 Pipeline Progress: ${botsComplete}/${botsTotal} steps complete
@@ -6037,8 +6236,9 @@ Keep it concise. Bryson will read this on a call — it should sound natural, no
         <Label>Data Used in This Report</Label>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
           {[
-            {l:"Leads",     v:client.leads||0,           color:C.text},
-            {l:"CPL",       v:client.cpl?`$${client.cpl}`:"—", color:onTarget?C.green:client.cpl>0?C.amber:C.textMuted},
+            {l:"Leads",     v:st.leadsTotal,             color:C.text},
+            {l:"CPL",       v:st.cpl!=null?`$${Math.round(st.cpl)}`:"—", color:onTarget?C.green:st.cpl!=null?C.amber:C.textMuted},
+            {l:"Spent 30d", v:st.hasSnapshot?`$${Math.round(st.spend30).toLocaleString()}`:"—", color:C.textDim},
             {l:"Health",    v:`${health.toFixed(1)}/10`,  color:healthColor(health)},
             {l:"Stage",     v:stageInfo(client.stage).label, color:stageInfo(client.stage).color},
             {l:"Pipeline",  v:`${botsComplete}/${botsTotal}`, color:C.textDim},
@@ -7348,6 +7548,28 @@ const monthlyFromDaily = (d) => Math.round((Number(d) || 0) * 30.4);
 // Mirrors the runsGoogle/runsMeta detection the Campaigns tab uses to decide
 // which launch cards to render, so the split can never disagree with the number
 // of cards on screen.
+// ─── WHICH PLATFORMS IS THIS ACCOUNT ACTUALLY ON ─────────────────────────────
+// Bryson, 2026-08-22, looking at his own Overview: "The platform is wrong."
+//
+// 🔴 THE TILE WAS READING THE PACKAGE, NOT THE ACCOUNT. For a paying client the package
+// platform IS the answer, because it is what they bought. The house account has no
+// package it bought; it carries `HOUSE_PKG`, a catch-all whose platform string is the
+// fixed text "Google + Meta". So his Overview said Google + Meta while he runs Meta
+// only, and the Ad Health Score two cards below already knew better, because it reads
+// `adPlatformsOf`, which reads the account. Two cards on one screen, disagreeing.
+//
+// For the house account the live truth is which accounts are LINKED, since that is what
+// can actually spend. What he has ticked in Edit is the fallback for before anything is
+// linked, and it is labelled so the difference is visible rather than implied.
+const platformLabel = (cl, pkg) => {
+  if (!cl || !cl.internal) return (pkg && pkg.platform) || "—";
+  const linked = [cl.googleAdsCustomerId ? "Google" : "", cl.metaAdAccountId ? "Meta" : ""].filter(Boolean);
+  if (linked.length) return linked.join(" + ");
+  const want = adPlatformsOf(cl, null);
+  const wanted = [want.google ? "Google" : "", want.meta ? "Meta" : ""].filter(Boolean);
+  return wanted.length ? `${wanted.join(" + ")} (not linked yet)` : "—";
+};
+
 const adPlatformsOf = (cl, pkg) => {
   const plats = (cl && cl.platforms) || [];
   const pkgPlat = (pkg && pkg.platform) || "";

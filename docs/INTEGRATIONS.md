@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 122 task-keyed entries under `knowledge/`. They surface automatically via the
+> 124 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**122 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**124 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -33,6 +33,9 @@
 - **[local-conditions](../knowledge/local-conditions.md)** &mdash; &#9989; verified &middot; 2026-08-20  
   Every ad writer AND the landing-page writer (Google campaign builder, Meta variants, creative angles, landing pages, and the always-on challenger writer) now receives the LIVE weather alerts for the client's own service area plus today's date and season, pulled from the free US National Weather Service API (no key, no account). Facts are fetched in code because the model has no live data and would otherwise guess, and a guessed weather claim in a live ad is a lie with money behind it. Emergencies (wildfire, tornado, evacuation, flash flood, civil) are HARD-EXCLUDED from ad angles on both policy and decency grounds. Area matching is exact-place so a Bend, Oregon client is never claimed to be covered by an alert for "Gila Bend". A weather outage never blocks ad generation. 119 checks.  
   <sub>*task:* make ads reflect what is actually happening in the target area right now (weather, season, local demand), or check why an ad did or did not use a weather angle &nbsp;|&nbsp; *keywords:* local-conditions, recent weather, storms recently, past 14 days, aftermath, storm damage, county zone, Maricopa, areaDesc, fetchRecent, summariseRecent, resolveCounties, countyZones, Nominatim, area-conditions, AreaConditionsCard, manual ad copy, landing page seasonal, conditions change trigger, CONDITIONS_DWELL_HOURS, CONDITIONS_COOLDOWN_HOURS, conditionsWatch, seasonal ads, weather angle, api.weather.gov, National Weather Service, NWS alerts, Extreme Heat Warning, monsoon, storm damage roofing, HVAC summer, conditionsFingerprint, isAdvertisable, parseAreas, verify-local-conditions</sub>
+- **[market-research](../knowledge/market-research.md)** &mdash; &#9989; verified &middot; 2026-08-22  
+  Market Research went from a hand-tracked step with no artifact to an automated one. It finds real competitors through Google Places, reads their sites to see who is actually buying ads, researches positioning with web search, and proposes up to four differentiators. It PROPOSES only, never writes brandVoice, and any proposal without evidence is dropped rather than shown with a caveat.  
+  <sub>*task:* run or change the automated competitor research, or work out where the ad differentiator and competitor list come from &nbsp;|&nbsp; *keywords:* market research, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap</sub>
 - **[meta-creative-testing](../knowledge/meta-creative-testing.md)** &mdash; &#9989; verified &middot; 2026-08-19  
   BUILT 2026-08-19. Autopilot now improves Meta ads on its own, mirroring the Google split-test path one level down (ads inside an AD SET rather than an ad group). It writes ONE challenger creative into a live ad set, then pauses the loser once both have had a fair run. Budget-neutral by construction — budget lives on the campaign/ad set, never on the ad — so the founding invariant holds. The image is held constant so a win means something. GATED to BoldLine-owned accounts while Meta is on Development tier; one named condition to delete at approval. Behaviour is switchable per client between `test` (converge on a winner) and `multi` (keep 2-5 angles alive, never prune for losing). 114 checks, ten deliberate breaks confirmed to fail.  
   <sub>*task:* understand or change how Meta ads are automatically improved, or work out why autopilot did or did not write a Meta challenger &nbsp;|&nbsp; *keywords:* meta creative testing, meta split test, test vs multi angle, creativeMode, multiTarget, multi-angle, Brez Scales, Bergen Resnik, multi-touch, awareness, last click attribution, assisting ad, MULTI_DEAD_MIN_SPEND, creativeStrategy, CreativeStrategyCard, challenger ad, judgeSplit, META_SPLIT_MIN_IMPRESSIONS, META_SPLIT_MIN_CLICKS_EACH, META_SPLIT_MIN_LIFT, META_SPLIT_COOLDOWN_HOURS, META-TIER-GATE, addAdToAdset, getAdsForCampaign, setAdStatus, adset, image hash, development tier, budget neutral</sub>
@@ -459,6 +462,12 @@
 - **[pricing-model](../knowledge/pricing-model.md)** &mdash; &#9989; verified &middot; 2026-08-18  
   Rewritten 2026-08-18 after Stencil & Thread turned the old model down. There is NO management fee. A package's `price` is a monthly MINIMUM and the performance fee counts toward it — the client pays whichever is HIGHER, never both. Lead gen bills per qualified lead; e-commerce bills 15% of ad spend (12% at the top tier). Ad budget decides the tier ($500-2.5k min $400 / $2.5k-10k min $700 / $10k+ min $1,200). Platform is a choice not a price: Google and Meta are identical at the same tier. Combined unlocks at $5,000/mo of ad budget, which is why there is no combined Launch tier. Hard floor of $500/mo ad budget to be a client at all. 1,140 assertions in tests/verify-packages.mjs.  
   <sub>*task:* quote a price, change package pricing, explain what a client pays, or work out why a bill is what it is &nbsp;|&nbsp; *keywords:* pricing, monthly minimum, greater of, whichever is higher, per-lead fee, ad spend percentage, package price, retainer, management fee, tier, ad budget, MIN_AD_BUDGET, COMBO_MIN_BUDGET, calcMonthlyBill, packageForBudget, pricingModel, adSpendPct, minBudget, combined unlock, Stencil, setup fee, e-commerce pricing, ROAS bonus</sub>
+
+## Reporting
+
+- **[live-stats](../knowledge/live-stats.md)** &mdash; &#9989; verified &middot; 2026-08-22  
+  A sweep for stand-in data found two real defects. The Overview platform tile read the PACKAGE rather than the account, so the house account said "Google + Meta" while running Meta only, disagreeing with the health score two cards below. And `client.cpl` is never written by any code path, yet five things read it as live, including an alert meant to warn about wasted spend, which therefore could never fire.  
+  <sub>*task:* check whether a number on a screen or in a report is live, or fix somewhere reading a stored field that nothing writes &nbsp;|&nbsp; *keywords:* live data, stand ins, client.cpl, cost per lead never computed, liveStats, adPerfStats, platformLabel, platform wrong, alerts-watch cplBlowout, dead alert, report data, leads counter, stale field</sub>
 
 ## Supabase
 

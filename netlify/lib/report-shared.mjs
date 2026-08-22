@@ -56,13 +56,16 @@ export const calcHealth = (cl) => {
   };
   score += stageScore[cl.stage]||0;
 
-  if (cl.leads>0)  score += 0.5;
-  if (cl.leads>10) score += 0.5;
-  if (cl.leads>30) score += 0.5;
-  if (cl.leads>0 && cl.cpl>0) {
+  // Live figures, not the stored ones. `cpl` on the record is never written by
+  // anything, so these two points were unreachable for every real client.
+  const live = liveStats(cl);
+  if (live.leads>0)  score += 0.5;
+  if (live.leads>10) score += 0.5;
+  if (live.leads>30) score += 0.5;
+  if (live.leads>0 && live.cpl>0) {
     const target = PER_LEAD[cl.niche]||50;
-    if (cl.cpl <= target * 0.75) score += 0.5;
-    else if (cl.cpl <= target)   score += 0.25;
+    if (live.cpl <= target * 0.75) score += 0.5;
+    else if (live.cpl <= target)   score += 0.25;
   }
 
   if (cl.contractStatus==="active") score += 1;
@@ -78,13 +81,53 @@ export const calcHealth = (cl) => {
   return Math.max(1, Math.min(10, Math.round(score * 10) / 10));
 };
 
+// ─── LIVE LEADS AND COST PER LEAD ────────────────────────────────────────────
+// Bryson, 2026-08-22: "make sure ... it is all live accurate data not stand ins".
+//
+// 🔴 `client.cpl` WAS NEVER COMPUTED BY ANYTHING. It is set to 0 when a client is
+// created and hardcoded on the demo records, and no code path anywhere has ever written
+// a real value to it. Five things read it as though it were live:
+//   • the health score above (the cost-per-lead points could never be awarded),
+//   • the report prompt below (always "Not yet tracked", on every report ever sent),
+//   • the owner rollup's "over target" list (could never list anyone),
+//   • the Reports tab in the OS, and
+//   • 🔴 alerts-watch's CPL-blowout alarm, which therefore COULD NEVER FIRE. That is
+//     not a cosmetic gap. It is a warning he believes is watching his money.
+//
+// `client.leads` is a real counter but a lagging one: it is bumped by the lead webhook
+// and by the website-lead mirror, and the log itself is the truth if the two disagree.
+//
+// So both numbers are computed here, from the same two sources the OS screens use: the
+// lead log, and the ad spend snapshot ads-sync stores. ONE definition, used everywhere,
+// so a report, an alert and the screen can never quote three different figures.
+//
+// 🔴 THE 30-DAY WINDOW MUST MATCH `adPerfStats` IN index.html. Spend is a trailing 30-day
+// figure from the ad platforms, so dividing it by all-time leads would understate cost
+// per lead by however long the account has existed, and the number would get quietly
+// better every month for no reason. There is a test pinning both expressions.
+export const liveStats = (cl) => {
+  const c = cl || {};
+  const log = Array.isArray(c.leadsLog) ? c.leadsLog : [];
+  const now = Date.now();
+  const leads30 = log.filter((l) => l && l.receivedAt && (now - new Date(l.receivedAt).getTime()) <= 30 * 864e5).length;
+  const spend30 = Number(((c.adPerf || {}).totals || {}).spend30d || 0);
+  return {
+    leads: log.length || Number(c.leads || 0),
+    leads30,
+    spend30,
+    // null, never 0. A zero here reads as "leads are free", which is worse than "unknown".
+    cpl: (leads30 > 0 && spend30 > 0) ? Math.round((spend30 / leads30) * 100) / 100 : null,
+  };
+};
+
 const anthropic = new Anthropic();
 const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const buildDataBlock = (client, pkg) => {
   const perLead = PER_LEAD[client.niche];
   const health = calcHealth(client);
-  const onTarget = client.cpl > 0 && client.cpl <= (perLead || 75);
+  const live = liveStats(client);
+  const onTarget = live.cpl > 0 && live.cpl <= (perLead || 75);
   const daysLeft = daysUntil(client.contractEnd);
   const pipeline = pipelineProgress(client);
   const botsComplete = pipeline.done;
@@ -97,10 +140,10 @@ Niche: ${client.niche}
 Package: ${(pkg && pkg.name)} on ${(pkg && pkg.platform)}
 Campaign Stage: ${client.stage}
 Health Score: ${health.toFixed(1)}/10
-Leads Generated: ${client.leads}
-Average CPL: ${client.cpl > 0 ? "$" + client.cpl : "Not yet tracked"}
+Leads Generated: ${live.leads}${live.leads30 !== live.leads ? ` (${live.leads30} in the last 30 days)` : ""}
+Average CPL: ${live.cpl > 0 ? "$" + live.cpl : "Not yet tracked (needs a lead and some spend in the same 30 days)"}
 Target CPL: ${perLead ? "$" + perLead + " (per-lead rate)" : "—"}
-CPL Status: ${client.leads > 0 ? (onTarget ? "On target" : "Above target — needs optimization") : "No leads yet"}
+CPL Status: ${live.cpl > 0 ? (onTarget ? "On target" : "Above target — needs optimization") : live.leads > 0 ? "Leads arriving, cost per lead not measurable yet" : "No leads yet"}
 Ad Budget: ${client.adBudget || "Not set"}
 Contract: ${client.contractStart} → ${client.contractEnd} (${daysLeft > 0 ? daysLeft + "d remaining" : "expired"})
 Intake Complete: ${client.intakeComplete ? "Yes" : "No"}
@@ -645,10 +688,11 @@ const buildOSDataBlock = (rows) => {
   const avgHealth = healths.length ? healths.reduce((a, b) => a + b, 0) / healths.length : 0;
   const lowHealth = active.filter((c) => calcHealth(c) < 5).map((c) => `${c.name} (${calcHealth(c).toFixed(1)}/10)`);
 
-  const totalLeads = active.reduce((sum, c) => sum + (c.leads || 0), 0);
+  const totalLeads = active.reduce((sum, c) => sum + liveStats(c).leads, 0);
   const aboveTargetCPL = active.filter((c) => {
     const target = PER_LEAD[c.niche] || 75;
-    return c.leads > 0 && c.cpl > target;
+    const lv = liveStats(c);
+    return lv.leads > 0 && lv.cpl > target;
   }).map((c) => c.name);
 
   const renewalsSoon = active.filter((c) => {

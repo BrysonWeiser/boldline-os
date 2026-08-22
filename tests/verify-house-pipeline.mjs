@@ -43,13 +43,15 @@ const src = [
   slice(/^const monthlyBudgetNum = /m, /\n/),
   slice(/^const deriveBotStatuses = /m, /\n};\n/) + "\n};\n",
   slice(/^const botWorkLog = /m, /\n};\n/) + "\n};\n",
+  slice(/^const adPlatformsOf = /m, /\n};\n/) + "\n};\n",
+  slice(/^const platformLabel = /m, /\n};\n/) + "\n};\n",
   slice(/^const BOT_IDS = \[/m, /\n\];\n/) + "\n];\n",
 ].join("\n");
 
 // `window` is what adLanding reads for the origin of a generated page. Absent here, which
 // is the branch it already guards.
-const api = new Function(`${src}\nreturn { adLanding, deriveBotStatuses, botWorkLog, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL, MANUAL_BOTS };`)();
-const { adLanding, deriveBotStatuses, botWorkLog, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL } = api;
+const api = new Function(`${src}\nreturn { adLanding, deriveBotStatuses, botWorkLog, platformLabel, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL, MANUAL_BOTS };`)();
+const { adLanding, deriveBotStatuses, botWorkLog, platformLabel, HOUSE_HIDDEN_BOTS, BOT_IDS, HOUSE_LANDING_URL } = api;
 
 const house = (over = {}) => ({
   internal: true, name: "BoldLine Media", adBudget: "$213",
@@ -290,6 +292,59 @@ const client = (over = {}) => ({
   ok("the row subtitle shows the derived reason, not narrative",
     /\{bot\.why&&<div style=\{\{fontSize:10,color:C\.textMuted/.test(UI));
   ok("the sheet builds the observed log", /const log = botWorkLog\(client, pkg, bot\.id\);/.test(UI));
+}
+
+// ── 8. Every number on the Overview is live, not a stand-in ───────────────────
+// Bryson, 2026-08-22, on his own Overview: "The platform is wrong. Do a quick check on
+// that and anything else that shows data that it is all live accurate data not stand ins."
+{
+  const HOUSE_PKG = { name: "Full System (House Account)", platform: "Google + Meta" };
+  // 🔴 THE BUG: the tile read the PACKAGE. The house account carries a catch-all package
+  // whose platform string is the fixed text "Google + Meta", so his Overview said both
+  // while he runs Meta only — and the Ad Health Score two cards below already knew
+  // better, because it reads the account. Two cards on one screen, disagreeing.
+  eq("a Meta-only house account says Meta",
+    platformLabel(house({ metaAdAccountId: "act_x", googleAdsCustomerId: "" }), HOUSE_PKG), "Meta");
+  eq("both linked says both",
+    platformLabel(house({ metaAdAccountId: "act_x", googleAdsCustomerId: "123" }), HOUSE_PKG), "Google + Meta");
+  eq("Google only says Google",
+    platformLabel(house({ metaAdAccountId: "", googleAdsCustomerId: "123" }), HOUSE_PKG), "Google");
+  // Nothing linked falls back to what he ticked in Edit, and SAYS that is what it is
+  // doing rather than implying the account is live.
+  eq("nothing linked names what he plans and flags it",
+    platformLabel(house({ metaAdAccountId: "", googleAdsCustomerId: "", platforms: ["Meta Ads"] }), HOUSE_PKG),
+    "Meta (not linked yet)");
+  eq("nothing linked and nothing chosen admits it",
+    platformLabel(house({ metaAdAccountId: "", googleAdsCustomerId: "", platforms: [] }), HOUSE_PKG), "—");
+  // A paying client's platform IS their package: it is what they bought.
+  eq("a client still reads their package",
+    platformLabel(client({ googleAdsCustomerId: "123" }), { platform: "Google Ads" }), "Google Ads");
+
+  ok("the Overview tile uses it", /\{l:"Platform",v:platformLabel\(client,pkg\)\}/.test(UI));
+  ok("the pipeline header uses it", /<span style=\{\{fontSize:10\.5,color:C\.textMuted\}\}>\{platformLabel\(client,pkg\)\}<\/span>/.test(UI));
+  ok("the client list row uses it", /\{platformLabel\(cl,pkg\)\} · \{\(pkg && pkg\.name\)\}/.test(UI));
+  // And the tile that started all this can never go back to reading the package
+  // directly. Both Overview tiles now go through the one helper, which returns the
+  // package for a client and the account for the house.
+  ok("no Overview tile reads the package platform directly",
+    !/\{l:"Platform",v:\(pkg && pkg\.platform\)/.test(UI));
+  eq("both Overview platform tiles use the helper",
+    (UI.match(/\{l:"Platform",v:platformLabel\(client,pkg\)\}/g) || []).length, 2);
+}
+
+// ── 9. The reports quote the same live numbers as the screen ──────────────────
+// 🔴 `client.cpl` is never written by ANY code path. It is 0 at creation and hardcoded
+// on the demo records. Five things read it as if it were live, including an alert.
+{
+  ok("the OS report prompt no longer reads the dead field",
+    !/Average CPL: \$\{client\.cpl/.test(UI));
+  ok("it computes cost per lead instead", /Average CPL: \$\{st\.cpl!=null\?/.test(UI));
+  ok("and counts leads from the log", /Leads Generated: \$\{st\.leadsTotal\}/.test(UI));
+  ok("and hands the writer the real ad numbers", /Live Ad Data: \$\{st\.hasSnapshot\?/.test(UI));
+  // The comment above this line has claimed since before it was true that a report can
+  // never quote a different number from the screen. Now it holds.
+  ok("the report counts the same steps the pipeline shows",
+    /const reportBots   = botsFor\(client,findPkg\(client\.packageId\)\)/.test(UI));
 }
 
 console.log(`verify-house-pipeline: ${pass} passed, ${fail} failed`);
