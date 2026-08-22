@@ -453,82 +453,308 @@ const getUpgradeOptions = (currentPkgId) => {
 };
 
 // ─── DYNAMIC BOT WORK LOGS ───────────────────────────────────────────────────
-const getBotLogs = (client, pkg) => {
-  if (!client || !pkg) return {};
-  const n=client.name, niche=client.niche||"service", plat=pkg.platform, pkgN=pkg.name;
-  const bud=client.adBudget||pkg.adSpend, leads=client.leads||0;
-  const cpl=client.cpl>0?`$${client.cpl}`:"—";
-  const opt=pkg.optimizationFreq==="weekly"?"Weekly":"Monthly";
-  const lp=pkg.customLandingPage?"custom":"standard";
-  const hasCall=pkg.callTracking, hasRet=pkg.retargeting, hasCRM=pkg.crmIntegration;
-  const nd={
-    Roofing:{buyer:"homeowner",trigger:"storm damage or leak",diff:"same day estimate",neg:"DIY repair",angle:"storm damage urgency"},
-    "Med Spa":{buyer:"client",trigger:"upcoming event or self-care",diff:"results guarantee",neg:"budget seekers",angle:"transformation and confidence"},
-    "Auto Detailing":{buyer:"vehicle owner",trigger:"upcoming event or vehicle sale",diff:"mobile convenience",neg:"DIY car wash",angle:"vehicle protection"},
-    "E-Commerce":{buyer:"online shopper",trigger:"price drop or seasonal need",diff:"fast shipping + guarantee",neg:"window shoppers",angle:"offer + social proof"},
-  }[niche]||{buyer:"customer",trigger:"immediate need",diff:"quality service",neg:"irrelevant searches",angle:"quality and trust"};
-  const onTarget=client.cpl>0&&client.cpl<=(PER_LEAD[niche]||75);
+// ─── WHAT EACH STEP HAS ACTUALLY DONE ────────────────────────────────────────
+// Bryson, 2026-08-22, after being told the old work logs were invented: "Yes do that."
+//
+// 🔴 WHAT THIS REPLACES. `getBotLogs` returned hand-written NARRATIVE, generated from
+// the client's niche: "Research complete: Buyer = homeowner triggered by storm damage |
+// Differentiator: same day estimate | No direct competitors currently leading with same
+// day estimate". None of that was ever looked up. It read as a report on work that had
+// been done, and no work had been done. It also covered only 10 of the 20 steps, which
+// is what produced the bug he reported first: the other ten printed "this bot has not
+// started yet" no matter what their row said.
+//
+// EVERY LINE BELOW IS READ OFF THE CLIENT RECORD. If a value is not stored, the panel
+// says "Not set" rather than inventing one, and a step with nothing observable says so
+// in one sentence. That is the whole point: a panel that quietly makes things up is the
+// same defect he reported, only harder to catch.
+//
+// Four parts per step, and each answers a different question:
+//   facts  — what is on the record right now, each flagged done or not. The checklist.
+//   events — real dated entries from the client's own activity log, filtered to this
+//            step. Not a story; the notes the OS wrote when things actually happened.
+//   next   — the one thing that would move this step forward, derived from the same
+//            rule that sets the status, so the panel can never suggest something that
+//            would not change anything.
+//   none   — true when the OS genuinely cannot observe this step. Stated, not papered over.
+const botWorkLog = (cl, pkg, botId) => {
+  if (!cl) return null;
+  const cs   = cl.campaignSetup || {};
+  const bv   = cl.brandVoice || {};
+  const lp   = cl.landingPage || {};
+  const land = adLanding(cl);
+  const perf = cl.adPerf || {};
+  const t    = perf.totals || {};
+  const g    = perf.google || {}, m = perf.meta || {};
+  const bud  = perf.budget || {};
+  const log  = cl.leadsLog || [];
+  const monthly = monthlyBudgetNum(cl);
+  const house = !!cl.internal;
+  const who   = house ? "your" : `${cl.name}'s`;
+
+  const num   = (n) => Number(n || 0).toLocaleString();
+  const money = (n) => "$" + Math.round(Number(n) || 0).toLocaleString();
+  const when  = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); };
+  // A fact is a stored value or an honest "Not set". `ok` is what turns the tick green.
+  const F  = (l, v, fallback) => ({ l, v: (v === 0 || v) ? String(v) : (fallback || "Not set"), ok: !!(v === 0 || v) });
+  const Fb = (l, cond, yes, no) => ({ l, v: cond ? yes : no, ok: !!cond });
+
+  const platG = !!(cl.googleAdsCustomerId), platM = !!(cl.metaAdAccountId);
+  const gLive = Number(g.live || 0), mLive = Number(m.live || 0);
+  const gCamp = Number(g.campaigns || 0), mCamp = Number(m.campaigns || 0);
+  const liveCount = Number(t.liveCampaigns != null ? t.liveCampaigns : gLive + mLive);
+  const campCount = gCamp + mCamp;
+  const spend30 = Number(t.spend30d || 0);
+  const clicks  = Number(t.clicks || 0);
+  const imps    = Number(t.impressions || 0);
+  const convs   = Number(t.conversions || 0);
+  const now = Date.now();
+  const leads30 = log.filter(l => l.receivedAt && (now - new Date(l.receivedAt).getTime()) <= 30*864e5).length;
+  const byStatus = (st) => log.filter(l => (l.status || "new") === st).length;
+
+  // Real dated history, straight from the client's own activity log. Each step takes the
+  // entries that are about it and nothing else; a step with no matching entry shows none
+  // rather than a placeholder.
+  const EVENT_MATCH = {
+    intake:    /intake|brief|details/i,
+    offer:     /offer/i,
+    architect: /landing page/i,
+    copy:      /landing page|copy/i,
+    builder:   /landing page|published/i,
+    keywords:  /keyword|campaign/i,
+    ads:       /campaign|launch|ad set|creative/i,
+    tracking:  /tracking|conversion|pixel|call tracking/i,
+    automation:/lead|auto-reply|follow-?up|nurture/i,
+    qc:        /approval|approved|review/i,
+    budget:    /budget|spend|invoice|charge/i,
+    terms:     /keyword|search term/i,
+    leads:     /lead/i,
+    perf:      /report|performance/i,
+    scaling:   /scale|budget/i,
+    success:   /call|check-in|client|report|sent/i,
+  };
+  const events = (cl.commLog || [])
+    .filter(e => e && e.note && EVENT_MATCH[botId] && EVENT_MATCH[botId].test(String(e.note)))
+    .slice(0, 6)
+    .map(e => ({ date: e.date || "", note: String(e.note) }));
+
+  // Steps the OS has no way to observe. Named individually rather than inferred, so a
+  // step never lands here by accident just because its data happened to be empty.
+  const UNOBSERVABLE = {
+    avatar:  "Nobody writes a buyer profile into the OS, so there is nothing here to read. What is stored about who to reach is on the campaign setup, shown below.",
+    funnel:  "The conversion plan itself is not stored anywhere. What IS stored about where a lead ends up is shown below.",
+    scaling: "Scaling decisions are made by hand and nothing records them. The budget headroom below is what the numbers say.",
+  };
+
+  const B = {
+    intake: () => ({
+      facts: [
+        F("Business name", cl.name), F("Niche", cl.niche), F("Website", cl.website),
+        F("Phone", cl.businessPhone), F("Service area", cs.serviceArea),
+        F("Target locations", cs.targetLocations), F("Main offer", cs.mainOffer),
+        F("Average job value", cs.avgTicket), F("Where leads go", cs.leadDestination),
+        F("CRM", cs.crmSystem, "None"),
+        Fb("Marked complete", cl.intakeComplete, "Yes", "No"),
+      ],
+      next: cl.intakeComplete ? null : "Fill in the blanks above, then mark the intake complete.",
+    }),
+    ceo: () => ({
+      facts: [
+        F("Package", pkg && pkg.name), F("Platforms", pkg && pkg.platform),
+        F("Monthly ad budget", monthly > 0 ? money(monthly) + "/mo" : ""),
+        F("Optimization", pkg && pkg.optimizationFreq === "weekly" ? "Weekly" : "Monthly"),
+        Fb("Landing page in scope", !!(pkg && (pkg.customLandingPage || pkg.stdLanding !== false)), "Yes", "No"),
+        Fb("Call tracking in scope", !!(pkg && pkg.callTracking), "Yes", "No"),
+        Fb("Retargeting in scope", !!(pkg && pkg.retargeting), "Yes", "No"),
+      ],
+      next: cl.intakeComplete ? null : "The plan follows the brief, so finish the intake first.",
+    }),
+    research: () => ({
+      facts: [
+        F("Niche", cl.niche), F("Competitors you noted", bv.competitors),
+        F("What sets them apart", bv.differentiator), F("Tone", bv.tone),
+        F("Service area", cs.serviceArea),
+      ],
+      next: (bv.competitors && bv.differentiator) ? null : "Add competitors and a differentiator in Edit, and every ad the OS writes will use them.",
+    }),
+    avatar: () => ({
+      facts: [
+        F("Niche", cl.niche), F("Target locations", cs.targetLocations),
+        F("Who to keep out", cs.excludedKeywords, "No exclusions set"),
+        F("Tone", bv.tone),
+      ],
+    }),
+    offer: () => ({
+      facts: [F("Main offer", cs.mainOffer), F("Average job value", cs.avgTicket)],
+      next: cs.mainOffer ? null : "Set a main offer in Edit. It is the line every ad and landing page is built around.",
+    }),
+    funnel: () => ({
+      facts: [
+        F("Call to action", lp.ctaText), F("Where leads go", cs.leadDestination),
+        F("CRM", cs.crmSystem, "None"),
+        Fb("Lead webhook live", !!cl.leadToken, "Yes", "No"),
+        F("Tracking number", cl.callTrackingNumber, "None"),
+      ],
+    }),
+    architect: () => ({
+      facts: land.source === "site" ? [
+        Fb("Page", true, "Hand built on your own site", ""),
+        F("Address", land.url),
+        Fb("Hidden from search", true, "Yes, ad traffic only", ""),
+      ] : [
+        F("Headline", lp.headline), F("Subheadline", lp.subheadline),
+        F("Bullet points", (lp.bullets || []).length || ""),
+        F("Button text", lp.ctaText),
+        F("Last generated", lp.generatedAt ? when(lp.generatedAt) : ""),
+      ],
+      next: land.written ? null : `Generate a landing page from ${who} campaign setup on the Assets tab.`,
+    }),
+    copy: () => ({
+      facts: land.source === "site" ? [
+        Fb("Landing copy", true, "Written by hand on your own site", ""),
+        F("Address", land.url),
+      ] : [
+        F("Headline", lp.headline), F("Subheadline", lp.subheadline),
+        F("Bullet points", (lp.bullets || []).length || ""),
+      ],
+      note: "Ad copy itself lives on Google and Meta, not in the OS. The Campaigns tab reads it live from the account.",
+      next: land.written ? null : "No page copy exists yet.",
+    }),
+    builder: () => ({
+      facts: [
+        Fb("Status", land.published, land.source === "site" ? "Live on your own site" : "Published", land.label),
+        F("Address", land.url),
+        F("Last generated", lp.generatedAt ? when(lp.generatedAt) : ""),
+      ],
+      next: land.published ? null : (lp.headline ? "Publish the page on the Assets tab." : "Nothing built yet."),
+    }),
+    // Keywords and search terms are Google Search concepts. Judging them on a Meta-only
+    // account would report a problem that does not exist, so both check Google itself
+    // rather than the combined totals.
+    keywords: () => ({
+      facts: [
+        Fb("Google account linked", platG, "Yes", "No"),
+        F("Google campaigns built", platG ? gCamp : ""),
+        F("Negative keywords", cs.excludedKeywords, "None set"),
+      ],
+      note: "The keyword list itself lives in Google Ads. The Campaigns tab reads it live from the account.",
+      next: !platG ? "Keywords only apply to Google Search. Link a Google Ads account in Edit to run one."
+            : gCamp > 0 ? null : "Build a Google campaign on the Campaigns tab.",
+    }),
+    ads: () => ({
+      facts: [
+        F("Google campaigns", platG ? `${gCamp} built, ${gLive} running` : ""),
+        F("Meta campaigns", platM ? `${mCamp} built, ${mLive} running` : ""),
+        F("Views (30 days)", imps ? num(imps) : ""),
+        F("Clicks (30 days)", clicks ? num(clicks) : ""),
+        F("Spent (30 days)", spend30 ? money(spend30) : ""),
+        F("Last checked", perf.syncedAt ? when(perf.syncedAt) : ""),
+      ],
+      next: liveCount > 0 ? null : (campCount > 0 ? "Approve the campaign to set it live." : "Build a campaign on the Campaigns tab."),
+    }),
+    tracking: () => ({
+      facts: [
+        Fb("Google account linked", platG, "Yes", "No"),
+        Fb("Meta account linked", platM, "Yes", "No"),
+        F("Conversions recorded", convs > 0 ? num(convs) : ""),
+        F("Call tracking number", cl.callTrackingNumber, "None"),
+        Fb("Lead webhook live", !!cl.leadToken, "Yes", "No"),
+      ],
+      next: convs > 0 ? null : (platG || platM) ? "Nothing has converted yet. The first one proves the tracking end to end." : "Link an ad account in Edit.",
+    }),
+    automation: () => ({
+      facts: [
+        Fb("Lead capture", !!cl.leadToken, "Live", "Not set up"),
+        Fb("Instant auto-reply", !!cl.leadToken, "Live on every new lead", "Not set up"),
+        Fb("Day 1 and day 3 follow-ups", !!cl.leadToken, "Live, stop when marked contacted", "Not set up"),
+        F("Leads received", log.length || ""),
+        F("Text messages", cl.businessPhone ? "Sending to " + cl.businessPhone : ""),
+      ],
+      next: cl.leadToken ? null : "No lead pipeline yet.",
+    }),
+    qc: () => ({
+      facts: [
+        Fb("Ad account linked", platG || platM, "Yes", "No"),
+        Fb("Monthly budget set", monthly > 0, money(monthly) + "/mo", "No"),
+        Fb("Landing page live", land.published, land.source === "site" ? "Yes, on your own site" : "Yes", "No"),
+        Fb("Campaign built", campCount > 0, `${campCount} built`, "No"),
+        Fb("Campaign running", liveCount > 0, `${liveCount} running`, "No"),
+        Fb("Conversion recorded", convs > 0, num(convs), "Not yet"),
+      ],
+      next: liveCount > 0 ? null : "Every line above needs a yes before anything can spend.",
+    }),
+    budget: () => ({
+      facts: [
+        F("Monthly budget", monthly > 0 ? money(monthly) + "/mo" : ""),
+        F("Running daily budgets", t.liveDailyBudget ? money(t.liveDailyBudget) + "/day" : ""),
+        F("That projects to", t.projectedMonthly ? money(t.projectedMonthly) + "/mo" : ""),
+        F("Actually spent (30 days)", spend30 ? money(spend30) : ""),
+        F("Pacing", bud.pct != null ? bud.pct + "% of budget" : ""),
+        F("Last checked", perf.syncedAt ? when(perf.syncedAt) : ""),
+      ],
+      next: monthly > 0 ? null : "Set a monthly ad budget in Edit so pacing has something to measure against.",
+    }),
+    terms: () => ({
+      facts: [
+        Fb("Google account linked", platG, "Yes", "No"),
+        F("Google clicks to review (30 days)", platG && g.clicks ? num(g.clicks) : ""),
+        F("Negative keywords", cs.excludedKeywords, "None set"),
+      ],
+      note: "Search terms are reviewed in Google Ads itself. The OS does not store them.",
+      next: !platG ? "Search terms only exist on Google Search. Link a Google Ads account in Edit to run one."
+            : Number(g.clicks || 0) > 0 ? null : "No Google clicks yet, so there is nothing to review.",
+    }),
+    leads: () => ({
+      facts: [
+        F("Total leads", log.length || ""),
+        F("Last 30 days", leads30 || ""),
+        F("New", byStatus("new") || ""),
+        F("Contacted", byStatus("contacted") || ""),
+        F("Meetings booked", byStatus("meeting") || ""),
+        F("Won", byStatus("won") || ""),
+        F("Most recent", log[0] && log[0].receivedAt ? when(log[0].receivedAt) : ""),
+      ],
+      next: log.length ? null : "No leads yet.",
+    }),
+    perf: () => ({
+      facts: [
+        F("Views (30 days)", imps ? num(imps) : ""),
+        F("Clicks (30 days)", clicks ? num(clicks) : ""),
+        F("Click rate", imps > 0 ? (clicks / imps * 100).toFixed(1) + "%" : ""),
+        F("Spent (30 days)", spend30 ? money(spend30) : ""),
+        F("Leads (30 days)", leads30 || ""),
+        F("Cost per lead", (leads30 > 0 && spend30 > 0) ? money(spend30 / leads30) : ""),
+        F("Last checked", perf.syncedAt ? when(perf.syncedAt) : ""),
+      ],
+      next: spend30 > 0 ? null : "No spend yet, so there is nothing to report on.",
+    }),
+    scaling: () => ({
+      facts: [
+        F("Monthly budget", monthly > 0 ? money(monthly) + "/mo" : ""),
+        F("Pacing", bud.pct != null ? bud.pct + "% of budget" : ""),
+        F("Room left", (monthly > 0 && bud.pacing != null) ? money(Math.max(0, monthly - bud.pacing)) + "/mo" : ""),
+        F("Cost per lead", (leads30 > 0 && spend30 > 0) ? money(spend30 / leads30) : ""),
+      ],
+    }),
+    success: () => ({
+      facts: [
+        F("Last note logged", (cl.commLog || [])[0] ? (cl.commLog[0].date || "") : ""),
+        Fb("Portal link", !!cl.portalToken, "Live", "None"),
+        F("Reports", pkg && pkg.optimizationFreq === "weekly" ? "Weekly" : "Monthly"),
+        F("Leads to talk about", log.length || ""),
+      ],
+    }),
+  };
+
+  const built = B[botId] ? B[botId]() : null;
+  if (!built) return { facts: [], events, next: null, none: true, unobservable: "" };
   return {
-    intake:{
-      currentTask:`Processing ${n} client brief — extracting fields into structured format for the pipeline.`,
-      output:`Brief complete: ${n} | ${niche} | ${pkgN} (${plat}) | Budget: ${bud} | ${opt} optimization | Landing: ${lp} | Call tracking: ${hasCall?"Yes":"No"} | CRM: ${hasCRM?"Yes":"No"}`,
-      decisions:[`${niche} niche confirmed — ${nd.angle} strategy`,`Package scope locked to ${pkgN}`,`${hasCall?"Call tracking required pre-launch":"Call tracking excluded from scope"}`,`${hasCRM?"CRM integration queued":"No CRM in scope"}`],
-      handoff:`Complete brief passed to CEO Director with all package constraints.`,
-    },
-    ceo:{
-      currentTask:`Building project plan for ${n} and assigning tasks in correct pipeline order.`,
-      output:`Plan created: ${n} | 14-day launch target | Priority: page build → tracking → ads | ${opt} cadence | ${hasRet?"Retargeting included":"Single campaign"} | Escalation rules active`,
-      decisions:[`Landing page is critical path — ads cannot launch until live and tracked`,`${opt} cadence locked per ${pkgN}`,`${hasRet?"Retargeting queued after main launch":"Single campaign confirmed"}`,`Budget/pause/launch changes require Bryson approval`],
-      handoff:`Tasks assigned to Market Research, Avatar, and Offer Creation in parallel.`,
-    },
-    research:{
-      currentTask:`Analyzing ${niche} competitive landscape for ${n}'s service area.`,
-      output:`Research complete: Buyer = ${nd.buyer} triggered by ${nd.trigger} | Differentiator: ${nd.diff} | Negative category: ${nd.neg} | Primary angle: ${nd.angle} | Seasonal patterns mapped`,
-      decisions:[`"${nd.diff}" identified as primary differentiator`,`"${nd.neg}" flagged as main negative keyword category`,`${nd.angle} angle confirmed highest conversion intent`,`No direct competitors currently leading with ${nd.diff}`],
-      handoff:`Market report passed to Customer Avatar and Offer Creation.`,
-    },
-    avatar:{
-      currentTask:`Building buyer profile for ${n} using ${plat} data and ${niche} market insights.`,
-      output:`Avatar complete: ${nd.buyer} motivated by ${nd.trigger} | Fear: overcharged or poor quality | Desire: fast, reliable, trusted | Language: "trusted", "guaranteed", "fast" | ${plat} audience signals mapped`,
-      decisions:[`Avatar built from ${plat} audience data and ${niche} reviews`,`"${nd.trigger}" confirmed as primary buying trigger`,`"${nd.neg}" added to negative targeting`,`Audience signals sent to Ads Builder`],
-      handoff:`Avatar profile passed to Offer Creation and Copy Chief.`,
-    },
-    offer:{
-      currentTask:`Developing and ranking offer variations for ${n} by conversion rate.`,
-      output:`Offers ranked: A (selected) Free ${nd.diff} | B Free consultation with guarantee | C Urgency promo | Guarantee: written response within 24hrs | Rationale: ${nd.diff} removes ${nd.trigger} objection`,
-      decisions:[`"${nd.diff}" chosen — removes primary objection`,`Discount offers rejected — signal lower quality in ${niche}`,`Guarantee added to reduce purchase risk`,`Winning offer briefed to Copy Chief and Page Architect`],
-      handoff:`Winning offer and guarantee passed to Funnel Director and Copy Chief.`,
-    },
-    builder:{
-      currentTask:`Building ${lp} landing page for ${n} from approved wireframe and copy.`,
-      output:`Page status: ✓ Hero+form above fold ✓ Offer+guarantee ✓ Benefits ✓ FAQ ✓ Mobile verified | Pending: client photos, testimonials${hasCall?", call tracking script":""} | Form minimized for max conversion`,
-      decisions:[`Form placed above fold — 30-40% higher conversion`,`Form reduced to minimum required fields`,`${hasCall?"Call tracking dependency flagged — page holds until confirmed":"No call tracking dependency"}`,`Testimonial placeholders installed`],
-      handoff:`Page URL sent to Tracking Engineer and QC Director.`,
-    },
-    copy:{
-      currentTask:`Writing all ${plat} ad copy and landing page content for ${n} using the ${nd.angle} angle.`,
-      output:`Copy complete: Landing page with "${nd.diff}" hero + "${nd.trigger}" angle | ${plat} ads: 3 headlines, 2 descriptions | SMS: 4-msg (60s/1hr/24hr/7d) | Email: 3-part drip | All grounded in avatar language`,
-      decisions:[`Led with offer not business name — higher CTR`,`Used direct avatar language: "trusted", "guaranteed", "${nd.diff}"`,`Avoided technical ${niche} jargon`,`SMS starts at 60 seconds — speed-to-lead critical in ${niche}`],
-      handoff:`All copy passed to Page Builder, Ads Builder, and Automation Engineer.`,
-    },
-    qc:{
-      currentTask:`Running pre-launch QC checklist for ${n} — verifying all deliverables within ${pkgN} scope.`,
-      output:`QC: ✓ Mobile ✓ Form routing ✓ Copy ✓ ${plat} ads ${hasCall?"✓ Call tracking ":""}✓ Conversions ✓ Scope verified | Status: ${leads>0?"LIVE — campaign active":"Pending asset approval"}`,
-      decisions:[`All deliverables verified against ${pkgN} scope`,`${leads>0?"Campaign cleared — all checks passed":"Launch held pending client photo assets"}`,`Escalation rules confirmed — no budget moves without Bryson`,`${hasRet?"Retargeting pixel verified":"No retargeting pixel needed"}`],
-      handoff:`QC report sent to CEO Director. ${leads>0?"Campaign is live.":"Launch approved pending assets."}`,
-    },
-    budget:{
-      currentTask:`Monitoring spend and CPL for ${n} against ${pkgN} targets.`,
-      output:`Budget: Range ${bud} | ${opt} cadence | ${leads} leads | CPL ${cpl}${leads>0?` | ${onTarget?"✓ On target":"⚠ Above target — optimize"}`:""} | No movements without Bryson approval`,
-      decisions:[`${opt} cadence locked — no ad-hoc changes`,`Threshold alerts set for daily spend`,`Bid/budget changes queued for Bryson approval`,`Scaling Specialist notified when ROAS/CPL hits threshold`],
-      handoff:`Budget report sent to Performance Analyst and Scaling Specialist.`,
-    },
-    perf:{
-      currentTask:`Compiling ${opt.toLowerCase()} performance report for ${n} with recommendations.`,
-      output:`Performance: ${pkgN} (${plat}) | ${leads} leads | CPL ${cpl} | ${opt} | ${leads>0?(onTarget?"On target":"CPL above target — optimizing"):"Pre-launch — no data yet"} | Next review scheduled`,
-      decisions:[`${leads>0?`CPL ${cpl} — ${onTarget?"maintaining strategy":"flagging for optimization"}`:"No data yet — monitoring post-launch"}`,`${hasRet?"Retargeting audience building":"Single campaign — no retargeting in scope"}`,`Scaling thresholds set`,`Client Success Director briefed`],
-      handoff:`Performance report sent to Client Success Director and Budget Manager.`,
-    },
+    facts: (built.facts || []).filter(Boolean),
+    note: built.note || "",
+    events,
+    next: built.next || null,
+    unobservable: UNOBSERVABLE[botId] || "",
+    none: false,
   };
 };
 
@@ -1412,8 +1638,7 @@ function BotSheet({bot,clientName,client,pkg,onClose}) {
   const handleSend = () => { if(!input.trim()||loading)return; send(input.trim()); setInput(""); };
   const SC = { waiting:{dot:"#374151",label:"Waiting"}, active:{dot:C.green,label:"Running",pulse:true}, done:{dot:"#4B5563",label:"Complete"}, needs_input:{dot:C.blue,label:"Needs You",pulse:true} };
   const sc = SC[bot.status]||SC.waiting;
-  const allLogs = getBotLogs(client, pkg);
-  const log = allLogs[bot.id];
+  const log = botWorkLog(client, pkg, bot.id);
 
   return (
     <Sheet onClose={onClose} zIndex={80} height="94vh">
@@ -1463,56 +1688,59 @@ function BotSheet({bot,clientName,client,pkg,onClose}) {
             </div>
             <div style={{fontSize:12.5,color:C.text,lineHeight:1.6}}>{bot.why||bot.description}</div>
           </Card>
-          {!log?(
-            <div style={S.col12}>
+          <div style={S.col12}>
+            {/* What is on the record for this step, right now. Each line is a stored
+                value or an honest "Not set" — never a generated sentence. */}
+            {log&&log.facts.length>0&&(
               <Card>
-                <Label>What this step covers</Label>
-                <div style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>{bot.description}</div>
+                <Label>On the record</Label>
+                {log.facts.map((f,i)=>(
+                  <div key={f.l} style={{display:"flex",alignItems:"flex-start",gap:9,padding:"7px 0",borderBottom:i<log.facts.length-1?`1px solid ${C.border2}`:"none"}}>
+                    <span style={{width:15,flexShrink:0,fontSize:11,fontWeight:800,color:f.ok?C.green:C.textMuted,lineHeight:1.5}}>{f.ok?"✓":"·"}</span>
+                    <span style={{fontSize:12,color:C.textMuted,flex:"0 0 44%",lineHeight:1.5}}>{f.l}</span>
+                    <span style={{fontSize:12,color:f.ok?C.text:C.textMuted,flex:1,minWidth:0,lineHeight:1.5,wordBreak:"break-word"}}>{f.v}</span>
+                  </div>
+                ))}
+                {log.note&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:9,paddingTop:9,borderTop:`1px solid ${C.border2}`}}>{log.note}</div>}
               </Card>
-              {/* Honest about the gap rather than inventing a reason for it. */}
-              <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,padding:"0 2px"}}>
-                {bot.manual
-                  ? "There is no automatic signal for this step, so its status is whatever you set. Cycle it by hand from Edit → Pipeline."
-                  : "This step has no detailed log yet. The status above is read from what the OS can actually see on this account."}
-              </div>
-            </div>
-          ):(
-            <div style={S.col12}>
-              {/* Current task */}
-              <Card style={{borderColor:`${C.green}33`,backgroundColor:"rgba(16,185,129,.04)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:bot.status==="active"?C.green:"#4B5563",display:"inline-block",boxShadow:bot.status==="active"?`0 0 5px ${C.green}`:"none"}}/>
-                  <Label>Currently Working On</Label>
-                </div>
-                <div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{log.currentTask}</div>
+            )}
+
+            {/* The one thing that would move this step forward, derived from the same
+                rule that set the status, so it can never suggest a no-op. */}
+            {log&&log.next&&(
+              <Card style={{borderColor:`${C.gold}33`,backgroundColor:`${C.gold}0a`}}>
+                <Label>To move this forward</Label>
+                <div style={{fontSize:12.5,color:C.textDim,lineHeight:1.65}}>{log.next}</div>
               </Card>
-              {/* Output so far */}
+            )}
+
+            {/* Real dated entries from this account's own activity log. Not a story. */}
+            {log&&log.events.length>0&&(
               <Card>
-                <Label>Output Produced</Label>
-                <div style={{fontSize:12,color:C.textDim,lineHeight:1.8,whiteSpace:"pre-wrap"}}>{log.output}</div>
-              </Card>
-              {/* Decisions made */}
-              <Card>
-                <Label>Decisions and Reasoning</Label>
-                {log.decisions.map((d,i)=>(
-                  <div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:i<log.decisions.length-1?`1px solid ${C.border2}`:"none"}}>
-                    <span style={{color:C.gold,fontWeight:700,flexShrink:0,fontSize:12}}>→</span>
-                    <span style={{fontSize:12,color:C.textDim,lineHeight:1.6}}>{d}</span>
+                <Label>What actually happened</Label>
+                {log.events.map((e,i)=>(
+                  <div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:i<log.events.length-1?`1px solid ${C.border2}`:"none"}}>
+                    <span style={{fontSize:10,color:C.textMuted,flexShrink:0,width:62,lineHeight:1.6,fontFamily:"monospace"}}>{e.date}</span>
+                    <span style={{fontSize:12,color:C.textDim,lineHeight:1.6,flex:1,minWidth:0}}>{e.note}</span>
                   </div>
                 ))}
               </Card>
-              {/* Handoff */}
-              <Card style={{borderColor:`${C.blue}33`,backgroundColor:"rgba(59,130,246,.04)"}}>
-                <Label>Pipeline Handoff</Label>
-                <div style={{fontSize:12,color:C.textDim,lineHeight:1.6}}>{log.handoff}</div>
-              </Card>
-              {/* Description */}
-              <Card>
-                <Label>Bot Role</Label>
-                <div style={{fontSize:12,color:C.textMuted,lineHeight:1.6}}>{bot.description}</div>
-              </Card>
+            )}
+
+            <Card>
+              <Label>What this step covers</Label>
+              <div style={{fontSize:12,color:C.textDim,lineHeight:1.7}}>{bot.description}</div>
+            </Card>
+
+            {/* Stated, not papered over. A step the OS genuinely cannot observe says so. */}
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,padding:"0 2px"}}>
+              {log&&log.unobservable
+                ? log.unobservable
+                : bot.manual
+                  ? "There is no automatic signal for this step, so its status is whatever you set. Cycle it by hand from Edit → Pipeline."
+                  : "Everything above is read off this account. Nothing on this screen is written for you."}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -4951,8 +5179,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             })()}
             {bots.map(bot=>{
               const sc={waiting:{dot:"#374151",label:"Waiting"},active:{dot:C.green,label:"Running",pulse:true},done:{dot:"#4B5563",label:"Complete"},needs_input:{dot:C.blue,label:"Needs You",pulse:true}}[bot.status]||{dot:"#374151",label:"Waiting"};
-              const clientLogs = getBotLogs(client, pkg);
-              const hasLog = !!clientLogs[bot.id];
+              // The row's own reason for its badge. It used to print a line of invented
+              // narrative here, which only 10 of the 20 steps even had.
               return (
                 <button key={bot.id} onClick={()=>setOpenBot(bot)} style={{...card,textAlign:"left",cursor:"pointer",width:"100%",borderColor:bot.status==="active"?`${C.green}33`:bot.status==="needs_input"?`${C.blue}33`:C.border}}>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -4960,7 +5188,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                     <span style={{fontSize:15,flexShrink:0}}>{bot.icon}</span>
                     <div style={S.f1min}>
                       <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{bot.name}</div>
-                      {hasLog&&bot.status!=="waiting"&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{(clientLogs[bot.id] && clientLogs[bot.id].currentTask && clientLogs[bot.id].currentTask.slice(0,55))}…</div>}
+                      {bot.why&&<div style={{fontSize:10,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginTop:1}}>{bot.why}</div>}
                     </div>
                     {bot.locked&&<span style={{fontSize:10,color:C.textMuted,flexShrink:0}}>🔒</span>}
                     <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>

@@ -40,7 +40,7 @@ for t in tests/*.mjs; do node "$t"; done
 | `verify-meta-creative-testing.mjs` | the second thing allowed to change a live ad account unattended: the spend-less-never-more invariant, the judging maths, the Development-tier gate, and the test/multi-angle switch (KB `meta-creative-testing`) | 114 |
 | `verify-campaign-launch.mjs` | the path between Build Campaign and money being spent: that starting a campaign starts its ad groups and ads too, that no campaign can quietly target the whole country, and that any location worldwide resolves (KB `campaign-launch-bugs`) | 104 |
 | `verify-approval-cleanup.mjs` | deleting a campaign takes its approval requests with it, the self-heal never fires on a failed API call, and the approval card names the platform it will actually act on (KB `campaign-launch-bugs`) | 46 |
-| `verify-house-pipeline.mjs` | the My Ads pipeline tells the truth: a step's detail panel agrees with its row, steps that only exist because there is a client stay off the house account, and the page his ads actually land on counts as a landing page without ever leaking that fallback to a real client (KB `house-pipeline-honesty`) | 43 |
+| `verify-house-pipeline.mjs` | the My Ads pipeline tells the truth: every step's panel reports observed facts with no invented narrative and no empty panels, a step's detail agrees with its row, client-only steps stay off the house account, and the page his ads land on counts (KB `house-pipeline-honesty`) | 76 |
 | `verify-sheet-layering.mjs` | a panel opened from inside a screen still paints above the bottom nav, the chat bar clears the home indicator, and the stylesheet is still a valid template literal. Measures the layering in a real browser both ways (KB `sheet-layering`) | 19 |
 | `verify-house-leads.mjs` | BoldLine's own website leads reach the house account exactly once, a status he set by hand is never overwritten by the next poll, and a lead is never pruned for falling off a page (KB `house-leads-mirror`) | 49 |
 | `verify-calendly-leads.mjs` | a booked call becomes a lead exactly once, deduped on the Calendly event id so a repeating poll cannot duplicate it (KB `calendly-leads`) | 16 |
@@ -78,6 +78,12 @@ Patterns worth copying, learned from `verify-packages.mjs`:
   pattern below whenever the logic can be lifted out.
 - **Prove the guard is load-bearing before believing it.** Every suite here has had a deliberate
   break introduced and confirmed to fail it. A guard that has never failed has never been tested.
+- **🔴 ANY "THIS TEXT IS GONE" ASSERTION MUST RUN ON COMMENT-STRIPPED SOURCE.** This has now
+  bitten THREE times: a nationwide-default check matched the comment explaining the bug, a
+  padding check matched the comment naming the old variable, and the check that invented
+  work-log prose was removed matched the comment listing which phrases were removed. The
+  code that deletes something almost always quotes it while explaining why. Strip
+  `^\s*(//|\*|/\*)` lines before asserting absence, every time.
 - **🔴 A GUARD YOU HAVE NOT BROKEN IS NOT A GUARD.** The Meta tier-gate assertion was
   `/cl\.internal/.test(block)` — which matched an unrelated `systemFor(!!cl.internal)` a few
   lines away and **passed with the gate deleted**. It was guarding the one thing that would
