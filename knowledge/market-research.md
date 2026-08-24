@@ -2,7 +2,7 @@
 name: market-research
 topic: Ads
 task: run or change the automated competitor research, or work out where the ad differentiator and competitor list come from
-keywords: [market research, main offer verbatim, offer rewritten, service area limits ads, serving gilbert, national landing page, fitPhrase landing, badge chopped, where you are based, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap, research could not finish, market research error, search is not defined, placesOk, stub-hooks, module.register, run the real function]
+keywords: [market research, main offer verbatim, offer rewritten, service area limits ads, serving gilbert, national landing page, fitPhrase landing, badge chopped, where you are based, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap, research could not finish, market research error, search is not defined, placesOk, stub-hooks, module.register, run the real function, competitors tab, did it save, AdPositionCard, clientError, save failed silently, phoenix not gilbert, metro not suburb]
 status: built
 summary: Market Research went from a hand-tracked step with no artifact to an automated one. It finds real competitors through Google Places, reads their sites to see who is actually buying ads, researches positioning with web search, and proposes up to four differentiators. It PROPOSES only, never writes brandVoice, and any proposal without evidence is dropped rather than shown with a caveat.
 verified: 2026-08-24
@@ -248,3 +248,48 @@ back every write. See KB `repo-tests`.
 
 **Breaks confirmed:** restoring the `search.ok` line fails 9 checks; removing the session
 check fails 3; adding an update that writes the differentiator onto the account fails 4.
+
+## Follow-up: its own tab, a plain answer to "did that save", and Phoenix instead of Gilbert
+
+Bryson, 2026-08-24, after pressing Use on a proposal: *"is it in use now or will it not be
+saved and in use when i change screens? i also need a seperate tab to be able to view my
+competitors"*, then *"when we research competitors dont research gilbert research the
+phoenix metro area"*.
+
+**IT WAS SAVED, AND THE OS HAD NO GOOD WAY OF SAYING SO.** Pressing Use writes the whole
+client record to Supabase immediately. The green button proved a click happened, which is
+not the same claim. **`AdPositionCard`** now sits at the top of the new tab and reads
+`brandVoice` (the stored field every ad writer reads, refilled from the database by the
+15-second refresh), so if it shows there, it is saved. It also states the one thing that is
+genuinely not automatic: **neither platform lets anyone edit a published ad's text**, so a
+chosen line reaches the next ad built or a creative swap, never the ad already running.
+
+**🔴 AND A REFUSED SAVE WAS WORSE THAN SILENT.** `updateClient` is optimistic and logged
+failures to the console only. `refreshClients` replaces the open client with the server's
+copy every 15 seconds, so a failed write showed as done and then **quietly undid itself a
+few seconds later with no message** — which is exactly what "did that actually save?" feels
+like from the outside. It now sets `clientError`, shown as a dismissible red banner fixed to
+the top of the app, **rendered beside the toasts rather than inside `.os-content`** (that
+element animates opacity, making it a permanent stacking context — the trap that hid the bot
+chat bar). The wording says the screen will undo itself, because it will. This covers every
+client save in the OS, not just this card.
+
+**COMPETITORS IS ITS OWN TAB** (`tab==="research"`, label "Competitors", shown for clients
+too), holding `AdPositionCard` + `MarketResearchCard`. The card moved off the Campaigns tab
+entirely rather than being duplicated, competitor names are now **links** to their sites, and
+the three places that said "Campaigns tab" were repointed.
+
+**PHOENIX, NOT GILBERT.** The first version searched the business's own town first, reasoning
+that it is where it bumps into people most. **That reasoning is wrong for a business that
+sells remotely**: nobody hires an agency because it is in the next suburb, and Gilbert
+returned a handful of small shops. A national business now searches **metros only**, Phoenix
+leading, its own town dropped rather than added on top, because including it spends one of
+the seven lookups on the weakest market on the list. `mrSystem` is told the area is "the
+United States" so the report is not framed around a town it never looked at. **A local
+business is untouched** — for a roofer the town really is the whole market.
+
+**173 checks (was 144) plus 57 end-to-end. Four deliberate breaks confirmed to fail; one
+did not and was tightened:** asserting `setClientError(` appeared anywhere in `updateClient`
+still passed with the call disabled as `if(false) setClientError(...)`, because a disabled
+call is still a call. It pins the error branch's shape now. Banner and tab strip measured at
+390 / 768 / 1280 / 1600 with no horizontal overflow.

@@ -86,7 +86,6 @@ export default async (req) => {
 
   const isAgency = !!cl.internal;
   const niche = researchNiche(cl) || (isAgency ? "marketing agency" : "");
-  const area  = researchArea(cl);
   // 🔴 ONE CITY IS NOT ALWAYS THE MARKET. Bryson, 2026-08-22: "don't just search only in
   // Gilbert search in other places as well because marketing agencies can be anywhere".
   // A roofer's competitors are the roofers a customer could actually call, so one metro
@@ -95,6 +94,10 @@ export default async (req) => {
   // returned a handful of small shops and called that the market.
   const national = sellsNationally(cl);
   const areas = researchAreas(cl);
+  // What the model is told it is researching. For a national business its own town is
+  // not the answer and never was, so saying "Gilbert, Arizona" here would frame the whole
+  // report around a suburb it is not even searching any more.
+  const area = national ? "the United States" : researchArea(cl);
   // Without anywhere to look the search returns businesses in the wrong place, and every
   // conclusion drawn from them is wrong. Stopping is the honest outcome.
   if (!areas.length) {
