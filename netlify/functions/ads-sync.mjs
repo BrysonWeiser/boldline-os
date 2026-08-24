@@ -33,6 +33,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
+import { liveStats, PER_LEAD } from "../lib/report-shared.mjs";
 import { getCampaigns as metaCampaigns } from "./meta-ads.mjs";
 import { getAccessToken as gadsToken, getCampaigns as gadsCampaigns } from "./google-ads.mjs";
 
@@ -53,11 +54,67 @@ const sum = (arr, f) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
 const googleLive = (c) => String(c.status || "").toUpperCase() === "ENABLED";
 const metaLive = (c) => String(c.effectiveStatus || c.status || "").toUpperCase() === "ACTIVE";
 
+// ─── WHEN IS "SPEND MORE" THE RIGHT ADVICE ───────────────────────────────────
+// Bryson, 2026-08-24: "for my own ads when it thinks we should scale i want to get an
+// alert prompting me to either scale or keep it as is".
+//
+// This is the one direction the autopilot is forbidden to move on its own — it may
+// always spend LESS, and may NEVER spend more without asking. So this ASKS, through the
+// same approval queue that already executes a guarded budget change on both platforms.
+// No new execution path was written for it; the safest possible route to real money is
+// the one a person already has to press.
+//
+// 🔴 THE CONDITION MOST ADVICE GETS WRONG IS THE BUDGET-LIMITED ONE. Raising a budget
+// that is not being spent changes NOTHING. If an account is spending $120 of a $213
+// budget, the constraint is targeting, creative or bid, and a bigger number just sits
+// there unused while looking like action was taken. So this only fires when the money is
+// actually running out, which is the only state where more of it buys more.
+//
+// Four things must all be true, and each is observable:
+//   1. something is live,
+//   2. there are enough leads for a cost per lead to mean anything (one lucky lead is
+//      not evidence),
+//   3. spend is pressed up against the budget, and
+//   4. the cost per lead is at or under the target the rest of the OS already uses.
+const SCALE_MIN_LEADS = 3;
+// A step, not a leap. Doubling a budget usually restarts the platform's learning and
+// makes performance worse for a fortnight, which is the opposite of scaling.
+const SCALE_STEP = 1.25;
+
+function scaleCheck(cl, adPerf, liveCampaigns) {
+  const t = adPerf.totals || {}, b = adPerf.budget || {};
+  const live = liveStats(cl);
+  const target = PER_LEAD[cl.niche] || 75;
+  // Deliberately NOT fired when already over budget. The red over-budget alert covers
+  // that case, and two alerts saying opposite things about the same account is worse
+  // than one. "warn" is the 85% to 105% band: pressed against the cap, not past it.
+  const budgetLimited = b.state === "warn";
+  const ready = Number(t.liveCampaigns || 0) > 0
+    && live.leads30 >= SCALE_MIN_LEADS
+    && live.cpl != null && live.cpl <= target
+    && budgetLimited;
+  if (!ready) return { ready: false };
+
+  // Only offer a one-click change when there is exactly ONE live campaign to change.
+  // With several, picking one for him would be a guess about his own strategy, so the
+  // alert still goes out and he chooses where the money goes.
+  const only = liveCampaigns.length === 1 ? liveCampaigns[0] : null;
+  const curDaily = only ? Number(only.dailyBudget || 0) : 0;
+  const newDaily = curDaily > 0 ? Math.max(curDaily + 1, Math.round(curDaily * SCALE_STEP)) : 0;
+  return {
+    ready: true, target, cpl: live.cpl, leads30: live.leads30,
+    spend30: Number(t.spend30d || 0), pct: b.pct,
+    campaign: only && newDaily > 0 ? { ...only, curDaily, newDaily } : null,
+  };
+}
+
 // Roll a platform's campaign array into the numbers the pacing check needs.
 function summarize(campaigns, isLive, spendKey) {
   const live = campaigns.filter(isLive);
   return {
     ok: true,
+    // Kept so the scale check can name the one campaign a budget change would land on.
+    liveList: live,
     campaigns: campaigns.length,
     live: live.length,
     liveDailyBudget: round2(sum(live, (c) => c.dailyBudget)),
@@ -161,12 +218,20 @@ export default withFailureAlert("ads-sync", async () => {
 
     // ── Alerts: transitions only, never a daily repeat ───────────────────────
     const prev = cl.adSyncState || {};
+    const liveCampaigns = [
+      ...((google.liveList || []).map((c) => ({ ...c, platform: "google" }))),
+      ...((meta.liveList || []).map((c) => ({ ...c, platform: "meta" }))),
+    ];
+    const scale = scaleCheck(cl, adPerf, liveCampaigns);
+    let nextPending = null;   // set only when a scale decision is added to the queue
     const cur = {
       over,
       googleFail: !!gid && !google.ok,
       metaFail: !!mid && !meta.ok,
+      scaleReady: !!scale.ready,
     };
     const who = cl.internal ? "My Ads (BoldLine's own account)" : cl.name || "A client";
+    const whose = cl.internal ? "your" : `${cl.name || "the client"}'s`;
 
     if (cur.over && !prev.over) {
       const basis = adPerf.budget.basis === "projected"
@@ -179,6 +244,46 @@ export default withFailureAlert("ads-sync", async () => {
         smsText: `BoldLine ALERT — ${who} pacing $${pacing}/mo vs $${monthly} budget (${adPerf.budget.pct}%).`.slice(0, 300),
       });
       alerts++;
+    }
+
+    // ── The scale prompt ─────────────────────────────────────────────────────
+    // Transition-only like the rest: it asks once when the picture forms, not every
+    // hour. Deciding "keep as is" leaves the state true, so it stays quiet until the
+    // conditions actually break and re-form.
+    if (cur.scaleReady && !prev.scaleReady) {
+      const c = scale.campaign;
+      const money = (n) => `$${Math.round(Number(n) || 0).toLocaleString()}`;
+      const evidence = `${scale.leads30} lead${scale.leads30 === 1 ? "" : "s"} in the last 30 days at ${money(scale.cpl)} each, against a ${money(scale.target)} target, while spending ${money(scale.spend30)} of a ${money(monthly)} budget (${scale.pct}%).`;
+      const theStep = c
+        ? `\nSuggested step: raise "${c.name}" from ${money(c.curDaily)}/day to ${money(c.newDaily)}/day, about ${money(c.newDaily * DAYS_PER_MONTH)}/mo. That is a 25% step on purpose. Doubling a budget usually restarts the platform's learning and makes things worse for a fortnight.`
+        : `\nThere is more than one campaign running, so pick which one gets the extra budget yourself rather than spreading it.`;
+
+      await dispatchAlert({
+        title: `${who}: worth scaling, or keep as is?`,
+        body: `${who} is doing well AND running out of budget, which is the only time spending more actually buys more.\n\n${evidence}${theStep}\n\nEither is a fair call. Scaling buys more of what is working; keeping it as is holds your costs where they are. Nothing changes until you choose in BoldLine OS.`,
+        severity: "blue",
+        smsText: `BoldLine: ${whose} ads are budget-limited at ${money(scale.cpl)}/lead. Scale or hold? Decide in the OS.`.slice(0, 300),
+      });
+      alerts++;
+
+      // A one-click decision in the approval queue, but ONLY when there is a single
+      // live campaign to change. The queue already executes `set_daily_budget` on both
+      // platforms through the human approval gate, so no new path to real money was
+      // written for this.
+      if (c) {
+        const id = `scale-${c.platform}-${c.id}`;
+        const already = (cl.pendingActions || []).some((a) => a && a.id === id);
+        if (!already) {
+          nextPending = [{
+            id,
+            title: `Scale "${c.name}" to ${money(c.newDaily)}/day?`,
+            detail: `${evidence}\nApproving raises the daily budget by 25%. Dismissing keeps everything exactly as it is.`,
+            cat: "launch", ts: Date.now(),
+            exec: { platform: c.platform, campaignId: c.id, campaignName: c.name,
+                    kind: "set_daily_budget", newDailyBudgetDollars: c.newDaily },
+          }, ...(cl.pendingActions || [])];
+        }
+      }
     }
 
     for (const [key, platform, detail] of [["googleFail", "Google Ads", google.error], ["metaFail", "Meta Ads", meta.error]]) {
@@ -195,7 +300,10 @@ export default withFailureAlert("ads-sync", async () => {
     }
 
     await supabase.from("clients")
-      .update({ data: { ...cl, adPerf, adSyncState: cur }, updated_at: new Date().toISOString() })
+      .update({
+        data: { ...cl, adPerf, adSyncState: cur, ...(nextPending ? { pendingActions: nextPending } : {}) },
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", row.id);
     synced++;
   }
