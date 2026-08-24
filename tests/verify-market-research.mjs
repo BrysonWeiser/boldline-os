@@ -345,5 +345,66 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   ok("the ad budget is still editable", /set\("adBudget",e\.target\.value\)/.test(UI));
 }
 
+// ── 13. The offer is a brief, and a service area is not a public claim ────────
+// Bryson, 2026-08-24: "for the main offer I dont want the ai to take it word for word
+// I just want it to use what I put in as the idea… also for the service area if i put
+// gilbert, arizona would it limit the ad… or show that I only services gilbert? because
+// remember i service the whole us and the world". Both were fair, and the second one
+// had a real defect behind it.
+{
+  const ADGEN = readFileSync(join(ROOT, "netlify/lib/ad-gen-shared.mjs"), "utf8");
+  const LANDING = readFileSync(join(ROOT, "netlify/functions/landing.mjs"), "utf8");
+  const LANDING_CODE = stripComments(LANDING);
+
+  // The brief labels the offer so a model cannot read it as approved copy.
+  ok("the offer is labelled as a note, not as ad copy",
+    /this is a note from the owner, not ad copy: use the MEANING and write your own words/.test(ADGEN));
+
+  // 🔴 The real defect: the generated landing page printed "Serving <one town>" in the
+  // hero, the trust row and the footer, straight off the service area. For a business
+  // that sells remotely that turns away every visitor outside that town.
+  ok("the page asks whether the business is national", /const national = sellsNationally\(cl\);/.test(LANDING_CODE));
+  ok("and drops the one-town claim when it is", /const area = national \? "" : rawArea;/.test(LANDING_CODE));
+  ok("saying something true instead", /Working with businesses nationwide/.test(LANDING));
+  // The standing rule: never "local businesses".
+  // 🔴 COMMENT-STRIPPED, for the fourth time in this repo. The line that REMOVED the
+  // local wording quotes it while explaining the standing rule, so the naive check
+  // matched my own comment. See KB `repo-tests`.
+  ok("and never calls them local businesses", !/local businesses/i.test(LANDING_CODE));
+  // Same defect one line up: a national business's page must not head itself
+  // "Trusted local service" either.
+  ok("nor heads a national page as a local service",
+    /national \? "Marketing that brings you customers" : "Trusted local service"/.test(LANDING_CODE)
+    || !/Trusted local service/.test(LANDING_CODE));
+  ok("the footer follows the same rule", /reach \? ` · \$\{esc\(reach\)\}`/.test(LANDING_CODE));
+  ok("so does the trust row", /reach \? `<span>🌐/.test(LANDING_CODE));
+
+  // 🔴 And a raw slice printed the owner's typed note chopped mid-word on a live page.
+  ok("the badge no longer hard-slices the text", !/\(differentiator \|\| offer\)\.slice\(0, 40\)/.test(LANDING_CODE));
+  ok("it trims to a whole thought", /fitPhrase\(differentiator \|\| offer, 44\)/.test(LANDING_CODE));
+  ok("and hides itself rather than showing half a sentence",
+    /const badgeH = badgeText \?/.test(LANDING_CODE));
+  ok("the differentiator chip is trimmed the same way", /fitPhrase\(differentiator, 64\)/.test(LANDING_CODE));
+  ok("no raw slice survives on the page", !/differentiator\.slice\(0, 60\)/.test(LANDING_CODE));
+
+  // The trimmer moved so the page could use it without dragging the Anthropic SDK in.
+  // One definition, re-exported, so every existing caller is untouched.
+  ok("fitPhrase lives in the dependency-free module",
+    /export const fitPhrase/.test(readFileSync(join(ROOT, "netlify/lib/humanize.mjs"), "utf8")));
+  ok("and is re-exported where it used to live",
+    /export \{ fitWords, fitPhrase \} from "\.\/humanize\.mjs";/.test(ADGEN));
+  ok("the landing page imports it from the light module",
+    /import \{ fitPhrase \} from "\.\.\/lib\/humanize\.mjs";/.test(LANDING));
+  ok("and does not pull in the ad generator", !/ad-gen-shared/.test(LANDING));
+
+  // The labels in Edit, which is where the confusion started.
+  ok("the field says where you are BASED", /l:"Where you are based"/.test(UI));
+  ok("and the other says where the ads RUN", /l:"Where the ads should run"/.test(UI));
+  ok("the offer field says it is rewritten, not copied",
+    /The AI rewrites this, it never copies it/.test(UI));
+  ok("and the card explains the base does not limit reach",
+    /it does not limit who sees your ads/.test(UI));
+}
+
 console.log(`verify-market-research: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

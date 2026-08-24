@@ -2,7 +2,7 @@
 name: market-research
 topic: Ads
 task: run or change the automated competitor research, or work out where the ad differentiator and competitor list come from
-keywords: [market research, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
+keywords: [market research, main offer verbatim, offer rewritten, service area limits ads, serving gilbert, national landing page, fitPhrase landing, badge chopped, where you are based, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
 status: built
 summary: Market Research went from a hand-tracked step with no artifact to an automated one. It finds real competitors through Google Places, reads their sites to see who is actually buying ads, researches positioning with web search, and proposes up to four differentiators. It PROPOSES only, never writes brandVoice, and any proposal without evidence is dropped rather than shown with a caveat.
 verified: 2026-08-22
@@ -160,3 +160,48 @@ now says plainly that both are worked out from real leads and real spend.
 first attempt** and had to be tightened: asserting `setIn("brandVoice"` appeared anywhere
 matched the tone select's own call while both text inputs were broken, so it now names the
 keyed write the inputs actually use.
+
+## Follow-up: what the service area actually controls, and the offer is a brief
+
+Two questions from Bryson, 2026-08-24: *"for the main offer I dont want the ai to take it
+word for word I just want it to use what I put in as the idea"*, and *"for the service area
+if i put gilbert, arizona would it limit the ad to gilbert, arizona or show that I only
+services gilbert? because remember i service the whole us and the world"*.
+
+**The direct answer to the second: no, and no.** Ad targeting on the house account comes from
+`locationDefault`, which is a **hardcoded Phoenix metro list** for `internal` and never reads
+the service area, and it is an editable box on the launch card before anything is built.
+
+**But the question exposed a real defect.** The generated landing page read the service area
+and printed it as a **public claim** in three places: the hero trust row, a chip, and the
+footer, all saying **"Serving Gilbert, Arizona"**. He does not use a generated page today, so
+it was not biting him, but it would the moment he generated one, and it bites any national
+client. For a business that sells remotely that is not a wording nit, it turns away every
+visitor outside that town. `landing.mjs` now asks `sellsNationally(cl)` and, when true, drops
+the one-town claim and says **"Working with businesses nationwide"** instead. The eyebrow's
+fallback had the same shape and is fixed with it: a national page no longer heads itself
+"Trusted local service".
+
+**And a second defect in the same lines.** The hero badge printed
+`(differentiator || offer).slice(0, 40)` — the owner's typed note, **chopped mid-word, on a
+live page**. Exactly the defect already fixed in the ad writers. It now uses `fitPhrase`,
+which trims to a whole thought and returns nothing when it cannot, so the badge **hides
+itself rather than showing half a sentence**. The differentiator chip got the same treatment.
+
+To do that without dragging the Anthropic SDK into a page render, `fitWords` and `fitPhrase`
+**moved to `humanize.mjs`** (pure, no dependencies) and are **re-exported from
+`ad-gen-shared.mjs`**, so every existing caller and test is untouched. One definition.
+
+**On the offer:** the AI already rewrote it rather than quoting it, because it arrives as a
+line in the brief. It is now labelled explicitly — *"this is a note from the owner, not ad
+copy: use the MEANING and write your own words"* — so a model cannot read a typed note as
+approved copy. That is exactly how a rough note ends up in a headline.
+
+**The labels were the real root of the confusion** and are fixed at source: the field is now
+**"Where you are based"**, the next one is **"Where the ads should run"**, and the offer says
+*"(in your own words)"* with the hint *"The AI rewrites this, it never copies it."* The card
+states plainly that where you are based does not limit who sees your ads.
+
+**144 checks.** Six more deliberate breaks confirmed to fail. **The comment trap bit for the
+FOURTH time**: the check that the page never says "local businesses" matched the comment
+explaining the standing rule, in the very line that removed the wording.
