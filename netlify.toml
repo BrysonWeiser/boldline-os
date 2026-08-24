@@ -55,22 +55,31 @@
 [functions."alerts-watch"]
   schedule = "0 17 * * *"
 
-# Every 6 hours: pulls LIVE campaign spend from Google Ads + Meta for every client
-# with a linked ad account (the My Ads house account included), stores it on the
-# client record, and alerts the owner the first time an account paces over its
-# monthly budget or a linked account stops reading at all. Read-only — it never
-# changes a campaign. This is the live-spend feed alerts-watch was missing.
-# Four runs a day (not one) because it is also the app's continuous Ads API
-# traffic, which Meta requires before granting Marketing API standard access —
-# see KB meta-marketing-api. Well inside every rate limit.
 # A booked call is a LEAD, not just a calendar entry. Every 15 minutes, because the
 # whole point is that Bryson sees a prospect while they are still thinking about him.
 # Deduped on the Calendly event id, so re-scanning the same window is harmless.
+# (This comment belongs to calendly-leads. It used to sit above the ads-sync comment,
+# which made both look like they described the wrong job.)
 [functions."calendly-leads"]
   schedule = "*/15 * * * *"
 
+# HOURLY: pulls LIVE campaign spend from Google Ads + Meta for every client with a
+# linked ad account (the My Ads house account included), stores it on the client
+# record, and alerts the owner the first time an account paces over its monthly budget
+# or a linked account stops reading at all. Read-only — it never changes a campaign.
+#
+# Was every 6 hours until 2026-08-24, when Bryson asked for "every hour or two instead
+# of 6". Hourly is comfortably inside both platforms' rate limits at this volume: two
+# reads per linked account per run, so 48 calls a day for one account, against limits
+# measured in thousands. It also HELPS the Meta Marketing API tier request, which was
+# rejected for "not a sufficient number of Ads API calls in the last 15 days" — see KB
+# meta-marketing-api. Four times the traffic is four times the evidence.
+#
+# 🔴 THE PLATFORMS DO NOT UPDATE MINUTE BY MINUTE THEMSELVES. Meta's insights lag real
+# delivery by up to a few hours and Google's can too, so polling faster than this buys
+# nothing but API calls. Hourly is the point where the OS stops being the slow part.
 [functions."ads-sync"]
-  schedule = "0 */6 * * *"
+  schedule = "0 * * * *"
 
 # Every 15 minutes: mirrors BoldLine's OWN inbound leads (the website form, the quiz
 # and Calendly bookings, all of which land in website_leads) onto the My Ads house

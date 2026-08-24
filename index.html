@@ -1392,6 +1392,12 @@ const adPerfStats = (cl) => {
     ctr: impressions>0 ? clicks/impressions : null,
     leadsTotal: log.length,
     leads30,
+    // When the lead mirror last checked, and whether it has gone quiet. With no leads
+    // yet, "0" is both the right answer and what a broken sync looks like, so the two
+    // have to be told apart on screen.
+    leadsSyncedAt: (cl && cl.leadSync && cl.leadSync.at) || null,
+    leadsSyncStale: !!(cl && cl.leadSync && cl.leadSync.at
+      && (Date.now() - new Date(cl.leadSync.at).getTime()) > 3 * 3600e3),
     // Cost per lead only means something with BOTH a spend and a lead in the window.
     cpl: (leads30>0 && spend30>0) ? spend30/leads30 : null,
     // A linked account that failed to read is the one thing worth shouting about —
@@ -5221,10 +5227,15 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                           {cell("Views",st.impressions.toLocaleString(),"last 30 days")}
                           {cell("Clicks",st.clicks.toLocaleString(),st.ctr!=null?`${(st.ctr*100).toFixed(1)}% of views`:null)}
                           {cell("Spent","$"+Math.round(st.spend30).toLocaleString(),"last 30 days")}
-                          {cell("Leads",st.leads30,"last 30 days")}
+                          {cell("Leads",st.leads30,st.leadsSyncedAt?`checked ${ago(st.leadsSyncedAt)}`:"last 30 days")}
                           {cell("Cost / lead",st.cpl!=null?"$"+Math.round(st.cpl).toLocaleString():"—",st.cpl!=null?"spend ÷ leads":"needs a lead and some spend")}
                         </div>
                         {st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
+                        {/* With no leads yet, 0 is both the right answer and what a
+                            broken sync looks like. Say which it is. */}
+                        {st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. A new enquiry shows up here within 15 minutes.</div>}
+                        {st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>The lead check has not run since {ago(st.leadsSyncedAt)}. It should run every 15 minutes, so a lead could be missing from this count.</div>}
+                        {!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It runs every 15 minutes and fills this in on its first pass.</div>}
                       </>}
                   {st.errors.length>0&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,background:`${C.amber}10`}}>
                     <div style={{fontSize:10.5,fontWeight:800,color:C.amber,marginBottom:3}}>These numbers are stale</div>
