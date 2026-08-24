@@ -285,5 +285,65 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   ok("and does not claim there is no local market", !/DOES NOT HAVE A LOCAL MARKET/.test(loc));
 }
 
+// ── 11. The card does not enforce a rule the server does not have ─────────────
+// Bryson, 2026-08-22, on a card telling him to set a service area: "This doesn't make
+// sense also there isn't a place to add that in edit". Both halves were true.
+{
+  // 🔴 The card kept its OWN copy of "can this run", and it contradicted the change made
+  // minutes before: BoldLine sells nationally, so the job searches six metros with no
+  // service area at all. The server is the only authority on whether there is anywhere
+  // to look; it writes a plain reason when there is not, and the card renders it.
+  ok("the run button is not gated on a service area",
+    /<button onClick=\{run\} disabled=\{running\}/.test(UI));
+  ok("the old contradictory message is gone",
+    !/Set a service area in Edit first/.test(UI));
+  ok("the card still shows whatever reason the server gave",
+    /mr\.status==="error"&&!running&&<div[^>]*>\{mr\.error\}/.test(UI));
+  // A national account is described as national, not as searching one suburb.
+  ok("the house account is told the search is national",
+    /across the country, not just near you/.test(UI));
+  // And a client with no area gets a pointer to a field that now actually exists.
+  ok("a client with no area is pointed at a real place",
+    /Edit → Campaign → Campaign Details/.test(UI));
+}
+
+// ── 12. The fields the research needs are editable in the OS ──────────────────
+// They lived ONLY on the client portal, which the house account does not have, so on
+// his own account there was no way to set any of them.
+{
+  ok("the Edit sheet can write nested groups",
+    /const setIn = \(group,k,v\) => setForm/.test(UI));
+  const editCard = UI.match(/<Label>Campaign Details<\/Label>[\s\S]*?<\/Card>/);
+  ok("a Campaign Details card exists in Edit", !!editCard);
+  for (const k of ["serviceArea", "targetLocations", "mainOffer", "avgTicket",
+                   "excludedKeywords", "leadDestination", "crmSystem"]) {
+    ok(`${k} is editable`, !!editCard && editCard[0].includes(`k:"${k}"`));
+  }
+  ok("they write into campaignSetup", !!editCard && /setIn\("campaignSetup",k,e\.target\.value\)/.test(editCard[0]));
+
+  const voice = UI.match(/<Label>Brand Voice<\/Label>[\s\S]*?<\/Card>/);
+  ok("brand voice is editable too", !!voice);
+  ok("including the competitor list", !!voice && voice[0].includes('k:"competitors"'));
+  ok("and the differentiator the research proposes", !!voice && voice[0].includes('k:"differentiator"'));
+  // 🔴 Tightened after this failed to bite: the loose form matched the TONE select's
+  // own `setIn("brandVoice","tone",…)` while the two text inputs were broken. It has to
+  // name the keyed write the inputs actually use.
+  ok("the tone select writes into brandVoice", !!voice && /setIn\("brandVoice","tone",e\.target\.value\)/.test(voice[0]));
+  ok("and so do the competitor and differentiator boxes",
+    !!voice && /setIn\("brandVoice",k,e\.target\.value\)/.test(voice[0]));
+  // One tone list, shared with the portal, so the two cannot drift apart.
+  ok("the tone list is shared, not a second copy",
+    /^const TONES = \["", "Professional"/m.test(UI)
+    && (UI.match(/const TONES\s*=/g) || []).length === 1);
+
+  // 🔴 The two boxes that were removed. Leads and cost per lead are computed now, so a
+  // box that looks like it sets them and does not is worse than no box.
+  ok("the dead Total Leads box is gone", !/l:"Total Leads Generated"/.test(UI));
+  ok("the dead Average CPL box is gone", !/l:"Average CPL \(\$\)"/.test(UI));
+  ok("and the screen says why there is nothing to type",
+    /worked out from your real leads and real ad spend/.test(UI));
+  ok("the ad budget is still editable", /set\("adBudget",e\.target\.value\)/.test(UI));
+}
+
 console.log(`verify-market-research: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

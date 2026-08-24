@@ -2,7 +2,7 @@
 name: market-research
 topic: Ads
 task: run or change the automated competitor research, or work out where the ad differentiator and competitor list come from
-keywords: [market research, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
+keywords: [market research, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
 status: built
 summary: Market Research went from a hand-tracked step with no artifact to an automated one. It finds real competitors through Google Places, reads their sites to see who is actually buying ads, researches positioning with web search, and proposes up to four differentiators. It PROPOSES only, never writes brandVoice, and any proposal without evidence is dropped rather than shown with a caveat.
 verified: 2026-08-22
@@ -125,3 +125,38 @@ known-bad inputs are pinned by test.
 **98 checks now.** Three more deliberate breaks confirmed to fail: a national search
 collapsing to one city, a local business being given national metros, and the naive comma
 split coming back.
+
+## Follow-up: the card enforced a rule the server does not have, and pointed at a field that did not exist
+
+Bryson, on a card reading "Set a service area in Edit first": *"This doesn't make sense also
+there isn't a place to add that in edit"*. Both halves were true, and there was a third
+problem in the same screen.
+
+**1. The card kept its own copy of "can this run".** It required a service area, which
+directly contradicted the change made minutes earlier: BoldLine sells nationally, so the job
+searches six metros with **no service area at all**. The button is no longer gated here. The
+server is the only authority on whether there is anywhere to look; it writes a plain reason
+when there is not, and the card renders it. **One rule, in one place** — the same lesson as
+the leads mirror and the landing page.
+
+**2. 🔴 THE FIELD GENUINELY DID NOT EXIST.** Every `campaignSetup` field — service area, main
+offer, average job value, target locations, exclusions, lead destination, CRM — and all of
+`brandVoice` lived **only on the client portal**, the page a CLIENT fills in. The house
+account has no portal. So on his own account there was no way to set any of them, and the
+OS had been telling him to for a while: the pipeline's Market Research step said "Add
+competitors and a differentiator in Edit", and Edit had no such field.
+
+Edit → Campaign now has **Campaign Details** and **Brand Voice** cards writing the real
+nested groups through a new `setIn(group, key, value)`. `TONES` was hoisted to module scope
+so the portal and the OS cannot offer different lists.
+
+**3. Two dead controls, removed.** "Total Leads Generated" and "Average CPL ($)" were
+editable number boxes in that same section. Both values are now **computed** from the lead
+log and live ad spend (KB `live-stats`), so typing in them changed nothing on any screen. A
+control that looks like it sets something and does not is worse than no control. The section
+now says plainly that both are worked out from real leads and real spend.
+
+**123 checks.** Five more deliberate breaks confirmed to fail. **One did not bite on the
+first attempt** and had to be tightened: asserting `setIn("brandVoice"` appeared anywhere
+matched the tone select's own call while both text inputs were broken, so it now names the
+keyed write the inputs actually use.
