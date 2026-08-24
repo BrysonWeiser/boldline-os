@@ -70,10 +70,26 @@ export default async () => {
     const cl = house.data || {};
     const { kept, added, updated, pruned, changed } = mergeHouseLeads(cl.leadsLog, leads, { limit: PRUNE_LIMIT });
 
-    if (!changed) return json({ ok: true, house: true, scanned: leads.length, added: 0, updated: 0, pruned: 0, total: kept.length });
+    // 🔴 A HEARTBEAT, SO "NO LEADS YET" AND "THIS STOPPED WORKING" LOOK DIFFERENT.
+    // Bryson, 2026-08-24: "I also want to make sure the actual lead count works (i havent
+    // gotten any yet but i still want to test that itll work)". He cannot test it with no
+    // leads, and that is exactly the state where a broken mirror is invisible: the screen
+    // reads 0, which is also the correct answer, so nothing looks wrong. Every screen that
+    // shows a lead count now also shows when this last checked, and says so when it has
+    // not run in a while. Same reasoning as the "These numbers are stale" panel on the ad
+    // card: a failed read must never be indistinguishable from a real zero.
+    const prevSync = cl.leadSync || {};
+    const staleBeat = !prevSync.at || (Date.now() - new Date(prevSync.at).getTime()) > 55 * 60e3;
+    const leadSync = { at: new Date().toISOString(), scanned: leads.length, total: kept.length };
+
+    // Nothing changed and the heartbeat is fresh: no write at all. Without this the job
+    // would touch the client row 96 times a day purely to record that it did nothing.
+    if (!changed && !staleBeat) {
+      return json({ ok: true, house: true, scanned: leads.length, added: 0, updated: 0, pruned: 0, total: kept.length, beat: false });
+    }
 
     const { error: upErr } = await supabase.from("clients")
-      .update({ data: { ...cl, leadsLog: kept, leads: kept.length }, updated_at: new Date().toISOString() })
+      .update({ data: { ...cl, leadsLog: kept, leads: kept.length, leadSync }, updated_at: new Date().toISOString() })
       .eq("id", house.id);
     if (upErr) return json({ ok: true, error: `client update failed: ${upErr.message}`, added: 0 });
 

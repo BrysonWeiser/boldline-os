@@ -2,7 +2,7 @@
 name: house-leads-mirror
 topic: Forms/Leads
 task: work out why BoldLine's own My Ads account shows no leads, no cost per lead or no live ad numbers, or change how website leads reach the house account
-keywords: [house account, my ads, internal client, website_leads, leadsLog, house-leads, mirror, leads 0, avg cpl, cost per lead, ad health score, adPerf, ads-sync, live ad performance, acquisition roi, leads arriving, house-leads-merge, delete lead, lead comes back, deleted lead reappears, tombstone, calendly re-insert, newsletter subscribers as leads, website_leads RLS insert]
+keywords: [house account, leadSync, heartbeat, lead count test, ads-sync hourly, sync stale, zero leads or broken, my ads, internal client, website_leads, leadsLog, house-leads, mirror, leads 0, avg cpl, cost per lead, ad health score, adPerf, ads-sync, live ad performance, acquisition roi, leads arriving, house-leads-merge, delete lead, lead comes back, deleted lead reappears, tombstone, calendly re-insert, newsletter subscribers as leads, website_leads RLS insert]
 status: verified
 summary: BoldLine's own ads send people to /get-started, whose leads land in the `website_leads` table, but the house account keeps leads on the client record in `leadsLog`. Nothing joined them, so the My Ads overview read `leads: 0` forever and five separate things derived from that number were wrong with it. A 15-minute `house-leads` job now mirrors website leads onto the internal client (deduped on the row id, status synced one way until he moves it by hand), and the Overview gained a Live Ad Performance card that renders the ads-sync snapshot instead of hiding it on the Campaigns tab.
 verified: 2026-08-22
@@ -178,3 +178,43 @@ actually stored. That also means if the delete ever is genuinely refused, he wil
 rather than left guessing.
 
 **73 checks in `verify-house-leads.mjs`, seven more deliberate breaks confirmed to fail.**
+
+## Follow-up 2026-08-24: hourly ad numbers, and a heartbeat on the lead count
+
+Bryson: *"can you make it so the ads performance metrics in the os updated accurately every
+hour or two instead of 6. I also want to make sure the actual lead count works (i havent
+gotten any yet but i still want to test that itll work)."*
+
+**`ads-sync` is now HOURLY** (was every 6 hours). Comfortably inside both platforms' limits
+at this volume: two reads per linked account per run, 48 calls a day for one account against
+limits in the thousands. It also **helps the Meta Marketing API tier request**, which was
+rejected for *"not a sufficient number of Ads API calls in the last 15 days"* — four times
+the traffic is four times the evidence (KB `meta-marketing-api`).
+
+Recorded so nobody tries to make it faster: **the platforms do not update minute by minute
+themselves.** Meta's insights lag real delivery by up to a few hours and Google's can too.
+Polling harder than hourly buys nothing but API calls. Hourly is where the OS stops being
+the slow part.
+
+### 🔴 The second half is the interesting one
+
+He wants to verify the lead count works **while having no leads**. He cannot, and that is
+precisely the state where a broken mirror is invisible: **the screen reads 0, which is also
+the correct answer**, so nothing looks wrong. Exactly the shape of the `client.cpl` defect
+and of the failed ad read that looked like a zero.
+
+So `house-leads` now writes a **heartbeat** (`leadSync: { at, scanned, total }`), and every
+screen that shows a lead count shows when the check last ran:
+
+- healthy and zero → *"No leads yet, and the lead check is running normally. A new enquiry
+  shows up here within 15 minutes."*
+- gone quiet (no run in 3 hours) → an amber line saying so, because a lead could be missing.
+- never run → says it has not reported in yet.
+
+**It does not write 96 times a day to say nothing happened.** A quiet run with a heartbeat
+under 55 minutes old writes nothing at all; only a change, or an hour of silence, touches
+the record. That keeps the honesty without the noise.
+
+**86 checks.** Three more deliberate breaks confirmed to fail. One existing assertion had to
+be **updated rather than deleted** when the early-return gained the heartbeat condition:
+its intent (a quiet run writes nothing) still holds, the expression it pinned had changed.

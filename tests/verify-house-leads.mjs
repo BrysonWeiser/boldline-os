@@ -242,7 +242,11 @@ const wl = (id, over = {}) => ({
     /\.from\("website_leads"\)\s*\n?\s*\.select\(/.test(SRC_CODE)
     && !/\.from\("website_leads"\)[\s\S]{0,120}?\.(insert|update|delete|upsert)\(/.test(SRC_CODE));
   ok("the leads counter is kept in step with the log", /leads: kept\.length/.test(SRC_CODE));
-  ok("a run that changed nothing writes nothing", /if \(!changed\) return json/.test(SRC_CODE));
+  // Now conditional on the heartbeat too: a quiet run still writes nothing while the
+  // heartbeat is fresh, and writes only the heartbeat once an hour so the OS can tell
+  // "no leads yet" apart from "this stopped working". See section 9.
+  ok("a quiet run with a fresh heartbeat still writes nothing",
+    /if \(!changed && !staleBeat\) \{/.test(SRC_CODE));
   ok("the read page size is the same one the merge prunes against",
     /\.limit\(PRUNE_LIMIT\)/.test(SRC_CODE) && PRUNE_LIMIT === 1000);
   ok("it is scheduled every 15 minutes", /\[functions\."house-leads"\]\s*\n\s*schedule = "\*\/15 \* \* \* \*"/.test(TOML));
@@ -267,6 +271,44 @@ const wl = (id, over = {}) => ({
   // Parity: the card is not house-only. A client with a linked account gets it too.
   ok("clients with a linked account get the same card",
     /\{\(client\.internal\|\|client\.googleAdsCustomerId\|\|client\.metaAdAccountId\)&&\(\(\)=>\{\s*\n\s*const st = adPerfStats\(client\);/.test(UI));
+}
+
+// ── 9. A heartbeat, so "no leads yet" and "this broke" look different ─────────
+// Bryson, 2026-08-24: "I also want to make sure the actual lead count works (i havent
+// gotten any yet but i still want to test that itll work)".
+//
+// 🔴 HE CANNOT TEST IT WITH NO LEADS, AND THAT IS EXACTLY THE STATE WHERE A BROKEN
+// MIRROR IS INVISIBLE. The screen reads 0, which is also the correct answer, so nothing
+// looks wrong. Same shape as the "These numbers are stale" panel on the ad card: a
+// failed read must never be indistinguishable from a real zero.
+{
+  ok("the job records when it last checked", /const leadSync = \{ at: new Date\(\)\.toISOString\(\)/.test(SRC_CODE));
+  ok("and stores it on the record", /leadSync \}/.test(SRC_CODE));
+  // It must still not write 96 times a day just to say it did nothing.
+  ok("a quiet run with a fresh heartbeat writes nothing",
+    /if \(!changed && !staleBeat\) \{/.test(SRC_CODE));
+  ok("but a quiet run with a stale heartbeat does write",
+    /const staleBeat = !prevSync\.at \|\| \(Date\.now\(\) - new Date\(prevSync\.at\)\.getTime\(\)\) > 55 \* 60e3;/.test(SRC_CODE));
+
+  const UI_CODE2 = code(UI);
+  ok("the OS reads the heartbeat", /leadsSyncedAt: \(cl && cl\.leadSync && cl\.leadSync\.at\) \|\| null/.test(UI_CODE2));
+  ok("and works out whether it has gone quiet",
+    /leadsSyncStale: !!\(cl && cl\.leadSync && cl\.leadSync\.at/.test(UI_CODE2));
+  ok("the card says zero leads is normal when the check is healthy",
+    /No leads yet, and the lead check is running normally/.test(UI));
+  ok("and warns plainly when it is not", /The lead check has not run since/.test(UI));
+  ok("and says so before the first run too", /has not reported in yet/.test(UI));
+  ok("the leads tile shows when it last checked", /checked \$\{ago\(st\.leadsSyncedAt\)\}/.test(UI));
+}
+
+// ── 10. Ad numbers refresh hourly ─────────────────────────────────────────────
+// Bryson: "can you make it so the ads performance metrics in the os updated accurately
+// every hour or two instead of 6".
+{
+  ok("ads-sync runs hourly", /\[functions\."ads-sync"\]\s*\n\s*schedule = "0 \* \* \* \*"/.test(TOML));
+  ok("and no longer every six hours", !/schedule = "0 \*\/6 \* \* \*"/.test(TOML));
+  ok("the lead mirror still runs every 15 minutes",
+    /\[functions\."house-leads"\]\s*\n\s*schedule = "\*\/15 \* \* \* \*"/.test(TOML));
 }
 
 console.log(`verify-house-leads: ${pass} passed, ${fail} failed`);
