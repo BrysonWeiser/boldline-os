@@ -71,7 +71,7 @@
 
 - **[account-email-map](../knowledge/account-email-map.md)** &mdash; &#9888; stale-able &middot; 2026-08-24  
   Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login (by design — one login, many future orgs), old/aged Facebook account. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.  
-  <sub>*task:* know which email/login owns which external account before signing in or setting one up &nbsp;|&nbsp; *keywords:* account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login, docusign-login, which email for docusign</sub>
+  <sub>*task:* know which email/login owns which external account before signing in or setting one up &nbsp;|&nbsp; *keywords:* account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login, docusign-login, which email for docusign, docusign production admin, go live form email</sub>
 - **[business-constraint-ad-spend](../knowledge/business-constraint-ad-spend.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   HARD RULE — the client always owns and is billed for their own ad account; BoldLine never fronts, holds, or is financially exposed for client ad spend, and only ever holds manager-level access. Stripe (not started) will bill BoldLine's service fee ONLY, never ad spend.  
   <sub>*task:* make any billing, ad-account, Stripe, or Meta decision without violating the ad-spend ownership rule &nbsp;|&nbsp; *keywords:* ad-spend, MCC, manager-access, stripe, service-fee, client-owns-account</sub>
