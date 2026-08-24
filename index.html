@@ -584,9 +584,9 @@ const botWorkLog = (cl, pkg, botId) => {
         ],
         note: "Every ad and landing page the OS writes reads the last two lines. Until they are set it writes without them.",
         next: (bv.competitors && bv.differentiator) ? null
-              : mr.status === "done" && props ? "Open Market Research on the Campaigns tab and pick a position."
+              : mr.status === "done" && props ? "Open the Competitors tab and pick a position."
               : mr.status === "running" ? "Research is running now."
-              : "Run Market Research on the Campaigns tab.",
+              : "Run Market Research on the Competitors tab.",
       };
     },
     avatar: () => ({
@@ -2470,6 +2470,47 @@ const briefMdToNodes = (md) => {
 // evidence behind it and waits for a person to press Use. Anything grounded in a GAP
 // rather than in what the business has already said is marked as needing confirming,
 // and that mark is computed in market-research-shared.mjs, not decided here.
+// What is ACTUALLY in use, read straight off the saved record.
+//
+// Bryson, 2026-08-24, after pressing Use: "is it in use now or will it not be saved and
+// in use when i change screens?" A green button inside the report answers "you pressed
+// this", which is not the same question. This card answers the real one, because it reads
+// `brandVoice` (the stored field every ad writer reads) rather than the research that
+// proposed it, and the OS refreshes that field from the database every 15 seconds. So if
+// it shows here, it is saved.
+//
+// It also states the one thing that is genuinely NOT automatic: a published ad's wording
+// cannot be edited on either platform, so these only reach ads built from now on.
+function AdPositionCard({client}){
+  const bv   = client.brandVoice || {};
+  const diff = (bv.differentiator||"").trim();
+  const comp = (bv.competitors||"").trim();
+  const who  = client.internal ? "your" : `${client.name}'s`;
+  const row  = (label,value,empty) => (
+    <div style={{padding:"9px 0",borderBottom:`1px solid ${C.border2}`}}>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:4}}>{label}</div>
+      <div style={{fontSize:value?12.5:11.5,fontWeight:value?600:400,color:value?C.text:C.textMuted,lineHeight:1.6}}>{value||empty}</div>
+    </div>
+  );
+  return (
+    <Card>
+      <Label>In Use In {client.internal?"Your":"Their"} Ads</Label>
+      {row("The line you own",diff,"Nothing chosen yet. Pick one below and press Use.")}
+      {row("Competitors on file",comp,"Not saved yet. Save the list below.")}
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginTop:10}}>
+        {(diff||comp)
+          ? <>Saved. Every Google ad, Meta ad and landing page the OS writes for {who} account from now on is written from these. They are stored on the account, so they stay put when you leave this screen.</>
+          : <>Until these are set, the OS writes {who} ads without them and they sound like everyone else's.</>}
+      </div>
+      {diff&&(
+        <div style={{fontSize:11,color:C.amber,lineHeight:1.65,marginTop:7}}>
+          An ad that is already running keeps its current wording. Neither Google nor Meta lets anyone edit a published ad's text, so this reaches the next ad you build or a creative swap on the live one.
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function MarketResearchCard({client,onUpdate}){
   const [busy,setBusy] = useState(false);
   const [err,setErr]   = useState("");
@@ -2547,7 +2588,12 @@ function MarketResearchCard({client,onUpdate}){
               {mr.competitors.map((c,i)=>(
                 <div key={c.name+i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:i<mr.competitors.length-1?`1px solid ${C.border2}`:"none"}}>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+                    {/* Clickable, because "view my competitors" means going and looking
+                        at them. Opens in a new tab so the OS is not navigated away from. */}
+                    {c.website
+                      ? <a href={c.website} target="_blank" rel="noopener noreferrer"
+                          style={{fontSize:12,fontWeight:600,color:C.gold,textDecoration:"none",display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name} ↗</a>
+                      : <div style={{fontSize:12,fontWeight:600,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>}
                     <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>
                       {[c.rating?`${c.rating}★`:"",c.reviewCount?`${c.reviewCount} reviews`:"",c.city||""].filter(Boolean).join(" · ")||"no listing details"}
                     </div>
@@ -4990,7 +5036,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   // → "Campaigns" (no service tier — just the launch cards), and rename the
   // "Client View" tab → "Assets" (keeps the landing-page/media/call-tracking
   // tools needed to run ads; the client-portal preview inside it is hidden).
-  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
+  // "Competitors" is its own tab rather than a card buried at the bottom of Campaigns
+  // (Bryson, 2026-08-24: "i also need a seperate tab to be able to view my competitors").
+  // It is the one screen you go back to READ rather than to do something, so it needs a
+  // door of its own.
+  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
                    .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log")))
                    .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
   const onboardingSteps = [
@@ -5570,7 +5620,6 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
-            <MarketResearchCard client={client} onUpdate={onUpdate}/>
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
@@ -5594,6 +5643,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
           </>
         )}
 
+        {tab==="research"&&(
+          <div style={S.col11}>
+            <AdPositionCard client={client}/>
+            <MarketResearchCard client={client} onUpdate={onUpdate}/>
+          </div>
+        )}
         {tab==="contract"&&<ContractTabContent client={client} pkg={pkg} days={days} onUpdate={onUpdate} onRenew={(newEnd,extra)=>{onUpdate({...client,contractEnd:newEnd,contractStatus:"active",contractSigned:true,...(extra||{}),alerts:client.alerts.filter(a=>a.type!=="contract_7"&&a.type!=="contract_30")});}}/>}
         {tab==="emails"&&<EmailCenterTab client={client} pkg={pkg} onUpdate={onUpdate}/>}
         {tab==="reports"&&<ReportsTabContent client={client} pkg={pkg}/>}
@@ -10234,7 +10289,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 land when Use is pressed, and where they can be edited afterwards. */}
             <Card>
               <Label>Brand Voice</Label>
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Market Research on the Campaigns tab fills the last two in for you. You can edit them here any time.</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Market Research on the Competitors tab fills the last two in for you. You can edit them here any time.</div>
               <div style={fieldStyle}>
                 <label style={fieldLabelStyle}>Tone</label>
                 <select value={(form.brandVoice&&form.brandVoice.tone)||""} onChange={e=>setIn("brandVoice","tone",e.target.value)} style={inp}>
@@ -11541,6 +11596,7 @@ function App({onLogout}) {
   const [showMore,setShowMore]         = useState(false);
   const [leads,setLeads]               = useState([]);
   const [leadError,setLeadError]       = useState("");   // shown on the Leads screen when a save or delete is refused
+  const [clientError,setClientError]   = useState("");   // shown app-wide when a client save is refused (see updateClient)
   // Set by Lead Scout when you push a prospect into Deal Prep; DealPrepScreen
   // consumes it once and clears it so re-opening the screen starts clean.
   const [dealSeed,setDealSeed]         = useState(null);
@@ -11673,11 +11729,26 @@ function App({onLogout}) {
     fresh.slice(0, 3).forEach(l => pushToast({ severity: "gold", label: "New lead", nav: "leads", client: "Website", msg: l.name || l.business || l.email || "New website lead" }));
   }, [leads, pushToast]);
 
+  // ── A REFUSED SAVE MUST NOT LOOK LIKE A SUCCESSFUL ONE ───────────────────────
+  // Every change to a client record is optimistic: the screen updates instantly and the
+  // write goes off behind it. That is the right feel, but the failure used to go to the
+  // browser console, where nobody would ever see it.
+  //
+  // 🔴 AND HERE IT IS WORSE THAN SILENT, IT IS ACTIVELY MISLEADING. `refreshClients`
+  // replaces the open client with the server's copy every 15 seconds. So a refused save
+  // shows as done, then quietly reverts a few seconds later with no explanation at all —
+  // which is exactly what "did that actually save?" feels like from the outside. Same
+  // defect the Leads screen had, same fix: say so, on screen, and say what will happen.
   const updateClient = useCallback((updated) => {
     setClients(prev=>prev.map(c=>c.id===updated.id?updated:c));
     if((activeClient && activeClient.id)===updated.id) setActiveClient(updated);
+    setClientError("");
     supabaseClient.from("clients").update({ data:updated, updated_at:new Date().toISOString() }).eq("id",updated.id)
-      .then(({error})=>{ if(error) console.error("Save failed:", error); });
+      .then(({error})=>{
+        if(!error) return;
+        console.error("Save failed:", error);
+        setClientError("That change couldn't be saved, so it will undo itself on screen in a few seconds. Nothing else was lost. Check your connection and try again.");
+      });
   },[activeClient]);
 
   const deleteClient = useCallback((id) => {
@@ -11863,6 +11934,18 @@ function App({onLogout}) {
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
       {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
+      {/* Sits OUTSIDE .os-content on purpose: that element animates its opacity, which
+          makes it a permanent stacking context and would trap this behind the screen
+          (the same trap that hid the bot chat bar). A refused save has to be seen. */}
+      {clientError&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,zIndex:320,display:"flex",alignItems:"flex-start",gap:10,
+          padding:"11px 14px",paddingTop:"calc(11px + env(safe-area-inset-top))",
+          borderBottom:`1px solid ${C.red}55`,backgroundColor:"rgba(48,14,14,.97)",backdropFilter:"blur(8px)"}}>
+          <span style={{fontSize:13,color:C.red,flexShrink:0,lineHeight:1.5}}>⚠</span>
+          <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,flex:1,minWidth:0}}>{clientError}</div>
+          <button onClick={()=>setClientError("")} style={{fontSize:12,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:"pointer",padding:"0 4px",flexShrink:0}}>✕</button>
+        </div>
+      )}
       {toasts.length>0&&(
         <div style={isDesktop
           ? {position:"fixed",right:20,bottom:20,left:"auto",zIndex:300,display:"flex",flexDirection:"column",gap:8,width:300,pointerEvents:"none"}

@@ -123,7 +123,8 @@ const go = async (over, reqArgs) => {
   const { S } = await go();
   const areas = S.places.map((p) => p.area);
   eq("every market was searched", areas.length, 7);
-  eq("his own first", areas[0], "Gilbert, Arizona");
+  eq("the metro leads, not the suburb", areas[0], "Phoenix, Arizona");
+  ok("and the suburb is never searched", !areas.includes("Gilbert, Arizona"), areas.join(" | "));
   for (const m of NATIONAL_MARKETS) ok(`and ${m}`, areas.includes(m));
   ok("looking for his actual niche", S.places.every((p) => /marketing agency/i.test(p.niche)));
   ok("competitor sites were opened to see who is buying ads", S.inspected.length > 0);

@@ -103,19 +103,28 @@ export const splitAreas = (text) => {
 // so a national search is not just one city repeated. Deliberately short: each entry is
 // another lookup, and past a handful the extra names stop changing the picture.
 export const NATIONAL_MARKETS = [
-  "Los Angeles, California", "New York, New York", "Dallas, Texas",
+  "Phoenix, Arizona", "Los Angeles, California", "New York, New York", "Dallas, Texas",
   "Chicago, Illinois", "Atlanta, Georgia", "Miami, Florida",
 ];
 
-// Everywhere worth looking, own market first. A local business gets its own area plus
-// the places its ads point at; a national one gets its own area plus the wider markets,
-// because leaving its own out would hide the competitors it bumps into most.
+// 🔴 A SUBURB IS NOT A MARKET, AND FOR A NATIONAL SELLER IT IS NOT EVEN A HOME MARKET.
+// Bryson, 2026-08-24: "when we research competitors dont research gilbert research the
+// phoenix metro area". The first version searched his own town first, on the reasoning
+// that it is where he bumps into people most. That reasoning is wrong for a business that
+// sells remotely: nobody hires an agency because it is in the next suburb, and searching
+// Gilbert returned a handful of small shops that are not really who he is up against.
+// The nearest METRO is the real home market, so Phoenix leads the list.
+//
+// A national business now searches metros ONLY. Its own town is deliberately left out
+// rather than added on top, because including it spends one of the seven lookups on the
+// weakest market on the list. A LOCAL business is untouched: for a roofer the town really
+// is the whole market, since a customer can only call someone who will drive to them.
 export const researchAreas = (cl, max = 7) => {
   const cs = (cl && cl.campaignSetup) || {};
   const own = researchArea(cl);
   const targets = splitAreas(cs.targetLocations);
   const list = sellsNationally(cl)
-    ? [own, ...NATIONAL_MARKETS]
+    ? [...NATIONAL_MARKETS]
     : [own, ...targets];
   const seen = new Set();
   return list.filter((a) => {

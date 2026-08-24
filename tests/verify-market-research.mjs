@@ -250,11 +250,22 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   ok("a roofer in one metro does not", !sellsNationally({ niche: "Roofing", campaignSetup: { serviceArea: "Mesa, Arizona" } }));
   ok("nor a dentist", !sellsNationally({ niche: "Dental", campaignSetup: { serviceArea: "Gilbert, Arizona", targetLocations: "Gilbert, Arizona" } }));
 
+  // 🔴 A SUBURB IS NOT A MARKET. Bryson, 2026-08-24: "when we research competitors dont
+  // research gilbert research the phoenix metro area". The first version put his own town
+  // first, reasoning that it is where he bumps into people most. That is wrong for a
+  // business that sells remotely, and it spent one of seven lookups on the weakest market
+  // on the list. The nearest metro leads instead, and the town is gone entirely.
   const house = researchAreas({ internal: true, campaignSetup: { serviceArea: "Gilbert, Arizona" } });
   ok("a national search covers several markets", house.length > 3, `got ${house.length}`);
-  eq("and starts with his own, which is where he bumps into people most", house[0], "Gilbert, Arizona");
-  ok("and reaches beyond his state", house.some((a) => !/Arizona/.test(a)));
+  eq("it leads with the metro, not the suburb", house[0], "Phoenix, Arizona");
+  ok("and the suburb is not searched at all", !house.includes("Gilbert, Arizona"), house.join(" | "));
+  ok("and it reaches beyond his state", house.some((a) => !/Arizona/.test(a)));
+  ok("every market searched is one of the national ones",
+    house.every((a) => NATIONAL_MARKETS.includes(a)), house.join(" | "));
   ok("every national market is a real place with a state", NATIONAL_MARKETS.every((m) => /, [A-Z][a-z]/.test(m)));
+  // The model must not be told it is researching a town it never looked at.
+  ok("a national run reports the country as the area researched",
+    /const area = national \? "the United States" : researchArea\(cl\);/.test(FN_CODE));
 
   const local = researchAreas({ niche: "Roofing", campaignSetup: { serviceArea: "Mesa, Arizona", targetLocations: "Mesa, Arizona, Tempe, Arizona" } });
   ok("a local business stays inside the places it serves",
@@ -404,6 +415,74 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
     /The AI rewrites this, it never copies it/.test(UI));
   ok("and the card explains the base does not limit reach",
     /it does not limit who sees your ads/.test(UI));
+}
+
+// ── The Competitors tab, and whether a choice actually STICKS ─────────────────
+// Bryson, 2026-08-24, after pressing Use on a proposal: "is it in use now or will it not
+// be saved and in use when i change screens? i also need a seperate tab to be able to
+// view my competitors."
+{
+  // A door of its own. The report is the one screen you come back to READ.
+  ok("Competitors is a real tab", /\["research","Competitors"\]/.test(UI_CODE));
+  ok("the research card renders on it", /\{tab==="research"&&\(/.test(UI_CODE));
+  ok("and no longer sits at the bottom of the Campaigns tab",
+    (UI_CODE.match(/<MarketResearchCard client=\{client\} onUpdate=\{onUpdate\}\/>/g) || []).length === 1);
+  // The house account renames some tabs; this one must survive that untouched, or it
+  // would vanish from the only account currently using it.
+  const tabs = (UI_CODE.match(/const TABS   = \[[\s\S]*?\n/) || [""])[0];
+  ok("the house account keeps it", !/k==="research"/.test(tabs));
+
+  // Everything that used to point at the old location must point at the new one, or the
+  // OS tells him to look somewhere the card is not.
+  ok("the pipeline sends him to the Competitors tab", /Competitors tab and pick a position/.test(UI_CODE));
+  ok("and so does the prompt to run it", /Run Market Research on the Competitors tab/.test(UI_CODE));
+  ok("and the Edit hint", /Market Research on the Competitors tab fills the last two/.test(UI_CODE));
+  ok("nothing still points at the Campaigns tab for research",
+    !/Market Research on the Campaigns tab|Campaigns tab and pick a position/.test(UI_CODE));
+
+  // 🔴 THE ANSWER TO "IS IT ACTUALLY SAVED" MUST READ THE SAVED FIELD.
+  // A green button inside the report only proves a click happened. This card reads
+  // `brandVoice`, which is what every ad writer reads and what the 15-second refresh
+  // refills from the database, so showing there IS the proof.
+  const card = (UI_CODE.match(/function AdPositionCard\(\{client\}\)\{[\s\S]*?\n\}\n/) || [""])[0];
+  ok("the in-use card exists", !!card);
+  ok("it reads the stored ad fields", /client\.brandVoice \|\| \{\}/.test(card));
+  ok("not the research that proposed them", !/marketResearch/.test(card));
+  ok("it says the values are stored on the account", /stored on the account/.test(card));
+  ok("and warns that a live ad keeps its current wording",
+    /already running keeps its current wording/.test(card));
+  ok("saying plainly that no platform allows editing a published ad",
+    /lets anyone edit a published ad/.test(card));
+  ok("an empty state says what to do rather than showing blank",
+    /Nothing chosen yet\. Pick one below and press Use\./.test(card));
+
+  // Competitors you can actually go and look at.
+  ok("a competitor with a site is a link", /href=\{c\.website\} target="_blank"/.test(UI_CODE));
+  ok("opened safely", /rel="noopener noreferrer"/.test(UI_CODE));
+
+  // 🔴 A REFUSED SAVE USED TO REVERT ITSELF SILENTLY. `refreshClients` overwrites the open
+  // client with the server copy every 15 seconds, so a write that failed showed as done
+  // and then quietly undid itself with no message at all.
+  const upd = (UI_CODE.match(/const updateClient = useCallback[\s\S]*?\},\[activeClient\]\);/) || [""])[0];
+  // 🔴 THIS ASSERTION DID NOT BITE ON ITS FIRST DRAFT. Merely finding `setClientError(`
+  // somewhere in the function passed even when the call was disabled, because a disabled
+  // call is still a call. It pins the SHAPE now: the error branch runs it, in order.
+  ok("a failed client save is surfaced, not just logged",
+    /if\(!error\) return;\s*\n\s*console\.error\("Save failed:", error\);\s*\n\s*setClientError\(/.test(upd), upd.slice(-320));
+  ok("and a successful one says nothing", /if\(!error\) return;/.test(upd));
+  ok("and clears the last error when a new save starts", /setClientError\(""\);/.test(upd));
+  ok("the message says the screen will undo itself, because it will",
+    /undo itself on screen in a few seconds/.test(UI_CODE));
+  ok("there is somewhere for it to be shown", /\{clientError&&\(/.test(UI_CODE));
+  ok("it is dismissible", /onClick=\{\(\)=>setClientError\(""\)\}/.test(UI_CODE));
+  // The stacking-context trap that hid the bot chat bar: anything inside .os-content is
+  // trapped behind the nav. This banner is rendered beside the toasts, outside it.
+  const shell = UI_CODE.slice(UI_CODE.indexOf('{clientError&&('));
+  ok("the banner sits above everything", /zIndex:320/.test(shell.slice(0, 900)));
+  ok("and is rendered outside the animated screen wrapper",
+    UI_CODE.indexOf('{clientError&&(') > UI_CODE.indexOf('{toasts.length>0&&(') - 1200
+    && UI_CODE.indexOf('{clientError&&(') < UI_CODE.indexOf('{toasts.length>0&&('));
+  ok("it clears the phone's notch", /env\(safe-area-inset-top\)/.test(shell.slice(0, 900)));
 }
 
 console.log(`verify-market-research: ${pass} passed, ${fail} failed`);
