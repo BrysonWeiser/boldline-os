@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { fitPhrase } from "../lib/humanize.mjs";
+import { sellsNationally } from "../lib/market-research-shared.mjs";
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -91,7 +93,19 @@ export function renderLandingPage(cl, opts = {}) {
   const bullets = Array.isArray(lp.bullets) ? lp.bullets : [];
   // Their own number in hand-off mode: the tracking number dies with the rental.
   const phone = HO ? String(HO.phone || "") : (cl.callTrackingNumber || "");
-  const area = cs.serviceArea || cs.targetLocations || "";
+  // 🔴 A NATIONAL BUSINESS MUST NOT BE ADVERTISED AS SERVING ONE TOWN. Bryson,
+  // 2026-08-24, asked exactly the right question: "if i put gilbert, arizona would it
+  // limit the ad to gilbert, arizona or show that I only services gilbert? because
+  // remember i service the whole us and the world". The service area is where a business
+  // is BASED and where competitor research starts. On a page it was being printed as a
+  // public claim, "Serving Gilbert, Arizona", in the hero, the trust row and the footer.
+  // For a business that sells remotely that is not a small wording problem, it turns away
+  // every visitor outside that town.
+  const national = sellsNationally(cl);
+  const rawArea = cs.serviceArea || cs.targetLocations || "";
+  const area = national ? "" : rawArea;
+  // Said positively instead. Never "local businesses", per the standing rule.
+  const reach = national ? "Working with businesses nationwide" : "";
   const offer = cs.mainOffer || "";
   const differentiator = bv.differentiator || "";
   const cta = lp.ctaText || "Get My Free Quote";
@@ -262,13 +276,21 @@ a{color:inherit}
 `;
 
   // ── hero (3 layouts) ──
-  const eyebrowH = `<div class="eyebrow an">${esc(cl.niche || "Trusted local service")}</div>`;
+  // Same rule as the "Serving one town" claim below: a business that sells remotely must
+  // not head its own page as a local service. Only the fallback changes, a real niche is
+  // still printed as given.
+  const eyebrowH = `<div class="eyebrow an">${esc(cl.niche || (national ? "Marketing that brings you customers" : "Trusted local service"))}</div>`;
   const headlineH = `<h1 class="headline an" style="animation-delay:.06s">${esc(lp.headline)}</h1>`;
   const subH = `<p class="subhead an" style="animation-delay:.12s">${esc(lp.subheadline || "")}</p>`;
-  const trustBits = [area ? `<span>📍 <b>${esc(area)}</b></span>` : "", `<span>✅ <b>Free quotes</b></span>`, phone ? `<span>⚡ <b>Fast response</b></span>` : ""].filter(Boolean).join("");
+  const trustBits = [area ? `<span>📍 <b>${esc(area)}</b></span>` : reach ? `<span>🌐 <b>${esc(reach)}</b></span>` : "", `<span>✅ <b>Free quotes</b></span>`, phone ? `<span>⚡ <b>Fast response</b></span>` : ""].filter(Boolean).join("");
   const trustH = trustBits ? `<div class="trust an" style="animation-delay:.24s">${trustBits}</div>` : "";
   const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">📞 Call now</a>` : ""}</div>`;
-  const badgeH = (offer || differentiator) ? `<div class="badge"><span class="bdot">✓</span><span>${esc((differentiator || offer).slice(0, 40))}</span></div>` : "";
+  // 🔴 A RAW .slice(0, 40) PRINTED THE OWNER'S TYPED NOTE, CHOPPED MID-WORD, ON A LIVE
+  // PAGE. Same defect already fixed in the ad writers. `fitPhrase` trims to a whole
+  // thought and returns nothing when it cannot, so the badge is HIDDEN rather than
+  // showing half a sentence. No badge beats a broken one.
+  const badgeText = fitPhrase(differentiator || offer, 44);
+  const badgeH = badgeText ? `<div class="badge"><span class="bdot">✓</span><span>${esc(badgeText)}</span></div>` : "";
 
   // The lead form (single instance on the page) — reused in the hero (capture layout)
   // or in the bottom form section (all other layouts). id="lead-form" is the scroll target.
@@ -393,7 +415,8 @@ a{color:inherit}
   const formJS = HO ? handoffFormJS : managedFormJS;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
-  const chips = [area ? `<div class="chip">📍 Serving ${esc(area)}</div>` : "", differentiator ? `<div class="chip">⭐ ${esc(differentiator.slice(0, 60))}</div>` : "", `<div class="chip">✅ Free quote — no obligation</div>`, phone ? `<div class="chip">⚡ Fast response</div>` : ""].filter(Boolean).join("");
+  const diffChip = fitPhrase(differentiator, 64);
+  const chips = [area ? `<div class="chip">📍 Serving ${esc(area)}</div>` : reach ? `<div class="chip">🌐 ${esc(reach)}</div>` : "", diffChip ? `<div class="chip">⭐ ${esc(diffChip)}</div>` : "", `<div class="chip">✅ Free quote, no obligation</div>`, phone ? `<div class="chip">⚡ Fast response</div>` : ""].filter(Boolean).join("");
   const bodyClass = `js lay-${D.layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} — ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} — ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
@@ -405,7 +428,7 @@ ${middle}
 ${bottomBlock}
 ${HO && HO.conversionId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(HO.conversionId)}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(HO.conversionId)});</script>` : ""}
-<footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
+<footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : reach ? ` · ${esc(reach)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">📞 Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
 (function(){

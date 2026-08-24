@@ -10196,13 +10196,18 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               <Label>Campaign Details</Label>
               <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>
                 {client.internal
-                  ? "Every ad and landing page the OS writes for you is built from these. Market Research also uses the service area as its starting point."
-                  : `Every ad and landing page the OS writes for ${client.name} is built from these. They can also fill these in themselves from their portal.`}
+                  ? "Every ad and landing page the OS writes for you is built from these. Nothing here is copied word for word, it is what the AI writes FROM. Where you are based only tells Market Research where to start looking, it does not limit who sees your ads."
+                  : `Every ad and landing page the OS writes for ${client.name} is built from these. Nothing here is copied word for word, it is what the AI writes from. They can also fill these in themselves from their portal.`}
               </div>
               {[
-                {k:"serviceArea",      l:"Service area",            ph:client.internal?"e.g. Gilbert, Arizona (where you are based)":"e.g. Gilbert, Arizona"},
-                {k:"targetLocations",  l:"Target locations",        ph:"Cities or areas the ads should reach"},
-                {k:"mainOffer",        l:"Main offer",              ph:"The one thing the ads should sell"},
+                // 🔴 THE LABELS MATTER HERE. Bryson asked whether putting "Gilbert,
+                // Arizona" would limit his ads or make him look local-only. It does
+                // neither now, but the old label invited exactly that reading, and the
+                // answer differs per field: this one is where he IS, the next is where
+                // the ads GO. Naming them that way is the fix, not a footnote.
+                {k:"serviceArea",      l:"Where you are based",     ph:client.internal?"e.g. Gilbert, Arizona":"e.g. Gilbert, Arizona"},
+                {k:"targetLocations",  l:"Where the ads should run",ph:"Cities, states or countries the ads should reach"},
+                {k:"mainOffer",        l:"Main offer (in your own words)", ph:"Roughly what you sell. The AI rewrites this, it never copies it."},
                 {k:"avgTicket",        l:"Average job value",       ph:"e.g. $2,500"},
                 {k:"excludedKeywords", l:"Anything to avoid",       ph:"Words or services the ads must not mention"},
                 {k:"leadDestination",  l:"Where leads should go",   ph:"Email or phone"},
