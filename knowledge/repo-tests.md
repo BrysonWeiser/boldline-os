@@ -41,6 +41,7 @@ for t in tests/*.mjs; do node "$t"; done
 | `verify-campaign-launch.mjs` | the path between Build Campaign and money being spent: that starting a campaign starts its ad groups and ads too, that no campaign can quietly target the whole country, and that any location worldwide resolves (KB `campaign-launch-bugs`) | 104 |
 | `verify-approval-cleanup.mjs` | deleting a campaign takes its approval requests with it, the self-heal never fires on a failed API call, and the approval card names the platform it will actually act on (KB `campaign-launch-bugs`) | 46 |
 | `verify-market-research.mjs` | the automated competitor research proposes and never writes: an unevidenced claim is dropped rather than flagged, only what the business itself stated may be used unchallenged, and a business is never its own competitor, a national business is searched nationally while a local one is not, the fields it needs are editable in the OS, and a national business is never advertised as serving one town (KB `market-research`) | 144 |
+| `verify-market-research-run.mjs` | the Market Research function **executed for real**, outside world stubbed: a good run reports success rather than "could not finish", the national search covers every market, failures say something actionable, and a completed run never writes `brandVoice` (KB `market-research`) | 55 |
 | `verify-live-stats.mjs` | every number on a screen or in a report is computed from live data, both definitions of cost per lead stay identical, and no invented figure is seeded onto a real account (KB `live-stats`) | 32 |
 | `verify-house-pipeline.mjs` | the My Ads pipeline tells the truth: every step's panel reports observed facts with no invented narrative and no empty panels, a step's detail agrees with its row, client-only steps stay off the house account, and the page his ads land on counts (KB `house-pipeline-honesty`) | 92 |
 | `verify-sheet-layering.mjs` | a panel opened from inside a screen still paints above the bottom nav, the chat bar clears the home indicator, and the stylesheet is still a valid template literal. Measures the layering in a real browser both ways (KB `sheet-layering`) | 19 |
@@ -56,6 +57,41 @@ for t in tests/*.mjs; do node "$t"; done
 | `verify-demo-client.mjs` | the demo client is safely fake (no real emails, no reports) | 18 |
 
 None have dependencies; all run with plain `node`.
+
+## 🔴 The blind spot every one of these shared until 2026-08-24
+
+Suites here do one of two things: import a **pure module** and run it, or read the **source
+text** and assert on it. Both are good. Neither ever executes a **Netlify function body** —
+the glue between the pure parts.
+
+Market Research shipped with a reference to a variable that had been renamed, on the last
+line of the happy path. 144 pure checks passed, the regex checks passed, the syntax check
+passed, and the feature failed on **every single run** after two minutes of real work.
+
+**The rig that closes it lives in `tests/helpers/`** and works for any function:
+
+```js
+import { register } from "node:module";
+register("./helpers/stub-hooks.mjs", import.meta.url);      // BEFORE the dynamic import
+process.env.ANTHROPIC_API_KEY = "test-key";
+const handler = (await import("../netlify/functions/whatever.mjs")).default;
+```
+
+`stub-hooks.mjs` redirects `@supabase/supabase-js`, `@anthropic-ai/sdk` and
+`scout-providers.mjs` to recorders. They read `globalThis.__STUB`, which lives on the main
+thread with the test, so a test sets every answer (`row`, `ai`, `aiThrows`, `placesResult`,
+`adTechResult`, `auth`) and reads back everything the function tried to do (`writes`,
+`calls`, `places`, `inspected`). The function is then called with a real `Request`.
+
+Two details that matter:
+- `register()` only affects imports made **after** it, so the handler must be a dynamic
+  `await import`, not a top-level one.
+- The Supabase stub applies each update to its own row, so the next read sees the last
+  write. Without that, a read-merge-write bug is invisible.
+
+**Assert on `writes`, not on the source.** "This never writes brandVoice" as a regex is a
+promise about text; as an assertion over what the function actually tried to save, it is a
+guard. Both breaks were confirmed to fail.
 
 Patterns worth copying, learned from `verify-packages.mjs`:
 

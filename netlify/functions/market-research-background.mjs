@@ -114,6 +114,12 @@ export default async (req) => {
         .then((r) => ({ ...r, area: a }))
         .catch(() => ({ ok: false, results: [], area: a }))));
     const placesOff = searches.some((r) => r.off);
+    // Measured across ALL the markets, because a national run does several lookups and one
+    // failing city does not mean the listings are down. (This used to read a variable that
+    // no longer existed after the search went parallel, which threw at the very END of a
+    // successful run and reported "The research could not finish" after two minutes of
+    // real work. See the end-to-end test.)
+    const placesOk = searches.some((r) => r.ok);
     // Every market's results pooled, then deduped and ranked together, so the strongest
     // competitors win on merit rather than on which city happened to be searched first.
     const pooled = searches.flatMap((r) => (r.results || []).map((x) => ({ ...x, foundIn: r.area })));
@@ -163,7 +169,7 @@ export default async (req) => {
       // Kept so the card can show WHERE each fact came from, and so a thin report is
       // visibly thin rather than looking like the market is empty.
       sources: {
-        places: placesOff ? "off" : (search.ok ? "ok" : "failed"),
+        places: placesOff ? "off" : (placesOk ? "ok" : "failed"),
         placesNote: placesOff ? "Google Places is not connected, so the competitor list came from web search only." : "",
         found: competitors.length,
         markets: areas.length,

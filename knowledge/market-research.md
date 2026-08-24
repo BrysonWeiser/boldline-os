@@ -2,10 +2,10 @@
 name: market-research
 topic: Ads
 task: run or change the automated competitor research, or work out where the ad differentiator and competitor list come from
-keywords: [market research, main offer verbatim, offer rewritten, service area limits ads, serving gilbert, national landing page, fitPhrase landing, badge chopped, where you are based, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap]
+keywords: [market research, main offer verbatim, offer rewritten, service area limits ads, serving gilbert, national landing page, fitPhrase landing, badge chopped, where you are based, no place to add in edit, campaign details, service area field missing, setIn, brandVoice edit, TONES, dead input, total leads generated box, national search, researchAreas, sellsNationally, NATIONAL_MARKETS, splitAreas, only searched gilbert, competitors anywhere, competitors, differentiator, brandVoice, market-research-background, market-research-shared, MarketResearchCard, placesSearch, inspectAdTech, running ads, common claims, gaps, proposal, needsConfirmation, basis, record observed gap, research could not finish, market research error, search is not defined, placesOk, stub-hooks, module.register, run the real function]
 status: built
 summary: Market Research went from a hand-tracked step with no artifact to an automated one. It finds real competitors through Google Places, reads their sites to see who is actually buying ads, researches positioning with web search, and proposes up to four differentiators. It PROPOSES only, never writes brandVoice, and any proposal without evidence is dropped rather than shown with a caveat.
-verified: 2026-08-22
+verified: 2026-08-24
 ---
 
 ## What he asked for
@@ -205,3 +205,46 @@ states plainly that where you are based does not limit who sees your ads.
 **144 checks.** Six more deliberate breaks confirmed to fail. **The comment trap bit for the
 FOURTH time**: the check that the page never says "local businesses" matched the comment
 explaining the standing rule, in the very line that removed the wording.
+
+## 🔴 Follow-up: it failed on EVERY run, and 144 passing checks did not notice
+
+Bryson, 2026-08-24, from the OS: the card read **"The research could not finish. Try
+again."** every time.
+
+**The cause was one word.** When the search went parallel across markets, the single
+`search` result became a `searches` array. One reference to the old name survived, on the
+line that records where the competitor list came from:
+
+```js
+places: placesOff ? "off" : (search.ok ? "ok" : "failed"),   // ReferenceError
+```
+
+It sits at the **very end of the happy path**, inside the `try`. So every run did the seven
+Places lookups, opened six competitor sites, and paid for a full Opus call with web search,
+and only then threw. The catch turned a completed run into the generic failure message, and
+the result was discarded. Two minutes of real work, thrown away, once per click.
+
+Fixed by computing `placesOk = searches.some((r) => r.ok)` alongside `placesOff` — measured
+across all markets, because one city failing on a national run does not mean the listings
+are down.
+
+### Why nothing caught it, and what changed
+
+`verify-market-research.mjs` has 144 checks and every one passed. So did the syntax check.
+They test the **pure modules** (imported and executed) and the **source text** (regex). What
+had never run was **the function body** — the glue between the pure parts, which is where
+this lived. That blind spot was shared by every suite in the repo.
+
+**New: `tests/verify-market-research-run.mjs` (55 checks)** imports the real handler and
+**calls it**, with Supabase, Anthropic and Google Places swapped for recorders. A crash
+anywhere in the function is now a failing test. It also pins, against what the code actually
+tried to save rather than against the source text, that a completed run **never writes
+`brandVoice`**.
+
+The stubbing rig is reusable for any Netlify function: `tests/helpers/stub-hooks.mjs`
+(a `module.register` resolve hook) plus `stub-supabase.mjs`, `stub-anthropic.mjs`,
+`stub-scout.mjs`. They read `globalThis.__STUB`, so a test controls every answer and reads
+back every write. See KB `repo-tests`.
+
+**Breaks confirmed:** restoring the `search.ok` line fails 9 checks; removing the session
+check fails 3; adding an update that writes the differentiator onto the account fails 4.
