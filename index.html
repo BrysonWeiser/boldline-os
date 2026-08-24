@@ -970,6 +970,10 @@ const buildBots = (pkg) => {
   ];
 };
 
+// The brand-voice tone options, shared by the client portal and the OS Edit sheet so the
+// two can never offer different lists.
+const TONES = ["", "Professional", "Friendly & Casual", "Bold & Energetic", "Luxury & Premium"];
+
 // ─── WHERE THE ADS ACTUALLY LAND ─────────────────────────────────────────────
 // Bryson, 2026-08-22: "the landing page was made a while ago and is being used but
 // the os is still telling me there isn't a landing page that's been made".
@@ -2328,7 +2332,8 @@ const makePortalHTML=(cl,pkg)=>{
   const cs=cl.campaignSetup||{};
   const bv=cl.brandVoice||{};
   const mediaItems=cl.mediaLibrary||[];
-  const TONES=["","Professional","Friendly & Casual","Bold & Energetic","Luxury & Premium"];
+  // TONES is module scope now (see above): the OS Edit sheet needs the same list, and
+  // two copies of it would let the portal and the OS offer different options.
   const RECOMMENDED_ASSETS=["Your logo","3–5 strong photos of your work, product, or space","A short video — even phone footage works great","2–3 of your best customer reviews or quotes","Before/after photos, if that fits your business"];
 
   const stageRows = STAGES.map((s,i)=>{
@@ -2499,19 +2504,26 @@ function MarketResearchCard({client,onUpdate}){
     <Card>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
         <Label>Market Research</Label>
-        <button onClick={run} disabled={running||!area} style={{padding:"5px 11px",fontSize:10.5,fontWeight:700,borderRadius:8,
+        <button onClick={run} disabled={running} style={{padding:"5px 11px",fontSize:10.5,fontWeight:700,borderRadius:8,
           border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,
-          cursor:(running||!area)?"default":"pointer",opacity:(running||!area)?.55:1,flexShrink:0}}>
+          cursor:running?"default":"pointer",opacity:running?.55:1,flexShrink:0}}>
           {running?"Researching…":mr.status==="done"?"Run again":"Research competitors"}</button>
       </div>
 
-      {!area
-        ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.65}}>Set a service area in Edit first. Without one there is nowhere to look, and searching the wrong place returns real businesses that are the wrong competitors.</div>
-        : <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:mr.status?10:0}}>
-            {/* A business that sells remotely has no local market, so saying "around
-                Gilbert" would both understate the search and misdescribe the business. */}
-            Finds who else is selling {client.niche||"this"} {client.internal?"across the country, not just near you":`around ${area}`}, checks which of them are actually buying ads, and works out what {client.internal?"you":client.name} could claim that they are not. Takes a minute or two.
-          </div>}
+      {/* 🔴 THE BUTTON IS NOT GATED HERE, AND THAT IS THE FIX. It used to require a
+          service area, which contradicted the change made minutes earlier: BoldLine
+          sells nationally, so the job would happily search six metros with no service
+          area at all. The card was enforcing a rule the server does not have, and the
+          message it showed pointed at a field that did not exist in Edit either.
+          The server decides whether there is anywhere to look, writes a plain reason if
+          not, and this card shows it. One rule, in one place. */}
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:mr.status?10:0}}>
+        {client.internal
+          ? <>Finds who else is selling {client.niche||"this"} across the country, not just near you, checks which of them are actually buying ads, and works out what you could claim that they are not. Takes a minute or two.</>
+          : area
+            ? <>Finds who else is selling {client.niche||"this"} around {area}, checks which of them are actually buying ads, and works out what {client.name} could claim that they are not. Takes a minute or two.</>
+            : <>Add a service area under <b style={{color:C.textDim}}>Edit → Campaign → Campaign Details</b> so this knows where to look, then run it.</>}
+      </div>
 
       {running&&<div style={{fontSize:11.5,color:C.gold,lineHeight:1.65,marginTop:8}}>Looking up businesses, reading their sites and checking who is running ads. You can leave this screen, it keeps going.</div>}
       {err&&<div style={{fontSize:11.5,color:C.red,lineHeight:1.6,marginTop:8}}>{err}</div>}
@@ -10044,6 +10056,11 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
   const [saved,setSaved] = useState(false);
   const [deleteConfirm,setDeleteConfirm] = useState(false);
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  // Nested setter for campaignSetup / brandVoice. Those fields existed only on the
+  // CLIENT PORTAL, which the house account does not have, so on his own account there
+  // was no way to set them at all. Market Research told him to "add one in Edit" and
+  // Edit had no such field (Bryson, 2026-08-22: "there isn't a place to add that in edit").
+  const setIn = (group,k,v) => setForm(p=>({...p,[group]:{...(p[group]||{}),[k]:v}}));
   const togglePlat = (p) => setForm(prev=>({...prev,platforms:prev.platforms.includes(p)?prev.platforms.filter(x=>x!==p):[...prev.platforms,p]}));
 
   const handleSave = () => {
@@ -10162,15 +10179,59 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
         {section==="campaign"&&(
           <>
             <Card>
-              <Label>Campaign Numbers</Label>
+              <Label>Monthly Ad Budget</Label>
+              {/* 🔴 "Total Leads Generated" and "Average CPL" used to be editable boxes
+                  here. Both are now COMPUTED from the lead log and live ad spend, so
+                  typing in them changed nothing on any screen. A control that looks like
+                  it sets something and does not is worse than no control. */}
+              <div style={fieldStyle}>
+                <input type="text" value={form.adBudget||""} onChange={e=>set("adBudget",e.target.value)} placeholder="e.g. $2,500/mo" style={inp}/>
+              </div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6}}>Leads and cost per lead are worked out from your real leads and real ad spend, so there is nothing to type in for those.</div>
+            </Card>
+            {/* Campaign Details: the fields every ad and landing page the OS writes is
+                built from. They lived only on the client portal until now, which meant
+                the house account could never fill them in. */}
+            <Card>
+              <Label>Campaign Details</Label>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>
+                {client.internal
+                  ? "Every ad and landing page the OS writes for you is built from these. Market Research also uses the service area as its starting point."
+                  : `Every ad and landing page the OS writes for ${client.name} is built from these. They can also fill these in themselves from their portal.`}
+              </div>
               {[
-                {k:"leads",   l:"Total Leads Generated", t:"number", ph:"0"},
-                {k:"cpl",     l:"Average CPL ($)",        t:"number", ph:"0"},
-                {k:"adBudget",l:"Monthly Ad Budget",      t:"text",   ph:"e.g. $2,500/mo"},
-              ].map(({k,l,t,ph})=>(
+                {k:"serviceArea",      l:"Service area",            ph:client.internal?"e.g. Gilbert, Arizona (where you are based)":"e.g. Gilbert, Arizona"},
+                {k:"targetLocations",  l:"Target locations",        ph:"Cities or areas the ads should reach"},
+                {k:"mainOffer",        l:"Main offer",              ph:"The one thing the ads should sell"},
+                {k:"avgTicket",        l:"Average job value",       ph:"e.g. $2,500"},
+                {k:"excludedKeywords", l:"Anything to avoid",       ph:"Words or services the ads must not mention"},
+                {k:"leadDestination",  l:"Where leads should go",   ph:"Email or phone"},
+                {k:"crmSystem",        l:"CRM or booking system",   ph:"If any"},
+              ].map(({k,l,ph})=>(
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>
-                  <input type={t} value={form[k]||""} onChange={e=>set(k,t==="number"?Number(e.target.value):e.target.value)} placeholder={ph} style={inp}/>
+                  <input type="text" value={(form.campaignSetup&&form.campaignSetup[k])||""} onChange={e=>setIn("campaignSetup",k,e.target.value)} placeholder={ph} style={inp}/>
+                </div>
+              ))}
+            </Card>
+            {/* Brand voice. Market Research proposes the last two; this is where they
+                land when Use is pressed, and where they can be edited afterwards. */}
+            <Card>
+              <Label>Brand Voice</Label>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Market Research on the Campaigns tab fills the last two in for you. You can edit them here any time.</div>
+              <div style={fieldStyle}>
+                <label style={fieldLabelStyle}>Tone</label>
+                <select value={(form.brandVoice&&form.brandVoice.tone)||""} onChange={e=>setIn("brandVoice","tone",e.target.value)} style={inp}>
+                  {TONES.map(t=><option key={t} value={t}>{t||"How should the ads sound?"}</option>)}
+                </select>
+              </div>
+              {[
+                {k:"competitors",    l:"Competitors",          ph:"Who else is selling this"},
+                {k:"differentiator", l:"What makes you different", ph:"The one thing you can claim that they cannot"},
+              ].map(({k,l,ph})=>(
+                <div key={k} style={fieldStyle}>
+                  <label style={fieldLabelStyle}>{l}</label>
+                  <input type="text" value={(form.brandVoice&&form.brandVoice[k])||""} onChange={e=>setIn("brandVoice",k,e.target.value)} placeholder={ph} style={inp}/>
                 </div>
               ))}
             </Card>
