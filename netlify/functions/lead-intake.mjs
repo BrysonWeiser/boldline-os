@@ -65,6 +65,24 @@ export default async (req) => {
     receivedAt: new Date().toISOString(),
   };
 
+  // 🔴 THE CLICK ID, CAPTURED AT THE ONLY MOMENT IT EXISTS. Google can only credit a sale
+  // back to the ad that caused it if the lead carries the identifier from that click. It
+  // lives in the landing page's URL and is gone the moment the visitor navigates away,
+  // yet nobody will know whether this lead was any good for another week or two. So it is
+  // stored now and used later by the offline upload. `wbraid` and `gbraid` are what
+  // Google sends instead when the browser blocks the usual one, mostly on iPhones.
+  // Anything not in this list is ignored: this endpoint is public, so it accepts only the
+  // fields it knows.
+  for (const k of ["gclid", "wbraid", "gbraid"]) {
+    const v = String(body[k] || "").trim().slice(0, 200);
+    if (v) lead[k] = v;
+  }
+  // When the click happened, which decides whether it is still inside Google's 90 day
+  // matching window at upload time. Never trusted forward of now: a bad clock on a
+  // visitor's phone must not make a lead look newer than it is.
+  const clickAt = Date.parse(String(body.clickAt || ""));
+  if (clickAt && clickAt <= Date.now()) lead.clickAt = new Date(clickAt).toISOString();
+
   const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const { data, error } = await supabaseAdmin.from("clients").select("id, data").eq("data->>leadToken", token).maybeSingle();
 

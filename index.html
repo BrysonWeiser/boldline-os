@@ -2481,6 +2481,179 @@ const briefMdToNodes = (md) => {
 //
 // It also states the one thing that is genuinely NOT automatic: a published ad's wording
 // cannot be edited on either platform, so these only reach ads built from now on.
+// ─── THE CONVERSION LOOP ──────────────────────────────────────────────────────
+// Built 2026-08-24 for the first real client. His own analysis named the problem exactly:
+// "Don't have Google optimize around someone simply submitting Contact Us." A business
+// selling 25-piece orders and a teenager wanting one shirt fill in the same form. Report
+// every form fill as a conversion and Google will go and find more teenagers, because
+// that is precisely what it was told to want.
+//
+// Three actions, deliberately unequal: form fill is measured but never bid on, qualified
+// lead and closed customer are what the account chases. The rules are in
+// netlify/lib/gads-conversions.mjs; this is the control surface.
+function ConversionLoopCard({client,onUpdate}){
+  const [busy,setBusy] = useState("");
+  const [msg,setMsg]   = useState(null);
+  const ca   = client.conversionActions || {};
+  const done = !!(client.conversionId && ca.form && ca.form.label);
+  const leads = client.leadsLog || [];
+
+  // What is actually waiting to be sent, counted the same way the server counts it.
+  const pending = (stage) => leads.filter((l)=>{
+    if(!l) return false;
+    const won = (l.status||"")==="won" || !!l.won;
+    const at  = stage==="won" ? won : (won || !!l.qualified);
+    return at && !((l.gadsUploaded||{})[stage]) && !!(l.gclid||l.wbraid||l.gbraid);
+  }).length;
+  const noClick = leads.filter((l)=>l&&(l.qualified||(l.status||"")==="won")&&!(l.gclid||l.wbraid||l.gbraid)).length;
+
+  const call = async (payload,label) => {
+    setBusy(label); setMsg(null);
+    try{
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      const token = session && session.access_token;
+      if(!token) throw new Error("Session expired. Refresh the page and log in again.");
+      const r = await fetch("/.netlify/functions/google-ads",{method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+        body:JSON.stringify({...payload,customerId:client.googleAdsCustomerId,clientId:client.id})});
+      const d = await r.json().catch(()=>({}));
+      if(!d.ok) throw new Error(d.error||`Failed (${r.status})`);
+      return d;
+    }catch(e){ setMsg({bad:true,text:e.message}); return null; }
+    finally{ setBusy(""); }
+  };
+
+  const setup = async () => {
+    const d = await call({action:"conversionSetup",leadValue:client.billingPerLead||undefined},"setup");
+    if(!d) return;
+    setMsg({text: d.ready
+      ? `Done. Google is now set up to count form submissions, qualified leads and closed customers separately.`
+      : d.note});
+    // The server wrote it; pull the record forward so the card updates without a wait.
+    if(d.actions) onUpdate({...client, conversionActions:d.actions, conversionId:d.conversionId||client.conversionId||""});
+  };
+
+  const send = async (stage) => {
+    const d = await call({action:"uploadConversions",stage},stage);
+    if(!d) return;
+    const bits = [
+      d.uploaded ? `${d.uploaded} sent to Google` : "",
+      d.rejected ? `${d.rejected} refused` : "",
+      (d.skipped||[]).length ? `${d.skipped.length} skipped` : "",
+    ].filter(Boolean).join(", ");
+    setMsg({text: d.note || bits || "Nothing new to send."});
+  };
+
+  if(!client.googleAdsCustomerId) return null;
+
+  return (
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <Label>What Google Learns From</Label>
+        <Chip label={done?"Set up":"Not set up"} color={done?C.green:C.amber} small/>
+      </div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:10}}>
+        Google can't tell a real customer from someone filling in a form out of curiosity. This teaches it.
+        Form submissions get counted but never chased. Qualified leads and closed customers are what the bidding aims at,
+        so the money goes toward people who look like {client.name}'s actual buyers.
+      </div>
+
+      {!done&&(
+        <button onClick={setup} disabled={!!busy} style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,
+          border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:busy?"default":"pointer",opacity:busy?.6:1}}>
+          {busy==="setup"?"Setting up…":"Set this up in the ad account"}</button>
+      )}
+
+      {done&&(
+        <>
+          <div style={{fontSize:10.5,color:C.textDim,lineHeight:1.8,marginBottom:10}}>
+            {[["Form submission","counted, not chased"],["Qualified lead","what the bidding aims at"],["Closed customer","aims at this, with the order value"]]
+              .map(([n,w],i)=>(
+                <div key={i} style={{display:"flex",gap:8}}>
+                  <span style={{color:C.green,flexShrink:0}}>✓</span>
+                  <span><b style={{color:C.text}}>{n}</b> <span style={{color:C.textMuted}}>{w}</span></span>
+                </div>
+              ))}
+          </div>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+            {[["qualified","qualified lead"],["won","closed customer"]].map(([stage,word])=>(
+              <button key={stage} onClick={()=>send(stage)} disabled={!!busy||!pending(stage)} style={{flex:"1 1 140px",padding:"8px",fontSize:11,fontWeight:700,borderRadius:8,
+                border:`1px solid ${pending(stage)?C.borderAccent:C.border}`,backgroundColor:pending(stage)?"rgba(200,168,75,.1)":"rgba(255,255,255,.03)",
+                color:pending(stage)?C.gold:C.textMuted,cursor:(busy||!pending(stage))?"default":"pointer"}}>
+                {busy===stage?"Sending…":pending(stage)?`Send ${pending(stage)} ${word}${pending(stage)===1?"":"s"}`:`No new ${word}s`}</button>
+            ))}
+          </div>
+          <button onClick={setup} disabled={!!busy} style={{marginTop:7,width:"100%",padding:"6px",fontSize:10,fontWeight:700,borderRadius:8,
+            border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:busy?"default":"pointer"}}>
+            {busy==="setup"?"Checking…":"Re-check the setup"}</button>
+        </>
+      )}
+
+      {/* 🔴 A lead with no click id can NEVER be attributed, no matter what is uploaded
+          later. Saying so is the difference between a known limit and a silent one. */}
+      {noClick>0&&(
+        <div style={{fontSize:10.5,color:C.amber,lineHeight:1.6,marginTop:9}}>
+          {noClick} graded lead{noClick===1?"":"s"} arrived without an ad click on {noClick===1?"it":"them"}, so Google can't count {noClick===1?"it":"them"}. That's normal for anyone who found {client.name} another way.
+        </div>
+      )}
+      {msg&&<div style={{fontSize:11,color:msg.bad?C.red:C.textDim,lineHeight:1.6,marginTop:9}}>{msg.text}</div>}
+    </Card>
+  );
+}
+
+// ─── THE 30-DAY SCORECARD ─────────────────────────────────────────────────────
+// The eleven numbers the client asked for, in his order, computed from live data.
+// Anything not measurable yet reads "Not measured" rather than 0, because a zero is a
+// claim and an empty field is the truth (same rule as the cost-per-lead fix, KB
+// `live-stats`).
+function ScorecardCard({client}){
+  const t   = ((client.adPerf||{}).totals)||{};
+  const cut = Date.now() - 30*864e5;
+  const win = (client.leadsLog||[]).filter(l=>l&&l.receivedAt&&new Date(l.receivedAt).getTime()>=cut);
+  const spend  = Number(t.spend30d||0);
+  // `totals.clicks` already IS the 30-day figure: ads-sync builds every total from the
+  // same trailing-30-day query. There is no separate all-time clicks number to confuse
+  // it with.
+  const clicks = Number(t.clicks||0);
+  const raw    = win.length;
+  const qual   = win.filter(l=>l.qualified||(l.status||"")==="won").length;
+  const won    = win.filter(l=>(l.status||"")==="won").length;
+  const values = win.filter(l=>(l.status||"")==="won").map(l=>Number(l.orderValue||0)).filter(v=>v>0);
+  const revenue= values.reduce((a,b)=>a+b,0);
+  const margin = Number(((client.campaignSetup||{}).grossMarginPct)||0);
+
+  const money = (n)=>`$${Number(n).toLocaleString(undefined,{maximumFractionDigits:2})}`;
+  const rows = [
+    ["Spend", spend>0?money(spend):null],
+    ["Clicks", clicks>0?String(clicks):null],
+    ["Raw inquiries", String(raw)],
+    ["Qualified leads", String(qual)],
+    ["Cost per qualified lead", (spend>0&&qual>0)?money(spend/qual):null],
+    ["Customers won", String(won)],
+    ["Customer acquisition cost", (spend>0&&won>0)?money(spend/won):null],
+    ["Revenue won", values.length?money(revenue):null],
+    ["Gross profit won", (values.length&&margin>0)?money(revenue*margin/100):null],
+  ];
+
+  return (
+    <Card>
+      <Label>Last 30 Days</Label>
+      <div style={{marginTop:6}}>
+        {rows.map(([k,v],i)=>(
+          <div key={k} style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:10,padding:"7px 0",borderBottom:i<rows.length-1?`1px solid ${C.border2}`:"none"}}>
+            <span style={{fontSize:11.5,color:C.textDim}}>{k}</span>
+            <span style={{fontSize:v?13:11,fontWeight:v?700:400,color:v?C.text:C.textMuted,whiteSpace:"nowrap"}}>{v||"Not measured"}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:9}}>
+        Every figure comes from live ad spend and the leads on this account. "Not measured" means there isn't data for it yet, which is not the same as zero.
+        {margin<=0&&<> Add a profit margin under Edit → Campaign → Campaign Details to see profit here.</>}
+      </div>
+    </Card>
+  );
+}
+
 function AdPositionCard({client}){
   const bv   = client.brandVoice || {};
   const diff = (bv.differentiator||"").trim();
@@ -5620,6 +5793,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
+            {!client.internal && <ScorecardCard client={client}/>}
+            <ConversionLoopCard client={client} onUpdate={onUpdate}/>
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
@@ -6546,10 +6721,24 @@ function LeadsTabContent({client,onUpdate}) {
   const indexed = leads.map((l,i)=>({lead:l,idx:i}));
   const filtered = filterStatus==="all" ? indexed : indexed.filter(({lead})=>(lead.status||"new")===filterStatus);
 
-  const setLeadStatus = (idx,status) => {
-    const updated = leads.map((l,i)=> i===idx ? {...l,status} : l);
-    onUpdate({...client, leadsLog:updated});
+  // 🔴 THE TIMESTAMPS ARE NOT DECORATION. Google's offline conversion upload needs to
+  // know WHEN each outcome happened, and it refuses anything dated before the click. So
+  // the moment a lead is marked is recorded here, at the moment it happens. Deriving it
+  // later would mean guessing, and a guess that lands before the click is silently
+  // rejected by Google rather than rejected loudly.
+  const stamp = (l,patch) => {
+    const now = new Date().toISOString();
+    const out = {...l,...patch};
+    if (patch.status === "won" && !out.wonAt) out.wonAt = now;
+    if (patch.qualified && !out.qualifiedAt) out.qualifiedAt = now;
+    // A won lead was necessarily a qualified one. Without this a lead that jumps
+    // straight to won never reports as qualified, and that is the conversion the whole
+    // account bids on.
+    if (patch.status === "won" && !out.qualified) { out.qualified = true; out.qualifiedAt = out.qualifiedAt || now; }
+    return out;
   };
+  const patchLead = (idx,patch) => onUpdate({...client, leadsLog: leads.map((l,i)=> i===idx ? stamp(l,patch) : l)});
+  const setLeadStatus = (idx,status) => patchLead(idx,{status});
 
   // ── Book-a-call outreach (house account only) ──
   const firstName = (l) => String(l.name||"there").trim().split(/\s+/)[0] || "there";
@@ -6623,6 +6812,45 @@ function LeadsTabContent({client,onUpdate}) {
                 {client.internal&&<button onClick={()=>openReachOut(idx,lead)} style={{marginLeft:followCount>0?0:"auto",padding:"3px 10px",fontSize:9,fontWeight:800,borderRadius:7,border:`1px solid ${C.gold}55`,backgroundColor:openOutreach===idx?C.goldDim:"transparent",color:C.gold,cursor:"pointer",whiteSpace:"nowrap"}}>📅 {openOutreach===idx?"Close":"Reach Out & Book"}</button>}
                 {followCount>0&&<span style={{fontSize:9,color:C.textMuted,marginLeft:"auto"}}>{followCount} follow-up{followCount===1?"":"s"} sent</span>}
               </div>
+
+              {/* ── Grading the lead, which is what Google actually learns from ──────
+                  A form fill and a real customer are not the same thing, and Google
+                  cannot tell them apart on its own. This row is where a person does.
+                  Client accounts only: BoldLine's own leads are prospective clients and
+                  are graded by the sales pipeline above instead. */}
+              {!client.internal&&(
+                <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap",marginTop:7}}>
+                  <button onClick={()=>patchLead(idx,{qualified:!lead.qualified})} style={{
+                    padding:"3px 10px",fontSize:9,fontWeight:800,borderRadius:7,
+                    border:`1px solid ${lead.qualified?C.green+"66":C.border}`,
+                    backgroundColor:lead.qualified?C.green+"15":"transparent",
+                    color:lead.qualified?C.green:C.textMuted,cursor:"pointer",whiteSpace:"nowrap"}}>
+                    {lead.qualified?"✓ Qualified":"Mark qualified"}</button>
+                  {(lead.status||"new")==="won"&&(
+                    <span style={{display:"inline-flex",alignItems:"center",gap:5}}>
+                      <span style={{fontSize:9,color:C.textMuted}}>Order value $</span>
+                      <input type="number" min="0" step="1" defaultValue={lead.orderValue||""} placeholder="0"
+                        onBlur={e=>{const v=e.target.value===""?null:Math.max(0,Number(e.target.value)||0); if(v!==(lead.orderValue==null?null:lead.orderValue)) patchLead(idx,{orderValue:v});}}
+                        style={{width:78,padding:"3px 7px",fontSize:10,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit"}}/>
+                    </span>
+                  )}
+                  {/* What Google knows, and why. A lead with no click id can never be
+                      attributed no matter what is uploaded, so say so here rather than
+                      letting it look like the upload simply did nothing. */}
+                  {(()=>{
+                    const sent = lead.gadsUploaded||{};
+                    const hasClick = !!(lead.gclid||lead.wbraid||lead.gbraid);
+                    const label = sent.won ? "Sent to Google as a customer"
+                                : sent.qualified ? "Sent to Google as qualified"
+                                : !hasClick ? "No ad click on this lead, so Google cannot count it"
+                                : (lead.qualified||(lead.status||"")==="won") ? "Ready to send to Google"
+                                : "";
+                    if(!label) return null;
+                    const good = !!(sent.won||sent.qualified);
+                    return <span style={{fontSize:9,color:good?C.green:hasClick?C.textMuted:C.amber,marginLeft:"auto",whiteSpace:"nowrap"}}>{label}</span>;
+                  })()}
+                </div>
+              )}
               {client.internal&&openOutreach===idx&&(
                 <div style={{marginTop:8,padding:"11px 12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.05)",border:`1px solid ${C.borderAccent}`}}>
                   <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Book a call — reach out from your own email or phone (personal beats a no-reply blast).</div>
@@ -10275,6 +10503,10 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 {k:"targetLocations",  l:"Where the ads should run",ph:"Cities, states or countries the ads should reach"},
                 {k:"mainOffer",        l:"Main offer (in your own words)", ph:"Roughly what you sell. The AI rewrites this, it never copies it."},
                 {k:"avgTicket",        l:"Average job value",       ph:"e.g. $2,500"},
+                // Without this the scorecard's "gross profit won" can only ever say
+                // "not measured", and a card that asks for a field nobody can fill in
+                // is the exact complaint that produced this whole section.
+                {k:"grossMarginPct",   l:"Profit margin %",         ph:"Roughly what's left after costs, e.g. 50"},
                 {k:"excludedKeywords", l:"Anything to avoid",       ph:"Words or services the ads must not mention"},
                 {k:"leadDestination",  l:"Where leads should go",   ph:"Email or phone"},
                 {k:"crmSystem",        l:"CRM or booking system",   ph:"If any"},

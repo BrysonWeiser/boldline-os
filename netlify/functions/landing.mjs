@@ -80,6 +80,12 @@ export function designConfig(cl) {
 // `opts.handoff` is `{ phone, conversionId, conversionLabel }`. Absent = normal page.
 export function renderLandingPage(cl, opts = {}) {
   const HO = opts.handoff || null;
+
+  // The client's own Google Ads conversion tag, set up by google-ads.mjs action
+  // "conversionSetup" and stored on their record. A hand-off page carries the client's
+  // hand-typed pair instead, since after hand-off there is nobody on our side to run it.
+  const convId    = HO ? (HO.conversionId || "")    : String((cl && cl.conversionId) || "");
+  const formLabel = HO ? (HO.conversionLabel || "") : String((((cl && cl.conversionActions) || {}).form || {}).label || "");
   const lp = cl.landingPage || {};
   const cs = cl.campaignSetup || {};
   const bv = cl.brandVoice || {};
@@ -388,20 +394,56 @@ a{color:inherit}
   // own site, which then reloads with ?sent=1 — that is where the thank-you state and
   // their conversion fire. Fewer moving parts is the point: there is nobody left to fix
   // it if it breaks.
-  const managedFormJS = `
+  // 🔴 THE CLICK ID HAS TO BE GRABBED HERE, WEEKS BEFORE ANYONE KNOWS THE LEAD IS GOOD.
+  // Google can only credit a sale back to the ad that caused it if the lead carries the
+  // `gclid` from the click that brought them in. Nobody will know whether this lead was
+  // worth having for another week or two, and by then the query string is long gone. So
+  // it is read on arrival, kept in this browser for 90 days (Google's own matching
+  // window) so a visitor who comes back and converts later is still attributed, and sent
+  // along with the form. `wbraid` and `gbraid` are what Google sends instead when the
+  // browser blocks the usual one, mostly on iPhones. Missing them loses about half.
+  const clickJS = `
+  var CK=['gclid','wbraid','gbraid'];
+  function clickIds(){
+    var out={},qs=new URLSearchParams(location.search),now=Date.now();
+    CK.forEach(function(k){
+      var v=qs.get(k);
+      if(v){try{localStorage.setItem('bl_'+k,JSON.stringify({v:v,t:now}));}catch(e){}}
+      else{try{var s=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s&&s.v&&(now-s.t)<90*864e5)v=s.v;}catch(e){}}
+      if(v)out[k]=v;
+      if(v&&!out.clickAt){
+        var t=now;try{var s2=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s2&&s2.t)t=s2.t;}catch(e){}
+        out.clickAt=new Date(t).toISOString();
+      }
+    });
+    return out;
+  }
+  try{clickIds();}catch(e){}`;
+
+  // Fires the FORM SUBMISSION conversion, which is deliberately a secondary one in Google
+  // (see ../lib/gads-conversions.mjs). It tells us the page works. It is not what the
+  // account bids on, because a form fill and a real customer are not the same thing.
+  const formConversion = (convId && formLabel)
+    ? `try{if(typeof gtag==='function'){gtag('event','conversion',{'send_to':${JSON.stringify(convId + "/" + formLabel)}});}}catch(e){}`
+    : `/* No conversion tag yet. Run Conversion Setup on this client so Google can see
+         form submissions, otherwise the campaign is bidding blind. */`;
+
+  const managedFormJS = `${clickJS}
   var lf=document.getElementById('lf');
   if(lf){lf.addEventListener('submit',function(e){
     e.preventDefault();
     var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
     err.style.display='none';btn.disabled=true;btn.textContent='Sending…';
+    var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
+    try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
     fetch('/.netlify/functions/lead-intake?token=${encodeURIComponent(cl.leadToken || "")}',{
       method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'})
-    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';})
+      body:JSON.stringify(payload)
+    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';${formConversion}})
     .catch(function(){err.style.display='block';btn.disabled=false;btn.textContent=${JSON.stringify(cta)};});
   });}`;
-  const conversionCall = (HO && HO.conversionId && HO.conversionLabel)
-    ? `if(typeof gtag==='function'){gtag('event','conversion',{'send_to':${JSON.stringify(HO.conversionId + "/" + HO.conversionLabel)}});}`
+  const conversionCall = (convId && formLabel)
+    ? `if(typeof gtag==='function'){gtag('event','conversion',{'send_to':${JSON.stringify(convId + "/" + formLabel)}});}`
     : `/* No conversion tag was supplied, so Google receives no conversions from this page
          and the campaign cannot bid on them. Add one in Google Ads and paste it in. */`;
   const handoffFormJS = `
@@ -426,8 +468,8 @@ ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
 ${bottomBlock}
-${HO && HO.conversionId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(HO.conversionId)}"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(HO.conversionId)});</script>` : ""}
+${convId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(convId)}"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(convId)});</script>` : ""}
 <footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : reach ? ` · ${esc(reach)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">📞 Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>

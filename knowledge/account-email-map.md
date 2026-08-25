@@ -2,10 +2,10 @@
 name: account-email-map
 topic: Business rules
 task: know which email/login owns which external account before signing in or setting one up
-keywords: [account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login]
+keywords: [account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login, docusign-login, which email for docusign, docusign production admin, go live form email]
 status: stale-able
 summary: Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login (by design — one login, many future orgs), old/aged Facebook account. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.
-verified: 2026-07-08
+verified: 2026-08-24
 ---
 
 **The two emails:**
@@ -27,6 +27,10 @@ verified: 2026-07-08
 | Yelp for Business | **theboldlinemedia@gmail.com** (DECISION 2026-08-11, Bryson chose it) | Business listing platform, so it sits with GBP/Meta rather than the personal-login consoles. |
 | Apple Business Connect (Apple Account) | **brysonaweiser@gmail.com** (DECISION 2026-08-11) | NOT yet created — Apple's signup rate-limited him. Personal on purpose: he'll want this Apple Account on a future iPhone, and two Apple Accounts sharing one phone number causes 2FA-code ambiguity + iMessage routing bugs. |
 | Bing Places for Business (Microsoft account) | **brysonaweiser@gmail.com** (DECISION 2026-08-11) | Reused his EXISTING Microsoft account rather than creating a business one. Same logic as Mercury/Search Console: the login is never public (only the listing is), one Microsoft account can hold multiple businesses as future ventures launch, new Microsoft accounts get security-flagged with painful recovery, and Bing Places lets you add managers later if it ever needs to transfer. |
+| DocuSign — **DEVELOPER / sandbox** account | **theboldlinemedia@gmail.com** (confirmed 2026-08-24) | Holds the "BoldLine OS" integration key while it is still on demo.docusign.net. |
+| DocuSign — **PRODUCTION** account | **brysonaweiser@gmail.com** (confirmed 2026-08-24) | 🔴 **THE TWO DOCUSIGN ACCOUNTS ARE ON DIFFERENT EMAILS.** theboldlinemedia@gmail.com does NOT sign in at www.docusign.net at all. This matters because the go-live verification form demands the PRODUCTION admin email and production Account ID, and warns that a demo value gets the envelope declined — which is one of the ways the July 2026 attempt died. See `docusign-integration`. |
+| Cloudflare (DNS for boldlinemedia.com) | **login not yet recorded** | 🔴 Discovered 2026-08-24 by DNS lookup: the domain's nameservers are **leia/drake.ns.cloudflare.com**, so CLOUDFLARE runs the records, not Namecheap's own DNS. Namecheap is only the registrar. `domain-dns-wix` predates this move and still describes the Wix/Namecheap record setup. |
+| Email on boldlinemedia.com | **none existed until 2026-08-24** | Confirmed by DNS: zero MX records. Being set up now as free **Cloudflare Email Routing**, `bryson@boldlinemedia.com` forwarding into brysonaweiser@gmail.com. Forced by DocuSign, which refuses gmail on the go-live form. See `docusign-integration`. |
 | Namecheap (domain registrar — boldlinemedia.com) | **brysonaweiser@gmail.com** (2026-07-27) | Domain transferred here off Wix so Resend can verify the domain for email sending. Namecheap transfer-authorization/approval emails go to THIS inbox; the Wix release/auth-code email went to theboldlinemedia@gmail.com. Auto-renew ON, free WHOIS privacy. See domain-dns-wix. |
 
 **Rules learned the hard way:**

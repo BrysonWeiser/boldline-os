@@ -2,10 +2,10 @@
 name: docusign-integration
 topic: OS app
 task: send or debug DocuSign e-signature envelopes from the OS, and plan the production go-live
-keywords: [docusign-send.mjs, jwt-grant, normalizeKey, DOCUSIGN_PRIVATE_KEY, go-live, BL_SIGN_HERE]
+keywords: [docusign-send.mjs, jwt-grant, normalizeKey, DOCUSIGN_PRIVATE_KEY, go-live, BL_SIGN_HERE, go live form voided, generic email domains not allowed, gmail rejected, corporate domain email, cloudflare email routing, bryson@boldlinemedia.com, production account id guid, trial account cannot be used]
 status: verified
 summary: DocuSign e-sign is live-verified in DEMO/sandbox via JWT Grant (docusign-send.mjs). Demo signatures are NOT legally binding — production needs Go-Live promotion (~20 demo API calls) + regenerated creds before the first real client. Watch the multi-line PEM paste gotcha (normalizeKey self-heals it).
-verified: 2026-07-02
+verified: 2026-08-24
 ---
 
 **Status:** credentials done, code built, **live-verified 2026-06-25** in **DEMO/sandbox** (REST base = the DocuSign demo host, held in `DOCUSIGN_BASE_PATH`; auth via the DocuSign demo auth host). Full JWT round-trip (sign → token → envelope → deliver) confirmed end to end via the Deploy-tab test card.
@@ -20,7 +20,49 @@ verified: 2026-07-02
 
 **GO-LIVE PROGRESS (2026-07-14):** The demo integration was **eligible ("Ready to Submit")** — the ~20-call requirement was already met. Ran **Go Live** on the "BoldLine OS" integration key (its value is `DOCUSIGN_INTEGRATION_KEY` in Netlify — never write the GUID here), accepted the integration-type/billing T&C (type is correct: private server-to-server JWT for sending our own contracts — locks once pending/live), and **promoted it into the production account** (account # is `DOCUSIGN_ACCOUNT_ID` in Netlify; owner Bryson A. Weiser). Status is now **"Pending approval — Submit verification form"** (DocuSign reviews within ~48h). All of this is FREE.
 
+**🔴 THE REAL BLOCKER, FOUND 2026-08-24: DOCUSIGN REFUSES GMAIL ON THE GO-LIVE FORM.** The
+envelope was voided within minutes by go-live@docusign.com with the reason written out:
+
+> *"Generic email domains such as @gmail or @hotmail are not allowed. Please resubmit a new
+> envelope and ensure to use your companies corporate domain email address."*
+
+**This is almost certainly why the 2026-07-15 envelope voided too** — same address, same rule.
+The earlier note below guessed it expired unsigned. **That guess was wrong**, and it sent us
+chasing a deadline that was never the problem. Nothing about the form's ANSWERS was wrong:
+Option 1, the developer integration key, and the production account were all correct.
+
+**What the form actually demands, in order:**
+1. An email on the company's own domain. `brysonaweiser@gmail.com` and
+   `theboldlinemedia@gmail.com` are both refused.
+2. That address must have **ADMIN privileges on the PRODUCTION account**.
+3. The production account must be **paid or partner** — *"A trial account cannot be used."*
+   **STILL UNVERIFIED** as of 2026-08-24; check Admin → Plan and Billing on docusign.net.
+4. The **production** API Account ID GUID, from apps.docusign.com → Apps and Keys → My
+   Account Information. A sandbox ID is an automatic decline (the demo GUID starts 47275628).
+
+**THERE WAS NO EMAIL ON THE DOMAIN AT ALL** — confirmed 2026-08-24 by DNS lookup: zero MX
+records on boldlinemedia.com. Also learned in the same lookup: **the domain's DNS is on
+CLOUDFLARE** (leia/drake.ns.cloudflare.com), not Namecheap's own DNS. Namecheap is the
+registrar; Cloudflare runs the records. `domain-dns-wix` predates that move.
+
+**DECISION 2026-08-24 (Bryson chose it):** free **Cloudflare Email Routing** →
+`bryson@boldlinemedia.com` forwarding into `brysonaweiser@gmail.com`. Receive-only, which is
+all the go-live form needs, and it costs nothing. A real mailbox (Google Workspace, ~$7/mo,
+lets him SEND from the address) was offered and deferred until he is actually emailing
+prospects. The address stays the same either way, so moving later costs DocuSign nothing.
+
 **GO-LIVE STALLED — found 2026-07-19:** the go-live did NOT complete. Production **Apps and Keys** shows **"No Integration Keys found"** (the demo IK never migrated), and the home-page Agreement Activity shows **"DocuSign API - Go Live Form for brysonaweiser@gmail.com" = VOIDED (2026-07-15)**. The go-live review sends a verification-form ENVELOPE you must complete/sign; ours voided (expired/unsigned), so the migration stalled. The production account shell exists (Account ID + API Account ID + `https://www.docusign.net` base URI all on the prod Apps-and-Keys page — record only via env-var NAMES, never the values). To finish: go back to the **developer account** (banner on that page: "manage integrations in Developer Console" → Open; or the "developer account" link) → the BoldLine OS integration key → **re-run Go Live** and COMPLETE the form envelope this time (don't let it void). **DECISION 2026-07-19: parked the whole DocuSign production cutover (go-live re-run + paid plan + cred swap) until a client is close — doing the free go-live now just risks the approval going stale again before there's anything to send.**
+
+**NEXT STEPS (2026-08-24), in order:**
+0. Cloudflare Email Routing → `bryson@boldlinemedia.com`, verify it receives. [in progress]
+1. Add that address as an **Administrator** on the PRODUCTION account (adding a user may need
+   a paid seat; if so, change the existing user's email instead of adding one).
+2. Confirm the production account is not a trial.
+3. Start a FRESH go-live form using `bryson@boldlinemedia.com` in every email field.
+   Answers that were already correct: **Option 1** (developed by my organization), the
+   **developer** integration key, OAuth v2 = **Yes**, company **BoldLine Media LLC**.
+   The "date of 20+ test API calls" wants a date whose logs still exist (DocuSign keeps
+   ~30 days) — run the OS's Deploy-tab test card ~15 times that day and use that date.
 
 **Remaining to actually send binding contracts (the paid/setup half — DEFERRED until a client is close, per lean-spend):**
 0. **Re-run Go Live** in the developer account and COMPLETE the verification-form envelope (the 2026-07-15 one voided). Free. Migrates the IK to production.
