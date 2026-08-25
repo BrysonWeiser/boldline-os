@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 126 task-keyed entries under `knowledge/`. They surface automatically via the
+> 127 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**126 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**127 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -78,6 +78,9 @@
 - **[business-constraint-ad-spend](../knowledge/business-constraint-ad-spend.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   HARD RULE — the client always owns and is billed for their own ad account; BoldLine never fronts, holds, or is financially exposed for client ad spend, and only ever holds manager-level access. Stripe (not started) will bill BoldLine's service fee ONLY, never ad spend.  
   <sub>*task:* make any billing, ad-account, Stripe, or Meta decision without violating the ad-spend ownership rule &nbsp;|&nbsp; *keywords:* ad-spend, MCC, manager-access, stripe, service-fee, client-owns-account</sub>
+- **[stencil-and-thread-deal](../knowledge/stencil-and-thread-deal.md)** &mdash; &#9989; verified &middot; 2026-08-25  
+  BoldLine's FIRST real client, close to signing. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. He asked for a technical call. Reply sent 2026-08-25; waiting on his answers.  
+  <sub>*task:* pick up the Stencil and Thread deal, prep the call, or set up their campaign &nbsp;|&nbsp; *keywords:* stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect</sub>
 
 ## Business/ops
 
