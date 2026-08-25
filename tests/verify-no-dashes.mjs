@@ -125,6 +125,27 @@ for (const [name, src] of writers) {
     const cleans = /\b(humanize|humanizeDeep|stripDashes|deDash|cleanGoogle|cleanMeta|cleanCreatives|cleanResearch)\s*\(/.test(body);
     assert.ok(cleans, "model output reaches a reader without any dash cleaning");
   });
+  // ── The OTHER standing wording rule, checked on the same discovered set ──────
+  // Bryson: never "local businesses", he works remotely and nationally. It was already
+  // pinned on Market Research by hand, which is exactly why Deal Prep kept telling its
+  // model that BoldLine serves "local/service businesses" for months without anyone
+  // noticing. Checking it here means EVERY copy-writing surface is covered, including
+  // ones added later, rather than whichever ones somebody remembered.
+  t(`${name} never calls his customers local businesses`, () => {
+    // 🔴 Comments stripped first. The line that REMOVES this wording quotes it while
+    // explaining why, and the naive check has matched my own comment four times now
+    // (KB `repo-tests`).
+    const body = src.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+    // 🔴 A PROMPT THAT FORBIDS THE PHRASE HAS TO BE ALLOWED TO NAME IT, and the first
+    // exemption here was written against one file's exact wording ("NEVER describe...").
+    // It then flagged `ad-gen-shared`, which states the same rule in different words, as
+    // a violation. Matching the INTENT rather than one phrasing: any sentence telling the
+    // model never to do something is the rule, not a breach of it.
+    const stated = body.split(/(?<=[.!])\s+/).filter((s) => !/never/i.test(s)).join(" ");
+    assert.ok(!/local\s*\/?\s*(service\s+)?businesses/i.test(stated),
+      "tells its model BoldLine serves local businesses; he works remotely and nationally");
+  });
+
   t(`${name} tells the model the rule`, () => {
     // Either its own copy of the rule, or it inherits one of the shared prompt builders.
     // `mrSystem(` is the Market Research equivalent of `systemFor(`: the shared builder
