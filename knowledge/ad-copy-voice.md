@@ -143,3 +143,30 @@ template.
 **A test can pin the wrong behaviour as firmly as the right one.** The suite had an assertion
 demanding the rule say `done-for-you` was "fine and expected". It passed, and it was wrong.
 Worth remembering the next time a green suite feels like proof.
+
+## Follow-up 2026-08-24: the "local businesses" rule was only pinned on ONE surface
+
+Bryson asked for a Deal Prep pricing sweep before his first real sales call. The pricing
+itself was clean (all 12 packages match between `pricing-shared` and `report-shared`, and
+the prompt block is GENERATED from the live catalog rather than hardcoded, so it cannot
+drift). The wording was not.
+
+**Deal Prep had been telling its model that BoldLine serves "local/service businesses"**,
+and nobody had noticed. The standing rule was pinned by hand on Market Research only, so
+every other copy-writing surface was unguarded.
+
+The check now rides on `verify-no-dashes`'s **auto-discovered** set of copy-writing
+surfaces (anything calling `anthropic.messages.create`), so every current and future writer
+is covered rather than whichever ones somebody remembered. It immediately found **two more
+violations nobody knew about**: `lead-leak-audit-background.mjs` (also describing BoldLine
+as "Phoenix-based", which implies one city to a prospect reading a free audit) and a false
+positive on `ad-gen-shared.mjs`.
+
+🔴 **Two lessons, both about the test rather than the code.** The exemption for a prompt
+that FORBIDS the phrase was first written against one file's exact wording
+(`NEVER describe...`), so a file stating the same rule in different words was flagged as a
+breach of it. It matches the intent now: any sentence containing "never" is the rule, not a
+violation. And the comment trap was pre-empted for the fifth time by stripping comments
+before asserting absence, because the line that removes a phrase always quotes it.
+
+All three files fixed and each one broken individually to confirm the guard bites.
