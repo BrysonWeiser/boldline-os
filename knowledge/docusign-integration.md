@@ -36,7 +36,13 @@ Option 1, the developer integration key, and the production account were all cor
    `theboldlinemedia@gmail.com` are both refused.
 2. That address must have **ADMIN privileges on the PRODUCTION account**.
 3. The production account must be **paid or partner** — *"A trial account cannot be used."*
-   **STILL UNVERIFIED** as of 2026-08-24; check Admin → Plan and Billing on docusign.net.
+   ✅ **CONFIRMED 2026-08-24: it is PAID.** Admin → Subscription and billing shows
+   **eSignature Standard, $45.00/month, 1 user license, 10 envelope sends/month**, 0 sent.
+   So this requirement is met and was never the blocker. Two things to remember: that
+   $45/mo has been running with zero clients, and **10 envelopes/month** is the ceiling
+   (fine now, worth watching past ~10 clients). **Still unknown:** whether Standard
+   includes the API sending the OS uses. The form only demands a paid account, so it does
+   not block submission; it will show up immediately in the first production send test.
 4. The **production** API Account ID GUID, from apps.docusign.com → Apps and Keys → My
    Account Information. A sandbox ID is an automatic decline (the demo GUID starts 47275628).
 
@@ -54,10 +60,22 @@ prospects. The address stays the same either way, so moving later costs DocuSign
 **GO-LIVE STALLED — found 2026-07-19:** the go-live did NOT complete. Production **Apps and Keys** shows **"No Integration Keys found"** (the demo IK never migrated), and the home-page Agreement Activity shows **"DocuSign API - Go Live Form for brysonaweiser@gmail.com" = VOIDED (2026-07-15)**. The go-live review sends a verification-form ENVELOPE you must complete/sign; ours voided (expired/unsigned), so the migration stalled. The production account shell exists (Account ID + API Account ID + `https://www.docusign.net` base URI all on the prod Apps-and-Keys page — record only via env-var NAMES, never the values). To finish: go back to the **developer account** (banner on that page: "manage integrations in Developer Console" → Open; or the "developer account" link) → the BoldLine OS integration key → **re-run Go Live** and COMPLETE the form envelope this time (don't let it void). **DECISION 2026-07-19: parked the whole DocuSign production cutover (go-live re-run + paid plan + cred swap) until a client is close — doing the free go-live now just risks the approval going stale again before there's anything to send.**
 
 **NEXT STEPS (2026-08-24), in order:**
-0. Cloudflare Email Routing → `bryson@boldlinemedia.com`, verify it receives. [in progress]
-1. Add that address as an **Administrator** on the PRODUCTION account (adding a user may need
-   a paid seat; if so, change the existing user's email instead of adding one).
-2. Confirm the production account is not a trial.
+0. ✅ **DONE 2026-08-24.** Cloudflare Email Routing → `bryson@boldlinemedia.com` forwards
+   into brysonaweiser@gmail.com. All five records live and verified externally (3 MX
+   route1/2/3.mx.cloudflare.net, DKIM at cf2024-1._domainkey, SPF on the apex). A test send
+   showed **Forwarded** in Cloudflare's Activity Log.
+   🔴 **Two gotchas worth keeping.** The destination address **auto-verified with no email**,
+   because it is the same address as the Cloudflare login. And a test sent FROM
+   brysonaweiser@gmail.com never appears in that inbox: Gmail suppresses a message you sent
+   to yourself, so it lands in All Mail rather than the Inbox and looks like a failure. Test
+   from the OTHER address, and search `to:bryson@boldlinemedia.com` to find it.
+   **Checked BEFORE adding records:** the apex had no SPF, and Resend's lives on the `send.`
+   subdomain, so Cloudflare's SPF created no conflict. Two SPF records on one name break
+   outbound mail, so always look first.
+1. **CHANGE the existing user's email** to `bryson@boldlinemedia.com` rather than adding a
+   user. The account has 1 seat and 0 unassigned, so a second admin costs another ~$45/mo
+   seat for nothing. [in progress]
+2. ✅ Confirmed paid, see above.
 3. Start a FRESH go-live form using `bryson@boldlinemedia.com` in every email field.
    Answers that were already correct: **Option 1** (developed by my organization), the
    **developer** integration key, OAuth v2 = **Yes**, company **BoldLine Media LLC**.
