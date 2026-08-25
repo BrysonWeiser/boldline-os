@@ -22,6 +22,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { parseLocations } from "../lib/geo-parse.mjs";
+import {
+  CONVERSION_ACTIONS, ACTION_KEYS, conversionActionPayload, mapConversionRows, uploadPlan,
+} from "../lib/gads-conversions.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -666,6 +669,103 @@ const mutate = async (accessToken, customerId, endpoint, operations, stage, { to
   return data;
 };
 
+// ── The conversion loop ──────────────────────────────────────────────────────
+// Built 2026-08-24 for the first real client, whose own analysis put it best: do not let
+// Google optimize around someone simply submitting "Contact Us". The three actions, why
+// they are unequal, and every rule about uploading are in ../lib/gads-conversions.mjs.
+//
+// 🔴 IDEMPOTENT BY NAME. Creating these twice would give the account two "Qualified Lead"
+// actions, and Google would then split the conversion history across them, which is worse
+// than having none: bidding sees half the evidence and neither number is right. So this
+// reads what is already there first and only creates what is missing.
+async function readConversionActions(accessToken, customerId) {
+  const rows = await gaql(accessToken, customerId,
+    `SELECT conversion_action.id, conversion_action.name, conversion_action.resource_name,
+            conversion_action.type, conversion_action.category, conversion_action.status,
+            conversion_action.tag_snippets
+       FROM conversion_action
+      WHERE conversion_action.status != 'REMOVED'`,
+    "readConversionActions");
+  return mapConversionRows(rows);
+}
+
+async function ensureConversionActions(accessToken, customerId, { leadValue } = {}) {
+  const cid = digits(customerId);
+  if (!cid) { const e = new Error("customerId required"); e.stage = "conversionSetup"; throw e; }
+
+  const existing = await readConversionActions(accessToken, cid);
+  const missing = CONVERSION_ACTIONS.filter((a) => !existing[a.key]);
+
+  if (missing.length) {
+    await mutate(accessToken, cid, "conversionActions",
+      missing.map((a) => ({ create: conversionActionPayload(a, { leadValue }) })),
+      "createConversionActions");
+  }
+
+  // Re-read either way. The create response carries resource names but NOT the tag
+  // snippets, and the snippet is the only place the conversion label exists. Without the
+  // label the landing page has nothing to fire.
+  const actions = await readConversionActions(accessToken, cid);
+
+  // The account-level conversion id (AW-…). Every tag on the page needs it, and it is a
+  // property of the account rather than of any one action.
+  let conversionId = "";
+  try {
+    const rows = await gaql(accessToken, cid,
+      `SELECT customer.conversion_tracking_setting.conversion_tracking_id FROM customer`,
+      "conversionTrackingId");
+    const raw = rows[0] && rows[0].customer && rows[0].customer.conversionTrackingSetting
+      && rows[0].customer.conversionTrackingSetting.conversionTrackingId;
+    if (raw) conversionId = `AW-${digits(raw)}`;
+  } catch (e) {
+    // Not fatal: the label parse below usually carries the same id, so fall through
+    // rather than failing a setup that has otherwise worked.
+    console.warn("conversionSetup: could not read the account conversion id:", e && e.message);
+  }
+  if (!conversionId) {
+    const fromLabel = Object.values(actions).find((a) => a && a.conversionId);
+    if (fromLabel) conversionId = fromLabel.conversionId;
+  }
+
+  const created = missing.map((a) => a.key);
+  return { actions, conversionId, created, existed: ACTION_KEYS.filter((k) => !created.includes(k) && actions[k]) };
+}
+
+// ── Sending the outcome back ─────────────────────────────────────────────────
+// partialFailure is ON deliberately. One bad row out of ten must not throw away the nine
+// good ones, and Google reports the rejects per row so they can be recorded against the
+// lead that caused them rather than disappearing into a single failed request.
+async function uploadClickConversions(accessToken, customerId, conversions) {
+  const cid = digits(customerId);
+  const resp = await fetch(`${ADS_BASE}/customers/${cid}/conversionUploads:uploadClickConversions`, {
+    method: "POST",
+    headers: baseHeaders(accessToken),
+    body: JSON.stringify({ conversions, partialFailure: true, validateOnly: false }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("uploadClickConversions", resp.status, data));
+    e.stage = "uploadClickConversions"; e.detail = data; throw e;
+  }
+  // With partialFailure, per-row problems come back in partialFailureError, and the
+  // results array carries an empty object where a row failed.
+  const results = data.results || [];
+  const rejects = [];
+  const pf = data.partialFailureError;
+  if (pf) {
+    for (const d of (pf.details || [])) {
+      for (const err of (d.errors || [])) {
+        const idx = ((err.location && err.location.fieldPathElements) || [])
+          .map((f) => f.index).find((i) => i !== undefined && i !== null);
+        rejects.push({ index: idx == null ? null : Number(idx), message: err.message || "rejected" });
+      }
+    }
+    console.warn("uploadClickConversions partial failure:", JSON.stringify(rejects).slice(0, 2000));
+  }
+  const accepted = results.filter((r) => r && (r.gclid || r.wbraid || r.gbraid || r.conversionAction)).length;
+  return { accepted, rejected: rejects.length, rejects, results };
+}
+
 // ── Guarded write: ACTUALLY START a campaign ─────────────────────────────────
 //
 // 🔴 Same bug as Meta's `activateCampaign`, same cause, same silence (found 2026-08-20).
@@ -888,6 +988,75 @@ export default async (req) => {
         });
       } catch (e) { console.error("createCampaign owner alert failed:", e && e.message); }
       return json({ ok: true, action, ...result });
+    }
+
+    // ── Set up the conversion loop on a client's account ─────────────────────
+    // Writes the result onto the client record, because the landing page and the upload
+    // job both need it and neither can call Google to ask.
+    if (action === "conversionSetup") {
+      if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
+      if (!body.clientId) return json({ ok: false, error: "clientId required" }, 400);
+      const out = await ensureConversionActions(accessToken, body.customerId, { leadValue: body.leadValue });
+
+      const { data: row } = await supabase.from("clients").select("data").eq("id", body.clientId).maybeSingle();
+      const cl = (row && row.data) || {};
+      const next = {
+        ...cl,
+        conversionActions: out.actions,
+        conversionId: out.conversionId || cl.conversionId || "",
+        conversionSetupAt: new Date().toISOString(),
+      };
+      const { error: upErr } = await supabase.from("clients")
+        .update({ data: next, updated_at: new Date().toISOString() }).eq("id", body.clientId);
+      if (upErr) return json({ ok: false, error: `Set up in Google, but could not save it: ${upErr.message}` }, 500);
+
+      // A missing label is not a hard failure, but the page cannot report a form
+      // submission without it, so say so plainly rather than reporting success.
+      const formLabel = out.actions.form && out.actions.form.label;
+      return json({ ok: true, action, ...out,
+        ready: !!(out.conversionId && formLabel),
+        note: (out.conversionId && formLabel) ? "" :
+          "The conversion actions exist, but Google has not issued the page tag yet. Run this again in a few minutes." });
+    }
+
+    // ── Tell Google which leads were real ────────────────────────────────────
+    if (action === "uploadConversions") {
+      if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
+      if (!body.clientId) return json({ ok: false, error: "clientId required" }, 400);
+      const stage = String(body.stage || "qualified");
+
+      const { data: row } = await supabase.from("clients").select("data").eq("id", body.clientId).maybeSingle();
+      const cl = (row && row.data) || null;
+      if (!cl) return json({ ok: false, error: "Client not found" }, 404);
+
+      const plan = uploadPlan(cl, { stage });
+      if (!plan.ok) return json({ ok: false, error: plan.error }, 400);
+      if (!plan.rows.length) {
+        return json({ ok: true, action, stage, uploaded: 0, skipped: plan.skipped,
+          note: "Nothing new to send. Every lead at this stage has either been sent already or has no click to match it to." });
+      }
+
+      const res = await uploadClickConversions(accessToken, body.customerId, plan.rows.map((r) => r.row));
+
+      // 🔴 ONLY MARK WHAT GOOGLE ACTUALLY TOOK. Marking a rejected row as sent would
+      // hide it forever, and the lead would never reach the bidding it was meant to feed.
+      const rejected = new Set(res.rejects.map((r) => r.index).filter((i) => i != null));
+      const at = new Date().toISOString();
+      const leads = (cl.leadsLog || []).slice();
+      let marked = 0;
+      plan.rows.forEach((r, i) => {
+        if (rejected.has(i)) return;
+        const lead = leads[r.index];
+        if (!lead) return;
+        leads[r.index] = { ...lead, gadsUploaded: { ...(lead.gadsUploaded || {}), [stage]: at } };
+        marked++;
+      });
+      const { error: upErr } = await supabase.from("clients")
+        .update({ data: { ...cl, leadsLog: leads }, updated_at: at }).eq("id", body.clientId);
+      if (upErr) console.error("uploadConversions: could not record what was sent:", upErr.message);
+
+      return json({ ok: true, action, stage, uploaded: marked,
+        rejected: res.rejected, rejects: res.rejects, skipped: plan.skipped, saved: !upErr });
     }
 
     return json({ ok: false, error: `Unknown action: ${action}` }, 400);
