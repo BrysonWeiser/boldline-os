@@ -34,7 +34,7 @@
     };
   </script>
   <script type="text/babel" data-presets="env,react">
-const { useState, useEffect, useRef, useCallback, useContext, createContext } = React;
+const { useState, useEffect, useRef, useMemo, useCallback, useContext, createContext } = React;
 
 // ─── SUPABASE (auth + database) ───────────────────────────────────────────────
 const supabaseClient = supabase.createClient(
