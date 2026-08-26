@@ -167,3 +167,34 @@ structure instead — an element with both a direct `h3` and a direct `ul`:
 [...pane.querySelectorAll("*")].filter((e) =>
   e.querySelector(":scope > h3") && e.querySelector(":scope > ul"))
 ```
+
+## 2026-08-26 — 🔴 A HARNESS MORE PERMISSIVE THAN REALITY IS NOT A TEST
+
+Shipped a crash that blanked the whole OS. A new component used `useMemo`, which
+`index.html` never destructured off `React` (line 37 had useState, useEffect, useRef,
+useCallback, useContext, createContext, and nothing else). Bryson pressed **New Client** and
+got a red `ReferenceError: useMemo is not defined` screen.
+
+**Two checks had just passed, and neither could have caught it.**
+
+1. **Compiling the whole file through Babel.** Babel compiles a call to an undefined name
+   perfectly happily. A syntax check can never catch an undefined reference, and treating a
+   clean compile as "it works" is the mistake.
+2. 🔴 **The throwaway Playwright harness, which is the real lesson.** It began
+   `const {useState,useEffect,useMemo,useRef}=React;` — written from what the component
+   NEEDED rather than copied from what the app ACTUALLY PROVIDES. So the harness supplied
+   the very binding the real page lacked. It rendered perfectly, screenshots and all, and
+   proved nothing about production. **A harness that supplies what the real environment does
+   not is a second implementation that happens to work.**
+
+**Rule going forward:** when standing up a harness around a slice of `index.html`, take the
+surrounding bindings **from the file itself** (slice line 37) rather than writing them by
+hand. If that is impractical, the thing being verified must also be checked against the
+shipping file statically.
+
+**Guard added: `tests/verify-app-boots.mjs`.** Scans the stripped source for every React
+hook that is CALLED (`(?<![.\w])useX\s*\(`, so `React.useX(` and `foo.useState(` do not count)
+and asserts each is either on the destructuring line or fully qualified. Also pins
+`createContext`, and fails on a hook destructured but never used so the line stays honest.
+11 checks, broken once by removing `useMemo` and confirmed to reproduce the exact shipped
+failure.
