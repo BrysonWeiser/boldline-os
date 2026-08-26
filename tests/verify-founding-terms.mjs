@@ -152,5 +152,40 @@ const BASE = {
     /client\.billingSetup!=null/.test(card));
 }
 
+
+// ── 6. The Billing card must be able to EXPRESS these terms ───────────────────
+// 🔴 THE ORDERING BUG BRYSON HIT. The per-qualified-lead rate is a CONTRACT TERM, printed
+// in the agreement the client signs. It was only editable once Stripe billing was active,
+// which happens after signing, so the one number defining what the client agreed to was
+// unreachable at the moment it had to be set. And a $0 monthly was refused outright with
+// "Stripe requires a recurring amount" — true of a SUBSCRIPTION, but results-only pricing
+// creates no subscription at all, so that constraint belonged on the Stripe button.
+{
+  const at = S.indexOf("function BillingCard");
+  const card = S.slice(at, S.indexOf("function ", at + 20) > 0 ? S.indexOf("\nfunction ", at + 20) : at + 20000)
+    .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)).join("\n");
+
+  ok("🔴 the per-lead rate can be set before billing is ever live",
+    /adjPerLead/.test(card) && /Per Qualified Lead/.test(card),
+    "it is a contract term, so it must be settable before the contract is generated");
+  ok("and the editor saves it onto the client", /billingPerLead:rate/.test(card));
+  ok("opening the editor pre-fills the rate already agreed", /setAdjPerLead\(perLeadRate>0/.test(card));
+
+  ok("🔴 a zero monthly is no longer refused outright",
+    !/Monthly fee must be greater than zero/.test(card),
+    "that message blocked every results-only client");
+  ok("it is refused only when there is no per-lead rate either, which bills nothing ever",
+    /!\(m>0\)&&!\(effRate>0\)/.test(card));
+  ok("the Stripe constraint sits on the Stripe button instead", /monthly>0\s*\n?\s*\?\s*<button onClick=\{setupBilling\}/.test(card));
+  ok("and a results-only client is told why there is no subscription",
+    /no subscription to create/.test(card));
+
+  ok("🔴 the card no longer calls it a management fee",
+    !/management fee/i.test(card),
+    "that model was rejected in writing by the first client and replaced on 2026-08-18");
+  ok("it shows the per-lead rate beside the minimum", /qualified lead/.test(card));
+  ok("and says plainly when there is no minimum", /No monthly minimum/.test(card));
+}
+
 console.log(`verify-founding-terms: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
