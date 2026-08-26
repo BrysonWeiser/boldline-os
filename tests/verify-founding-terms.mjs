@@ -133,5 +133,24 @@ const BASE = {
   ok("a client with no agreed rate falls back to the niche table", h.includes("$75 per qualified lead"));
 }
 
+
+// ── 5. The Billing card must agree with the contract ──────────────────────────
+// 🔴 THE SAME FALSY BUG LIVED IN TWO PLACES. The card Bryson reads would have shown $400 to
+// a founding client whose signed agreement said the minimum was waived. Two surfaces
+// disagreeing about what someone owes is the failure this whole file exists to prevent, so
+// the shape of that read is pinned rather than left to a future edit.
+{
+  const at = S.indexOf("function BillingCard");
+  // Comments in this component explain the very rule being checked, so a prose mention
+  // would satisfy a regex that the code did not (KB `repo-tests`, the comment trap).
+  const card = S.slice(at, at + 2600).split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  ok("the billing card reads the minimum with a null check, not a falsy one",
+    /client\.billingMonthly!=null\?Number\(client\.billingMonthly\)/.test(card),
+    "`||` treats a waived $0 minimum as unset and shows the package price instead");
+  ok("🔴 and no longer uses the falsy form", !/client\.billingMonthly\|\|\(pkg/.test(card));
+  ok("the setup fee beside it still uses a null check too",
+    /client\.billingSetup!=null/.test(card));
+}
+
 console.log(`verify-founding-terms: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

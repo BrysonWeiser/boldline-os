@@ -6185,7 +6185,11 @@ function BillingCard({client,pkg,onUpdate}) {
   // Prefer the agreed rate (set at renewal / checkout / manual adjust) over the
   // package default, so discounts and term pricing flow into checkout + contract.
   const oneTime = isOneTime(pkg);
-  const monthly=client.billingMonthly||(pkg&&pkg.price)||0;
+  // A waived minimum is a real term and zero is a real value, so `||` cannot be used here.
+  // The setup line directly below already got this right; this one did not, which would
+  // have shown a founding client $400 on the Billing card while their signed agreement
+  // said the minimum was waived.
+  const monthly=(client.billingMonthly!=null?Number(client.billingMonthly):((pkg&&pkg.price)||0))||0;
   // billingSetup may legitimately be 0 (waived) — only fall back when unset.
   const setup=(client.billingSetup!=null?client.billingSetup:(pkg&&pkg.setup))||0;
   const status=client.billingStatus||"none";
