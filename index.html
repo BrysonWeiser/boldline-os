@@ -786,7 +786,7 @@ const NICHE_GROUPS = {
   "Food & Hospitality": ["Restaurant","Cafe & Coffee","Bar & Nightlife","Catering","Food Truck","Bakery","Hotel & Lodging"],
   "Retail & E-Commerce": ["E-Commerce","Clothing & Apparel Brand","Jewelry & Accessories","Beauty & Cosmetics Brand","Furniture & Home Goods","Electronics & Gadgets","Health & Supplements","Pet Products","Specialty Food & Beverage","Subscription Box"],
   "Education & Family": ["Childcare & Daycare","Tutoring & Test Prep","Music Lessons","Pet Grooming & Boarding","Dog Training","Coaching & Consulting"],
-  "B2B & Other": ["SaaS & Software","B2B Services","Manufacturing","Wholesale & Distribution","Nonprofit","Franchise","Other Local Service"],
+  "B2B & Other": ["Custom Apparel & Screen Printing","Promotional Products","SaaS & Software","B2B Services","Manufacturing","Wholesale & Distribution","Nonprofit","Franchise","Other Local Service"],
 };
 const NICHES    = Object.values(NICHE_GROUPS).flat();
 const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
@@ -10394,31 +10394,126 @@ function ARIABuilderTab({ariaSystem}) {
 
 
 // ─── EDIT CLIENT SHEET ────────────────────────────────────────────────────────
-// Niche picker: grouped long dropdown + a "custom" escape hatch so any niche can
-// be typed (Bryson, 2026-08-07). Shared by the Edit + Add client sheets.
+// Niche picker. Type to filter, or type anything at all and keep it.
+//
+// Bryson, 2026-08-26, adding his first real client: *"the categories are white and i cant
+// read them i also need a way to search or put a specific niche."* Both complaints came from
+// the same place. A native <select> hands its dropdown to the operating system, which
+// renders <optgroup> labels with its OWN colours and ignores ours, so on a dark theme the
+// group headings came out white on white. There is no CSS fix for that; the popup is not
+// ours to style. And a 200-entry native list has no search, so the custom-niche escape
+// hatch sat invisible at the very bottom where nobody would ever scroll to find it.
+//
+// 🔴 SO THE LIST IS DRAWN BY US, NOT BY THE BROWSER. Everything below is ordinary markup we
+// control, which is what makes the group headings legible and the filtering possible.
+// Anything typed that matches nothing is simply KEPT as the value: a niche we never thought
+// of is a real business, not an error, and the previous design made that the hardest path
+// through the control rather than the easiest.
 function NicheSelect({value,onChange}){
-  const inList = !value || NICHES.includes(value);
-  const [custom,setCustom] = useState(!inList);
-  if(custom){
-    return (
-      <div style={{display:"flex",gap:6,alignItems:"stretch"}}>
-        <input value={value||""} onChange={e=>onChange(e.target.value)} placeholder="Type your niche…" style={{...inp,flex:1}} autoFocus/>
-        <button type="button" onClick={()=>{setCustom(false);onChange("");}} title="Pick from the list instead" style={{flexShrink:0,padding:"0 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>List</button>
-      </div>
-    );
-  }
+  const [open,setOpen]   = useState(false);
+  const [q,setQ]         = useState("");
+  const [hi,setHi]       = useState(0);          // highlighted row, for the arrow keys
+  const boxRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Close when the click lands anywhere else. Without this the panel survives a click on
+  // the field beneath it and covers what you were trying to fill in next.
+  useEffect(()=>{
+    if(!open) return;
+    const away = (e)=>{ if(boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown",away);
+    return ()=>document.removeEventListener("mousedown",away);
+  },[open]);
+
+  const needle = q.trim().toLowerCase();
+  // Grouped while browsing, flat once you start typing: the headings are useful for
+  // finding your way around 200 entries and pure noise once six results are left.
+  const groups = useMemo(()=>{
+    if(!needle) return Object.entries(NICHE_GROUPS);
+    const out=[];
+    for(const [g,arr] of Object.entries(NICHE_GROUPS)){
+      const hit = arr.filter(n=>n.toLowerCase().includes(needle));
+      if(hit.length) out.push([g,hit]);
+    }
+    return out;
+  },[needle]);
+  const flat = useMemo(()=>groups.flatMap(([,arr])=>arr),[groups]);
+  // An exact match must not offer to "add" what is already on the list.
+  const exact = flat.some(n=>n.toLowerCase()===needle);
+  const canAdd = !!needle && !exact;
+  const rows = canAdd ? [...flat, q.trim()] : flat;
+
+  const pick = (n)=>{ onChange(n); setQ(""); setOpen(false); };
+  const onKey = (e)=>{
+    if(e.key==="ArrowDown"){ e.preventDefault(); setOpen(true); setHi(h=>Math.min(h+1,rows.length-1)); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); setHi(h=>Math.max(h-1,0)); }
+    else if(e.key==="Enter"){
+      e.preventDefault();
+      // Enter on a typed niche that matches nothing keeps what was typed. That is the
+      // whole point: the operator knows their client's trade better than this list does.
+      if(rows[hi]) pick(rows[hi]);
+      else if(needle) pick(q.trim());
+    }
+    else if(e.key==="Escape"){ setOpen(false); }
+  };
+
+  const rowStyle = (on)=>({
+    padding:"8px 11px", fontSize:13, cursor:"pointer", color:on?"#fff":C.textDim,
+    backgroundColor:on?"rgba(59,130,246,.9)":"transparent", lineHeight:1.35,
+  });
+
+  let idx = -1;   // running index across groups, so highlighting matches the flat list
   return (
-    <select value={value||""} onChange={e=>{ const v=e.target.value; if(v==="__custom__"){setCustom(true);onChange("");} else onChange(v); }} style={inp}>
-      <option value="">Select niche…</option>
-      {Object.entries(NICHE_GROUPS).map(([g,arr])=>(
-        <optgroup key={g} label={g}>
-          {arr.map(n=><option key={n} value={n} style={{backgroundColor:C.bg2}}>{n}</option>)}
-        </optgroup>
-      ))}
-      <option value="__custom__">+ Add a custom niche…</option>
-    </select>
+    <div ref={boxRef} style={{position:"relative"}}>
+      <input
+        value={open?q:(value||"")}
+        onChange={e=>{ setQ(e.target.value); setHi(0); if(!open) setOpen(true); }}
+        onFocus={()=>{ setQ(""); setHi(0); setOpen(true); }}
+        onKeyDown={onKey}
+        placeholder={value?value:"Search or type a niche…"}
+        style={{...inp, cursor:"text"}}
+      />
+      {value&&!open&&(
+        <button type="button" onClick={()=>onChange("")} title="Clear"
+          style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",border:"none",background:"none",color:C.textMuted,fontSize:14,cursor:"pointer",lineHeight:1,padding:4}}>×</button>
+      )}
+      {open&&(
+        <div ref={listRef} style={{position:"absolute",zIndex:60,top:"calc(100% + 4px)",left:0,right:0,
+          maxHeight:260,overflowY:"auto",backgroundColor:C.bg2,border:`1px solid ${C.border}`,
+          borderRadius:10,boxShadow:"0 12px 32px rgba(0,0,0,.55)"}}>
+          {rows.length===0&&!canAdd&&(
+            <div style={{padding:"12px 11px",fontSize:12,color:C.textMuted}}>Nothing matches. Keep typing to add it as a new niche.</div>
+          )}
+          {groups.map(([g,arr])=>(
+            <div key={g}>
+              {/* The heading that was unreadable. Ours now, so it is gold on the panel
+                  background rather than whatever the operating system felt like. */}
+              <div style={{padding:"7px 11px 4px",fontSize:9.5,fontWeight:800,letterSpacing:".09em",
+                textTransform:"uppercase",color:C.gold,opacity:.85,
+                borderTop:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",
+                position:"sticky",top:0}}>{g}</div>
+              {arr.map(n=>{
+                idx++;
+                const me = idx;
+                return (
+                  <div key={n} onMouseDown={(e)=>{e.preventDefault();pick(n);}} onMouseEnter={()=>setHi(me)}
+                    style={rowStyle(hi===me)}>{n}</div>
+                );
+              })}
+            </div>
+          ))}
+          {canAdd&&(
+            <div onMouseDown={(e)=>{e.preventDefault();pick(q.trim());}} onMouseEnter={()=>setHi(rows.length-1)}
+              style={{...rowStyle(hi===rows.length-1),borderTop:`1px solid ${C.border}`,fontWeight:700}}>
+              + Use &ldquo;{q.trim()}&rdquo;
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
+
 
 // My Ads insights (internal-only, top of the Campaigns tab): a "start here"
 // setup checklist, a budget-pacing gauge, and an acquisition-ROI funnel

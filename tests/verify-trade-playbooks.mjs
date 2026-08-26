@@ -291,5 +291,30 @@ const B = new Function(`${browserSrc}
   ok("and the card disables its own button", /disabled=\{!save\}/.test(UI_CODE));
 }
 
+
+// ── A seeded trade nobody can select is dead code ─────────────────────────────
+// 🔴 THE NICHE STRING IS THE ONLY KEY INTO THE PLAYBOOK. If the dropdown offers no niche
+// that matches a trade's pattern, that trade's whole block list silently never applies and
+// the campaign launches with the universal list only. Found for real on 2026-08-26: the
+// first client is a screen printer and the closest option was "Clothing & Apparel Brand",
+// which matches nothing, so 17 apparel-specific blocked searches would have been lost
+// without a single error anywhere.
+{
+  const i = UI.indexOf("const NICHE_GROUPS = {");
+  const list = UI.slice(i, UI.indexOf("\n};", i));
+  const niches = [...list.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  ok("the niche list was found and is not empty", niches.length > 20, `found ${niches.length}`);
+  for (const t of PB.TRADES) {
+    const reachable = niches.filter((n) => t.match.test(n));
+    ok(`🔴 the ${t.id} playbook is reachable from the niche list`, reachable.length > 0,
+      `nothing in the dropdown matches ${t.match}, so its blocked searches can never apply`);
+  }
+  // And the specific one that shipped with the first client.
+  const pb = PB.playbookFor("Custom Apparel & Screen Printing", {});
+  ok("a screen printer selects into the apparel playbook", pb.trade && pb.trade.id === "apparel");
+  ok("and gets meaningfully more blocked searches than the universal list alone",
+    pb.negatives.length > PB.playbookFor("Something Unlisted", {}).negatives.length + 10);
+}
+
 console.log(`verify-trade-playbooks: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
