@@ -6427,7 +6427,7 @@ function BillingCard({client,pkg,onUpdate}) {
         </div>
       )}
       {status==="active"&&!oneTime&&<>
-        <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>Auto-charging {money(client.billingMonthly||monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</div>
+        <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>Auto-charging {money(monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</div>
         <div style={S.row7}>
           <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Manage in Stripe"}</button>
           <button onClick={refresh} disabled={!!busy} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="sync"?"…":"Refresh"}</button>
@@ -6583,9 +6583,9 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     ifr.onload=()=>{ setTimeout(()=>{ ifr.contentWindow.print(); setTimeout(()=>{ document.body.removeChild(ifr);URL.revokeObjectURL(url); },3000); },600); };
   };
   // The standard (3-month) monthly rate this client's term pricing is anchored to.
-  const baseMonthly=(pkg&&pkg.price)||client.billingMonthly||0;
+  const baseMonthly=(pkg&&pkg.price)||0;
   // ── Early termination (Agreement: 30-day notice; ETF = 1 month's fee + term-discount clawback)
-  const effMonthly=client.billingMonthly||baseMonthly;
+  const effMonthly=client.billingMonthly!=null?Number(client.billingMonthly):baseMonthly;
   const etfCalc=(()=>{
     const start=new Date(client.contractStart||new Date());
     const now=new Date();
@@ -6624,7 +6624,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     // v2 — if a live subscription is active, push the new rate to Stripe so the
     // renewal actually changes what auto-charges (no manual Stripe edit needed).
     let note="";
-    if(client.stripeSubscriptionId && client.billingStatus==="active" && monthly!==(client.billingMonthly||baseMonthly)){
+    if(client.stripeSubscriptionId && client.billingStatus==="active" && monthly!==effMonthly){
       setRenewBusy(true);
       try{
         await stripeBilling("update-subscription",{customerId:client.stripeCustomerId,subscriptionId:client.stripeSubscriptionId,monthlyAmount:monthly,packageName:pkg&&pkg.name});
@@ -6686,7 +6686,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
                 {m===1&&termRate(1)>0&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium over the standard rate.</div>}
                 {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} over the term vs. month-to-month.</div>}
                 <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
-                {client.billingStatus==="active"&&mo!==(client.billingMonthly||baseMonthly)&&<div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Their live Stripe subscription will update to this rate automatically.</div>}
+                {client.billingStatus==="active"&&mo!==effMonthly&&<div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Their live Stripe subscription will update to this rate automatically.</div>}
               </>;
             })()}
           </div>

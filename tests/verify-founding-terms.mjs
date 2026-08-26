@@ -225,5 +225,49 @@ const BASE = {
   ok("and says plainly when there is no minimum", /No monthly minimum/.test(card));
 }
 
+
+// ── 7. 🔴 THE PORTAL RENDERS ITS OWN COPY, AND IT HAD DRIFTED ─────────────────
+// The client portal builds the contract from netlify/lib/contract-shared.cjs, a second
+// implementation of the same document. Every founding-terms change landed in index.html
+// and NONE of them landed there, so the client would have signed a PDF saying "no monthly
+// minimum, no early-termination fee" and then read a portal contract saying $400/mo,
+// greater-of, billed in advance, with a rate clawback on exit. Two documents, same client,
+// different terms.
+//
+// So this compares the OUTPUT of both, not the source. Comparing source would pass on two
+// files that merely look similar; only the rendered text is what anyone signs or reads.
+{
+  const portal = await import("../netlify/lib/contract-shared.cjs");
+  const mkPortal = portal.makeContractHTML || (portal.default && portal.default.makeContractHTML);
+  ok("the portal exports the contract renderer", typeof mkPortal === "function");
+
+  if (typeof mkPortal === "function") {
+    const CASES = [
+      ["a founding client", { ...BASE, billingPerLead: 50, billingMonthly: 0, billingSetup: 0 }],
+      ["a standard client", { ...BASE, billingPerLead: 75 }],
+      ["setup waived only", { ...BASE, billingPerLead: 50, billingSetup: 0 }],
+      ["minimum waived only", { ...BASE, billingPerLead: 50, billingMonthly: 0 }],
+      ["a niche-default client", { ...BASE, niche: "Roofing" }],
+    ];
+    for (const [label, cl] of CASES) {
+      // The OS copy has LOGO in scope and the portal takes it as an argument; both are
+      // stubbed empty so the comparison is about the WORDS, not the image.
+      const a = make(cl, PKG);
+      const b = mkPortal(cl, PKG, "");
+      ok(`🔴 both copies render an identical contract for ${label}`, a === b,
+        a === b ? "" : `they differ by ${Math.abs(a.length - b.length)} characters. ` +
+          `A client signs one and reads the other in their portal.`);
+    }
+    // And spot-check that the portal specifically carries the terms that matter most,
+    // so a future "make them equal" that equalises them WRONGLY still fails.
+    const f = mkPortal({ ...BASE, billingPerLead: 50, billingMonthly: 0, billingSetup: 0 }, PKG, "");
+    ok("the portal shows no monthly minimum", f.includes("None during the Initial Term"));
+    ok("the portal shows the agreed rate", f.includes("$50 per qualified lead"));
+    ok("🔴 the portal never shows the floor he was not told about", !f.includes("$400"));
+    ok("the portal carries the no-clawback promise", f.includes("THERE IS NO EARLY-TERMINATION FEE"));
+    ok("and the company email", f.includes("bryson@boldlinemedia.com"));
+  }
+}
+
 console.log(`verify-founding-terms: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
