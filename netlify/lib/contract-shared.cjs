@@ -93,7 +93,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const pl=PER_LEAD[cl.niche];
   const feats=(PKG_FEATURES[cl.packageId]||[]).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
-  const effMonthly = cl.billingMonthly || (pkg&&pkg.price) || 0;
+  const effMonthly = cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0);
   const stdMonthly = (pkg&&pkg.price) || effMonthly;      // the Standard (3-month) Rate
   // Setup fee honors a manual adjustment (billingSetup), including an explicit $0 waiver.
   const setupFee   = (cl.billingSetup!=null?cl.billingSetup:(pkg&&pkg.setup))||0;
@@ -107,8 +107,12 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // fee for that month, never both. Lead gen bills per qualified lead; e-commerce bills
   // a percentage of ad spend, because a store has no lead to count.
   const pctFee   = (pkg && pkg.pricingModel === "ad_spend_pct") ? Number(pkg.adSpendPct)||0 : 0;
-  const perLeadFee = (pkg && pkg.pricingModel === "per_lead") ? (pl||0) : 0;
+  const perLeadFee = (pkg && pkg.pricingModel === "per_lead")
+    ? (cl.billingPerLead!=null ? Number(cl.billingPerLead) : (pl||0))
+    : 0;
   const hasPerf  = pctFee > 0 || perLeadFee > 0;
+  // Results-only: performance fee, no floor. Mirrors index.html — see the note there.
+  const introOnly = hasPerf && effMonthly === 0;
   // A one-time build (Launch & Hand Off) has no monthly fee, no performance fee and no
   // committed term. Sections 2, 3 and 4 swap WHOLESALE rather than being patched with
   // conditionals — a half-adapted agreement reads worse than either version and is the
@@ -124,7 +128,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +metaItem("Advertising Platform",(pkg&&pkg.platform)||"—")
    +(oneTime
       ? metaItem("Total Fee",money(setupFee)+" one time")+metaItem("Ongoing Fees","None")
-      : metaItem("Monthly Minimum",money(effMonthly)+"/mo")
+      : metaItem("Monthly Minimum",introOnly?"None during the Initial Term":money(effMonthly)+"/mo")
         +metaItem("One-Time Setup Fee",setupFee>0?money(setupFee):"Waived"))
    +metaItem("Committed Term",oneTime?"None (one-time project)":monthsLabel(termMo))
    +metaItem("Start Date",esc(cl.contractStart)||"—")
@@ -133,7 +137,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
        :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
    +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" per qualified lead"):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
-   +(hasPerf?metaItem("How the two combine","Whichever is higher, never both"):"")
+   +(hasPerf?metaItem("How the two combine", introOnly
+        ? "Nothing to combine. The performance fee is the entire fee."
+        : "Whichever is higher, never both"):"")
    +(cl.adBudget?metaItem("Client Ad Budget (paid to platforms)",esc(cl.adBudget)):(pkg&&pkg.adSpend?metaItem("Recommended Ad Budget (paid to platforms)",esc(pkg.adSpend)):""));
 
   // ONE section covers both billing models, because the RULE is the same in both:
@@ -152,14 +158,18 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<p>4.4 <strong>Credit toward managed services.</strong> If Client engages Agency on a managed monthly plan within six (6) months of the Effective Date, Agency will <strong>waive that plan&rsquo;s setup fee in full</strong>, in recognition that Client has already paid for the build. The credit is not redeemable for cash, does not reduce any monthly minimum or performance fee, and expires at the end of that six-month period.</p>'
   ) : '';
   const perfSection = hasPerf ? (
-    '<h2>4. Monthly Minimum and Performance Fee</h2>'
-   +'<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>'
+    (introOnly ? '<h2>4. Performance Fee</h2>' : '<h2>4. Monthly Minimum and Performance Fee</h2>')
+   +(introOnly
+      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no Qualified Leads in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
+      : '<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>')
    +(perLeadFee ? (
       '<p>4.2 <strong>Performance Fee (per qualified lead).</strong> The Performance Fee for a month is the Per-Qualified-Lead Fee stated above multiplied by the number of Qualified Leads generated by the Campaigns in that month. A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.</p>'
     ) : (
       '<p>4.2 <strong>Performance Fee (percentage of ad spend).</strong> The Performance Fee for a month is the percentage stated above of Client&rsquo;s total advertising spend across the Campaigns for that month, as reported by the advertising platforms. Advertising spend is paid by Client directly to the platforms and is never held or advanced by Agency; the percentage is a measure of Agency&rsquo;s fee, not a charge for or markup on ad spend.</p>'
     ))
-   +'<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>'
+   +(introOnly
+      ? '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>'
+      : '<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>')
    +(perLeadFee
       ? '<p>4.4 Lead counts are calculated from campaign tracking data. If Client believes a lead was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any lead it reasonably determines was not a Qualified Lead. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong></p>'
       : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
@@ -198,7 +208,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<p class="sub">This Advertising Services Agreement (the &ldquo;Agreement&rdquo;) is entered into between the parties below and governs the services described herein.</p>'
 
    +'<h2>Parties</h2><div class="parties">'
-   +'<div><div class="pl">Agency</div><strong>BoldLine Media LLC</strong><br>an Arizona limited liability company<br>Bryson Weiser, Owner<br>brysonaweiser@gmail.com<br>(&ldquo;Agency&rdquo;)</div>'
+   +'<div><div class="pl">Agency</div><strong>BoldLine Media LLC</strong><br>an Arizona limited liability company<br>Bryson Weiser, Owner<br>bryson@boldlinemedia.com<br>(&ldquo;Agency&rdquo;)</div>'
    +'<div><div class="pl">Client</div><strong>'+clientName+'</strong><br>'+signerName+'<br>'+esc(cl.email)+'<br>'+esc(cl.businessAddress)+'<br>(&ldquo;Client&rdquo;)</div></div>'
 
    +'<h2>Key Commercial Terms</h2><div class="meta">'+meta+'</div>'
@@ -226,7 +236,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
        +'<p>3.4 <strong>No refunds once work has begun.</strong> The Total Fee compensates account configuration, research, and build labor actually performed, and is non-refundable once Agency has commenced work.</p>'
      : '<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
-   +'<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+   +(introOnly
+      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no Qualified Leads produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+      : '<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
@@ -250,7 +262,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<p>(a) <strong>By either party at term end.</strong> Either party may elect not to renew by written notice at least thirty (30) days before the End Date.</p>'
    +(oneTime
      ? '<p>(b) <strong>By Client.</strong> Because this is a one-time project with no committed term, there is no early-termination fee. If Client cancels after Agency has commenced work, fees for work already performed remain payable under Section 3.4.</p>'
-     : '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>')
+     : (introOnly
+        ? '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, and owes only the fees accrued through the effective termination date. <span class="caps">THERE IS NO EARLY-TERMINATION FEE AND NO RATE CLAWBACK UNDER THIS AGREEMENT.</span> Because Client pays only for results actually delivered during the Initial Term, no discounted rate was given in exchange for the Committed Term and there is nothing to recover.</p>'
+        : '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>'))
    +'<p>(c) <strong>By Agency, early.</strong> Agency may terminate before the End Date on thirty (30) days&rsquo; written notice. In that case Agency will refund any prepaid fees covering periods after the effective termination date and, if Agency terminates before the Campaigns launch, the unearned portion of any Setup Fee; no early-termination fee applies to Client.</p>'
    +'<p>(d) <strong>For cause.</strong> Either party may terminate immediately by written notice if the other party materially breaches this Agreement and fails to cure within fifteen (15) days of written notice describing the breach (no cure period applies to Client&rsquo;s non-payment beyond the periods in Section 3.4, or to a breach of confidentiality). Termination for Client&rsquo;s uncured breach does not relieve Client of subsection (b) amounts.</p>'
    +'<p>(e) <strong>Effect.</strong> On termination: all unpaid amounts become immediately due; Agency will stop campaigns as directed, relinquish account access, and deliver any Client-owned materials in its possession; and each party will return or delete the other&rsquo;s Confidential Information on request. Sections addressing fees owed, ownership, confidentiality, data, liability, indemnification, and disputes survive termination.</p>'

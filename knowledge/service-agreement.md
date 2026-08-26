@@ -93,3 +93,32 @@ Both surfaced while generating the first real client's agreement.
 render it and read it. Every fault in this pass was invisible in the source and obvious on
 the page. `verify-founding-terms` now runs the generator and asserts against the OUTPUT,
 50 checks.
+
+## 🔴 2026-08-26 — THE PORTAL RENDERED A DIFFERENT CONTRACT FROM THE ONE SIGNED
+
+Found while auditing what else the founding-client pricing touched. `netlify/lib/contract-shared.cjs`
+is a **second implementation** of the same document, used by the client portal. Every
+founding-terms change landed in `index.html` and **none of them landed there.**
+
+So the first client would have **signed a PDF** saying no monthly minimum, $50 per qualified
+lead, no early-termination fee, billed in arrears, and then **logged into his portal and read
+a contract** saying $400/mo, greater-of, billed monthly in advance, with a rate clawback on
+early exit. Same client, same agreement number, different terms.
+
+All ten changes are now mirrored: the zero-honouring minimum, the agreed per-lead rate, the
+`introOnly` flag, the Key Terms waiver row, the "nothing to combine" row, section 4's
+wholesale swap, billing mechanics, the payment clause, the exit clause, and the company email.
+
+**The guard is an OUTPUT comparison, not a source comparison.** `verify-founding-terms` now
+imports both renderers and asserts `a === b` across five client shapes (founding, standard,
+setup-waived-only, minimum-waived-only, niche-default). Comparing source would pass on two
+files that merely look similar. It also spot-checks the portal copy directly, so a future
+"make them match" that equalises them WRONGLY still fails. **Reverting a single line in the
+portal copy fails five checks.**
+
+**Same sweep cleared five more falsy reads of `billingMonthly`** (`x || fallback` treating a
+waived $0 as unset), including on the renewal card, which is precisely where a founding
+client's introductory pricing is meant to end on stated terms. There are now **zero**
+`billingMonthly ||` reads anywhere in the repo.
+
+**66 checks in `verify-founding-terms`.**
