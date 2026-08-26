@@ -6851,6 +6851,15 @@ function LeadsTabContent({client,onUpdate}) {
                   })()}
                 </div>
               )}
+
+              {/* 🔴 A CRM THAT QUIETLY STOPPED ACCEPTING LEADS LOOKS EXACTLY LIKE A QUIET
+                  WEEK. The lead is safe here either way, but the client's follow-up never
+                  fired, and speed to lead is most of why the forward exists at all. So a
+                  failed hand-off is stated on the row rather than left in a log. */}
+              {lead.crm&&!lead.crm.ok&&(
+                <div style={{marginTop:7,padding:"7px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,backgroundColor:`${C.amber}10`,fontSize:10.5,color:C.amber,lineHeight:1.6}}>
+                  This lead did not reach {client.name}'s own system{lead.crm.error?`: ${lead.crm.error}`:""}. It is saved here, so nothing is lost, but their automatic follow-up never ran.</div>
+              )}
               {client.internal&&openOutreach===idx&&(
                 <div style={{marginTop:8,padding:"11px 12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.05)",border:`1px solid ${C.borderAccent}`}}>
                   <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Book a call — reach out from your own email or phone (personal beats a no-reply blast).</div>
@@ -10510,6 +10519,13 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 {k:"excludedKeywords", l:"Anything to avoid",       ph:"Words or services the ads must not mention"},
                 {k:"leadDestination",  l:"Where leads should go",   ph:"Email or phone"},
                 {k:"crmSystem",        l:"CRM or booking system",   ph:"If any"},
+                // Where the lead goes NEXT. It lands in the OS first so the ad click is
+                // captured, then goes straight on to their own follow-up system, which is
+                // usually faster and better than anything we would bolt on.
+                {k:"crmWebhook",       l:"Send leads on to (web address)", ph:"Their CRM's intake link, if they have one"},
+                {k:"crmWebhookSecret", l:"Password for that link",  ph:"Only if their system asks for one"},
+                // Their own subdomain, so the ad shows THEIR name and not ours.
+                {k:"landingDomain",    l:"Page address on their domain", ph:"e.g. quote.theirbusiness.com"},
               ].map(({k,l,ph})=>(
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>

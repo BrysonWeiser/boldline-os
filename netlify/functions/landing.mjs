@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
+import { normalizeHost } from "../lib/client-domain.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -508,10 +509,23 @@ export default async (req) => {
   const url = new URL(req.url);
   const pathMatch = url.pathname.match(/^\/lp\/([^/]+)\/?$/);
   const slug = (pathMatch && decodeURIComponent(pathMatch[1])) || url.searchParams.get("slug");
-  if (!slug) return notFoundPage();
+
+  // 🔴 A PAGE CAN BE REACHED TWO WAYS, AND THE SECOND ONE IS THE ONE THAT SHIPS.
+  // `/lp/<slug>` on our own domain is how it is previewed and tested. A CLIENT's own
+  // subdomain, pointed here by their web person, is how it is actually advertised, because
+  // Google displays the address the ad points to and a screen printer's ad must not show a
+  // marketing agency's domain. The edge function turns the second into `?host=`.
+  const host = normalizeHost(url.searchParams.get("host") || req.headers.get("host") || "");
+  if (!slug && !host) return notFoundPage();
 
   const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data, error } = await supabaseAdmin.from("clients").select("id, data").eq("data->>landingSlug", slug).maybeSingle();
+  const { data, error } = slug
+    ? await supabaseAdmin.from("clients").select("id, data").eq("data->>landingSlug", slug).maybeSingle()
+    // Case-insensitive, so nobody has to remember which casing they typed it in. The host
+    // has already been checked against a hostname pattern, so it cannot smuggle the `%`
+    // and `_` wildcards this comparison would otherwise honour.
+    : await supabaseAdmin.from("clients").select("id, data")
+        .ilike("data->campaignSetup->>landingDomain", host).maybeSingle();
   if (error) {
     console.error("Landing page lookup failed:", error);
     return notFoundPage();
