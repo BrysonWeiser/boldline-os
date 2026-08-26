@@ -266,3 +266,47 @@ the phrase the first client rejected in writing.
 **Lesson worth keeping:** the pricing MODEL was rewritten on 2026-08-18 and the CONTRACT
 followed, but the operator-facing card that sets the numbers was never revisited. A pricing
 change is not finished until the screen where the numbers are typed can express it.
+
+## 🔴 OPEN DECISION — bill the minimum in ARREARS, not in advance
+
+Bryson, 2026-08-26, reading clause 3.2 of the generated contract: *"for the monthly minimum
+we shouldnt bill in advance it should be billed at the end of the month instead of the
+qualified leads fee so that whichever is bigger is the one that is invoiced not an automatic
+400/month."*
+
+**He is right on the principle.** "Whichever is higher" is ONE calculation that cannot be
+performed until the month is over. Charging the floor up front and reconciling afterwards
+turns the minimum into an automatic monthly debit with a lead top-up, which reads as a
+retainer plus a performance fee. That is the exact shape Stencil & Thread rejected in
+writing and the reason this model was rewritten.
+
+**But the contract was NOT lying.** `stripe-billing.mjs` creates a normal Stripe subscription
+with `recurring: { interval: "month" }`, and Stripe subscriptions bill **in advance**. So
+clause 3.2 accurately described what the code does. **Changing only the wording would have
+created exactly the class of bug that was fixed all day: a document describing behaviour the
+system does not have.**
+
+### What was changed now (small, contained, honest)
+Clause 3.2 was **split**. A results-only client (`introOnly`) gets a payment section that
+says there is no recurring subscription, nothing is charged in advance, the fee is charged
+after the month closes, and a month with no Qualified Leads produces no charge. A client
+**with** a minimum keeps the advance-billing wording, because that is still what happens.
+
+### What is NOT built, and is the real work
+Moving every client to arrears. Three routes:
+1. **Metered subscription** (`usage_type: "metered"`) — Stripe bills metered items in
+   arrears. Closest to native, but changes the item model everywhere.
+2. **$0 recurring line + an invoice item added before finalisation each month.** Keeps the
+   subscription object but the amount is decided monthly. Fiddly, and a missed hook means a
+   $0 invoice.
+3. 🔴 **No subscription for the minimum at all.** At month end compute `max(minimum, leads ×
+   rate)` and charge it as a single invoice. **One charge, one number, and it matches the
+   sentence the client was sold.** Recommended.
+
+**Trade to name before doing it:** arrears means waiting ~30 days for the first payment and
+carrying delivery risk before being paid. Mitigated by the card already on file and the
+existing late-payment clause (1.5%/mo, suspension after 10 days).
+
+**Does NOT block the first client.** Stencil & Thread have no minimum, so their billing is
+already pure arrears through the per-lead invoice path. It becomes relevant at their renewal,
+roughly three months out.

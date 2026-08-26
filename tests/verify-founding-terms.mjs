@@ -85,6 +85,18 @@ const BASE = {
   ok("and renewing is explicitly his choice", h.includes("under no obligation to renew"));
   ok("nothing is billed in advance, because there is no floor to bill", h.includes("Nothing is billed in advance"));
   ok("he is billed for results already delivered", h.includes("billed in arrears"));
+  // 🔴 THE PAYMENT SECTION MUST AGREE WITH THE FEE SECTION. Clause 3.2 still authorised
+  // recurring charges "for the duration of this Agreement" for a Monthly Minimum that does
+  // not exist on this deal. A client reading only the payment section would reasonably
+  // conclude he had signed up to a monthly debit he was expressly told he had not.
+  ok("🔴 the payment section does not authorise a recurring subscription",
+    h.includes("THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE"));
+  ok("and does not describe billing a minimum in advance",
+    !h.includes("Monthly Minimum is billed monthly in advance"));
+  ok("a month with no leads produces no charge at all",
+    h.includes("A month that produces no Qualified Leads produces no charge."));
+  ok("the card on file is still authorised for what IS owed",
+    h.includes("using the payment method Client places on file"));
   // 🔴 The clause that would have hurt most. The standard exit recovers the gap between the
   // standard rate and a rate DISCOUNTED IN EXCHANGE FOR THE TERM. A founding waiver is not
   // that, and applying it would bill the full minimum for every month he had paid nothing on.
@@ -133,6 +145,8 @@ const BASE = {
   ok("and the summary box still states the greater-of rule", h.includes("Whichever is higher, never both"));
   ok("and the standard setup fee", h.includes("$750"));
   ok("and the early-termination fee", h.includes("early-termination fee equal to"));
+  ok("and a client WITH a minimum still has the advance-billing clause, which is what Stripe actually does",
+    h.includes("Monthly Minimum is billed monthly in advance"));
   ok("their own agreed rate is used", h.includes("$75 per qualified lead"));
   ok("🔴 and it beats the niche default rather than the other way round", !h.includes("$50 per qualified lead"));
 }
