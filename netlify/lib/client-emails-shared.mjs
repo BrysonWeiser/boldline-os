@@ -128,13 +128,43 @@ const T = {
     const leadCount = Math.max(0, Math.floor(Number(c.leadCount || 0)));
     const leadRate = Number(c.leadRate || 0);
     const leadTotal = c.leadTotal != null ? Number(c.leadTotal) : leadCount * leadRate;
+    // 🔴 THE INVOICE MUST OBEY THE AGREEMENT IT BILLS UNDER. Section 4.1 of every managed
+    // contract reads "THE TWO ARE NEVER CHARGED TOGETHER": the fee for a month is the
+    // GREATER of the monthly minimum or the performance fee, never their sum. This template
+    // was adding them, so a client on a $700 minimum who produced $900 of qualified leads
+    // was invoiced $1,600 of fees instead of $900 — an overcharge of exactly the minimum,
+    // on a document contradicting the contract they signed. Found 2026-08-26.
+    const leads = leadCount > 0 ? leadTotal : 0;
+    const usingLeads = leads >= monthly;          // ties go to the lead line, which itemises
+    const feeThisMonth = Math.max(monthly, leads);
     const rows = [];
     if (setup > 0) rows.push(["One-time setup", money(setup)]);
-    rows.push([`Monthly management${c.packageName ? " — " + c.packageName : ""}`, money(monthly)]);
-    // Per-qualified-lead charges, itemized: count × rate = total.
-    if (leadCount > 0 && leadTotal > 0) rows.push([`Qualified leads — ${leadCount} × ${money(leadRate)}`, money(leadTotal)]);
-    const total = setup + monthly + (leadCount > 0 ? leadTotal : 0);
+    if (usingLeads && leads > 0) {
+      rows.push([`Qualified leads — ${leadCount} × ${money(leadRate)}`, money(leads)]);
+      // Said out loud, because a client who knows they have a minimum will look for it and
+      // wonder where it went.
+      if (monthly > 0) rows.push([`Your ${money(monthly)} monthly minimum is included in the above, not added`, ""]);
+    } else if (monthly > 0) {
+      rows.push([`Monthly minimum${c.packageName ? " — " + c.packageName : ""}`, money(monthly)]);
+      if (leads > 0) rows.push([`${leadCount} qualified lead${leadCount === 1 ? "" : "s"} at ${money(leadRate)} counted toward the minimum, not added`, ""]);
+    }
+    const total = setup + feeThisMonth;
     rows.push(["Amount due", money(total), GOLD]);
+    // A results-only client in a month with no qualified leads owes nothing, and their
+    // agreement says so in those words. An "invoice for $0" is a confusing thing to receive
+    // and invites a reply asking what it is.
+    if (total <= 0) {
+      return {
+        subject: `Nothing due this month — ${c.businessName || "your account"}`,
+        preheader: `No qualified leads this period, so there is nothing to pay.`,
+        bodyHtml:
+          h1("Nothing to pay this month") +
+          p(`Hi ${escapeHTML(firstName(c.contactName))}, no invoice this time. The campaigns did not produce any qualified leads this period, and you only pay for results, so there is nothing owed.`) +
+          button("See What's Running", c.portalUrl || SITE) +
+          small("Your ad spend is billed separately by Google and Meta directly to you, and is unaffected by this.") +
+          signoff(),
+      };
+    }
     return {
       subject: `Invoice from BoldLine Media — ${money(total)} due`,
       preheader: `Your invoice for ${c.businessName || "your account"} — pay securely online.`,

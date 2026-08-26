@@ -52,3 +52,43 @@ reads "management and per-lead fees only." Verified: render with 3×$75 → $225
 $1,325 due; 0-lead and 0-rate cases show no row.
 
 **Possible next touches (not built):** auto-send hooks (e.g., fire `welcome` on contract-signed, `receipt` on Stripe payment) instead of manual one-click. Light-mode note: emails are intentionally DARK per Bryson; a few email clients may force-light them, which is acceptable.
+
+## 🔴 2026-08-26 — THE INVOICE EMAIL CONTRADICTED THE SIGNED CONTRACT
+
+Bryson, before sending the first one to a real client: *"just to double check that all the
+buttons actually work for the branded emails."* Nine of ten were fine. The tenth was
+**overcharging every managed client, every month**.
+
+**The invoice added the monthly minimum AND the full lead value.** Section 4.1 of every
+managed agreement says in capitals *"THE TWO ARE NEVER CHARGED TOGETHER"* — the fee is the
+**greater of** the two. So a client on a $700 minimum who produced $900 of qualified leads
+was invoiced **$1,600 of fees instead of $900**. An overcharge of exactly the minimum, on the
+one document a client reads most carefully, contradicting the contract they had signed. It
+had been wrong since the 2026-08-18 pricing rewrite: the model changed, the contract
+followed, and the invoice did not.
+
+**Fixed.** The invoice now bills `setup + max(minimum, leads)` and, crucially, **says where
+the other number went**, because a client who knows they have a minimum will look for it:
+- Leads win → *"Your $700 monthly minimum is included in the above, not added"*
+- Minimum wins → *"5 qualified leads at $75 counted toward the minimum, not added"*
+- Results-only client → the $0 minimum line is gone entirely
+- **Results-only client with no leads → not an invoice at all.** Subject becomes *"Nothing due
+  this month"*, because a bill for $0 invites a confused reply and the agreement promises
+  they owe nothing.
+
+## Buttons: all ten verified
+
+Every template's buttons resolve to the client's real portal link. Confirmed by rendering all
+ten and extracting every `href`. **A new client gets `portalToken` at creation**
+(`AddClientSheet`), so the links work from day one.
+
+🔴 **The failure mode to know about:** every button is `c.portalUrl || SITE`, so a client
+with no portal token silently gets the plain marketing homepage. That **looks like it
+worked** — no error, no broken link, just a customer landing on a sales page instead of their
+account. Nobody reports it. `verify-client-emails` now fails on any button that resolves
+without a token.
+
+**68 checks in `tests/verify-client-emails.mjs`, two deliberate breaks confirmed to fail**
+(re-adding the two fees, and stranding a button on the plain site). Templates are RENDERED
+and read, never pattern-matched. The suite also asserts no template anywhere says *"management
+fee"*, which is the phrase the first client rejected in writing.
