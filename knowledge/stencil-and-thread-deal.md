@@ -123,6 +123,8 @@ Sebastian happens to have a competent developer. Most clients will have neither 
 nor a CRM. Fitting BoldLine's engineering to one client's stack is exactly the work that does
 not scale, and it should stay an accommodation rather than a promise.
 
-**Pending Bryson's decision:** whether to move `crmIntegration` to true on the Launch tier in
-the catalog, so the product says what it actually does. Doing it quietly for one client while
-the catalog says otherwise is the outcome to avoid.
+**✅ DECIDED SAME DAY (Bryson, 2026-08-26): include it, and change the catalog to match.**
+`crmIntegration` is now true on every lead-gen package (`g-*`, `m-*`, `c-*`) and on
+`h-handoff`; e-commerce is unchanged because a store has no lead to forward. Full reasoning
+and the four catalog copies involved in KB `pricing-model`. So Sebastian is no longer being
+given something above his tier: the tier now includes it.
