@@ -235,3 +235,34 @@ setup can never quietly waive the minimum too.
 founding-client offer. That touches the marketing site, which is currently under the
 coming-soon gate, so it must go through `docs/META-FLIP-CHECKLIST.md` and the `CS:META-SOON`
 sentinel discipline. Not started.
+
+## 2026-08-26 (same day) — the Billing card could not express the model it bills on
+
+Setting up the first client under the new founding terms, Bryson: *"for part 2 there is no
+way to set the per lead qualified rate."* He was right, and there were three separate faults
+sitting on one card.
+
+1. 🔴 **AN ORDERING BUG. The per-qualified-lead rate was only editable once Stripe billing
+   was ACTIVE** — which happens after the client signs. But that rate is a **contract term**,
+   printed in the agreement they sign. So the single number defining what the client was
+   agreeing to was unreachable at the exact moment it had to be decided. It now sits in the
+   fee editor, beside the monthly and setup fields, available from the moment a client exists.
+2. 🔴 **A $0 MONTHLY WAS REFUSED OUTRIGHT** with *"Monthly fee must be greater than zero
+   (Stripe requires a recurring amount)."* That is true of a **subscription**, and
+   results-only pricing creates no subscription at all: qualified leads are reviewed and
+   invoiced after the month closes. The constraint belonged on the button that talks to
+   Stripe, not on the field that records what was agreed, and that is where it now lives.
+   Zero is refused only when the per-lead rate is ALSO zero, which would bill nothing ever.
+3. **The summary line still described the rejected model** — *"$400/mo management fee"* and
+   *"Management fee only"* — eight days after the rewrite that removed management fees
+   entirely. It now reads the minimum, the per-lead rate and the setup together, says **"No
+   monthly minimum"** in words when there is none, and switches its explainer between
+   "whichever is higher, never both" and "paid on results only".
+
+**43 checks in `verify-founding-terms` (was 30), the reinstated-guard break confirmed to
+fail.** The suite now also asserts the card never says "management fee" again, since that is
+the phrase the first client rejected in writing.
+
+**Lesson worth keeping:** the pricing MODEL was rewritten on 2026-08-18 and the CONTRACT
+followed, but the operator-facing card that sets the numbers was never revisited. A pricing
+change is not finished until the screen where the numbers are typed can express it.

@@ -6196,6 +6196,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const link=client.billingCheckoutUrl||"";
   const [adjMonthly,setAdjMonthly]=useState(String(monthly));
   const [adjSetup,setAdjSetup]=useState(String(setup));
+  const [adjPerLead,setAdjPerLead]=useState("");   // blank keeps whatever is already agreed
   const stdMonthly=(pkg&&pkg.price)||0, stdSetup=(pkg&&pkg.setup)||0;
   const discounted=monthly!==stdMonthly||setup!==stdSetup;
 
@@ -6204,11 +6205,19 @@ function BillingCard({client,pkg,onUpdate}) {
   // fee). Flows everywhere automatically: contract doc, checkout, revenue views.
   const applyAdjust=()=>{
     const m=Math.max(0,Number(adjMonthly)||0), s=Math.max(0,Number(adjSetup)||0);
+    const rawRate=String(adjPerLead).trim();
+    const rate=rawRate===""?null:Math.max(0,Number(rawRate)||0);
+    const effRate=rate!=null?rate:perLeadRate;
     if(oneTime){
       if(!(s>0)){ setMsg("A one-time build needs a fee greater than zero."); return; }
-    }else if(!(m>0)){ setMsg("Monthly fee must be greater than zero (Stripe requires a recurring amount)."); return; }
+    }else if(!(m>0)&&!(effRate>0)){
+      // Zero on BOTH is the only genuinely broken combination: the client would owe nothing,
+      // ever, under any circumstances.
+      setMsg("Set a monthly minimum, a per-qualified-lead rate, or both. With neither there is nothing to bill.");
+      return;
+    }
     setMsg("");
-    onUpdate&&onUpdate({...client,billingMonthly:m,billingSetup:s});
+    onUpdate&&onUpdate({...client,billingMonthly:m,billingSetup:s,...(rate!=null?{billingPerLead:rate}:{})});
     setAdjusting(false);
   };
   const resetAdjust=()=>{
@@ -6342,18 +6351,33 @@ function BillingCard({client,pkg,onUpdate}) {
         <Chip label={badge.t} color={badge.c} small/>
       </div>
       <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:10}}>
-        {money(monthly)}<span style={{color:C.textMuted}}>/mo management fee</span>{setup>0?<span> · {money(setup)} one-time setup</span>:<span style={{color:C.green,fontWeight:700}}> · setup fee waived</span>}
+        {monthly>0
+          ? <><span>{money(monthly)}</span><span style={{color:C.textMuted}}>/mo minimum</span></>
+          : <span style={{color:C.green,fontWeight:700}}>No monthly minimum</span>}
+        {perLeadRate>0&&<span> · <strong style={{color:C.text}}>{money(perLeadRate)}</strong><span style={{color:C.textMuted}}>/qualified lead</span></span>}
+        {setup>0?<span> · {money(setup)} one-time setup</span>:<span style={{color:C.green,fontWeight:700}}> · setup waived</span>}
         {discounted&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"1px 7px"}}>Adjusted</span>}
-        <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Management fee only — the client pays Google/Meta directly for ad spend.</div>
+        <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{monthly>0?"Whichever is higher, never both. ":"Paid on results only. "}The client pays Google and Meta directly for ad spend.</div>
       </div>
 
       {status==="none"&&!adjusting&&<>
         <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly fee only."}</div>
-        <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Recurring Billing →"}</button>
-        <button onClick={()=>{setAdjMonthly(String(monthly));setAdjSetup(String(setup));setAdjusting(true);}} style={{...btn("transparent"),marginTop:8,border:`1px solid ${C.border}`,color:C.textMuted}}>Adjust Fees (discount / waive setup)</button>
+        {monthly>0
+          ? <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Recurring Billing →"}</button>
+          : <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,padding:"9px 11px",borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)"}}>
+              <strong style={{color:C.text}}>Results-only, so there is no subscription to create.</strong> With no monthly minimum there is nothing recurring to charge. Qualified leads are reviewed and invoiced after each month. Set a monthly minimum here if you ever want an auto-charging subscription instead.
+            </div>}
+        <button onClick={()=>{setAdjMonthly(String(monthly));setAdjSetup(String(setup));setAdjPerLead(perLeadRate>0?String(perLeadRate):"");setAdjusting(true);}} style={{...btn("transparent"),marginTop:8,border:`1px solid ${C.border}`,color:C.textMuted}}>Adjust Fees (discount / waive setup)</button>
       </>}
       {status==="none"&&adjusting&&<>
-        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Set this client&rsquo;s agreed fees. They flow into the contract, the checkout, and revenue views. Standard: {money(stdMonthly)}/mo + {money(stdSetup)} setup.</div>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Set this client&rsquo;s agreed fees. They flow into the contract, the checkout, and revenue views. Standard: {money(stdMonthly)}/mo + {money(stdSetup)} setup. A monthly fee of <strong style={{color:C.text}}>0</strong> means results-only pricing, and the agreement says so in words rather than printing a zero.</div>
+        {/* 🔴 THE RATE BELONGS HERE, NOT BEHIND ACTIVE BILLING. It is what the client signs,
+            so it has to be settable before the contract is generated. */}
+        <div style={{marginBottom:8}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:3}}>Per Qualified Lead ($)</div>
+          <input value={adjPerLead} onChange={e=>setAdjPerLead(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder={perLeadRate>0?String(perLeadRate):"e.g. 50"} style={{width:"100%",padding:"8px 10px",fontSize:13,fontWeight:700,borderRadius:8,border:`1px solid ${C.gold}55`,backgroundColor:"rgba(200,168,75,.06)",color:C.text}}/>
+          <div style={{fontSize:10,color:C.textMuted,marginTop:3,lineHeight:1.5}}>This is the number printed in the agreement. Leave blank to keep {perLeadRate>0?money(perLeadRate):"the niche default"}.</div>
+        </div>
         <div style={{display:"flex",gap:8,marginBottom:8}}>
           <div style={{flex:1}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:3}}>Monthly Fee ($)</div>
@@ -6485,7 +6509,7 @@ function BillingCard({client,pkg,onUpdate}) {
           {upcomingState==="loading"&&!upcoming&&<div style={{fontSize:11,color:C.textMuted}}>Loading the next invoice…</div>}
           {upcomingState==="error"&&<div style={{fontSize:10,color:C.textMuted,lineHeight:1.5}}>Couldn&rsquo;t load the preview right now — but everything (fee{setup>0?", setup":""}, approved leads, any interest) still bills together on the next invoice.</div>}
           {upcoming&&<>
-            <div style={{fontSize:10,color:C.textMuted,marginBottom:8,lineHeight:1.5}}>One bill — management fee + approved leads + any late interest, all together{upcoming.chargeDate?`, auto-charging ${fmt(upcoming.chargeDate)}`:""}.</div>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:8,lineHeight:1.5}}>One bill — the monthly minimum + approved leads + any late interest, all together{upcoming.chargeDate?`, auto-charging ${fmt(upcoming.chargeDate)}`:""}.</div>
             <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>
               {upcoming.lines.map((ln,i)=>(
                 <div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11}}>
