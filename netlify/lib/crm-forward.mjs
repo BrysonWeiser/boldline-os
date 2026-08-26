@@ -24,6 +24,8 @@
 //
 // Pure module: every rule below is executed by the test suite, not re-described in it.
 
+import { utmFields, hasClickId } from "./attribution.mjs";
+
 // The visitor is staring at a "Sending..." button while this runs. A slow CRM must not
 // become a slow form, so the whole attempt is capped and a timeout is a failure we record
 // rather than an error the visitor ever sees.
@@ -55,6 +57,11 @@ export const crmPayload = (client, lead, { source = "boldline" } = {}) => {
   return {
     source,
     event: "lead.created",
+    // 🔴 THE DEDUPE KEY. Stable for the life of the lead, so a retry, a replay or a future
+    // backfill of the same lead arrives carrying the same id and can be dropped on sight.
+    // Older leads predate the field, so they fall back to the timestamp they arrived at,
+    // which is unique to the millisecond and was already being sent.
+    leadId: str(l.leadId) || str(l.receivedAt),
     receivedAt: str(l.receivedAt) || new Date().toISOString(),
     business: str(c.name),
     lead: {
@@ -66,14 +73,24 @@ export const crmPayload = (client, lead, { source = "boldline" } = {}) => {
     },
     // The ad attribution. Passed along so the CRM can report by campaign too, and so
     // nobody has to ask us where a contact came from.
+    //
+    // Shaun Smith, 2026-08-26: *"include the gclid and UTM fields alongside the contact
+    // info... so when Sebastian looks at an order weeks later, the source is right there
+    // on the record."* Every key below is always present, even when empty, so whoever
+    // maps this on the other end never has to branch on a field that sometimes vanishes.
     attribution: {
       gclid: str(l.gclid),
       wbraid: str(l.wbraid),
       gbraid: str(l.gbraid),
       clickAt: str(l.clickAt),
+      // The UTM tags. Labels we put on our own links, useful to a human reading the
+      // contact record. 🔴 THEY ARE NOT A SUBSTITUTE FOR A CLICK ID and must never be
+      // read as one: Google never reads a UTM back, so a lead carrying only these can
+      // never have an outcome credited to the search that produced it.
+      ...utmFields(l),
       // True when Google can actually credit an outcome back to an ad. A CRM row without
       // this is a lead that arrived some other way, which is useful to know at a glance.
-      fromAd: !!(l.gclid || l.wbraid || l.gbraid),
+      fromAd: hasClickId(l),
     },
   };
 };

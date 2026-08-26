@@ -3,6 +3,7 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
+import { CLICK_KEYS, UTM_KEYS } from "../lib/attribution.mjs";
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -403,20 +404,35 @@ a{color:inherit}
   // window) so a visitor who comes back and converts later is still attributed, and sent
   // along with the form. `wbraid` and `gbraid` are what Google sends instead when the
   // browser blocks the usual one, mostly on iPhones. Missing them loses about half.
+  //
+  // The UTM tags ride along on the same machinery for the same reason: they are in the URL
+  // on arrival and gone once the visitor clicks anything. They do a different job though.
+  // Google never reads them back, so they can never stand in for a click id. They exist so
+  // a person looking at an order weeks later can see which campaign produced it, which is
+  // exactly what Sebastian's CRM wants to store against the contact.
+  // 🔴 ONLY A CLICK ID SETS `clickAt`. That timestamp decides whether an outcome is still
+  // inside Google's 90 day matching window at upload time, and a UTM tag proves nothing
+  // about a Google click. Letting one stamp the clock would quietly age a lead that Google
+  // was never going to match anyway.
   const clickJS = `
-  var CK=['gclid','wbraid','gbraid'];
+  var CK=${JSON.stringify(CLICK_KEYS)},UK=${JSON.stringify(UTM_KEYS)};
+  function remember(k,qs,now){
+    var v=qs.get(k);
+    if(v){try{localStorage.setItem('bl_'+k,JSON.stringify({v:v,t:now}));}catch(e){}return v;}
+    try{var s=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s&&s.v&&(now-s.t)<90*864e5)return s.v;}catch(e){}
+    return '';
+  }
   function clickIds(){
     var out={},qs=new URLSearchParams(location.search),now=Date.now();
     CK.forEach(function(k){
-      var v=qs.get(k);
-      if(v){try{localStorage.setItem('bl_'+k,JSON.stringify({v:v,t:now}));}catch(e){}}
-      else{try{var s=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s&&s.v&&(now-s.t)<90*864e5)v=s.v;}catch(e){}}
+      var v=remember(k,qs,now);
       if(v)out[k]=v;
       if(v&&!out.clickAt){
         var t=now;try{var s2=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s2&&s2.t)t=s2.t;}catch(e){}
         out.clickAt=new Date(t).toISOString();
       }
     });
+    UK.forEach(function(k){var v=remember(k,qs,now);if(v)out[k]=v;});
     return out;
   }
   try{clickIds();}catch(e){}`;
