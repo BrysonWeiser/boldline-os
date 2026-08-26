@@ -72,3 +72,24 @@ Browser-verified via headless Chromium (iframe renders agreement, print button w
 lands. Verified: Babel transpile OK + node render tests across g-growth/Roofing (per-lead),
 e-growth (ROAS), c-launch (neither) — strict section ordering, correct conditionals, xref,
 escaping — plus headless-Chromium visual check (branded header renders).
+
+## 2026-08-26 — two fixes found by reading the rendered document, not the code
+
+Both surfaced while generating the first real client's agreement.
+
+1. 🔴 **THE SUMMARY BOX CONTRADICTED THE AGREEMENT UNDER IT.** Section 4 had been correctly
+   rewritten for results-only pricing, but the **KEY COMMERCIAL TERMS** table at the top
+   still printed *"How the two combine: Whichever is higher, never both"* — a rule that no
+   longer existed anywhere in the document, on the very box a client reads FIRST. The body
+   was checked and the summary was not, which is the same class of miss as the bug the
+   founding-terms work exists to prevent. It now reads *"Nothing to combine. The performance
+   fee is the entire fee."*
+2. **The agency's address on the contract was a personal gmail.** Now `bryson@boldlinemedia.com`,
+   matching the DocuSign go-live form. Safe to commit: `OWNER_EMAIL` is already in
+   `SECRETS_SCAN_OMIT_KEYS` in `netlify.toml`, which is why the previous address could sit
+   in the file without failing the Netlify build.
+
+**Lesson:** a contract is generated text, and the only way to check generated text is to
+render it and read it. Every fault in this pass was invisible in the source and obvious on
+the page. `verify-founding-terms` now runs the generator and asserts against the OUTPUT,
+50 checks.
