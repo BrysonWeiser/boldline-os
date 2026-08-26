@@ -128,3 +128,39 @@ not scale, and it should stay an accommodation rather than a promise.
 `h-handoff`; e-commerce is unchanged because a store has no lead to forward. Full reasoning
 and the four catalog copies involved in KB `pricing-model`. So Sebastian is no longer being
 given something above his tier: the tier now includes it.
+
+## The developer relationship (Shaun Smith) — 2026-08-26
+
+**Technical call set: Saturday 2026-08-29, 10am Phoenix / 9am his.** He sends the Meet link
+once the time is confirmed.
+
+**Prep page (Bryson's own, internal):**
+https://claude.ai/code/artifact/092d8c4b-77c7-4299-b0ce-a1f3f82b4bb9
+Plain-English glossary (gclid, wbraid/gbraid, UTM, CORS, opaque response, endpoint, payload,
+dual post, backstop, shared secret, lead ID, DNS record, API, MST), the lead's journey in
+seven steps, the three asks, the partnership options, and a say / do-not-say list. Built
+because he asked what the acronyms meant. **Reminders scheduled Fri + Sat 8am**
+(`trig_01We7Ajm9aahnxTg594JTnQ3`, `trig_01Sq3y8tao9UhitcAaQVkkYY`).
+
+### The partnership question, and the recommendation given
+
+Bryson asked how a deal between him and Shaun would work. The fit is real: Shaun builds
+sites for businesses that mostly are not advertising, Bryson runs ads and cannot build sites,
+and **neither wants the other's job**. More importantly Shaun solves BoldLine's worst
+recurring bottleneck, since every client needs the same small developer jobs (one DNS record,
+a form wired up, a CRM connection) and most clients have nobody who can do them.
+
+| Shape | Verdict |
+|---|---|
+| **Swap referrals, no money** | ✅ **Start here.** No contract, no bookkeeping, can start immediately |
+| One-time finder's fee | Revisit at 3-6 months, once referral volume is actually visible |
+| Ongoing % of the monthly | 🔴 **Not yet.** Commits forever on one client's worth of evidence, with no churn history and no real cost-to-serve. Do not agree on a call |
+| **Paid subcontract for dev work** | ✅ **Set up now, separately.** Agree his rate for small jobs. Turns a launch delay on every client into a phone call, costs nothing until used |
+
+**🔴 TIMING CONSTRAINT:** Shaun works FOR Sebastian. If Sebastian has not signed, do not raise
+a partnership at all. A side arrangement with a client's developer before the client has
+signed reads as going around him however innocent it is.
+
+**Product fit worth remembering:** `h-handoff` (one-time build, no monthly) suits a web
+developer's clients far better than a managed retainer does, and is a much easier thing for
+Shaun to hand over.
