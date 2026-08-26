@@ -2298,7 +2298,9 @@ const makeContractHTML=(cl,pkg)=>{
        :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
    +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" per qualified lead"):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
-   +(hasPerf?metaItem("How the two combine","Whichever is higher, never both"):"")
+   +(hasPerf?metaItem("How the two combine", introOnly
+        ? "Nothing to combine. The performance fee is the entire fee."
+        : "Whichever is higher, never both"):"")
    +(cl.adBudget?metaItem("Client Ad Budget (paid to platforms)",esc(cl.adBudget)):(pkg&&pkg.adSpend?metaItem("Recommended Ad Budget (paid to platforms)",esc(pkg.adSpend)):""));
 
   // ONE section covers both billing models, because the RULE is the same in both:
@@ -2367,7 +2369,7 @@ const makeContractHTML=(cl,pkg)=>{
    +'<p class="sub">This Advertising Services Agreement (the &ldquo;Agreement&rdquo;) is entered into between the parties below and governs the services described herein.</p>'
 
    +'<h2>Parties</h2><div class="parties">'
-   +'<div><div class="pl">Agency</div><strong>BoldLine Media LLC</strong><br>an Arizona limited liability company<br>Bryson Weiser, Owner<br>brysonaweiser@gmail.com<br>(&ldquo;Agency&rdquo;)</div>'
+   +'<div><div class="pl">Agency</div><strong>BoldLine Media LLC</strong><br>an Arizona limited liability company<br>Bryson Weiser, Owner<br>bryson@boldlinemedia.com<br>(&ldquo;Agency&rdquo;)</div>'
    +'<div><div class="pl">Client</div><strong>'+clientName+'</strong><br>'+signerName+'<br>'+esc(cl.email)+'<br>'+esc(cl.businessAddress)+'<br>(&ldquo;Client&rdquo;)</div></div>'
 
    +'<h2>Key Commercial Terms</h2><div class="meta">'+meta+'</div>'
@@ -6361,7 +6363,7 @@ function BillingCard({client,pkg,onUpdate}) {
       </div>
 
       {status==="none"&&!adjusting&&<>
-        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly fee only."}</div>
+        {monthly>0&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly minimum only."}</div>}
         {monthly>0
           ? <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Recurring Billing →"}</button>
           : <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,padding:"9px 11px",borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)"}}>

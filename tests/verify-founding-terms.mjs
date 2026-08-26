@@ -93,6 +93,16 @@ const BASE = {
   ok("the greater-of rule is gone, there being no floor to be greater than",
     !h.includes("THE TWO ARE NEVER CHARGED TOGETHER"));
   ok("the section is titled for what it actually is", h.includes("4. Performance Fee"));
+  // 🔴 THE ROW THIS SUITE MISSED THE FIRST TIME. Section 4 was checked and the KEY COMMERCIAL
+  // TERMS box above it was not, so the summary the client reads FIRST still announced
+  // "Whichever is higher, never both" while the agreement beneath had been rewritten to
+  // remove exactly that rule. Checking the body and not the summary is the same class of
+  // mistake as the bug this whole file exists to catch.
+  ok("🔴 the summary box does not announce a rule the agreement no longer contains",
+    !h.includes("Whichever is higher, never both"),
+    "there is no minimum for a performance fee to be higher than");
+  ok("and says what actually happens instead",
+    h.includes("Nothing to combine. The performance fee is the entire fee."));
   // Everything protective must survive the swap. A half-adapted agreement is what a
   // dispute turns on.
   ok("the qualified-lead definition survives", h.includes("&ldquo;Qualified Lead&rdquo;"));
@@ -101,12 +111,26 @@ const BASE = {
   ok("and the ad-spend firewall", h.toLowerCase().includes("never held or advanced") || h.includes("Client&rsquo;s own"));
 }
 
+// ── 1b. The agency's own details on the document ──────────────────────────────
+// A contract is the most formal thing a client ever receives from BoldLine, so the address
+// on it is the company one rather than a personal gmail (Bryson, 2026-08-26). It is also
+// the address on the DocuSign go-live form, so the two agree.
+{
+  const h = make({ ...BASE, billingPerLead: 50, billingMonthly: 0, billingSetup: 0 }, PKG);
+  ok("the agency is contactable on its own domain", h.includes("bryson@boldlinemedia.com"));
+  ok("🔴 and never on a personal gmail", !h.includes("brysonaweiser@gmail.com"),
+    "a personal address on a client agreement undercuts everything else on the page");
+  ok("the legal entity is named in full", h.includes("BoldLine Media LLC"));
+  ok("with its state of formation", h.includes("Arizona limited liability company"));
+}
+
 // ── 2. A standard client is untouched by any of it ────────────────────────────
 {
   const h = make({ ...BASE, billingPerLead: 75 }, PKG);
   ok("a standard client still carries the monthly minimum", h.includes("$400/mo"));
   ok("and the greater-of rule", h.includes("THE TWO ARE NEVER CHARGED TOGETHER"));
   ok("and the standard section title", h.includes("4. Monthly Minimum and Performance Fee"));
+  ok("and the summary box still states the greater-of rule", h.includes("Whichever is higher, never both"));
   ok("and the standard setup fee", h.includes("$750"));
   ok("and the early-termination fee", h.includes("early-termination fee equal to"));
   ok("their own agreed rate is used", h.includes("$75 per qualified lead"));
