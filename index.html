@@ -34,7 +34,7 @@
     };
   </script>
   <script type="text/babel" data-presets="env,react">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useCallback, useContext, createContext } = React;
 
 // ─── SUPABASE (auth + database) ───────────────────────────────────────────────
 const supabaseClient = supabase.createClient(
@@ -790,6 +790,141 @@ const NICHE_GROUPS = {
 };
 const NICHES    = Object.values(NICHE_GROUPS).flat();
 const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
+
+// ─── TRADE PLAYBOOKS + LAUNCH CHECKLIST ───────────────────────────────────────
+// 🔴 MIRRORS netlify/lib/trade-playbooks.mjs AND netlify/lib/launch-checklist.mjs.
+// The OS is one file running Babel in the browser, so it cannot import from netlify/lib.
+// Same arrangement as PACKAGES_DB. `verify-trade-playbooks` runs BOTH copies against the
+// same inputs and compares the OUTPUT, so a change to one that the other did not get is a
+// failing test rather than a slow drift nobody notices.
+const UNIVERSAL_NEGATIVES = [
+  "free","cheap","cheapest","discount","bargain",
+  "jobs","job","salary","hiring","career","careers","intern","internship","resume","entry level",
+  "course","courses","training","tutorial","how to","diy","udemy","certification",
+  "software","tool","tools","template","reddit","wikipedia","meaning","definition",
+];
+const UNIVERSAL_QUESTIONS = [
+  {key:"name",label:"Your name",required:true},
+  {key:"email",label:"Email",required:true},
+  {key:"phone",label:"Phone",required:true},
+  {key:"message",label:"What do you need?",required:true},
+];
+const TRADES = [
+  { id:"apparel", label:"Custom apparel and screen printing",
+    match:/screen ?print|custom apparel|embroider|t.?shirt|promotional product|uniform/i,
+    negatives:["cricut","heat press","iron on","vinyl cutter","sublimation printer","print at home",
+      "blank shirts","wholesale blanks","bulk blank","1 shirt","one shirt","single shirt",
+      "custom shirt for me","etsy","redbubble","teespring","vistaprint"],
+    questions:[
+      {key:"organization",label:"Company or organization",required:true,why:"A real buyer names an organization. A one-off often cannot."},
+      {key:"quantity",label:"Roughly how many pieces?",required:true,why:"The single strongest signal of order size, and it is asked before anyone is quoted."},
+      {key:"deadline",label:"When do you need them?",required:false,why:"A date means a real project. No date often means browsing."},
+    ] },
+  { id:"home-services", label:"Home services (roofing, HVAC, plumbing, electrical)",
+    match:/roof|hvac|plumb|electric|landscap|remodel|contractor|garage door|fenc/i,
+    negatives:["parts","supply","supplies","wholesale","manual","diagram","replacement part",
+      "rental","rent","used","second hand","apprentice","license","licensing","certification"],
+    questions:[
+      {key:"address",label:"Property address or area",required:true,why:"Out of area is the most common way a good-looking lead turns out worthless."},
+      {key:"urgency",label:"How soon do you need this?",required:true,why:"Separates an emergency from someone pricing a job for next year."},
+      {key:"own_rent",label:"Do you own the property?",required:false,why:"A tenant usually cannot authorise the work."},
+    ] },
+  { id:"professional", label:"Professional services (legal, accounting, consulting)",
+    match:/law|legal|attorney|account|bookkeep|consult|financial advis|insurance/i,
+    negatives:["pro bono","free consultation","legal aid","self help","forms","do it yourself",
+      "salary","school","degree","exam","study"],
+    questions:[
+      {key:"situation",label:"Briefly, what is the situation?",required:true,why:"Most disqualification in these trades happens on the facts, not the budget."},
+      {key:"timeline",label:"Is there a deadline involved?",required:false,why:"A filing date or a court date means it is real."},
+    ] },
+];
+const pbNorm = (s) => String(s||"").toLowerCase();
+const tradeFor = (niche) => { const n=pbNorm(niche); return n ? (TRADES.find(t=>t.match.test(n))||null) : null; };
+const learnedFor = (store,tradeId,kind) =>
+  [...(((store||{}).universal||{})[kind]||[]), ...(((store||{})[tradeId]||{})[kind]||[])].filter(e=>e&&e.term);
+const keptTerms = (store,tradeId) =>
+  new Set(learnedFor(store,tradeId,"negative").filter(e=>e.keep).map(e=>pbNorm(e.term)));
+function playbookFor(niche,store){
+  const trade=tradeFor(niche); const id=trade?trade.id:""; const keep=keptTerms(store,id);
+  const seedNegatives=[...UNIVERSAL_NEGATIVES,...((trade&&trade.negatives)||[])]
+    .filter(t=>!keep.has(pbNorm(t))).map(term=>({term,source:"seed"}));
+  const learnedNegatives=learnedFor(store,id,"negative").filter(e=>!e.keep)
+    .map(e=>({term:e.term,source:"learned",client:e.client||"",at:e.at||"",why:e.why||""}));
+  const seen=new Set();
+  const negatives=[...learnedNegatives,...seedNegatives].filter(n=>{
+    const k=pbNorm(n.term); if(!k||seen.has(k)) return false; seen.add(k); return true; });
+  const questions=[
+    ...UNIVERSAL_QUESTIONS.map(q=>({...q,source:"universal"})),
+    ...((trade&&trade.questions)||[]).map(q=>({...q,source:"seed"})),
+    ...learnedFor(store,id,"question").map(e=>({
+      key:e.key||pbNorm(e.term).replace(/[^a-z0-9]+/g,"_"),label:e.term,required:!!e.required,
+      why:e.why||"",source:"learned",client:e.client||"",at:e.at||""})),
+  ];
+  return { trade: trade?{id:trade.id,label:trade.label}:null, negatives, questions,
+    disqualifiers: learnedFor(store,id,"disqualifier").map(e=>({term:e.term,why:e.why||"",client:e.client||"",at:e.at||"",source:"learned"})),
+    counts:{seeded:negatives.filter(n=>n.source==="seed").length, learned:negatives.filter(n=>n.source==="learned").length} };
+}
+const negativeTerms = (niche,store) => playbookFor(niche,store).negatives.map(n=>n.term);
+function recordLearning(store,{tradeId="universal",kind="negative",term,why="",client="",keep=false,key="",required=false,at}={}){
+  const t=String(term||"").trim(); if(!t) return store||{};
+  const next={...(store||{})}; const bucket={...(next[tradeId]||{})}; const list=[...(bucket[kind]||[])];
+  const i=list.findIndex(e=>e&&pbNorm(e.term)===pbNorm(t));
+  const entry={term:t,why:String(why||"").slice(0,400),client:String(client||""),at:at||new Date().toISOString(),
+    ...(keep?{keep:true}:{}), ...(kind==="question"?{key:key||pbNorm(t).replace(/[^a-z0-9]+/g,"_"),required:!!required}:{})};
+  if(i>=0) list[i]={...list[i],...entry}; else list.push(entry);
+  bucket[kind]=list; next[tradeId]=bucket; return next;
+}
+
+// The learned half of the trade playbooks is GLOBAL: what one client teaches us about
+// their trade is worth having on the next client in that trade. It lives on the house
+// account's record (no migration, already backed up and live-refreshed) and rides a
+// context rather than being threaded through six layers of props.
+const PlaybookCtx = createContext({ store:{}, save:null, houseId:null });
+const usePlaybooks = () => useContext(PlaybookCtx);
+
+const OWNERS = { you:"You", client:"The client", dev:"Their web person", os:"Automatic" };
+const lcHas = (v) => !!String(v==null?"":v).trim();
+function launchChecklist(client){
+  const c=client||{}; const cs=c.campaignSetup||{}; const ca=c.conversionActions||{}; const lp=c.landingPage||{};
+  const camps=Array.isArray(c.campaigns)?c.campaigns:[];
+  const liveCount=Number(((c.adPerf||{}).totals||{}).liveCampaigns||0);
+  const steps=[
+    {id:"signed",owner:"you",label:"Agreement signed",done:!!c.contractSigned,manual:true,
+     next:"Email the agreement as a PDF and take written acceptance by reply. That is binding until DocuSign is approved."},
+    {id:"billing",owner:"you",label:"Billing set up",done:lcHas(c.stripeSubscriptionId)||lcHas(c.stripeCustomerId),
+     next:"Set their monthly minimum and per-lead rate, then start the subscription on the Billing card."},
+    {id:"adaccount",owner:"client",label:"Their ad account linked",done:lcHas(c.googleAdsCustomerId)||lcHas(c.metaAdAccountId),
+     next:"They open Google Ads in their own name on their own card, accept your manager invite, then you paste the customer ID into Edit and Campaign."},
+    {id:"details",owner:"you",label:"Campaign details filled in",done:lcHas(cs.mainOffer)&&lcHas(cs.targetLocations),
+     next:"Edit, then Campaign. Where they are based, where the ads run, the main offer, average job value and profit margin."},
+    {id:"tracking",owner:"you",label:"Conversion tracking created",
+     done:lcHas(c.conversionId)&&!!(ca.form&&ca.form.label)&&!!(ca.qualified&&ca.qualified.resourceName),
+     next:"Press Set this up in the ad account on the Campaigns tab. One button.",
+     why:"Until this exists the campaign is bidding blind, so it comes before anything goes live."},
+    {id:"domain",owner:"dev",label:"Their subdomain pointed at us",done:lcHas(cs.landingDomain),manual:true,
+     next:"Their web person adds one DNS record, then you add that hostname in Netlify so the certificate is issued.",
+     why:"Google shows the address the ad points to, so the ad has to display their domain and not ours."},
+    {id:"crm",owner:"dev",label:"Leads forwarded to their system",done:lcHas(cs.crmWebhook),optional:true,
+     next:"Ask their developer for the endpoint and the field names it expects. Skip it if they have no CRM."},
+    {id:"research",owner:"you",label:"Keywords and negatives researched",done:lcHas(cs.keywordNotes)||lcHas(cs.excludedKeywords),
+     next:"The searches to buy and the ones to block. Start from their trade playbook, then add what this client teaches you.",
+     why:"The highest-value hour on a new account, and the one thing worth keeping by hand."},
+    {id:"page",owner:"you",label:"Landing page built",done:!!(lp.published&&lp.headline),
+     next:"Generate it on the Assets tab, read it, then publish."},
+    {id:"campaign",owner:"you",label:"Campaign built",done:camps.length>0,
+     next:"Build it from the Campaigns tab. It is created paused, so nothing spends yet."},
+    {id:"live",owner:"you",label:"Approved and live",done:liveCount>0,
+     next:"Approve it in Alerts or on the campaign card. This is the moment money starts moving.",
+     why:"Nothing ever spends without this press, on any account."},
+  ];
+  const blocking=steps.filter(s=>!s.done&&!s.optional);
+  const required=steps.filter(s=>!s.optional);
+  return { steps, next: blocking[0]||null,
+    done: required.filter(s=>s.done).length, total: required.length,
+    percent: required.length?Math.floor((required.filter(s=>s.done).length/required.length)*100):0,
+    ready: blocking.length===0,
+    waitingOnThem: blocking.filter(s=>s.owner==="client"||s.owner==="dev") };
+}
 
 // ── Junk / spam lead flagger ──────────────────────────────────────────────────
 // Heuristic quality check used in the per-lead billing review. It NEVER excludes
@@ -2491,6 +2626,158 @@ const briefMdToNodes = (md) => {
 // Three actions, deliberately unequal: form fill is measured but never bid on, qualified
 // lead and closed customer are what the account chases. The rules are in
 // netlify/lib/gads-conversions.mjs; this is the control surface.
+// ─── THE LAUNCH CHECKLIST ─────────────────────────────────────────────────────
+// 🔴 EVERY STEP IS OBSERVED, NEVER TICKED. Same rule that fixed the pipeline panels: a
+// hand-ticked box drifts from reality the moment anything changes underneath it, and a
+// checklist that lies is worse than none because it gets trusted. A step is done when the
+// thing it describes is actually true on the record. The two the OS genuinely cannot see
+// (a signed contract, a DNS record on someone else's domain) say so out loud.
+function LaunchChecklistCard({client}){
+  const [open,setOpen] = useState(false);
+  if(client.internal) return null;              // BoldLine does not onboard itself
+  const cl = launchChecklist(client);
+  if(cl.ready&&!open) return null;              // a finished launch is not a to-do list
+
+  const tone = (s) => s.done ? C.green : s.optional ? C.textMuted : s.owner==="you" ? C.gold : C.amber;
+  return (
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <Label>Getting {client.name} Live</Label>
+        <span style={{fontSize:11,fontWeight:700,color:cl.ready?C.green:C.gold,fontVariantNumeric:"tabular-nums"}}>{cl.done} of {cl.total}</span>
+      </div>
+      <div style={{height:5,borderRadius:5,background:"rgba(255,255,255,.06)",overflow:"hidden",marginBottom:12}}>
+        <div style={{height:"100%",width:`${cl.percent}%`,background:cl.ready?C.green:C.gold,transition:"width .4s ease"}}/>
+      </div>
+
+      {/* One thing named, rather than eleven boxes to scan. */}
+      {cl.next&&(
+        <div style={{padding:"12px 14px",borderRadius:10,background:C.goldDim,border:`1px solid ${C.borderAccent}`,marginBottom:11}}>
+          <div style={{fontSize:9.5,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.gold,marginBottom:4}}>Next up · {OWNERS[cl.next.owner]}</div>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:3}}>{cl.next.label}</div>
+          <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>{cl.next.next}</div>
+          {cl.next.why&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:5}}>{cl.next.why}</div>}
+        </div>
+      )}
+
+      {/* 🔴 WAITING ON SOMEONE ELSE NEEDS CHASING, NOT DOING. Separated because the two
+          get confused when they sit in one list, and the chasing is what slips. */}
+      {cl.waitingOnThem.length>0&&(
+        <div style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:11}}>
+          Waiting on someone else for {cl.waitingOnThem.map(s=>s.label.toLowerCase()).join(" and ")}. Worth a chase rather than a wait.
+        </div>
+      )}
+
+      <button onClick={()=>setOpen(o=>!o)} style={{width:"100%",padding:"6px",fontSize:10.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textMuted,cursor:"pointer"}}>
+        {open?"Hide the full list":"Show all "+cl.total+" steps"}</button>
+
+      {open&&(
+        <div style={{marginTop:10}}>
+          {cl.steps.map((st,i)=>(
+            <div key={st.id} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 0",borderBottom:i<cl.steps.length-1?`1px solid ${C.border2}`:"none"}}>
+              <span style={{color:tone(st),fontSize:12,flexShrink:0,lineHeight:1.5,width:14}}>{st.done?"✓":st.optional?"·":"○"}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12.5,fontWeight:600,color:st.done?C.textMuted:C.text}}>
+                  {st.label}{st.optional&&<span style={{color:C.textMuted,fontWeight:400}}> (optional)</span>}
+                </div>
+                {!st.done&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:2}}>{st.next}</div>}
+                {st.manual&&<div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Tracked by hand. The OS cannot see this one.</div>}
+              </div>
+              <span style={{fontSize:9,color:C.textMuted,flexShrink:0,whiteSpace:"nowrap",paddingTop:2}}>{OWNERS[st.owner]}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ─── THE TRADE PLAYBOOK ───────────────────────────────────────────────────────
+// Bryson, 2026-08-25: "there will be a lot of testing and building things from working
+// with him and I don't want that time to be wasted." The campaign machinery already
+// carries over to client two. This is where the JUDGEMENT does.
+//
+// 🔴 A SEED IS A GUESS AND A LESSON IS EVIDENCE, AND THEY ARE SHOWN APART. A plausible
+// guess that blocks a profitable search costs money silently and nobody ever finds out.
+function TradePlaybookCard({client}){
+  const { store, save } = usePlaybooks();
+  const [open,setOpen]   = useState(false);
+  const [kind,setKind]   = useState("negative");
+  const [term,setTerm]   = useState("");
+  const [why,setWhy]     = useState("");
+  const [busy,setBusy]   = useState(false);
+  const pb = playbookFor(client.niche, store);
+  const tradeId = pb.trade ? pb.trade.id : "universal";
+
+  const add = async () => {
+    if(!term.trim()||!save) return;
+    setBusy(true);
+    await save(recordLearning(store,{tradeId,kind,term:term.trim(),why:why.trim(),client:client.name}));
+    setTerm(""); setWhy(""); setBusy(false);
+  };
+
+  const learned = pb.negatives.filter(n=>n.source==="learned");
+  return (
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+        <Label>{pb.trade?pb.trade.label:"Trade Playbook"}</Label>
+        <span style={{fontSize:10,color:C.textMuted}}>{pb.counts.learned} learned · {pb.counts.seeded} starting</span>
+      </div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:11}}>
+        {pb.trade
+          ? <>What we know about filtering leads in this trade. The starting list is a sensible guess. Anything {client.name} teaches you is kept separately, because a guess and a fact are not the same thing, and it carries over to the next client in this trade.</>
+          : <>No playbook for this trade yet. They still get the searches nobody should ever pay for. Anything you learn here starts one.</>}
+      </div>
+
+      {learned.length>0&&(
+        <div style={{marginBottom:11}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.green,marginBottom:6}}>Learned from real clients</div>
+          {learned.map((n,i)=>(
+            <div key={i} style={{padding:"7px 0",borderBottom:i<learned.length-1?`1px solid ${C.border2}`:"none"}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text}}>{n.term}</div>
+              {n.why&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:1}}>{n.why}</div>}
+              {n.client&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:2}}>From {n.client}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pb.disqualifiers.length>0&&(
+        <div style={{marginBottom:11}}>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.amber,marginBottom:6}}>What a bad lead looks like here</div>
+          {pb.disqualifiers.map((d,i)=>(
+            <div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.65,marginBottom:4}}>
+              <b style={{color:C.text}}>{d.term}.</b> {d.why}{d.client?` (${d.client})`:""}</div>
+          ))}
+        </div>
+      )}
+
+      <button onClick={()=>setOpen(o=>!o)} disabled={!save} style={{width:"100%",padding:"8px",fontSize:11,fontWeight:700,borderRadius:8,
+        border:`1px solid ${C.borderAccent}`,background:C.goldDim,color:C.gold,cursor:save?"pointer":"default",opacity:save?1:.5}}>
+        {open?"Close":"Add something you learned"}</button>
+
+      {open&&(
+        <div style={{marginTop:10,padding:"12px 13px",borderRadius:10,background:"rgba(255,255,255,.02)",border:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",gap:6,marginBottom:9,flexWrap:"wrap"}}>
+            {[["negative","A search to block"],["question","A question to ask on the form"],["disqualifier","A sign of a bad lead"]].map(([k,l])=>(
+              <button key={k} onClick={()=>setKind(k)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:20,cursor:"pointer",
+                border:`1px solid ${kind===k?C.gold:C.border}`,background:kind===k?C.goldDim:"transparent",color:kind===k?C.gold:C.textMuted}}>{l}</button>
+            ))}
+          </div>
+          <input value={term} onChange={e=>setTerm(e.target.value)} placeholder={kind==="negative"?"e.g. cricut":kind==="question"?"e.g. Roughly how many pieces?":"e.g. Asks for a price before saying what they need"}
+            style={{width:"100%",padding:"9px 11px",fontSize:12.5,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",marginBottom:7}}/>
+          <input value={why} onChange={e=>setWhy(e.target.value)} placeholder="Why? This is what makes it useful in a year."
+            style={{width:"100%",padding:"9px 11px",fontSize:12.5,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",marginBottom:9}}/>
+          <button onClick={add} disabled={busy||!term.trim()} style={{width:"100%",padding:"8px",fontSize:11.5,fontWeight:700,borderRadius:8,border:"none",
+            background:term.trim()?C.gold:"rgba(255,255,255,.06)",color:term.trim()?"#15110A":C.textMuted,cursor:term.trim()&&!busy?"pointer":"default"}}>
+            {busy?"Saving…":"Save it"}</button>
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:8}}>
+            Saved against {pb.trade?pb.trade.label.toLowerCase():"every trade"}, so the next client like {client.name} starts with it.</div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function ConversionLoopCard({client,onUpdate}){
   const [busy,setBusy] = useState("");
   const [msg,setMsg]   = useState(null);
@@ -5385,6 +5672,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"22px 28px 60px":"13px 13px 60px",width:"100%",maxWidth:isDesktop?1000:"none",margin:isDesktop?"0 auto":undefined}}>
         {tab==="overview"&&(
           <div style={S.col11}>
+            <LaunchChecklistCard client={client}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {(client.internal
                 ? (()=>{ const st=adPerfStats(client); return [
@@ -5795,6 +6083,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
             {!client.internal && <ScorecardCard client={client}/>}
             <ConversionLoopCard client={client} onUpdate={onUpdate}/>
+            {!client.internal && <TradePlaybookCard client={client}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
@@ -7198,6 +7487,7 @@ function AreaConditionsCard({locations}) {
 }
 
 function GoogleLaunchCard({client, onUpdate, platformCount}) {
+  const playbooks = usePlaybooks();
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
   const landingDefault = client.internal ? HOUSE_LANDING_URL
@@ -7287,12 +7577,11 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     : String(cs.serviceArea || cs.targetLocations || "").split(/[,;\n]/).map(s=>s.trim()).filter(Boolean).join("\n");
   // The searchers who can never buy. Cheap to exclude, expensive to leave in on a
   // small daily budget — these are the classic budget-eaters on agency terms.
-  const negativeDefault = [
-    "free","cheap","jobs","job","salary","hiring","career","careers","intern","internship",
-    "course","courses","training","tutorial","how to","diy","udemy","certification",
-    "software","tool","tools","template","reddit","wikipedia","meaning","definition",
-    "resume","entry level",
-  ].join("\n");
+  // The searchers who can never buy. Cheap to exclude, expensive to leave in on a small
+  // daily budget. Now seeded from the client's TRADE playbook rather than one fixed list,
+  // so a screen printer starts with cricut and heat press already blocked, and anything a
+  // real client taught us about their market comes with it (KB `trade-playbooks`).
+  const negativeDefault = negativeTerms(client.niche, playbooks.store).join("\n");
 
   const [audience,setAudience] = useState("");
   const monthlyBudget = monthlyBudgetNum(client);
@@ -12081,6 +12370,15 @@ function App({onLogout}) {
   // section, and created on first open.
   const realClients = clients.filter(c=>!c.internal);
   const myAccount   = clients.find(c=>c.internal) || null;
+  // 🔴 THE LEARNED PLAYBOOKS ARE GLOBAL, NOT PER CLIENT. What a screen printer teaches us
+  // is worth having on the NEXT screen printer, so they live in one place: the house
+  // account's record. No migration to run (the thing that made Lead Scout hang silently),
+  // already backed up, already live-refreshed. With no house account there is nothing to
+  // save into, so `save` is null and every card disables its own editing rather than
+  // failing at the moment somebody tries.
+  const playbookValue = { store: (myAccount && myAccount.tradePlaybooks) || {},
+    houseId: myAccount ? myAccount.id : null,
+    save: myAccount ? (next) => updateClient({ ...myAccount, tradePlaybooks: next }) : null };
   const openMyAds   = () => { if (myAccount) selectClient(myAccount); else addClient(makeInternalClient()); };
 
   const _dism = (c,k) => (c.dismissedAlerts||[]).includes(k);
@@ -12104,6 +12402,7 @@ function App({onLogout}) {
   }
 
   return (
+    <PlaybookCtx.Provider value={playbookValue}>
     <div style={isDesktop
       ? {height:"100vh",backgroundColor:"transparent",color:C.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",display:"flex",flexDirection:"row",position:"relative",overflow:"hidden"}
       : {minHeight:"100vh",backgroundColor:"transparent",color:C.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",display:"flex",flexDirection:"column",maxWidth:640,margin:"0 auto",position:"relative"}}>
@@ -12163,6 +12462,9 @@ function App({onLogout}) {
         .os-chatbar{padding-bottom:calc(20px + env(safe-area-inset-bottom))!important}
         @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
       `}</style>
+      {/* The learned playbooks live on the house account: no migration to run, already
+          backed up, already live-refreshed. `save` is null when there is no house account
+          yet, and every consumer disables its own editing rather than throwing. */}
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
       {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
@@ -12227,6 +12529,7 @@ function App({onLogout}) {
       {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)} onDelete={deleteClient} onUpdate={updateClient}/>}
       {showAdd&&<AddClientSheet onSave={addClient} onClose={()=>setShowAdd(false)}/>}
     </div>
+    </PlaybookCtx.Provider>
   );
 }
 
