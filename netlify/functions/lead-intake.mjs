@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS, appendLead, leadEmailHTML, notifyOwnerOfLead } from "../lib/report-shared.mjs";
 import { forwardLead, forwardResult } from "../lib/crm-forward.mjs";
+import { pickAttribution } from "../lib/attribution.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -64,6 +65,11 @@ export default async (req) => {
     message: String(body.message || "").slice(0, 2000),
     source: String(body.source || "unknown").slice(0, 100),
     receivedAt: new Date().toISOString(),
+    // A stable id for this lead, minted once and stored with it. Its only job is letting
+    // the receiving end recognise a repeat: the CRM forward can be retried, replayed or
+    // backfilled, and a duplicate in someone's sales pipeline is worse than a late one
+    // because a human then works the same lead twice.
+    leadId: crypto.randomUUID(),
   };
 
   // 🔴 THE CLICK ID, CAPTURED AT THE ONLY MOMENT IT EXISTS. Google can only credit a sale
@@ -72,12 +78,12 @@ export default async (req) => {
   // yet nobody will know whether this lead was any good for another week or two. So it is
   // stored now and used later by the offline upload. `wbraid` and `gbraid` are what
   // Google sends instead when the browser blocks the usual one, mostly on iPhones.
-  // Anything not in this list is ignored: this endpoint is public, so it accepts only the
-  // fields it knows.
-  for (const k of ["gclid", "wbraid", "gbraid"]) {
-    const v = String(body[k] || "").trim().slice(0, 200);
-    if (v) lead[k] = v;
-  }
+  //
+  // The same call also picks up the UTM tags, which do a different job: Google never reads
+  // them back, but they let a human or a CRM see months later which campaign produced a
+  // contact. Anything outside the allow list in ../lib/attribution.mjs is ignored, because
+  // this endpoint is public and accepts only the fields it knows.
+  Object.assign(lead, pickAttribution(body));
   // When the click happened, which decides whether it is still inside Google's 90 day
   // matching window at upload time. Never trusted forward of now: a bad clock on a
   // visitor's phone must not make a lead look newer than it is.

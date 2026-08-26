@@ -23,6 +23,7 @@ import {
   parseConversionLabel, mapConversionRows, gadsDateTime, clickIdOf, clickAgeDays,
   uploadPlan, leadIsAtStage, CLICK_MAX_DAYS,
 } from "../netlify/lib/gads-conversions.mjs";
+import { CLICK_KEYS, pickAttribution } from "../netlify/lib/attribution.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UI      = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -227,16 +228,24 @@ const CLIENT = {
   // The capture has to happen on the page, at the visit. By the time anyone knows the
   // lead was good, the query string is long gone.
   ok("the landing page reads the click id from the URL", /new URLSearchParams\(location\.search\)/.test(LANDING_CODE));
-  ok("all three kinds", /var CK=\['gclid','wbraid','gbraid'\]/.test(LANDING_CODE));
+  // All three kinds. The page interpolates the shared list rather than hardcoding it, so
+  // this checks the list it interpolates. The capture code is EXECUTED against a fake
+  // browser in verify-attribution; this is only the wiring.
+  ok("all three kinds", /var CK=\$\{JSON\.stringify\(CLICK_KEYS\)\}/.test(LANDING_CODE)
+    && CLICK_KEYS.length === 3 && ["gclid", "wbraid", "gbraid"].every((k) => CLICK_KEYS.includes(k)));
   ok("it survives a visitor who comes back later", /localStorage\.setItem\('bl_'\+k/.test(LANDING_CODE));
   ok("but not past Google's matching window", /90\*864e5/.test(LANDING_CODE));
   ok("and it is sent with the form", /var ids=clickIds\(\)/.test(LANDING_CODE));
   ok("the form conversion fires on success, not on click",
     /lf-thanks'\)\.style\.display='block';\$\{formConversion\}/.test(LANDING) || /formConversion\}/.test(LANDING));
 
-  ok("the intake stores the click id", /for \(const k of \["gclid", "wbraid", "gbraid"\]\)/.test(INTAKE_CODE));
-  // This endpoint is public, so it takes only the fields it knows about.
-  ok("and only those, since the endpoint is public", /lead\[k\] = v;/.test(INTAKE_CODE));
+  ok("the intake stores the click id", /Object\.assign\(lead, pickAttribution\(body\)\)/.test(INTAKE_CODE));
+  // This endpoint is public, so it takes only the fields it knows about. Run rather than
+  // matched: the allow list is the actual protection, and a regex on its shape would pass
+  // just as happily if the loop below it copied everything.
+  ok("and only those, since the endpoint is public",
+    !("status" in pickAttribution({ gclid: "G1", status: "won" }))
+    && pickAttribution({ gclid: "G1", status: "won" }).gclid === "G1");
   // A visitor's clock cannot be trusted, and a future date would make an expired click
   // look fresh enough to upload.
   ok("a click date in the future is refused", /clickAt <= Date\.now\(\)/.test(INTAKE_CODE));

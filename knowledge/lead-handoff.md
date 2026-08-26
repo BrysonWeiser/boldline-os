@@ -85,3 +85,49 @@ host through.
 ## Related
 
 `conversion-loop`, `stencil-and-thread-deal`, `ad-landing-page`, `hand-off-product`.
+
+## 2026-08-26 — Shaun's reply, and what it changed
+
+He agreed to the loop and picked the **dual-post** shape: *"the page posts to both endpoints
+independently. Your endpoint captures the marker and handles the Google side, mine takes the
+lead straight into the CRM. Neither of us becomes a dependency for the other."* And he asked
+for one thing on the payload: *"include the gclid and UTM fields alongside the contact info.
+I'll store them on the contact record in the CRM."*
+
+**Built the payload half straight away** (the dual-post half waits on his endpoint URL and
+field names, which he is sending before the call):
+
+- **`netlify/lib/attribution.mjs` is now the single source of the key lists.** `CLICK_KEYS`
+  (gclid, wbraid, gbraid), `UTM_KEYS` (the five standard tags), `pickAttribution` (the public
+  endpoint's allow list), `utmFields`, `hasClickId`. The landing page interpolates it, the
+  intake endpoint picks through it, the CRM payload sends it. They had already drifted once.
+- **UTM tags are captured on the landing page** with the same 90-day localStorage recall as
+  the click ids, and forwarded to the CRM.
+- **Every lead is minted a `leadId` (`crypto.randomUUID()`)** at intake and it goes in the CRM
+  payload as the dedupe key, with `receivedAt` as the fallback for leads that predate it.
+
+### 🔴 The invariant this added, and it is the one to remember
+**A UTM TAG IS NOT A CLICK ID.** A click id is Google's own receipt for a paid click and the
+only thing an offline conversion upload can match on. A UTM is a label *we* put on our own
+link and Google never reads one back. So: only a click id sets `clickAt` (the 90-day matching
+clock), and `fromAd` is computed from `hasClickId` alone. If a UTM ever stands in for a click
+id, the scorecard reports revenue Google cannot see and per-qualified-lead billing counts
+leads that were never attributable, and nobody finds out for months.
+
+### The pushback sent back to Shaun (open, as of 2026-08-26)
+1. **His endpoint must return CORS headers for the landing page origin plus a real status
+   code.** A browser posting cross-origin gets an opaque response otherwise, and a silent
+   failure looks identical to a success.
+2. **Our server-side forward stays as a backstop**, firing only when the page's direct post
+   did not confirm. Normal path never runs it, so no duplicates in Sebastian's pipeline.
+3. **He must store wbraid and gbraid, not just gclid** — they are what Google sends instead
+   when the browser blocks gclid, which is most iPhone traffic. Storing gclid alone loses
+   roughly half the attribution.
+
+**76 checks in `tests/verify-attribution.mjs`, five deliberate breaks confirmed to fail**
+(a UTM stamping the click clock, the 90-day window widened, the UTMs dropped from the CRM
+payload, `hasClickId` counting UTMs, and `pickAttribution` copying every key it is handed).
+The landing page's capture code is **sliced out of the shipping file and executed against a
+fake browser** rather than pattern-matched, per KB `repo-tests`.
+
+**Call with Shaun: Saturday 2026-08-29, 10am MST.**
