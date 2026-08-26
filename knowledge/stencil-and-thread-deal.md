@@ -98,3 +98,33 @@ in bullet points, plus whether a Google Ads account already exists and who runs 
 ## Related
 
 `conversion-loop` (built for this deal), `pricing-model`, `hand-off-product`, `deal-prep`.
+
+## 🔴 SCOPE CHECK, 2026-08-26 — we are building above his tier in one place
+
+Bryson asked, correctly, whether the CRM and landing-page work exceeds what he is paying for.
+Checked against the catalog rather than guessed:
+
+| Thing | His tier (`g-launch`) | Verdict |
+|---|---|---|
+| Standard landing page | **In scope.** Every package includes one (`stdLanding !== false`); `customLandingPage` only distinguishes a bespoke build, which is Growth and up. | Not over-delivery |
+| Page served on **his own domain** | Not listed on ANY tier. It is new. | A correctness fix, not a feature: Google displays the address the ad points to, so a client's ad must not show BoldLine's domain |
+| **Forwarding leads to his CRM** | **`crmIntegration: false` on `g-launch`.** Listed as Growth and up on the Google packages. | 🔴 **Genuinely above his tier** |
+| Dual-post to Shaun's specific endpoint | Not a product feature at all | Bespoke work for one client's developer |
+
+**The argument for including the CRM forward at Launch anyway:** the model bills **per
+qualified lead**. Faster follow-up turns more leads into customers, which produces more
+qualified leads, which is BoldLine's own revenue. It is self-interested, not a giveaway. The
+per-client cost after the one-time build is pasting one URL. Moving it to Launch also leaves
+the upgrade ladder intact (call tracking, weekly optimization, retargeting, split testing and
+the custom page all stay at Growth).
+
+**🔴 THE PART THAT MUST NOT BECOME STANDARD:** the dual-post arrangement exists because
+Sebastian happens to have a competent developer. Most clients will have neither a developer
+nor a CRM. Fitting BoldLine's engineering to one client's stack is exactly the work that does
+not scale, and it should stay an accommodation rather than a promise.
+
+**✅ DECIDED SAME DAY (Bryson, 2026-08-26): include it, and change the catalog to match.**
+`crmIntegration` is now true on every lead-gen package (`g-*`, `m-*`, `c-*`) and on
+`h-handoff`; e-commerce is unchanged because a store has no lead to forward. Full reasoning
+and the four catalog copies involved in KB `pricing-model`. So Sebastian is no longer being
+given something above his tier: the tier now includes it.

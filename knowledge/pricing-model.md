@@ -143,3 +143,39 @@ per-lead and ROAS-bonus sections are gone. Key Terms say **"Monthly Minimum"**, 
 `package-multi-campaign` (the catalog bugs this rewrite inherited), `contract-renewal-pricing`
 (term discounts still apply, they just move the floor), `business-constraint-ad-spend` (the
 client always pays the platform directly), `per-lead-fee-finder`, `revenue-tracking`, `hand-off-product`.
+
+## 2026-08-26 — CRM forwarding moved DOWN to every lead-gen tier
+
+Bryson asked, before the first client's setup call, whether forwarding leads into the
+client's own CRM exceeded what Sebastian was paying for. It did: `crmIntegration` was
+`false` on `g-launch` and listed as a Growth feature. Two ways to resolve that, and doing it
+quietly for one client while the catalog said otherwise was not one of them.
+
+**Decision (Bryson, 2026-08-26): include it at every lead-gen tier and say so.**
+
+| Package family | Now | Why |
+|---|---|---|
+| `g-*`, `m-*`, `c-*` | **`crmIntegration: true` on all of them** | The forward runs off the landing page form, which has nothing to do with whether the click came from Google or Meta. Leaving it off `m-*` would have meant a Meta Growth client at $700 lacking something a Google Launch client at $400 had, which is the exact `$600 vs $550` indefensibility rule 2 exists to prevent |
+| `h-handoff` | **`true`** | They are buying a build. Wiring their form to their CRM is part of building it |
+| `e-*` | **unchanged, still false** | A store sells products. There is no lead to forward |
+
+**The reasoning, which is self-interest rather than generosity:** the model bills **per
+qualified lead**. Faster follow-up converts more enquiries into customers, which produces
+more qualified leads, which is BoldLine's own revenue. The per-client cost after the
+one-time build is pasting one URL. **The upgrade ladder survives** — call tracking, weekly
+optimization, retargeting, split testing and the custom page all stay at Growth and above.
+
+**Renamed while there:** the feature label was *"CRM Integration Assistance"*, which
+described a human helping out. It is now an automatic forward of every lead the moment it
+arrives, so it reads **"Leads sent straight to your CRM"**.
+
+**🔴 WHAT WAS DELIBERATELY NOT PROMISED.** The dual-post arrangement built for Stencil &
+Thread's developer is NOT part of any package and must not become one. It exists because
+that client happens to employ a competent developer. Most clients have neither a developer
+nor a CRM, and fitting BoldLine's engineering to one client's stack is the work that does
+not scale. See KB `lead-handoff` and `stencil-and-thread-deal`.
+
+Four catalog copies had to move together (OS, portal, contract, and the feature list beside
+each), and **the suite proves they did**: reverting the flag in one copy alone fails, and
+setting the flag without adding the feature fails three checks, because the flag and the
+feature list are two independent encodings of the same fact.

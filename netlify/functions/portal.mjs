@@ -12,14 +12,14 @@ const TIER_RANK = { handoff: 0, launch: 1, growth: 2, acquisition: 3 };
 
 const PACKAGES_DB = {
   google: [
-    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
+    { id:"g-launch",      name:"Launch System",      platform:"Google Ads",    price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:true, multiCampaign:false },
     { id:"g-growth",      name:"Growth System",      platform:"Google Ads",    price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:false, splitTesting:false, crmIntegration:true,  multiCampaign:false },
     { id:"g-acquisition", name:"Acquisition System", platform:"Google Ads",    price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:true,  weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true,  multiCampaign:true  },
   ],
   meta: [
-    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false },
-    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:false },
-    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:false, multiCampaign:true  },
+    { id:"m-launch",      name:"Launch System",      platform:"Meta Ads",      price:400,  setup:750,  leadFee:true, pricingModel:"per_lead", tier:"launch",      minBudget:500,   maxBudget:2500,  tag:"",            adSpend:"$500–$2,500/mo",   optimizationFreq:"monthly", callTracking:false, weeklyOptimization:false, customLandingPage:false, retargeting:false, splitTesting:false, crmIntegration:true, multiCampaign:false },
+    { id:"m-growth",      name:"Growth System",      platform:"Meta Ads",      price:700,  setup:1500, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:2500,  maxBudget:10000, tag:"Most Popular", adSpend:"$2,500–$10,000/mo", optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true, multiCampaign:false },
+    { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true, multiCampaign:true  },
   ],
   // No combined Launch tier on purpose — see rule 3 above. Combined costs MORE to
   // build (two campaign sets) but carries the SAME monthly minimum as one platform
@@ -59,7 +59,7 @@ const PACKAGES_DB = {
   // `price: 0` because there IS no monthly — not because it is free. Every surface that
   // quotes a price checks `pricingModel` first.
   handoff: [
-    { id:"h-handoff", name:"Launch & Hand Off", platform:"Google Ads", price:0, setup:1500, leadFee:false, pricingModel:"one_time", tier:"handoff", minBudget:0, maxBudget:null, tag:"One-Time Build", adSpend:"Any budget", optimizationFreq:"none", callTracking:true, weeklyOptimization:false, customLandingPage:true, retargeting:false, splitTesting:false, crmIntegration:false, multiCampaign:false, savings:"Setup waived if you move to managed within 6 months" },
+    { id:"h-handoff", name:"Launch & Hand Off", platform:"Google Ads", price:0, setup:1500, leadFee:false, pricingModel:"one_time", tier:"handoff", minBudget:0, maxBudget:null, tag:"One-Time Build", adSpend:"Any budget", optimizationFreq:"none", callTracking:true, weeklyOptimization:false, customLandingPage:true, retargeting:false, splitTesting:false, crmIntegration:true, multiCampaign:false, savings:"Setup waived if you move to managed within 6 months" },
   ],
 };
 const ALL_PKGS = Object.values(PACKAGES_DB).flat();
@@ -113,7 +113,7 @@ const ALL_FEATURES = [
   { id:"weekly_opt",      label:"Weekly Optimization",              category:"Both" },
   { id:"monthly_opt",     label:"Monthly Optimization",             category:"Both" },
   { id:"competitor_research",label:"Competitor Research",           category:"Both" },
-  { id:"crm_integration", label:"CRM Integration Assistance",       category:"Both" },
+  { id:"crm_integration", label:"Leads sent straight to your CRM", category:"Both" },
   { id:"advanced_targeting",label:"Advanced Audience Targeting",    category:"Both" },
   { id:"retargeting",     label:"Retargeting Campaigns",            category:"Both" },
   { id:"lookalike",       label:"Lookalike Audience Targeting",     category:"Meta" },
@@ -143,16 +143,16 @@ const ALL_FEATURES = [
 ];
 
 const PKG_FEATURES = {
-  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","monthly_report","monthly_opt"],
+  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt"],
   "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report"],
   "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","pixel","monthly_report","monthly_opt"],
-  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
-  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
+  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt"],
+  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
+  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
   "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
   // One-time build: the good build minus everything ongoing. Keep in step with index.html.
-  "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","call_tracking","handover_docs","settle_in"],
+  "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","crm_integration","call_tracking","handover_docs","settle_in"],
   "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
   // Meta-only below $10k of ad budget — Google Shopping would split a budget that
   // cannot afford two platforms. Keep in step with index.html.
