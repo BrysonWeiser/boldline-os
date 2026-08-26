@@ -179,3 +179,59 @@ Four catalog copies had to move together (OS, portal, contract, and the feature 
 each), and **the suite proves they did**: reverting the flag in one copy alone fails, and
 setting the flag without adding the feature fails three checks, because the flag and the
 feature list are two independent encodings of the same fact.
+
+## 2026-08-26 — FOUNDING-CLIENT TERMS, and a near miss worth remembering
+
+**Bryson caught this himself, minutes before sending his first agreement:** *"i didnt go over
+with sebastian was the $400 minimum. if i remember correctly we only discussed $50 per
+qualified lead."* He was right, and the contract would have printed the floor anyway.
+
+### 🔴 Why it was worse than a missing paragraph
+At **$50 a qualified lead**, a client needs **eight** leads in a month to reach a $400 floor,
+against a forecast of **two to five**. So the FLOOR, not the rate, is what he would have paid
+nearly every month, and the $50 figure he thought he had agreed would essentially never
+apply. Worse, **$400 on a $500 ad budget is 80% of ad spend** — from the one client who had
+already rejected pricing IN WRITING for being too large a share of his budget (that rejection
+is what caused this whole model rewrite). A number a client meets for the first time inside a
+signed document is how a first client becomes a former client.
+
+### The decision (Bryson, 2026-08-26)
+**Founding clients pay for results only.** Per-qualified-lead fee, **no monthly minimum for
+the initial term**, and **the setup fee waived entirely for the first three clients** so he
+can buy case studies. A minimum applies from renewal, disclosed in the agreement signed on
+day one.
+
+### Two real bugs found while implementing it
+1. **A waived minimum was impossible to express.** `cl.billingMonthly || pkg.price` treats
+   zero as absent, so setting the floor to zero silently fell through to the full package
+   price. `billingSetup` on the very next line already used `!= null` for exactly this
+   reason, so the two overrides behaved differently for no stated reason.
+2. **The contract and the invoice disagreed.** Billing reads `cl.billingPerLead` (what the
+   Fee Finder writes, and what Bryson actually sets); the contract read only the `PER_LEAD`
+   niche table. **A client could sign one rate and be invoiced another.**
+
+### What the agreement now does when the minimum is waived (`introOnly`)
+- Key Terms read **"None during the Initial Term"**, never `$0/mo`.
+- Section 4 is retitled **"Performance Fee"** and clause 4.1 swaps WHOLESALE (same reasoning
+  as the one-time package): the greater-of rule cannot apply when there is no floor, and a
+  half-adapted clause is what a dispute turns on.
+- **"Client owes Agency nothing for that month"** when there are no leads.
+- Billing is **in arrears**, not in advance.
+- 🔴 **NO EARLY-TERMINATION FEE AND NO CLAWBACK.** The standard exit recovers the gap between
+  the Standard Rate and a rate *discounted in exchange for the committed term*. A founding
+  waiver is not that. Left alone it would have billed the full $400 for every month the
+  client had paid nothing on, which is the exact opposite of what was offered.
+
+**30 checks in `tests/verify-founding-terms.mjs`, three deliberate breaks confirmed to fail**
+(the zero falling through to the package price, the contract ignoring the agreed rate, and
+the exit clause ceasing to honour the waiver). The generator is **sliced out of index.html
+and executed**, because what matters is the sentence on the page the client signs.
+
+**How to set it on a client:** `billingPerLead` = the agreed rate, `billingMonthly` = 0,
+`billingSetup` = 0. The three are independent and a suite case pins each one, so waiving the
+setup can never quietly waive the minimum too.
+
+**STILL TO DO (raised, not built):** Bryson wants the waived setup fee **advertised** as a
+founding-client offer. That touches the marketing site, which is currently under the
+coming-soon gate, so it must go through `docs/META-FLIP-CHECKLIST.md` and the `CS:META-SOON`
+sentinel discipline. Not started.
