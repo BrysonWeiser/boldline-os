@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS, appendLead, leadEmailHTML, notifyOwnerOfLead } from "../lib/report-shared.mjs";
+import { forwardLead, forwardResult } from "../lib/crm-forward.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -100,7 +101,48 @@ export default async (req) => {
     return json({ ok: false, error: "save failed" }, 500);
   }
 
-  await Promise.all([notifyOwnerOfLead(nextData, lead), notifyLead(nextData, lead)]);
+  // 🔴 THE LEAD IS SAVED BEFORE ANY OF THIS RUNS, AND THAT ORDER IS THE POINT. Everything
+  // below is delivery: our alert, the customer's auto-reply, and the client's own CRM. Any
+  // of the three can fail without costing anybody a lead, because the lead is already on
+  // the record with its click id attached.
+  //
+  // The CRM forward exists because a client's follow-up automation is worth more than
+  // anything we would bolt on (Shaun Smith, 2026-08-25: an ad lead answered within a
+  // minute or two converts far better). It could NOT simply replace this endpoint: the
+  // click id is captured here, and without it an order weeks later can never be credited
+  // back to the search that produced it. So the lead lands here first and goes onward
+  // second. See ../lib/crm-forward.mjs.
+  const [, , crm] = await Promise.all([
+    notifyOwnerOfLead(nextData, lead),
+    notifyLead(nextData, lead),
+    forwardLead(nextData, lead).catch((e) => {
+      console.error("CRM forward threw:", e && e.message);
+      return forwardResult({ ok: false, error: String((e && e.message) || e) });
+    }),
+  ]);
+
+  // Record the outcome ON THE LEAD, so a CRM that quietly stopped accepting leads shows up
+  // on the row in the OS instead of living in a log nobody reads. Best-effort: the lead is
+  // already safe, and failing the request now would tell the visitor their enquiry did not
+  // send when it did.
+  if (crm) {
+    try {
+      const log = (nextData.leadsLog || []).slice();
+      // `appendLead` puts the new lead at the front, so index 0 is it. Matched on the
+      // timestamp rather than trusted blindly, because a wrong index would stamp the
+      // result onto somebody else's lead.
+      const i = (log[0] && log[0].receivedAt === lead.receivedAt)
+        ? 0
+        : log.findIndex((l) => l && l.receivedAt === lead.receivedAt);
+      if (i >= 0) {
+        log[i] = { ...log[i], crm };
+        await supabaseAdmin.from("clients")
+          .update({ data: { ...nextData, leadsLog: log }, updated_at: new Date().toISOString() })
+          .eq("id", data.id);
+      }
+      if (!crm.ok) console.error(`CRM forward failed for ${nextData.name}:`, crm.error);
+    } catch (e) { console.error("Could not record the CRM result:", e && e.message); }
+  }
 
   return json({ ok: true }, 200);
 };
