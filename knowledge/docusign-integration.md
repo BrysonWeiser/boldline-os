@@ -92,3 +92,47 @@ prospects. The address stays the same either way, so moving later costs DocuSign
 Demo signatures remain **not legally binding** (watermarked) until the above is done.
 
 **TODO (not blocking):** envelope status sync (webhook/poll) so a signed contract auto-flips "pending" → "active"; exercise the real Contract-tab send path (same verified backend, only the contract-HTML rendering path is untested).
+
+
+## ✅ 2026-08-26 — THE GO-LIVE FORM IS SUBMITTED AND SIGNED
+
+Third attempt, and the first that did not void. Confirmation screen read **"Agreement Signed
+— You're all done!"**. DocuSign reviews in roughly 48 hours.
+
+**What was different this time, and it was only ever one thing:** every email field carried
+**bryson@boldlinemedia.com** instead of a gmail address. The two earlier envelopes
+(2026-07-15 and 2026-08-24) both voided on the generic-domain rule, and the 2026-07 note
+that guessed "expired unsigned" was wrong and cost a chase in the wrong direction.
+
+**The answers submitted**, recorded so a resubmission never has to be reconstructed:
+
+| Field | Answer |
+|---|---|
+| Radio option | **Option 1**, developed by my organization |
+| Integration Key | the developer key (value = `DOCUSIGN_INTEGRATION_KEY` in Netlify) |
+| OAuth v2 for REST | **Yes** |
+| Company name | BoldLine Media LLC |
+| Business contact | Bryson A. Weiser, bryson@boldlinemedia.com |
+| DocuSign Case # | left blank, and it accepted that |
+| Production API Account ID GUID | from apps.docusign.com → Admin → Integrations → Apps and Keys → My Account Information |
+| Date of 20+ test API calls | the day the Deploy-tab test card was run ~15 times (each send is several calls, so ~15 sends clears 20 calls comfortably) |
+| Primary purpose | sending our own advertising services agreements; JWT Grant; one envelope per client; no resale or redistribution |
+| Internal / External / Both | **Internal**. Only BoldLine operates the software. Clients are RECIPIENTS, not users of the integration, and answering "External" would have contradicted the no-redistribution answer above and invited ISV-style scrutiny |
+| Documentation link | https://boldlinemedia.com (the "if available" public link; there is no public doc for a private internal tool) |
+| Signatory Name / Date Signed / Signature at the foot of page 3 | **left blank on purpose** — that block is DocuSign's own countersignature ("Go Live Execution"), not the applicant's |
+
+**🔴 GOTCHA: three unsigned Go-Live envelopes were sitting in the inbox at once** (19 min, 1
+hour and 22 hours old) from repeated restarts. Only the NEWEST was completed; the others were
+left to expire. Half-filling several is how the earlier ones died.
+
+**🔴 THE DISTINCTION THAT WAS BEING MISSED, AND IT UNBLOCKS THE FIRST CLIENT.** Go-live
+approval governs the **API** — the OS sending envelopes automatically. It does NOT govern
+**sending an envelope by hand from the DocuSign web app**, which a paid account can do today.
+Earlier advice in this project ("do not promise a DocuSign link") was written against the API
+state and was too broad. Before relying on it, send a throwaway test envelope to yourself from
+app.docusign.com → Start → Send an envelope, because the account's plan is the real gate:
+the form itself says *"Only paid accounts or partner accounts can be used."*
+
+**Still to do after approval lands:** register the RSA public key on the production app,
+complete production JWT consent, then swap the five Netlify env vars and test one send. Do
+NOT swap early — that breaks the working demo send.
