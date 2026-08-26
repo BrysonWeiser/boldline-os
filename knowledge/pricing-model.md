@@ -310,3 +310,42 @@ existing late-payment clause (1.5%/mo, suspension after 10 days).
 **Does NOT block the first client.** Stencil & Thread have no minimum, so their billing is
 already pure arrears through the per-lead invoice path. It becomes relevant at their renewal,
 roughly three months out.
+
+## 2026-08-26 — the client portal was selling the model wrong
+
+Bryson, looking at a live portal: *"the way upgrades happen and the pricing needs to be
+updated. It needs to list how to qualify for an upgrade and then from there tell them the
+monthly minimum cost."* Two faults, both of which end in a complaint.
+
+1. 🔴 **A TIER IS UNLOCKED BY AD BUDGET, NOT CHOSEN FROM A MENU.** Growth needs $2,500/mo of
+   ad spend. The portal offered it to a client running $500 **with a clickable button**, so
+   the only way to discover you did not qualify was to request it and be refused.
+2. 🔴 **THE FIGURE READ AS A PRICE.** "$700/mo" is a monthly MINIMUM the per-lead fee counts
+   toward, never an added fee. A client reading it as a price either overestimates the bill
+   and declines, or underestimates it and is surprised on the first invoice.
+
+**Rewritten.** The section now opens by stating the rule (budget decides the tier, and every
+figure is a minimum, not an added fee, with ad spend paid to the platforms directly), shows
+the client's **current** budget for comparison, and per option gives **what unlocks it, how
+far short they are in dollars, the monthly minimum, the per-lead alternative, and the
+one-time build**. A tier they cannot reach stays **visible but locked** — knowing what the
+next step costs is the point of showing it — and carries no click handler. The button reads
+**Request This Upgrade** and the section ends pointing at a conversation about whether the
+extra spend is worth it in their market, because an upgrade is a discussion, not a button
+that raises someone's bill.
+
+🔴 **The combined trap, worth remembering:** `c-growth` carries `minBudget: 2500` at tier
+level but two platforms need `COMBO_MIN_BUDGET` ($5,000). Quoting only the tier floor would
+have a client raise their budget to $2,500 and **still** be refused, which is worse than
+never offering it. The requirement shown is `max(tier floor, combo floor)`.
+
+**29 checks in `tests/verify-portal-upgrades.mjs`**, rendering the real portal HTML.
+
+### 🔴 AND A TESTING MISTAKE MADE TWICE IN ONE DAY
+The first version of the combined check asserted "$5,000 is shown while the client sits on
+$3,000". It reads well and **cannot fail**: `c-growth.minBudget` is already 5000, so the
+`Math.max` against the combo floor changes nothing and reverting it passed clean. Same class
+of dead assertion as the two found in `verify-trade-playbooks` this morning. Rewritten to
+test the **boundary** — at $4,999 combined must be locked, at $5,000 it must open — which
+catches a `>` written for `>=` and catches the floor drifting. Both breaks now confirmed.
+**When an assertion is guaranteed by the data, test the boundary instead.**
