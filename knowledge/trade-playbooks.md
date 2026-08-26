@@ -103,3 +103,34 @@ he names as `negative` entries, attributed to him.
 ## Related
 
 `stencil-and-thread-deal`, `conversion-loop`, `lead-handoff`, `market-research`, `repo-tests`.
+
+## 2026-08-26 — the niche picker, and a silent way to lose a whole playbook
+
+Bryson, adding his first real client: *"the categories are white and i cant read them i also
+need a way to search or put a specific niche."*
+
+**Both complaints had one cause.** A native `<select>` hands its dropdown to the operating
+system, which renders `<optgroup>` labels in ITS own colours and ignores ours, so on the dark
+theme every group heading came out white on white. There is no CSS fix; the popup is not the
+page's to style. And a ~200-entry native list has no search, so the custom-niche escape hatch
+that already existed sat invisible at the very bottom where nobody would scroll to find it.
+
+**Fix: `NicheSelect` is now a combobox we draw ourselves.** Type to filter, arrow keys and
+Enter, click-away to close, and **anything typed that matches nothing is kept as the value**
+(`+ Use "…"`). Grouped while browsing, flat once you type, because headings help across 200
+entries and are noise across six. Verified headlessly: the heading renders gold `rgb(200,
+168, 75)` on the panel rather than white on white.
+
+### 🔴 THE REAL BUG UNDERNEATH, WHICH WAS ABOUT TO COST MONEY
+**The niche string is the only key into the trade playbook.** The closest existing option for
+a screen printer was *"Clothing & Apparel Brand"*, which matches none of the apparel
+patterns. Picking it yields **31 blocked searches (universal only) instead of 48** — losing
+cricut, heat press, iron on, blank shirts, etsy and the rest — with **no error anywhere**.
+The campaign would simply have launched buying searches it should have blocked.
+
+So `"Custom Apparel & Screen Printing"` and `"Promotional Products"` were added to
+`NICHE_GROUPS`, and a guard now asserts **every seeded trade is reachable from the niche
+list**. A playbook nobody can select is dead code that looks alive.
+
+**95 checks in `verify-trade-playbooks`, the new guard broken once** (removing the two
+niches) and confirmed to fail.
