@@ -4,8 +4,8 @@ topic: OS app
 task: send or debug DocuSign e-signature envelopes from the OS, and plan the production go-live
 keywords: [docusign-send.mjs, jwt-grant, normalizeKey, DOCUSIGN_PRIVATE_KEY, go-live, BL_SIGN_HERE, go live form voided, generic email domains not allowed, gmail rejected, corporate domain email, cloudflare email routing, bryson@boldlinemedia.com, production account id guid, trial account cannot be used]
 status: verified
-summary: DocuSign e-sign is live-verified in DEMO/sandbox via JWT Grant (docusign-send.mjs). Demo signatures are NOT legally binding — production needs Go-Live promotion (~20 demo API calls) + regenerated creds before the first real client. Watch the multi-line PEM paste gotcha (normalizeKey self-heals it).
-verified: 2026-08-24
+summary: ✅ FULLY LIVE IN PRODUCTION as of 2026-08-27, verified by a real unwatermarked test envelope. Go-live approved, key promoted, production keypair + JWT consent done, Netlify env vars swapped. 'Send via DocuSign' on any client's Contract tab now sends a legally binding envelope. Watch the multi-line PEM paste gotcha (normalizeKey self-heals it).
+verified: 2026-08-27
 ---
 
 **Status:** credentials done, code built, **live-verified 2026-06-25** in **DEMO/sandbox** (REST base = the DocuSign demo host, held in `DOCUSIGN_BASE_PATH`; auth via the DocuSign demo auth host). Full JWT round-trip (sign → token → envelope → deliver) confirmed end to end via the Deploy-tab test card.
@@ -136,3 +136,56 @@ the form itself says *"Only paid accounts or partner accounts can be used."*
 **Still to do after approval lands:** register the RSA public key on the production app,
 complete production JWT consent, then swap the five Netlify env vars and test one send. Do
 NOT swap early — that breaks the working demo send.
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ✅ 2026-08-27 — PRODUCTION IS LIVE. EVERYTHING ABOVE THIS LINE IS HISTORY.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+Verified end to end by a real test envelope from the OS Deploy tab: it arrived, it was
+signable, and it carried **no sandbox watermark**. That watermark is the only visible
+difference between a demo envelope and a binding one, so its absence is the proof.
+
+## What finished it, in order
+
+1. **Go-live approved.** The completion email (`Completed: DocuSign API - Go Live Form`)
+   arrived within a day of submitting. Confirmed properly by checking
+   apps.docusign.com → Admin → Apps and Keys, where **BoldLine OS now appears under
+   Apps and Integration Keys**. Production had previously read *"No Integration Keys found"*,
+   so that listing is the real signal, not the email.
+   🔴 **Go-live PROMOTES the existing key rather than issuing a new one**, so the integration
+   key value never changed.
+2. **A production RSA keypair**, generated in the app's Edit screen
+   (Service Integration → **Generate RSA**). DocuSign shows the private key **once**; it went
+   straight into Netlify's `DOCUSIGN_PRIVATE_KEY` and nowhere else.
+3. **A redirect URI**, which the production app had none of. `https://boldlinemedia.com/`.
+   Needed ONLY so the consent screen has somewhere to bounce back to.
+4. **One-time JWT consent**, granted by visiting the auth URL and clicking Allow:
+   `https://account.docusign.com/oauth/auth?response_type=code&scope=signature%20impersonation&client_id=<DOCUSIGN_INTEGRATION_KEY>&redirect_uri=https://boldlinemedia.com/`
+   Landing back on boldlinemedia.com with a code in the address bar IS the success signal.
+5. **Three Netlify env vars swapped** (`DOCUSIGN_USER_ID`, `DOCUSIGN_ACCOUNT_ID`,
+   `DOCUSIGN_BASE_PATH`), then a **Trigger deploy**. Env var changes do not reach live
+   functions until the site rebuilds.
+
+## Gotchas worth keeping
+
+- **`DOCUSIGN_BASE_PATH` is `https://www.docusign.net`**, with **no trailing slash and no
+  `/restapi`** — `docusign-send.mjs` appends `/restapi/v2.1/...` itself. Note it is the
+  generic `www` host, not a regional `na*` one; that is normal and it works.
+- **The auth host switches itself.** `authServer` is derived as
+  `basePath.includes("demo") ? "account-d.docusign.com" : "account.docusign.com"`, so
+  removing "demo" from the base path is what moved auth to production. Nothing else to set.
+- **Rollback:** the demo values were saved to a note before being overwritten. To go back,
+  restore those three vars and redeploy. The demo API account id starts `47275628`.
+- **Plan ceiling: 10 envelope sends per month** on eSignature Standard ($45/mo). Fine now,
+  worth watching past roughly ten clients, and it is a hard stop rather than an overage.
+
+## What this unblocks
+
+**"Send via DocuSign" on any client's Contract tab now sends a real, binding envelope.**
+No download, no print dialog, no manual upload. The whole PDF-export detour that was being
+worked around on 2026-08-26 is obsolete.
+
+**Still TODO (not blocking):** envelope status sync, so a signed contract flips
+`contractStatus` from "pending" to "active" by itself instead of by hand. Today the send
+path is verified; the return path is not.
