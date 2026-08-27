@@ -35,3 +35,32 @@ verified: 2026-07-30
 - **Client `owner-alert` action** (client-email.mjs): owner-JWT, `{title, body, severity}` → dispatchAlert. Reusable for any create-time owner ping.
 
 **Follow-ups (not done):** (1) the OS portal PREVIEW mirror `makePortalHTML` in index.html was NOT updated to show the Review tab — purely cosmetic (owner-only preview; the real served portal.mjs has it). Update it when convenient (dual-copy gotcha — see os-client-media-upload/portal notes). (2) Could push a client decision to the owner as a phone push (alerts-watch) not just in-app. (3) Landing-page approval could auto-populate previewUrl from the client's built landing page URL.
+
+## 🔴 2026-08-26 — THERE ARE TWO PORTAL RENDERERS AND THEY DRIFT
+
+Bryson, after the upgrade-section rewrite: *"the update didn't stick and it's wrong"*, with a
+screenshot of the **Live Client View** still showing a flat `$700/mo` and clickable options.
+
+He was right. The client portal is rendered by **two separate implementations**:
+
+| Renderer | Used by |
+|---|---|
+| `netlify/functions/portal.mjs` | the real portal the client logs into |
+| `makePortalHTML` in `index.html` (~line 2484) | the **Live Client View** card in the OS, an iframe preview |
+
+The fix had landed only in the server copy. **The preview is what Bryson actually looks at**,
+so from where he sat nothing had changed. This is the SECOND instance of exactly this drift
+found on the same day: the contract has the same split (`index.html` vs
+`netlify/lib/contract-shared.cjs`) and had drifted the same way.
+
+🔴 **The rule to carry forward: anything a client can see exists twice in this repo.** Before
+calling a client-facing change done, grep for a second renderer.
+
+**Guarded by OUTPUT, not by source.** `tests/verify-portal-upgrades.mjs` now lifts the OS
+copy's upgrade block out of `index.html`, builds it with dependencies taken **from that same
+file** (never hand-written — a harness that supplies what the real page lacks is how the
+`useMemo` crash shipped), and asserts every sentence the server renders is present in the OS
+copy too. It also pins the two specific defects from the screenshot: the bare `$price` with
+`/mo` beside it, and an unconditional `onclick` on every option.
+
+**59 checks (was 29). Reverting the OS copy to the old flat-price version fails 15 of them.**
