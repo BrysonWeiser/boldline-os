@@ -163,7 +163,8 @@ export default async (req) => {
         const r = await autoSendClientEmail(cl, "receipt", { amount: (obj.amount_paid || 0) / 100, lines, invoiceUrl: obj.hosted_invoice_url || "" });
         if (r.sent) { emailAuto.receiptInvoiceId = obj.id; emailLog = r.logEntry; }
       } else if (event.type === "invoice.payment_failed" && emailAuto.pastDueInvoiceId !== obj.id) {
-        const r = await autoSendClientEmail(cl, "past_due", { payUrl: obj.hosted_invoice_url || "" });
+        const failedAmt = ((obj.amount_remaining != null ? obj.amount_remaining : obj.amount_due) || 0) / 100;
+        const r = await autoSendClientEmail(cl, "past_due", { amount: failedAmt, payUrl: obj.hosted_invoice_url || "" });
         if (r.sent) { emailAuto.pastDueInvoiceId = obj.id; emailLog = r.logEntry; }
       }
     } catch (e) { console.error("stripe-webhook auto-email failed:", e.message); }

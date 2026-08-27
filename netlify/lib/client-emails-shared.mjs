@@ -213,7 +213,7 @@ const T = {
     preheader: "Your latest payment didn't process — a quick update fixes it.",
     bodyHtml:
       h1("A quick heads-up on your payment") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))} — your most recent payment of ${b(money(c.monthly))} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))} — your most recent payment${Number(c.amount) > 0 ? ` of ${b(money(c.amount))}` : ""} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
       button("Update Payment Method", c.payUrl || c.portalUrl || SITE) +
       small("Your campaigns keep running for now — we just wanted to catch this early so nothing gets interrupted. If you think this is a mistake, reply and we'll sort it out.") +
       signoff(),

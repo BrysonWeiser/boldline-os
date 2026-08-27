@@ -14,7 +14,12 @@
 // Rendered and read, never pattern-matched: an email is generated text and the only way to
 // check generated text is to produce it and look at the words (KB `repo-tests`).
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { EMAIL_TYPES, renderClientEmail } from "../netlify/lib/client-emails-shared.mjs";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => {
@@ -113,6 +118,54 @@ const inv = (o) => {
   const r = inv({ monthly: 700, setup: 0, leadCount: 12, leadRate: 75, leadTotal: 900 });
   ok("🔴 the invoice says ad spend is billed separately by the platforms",
     /ad spend is billed separately/i.test(r.body));
+}
+
+
+// ── 5. 🔴 THE AUTO-SENT EMAILS, THROUGH THE PATH THAT ACTUALLY SENDS THEM ─────
+// Section 1 renders every template with a hand-built context, which is exactly the harness
+// mistake that let the useMemo crash ship: a context assembled from what the template needs
+// rather than from what the server really passes. These render through `buildClientCtx`,
+// the real server-side builder, for the client shapes that really exist.
+//
+// It found one. The past-due email printed `c.monthly`, which that builder defaults to 0
+// unless a client carries an explicit override, and the Stripe webhook that fires it passed
+// only a pay link. So every client whose payment bounced was told a payment of $0 had
+// failed — on the one email whose entire job is getting paid.
+{
+  const { buildClientCtx } = await import("../netlify/lib/client-email-auto.mjs");
+  const AUTO = ["welcome", "renewal", "past_due", "onboarding_access", "onboarding_nudge", "lead_milestone", "receipt"];
+  const SHAPES = [
+    ["a standard client with no override", { name: "Apex Roofing", contactName: "Mike", email: "m@a.com", packageId: "g-growth", portalToken: "t" }],
+    ["a founding client with the minimum waived", { name: "Stencil & Thread", contactName: "Sebastian", email: "s@s.com", packageId: "g-launch", billingMonthly: 0, billingSetup: 0, billingPerLead: 50, portalToken: "t" }],
+  ];
+  for (const [who, cl] of SHAPES) {
+    for (const t of AUTO) {
+      const ctx = buildClientCtx(cl, t === "receipt" ? { amount: 700 } : t === "lead_milestone" ? { milestone: 10 } : {});
+      const r = renderClientEmail(t, ctx);
+      const body = text(r.html);
+      ok(`${t} renders for ${who}`, !!(r && r.html));
+      // 🔴 The actual bug: a money figure of exactly zero, invented because nothing supplied
+      // a real one. Never correct in a client-facing email.
+      ok(`🔴 ${t} shows no $0 to ${who}`, !/\$0(?![.\d])/.test(body),
+        "a zero here means the template printed a number nobody gave it");
+      ok(`${t} leaves no placeholder for ${who}`, !/\$\{|undefined|NaN/.test(body));
+    }
+  }
+  // And the fixed behaviour, both ways round.
+  const cl = { name: "Apex", contactName: "Mike", email: "m@a.com", packageId: "g-growth", portalToken: "t" };
+  const withAmt = text(renderClientEmail("past_due", buildClientCtx(cl, { amount: 700 })).html);
+  const without = text(renderClientEmail("past_due", buildClientCtx(cl, {})).html);
+  ok("🔴 past-due states the real failed amount when Stripe supplies it", withAmt.includes("payment of $700"));
+  ok("🔴 and says nothing about an amount when it does not", /most recent payment didn't go through/.test(without));
+  ok("either way it still gives them a way to fix it", withAmt.includes("Update Payment Method") && without.includes("Update Payment Method"));
+
+  // The webhook must actually pass that amount, or the template's good behaviour is moot.
+  const hook = readFileSync(join(ROOT, "netlify/functions/stripe-webhook.mjs"), "utf8");
+  ok("🔴 the webhook passes the real failed amount to the email",
+    /past_due", \{ amount: failedAmt/.test(hook),
+    "without this the template correctly says nothing, which is better but still not the number");
+  ok("and prefers what is still outstanding over the invoice total",
+    /amount_remaining != null \? obj\.amount_remaining : obj\.amount_due/.test(hook));
 }
 
 console.log(`verify-client-emails: ${pass} passed, ${fail} failed`);

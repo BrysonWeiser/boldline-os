@@ -92,3 +92,42 @@ without a token.
 (re-adding the two fees, and stranding a button on the plain site). Templates are RENDERED
 and read, never pattern-matched. The suite also asserts no template anywhere says *"management
 fee"*, which is the phrase the first client rejected in writing.
+
+## 🔴 2026-08-26 (backend audit) — the past-due email told everyone $0 had failed
+
+Found auditing the backend rather than the UI. The **Past-Due** email printed `c.monthly`,
+but `buildClientCtx` (the SERVER-side context builder that auto-sends use) defaults `monthly`
+to **0** unless a client carries an explicit override, and the Stripe webhook that fires this
+email passed **only a pay link, never an amount**.
+
+So every client whose payment bounced was told *"your most recent payment of $0 didn't go
+through"* — on the one email whose entire job is getting paid. Confusing enough to be ignored.
+
+**Fixed both ends.** The webhook now passes the real failed figure, preferring
+`amount_remaining` (what is still outstanding after any partial payment, which is what the
+client must actually clear) over `amount_due`. The template states it when it has it and
+**says nothing about a figure when it does not** — an unstated amount is recoverable, a wrong
+one is not.
+
+### 🔴 THE TESTING LESSON, AND IT IS THE SAME ONE AS THE useMemo CRASH
+The existing suite rendered every template with a **hand-built context**, assembled from what
+the templates need rather than from what the server really passes. It passed cleanly on a
+broken email. The new section renders through **`buildClientCtx`, the real builder**, for the
+two client shapes that actually exist (standard, and founding with the minimum waived), and
+asserts no auto-sent email ever shows a bare `$0`. **A harness more permissive than
+production is not a test.**
+
+**115 checks (was 68), two deliberate breaks confirmed** (restoring `c.monthly` in the
+template, and the webhook dropping the amount).
+
+## Backend audit, same session — what was checked and found clean
+- **All 83 backend modules import without error.** A module that throws on import is a
+  function that 500s on its first real request and nothing else would notice.
+- **All 14 scheduled jobs point at files that exist.** `monthly-report` runs on a DAILY cron
+  by design: it checks each day whether any client has passed 30 days since their last send
+  (`dueForMonthly`), so the cadence is per client, not per cron.
+- **All 7 background functions carry the `-background` suffix** Netlify requires.
+- **`calcMonthlyBill` is the canonical greater-of** (`billed: Math.max(floor, earned)`) and
+  is correct. No backend file anywhere sums a monthly with a lead total.
+- **The receipt email takes its figure from Stripe's real `amount_paid`**, so it was never
+  affected by the `monthly` default that broke past-due.
