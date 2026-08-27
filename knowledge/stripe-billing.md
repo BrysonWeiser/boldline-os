@@ -91,3 +91,13 @@ Called automatically by the contract-renewal flow. See `knowledge/contract-renew
 proration on mid-cycle package upgrades; dunning email customization (Stripe's default retries
 apply). ACH takes a few days to clear and can fail on insufficient funds → shows as past_due, Stripe
 auto-retries.
+
+**✅ 2026-08-27 — RESULTS-ONLY CLIENTS CAN NOW BE CHARGED.** Everything above assumes a
+subscription. A client with **no monthly minimum** has nothing to subscribe to, and until
+this date could not be billed at all: no card could be saved, `charge-leads` refused, and
+approved lead fees sat as pending invoice items waiting for a subscription invoice that
+would never exist. New `save-card` action (Checkout `mode:"setup"`), new `billingStatus`
+values `awaiting_card` / `card_on_file`, and `charge-leads` gained an `arrears` mode that
+raises and charges a standalone invoice per approved batch. Full write-up, including the
+`pending_invoice_items_behavior` trap and the hand-off client who had no checkout button at
+all, in KB **`results-only-billing`**.

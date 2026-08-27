@@ -6237,6 +6237,14 @@ function BillingCard({client,pkg,onUpdate}) {
   const setup=(client.billingSetup!=null?client.billingSetup:(pkg&&pkg.setup))||0;
   const status=client.billingStatus||"none";
   const link=client.billingCheckoutUrl||"";
+  // 🔴 Results-only: no monthly minimum, so there is NOTHING to subscribe to. Every
+  // billing path in here used to assume a subscription, which meant this client could not
+  // be charged at all — no card could be saved, and approved lead fees waited forever for
+  // a monthly invoice that was never coming. They get a saved card and an invoice per
+  // batch of leads instead.
+  const resultsOnly=!oneTime&&!(monthly>0);
+  // Both states can bill leads. Only "active" has a recurring invoice to preview.
+  const managed=!oneTime&&(status==="active"||status==="card_on_file");
   const [adjMonthly,setAdjMonthly]=useState(String(monthly));
   const [adjSetup,setAdjSetup]=useState(String(setup));
   const [adjPerLead,setAdjPerLead]=useState("");   // blank keeps whatever is already agreed
@@ -6277,6 +6285,18 @@ function BillingCard({client,pkg,onUpdate}) {
     }catch(e){ setMsg(e.message); }
     setBusy("");
   };
+  // Save a card with no subscription behind it. The only way to bill a results-only
+  // client: with no monthly minimum there is nothing to subscribe to, so the ordinary
+  // checkout path is not just unnecessary, it is impossible.
+  const saveCard=async()=>{
+    if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
+    setBusy("setup"); setMsg("");
+    try{
+      const d=await callBilling("save-card",{clientId:client.id,email:client.email,name:client.contactName||client.name,customerId:client.stripeCustomerId||"",origin:window.location.origin});
+      onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_card",billingCheckoutUrl:d.url});
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
   const refresh=async()=>{
     if(!client.stripeCustomerId){ return; }
     setBusy("sync"); setMsg("");
@@ -6286,7 +6306,9 @@ function BillingCard({client,pkg,onUpdate}) {
         // Stored customer no longer exists in this Stripe mode — reset cleanly.
         onUpdate&&onUpdate({...client,billingStatus:"none",stripeCustomerId:null,stripeSubscriptionId:null,billingCheckoutUrl:null,billingNextCharge:null});
       }else{
-        onUpdate&&onUpdate({...client,billingStatus:d.billingStatus,stripeSubscriptionId:d.subscriptionId||client.stripeSubscriptionId,lastPaymentAt:d.lastPaymentAt||client.lastPaymentAt,billingNextCharge:d.currentPeriodEnd||null,...(d.billingStatus==="active"?{billingCheckoutUrl:null}:{})});
+        // "card_on_file" clears the link too — the card is saved, so a stale setup link
+        // sitting on the card would invite sending it again.
+        onUpdate&&onUpdate({...client,billingStatus:d.billingStatus,stripeSubscriptionId:d.subscriptionId||client.stripeSubscriptionId,lastPaymentAt:d.lastPaymentAt||client.lastPaymentAt,billingNextCharge:d.currentPeriodEnd||null,...(d.billingStatus==="active"||d.billingStatus==="card_on_file"?{billingCheckoutUrl:null}:{})});
       }
     }catch(e){ setMsg(e.message); }
     setBusy("");
@@ -6302,7 +6324,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const copyLink=()=>{ if(link){ navigator.clipboard.writeText(link); setCopied(true); setTimeout(()=>setCopied(false),2000);} };
 
   const money=(n)=>"$"+Number(n||0).toLocaleString();
-  const badge = status==="active"?{t:"Billing Active",c:C.green}:status==="past_due"?{t:"Payment Failed",c:C.red}:status==="awaiting_payment"?{t:"Awaiting Payment",c:C.amber}:status==="canceled"?{t:"Canceled",c:C.textMuted}:{t:"Not Set Up",c:C.textMuted};
+  const badge = status==="active"?{t:"Billing Active",c:C.green}:status==="card_on_file"?{t:"Card on File",c:C.green}:status==="past_due"?{t:"Payment Failed",c:C.red}:status==="awaiting_payment"?{t:"Awaiting Payment",c:C.amber}:status==="awaiting_card"?{t:"Awaiting Card",c:C.amber}:status==="canceled"?{t:"Canceled",c:C.textMuted}:{t:"Not Set Up",c:C.textMuted};
   const btn=(bg,extra)=>({width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:bg,color:"#fff",cursor:busy?"default":"pointer",opacity:busy?.7:1,...extra});
 
   // ── Per-qualified-lead billing ───────────────────────────────────────────────
@@ -6348,7 +6370,7 @@ function BillingCard({client,pkg,onUpdate}) {
     setEditRate(false); setLeadMsg("");
   };
   const chargeLeads=async()=>{
-    if(!client.stripeCustomerId){ setLeadMsg("Set up recurring billing first — lead fees ride the client's monthly invoice."); return; }
+    if(!client.stripeCustomerId){ setLeadMsg(resultsOnly?"Save a card on file first — there is nothing to invoice against.":"Set up recurring billing first — lead fees ride the client's monthly invoice."); return; }
     if(billableCount<=0){ setLeadMsg("No billable leads right now."); return; }
     if(!(perLeadRate>0)){ setLeadMsg("Set a per-lead rate above $0 first."); return; }
     setLeadBusy(true); setLeadMsg("");
@@ -6356,20 +6378,29 @@ function BillingCard({client,pkg,onUpdate}) {
       // Marking the leads billed still happens when nothing is owed: they ARE accounted
       // for, they just did not clear the minimum. Skipping the Stripe call in that case
       // avoids a $0 invoice item, which Stripe rejects anyway.
+      let res=null;
       if(chargeNow>0){
-        await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:chargeNow,clientName:client.name});
+        // 🔴 arrears for a results-only client. With no subscription there is no monthly
+        // invoice for a pending item to ride, so it gets invoiced and charged right now.
+        res=await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:chargeNow,clientName:client.name,arrears:resultsOnly});
       }
       const billedAt=new Date().toISOString();
       const updatedLog=leadLog.map(l=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt} : l);
-      const note = chargeNow>0
-        ? `Approved ${billableCount} qualified lead${billableCount===1?"":"s"} (${money(leadAmount)}) — ${money(chargeNow)} above the ${money(monthlyFloor)} minimum added to next invoice`
-        : `Approved ${billableCount} qualified lead${billableCount===1?"":"s"} (${money(leadAmount)}) — under the ${money(monthlyFloor)} monthly minimum, nothing extra billed`;
+      const leadsWord=`${billableCount} qualified lead${billableCount===1?"":"s"}`;
+      const note = chargeNow<=0
+        ? `Approved ${leadsWord} (${money(leadAmount)}) — under the ${money(monthlyFloor)} monthly minimum, nothing extra billed`
+        : resultsOnly
+        ? `Approved ${leadsWord} — invoiced ${money(chargeNow)}${res&&res.paid?", paid":", collecting"}`
+        : `Approved ${leadsWord} (${money(leadAmount)}) — ${money(chargeNow)} above the ${money(monthlyFloor)} minimum added to next invoice`;
       const entry={date:fmt(billedAt),note,cat:"billing",ts:Date.now()};
       onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])],
+        ...(res&&res.invoiceUrl?{lastLeadInvoiceUrl:res.invoiceUrl}:{}),
         billingLeadPeriod:{ period:billPeriod, earned:earnedAfter, charged:periodState.charged+chargeNow }});
-      setLeadMsg(chargeNow>0
-        ? `✓ ${money(chargeNow)} added to the next invoice (${money(leadAmount)} earned, ${money(monthlyFloor)} minimum already billed).`
-        : `✓ ${billableCount} lead${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`);
+      setLeadMsg(chargeNow<=0
+        ? `✓ ${billableCount} lead${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`
+        : resultsOnly
+        ? (res&&res.paid?`✓ ${money(chargeNow)} invoiced and paid.`:`✓ ${money(chargeNow)} invoiced. Stripe is collecting it from the card on file.`)
+        : `✓ ${money(chargeNow)} added to the next invoice (${money(leadAmount)} earned, ${money(monthlyFloor)} minimum already billed).`);
       loadUpcoming();
     }catch(e){ setLeadMsg(e.message); }
     setLeadBusy(false);
@@ -6405,11 +6436,18 @@ function BillingCard({client,pkg,onUpdate}) {
 
       {status==="none"&&!adjusting&&<>
         {monthly>0&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly minimum only."}</div>}
-        {monthly>0
+        {resultsOnly&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>No monthly minimum, so there is nothing recurring to subscribe to. The client saves a card once and it is never charged on its own. You approve qualified leads, and each approved batch is invoiced to that card straight away.{setup>0?` The ${money(setup)} setup fee is billed separately.`:" Setup fee is waived."}</div>}
+        {oneTime&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>A one-time build. The client pays {money(setup)} once and owes nothing after that, so there is no subscription and no lead billing.</div>}
+        {/* 🔴 THREE DIFFERENT PRODUCTS, THREE DIFFERENT WAYS TO GET PAID, and picking on
+            `monthly>0` alone got two of them wrong. A hand-off has price 0 because there is
+            no monthly, not because it is free — it was falling into the results-only branch
+            and showing no checkout button at all, leaving the one-time path in the backend
+            unreachable from here. */}
+        {oneTime
+          ? <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":`Collect the ${money(setup)} Build Fee →`}</button>
+          : monthly>0
           ? <button onClick={setupBilling} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Set Up Recurring Billing →"}</button>
-          : <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,padding:"9px 11px",borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)"}}>
-              <strong style={{color:C.text}}>Results-only, so there is no subscription to create.</strong> With no monthly minimum there is nothing recurring to charge. Qualified leads are reviewed and invoiced after each month. Set a monthly minimum here if you ever want an auto-charging subscription instead.
-            </div>}
+          : <button onClick={saveCard} disabled={!!busy} style={btn(C.gold,{color:"#0a0800"})}>{busy==="setup"?"Creating…":"Save a Card on File →"}</button>}
         <button onClick={()=>{setAdjMonthly(String(monthly));setAdjSetup(String(setup));setAdjPerLead(perLeadRate>0?String(perLeadRate):"");setAdjusting(true);}} style={{...btn("transparent"),marginTop:8,border:`1px solid ${C.border}`,color:C.textMuted}}>Adjust Fees (discount / waive setup)</button>
       </>}
       {status==="none"&&adjusting&&<>
@@ -6439,8 +6477,10 @@ function BillingCard({client,pkg,onUpdate}) {
         </div>
       </>}
 
-      {status==="awaiting_payment"&&<>
-        <div style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:8}}>Payment link ready. Send it to the client (or open it together on the call). Billing activates the moment they pay.</div>
+      {(status==="awaiting_payment"||status==="awaiting_card")&&<>
+        <div style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:8}}>{status==="awaiting_card"
+          ? <>Card link ready. Send it to the client, or open it together on the call. <strong style={{color:C.text}}>Nothing is charged</strong> — it only saves their card so approved leads can be invoiced to it.</>
+          : "Payment link ready. Send it to the client (or open it together on the call). Billing activates the moment they pay."}</div>
         {link&&<div style={{fontSize:10,color:C.textDim,wordBreak:"break-all",background:"rgba(0,0,0,.25)",border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 9px",marginBottom:8}}>{link}</div>}
         <div style={S.row7}>
           <button onClick={copyLink} style={{flex:1,padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?C.green:C.textDim,cursor:"pointer"}}>{copied?"Copied!":"Copy Link"}</button>
@@ -6465,8 +6505,10 @@ function BillingCard({client,pkg,onUpdate}) {
           <button onClick={openPortal} disabled={!!busy} style={{marginTop:10,width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="portal"?"Opening…":"View receipt in Stripe"}</button>
         </div>
       )}
-      {status==="active"&&!oneTime&&<>
-        <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>Auto-charging {money(monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</div>
+      {managed&&<>
+        <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>{status==="card_on_file"
+          ? <>Card on file. <strong style={{color:C.text}}>Nothing charges on its own.</strong> Each approved batch of qualified leads is invoiced to this card straight away.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}</>
+          : <>Auto-charging {money(monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</>}</div>
         <div style={S.row7}>
           <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Manage in Stripe"}</button>
           <button onClick={refresh} disabled={!!busy} style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="sync"?"…":"Refresh"}</button>
@@ -6475,7 +6517,7 @@ function BillingCard({client,pkg,onUpdate}) {
         {/* Per-qualified-lead billing — review + one-tap approve onto next invoice */}
         <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Lead Billing (whichever is higher)</span>
+            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Lead Billing{resultsOnly?"":" (whichever is higher)"}</span>
             <span style={{fontSize:10,color:C.textMuted}}>{flaggedBillable>0&&<span style={{color:C.amber,fontWeight:700}}>{flaggedBillable} flagged</span>}{flaggedBillable>0&&billedCount>0?" · ":""}{billedCount>0?`${billedCount} billed`:""}</span>
           </div>
           {!editRate
@@ -6534,17 +6576,21 @@ function BillingCard({client,pkg,onUpdate}) {
                 {/* The greater-of, shown as arithmetic so it can be checked at a glance. */}
                 <div style={{marginBottom:8,padding:"7px 9px",borderRadius:8,backgroundColor:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,fontSize:10,color:C.textMuted,lineHeight:1.55}}>
                   {periodState.earned>0&&<div>{money(periodState.earned)} already approved this month{periodState.charged>0?` · ${money(periodState.charged)} already invoiced`:""}</div>}
-                  {chargeNow>0
+                  {resultsOnly
+                    ? <div>No monthly minimum, so this is the whole fee. <strong style={{color:C.green}}>{money(chargeNow)}</strong> gets invoiced to the card on file as soon as you approve.</div>
+                    : chargeNow>0
                     ? <div>{money(earnedAfter)} earned this month is above the {money(monthlyFloor)} minimum — <strong style={{color:C.green}}>{money(chargeNow)}</strong> gets added to the next invoice.</div>
                     : <div>{money(earnedAfter)} earned this month is under the {money(monthlyFloor)} minimum — <strong style={{color:C.text}}>they pay the minimum, nothing extra.</strong></div>}
                 </div>
-                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow>0?`Approve — add ${money(chargeNow)} to next invoice`:`Approve ${billableCount} lead${billableCount===1?"":"s"} — nothing extra to bill`)}</button>
+                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow<=0?`Approve ${billableCount} lead${billableCount===1?"":"s"} — nothing extra to bill`:resultsOnly?`Approve — invoice ${money(chargeNow)} now`:`Approve — add ${money(chargeNow)} to next invoice`)}</button>
               </>}
           {leadMsg&&<div style={{fontSize:11,color:leadMsg.charAt(0)==="✓"?C.green:C.red,marginTop:8,lineHeight:1.6}}>{leadMsg}</div>}
         </div>
 
-        {/* Upcoming invoice — proves fee + setup + leads + interest = ONE bill */}
-        <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+        {/* Upcoming invoice — proves fee + setup + leads + interest = ONE bill.
+            Subscriptions only: a results-only client has no recurring invoice coming, so
+            a preview would be an empty box implying one exists. */}
+        {status==="active"&&<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Upcoming Invoice</span>
             <button onClick={loadUpcoming} disabled={upcomingState==="loading"} style={{fontSize:10,color:C.gold,background:"none",border:"none",cursor:upcomingState==="loading"?"default":"pointer",padding:0,textDecoration:"underline"}}>{upcomingState==="loading"?"…":"refresh"}</button>
@@ -6567,7 +6613,7 @@ function BillingCard({client,pkg,onUpdate}) {
             </div>
           </>}
           {upcoming===null&&upcomingState===""&&<div style={{fontSize:10,color:C.textMuted,lineHeight:1.5}}>No upcoming invoice scheduled yet — it appears once the subscription&rsquo;s next monthly cycle is set.</div>}
-        </div>
+        </div>}
       </>}
 
       {status==="past_due"&&<>

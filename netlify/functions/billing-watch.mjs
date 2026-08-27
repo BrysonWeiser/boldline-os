@@ -76,7 +76,11 @@ export default withFailureAlert("billing-watch", async () => {
   let checked = 0, updated = 0;
   for (const row of rows || []) {
     const cl = row.data || {};
-    if (!cl.stripeCustomerId || !["active", "past_due", "awaiting_payment"].includes(cl.billingStatus || "")) continue;
+    // 🔴 "card_on_file" BELONGS HERE. A results-only client has no subscription, but they
+    // absolutely have invoices — one per approved batch of qualified leads — and leaving
+    // them out meant an unpaid lead invoice was never noticed, never chased and never
+    // charged interest. Their money is no less real for arriving without a subscription.
+    if (!cl.stripeCustomerId || !["active", "card_on_file", "past_due", "awaiting_payment"].includes(cl.billingStatus || "")) continue;
     checked++;
     const prevStatus = cl.billingStatus;
     try {
@@ -131,7 +135,11 @@ export default withFailureAlert("billing-watch", async () => {
           await ownerEmail(`✅ ${cl.name}: payment recovered`,
             [`<strong>${cl.name}</strong> has no unpaid invoices anymore${prev.interest ? ` (accrued late interest of ${money(prev.interest)} rides their next invoice)` : ""}. Billing is back to normal.`]);
         }
-        if (cl.billingStatus === "past_due") cl.billingStatus = "active";
+        // Recovering must restore what they actually ARE. Flipping everyone to "active"
+        // would tell the OS a results-only client has a subscription, and every surface
+        // that reads that status would then offer to manage, re-rate or cancel one that
+        // does not exist.
+        if (cl.billingStatus === "past_due") cl.billingStatus = cl.stripeSubscriptionId ? "active" : "card_on_file";
       }
 
       // ── Next-invoice date refresh + pre-invoice lead-review reminder ─────────
