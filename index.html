@@ -6285,6 +6285,23 @@ function BillingCard({client,pkg,onUpdate}) {
     }catch(e){ setMsg(e.message); }
     setBusy("");
   };
+  // Raise the month's invoice early. The scheduled run does this on the 1st for every
+  // results-only client; this button is for what a calendar cannot know about — a client
+  // leaving, or a final bill.
+  const invoiceNow=async()=>{
+    if(!client.stripeCustomerId){ setLeadMsg("Save a card on file first."); return; }
+    setLeadBusy(true); setLeadMsg("");
+    try{
+      const d=await callBilling("invoice-leads",{customerId:client.stripeCustomerId,clientName:client.name});
+      if(d.nothingDue){ setLeadMsg("Nothing waiting to be billed. Approve some leads first."); setLeadBusy(false); return; }
+      const note=`Invoiced ${money(d.amount)} for qualified leads delivered${d.paid?" — paid":" — awaiting payment"}.`;
+      onUpdate&&onUpdate({...client,lastLeadInvoiceUrl:d.invoiceUrl||null,lastLeadInvoiceAt:new Date().toISOString(),
+        commLog:[{date:fmt(new Date()),note,cat:"billing",ts:Date.now()},...(client.commLog||[])],
+        billingLeadPeriod:{...periodState,charged:(periodState.charged||0)+d.amount}});
+      setLeadMsg(d.paid?`✓ ${money(d.amount)} invoiced and paid.`:`✓ ${money(d.amount)} invoiced. Stripe is collecting it from the card on file.`);
+    }catch(e){ setLeadMsg(e.message); }
+    setLeadBusy(false);
+  };
   // Save a card with no subscription behind it. The only way to bill a results-only
   // client: with no monthly minimum there is nothing to subscribe to, so the ordinary
   // checkout path is not just unnecessary, it is impossible.
@@ -6360,6 +6377,9 @@ function BillingCard({client,pkg,onUpdate}) {
   const earnedAfter  = periodState.earned + leadAmount;
   const owedAfter    = Math.max(0, earnedAfter - monthlyFloor);
   const chargeNow    = Math.max(0, Math.round(owedAfter - periodState.charged));
+  // What is approved but not yet invoiced. For a results-only client this IS the next
+  // invoice, so it is shown as its own running total rather than buried in the arithmetic.
+  const parkedThisMonth = Math.max(0, Math.round((periodState.earned||0) - (periodState.charged||0)));
   const toggleLeadExclude=(realIdx)=>{
     const updated=leadLog.map((l,i)=> i===realIdx ? {...l,notBillable:!l.notBillable} : l);
     onUpdate&&onUpdate({...client,leadsLog:updated});
@@ -6378,11 +6398,12 @@ function BillingCard({client,pkg,onUpdate}) {
       // Marking the leads billed still happens when nothing is owed: they ARE accounted
       // for, they just did not clear the minimum. Skipping the Stripe call in that case
       // avoids a $0 invoice item, which Stripe rejects anyway.
-      let res=null;
       if(chargeNow>0){
-        // 🔴 arrears for a results-only client. With no subscription there is no monthly
-        // invoice for a pending item to ride, so it gets invoiced and charged right now.
-        res=await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:chargeNow,clientName:client.name,arrears:resultsOnly});
+        // 🔴 APPROVING PARKS THE MONEY, IT DOES NOT CHARGE IT. Clause 4.3 of a
+        // results-only agreement says nothing is billed in advance and the fee is charged
+        // after the month closes. So this puts the amount against the client in Stripe,
+        // and the month-end run (or "Invoice Now") raises the single bill.
+        await callBilling("charge-leads",{customerId:client.stripeCustomerId,count:billableCount,amount:chargeNow,clientName:client.name,arrears:resultsOnly});
       }
       const billedAt=new Date().toISOString();
       const updatedLog=leadLog.map(l=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt} : l);
@@ -6390,16 +6411,15 @@ function BillingCard({client,pkg,onUpdate}) {
       const note = chargeNow<=0
         ? `Approved ${leadsWord} (${money(leadAmount)}) — under the ${money(monthlyFloor)} monthly minimum, nothing extra billed`
         : resultsOnly
-        ? `Approved ${leadsWord} — invoiced ${money(chargeNow)}${res&&res.paid?", paid":", collecting"}`
+        ? `Approved ${leadsWord} — ${money(chargeNow)} added to this month's invoice`
         : `Approved ${leadsWord} (${money(leadAmount)}) — ${money(chargeNow)} above the ${money(monthlyFloor)} minimum added to next invoice`;
       const entry={date:fmt(billedAt),note,cat:"billing",ts:Date.now()};
       onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])],
-        ...(res&&res.invoiceUrl?{lastLeadInvoiceUrl:res.invoiceUrl}:{}),
-        billingLeadPeriod:{ period:billPeriod, earned:earnedAfter, charged:periodState.charged+chargeNow }});
+        billingLeadPeriod:{ period:billPeriod, earned:earnedAfter, charged:periodState.charged }});
       setLeadMsg(chargeNow<=0
         ? `✓ ${billableCount} lead${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`
         : resultsOnly
-        ? (res&&res.paid?`✓ ${money(chargeNow)} invoiced and paid.`:`✓ ${money(chargeNow)} invoiced. Stripe is collecting it from the card on file.`)
+        ? `✓ ${money(chargeNow)} added to this month's invoice. Nothing is charged until the 1st.`
         : `✓ ${money(chargeNow)} added to the next invoice (${money(leadAmount)} earned, ${money(monthlyFloor)} minimum already billed).`);
       loadUpcoming();
     }catch(e){ setLeadMsg(e.message); }
@@ -6586,6 +6606,25 @@ function BillingCard({client,pkg,onUpdate}) {
               </>}
           {leadMsg&&<div style={{fontSize:11,color:leadMsg.charAt(0)==="✓"?C.green:C.red,marginTop:8,lineHeight:1.6}}>{leadMsg}</div>}
         </div>
+
+        {/* 🔴 THE OTHER HALF OF RESULTS-ONLY BILLING, MADE VISIBLE.
+            Approving leads parks money; it does not charge it. The agreement says the fee
+            is charged after the month closes, so without this panel the obvious reading of
+            "Approved" is "charged", and Bryson would be waiting on money that had not been
+            asked for yet. */}
+        {resultsOnly&&<div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>This Month&rsquo;s Invoice</span>
+            <span style={{fontSize:12,fontWeight:800,color:parkedThisMonth>0?C.green:C.textMuted}}>{money(parkedThisMonth)}</span>
+          </div>
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,marginBottom:8}}>
+            {parkedThisMonth>0
+              ? <>Goes out automatically on the <strong style={{color:C.textDim}}>1st</strong> and charges the card on file. One invoice, only the leads you approved, no monthly fee.</>
+              : <>Nothing approved yet this month. As you approve qualified leads they add up here, and the invoice goes out automatically on the 1st.</>}
+          </div>
+          {client.lastLeadInvoiceAt&&<div style={{fontSize:10,color:C.textMuted,marginBottom:8}}>Last invoiced {fmt(client.lastLeadInvoiceAt)}{client.lastLeadInvoiceUrl?<> · <a href={client.lastLeadInvoiceUrl} target="_blank" rel="noopener" style={{color:C.gold}}>view it</a></>:null}</div>}
+          <button onClick={invoiceNow} disabled={leadBusy||parkedThisMonth<=0} style={{width:"100%",padding:"9px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:parkedThisMonth>0?C.textDim:C.textMuted,cursor:(leadBusy||parkedThisMonth<=0)?"default":"pointer"}}>{leadBusy?"Working…":"Invoice Now (don't wait for the 1st)"}</button>
+        </div>}
 
         {/* Upcoming invoice — proves fee + setup + leads + interest = ONE bill.
             Subscriptions only: a results-only client has no recurring invoice coming, so

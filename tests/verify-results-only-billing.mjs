@@ -192,32 +192,28 @@ const SESSION = { id: "cs_1", url: "https://checkout.stripe.com/c/pay/cs_1" };
   ok("🔴 a subscribed client is NOT downgraded to card_on_file", r.data.billingStatus !== "card_on_file");
 }
 
-// ── 3. 🔴 APPROVED LEADS ACTUALLY GET INVOICED ────────────────────────────────
-const arrearsRoutes = (invoice) => ({
-  "POST invoiceitems": { id: "ii_1" },
-  "GET customers/cus_1": { id: "cus_1", invoice_settings: { default_payment_method: "pm_1" } },
-  "POST invoices": invoice,
-  "POST invoices/in_1/pay": { id: "in_1", status: "paid", hosted_invoice_url: "https://pay/in_1" },
-});
+// ── 3. 🔴 APPROVING PARKS THE MONEY. IT DOES NOT CHARGE IT. ───────────────────
+//
+// Clause 4.3 of a results-only agreement, which the first client signed:
+//   "Nothing is billed in advance. After each month closes, Agency calculates the
+//    Performance Fee for that month and it is charged on the next invoice. Client is
+//    billed in arrears, for results already delivered."
+//
+// The first version of this billing charged the card the moment Bryson approved a batch.
+// That contradicted the document the client was signing at the time, and would have meant
+// several charges scattered through a month instead of one bill after it.
 {
   const r = await call({ action: "charge-leads", customerId: "cus_1", count: 5, amount: 250, clientName: "Stencil & Thread", arrears: true },
-    arrearsRoutes({ id: "in_1", amount_due: 25000, hosted_invoice_url: "https://pay/in_1" }));
-  ok("🔴 five leads at $50 are actually invoiced", r.data.ok === true && r.data.amount === 250, JSON.stringify(r.data));
-  ok("🔴 and CHARGED, not left sitting", r.data.paid === true && !!sent(r, "POST", "invoices/in_1/pay"),
-    "the old behaviour dropped a pending item that waited forever for a subscription invoice");
-  ok("the client gets a link to the invoice", r.data.invoiceUrl === "https://pay/in_1");
-
-  const inv = sent(r, "POST", "invoices");
-  // 🔴 Current API versions default this to "exclude", which produces an EMPTY $0 invoice
-  // that trivially "pays" while the real charge silently waits forever.
-  ok("🔴 the invoice sweeps in the item just created", inv.params.pending_invoice_items_behavior === "include",
-    "without this the invoice comes out at $0 and reports success");
-  ok("it charges the card automatically rather than emailing a request",
-    inv.params.collection_method === "charge_automatically" && inv.params.auto_advance === "true");
-  ok("it is aimed at the card we resolved", inv.params.default_payment_method === "pm_1");
+    { "POST invoiceitems": { id: "ii_1" } });
+  ok("approving records the money against the client", r.data.ok === true && r.data.itemId === "ii_1");
+  // 🔴 The guard. An invoice raised here is a mid-month charge the agreement forbids.
+  ok("🔴 but raises NO invoice, because the agreement bills after the month closes",
+    !sent(r, "POST", "invoices"),
+    "charging on approval would bill the client several times a month, which is not what they signed");
+  ok("and charges nothing", !r.calls.some((c) => c.path.endsWith("/pay")));
 
   const item = sent(r, "POST", "invoiceitems");
-  ok("the line item is the right money", item.params.amount === "25000" && item.params.currency === "usd");
+  ok("the parked amount is right", item.params.amount === "25000" && item.params.currency === "usd");
   // 🔴 The client reads this line. Saying "above monthly minimum" to someone whose
   // agreement says there is no minimum contradicts the document they signed.
   ok("🔴 the description never mentions a minimum they do not have",
@@ -226,41 +222,21 @@ const arrearsRoutes = (invoice) => ({
   ok("and names the client", /Stencil & Thread/.test(item.params.description));
 }
 {
-  // One lead, not "1 qualified leads".
   const r = await call({ action: "charge-leads", customerId: "cus_1", count: 1, amount: 50, arrears: true },
-    arrearsRoutes({ id: "in_1", amount_due: 5000 }));
+    { "POST invoiceitems": { id: "ii_1" } });
   ok("a single lead reads as singular", /1 qualified lead\b/.test(sent(r, "POST", "invoiceitems").params.description),
     sent(r, "POST", "invoiceitems").params.description);
 }
 {
-  // 🔴 THE EMPTY-INVOICE TRAP, which once reported success while collecting nothing.
-  const r = await call({ action: "charge-leads", customerId: "cus_1", count: 5, amount: 250, arrears: true },
-    arrearsRoutes({ id: "in_1", amount_due: 0 }));
-  ok("🔴 an invoice that came out empty is reported as a FAILURE", r.data.ok === false, JSON.stringify(r.data));
-  ok("and it is never 'paid'", !r.data.paid);
-  ok("the message says where to look", /pending invoice items/i.test(r.data.error), r.data.error);
-}
-{
-  // A declined card must not lose the invoice — Stripe keeps retrying (dunning).
-  const routesNoPay = arrearsRoutes({ id: "in_1", amount_due: 25000, hosted_invoice_url: "https://pay/in_1" });
-  delete routesNoPay["POST invoices/in_1/pay"];   // the pay call now 404s, i.e. throws
-  const r = await call({ action: "charge-leads", customerId: "cus_1", count: 5, amount: 250, arrears: true }, routesNoPay);
-  ok("🔴 a card that fails right now still leaves the invoice standing", r.data.ok === true && r.data.invoiceId === "in_1",
-    "the debt is real whether or not the card worked on the first attempt");
-  ok("but it is honestly reported as unpaid", r.data.paid === false);
-  ok("and the client still has a link to pay it", r.data.invoiceUrl === "https://pay/in_1");
-}
-{
-  // 🔴 The subscription path must NOT start invoicing immediately — that would bill a
-  // client twice in a month: once now, and again on their monthly invoice.
+  // The subscription path is unchanged, and must stay that way: Stripe already sweeps
+  // pending items onto their recurring invoice.
   const r = await call({ action: "charge-leads", customerId: "cus_1", count: 3, amount: 150, clientName: "Apex" },
     { "POST invoiceitems": { id: "ii_1" } });
   ok("a client WITH a subscription still gets a pending item", r.data.ok === true && r.data.itemId === "ii_1");
-  ok("🔴 and no invoice is raised for them", !sent(r, "POST", "invoices"),
+  ok("🔴 and no invoice is raised for them either", !sent(r, "POST", "invoices"),
     "invoicing now AND on their monthly bill would charge the same leads twice");
   ok("their description still explains the greater-of arithmetic",
     /above monthly minimum/.test(sent(r, "POST", "invoiceitems").params.description));
-  ok("it is not marked as arrears", r.data.arrears !== true);
 }
 {
   const noCard = await call({ action: "charge-leads", count: 5, amount: 250, arrears: true });
@@ -281,6 +257,61 @@ const arrearsRoutes = (invoice) => ({
   ok("zero leads is refused", none.status === 400 && none.calls.length === 0);
 }
 
+// ── 3b. 🔴 AND THEN ONE INVOICE RAISES THE LOT ────────────────────────────────
+const invoiceRoutes = (invoice, pending = [{ amount: 25000 }]) => ({
+  "GET invoiceitems": { data: pending },
+  "GET customers/cus_1": { id: "cus_1", invoice_settings: { default_payment_method: "pm_1" } },
+  "POST invoices": invoice,
+  "POST invoices/in_1/pay": { id: "in_1", status: "paid", hosted_invoice_url: "https://pay/in_1" },
+});
+{
+  const r = await call({ action: "invoice-leads", customerId: "cus_1", clientName: "Stencil & Thread" },
+    invoiceRoutes({ id: "in_1", amount_due: 25000, hosted_invoice_url: "https://pay/in_1" }));
+  ok("🔴 the month's approved leads become one invoice", r.data.ok === true && r.data.amount === 250, JSON.stringify(r.data));
+  ok("🔴 and it is CHARGED to the card on file", r.data.paid === true && !!sent(r, "POST", "invoices/in_1/pay"));
+  ok("the client gets a link to it", r.data.invoiceUrl === "https://pay/in_1");
+
+  const inv = sent(r, "POST", "invoices");
+  // 🔴 Current API versions default this to "exclude", which produces an EMPTY $0 invoice
+  // that trivially "pays" while the real charge silently waits forever.
+  ok("🔴 the invoice sweeps in everything parked", inv.params.pending_invoice_items_behavior === "include",
+    "without this the invoice comes out at $0 and reports success");
+  ok("it charges the card automatically rather than emailing a request",
+    inv.params.collection_method === "charge_automatically" && inv.params.auto_advance === "true");
+  ok("it is aimed at the card we resolved", inv.params.default_payment_method === "pm_1");
+  ok("it is described as leads, so the client's own records make sense",
+    /qualified leads/i.test(inv.params.description) && /Stencil & Thread/.test(inv.params.description));
+}
+{
+  // 🔴 A QUIET MONTH MUST NOT LEAVE A $0 INVOICE ON THE CLIENT'S RECORD.
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" }, { "GET invoiceitems": { data: [] } });
+  ok("🔴 nothing approved means no invoice is raised at all", r.data.nothingDue === true && !sent(r, "POST", "invoices"),
+    "raising one to discover it is empty leaves a $0 invoice on their Stripe record every month");
+  ok("and it is not treated as a failure", r.data.ok === true);
+}
+{
+  // 🔴 THE EMPTY-INVOICE TRAP, which once reported success while collecting nothing.
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" },
+    invoiceRoutes({ id: "in_1", amount_due: 0 }));
+  ok("🔴 an invoice that came out empty despite parked charges is a FAILURE", r.data.ok === false, JSON.stringify(r.data));
+  ok("and it is never 'paid'", !r.data.paid);
+  ok("the message says where to look", /pending invoice items/i.test(r.data.error), r.data.error);
+}
+{
+  // A declined card must not lose the invoice — Stripe keeps retrying (dunning).
+  const routesNoPay = invoiceRoutes({ id: "in_1", amount_due: 25000, hosted_invoice_url: "https://pay/in_1" });
+  delete routesNoPay["POST invoices/in_1/pay"];   // the pay call now 404s, i.e. throws
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" }, routesNoPay);
+  ok("🔴 a card that fails right now still leaves the invoice standing", r.data.ok === true && r.data.invoiceId === "in_1",
+    "the debt is real whether or not the card worked on the first attempt");
+  ok("but it is honestly reported as unpaid", r.data.paid === false);
+  ok("and the client still has a link to pay it", r.data.invoiceUrl === "https://pay/in_1");
+}
+{
+  const r = await call({ action: "invoice-leads" });
+  ok("invoicing with no customer is refused", r.status === 400 && r.calls.length === 0);
+}
+
 // ── 4. The ETF still works, since it now shares the payment-method resolver ───
 {
   const r = await call({ action: "charge-etf", customerId: "cus_1", subscriptionId: "sub_1", etfFee: 700, clawback: 300, clientName: "Apex" }, {
@@ -296,6 +327,113 @@ const arrearsRoutes = (invoice) => ({
     "the shared resolver must not have changed the order the ETF depended on");
   ok("and it still winds the subscription down at period end",
     sent(r, "POST", "subscriptions/sub_1").params.cancel_at_period_end === "true");
+}
+
+// ── 4b. 🔴 THE MONTH-END RUN, THE THING THAT ACTUALLY COLLECTS ────────────────
+// Approving parks money and nothing else, so if this job does not run, or picks the wrong
+// clients, a results-only client is never billed at all. The real loop runs here with its
+// four outside edges handed in, so the bad-day paths execute rather than being reasoned about.
+{
+  const { runLeadInvoices, dueForInvoice, summaryLine } = await import("../netlify/functions/lead-invoice-run.mjs");
+
+  const cl = (o = {}) => ({ name: "Stencil & Thread", stripeCustomerId: "cus_1", billingStatus: "card_on_file", ...o });
+  ok("a results-only client with a card is billed", dueForInvoice(cl()));
+  ok("one who is behind on payment is still billed for new work", dueForInvoice(cl({ billingStatus: "past_due" })));
+  // 🔴 Stripe already sweeps their pending items onto the recurring invoice, so billing
+  // them here as well charges the same leads twice.
+  //
+  // The status is deliberately `card_on_file`, NOT `active`. An "active" client is already
+  // excluded by the status check below, so asserting on one would pass whether or not the
+  // subscription guard existed at all — it would be a test of the data, not of the code.
+  // This shape (a saved card AND a subscription) is real: a client who started
+  // results-only and later moved onto a minimum, before the next sync rewrites the status.
+  ok("🔴 a client WITH a subscription is skipped, or their leads bill twice",
+    !dueForInvoice(cl({ stripeSubscriptionId: "sub_1", billingStatus: "card_on_file" })));
+  ok("and one on an active subscription likewise",
+    !dueForInvoice(cl({ stripeSubscriptionId: "sub_1", billingStatus: "active" })));
+  ok("someone who never saved a card is skipped", !dueForInvoice(cl({ stripeCustomerId: "" })));
+  ok("a client still awaiting their card is skipped", !dueForInvoice(cl({ billingStatus: "awaiting_card" })));
+  ok("the house account is skipped", !dueForInvoice(cl({ internal: true })));
+  ok("a missing client does not throw", dueForInvoice(null) === false);
+
+  const harness = (rows, results, opts = {}) => {
+    const saved = [], alerts = [], asked = [];
+    return runLeadInvoices({
+      loadClients: async () => rows,
+      invoiceFor: async (c) => {
+        asked.push(c.name);
+        const r = results[c.name];
+        if (r instanceof Error) throw r;
+        return r;
+      },
+      saveClient: async (id, data) => { if (opts.saveThrows) throw new Error("supabase write failed"); saved.push({ id, data }); },
+      alert: async (a) => { alerts.push(a); },
+    }).then((summary) => ({ summary, saved, alerts, asked }));
+  };
+  const PAID = { invoiceId: "in_1", invoiceUrl: "https://pay/in_1", paid: true, amount: 250, count: 5 };
+
+  {
+    const rows = [
+      { id: "a", data: cl() },
+      { id: "b", data: cl({ name: "Quiet Co" }) },
+      { id: "c", data: cl({ name: "Managed Co", stripeSubscriptionId: "sub_1", billingStatus: "active" }) },
+    ];
+    const r = await harness(rows, { "Stencil & Thread": PAID, "Quiet Co": { nothingDue: true, count: 0, amount: 0 } });
+    ok("only the results-only clients are invoiced", r.summary.due === 2 && r.asked.length === 2);
+    ok("🔴 the subscribed client is never even asked", !r.asked.includes("Managed Co"));
+    ok("the one with leads is billed", r.summary.invoiced === 1 && r.summary.total === 250);
+    ok("the record is the whole client plus the invoice, not a replacement",
+      r.saved[0].data.stripeCustomerId === "cus_1" && r.saved[0].data.lastLeadInvoiceUrl === "https://pay/in_1");
+    ok("a line goes in their history", /Invoiced \$250/.test(r.saved[0].data.commLog[0].note));
+    // 🔴 A month with no approved leads is a NORMAL month.
+    ok("🔴 a client with nothing owed gets no invoice and no alert",
+      r.summary.nothingDue === 1 && r.saved.length === 1);
+    ok("Bryson gets one summary, not one alert per client", r.alerts.length === 1);
+    ok("and it tells him the total", /\$250/.test(r.alerts[0].title), r.alerts[0].title);
+    ok("a fully collected run is good news, not a warning", r.alerts[0].severity === "green");
+  }
+  {
+    const rows = [{ id: "a", data: cl() }];
+    const r = await harness(rows, { "Stencil & Thread": { ...PAID, paid: false } });
+    ok("an invoice the card did not cover is still recorded", r.summary.invoiced === 1 && r.saved.length === 1);
+    ok("and Bryson is told payment is pending rather than told it is collected",
+      r.alerts[0].severity === "yellow" && /pending/i.test(r.alerts[0].body), r.alerts[0].body);
+  }
+  {
+    // 🔴 ONE CLIENT FAILING MUST NOT COST EVERYONE ELSE A MONTH'S BILLING.
+    const rows = [{ id: "a", data: cl({ name: "Broken Co" }) }, { id: "b", data: cl() }];
+    const r = await harness(rows, { "Broken Co": new Error("card_declined"), "Stencil & Thread": PAID });
+    ok("🔴 a client that throws does not stop the next one being billed",
+      r.summary.invoiced === 1 && r.saved.length === 1 && r.saved[0].data.name === "Stencil & Thread");
+    ok("the failure is counted", r.summary.errors === 1);
+    const red = r.alerts.find((a) => a.severity === "red");
+    ok("and Bryson is told which client, and what to do", !!red && /Broken Co/.test(red.title) && /Invoice Now/.test(red.body));
+    ok("🔴 he is told the money is not lost", /still owed/i.test(red.body), red.body);
+  }
+  {
+    // The money is real even when our own bookkeeping fails, and saying otherwise would
+    // have him re-invoice a client who has already been charged.
+    const rows = [{ id: "a", data: cl() }];
+    const r = await harness(rows, { "Stencil & Thread": PAID }, { saveThrows: true });
+    ok("a failed save is reported", r.summary.errors === 1 && r.summary.invoiced === 0);
+    const a = r.alerts[0];
+    ok("🔴 but it does NOT claim the client went unbilled", /has been invoiced/.test(a.body), a.body);
+    ok("🔴 and it says explicitly not to re-invoice",
+      /Nothing needs re-invoicing/i.test(a.body), a.body);
+  }
+  {
+    const r = await harness([], {});
+    ok("no results-only clients is a silent no-op", r.summary.due === 0 && r.alerts.length === 0);
+    ok("the summary line reads as English", /0 due, 0 invoiced/.test(summaryLine(r.summary)), summaryLine(r.summary));
+  }
+
+  // 🔴 A scheduled function with no cron entry is a file that never executes, and the
+  // symptom would be a client who is simply never billed.
+  const toml = readFileSync(join(ROOT, "netlify.toml"), "utf8");
+  const m = toml.match(/\[functions\."lead-invoice-run"\]\s*\n\s*schedule\s*=\s*"([^"]+)"/);
+  ok("🔴 the month-end run is actually scheduled", !!m, "without this nobody is ever invoiced");
+  ok("and it runs monthly, on the 1st, not daily",
+    !!m && /^\S+ \S+ 1 \S+ \S+$/.test(m[1]), m && m[1]);
 }
 
 // ── 5. Unpaid lead invoices have to be CHASED, not just raised ────────────────
@@ -319,7 +457,15 @@ const arrearsRoutes = (invoice) => ({
     /Save a Card on File/.test(app),
     "the card used to read 'there is no subscription to create' and offer no button at all");
   ok("the OS asks the backend for it by name", /callBilling\("save-card"/.test(app));
-  ok("🔴 approving leads for them invoices immediately", /arrears:resultsOnly/.test(app));
+  ok("the approval is marked as arrears so the line item is worded right", /arrears:resultsOnly/.test(app));
+  // 🔴 Approving parks money; it does not charge it. Without this panel the obvious
+  // reading of "Approved" is "charged", and Bryson would be waiting on money nobody
+  // had asked for yet.
+  ok("🔴 the OS shows what is waiting to be invoiced", /This Month&rsquo;s Invoice/.test(app));
+  ok("and says plainly when it goes out", /Goes out automatically on the/.test(app));
+  ok("and the approval message does not imply the card was charged",
+    /added to this month's invoice\. Nothing is charged until the 1st/.test(app));
+  ok("there is a way to bill early for a client who is leaving", /callBilling\("invoice-leads"/.test(app));
   // A hand-off has price 0 because there is no monthly, not because it is free. Picking
   // the button on `monthly>0` alone dropped it into the results-only branch with no
   // checkout button at all, leaving the one-time path unreachable from this screen.
