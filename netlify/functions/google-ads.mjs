@@ -435,7 +435,12 @@ export async function createCampaign(accessToken, p) {
   // Language. Defaults to English, which is what every campaign built before this
   // targeted, but a campaign aimed at Mexico or Quebec can now say so instead of quietly
   // showing to almost nobody.
-  const lang = await resolveLanguages(accessToken, customerId, p.languages);
+  // 🔴 `cid`, not `customerId`. This read a name that does not exist in this function, so
+  // EVERY Google campaign build threw a ReferenceError here and created nothing. It shipped
+  // because a name used only inside a function body is invisible to the compiler, to an
+  // import, and to every test that does not execute this exact line — the same shape as the
+  // useMemo crash. `verify-functions-resolve` now scans for it across every server file.
+  const lang = await resolveLanguages(accessToken, cid, p.languages);
   if (lang.unresolved.length) {
     throw err(`Google does not recognise the language ${lang.unresolved.map((x) => `"${x}"`).join(", ")}. Use a name like "Spanish", a code like "es", or "all". Nothing was created.`);
   }
