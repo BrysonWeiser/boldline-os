@@ -2481,7 +2481,19 @@ const makeContractHTML=(cl,pkg)=>{
 };
 
 
-const makePortalHTML=(cl,pkg)=>{
+const makePortalHTML=(cl,pkg,notice)=>{
+  // 🔴 A CLIENT WHO FINISHES ON STRIPE HAS TO BE TOLD IT WORKED. Before this they were
+  // returned to the OS, an admin login they cannot use, so a completed action read as a
+  // failure. Landing back on their own portal is only half the fix; the other half is
+  // saying, in words, what just happened.
+  const noticeHTML = notice === "card"
+    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Your card is saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Nothing has been charged. You are only billed for qualified leads we deliver, and you will receive an invoice by email each time.</div></div>'
+    : notice === "success"
+    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Payment set up</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Thank you. Your billing is active and a receipt is on its way to your email.</div></div>'
+    : notice === "cancel"
+    ? '<div class="card" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.07)"><div style="font-size:13px;font-weight:700;color:#F59E0B;margin-bottom:4px">Nothing was saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">You closed the payment page before finishing. Nothing has been charged. Ask your account manager to resend the link whenever you are ready.</div></div>'
+    : "";
+
   const si=STAGES.findIndex(s=>s.id===cl.stage);
   const pl=PER_LEAD[cl.niche];
   const SC=["#6366F1","#0891B2","#D97706","#7C3AED","#10B981","#2563EB","#059669","#6B7280"];
@@ -2579,7 +2591,7 @@ const makePortalHTML=(cl,pkg)=>{
     +'<div class="hdr"><img class="logo" src="'+LOGO+'" alt="BoldLine Media"><div><div style="font-size:13px;font-weight:700;color:#E8E4D0">BoldLine Media</div><div style="font-size:9px;color:#6e6b54">Client Portal</div></div><div style="margin-left:auto;font-size:11px;color:#9CA3AF">'+cl.name+'</div></div>'
     +`<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>`
     +'<div class="main">'
-    +`<div id="t-status"><div class="welcome"><b>Welcome back${firstName?', '+firstName:''}</b><span>Here's where your campaign stands today.</span></div><div class="card"><div class="lbl">Campaign Progress</div><div class="prog-hero"><div class="ring" style="--p:${prog}"><div class="ring-in"><div class="ring-n">${si>=0?si+1:'—'}<span>/${STAGES.length}</span></div><div class="ring-l">Stage</div></div></div><div class="prog-info"><div class="prog-stage"><span class="d" style="background:${scol}"></span>${SL[si]||'—'}</div><div class="prog-tag">In Progress</div><div class="stage-cur-desc">${SD[si]||'Your campaign status will appear here.'}</div></div></div><div class="tracker" style="--pf:${pf}">${trackerHTML}</div><details class="stage-list"><summary class="stage-toggle">View all steps</summary>${stageRows}</details></div>`
+    +noticeHTML+`<div id="t-status"><div class="welcome"><b>Welcome back${firstName?', '+firstName:''}</b><span>Here's where your campaign stands today.</span></div><div class="card"><div class="lbl">Campaign Progress</div><div class="prog-hero"><div class="ring" style="--p:${prog}"><div class="ring-in"><div class="ring-n">${si>=0?si+1:'—'}<span>/${STAGES.length}</span></div><div class="ring-l">Stage</div></div></div><div class="prog-info"><div class="prog-stage"><span class="d" style="background:${scol}"></span>${SL[si]||'—'}</div><div class="prog-tag">In Progress</div><div class="stage-cur-desc">${SD[si]||'Your campaign status will appear here.'}</div></div></div><div class="tracker" style="--pf:${pf}">${trackerHTML}</div><details class="stage-list"><summary class="stage-toggle">View all steps</summary>${stageRows}</details></div>`
     +'<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">'+(pkg&&pkg.name||'—')+'</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">'+(pkg&&pkg.platform||'—')+'</div></div>'+(pl?'<div class="stat"><div class="lbl">Per Lead</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$'+pl+'</div></div>':'')+'</div></div></div>'
     +'<div id="t-package" style="display:none"><div class="card"><div class="lbl">Your Package — '+(pkg&&pkg.name||'—')+'</div><div style="font-size:11px;color:#C8A84B;margin-bottom:12px">'+(pkg&&pkg.platform||'')+(pkg?' · $'+pkg.price+'/mo':'')+'</div>'+fHTML+(exclFeats.length>0?'<div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)"><div class="lbl">Available with Upgrade</div>'+uHTML+'</div>':'')+'</div>'+upgSection+'</div>'
     +`<div id="t-intake" style="display:none">`
@@ -6213,6 +6225,11 @@ async function stripeBilling(action,extra){
 // Recurring MANAGEMENT-FEE subscription via Stripe (auto-charge card/ACH) + the
 // one-time setup fee. Charges BoldLine's service fee ONLY — never ad spend
 // (client pays Google/Meta directly). Backend: netlify/functions/stripe-billing.mjs.
+// Where a client should land after Stripe, which is their own portal and never the OS.
+// A client following a payment link has no login here; dropping them on the admin app is
+// how a completed action reads as a failure.
+const portalReturnUrl = (cl) =>
+  cl && cl.portalToken ? `${window.location.origin}/portal?token=${cl.portalToken}` : "";
 function BillingCard({client,pkg,onUpdate}) {
   const [busy,setBusy]=useState("");        // "" | "setup" | "sync" | "portal"
   const [msg,setMsg]=useState("");
@@ -6280,7 +6297,7 @@ function BillingCard({client,pkg,onUpdate}) {
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
     setBusy("setup"); setMsg("");
     try{
-      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin,oneTime});
+      const d=await callBilling("create-checkout",{clientId:client.id,email:client.email,name:client.contactName||client.name,packageName:pkg&&pkg.name,monthlyAmount:monthly,setupAmount:setup,customerId:client.stripeCustomerId||"",origin:window.location.origin,oneTime,returnUrl:portalReturnUrl(client)});
       onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_payment",billingCheckoutUrl:d.url,billingMonthly:monthly,billingSetup:setup});
     }catch(e){ setMsg(e.message); }
     setBusy("");
@@ -6309,7 +6326,9 @@ function BillingCard({client,pkg,onUpdate}) {
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
     setBusy("setup"); setMsg("");
     try{
-      const d=await callBilling("save-card",{clientId:client.id,email:client.email,name:client.contactName||client.name,customerId:client.stripeCustomerId||"",origin:window.location.origin});
+      // 🔴 Send them back to THEIR portal, not to the OS. This link goes to a client, and
+      // finishing on an internal admin login tells them nothing about whether it worked.
+      const d=await callBilling("save-card",{clientId:client.id,email:client.email,name:client.contactName||client.name,customerId:client.stripeCustomerId||"",origin:window.location.origin,returnUrl:portalReturnUrl(client)});
       onUpdate&&onUpdate({...client,stripeCustomerId:d.customerId,billingStatus:"awaiting_card",billingCheckoutUrl:d.url});
     }catch(e){ setMsg(e.message); }
     setBusy("");

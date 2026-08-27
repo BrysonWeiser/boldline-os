@@ -113,6 +113,81 @@ const SESSION = { id: "cs_1", url: "https://checkout.stripe.com/c/pay/cs_1" };
   ok("the trailing slash on the origin does not produce a double slash",
     !/os\.test\/\//.test(s.params.success_url), s.params.success_url);
 }
+
+// ── 1b. 🔴 WHERE THE CLIENT LANDS WHEN THEY FINISH ───────────────────────────
+//
+// Found 2026-08-27 by Bryson pressing the BACK BUTTON on his own test link, which is
+// exactly the check nobody thinks to run. Both checkout paths built their return URLs
+// from the caller's origin — the admin OS. A client who saved their card, or backed out,
+// was dropped on an internal login screen they have no account for, so a completed action
+// read as a failure and a cancelled one read as a broken link.
+const PORTAL = "https://os.test/portal?token=abc-123";
+{
+  const r = await call(
+    { action: "save-card", clientId: "c1", email: "s@s.com", origin: "https://os.test", returnUrl: PORTAL },
+    { "POST customers": CUSTOMER, "POST checkout/sessions": SESSION },
+  );
+  const s = sent(r, "POST", "checkout/sessions");
+  ok("🔴 a finished client lands on their own portal, not the admin app",
+    s.params.success_url.startsWith(PORTAL), s.params.success_url);
+  ok("🔴 and so does one who backs out", s.params.cancel_url.startsWith(PORTAL), s.params.cancel_url);
+  // The portal URL already carries ?token=, so a second "?" would break it and the client
+  // would land on "This portal link is incomplete".
+  ok("🔴 the marker is appended with & because the portal link already has a query",
+    s.params.success_url === `${PORTAL}&billing=card`, s.params.success_url);
+  ok("the two outcomes are told apart", s.params.cancel_url.endsWith("billing=cancel"));
+  ok("the portal token survives, or the page cannot identify them",
+    s.params.success_url.includes("token=abc-123"));
+}
+{
+  // The subscription path had the identical flaw.
+  const r = await call(
+    { action: "create-checkout", clientId: "c1", email: "s@s.com", monthlyAmount: 700, origin: "https://os.test", returnUrl: PORTAL },
+    { "POST customers": CUSTOMER, "POST checkout/sessions": SESSION },
+  );
+  const s = sent(r, "POST", "checkout/sessions");
+  ok("🔴 a paying client also lands on their portal", s.params.success_url === `${PORTAL}&billing=success`, s.params.success_url);
+  ok("and a cancelled one too", s.params.cancel_url === `${PORTAL}&billing=cancel`);
+}
+{
+  // A client with no portal token yet: the admin app is at least a real page, and a "?" is
+  // correct there because a bare origin carries no query of its own.
+  const r = await call(
+    { action: "save-card", clientId: "c1", email: "s@s.com", origin: "https://os.test" },
+    { "POST customers": CUSTOMER, "POST checkout/sessions": SESSION },
+  );
+  const s = sent(r, "POST", "checkout/sessions");
+  ok("with no portal link it falls back rather than sending them nowhere",
+    s.params.success_url === "https://os.test?billing=card", s.params.success_url);
+}
+{
+  // 🔴 The OS has to actually pass it, or the backend's good behaviour is unreachable.
+  const app = readFileSync(join(ROOT, "index.html"), "utf8");
+  ok("🔴 the OS sends the client's portal link with the card request",
+    /returnUrl:portalReturnUrl\(client\)/.test(app));
+  ok("both the card and the subscription paths send it",
+    (app.match(/returnUrl:portalReturnUrl\(client\)/g) || []).length >= 2);
+  ok("the portal link is built from the client's own token",
+    /portal\?token=\$\{cl\.portalToken\}/.test(app));
+  ok("and a client without a token yields nothing rather than a broken link",
+    /cl && cl\.portalToken \?/.test(app));
+
+  // 🔴 Landing back is only half of it. The client has to be TOLD what happened.
+  const portalSrc = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  ok("🔴 the portal reads the outcome Stripe sent it back with",
+    /makePortalHTML\(cl, pkg, \(event\.queryStringParameters \|\| \{\}\)\.billing\)/.test(portalSrc));
+  for (const [what, phrase] of [["a saved card", "Your card is saved"], ["a completed payment", "Payment set up"], ["backing out", "Nothing was saved"]]) {
+    ok(`the portal says something for ${what}`, portalSrc.includes(phrase));
+  }
+  ok("🔴 a saved card says plainly that nothing was charged",
+    /Your card is saved[\s\S]{0,200}Nothing has been charged/.test(portalSrc),
+    "a client who sees a payment page and then hears nothing assumes they were billed");
+  // Same page, two implementations. They drifted on the same day once already.
+  for (const phrase of ["Your card is saved", "Payment set up", "Nothing was saved"]) {
+    ok(`the OS's own portal preview shows "${phrase}" too`, app.includes(phrase),
+      "the portal exists twice in this repo and the copies must not diverge");
+  }
+}
 {
   // Guards. Each is a way to create a broken Stripe record.
   const noEmail = await call({ action: "save-card", clientId: "c1", origin: "https://os.test" });

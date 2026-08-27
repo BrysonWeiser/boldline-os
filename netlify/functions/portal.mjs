@@ -251,7 +251,19 @@ const reportTextToHTML = (text) => {
   return blocks.join("");
 };
 
-const makePortalHTML = (cl, pkg) => {
+const makePortalHTML = (cl, pkg, notice) => {
+  // 🔴 A CLIENT WHO FINISHES ON STRIPE HAS TO BE TOLD IT WORKED. Before this they were
+  // returned to the OS, an admin login they cannot use, so a completed action read as a
+  // failure. Landing back on their own portal is only half the fix; the other half is
+  // saying, in words, what just happened.
+  const noticeHTML = notice === "card"
+    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Your card is saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Nothing has been charged. You are only billed for qualified leads we deliver, and you will receive an invoice by email each time.</div></div>'
+    : notice === "success"
+    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Payment set up</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Thank you. Your billing is active and a receipt is on its way to your email.</div></div>'
+    : notice === "cancel"
+    ? '<div class="card" style="border-color:rgba(245,158,11,.3);background:rgba(245,158,11,.07)"><div style="font-size:13px;font-weight:700;color:#F59E0B;margin-bottom:4px">Nothing was saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">You closed the payment page before finishing. Nothing has been charged. Ask your account manager to resend the link whenever you are ready.</div></div>'
+    : "";
+
   const si = STAGES.findIndex((s) => s.id === cl.stage);
   const pl = PER_LEAD[cl.niche];
   const SC = ["#6366F1","#0891B2","#D97706","#7C3AED","#10B981","#2563EB","#059669","#6B7280"];
@@ -393,7 +405,7 @@ const makePortalHTML = (cl, pkg) => {
     + '<div class="hdr"><img class="logo" src="/logo.png" alt="BoldLine Media"><div><div style="font-size:13px;font-weight:700;color:#E8E4D0">BoldLine Media</div><div style="font-size:9px;color:#6e6b54">Client Portal</div></div><div style="margin-left:auto;font-size:11px;color:#9CA3AF">' + cl.name + "</div></div>"
     + `<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('approvals',this)">Review${apBadge}</button><button class="nb" onclick="show('reports',this)">Reports</button><button class="nb" onclick="show('package',this)">My Package</button><button class="nb" onclick="show('intake',this)">My Info</button><button class="nb" onclick="show('contract',this)">Contract</button></div>`
     + '<div class="main">'
-    + `<div id="t-status"><div class="welcome"><b>Welcome back${firstName ? ", " + firstName : ""}</b><span>Here's where your campaign stands today.</span></div><div class="card"><div class="lbl">Campaign Progress</div><div class="prog-hero"><div class="ring" style="--p:${prog}"><div class="ring-in"><div class="ring-n">${si >= 0 ? si + 1 : "—"}<span>/${STAGES.length}</span></div><div class="ring-l">Stage</div></div></div><div class="prog-info"><div class="prog-stage"><span class="d" style="background:${scol}"></span>${SL[si] || "—"}</div><div class="prog-tag">In Progress</div><div class="stage-cur-desc">${SD[si] || "Your campaign status will appear here."}</div></div></div><div class="tracker" style="--pf:${pf}">${trackerHTML}</div><details class="stage-list"><summary class="stage-toggle">View all steps</summary>${stageRows}</details></div>`
+    + noticeHTML + `<div id="t-status"><div class="welcome"><b>Welcome back${firstName ? ", " + firstName : ""}</b><span>Here's where your campaign stands today.</span></div><div class="card"><div class="lbl">Campaign Progress</div><div class="prog-hero"><div class="ring" style="--p:${prog}"><div class="ring-in"><div class="ring-n">${si >= 0 ? si + 1 : "—"}<span>/${STAGES.length}</span></div><div class="ring-l">Stage</div></div></div><div class="prog-info"><div class="prog-stage"><span class="d" style="background:${scol}"></span>${SL[si] || "—"}</div><div class="prog-tag">In Progress</div><div class="stage-cur-desc">${SD[si] || "Your campaign status will appear here."}</div></div></div><div class="tracker" style="--pf:${pf}">${trackerHTML}</div><details class="stage-list"><summary class="stage-toggle">View all steps</summary>${stageRows}</details></div>`
     + '<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.name) || "—") + '</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.platform) || "—") + "</div></div>" + (pl ? '<div class="stat"><div class="lbl">Per Lead</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$' + pl + "</div></div>" : "") + "</div></div></div>"
     + '<div id="t-approvals" style="display:none"><div class="welcome"><b>Needs Your Review</b><span>Approve what we\'ve prepared, or ask for changes — nothing goes live without your OK.</span></div>' + apPanel + "</div>"
     + '<div id="t-reports" style="display:none">' + reportSection + "</div>"
@@ -548,7 +560,7 @@ const handler = async (event) => {
 
     const cl = data.data;
     const pkg = findPkg(cl.packageId);
-    return { statusCode: 200, headers: { "Content-Type": "text/html" }, body: makePortalHTML(cl, pkg) };
+    return { statusCode: 200, headers: { "Content-Type": "text/html" }, body: makePortalHTML(cl, pkg, (event.queryStringParameters || {}).billing) };
   } catch (err) {
     console.error("Portal function error:", err);
     return { statusCode: 500, headers: { "Content-Type": "text/html" }, body: errorPage("Something Went Wrong", "We couldn't load your portal right now. Please try again shortly.") };

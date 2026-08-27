@@ -111,6 +111,21 @@ function billingStatusFromSub(sub) {
 
 const dollars = (n) => Math.round(Number(n) * 100); // -> integer cents
 
+// Where Stripe sends the CLIENT when they finish, or back out.
+//
+// 🔴 THIS WAS THE OS, AND THE OS IS NOT A PLACE A CLIENT SHOULD EVER LAND. Both checkout
+// paths built their return URLs from the caller's origin, which is Bryson's admin app. A
+// client who saved their card, or pressed back, was dropped onto an internal login screen
+// with no idea what had happened or whether it worked. Found 2026-08-27 by Bryson clicking
+// the back button on his own test link, which is exactly the check nobody thinks to run.
+//
+// `returnUrl` is the client's own portal. The OS passes it; the origin stays as a fallback
+// for a client with no portal token yet, where the admin app is at least a real page.
+const returnTo = (returnUrl, origin, mark) => {
+  const base = String(returnUrl || "").trim() || origin;
+  return `${base}${base.includes("?") ? "&" : "?"}billing=${mark}`;
+};
+
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
   if (!SK) return json({ ok: false, error: "Missing STRIPE_SECRET_KEY" }, 500);
@@ -207,8 +222,8 @@ export default async (req) => {
             : { subscription_data: { metadata: { clientId } } }),
           metadata: { clientId, oneTime: oneTime ? "1" : "0" },
           client_reference_id: clientId,
-          success_url: `${origin}/?billing=success`,
-          cancel_url: `${origin}/?billing=cancel`,
+          success_url: returnTo(body.returnUrl, origin, "success"),
+          cancel_url: returnTo(body.returnUrl, origin, "cancel"),
         },
       });
 
@@ -244,8 +259,8 @@ export default async (req) => {
           setup_intent_data: { metadata: { clientId } },
           metadata: { clientId, saveCard: "1" },
           client_reference_id: clientId,
-          success_url: `${origin}/?billing=card`,
-          cancel_url: `${origin}/?billing=cancel`,
+          success_url: returnTo(body.returnUrl, origin, "card"),
+          cancel_url: returnTo(body.returnUrl, origin, "cancel"),
         },
       });
       return json({ ok: true, url: session.url, customerId });
