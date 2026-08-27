@@ -40,10 +40,16 @@
 //          invoice item riding the next monthly invoice. `amount` is that excess, NOT
 //          count × rate — the OS works it out, because the minimum and the performance
 //          fee are never both charged. Returns { ok, itemId, count, amount }.
-//          arrears:true = the client has NO subscription (results-only), so there is no
-//          monthly invoice for a pending item to ride. Raises and charges a standalone
-//          invoice immediately instead, returning { ok, itemId, count, amount, arrears,
-//          invoiceId, invoiceUrl, paid }.
+//          arrears:true = the client has NO subscription (results-only). Only the
+//          wording of the line item changes: approving still PARKS the money as a
+//          pending item, because the agreement bills them after the month closes.
+//          `invoice-leads` is what turns parked items into a bill.
+//   { action:"invoice-leads", customerId, clientName? }
+//       -> raises ONE standalone auto-charging invoice for everything parked since the
+//          last one, and charges the card on file. This is how a results-only client is
+//          actually billed. Returns { ok, invoiceId, invoiceUrl, paid, amount, count },
+//          or { ok:true, nothingDue:true } when nothing is waiting. Called monthly by
+//          the scheduled `lead-invoice-run`, and by "Invoice Now" in the OS.
 //   { action:"save-card", clientId, email, name?, customerId?, origin }
 //       -> Checkout in mode:"setup" — collects a card/bank and attaches it to the
 //          customer WITHOUT creating a subscription. The only way to bill a
@@ -77,94 +83,11 @@ const SK = process.env.STRIPE_SECRET_KEY;
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
-
-// ── Stripe REST helper (hand-rolled, no SDK — matches google-ads.mjs style) ───
-// Stripe expects application/x-www-form-urlencoded with PHP-style nested keys:
-//   a[b][c]=v   and arrays   a[0][b]=v
-function encodeForm(obj, prefix = "", out = new URLSearchParams()) {
-  for (const [k, v] of Object.entries(obj)) {
-    if (v === undefined || v === null) continue;
-    const key = prefix ? `${prefix}[${k}]` : k;
-    if (Array.isArray(v)) {
-      v.forEach((item, i) => {
-        if (item !== null && typeof item === "object") encodeForm(item, `${key}[${i}]`, out);
-        else out.append(`${key}[${i}]`, String(item));
-      });
-    } else if (typeof v === "object") {
-      encodeForm(v, key, out);
-    } else {
-      out.append(key, String(v));
-    }
-  }
-  return out;
-}
-
-async function stripe(path, { method = "POST", body } = {}) {
-  const res = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method,
-    headers: {
-      authorization: `Bearer ${SK}`,
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body: body ? encodeForm(body).toString() : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const e = new Error((data.error && data.error.message) || `Stripe ${res.status}`);
-    e.detail = data.error || data;
-    throw e;
-  }
-  return data;
-}
-
-// Reuse the Stripe customer we already made for this client, or make one.
-//
-// 🔴 A STORED ID CAN BE A LIE. A test-mode customer left on a client after switching to
-// live keys, or a customer deleted in the dashboard, both look fine in our database and
-// then fail with "No such customer" at the worst moment. So the id is VERIFIED against
-// this mode before it is trusted, and quietly replaced when it is not real.
-async function ensureCustomer(existingId, { email, name, clientId }) {
-  let customerId = existingId || "";
-  if (customerId) {
-    try {
-      const existing = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
-      if (existing.deleted) customerId = "";
-    } catch {
-      customerId = "";
-    }
-  }
-  if (customerId) return customerId;
-  const cust = await stripe("customers", { body: { email, name: name || email, metadata: { clientId } } });
-  return cust.id;
-}
-
-// Find a payment method to charge a standalone invoice against.
-//
-// 🔴 THE GOTCHA THIS EXISTS FOR (found 2026-07-16, and setup-mode Checkout does the same
-// thing): Checkout attaches the card to the SUBSCRIPTION, and in setup mode it attaches it
-// to the customer WITHOUT making it the invoice default. A standalone invoice then finds
-// nothing to charge and sits in "Retrying" forever while everything reports success.
-// Order: the subscription's card, then the customer's invoice default, then their first.
-async function resolvePaymentMethod(customerId, subscriptionId) {
-  if (subscriptionId) {
-    try {
-      const sub = await stripe(`subscriptions/${encodeURIComponent(subscriptionId)}`, { method: "GET" });
-      if (sub.default_payment_method) return sub.default_payment_method;
-    } catch { /* fall through */ }
-  }
-  try {
-    const cust = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
-    const def = cust.invoice_settings && cust.invoice_settings.default_payment_method;
-    if (def) return def;
-  } catch { /* fall through */ }
-  for (const type of ["card", "us_bank_account"]) {
-    try {
-      const pms = await stripe(`payment_methods?customer=${encodeURIComponent(customerId)}&type=${type}&limit=1`, { method: "GET" });
-      if (pms.data && pms.data[0]) return pms.data[0].id;
-    } catch { /* fall through */ }
-  }
-  return null;
-}
+// ── Stripe plumbing ──────────────────────────────────────────────────────────
+// The request helper, the customer-reuse guard and the payment-method fallback live in
+// ../lib/stripe-shared.mjs so the scheduled month-end invoicer shares them rather than
+// carrying a second copy that drifts.
+import { stripe, ensureCustomer, resolvePaymentMethod, invoiceParkedLeads } from "../lib/stripe-shared.mjs";
 
 // Map a Stripe subscription status to the OS billingStatus vocabulary.
 function billingStatusFromSub(sub) {
@@ -581,32 +504,33 @@ export default async (req) => {
             : `Performance fee above monthly minimum — ${leads} delivered${clientName ? " for " + clientName : ""} (rides next monthly invoice)`,
         },
       });
-      if (!arrears) return json({ ok: true, itemId: item.id, count, amount });
+      // 🔴 APPROVING IS NOT INVOICING, AND THE AGREEMENT IS WHY.
+      // Clause 4.3 of a results-only contract reads: "Nothing is billed in advance. After
+      // each month closes, Agency calculates the Performance Fee for that month and it is
+      // charged on the next invoice." Charging the card the instant Bryson approves a batch
+      // would bill the client mid-month, several times a month, which is not what they
+      // signed. So approval PARKS the money as a pending item either way. `invoice-leads`
+      // below is what turns parked items into one invoice, once, after the month closes.
+      return json({ ok: true, itemId: item.id, count, amount, arrears });
+    }
 
-      // Same shape as the ETF invoice: a standalone auto-charging invoice that sweeps in
-      // the item just created. `pending_invoice_items_behavior: "include"` is NOT optional
-      // — current API versions default to "exclude", which produces an EMPTY $0 invoice
-      // that trivially "pays" while the real charge silently waits for a subscription
-      // invoice that is never coming (caught in the 2026-07-16 test run).
-      const pm = await resolvePaymentMethod(customerId, null);
-      const inv = await stripe("invoices", {
-        body: {
-          customer: customerId, collection_method: "charge_automatically", auto_advance: true,
-          pending_invoice_items_behavior: "include",
-          ...(pm ? { default_payment_method: pm } : {}),
-          description: `BoldLine Media — qualified leads delivered${clientName ? " for " + clientName : ""}`,
-        },
-      });
-      if (!inv.amount_due || inv.amount_due <= 0) {
-        return json({ ok: false, error: "The lead invoice came out empty — the charge was not attached. Check this customer's pending invoice items in Stripe before approving again." }, 502);
-      }
-      let paid = false, hostedUrl = inv.hosted_invoice_url || null;
-      try {
-        const done = await stripe(`invoices/${encodeURIComponent(inv.id)}/pay`);
-        paid = done.status === "paid";
-        hostedUrl = done.hosted_invoice_url || hostedUrl;
-      } catch { /* left open — auto_advance keeps collecting and dunning */ }
-      return json({ ok: true, itemId: item.id, count, amount, arrears: true, invoiceId: inv.id, invoiceUrl: hostedUrl, paid });
+    // ── Raise ONE invoice for everything approved since the last one ──────────
+    //
+    // The month-end half of results-only billing. Called by the scheduled
+    // `lead-invoice-run` on the 1st, and by the "Invoice Now" button for the cases a
+    // calendar cannot know about: a client leaving, or a final bill.
+    //
+    // Deliberately "everything approved since the last invoice" rather than "everything
+    // dated in month X". It is exactly what the agreement promises (billed in arrears, for
+    // results already delivered), it cannot double-bill, and it has no month-boundary edge
+    // case where a lead approved at 00:05 on the 1st lands in the wrong bill.
+    if (action === "invoice-leads") {
+      const { customerId, clientName } = body;
+      if (!customerId) return json({ ok: false, error: "No card on file for this client." }, 400);
+      // The same call the scheduled month-end job makes, so "Invoice Now" and the 1st of
+      // the month can never behave differently.
+      const r = await invoiceParkedLeads(customerId, clientName);
+      return json({ ok: true, ...r });
     }
 
     // ── Preview the client's NEXT monthly invoice (one bundled bill) ───────────

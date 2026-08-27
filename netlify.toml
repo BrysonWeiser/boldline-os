@@ -72,6 +72,16 @@
 [functions."docusign-watch"]
   schedule = "*/15 * * * *"
 
+# 1st of the month, 15:00 UTC (08:00 Phoenix): raises ONE invoice per results-only client
+# for every qualified lead approved since their last invoice, and charges the card on file.
+# This is the half that actually collects the money — approving a batch of leads only parks
+# it, because clause 4.3 of a results-only agreement bills in arrears, after the month
+# closes. A client with a subscription is deliberately excluded: Stripe already sweeps
+# their pending items onto the recurring invoice, and billing them here too would charge
+# the same leads twice.
+[functions."lead-invoice-run"]
+  schedule = "0 15 1 * *"
+
 # HOURLY: pulls LIVE campaign spend from Google Ads + Meta for every client with a
 # linked ad account (the My Ads house account included), stores it on the client
 # record, and alerts the owner the first time an account paces over its monthly budget
