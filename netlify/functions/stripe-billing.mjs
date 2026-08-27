@@ -87,7 +87,7 @@ const json = (body, status = 200) =>
 // The request helper, the customer-reuse guard and the payment-method fallback live in
 // ../lib/stripe-shared.mjs so the scheduled month-end invoicer shares them rather than
 // carrying a second copy that drifts.
-import { stripe, ensureCustomer, resolvePaymentMethod, invoiceParkedLeads } from "../lib/stripe-shared.mjs";
+import { stripe, ensureCustomer, resolvePaymentMethod, invoiceParkedLeads, finalizeAndPay } from "../lib/stripe-shared.mjs";
 
 // Map a Stripe subscription status to the OS billingStatus vocabulary.
 function billingStatusFromSub(sub) {
@@ -440,13 +440,9 @@ export default async (req) => {
         // Defensive: never report success off an empty invoice again.
         return json({ ok: false, error: "ETF invoice came out empty — the pending items were not attached. Check the customer's pending invoice items in Stripe." }, 502);
       }
-      // Try to charge it now; if the payment method declines, Stripe keeps retrying (dunning).
-      let paid = false, hostedUrl = inv.hosted_invoice_url || null;
-      try {
-        const done = await stripe(`invoices/${encodeURIComponent(inv.id)}/pay`);
-        paid = done.status === "paid";
-        hostedUrl = done.hosted_invoice_url || hostedUrl;
-      } catch { /* left open — auto_advance keeps collecting */ }
+      // Finalize, then charge. Shared with the lead invoice so the account's
+      // finalization grace period cannot make one behave differently from the other.
+      const { paid, hostedUrl } = await finalizeAndPay(inv);
 
       // Wind down the recurring subscription at the end of the current period.
       if (subscriptionId) {

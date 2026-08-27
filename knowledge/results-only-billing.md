@@ -83,6 +83,17 @@ leads twice.
 - **The invoice description must not mention a minimum.** Saying "performance fee above
   monthly minimum" to a client whose signed agreement says there is no minimum contradicts
   the one document they read most carefully.
+- **🔴 A NEW INVOICE IS A DRAFT, AND A DRAFT CANNOT BE CHARGED.** `auto_advance: true`
+  finalizes it eventually, but *eventually* is an **account setting**: Stripe dashboard →
+  Settings → Billing → Invoices → **"Invoice finalization grace period"**, which on this
+  account is **1 hour**. Charging immediately without finalizing races a dashboard toggle
+  nobody remembers setting, so the shared `finalizeAndPay()` finalizes explicitly first.
+  Spotted 2026-08-27 from a screenshot of that settings page, not from a failure.
+  Two details worth keeping: finalizing can **collect the invoice outright** when a card is
+  already on file, so paying again would be a second charge attempt on a settled invoice;
+  and every step is fail-soft with `auto_advance` left on, so the worst case is a
+  pessimistic `paid: false` — wrong in the safe direction, never claiming money arrived.
+  The ETF invoice had the identical flaw and now shares the same helper.
 - **A stored Stripe customer id can be a lie** — a test-mode id left behind after going
   live, or one deleted in the dashboard. `ensureCustomer()` verifies it in the current mode
   and quietly replaces it rather than failing at checkout with "No such customer".
@@ -103,9 +114,20 @@ leads twice.
 
 ## What Bryson must confirm before the first real charge
 
-**That `STRIPE_SECRET_KEY` in Netlify is the LIVE key, not the test one.** A results-only
-client is the first to be charged through this path, so a test key would take the invoice
-and collect nothing.
+**✅ Live mode confirmed 2026-08-27** (the dashboard's publishable key reads `pk_live_`).
+
+Dashboard settings that matter, checked the same day:
+- **Statement descriptor** — set it to `BOLDLINE MEDIA` so a client recognises the charge
+  on their bank statement. An unrecognised charge is how you get a chargeback.
+- **Invoice reminders** (Settings → Billing → Invoices → Reminders → *"Send reminders if a
+  one-off invoice hasn't been paid"*) was **OFF**. Lead invoices ARE one-off invoices, so
+  with it off Stripe never chases an unpaid one. Turn it on.
+- **"If all retries for a payment fail → leave the invoice past-due"** is correct as-is.
+  Do not change it to mark uncollectible: `billing-watch` reads open invoices to accrue
+  late interest, and writing one off would hide a real debt.
+- **Default payment terms (30 days)** does NOT apply here. It governs
+  `collection_method: "send_invoice"`; every invoice this system raises is
+  `charge_automatically`.
 
 ## Still open (his own point, 2026-08-26, not built)
 
