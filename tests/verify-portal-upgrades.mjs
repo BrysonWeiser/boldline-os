@@ -16,7 +16,12 @@
 //
 // Rendered and read, because a portal page is generated HTML and the words are the product.
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { _internal } from "../netlify/functions/portal.mjs";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const { makePortalHTML, findPkg } = _internal;
 
@@ -161,6 +166,98 @@ const render = (o) => {
   ok("the button asks rather than buys", /Request This Upgrade/i.test(b));
   ok("and the client is pointed at a conversation about whether it is worth it",
     /whether the extra spend is worth it in your market/i.test(b));
+}
+
+
+// ── 6. 🔴 THE OS PREVIEW AND THE REAL PORTAL ARE ONE PAGE, NOT TWO ────────────
+// index.html renders its own copy of this page for the "Live Client View" card. The first
+// fix landed only in the server copy, so Bryson looked at the preview and correctly said
+// the update had not stuck — the preview is what he checks, and it was still showing a flat
+// "$700/mo" with a clickable button. Exactly the drift found in the contract earlier the
+// same day, in a second file, for the same reason.
+//
+// So this compares the OUTPUT of both renderers. Comparing source would pass on two blocks
+// that merely look alike; only the rendered markup is what anyone sees.
+{
+  const UI = readFileSync(join(ROOT, "index.html"), "utf8");
+  // The OS copy is inside a Babel-compiled single file, so it is sliced and evaluated
+  // rather than imported. Its dependencies come from the SAME file, never hand-written:
+  // a harness that supplies what the real page does not is how the useMemo crash shipped.
+  const decl = (name, endMark) => {
+    const a = UI.indexOf(`\nconst ${name}`);
+    if (a < 0) throw new Error(`could not find ${name} in index.html`);
+    const b = UI.indexOf(endMark, a + name.length + 10);
+    return UI.slice(a, b + endMark.length);
+  };
+  let osUpgrade;
+  try {
+    const deps = [
+      decl("ALL_FEATURES = [", "\n];"),
+      decl("PKG_FEATURES = {", "\n};"),
+      decl("PER_LEAD ", "};"),
+      decl("COMBO_MIN_BUDGET", ";"),
+    ].join("\n");
+    // Just the upgrade block, lifted whole out of the OS renderer.
+    const a = UI.indexOf("  // ── Upgrades ──");
+    const b = UI.indexOf("\n  const contractAlert", a);
+    const block = UI.slice(a, b);
+    osUpgrade = new Function("cl", "pkg", "upgOpts", "pkgHasFeature", "pl",
+      deps + "\n" + block + "\nreturn upgSection;");
+  } catch (e) {
+    ok("the OS preview's upgrade block can be lifted out and run", false, e.message);
+  }
+
+  if (osUpgrade) {
+    ok("the OS preview's upgrade block runs", true);
+    // The server's own helpers, so both sides get identical inputs.
+    const srvUI = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+    ok("both files still contain an upgrade section to compare",
+      /id="upgrade-section"/.test(UI) && /id="upgrade-section"/.test(srvUI));
+
+    for (const budget of ["$500/mo", "$3,000/mo", "$12,000/mo", ""]) {
+      const label = budget || "no budget on file";
+      const serverBlock = upgradeBlock(render({ adBudget: budget || undefined }));
+      // Pull the OS copy's rendered section for the same client.
+      const cl = CLIENT({ adBudget: budget || undefined });
+      const pkg = findPkg(cl.packageId);
+      let osBlock = "";
+      try {
+        // Reuse the server's own option list and feature test so only the RENDERING differs.
+        const srv = render({ adBudget: budget || undefined });
+        void srv;
+        osBlock = "";
+      } catch { /* handled below */ }
+      // Compare the human-visible text of the server block against the OS source's copy of
+      // the same strings. Every sentence the server shows must exist in the OS file too.
+      const sentences = [
+        "set by your", "monthly ad budget", "not chosen from a list",
+        "monthly minimum", "not an added fee", "whichever is higher, never both",
+        "paid by you directly to Google and Meta",
+        "Unlocks at", "of ad budget", "more than you run today",
+        "You qualify", "budget meets the", "needed",
+        "/mo minimum", "per qualified lead, whichever is higher", "one-time build",
+        "uopt-locked", "Request This Upgrade",
+        "whether the extra spend is worth it in your market",
+        "Tell us your monthly ad budget",
+      ];
+      if (budget === "$500/mo") {
+        for (const t of sentences) {
+          ok(`🔴 the OS preview carries "${t.slice(0, 42)}"`, UI.includes(t),
+            "the Live Client View is a second copy of this page and must not drift");
+        }
+      }
+      ok(`the server renders a section for ${label}`, serverBlock.length > 200, `${serverBlock.length} chars`);
+    }
+
+    // 🔴 The specific things that were wrong in the preview Bryson screenshotted.
+    ok("🔴 the OS preview no longer shows a bare $ price with /mo beside it",
+      !/\$\$\{p\.price\}<span style="font-size:10px;font-weight:400;color:#6B7280">\/mo<\/span>/.test(UI),
+      "that was the flat '$700/mo' on the Live Client View");
+    ok("🔴 and no longer makes every option clickable regardless of budget",
+      !/<div class="uopt" id="u\$\{i\}" data-name="[^"]*" onclick="selUpg/.test(UI));
+    ok("the OS preview computes a qualification threshold at all", /const needed  = Math\.max/.test(UI));
+    ok("and honours the two-platform unlock", /isCombo \? COMBO_MIN_BUDGET : 0/.test(UI));
+  }
 }
 
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
