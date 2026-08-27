@@ -26,7 +26,7 @@
 // existing dispatchAlert (email + push + SMS), so nothing new needs configuring.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, loadAllClients } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { dsGet, isConfigured } from "../lib/docusign-auth.mjs";
@@ -119,11 +119,9 @@ const handler = async () => {
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const summary = await runWatch({
-    loadClients: async () => {
-      const { data, error } = await supabase.from("clients").select("id, data");
-      if (error) throw new Error(`client lookup failed: ${error.message}`);
-      return data;
-    },
+    // Retries a transient lookup rather than paging on it; the reasoning lives on
+    // `loadAllClients`, which the monthly invoicer shares.
+    loadClients: () => loadAllClients(supabase, "docusign-watch"),
     fetchEnvelope: (envelopeId) => dsGet(`/envelopes/${encodeURIComponent(envelopeId)}`),
     saveClient: async (id, data) => {
       const { error } = await supabase.from("clients").update({ data, updated_at: new Date().toISOString() }).eq("id", id);

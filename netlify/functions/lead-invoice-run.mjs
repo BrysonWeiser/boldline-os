@@ -23,7 +23,7 @@
 // The client's receipt is sent by Stripe's own webhook on invoice.paid, so nothing new.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, loadAllClients } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { invoiceParkedLeads } from "../lib/stripe-shared.mjs";
 
@@ -128,11 +128,7 @@ const handler = async () => {
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const summary = await runLeadInvoices({
-    loadClients: async () => {
-      const { data, error } = await supabase.from("clients").select("id, data");
-      if (error) throw new Error(`client lookup failed: ${error.message}`);
-      return data;
-    },
+    loadClients: () => loadAllClients(supabase, "lead-invoice-run"),
     invoiceFor: (cl) => invoiceParkedLeads(cl.stripeCustomerId, cl.name),
     saveClient: async (id, data) => {
       const { error } = await supabase.from("clients").update({ data, updated_at: new Date().toISOString() }).eq("id", id);
