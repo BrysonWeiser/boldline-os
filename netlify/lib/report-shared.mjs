@@ -317,6 +317,31 @@ export const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
+
+// Load every client, surviving a transient database hiccup.
+//
+// 🔴 A SCHEDULED JOB MUST NOT PAGE ON A BLIP, AND MUST NOT SKIP A MONTH BECAUSE OF ONE.
+// Bryson got "client lookup failed: JWT issued at future" on 2026-08-27 from the DocuSign
+// watcher. That is CLOCK SKEW between the function container and Supabase, not a broken
+// integration: the service key is static and valid, and the identical query works on the
+// next run. Left alone it means 96 red alerts a day from a 15-minute job, which is how a
+// notification channel gets muted and then swallows the alert it exists to deliver. On the
+// MONTHLY invoicer the same blip is worse: nobody gets billed for a month.
+//
+// Two quick retries, then let the error through. A failure that survives three attempts a
+// second apart is real and worth waking him for.
+export const loadAllClients = async (supabase, job = "job") => {
+  let last;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, attempt * 1000));
+    const { data, error } = await supabase.from("clients").select("id, data");
+    if (!error) return data;
+    last = error;
+    console.warn(`${job}: client lookup attempt ${attempt + 1} failed:`, error.message);
+  }
+  throw new Error(`client lookup failed after 3 attempts: ${last.message}`);
+};
+
 export const appendLead = async (supabaseAdmin, row, lead) => {
   const client = row.data;
   const leadEntry = { status: "new", followUps: [], ...lead };

@@ -160,10 +160,21 @@ const render = (o) => {
 }
 
 // ── 5. Nothing promises an instant change ─────────────────────────────────────
-// An upgrade is a conversation, not a button that raises someone's bill.
+// Moving up a tier is a conversation, not a button that raises someone's bill.
+//
+// 🔴 THE WORD CHANGED 2026-08-27, and the reason is worth keeping. Bryson: *"is upgrade
+// the right word we should use still?"* No. The paragraph directly above these cards tells
+// the client their plan is set by their ad budget and not chosen from a list, so calling
+// the next tier an "upgrade" says the opposite in the same breath. Worse, "upgrade" means
+// "pay us more for a better version", which is a pitch, and the first client signed
+// precisely because this pricing is not one. The tier follows the budget. That is scaling.
 {
   const b = text(upgradeBlock(render({ adBudget: "$3,000/mo" })));
-  ok("the button asks rather than buys", /Request This Upgrade/i.test(b));
+  ok("the button asks rather than buys", /Ask About Scaling Up/i.test(b));
+  // The section's HTML id is still `upgrade-section`; only the words a client READS matter.
+  const visible = b.replace(/id="upgrade-section"/g, "");
+  ok("🔴 and no word a client reads calls it an upgrade", !/upgrade/i.test(visible),
+    (visible.match(/.{0,40}upgrade.{0,40}/i) || [""])[0]);
   ok("and the client is pointed at a conversation about whether it is worth it",
     /whether the extra spend is worth it in your market/i.test(b));
 }
@@ -236,7 +247,7 @@ const render = (o) => {
         "Unlocks at", "of ad budget", "more than you run today",
         "You qualify", "budget meets the", "needed",
         "/mo minimum", "per qualified lead, whichever is higher", "one-time build",
-        "uopt-locked", "Request This Upgrade",
+        "uopt-locked", "Ask About Scaling Up",
         "whether the extra spend is worth it in your market",
         "Tell us your monthly ad budget",
       ];

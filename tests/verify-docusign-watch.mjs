@@ -294,5 +294,60 @@ const harness = (rows, envelopes, opts = {}) => {
     /docusignSentAt:\s*new Date\(\)\.toISOString\(\)/.test(app));
 }
 
+
+// ── 8. 🔴 A BLIP MUST NOT PAGE HIM 96 TIMES A DAY ────────────────────────────
+// Bryson got a red "docusign-watch failed to run — client lookup failed: JWT issued at
+// future" on 2026-08-27. That is clock skew between the function container and Supabase,
+// not a broken integration: the service key is static and the identical query works on the
+// next run. A 15-minute job that alerts on every transient database error is 96 alerts a
+// day, which is exactly how a channel gets muted and then swallows the signature alert
+// this whole job exists to deliver.
+{
+  const { loadAllClients } = await import("../netlify/lib/report-shared.mjs");
+  const fake = (results) => {
+    let i = 0;
+    return { from: () => ({ select: async () => results[Math.min(i++, results.length - 1)] }), calls: () => i };
+  };
+  const ERR = { data: null, error: { message: "JWT issued at future" } };
+  const OK = { data: [{ id: "a", data: { name: "Stencil & Thread" } }], error: null };
+
+  {
+    const db = fake([OK]);
+    const rows = await loadAllClients(db, "test");
+    ok("a healthy lookup returns the clients first time", rows.length === 1 && db.calls() === 1);
+  }
+  {
+    // The real shape of the failure he saw: one bad run, fine on the retry.
+    // Read defensively: if the retry is removed this REJECTS, and an unguarded await
+    // would crash the suite and take every check after it down rather than reporting a
+    // failure. Same lesson as the finalize assertion earlier today.
+    const db = fake([ERR, OK]);
+    let rows = null, threw = null;
+    try { rows = await loadAllClients(db, "test"); } catch (e) { threw = e; }
+    ok("🔴 a transient failure is retried instead of raising an alert",
+      !threw && rows && rows.length === 1, threw ? `it gave up instead: ${threw.message}` : "");
+    ok("and it took a second attempt to get there", db.calls() === 2);
+  }
+  {
+    // 🔴 But a real outage must still reach him. Retrying forever would be worse than
+    // alerting: the signature would go unnoticed and nothing would ever say so.
+    const db = fake([ERR]);
+    let threw = null;
+    try { await loadAllClients(db, "test"); } catch (e) { threw = e; }
+    ok("🔴 a failure that survives every attempt still alerts", !!threw);
+    ok("it says how hard it tried, so the alert is not mistaken for a one-off",
+      threw && /after 3 attempts/.test(threw.message), threw && threw.message);
+    ok("and it carries the real reason through", threw && /JWT issued at future/.test(threw.message));
+    ok("it gives up rather than hanging the run", db.calls() === 3);
+  }
+  // Both schedulers must use it. The monthly invoicer matters more, not less: a blip there
+  // means nobody is billed for a month.
+  const watch = readFileSync(join(ROOT, "netlify/functions/docusign-watch.mjs"), "utf8");
+  const invoicer = readFileSync(join(ROOT, "netlify/functions/lead-invoice-run.mjs"), "utf8");
+  ok("🔴 the DocuSign watcher retries its lookup", /loadClients: \(\) => loadAllClients\(supabase/.test(watch));
+  ok("🔴 and so does the monthly invoicer, where a blip costs a month of billing",
+    /loadClients: \(\) => loadAllClients\(supabase/.test(invoicer));
+}
+
 console.log(`verify-docusign-watch: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -13,7 +13,7 @@
 // so a cached shell should never win while online, but an already-running installed PWA
 // keeps the code it booted with. Bumping wipes every prior cache on activate, which
 // guarantees the next launch boots the current deploy rather than the one in memory.
-const CACHE_VERSION = "v54";  // v54: 2026-08-27 clients return to their portal after Stripe, not the OS
+const CACHE_VERSION = "v55";  // v55: 2026-08-27 portal says scale not upgrade, dashes cleaned
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 

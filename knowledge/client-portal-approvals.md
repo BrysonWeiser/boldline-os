@@ -64,3 +64,47 @@ copy too. It also pins the two specific defects from the screenshot: the bare `$
 `/mo` beside it, and an unconditional `onclick` on every option.
 
 **59 checks (was 29). Reverting the OS copy to the old flat-price version fails 15 of them.**
+
+## 2026-08-27 — "Upgrade" became "Scale", and the portal's own dashes were cleaned
+
+Bryson: *"is upgrade the right word we should use still?"* No, and the portal contradicted
+itself. The paragraph directly above the tier cards tells the client their plan is **set by
+their monthly ad budget, not chosen from a list** — then the heading said "Request an
+Upgrade", which is the opposite message in the same breath. Worse, "upgrade" means *pay us
+more for a better version*, which is a pitch, and the first client signed precisely because
+this pricing is not one. The tier follows the budget. That is **scaling**.
+
+| Was | Now |
+|---|---|
+| Request an Upgrade | **Ready to Scale** |
+| Available with Upgrade | **Unlocks As You Scale** |
+| Request This Upgrade | **Ask About Scaling Up** |
+| "Upgrade" pill on each locked feature | **As you scale** |
+| Confirm Upgrade Request | **Send Request** |
+
+The HTML id stays `upgrade-section`; only the words a client reads changed.
+
+**Do the tiers unlock by themselves? Yes.** `qualifies = curBudget > 0 && curBudget >= needed`
+(and a combined package needs the higher of its tier floor and `COMBO_MIN_BUDGET`). A
+qualifying card loses `uopt-locked`, becomes clickable, and reads "You qualify". ⚠️ It reads
+`cl.adBudget` — **the number the client typed in My Info, not their real spend** — so it is
+a conversation starter, not a fact. They can only REQUEST; Bryson still approves.
+
+### 🔴 The portal was full of em dashes, and nothing was checking
+
+`verify-no-dashes` covered hyphenated marketing compounds and every model-writing surface,
+but never looked at the portal's own hardcoded sentences. A dozen shipped: *"ask for changes
+— nothing goes live without your OK"*, *"you pay Google directly — we never hold or touch
+it"*. All rewritten. Also two in the OS's campaign-approval copy sent to clients.
+
+**Two things made this invisible.** Half were written as **`&mdash;` entities**, which a
+source grep for the character misses entirely. And the guard now **renders the page and
+reads it** — decoding entities first — because the copy is assembled from template literals
+across hundreds of lines. Left alone: package NAMES (`Full System — Growth`, Bryson's own
+product names) and the stage-ring placeholder.
+
+**🔴 A test-harness bug found in the same pass:** `verify-no-dashes` ran its checks with a
+synchronous wrapper, so an async test returned a promise, `n++` ran regardless, and any
+assertion inside was **silently discarded**. The new portal check reported "passed" no
+matter what until the harness was fixed to collect and await promises. *A check that cannot
+fail is worse than no check.*

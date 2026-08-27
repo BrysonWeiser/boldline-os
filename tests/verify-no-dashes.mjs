@@ -20,7 +20,20 @@ import { readFileSync, readdirSync } from "node:fs";
 import { humanize, humanizeDeep, NO_DASH_RULE } from "../netlify/lib/humanize.mjs";
 
 let n = 0; const fails = [];
-const t = (name, fn) => { try { fn(); n++; } catch (e) { fails.push(`${name}: ${e.message}`); } };
+// 🔴 An async test used to return a promise, n++ would run, and any assertion inside was
+// lost — a check that reported "passed" no matter what. Promises are collected and awaited
+// before the summary.
+const pending = [];
+const t = (name, fn) => {
+  try {
+    const r = fn();
+    if (r && typeof r.then === "function") {
+      pending.push(r.then(() => { n++; }, (e) => { fails.push(`${name}: ${e.message}`); }));
+      return;
+    }
+    n++;
+  } catch (e) { fails.push(`${name}: ${e.message}`); }
+};
 
 // ── The character itself ───────────────────────────────────────────────────
 t("a spaced hyphen is treated as a dash", () => {
@@ -237,6 +250,79 @@ t("no hardcoded marketing hyphen survives in client-facing copy", () => {
   assert.equal(offenders.length, 0, `hardcoded marketing hyphen: ${offenders.join("; ")}`);
 });
 
+// ── 🔴 THE CLIENT PORTAL, RENDERED AND READ ─────────────────────────────
+//
+// The check above catches hyphenated marketing compounds. It never looked for the
+// character Bryson actually named. So the portal, the one page a client reads end to end,
+// shipped with a dozen em dashes in its own sentences: "ask for changes — nothing goes
+// live without your OK", "you pay Google directly — we never hold or touch it". Found
+// 2026-08-27 by rendering the page and reading it, which is the only way to check
+// generated text (KB `repo-tests`).
+//
+// Rendered, not grepped: the copy is assembled from template literals across hundreds of
+// lines, and half of these were `&mdash;` entities that a source grep for "—" misses.
+t("no dash connects a sentence in the client portal", async () => {
+  const { _internal } = await import("../netlify/functions/portal.mjs");
+  const cl = {
+    name: "Stencil & Thread", contactName: "Sebastian", packageId: "g-launch",
+    adBudget: "$500/mo", portalToken: "t", billingPerLead: 50, leadsLog: [], commLog: [],
+  };
+  const pkg = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, tier: "launch" };
+  // Every entry state a client can arrive in, so a banner cannot smuggle one back.
+  const offenders = [];
+  for (const notice of [undefined, "card", "success", "cancel"]) {
+    const html = _internal.makePortalHTML(cl, pkg, notice);
+    // The signed agreement is a legal document with its own conventions, and it is
+    // rendered from the contract module rather than written as portal copy.
+    const body = html.slice(0, html.indexOf("bl-contract-frame") + 1 || html.length);
+    const text = body
+      .replace(/<script[\s\S]*?<\/script>/g, " ").replace(/<style[\s\S]*?<\/style>/g, " ")
+      // 🔴 DECODE THE ENTITIES FIRST. Half the portal's dashes are written as `&mdash;`,
+      // which a scan for the character misses entirely — the same blind spot that let a
+      // dozen of them ship. Decoding is what makes this check see what a reader sees.
+      .replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ")
+      .replace(/&mdash;/g, "\u2014").replace(/&ndash;/g, "\u2013")
+      .replace(/\s+/g, " ");
+    for (const m of text.matchAll(/[^.!?]{0,45}[—–][^.!?]{0,45}/g)) {
+      const s = m[0].trim();
+      // A package NAME is Bryson's product name, not copy this suite may rewrite. The
+      // stage ring prints a dash when there is no stage yet, which is a placeholder in a
+      // graphic rather than a sentence.
+      if (/Full System [—–]/.test(s)) continue;
+      if (/Campaign Progress [—–]/.test(s)) continue;
+      offenders.push(s);
+    }
+  }
+  assert.equal(offenders.length, 0,
+    `the portal reads as AI-written here:\n        ${[...new Set(offenders)].join("\n        ")}`);
+});
+
+// The portal exists twice. The copy in the OS's Live Client View must say the same words,
+// or Bryson signs off on a preview that is not what the client gets.
+t("no old dash-joined sentence survives in either copy of the portal", () => {
+  // The portal exists twice (netlify/functions/portal.mjs and makePortalHTML in
+  // index.html). They word a few things differently, so this checks by ABSENCE rather
+  // than pinning exact phrases: none of the sentences that used to be joined by a dash
+  // may come back, in either file.
+  const OLD = [
+    "ask for changes &mdash;", "ask for changes —",
+    "directly &mdash; we never", "directly — we never",
+    "directly &mdash; we only", "directly — we only",
+    "agreement &mdash; available", "agreement — available",
+    "Tell us &mdash; we", "Tell us — we",
+    "Your Package &mdash; ", "Your Package — ",
+    "3&ndash;5 strong", "3–5 strong", "2&ndash;3 of your", "2–3 of your",
+    "video &mdash; even phone", "video — even phone",
+    "You qualify &mdash;", "You qualify —",
+  ];
+  const offenders = [];
+  for (const f of ["../netlify/functions/portal.mjs", "../index.html"]) {
+    const src = readFileSync(new URL(f, import.meta.url), "utf8");
+    for (const o of OLD) if (src.includes(o)) offenders.push(`${f}: ${o}`);
+  }
+  assert.equal(offenders.length, 0, `old dashed copy is back: ${offenders.join("; ")}`);
+});
+
 // ── The OS carries its own copy, and it must behave identically ──────────
 t("the browser-side humanizer matches the server", () => {
   const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
@@ -269,6 +355,7 @@ t("no client-facing template hardcodes an em dash", () => {
   assert.equal(offenders.length, 0, `hardcoded dash entity in copy: ${offenders.join("; ")}`);
 });
 
+await Promise.all(pending);
 console.log(fails.length ? `✕ ${fails.length} failed, ${n} passed\n  ` + fails.join("\n  ")
   : `✓ verify-no-dashes: ${n} checks passed`);
 process.exit(fails.length ? 1 : 0);
