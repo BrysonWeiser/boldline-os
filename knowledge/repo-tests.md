@@ -198,3 +198,47 @@ and asserts each is either on the destructuring line or fully qualified. Also pi
 `createContext`, and fails on a hook destructured but never used so the line stays honest.
 11 checks, broken once by removing `useMemo` and confirmed to reproduce the exact shipped
 failure.
+
+## 🔴 2026-08-27 — THE SAME BUG ON THE SERVER, AND IT COST THE FIRST CLIENT SEND
+
+Bryson pressed "Send via DocuSign" on Stencil & Thread's agreement and got **"Send failed
+— try again."** Extracting the DocuSign JWT auth into `netlify/lib/docusign-auth.mjs`
+earlier the same day had taken `SIGN_ANCHOR` with it, and that constant belongs to the
+**document**, not to auth. Building the envelope threw a `ReferenceError` before it ever
+reached DocuSign.
+
+**Everything said the file was fine:**
+
+| Check | Verdict, with the bug present |
+|---|---|
+| `node --check docusign-send.mjs` | passes |
+| `import("./netlify/functions/docusign-send.mjs")` | passes |
+| all 29 other suites | pass |
+
+Because the name is read **only inside a function body**. Nothing runs at import time, and
+no suite calls that handler. This is the useMemo crash again in a different room: **the
+compiler is not a reference checker**, and a missing name is invisible until the exact
+moment the code runs. On the front end that moment was "press New Client". On the server it
+was a client contract going out.
+
+I had already been bitten by this once in the SAME refactor — `escapeHtml` was in the block
+I sliced out, I noticed, and I restored it. Then I "scanned for bare calls" by eye and
+missed `SIGN_ANCHOR`. **Reading the diff for missing names does not work. Walk the scope.**
+
+**Guard added: `tests/verify-functions-resolve.mjs`.** Parses every file in
+`netlify/functions` and `netlify/lib` with Babel's parser (`@babel/standalone` exposes
+`packages.parser` and `packages.traverse`) and, for every `ReferencedIdentifier`, asserts
+`path.scope.hasBinding(name, true)` or membership of a **deliberately tight** globals list.
+A generous globals list would hide the exact bug this exists for. `.cjs` files get the
+CommonJS wrapper names and `sourceType: "script"`.
+
+**It found a second one immediately, live in production and worse than the first.**
+`buildSearchCampaign` in `google-ads.mjs` passed `customerId` to `resolveLanguages`, but the
+variable in that function is `cid`. **Every Google campaign build had thrown a
+ReferenceError at that line since language targeting shipped (`3af13d9`), creating nothing.**
+It never worked once, and `verify-campaign-launch.mjs` (133 checks) does not execute that
+line. A suite with a big number on it is not coverage of the line you changed.
+
+**The takeaway to keep:** any refactor that MOVES code between files must be followed by
+the scope scan, not by re-reading the diff. Two bugs of this class in one day, in two
+different files, both invisible to the compiler.
