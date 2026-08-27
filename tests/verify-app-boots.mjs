@@ -70,5 +70,27 @@ ok("createContext is still destructured", have.has("createContext"));
 const surplus = [...have].filter((h) => REACT_HOOKS.includes(h) && !used.includes(h));
 ok("no hook is destructured that the app never calls", surplus.length === 0, `unused: ${surplus.join(", ")}`);
 
+// ── 🔴 AND THE OTHER WAY TO BLANK THE WHOLE APP: BAD JSX ──────────────────────
+// The undefined-hook bug above kills one component. A syntax error in the JSX kills the
+// ENTIRE page, because the browser compiles this one script block at load time and a
+// failure there means nothing renders at all — no error boundary, no partial app, a blank
+// screen. The browser runs Babel on this exact text, so the test is to run Babel on this
+// exact text. Nothing is stubbed and nothing is reformatted first.
+{
+  const blocks = [...S.matchAll(/<script type="text\/babel"[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
+  ok("the app's code is in a babel script block where this suite can find it", blocks.length === 1,
+    `found ${blocks.length}`);
+  if (blocks.length === 1) {
+    const { transform } = await import("@babel/standalone");
+    let err = "";
+    try {
+      // Same preset the page loads. A silent console note about code size is normal.
+      transform(blocks[0], { presets: ["react"], compact: true, comments: false });
+    } catch (e) { err = e.message; }
+    ok("🔴 the whole app compiles, so the page is not a blank screen", !err,
+      `${err.split("\n")[0]}\n        Every line of the OS is in this one block. If it does not compile, NOTHING renders.`);
+  }
+}
+
 console.log(`verify-app-boots: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

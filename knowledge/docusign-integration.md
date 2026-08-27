@@ -91,7 +91,7 @@ prospects. The address stays the same either way, so moving later costs DocuSign
 
 Demo signatures remain **not legally binding** (watermarked) until the above is done.
 
-**TODO (not blocking):** envelope status sync (webhook/poll) so a signed contract auto-flips "pending" → "active"; exercise the real Contract-tab send path (same verified backend, only the contract-HTML rendering path is untested).
+**TODO (not blocking):** ~~envelope status sync (webhook/poll) so a signed contract auto-flips "pending" → "active"~~ — DONE 2026-08-27, see KB `docusign-signature-watch`; exercise the real Contract-tab send path (same verified backend, only the contract-HTML rendering path is untested).
 
 
 ## ✅ 2026-08-26 — THE GO-LIVE FORM IS SUBMITTED AND SIGNED
@@ -186,6 +186,7 @@ difference between a demo envelope and a binding one, so its absence is the proo
 No download, no print dialog, no manual upload. The whole PDF-export detour that was being
 worked around on 2026-08-26 is obsolete.
 
-**Still TODO (not blocking):** envelope status sync, so a signed contract flips
-`contractStatus` from "pending" to "active" by itself instead of by hand. Today the send
-path is verified; the return path is not.
+**✅ THE RETURN PATH IS DONE TOO, same day.** A scheduled job polls DocuSign every 15 minutes
+and flips a signed contract to active by itself, alerts Bryson, and sends the client their
+confirmation email. Full write-up, including why polling beat DocuSign Connect and the
+"delivered is not signed" trap, in KB **`docusign-signature-watch`**.

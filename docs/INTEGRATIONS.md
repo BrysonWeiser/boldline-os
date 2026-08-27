@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 129 task-keyed entries under `knowledge/`. They surface automatically via the
+> 130 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**129 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**130 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -339,6 +339,9 @@
 - **[docusign-integration](../knowledge/docusign-integration.md)** &mdash; &#9989; verified &middot; 2026-08-27  
   ✅ FULLY LIVE IN PRODUCTION as of 2026-08-27, verified by a real unwatermarked test envelope. Go-live approved, key promoted, production keypair + JWT consent done, Netlify env vars swapped. 'Send via DocuSign' on any client's Contract tab now sends a legally binding envelope. Watch the multi-line PEM paste gotcha (normalizeKey self-heals it).  
   <sub>*task:* send or debug DocuSign e-signature envelopes from the OS, and plan the production go-live &nbsp;|&nbsp; *keywords:* docusign-send.mjs, jwt-grant, normalizeKey, DOCUSIGN_PRIVATE_KEY, go-live, BL_SIGN_HERE, go live form voided, generic email domains not allowed, gmail rejected, corporate domain email, cloudflare email routing, bryson@boldlinemedia.com, production account id guid, trial account cannot be used</sub>
+- **[docusign-signature-watch](../knowledge/docusign-signature-watch.md)** &mdash; &#9989; verified &middot; 2026-08-27  
+  A scheduled job polls DocuSign every 15 min and flips a client to signed by itself, alerts Bryson, and emails the client their confirmation. "delivered" means OPENED, not signed — treating it as signed is the bug the whole suite guards. Declined and voided raise red alerts. Uncertainty (unknown status, failed lookup, failed save) changes nothing and never alerts.  
+  <sub>*task:* make the OS notice by itself when a client signs, or debug why a signed contract still shows pending &nbsp;|&nbsp; *keywords:* docusign-watch.mjs, docusign-status.mjs, docusign-auth.mjs, envelope status polling, delivered is not signed, contractSigned auto flip, docusignEnvelopeId, docusignSentAt, docusignNudgedAt, decideFromEnvelope, needsCheck, decideNudge, contract_signed email, docusign connect webhook</sub>
 - **[google-ads-api](../knowledge/google-ads-api.md)** &mdash; &#9989; verified &middot; 2026-07-19  
   Google Ads is FULLY LIVE — Basic Access approved AND the Deploy-tab test card verified green 2026-07-19 ("Authenticated (API v24), 1 account visible to the manager, MCC confirmed"). One MCC + Developer Token + OAuth refresh token (login-customer-id header); code in google-ads.mjs (test/campaigns/setBudget/setStatus/createCampaign). approve→execute AND owner-side campaign launch both BUILT; remaining step is live E2E-verification against a real linked client account. Use the Web-app OAuth client (Desktop got redirect_uri_mismatch).  
   <sub>*task:* connect, test, or debug the Google Ads API integration (MCC, OAuth, Basic Access, approval queue) &nbsp;|&nbsp; *keywords:* google-ads.mjs, MCC, login-customer-id, GOOGLE_ADS_API_VERSION, redirect_uri_mismatch, basic-access, propose_action, pendingActions</sub>

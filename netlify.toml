@@ -63,6 +63,15 @@
 [functions."calendly-leads"]
   schedule = "*/15 * * * *"
 
+# Closes the loop on e-signatures. Every 15 minutes it asks DocuSign where each outstanding
+# envelope got to, flips a client to active the moment they sign, and alerts Bryson. Polling
+# rather than DocuSign Connect: Connect is not on the eSignature Standard plan, and polling
+# reuses the JWT auth already proven in production with nothing to configure at DocuSign's
+# end. A quarter-hour delay on "your client signed" costs nothing; a webhook that silently
+# stops firing costs a contract sitting in limbo.
+[functions."docusign-watch"]
+  schedule = "*/15 * * * *"
+
 # HOURLY: pulls LIVE campaign spend from Google Ads + Meta for every client with a
 # linked ad account (the My Ads house account included), stores it on the client
 # record, and alerts the owner the first time an account paces over its monthly budget
