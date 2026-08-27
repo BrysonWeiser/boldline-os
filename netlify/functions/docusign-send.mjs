@@ -31,6 +31,12 @@ const json = (body, status = 200) =>
 // ── DocuSign config (from env) ───────────────────────────────────────────────
 // Auth, key handling and the DS config all live in ../lib/docusign-auth.mjs so the
 // envelope-status watcher shares them rather than carrying a second copy.
+
+// Where DocuSign puts the signature box. It is written into the document in white
+// text so the signer never sees it, and DocuSign anchors the sign-here tab to it.
+// 🔴 Belongs to the DOCUMENT, not to auth, which is why it stays in this file.
+const SIGN_ANCHOR = "/BL_SIGN_HERE/";
+
 // ── Document helpers ─────────────────────────────────────────────────────────
 const signingBlock = (name) =>
   `<div style="margin-top:36px;padding-top:14px;border-top:1px solid #bbb;font-family:Georgia,serif">`
