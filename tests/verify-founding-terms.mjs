@@ -215,8 +215,16 @@ const BASE = {
   ok("it is refused only when there is no per-lead rate either, which bills nothing ever",
     /!\(m>0\)&&!\(effRate>0\)/.test(card));
   ok("the Stripe constraint sits on the Stripe button instead", /monthly>0\s*\n?\s*\?\s*<button onClick=\{setupBilling\}/.test(card));
-  ok("and a results-only client is told why there is no subscription",
-    /no subscription to create/.test(card));
+  // 🔴 UPDATED 2026-08-27. This used to assert the card EXPLAINED that nothing could
+  // happen ("no subscription to create"), which was an accurate description of a dead end:
+  // the client could not be charged at all. Explaining a hole is not the same as not having
+  // one. The right behaviour is a card saved with no subscription behind it, and each
+  // approved batch of leads invoiced to it. Covered fully in `verify-results-only-billing`.
+  ok("🔴 a results-only client can actually be set up to pay",
+    /Save a Card on File/.test(card) && /callBilling\("save-card"/.test(card),
+    "with no monthly minimum there is nothing to subscribe to, so a card is saved directly");
+  ok("and the dead-end copy that replaced a working button is gone",
+    !/no subscription to create/.test(card));
 
   ok("🔴 the card no longer calls it a management fee",
     !/management fee/i.test(card),

@@ -34,12 +34,22 @@
 //          term-discount clawback) as an auto-charged standalone invoice and
 //          sets the subscription to cancel at period end. Returns
 //          { ok, invoiceId, invoiceUrl, paid }.
-//   { action:"charge-leads", customerId, count, amount, clientName? }
+//   { action:"charge-leads", customerId, count, amount, clientName?, arrears? }
 //       -> bills the part of a month's qualified-lead value that EXCEEDS the package's
 //          monthly minimum (already charged by the subscription) as a single pending
 //          invoice item riding the next monthly invoice. `amount` is that excess, NOT
 //          count × rate — the OS works it out, because the minimum and the performance
 //          fee are never both charged. Returns { ok, itemId, count, amount }.
+//          arrears:true = the client has NO subscription (results-only), so there is no
+//          monthly invoice for a pending item to ride. Raises and charges a standalone
+//          invoice immediately instead, returning { ok, itemId, count, amount, arrears,
+//          invoiceId, invoiceUrl, paid }.
+//   { action:"save-card", clientId, email, name?, customerId?, origin }
+//       -> Checkout in mode:"setup" — collects a card/bank and attaches it to the
+//          customer WITHOUT creating a subscription. The only way to bill a
+//          results-only client (no monthly minimum), who has nothing to subscribe
+//          to. Returns { ok, url, customerId }. After they complete it, "sync"
+//          reports billingStatus:"card_on_file".
 //   { action:"preview-invoice", customerId }
 //       -> returns the upcoming subscription invoice (fee + pending lead/interest
 //          items) as { ok, upcoming:{ total, subtotal, chargeDate, lines } } — the
@@ -107,6 +117,55 @@ async function stripe(path, { method = "POST", body } = {}) {
   return data;
 }
 
+// Reuse the Stripe customer we already made for this client, or make one.
+//
+// 🔴 A STORED ID CAN BE A LIE. A test-mode customer left on a client after switching to
+// live keys, or a customer deleted in the dashboard, both look fine in our database and
+// then fail with "No such customer" at the worst moment. So the id is VERIFIED against
+// this mode before it is trusted, and quietly replaced when it is not real.
+async function ensureCustomer(existingId, { email, name, clientId }) {
+  let customerId = existingId || "";
+  if (customerId) {
+    try {
+      const existing = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
+      if (existing.deleted) customerId = "";
+    } catch {
+      customerId = "";
+    }
+  }
+  if (customerId) return customerId;
+  const cust = await stripe("customers", { body: { email, name: name || email, metadata: { clientId } } });
+  return cust.id;
+}
+
+// Find a payment method to charge a standalone invoice against.
+//
+// 🔴 THE GOTCHA THIS EXISTS FOR (found 2026-07-16, and setup-mode Checkout does the same
+// thing): Checkout attaches the card to the SUBSCRIPTION, and in setup mode it attaches it
+// to the customer WITHOUT making it the invoice default. A standalone invoice then finds
+// nothing to charge and sits in "Retrying" forever while everything reports success.
+// Order: the subscription's card, then the customer's invoice default, then their first.
+async function resolvePaymentMethod(customerId, subscriptionId) {
+  if (subscriptionId) {
+    try {
+      const sub = await stripe(`subscriptions/${encodeURIComponent(subscriptionId)}`, { method: "GET" });
+      if (sub.default_payment_method) return sub.default_payment_method;
+    } catch { /* fall through */ }
+  }
+  try {
+    const cust = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
+    const def = cust.invoice_settings && cust.invoice_settings.default_payment_method;
+    if (def) return def;
+  } catch { /* fall through */ }
+  for (const type of ["card", "us_bank_account"]) {
+    try {
+      const pms = await stripe(`payment_methods?customer=${encodeURIComponent(customerId)}&type=${type}&limit=1`, { method: "GET" });
+      if (pms.data && pms.data[0]) return pms.data[0].id;
+    } catch { /* fall through */ }
+  }
+  return null;
+}
+
 // Map a Stripe subscription status to the OS billingStatus vocabulary.
 function billingStatusFromSub(sub) {
   if (!sub) return "none";
@@ -172,25 +231,7 @@ export default async (req) => {
       }
       if (!origin) return json({ ok: false, error: "Missing origin" }, 400);
 
-      // Reuse an existing customer if we already made one for this client — but
-      // only if it still exists in THIS mode. A stale id (e.g. a test-mode
-      // customer left on the client after switching to live keys, or a deleted
-      // customer) would otherwise make Checkout fail with "No such customer".
-      let customerId = body.customerId || "";
-      if (customerId) {
-        try {
-          const existing = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
-          if (existing.deleted) customerId = "";
-        } catch {
-          customerId = ""; // not found in this mode -> fall through and create a fresh one
-        }
-      }
-      if (!customerId) {
-        const cust = await stripe("customers", {
-          body: { email, name: name || email, metadata: { clientId } },
-        });
-        customerId = cust.id;
-      }
+      const customerId = await ensureCustomer(body.customerId, { email, name, clientId });
 
       // Line items: recurring management fee + (optional) one-time setup fee.
       // NOTE: a one-time line item inside a subscription-mode Checkout Session is
@@ -251,6 +292,42 @@ export default async (req) => {
       return json({ ok: true, url: session.url, customerId, oneTime });
     }
 
+    // ── Save a card with NO subscription (results-only clients) ───────────────
+    //
+    // 🔴 THE GAP THIS CLOSES: A RESULTS-ONLY CLIENT COULD NOT BE CHARGED AT ALL.
+    // Before this, the ONLY way a card ever got saved was by creating a subscription. A
+    // client on $0 monthly and $50 a qualified lead has nothing recurring to subscribe to,
+    // so no Stripe customer was ever created, `charge-leads` refused with "start the
+    // subscription first", and approved lead fees sat as pending invoice items waiting for
+    // a monthly invoice that was never coming. Five qualified leads, $250 earned, and no
+    // way to collect a cent of it. Found 2026-08-26, days before the first client signed
+    // on exactly those terms.
+    //
+    // Checkout in mode:"setup" charges nothing. It collects a card or bank account and
+    // attaches it to the customer so invoices can be raised against it later.
+    if (action === "save-card") {
+      const { clientId, email, name } = body;
+      const origin = (body.origin || "").replace(/\/$/, "");
+      if (!clientId) return json({ ok: false, error: "Missing clientId" }, 400);
+      if (!email) return json({ ok: false, error: "Add the client's email on the Overview tab first." }, 400);
+      if (!origin) return json({ ok: false, error: "Missing origin" }, 400);
+
+      const customerId = await ensureCustomer(body.customerId, { email, name, clientId });
+      const session = await stripe("checkout/sessions", {
+        body: {
+          mode: "setup",
+          customer: customerId,
+          payment_method_types: ["card", "us_bank_account"],
+          setup_intent_data: { metadata: { clientId } },
+          metadata: { clientId, saveCard: "1" },
+          client_reference_id: clientId,
+          success_url: `${origin}/?billing=card`,
+          cancel_url: `${origin}/?billing=cancel`,
+        },
+      });
+      return json({ ok: true, url: session.url, customerId });
+    }
+
     // ── Sync billing state straight from Stripe (no webhook needed) ───────────
     if (action === "sync") {
       const customerId = body.customerId;
@@ -269,9 +346,9 @@ export default async (req) => {
         throw e;
       }
       const sub = (subs.data && subs.data[0]) || null;
-      if (!sub) return json({ ok: true, billingStatus: "none" });
 
-      // Pull the latest paid invoice timestamp, best-effort.
+      // Pull the latest paid invoice timestamp, best-effort. Needed either way — a
+      // results-only client pays real invoices too, just not recurring ones.
       let lastPaymentAt = null;
       try {
         const inv = await stripe(
@@ -283,6 +360,22 @@ export default async (req) => {
           lastPaymentAt = new Date(paid.status_transitions.paid_at * 1000).toISOString();
         }
       } catch { /* non-fatal */ }
+
+      if (!sub) {
+        // 🔴 NO SUBSCRIPTION IS NORMAL, NOT BROKEN. For a results-only client there is
+        // nothing recurring by design, so "is there a subscription" is the wrong question.
+        // The one that matters is whether we can charge them at all: is a card on file?
+        const pm = await resolvePaymentMethod(customerId, null);
+        if (!pm) return json({ ok: true, billingStatus: "none", lastPaymentAt });
+        // Make it the invoice default now, while we know it, so a standalone invoice never
+        // has to go looking and never sits unpaid because it found nothing.
+        try {
+          await stripe(`customers/${encodeURIComponent(customerId)}`, {
+            body: { invoice_settings: { default_payment_method: pm } },
+          });
+        } catch { /* the charge path resolves it again anyway */ }
+        return json({ ok: true, billingStatus: "card_on_file", paymentMethodId: pm, lastPaymentAt });
+      }
 
       const item = sub.items && sub.items.data && sub.items.data[0];
       const monthly = item && item.price && item.price.unit_amount ? item.price.unit_amount / 100 : null;
@@ -405,29 +498,9 @@ export default async (req) => {
             description: `Term-discount clawback — months billed at discounted rate recalculated at the Standard Rate (Agreement, Termination section)` },
         });
       }
-      // Resolve a payment method for the standalone invoice. GOTCHA (2026-07-16
-      // test): Checkout attaches the card to the SUBSCRIPTION, not as the
-      // customer's default — a standalone invoice finds nothing and sits in
-      // "Retrying". Order: subscription's card -> customer default -> first card.
-      let pm = null;
-      if (subscriptionId) {
-        try {
-          const sub = await stripe(`subscriptions/${encodeURIComponent(subscriptionId)}`, { method: "GET" });
-          pm = sub.default_payment_method || null;
-        } catch { /* fall through */ }
-      }
-      if (!pm) {
-        try {
-          const cust = await stripe(`customers/${encodeURIComponent(customerId)}`, { method: "GET" });
-          pm = (cust.invoice_settings && cust.invoice_settings.default_payment_method) || null;
-        } catch { /* fall through */ }
-      }
-      if (!pm) {
-        try {
-          const pms = await stripe(`payment_methods?customer=${encodeURIComponent(customerId)}&type=card&limit=1`, { method: "GET" });
-          pm = (pms.data && pms.data[0] && pms.data[0].id) || null;
-        } catch { /* fall through */ }
-      }
+      // Shared with the arrears lead invoice below, and the gotcha it works around is
+      // documented on the helper itself.
+      const pm = await resolvePaymentMethod(customerId, subscriptionId);
 
       // Standalone invoice that sweeps in the pending invoice items just created.
       // GOTCHA: on current Stripe API versions pending_invoice_items_behavior
@@ -476,22 +549,64 @@ export default async (req) => {
       const { customerId, clientName } = body;
       const count = Math.max(0, Math.floor(Number(body.count) || 0));
       const amount = Number(body.amount) || 0;
-      if (!customerId) return json({ ok: false, error: "No billing set up for this client — start the subscription first." }, 400);
+      // 🔴 A RESULTS-ONLY CLIENT HAS NO NEXT SUBSCRIPTION INVOICE TO RIDE. Dropping a
+      // pending invoice item for them creates something that waits forever for a monthly
+      // bill that will never be raised. `arrears` says "there is no subscription — invoice
+      // this now", which is also what the agreement promises: they pay for results, after
+      // the results.
+      const arrears = !!body.arrears;
+      if (!customerId) {
+        return json({ ok: false, error: arrears
+          ? "No card on file for this client — save one first."
+          : "No billing set up for this client — start the subscription first." }, 400);
+      }
       if (count <= 0) return json({ ok: false, error: "No billable leads to charge." }, 400);
-      if (!(amount > 0)) return json({ ok: false, error: "Nothing to charge — the month's lead value has not passed the monthly minimum yet." }, 400);
+      if (!(amount > 0)) {
+        return json({ ok: false, error: arrears
+          ? "Nothing to charge — the approved leads come to $0."
+          : "Nothing to charge — the month's lead value has not passed the monthly minimum yet." }, 400);
+      }
 
+      const leads = `${count} qualified lead${count === 1 ? "" : "s"}`;
       const item = await stripe("invoiceitems", {
         body: {
           customer: customerId,
           amount: dollars(amount),
           currency: "usd",
-          // Under the 2026-08-18 model `amount` is the part of the month's lead value
-          // that EXCEEDS the monthly minimum already billed, not the full lead value, so
-          // the description has to say so or the client's own arithmetic will not check out.
-          description: `Performance fee above monthly minimum — ${count} qualified lead${count === 1 ? "" : "s"} delivered${clientName ? " for " + clientName : ""} (rides next monthly invoice)`,
+          // The wording has to match what the client is actually being charged, or their
+          // own arithmetic will not check out. With a minimum, `amount` is only the EXCESS
+          // over it. With no minimum, it is simply the leads.
+          description: arrears
+            ? `${leads} delivered${clientName ? " for " + clientName : ""}`
+            : `Performance fee above monthly minimum — ${leads} delivered${clientName ? " for " + clientName : ""} (rides next monthly invoice)`,
         },
       });
-      return json({ ok: true, itemId: item.id, count, amount });
+      if (!arrears) return json({ ok: true, itemId: item.id, count, amount });
+
+      // Same shape as the ETF invoice: a standalone auto-charging invoice that sweeps in
+      // the item just created. `pending_invoice_items_behavior: "include"` is NOT optional
+      // — current API versions default to "exclude", which produces an EMPTY $0 invoice
+      // that trivially "pays" while the real charge silently waits for a subscription
+      // invoice that is never coming (caught in the 2026-07-16 test run).
+      const pm = await resolvePaymentMethod(customerId, null);
+      const inv = await stripe("invoices", {
+        body: {
+          customer: customerId, collection_method: "charge_automatically", auto_advance: true,
+          pending_invoice_items_behavior: "include",
+          ...(pm ? { default_payment_method: pm } : {}),
+          description: `BoldLine Media — qualified leads delivered${clientName ? " for " + clientName : ""}`,
+        },
+      });
+      if (!inv.amount_due || inv.amount_due <= 0) {
+        return json({ ok: false, error: "The lead invoice came out empty — the charge was not attached. Check this customer's pending invoice items in Stripe before approving again." }, 502);
+      }
+      let paid = false, hostedUrl = inv.hosted_invoice_url || null;
+      try {
+        const done = await stripe(`invoices/${encodeURIComponent(inv.id)}/pay`);
+        paid = done.status === "paid";
+        hostedUrl = done.hosted_invoice_url || hostedUrl;
+      } catch { /* left open — auto_advance keeps collecting and dunning */ }
+      return json({ ok: true, itemId: item.id, count, amount, arrears: true, invoiceId: inv.id, invoiceUrl: hostedUrl, paid });
     }
 
     // ── Preview the client's NEXT monthly invoice (one bundled bill) ───────────
