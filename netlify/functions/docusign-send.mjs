@@ -17,7 +17,10 @@
 //   DOCUSIGN_INTEGRATION_KEY, DOCUSIGN_USER_ID, DOCUSIGN_ACCOUNT_ID,
 //   DOCUSIGN_PRIVATE_KEY, DOCUSIGN_BASE_PATH, SUPABASE_SERVICE_ROLE_KEY
 
-import crypto from "node:crypto";
+import { DS, getAccessToken } from "../lib/docusign-auth.mjs";
+
+const escapeHtml = (s) =>
+  String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
@@ -26,99 +29,8 @@ const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 // ── DocuSign config (from env) ───────────────────────────────────────────────
-const DS = {
-  ik: process.env.DOCUSIGN_INTEGRATION_KEY,
-  userId: process.env.DOCUSIGN_USER_ID,
-  accountId: process.env.DOCUSIGN_ACCOUNT_ID,
-  privateKey: process.env.DOCUSIGN_PRIVATE_KEY,
-  basePath: process.env.DOCUSIGN_BASE_PATH || "https://demo.docusign.net",
-};
-// Auth server differs from the REST base path:
-//   demo/sandbox -> account-d.docusign.com   ·   production -> account.docusign.com
-const authServer = DS.basePath.includes("demo") ? "account-d.docusign.com" : "account.docusign.com";
-
-// Invisible (white-on-white) anchor token the signature tab is placed on.
-const SIGN_ANCHOR = "/BL_SIGN_HERE/";
-
-const escapeHtml = (s) =>
-  String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-const b64url = (buf) =>
-  Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-// Reconstruct canonical PEM formatting no matter how the key arrived: tolerate
-// literal "\n" escape sequences, surrounding quotes, and — the most common
-// paste failure — line breaks lost when pasted into a single-line UI field.
-// As long as the BEGIN/END markers and base64 body survived, this rebuilds a
-// valid PEM by re-wrapping the body at the standard 64-char width.
-function normalizeKey(raw) {
-  let k = String(raw || "").replace(/\\n/g, "\n").trim();
-  if ((k.startsWith('"') && k.endsWith('"')) || (k.startsWith("'") && k.endsWith("'"))) {
-    k = k.slice(1, -1).trim();
-  }
-  const m = k.match(/-----BEGIN ([A-Z ]+)-----([\s\S]*?)-----END \1-----/);
-  if (!m) return k;
-  const body = m[2].replace(/\s+/g, "");
-  const wrapped = body.match(/.{1,64}/g)?.join("\n") || body;
-  return `-----BEGIN ${m[1]}-----\n${wrapped}\n-----END ${m[1]}-----`;
-}
-
-// ── JWT Grant: build a signed assertion, exchange for an access token ─────────
-async function getAccessToken() {
-  const now = Math.floor(Date.now() / 1000);
-  const header = { alg: "RS256", typ: "JWT" };
-  const payload = {
-    iss: DS.ik,
-    sub: DS.userId,
-    aud: authServer,
-    iat: now,
-    exp: now + 3600,
-    scope: "signature impersonation",
-  };
-  const unsigned = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
-
-  let signature;
-  try {
-    const signer = crypto.createSign("RSA-SHA256");
-    signer.update(unsigned);
-    signature = signer.sign(normalizeKey(DS.privateKey))
-      .toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  } catch (err) {
-    const raw = String(DS.privateKey || "");
-    const e = new Error("Could not sign with DOCUSIGN_PRIVATE_KEY — check the key was pasted in full (BEGIN/END lines included).");
-    e.stage = "sign";
-    // Structural facts only — never the key content itself — so we can
-    // diagnose a bad paste without ever seeing the secret.
-    e.detail = {
-      charLength: raw.trim().length,
-      lineCount: raw.split("\n").length,
-      hasBeginMarker: /-----BEGIN [A-Z ]+-----/.test(raw),
-      hasEndMarker: /-----END [A-Z ]+-----/.test(raw),
-      hasLiteralBackslashN: /\\n/.test(raw),
-    };
-    throw e;
-  }
-
-  const resp = await fetch(`https://${authServer}/oauth/token`, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: `${unsigned}.${signature}`,
-    }),
-  });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    // The classic "consent_required" lands here if the one-time consent grant
-    // was never completed for this Integration Key + User ID.
-    const e = new Error(`auth: ${data.error || resp.status}${data.error_description ? " — " + data.error_description : ""}`);
-    e.stage = "auth";
-    e.detail = data;
-    throw e;
-  }
-  return data.access_token;
-}
-
+// Auth, key handling and the DS config all live in ../lib/docusign-auth.mjs so the
+// envelope-status watcher shares them rather than carrying a second copy.
 // ── Document helpers ─────────────────────────────────────────────────────────
 const signingBlock = (name) =>
   `<div style="margin-top:36px;padding-top:14px;border-top:1px solid #bbb;font-family:Georgia,serif">`

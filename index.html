@@ -6601,6 +6601,23 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [dsState,setDsState]=useState("idle");   // idle | sending | sent | error
   const [dsMsg,setDsMsg]=useState("");
   const html=makeContractHTML(client,pkg);
+  // Where the envelope actually got to, read from the record the watcher keeps up to date
+  // (docusign-watch checks DocuSign every 15 min). Before this the card only knew what had
+  // happened in THIS page session, so a refresh showed a fresh "Send" button on a contract
+  // already sitting in the client's inbox — an easy way to send the same thing twice.
+  const dsSt=(client.docusignStatus||"").toLowerCase();
+  const dsRaw=client.docusignSentAt?Math.floor((Date.now()-new Date(client.docusignSentAt).getTime())/864e5):null;
+  const dsDays=Number.isFinite(dsRaw)?dsRaw:null;   // a junk date must read as "no clock", never as "Sent NaN days ago"
+  const waited=dsDays==null?"":dsDays<=0?"Sent today.":dsDays===1?"Sent yesterday.":`Sent ${dsDays} days ago.`;
+  const ds=!client.docusignEnvelopeId
+    ?{title:"Contract Not Yet Signed",detail:<>Send to <strong style={{color:C.textDim}}>{client.email}</strong> via DocuSign for e-signature.</>,awaiting:false,bad:false}
+    :dsSt==="declined"
+    ?{title:"They Declined to Sign",detail:`${client.contactName||client.name} declined the agreement in DocuSign. Call them before sending anything else.`,awaiting:false,bad:true}
+    :dsSt==="voided"
+    ?{title:"Agreement Voided",detail:"That envelope was cancelled or expired unsigned. Send a fresh one when you're ready.",awaiting:false,bad:true}
+    :dsSt==="delivered"
+    ?{title:"Opened, Not Signed Yet",detail:`${client.email} opened it but hasn't signed. ${waited}`,awaiting:true,bad:false}
+    :{title:"Waiting on Signature",detail:`Sitting in ${client.email}'s inbox, not opened yet. ${waited}`,awaiting:true,bad:false};
   const sendDocuSign=async()=>{
     if(!client.email){ setDsState("error"); setDsMsg("Add the client's email on the Overview tab first."); return; }
     setDsState("sending"); setDsMsg("");
@@ -6772,12 +6789,13 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
           </div>
         </Card>
       )}
-      {!client.contractSigned&&<Card style={{backgroundColor:"rgba(59,130,246,.06)",borderColor:"rgba(59,130,246,.28)"}}>
-        <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:4}}>Contract Not Yet Signed</div>
-        <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Send to <strong style={{color:C.textDim}}>{client.email}</strong> via DocuSign for e-signature.</div>
-        <button onClick={sendDocuSign} disabled={dsState==="sending"||dsState==="sent"} style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:dsState==="sent"?"#059669":"#1D4ED8",color:"#fff",cursor:dsState==="sending"||dsState==="sent"?"default":"pointer",opacity:dsState==="sending"?.7:1}}>{dsState==="sending"?"Sending…":dsState==="sent"?"✓ Sent for Signature":"Send via DocuSign →"}</button>
-        {dsState==="sent"&&<div style={{fontSize:11,color:"#34D399",marginTop:8,lineHeight:1.6}}>Envelope sent to {client.email}. They'll receive an email to sign; status now shows Pending Signature.</div>}
+      {!client.contractSigned&&<Card style={{backgroundColor:ds.bad?"rgba(239,68,68,.06)":"rgba(59,130,246,.06)",borderColor:ds.bad?"rgba(239,68,68,.28)":"rgba(59,130,246,.28)"}}>
+        <div style={{fontSize:12,fontWeight:700,color:ds.bad?C.red:"#60A5FA",marginBottom:4}}>{ds.title}</div>
+        <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>{ds.detail}</div>
+        <button onClick={sendDocuSign} disabled={dsState==="sending"||dsState==="sent"} style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:ds.awaiting?`1px solid ${C.border}`:"none",backgroundColor:dsState==="sent"?"#059669":ds.awaiting?"rgba(255,255,255,.04)":"#1D4ED8",color:ds.awaiting&&dsState!=="sent"?C.textDim:"#fff",cursor:dsState==="sending"||dsState==="sent"?"default":"pointer",opacity:dsState==="sending"?.7:1}}>{dsState==="sending"?"Sending…":dsState==="sent"?"✓ Sent for Signature":ds.awaiting?"Send Another Copy":"Send via DocuSign →"}</button>
+        {dsState==="sent"&&<div style={{fontSize:11,color:"#34D399",marginTop:8,lineHeight:1.6}}>Envelope sent to {client.email}. They&rsquo;ll receive an email to sign.</div>}
         {dsState==="error"&&<div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{dsMsg||"Something went wrong."}</div>}
+        {(ds.awaiting||dsState==="sent")&&<div style={{fontSize:10,color:C.textMuted,marginTop:8,lineHeight:1.6}}>Checked automatically every 15 minutes. The moment they sign, this marks itself signed and you get a notification. Nothing to tick by hand.</div>}
       </Card>}
       <div style={S.row7}>
         <button onClick={downloadPDF} title="Opens your browser's print window — choose 'Save as PDF' as the destination" style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Save as PDF</button>
