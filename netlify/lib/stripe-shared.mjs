@@ -136,13 +136,43 @@ export async function invoiceParkedLeads(customerId, clientName) {
     e.stage = "empty-invoice";
     throw e;
   }
-  let paid = false, hostedUrl = inv.hosted_invoice_url || null;
-  try {
-    const done = await stripe(`invoices/${encodeURIComponent(inv.id)}/pay`);
-    paid = done.status === "paid";
-    hostedUrl = done.hosted_invoice_url || hostedUrl;
-  } catch { /* left open — auto_advance keeps Stripe collecting and dunning */ }
+  const { paid, hostedUrl } = await finalizeAndPay(inv);
   return { invoiceId: inv.id, invoiceUrl: hostedUrl, paid, amount: inv.amount_due / 100, expected, count: pending.length };
+}
+
+// Get a freshly created invoice from draft to charged, and report honestly which.
+//
+// 🔴 FINALIZE BEFORE PAYING, EXPLICITLY. A new invoice is a DRAFT, and a draft cannot be
+// charged. `auto_advance: true` gets there on its own eventually, but "eventually" is an
+// ACCOUNT SETTING — Settings → Billing → Invoices → "Invoice finalization grace period",
+// which on this account is ONE HOUR. Relying on it means the charge attempt races a
+// dashboard toggle nobody remembers setting: the money still arrives later, but the OS
+// reports "collecting" on an invoice that was about to be paid, and the identical code
+// behaves differently on a different account. One extra call removes the whole question.
+//
+// Every step is fail-soft on purpose. auto_advance stays true throughout, so even if both
+// calls fail Stripe finalizes and collects by itself. The worst case is a pessimistic
+// `paid: false`, which is the safe direction to be wrong in: it never claims money arrived.
+export async function finalizeAndPay(inv) {
+  let ready = inv;
+  try {
+    if (inv.status === "draft") {
+      ready = await stripe(`invoices/${encodeURIComponent(inv.id)}/finalize`, { body: { auto_advance: true } });
+    }
+  } catch { /* fall through and try to pay anyway */ }
+
+  let hostedUrl = ready.hosted_invoice_url || inv.hosted_invoice_url || null;
+  // Finalizing can collect it outright when a card is already on file, in which case
+  // paying again would be a second charge attempt on a settled invoice.
+  let paid = ready.status === "paid";
+  if (!paid) {
+    try {
+      const done = await stripe(`invoices/${encodeURIComponent(inv.id)}/pay`);
+      paid = done.status === "paid";
+      hostedUrl = done.hosted_invoice_url || hostedUrl;
+    } catch { /* left open — auto_advance keeps Stripe collecting and dunning */ }
+  }
+  return { paid, hostedUrl };
 }
 
 export { encodeForm, stripe, ensureCustomer, resolvePaymentMethod };

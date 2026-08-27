@@ -312,6 +312,69 @@ const invoiceRoutes = (invoice, pending = [{ amount: 25000 }]) => ({
   ok("invoicing with no customer is refused", r.status === 400 && r.calls.length === 0);
 }
 
+// ── 3c. 🔴 A DRAFT INVOICE CANNOT BE CHARGED ──────────────────────────────────
+// A newly created invoice is a DRAFT. `auto_advance` finalizes it eventually, but
+// "eventually" is an account setting — Settings → Billing → Invoices → "Invoice
+// finalization grace period", which on this account is ONE HOUR. Charging immediately
+// without finalizing races a dashboard toggle nobody remembers setting.
+{
+  const draft = { id: "in_1", status: "draft", amount_due: 25000, hosted_invoice_url: "https://pay/in_1" };
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" }, {
+    ...invoiceRoutes(draft),
+    "POST invoices/in_1/finalize": { id: "in_1", status: "open", hosted_invoice_url: "https://pay/in_1" },
+  });
+  ok("🔴 a draft invoice is finalized before anything tries to charge it",
+    !!sent(r, "POST", "invoices/in_1/finalize"),
+    "a draft cannot be paid, so without this the charge silently fails and waits on an account setting");
+  ok("and then it is charged", r.data.paid === true && !!sent(r, "POST", "invoices/in_1/pay"));
+  // Read defensively: a missing call must report as a FAILED assertion, not crash the
+  // suite and take every check after it down with it.
+  const fin = sent(r, "POST", "invoices/in_1/finalize");
+  ok("auto_advance stays on, so Stripe is still the backstop",
+    !!fin && fin.params.auto_advance === "true", fin ? JSON.stringify(fin.params) : "finalize was never called");
+}
+{
+  // Finalizing collects it outright when a card is already on file. Paying again would be
+  // a second charge attempt on an invoice that is already settled.
+  const draft = { id: "in_1", status: "draft", amount_due: 25000 };
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" }, {
+    ...invoiceRoutes(draft),
+    "POST invoices/in_1/finalize": { id: "in_1", status: "paid", hosted_invoice_url: "https://pay/in_1" },
+  });
+  ok("🔴 an invoice already paid by finalizing is not charged a second time",
+    !sent(r, "POST", "invoices/in_1/pay"), "that would be a duplicate charge attempt");
+  ok("and it is reported as paid", r.data.paid === true && r.data.invoiceUrl === "https://pay/in_1");
+}
+{
+  // Every step is fail-soft: auto_advance means Stripe gets there without us.
+  const routes = invoiceRoutes({ id: "in_1", status: "draft", amount_due: 25000, hosted_invoice_url: "https://pay/in_1" });
+  // no finalize route -> the call 404s, i.e. throws
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" }, routes);
+  ok("a finalize that fails does not abort the run", r.data.ok === true && r.data.invoiceId === "in_1");
+  ok("it still tries to charge", !!sent(r, "POST", "invoices/in_1/pay"));
+}
+{
+  // An invoice Stripe already finalized needs no finalize call.
+  const r = await call({ action: "invoice-leads", customerId: "cus_1" },
+    invoiceRoutes({ id: "in_1", status: "open", amount_due: 25000 }));
+  ok("an invoice that is already open is not finalized again", !sent(r, "POST", "invoices/in_1/finalize"));
+  ok("and is charged straight away", r.data.paid === true);
+}
+{
+  // 🔴 The ETF shares the exact same helper, so it cannot behave differently.
+  const r = await call({ action: "charge-etf", customerId: "cus_1", subscriptionId: "sub_1", etfFee: 700, clawback: 0 }, {
+    "POST invoiceitems": { id: "ii_1" },
+    "GET subscriptions/sub_1": { id: "sub_1", default_payment_method: "pm_sub" },
+    "POST invoices": { id: "in_1", status: "draft", amount_due: 70000 },
+    "POST invoices/in_1/finalize": { id: "in_1", status: "open" },
+    "POST invoices/in_1/pay": { id: "in_1", status: "paid" },
+    "POST subscriptions/sub_1": { id: "sub_1" },
+  });
+  ok("🔴 the ETF invoice is finalized too", !!sent(r, "POST", "invoices/in_1/finalize"),
+    "it had the identical flaw, and sharing one helper is what stops them drifting apart");
+  ok("and still collects", r.data.paid === true);
+}
+
 // ── 4. The ETF still works, since it now shares the payment-method resolver ───
 {
   const r = await call({ action: "charge-etf", customerId: "cus_1", subscriptionId: "sub_1", etfFee: 700, clawback: 300, clientName: "Apex" }, {
