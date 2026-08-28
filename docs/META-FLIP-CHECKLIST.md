@@ -83,7 +83,7 @@ tested:
 | `rec-notice` | index.html | HTML | The notice shown in the recommender result instead of a booking button |
 | `rec-gate` | index.html | **JS `/* */`** + trailing note | Hides the recommender's "Book a Call" when it lands on a Meta result |
 | `notice` | index.html | HTML | The site-wide coming-soon notice |
-| `get-started` | get-started/index.html | HTML | The coming-soon note on the get-started page |
+| `get-started` | get-started/index.html | HTML | The coming-soon note on the get-started page. **Reworded 2026-08-28**, because this is where paid social traffic lands and the old wording ("Meta is still going through platform approval, estimated October 2026") told people who had just clicked a *Facebook* ad that we could not do Facebook ads. It now reads "Taking on Google Ads clients now. Facebook and Instagram open later this year, and we add them to your account the moment they do." **At flip: delete the whole block, sentinels included.** Nothing in it survives, because the sentence exists only to explain an absence. |
 
 Work them by hand, or match on `CS:META-SOON:START <id>` without assuming the comment syntax.
 `node tests/verify-meta-flip.mjs` refuses to call the site flipped while any marker survives, so

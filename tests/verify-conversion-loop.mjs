@@ -284,5 +284,41 @@ const CLIENT = {
     /k:"grossMarginPct"/.test(UI_CODE) && /campaignSetup\|\|\{\}\)\.grossMarginPct/.test(UI_CODE));
 }
 
+
+// ── 🔴 THE ADS LANDING PAGE ACTUALLY CAPTURES A LEAD ──────────────────────────
+// 2026-08-28: the Meta campaign had 4,360 impressions, 101 clicks, 88 landing page views
+// and ZERO leads. The form worked; the ASK was wrong. Every button on /get-started wanted a
+// 30-minute phone call from someone who had been scrolling Facebook ninety seconds earlier.
+// The free Lead-Leak Check, an automated audit that costs the visitor ten seconds and
+// BoldLine nothing, existed the whole time on the homepage and was absent from the one page
+// paid traffic lands on.
+//
+// This pins the PLUMBING, not the wording. Bryson should be free to rewrite the copy without
+// a test arguing with him; what must not silently break is the path from a submit to a lead.
+{
+  const gs = readFileSync(new URL("../marketing-site/get-started/index.html", import.meta.url), "utf8");
+
+  ok("🔴 the ads landing page offers something that is not a phone call",
+    /id="leakForm"/.test(gs) && /id="lk-website"/.test(gs) && /id="lk-email"/.test(gs),
+    "paid social traffic did not come looking for you, and a 30-minute call is too big a first ask");
+  ok("it posts to the audit endpoint that writes the lead and sends the report",
+    /fetch\('\/\.netlify\/functions\/audit'/.test(gs));
+  // 🔴 Without this every audit lead looks like it came from the homepage, and the one
+  // number that says whether the ad spend is working becomes unreadable.
+  ok("🔴 and tags itself so ad leads are tellable apart from homepage leads",
+    /source:\s*'get-started'/.test(gs));
+  // Meta cannot learn from, or report, a conversion it is never told about.
+  ok("🔴 submitting tells Meta a lead happened", /fbq\('track','Lead'\)/.test(gs));
+  ok("the honeypot came across with it, or the audit inbox fills with bots",
+    /name="company"[^>]*tabindex="-1"/.test(gs));
+
+  // Fewer fields, more submissions. Three is the floor that still identifies a person.
+  const fields = (gs.match(/<input(?![^>]*type="hidden")(?![^>]*tabindex="-1")|<textarea/g) || []).length;
+  ok("the page is not asking for more than it needs", fields <= 6, `${fields} visible fields`);
+  ok("🔴 the call-back form still takes a name, a business and an email",
+    /name="name"[^>]*required/.test(gs) && /name="business"[^>]*required/.test(gs) && /name="email"[^>]*required/.test(gs),
+    "trimming fields must not cost the three that make a lead worth having");
+}
+
 console.log(`verify-conversion-loop: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

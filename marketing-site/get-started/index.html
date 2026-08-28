@@ -219,14 +219,27 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
     <div class="reveal"><span class="eyebrow">Google &amp; Meta Ads · Done For You</span></div>
     <h1 class="reveal d1">More customers.<br><em>Without the guesswork.</em></h1>
     <p class="sub reveal d2">BoldLine plans, builds, and runs your <span class="hl">Google and Meta ad campaigns</span> — plus the landing pages and instant lead follow-up behind them — so you get a steady flow of real leads while you focus on running your business.</p>
-    <!-- CS:META-SOON:START get-started -->
-    <p class="sub reveal d2" style="font-size:15px;opacity:.85"><b>Google Ads is open and taking clients now.</b> Meta (Facebook and Instagram) is still going through platform approval &mdash; estimated October 2026. Book a call either way and we&rsquo;ll start you on Google and add Meta the moment it opens.</p>
-    <!-- CS:META-SOON:END get-started -->
-    <div class="cta-row reveal d3">
-      <a class="btn cal" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Free Strategy Call</a>
+    <!-- The ask, and it is deliberately small. This page is where PAID SOCIAL traffic lands:
+         people who were scrolling ninety seconds ago and did not come looking for us. 88 of
+         them read the old version, which asked for a 30-minute phone call four different
+         ways, and not one got in touch. A free automated audit costs them ten seconds and
+         costs us nothing, and it still gets their website and their email. The call is still
+         here for anyone ready for it, one line down. -->
+    <form class="reveal d3" id="leakForm" style="max-width:430px;margin:26px auto 0;display:flex;flex-direction:column;gap:10px;text-align:left">
+      <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <input id="lk-website" type="text" placeholder="Your website (e.g. yourbusiness.com)" autocomplete="url" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-email" type="email" placeholder="Where should we send it? (email)" autocomplete="email" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <button class="btn cal" type="submit" id="lkBtn" style="margin-top:2px">Show me where I'm losing customers &rarr;</button>
+      <div id="lkMsg" role="status" style="font-size:13px;color:#9CA3AF;min-height:18px;text-align:center"></div>
+    </form>
+    <div class="trust reveal d3">Free, no call required. We read your site and email you the 2 or 3 things costing you the most.</div>
+    <div class="cta-row reveal d3" style="margin-top:14px">
+      <a class="btn-ghost" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Or book a free 30 minute call</a>
       <a class="btn-ghost" href="#how">See how it works</a>
     </div>
-    <div class="trust reveal d3">30 minutes · <b>No pitch, no obligation</b> — just a clear plan for your business.</div>
+    <!-- CS:META-SOON:START get-started -->
+    <div class="trust reveal d3" style="opacity:.7;font-size:13px">Taking on Google Ads clients now. Facebook and Instagram open later this year, and we add them to your account the moment they do.</div>
+    <!-- CS:META-SOON:END get-started -->
     <div class="marquee reveal d3">
       <span><span class="dot"></span>Google Search</span>
       <span><span class="dot"></span>Facebook &amp; Instagram</span>
@@ -293,8 +306,6 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
         <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" required></div>
         <div class="frow"><label for="lf-biz">Business</label><input id="lf-biz" type="text" name="business" required></div>
         <div class="frow"><label for="lf-email">Email</label><input id="lf-email" type="email" name="email" required></div>
-        <div class="frow"><label for="lf-phone">Phone</label><input id="lf-phone" type="tel" name="phone"></div>
-        <div class="frow"><label for="lf-msg">What's your biggest challenge right now?</label><textarea id="lf-msg" name="message"></textarea></div>
         <button class="btn" type="submit" id="lfSubmit">Send &amp; Get a Call Back</button>
       </form>
 
@@ -445,6 +456,26 @@ window.BL_TRACK = {
   // The backup form. Netlify posts it normally, so fire just before it leaves.
   var form = document.querySelector('form[name="get-started"]');
   if(form) form.addEventListener('submit', function(){ window.blConversion('form'); });
+})();
+</script>
+
+<script>
+(function(){
+  var f=document.getElementById('leakForm'); if(!f) return;
+  var EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var w=document.getElementById('lk-website'),em=document.getElementById('lk-email'),b=document.getElementById('lkBtn'),m=document.getElementById('lkMsg');
+    var website=(w.value||'').trim(),email=(em.value||'').trim();
+    if(f.company&&f.company.value){return;}
+    if(!website){m.textContent='Please add your website.';return;}
+    if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
+    b.disabled=true;var old=b.textContent;b.textContent='Sending...';m.textContent='';
+    if(window.fbq)fbq('track','Lead');
+    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'get-started'})})
+      .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way, and it lands within one business day.</div>';})
+      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
+  });
 })();
 </script>
 </body>
