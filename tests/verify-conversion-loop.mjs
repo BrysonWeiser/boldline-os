@@ -307,8 +307,24 @@ const CLIENT = {
   // number that says whether the ad spend is working becomes unreadable.
   ok("🔴 and tags itself so ad leads are tellable apart from homepage leads",
     /source:\s*'get-started'/.test(gs));
-  // Meta cannot learn from, or report, a conversion it is never told about.
-  ok("🔴 submitting tells Meta a lead happened", /fbq\('track','Lead'\)/.test(gs));
+  // 🔴 THE PAGE HAS ONE TRACKER AND EVERY LEAD PATH MUST GO THROUGH IT.
+  // `blConversion` reports to GA4, to Google Ads AND to Meta, and dedupes. The first version
+  // of the audit form called fbq('track','Lead') directly, which told Meta and told GA4 and
+  // Google Ads nothing at all. Caught 2026-08-28 by Bryson asking whether tracking still
+  // worked. A second implementation of one thing is how half of it silently stops happening.
+  ok("🔴 the audit form reports through the page's own tracker, not a hand-rolled call",
+    /blConversion\('audit'\)/.test(gs),
+    "a raw fbq call reaches Meta only, so GA4 and Google Ads never hear about the lead");
+  // 🔴 Comments stripped first. The comment EXPLAINING why the hand-rolled call was wrong
+  // quotes the hand-rolled call, and the naive check matched it. KB `repo-tests` records
+  // this exact trap; it has now caught me five times.
+  const gsCode = gs.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  ok("and it does not bypass it with a direct pixel call",
+    !/fbq\('track','Lead'\)/.test(gsCode),
+    "the only fbq lead call on the page should be the one inside blConversion");
+  ok("the shared tracker still reaches all three, or routing to it buys nothing",
+    /gtag\('event', 'generate_lead'/.test(gs) && /send_to: T\.googleAdsId/.test(gs) && /fbq\('track', kind/.test(gs));
+  ok("and it still refuses to count the same visitor twice", /if\(fired\[kind\]\) return;/.test(gs));
   ok("the honeypot came across with it, or the audit inbox fills with bots",
     /name="company"[^>]*tabindex="-1"/.test(gs));
 

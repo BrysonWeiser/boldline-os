@@ -36,3 +36,49 @@ verified: 2026-08-13
 **Meta:** Events Manager → Datasets → the **Web** dataset (not an app one) → copy its ID into `metaPixelId`. Verify with the **Test events** tab: load `/get-started`, expect a `PageView` row marked Processed / Browser. (Meta client campaigns are still gated on App Review — KB `meta-marketing-api` — but the pixel can collect from day one.)
 
 **Verified 2026-08-13 — 12 page cases** (hermetic; tag scripts blocked, assertions on the gtag/fbq queues): tracker installs, no pixel loads with an empty id, a booking fires GA4 but sends no Google Ads conversion while unconfigured, viewing / selecting a time counts nothing, with IDs pasted the booking sends `AW-…/bookLabel` + Meta `Schedule`, a repeat booking does not double-count, and the form fires with its own label + Meta `Lead`. Plus **40 autopilot cases** including the new tracking gate (no pause without proof, one warning not repeated every 2h, and normal pausing restored once a conversion exists).
+
+
+## 🔴 2026-08-28 — A THIRD LEAD PATH WAS ADDED AND IT BYPASSED THE TRACKER
+
+The ads page gained a free-audit form as its hero ask (KB `ads-page-conversion`). Its submit
+handler was written with a hand-rolled `fbq('track','Lead')` instead of calling the page's own
+`blConversion()`.
+
+**So the audit lead told Meta and told GA4 and Google Ads nothing at all**, and skipped the
+`fired[kind]` dedupe, so a double-tap would have counted twice in Meta.
+
+Caught only because Bryson asked *"the lead tracking still works on the landing page right?"*
+Nothing else would have surfaced it: the lead still reached the backend, the pixel still
+fired, and every screen looked fine. **This is the same shape as every other drift in this
+repo: a second implementation of one thing, where half of it silently stops happening.**
+
+Fixed to `blConversion('audit')`, which is also better data than reusing `'form'` because GA4
+records the method and the two paths stay tellable apart. There is no separate Google Ads
+label for it, so it falls back to `bookLabel` exactly as `'form'` does.
+
+**Rule: every lead path on this page goes through `blConversion`. Never call `gtag` or `fbq`
+directly.** Pinned in `verify-conversion-loop.mjs`, which now asserts the audit form routes
+through the tracker, that no raw `fbq('track','Lead')` survives, that the tracker still
+reaches all three, and that the dedupe is intact. Four mutations, all caught.
+
+### Two harness traps hit while verifying this
+
+Both are the "harness differs from production" family (KB `repo-tests`), and both nearly
+produced a false answer.
+
+1. **A `gtag` spy set in `addInitScript` is overwritten.** The page declares
+   `function gtag(){dataLayer.push(arguments)}` at parse time, which wins. The first browser
+   run reported GA4 and Google Ads as NOT firing when they were firing perfectly. **Read
+   `window.dataLayer` instead** — that is what gtag actually does and what production records.
+   (An `fbq` stub survives, because `loadPixel` returns early when `window.fbq` already
+   exists.)
+2. **The comment explaining why the hand-rolled call was wrong quotes the hand-rolled call**,
+   and the source check matched my own comment. Strip comment lines first. `repo-tests`
+   already records this trap; it has now caught me five times.
+
+**How to verify this end to end:** serve `marketing-site/` over local HTTP, open
+`/get-started` in Playwright's Chromium at `/opt/pw-browsers/chromium`, abort
+`connect.facebook.net` and `googletagmanager.com`, intercept `**/.netlify/functions/**` and
+fulfil it, fill `#lk-website` and `#lk-email`, click `#lkBtn`, then read both `window.dataLayer`
+and the `fbq` stub. A passing run shows the lead posted to `audit` plus `generate_lead`,
+`conversion` with the `AW-` send_to, and `fbq track Lead`.
