@@ -70,6 +70,25 @@ ok("createContext is still destructured", have.has("createContext"));
 const surplus = [...have].filter((h) => REACT_HOOKS.includes(h) && !used.includes(h));
 ok("no hook is destructured that the app never calls", surplus.length === 0, `unused: ${surplus.join(", ")}`);
 
+
+// ── 🔴 THE PRESET LINE, WHICH IS TWO THIRDS OF THE LOAD TIME ──────────────────
+// The browser compiles the entire app on every page load. Adding "env" to the preset list
+// makes Babel additionally rewrite every modern JavaScript feature down to 2015 syntax,
+// for browsers nobody uses. Measured in a real browser rendering the actual sign-in
+// screen: env,react took 10.5 s to first render, react alone took 3.5 s. Same app, no
+// errors either way. It is the cheapest three-fold speedup this codebase will ever get,
+// and it is one word, which is exactly why it needs pinning.
+{
+  const m2 = S.match(/<script type="text\/babel"[^>]*data-presets="([^"]*)"/);
+  ok("the babel script block declares its presets", !!m2, "no data-presets found");
+  if (m2) {
+    const presets = m2[1].split(",").map((x) => x.trim()).filter(Boolean);
+    ok("🔴 the env preset is not loaded", !presets.includes("env"),
+      `presets are "${m2[1]}" — env triples the time before anything appears on screen`);
+    ok("the react preset still is, or none of the JSX compiles", presets.includes("react"));
+  }
+}
+
 // ── 🔴 AND THE OTHER WAY TO BLANK THE WHOLE APP: BAD JSX ──────────────────────
 // The undefined-hook bug above kills one component. A syntax error in the JSX kills the
 // ENTIRE page, because the browser compiles this one script block at load time and a

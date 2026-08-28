@@ -21,9 +21,17 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
-import Babel from "@babel/standalone";
+// 🔴 THE REAL PARSER PACKAGES, NOT `@babel/standalone`'s INTERNALS. This used to reach
+// into `Babel.packages`, which exists in Babel 8 but not in 7.23.5 — the version the
+// browser actually loads, and therefore the version pinned for the boot suite. A test that
+// only runs on a different version of the tool than production is the same harness mistake
+// as the useMemo crash, one dependency further out.
+import { parse } from "@babel/parser";
+import _traverse from "@babel/traverse";
 
-const { parser, traverse } = Babel.packages;
+const parser = { parse };
+// The CJS default-interop shape differs between the standalone build and the real package.
+const traverse = typeof _traverse === "function" ? _traverse : _traverse.default;
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 let pass = 0, fail = 0;
@@ -74,7 +82,7 @@ for (const rel of FILES) {
   // CommonJS files get the module wrapper's own names.
   const extra = isCjs ? ["require", "module", "exports", "__dirname", "__filename"] : [];
 
-  traverse.default(ast, {
+  traverse(ast, {
     ReferencedIdentifier(path) {
       const name = path.node.name;
       if (GLOBALS.has(name) || extra.includes(name)) return;

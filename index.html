@@ -33,7 +33,19 @@
       el.textContent='ERROR line '+l+' col '+c+':\n'+m+'\n\n'+(e?e.stack:'');
     };
   </script>
-  <script type="text/babel" data-presets="env,react">
+  <!-- 🔴 "react" ONLY. NEVER PUT "env" BACK. Bryson, 2026-08-27: "is there a way we can
+       optimize the os so it loads faster?" This one word was two thirds of the wait.
+       The browser compiles all ~1.1 MB of the app below on EVERY page load, and `env`
+       additionally rewrites every modern JavaScript feature down to what a 2015 browser
+       understood. Measured in a real browser, rendering the actual sign-in screen:
+         env,react -> 10.5 s to first render
+         react     ->  3.5 s to first render
+       Nothing else changed, no errors either way. The cost is that the OS now needs a
+       browser from roughly 2020 or later, which is every browser Bryson owns and every
+       browser that could run this app acceptably anyway.
+       The remaining 3.5 s is Babel compiling in the browser at all; the fix for THAT is
+       compiling once at deploy instead, which also drops a 2.8 MB download. -->
+  <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useMemo, useCallback, useContext, createContext } = React;
 
 // ─── SUPABASE (auth + database) ───────────────────────────────────────────────
