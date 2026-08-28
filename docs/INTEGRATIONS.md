@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 133 task-keyed entries under `knowledge/`. They surface automatically via the
+> 134 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**133 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**134 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -207,6 +207,9 @@
 - **[email-list-newsletter](../knowledge/email-list-newsletter.md)** &mdash; &#9989; verified &middot; 2026-08-05  
   boldlinemedia.com has an email-list signup (Bryson, 2026-07-25) — a "Free Newsletter" band on the homepage footer + every blog page (blog-render footerHTML). It POSTs to netlify/functions/subscribe.mjs which (1) adds the contact to Resend's account-level Contacts (POST /contacts — NO audience_id) AND assigns it to the RESEND_SEGMENT_ID segment, and (2) writes a durable backup row to website_leads (form:"newsletter"). The OS filters newsletter rows out of the sales-Leads list. CRITICAL: the marketing site's RESEND_API_KEY must be FULL ACCESS — a "sending only" key 401s on /contacts ("restricted to only send emails") and silently drops every signup from Resend (fixed 2026-08-05). SENDING is now LIVE (domain verified; see newsletter-emails / domain-dns-wix).  
   <sub>*task:* the website email list / newsletter signup — where it lives, how it stores subscribers (Resend Audience + website_leads backup), and Bryson's setup steps &nbsp;|&nbsp; *keywords:* email list, newsletter, subscribe, signup, mailing list, resend audience, broadcast, RESEND_AUDIENCE_ID, subscribe.mjs, nl-signup, blSubscribe</sub>
+- **[founding-offer](../knowledge/founding-offer.md)** &mdash; &#9989; verified &middot; 2026-08-28  
+  The setup fee ($1,500 to $4,900) is waived for BoldLine's first three clients. Bryson decided this 2026-08-27 and asked for it to be advertised; it was on NO page until 2026-08-28. Now a banner on the homepage hero and on the ads landing page, sentinel-wrapped so both come out together when the third client signs.  
+  <sub>*task:* change or remove the founding-client setup-fee waiver on the website &nbsp;|&nbsp; *keywords:* founding client, setup fee waived, CS:FOUNDING, first three clients, free build, scarcity claim, FOUNDING-OFFER.md, waiver banner</sub>
 - **[ga4-analytics](../knowledge/ga4-analytics.md)** &mdash; &#9989; verified &middot; 2026-07-22  
   GA4 web tracking set up 2026-07-22 for boldlinemedia.com — property "BoldLine Media", Web stream "BoldLine Media Web" (Stream ID 15301155601, Measurement ID G-MG7T0687RT), Enhanced measurement ON. gtag hardcoded in marketing-site/index.html <head> (measurement IDs are PUBLIC). GA4-DATA-IN-THE-OS is now BUILT (2026-07-23): a "Site Analytics" card on the OS Website tab pulls last-28-day traffic via the Analytics Data API. Awaits two Netlify env vars (GA4_PROPERTY_ID + GA4_SERVICE_ACCOUNT_JSON) + service-account added as Viewer on the property to go live.  
   <sub>*task:* manage GA4 analytics on the marketing site and (pending) surface GA4 data inside the OS &nbsp;|&nbsp; *keywords:* ga4, google-analytics, gtag, measurement-id, G-MG7T0687RT, analytics-data-api, marketing-site</sub>
