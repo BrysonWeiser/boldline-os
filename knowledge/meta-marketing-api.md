@@ -118,3 +118,39 @@ Stripe/Mercury. Walk him through click-by-click and screenshot anything ambiguou
 - **(earlier same day) CHECKPOINT UI 2026-07-27:** the FIRST Security check offered ONLY the on-file 602 number — **no "use a different number", no email, no ID-upload option**, jumped straight to the number. So a clean SIM alone isn't enough; you must first **swap the number on the Facebook account** so the checkpoint has a new number to text. PROCEDURE for the retry (once a clean SIM exists): accountscenter.facebook.com → Password and security / Personal details → Contact info → Phone numbers → ADD + verify the new number (code to the SIM) → remove/replace the 602 number → THEN developers.facebook.com → Confirm Account → Security check should now text the new number. Caveat: Meta checkpoints can cling to the old number even after the swap; if so, only the flag cooling (weeks) unblocks it.
 
 **SUPPORT-TICKET ROUTE = DEAD END (confirmed 2026-07-23).** Tried developer support → "Errors while submitting for App Review" → "Report a bug" → landed on **"No access to Platform Bug Reporting Tool"** (requires an Admin/Developer role on an app >24h old — access the unconfirmed/restricted dev account doesn't currently grant). Catch-22: the confirmation block strips the access needed to file a report about the confirmation block. Only pointer offered is the public Developer Community Forum (won't resolve an account-confirmation flag). CONCLUSION: no viable Meta support channel while unconfirmed. The ONLY real paths remain (a) wait for the "too many accounts" phone flag to cool then retry Confirm Account, or (b) a clean unused-on-Meta mobile number. Do not re-attempt the support-ticket route.
+
+
+## 📅 2026-08-28 — RESUBMISSION SCHEDULED, AND WHY NOT SOONER
+
+His Meta campaign started **20 Aug 2026** at about $7/day. That puts the 15-day API-activity
+bar (the reason the tier request was refused) at **4 Sep**. The `ads-sync` job also hits Meta
+**hourly** for the linked house account, so real API traffic has been accumulating on its own
+regardless of spend.
+
+**The ads_read rejection is already fixed by circumstance.** That one failed because the
+screencast showed static placeholder numbers; the reviewer wanted live impressions, clicks,
+reach, spend **and conversions** for a real account. By 28 Aug the house account had genuine
+numbers flowing into the OS: **4,360 impressions, 101 clicks (2.3% CTR, roughly double the
+Meta norm), 88 landing page views, $52 spent**. Record the My Ads → Live Ad Performance card,
+not a mock.
+
+**🔴 One column is still empty, and it is the one the reviewer named: CONVERSIONS.** Zero, at
+28 Aug. So the deliberate choice was **not** to resubmit at the 4 Sep earliest date, but to
+wait past it: the ads landing page was rebuilt the same day (see KB `ads-page-conversion`) to
+swap a 30-minute-call ask for a two-field free audit, and the resubmission is worth far more
+showing a campaign that **produces** than one that merely runs. A rejection costs weeks; ten
+more days costs nothing.
+
+**Scheduled: Thu 10 Sep 2026, 09:00 Phoenix** — trigger `trig_01HdzRpY84831ECeuqgCiJAc`,
+fires a fresh session with the full brief. **The reminder is a backstop, not the record.**
+
+**Two changes to make on the form when resubmitting:**
+1. **Drop the `ads_read` request entirely.** `ads_management` is already approved and is a
+   superset. Asking again only hands them something else to reject.
+2. **Say explicitly that the app is server-to-server** — scheduled, system user, no end user
+   ever logs in. The reviewer read it as a consumer app last time.
+
+**If leads are STILL zero on 10 Sep**, do not simply wait again. Two weeks on the new page
+with nothing is a real signal about the offer or the audience and deserves proper diagnosis.
+Also reconsider resubmitting anyway at that point, since the API-call bar is long cleared and
+the tier request may carry on that alone.
