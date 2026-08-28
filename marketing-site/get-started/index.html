@@ -471,7 +471,13 @@ window.BL_TRACK = {
     if(!website){m.textContent='Please add your website.';return;}
     if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
     b.disabled=true;var old=b.textContent;b.textContent='Sending...';m.textContent='';
-    if(window.fbq)fbq('track','Lead');
+    // 🔴 blConversion, NOT a raw fbq call. The page already has one tracker that reports a
+    // lead to GA4, to Google Ads AND to Meta, and dedupes so a double-tap is not two leads.
+    // The first version of this audit form fired fbq('track','Lead') by hand, which told
+    // Meta and told GA4 and Google Ads nothing. Caught 2026-08-28 when Bryson asked whether
+    // lead tracking still worked on the page. A second implementation of one thing is how
+    // half of it silently stops happening.
+    try { if(window.blConversion) blConversion('audit'); } catch(e){}
     fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'get-started'})})
       .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way, and it lands within one business day.</div>';})
       .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
