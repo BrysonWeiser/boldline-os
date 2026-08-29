@@ -323,6 +323,64 @@ t("no old dash-joined sentence survives in either copy of the portal", () => {
   assert.equal(offenders.length, 0, `old dashed copy is back: ${offenders.join("; ")}`);
 });
 
+// ── 🔴 THE MARKETING SITE, READ THE WAY A VISITOR READS IT ───────────────
+//
+// The portal check above was written 2026-08-27 after a dozen dashes shipped in the one
+// page a client reads end to end. The marketing site is the page a STRANGER reads end to
+// end, and it had fifty of them, including in the hero paragraph and on every price card.
+// KB `dedash-ai-voice` claimed the site had already been done. It had not, which is the
+// whole argument for a check over a memory.
+//
+// Read the way a visitor reads it, which is the same discipline as the portal check.
+// Each strip below was verified by removing it and watching this check fail:
+//   · <style> and <script> come out, and they are the big ones. Two thirds of the dashes in
+//     this file sit in CSS and JS comments that no reader ever sees. Leaving them in floods
+//     the result with noise, which is exactly why a naive grep gets ignored and fifty real
+//     ones survived in the copy.
+//   · HTML comments come out too. A single-line one is already eaten by the tag stripper,
+//     but a comment spanning lines with a `>` inside it is not, and the sentinel blocks in
+//     this file are precisely that shape.
+//   · Entities are decoded. Most of the site's dashes were written `&mdash;`, so a scan for
+//     the character alone sees none of them.
+const visibleText = (html) => html
+  .replace(/<!--[\s\S]*?-->/g, " ")
+  .replace(/<script[\s\S]*?<\/script>/gi, " ")
+  .replace(/<style[\s\S]*?<\/style>/gi, " ")
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&mdash;/g, "—").replace(/&ndash;/g, "–")
+  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&rsquo;/g, "'")
+  .replace(/\s+/g, " ");
+
+// 🔴 Proven against the real thing before it was trusted: run on the file as it stood
+// before this cleanup it reported 35 offenders, and every one was visible on screen.
+t("no dash connects a sentence anywhere on the marketing site", () => {
+  const offenders = [];
+  for (const f of ["../marketing-site/index.html", "../marketing-site/get-started/index.html"]) {
+    const text = visibleText(readFileSync(new URL(f, import.meta.url), "utf8"));
+    for (const m of text.matchAll(/[^.!?]{0,45}[—–][^.!?]{0,45}/g)) {
+      const s = m[0].trim();
+      // Package NAMES are Bryson's product names, not copy this suite may rewrite.
+      if (/Full System [—–]/.test(s)) continue;
+      offenders.push(`${f.split("/").slice(-2).join("/")}: ${s}`);
+    }
+  }
+  assert.equal(offenders.length, 0,
+    `the site reads as AI-written here:\n        ${[...new Set(offenders)].join("\n        ")}`);
+});
+
+// The stripper itself has to be honest. If `visibleText` ever over-stripped (say a bad
+// regex ate the body), the check above would pass on an empty string forever — a test that
+// cannot fail, which this project has shipped twice already (KB `repo-tests`).
+t("the visible-text reader really does see the page copy", () => {
+  const text = visibleText(readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8"));
+  assert.ok(text.length > 8000, `only extracted ${text.length} characters of page copy`);
+  assert.ok(/Book a Call/i.test(text), "the main call to action is missing from the extracted text");
+  assert.ok(/qualified lead/i.test(text), "the pricing copy is missing from the extracted text");
+  // And it must NOT see the things a reader cannot see, or the check drowns in CSS notes.
+  assert.ok(!/compositor-only cascade/.test(text), "CSS comments leaked into the visible text");
+  assert.ok(!/IntersectionObserver/.test(text), "script bodies leaked into the visible text");
+});
+
 // ── The OS carries its own copy, and it must behave identically ──────────
 t("the browser-side humanizer matches the server", () => {
   const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
