@@ -553,7 +553,12 @@ PUBLIC_PKGS.forEach((p) => {
     ok(`${p.id} says there is no monthly fee`, /no monthly fee/i.test(c.perf), c.perf);
     ok(`${p.id} says it is paid once`, /paid once/i.test(c.perf), c.perf);
   } else
-  ok(`${p.id} states the greater-of rule on the site`, /whichever is higher, never both/.test(c.perf), c.perf);
+  // Both halves, checked separately. The dash cleanup on 2026-08-29 split this from one
+  // comma-joined clause into two sentences, and a single regex pinned to the old punctuation
+  // would have forced the copy back rather than the copy forcing the test. What must survive
+  // is the MEANING: it is the greater of the two, and they are never charged together.
+  ok(`${p.id} states the greater-of rule on the site`, /whichever is higher/i.test(c.perf), c.perf);
+  ok(`${p.id} says the two fees are never both charged`, /never both/i.test(c.perf), c.perf);
   if (isOneTime(p)) { /* no performance half to check */ }
   else if (p.pricingModel === "ad_spend_pct")
     ok(`${p.id} quotes ${p.adSpendPct}% of ad spend on the site`, c.perf.includes(`${p.adSpendPct}% of your ad spend`), c.perf);
