@@ -245,5 +245,51 @@ const inv = (o) => {
 }
 
 
+// ── 🔴 "AUTOMATIC" MUST NOT BE A LIE ─────────────────────────────────────────
+//
+// Bryson, 2026-08-30, after sending by hand an email that sends itself: *"set in the emails
+// tab which ones are automatic (but I can still view or send manually) and the ones I have
+// to send myself"*. Eight of the ten send themselves, so without the label the tab reads as
+// ten jobs waiting on him.
+//
+// A WRONG label is worse than none, in both directions: "Automatic" on something no job
+// sends means a client silently never gets it, and "You send this" on something automatic
+// is how the duplicate welcome happened in the first place. So the flag is checked against
+// the REAL senders rather than trusted.
+{
+  const senderSrc = ["stripe-webhook", "billing-watch", "client-nurture", "docusign-watch"]
+    .map((f) => readFileSync(join(ROOT, `netlify/functions/${f}.mjs`), "utf8")).join("\n")
+    // docusign-watch names its email in the decision module, not at the call site.
+    + readFileSync(join(ROOT, "netlify/lib/docusign-status.mjs"), "utf8");
+
+  // Every type a sender actually names, discovered from source rather than listed by hand,
+  // so an email that becomes automatic later is caught instead of quietly mislabelled.
+  const namedByASender = new Set(
+    [...senderSrc.matchAll(/autoSendClientEmail\([^,]+,\s*"([a-z_]+)"/g)].map((m) => m[1])
+      .concat([...senderSrc.matchAll(/email:\s*"([a-z_]+)"/g)].map((m) => m[1])),
+  );
+  ok("the senders were actually found", namedByASender.size >= 7, [...namedByASender].join(", "));
+
+  for (const t of EMAIL_TYPES) {
+    if (t.auto) {
+      ok(`🔴 ${t.id} is labelled Automatic and a job really does send it`,
+        namedByASender.has(t.id),
+        "the tab promises this sends itself and nothing sends it, so the client never gets it");
+      ok(`and ${t.id} says WHEN, which is the useful half`,
+        typeof t.auto === "string" && t.auto.length > 6, JSON.stringify(t.auto));
+    } else {
+      ok(`🔴 ${t.id} is labelled as his to send and no job sends it`,
+        !namedByASender.has(t.id),
+        "the tab says he must send this, but a job also sends it, so the client gets it twice");
+    }
+  }
+
+  // The two he genuinely owns, pinned by name. If either ever becomes automatic this fails
+  // and forces the label to be updated rather than left behind.
+  const mine = EMAIL_TYPES.filter((t) => !t.auto).map((t) => t.id).sort();
+  same("exactly the invoice and the thank-you are his to send", mine, ["invoice", "thank_you"]);
+}
+
+
 console.log(`verify-client-emails: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

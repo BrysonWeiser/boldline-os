@@ -911,6 +911,12 @@ function emailAutoPatch(type, client, iso){
   const patch = fn(client||{}, iso||new Date().toISOString());
   return patch && Object.keys(patch).length ? patch : null;
 }
+function emailAutoRecorded(type, client){
+  const patch = emailAutoPatch(type, client, "x");
+  if(!patch) return false;
+  const ea = (client||{}).emailAuto || {};
+  return Object.keys(patch).filter(k=>!/At$/.test(k)).every(k=>ea[k]===patch[k]);
+}
 
 const lcHas = (v) => !!String(v==null?"":v).trim();
 function launchChecklist(client){
@@ -5435,6 +5441,16 @@ function EmailCenterTab({client,pkg,onUpdate}) {
     catch(e){ setMsg(e.message); }
     setBusy(false);
   };
+  // 🔴 Records an email as sent WITHOUT sending it. For one that went out from his own
+  // inbox, or by hand before the recording fix shipped. Without it the automatic sender
+  // fires a duplicate later, and anything gated on the flag never starts.
+  const markSent=(t)=>{
+    const patch=emailAutoPatch(t.id,client);
+    if(!patch) return;
+    onUpdate&&onUpdate({...client,emailAuto:{...(client.emailAuto||{}),...patch},
+      commLog:[{date:fmt(new Date()),note:`Marked "${t.label}" as already sent (sent outside the OS)`,cat:"update",ts:Date.now()},...(client.commLog||[])]});
+    setMsg(`✓ Recorded "${t.label}" as already sent. Nothing was emailed, and it will not send itself now.`);
+  };
   const send=async()=>{
     if(!open) return;
     if(!client.email){ setMsg("Add the client's email on the Overview tab first."); return; }
@@ -5477,9 +5493,26 @@ function EmailCenterTab({client,pkg,onUpdate}) {
             <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:11,backgroundColor:C.bg3,border:`1px solid ${C.border}`}}>
               <div style={{fontSize:20,flexShrink:0}}>{t.icon}</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.text}}>{t.label}{sentId===t.id&&<span style={{color:C.green,fontWeight:700,fontSize:11,marginLeft:8}}>✓ sent</span>}</div>
-                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{t.desc}</div>
+                <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{t.label}</div>
+                  {/* Automatic vs yours. Eight of the ten send themselves, so without this
+                      the tab reads as ten jobs waiting on him. */}
+                  <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",whiteSpace:"nowrap",borderRadius:6,padding:"2px 6px",
+                    color:t.auto?C.green:C.gold,backgroundColor:(t.auto?C.green:C.gold)+"1a",border:`1px solid ${(t.auto?C.green:C.gold)}44`}}>{t.auto?"Automatic":"You send this"}</span>
+                  {emailAutoRecorded(t.id,client)&&<span style={{fontSize:9,fontWeight:700,color:C.textMuted}}>✓ already sent</span>}
+                  {sentId===t.id&&<span style={{color:C.green,fontWeight:700,fontSize:11}}>✓ sent</span>}
+                </div>
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>
+                  {t.auto?<span style={{color:C.green}}>Sends itself {t.auto}. </span>:null}{t.desc}</div>
               </div>
+              {/* 🔴 For an email sent OUTSIDE the OS (his own inbox, or by hand before the
+                  recording fix shipped). Without this the automatic sender fires a
+                  DUPLICATE later, and anything gated on the flag never starts. Only shown
+                  where it would actually change something: a type with no flag, or one
+                  already recorded, gets no button rather than a reassuring no-op. */}
+              {emailAutoPatch(t.id,client)&&!emailAutoRecorded(t.id,client)&&(
+                <button onClick={()=>markSent(t)} disabled={busy} title="Records it as sent without emailing anything" style={{flexShrink:0,padding:"7px 10px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:busy?"default":"pointer",opacity:busy?.6:1}}>Already sent</button>
+              )}
               <button onClick={()=>preview(t)} disabled={busy} style={{flexShrink:0,padding:"7px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:busy?"default":"pointer",opacity:busy?.6:1}}>Preview</button>
             </div>
           ))}

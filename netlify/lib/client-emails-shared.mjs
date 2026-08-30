@@ -285,17 +285,28 @@ const T = {
 };
 
 // public catalog for the OS UI
+//
+// 🔴 `auto` IS THE TRIGGER, IN HIS WORDS, OR null IF HE HAS TO SEND IT HIMSELF.
+// Bryson, 2026-08-30: *"set in the emails tab which ones are automatic (but I can still
+// view or send manually) and the ones I have to send myself"*. He had just sent one by
+// hand that sends itself, so the list looked like ten jobs when eight of them are nobody's.
+// Every one of these is still previewable and still sendable by hand; `auto` only says
+// whether it ALSO goes out on its own.
+//
+// A test pins each value against the real senders, so this cannot drift into a label that
+// says "automatic" about something no job sends. That check is the whole point: a wrong
+// label here is worse than no label, because he would stop watching for it.
 export const EMAIL_TYPES = [
-  { id: "welcome", label: "Welcome + Portal", icon: "👋", desc: "Sent right after they sign — warm welcome + portal login + what's next." },
-  { id: "onboarding_access", label: "Ad Account Access", icon: "🔑", desc: "Asks the client to grant BoldLine manager access to their ad account." },
-  { id: "contract_signed", label: "Contract Signed", icon: "✅", desc: "Confirmation that their agreement is signed and on file." },
-  { id: "invoice", label: "Invoice", icon: "🧾", desc: "Branded invoice with a secure Pay-online button (setup + monthly)." },
-  { id: "receipt", label: "Payment Receipt", icon: "💳", desc: "Thank-you + confirmation after a successful payment." },
-  { id: "past_due", label: "Payment Past-Due", icon: "⏰", desc: "Polite heads-up that a payment didn't process, with an update link." },
-  { id: "renewal", label: "Renewal Reminder", icon: "🔄", desc: "Nudge before the term ends — keep the campaigns running." },
-  { id: "thank_you", label: "Thank-You / Offboarding", icon: "🙏", desc: "Gracious wrap-up when a contract ends and isn't renewed." },
-  { id: "onboarding_nudge", label: "Onboarding Nudge", icon: "⏳", desc: "Auto-nudges a new client to finish their intake so campaigns can launch (day 2 + 5)." },
-  { id: "lead_milestone", label: "Lead Milestone", icon: "🎉", desc: "Auto-celebrates a client hitting a lead milestone (10 / 25 / 50 / 100…)." },
+  { id: "welcome", label: "Welcome + Portal", icon: "\u{1F44B}", auto: "when they pay", desc: "Sent right after they sign \u2014 warm welcome + portal login + what's next." },
+  { id: "onboarding_access", label: "Ad Account Access", icon: "\u{1F511}", auto: "a day after the welcome", desc: "Asks the client to grant BoldLine manager access to their ad account." },
+  { id: "contract_signed", label: "Contract Signed", icon: "\u2705", auto: "the moment they sign", desc: "Confirmation that their agreement is signed and on file." },
+  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup + monthly)." },
+  { id: "receipt", label: "Payment Receipt", icon: "\u{1F4B3}", auto: "when a payment goes through", desc: "Thank-you + confirmation after a successful payment." },
+  { id: "past_due", label: "Payment Past-Due", icon: "\u23F0", auto: "when a payment fails", desc: "Polite heads-up that a payment didn't process, with an update link." },
+  { id: "renewal", label: "Renewal Reminder", icon: "\u{1F504}", auto: "30 days before the term ends", desc: "Nudge before the term ends \u2014 keep the campaigns running." },
+  { id: "thank_you", label: "Thank-You / Offboarding", icon: "\u{1F64F}", auto: null, desc: "Gracious wrap-up when a contract ends and isn't renewed." },
+  { id: "onboarding_nudge", label: "Onboarding Nudge", icon: "\u23F3", auto: "day 2 and day 5, until intake is done", desc: "Auto-nudges a new client to finish their intake so campaigns can launch (day 2 + 5)." },
+  { id: "lead_milestone", label: "Lead Milestone", icon: "\u{1F389}", auto: "when they hit 10, 25, 50, 100 leads", desc: "Auto-celebrates a client hitting a lead milestone (10 / 25 / 50 / 100\u2026)." },
 ];
 
 // ── 🔴 WHAT A HAND-SENT EMAIL HAS TO RECORD ──────────────────────────────────
@@ -337,6 +348,18 @@ export function emailAutoPatch(type, client, iso = new Date().toISOString()) {
   if (!fn) return null;
   const patch = fn(client || {}, iso);
   return patch && Object.keys(patch).length ? patch : null;
+}
+
+// Whether this email is ALREADY recorded as sent on the client. Used to decide whether
+// offering "mark as already sent" would mean anything: a button that silently changes
+// nothing is worse than no button, because it is pressed and believed.
+export function emailAutoRecorded(type, client) {
+  const patch = emailAutoPatch(type, client, "x");
+  if (!patch) return false;
+  const ea = (client || {}).emailAuto || {};
+  // `welcomeAt` is a timestamp, so only the boolean-ish keys decide "already recorded".
+  // Comparing the timestamp would make this always false and the button never disappear.
+  return Object.keys(patch).filter((k) => !/At$/.test(k)).every((k) => ea[k] === patch[k]);
 }
 
 export function renderClientEmail(type, ctx = {}) {
