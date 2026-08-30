@@ -33,11 +33,25 @@ export function launchChecklist(client) {
 
   const steps = [
     {
-      id: "signed", owner: "you", label: "Agreement signed",
+      id: "signed",
+      // 🔴 THE OWNER FLIPS ONCE IT IS SENT, AND THAT IS THE WHOLE POINT OF THIS STEP.
+      // Before an envelope exists, the person who has to move is Bryson. After it is sent,
+      // he is waiting on the client, which puts this in `waitingOnThem` where the things
+      // that need chasing live. Observed from the envelope id, never stored, same rule as
+      // every other step here.
+      //
+      // This step used to be `manual: true` and told him to email a PDF and take acceptance
+      // by reply. That was true the day it was written and stopped being true two days
+      // later when the DocuSign watcher shipped (KB `docusign-signature-watch`): a job now
+      // polls the envelope every 15 minutes, sets `contractSigned` itself, alerts him and
+      // emails the client. Caught on the morning his first real client signed, after four
+      // days of an unsigned contract that this list was calling his job to chase by email.
+      owner: has(c.docusignEnvelopeId) ? "client" : "you",
+      label: "Agreement signed",
       done: !!c.contractSigned,
-      // Nothing in the OS watches an inbox, so this one is honest about being manual.
-      manual: true,
-      next: "Email the agreement as a PDF and take written acceptance by reply. That is binding until DocuSign is approved.",
+      next: has(c.docusignEnvelopeId)
+        ? "Sent and waiting on their signature. The OS checks every fifteen minutes and ticks this itself, so there is nothing to mark off by hand."
+        : "Build it on the Contract tab and send it for signature.",
     },
     {
       id: "billing", owner: "you", label: "Billing set up",
