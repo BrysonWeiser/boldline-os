@@ -81,6 +81,13 @@ const B = new Function(`${browserSrc}
   // test only proves agreement on the inputs it is given. So each field is now varied
   // INDEPENDENTLY, which is the only way a rule that reads two of them can be caught.
   const FIELDS = [
+    // 🔴 ADDED 2026-08-30, AND THE COMMENT ABOVE PREDICTED WHY IT WAS NEEDED. The "signed"
+    // step's owner now flips on this field, and desyncing the two copies deliberately still
+    // PASSED, because not one fixture here set it: both copies took the same branch and
+    // agreed on the wrong thing. A field a rule reads has to appear in this list or the
+    // equivalence proves nothing about it. Anyone adding a rule that reads a new field must
+    // add that field here in the same commit.
+    ["docusignEnvelopeId", "env-1"],
     ["contractSigned", true],
     ["stripeCustomerId", "cus_1"],
     ["googleAdsCustomerId", "123"],
@@ -215,9 +222,35 @@ const B = new Function(`${browserSrc}
   ok("a built but paused campaign is not live",
     !serverChecklist({ campaigns: [{ id: 1 }] }).steps.find((s) => s.id === "live").done);
 
-  // The two the OS genuinely cannot see say so, rather than pretending to know.
+  // The one step the OS genuinely cannot see says so, rather than pretending to know.
+  // 🔴 "signed" USED TO BE ON THIS LIST and no longer is: the DocuSign watcher polls the
+  // envelope and sets `contractSigned` itself. The step still claimed to be hand-tracked,
+  // and still told him to email a PDF and take acceptance by reply, on the morning his
+  // first real client actually signed. Whoever adds a watcher for the DNS record should
+  // take "domain" off this list in the same commit.
   const manual = empty.steps.filter((s) => s.manual).map((s) => s.id).sort();
-  same("only the unobservable steps are hand-tracked", manual, ["domain", "signed"]);
+  same("only the unobservable steps are hand-tracked", manual, ["domain"]);
+
+  // 🔴 AND THE OWNER FLIPS ONCE IT IS SENT. An unsigned contract sitting in someone's
+  // inbox is not work Bryson can do, it is someone he is waiting on, and those are
+  // different lists. He spent four days on exactly that with his first client while this
+  // said the job was his. Both directions asserted, so neither half can rot.
+  const unsent = empty.steps.find((s) => s.id === "signed");
+  eq("before it is sent, signing is his job", unsent.owner, "you");
+  ok("and it tells him to send it", /Contract tab/i.test(unsent.next), unsent.next);
+  ok("nothing tells him to chase a signature by email any more",
+    !/PDF|by reply/i.test(unsent.next), unsent.next);
+
+  const sent = serverChecklist({ docusignEnvelopeId: "env-1" });
+  const sentSigned = sent.steps.find((s) => s.id === "signed");
+  eq("once sent, he is waiting on the client", sentSigned.owner, "client");
+  ok("so it lands in the chase list rather than the do list",
+    sent.waitingOnThem.some((s) => s.id === "signed"));
+  ok("and it says the OS is watching for the signature",
+    /ticks this itself|fifteen minutes/i.test(sentSigned.next), sentSigned.next);
+  ok("a signed contract is not something to chase",
+    !serverChecklist({ docusignEnvelopeId: "env-1", contractSigned: true })
+      .waitingOnThem.some((s) => s.id === "signed"));
 
   // A CRM is genuinely optional, so it must never block a launch.
   const noCrm = serverChecklist({

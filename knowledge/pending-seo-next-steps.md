@@ -4,15 +4,16 @@ topic: Pending
 task: pick up the next unstarted marketing/SEO steps now that the site is live (Google Ads resubmit, Search Console, Business Profile)
 keywords: [basic-access-resubmit, search-console, sitemap.xml, business-profile, GA4]
 status: verified
-summary: Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) set up Google Search Console and submit the sitemap; (3) optional Google Business Profile; (4) optional GA4.
-verified: 2026-07-04
+summary: Offered-but-unstarted next steps now that boldlinemedia.com is live — (1) resubmit Google Ads Basic Access referencing the live domain + a business-model/MCC note; (2) ~~Search Console~~ DONE 2026-07-07; (3) ~~Google Business Profile~~ **DONE 2026-08-08/09, verified, review link live** — see `backlinks-citations` and `website-reviews`, do NOT create a second listing; (4) ~~GA4~~ DONE 2026-07-22.
+verified: 2026-08-29
 ---
 
 Context: the second Netlify site and the custom domain are **DONE** (marketing site live at `boldlinemedia.com`). These are the next steps offered but not yet started:
 
 1. **Resubmit Google Ads Basic Access** (now that the site is live at the real domain): reference the live site URL, and — per Google's own rejection email — since the site is intentionally minimal, add a short note in the application describing the business model + intended API use (managing multiple clients' campaigns via one **MCC**), not relying on the site alone. The prior rejection was purely about the old Wix site having no relevant content; **do NOT resubmit with the same responses** (see `google-ads-api`).
 2. **Google Search Console** (free; the highest-leverage step for getting the blog crawled/indexed fast): `search.google.com/search-console` → **Add property** → `boldlinemedia.com` → verify ownership (the DNS panel makes the TXT-record verification a copy/paste) → **Sitemaps** → submit `https://boldlinemedia.com/sitemap.xml`.
-3. **Google Business Profile** (free, optional): `business.google.com/create`, category **Marketing Agency**, service-area business (no public office needed). Drives local "near me" search visibility — a different, often faster channel than blog SEO.
+3. ~~**Google Business Profile**~~ — **DONE 2026-08-08/09.** Created and verified: category Marketing agency, business location "No location; deliveries and home services only" (no address at all), service area **United States**, national-leaning description, logo + headshot uploaded. Review link `https://g.page/r/CSBqWru1WFp7EBM/review` is wired into `GOOGLE_REVIEW_URL` and the button is live. Full detail in `backlinks-citations` and `website-reviews`.
+   🔴 **DO NOT CREATE A SECOND ONE.** This entry sat unticked for three weeks and on 2026-08-28 it caused a scheduled reminder to be written telling a future session to "set up the Google Business Profile tonight", which would have produced a duplicate listing. Duplicates get suspended and split the reviews between them, so the mistake is worse than doing nothing. Caught only because the session checked the KB before acting. **When a step here is finished, tick it HERE, not only in the entry where the work happened.**
 4. ~~**Google Analytics GA4**~~ — **DONE 2026-07-22.** Property + web stream created for boldlinemedia.com; gtag `G-MG7T0687RT` live in `marketing-site/index.html`. See `ga4-analytics` (incl. the pending "GA4 data inside the OS" Data-API build, deferred until after Meta submit).
 
 (Related one-time setup TODOs already documented elsewhere: run `docs/sql/blog-schema.sql` in Supabase; add `SUPABASE_SERVICE_ROLE_KEY` on the marketing site; add `RESEND_API_KEY` on the marketing site; turn on Netlify Forms notifications — see `blog-backend-automation`, `supabase-access-model`, `resend-email-sending`, `netlify-forms-wiring`.)
@@ -34,5 +35,5 @@ Context: the second Netlify site and the custom domain are **DONE** (marketing s
 4. **Custom-domain email** (bryson@boldlinemedia.com, Google Workspace ~$7/mo or Zoho free) —
    replaces the gmail on privacy page + Calendly; root-domain MX on Wix DNS should be possible
    (the Resend dead-end was a SUBDOMAIN record) and may unlock the dormant branded lead emails.
-5. **Google Business Profile** (optional, local-pitch credibility).
+5. ~~**Google Business Profile**~~ — DONE 2026-08-08/09, see above.
 Small folds-in: proper square favicon; first-client testimonial section someday.
