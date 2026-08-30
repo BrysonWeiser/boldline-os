@@ -17,7 +17,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { EMAIL_TYPES, renderClientEmail } from "../netlify/lib/client-emails-shared.mjs";
+import { EMAIL_TYPES, renderClientEmail, emailAutoPatch } from "../netlify/lib/client-emails-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -26,6 +26,12 @@ const ok = (name, cond, extra) => {
   if (cond) { pass++; return; }
   fail++;
   console.error(`  FAIL  ${name}${extra ? `\n        ${extra}` : ""}`);
+};
+const eq = (name, got, want) =>
+  ok(name, got === want, got === want ? "" : `got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
+const same = (name, got, want) => {
+  const a = JSON.stringify(got), b = JSON.stringify(want);
+  ok(name, a === b, a === b ? "" : `got ${a}, wanted ${b}`);
 };
 const text = (html) => html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
 
@@ -167,6 +173,77 @@ const inv = (o) => {
   ok("and prefers what is still outstanding over the invoice total",
     /amount_remaining != null \? obj\.amount_remaining : obj\.amount_due/.test(hook));
 }
+
+// ── 🔴 A HAND-SENT EMAIL MUST COUNT AS SENT ──────────────────────────────────
+//
+// Found 2026-08-30, on Bryson's first real client, on day one. He sent the welcome email
+// by hand from the Emails tab the morning Sebastian signed. That path wrote a comm-log
+// line and NOTHING onto `emailAuto`, which meant two live bugs at once:
+//   1. The Stripe webhook fires `welcome` on checkout.session.completed unless
+//      `emailAuto.welcome` is set. Sebastian would have received a SECOND welcome email
+//      the moment he paid.
+//   2. client-nurture gates the ad-account request and the day 2 / day 5 intake nudges on
+//      `emailAuto.welcome`, and measures the delay from `welcomeAt`. With a manual welcome
+//      both stayed unset, so the whole onboarding sequence would never have started.
+//
+// Neither would have shown up anywhere. The first looks like an eager robot, the second
+// looks like silence.
+{
+  const c = { contractEnd: "2026-11-30" };
+  const iso = "2026-08-30T12:00:00.000Z";
+
+  // Defaulted to {} so removing the entry entirely FAILS this block rather than throwing
+  // and taking the remaining suites with it. A crash is a worse signal than a failure.
+  const w = emailAutoPatch("welcome", c, iso) || {};
+  ok("🔴 a hand-sent welcome records that it went out", w.welcome === true,
+    "without this the Stripe webhook sends the client a second welcome when they pay");
+  eq("and when, which is what the nudge schedule counts from", w.welcomeAt, iso);
+
+  ok("a hand-sent ad-account request records itself too",
+    (emailAutoPatch("onboarding_access", c, iso) || {}).access === true);
+
+  // Keyed to the term, exactly as billing-watch does it, so NEXT term still gets a nudge.
+  eq("a hand-sent renewal is keyed to the term it belongs to",
+    (emailAutoPatch("renewal", c, iso) || {}).renewalForEnd, "2026-11-30");
+  eq("and records nothing when there is no term to key it to",
+    emailAutoPatch("renewal", {}, iso), null);
+
+  // 🔴 THE ABSENCES ARE THE DELIBERATE PART, so they are asserted rather than assumed.
+  // These dedupe on a specific Stripe invoice id, or on which nudge step it was. A manual
+  // send does not know any of those, and inventing a value would SUPPRESS a real later
+  // send for a different invoice, which is worse than recording nothing.
+  for (const t of ["receipt", "past_due", "onboarding_nudge"]) {
+    eq(`${t} records nothing, because a manual send cannot know its key`,
+      emailAutoPatch(t, c, iso), null);
+  }
+  // A type with no automatic counterpart at all must not invent one either.
+  eq("contract_signed records nothing", emailAutoPatch("contract_signed", c, iso), null);
+
+  // Every flag this writes has to be one the senders actually read, or it is a no-op that
+  // looks like a fix. Checked against the real source of both robots.
+  const hookSrc = readFileSync(join(ROOT, "netlify/functions/stripe-webhook.mjs"), "utf8");
+  const nurtureSrc = readFileSync(join(ROOT, "netlify/functions/client-nurture.mjs"), "utf8");
+  const watchSrc = readFileSync(join(ROOT, "netlify/functions/billing-watch.mjs"), "utf8");
+  const all = hookSrc + nurtureSrc + watchSrc;
+  for (const key of ["welcome", "welcomeAt", "access", "renewalForEnd"]) {
+    ok(`the senders actually read emailAuto.${key}`, new RegExp(`\\b${key}\\b`).test(all),
+      "this flag is written by a manual send but nothing reads it, so it suppresses nothing");
+  }
+
+  // ── And the OS carries its own copy, which is how the last one of these hid ──
+  // The launch checklist had the identical shape: two copies, an equivalence test, and a
+  // field the fixtures never varied. So this compares the real OS copy, evaluated.
+  const osSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+  const i = osSrc.indexOf("const EMAIL_AUTO_FLAGS =");
+  const j = osSrc.indexOf("\nconst lcHas", i);
+  ok("the OS copy of the flag map was found", i > 0 && j > i);
+  const osPatch = new Function(osSrc.slice(i, j) + "\nreturn emailAutoPatch;")();
+  for (const t of ["welcome", "onboarding_access", "renewal", "receipt", "past_due",
+                   "onboarding_nudge", "contract_signed"]) {
+    same(`🔴 both copies agree on ${t}`, osPatch(t, c, iso), emailAutoPatch(t, c, iso));
+  }
+}
+
 
 console.log(`verify-client-emails: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
