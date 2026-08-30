@@ -157,3 +157,32 @@ invoice.
 **Where the checklist is, since this came up in the same breath:** open the client, the
 **Overview** tab, top card, titled *"Getting <name> Live"*. It names ONE next thing and
 splits what he can do from who he is waiting on. It hides itself once the launch is done.
+
+
+## 2026-08-30 — which emails are automatic, and recording one sent elsewhere
+
+**Eight of the ten send themselves. Only `invoice` and `thank_you` are Bryson's.**
+
+| Email | Fires |
+|---|---|
+| `welcome` | when they pay (stripe-webhook, `checkout.session.completed`) |
+| `contract_signed` | the moment they sign (docusign-watch) |
+| `onboarding_access` | a day after the welcome (client-nurture) |
+| `onboarding_nudge` | day 2 and day 5, until intake is done (client-nurture) |
+| `receipt` | when a payment goes through (stripe-webhook) |
+| `past_due` | when a payment fails (stripe-webhook) |
+| `renewal` | 30 days before the term ends (billing-watch) |
+| `lead_milestone` | 10 / 25 / 50 / 100 leads (client-nurture) |
+| **`invoice`** | **he sends it** |
+| **`thank_you`** | **he sends it** (getAlerts reminds him when a contract ends) |
+
+`EMAIL_TYPES[].auto` carries the trigger text, and **a test verifies it against the real
+senders** by scanning them for `autoSendClientEmail(cl, "…")` / `email: "…"`. A wrong label
+is worse than none in both directions: *Automatic* on something nothing sends means the
+client silently never gets it; *You send this* on something automatic is how a duplicate
+ships. An email that becomes automatic later is caught rather than mislabelled.
+
+**"Already sent" button.** Records the `emailAuto` flag without emailing anything, for a
+message sent from his own inbox or by hand before the recording fix. Only appears where it
+would change something. Used once for the first client's welcome, because sending it twice
+to correct the record was the wrong trade.
