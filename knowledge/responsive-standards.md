@@ -65,3 +65,48 @@ shrink rather than force overflow.
 desktop — that's intentional typography, not "cramped" — but center it and balance the page
 (e.g. the OS caps client detail at 1000px). The rule bans *accidental* narrowness, not
 deliberate reading measures.
+
+
+## 🔴 2026-08-30 — the page-level check misses container scroll (Lead Scout call list)
+
+Bryson, on his phone: *"in the lead scout tab when I go to my call list I can scroll
+horizontally which I shouldn't be able to do"*. He was right, and **the audit recipe above
+would never have caught it.**
+
+`document.documentElement.scrollWidth <= clientWidth` read **zero the whole time the bug was
+live.** The page did not scroll. A container inside it did: the Lead Scout screen was 507px
+of content inside a 390px viewport, with the overflow contained by an ancestor that scrolls.
+
+**New tool: `tools/audit-sideways-scroll.js`.** Checks what he actually did — any element
+the USER CAN SCROLL horizontally (`overflow-x` auto/scroll AND real overflow inside it).
+It deliberately ignores the ambient background orbs, which are wider than the screen at every
+width by design and are clipped by `overflow:hidden`, so they can never be swiped. Exits
+non-zero, so it can gate a merge. Verified both ways: it reports the container with the bug
+restored, and nothing once fixed.
+
+### The cause, which is worth recognising on sight
+
+```
+gridTemplateColumns: isDesktop ? "repeat(2,minmax(0,1fr))" : "1fr"
+```
+
+**A bare `1fr` is `minmax(AUTO,1fr)`**, so the track floors at the item's *min-content* width.
+An email address has no break opportunity, so its min-content width is the entire string, and
+one long address widened the whole row to 418px. **Desktop already used `minmax(0,…)`, which
+is exactly why it only ever appeared on his phone.** Fixed in both grids in `ProspectCard`,
+plus `overflowWrap:"anywhere"` on the address so capping the track does not just move the
+overflow inside the box.
+
+**Rule of thumb: never write a bare `1fr` for a track holding user-supplied text.** Write
+`minmax(0,1fr)`. The `minmax(0,…)` form is already used correctly elsewhere in the file, so
+a bare one is a slip rather than a decision.
+
+### Three harness traps hit building the audit, all of which looked like app bugs
+1. The supabase stub lacked `.insert` and the app died before mounting. **A stub narrower
+   than production fails exactly as badly as one that is wider.**
+2. **Playwright matches the most recently added route first.** A broad catch-all registered
+   last shadowed the specific one, every call returned `{"ok":true}`, and the screen crashed
+   on `facets.niches`. Register the catch-all FIRST.
+3. The fixture omitted `kind` on a phone, which the server normalises to `"unknown"` and
+   never stores missing. **Copy fixtures from what the server WRITES, not from what the
+   component reads.**
