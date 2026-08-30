@@ -4174,8 +4174,13 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
             {!!(d.verifiedBy&&d.verifiedBy.length)&&(
               <span style={{fontSize:9.5,fontWeight:700,color:C.green,border:`1px solid ${C.green}44`,background:C.green+"14",borderRadius:6,padding:"2px 6px"}}>verified by {d.verifiedBy.join(" + ")}</span>)}
           </div>
+          {/* 🔴 minmax(0,1fr) ON MOBILE TOO. A bare "1fr" is minmax(AUTO,1fr), so the track
+              floors at the item's min-content width, and an email address has no break
+              opportunity, so its min-content width is the whole string. That made this row
+              418px wide inside a 390px phone and let the call list scroll sideways. Desktop
+              already used minmax(0,...), which is why it only ever showed on his phone. */}
           {(d.phones&&d.phones.length)||(d.emails&&d.emails.length)?(
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(2,minmax(0,1fr))":"1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(2,minmax(0,1fr))":"minmax(0,1fr)",gap:8}}>
               {(d.phones||[]).map((ph,i)=>(
                 <a key={"p"+i} href={"tel:"+String(ph.number).replace(/[^\d+]/g,"")}
                   style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",borderRadius:9,textDecoration:"none",
@@ -4194,8 +4199,8 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                     border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
                   <span style={{fontSize:13,flexShrink:0}}>✉️</span>
                   <span style={{flex:1,minWidth:0}}>
-                    <span style={{display:"block",fontSize:12,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis"}}>{em.address}</span>
-                    <span style={{display:"block",fontSize:9.5,color:C.textMuted,marginTop:1}}>{em.whose==="owner"?"owner":"business"} — {em.source}</span>
+                    <span style={{display:"block",fontSize:12,fontWeight:700,color:C.text,overflowWrap:"anywhere"}}>{em.address}</span>
+                    <span style={{display:"block",fontSize:9.5,color:C.textMuted,marginTop:1,overflowWrap:"anywhere"}}>{em.whose==="owner"?"owner":"business"} — {em.source}</span>
                   </span>
                 </a>))}
             </div>
@@ -4269,7 +4274,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                 <div style={{fontSize:9.5,fontWeight:800,color:C.gold,textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>Your opener</div>
                 <div style={{fontSize:12.5,color:C.text,lineHeight:1.55,fontStyle:"italic"}}>“{d.bestHook}”</div>
               </div>)}
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"1fr 1fr":"1fr",gap:12}}>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"minmax(0,1fr) minmax(0,1fr)":"minmax(0,1fr)",gap:12}}>
               {!!(d.whyContact&&d.whyContact.length)&&(
                 <div><div style={{fontSize:9.5,fontWeight:800,color:C.green,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>Why call them</div>
                   <ul style={{margin:0,paddingLeft:16}}>{d.whyContact.map((x,i)=><li key={i} style={{fontSize:12,color:C.textDim,lineHeight:1.5,marginBottom:4}}>{x}</li>)}</ul></div>)}
