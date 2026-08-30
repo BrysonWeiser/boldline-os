@@ -131,3 +131,29 @@ template, and the webhook dropping the amount).
   is correct. No backend file anywhere sums a monthly with a lead total.
 - **The receipt email takes its figure from Stripe's real `amount_paid`**, so it was never
   affected by the `monthly` default that broke past-due.
+
+
+## 🔴 2026-08-30 — a hand-sent email now records itself (first-client bug)
+
+Sending from this tab used to write a comm-log line and **nothing onto `emailAuto`**, the
+flag set the automatic senders use to avoid firing twice. Bryson sent the Welcome + Portal
+email by hand the morning his first client signed, which meant:
+
+- **The client would have got it twice.** `stripe-webhook` sends `welcome` on
+  `checkout.session.completed` unless `emailAuto.welcome` is set.
+- **The onboarding sequence would never have started.** `client-nurture` gates the
+  ad-account request and the day 2 / day 5 intake nudges on `emailAuto.welcome`, and counts
+  the delay from `welcomeAt`.
+
+`emailAutoPatch(type, client)` in `client-emails-shared.mjs` now returns what a manual send
+should record, mirrored in `index.html` and compared by a test. Covered: `welcome`
+(+`welcomeAt`), `onboarding_access`, `renewal` (keyed to `contractEnd`, like billing-watch).
+
+**Deliberately NOT covered, and asserted as such:** `receipt`, `past_due` and
+`onboarding_nudge` dedupe on a specific Stripe invoice id or nudge step. A manual send does
+not know those, and inventing a value would suppress a genuine later send for a different
+invoice.
+
+**Where the checklist is, since this came up in the same breath:** open the client, the
+**Overview** tab, top card, titled *"Getting <name> Live"*. It names ONE next thing and
+splits what he can do from who he is waiting on. It hides itself once the launch is done.
