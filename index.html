@@ -895,6 +895,23 @@ const PlaybookCtx = createContext({ store:{}, save:null, houseId:null });
 const usePlaybooks = () => useContext(PlaybookCtx);
 
 const OWNERS = { you:"You", client:"The client", dev:"Their web person", os:"Automatic" };
+
+// 🔴 Mirror of netlify/lib/client-emails-shared.mjs. A hand-sent email must record itself
+// the same way the automatic one does, or the client gets it twice and the onboarding
+// sequence never starts. The reasoning, and why receipt / past_due / onboarding_nudge are
+// deliberately absent, is written out in full in that file. A test compares the two copies.
+const EMAIL_AUTO_FLAGS = {
+  welcome: (client, iso) => ({ welcome:true, welcomeAt:iso }),
+  onboarding_access: () => ({ access:true }),
+  renewal: (client) => (client&&client.contractEnd ? { renewalForEnd: client.contractEnd } : null),
+};
+function emailAutoPatch(type, client, iso){
+  const fn = EMAIL_AUTO_FLAGS[type];
+  if(!fn) return null;
+  const patch = fn(client||{}, iso||new Date().toISOString());
+  return patch && Object.keys(patch).length ? patch : null;
+}
+
 const lcHas = (v) => !!String(v==null?"":v).trim();
 function launchChecklist(client){
   const c=client||{}; const cs=c.campaignSetup||{}; const ca=c.conversionActions||{}; const lp=c.landingPage||{};
@@ -5424,7 +5441,19 @@ function EmailCenterTab({client,pkg,onUpdate}) {
     setBusy(true); setMsg("");
     try{
       await call("send",{to:client.email,subject:open.subject,html:open.html});
-      onUpdate&&onUpdate({...client,commLog:[{date:fmt(new Date()),note:`Sent "${open.type.label}" email to ${client.email}`,cat:"update",ts:Date.now()},...(client.commLog||[])]});
+      // 🔴 A HAND-SENT EMAIL COUNTS AS SENT. `emailAuto` was only ever written by the
+      // robots (stripe-webhook sets `welcome`, client-nurture sets `access`), so sending
+      // the same email from this tab left the flag false and caused two separate bugs:
+      //   1. The client gets it TWICE. Bryson sent Sebastian the welcome by hand the
+      //      morning he signed; the Stripe webhook would have sent a second one the moment
+      //      he paid, because nothing recorded the first.
+      //   2. The onboarding sequence never starts. client-nurture gates the ad-account
+      //      request and the day 2 / day 5 intake nudges on `welcome`, and measures the
+      //      delay from `welcomeAt`. Both stay silent forever when the welcome was manual.
+      // Found on his first real client, on day one, with the duplicate still pending.
+      const stamp=emailAutoPatch(open.type.id,client);
+      const patch=stamp?{emailAuto:{...(client.emailAuto||{}),...stamp}}:{};
+      onUpdate&&onUpdate({...client,...patch,commLog:[{date:fmt(new Date()),note:`Sent "${open.type.label}" email to ${client.email}`,cat:"update",ts:Date.now()},...(client.commLog||[])]});
       setSentId(open.type.id); setMsg(`✓ Sent "${open.type.label}" to ${client.email}`); setOpen(null);
       setTimeout(()=>setSentId(null),4000);
     }catch(e){ setMsg("Send failed: "+e.message); }

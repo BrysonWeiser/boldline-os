@@ -298,6 +298,47 @@ export const EMAIL_TYPES = [
   { id: "lead_milestone", label: "Lead Milestone", icon: "🎉", desc: "Auto-celebrates a client hitting a lead milestone (10 / 25 / 50 / 100…)." },
 ];
 
+// ── 🔴 WHAT A HAND-SENT EMAIL HAS TO RECORD ──────────────────────────────────
+//
+// Several of these emails also send themselves: stripe-webhook fires `welcome` on
+// checkout and `receipt` / `past_due` on invoice events, billing-watch fires `renewal`,
+// client-nurture fires `onboarding_access` and the intake nudges. Every one of those
+// writes a flag onto `client.emailAuto` so it can never fire twice.
+//
+// Sending the SAME email by hand from the Emails tab used to write nothing but a comm-log
+// line, which broke two things at once:
+//   1. **The client gets it twice.** Bryson sent the welcome by hand the morning his first
+//      client signed. The Stripe webhook would have sent a second one the moment that
+//      client paid, because nothing recorded the first.
+//   2. **The onboarding sequence never starts.** client-nurture gates the ad-account
+//      request and the day 2 / day 5 intake nudges on `welcome`, and measures the delay
+//      from `welcomeAt`. A manual welcome left both unset, so the sequence stayed silent.
+//
+// So: a hand-sent email counts as sent. The flag means "this has gone out", not "a robot
+// sent it".
+//
+// 🔴 THE THREE THAT ARE DELIBERATELY ABSENT. `receipt` and `past_due` dedupe on a specific
+// Stripe invoice id, and `onboarding_nudge` on which step of the sequence it was. A manual
+// send genuinely does not know any of those, so guessing a value would be worse than
+// recording nothing: it would suppress a real future send for a different invoice. They
+// are left out on purpose, not by oversight.
+export const EMAIL_AUTO_FLAGS = {
+  welcome: (client, iso) => ({ welcome: true, welcomeAt: iso }),
+  onboarding_access: () => ({ access: true }),
+  // Keyed to the term it belongs to, exactly as billing-watch does it, so next term's
+  // reminder still goes out.
+  renewal: (client) => (client && client.contractEnd ? { renewalForEnd: client.contractEnd } : null),
+};
+
+// The patch to merge into `client.emailAuto` after sending `type` by hand, or null when
+// this type records nothing.
+export function emailAutoPatch(type, client, iso = new Date().toISOString()) {
+  const fn = EMAIL_AUTO_FLAGS[type];
+  if (!fn) return null;
+  const patch = fn(client || {}, iso);
+  return patch && Object.keys(patch).length ? patch : null;
+}
+
 export function renderClientEmail(type, ctx = {}) {
   const tpl = T[type];
   if (!tpl) throw new Error(`Unknown email type: ${type}`);
