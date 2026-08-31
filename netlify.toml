@@ -126,6 +126,13 @@
 [functions."client-nurture"]
   schedule = "0 16 * * *"
 
+# Hourly client-autobuild: the missing trigger between "the client filled in their details"
+# and "there is something for Bryson to approve". Drafts the landing page, then builds a
+# PAUSED campaign, one step per client per run. Prepares anything, publishes nothing.
+# CLIENT_AUTOBUILD=off is the kill switch.
+[functions."client-autobuild"]
+  schedule = "17 * * * *"
+
 # Every 15 min: publishes scheduled drafts at their exact time + keeps >=1
 # scheduled post in the review pipeline. Nearly every run is a cheap no-op.
 [functions."blog-autopublish"]
