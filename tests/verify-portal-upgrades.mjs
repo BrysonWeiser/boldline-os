@@ -319,5 +319,48 @@ const render = (o) => {
     "without a way through to the real thing, the preview is the only view he has");
 }
 
+// ── 🔴 EVERY FIELD THE PORTAL ASKS FOR EXISTS IN BOTH COPIES ─────────────────
+//
+// The tab check above pins the panes. This pins what is INSIDE them, which is the half
+// that actually loses a client's answer: a field present in the real portal but missing
+// from the preview means Bryson reviews an intake form that is not the one they filled in,
+// and a field present only in the preview means he thinks he asked for something nobody
+// was ever shown.
+//
+// Added 2026-08-30 with the "Your Website" card (who maintains their site, plus the three
+// legal pages a text-consent checkbox has to link). Both were gaps found by auditing the
+// portal against what the first real client's launch actually needed.
+{
+  const srv = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  const osSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+  const keysOf = (t) => [...new Set([...t.matchAll(/data-key="([^"]+)"/g)].map((m) => m[1]))].sort();
+
+  const realKeys = keysOf(srv);
+  // Slice to the OS's portal mirror so unrelated data-key attributes elsewhere in the app
+  // cannot make this pass by accident.
+  const i = osSrc.indexOf("const makePortalHTML=(cl,pkg,notice)=>{");
+  const j = osSrc.indexOf("+'</body></html>';", i);
+  ok("the OS portal mirror was found", i > 0 && j > i);
+  const previewKeys = keysOf(osSrc.slice(i, j));
+
+  ok("the portal really does ask for a lot", realKeys.length >= 18, String(realKeys.length));
+  same("🔴 both copies ask for exactly the same fields", previewKeys, realKeys);
+
+  // The four added for the first launch, pinned by name so a tidy-up cannot drop them.
+  for (const k of ["campaignSetup.webContact", "campaignSetup.privacyUrl",
+                   "campaignSetup.termsUrl", "campaignSetup.smsOptInUrl"]) {
+    ok(`the portal asks for ${k}`, realKeys.includes(k));
+  }
+
+  // 🔴 AND THE ANSWERS HAVE TO SURVIVE THE SAVE. `sanitizeFields` allowlists top-level
+  // keys by name but passes any campaignSetup sub-key through, which is why these four
+  // needed no server change. If that ever becomes an allowlist too, this fails instead of
+  // silently dropping what the client typed.
+  const san = srv.slice(srv.indexOf("const sanitizeFields"), srv.indexOf("const mergeFields"));
+  ok("campaignSetup answers are saved without a per-field allowlist",
+    /for \(const k of \["campaignSetup", "brandVoice"\]\)/.test(san),
+    "a new campaignSetup field would be silently discarded on save");
+}
+
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

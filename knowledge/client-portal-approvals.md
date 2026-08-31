@@ -108,3 +108,43 @@ synchronous wrapper, so an async test returned a promise, `n++` ran regardless, 
 assertion inside was **silently discarded**. The new portal check reported "passed" no
 matter what until the harness was fixed to collect and await promises. *A check that cannot
 fail is worse than no check.*
+
+
+## 2026-08-31 — the "Your Website" card, and two more copies that had drifted
+
+Added after auditing the portal against what the first real client's launch actually needed
+(Bryson: *"double check that there is everything in the client portal that there needs to
+be"*). Two genuine gaps, both hit on the very first client:
+
+1. **Who looks after their website.** Both the custom landing-page domain and the CRM lead
+   forward need one small change on the client's side, and on client one that meant emailing
+   to ask who to talk to. Now `campaignSetup.webContact`.
+2. **The three legal pages a text-consent checkbox has to link** — `privacyUrl`, `termsUrl`,
+   `smsOptInUrl`. Shaun Smith, 2026-08-29: without a consent box the lead still arrives but
+   **can never be texted**, so the one-minute reply that makes ad leads convert never happens
+   and nothing anywhere reports it as a failure. Keep any `.html` on the end; the
+   extensionless versions often do not resolve.
+
+All four are `campaignSetup.*`, and `sanitizeFields` passes any `campaignSetup` sub-key
+through, so no server change was needed. **A test now pins that**, because if it ever became
+a per-field allowlist these answers would be silently discarded on save.
+
+### 🔴 The parity test found two drifts nobody had noticed
+
+Adding a field-level comparison of the two portal copies immediately failed on two
+pre-existing bugs, neither of which was what I was looking for:
+
+- The **preview asked for `callTrackingNumber`**, which the real portal does not and should
+  not. That is the number BoldLine provisions for the client, not one they supply.
+- The **preview omitted `businessPhone`**, which the real portal does ask for, for call
+  forwarding.
+
+So the preview showed a field no client ever sees and hid one every client fills in. Both
+corrected to match the real portal. The lesson is the usual one for this file: the tab-level
+check pins the panes, but **the field-level check is the half that loses a client's answer.**
+
+### Known and accepted: the tab strip scrolls on a phone
+
+Six tabs is 481px of buttons in a 390px strip, so the nav row is swipeable at phone width.
+That is the deliberate scrolling-tab pattern the OS uses too, not content overflow. Worth
+revisiting only if a client reports missing the Contract tab, which sits last.
