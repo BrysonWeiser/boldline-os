@@ -148,3 +148,29 @@ check pins the panes, but **the field-level check is the half that loses a clien
 Six tabs is 481px of buttons in a 390px strip, so the nav row is swipeable at phone width.
 That is the deliberate scrolling-tab pattern the OS uses too, not content overflow. Worth
 revisiting only if a client reports missing the Contract tab, which sits last.
+
+
+## 2026-08-31 — unsigned agreements are announced on Status, and the nav measurements
+
+**The banner.** `Pending Signature` used to exist only inside the Contract pane, the last of
+six tabs and off-screen on a phone until you swipe. A client who had not signed got no hint
+anywhere. Status now leads with an amber banner (cannot start until signed, check spam or
+promotions, **Read and Sign It** button) and the Contract tab carries a dot. Driven by
+`needsSignature = !cl.contractSigned && cl.contractStatus === "pending"`, mirrored in both
+portal copies, and tested in BOTH directions since a banner that never clears nags someone
+who signed months ago.
+
+**The nav, measured rather than argued about** (real portal CSS, headless, 390 and 360px):
+
+| Option | 390px | 360px |
+|---|---|---|
+| Current six tabs | 451px, overflows by 61 | overflows by 91 |
+| Six with shorter labels (Package, Info) | 411px, overflows by 21 | overflows by 51 |
+| **Four: Status, Review, Reports, Account** | **fits exactly** | **fits** |
+| Five: …Account, Contract | fits | overflows by 1 |
+
+So shortening the labels does not work, and five only moves the problem to smaller phones.
+**The recommendation is four**, with Account holding My Package, My Info and Contract as
+sections on one page. That matches use: Status often, Review when badged, Reports monthly,
+and the other three touched once at setup then almost never. Not built yet, deliberately:
+the tab layout is tidiness, and getting the first client's campaign live is worth more.
