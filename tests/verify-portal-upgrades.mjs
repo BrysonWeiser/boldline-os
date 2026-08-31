@@ -414,5 +414,51 @@ const render = (o) => {
     "the client lands on three closed rows and has to guess which one to tap");
 }
 
+// ── 🔴 THE CONTRACT KEEPS ITS BRANDING ───────────────────────────────────────
+//
+// Bryson spotted a missing logo in a screenshot on 2026-08-31 and asked. It turned out to
+// be my test server answering EVERY url with the portal HTML, so /logo.png received HTML
+// bytes and rendered as a broken image. The real portal was fine, verified three ways: the
+// live site serves /logo.png as image/png at the repo file's exact size, the iframe's own
+// image reported naturalWidth 292, and it is visible in a corrected screenshot.
+//
+// Nothing was broken, so nothing was fixed. But the check is worth having, because deleting
+// logo.png from the repo root or changing the src would strip the branding from the contract
+// in EVERY client's portal and nothing would say so. The document would still render, just
+// without the mark on it.
+{
+  const { existsSync, statSync } = await import("node:fs");
+  const contract = readFileSync(join(ROOT, "netlify/lib/contract-shared.cjs"), "utf8");
+
+  ok("🔴 the contract header still carries the logo",
+    /<img src="'\+LOGO\+'" alt="BoldLine Media">/.test(contract),
+    "removing it strips the branding from every client's agreement silently");
+  ok("and the wordmark beside it", /BOLDLINE <span>MEDIA<\/span>/.test(contract));
+
+  // The portal passes a root-relative path, so the FILE has to exist at the site root.
+  const portalSrc = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  const passed = (portalSrc.match(/makeContractHTML\(cl, pkg, "([^"]+)"\)/) || [])[1];
+  ok("the portal passes a logo path to the contract", !!passed, String(passed));
+  if (passed && passed.startsWith("/")) {
+    const f = join(ROOT, passed.slice(1));
+    ok(`🔴 ${passed} exists at the site root, so the src resolves`, existsSync(f),
+      "the contract asks for this path on every portal view");
+    if (existsSync(f)) ok("and it is a real image, not a stub", statSync(f).size > 2000,
+      `${statSync(f).size} bytes`);
+  }
+
+  // Rendered, so a change to how the iframe is built cannot quietly drop it.
+  const withContract = makePortalHTML(
+    { name: "Stencil & Thread", contactName: "Sebastian", packageId: "g-launch", portalToken: "t",
+      contractStatus: "pending", contractSigned: false, leadsLog: [], commLog: [] },
+    { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, tier: "launch" });
+  // 🔴 The iframe carries the contract in a srcdoc ATTRIBUTE, so every quote inside it is
+  // escaped to &quot;. Matching the raw tag looks right and fails; this is what actually
+  // ships to the client.
+  ok("the rendered portal's agreement contains the logo image",
+    /<img src=&quot;\/logo\.png&quot; alt=&quot;BoldLine Media&quot;>/.test(withContract),
+    "the agreement renders without the mark on it");
+}
+
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
