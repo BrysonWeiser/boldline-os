@@ -178,7 +178,77 @@ const runWith = async (clients, over = {}) => {
   ok("with a readable reason", /agreement/i.test(res.skipped[0].why));
 }
 
-// ── 6. The safety properties, asserted against the real source ──────────────
+// ── 🔴 6. THE OS BELL, NOT JUST THE EMAIL ────────────────────────────────────
+//
+// Bryson, 2026-08-31, after the first automatic build: *"I got the email and phone
+// notification which is good but I didnt get an alert in the os which I want the alert as
+// well"*. `dispatchAlert` is email, SMS and push. The in-app bell, its count and the
+// Notifications panel all read `pendingActions` on the CLIENT RECORD. Writing one without
+// the other is a half-delivered notification, and the half that goes missing is the one he
+// is looking at while he works.
+{
+  const { saved, alerts } = await runWith([{ id: "1", data: READY }]);
+  const pa = saved[0].data.pendingActions || [];
+  eq("🔴 a pendingAction is written so the OS bell fires", pa.length, 1);
+  ok("it names the client and the job", /Review Stencil & Thread's landing page/.test(pa[0].title), pa[0].title);
+  ok("and says nothing is live yet", /Nothing is live yet/i.test(pa[0].detail), pa[0].detail);
+  ok("it carries a category the panel can group on", !!pa[0].cat);
+  ok("and a timestamp", !!pa[0].ts);
+  eq("the email and push still go too", alerts.length, 1);
+
+  // 🔴 Not duplicated on a re-run. An hourly job that stacks a fresh bell entry every hour
+  // turns the notification panel into noise, which is the fastest way to make him stop
+  // reading it.
+  const withAction = { ...READY, pendingActions: pa };
+  const second = await runWith([{ id: "1", data: withAction }]);
+  const pa2 = second.saved[0].data.pendingActions || [];
+  eq("a repeat run does not stack a second copy", pa2.length, 1);
+
+  // An existing unrelated action must survive.
+  const withOther = { ...READY, pendingActions: [{ id: "other", title: "Something else", ts: 1 }] };
+  const third = await runWith([{ id: "1", data: withOther }]);
+  const pa3 = third.saved[0].data.pendingActions || [];
+  eq("an unrelated pending action is kept", pa3.length, 2);
+  ok("and the new one is on top", /landing page/.test(pa3[0].title));
+}
+
+// ── 🔴 7. THE PAGE IS REBUILT WHEN THE CLIENT'S ASSETS CHANGE ────────────────
+//
+// Bryson: *"once he puts in the assets he wants to use will the landing page automatically
+// be recreated"*. A page written before the client uploaded anything picks no hero, takes no
+// brand colour from their photos and shows no gallery. It is a generic page until it is
+// rebuilt from their actual work.
+{
+  const built = { ...READY, landingPage: { headline: "H" }, autoBuild: { landingAt: "t", landingMediaKey: "" } };
+  eq("with no assets it moves on to the campaign", nextStep(built).step, "campaign");
+
+  const added = { ...built, mediaLibrary: [{ path: "a.jpg" }, { path: "b.jpg" }] };
+  eq("🔴 adding assets rebuilds the page", nextStep(added).step, "landing");
+
+  const recorded = { ...added, autoBuild: { landingAt: "t", landingMediaKey: "a.jpg|b.jpg" } };
+  eq("and once rebuilt it stops", nextStep(recorded).step, "campaign");
+
+  // 🔴 The count is not the key. Swapping one photo for another leaves it identical and is
+  // exactly the change worth catching.
+  eq("swapping one photo for another still rebuilds",
+    nextStep({ ...recorded, mediaLibrary: [{ path: "a.jpg" }, { path: "c.jpg" }] }).step, "landing");
+
+  // And the order files come back in must not cause a pointless rebuild every hour.
+  eq("the same assets in a different order do not",
+    nextStep({ ...recorded, mediaLibrary: [{ path: "b.jpg" }, { path: "a.jpg" }] }).step, "campaign");
+
+  // Deleting everything must not throw away a working page.
+  eq("deleting every asset does not rebuild",
+    nextStep({ ...recorded, mediaLibrary: [] }).step, "campaign");
+
+  // The key is only stamped by the landing step, so the rebuild fires on the NEXT change.
+  const p = successPatch("landing", { mediaLibrary: [{ path: "z.jpg" }] }, "t");
+  eq("the landing step records which assets it used", p.autoBuild.landingMediaKey, "z.jpg");
+  const c = successPatch("campaign", { mediaLibrary: [{ path: "z.jpg" }] }, "t");
+  ok("the campaign step does not touch that key", !("landingMediaKey" in c.autoBuild));
+}
+
+// ── 8. The safety properties, asserted against the real source ──────────────
 {
   const src = readFileSync(join(ROOT, "netlify/functions/client-autobuild.mjs"), "utf8");
   const body = src.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");

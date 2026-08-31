@@ -48,7 +48,25 @@ export async function runAutobuild({ loadClients, buildLanding, buildCampaign, s
       // on an empty result would set the idempotency key and guarantee it never runs again,
       // which is the quietest possible way to never build a client's page.
       if (!patch || typeof patch !== "object") throw new Error(`${step} builder returned nothing`);
-      await saveClient(id, { ...cl, ...patch, ...successPatch(step, cl, at) });
+      // 🔴 THE OS BELL READS `pendingActions`, NOT the alert dispatcher. Bryson, 2026-08-31:
+      // *"I got the email and phone notification which is good but I didnt get an alert in
+      // the os which I want the alert as well"*. `dispatchAlert` is email, SMS and push;
+      // the in-app bell, its count and the Notifications panel all come from this array on
+      // the client record. Sending one without the other is a half-delivered notification.
+      const actionId = `autobuild-${step}-${at.slice(0, 10)}`;
+      const already = (cl.pendingActions || []).some((a) => a && a.id === actionId);
+      const pending = already ? (cl.pendingActions || []) : [{
+        id: actionId,
+        title: step === "landing"
+          ? `Review ${cl.name}'s landing page`
+          : `Approve ${cl.name}'s campaign`,
+        detail: step === "landing"
+          ? "Written and saved as a draft. Read it on the Assets tab, then publish it when you are happy. Nothing is live yet."
+          : "Built and paused. Read it on the Campaigns tab, then approve it to make it live. Nothing is spending yet.",
+        cat: step === "landing" ? "build" : "launch", ts: Date.now(),
+      }, ...(cl.pendingActions || [])];
+
+      await saveClient(id, { ...cl, ...patch, ...successPatch(step, cl, at), pendingActions: pending });
       out.built.push({ name: cl.name, step });
       await alert({
         title: step === "landing"
