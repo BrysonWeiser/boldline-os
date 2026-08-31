@@ -174,3 +174,33 @@ So shortening the labels does not work, and five only moves the problem to small
 sections on one page. That matches use: Status often, Review when badged, Reports monthly,
 and the other three touched once at setup then almost never. Not built yet, deliberately:
 the tab layout is tidiness, and getting the first client's campaign live is worth more.
+
+
+## 2026-08-31 — BUILT: the four-tab portal
+
+Shipped. **Status | Review | Reports | Account.** Package, Info and Contract are now
+`<details>` sections inside Account, closed by default.
+
+**Why collapsed, not stacked.** The first build stacked them flat and measured **5,785px,
+nearly seven phone screens**, which is worse than the six tabs it replaced. Closed it is
+**844px, exactly one screen**. That change only happened because the mockup was measured
+rather than trusted.
+
+**Both dots.** `sigDot` puts the unsigned-agreement marker on the Agreement section header as
+well as the tab, so it is visible on the way in and again once inside. `goContract()` switches
+tab AND sets `acc-agreement.open = true`; landing on three collapsed rows reads as a broken
+button, and there is a test for it.
+
+**The OS preview renders Status and Account only.** It has never had the approvals or reports
+panes, and a tab that opens nothing is worse than a tab that is absent. The Live Client View
+card says so and links to the real portal.
+
+### 🔴 Two method notes worth keeping
+
+1. **Edit this file by LINE, not by substring.** The first attempt at this change did
+   substring surgery across a 400-column template literal, produced an unterminated string,
+   and was reverted. One pane opens with `'` and the next with a backtick, so a replacement
+   that is valid in one is a syntax error in the other.
+2. **A mutation that does not apply looks exactly like a guard that works.** One of the three
+   break-tests here silently no-oped because the search string did not match, and reported a
+   pass. Always confirm the mutation actually changed the file before believing the result.
