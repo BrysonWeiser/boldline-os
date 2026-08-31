@@ -110,3 +110,34 @@ a bare one is a slip rather than a decision.
 3. The fixture omitted `kind` on a phone, which the server normalises to `"unknown"` and
    never stores missing. **Copy fixtures from what the server WRITES, not from what the
    component reads.**
+
+
+## 🔴 2026-08-31 — a clipped breakout is invisible to the horizontal-scroll check
+
+The client portal's contract uses `.cwide` to break out of `.main`'s 600px cap to 980px on a
+desktop, so a legal document is readable. When it moved inside the Account tab's accordion,
+which sets `overflow:hidden` for its rounded corners, the **card stayed 572px while the
+contract still grew to 980px: 204px cut off each side** at 1280 and 1600.
+
+**Two blind spots stacked, and both are worth naming.**
+
+1. **It was only checked on a phone.** Below 960px the breakout never applies, so every
+   phone-width check passed honestly.
+2. **`documentElement.scrollWidth - clientWidth` read ZERO the entire time.** The content was
+   not overflowing the page, it was being *destroyed* by `overflow:hidden`. That metric, and
+   the `tools/audit-sideways-scroll.js` check that replaced it, both see scrollable overflow.
+   **Neither can see clipped overflow.**
+
+**So for any element that deliberately breaks out of its container, measure the child's
+rect against its clipping ancestor's rect** rather than trusting a page-level scroll number:
+
+```js
+clippedLeft  = ancestor.left  - child.left
+clippedRight = child.right - ancestor.right   // either > 1 means content is being cut off
+```
+
+**The fix shape:** widen the PANE, not an element inside the clipped card, so the card grows
+to hold it. Widening only the one card would have left a 980px card between two 572px ones,
+against the sibling-width rule at the top of this file. And do NOT reach for "remove
+`overflow:hidden`": that stops the clipping by letting content spill outside the card's own
+border, which looks broken in a different way.
