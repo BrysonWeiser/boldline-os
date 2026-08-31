@@ -121,9 +121,21 @@ the anchor disappears and the client receives a contract with nowhere to sign �
 failure as the original `SIGN_ANCHOR` bug. Tested harder than the signed branch for that
 reason.
 
-### Still available if wanted
-The **executed PDF** — real signature marks plus DocuSign's Certificate of Completion — is
-retrievable with the stored `docusignEnvelopeId` and the existing JWT auth:
-`GET /restapi/v2.1/accounts/{accountId}/envelopes/{envelopeId}/documents/combined`. That
-would let the portal offer the legally definitive copy rather than a rendering of it. Not
-built; raised 2026-08-31.
+### ✅ BUILT 2026-08-31 — the executed PDF is downloadable
+
+`netlify/functions/contract-pdf.mjs`, `GET ?token=<portalToken>`. Fetches
+`/envelopes/{id}/documents/combined` — the signed document **plus the Certificate of
+Completion**. `combined` on purpose: the document alone drops the audit trail, which is the
+only reason to prefer this over the OS's own rendering.
+
+🔴 **The envelope id is read from the row the token matched and is NEVER accepted from the
+request.** An endpoint that took an envelope id would let anyone holding any valid portal
+link enumerate every agreement BoldLine has ever sent.
+
+Other rules worth keeping: `contractSigned` and `docusignEnvelopeId` are checked
+**separately** (an envelope exists from the moment it is SENT, so the id alone would return
+an unsigned document labelled as the signed copy); an empty or failed DocuSign response is
+refused rather than passed through, since **a zero-byte 200 is a real DocuSign failure mode**;
+`private, no-store`, because the token is in the URL. The portal button appears only when both
+conditions hold, so an early client who signed an emailed PDF never sees an option that
+errors.
