@@ -362,5 +362,43 @@ const render = (o) => {
     "a new campaignSetup field would be silently discarded on save");
 }
 
+// ── 🔴 AN UNSIGNED AGREEMENT MUST BE VISIBLE FROM THE FIRST SCREEN ───────────
+//
+// "Pending Signature" used to live ONLY inside the Contract tab, which on a phone is the
+// last of six and off-screen until you swipe the tab row. So a client who had not signed
+// could open their portal, see nothing about it anywhere, and leave. Bryson's first client
+// went four days unsigned. That was email rather than the portal, but the portal offered
+// no nudge either, and it is the one place he can be sure they can reach.
+//
+// Both directions are asserted. A banner that never goes away is its own bug: it would
+// still be shouting at a client who signed months ago.
+{
+  const pkg = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, tier: "launch" };
+  const base = { name: "Stencil & Thread", contactName: "Sebastian", packageId: "g-launch", portalToken: "t", leadsLog: [], commLog: [] };
+  const unsigned = makePortalHTML({ ...base, contractStatus: "pending", contractSigned: false }, pkg);
+  const signed = makePortalHTML({ ...base, contractStatus: "active", contractSigned: true }, pkg);
+
+  ok("🔴 an unsigned client is told so on the Status tab", /waiting for your signature/.test(unsigned),
+    "otherwise the only mention is inside a tab that is off-screen on a phone");
+  // On the STATUS pane specifically, not merely somewhere in the document.
+  const statusPane = unsigned.slice(unsigned.indexOf('id="t-status"'), unsigned.indexOf('id="t-approvals"'));
+  ok("and it is on the first screen they land on", /waiting for your signature/.test(statusPane),
+    "a banner buried in another pane is the bug this replaced");
+  ok("the banner offers a way straight there", /goContract\(\)/.test(statusPane));
+  ok("the Contract tab carries a dot", /Contract <span[^>]*background:#F59E0B/.test(unsigned));
+  ok("it tells them to check spam, which is where these actually go",
+    /spam or promotions/.test(statusPane));
+
+  ok("🔴 a signed client is not nagged", !/waiting for your signature/.test(signed),
+    "a banner that never clears is shouting at someone who signed months ago");
+  ok("and their tab has no dot", !/Contract <span[^>]*background:#F59E0B/.test(signed));
+
+  // The jump has to land on the right pane AND light the right tab, or it looks broken.
+  ok("goContract is defined in the page it is called from", /function goContract\(\)/.test(unsigned));
+  ok("and it activates the tab rather than only revealing the pane",
+    /goContract\(\)\{[^}]*show\('contract'/.test(unsigned.replace(/\n/g, " ")),
+    "revealing the pane without lighting the tab leaves the nav showing Status");
+}
+
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
