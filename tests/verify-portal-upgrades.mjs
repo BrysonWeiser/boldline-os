@@ -495,5 +495,36 @@ const render = (o) => {
   same("both contract copies carry the same letterhead rules", rules(os), rules(contract));
 }
 
+// ── 🔴 THE CONTRACT MUST NOT BE CUT OFF ON A DESKTOP ─────────────────────────
+//
+// My regression from the four-tab change, found by Bryson on a PC. `.cwide` was written
+// when the contract was its own tab: it breaks the contract out of `.main`'s 600px cap to
+// 980px on a wide screen so a legal document is readable. Moving it inside
+// `.acc{overflow:hidden}` left the CARD at 572px while the contract still grew to 980px, so
+// **204px was clipped off each side** at 1280 and 1600. The phone was fine, which is why it
+// shipped: below 960px the breakout never applies.
+//
+// The fix is to widen the PANE, not an element inside a clipped card, so the cards grow to
+// hold the contract. That also keeps the standing rule that siblings in one container share
+// a width, which widening only the agreement card would have broken.
+{
+  for (const [name, src] of [
+    ["the real portal", readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8")],
+    ["the OS copy", readFileSync(join(ROOT, "index.html"), "utf8")],
+  ]) {
+    ok(`${name} widens the Account pane on a desktop`,
+      /#t-account\{width:min\(94vw,980px\)/.test(src),
+      "without this the contract breaks out of a 572px card and 204px is cut off each side");
+    ok(`${name} stops the inner breakout doubling up`,
+      /#t-account \.cwide\{width:auto;margin-left:0\}/.test(src),
+      "two breakouts nested would shift the contract off its own card again");
+    // 🔴 The card still clips, on purpose, for its rounded corners. The fix must not be
+    // "remove overflow:hidden", which would let content spill outside the card border.
+    ok(`${name} keeps the accordion clipping its corners`,
+      /\.acc\{[^}]*overflow:hidden/.test(src),
+      "dropping this makes content spill outside the card instead of fixing the width");
+  }
+}
+
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
