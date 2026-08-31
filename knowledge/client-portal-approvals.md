@@ -204,3 +204,26 @@ card says so and links to the real portal.
 2. **A mutation that does not apply looks exactly like a guard that works.** One of the three
    break-tests here silently no-oped because the search string did not match, and reported a
    pass. Always confirm the mutation actually changed the file before believing the result.
+
+
+## 2026-08-31 — the contract letterhead, and one false alarm
+
+**False alarm first, because the lesson is about tooling.** Bryson spotted a missing logo in
+a screenshot. It was my screenshot harness answering EVERY url with the portal HTML, so
+`/logo.png` received HTML bytes and drew as a broken image. The product was fine. Confirmed
+three ways before saying so: the live OS site serves `/logo.png` as image/png at the repo
+file's exact byte size, the iframe's own image reported `naturalWidth` 292, and a corrected
+screenshot shows it. **The harness now serves real files**, so a missing image in a future
+screenshot is a finding rather than an artifact. A guard also fails if the logo tag or
+`logo.png` itself ever disappears, because the agreement would still render, just unbranded,
+on every client's portal.
+
+**The real fix.** The wordmark needs **204px** on one line. In the portal iframe the contract
+gets 274px on a 360px phone and 304px on a 390px one, so BOLDLINE and MEDIA wrapped beside the
+logo on every phone. Below 460px the header is now a centred stack; two smaller steps carry it
+down to a 320px screen. **Print is unaffected** (a sheet is ~816px, above every rule) and that
+was verified by rendering standalone at print width, not assumed.
+
+🔴 **THE BREAKPOINTS ARE THE CONTRACT'S WIDTH, NOT THE PHONE'S.** It renders in an iframe, so
+the media query sees the frame, not the device. A 340px cutoff looks like "small phones" and
+actually fires on ordinary ones. Measure the frame before choosing a number.
