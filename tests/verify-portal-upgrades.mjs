@@ -296,8 +296,11 @@ const render = (o) => {
   const real = tabsOf(src);
   const preview = tabsOf(osSrc);
 
-  same("the real portal still has all six tabs", real,
-    ["approvals", "contract", "intake", "package", "reports", "status"]);
+  // 🔴 FOUR TABS AS OF 2026-08-31. Six was 451px of buttons in a 390px strip, so Contract
+  // sat off-screen until you swiped; Package, Info and Contract are now tap-to-open sections
+  // inside Account. Pinned by name so a fifth tab has to be a decision, not a drift.
+  same("the real portal has exactly the four tabs", real,
+    ["account", "approvals", "reports", "status"]);
   ok("the preview really is a subset, not a different set",
     preview.every((t) => real.includes(t)), `preview has ${preview.filter((t) => !real.includes(t)).join(", ")} which the real portal does not`);
   same("and the preview omits exactly the two known tabs", real.filter((t) => !preview.includes(t)),
@@ -385,19 +388,30 @@ const render = (o) => {
   ok("and it is on the first screen they land on", /waiting for your signature/.test(statusPane),
     "a banner buried in another pane is the bug this replaced");
   ok("the banner offers a way straight there", /goContract\(\)/.test(statusPane));
-  ok("the Contract tab carries a dot", /Contract <span[^>]*background:#F59E0B/.test(unsigned));
+  // The tab is Account now, and the dot appears TWICE: on the tab, and on the Agreement
+  // section header inside it, so it is visible on the way in and again once you are there.
+  ok("the Account tab carries a dot", /Account <span[^>]*background:#F59E0B/.test(unsigned));
+  ok("and the Agreement section carries one too", /Your Agreement<span class="accdot">/.test(unsigned));
   ok("it tells them to check spam, which is where these actually go",
     /spam or promotions/.test(statusPane));
 
   ok("🔴 a signed client is not nagged", !/waiting for your signature/.test(signed),
     "a banner that never clears is shouting at someone who signed months ago");
-  ok("and their tab has no dot", !/Contract <span[^>]*background:#F59E0B/.test(signed));
+  ok("and their tab has no dot", !/Account <span[^>]*background:#F59E0B/.test(signed));
+  // The ELEMENT, not the class name: `.accdot` is in the stylesheet on every render, so a
+  // bare /accdot/ can never be absent and would be a check that cannot fail.
+  ok("nor does their Agreement section", !/Your Agreement<span class="accdot">/.test(signed));
 
   // The jump has to land on the right pane AND light the right tab, or it looks broken.
   ok("goContract is defined in the page it is called from", /function goContract\(\)/.test(unsigned));
   ok("and it activates the tab rather than only revealing the pane",
-    /goContract\(\)\{[^}]*show\('contract'/.test(unsigned.replace(/\n/g, " ")),
+    /goContract\(\)\{[\s\S]{0,240}show\('account'/.test(unsigned),
     "revealing the pane without lighting the tab leaves the nav showing Status");
+  // 🔴 AND OPENS THE SECTION. Landing on Account with all three collapsed looks like the
+  // button did nothing, which is the same class of bug as not lighting the tab.
+  ok("and opens the agreement section it just sent them to",
+    /goContract\(\)\{[\s\S]{0,320}acc-agreement[\s\S]{0,60}open=true/.test(unsigned),
+    "the client lands on three closed rows and has to guess which one to tap");
 }
 
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
