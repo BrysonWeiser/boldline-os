@@ -31,6 +31,10 @@ const ok = (name, cond, extra) => {
   fail++;
   console.error(`  FAIL  ${name}${extra ? `\n        ${extra}` : ""}`);
 };
+const same = (name, got, want) => {
+  const a = JSON.stringify(got), b = JSON.stringify(want);
+  ok(name, a === b, a === b ? "" : `got ${a}, wanted ${b}`);
+};
 const text = (html) => html.replace(/<[^>]+>/g, " ").replace(/&mdash;/g, "-").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
 
 // The section of the page under test, so a match elsewhere cannot satisfy a check here.
@@ -269,6 +273,50 @@ const render = (o) => {
     ok("the OS preview computes a qualification threshold at all", /const needed  = Math\.max/.test(UI));
     ok("and honours the two-platform unlock", /isCombo \? COMBO_MIN_BUDGET : 0/.test(UI));
   }
+}
+
+// ── 🔴 THE PORTAL IS BUILT TWICE, AND THE TABS HAD ALREADY DRIFTED ───────────
+//
+// Found 2026-08-30 when Bryson asked me to *"double check that there is everything in the
+// client portal that there needs to be"*. The real portal (netlify/functions/portal.mjs)
+// has SIX tabs. The OS's Live Client View preview (makePortalHTML in index.html) renders
+// FOUR: it is missing Review and Reports. Nothing asserted that, and the preview described
+// itself as "Exactly what {name} sees" — so the one screen he would use to answer his own
+// question was quietly short two tabs.
+//
+// This does not force the preview to grow two more panes. Maintaining a third copy of the
+// approvals and reports UI is how this file got into trouble in the first place. It pins
+// the two lists so the gap is a RECORDED decision that cannot widen, and so adding a tab
+// to the real portal without deciding what the preview does fails loudly.
+{
+  const src = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  const osSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+  const tabsOf = (text) => [...new Set([...text.matchAll(/onclick="show\('([a-z]+)'/g)].map((m) => m[1]))].sort();
+
+  const real = tabsOf(src);
+  const preview = tabsOf(osSrc);
+
+  same("the real portal still has all six tabs", real,
+    ["approvals", "contract", "intake", "package", "reports", "status"]);
+  ok("the preview really is a subset, not a different set",
+    preview.every((t) => real.includes(t)), `preview has ${preview.filter((t) => !real.includes(t)).join(", ")} which the real portal does not`);
+  same("and the preview omits exactly the two known tabs", real.filter((t) => !preview.includes(t)),
+    ["approvals", "reports"]);
+
+  // 🔴 The claim on the preview is the part that actually misled. If the wording ever goes
+  // back to promising exactness, this fails.
+  // Anchor on the RENDERED label, not the first mention: the comment above makePortalHTML
+  // discusses the preview by name, and slicing from there measured the wrong 2200 chars.
+  const i = osSrc.indexOf("<Label>Live Client View</Label>");
+  ok("the Live Client View card was found", i > 0);
+  const near = osSrc.slice(i, i + 2200);
+  ok("the preview does not claim to be exactly what the client sees",
+    !/Exactly what \{client\.name\} sees/.test(near),
+    "it is short two tabs, so that sentence sends him to the wrong conclusion");
+  // 🔴 The LINK, not the words. First version matched /Open Theirs/, which also appears in
+  // the sentence below the button, so deleting the button entirely still passed.
+  ok("and it opens the real portal in a new tab", /<a href=\{`\$\{window\.location\.origin\}\/portal\?token=\$\{client\.portalToken\}`\} target="_blank"/.test(near),
+    "without a way through to the real thing, the preview is the only view he has");
 }
 
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
