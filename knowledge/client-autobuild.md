@@ -66,3 +66,34 @@ possible way to fail.
 Conversion tracking, the keyword and negative review (his own notes call it the highest-value
 hour on a new account), publishing the page, and approving the campaign. Meta is not wired
 here yet; the campaign step is Google only.
+
+
+## 2026-08-31, same day — two things the first real run exposed
+
+**1. 🔴 `dispatchAlert` does NOT reach the OS bell.** It is email, SMS and push. The in-app
+bell, its count and the Notifications panel all read **`pendingActions` on the client
+record**. The first build emailed and pushed correctly and showed nothing in the app. Any
+job that wants Bryson to see something in the OS must write `pendingActions`; writing only
+one of the two is a half-delivered notification.
+
+De-duplicated on `autobuild-<step>-<YYYY-MM-DD>`, because an hourly job that re-adds a bell
+entry every run turns the panel into noise.
+
+**2. The page is rebuilt when the client's assets change.** `autoBuild.landingMediaKey` is
+the **sorted set of asset paths**, not the count:
+
+- swapping one photo for another leaves the count identical, and is the case worth catching
+- reordering must NOT rebuild, or it fires every hour forever
+- deleting every asset must NOT rebuild: a client removing a photo is not asking for a
+  rewrite, and throwing away a working page is worse than doing nothing
+
+### Worth knowing: the gallery was never the problem
+`landing.mjs` already renders **every** client photo in a gallery once there are two or more
+(`photos ... .slice(0, 6)`), and picks a hero from them. So assets were always going to be
+used. What was missing was **re-running the build** so the hero, the brand colour taken from
+their photos, and the gallery reflect what they actually uploaded.
+
+### Still manual: sending the page to the client
+The bot drafts and tells Bryson. Queuing it for the CLIENT to approve is still the
+Client Approvals card on the Client View tab (KB `client-portal-approvals`), which emails
+them and puts it in their portal Review tab. Deliberate for now: Bryson reads it first.
