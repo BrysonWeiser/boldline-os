@@ -460,5 +460,40 @@ const render = (o) => {
     "the agreement renders without the mark on it");
 }
 
+// ── The contract letterhead fits on one line at every width ──────────────────
+//
+// The wordmark needs 204px on one line. Inside the portal's iframe the contract gets only
+// 274px on a 360px phone and 304px on a 390px one, so BOLDLINE and MEDIA split across two
+// lines beside the logo and read as a squeeze rather than a mark.
+//
+// 🔴 THE BREAKPOINTS ARE THE CONTRACT'S OWN WIDTH, NOT THE PHONE'S, because it renders in an
+// iframe and the media query sees the frame. The first attempt used a 340px cutoff, which
+// therefore fired on ordinary phones and shrank the wordmark to 14px where 18px fitted
+// perfectly well. Measured, not guessed.
+//
+// Print must keep the full-size row: a sheet of paper is ~816px, above every rule here.
+{
+  const contract = readFileSync(join(ROOT, "netlify/lib/contract-shared.cjs"), "utf8");
+  const os = readFileSync(join(ROOT, "index.html"), "utf8");
+
+  for (const [name, src] of [["contract-shared", contract], ["the OS copy", os]]) {
+    ok(`${name} stacks the letterhead on a narrow frame`,
+      /@media\(max-width:460px\)\{\.hd\{flex-direction:column/.test(src),
+      "the wordmark wraps beside the logo on every phone without this");
+    ok(`${name} steps the wordmark down below 380`,
+      /@media\(max-width:380px\)\{\.hd \.co\{font-size:18px/.test(src));
+    ok(`${name} has a final step for a 320px screen`,
+      /@media\(max-width:260px\)\{\.hd \.co\{font-size:14px/.test(src));
+    // 🔴 The narrow rules must be MEDIA-QUERIED, not unconditional, or the printed
+    // agreement gets a shrunken letterhead too.
+    ok(`${name} leaves the default size alone`,
+      /\.hd \.co\{font-size:21px/.test(src),
+      "print and desktop must still get the full-size wordmark");
+  }
+  // The two copies must agree, or the previewed contract is not the signed one.
+  const rules = (src) => (src.match(/@media\(max-width:(?:460|380|260)px\)\{\.hd[^}]*\}[^']*/g) || []).join("|");
+  same("both contract copies carry the same letterhead rules", rules(os), rules(contract));
+}
+
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

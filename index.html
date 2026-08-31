@@ -2382,6 +2382,21 @@ const makeContractHTML=(cl,pkg)=>{
    +'.hd img{width:52px;height:52px;object-fit:contain}'
    +'.hd .co{font-size:21px;font-weight:700;letter-spacing:.04em;color:#111}.hd .co span{color:#8B6914}'
    +'.hd .tag{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#8B6914;margin-top:2px}'
+   // 🔴 The wordmark needs 204px on one line. Inside the portal's iframe the contract is
+   // only 274px wide on a 360px phone and 304px on a 390px one, so BOLDLINE and MEDIA
+   // split across two lines beside the logo and read as a squeeze rather than a mark.
+   // Below 460px it becomes a centred stack, which is what a letterhead does anyway.
+   // Print is unaffected: a sheet of paper is ~816px, so it keeps the row.
+   +'@media(max-width:460px){.hd{flex-direction:column;text-align:center;gap:8px;padding-bottom:12px}.hd img{width:46px;height:46px}}'
+   // And a second step for the narrowest phones: at a 360px screen the contract is only
+   // 274px wide, which still leaves the 21px wordmark ~22px short of fitting on one line.
+   +'@media(max-width:380px){.hd .co{font-size:18px}.hd .tag{font-size:9px;letter-spacing:.1em}}'
+   // 🔴 THESE BREAKPOINTS ARE THE CONTRACT'S OWN WIDTH, NOT THE PHONE'S. It renders in an
+   // iframe, so the media query sees the frame: a 390px phone gives the contract 304px and
+   // a 360px phone gives it 274px. A 340px cutoff therefore fired on ordinary phones and
+   // shrank the wordmark to 14px when 18px fitted fine. 260px catches only a 320px screen,
+   // which is where 18px genuinely will not fit.
+   +'@media(max-width:260px){.hd .co{font-size:14px;letter-spacing:.02em}}'
    +'.docmeta{display:flex;justify-content:space-between;font-size:10px;color:#666;margin:8px 0 18px}'
    +'h1{font-size:17px;text-align:center;margin:6px 0 2px;letter-spacing:.02em}'
    +'.sub{text-align:center;font-size:11px;color:#666;margin-bottom:16px}'
