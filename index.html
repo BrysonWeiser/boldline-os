@@ -2565,11 +2565,18 @@ const makePortalHTML=(cl,pkg,notice)=>{
   const fHTML = inclFeats.map(f=>'<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:#9CA3AF;display:flex;align-items:center;gap:8px"><span style="color:#C8A84B;font-weight:700">✓</span>'+f.label+'</div>').join('');
   const uHTML = exclFeats.slice(0,8).map(f=>'<div style="padding:5px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px;color:#374151;display:flex;align-items:center;gap:8px"><span>○</span>'+f.label+'<span style="margin-left:auto;font-size:9px;padding:1px 6px;border-radius:20px;background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.2);color:#C8A84B">As you scale</span></div>').join('');
   // ── Upgrades ────────────────────────────────────────────────────────────────
-  // 🔴 MIRRORS netlify/functions/portal.mjs EXACTLY. This is the Live Client View preview
-  // and that is the real portal; they are two implementations of one page. The first fix
-  // landed only in the server copy, so Bryson looked at the preview and correctly said the
-  // update had not stuck. `tests/verify-portal-upgrades.mjs` now compares the OUTPUT of
-  // both, so this cannot drift again without a failing test.
+  // 🔴 MIRRORS netlify/functions/portal.mjs, BUT NOT EXACTLY, AND THE WORD "EXACTLY" USED
+  // TO BE HERE. This is the Live Client View preview and that is the real portal; they are
+  // two implementations of one page. The first fix landed only in the server copy, so
+  // Bryson looked at the preview and correctly said the update had not stuck.
+  // `tests/verify-portal-upgrades.mjs` compares the OUTPUT of both.
+  //
+  // What "not exactly" means, as of 2026-08-30: the real portal has SIX tabs and this
+  // preview renders FOUR. It has no Review pane and no Reports pane. That is a deliberate
+  // limit rather than a bug to fix by copying two more panes here, because a third copy of
+  // that UI is how this file got into trouble to begin with. The preview says so on screen
+  // and links through to the real portal, and the test pins both lists so the gap cannot
+  // widen without someone deciding to widen it.
   const budgetOf = (v) => {
     const n = Number(String(v == null ? "" : v).replace(/[^0-9.]/g, ""));
     return Number.isFinite(n) && n > 0 ? n : 0;
@@ -6099,9 +6106,20 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {!client.internal&&<Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Live Client View</Label>
-                <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${client.portalToken}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Link</button>
+                <div style={{display:"flex",gap:6}}>
+                  <a href={`${window.location.origin}/portal?token=${client.portalToken}`} target="_blank" rel="noopener noreferrer" style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:"pointer",textDecoration:"none"}}>Open Theirs ↗</a>
+                  <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/portal?token=${client.portalToken}`)} style={{padding:"4px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Link</button>
+                </div>
               </div>
-              <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Exactly what {client.name} sees — no mention of AI or bots anywhere.</div>
+              {/* 🔴 THIS USED TO SAY "Exactly what {name} sees", AND IT WAS NOT TRUE.
+                  The portal is built twice, and this copy is missing the Review and
+                  Reports tabs the real one has. Claiming exactness on a preview that is
+                  short two tabs is how he would check whether the portal "has everything"
+                  and get the wrong answer, which is exactly what he asked me on
+                  2026-08-30. Rather than maintain a third copy of two more panes, the
+                  preview now says what it is and links to the real thing. A test pins
+                  the tab lists so the gap can never widen without someone deciding to. */}
+              <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>A preview of {client.name}'s portal, with no mention of AI or bots anywhere. Their Review and Reports tabs only appear in the real thing, so use <b style={{color:C.textDim}}>Open Theirs</b> to see it exactly as they do.</div>
               <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`}}>
                 <iframe srcDoc={makePortalHTML(client,pkg)} title="Client Portal" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:500,border:"none",display:"block"}}/>
               </div>
