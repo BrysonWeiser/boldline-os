@@ -97,3 +97,33 @@ configured the job exits quietly rather than paging 96 times a day.
 
 **The 10-envelopes-a-month plan ceiling.** Reads do not count against it, only sends, but a
 "Send Another Copy" does. See `docusign-integration`.
+
+
+## 2026-08-31 — the contract renders its own signature block
+
+`contractSignedAt` was being stored and shown nowhere. The agreement in the portal still
+displayed empty signature lines and `Date: ______` after signing, which reads as unsigned.
+
+`makeContractHTML` (both copies) now branches on `contractSigned && contractSignedAt`:
+
+- **Client side:** signer name, *"Signed electronically via DocuSign"*, and the real date.
+- **Agency side:** *"Issued by BoldLine Media LLC"*, NOT "signed". 🔴 `docusign-send` sends
+  **exactly one signer, the client**. Claiming Bryson signed would be a fabrication on a
+  legal document. If a genuine counter-signature is ever wanted, add him as a second signer
+  in `docusign-send` first.
+- **No recorded date:** falls back to the blank form. A date we invented is worse than a
+  blank line.
+
+🔴 **THE UNSIGNED BRANCH IS LOAD-BEARING AND MUST STAY BLANK.** `/BL_SIGN_HERE/` is the anchor
+DocuSign attaches its signature box to, and `docusign-send` renders the document while
+`contractSigned` is still false. If the executed block ever renders for an unsigned client,
+the anchor disappears and the client receives a contract with nowhere to sign — the same
+failure as the original `SIGN_ANCHOR` bug. Tested harder than the signed branch for that
+reason.
+
+### Still available if wanted
+The **executed PDF** — real signature marks plus DocuSign's Certificate of Completion — is
+retrievable with the stored `docusignEnvelopeId` and the existing JWT auth:
+`GET /restapi/v2.1/accounts/{accountId}/envelopes/{envelopeId}/documents/combined`. That
+would let the portal offer the legally definitive copy rather than a rendering of it. Not
+built; raised 2026-08-31.
