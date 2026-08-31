@@ -21,6 +21,23 @@
 // be retried every hour forever.
 export const MAX_ATTEMPTS = 3;
 
+
+// 🔴 WHICH ASSETS THE PAGE WAS BUILT FROM. Bryson, 2026-08-31: *"once he puts in the assets
+// he wants to use will the landing page automatically be recreated"*. A page written before
+// the client uploaded anything picks no hero, no brand colour from their photos, and shows
+// no gallery. Rebuilding when the assets change is the difference between a generic page
+// and theirs.
+//
+// The key is the set of asset PATHS, sorted, not the count: swapping one photo for another
+// leaves the count identical and is exactly the case worth catching. Sorted so the order
+// files come back in cannot trigger a pointless rebuild.
+export const mediaKey = (client) =>
+  ((client || {}).mediaLibrary || [])
+    .map((m) => String((m && m.path) || ""))
+    .filter(Boolean)
+    .sort()
+    .join("|");
+
 const has = (v) => !!String(v == null ? "" : v).trim();
 
 // 🔴 EVERY REASON IS RETURNED, NOT LOGGED. A client sitting untouched with no explanation is
@@ -61,7 +78,15 @@ export function nextStep(client) {
   //    to run without a landingUrl, so this order is a requirement rather than a preference.
   if (!has(lp.headline) && !ab.landingAt) return { step: "landing", why: "" };
 
-  // 2. Then the campaign, once there is a page AND an ad account to build it in.
+  // 2. Rebuild the page when the client's assets have changed since it was written.
+  //    Only ever when there are assets NOW: going from some to none should not throw away a
+  //    working page, and a client who deletes a photo is not asking for a rewrite.
+  const nowKey = mediaKey(c);
+  if (ab.landingAt && nowKey && nowKey !== (ab.landingMediaKey || "")) {
+    return { step: "landing", why: "" };
+  }
+
+  // 3. Then the campaign, once there is a page AND an ad account to build it in.
   if (camps.length === 0 && !ab.campaignAt) {
     if (!has(lp.headline)) return { step: null, why: "Waiting on the landing page." };
     if (!has(c.googleAdsCustomerId)) {
@@ -79,6 +104,8 @@ export function nextStep(client) {
 export function successPatch(step, client, at) {
   const ab = { ...((client || {}).autoBuild || {}) };
   ab[step === "landing" ? "landingAt" : "campaignAt"] = at;
+  // Stamped on the landing step so a rebuild is triggered by the NEXT change, not this one.
+  if (step === "landing") ab.landingMediaKey = mediaKey(client);
   ab.attempts = 0;
   delete ab.error;
   return { autoBuild: ab };
