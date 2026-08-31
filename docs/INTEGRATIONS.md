@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 134 task-keyed entries under `knowledge/`. They surface automatically via the
+> 135 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**134 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**135 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -30,6 +30,9 @@
 - **[campaign-launch-bugs](../knowledge/campaign-launch-bugs.md)** &mdash; &#9989; verified &middot; 2026-08-20  
   Two silent bugs found 2026-08-20 in a pre-launch sweep Bryson asked for before approving his first campaign. (1) Approving a campaign NEVER MADE IT DELIVER on either platform — the build correctly creates campaign, ad group/ad set and ad all paused, but approval only set the CAMPAIGN live, and both platforms need every level active to serve an impression. Every surface reported success. (2) Every Meta campaign targeted the ENTIRE UNITED STATES, because the launch card sent only a two-letter country. Both fixed at the handler level so no caller can reintroduce them. 53 checks, five deliberate breaks.  
   <sub>*task:* debug a campaign that was approved but is not delivering, or one spending on the wrong people; understand why starting a campaign touches ad groups and ads &nbsp;|&nbsp; *keywords:* activateCampaign, worldwide targeting, target another country, international ads, geo-parse, parseLocation, resolveLanguages, language targeting, per-service campaign, client parity, house account parity, campaign not delivering, no impressions, zero spend, approved but nothing happened, ad set paused, ad group paused, effective_status, geo_locations, countries US, nationwide targeting, resolveGeoTargets, adgeolocation, geo key, toLocationLines, verify-campaign-launch</sub>
+- **[client-autobuild](../knowledge/client-autobuild.md)** &mdash; &#9989; verified &middot; 2026-08-31  
+  Hourly job that drafts a new client's landing page, then builds a PAUSED Google campaign, one step per client per run, and raises an approval for Bryson. It PREPARES anything and PUBLISHES nothing. Built 2026-08-31 after Bryson asked whether the bots start on their own and the honest answer was no.  
+  <sub>*task:* make the bots build a new client's landing page and campaign without being asked &nbsp;|&nbsp; *keywords:* autobuild, client-autobuild, autoBuild, nextStep, readiness, automatic campaign build, approval, intakeComplete, CLIENT_AUTOBUILD, hands off, bots</sub>
 - **[conversion-loop](../knowledge/conversion-loop.md)** &mdash; &#9989; verified &middot; 2026-08-24  
   Google is now told which leads were actually worth having. Three conversion actions per client, deliberately unequal - a form fill is measured but NEVER bid on, while qualified lead and closed customer are what Smart Bidding chases. The click id is captured on the landing page at the visit, stored with the lead, and used weeks later to credit the outcome back to the ad that caused it. Plus the client-requested 30-day scorecard.  
   <sub>*task:* set up or debug what Google Ads is told to optimize toward for a client, or send qualified/won leads back to Google &nbsp;|&nbsp; *keywords:* conversion loop, conversion actions, offline conversion import, uploadClickConversions, gclid, wbraid, gbraid, click id, qualified lead, closed customer, primaryForGoal, secondary conversion, enhanced conversions for leads, ConversionLoopCard, ScorecardCard, gads-conversions, scorecard, 30 day scorecard, grossMarginPct, mark qualified, order value</sub>
