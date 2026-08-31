@@ -13,7 +13,7 @@
 // so a cached shell should never win while online, but an already-running installed PWA
 // keeps the code it booted with. Bumping wipes every prior cache on activate, which
 // guarantees the next launch boots the current deploy rather than the one in memory.
-const CACHE_VERSION = "v69";  // v69: 2026-08-31 a signed contract shows who signed and when
+const CACHE_VERSION = "v70";  // v70: 2026-08-31 download the e-signed original from DocuSign
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
