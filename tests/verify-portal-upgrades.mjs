@@ -526,5 +526,56 @@ const render = (o) => {
   }
 }
 
+// ── 🔴 A SIGNED AGREEMENT SHOWS WHO SIGNED IT, AN UNSIGNED ONE STAYS BLANK ───
+//
+// Bryson, 2026-08-31, looking at a contract his first client had already signed: the
+// signature block still showed empty lines and "Date: ______", which reads as UNSIGNED.
+// That is the opposite of the truth, on the one page whose whole job is to state it.
+//
+// 🔴 THE UNSIGNED BRANCH IS THE DANGEROUS ONE AND IS TESTED HARDER. `/BL_SIGN_HERE/` is the
+// anchor DocuSign attaches its signature box to, and `docusign-send` renders this document
+// while `contractSigned` is still false. Lose that and the client receives an agreement
+// with nowhere to sign, which is exactly the class of failure that produced
+// verify-functions-resolve.
+{
+  const contract = await import("../netlify/lib/contract-shared.cjs");
+  const pkg = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, tier: "launch" };
+  const base = { name: "Stencil & Thread", contactName: "Sebastian Perrin", packageId: "g-launch" };
+  const unsigned = contract.makeContractHTML({ ...base, contractSigned: false }, pkg, "/logo.png");
+  const signed = contract.makeContractHTML(
+    { ...base, contractSigned: true, contractSignedAt: "2026-08-30T21:14:00Z" }, pkg, "/logo.png");
+
+  ok("🔴 an unsigned contract still carries the DocuSign anchor",
+    unsigned.includes("/BL_SIGN_HERE/"),
+    "without it the client gets an agreement with nowhere to sign");
+  ok("and still has blank lines to sign on",
+    (unsigned.match(/Date: _{5,}/g) || []).length === 2);
+  ok("and does not claim a signature", !/Signed electronically/.test(unsigned));
+
+  ok("🔴 a signed contract names who signed", /Signed electronically via DocuSign/.test(signed));
+  ok("and shows the real signed date", /August 30, 2026/.test(signed),
+    "the date comes from the envelope's completion time, not from today");
+  ok("and has no empty date lines left", !/Date: _{5,}/.test(signed),
+    "an empty line on a signed contract reads as unsigned");
+
+  // 🔴 The agency side is labelled ISSUED, not signed. Only the client is a DocuSign signer
+  // (docusign-send sends exactly one), so claiming Bryson signed would be a fabrication on
+  // a legal document.
+  ok("the agency side says issued, not signed", /Issued by BoldLine Media LLC/.test(signed));
+  ok("and never claims Bryson signed electronically",
+    !/Bryson[^<]*Signed electronically/.test(signed));
+
+  // The date must come from the record, not from the clock.
+  const other = contract.makeContractHTML(
+    { ...base, contractSigned: true, contractSignedAt: "2026-07-04T10:00:00Z" }, pkg, "/logo.png");
+  ok("a different signing date renders differently", /July 4, 2026/.test(other),
+    "a hardcoded or today-based date would pass the check above and still be wrong");
+
+  // Signed with no recorded date must fall back to the blank form rather than invent one.
+  const noDate = contract.makeContractHTML({ ...base, contractSigned: true }, pkg, "/logo.png");
+  ok("signed with no recorded date does not invent one", !/Signed electronically/.test(noDate),
+    "better a blank line than a date we made up on a contract");
+}
+
 console.log(`verify-portal-upgrades: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

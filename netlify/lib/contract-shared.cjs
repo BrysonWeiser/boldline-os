@@ -99,6 +99,11 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const setupFee   = (cl.billingSetup!=null?cl.billingSetup:(pkg&&pkg.setup))||0;
   const termMo     = cl.contractTermMonths || 3;
   const clientName = esc(cl.name), signerName = esc(cl.contactName||"Authorized Signatory");
+  // Set only when the OS knows it was signed. `contractSignedAt` is written by the DocuSign
+  // watcher from the envelope's own completion time, so it is the real date, not "today".
+  const signedOn = (cl.contractSigned && cl.contractSignedAt)
+    ? new Date(cl.contractSignedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})
+    : "";
   const agreementNo= esc(String(cl.id||"").slice(-8).toUpperCase() || "—");
   // Section numbering: 1 Services, 2 Term, 3 Fees are fixed; Per-Lead (if any) and
   // Performance Bonus (if any) slot in after 3; everything later shifts accordingly.
@@ -212,7 +217,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'.callout{padding:10px 12px;background:#faf6ea;border:1px solid #d9c98f;border-radius:4px;margin:8px 0;font-size:11.5px}'
    +'.sigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px;page-break-inside:avoid}'
    +'.sig-box{padding:12px;border:1px solid #e5e0d0;border-radius:4px}'
-   +'.sig-line{border-bottom:1px solid #1a1a1a;margin:26px 0 4px}'
+   +'.sig-done{border-bottom:1px solid #111;padding-bottom:3px;margin-bottom:5px;font-size:10.5px;font-style:italic;color:#8B6914}.sig-line{border-bottom:1px solid #1a1a1a;margin:26px 0 4px}'
    +'.ft{margin-top:22px;padding-top:10px;border-top:1px solid #e5e0d0;font-size:9px;color:#999;text-align:center}'
    +'@media print{body{padding:18px 22px}}';
 
@@ -320,8 +325,25 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<h2>Signatures</h2>'
    +'<p style="font-size:11px">By signing below, each party confirms it has read, understands, and agrees to this Agreement, and that the person signing is authorized to bind that party.</p>'
    +'<div class="sigs">'
-   +'<div class="sig-box"><div class="pl">Agency — BoldLine Media LLC</div><div class="sig-line"></div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div>'
-   +'<div class="sig-box"><div class="pl">Client — '+clientName+'</div><div class="sig-line"><span style="color:#fff;font-size:9px">/BL_SIGN_HERE/</span></div><div style="font-size:11px">'+signerName+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div>'
+   // 🔴 A SIGNED AGREEMENT MUST NOT SHOW EMPTY SIGNATURE LINES. Bryson, 2026-08-31, looking
+   // at a contract his first client had already signed: blank lines and "Date: ______" read
+   // as UNSIGNED, which is the opposite of the truth and the one thing this page exists to
+   // state. Once `contractSigned` is set, the block records who signed and when.
+   //
+   // 🔴 AND IT MUST STAY BLANK BEFORE SIGNING, because `/BL_SIGN_HERE/` is the anchor
+   // DocuSign attaches its signature box to. `docusign-send` renders this document while
+   // `contractSigned` is still false, so the unsigned branch is the one that goes out. Break
+   // that and the client receives a contract with nowhere to sign.
+   //
+   // Only the CLIENT is a DocuSign signer (`docusign-send` sends one signer). So the agency
+   // side is labelled as issued rather than signed: claiming a signature that does not exist
+   // in the envelope would be a fabrication on a legal document.
+   +(signedOn
+     ? '<div class="sig-box"><div class="pl">Agency — BoldLine Media LLC</div><div class="sig-done">Issued by BoldLine Media LLC</div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: '+signedOn+'</div></div>'
+     : '<div class="sig-box"><div class="pl">Agency — BoldLine Media LLC</div><div class="sig-line"></div><div style="font-size:11px">Bryson Weiser, Owner</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div>')
+   +(signedOn
+     ? '<div class="sig-box"><div class="pl">Client — '+clientName+'</div><div class="sig-done">Signed electronically via DocuSign</div><div style="font-size:11px">'+signerName+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: '+signedOn+'</div></div>'
+     : '<div class="sig-box"><div class="pl">Client — '+clientName+'</div><div class="sig-line"><span style="color:#fff;font-size:9px">/BL_SIGN_HERE/</span></div><div style="font-size:11px">'+signerName+'</div><div style="font-size:11px;color:#666;margin-top:3px">Date: _______________</div></div>')
    +'</div>'
    +'<div class="ft">BoldLine Media LLC · Arizona, USA · Agreement No. BLM-'+agreementNo+' · '+(pkg&&pkg.name?esc(pkg.name)+' — '+esc(pkg.platform):'')+'</div>'
    +'</body></html>';
