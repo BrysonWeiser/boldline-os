@@ -4,7 +4,7 @@ topic: Forms/Leads
 task: collect or debug SMS consent on a landing page, or change what a CRM receives
 keywords: [sms consent, smsConsentTransactional, smsConsentMarketing, consent checkbox, TCPA, A2P, opt in, opt out, STOP, auto reply text, speed to lead, may we text, crmFormat, form urlencoded, flat payload, crmFormPayload, crmBody, Shaun Smith endpoint, lead_id, sms_consent_transactional, details field, first_name, page field]
 status: built
-summary: The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 76 checks, 17 mutations caught.
+summary: The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 76 checks plus 7 in verify-lead-handoff, 20 mutations caught.
 verified: 2026-08-31
 ---
 
@@ -94,6 +94,68 @@ per-client format rather than edits to the default.
 a competent developer with opinions. Most clients will have neither a developer nor a CRM.
 Every existing client keeps the JSON they were set up with, byte for byte, and there is a test
 asserting that.
+
+## 2026-09-01 — two fixes Bryson found by actually looking at the page
+
+**Spacing.** Shipped with only a top margin on each consent row, which left the second
+checkbox flush against the submit button. Not just clutter: *"the check boxes are to close to
+the get my free quote button"*, and a tick box a few pixels above the thing someone is about to
+tap is a mis-tap waiting to happen. Ticking a consent box by accident is not a cosmetic bug.
+Spacing now lives on a `.consbox` wrapper so the gap before the button is one number rather
+than a guess about which element follows, since the two form variants differ (the managed one
+has an error row next). Measured in a browser at all four breakpoints: 25px above, 10px
+between, 19px before the button, identical at every width.
+
+## 🔴 2026-09-01 — the preview navigated to the OS, and the deeper thing underneath
+
+Bryson: *"the get my free quote button goes to my os which it shouldnt."* **Reproduced in a
+headless browser before touching anything**, which is what identified it:
+
+The OS previews the page in `<iframe srcdoc>` (`LandingPreview` in `index.html`). A srcdoc
+document's own URL is `about:srcdoc`, so **a bare `href="#lead-form"` resolves against the
+PARENT document** and the frame navigates to the OS app. The harness watched the frame URL go
+from `about:srcdoc` to the OS URL with `#lead-form` appended, and the frame then rendered the
+OS.
+
+**The live page was never broken by this.** But a preview that jumps to the OS the moment you
+press the main button is a preview nobody can trust, and trusting it is the entire point of
+having one. Fixed by handling fragment clicks in JS (`navJS`, applied to both page variants),
+which behaves identically live and in a preview; the plain href stays as the no-JS fallback,
+which only matters on the live page where the fragment is correct anyway. Links whose target
+does not exist are left alone rather than hijacked.
+
+### 🔴 The second bug, found while fixing the first, that nobody had reported
+
+The preview carries the **real `leadToken`** and is same-origin with the OS, so a submit from
+it would post to the **live intake**: a phantom lead in the client's pipeline, a text and an
+email to whatever was typed in those boxes, and a forward to their CRM.
+
+Measured: **nothing leaks today**, because the OS sandbox is `allow-scripts allow-same-origin`
+with **no `allow-forms`**, so Chromium blocks the submission and the submit event never fires.
+But that safety is a sandbox attribute in a different file held up by nothing but habit, and
+**adding `allow-forms` to make the preview button feel alive is an obvious future edit** that
+would silently arm a live intake. So the submit handler now returns early on an `about:` scheme,
+before the fetch, and shows the thank-you state so the preview stays useful. Second lock, not
+the only one, and the comment in the code says so.
+
+**Deliberately NOT done:** adding `allow-forms` to the preview sandbox. It would make the
+button feel alive but the hand-off variant uses a native Netlify form with `action="?sent=1"`,
+which would then really submit and navigate the frame. Two locks and an inert button beats one
+lock and a live one.
+
+**Verified end to end in both contexts.** Preview: the CTA stays in the frame, the form scrolls
+into view, zero leads created. Live: the CTA stays on the page, exactly one lead posted, consent
+`true` on the wire, page URL captured, thank-you shown. Three more mutations, all caught.
+
+🔴 **A note on the harness, because it wasted a cycle.** The first live run reported "no lead
+posted" and it was **my test, not the code**: Playwright matches the **most recently added**
+route first, so a catch-all registered after the specific `lead-intake` route shadowed it. Same
+trap as recorded in KB `repo-tests`. Register the catch-all FIRST.
+
+🔴 **And one that took the renderer down mid-edit:** a **backtick inside a comment** in the
+submit-handler string. That comment lives inside a template literal, so it terminated the
+string and `node --check` failed on the whole file. Same class as the CSS one in KB
+`sheet-layering`. No backticks inside these strings, comments included.
 
 ## Also captured now
 

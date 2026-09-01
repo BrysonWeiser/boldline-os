@@ -259,7 +259,17 @@ a{color:inherit}
 /* Consent. Left aligned and full width on purpose: a centred wall of small print reads as
    decoration, and this is the text that has to be legible if anyone ever asks what the
    visitor agreed to. Generous tap target on the box itself for phones. */
-.cons{display:flex;align-items:flex-start;gap:9px;margin-top:12px;text-align:left}
+/* 🔴 THE CONSENT BLOCK NEEDS AIR ON BOTH SIDES, AND THE SIDE THAT MATTERS IS THE BOTTOM.
+   Shipped first with only a top margin, which left the second checkbox sitting flush against
+   the submit button (Bryson, 2026-09-01: "the check boxes are to close to the get my free
+   quote button"). Two problems with that, and the second is the real one: it reads as clutter,
+   and a tick box a few pixels above the thing someone is about to tap is a mis-tap waiting to
+   happen. Ticking a consent box by accident is not a cosmetic bug.
+   Spacing lives on the wrapper so the gap before the button is one number, not a guess about
+   which element happens to follow (the two form variants differ: one has an error row next). */
+.consbox{margin:16px 0 20px}
+.cons{display:flex;align-items:flex-start;gap:9px;margin-top:11px;text-align:left}
+.cons:first-child{margin-top:0}
 .cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:${P.brand};cursor:pointer}
 .cons label{font-size:12px;line-height:1.5;color:${P.muted};cursor:pointer}
 .cons label b{color:${P.text};font-weight:600}
@@ -346,7 +356,7 @@ a{color:inherit}
         : policyLinks[0]}.`
     : "";
 
-  const consentHTML = `<div class="cons">
+  const consentHTML = `<div class="consbox"><div class="cons">
       <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
       <label for="lf-sms"><b>Text me about my ${esc(String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote")}.</b>
       ${esc(cl.name || "This business")} may send you text messages about this enquiry.
@@ -355,7 +365,7 @@ a{color:inherit}
     <div class="cons">
       <input type="checkbox" id="lf-mkt" name="smsConsentMarketing" value="yes">
       <label for="lf-mkt">Send me occasional offers and updates too. Optional, and you can stop any time.</label>
-    </div>`;
+    </div></div>`;
 
   // The lead form (single instance on the page) — reused in the hero (capture layout)
   // or in the bottom form section (all other layouts). id="lead-form" is the scroll target.
@@ -520,6 +530,30 @@ a{color:inherit}
     // the moment a client has more than one page running.
     try{payload.page=location.href.split('#')[0];}catch(e){}
     try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
+    // 🔴 A PREVIEW MUST NEVER CREATE A REAL LEAD. The OS renders this exact page in an
+    // <iframe srcdoc>, which carries the real leadToken and, being same-origin, would post
+    // to the real intake. Pressing submit while checking a page over would put a phantom
+    // lead in the client's pipeline, text and email whatever was typed in the phone and
+    // email boxes, and forward the whole thing to their CRM. A srcdoc document has no real
+    // URL, so an about: scheme is the tell. The page still shows the thank-you state, so the
+    // preview demonstrates what a visitor sees.
+    //
+    // 🔴 THIS IS THE SECOND LOCK, NOT THE ONLY ONE, and the distinction is worth writing down.
+    // Measured in a headless browser: the OS previews with sandbox="allow-scripts
+    // allow-same-origin" and NO allow-forms, so Chromium blocks the submission and the submit
+    // event never fires at all. Nothing leaks today. But that safety is a sandbox attribute in
+    // a completely different file, held by nothing but habit, and adding allow-forms to make
+    // the preview button feel alive is an obvious future edit that would silently arm a live
+    // intake. This guard is what makes that edit safe.
+    //
+    // (No backticks in this comment on purpose: it lives inside a template literal, and one
+    // would terminate the string and take the whole page renderer down with it. That already
+    // happened once while writing this.)
+    if(String(location.href).indexOf('about:')===0){
+      document.getElementById('lf').style.display='none';
+      document.getElementById('lf-thanks').style.display='block';
+      return;
+    }
     fetch('/.netlify/functions/lead-intake?token=${encodeURIComponent(cl.leadToken || "")}',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
@@ -538,7 +572,31 @@ a{color:inherit}
       ${conversionCall}
     }
   }catch(e){}`;
-  const formJS = HO ? handoffFormJS : managedFormJS;
+  // 🔴 IN-PAGE LINKS MUST SCROLL, NOT NAVIGATE. Bryson, 2026-09-01: *"the get my free quote
+  // button goes to my os which it shouldnt."* Reproduced rather than guessed at: the OS previews
+  // this page in an `<iframe srcdoc>`, whose own document URL is `about:srcdoc`, so a bare
+  // `href="#lead-form"` resolves against the PARENT document instead and the frame navigates to
+  // the OS app. Confirmed in a headless browser, frame URL going from `about:srcdoc` to the OS
+  // URL with `#lead-form` appended.
+  //
+  // The live page was never broken by this, but a preview that jumps to the OS the moment you
+  // press the main button is a preview nobody can trust, and trusting it is the entire point of
+  // having one. Handling the scroll in JS behaves identically in both places, and the plain
+  // href stays as the fallback for a visitor with JS off, which only ever happens on the live
+  // page where the fragment is correct anyway.
+  const navJS = `
+  try{
+    Array.prototype.forEach.call(document.querySelectorAll('a[href^="#"]'),function(a){
+      a.addEventListener('click',function(e){
+        var id=(a.getAttribute('href')||'').slice(1);
+        var t=id&&document.getElementById(id);
+        if(!t)return;
+        e.preventDefault();
+        try{t.scrollIntoView({behavior:'smooth',block:'start'});}catch(_){t.scrollIntoView();}
+      });
+    });
+  }catch(e){}`;
+  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const diffChip = fitPhrase(differentiator, 64);
