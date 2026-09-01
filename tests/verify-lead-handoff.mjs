@@ -306,5 +306,122 @@ const fakeFetch = (script) => {
     "a guard after the send is not a guard");
 }
 
+// ── 🔴 NOTHING ON A CLIENT'S PAGE MAY POINT BACK AT BOLDLINE ────────────────
+// Bryson, 2026-09-01: *"make sure when we build landing pages the buttons never link back to
+// the os unless i specifically want them to for whatever reason."*
+//
+// Three separate reasons this matters, and only the first is obvious:
+//   1. The page runs on the CLIENT's domain. A link to BoldLine puts a marketing agency in
+//      front of a screen printer's customer, which is the same defect the custom domain
+//      exists to fix.
+//   2. A RELATIVE href is the quiet version of the same bug. It resolves against whatever
+//      document it is in: the client's domain when live, and THE OS when previewed in an
+//      iframe srcdoc. That is exactly how the CTA ended up navigating to the OS.
+//   3. Google checks that an ad's display URL matches where it lands. A cross-domain hop
+//      out of the landing page is an ad policy problem, not just a taste one.
+//
+// The escape hatch he asked for is real: anything HE types into the client record (a booking
+// link, say) is his call. So this asserts the RENDERER never introduces one on its own, by
+// rendering from data that contains no BoldLine URL at all.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const clean = {
+    name: "Stencil & Thread", landingSlug: "stencil", leadToken: "TOK",
+    // The managed page reads callTrackingNumber, NOT businessPhone. With the wrong field the
+    // phone-dependent furniture (call buttons, the fast-response chip) renders in no layout at
+    // all, which is how a phone-emoji mutation slipped through unnoticed.
+    callTrackingNumber: "+15415550100",
+    campaignSetup: {
+      serviceArea: "Eugene, OR",
+      privacyUrl: "https://stencilandthread.com/privacy.html",
+      termsUrl: "https://stencilandthread.com/terms.html",
+      smsOptInUrl: "https://stencilandthread.com/sms-opt-in.html",
+    },
+    // 🔴 THE FIXTURE HAS TO LIGHT UP THE OPTIONAL BRANCHES OR THE SCAN COVERS LESS PAGE THAN
+    // IT CLAIMS. A first pass omitted the logo, so a mutation that planted a relative link in
+    // the logo branch applied to the source and still passed: that branch never rendered.
+    // Same shape as the trap in KB `repo-tests`, a mutation that does not reach the output
+    // looks exactly like a guard that works.
+    brandLogo: "https://cdn.example.com/logo.png",
+    mediaLibrary: [
+      { path: "p/1.jpg", url: "https://cdn.example.com/1.jpg", category: "photo" },
+      { path: "p/2.jpg", url: "https://cdn.example.com/2.jpg", category: "photo" },
+    ],
+    landingPage: {
+      headline: "Custom shirts", subheadline: "25 or more", bullets: ["a", "b"],
+      ctaText: "Get a quote", published: true, heroPath: "p/1.jpg",
+      reviews: [{ text: "Great work", name: "Dana R." }],
+    },
+  };
+  // 🔴 EVERY LAYOUT, NOT JUST WHICHEVER ONE THE SEED HAPPENS TO PICK. The page has four, and
+  // they render different furniture: the ghost "Call now" button exists in three of them and
+  // not in the capture layout. A first pass rendered one page, and a mutation putting a phone
+  // emoji back on that button passed cleanly because the fixture never rendered it. Same trap
+  // as the logo branch above, and the same lesson: a mutation that does not reach the output
+  // is indistinguishable from a guard that works.
+  const LAYOUTS = ["split", "centered", "overlay", "capture"];
+  const pages = [
+    ...LAYOUTS.map((l) => [`managed / ${l}`,
+      renderLandingPage({ ...clean, landingPage: { ...clean.landingPage, design: { layout: l } } })]),
+    ["hand-off", renderLandingPage(clean, { handoff: { phone: "(541) 555-0100" } })],
+    ["with a booking link", renderLandingPage({ ...clean, bookingUrl: "https://calendly.com/stencil/quote" })],
+    // 🔴 A NATIONAL business renders DIFFERENT furniture: the service-area line is replaced by
+    // a nationwide one, and that branch is unreachable for any client with a service area. A
+    // mutation putting a globe emoji back on it passed until this row existed.
+    ["national", renderLandingPage({ ...clean, campaignSetup: { ...clean.campaignSetup, serviceArea: "Nationwide" } })],
+  ];
+
+  for (const [label, html] of pages) {
+    const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
+
+    ok(`🔴 the ${label} page links nowhere near BoldLine`,
+      !hrefs.some((h) => /boldline|\.netlify\.app|^https?:\/\/os\./i.test(h)),
+      `found: ${hrefs.filter((h) => /boldline|netlify/i.test(h)).join(", ")}`);
+
+    // 🔴 Relative links are the quiet version. Live they hit the client's domain; previewed
+    // in an iframe srcdoc they resolve against the OS.
+    const relative = hrefs.filter((h) => h.startsWith("/") && !h.startsWith("//"));
+    ok(`🔴 the ${label} page has no relative links`, relative.length === 0,
+      `a relative href resolves against whatever document it sits in, which is the OS inside a `
+      + `preview. found: ${relative.join(", ")}`);
+
+    // Everything left must be one of the four shapes a client page legitimately uses.
+    const odd = hrefs.filter((h) => !(h.startsWith("#") || h.startsWith("tel:") || h.startsWith("mailto:") || /^https:\/\//.test(h)));
+    ok(`every link on the ${label} page is a fragment, a phone, an email or an https address`,
+      odd.length === 0, `found: ${odd.join(", ")}`);
+
+    ok(`the ${label} page never names BoldLine to the client's customer`,
+      !/[Bb]old[Ll]ine/.test(html),
+      "the visitor is on the client's own domain and has never heard of us");
+
+    // 🔴 NO EMOJIS ON ANYTHING A CLIENT'S CUSTOMER SEES. Bryson, 2026-09-01: *"for all landing
+    // pages and anything we make edit design etc. dont add emojis."* The page shipped with
+    // pin, globe, lightning, lock, star and telephone emojis in the trust row, the chips, the
+    // call buttons and the form reassurance line. Functional monochrome glyphs stay: a tick
+    // and a star are typography, not emoji.
+    const ALLOWED = new Set(["\u2713", "\u2605"]);
+    const emoji = [...(html.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu) || [])]
+      .filter((c) => !ALLOWED.has(c));
+    ok(`🔴 the ${label} page a visitor receives has no emojis`, emoji.length === 0,
+      `found: ${[...new Set(emoji)].join(" ")}`);
+
+    // 🔴 AND NO INTERNAL COMMENTARY IN THE CLIENT'S PAGE SOURCE. The submit handler is shipped
+    // verbatim, so engineering notes written inside that string travel to the client's own
+    // domain where their developer can read them. Reasoning belongs outside the template.
+    ok(`🔴 the ${label} page ships no internal code comments`,
+      (html.match(/\/\/ [A-Z]/g) || []).length === 0,
+      "a client's developer viewing source should not be reading our notes about phantom "
+      + "leads and preview guards");
+  }
+
+  // The escape hatch, asserted so nobody 'fixes' the rule into a blanket ban later. If Bryson
+  // deliberately points a client at something of ours, that is his decision and it renders.
+  const deliberate = renderLandingPage({ ...clean, bookingUrl: "https://boldlinemedia.com/book" });
+  ok("but a link Bryson deliberately typed is still honoured",
+    deliberate.includes("https://boldlinemedia.com/book"),
+    "he asked for the rule 'unless i specifically want them to', so the guard is on what the "
+    + "renderer invents, not on what he chooses");
+}
+
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

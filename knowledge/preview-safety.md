@@ -81,6 +81,43 @@ There is also a **drift check**: the portal exists twice (served function + OS m
 two guards must be byte-identical. Every bug of this class so far has been one copy fixed and
 the other forgotten.
 
+## 🔴 2026-09-01, same conversation — the sister rule for landing pages
+
+Bryson: *"make sure when we build landing pages the buttons never link back to the os unless i
+specifically want them to for whatever reason."* And minutes later: *"for all landing pages and
+anything we make edit design etc. dont add emojis."*
+
+Three rules now enforced in `verify-lead-handoff.mjs` (147 checks):
+
+1. **No link to BoldLine, and no RELATIVE hrefs.** The relative one is the subtle half: it
+   resolves against whatever document it sits in, so it points at the client's domain live and
+   at THE OS inside a preview. That is exactly how the CTA navigated to the OS. Every link must
+   be a fragment, a `tel:`, a `mailto:` or an `https://` address. **The escape hatch he asked
+   for is real and asserted**: a link he types himself into the client record still renders, so
+   the guard is on what the renderer invents, not on what he chooses.
+2. **No emojis.** Pin, globe, lightning, lock, star and telephone emojis were stripped from the
+   trust row, the chips, the call buttons and the form line. `✓` and `★` stay, they are
+   typography rather than emoji.
+3. **No internal `//` comments in the shipped page.** The submit handler is delivered verbatim
+   to the client's own domain, so engineering notes written inside that template travelled with
+   it, where the client's developer could read our commentary about phantom leads and preview
+   guards. All of it hoisted out of the string to where it does not ship.
+
+### 🔴 THE TESTING LESSON, which cost three escaped mutations to learn properly
+
+Ten mutations were applied and **three passed at first, every one because the fixture never
+rendered the branch being broken:**
+
+- a relative link planted in the **logo** branch, when the fixture had no logo;
+- a phone emoji on the **call button**, when the fixture set `businessPhone` and the page reads
+  `callTrackingNumber`, so no call furniture rendered in any layout;
+- a globe emoji on the **national** line, unreachable for any client with a service area.
+
+So the page is now rendered in **all four layouts plus hand-off, booking and national variants**,
+with a logo, media and reviews present. 🔴 **A mutation that does not reach the output is
+indistinguishable from a guard that works**, and a fixture that lights up only the default path
+is a test that quietly covers a fraction of what it claims.
+
 ## When you add a preview
 
 1. Give the iframe a `title`.
