@@ -31,8 +31,14 @@ const eq = (name, got, want) => ok(name, got === want, `got ${JSON.stringify(got
 
 const { consentYes, pickConsent, consentField, mayTextLead, CONSENT_KEYS } =
   await import("../netlify/lib/sms-consent.mjs");
-const { crmFormat, crmFormPayload, crmBody, crmPayload, forwardLead, signBody } =
+const { crmFormat, crmFormPayload, crmBody, crmPayload, forwardLead, signBody, signFields, canonicalFields } =
   await import("../netlify/lib/crm-forward.mjs");
+
+// Independent HMAC, so the test does not prove the code correct by calling the code.
+const hmacCheck = async (msg, secret) => {
+  const { createHmac } = await import("node:crypto");
+  return createHmac("sha256", secret).update(msg).digest("hex");
+};
 const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 
 // ── 1. Reading a checkbox, from every shape it actually arrives in ───────────
@@ -120,8 +126,19 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 
     // The disclosure has to say who is texting and how to stop.
     ok(`the ${label} disclosure names the business, not BoldLine`,
-      html.includes("Stencil &amp; Thread may send you text messages"),
+      html.includes("This is how Stencil &amp; Thread reply fastest"),
       "the reader is on the client's own domain and has never heard of BoldLine");
+    // 🔴 Shaun, 2026-09-01: *"transactional is the box that gates the instant text... Worth
+    // making the transactional line the more prominent of the two, and writing it so a normal
+    // person understands they're agreeing to be texted back about their quote."* If someone
+    // ticks marketing and skips this one, the lead lands and no text goes out, and the
+    // speed-to-lead advantage the whole campaign is built on quietly disappears.
+    ok(`the ${label} form makes the texting box the prominent one`,
+      /class="cons cons-main"/.test(html) && /\.cons-main label\{font-size:13px/.test(html),
+      "the box that gates the instant text must not look like the optional one beside it");
+    ok(`and it says plainly what ticking it means`,
+      /Yes, text me back about my/.test(html),
+      "a normal person has to understand they are agreeing to be texted about their quote");
     ok(`the ${label} disclosure covers rates and opting out`,
       /Message and data rates may apply/.test(html) && /Reply STOP/.test(html));
   }
@@ -255,10 +272,28 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   ok("the forward succeeds", res && res.ok === true);
   eq("🔴 and it really sent form-urlencoded", sent[0].init.headers["content-type"], "application/x-www-form-urlencoded");
   eq("🔴 carrying the flat body", sent[0].init.body, f.text);
-  ok("🔴 the signature covers the exact bytes that were sent",
-    sent[0].init.headers["x-boldline-signature"] === await signBody(sent[0].init.body, "shh"),
-    "signing a different serialisation than the one transmitted fails on his side with no "
-    + "useful error, and the format change is exactly when that breaks");
+  // 🔴 SHAUN'S SCHEME DELIBERATELY DOES NOT SIGN THE BYTES. The body goes as form-urlencoded;
+  // the signature is over a JSON canonicalisation of the same fields, keys sorted A-Z, every
+  // value a string, prefixed by a unix timestamp. Both ends can then agree on the canonical
+  // form without agreeing on the wire encoding. Signing the urlencoded bytes is the obvious
+  // mistake and fails with no useful error.
+  {
+    const h = sent[0].init.headers;
+    ok("🔴 the request carries his timestamp header", /^\d{10}$/.test(h["X-BoldLine-Timestamp"] || ""));
+    ok("🔴 and his prefixed signature header", /^sha256=[0-9a-f]{64}$/.test(h["X-BoldLine-Signature"] || ""));
+    const params = new URLSearchParams(sent[0].init.body);
+    const fields = {};
+    for (const [k, v] of params) fields[k] = v;
+    const expected = await hmacCheck(`${h["X-BoldLine-Timestamp"]}.${canonicalFields(fields)}`, "shh");
+    ok("🔴 the signature is over the canonical FIELDS, not the body bytes",
+      h["X-BoldLine-Signature"] === `sha256=${expected}`,
+      "recomputed from the fields actually transmitted, so this fails if either side drifts");
+    ok("and it is NOT the old body signature",
+      h["X-BoldLine-Signature"] !== `sha256=${await signBody(sent[0].init.body, "shh")}`,
+      "if these ever agreed, the canonicalisation would be doing nothing");
+    ok("the old header name is gone for this client", !("x-boldline-signature" in h),
+      "sending both would let a wrong one be ignored and hide a mismatch");
+  }
 
   // The JSON client keeps sending JSON through the same code path.
   sent.length = 0;
@@ -280,6 +315,77 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
     body.indexOf("mayTextLead") < body.indexOf("if (lead.email)"),
     "an SMS checkbox says nothing about email, and someone who declined a text still asked "
     + "to be contacted");
+}
+
+// ── 9. 🔴 SHAUN'S SIGNING SCHEME, WHICH IS NOT THE ONE WE HAD ───────────────
+// Autopilot Systems deployed the endpoint 2026-09-01 with its own scheme. Ours signed the raw
+// body under `x-boldline-signature` with no timestamp and no prefix, which produces a 401 on
+// every forward. He assumed the 401 was only the missing secret; it was both. A backstop that
+// always fails is worse than none, because it looks configured.
+{
+  eq("🔴 keys are sorted A-Z", canonicalFields({ b: 1, a: 2, c: 3 }), '{"a":"2","b":"1","c":"3"}');
+  eq("🔴 and every value becomes a string", canonicalFields({ n: 5, t: true, z: null }), '{"n":"5","t":"true","z":""}');
+  eq("🔴 so the same data in any order canonicalises identically",
+    canonicalFields({ phone: "1", name: "D", gclid: "" }), canonicalFields({ gclid: "", name: "D", phone: "1" }),
+    "JSON.stringify preserves insertion order, so unsorted keys give a different canonical for "
+    + "identical data and his endpoint rejects it");
+  eq("an empty object is still valid", canonicalFields({}), "{}");
+  eq("and so is nothing at all", canonicalFields(null), "{}");
+
+  const at = 1788292189000;
+  const h = await signFields({ name: "Dana", lead_id: "L1" }, "shh", at);
+  eq("the timestamp is unix SECONDS, not milliseconds", h["X-BoldLine-Timestamp"], "1788292189");
+  ok("🔴 the signature carries his sha256= prefix", /^sha256=[0-9a-f]{64}$/.test(h["X-BoldLine-Signature"]));
+  eq("🔴 and is HMAC over timestamp.canonical",
+    h["X-BoldLine-Signature"],
+    `sha256=${await hmacCheck(`1788292189.${canonicalFields({ name: "Dana", lead_id: "L1" })}`, "shh")}`);
+  ok("🔴 a different timestamp gives a different signature",
+    (await signFields({ name: "Dana" }, "shh", at)) ["X-BoldLine-Signature"]
+      !== (await signFields({ name: "Dana" }, "shh", at + 60000))["X-BoldLine-Signature"],
+    "the timestamp is what stops a captured request being replayed, so it has to be signed too");
+
+  // 🔴 No secret means NO HEADERS, not headers made from an empty key. The second would look
+  // valid-shaped and be indistinguishable from a wrong secret.
+  eq("no secret sends no signing headers at all", Object.keys(await signFields({ a: 1 }, "")).length, 0);
+  eq("and neither does an undefined one", Object.keys(await signFields({ a: 1 })).length, 0);
+}
+
+// ── 10. The dry run, so the form can be tested without junk in a real pipeline ──
+{
+  const client = { name: "S&T", campaignSetup: { crmFormat: "form", crmWebhook: "https://stencilandthread.com/api/ad-lead", crmWebhookSecret: "shh" } };
+  const lead = { leadId: "L1", receivedAt: "2026-09-01T00:00:00.000Z", name: "Dana", phone: "+1555" };
+
+  const sent = [];
+  const fake = async (u, i) => { sent.push(i); return { ok: true, status: 200 }; };
+
+  await forwardLead(client, lead, { fetchImpl: fake, dryRun: true });
+  ok("🔴 a dry run is flagged so his endpoint records nothing", /(^|&)test=true(&|$)/.test(sent[0].body),
+    "without the flag a smoke test puts a fake lead in the client's real pipeline");
+
+  sent.length = 0;
+  await forwardLead(client, lead, { fetchImpl: fake });
+  ok("🔴 and a REAL lead is never flagged as a test", !/test=true/.test(sent[0].body),
+    "a real lead marked as a test would be validated, answered ok, and silently dropped, which "
+    + "is the most expensive possible failure here");
+
+  // The flag is inside the signature, or his side would reject the test.
+  const params = new URLSearchParams((await (async () => { sent.length = 0; await forwardLead(client, lead, { fetchImpl: fake, dryRun: true }); return sent[0].body; })()));
+  const f = {}; for (const [k, v] of params) f[k] = v;
+  const ts = sent[0].headers["X-BoldLine-Timestamp"];
+  eq("🔴 the test flag is covered by the signature",
+    sent[0].headers["X-BoldLine-Signature"], `sha256=${await hmacCheck(`${ts}.${canonicalFields(f)}`, "shh")}`,
+    "signing the fields WITHOUT the flag we then send would fail on his side for a reason "
+    + "nothing reports");
+
+  // Other clients are untouched by any of this.
+  const other = { name: "Other", campaignSetup: { crmWebhook: "https://other.example.com/h", crmWebhookSecret: "shh" } };
+  sent.length = 0;
+  await forwardLead(other, lead, { fetchImpl: fake });
+  ok("🔴 every other client keeps the original scheme",
+    !!sent[0].headers["x-boldline-signature"] && !sent[0].headers["X-BoldLine-Signature"],
+    "his contract is his, and changing everyone's signing to suit one endpoint is how a working "
+    + "integration breaks for a client nobody was thinking about");
+  ok("and never gets a test flag", !/test=true/.test(sent[0].body));
 }
 
 console.log(`verify-sms-consent: ${pass} passed, ${fail} failed`);

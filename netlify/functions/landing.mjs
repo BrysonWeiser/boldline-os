@@ -294,6 +294,9 @@ a{color:inherit}
 .cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:${P.brand};cursor:pointer}
 .cons label{font-size:12px;line-height:1.5;color:${P.muted};cursor:pointer}
 .cons label b{color:${P.text};font-weight:600}
+.cons-main label{font-size:13px;color:${P.text}}
+.cons-main label b{font-weight:700}
+.cons-main input{width:20px;height:20px;min-width:20px}
 /* The policy links have to be visibly links. A carrier or a reviewer looking for them should
    not have to hunt, and underlined-on-a-muted-line is the convention people already read. */
 .cons label a{color:${P.text};text-decoration:underline}
@@ -377,11 +380,11 @@ a{color:inherit}
         : policyLinks[0]}.`
     : "";
 
-  const consentHTML = `<div class="consbox"><div class="cons">
+  const consentHTML = `<div class="consbox"><div class="cons cons-main">
       <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
-      <label for="lf-sms"><b>Text me about my ${esc(String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote")}.</b>
-      ${esc(cl.name || "This business")} may send you text messages about this enquiry.
-      Message and data rates may apply. Reply STOP at any time to opt out.${policyLine}</label>
+      <label for="lf-sms"><b>Yes, text me back about my ${esc(String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote")}.</b>
+      This is how ${esc(cl.name || "we")} reply fastest. Tick it and they can text you about this
+      enquiry. Message and data rates may apply. Reply STOP at any time to stop.${policyLine}</label>
     </div>
     <div class="cons">
       <input type="checkbox" id="lf-mkt" name="smsConsentMarketing" value="yes">
