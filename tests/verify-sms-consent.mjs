@@ -126,6 +126,46 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
       /Message and data rates may apply/.test(html) && /Reply STOP/.test(html));
   }
 
+  // 🔴 THE THREE LINKS. Shaun, same spec: A2P registration is checked against a privacy
+  // policy, a terms page and a text-consent page linked from the consent language itself,
+  // *"exactly as written"* including the .html, because the extensionless versions do not
+  // resolve. A checkbox without them collects consent the carrier will not honour, which
+  // fails in exactly the invisible way this whole feature exists to prevent.
+  const withLinks = renderLandingPage({
+    ...cl,
+    campaignSetup: {
+      ...cl.campaignSetup,
+      privacyUrl: "https://stencilandthread.com/privacy.html",
+      termsUrl: "https://stencilandthread.com/terms.html",
+      smsOptInUrl: "https://stencilandthread.com/sms-opt-in.html",
+    },
+  });
+  for (const u of ["privacy.html", "terms.html", "sms-opt-in.html"]) {
+    ok(`🔴 the consent line links ${u}`, withLinks.includes(`https://stencilandthread.com/${u}"`),
+      "a carrier requirement, not a nicety");
+  }
+  ok("🔴 the .html is preserved exactly as given", !/stencilandthread\.com\/privacy"/.test(withLinks),
+    "Shaun: the extensionless versions will not resolve, so link them exactly as written");
+  ok("the links sit inside the consent label, not loose on the page",
+    /<label for="lf-sms">[\s\S]*?privacy\.html[\s\S]*?<\/label>/.test(withLinks));
+  ok("and they open in a new tab so the form is not lost",
+    /privacy\.html" target="_blank" rel="noopener"/.test(withLinks),
+    "a visitor who taps Privacy mid-form must not lose what they typed");
+
+  // 🔴 A client who does not text their leads leaves these blank. A dead link on a live page
+  // is worse than no link, so nothing is rendered rather than an empty href.
+  ok("🔴 no link line at all when none are configured",
+    !/See <a/.test(managed) && !managed.includes('href=""'),
+    "an empty href on a client's live page is the worse of the two failures");
+
+  // Partial configuration is the realistic middle case and must not produce "See  and ."
+  const partial = renderLandingPage({
+    ...cl,
+    campaignSetup: { ...cl.campaignSetup, privacyUrl: "https://stencilandthread.com/privacy.html" },
+  });
+  ok("one link reads as a sentence, with no stray joining words",
+    /See <a[^>]*>Privacy Policy<\/a>\./.test(partial) && !/ and <\/label>/.test(partial));
+
   // 🔴 The managed form posts JSON, so the boxes existing in the markup proves nothing on
   // its own. The submit handler has to read them and send them.
   ok("🔴 the managed submit sends both consents", /payload\.smsConsentTransactional=/.test(managed)

@@ -17245,7 +17245,7 @@
         "page field"
       ],
       "status": "built",
-      "summary": "The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 68 checks, 13 mutations caught.",
+      "summary": "The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 76 checks, 17 mutations caught.",
       "verified": "2026-08-31",
       "terms": {
         "sms consent": 3,
