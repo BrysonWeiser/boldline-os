@@ -76,6 +76,20 @@ automated.
   field at submit time, and the Content Studio prompt bans them explicitly (the prompt itself
   is written without them, because a model mirrors the style it's given). Exempt: internal
   campaign names, OS UI labels Bryson alone sees, and code comments. Details in KB `ad-copy-voice`.
+- **A CLIENT'S LANDING PAGE NEVER POINTS BACK AT US, AND CARRIES NO EMOJIS (Bryson,
+  2026-09-01: "make sure when we build landing pages the buttons never link back to the os
+  unless i specifically want them to" + "for all landing pages and anything we make edit design
+  etc. dont add emojis").** Three rules, all enforced in `verify-lead-handoff.mjs` against
+  pages rendered in **every layout** (`split/centered/overlay/capture`, plus hand-off, booking
+  and national variants, because the furniture differs per branch and a mutation that never
+  renders looks exactly like a guard that works):
+  **(1) No link to BoldLine** and **no RELATIVE hrefs** — a relative link resolves against
+  whatever document it sits in, which is the OS inside a preview iframe, and that is precisely
+  how a CTA once navigated to the OS. Links he types himself (a booking URL) are his call and
+  still render. **(2) No emojis** in anything the visitor receives; `✓` and `★` stay, they are
+  typography not emoji. **(3) No internal `//` comments in the shipped page**, because the
+  submit script is delivered verbatim to the client's own domain where their developer reads
+  it. Details in KB `preview-safety` + `sms-consent`.
 - **Never say "local businesses" — he serves businesses nationally/remotely (standing).**
   Applies to all public copy. See KB `linkedin-brand-presence`.
 - **ARIZONA TIME IS THE ONLY CLOCK — check it, never assume it (Bryson, 2026-08-31: "do you

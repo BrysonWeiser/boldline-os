@@ -259,7 +259,7 @@ a{color:inherit}
 /* Consent. Left aligned and full width on purpose: a centred wall of small print reads as
    decoration, and this is the text that has to be legible if anyone ever asks what the
    visitor agreed to. Generous tap target on the box itself for phones. */
-/* 🔴 THE CONSENT BLOCK NEEDS AIR ON BOTH SIDES, AND THE SIDE THAT MATTERS IS THE BOTTOM.
+/* THE CONSENT BLOCK NEEDS AIR ON BOTH SIDES, AND THE SIDE THAT MATTERS IS THE BOTTOM.
    Shipped first with only a top margin, which left the second checkbox sitting flush against
    the submit button (Bryson, 2026-09-01: "the check boxes are to close to the get my free
    quote button"). Two problems with that, and the second is the real one: it reads as clutter,
@@ -310,9 +310,9 @@ a{color:inherit}
   const eyebrowH = `<div class="eyebrow an">${esc(cl.niche || (national ? "Marketing that brings you customers" : "Trusted local service"))}</div>`;
   const headlineH = `<h1 class="headline an" style="animation-delay:.06s">${esc(lp.headline)}</h1>`;
   const subH = `<p class="subhead an" style="animation-delay:.12s">${esc(lp.subheadline || "")}</p>`;
-  const trustBits = [area ? `<span>📍 <b>${esc(area)}</b></span>` : reach ? `<span>🌐 <b>${esc(reach)}</b></span>` : "", `<span>✅ <b>Free quotes</b></span>`, phone ? `<span>⚡ <b>Fast response</b></span>` : ""].filter(Boolean).join("");
+  const trustBits = [area ? `<span><b>${esc(area)}</b></span>` : reach ? `<span><b>${esc(reach)}</b></span>` : "", `<span><b>&#10003; Free quotes</b></span>`, phone ? `<span><b>Fast response</b></span>` : ""].filter(Boolean).join("");
   const trustH = trustBits ? `<div class="trust an" style="animation-delay:.24s">${trustBits}</div>` : "";
-  const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">📞 Call now</a>` : ""}</div>`;
+  const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">Call now</a>` : ""}</div>`;
   // 🔴 A RAW .slice(0, 40) PRINTED THE OWNER'S TYPED NOTE, CHOPPED MID-WORD, ON A LIVE
   // PAGE. Same defect already fixed in the ad writers. `fitPhrase` trims to a whole
   // thought and returns nothing when it cannot, so the badge is HIDDEN rather than
@@ -380,7 +380,7 @@ a{color:inherit}
       <input class="inp" name="email" type="email" placeholder="Email (optional)">
       ${consentHTML}
       <button class="cta" type="submit" style="width:100%;justify-content:center">${esc(cta)}</button>
-      <div class="fine">🔒 Your info stays private. No spam, ever.</div>
+      <div class="fine">Your info stays private. No spam, ever.</div>
     </form>` : `<form id="lf">
       <input class="inp" id="lf-name" placeholder="Your name" required>
       <input class="inp" id="lf-phone" placeholder="Phone number" required>
@@ -388,14 +388,14 @@ a{color:inherit}
       ${consentHTML}
       <div class="err" id="lf-err">Something went wrong — please try again.</div>
       <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
-      <div class="fine">🔒 Your info stays private. No spam, ever.</div>
+      <div class="fine">Your info stays private. No spam, ever.</div>
     </form>`}
     <div class="thanks" id="lf-thanks"><h2>Got it — thank you!</h2><p>We'll be in touch shortly.</p></div>
   </div>`;
 
   let heroSection;
   if (useCapture) {
-    const callLine = phone ? `<div class="ctarow an" style="animation-delay:.2s"><a class="cta ghost" href="${telHref}">📞 Call ${esc(phone)}</a></div>` : "";
+    const callLine = phone ? `<div class="ctarow an" style="animation-delay:.2s"><a class="cta ghost" href="${telHref}">Call ${esc(phone)}</a></div>` : "";
     heroSection = `<section class="hero"><div class="wrap hero-g has-img"><div>${eyebrowH}${headlineH}${subH}${trustH}${callLine}</div><div class="hero-form reveal">${formCardHTML}</div></div></section>`;
   } else if (useOverlay) {
     heroSection = `<section class="hero hero-ov" style="--heroimg:url('${esc(hero.url)}')"><div class="hero-ov-scrim"></div><div class="wrap hero-ovc">${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div></section>`;
@@ -514,6 +514,27 @@ a{color:inherit}
     : `/* No conversion tag yet. Run Conversion Setup on this client so Google can see
          form submissions, otherwise the campaign is bidding blind. */`;
 
+  // The managed form's submit handler. Everything below is SHIPPED VERBATIM into the client's
+  // page, so the reasoning lives out here where a visitor viewing source never sees it. Three
+  // things it does beyond the obvious, each of which has bitten once:
+  //
+  //  1. CONSENT IS SENT EVEN WHEN UNTICKED, as real booleans. The intake stores both keys
+  //     either way, so a lead who declined stays distinguishable from a lead who was never
+  //     asked, and that distinction is the entire gate on the auto-reply text.
+  //  2. THE PAGE URL travels with the lead. Shaun's CRM spec asks for it, and it stops being
+  //     obvious the moment a client runs more than one page.
+  //  3. 🔴 A PREVIEW MUST NEVER CREATE A REAL LEAD. The OS renders this exact page in an
+  //     iframe srcdoc carrying the real leadToken, same-origin with the OS, so a submit while
+  //     checking a page over would put a phantom lead in the client's pipeline, text and email
+  //     whatever was typed, and forward it to their CRM. A srcdoc document has no real URL, so
+  //     an about: scheme is the tell, and the guard sits BEFORE the fetch. It is the SECOND
+  //     lock, not the only one: measured in a browser, the OS preview omits allow-forms so the
+  //     submit event never fires today. But that is an attribute in another file held up by
+  //     habit, and adding allow-forms to make the preview feel alive is an obvious future edit.
+  //     This is what makes that edit safe.
+  //
+  // (No backticks anywhere in the string below, comments included: it is a template literal
+  // and one would terminate it and take the whole renderer down. That already happened once.)
   const managedFormJS = `${clickJS}
   var lf=document.getElementById('lf');
   if(lf){lf.addEventListener('submit',function(e){
@@ -521,34 +542,10 @@ a{color:inherit}
     var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
     err.style.display='none';btn.disabled=true;btn.textContent='Sending…';
     var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
-    // 🔴 The consent boxes, read at submit. Sent as real booleans, and ALWAYS sent even when
-    // unticked: the intake stores both either way, so a lead who declined is distinguishable
-    // from a lead who was never asked. That distinction is the whole gate on the auto-reply.
     try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
       payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);}catch(e){}
-    // Which page they filled it in on. Asked for by the CRM spec, and it stops being obvious
-    // the moment a client has more than one page running.
     try{payload.page=location.href.split('#')[0];}catch(e){}
     try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
-    // 🔴 A PREVIEW MUST NEVER CREATE A REAL LEAD. The OS renders this exact page in an
-    // <iframe srcdoc>, which carries the real leadToken and, being same-origin, would post
-    // to the real intake. Pressing submit while checking a page over would put a phantom
-    // lead in the client's pipeline, text and email whatever was typed in the phone and
-    // email boxes, and forward the whole thing to their CRM. A srcdoc document has no real
-    // URL, so an about: scheme is the tell. The page still shows the thank-you state, so the
-    // preview demonstrates what a visitor sees.
-    //
-    // 🔴 THIS IS THE SECOND LOCK, NOT THE ONLY ONE, and the distinction is worth writing down.
-    // Measured in a headless browser: the OS previews with sandbox="allow-scripts
-    // allow-same-origin" and NO allow-forms, so Chromium blocks the submission and the submit
-    // event never fires at all. Nothing leaks today. But that safety is a sandbox attribute in
-    // a completely different file, held by nothing but habit, and adding allow-forms to make
-    // the preview button feel alive is an obvious future edit that would silently arm a live
-    // intake. This guard is what makes that edit safe.
-    //
-    // (No backticks in this comment on purpose: it lives inside a template literal, and one
-    // would terminate the string and take the whole page renderer down with it. That already
-    // happened once while writing this.)
     if(String(location.href).indexOf('about:')===0){
       document.getElementById('lf').style.display='none';
       document.getElementById('lf-thanks').style.display='block';
@@ -560,6 +557,7 @@ a{color:inherit}
     }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';${formConversion}})
     .catch(function(){err.style.display='block';btn.disabled=false;btn.textContent=${JSON.stringify(cta)};});
   });}`;
+
   const conversionCall = (convId && formLabel)
     ? `if(typeof gtag==='function'){gtag('event','conversion',{'send_to':${JSON.stringify(convId + "/" + formLabel)}});}`
     : `/* No conversion tag was supplied, so Google receives no conversions from this page
@@ -600,12 +598,12 @@ a{color:inherit}
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const diffChip = fitPhrase(differentiator, 64);
-  const chips = [area ? `<div class="chip">📍 Serving ${esc(area)}</div>` : reach ? `<div class="chip">🌐 ${esc(reach)}</div>` : "", diffChip ? `<div class="chip">⭐ ${esc(diffChip)}</div>` : "", `<div class="chip">✅ Free quote, no obligation</div>`, phone ? `<div class="chip">⚡ Fast response</div>` : ""].filter(Boolean).join("");
+  const chips = [area ? `<div class="chip">Serving ${esc(area)}</div>` : reach ? `<div class="chip">${esc(reach)}</div>` : "", diffChip ? `<div class="chip">${esc(diffChip)}</div>` : "", `<div class="chip">&#10003; Free quote, no obligation</div>`, phone ? `<div class="chip">Fast response</div>` : ""].filter(Boolean).join("");
   const bodyClass = `js lay-${D.layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} — ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} — ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}
-<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(cl.name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(cl.name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">📞 ${esc(phone)}</a>` : ""}</div></header>
+<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(cl.name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(cl.name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
@@ -613,7 +611,7 @@ ${bottomBlock}
 ${convId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(convId)}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(convId)});</script>` : ""}
 <footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : reach ? ` · ${esc(reach)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
-<nav class="mcta">${phone ? `<a class="call" href="${telHref}">📞 Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
+<nav class="mcta">${phone ? `<a class="call" href="${telHref}">Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
 (function(){
   var els=[].slice.call(document.querySelectorAll('.reveal'));
