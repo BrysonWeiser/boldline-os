@@ -215,6 +215,13 @@ const fakeFetch = (script) => {
   ok("and a branch deploy", isOwnHost("my-branch--boldlinemedia.netlify.app"));
   ok("and the marketing site", isOwnHost("boldlinemedia.com"));
   ok("with or without the www", isOwnHost("www.boldlinemedia.com"));
+  // 🔴 The OS's own hostname. Netlify allows exactly one PRIMARY custom domain per site and
+  // makes every other one an alias, so the OS needs an address of its own for client domains
+  // to sit alongside. Missing here, that hostname falls through to a landing-page lookup,
+  // finds no client, and 404s the entire OS for everyone.
+  ok("🔴 the OS's own hostname is ours, not a client lookup", isOwnHost("os.boldlinemedia.com"));
+  eq("and is passed straight through rather than routed to a landing page",
+    routeFor("os.boldlinemedia.com", "/").kind, "pass");
   ok("and local development", isOwnHost("localhost:8888"));
   ok("an empty host is treated as ours", isOwnHost(""));
   ok("and so is junk, rather than serving a stranger a client page", isOwnHost("!!!"));

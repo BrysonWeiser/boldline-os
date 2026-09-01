@@ -30,6 +30,13 @@ const OWN_EXACT = [
   "127.0.0.1",
   "boldlinemedia.com",
   "www.boldlinemedia.com",
+  // 🔴 THE OS's OWN ADDRESS, AND THE REASON IT HAS TO EXIST AT ALL. Netlify makes exactly one
+  // custom domain per site the PRIMARY and treats every other as an alias, so client landing
+  // page domains cannot all be added without something else holding primary. The netlify.app
+  // subdomain cannot be primary. So the OS needs a real hostname of its own, and every client
+  // domain then sits alongside it as an alias. Without this line that hostname would fall
+  // through to a landing-page lookup, find no client claiming it, and 404 the whole OS.
+  "os.boldlinemedia.com",
 ];
 
 // Strip the port and lowercase. A Host header is "example.com:8888" in local dev and the
