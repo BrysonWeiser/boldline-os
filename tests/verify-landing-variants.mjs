@@ -290,5 +290,49 @@ const COPY = {
   eq("and both refuse an empty instruction", mod.blBlendPrompt([b1], [b1.id], "  "), null);
 }
 
+// ── 10. Seeing the options, not just reading them ───────────────────────────
+// Bryson, 2026-09-01: *"i want to visually see the options not just words... choose to see
+// landing page one two or three and the to view them side by side to compare them."*
+{
+  const { readFileSync } = await import("node:fs");
+  const UI = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+
+  ok("a preview can render a CANDIDATE instead of the live page", /overrideLanding\?\{\.\.\.client,landingPage:overrideLanding\}:client/.test(UI),
+    "only landingPage is swapped, so the media, colours, phone and service area stay the "
+    + "client's real data and the preview is honest about what that option would produce");
+
+  // 🔴 LOOKING AT AN OPTION MUST NOT CHANGE ANYTHING. The preview posts to a render endpoint
+  // and paints HTML. If it ever called onUpdate, flicking between tabs would rewrite the
+  // client record, and in this card one of those writes touches the live page.
+  const card = UI.slice(UI.indexOf("function LandingOptionsCard("), UI.indexOf("// `overrideLanding` renders a CANDIDATE"));
+  const previewCalls = (card.match(/<LandingPreview[^>]*>/g) || []);
+  ok("the card shows real rendered pages", previewCalls.length >= 2, `found ${previewCalls.length}`);
+  ok("🔴 no preview is handed onUpdate", !previewCalls.some((c) => /onUpdate/.test(c)),
+    "a preview that can write would turn looking into doing, which is the whole class of bug "
+    + "the preview-safety rule exists for");
+
+  // 🔴 Never scale UP. A column wider than a phone shows the page at its own width.
+  ok("🔴 the preview never scales a page up", /Math\.min\(1,scaleTo\/FRAME_W\)/.test(UI),
+    "blowing a 390px layout up to 510 shows a size no visitor will ever load");
+  // 🔴 SCOPED TO THE COMPONENT, not the whole file. A first pass matched `overflow:"hidden"`
+  // and the word ResizeObserver ANYWHERE in a 1MB file, so both mutations passed while the
+  // real code was broken. A pattern that can match somebody else's code is not a test.
+  const prev = UI.slice(UI.indexOf("function LandingPreview({client, overrideLanding"), UI.indexOf("// ─── HOME SCREEN"));
+  ok("the scaled frame is clipped by its own wrapper",
+    /if\(scaleTo\) return <div style=\{\{width:scaleTo,height:h,overflow:"hidden",position:"relative"/.test(prev),
+    "an unclipped scaled frame overlaps the next column and scrolls the card sideways");
+
+  // Three columns need room. Below that it falls back to one at a time and says why.
+  ok("side by side is gated on measured width", /const canCompare = colW >= \d+;/.test(card));
+  ok("🔴 the width is MEASURED on every resize, not read once",
+    /new ResizeObserver\(\(\)=>\{[^}]*setColW/.test(card),
+    "reading clientWidth once leaves the columns wrong the moment the window changes, and a "
+    + "mere mention of ResizeObserver in a guard is not the same as observing anything");
+  ok("and the fallback explains itself", /Side by side needs a wider window/.test(UI),
+    "a disabled button with no reason reads as broken");
+
+  ok("the tabs pick which option is shown", /setIdx\(i\);setCompare\(false\);/.test(card));
+}
+
 console.log(`verify-landing-variants: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

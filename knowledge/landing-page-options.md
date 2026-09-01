@@ -98,6 +98,50 @@ Also rendered in a real browser at 390 / 768 / 1280 / 1600: no sideways scroll, 
 overflows, no JS errors, and `verify-app-boots` confirms the OS still compiles, since a syntax
 error in `index.html` blanks the whole app.
 
+## 2026-09-01 — seeing them, not just reading them
+
+Bryson, same day: *"i want to visually see the options not just words. so it doesnt take up to
+much space i want an option to be able to choose to see landing page one two or three and the
+to view them side by side to compare them."*
+
+**Two modes, which is exactly what he described:**
+
+- **Tabs (default).** A `1 2 3` row and ONE real rendered page underneath, with that option's
+  full controls below it. Compact, and the page is at readable size.
+- **Compare.** All three side by side, each a real rendered page. Differences are obvious at a
+  glance in a way a list of headlines never shows.
+
+**How it renders.** `LandingPreview` gained an `overrideLanding` prop that swaps ONLY
+`landingPage` in the posted body, so media, colours, phone and service area stay the client's
+real data and the preview is honest about what that option would produce. `POST /landing` is
+owner-authed and renders from the posted object with **no model call**, so previews are
+instant and cost nothing.
+
+🔴 **The preview is never handed `onUpdate`.** Flicking between tabs must not write to the
+client record, and in this card one of those writes touches the live page. Asserted, because
+that is the preview-safety class all over again.
+
+**Two layout rules, both learned by measuring:**
+
+- 🔴 **Never scale UP.** A column wider than a phone gets the page at its own width; only a
+  narrower column shrinks the phone layout. Blowing a 390px layout up to 510 shows a size no
+  visitor ever loads.
+- 🔴 **The column width is MEASURED with a ResizeObserver, not assumed.** A fixed scale is
+  right at one window size and wrong at every other, and this card sits in a column that
+  changes width between laptop and desktop.
+
+Side by side is gated on a measured 760px and **says why** when it is off, because a disabled
+button with no reason reads as broken. On a phone it falls back to the tabs.
+
+Verified in a browser at 390 / 768 / 1280 / 1600: Compare correctly disabled on the two narrow
+widths, three frames on the two wide ones, no sideways scroll and nothing overflowing anywhere.
+
+🔴 **Two more escaped mutations, same lesson as before but a new flavour: a pattern that can
+match somebody else's code is not a test.** Asserting `overflow:"hidden"` and the bare word
+`ResizeObserver` against the whole 1MB file passed while the real code was broken, because
+both strings appear elsewhere (the latter inside its own `typeof` guard). Both assertions are
+now scoped to the component slice.
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,

@@ -2802,6 +2802,8 @@ function LandingOptionsCard({client, onUpdate}){
   const [err,setErr]=useState("");
   const [sel,setSel]=useState([]);           // ids ticked for a blend
   const [say,setSay]=useState("");
+  const [idx,setIdx]=useState(0);            // which option the single view is showing
+  const [compare,setCompare]=useState(false);
   const variants=client.landingVariants||[];
   const live=client.landingPage||{};
   const isLive=!!live.published;
@@ -2859,9 +2861,37 @@ function LandingOptionsCard({client, onUpdate}){
   const drop=(v)=>onUpdate({...client, landingVariants:blRemoveVariant(variants,v.id)});
   const toggle=(id)=>setSel(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
 
+  // 🔴 THE SIDE-BY-SIDE COLUMN WIDTH IS MEASURED, NOT ASSUMED. A fixed scale looks right at
+  // one window size and wrong at every other, and the card lives in a column that changes
+  // width between laptop and desktop. Measuring is the only version that is correct at both.
+  const wrapRef=useRef(null);
+  const [colW,setColW]=useState(0);
+  useEffect(()=>{
+    const el=wrapRef.current; if(!el||typeof ResizeObserver==="undefined") return;
+    const ro=new ResizeObserver(()=>{ const w=el.clientWidth; if(w) setColW(w); });
+    ro.observe(el); setColW(el.clientWidth||0);
+    return ()=>ro.disconnect();
+  },[]);
+  // Three columns need room to be readable. Below this the comparison is three unreadable
+  // slivers, so the card falls back to one at a time and says why.
+  const canCompare = colW >= 760;
+  const showing = compare && canCompare;
+  const gap = 8;
+  const each = showing ? Math.floor((colW - gap*(Math.min(variants.length,3)-1)) / Math.min(variants.length,3)) : 0;
+
   const btn={padding:"6px 9px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"};
   const gold={...btn,backgroundColor:C.gold,color:"#15110A",borderColor:C.gold};
+  const tab=(on)=>({...btn,padding:"5px 11px",...(on?{backgroundColor:C.gold,color:"#15110A",borderColor:C.gold}:{})});
   const PIECES=[["headline","Headline"],["subheadline","Sub"],["bullets","Bullets"],["ctaText","Button"],["design","Look"]];
+  const cur = variants[Math.min(idx,Math.max(0,variants.length-1))] || null;
+
+  const actions=(v,compact)=>(
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:7}}>
+      <button onClick={()=>use(v)} style={gold}>Use this one</button>
+      {!compact&&<button onClick={()=>rewriteOne(v)} disabled={!!busy} style={{...btn,opacity:busy?.6:1}}>{busy===v.id?"Rewriting…":"Rewrite"}</button>}
+      {!compact&&<button onClick={()=>drop(v)} style={btn}>Discard</button>}
+    </div>
+  );
 
   return (
     <Card>
@@ -2872,49 +2902,79 @@ function LandingOptionsCard({client, onUpdate}){
         </button>
       </div>
       <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:11}}>
-        Three different angles on the same business. Use one as it is, take single pieces from
-        any of them, or tick a few and describe the mix you want. Nothing here changes the real
-        page until you press Use this one.
+        Different angles on the same business. Look at one at a time, or compare them side by
+        side. Nothing here changes the real page until you press Use this one.
       </div>
       {err&&<div style={{fontSize:11,color:C.red,marginBottom:9,lineHeight:1.5}}>{err}</div>}
-
       {!variants.length&&<div style={{fontSize:11,color:C.textMuted,padding:"14px 0"}}>No options yet.</div>}
 
-      {variants.map(v=>(
-        <div key={v.id} style={{border:`1px solid ${live.chosenVariantId===v.id?C.gold:C.border}`,borderRadius:10,padding:11,marginBottom:9,backgroundColor:"rgba(255,255,255,.02)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
-            <input type="checkbox" checked={sel.includes(v.id)} onChange={()=>toggle(v.id)} style={{cursor:"pointer"}}/>
-            <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>{v.label||v.source||"Option"}</span>
-            {live.chosenVariantId===v.id&&<span style={{fontSize:9,fontWeight:700,color:C.gold}}>in use</span>}
-          </div>
-          <div style={{fontSize:13,fontWeight:700,color:C.text,lineHeight:1.4,marginBottom:3}}>{v.headline}</div>
-          <div style={{fontSize:11,color:C.textDim,lineHeight:1.5,marginBottom:7}}>{v.subheadline}</div>
-          {Array.isArray(v.bullets)&&v.bullets.length>0&&(
-            <ul style={{margin:"0 0 8px",paddingLeft:16}}>
-              {v.bullets.map((b,i)=><li key={i} style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}>{b}</li>)}
-            </ul>
-          )}
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:7}}>
-            <button onClick={()=>use(v)} style={gold}>Use this one</button>
-            <button onClick={()=>rewriteOne(v)} disabled={!!busy} style={{...btn,opacity:busy?.6:1}}>{busy===v.id?"Rewriting…":"Rewrite"}</button>
-            <button onClick={()=>drop(v)} style={btn}>Discard</button>
-          </div>
-          <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-            <span style={{fontSize:9,color:C.textMuted,fontWeight:700}}>Take just:</span>
-            {PIECES.filter(([f])=>f in v).map(([f,l])=>(
-              <button key={f} onClick={()=>take(v,f)} style={{...btn,padding:"4px 7px",fontSize:9}}>{l}</button>
+      <div ref={wrapRef}>
+      {variants.length>0&&(
+        <React.Fragment>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginBottom:9}}>
+            {variants.map((v,i)=>(
+              <button key={v.id} onClick={()=>{setIdx(i);setCompare(false);}} style={tab(!showing&&i===idx)}>
+                {i+1}
+              </button>
             ))}
+            <div style={{flex:1}}/>
+            <button onClick={()=>setCompare(c=>!c)} disabled={!canCompare} title={canCompare?"":"Needs a wider window"}
+              style={{...tab(showing),opacity:canCompare?1:.45,cursor:canCompare?"pointer":"default"}}>
+              Compare
+            </button>
           </div>
-        </div>
-      ))}
+          {compare&&!canCompare&&(
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:8,lineHeight:1.5}}>
+              Side by side needs a wider window. On a phone they would be three unreadable slivers,
+              so tap the numbers to flick between them instead.
+            </div>
+          )}
+
+          {showing ? (
+            <div style={{display:"flex",gap:gap,alignItems:"flex-start"}}>
+              {variants.slice(0,3).map(v=>(
+                <div key={v.id} style={{width:each,flex:"0 0 auto"}}>
+                  <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:live.chosenVariantId===v.id?C.gold:C.textMuted,marginBottom:5,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                    {v.label||"Option"}{live.chosenVariantId===v.id?" · in use":""}
+                  </div>
+                  <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${live.chosenVariantId===v.id?C.gold:C.border}`}}>
+                    <LandingPreview client={client} overrideLanding={v} scaleTo={each} height={430}/>
+                  </div>
+                  {actions(v,true)}
+                </div>
+              ))}
+            </div>
+          ) : cur ? (
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6,flexWrap:"wrap"}}>
+                <input type="checkbox" checked={sel.includes(cur.id)} onChange={()=>toggle(cur.id)} style={{cursor:"pointer"}}/>
+                <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>{cur.label||cur.source||"Option"}</span>
+                {live.chosenVariantId===cur.id&&<span style={{fontSize:9,fontWeight:700,color:C.gold}}>in use</span>}
+              </div>
+              <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`}}>
+                <LandingPreview client={client} overrideLanding={cur} height={460}/>
+              </div>
+              {actions(cur,false)}
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center",marginTop:7}}>
+                <span style={{fontSize:9,color:C.textMuted,fontWeight:700}}>Take just:</span>
+                {PIECES.filter(([f])=>f in cur).map(([f,l])=>(
+                  <button key={f} onClick={()=>take(cur,f)} style={{...btn,padding:"4px 7px",fontSize:9}}>{l}</button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </React.Fragment>
+      )}
+      </div>
 
       {variants.length>0&&(
-        <div style={{borderTop:`1px solid ${C.border}`,paddingTop:11,marginTop:2}}>
+        <div style={{borderTop:`1px solid ${C.border}`,paddingTop:11,marginTop:12}}>
           <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Blend them</div>
           <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,marginBottom:7}}>
-            Tick the ones you like above, then say what you want. For example: use the second
-            headline but keep the guarantee from the first.
+            Tick the ones you like (the box above each single view), then say what you want. For
+            example: use the second headline but keep the guarantee from the first.
           </div>
+          {sel.length>0&&<div style={{fontSize:10,color:C.gold,marginBottom:6}}>{sel.length} ticked</div>}
           <textarea value={say} onChange={e=>setSay(e.target.value)} rows={2}
             placeholder="What should the blended version do?"
             style={{width:"100%",boxSizing:"border-box",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)",color:C.text,resize:"vertical",fontFamily:"inherit",marginBottom:7}}/>
@@ -2929,17 +2989,34 @@ function LandingOptionsCard({client, onUpdate}){
 
 // LandingPreview — renders the owner's in-app preview through the SAME live function
 // (POST /landing) so the preview can never drift from the real /lp/<slug> page.
-function LandingPreview({client}){
+// `overrideLanding` renders a CANDIDATE instead of the live page, which is how the options
+// card shows what each one actually looks like. It only swaps landingPage in the posted body,
+// so everything else (media, colours, phone, service area) stays the client's real data and
+// the preview is honest about what that option would produce.
+//
+// `scaleTo` shrinks the page into a narrow column for side-by-side comparison. The frame is
+// always rendered at PHONE width and scaled down, never rendered narrow: a page laid out for
+// a 260px viewport is a different page, and comparing three of those would compare layouts
+// nobody will ever see.
+function LandingPreview({client, overrideLanding, height, scaleTo}){
   const [html,setHtml]=useState("");
   const [state,setState]=useState("loading"); // loading | ok | err
-  const key=JSON.stringify(client.landingPage||{})+"|"+(client.callTrackingNumber||"")+"|"+(client.bookingUrl||"")+"|"+JSON.stringify(client.campaignSetup||{})+"|"+JSON.stringify(client.brandVoice||{})+"|"+JSON.stringify((client.mediaLibrary||[]).map(m=>m.url));
+  const FRAME_W=390, FRAME_H=1000;
+  const h=height||520;
+  // 🔴 NEVER SCALE UP. A column wider than a phone gets the page at its own width; only a
+  // narrower column shrinks the phone layout to fit. Blowing a 390px layout up to 510 shows
+  // him a page at a size no visitor will ever load it at, which is the opposite of the point.
+  const k=scaleTo?Math.min(1,scaleTo/FRAME_W):1;
+  const fw=scaleTo?Math.round(scaleTo/k):FRAME_W;
+  const key=JSON.stringify(overrideLanding||client.landingPage||{})+"|"+(client.callTrackingNumber||"")+"|"+(client.bookingUrl||"")+"|"+JSON.stringify(client.campaignSetup||{})+"|"+JSON.stringify(client.brandVoice||{})+"|"+JSON.stringify((client.mediaLibrary||[]).map(m=>m.url));
   useEffect(()=>{
     let dead=false; setState("loading");
     (async()=>{
       try{
         const { data:{ session } }=await supabaseClient.auth.getSession();
         const token=session&&session.access_token;
-        const r=await fetch("/.netlify/functions/landing",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(token||"")},body:JSON.stringify({client})});
+        const posted=overrideLanding?{...client,landingPage:overrideLanding}:client;
+        const r=await fetch("/.netlify/functions/landing",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+(token||"")},body:JSON.stringify({client:posted})});
         const t=await r.text();
         if(dead)return;
         if(!r.ok){setState("err");return;}
@@ -2949,7 +3026,12 @@ function LandingPreview({client}){
     return ()=>{dead=true;};
   },[key]);
   if(state==="err") return <div style={{fontSize:11,color:C.textMuted,padding:12,lineHeight:1.6}}>Preview unavailable right now — once published, the live page at <code>/lp/{client.landingSlug}</code> is what clients see.</div>;
-  return <iframe srcDoc={html} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={{width:"100%",height:520,border:"none",display:"block",background:"#fff",opacity:state==="ok"?1:.45,transition:"opacity .2s"}}/>;
+  const frame=<iframe srcDoc={html} title="Landing Page Preview" sandbox="allow-scripts allow-same-origin" style={scaleTo?{width:fw,height:FRAME_H,border:"none",display:"block",background:"#fff",transform:"scale("+k+")",transformOrigin:"top left",opacity:state==="ok"?1:.45,transition:"opacity .2s"}:{width:"100%",height:h,border:"none",display:"block",background:"#fff",opacity:state==="ok"?1:.45,transition:"opacity .2s"}}/>;
+  // The scaled frame is bigger than its slot, so the wrapper clips it. Without this the three
+  // columns overlap each other and the card scrolls sideways, which is the standing no-sideways
+  // -scrolling rule broken in the most visible place in the OS.
+  if(scaleTo) return <div style={{width:scaleTo,height:h,overflow:"hidden",position:"relative",background:"#fff"}}>{frame}</div>;
+  return frame;
 }
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
 // ─── DEAL PREP (pre-call research + package recommendation) ───────────────────
