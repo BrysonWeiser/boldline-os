@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
-import { planOptions, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
+import { planOptions, resolveBrand, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
 
 const anthropic = new Anthropic();
 
@@ -19,7 +19,7 @@ const LANDING_COPY_TOOL = {
       bullets: { type: "array", items: { type: "string" }, description: "3-4 short benefit bullets, each under 60 characters." },
       ctaText: { type: "string", description: "Lead-form button text, e.g. 'Get My Free Quote'. Under 30 characters." },
       heroIndex: { type: "integer", description: "Optional. Number of the ONE asset from AVAILABLE MEDIA to feature as the hero image — pick the strongest photo of real work/results, or the logo only if no photo fits. Use -1 if none of the assets would strengthen the page. Never pick a video." },
-      brandColor: { type: "string", description: "The business's primary BRAND accent color as a 6-digit hex (e.g. '#C21807'). If a logo or photos are attached, derive it from the dominant brand color you SEE in them. Otherwise pick a confident, professional color that fits THIS specific business and industry — not a generic default. This becomes the page's accent (buttons, highlights). Never return gold/tan near #C8A84B (that's another company's color); avoid pure black/white unless the brand is genuinely monochrome." },
+      brandColor: { type: "string", description: "The business's primary BRAND accent color as a 6-digit hex (e.g. '#C21807'). If a logo or photos are attached, derive it from the dominant brand color you SEE in them. 🔴 IF THERE IS NOTHING TO DERIVE IT FROM — no logo, no photos, no website signal — RETURN AN EMPTY STRING. Do NOT choose a color that would 'fit the industry'. An invented accent is a random color on a real client's page, and the page has a sensible default for exactly this case. Never return gold/tan near #C8A84B (that is another company's color); avoid pure black/white and near-greys, which are the page background rather than a brand." },
       theme: { type: "string", enum: ["light", "dark"], description: "The overall page theme (background + surfaces), chosen to MATCH the client's EXISTING brand aesthetic — their logo, photos, and what a business like this typically looks like on its website/social. Use 'dark' when the brand reads dark, premium, luxury, bold, or automotive/nightlife, or when the logo/branding you see is on a dark background. Use 'light' when the brand is clean, bright, medical, or approachable. Do NOT default to light — a dark-branded business should get a DARK page (with their accent color), not a bright one. Judge from the actual branding, not a generic template." },
       steps: { type: "array", items: { type: "string" }, description: "Exactly 3 very short 'how it works' steps (each under ~34 characters) describing the customer's path to becoming a lead for THIS business — e.g. ['Request your free quote','We reach out fast','Get it done right']. Action-oriented, no fabricated specifics." },
       faqs: { type: "array", items: { type: "object", properties: { question: { type: "string" }, answer: { type: "string" } }, required: ["question", "answer"] }, description: "3-4 honest FAQs that overcome common objections for this service. Question short; answer 1-2 sentences, general and truthful. Do NOT invent specific prices, stats, awards, or guarantees the business didn't state." },
@@ -158,7 +158,7 @@ Also write 3-4 honest FAQs (faqs) that overcome common objections for this kind 
 BUSINESS DATA:
 ${dataBlock}${mediaBlock}${websiteBlock}
 
-Match the page to the client's OWN brand identity — set brandColor and theme (light/dark) from their actual logo/photos/industry, not a generic look. A dark, premium, or bold brand should get a dark page with their accent color; a clean, bright brand should get a light one. Never impose a default bright/white theme on a brand that isn't bright.
+Match the page to the client's OWN brand identity — set brandColor and theme (light/dark) from their actual logo, photos and website. If you cannot SEE a brand color in what you were given, leave brandColor empty rather than inventing one. A dark, premium, or bold brand should get a dark page with their accent color; a clean, bright brand should get a light one. Never impose a default bright/white theme on a brand that isn't bright.
 
 Also fill in the DESIGN directives (layout, font, motion, background, benefits, shape, order) so this page's STRUCTURE and feel suit THIS business specifically. Two different clients should end up with visibly different pages, not the same template recolored — so vary these choices to fit each brand's personality (e.g. an elegant med spa: overlay or centered layout, elegant serif type, soft shapes; a bold roofing company: split layout, bold type, sharp shapes, cards). Reuse good ideas, but do not pick the same combination every time.
 
@@ -288,21 +288,30 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
             : null));
         }),
       );
-      const options = results.filter(Boolean);
-      if (!options.length) return json({ ok: false, error: "No copy generated" }, 500);
-      return json({ ok: true, options }, 200);
+      const built = results.filter(Boolean);
+      if (!built.length) return json({ ok: false, error: "No copy generated" }, 500);
+      // 🔴 ONE BRAND COLOUR AND ONE THEME FOR ALL OF THEM. Each option is its own model call,
+      // so left alone the same business gets a blue page, a red page and a green page. Layout
+      // and copy are what should differ between options; brand identity never is.
+      const brand = resolveBrand({ client: body, scrape, picks: built });
+      const options = built.map((o) => ({ ...o, brandColor: brand.brandColor, theme: brand.theme, brandSource: brand.source }));
+      return json({ ok: true, options, brand }, 200);
     }
 
     // A plain-English blend of options that already exist.
     if (blend) {
       const lp = await oneOption(`REWRITE INSTRUCTION FROM THE ACCOUNT MANAGER. Follow it exactly.\n\n${blend}`);
       if (!lp) return json({ ok: false, error: "No copy generated" }, 500);
-      return json({ ok: true, landingPage: lp, options: [lp] }, 200);
+      const b = resolveBrand({ client: body, scrape, picks: [lp] });
+      const out = { ...lp, brandColor: b.brandColor, theme: b.theme, brandSource: b.source };
+      return json({ ok: true, landingPage: out, options: [out], brand: b }, 200);
     }
 
     const single = await oneOption("");
     if (!single) return json({ ok: false, error: "No copy generated" }, 500);
-    return json({ ok: true, landingPage: single, options: [single] }, 200);
+    const b1 = resolveBrand({ client: body, scrape, picks: [single] });
+    const one = { ...single, brandColor: b1.brandColor, theme: b1.theme, brandSource: b1.source };
+    return json({ ok: true, landingPage: one, options: [one], brand: b1 }, 200);
   } catch (err) {
     console.error("Landing copy generation failed:", err);
     return json({ ok: false, error: "AI request failed" }, err.status || 500);

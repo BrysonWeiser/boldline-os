@@ -11629,6 +11629,28 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   <input type="text" value={(form.brandVoice&&form.brandVoice[k])||""} onChange={e=>setIn("brandVoice",k,e.target.value)} placeholder={ph} style={inp}/>
                 </div>
               ))}
+              {/* 🔴 THE OVERRIDE THAT WAS MISSING. Bryson, 2026-09-01: "always keep brand
+                  colors and we dont add random colors". Nothing here beats a colour he types:
+                  it is read first, before the website and before anything the AI saw. Left
+                  blank the page takes the colour from their real site, then their logo, and
+                  falls back to a neutral default rather than inventing one. */}
+              <div style={{...fieldStyle,display:"flex",gap:9,alignItems:"flex-end"}}>
+                <div style={{flex:1}}>
+                  <label style={fieldLabelStyle}>Brand colour</label>
+                  <input type="text" value={form.brandColor||""} onChange={e=>set("brandColor",e.target.value)} placeholder="Leave blank to use their website. Or paste a hex, e.g. #2B6CB0" style={inp}/>
+                </div>
+                <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(form.brandColor||"")?form.brandColor:"#2b6cb0"}
+                  onChange={e=>set("brandColor",e.target.value)} title="Pick a colour"
+                  style={{width:42,height:38,padding:2,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer",flex:"0 0 auto"}}/>
+              </div>
+              <div style={fieldStyle}>
+                <label style={fieldLabelStyle}>Light or dark pages</label>
+                <select value={form.brandTheme||""} onChange={e=>set("brandTheme",e.target.value)} style={inp}>
+                  <option value="">Match their website</option>
+                  <option value="light">Always light</option>
+                  <option value="dark">Always dark</option>
+                </select>
+              </div>
             </Card>
             <Card>
               <Label>Ad Account Linking</Label>

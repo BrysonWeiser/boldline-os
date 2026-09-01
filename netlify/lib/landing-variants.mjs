@@ -256,3 +256,84 @@ export function blendPrompt(variants, ids, instruction) {
     + `Keep what the instruction says to keep, word for word where it makes sense. `
     + `Change only what it asks you to change. Do not invent prices, statistics, awards or reviews.`;
 }
+
+// ─── THE CLIENT'S BRAND COLOUR ───────────────────────────────────────────────
+// Bryson, 2026-09-01: *"make sure that we always keep brand colors and we dont add random
+// colors."* Three separate things were producing random colours, and the options work made
+// the worst of them visible:
+//
+//   1. 🔴 THE COLOUR WAS PICKED PER OPTION. Three options meant three model calls, each
+//      choosing its own accent, so one business got a blue page, a red page and a green page.
+//      Layout and copy are what should vary between options. Brand identity is not.
+//   2. 🔴 THE PROMPT ASKED IT TO INVENT ONE. With no website and no logo the tool description
+//      said "pick a confident, professional color that fits this business", which is a random
+//      colour with a polite description.
+//   3. There was no way for Bryson to SET a colour, so nothing could override a bad guess.
+//
+// So a colour is resolved ONCE per client, from evidence, in this order.
+
+const HEX = /^#?([0-9a-fA-F]{6})$/;
+export const normHex = (v) => {
+  const m = HEX.exec(String(v == null ? "" : v).trim());
+  return m ? `#${m[1].toLowerCase()}` : "";
+};
+
+// 🔴 BOLDLINE'S OWN GOLD IS NEVER A CLIENT'S BRAND COLOUR. The prompt already asks the model
+// to avoid it, but a prompt is a request and this is a guarantee: a scraper that picks it up
+// from a screenshot, or a model that ignores the line, would put our brand on their page.
+const BOLDLINE_GOLD = [0xc8, 0xa8, 0x4b];
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+export function isBoldlineGold(v) {
+  const h = normHex(v);
+  if (!h) return false;
+  const [r, g, b] = rgb(h);
+  return Math.abs(r - BOLDLINE_GOLD[0]) + Math.abs(g - BOLDLINE_GOLD[1]) + Math.abs(b - BOLDLINE_GOLD[2]) <= 60;
+}
+
+// Near-white and near-black are not brand accents, they are the page. A scraper that returns
+// one has found the background, not the brand.
+export function isNeutral(v) {
+  const h = normHex(v);
+  if (!h) return false;
+  const [r, g, b] = rgb(h);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  return (max - min) <= 18 || max >= 244 || max <= 26;
+}
+
+const usable = (v) => {
+  const h = normHex(v);
+  return h && !isBoldlineGold(h) && !isNeutral(h) ? h : "";
+};
+
+// 🔴 ONE COLOUR AND ONE THEME FOR THE WHOLE CLIENT, resolved from the strongest evidence
+// available. `picks` are what the model returned for each option; they are the LAST resort and
+// only the first usable one is taken, so the options can never disagree with each other.
+export function resolveBrand({ client = {}, scrape = null, picks = [] } = {}) {
+  const cl = client || {};
+  const lp = cl.landingPage || {};
+
+  // 1. What Bryson set by hand. Nothing overrides this: it is the whole point of the field.
+  const set = usable(cl.brandColor);
+  // 2. The client's real website. A colour actually on their site is evidence, not a guess.
+  const site = scrape ? (usable(scrape.themeColor) || (scrape.accents || []).map(usable).find(Boolean) || "") : "";
+  // 3. What the model read off the logo and photos. Only the first usable one, applied to all.
+  // Each pick is a whole landing page object, so the colour has to be reached for by name.
+  const read = (picks || []).map((p) => usable(p && p.brandColor)).find(Boolean) || "";
+  // 4. Whatever the page is already using, so regenerating copy never repaints a client's page.
+  const existing = usable(lp.brandColor);
+
+  const brandColor = set || site || read || existing || "";
+
+  const themeOf = (v) => (String(v || "").toLowerCase() === "dark" ? "dark" : String(v || "").toLowerCase() === "light" ? "light" : "");
+  const theme = themeOf(cl.brandTheme)
+    || (scrape && scrape.themeHint !== "unclear" ? themeOf(scrape.themeHint) : "")
+    || themeOf(lp.theme)
+    || (picks || []).map((p) => themeOf(p && p.theme)).find(Boolean)
+    || "light";
+
+  return {
+    brandColor,
+    theme,
+    source: set ? "set by hand" : site ? "their website" : read ? "their logo and photos" : existing ? "the current page" : "none found",
+  };
+}
