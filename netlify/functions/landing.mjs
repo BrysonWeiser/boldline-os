@@ -322,8 +322,13 @@ a{color:inherit}
 @keyframes zin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 @keyframes slin{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;transform:none!important}}
-@media(min-width:720px){.bene{grid-template-columns:repeat(3,1fr)}.benum{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}}
+/* Four cards open out to a single row of four only when the container is genuinely wide
+   enough to keep them readable. This block MUST stay after the 720px one: same specificity,
+   so source order decides, and put earlier it loses and never applies at all. Numbered
+   benefits are excluded on purpose, they lay out sideways and need the width. */
 @media(min-width:940px){.hero{padding:64px 0 56px}.hero-g.has-img{grid-template-columns:1.05fr .95fr}.form-g{grid-template-columns:.9fr 1.1fr;gap:44px}}
+@media(min-width:1100px){.bene.g4{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:719px){.mcta{display:flex}body{padding-bottom:76px}.hdr-cta{display:none}.hero-ov{min-height:440px}}
 `;
 
@@ -433,14 +438,25 @@ a{color:inherit}
 
   // ── benefits (3 styles) ──
   const parsed = bullets.map((b) => { const p = String(b).split(/[—–:]/); return { h: p[0].trim(), p: p.slice(1).join("—").trim() }; });
+  // 🔴 NEVER LEAVE ONE ITEM ALONE ON A ROW. Bryson, 2026-09-01, with a screenshot of four
+  // benefits in a three-wide grid: three across, then a lone fourth hanging under the left
+  // edge. The grid was a fixed `repeat(3,1fr)` regardless of how many items the writer
+  // produced, and the writer is asked for "3-4", so a stranded fourth was the common case
+  // rather than an edge case.
+  //
+  // The column count follows the item count instead. Four go two-by-two, which reads as
+  // deliberate, and open out to four across only when there is genuinely room. Five fall to
+  // three-then-two, which is a full row and a pair rather than a row and an orphan.
+  const gridFor = (n) => (n <= 1 ? "g1" : n === 2 ? "g2" : n === 4 ? "g4" : n === 5 ? "g5" : "g3");
+
   let benefitsInner, benefitsAlt = true;
   if (D.benefits === "list") {
     benefitsInner = `<div class="belist">${parsed.map((x, i) => `<div class="brow reveal" style="transition-delay:${i * 50}ms"><div class="bico">✓</div><div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div></div>`).join("")}</div>`;
     benefitsAlt = false;
   } else if (D.benefits === "numbered") {
-    benefitsInner = `<div class="benum">${parsed.map((x, i) => `<div class="bnum reveal" style="transition-delay:${i * 60}ms"><div class="bn">${String(i + 1).padStart(2, "0")}</div><div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div></div>`).join("")}</div>`;
+    benefitsInner = `<div class="benum ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bnum reveal" style="transition-delay:${i * 60}ms"><div class="bn">${String(i + 1).padStart(2, "0")}</div><div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div></div>`).join("")}</div>`;
   } else {
-    benefitsInner = `<div class="bene">${parsed.map((x, i) => `<div class="bcard reveal" style="transition-delay:${i * 60}ms"><div class="bico">✓</div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div>`).join("")}</div>`;
+    benefitsInner = `<div class="bene ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bcard reveal" style="transition-delay:${i * 60}ms"><div class="bico">✓</div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div>`).join("")}</div>`;
   }
   const benefitsSection = `<section class="sec${benefitsAlt ? " alt" : ""}"><div class="wrap"><div class="sec-head"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose ${esc(cl.name)}</h2></div>${benefitsInner}</div></section>`;
 

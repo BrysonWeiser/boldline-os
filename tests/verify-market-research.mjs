@@ -388,7 +388,15 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
     /national \? "Marketing that brings you customers" : "Trusted local service"/.test(LANDING_CODE)
     || !/Trusted local service/.test(LANDING_CODE));
   ok("the footer follows the same rule", /reach \? ` · \$\{esc\(reach\)\}`/.test(LANDING_CODE));
-  ok("so does the trust row", /reach \? `<span>🌐/.test(LANDING_CODE));
+  // The trust row does too. This used to be pinned to a globe emoji that sat in the
+  // markup, and the no-emoji rule for client-facing pages later removed it, which broke
+  // an assertion about wording that had not actually changed. So check the BEHAVIOUR:
+  // when there is no service area, the row falls back to the national reach line.
+  ok("so does the trust row", /area \? `<span><b>\$\{esc\(area\)\}<\/b><\/span>` : reach \? `<span><b>\$\{esc\(reach\)\}<\/b><\/span>`/.test(LANDING_CODE));
+  ok("and the trust row carries no emoji", (() => {
+    const row = /const trustBits = \[[\s\S]*?\n/.exec(LANDING_CODE);
+    return !!row && !/\p{Extended_Pictographic}/u.test(row[0]);
+  })());
 
   // 🔴 And a raw slice printed the owner's typed note chopped mid-word on a live page.
   ok("the badge no longer hard-slices the text", !/\(differentiator \|\| offer\)\.slice\(0, 40\)/.test(LANDING_CODE));
