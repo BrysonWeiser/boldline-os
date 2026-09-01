@@ -181,7 +181,7 @@ pay out of pocket right now**, then reached the conclusion himself and instructe
 | Referral fee to Shaun | 🔴 **NONE. No money in either direction.** Two-way swap only, exactly the "start here" row above |
 | Ongoing % of the monthly | Still no, and still not to be agreed on a call. One client of history, no churn data |
 | Small dev jobs (DNS record, form wiring) | **In house.** Not subcontracted by default. This reverses the "set up now" verdict in the table above |
-| Paying Shaun at all | Only a **one-off quote for one specific job**, and only when a client's existing site must be touched and nobody will give Bryson access. Never a retainer |
+| Paying Shaun at all | 🔴 **NO. Corrected by Bryson the same evening, see below.** Website work on a client's site is the CLIENT's project and the client pays their own developer directly. BoldLine introduces them and steps out |
 
 **Why the fee was dropped rather than deferred.** A finder's fee was sized first ($150 at
 ~$400/mo, $250 at ~$700/mo, $400 at ~$1,200/mo, always paid *after the client's first invoice
@@ -213,10 +213,36 @@ half of the swap is close to worthless and should not be paid for.
 
 **The email was written and handed over 2026-08-31** to send immediately: Sebastian signed, the
 dual-post is built and ready to test, the DNS record is the one outstanding ask, referrals are
-two-way with no fees, one-off paid jobs are possible but are not a retainer, and the call is
+two-way with no fees and BoldLine steps out of any website job entirely, and the call is
 offered **Thu 2026-09-03 09:30-11:00 or Fri 2026-09-04 09:00-11:30 Phoenix** (Bryson dropped the
 Wednesday and moved that window to Friday, 2026-08-31). It states the signing secret will be
 sent separately and **not** over email.
+
+### 🔴 CORRECTION, same evening: BoldLine never pays for a client's website work
+
+The draft email carried a line offering to hire Shaun and pay his rate whenever a client's
+existing site needed touching. **Bryson cut it, and he was right:** *"why would I be the one
+to pay the rate for the clients website to be fixed? That doesn't make sense it should just
+be I refer them to Shaun and that's it."*
+
+**The rule, which generalises well past Shaun:**
+
+| Work | Who pays | BoldLine's role |
+|---|---|---|
+| Anything on the CLIENT's own website | **The client, direct to their developer** | Make the introduction, then get out of the way |
+| The small technical bits a campaign needs (one DNS record, a form or tracking snippet) | **Nobody.** It is minutes of work on the developer's own client's project | Send the exact values to paste in. Never open a price conversation about it |
+| Work on BoldLine's OWN product | BoldLine, obviously | Not what that line was about, and not a thing Shaun has been asked for |
+
+**The second reason the line was worse than merely unnecessary.** It invites a developer to
+start sending BoldLine invoices, which puts BoldLine in the middle of money flowing between a
+client and that client's own developer. Once BoldLine is the payer it OWNS the outcome: if the
+job runs late or the client dislikes the result, it becomes BoldLine's problem, on work
+BoldLine made nothing from and cannot control. **Stay out of the middle of that transaction.**
+
+Replaced in the email with the referral direction it should have been all along: *"if one of
+mine needs real website work, I'll introduce you and get out of the way, you two can handle it
+directly."* That is stronger anyway, because it makes the swap symmetric instead of turning
+one half of it into a purchase order.
 
 ### 🔴 Date-keeping gotcha, worth carrying forward
 
