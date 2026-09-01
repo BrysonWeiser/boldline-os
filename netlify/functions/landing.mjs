@@ -21,7 +21,16 @@ const comingSoonPage = (name) => html(
 // Colour theme from the CLIENT's OWN branding — accent + light/dark. Never BoldLine's.
 export function landingTheme(cl) {
   const lp = (cl && cl.landingPage) || {};
-  const raw = lp.brandColor || (cl && cl.brandColor) || "";
+  // 🔴 THE HAND-SET COLOUR WINS, AND THE ORDER HERE IS THE WHOLE POINT OF THE FIELD.
+  // `client.brandColor` is what Bryson typed; `landingPage.brandColor` is what the generator
+  // produced. Reading the page first made the override INERT on every page that already had a
+  // colour, which is every generated page: he would set his client's real brand colour, save,
+  // and watch nothing change. Found by testing the field against a page rather than trusting
+  // that shipping it was enough.
+  //
+  // It also means setting the colour updates EVERY page immediately, with no regeneration,
+  // because a landing page is built from this record on each request rather than stored.
+  const raw = (cl && cl.brandColor) || lp.brandColor || "";
   const m = /^#?([0-9a-fA-F]{6})$/.exec(String(raw).trim());
   const brand = m ? `#${m[1].toLowerCase()}` : "#4f6bed";
   const n = parseInt(brand.slice(1), 16);
@@ -31,7 +40,9 @@ export function landingTheme(cl) {
   const tint = `rgba(${r},${g},${b},.16)`;
   const deep = `#${[r, g, b].map((v) => Math.round(v * 0.22).toString(16).padStart(2, "0")).join("")}`;
   const bright = `#${[r, g, b].map((v) => Math.min(255, Math.round(v + (255 - v) * 0.22)).toString(16).padStart(2, "0")).join("")}`;
-  const dark = String(lp.theme || "").toLowerCase() === "dark";
+  // Same order, same reason: a light/dark choice he made by hand beats the one generated with
+  // the copy, otherwise that dropdown is decoration too.
+  const dark = String((cl && cl.brandTheme) || lp.theme || "").toLowerCase() === "dark";
   const base = dark
     ? { mode: "dark", bg: "#0C0D11", text: "#E7E9EE", headline: "#F8F9FB", muted: "#A6ABB5", surface: "#15171D", border: "#262A32", line: "#20242C", chipText: "#CBD0D9", formBg: "#0A0B0F", cardBg: "#15171D", cardBorder: "#282C35", inBg: "#0E1014", inBorder: "#2A2E37", inText: "#F4F5F7", ph: "#7A818C", topName: "#F5F6F8", foot: "#8A909B", headBg: "rgba(12,13,17,.82)", grid: "rgba(255,255,255,.05)" }
     : { mode: "light", bg: "#ffffff", text: "#1F2937", headline: "#0F172A", muted: "#5B6472", surface: "#F8F9FB", border: "#E9ECF1", line: "#EEF0F4", chipText: "#374151", formBg: "#F5F7FA", cardBg: "#ffffff", cardBorder: "#E9ECF1", inBg: "#ffffff", inBorder: "#E2E6EC", inText: "#111827", ph: "#9CA3AF", topName: "#0F172A", foot: "#6B7280", headBg: "rgba(255,255,255,.82)", grid: "rgba(15,23,42,.05)" };

@@ -289,6 +289,28 @@ intact. One of them is the contract that `client-autobuild` depends on, so it is
 the **shape** of the response rather than the exact wording, because a test that breaks on a
 rename trains people to edit the test instead of reading it.
 
+### 🔴 The override was INERT for an hour, and the fix was only half a fix
+
+Bryson, straight after: *"make sure that the fix is live and that the landing pages are
+updated."* The right instinct, and the second half was broken.
+
+`landingTheme()` read **`landingPage.brandColor` FIRST** and only fell back to
+`client.brandColor`. Every generated page already carries a colour, so the field shipped an
+hour earlier did **nothing on any real page**. He would have typed his client's brand colour,
+saved, and watched the page stay exactly as it was.
+
+Order is now **`client.brandColor` then `landingPage.brandColor`**, and the same for the
+light/dark choice, because a value set by hand is the deliberate one. Tested against the
+RENDERED HTML, not just the palette function: a colour resolved correctly and then not painted
+looks identical to a fix.
+
+**Which answers "are the landing pages updated" properly: yes, and with nothing to press.** A
+landing page is built from the client record on every request rather than stored as a file, so
+setting the colour changes every page the moment it is saved. No regeneration, no republish.
+
+**Shipping a field is not the same as the field working.** It was never tested against a page
+that already had a colour, which is the only kind that exists.
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,
