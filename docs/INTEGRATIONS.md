@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 138 task-keyed entries under `knowledge/`. They surface automatically via the
+> 139 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**138 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**139 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -36,6 +36,9 @@
 - **[conversion-loop](../knowledge/conversion-loop.md)** &mdash; &#9989; verified &middot; 2026-08-24  
   Google is now told which leads were actually worth having. Three conversion actions per client, deliberately unequal - a form fill is measured but NEVER bid on, while qualified lead and closed customer are what Smart Bidding chases. The click id is captured on the landing page at the visit, stored with the lead, and used weeks later to credit the outcome back to the ad that caused it. Plus the client-requested 30-day scorecard.  
   <sub>*task:* set up or debug what Google Ads is told to optimize toward for a client, or send qualified/won leads back to Google &nbsp;|&nbsp; *keywords:* conversion loop, conversion actions, offline conversion import, uploadClickConversions, gclid, wbraid, gbraid, click id, qualified lead, closed customer, primaryForGoal, secondary conversion, enhanced conversions for leads, ConversionLoopCard, ScorecardCard, gads-conversions, scorecard, 30 day scorecard, grossMarginPct, mark qualified, order value</sub>
+- **[landing-page-options](../knowledge/landing-page-options.md)** &mdash; &#9989; verified &middot; 2026-09-01  
+  Three landing pages written from three different angles instead of one take-it-or-leave-it. Use one as it is, take single pieces from any of them, or tick a few and describe the blend in plain English. The live page is never touched except by "Use this one", and choosing keeps the page exactly as live as it already was. 96 checks, 14 mutations caught.  
+  <sub>*task:* give the owner several landing pages to choose from, mix, or rewrite &nbsp;|&nbsp; *keywords:* landing page options, variants, landingVariants, multiple options, three options, blend, mix and match, pick field, take just, regenerate one, rewrite option, use this one, angles, LandingOptionsCard, blApplyVariant, blPickField, blBlendPrompt, landing-variants</sub>
 - **[lead-handoff](../knowledge/lead-handoff.md)** &mdash; &#9989; verified &middot; 2026-08-25  
   Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.  
   <sub>*task:* send a client's leads on to their own CRM, or serve their landing page on their own domain &nbsp;|&nbsp; *keywords:* which crm, crm name, crmSystem, what crm does he use, crm product not named, primary domain, domain alias, add domain alias, os.boldlinemedia.com, OWN_EXACT, OS_HOSTS, lets encrypt, certificate error, pending dns verification, subdomain-owner-verification, cloudflare grey cloud, which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once</sub>
