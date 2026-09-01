@@ -90,6 +90,17 @@ automated.
   scheduled reminders, and above all in anything a client or partner will read. When creating
   a Routine or trigger, convert Phoenix to UTC for the cron and then convert the result BACK
   to confirm it lands where intended. Details + both incidents in KB `arizona-time`.
+- **A PREVIEW MUST NEVER CHANGE ANYTHING REAL — standing rule (Bryson, 2026-09-01: "make sure
+  to always check that things like that dont happen with future clients or anything we build").**
+  Anything the OS renders so Bryson can LOOK at it (an iframe preview, a demo, a test send, a
+  dry run) must be incapable of writing to a client's record, sending to a real person, spending
+  money, or navigating the OS away from itself. This breaks easily because every preview hands a
+  REAL client object with REAL tokens to the SAME renderer that serves the real thing: same
+  origin, same token, same code. Two live bugs of this shape were found in one sitting, one of
+  which recorded a client decision the client never made. **Enforced, not remembered:**
+  `tests/verify-preview-safety.mjs` holds a manifest of every embed and what makes each one safe,
+  so a new preview added without a guard FAILS. Add the row when you add the preview. Details in
+  KB `preview-safety`.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
