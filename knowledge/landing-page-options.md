@@ -355,6 +355,48 @@ under the old code and keep the look they were given, so **press "Write three mo
 Five mutations, all caught, then rendered through the real builder to confirm three visibly
 different pages.
 
+### 🔴 2026-09-01 — one thing genuinely out of place, and two wrong probes finding it
+
+Bryson, with a screenshot of the centred layout: *"make sure everything is always uniform and
+not out of place."* Everything in that page was centred, the headline, the button, the trust
+line and every section heading, and then two pills sat hard against the left edge.
+
+**The cause:** `.chips` is a flex row. The CONTAINER was already centred; the ITEMS inside it
+were not, because **a flex row packs to the start unless told otherwise, and `text-align` does
+nothing to flex children.** One rule fixes it: `.lay-centered .chips{justify-content:center}`,
+scoped to that layout only, since centring them everywhere would push them off the left edge
+the other three line up on.
+
+**"Ready to get started?" is NOT a defect**, though it measured as off to the left. It is the
+left column of a two-column form band, so left-aligned is correct there. Worth recording, or
+it gets "fixed" into a real bug later.
+
+### The audit, and why it had to be a browser
+
+`tools/audit-landing-uniformity.js` renders **all four layouts at all four widths** and measures
+alignment, overflow and whether a call to action is reachable. Four mutations, all caught:
+the original bug, chips centred on a left-aligned page, a hero block knocked out of line, and
+content hanging off the side.
+
+🔴 **A string match could never have found this.** Nothing in the HTML says "out of place";
+only the resolved geometry does.
+
+### 🔴 THREE WRONG MEASUREMENTS BEFORE ONE RIGHT ONE, and each is a lesson
+
+1. **Measured mid-animation.** The hero staggers each block by a different `animation-delay`,
+   so a first pass read four different left edges for four blocks that line up perfectly.
+   **Kill animations and transforms before measuring, always.**
+2. **Inferred alignment from geometry.** "Is the headline's centre near the page's centre" is
+   true for a LEFT-aligned headline that spans the content column, so three left-aligned
+   layouts were reported as centred and all of them "failed". **Intent comes from the resolved
+   `text-align`, not from where a full-width box happens to sit.**
+3. **Measured one chip instead of the group.** With three chips centred as a group, the FIRST
+   chip sits well left of centre by construction, so the correct fix still reported as broken.
+   **Measure the span from the first item's left edge to the last item's right edge.**
+
+Every one of those would have produced a confident, wrong bug report and a "fix" to code that
+was already right.
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,
