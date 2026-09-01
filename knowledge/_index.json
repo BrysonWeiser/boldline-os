@@ -157,7 +157,7 @@
     "model": 11,
     "prompt": 6,
     "bans": 1,
-    "plus": 11,
+    "plus": 12,
     "usual": 1,
     "giveaways": 1,
     "itself": 7,
@@ -1409,7 +1409,7 @@
     "geo key": 1,
     "tolocationlines": 1,
     "verify-campaign-launch": 1,
-    "verify": 10,
+    "verify": 11,
     "bugs": 3,
     "spending": 1,
     "silent": 1,
@@ -2144,7 +2144,7 @@
     "remaining": 4,
     "against": 4,
     "hand off": 1,
-    "handoff": 2,
+    "handoff": 3,
     "one-time build": 1,
     "hand-off runbook": 1,
     "runbook": 2,
@@ -17263,7 +17263,7 @@
         "page field"
       ],
       "status": "built",
-      "summary": "The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 76 checks, 17 mutations caught.",
+      "summary": "The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 76 checks plus 7 in verify-lead-handoff, 20 mutations caught.",
       "verified": "2026-08-31",
       "terms": {
         "sms consent": 3,
@@ -17359,6 +17359,9 @@
         "nested": 1.5,
         "json": 1.5,
         "checks": 1.5,
+        "plus": 1.5,
+        "verify": 1.5,
+        "handoff": 1.5,
         "mutations": 1.5,
         "caught": 1.5
       }

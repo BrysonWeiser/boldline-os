@@ -262,5 +262,49 @@ const fakeFetch = (script) => {
   ok("and the domain is editable in the OS", /k:"landingDomain"/.test(UI_CODE));
 }
 
+// ── 🔴 THE PAGE MUST BEHAVE THE SAME IN THE OS PREVIEW AS IT DOES LIVE ──────
+// Bryson, 2026-09-01: *"the get my free quote button goes to my os which it shouldnt."*
+// Reproduced in a headless browser rather than guessed at. The OS previews this page in an
+// `<iframe srcdoc>`, whose document URL is `about:srcdoc`, so a bare `href="#lead-form"`
+// resolves against the PARENT document and the frame navigates to the OS app. The live page
+// was never broken, but a preview that jumps to the OS on the main button is a preview nobody
+// can trust, and trusting it is the whole point of having one.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const cl = {
+    name: "Stencil & Thread", landingSlug: "stencil", leadToken: "TOK",
+    campaignSetup: { serviceArea: "Eugene, OR" },
+    landingPage: { headline: "Custom shirts, fast.", subheadline: "25 or more.", ctaText: "Get a quote", published: true },
+  };
+  const managed = renderLandingPage(cl);
+  const ho = renderLandingPage(cl, { handoff: { phone: "(541) 555-0100" } });
+
+  ok("🔴 in-page links are scrolled to, not navigated to",
+    /querySelectorAll\('a\[href\^="#"\]'\)/.test(managed) && /preventDefault\(\)/.test(managed)
+      && /scrollIntoView/.test(managed),
+    "a bare fragment href resolves against the PARENT document inside an iframe srcdoc, so the "
+    + "OS preview navigates itself to the OS app");
+  ok("and the hand-off page gets the same handling", /querySelectorAll\('a\[href\^="#"\]'\)/.test(ho),
+    "a hand-off page is previewed in the same iframe");
+  ok("the plain href survives as the no-JS fallback", /href="#lead-form"/.test(managed),
+    "on the live page the fragment is correct, so JS off must still reach the form");
+  ok("a fragment pointing at nothing is left alone", /if\(!t\)return;/.test(managed),
+    "hijacking every hash link including ones with no target would break anchors we do not own");
+
+  // 🔴 A PREVIEW MUST NEVER CREATE A REAL LEAD. The preview carries the real leadToken and is
+  // same-origin with the OS, so a submit would post to the live intake: a phantom lead in the
+  // client's pipeline, a text and an email to whatever was typed, and a forward to their CRM.
+  ok("🔴 a submit from a preview never reaches the intake",
+    /indexOf\('about:'\)===0/.test(managed),
+    "today the OS sandbox also omits allow-forms so the submit event never fires, but that is "
+    + "an attribute in another file held up by habit. Adding allow-forms to make the preview "
+    + "button feel alive is an obvious future edit, and this is what makes it safe");
+  ok("and it still shows the thank-you state, so the preview stays useful",
+    /indexOf\('about:'\)===0\)\{[\s\S]{0,220}lf-thanks/.test(managed));
+  ok("🔴 the guard sits BEFORE the fetch, not after it",
+    managed.indexOf("indexOf('about:')===0") < managed.indexOf("functions/lead-intake?token="),
+    "a guard after the send is not a guard");
+}
+
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
