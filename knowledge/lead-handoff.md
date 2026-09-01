@@ -196,7 +196,16 @@ names. So this is not "map a few fields", it is a second wire format:
 The HMAC signature is over the exact bytes sent, so it keeps working unchanged as long as
 the signing happens after serialisation, whatever the serialisation is.
 
-### 🔴 SMS CONSENT — WE DO NOT COLLECT IT AT ALL, ANYWHERE
+### ✅ RESOLVED 2026-08-31 — both gaps below are now built
+
+The wire-format gap and the SMS-consent gap described in this section were **closed together**
+on 2026-08-31: a per-client `crmFormat` of `form` sends Shaun's flat form-urlencoded shape with
+his field names, and the landing page now collects two separate consents which follow the lead
+into the OS and on to the CRM. Full detail, the three-way auto-reply rule and the mutation
+results are in KB **`sms-consent`**. The two subsections below are kept as the original
+statement of the problem.
+
+### 🔴 SMS CONSENT — WE DO NOT COLLECT IT AT ALL, ANYWHERE (as of 2026-08-29; fixed 2026-08-31)
 
 A grep for `sms_consent` / `smsConsent` across the whole repo returns **nothing**. This is a
 genuine product gap, not a Sebastian-specific mapping detail, and it is the one Shaun flagged

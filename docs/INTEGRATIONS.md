@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 136 task-keyed entries under `knowledge/`. They surface automatically via the
+> 137 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**136 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**137 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -141,6 +141,9 @@
 - **[netlify-forms-wiring](../knowledge/netlify-forms-wiring.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Two static forms (contact + recommendation) are Netlify-Forms-wired (data-netlify=true, name, hidden form-name input, bot-field honeypot, AJAX-POST urlencoded to /). Netlify detects them at build; they appear under the marketing site's Forms tab. Enable notifications in the dashboard; a submission-created function also fires per verified submission.  
   <sub>*task:* wire up or debug marketing-site form capture and email notifications &nbsp;|&nbsp; *keywords:* data-netlify, form-name, bot-field, honeypot, submission-created, recommendation-form</sub>
+- **[sms-consent](../knowledge/sms-consent.md)** &mdash; &#9989; verified &middot; 2026-08-31  
+  The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 68 checks, 13 mutations caught.  
+  <sub>*task:* collect or debug SMS consent on a landing page, or change what a CRM receives &nbsp;|&nbsp; *keywords:* sms consent, smsConsentTransactional, smsConsentMarketing, consent checkbox, TCPA, A2P, opt in, opt out, STOP, auto reply text, speed to lead, may we text, crmFormat, form urlencoded, flat payload, crmFormPayload, crmBody, Shaun Smith endpoint, lead_id, sms_consent_transactional, details field, first_name, page field</sub>
 - **[website-leads-os-tab](../knowledge/website-leads-os-tab.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Marketing-site form submissions insert into the website_leads table (via service-role) and surface in the OS "Leads" tab: filter chips, status, notes, realtime + 20s poll + toast, delete. Table is live (2026-06-30). Degrades gracefully if the table is missing.  
   <sub>*task:* understand or debug how website leads flow into the OS Leads section &nbsp;|&nbsp; *keywords:* website_leads, website_leads_auth_delete, LeadsScreen, leads-live, deleteLead, submission-created</sub>

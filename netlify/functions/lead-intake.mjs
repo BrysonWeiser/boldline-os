@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS, appendLead, leadEmailHTML, notifyOwnerOfLead } from "../lib/report-shared.mjs";
 import { forwardLead, forwardResult } from "../lib/crm-forward.mjs";
 import { pickAttribution } from "../lib/attribution.mjs";
+import { pickConsent, mayTextLead } from "../lib/sms-consent.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,12 @@ const notifyLead = async (client, lead) => {
   const phoneLine = client.businessPhone ? ` Need something faster? Call us anytime at ${client.businessPhone}.` : "";
   const body = `${greeting} thanks for reaching out to ${client.name}! We got your message and will be in touch shortly.${phoneLine}`;
 
-  if (lead.phone) {
+  // 🔴 CONSENT DECIDES THE TEXT, NOT THE PRESENCE OF A PHONE NUMBER. A lead who was asked
+  // and declined does not get one, which is the entire point of asking. A lead who was never
+  // asked still does, exactly as before, so adding the checkbox does not silently switch off
+  // speed-to-lead for every existing client and every lead arriving from somewhere with no
+  // such field. The three-way rule lives in ../lib/sms-consent.mjs.
+  if (lead.phone && mayTextLead(lead)) {
     try {
       await sendSMS({ to: lead.phone, body: body.slice(0, 320) });
     } catch (err) {
@@ -64,6 +70,9 @@ export default async (req) => {
     email: String(body.email || "").slice(0, 200),
     message: String(body.message || "").slice(0, 2000),
     source: String(body.source || "unknown").slice(0, 100),
+    // The page they filled the form in on. Asked for by Shaun's endpoint spec, and useful
+    // on its own once a client has more than one page running.
+    page: String(body.page || "").slice(0, 500),
     receivedAt: new Date().toISOString(),
     // A stable id for this lead, minted once and stored with it. Its only job is letting
     // the receiving end recognise a repeat: the CRM forward can be retried, replayed or
@@ -84,6 +93,10 @@ export default async (req) => {
   // contact. Anything outside the allow list in ../lib/attribution.mjs is ignored, because
   // this endpoint is public and accepts only the fields it knows.
   Object.assign(lead, pickAttribution(body));
+  // Whether they agreed to be texted, and separately whether they agreed to marketing. Both
+  // keys are always written, so "declined" and "never asked" are distinguishable on the lead
+  // record forever after. That distinction is what the auto-reply gate turns on.
+  Object.assign(lead, pickConsent(body));
   // When the click happened, which decides whether it is still inside Google's 90 day
   // matching window at upload time. Never trusted forward of now: a bad clock on a
   // visitor's phone must not make a lead look newer than it is.
