@@ -17,6 +17,7 @@
 
 import {
   MAX_VARIANTS, DEFAULT_COUNT, MIXABLE, ANGLES, angleFor, layoutPlan, planOptions, usedCombos, LAYOUTS, ORDERS,
+  resolveBrand, normHex, isBoldlineGold, isNeutral,
   newVariant, addVariants, replaceVariant, removeVariant, applyVariant, pickField, blendPrompt,
 } from "../netlify/lib/landing-variants.mjs";
 
@@ -205,14 +206,17 @@ const COPY = {
   ok("🔴 one option failing does not lose the others", /results\.filter\(Boolean\)/.test(src),
     "handing back nothing because the third timed out is the worst reading of 'give me options'");
   ok("but every option failing is still reported as a failure",
-    /if \(!options\.length\) return json\(\{ ok: false/.test(src));
+    /if \(!built\.length\) return json\(\{ ok: false/.test(src));
   ok("a blend passes the instruction through as an instruction",
     /REWRITE INSTRUCTION FROM THE ACCOUNT MANAGER/.test(src));
 
   // 🔴 The autobuild bot and the existing Generate button both call this with no count. Their
   // response shape must not change, or a working feature breaks to add a new one.
-  ok("🔴 single-page callers get exactly the shape they always got",
-    /return json\(\{ ok: true, landingPage: single, options: \[single\] \}/.test(src),
+  // 🔴 Written as the CONTRACT, not the exact wording. A first version pinned the variable
+  // name and broke on a rename while the guarantee it protects was still intact, which trains
+  // people to "fix" the test instead of reading it.
+  ok("🔴 single-page callers still get a landingPage on the response",
+    /return json\(\{ ok: true, landingPage: \w+, options: \[\w+\]/.test(src),
     "client-autobuild reads d.landingPage and would silently stop building pages");
   ok("the count is clamped to the cap", /Math\.min\(MAX_VARIANTS, Math\.max\(1, Number\(body\.count\) \|\| 1\)\)/.test(src));
 
@@ -477,6 +481,78 @@ const COPY = {
   ok("🔴 the OS sends a moving seed when it asks for a set",
     /call\(\{count:3,seed:Date\.now\(\),/.test(UI2));
   ok("🔴 and sends what he already has", /exclude:variants\.map\(v=>\(\{angle:v\.angle,layout:\(v\.design\|\|\{\}\)\.layout\}\)\)/.test(UI2));
+}
+
+// ── 13. 🔴 THE CLIENT'S BRAND COLOUR, NEVER A RANDOM ONE ────────────────────
+// Bryson, 2026-09-01: *"make sure that we always keep brand colors and we dont add random
+// colors."* Three separate things were producing random colours, and the options work made
+// the worst of them visible: the colour was chosen PER OPTION, so one business got a blue
+// page, a red page and a green page in the same set.
+{
+  const picks = [{ brandColor: "#2b6cb0", theme: "light" }, { brandColor: "#c53030", theme: "dark" }, { brandColor: "#2f855a", theme: "light" }];
+
+  // 🔴 THE HEADLINE FIX. One colour for the whole client, whatever the options came back with.
+  const r = resolveBrand({ picks });
+  ok("🔴 three options that disagree resolve to ONE colour", !!r.brandColor);
+  eq("and it is the first usable one", r.brandColor, "#2b6cb0");
+
+  // Order of evidence. What he typed beats everything.
+  eq("🔴 a colour he set by hand wins", resolveBrand({ client: { brandColor: "#123456" }, scrape: { themeColor: "#8b0000", accents: [] }, picks }).brandColor, "#123456");
+  eq("their real website beats what the model guessed",
+    resolveBrand({ scrape: { themeColor: "#8b0000", accents: [], themeHint: "dark" }, picks }).brandColor, "#8b0000");
+  eq("a site accent counts when there is no theme colour",
+    resolveBrand({ scrape: { themeColor: "", accents: ["#ffffff", "#7a1fa2"], themeHint: "light" }, picks }).brandColor, "#7a1fa2");
+  eq("🔴 and the page keeps the colour it already has rather than being repainted",
+    resolveBrand({ client: { landingPage: { brandColor: "#0f766e" } }, picks: [] }).brandColor, "#0f766e",
+    "rewriting the copy must not change a client's colours");
+  eq("with nothing at all it stays empty for the renderer's own default",
+    resolveBrand({}).brandColor, "");
+
+  // 🔴 OUR GOLD IS NEVER A CLIENT'S BRAND. The prompt asks; this guarantees.
+  ok("🔴 BoldLine gold is refused", isBoldlineGold("#c8a84b") && isBoldlineGold("#c9a94c"));
+  eq("🔴 even when it is typed into the field by hand", resolveBrand({ client: { brandColor: "#c8a84b" } }).brandColor, "");
+  ok("but a genuinely different yellow is fine", !isBoldlineGold("#ffd000"));
+
+  // Backgrounds are not brands. A scraper that returns near-white found the page, not the brand.
+  ok("near-white, near-black and greys are not brand colours",
+    isNeutral("#fafafa") && isNeutral("#0a0a0a") && isNeutral("#808080"));
+  ok("a real colour is not treated as neutral", !isNeutral("#2b6cb0") && !isNeutral("#8b0000"));
+  eq("so a white scrape falls through to the next source",
+    resolveBrand({ scrape: { themeColor: "#ffffff", accents: [] }, picks }).brandColor, "#2b6cb0");
+
+  eq("hex is normalised", normHex("2B6CB0"), "#2b6cb0");
+  eq("and junk is refused", normHex("blue"), "");
+
+  // Theme follows the same shape: one per client, his choice first.
+  eq("he can force dark", resolveBrand({ client: { brandTheme: "dark" }, scrape: { themeHint: "light" } }).theme, "dark");
+  eq("otherwise their website decides", resolveBrand({ scrape: { themeHint: "dark", accents: [] } }).theme, "dark");
+  eq("an unclear website does not count", resolveBrand({ scrape: { themeHint: "unclear", accents: [] }, picks: [{ theme: "dark" }] }).theme, "dark");
+  eq("and the default is light", resolveBrand({}).theme, "light");
+
+  // The endpoint has to APPLY it, or none of the above reaches a page.
+  const { readFileSync } = await import("node:fs");
+  const gen = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
+  ok("🔴 every option is stamped with the one resolved colour",
+    /built\.map\(\(o\) => \(\{ \.\.\.o, brandColor: brand\.brandColor, theme: brand\.theme/.test(gen),
+    "resolving a colour and then not applying it leaves three options with three colours");
+  ok("the single-page and blend paths get it too",
+    (gen.match(/resolveBrand\(\{ client: body, scrape/g) || []).length === 3);
+
+  // 🔴 THE PROMPT MUST NOT INVITE AN INVENTED COLOUR. It used to say "pick a confident,
+  // professional color that fits this business", which is a random colour politely described.
+  ok("🔴 the model is told to return nothing rather than invent a colour",
+    /RETURN AN EMPTY STRING/.test(gen) && /Do NOT choose a color that would 'fit the industry'/.test(gen));
+  ok("and the old invitation is gone", !/pick a confident, professional color/.test(gen));
+
+  // And he can actually override it.
+  const UI3 = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  // 🔴 BOTH inputs must save. A bare search passed while the hex box had lost its handler,
+  // because the colour picker beside it still matched.
+  ok("🔴 both the hex box and the colour picker save what he sets",
+    (UI3.match(/set\("brandColor",e\.target\.value\)/g) || []).length === 2,
+    "typing a hex and clicking the swatch must both stick, or half the control is decoration");
+  ok("and the picker is a real colour input", /type="color"/.test(UI3));
+  ok("and a light or dark override", /set\("brandTheme",e\.target\.value\)/.test(UI3));
 }
 
 console.log(`verify-landing-variants: ${pass} passed, ${fail} failed`);

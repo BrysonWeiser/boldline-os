@@ -229,6 +229,66 @@ still absent whenever the client has no photo.
 **A pattern that can match somebody else's code, and an assertion the fallback guarantees, are
 both ways of testing nothing.**
 
+## 🔴 2026-09-01 — ALWAYS THE CLIENT'S BRAND COLOUR, NEVER A RANDOM ONE
+
+Bryson: *"make sure that we always keep brand colors and we dont add random colors."* Three
+separate things were producing random colours, and the options work made the worst one visible.
+
+**1. 🔴 The colour was chosen PER OPTION.** Each option is its own model call, so one business
+got a blue page, a red page and a green page in the same set. Measured before the fix:
+`#2b6cb0 / #c53030 / #2f855a`. **Layout and copy are what should differ between options. Brand
+identity never is.**
+
+**2. 🔴 The prompt asked the model to invent one.** The tool description said *"Otherwise pick a
+confident, professional color that fits THIS specific business and industry"*, which is a random
+colour politely described. It now says to **return an empty string** when there is no logo, no
+photo and no website signal, and the renderer's own neutral default takes over.
+
+**3. There was no override.** Nothing let Bryson set a colour, so a bad guess could not be
+corrected. There is now a hex box **and** a colour picker on the client, plus a light/dark
+choice.
+
+### The order of evidence, resolved ONCE per client
+
+`resolveBrand({ client, scrape, picks })`:
+
+| Rank | Source |
+|---|---|
+| 1 | **What Bryson typed.** Nothing overrides it |
+| 2 | Their real website (theme-color meta, then the dominant accent) |
+| 3 | What the model read off their logo and photos, **first usable pick only**, applied to all |
+| 4 | The colour the page is already using, so rewriting copy never repaints a live page |
+| 5 | Empty, and the renderer falls back to its own neutral |
+
+**Two colours can never be a brand, whatever the source says:**
+
+- 🔴 **BoldLine's own gold.** The prompt already asked the model to avoid it, but a prompt is a
+  request and this is a guarantee. Anything within a small distance of `#C8A84B` is refused,
+  including when typed into the field by hand, because a scraper reading a screenshot or a
+  model ignoring the line would otherwise put our brand on a client's page.
+- **Near-white, near-black and greys.** A scraper returning one of those has found the page
+  background, not the brand, so it falls through to the next source.
+
+Theme follows the same shape: his choice, then their website's light/dark feel, then the
+current page, then light.
+
+### How it was verified
+
+Six mutations, all caught: the colour resolved but never applied, the model's guess outranking
+what he typed, the gold and neutral guards removed, the gold check disabled, and regenerating
+repainting a live page. Then rendered through the real page builder to confirm three options
+that arrived with three different colours come out as one.
+
+🔴 **One escaped, and it is the same lesson again in a new place.** "There is a field to set the
+colour" matched a bare search, and passed while the hex box had lost its save handler, because
+the **colour picker beside it** still matched the same pattern. The assertion now requires
+**both** inputs to save. Anything that appears twice needs to be counted, not found.
+
+Two older assertions also broke on a variable rename while the guarantee behind them was
+intact. One of them is the contract that `client-autobuild` depends on, so it is now written as
+the **shape** of the response rather than the exact wording, because a test that breaks on a
+rename trains people to edit the test instead of reading it.
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,
