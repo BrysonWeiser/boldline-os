@@ -2,7 +2,7 @@
 name: lead-handoff
 topic: Ads
 task: send a client's leads on to their own CRM, or serve their landing page on their own domain
-keywords: [primary domain, domain alias, add domain alias, os.boldlinemedia.com, OWN_EXACT, OS_HOSTS, lets encrypt, certificate error, pending dns verification, subdomain-owner-verification, cloudflare grey cloud, which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
+keywords: [which crm, crm name, crmSystem, what crm does he use, crm product not named, primary domain, domain alias, add domain alias, os.boldlinemedia.com, OWN_EXACT, OS_HOSTS, lets encrypt, certificate error, pending dns verification, subdomain-owner-verification, cloudflare grey cloud, which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
 status: built
 summary: Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.
 verified: 2026-08-25
@@ -235,6 +235,27 @@ two jobs.
 
 Since every client doing speed-to-lead texting needs this, it should be built as a **landing
 page feature with per-client consent text and links**, not hardcoded for one client.
+
+### 🔴 THE CRM PRODUCT WAS NEVER NAMED, and that is checked, not assumed
+
+Bryson asked 2026-09-01 whether Shaun had said which CRM they use. He has not. Every mention
+across his emails and this entry is generic: *"Sebastian's CRM"*, *"the contact record in the
+CRM"*. No product name appears anywhere in `knowledge/` or `docs/`, and the search that
+confirms it is a grep for the common products, not a memory.
+
+**It blocks nothing.** `campaignSetup.crmSystem` is a note for Bryson; no code reads it. The
+forward needs only `crmWebhook` and `crmWebhookSecret`.
+
+**What he did say is more useful than the name:** the follow-up automation lives there, contact
+records take custom fields (he stores all three click ids plus the five UTMs on them), it is
+A2P registered and gates its instant text on transactional consent, and it dedupes on our
+`lead_id`. 🔴 **And his endpoint sits on `stencilandthread.com`, not on a CRM vendor's domain**,
+so he has built a middle layer rather than exposing the CRM. That is why the product name is
+irrelevant to the integration.
+
+**Still worth asking on the call**, for a reason that is not technical: an off-the-shelf product
+is reusable knowledge for the next client who has one, and a custom build means Shaun personally
+is the single point of failure for this connection. Same question, two different risks.
 
 ### Not on the critical path
 The DNS record for the display URL: send it whenever, Shaun has delegate access on the GoDaddy
