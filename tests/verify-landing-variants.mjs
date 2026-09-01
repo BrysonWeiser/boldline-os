@@ -18,6 +18,7 @@
 import {
   MAX_VARIANTS, DEFAULT_COUNT, MIXABLE, ANGLES, angleFor, layoutPlan, planOptions, usedCombos, LAYOUTS, ORDERS,
   resolveBrand, normHex, isBoldlineGold, isNeutral,
+  BENEFITS, BACKGROUNDS, SHAPES, FONTS, MOTIONS,
   newVariant, addVariants, replaceVariant, removeVariant, applyVariant, pickField, blendPrompt,
 } from "../netlify/lib/landing-variants.mjs";
 
@@ -392,8 +393,8 @@ const COPY = {
   // The endpoint must OVERWRITE the layout, not merely ask for it.
   const { readFileSync } = await import("node:fs");
   const gen = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
-  ok("🔴 the layout is overwritten after the model answers, not just requested",
-    /design: \{ \.\.\.\(lp\.design \|\| \{\}\), layout: d\.layout, order: d\.order \}/.test(gen),
+  ok("🔴 the design is overwritten after the model answers, not just requested",
+    /design: \{ \.\.\.d\.design \}/.test(gen),
     "a model that ignores the instruction would hand back three identical structures");
   ok("and the plan knows whether the client has a usable photo",
     /planOptions\(count, \{ hasPhoto: viewable\.length > 0, seed, exclude \}\)/.test(gen));
@@ -588,6 +589,76 @@ const COPY = {
   ok("🔴 the chosen colour is actually painted on the page", html.includes("#2b6cb0"),
     "the palette agreeing while the page still renders the old colour would look identical to a fix");
   ok("and the overridden colour is gone from it", !html.includes("#c53030"));
+}
+
+// ── 15. 🔴 THE WHOLE LOOK VARIES, NOT JUST WHERE THE FORM SITS ──────────────
+// Bryson, 2026-09-01, after the first pass: *"the layout of everything in the landing pages
+// are still the same as well so that needs to be fixed."* He was right again. Only `layout`
+// and `order` were assigned; the other five tokens were left to the model, which converges. So
+// three options shared one typeface, one background, one card style and one corner style, and
+// read as the same page with the hero moved.
+//
+// The line drawn: BRAND IDENTITY (colour, light/dark) is fixed per client. PRESENTATION varies
+// per option, because he is choosing between them.
+{
+  const TOKENS = ["layout", "order", "benefits", "background", "shape", "font", "motion"];
+  const plan = planOptions(3, { hasPhoto: true, seed: 5 });
+
+  ok("every option carries a full design", plan.every((d) => d.design && TOKENS.every((k) => d.design[k])));
+  for (const k of TOKENS) {
+    ok(`🔴 all three differ in ${k}`, new Set(plan.map((d) => d.design[k])).size === 3,
+      `${k}: ${plan.map((d) => d.design[k]).join(", ")}`);
+  }
+
+  // Holds at every seed, not just the one that looked good.
+  let bad = "";
+  for (let seed = 1; seed <= 40 && !bad; seed++) {
+    const p3 = planOptions(3, { hasPhoto: true, seed });
+    for (const k of TOKENS) if (new Set(p3.map((d) => d.design[k])).size !== 3) bad = `${k} at seed ${seed}`;
+  }
+  ok("🔴 and at every seed, not just a lucky one", !bad, bad);
+
+  // Every value comes from the renderer's own vocabulary. An invented token silently falls
+  // back to the per-client seed, which would put two options back on the same look.
+  const POOLS = { layout: LAYOUTS, order: ORDERS, benefits: BENEFITS, background: BACKGROUNDS, shape: SHAPES, font: FONTS, motion: MOTIONS };
+  ok("🔴 every value is one the renderer actually understands",
+    planOptions(6, { hasPhoto: true, seed: 3 }).every((d) => TOKENS.every((k) => POOLS[k].includes(d.design[k]))),
+    "a token outside the renderer's list falls back to the per-client seed, which is identical "
+    + "for every option and puts them back on the same look");
+
+  // 🔴 Brand identity is NOT in here. It is resolved once per client.
+  ok("🔴 the design never carries a colour or a theme",
+    plan.every((d) => !("brandColor" in d.design) && !("theme" in d.design)),
+    "varying the colour per option is the bug that was fixed an hour ago");
+
+  // 🔴 It has to be REPLACED, not merged over what the model returned, or the five tokens the
+  // model did supply survive and the options converge again.
+  const { readFileSync } = await import("node:fs");
+  const gen = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
+  ok("🔴 the assigned design replaces the model's outright", /design: \{ \.\.\.d\.design \}/.test(gen),
+    "merging leaves the model's typeface, background and card style in place, and the model "
+    + "converges on exactly those");
+
+  // 🔴 A rewrite says the same thing differently. It must not become a different option.
+  const UI4 = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  ok("🔴 rewriting one option keeps its shape",
+    /design:v\.design\|\|\(d\.landingPage\|\|\{\}\)\.design/.test(UI4),
+    "the single-option path never assigns a design, so without this a rewrite takes whatever "
+    + "the model picked and loses the layout that made it different from the other two");
+
+  // Rendered through the real builder: three plans, three visibly different pages.
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const base = { name: "S&T", landingSlug: "s", leadToken: "T", callTrackingNumber: "+15415550100",
+    mediaLibrary: [{ path: "p/1.jpg", url: "https://cdn.example.com/1.jpg", category: "photo" }],
+    campaignSetup: { serviceArea: "Eugene, OR", mainOffer: "Free quote" } };
+  const bodies = plan.map((d) => (renderLandingPage({ ...base, landingPage: {
+    headline: "H", subheadline: "S", bullets: ["a", "b"], ctaText: "C", published: true,
+    heroPath: "p/1.jpg", steps: ["1", "2", "3"], faqs: [{ q: "Q", a: "A" }], design: d.design,
+  } }).match(/<body class="([^"]*)"/) || [])[1]);
+  ok("🔴 and the rendered pages differ in every one of those ways",
+    new Set(bodies).size === 3 && TOKENS.filter((k) => k !== "order")
+      .every((k) => new Set(bodies.map((b) => (b.match(new RegExp(`(?:lay|be|bg|font|sh|mo)-\\w+`, "g")) || []).join())).size === 3),
+    bodies.join("\n"));
 }
 
 console.log(`verify-landing-variants: ${pass} passed, ${fail} failed`);

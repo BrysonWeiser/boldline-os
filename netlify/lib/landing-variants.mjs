@@ -146,6 +146,21 @@ export const angleFor = (i) => ANGLES[((Number(i) || 0) % ANGLES.length + ANGLES
 // structure (font, colour, background, corner style) is still the model's call, because those
 // should fit the brand and forcing them would make the pages arbitrary instead of different.
 export const LAYOUTS = ["split", "centered", "capture", "overlay"];
+
+// 🔴 THE WHOLE LOOK VARIES, NOT JUST WHERE THE FORM SITS. Bryson, 2026-09-01, after the first
+// pass: *"the layout of everything in the landing pages are still the same."* Only `layout` and
+// `order` were being assigned, and the other five tokens were left to the model, which
+// converges. So three options shared one typeface, one background treatment, one card style
+// and one corner style, and read as the same page with things moved around.
+//
+// The line is BRAND IDENTITY vs PRESENTATION. Colour and light/dark are identity and are fixed
+// per client by `resolveBrand`. Everything below is presentation, so it varies per option and
+// he picks the one that suits.
+export const BENEFITS = ["cards", "list", "numbered"];
+export const BACKGROUNDS = ["glowgrid", "mesh", "dots", "clean"];
+export const SHAPES = ["rounded", "soft", "sharp"];
+export const FONTS = ["modern", "elegant", "bold"];
+export const MOTIONS = ["up", "side", "zoom"];
 // 🔴 "d" IS DELIBERATELY ABSENT. The renderer accepts four order tokens but only produces
 // THREE distinct arrangements: measured against the real renderer, "d" lays the sections out
 // identically to "a". Including it would let two options collide and look like a bug in the
@@ -216,16 +231,33 @@ export function planOptions(count, { hasPhoto = false, exclude = [], seed = 0 } 
   const layoutOrder = freshestFirst(usableLayouts, (exclude || []).map((e) => e && e.layout), rand);
   const orderOrder = shuffled(ORDERS, rand);
 
+  // Every presentation token gets its own shuffled cycle, so option 2 is not option 1 with the
+  // hero moved: it is a different typeface, a different background, a different card style.
+  const pools = {
+    benefits: shuffled(BENEFITS, rand),
+    background: shuffled(BACKGROUNDS, rand),
+    shape: shuffled(SHAPES, rand),
+    font: shuffled(FONTS, rand),
+    motion: shuffled(MOTIONS, rand),
+  };
+
   return Array.from({ length: n }, (_, i) => {
     const angle = ANGLES.find((a) => a.key === angleOrder[i % angleOrder.length]) || ANGLES[0];
+    // 🔴 Distinct within one set: cycling only repeats once there are more options than there
+    // are values to give them, which cannot happen at the default of three.
+    const design = {
+      layout: layoutOrder[i % layoutOrder.length],
+      order: orderOrder[i % orderOrder.length],
+    };
+    for (const k of Object.keys(pools)) design[k] = pools[k][i % pools[k].length];
     return {
       angle: angle.key,
       angleLabel: angle.label,
       nudge: angle.nudge,
-      // 🔴 Distinct within one set: cycling only repeats once there are more options than
-      // there are layouts to give them, which cannot happen at the default of three.
-      layout: layoutOrder[i % layoutOrder.length],
-      order: orderOrder[i % orderOrder.length],
+      design,
+      // Kept flat as well, because the generator reads them by name when it writes the prompt.
+      layout: design.layout,
+      order: design.order,
     };
   });
 }
