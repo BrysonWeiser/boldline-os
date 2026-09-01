@@ -16,7 +16,7 @@
 // impossible to notice until a client's ads are pointing at the result.
 
 import {
-  MAX_VARIANTS, DEFAULT_COUNT, MIXABLE, ANGLES, angleFor, layoutPlan, LAYOUTS, ORDERS,
+  MAX_VARIANTS, DEFAULT_COUNT, MIXABLE, ANGLES, angleFor, layoutPlan, planOptions, usedCombos, LAYOUTS, ORDERS,
   newVariant, addVariants, replaceVariant, removeVariant, applyVariant, pickField, blendPrompt,
 } from "../netlify/lib/landing-variants.mjs";
 
@@ -200,7 +200,7 @@ const COPY = {
   const src = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
 
   ok("asking for several fans out into several calls", /if \(count > 1\)/.test(src) && /Promise\.all\(/.test(src));
-  ok("🔴 and each one gets a different angle", /angleFor\(i\)/.test(src) && /THIS VERSION'S ANGLE/.test(src),
+  ok("🔴 and each one gets a different angle", /const plan = planOptions\(count,/.test(src) && /THIS VERSION'S ANGLE/.test(src),
     "one model asked for three versions returns one idea worded three ways");
   ok("🔴 one option failing does not lose the others", /results\.filter\(Boolean\)/.test(src),
     "handing back nothing because the third timed out is the worst reading of 'give me options'");
@@ -392,13 +392,91 @@ const COPY = {
     /design: \{ \.\.\.\(lp\.design \|\| \{\}\), layout: d\.layout, order: d\.order \}/.test(gen),
     "a model that ignores the instruction would hand back three identical structures");
   ok("and the plan knows whether the client has a usable photo",
-    /layoutPlan\(count, \{ hasPhoto: viewable\.length > 0 \}\)/.test(gen));
+    /planOptions\(count, \{ hasPhoto: viewable\.length > 0, seed, exclude \}\)/.test(gen));
   ok("the copy is told which shape it is being written into", /THIS VERSION'S LAYOUT IS ALREADY DECIDED/.test(gen));
   // Taste stays the model's call, or the pages become arbitrary rather than different.
   ok("🔴 font, colour and background are still the model's choice",
     /Still choose font, colour, background and corner style to fit this brand/.test(gen)
       && !/font: |brandColor: d\./.test(gen.slice(gen.indexOf("if (count > 1)"), gen.indexOf("const options"))),
     "forcing taste tokens would make the options arbitrary instead of suited to the brand");
+}
+
+// ── 12. 🔴 IT MUST NOT BE THE SAME EVERY TIME ───────────────────────────────
+// Bryson, 2026-09-01: *"the landing page layouts and copy options wont be the same everytime
+// i want variety that is the whole point of this."* He was right to check, and it WAS: both
+// the angle and the layout were indexed straight off the option number, so every press for
+// every client returned The result / split, The worry / centered, Speed and ease / capture.
+// Only the wording drifted. That is one option with three headlines.
+{
+  const plans = new Set();
+  for (let seed = 1; seed <= 40; seed++) {
+    plans.add(planOptions(3, { hasPhoto: true, seed }).map((d) => `${d.angle}/${d.layout}/${d.order}`).join("|"));
+  }
+  ok("🔴 pressing it again gives a different set", plans.size > 10, `only ${plans.size} distinct plans in 40 presses`);
+
+  // Deterministic for a given seed, or none of this is testable.
+  const a = JSON.stringify(planOptions(3, { hasPhoto: true, seed: 42 }));
+  ok("but the same seed is reproducible", a === JSON.stringify(planOptions(3, { hasPhoto: true, seed: 42 })));
+  ok("and a different seed is not", a !== JSON.stringify(planOptions(3, { hasPhoto: true, seed: 43 })));
+
+  // 🔴 Every guarantee from before still holds at every seed, or variety has been bought by
+  // breaking the thing it was added to.
+  for (let seed = 1; seed <= 40; seed++) {
+    const withPhoto = planOptions(3, { hasPhoto: true, seed });
+    const without = planOptions(3, { hasPhoto: false, seed });
+    if (new Set(withPhoto.map((d) => d.layout)).size !== 3) { ok(`layouts stay distinct at seed ${seed}`, false); break; }
+    if (new Set(withPhoto.map((d) => d.angle)).size !== 3) { ok(`angles stay distinct at seed ${seed}`, false); break; }
+    if (new Set(withPhoto.map((d) => d.order)).size !== 3) { ok(`orders stay distinct at seed ${seed}`, false); break; }
+    if (without.some((d) => d.layout === "overlay")) { ok(`overlay stays out without photos at seed ${seed}`, false); break; }
+    if (seed === 40) {
+      ok("🔴 layouts stay distinct at every seed", true);
+      ok("🔴 angles stay distinct at every seed", true);
+      ok("🔴 section orders stay distinct at every seed", true);
+      ok("🔴 overlay never appears without a photo, at any seed", true);
+    }
+  }
+
+  // 🔴 "Write three more" must explore new ground, not hand back what he is looking at.
+  const first = planOptions(3, { hasPhoto: true, seed: 7 });
+  const exclude = first.map((d) => ({ angle: d.angle, layout: d.layout }));
+  let freshCount = 0;
+  for (let seed = 100; seed < 140; seed++) {
+    const next = planOptions(3, { hasPhoto: true, seed, exclude });
+    freshCount += next.filter((d) => !exclude.some((e) => e.angle === d.angle)).length;
+  }
+  // Five angles, three already used, so two of every three should be new.
+  ok("🔴 a second press favours angles he has not seen", freshCount / 40 >= 1.9,
+    `averaged ${(freshCount / 40).toFixed(2)} fresh angles per press, expected about 2`);
+
+  // Exhausted history must not return fewer than asked for. Banning outright would.
+  const allUsed = ANGLES.map((a) => ({ angle: a.key, layout: "split" }));
+  const exhausted = planOptions(3, { hasPhoto: true, seed: 5, exclude: allUsed });
+  ok("once every angle has been used it still returns a full set", exhausted.length === 3);
+  // 🔴 The real harm of BANNING rather than deprioritising is not a short list, it is three
+  // options collapsing onto the same fallback angle. Length alone does not catch that.
+  ok("🔴 and those three are still three different angles",
+    new Set(exhausted.map((d) => d.angle)).size === 3,
+    "banning what he has seen empties the pool the moment his options cover every angle, and "
+    + "each one then falls back to the same angle");
+
+  // The client's own history, in the shape the planner wants.
+  const used = usedCombos({ landingVariants: [{ angle: "speed", design: { layout: "capture" } }, { angle: "proof", design: {} }] });
+  ok("history is read off the client's own options", used[0].angle === "speed" && used[0].layout === "capture");
+  ok("and an option with no design does not break it", used[1].angle === "proof" && !used[1].layout);
+  ok("no options means nothing to exclude", usedCombos({}).length === 0 && usedCombos(null).length === 0);
+
+  // Wired up on both ends, or the variety never reaches him.
+  const { readFileSync } = await import("node:fs");
+  const gen = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
+  const UI2 = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  ok("🔴 the endpoint takes a seed and defaults to the clock", /const seed = Number\(body\.seed\) \|\| Date\.now\(\);/.test(gen),
+    "a caller that forgets must still get variety, not the same page three times forever");
+  ok("and it passes both into the plan", /planOptions\(count, \{ hasPhoto: viewable\.length > 0, seed, exclude \}\)/.test(gen));
+  // 🔴 Scoped to the call that writes the SET. A bare search for the clock also matches the
+  // single-option rewrite, so it passed while the three-option press had lost its seed.
+  ok("🔴 the OS sends a moving seed when it asks for a set",
+    /call\(\{count:3,seed:Date\.now\(\),/.test(UI2));
+  ok("🔴 and sends what he already has", /exclude:variants\.map\(v=>\(\{angle:v\.angle,layout:\(v\.design\|\|\{\}\)\.layout\}\)\)/.test(UI2));
 }
 
 console.log(`verify-landing-variants: ${pass} passed, ${fail} failed`);
