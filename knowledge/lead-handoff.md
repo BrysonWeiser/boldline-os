@@ -179,6 +179,69 @@ Content-Type: application/x-www-form-urlencoded
 **Do NOT send `source` or `business`.** Shaun sets both server-side so everything feeding
 the CRM keeps one shape. Ours currently sends both, so they have to be dropped for him.
 
+## ✅ 2026-09-01 — HIS ENDPOINT IS LIVE, AND HIS SIGNING IS NOT OURS
+
+Shaun deployed and sent verification output. `POST https://stencilandthread.com/api/ad-lead`,
+form-urlencoded, built to the spec with no field-name changes. The DNS record is live too.
+
+### 🔴 THE SIGNING MISMATCH, which fails silently
+
+He assumed our backstop would 401 only because we lack the secret. **It was both.** His scheme:
+
+```
+canonical = JSON.stringify of the posted fields, keys sorted A-Z, every value a string
+base      = <unixSeconds>.<canonical>
+X-BoldLine-Timestamp: <unixSeconds>
+X-BoldLine-Signature: sha256=<hex HMAC-SHA256(base, shared secret)>
+```
+Anything more than five minutes off is rejected, so a captured request cannot be replayed.
+
+Ours signed the **raw body bytes** under `x-boldline-signature`, no timestamp, no prefix. Every
+forward would have 401'd, and **a backstop that always fails is worse than none, because it
+looks configured.**
+
+🔴 **THE SIGNATURE IS NOT OVER THE BODY.** The body goes as form-urlencoded; the signature is
+over a JSON canonicalisation of the same fields. Deliberate on his side: both ends agree on the
+canonical form without agreeing on the wire encoding. **Signing the urlencoded bytes is the
+obvious mistake and fails for a reason nothing reports.**
+
+Built as `canonicalFields()` + `signFields()`. **Both halves of the canonical matter**:
+`JSON.stringify` preserves insertion order, so unsorted keys give a different canonical for
+identical data. No secret returns NO headers rather than headers signed with an empty key,
+which would look valid-shaped and be indistinguishable from a wrong secret.
+
+🔴 **Tied to `crmFormat: "form"`, which is now the whole Autopilot Systems contract**: his body
+shape AND his signing. Every other client keeps the original byte-signing, asserted, because
+changing everyone's signing to suit one endpoint is how a working integration breaks for a
+client nobody was thinking about.
+
+### The dry run
+
+`test=true` validates the whole request, returns `{"ok":true,"test":true}` and **records
+nothing**, deduping on a separate key namespace so a dry run can never suppress the real lead
+that follows it. Wired as `forwardLead(client, lead, { dryRun: true })`. 🔴 The flag is inside
+the signature, or his side rejects it; and a REAL lead is never flagged, since a real lead
+marked as a test would be validated, answered ok and silently dropped.
+
+**Eight mutations, all caught**: keys unsorted, values not stringified, timestamp in
+milliseconds, the `sha256=` prefix dropped, the timestamp left out of the signed base, headers
+sent with no secret, every real lead flagged as a test, and the dry run doing nothing. The test
+recomputes the HMAC with `node:crypto` rather than calling our own signer, so it cannot prove
+the code correct by using it.
+
+### Consent wording, at his request
+
+*"transactional is the box that gates the instant text... worth making the transactional line
+the more prominent of the two."* Done: bigger type, a bigger box, full-strength text colour,
+and it now reads "Yes, text me back about my quote. This is how <business> reply fastest." He
+offered to check the final wording against the A2P registration before go-live, which is worth
+taking.
+
+### Still outstanding
+
+- The shared secret. He will text it; it goes straight into the OS and nowhere else.
+- Pushing a real lead end to end into the CRM. Deliberately his first agenda item on Thursday.
+
 ### 🔴 THE GAP, and it is bigger than a rename
 
 `crmPayload` sends **nested JSON**. Shaun wants **flat form-urlencoded** with different

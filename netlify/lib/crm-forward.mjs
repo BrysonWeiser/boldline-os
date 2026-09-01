@@ -151,20 +151,75 @@ export const crmFormPayload = (client, lead) => {
 // The exact bytes to send, and what to call them. Kept together because the signature is
 // computed over these bytes: splitting the body from its content type is how a signature
 // ends up covering something other than what was transmitted.
-export function crmBody(client, lead) {
+export function crmBody(client, lead, opts) {
   if (crmFormat(client) === "form") {
     const p = crmFormPayload(client, lead);
+    // 🔴 A DRY RUN. Shaun, 2026-09-01: `test=true` validates the whole request, returns
+    // {"ok":true,"test":true} and RECORDS NOTHING, so the form can be smoke-tested as often as
+    // we like without putting junk in the client's pipeline. It dedupes on a separate key
+    // namespace, so a dry run can never suppress the real lead that follows it.
+    if (opts && opts.dryRun) p.test = "true";
     const params = new URLSearchParams();
     // Every key, including the empty ones, for the stable-shape reason above.
     for (const k of Object.keys(p)) params.append(k, p[k]);
-    return { text: params.toString(), contentType: "application/x-www-form-urlencoded" };
+    // The fields travel alongside the bytes because the SIGNATURE is over a canonical form of
+    // the fields, not over the urlencoded body. See signFields.
+    return { text: params.toString(), contentType: "application/x-www-form-urlencoded", fields: p };
   }
   return { text: JSON.stringify(crmPayload(client, lead)), contentType: "application/json" };
 }
 
-// A shared secret lets the receiving end prove the request really came from us rather
-// than from anyone who guessed the URL. Signed over the EXACT bytes that are sent, so a
-// re-serialization on either side cannot silently invalidate it.
+// ─── SHAUN'S SIGNING SCHEME ──────────────────────────────────────────────────
+// Autopilot Systems, 2026-09-01, having deployed the endpoint:
+//
+//   canonical = JSON.stringify of the posted fields, keys sorted A-Z, every value a string
+//   base      = `${unixSeconds}.${canonical}`
+//   X-BoldLine-Timestamp: <unixSeconds>
+//   X-BoldLine-Signature: sha256=<hex HMAC-SHA256(base, shared secret)>
+//
+// 🔴 THIS IS NOT WHAT WE HAD, AND THE DIFFERENCE IS SILENT. Our own scheme signs the exact
+// bytes of the body under `x-boldline-signature`, with no timestamp and no prefix. Against his
+// endpoint that produces a 401 on every single forward. He assumed the 401 was only the
+// missing secret; it was both. A backstop that always fails is worse than no backstop, because
+// it looks configured.
+//
+// 🔴 AND THE SIGNATURE IS NOT OVER THE BODY. The body goes as form-urlencoded; the signature
+// is over a JSON canonicalisation of the same fields. That is deliberate on his side: both
+// ends can agree on the canonical form without agreeing on the wire encoding. Signing the
+// urlencoded bytes would be the obvious mistake and would fail for a reason nothing reports.
+//
+// The timestamp is what stops a captured request being replayed later; he rejects anything
+// more than five minutes off.
+export const canonicalFields = (fields) => {
+  const f = fields || {};
+  const out = {};
+  // Sorted A-Z, every value a string. Both halves matter: JSON.stringify preserves insertion
+  // order, so unsorted keys produce a different canonical for identical data.
+  for (const k of Object.keys(f).sort()) out[k] = String(f[k] == null ? "" : f[k]);
+  return JSON.stringify(out);
+};
+
+const hmacHex = async (message, secret) => {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", enc.encode(String(secret)), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+};
+
+// The headers his endpoint expects. Returns {} with no secret, so an unconfigured client sends
+// an unsigned request and gets his 401 rather than a signature made from an empty key, which
+// would look valid-shaped and be impossible to tell apart from a wrong secret.
+export async function signFields(fields, secret, nowMs) {
+  if (!secret) return {};
+  const ts = String(Math.floor((nowMs || Date.now()) / 1000));
+  const signature = await hmacHex(`${ts}.${canonicalFields(fields)}`, secret);
+  return { "X-BoldLine-Timestamp": ts, "X-BoldLine-Signature": `sha256=${signature}` };
+}
+
+// The original scheme, kept for every OTHER client. Signed over the EXACT bytes that are sent,
+// so a re-serialization on either side cannot silently invalidate it.
 export async function signBody(bodyText, secret) {
   if (!secret) return "";
   const enc = new TextEncoder();
@@ -210,16 +265,21 @@ export const alreadyForwarded = (lead) => !!((lead || {}).crm || {}).ok;
 // ─── The send itself ──────────────────────────────────────────────────────────
 // Returns a forwardResult and NEVER throws. A CRM problem is not the visitor's problem:
 // their lead is already stored, and the form must still say thank you.
-export async function forwardLead(client, lead, { fetchImpl = fetch, now } = {}) {
+export async function forwardLead(client, lead, { fetchImpl = fetch, now, ...opts } = {}) {
   const target = crmTarget(client);
   if (!target) return null;                       // nothing configured, nothing to report
   if (alreadyForwarded(lead)) return null;        // already delivered
 
-  // 🔴 The signature is over the EXACT bytes sent, whatever the serialisation, so the body
-  // and its content type are decided once, together, before signing.
-  const { text: bodyText, contentType } = crmBody(client, lead);
-  let signature = "";
-  try { signature = await signBody(bodyText, target.secret); } catch (_) { signature = ""; }
+  // 🔴 TWO SIGNING SCHEMES, CHOSEN BY THE SAME SETTING AS THE WIRE FORMAT. `crmFormat: "form"`
+  // is the whole Autopilot Systems contract: his body shape AND his signing. Every other
+  // client keeps the original scheme, signed over the exact bytes sent.
+  const { text: bodyText, contentType, fields } = crmBody(client, lead, { dryRun: !!(opts && opts.dryRun) });
+  let authHeaders = {};
+  try {
+    authHeaders = crmFormat(client) === "form"
+      ? await signFields(fields, target.secret, now ? Date.parse(now) : undefined)
+      : (await signBody(bodyText, target.secret)) ? { "x-boldline-signature": await signBody(bodyText, target.secret) } : {};
+  } catch (_) { authHeaders = {}; }
 
   let last = { error: "not attempted" };
   for (let attempt = 1; attempt <= CRM_MAX_ATTEMPTS; attempt++) {
@@ -231,7 +291,7 @@ export async function forwardLead(client, lead, { fetchImpl = fetch, now } = {})
         headers: {
           "content-type": contentType,
           "user-agent": "BoldLine-OS",
-          ...(signature ? { "x-boldline-signature": signature } : {}),
+          ...authHeaders,
         },
         body: bodyText,
         signal: controller.signal,
