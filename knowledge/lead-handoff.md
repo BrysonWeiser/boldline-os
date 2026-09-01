@@ -2,7 +2,7 @@
 name: lead-handoff
 topic: Ads
 task: send a client's leads on to their own CRM, or serve their landing page on their own domain
-keywords: [landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
+keywords: [which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
 status: built
 summary: Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.
 verified: 2026-08-25
@@ -74,6 +74,17 @@ Two traps closed:
 
 1. Their web person adds one DNS record pointing e.g. `quote.theirdomain.com` at the OS site.
 2. Add that hostname in Netlify as a domain alias so the certificate is issued.
+   🔴 **ON THE OS SITE, NOT THE MARKETING SITE.** Bryson asked this directly (2026-08-31) and
+   it is a fair question, because there are **two Netlify sites** built from this one repo:
+   the **OS** (root, publish `.`, `boldlinemedia.netlify.app`, no hyphen) serves the app AND
+   every client landing page through `netlify/edge-functions/client-domain.js`, while the
+   **marketing site** (base `marketing-site/`, its own `netlify/functions/`,
+   `boldline-media.netlify.app` WITH a hyphen) serves boldlinemedia.com. The marketing site's
+   functions call the OS across that gap via `OS_ORIGIN`, which is the tell that they are
+   genuinely separate deployments. Adding the client's hostname to the marketing site would
+   serve BoldLine's homepage on the client's own domain. Loud and obvious, but avoidable.
+   Note `boldlinemedia.com` also appears in `OWN_EXACT` in `client-domain.mjs`; that is
+   belt-and-braces so the apex never gets treated as a client host, not evidence of one site.
 3. Put it in Edit → Campaign → **Page address on their domain**.
 4. Put their CRM endpoint in **Send leads on to**.
 
