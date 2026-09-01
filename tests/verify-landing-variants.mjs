@@ -16,7 +16,7 @@
 // impossible to notice until a client's ads are pointing at the result.
 
 import {
-  MAX_VARIANTS, DEFAULT_COUNT, MIXABLE, ANGLES, angleFor,
+  MAX_VARIANTS, DEFAULT_COUNT, MIXABLE, ANGLES, angleFor, layoutPlan, LAYOUTS, ORDERS,
   newVariant, addVariants, replaceVariant, removeVariant, applyVariant, pickField, blendPrompt,
 } from "../netlify/lib/landing-variants.mjs";
 
@@ -332,6 +332,73 @@ const COPY = {
     "a disabled button with no reason reads as broken");
 
   ok("the tabs pick which option is shown", /setIdx\(i\);setCompare\(false\);/.test(card));
+}
+
+// ── 11. 🔴 THE OPTIONS MUST LOOK DIFFERENT, NOT JUST READ DIFFERENTLY ───────
+// Bryson, 2026-09-01: *"i also dont just want different copy i also want different layouts
+// too."* Left to itself the model converges: three calls on one brief pick similar design
+// tokens and three options arrive as three headlines on the same page. So the structure is
+// ASSIGNED, and this proves it against the real renderer rather than against the plan.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const base = {
+    name: "Stencil & Thread", landingSlug: "s", leadToken: "T", callTrackingNumber: "+15415550100",
+    campaignSetup: { serviceArea: "Eugene, OR", mainOffer: "Free quote this week" },
+  };
+  const lp = { headline: "H", subheadline: "S", bullets: ["a", "b"], ctaText: "CTA", published: true, heroPath: "p/1.jpg", steps: ["1", "2", "3"], faqs: [{ q: "Q", a: "A" }] };
+  const photos = [{ path: "p/1.jpg", url: "https://cdn.example.com/1.jpg", category: "photo" }];
+
+  // A page's identity here is its body class (which drives the whole layout in CSS) plus the
+  // order its sections actually come out in. Comparing the PLAN to itself would prove nothing.
+  const signature = (cl, design) => {
+    const h = renderLandingPage({ ...cl, landingPage: { ...lp, design } });
+    const body = (h.match(/<body class="([^"]*)"/) || [])[1] || "";
+    const heads = [...h.matchAll(/<h2[^>]*>([^<]{0,22})/g)].map((m) => m[1]).join(">");
+    return `${body}||${heads}`;
+  };
+
+  for (const [label, media] of [["with a photo", photos], ["with no photos at all", []]]) {
+    const plan = layoutPlan(3, { hasPhoto: media.length > 0 });
+    const sigs = plan.map((d) => signature({ ...base, mediaLibrary: media }, d));
+    ok(`🔴 three options render as three genuinely different pages, ${label}`,
+      new Set(sigs).size === 3, `only ${new Set(sigs).size} distinct`);
+  }
+
+  // 🔴 Overlay needs a hero. The renderer silently falls back without one, so forcing it on a
+  // photo-less client turns two "different" options into the same page.
+  ok("🔴 overlay is offered when there are photos", layoutPlan(4, { hasPhoto: true }).some((d) => d.layout === "overlay"));
+  ok("🔴 and never when there are none", !layoutPlan(4, { hasPhoto: false }).some((d) => d.layout === "overlay"),
+    "the renderer refuses overlay without a hero and falls back, which would collide two options");
+
+  const three = layoutPlan(3, { hasPhoto: true });
+  ok("the three layouts are distinct", new Set(three.map((d) => d.layout)).size === 3);
+  ok("and so are the section orders", new Set(three.map((d) => d.order)).size === 3);
+
+  // 🔴 Measured against the renderer: it takes four order tokens but produces only three
+  // distinct arrangements, so including the fourth would let two options collide.
+  ok("🔴 only the order tokens that actually differ are used", !ORDERS.includes("d"),
+    "measured against the real renderer, order 'd' lays the sections out identically to 'a'");
+  const arrangements = new Set(["a", "b", "c", "d"].map((o) => signature({ ...base, mediaLibrary: photos }, { layout: "split", order: o })));
+  ok("and that measurement still holds", arrangements.size === 3,
+    "if the renderer ever gains a real fourth arrangement, put 'd' back");
+
+  // Every angle names a layout, so the copy suits the shape it is written into.
+  ok("every angle carries a layout", ANGLES.every((a) => LAYOUTS.includes(a.layout)));
+
+  // The endpoint must OVERWRITE the layout, not merely ask for it.
+  const { readFileSync } = await import("node:fs");
+  const gen = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
+  ok("🔴 the layout is overwritten after the model answers, not just requested",
+    /design: \{ \.\.\.\(lp\.design \|\| \{\}\), layout: d\.layout, order: d\.order \}/.test(gen),
+    "a model that ignores the instruction would hand back three identical structures");
+  ok("and the plan knows whether the client has a usable photo",
+    /layoutPlan\(count, \{ hasPhoto: viewable\.length > 0 \}\)/.test(gen));
+  ok("the copy is told which shape it is being written into", /THIS VERSION'S LAYOUT IS ALREADY DECIDED/.test(gen));
+  // Taste stays the model's call, or the pages become arbitrary rather than different.
+  ok("🔴 font, colour and background are still the model's choice",
+    /Still choose font, colour, background and corner style to fit this brand/.test(gen)
+      && !/font: |brandColor: d\./.test(gen.slice(gen.indexOf("if (count > 1)"), gen.indexOf("const options"))),
+    "forcing taste tokens would make the options arbitrary instead of suited to the brand");
 }
 
 console.log(`verify-landing-variants: ${pass} passed, ${fail} failed`);
