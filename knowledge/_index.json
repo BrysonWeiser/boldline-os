@@ -4082,6 +4082,7 @@
     "in house": 1,
     "developer partner": 1,
     "partner": 1,
+    "sunday": 1,
     "printer": 1,
     "organizations": 1,
     "closes": 1,
@@ -16960,8 +16961,8 @@
         "developer partner"
       ],
       "status": "signed",
-      "summary": "BoldLine's FIRST real client. SIGNED 2026-08-30. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Their developer Shaun Smith is also BoldLine's first partnership conversation, settled 2026-09-01 as a no-money two-way referral swap with dev work kept in house.",
-      "verified": "2026-09-01",
+      "summary": "BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Their developer Shaun Smith is also BoldLine's first partnership conversation, settled 2026-08-31 as a no-money two-way referral swap with dev work kept in house.",
+      "verified": "2026-08-31",
       "terms": {
         "500": 1.5,
         "750": 1.5,
@@ -17025,6 +17026,7 @@
         "boldline": 1.5,
         "real": 1.5,
         "signed": 1.5,
+        "sunday": 1.5,
         "printer": 1.5,
         "selling": 1.5,
         "businesses": 1.5,
