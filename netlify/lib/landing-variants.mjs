@@ -126,14 +126,46 @@ export function pickField(client, id, field) {
 // three": asking one model for three variations of the same brief reliably produces three
 // rewordings of one idea, and the point of three options is three arguments.
 export const ANGLES = [
-  { key: "outcome", label: "The result", nudge: "Lead with the OUTCOME the customer gets. What is different about their day once this is done." },
-  { key: "objection", label: "The worry", nudge: "Lead with the biggest WORRY or objection a buyer has here, and answer it head on." },
-  { key: "speed", label: "Speed and ease", nudge: "Lead with how FAST and how EASY this is compared with the alternative." },
-  { key: "proof", label: "Why them", nudge: "Lead with what makes THIS business the safe choice. No invented statistics, awards or testimonials." },
-  { key: "offer", label: "The offer", nudge: "Lead with the specific OFFER or the free quote as the hook." },
+  { key: "outcome", label: "The result", nudge: "Lead with the OUTCOME the customer gets. What is different about their day once this is done.", layout: "split" },
+  { key: "objection", label: "The worry", nudge: "Lead with the biggest WORRY or objection a buyer has here, and answer it head on.", layout: "centered" },
+  { key: "speed", label: "Speed and ease", nudge: "Lead with how FAST and how EASY this is compared with the alternative.", layout: "capture" },
+  { key: "proof", label: "Why them", nudge: "Lead with what makes THIS business the safe choice. No invented statistics, awards or testimonials.", layout: "overlay" },
+  { key: "offer", label: "The offer", nudge: "Lead with the specific OFFER or the free quote as the hook.", layout: "capture" },
 ];
 
 export const angleFor = (i) => ANGLES[((Number(i) || 0) % ANGLES.length + ANGLES.length) % ANGLES.length];
+
+// 🔴 THE OPTIONS MUST LOOK DIFFERENT, NOT JUST READ DIFFERENTLY. Bryson, 2026-09-01: *"i also
+// dont just want different copy i also want different layouts too."* He is right, and left to
+// itself the model converges: three calls on one brief pick similar design tokens, so three
+// options arrive as three headlines on the same page.
+//
+// So the STRUCTURE is assigned here rather than requested. `layout` is the biggest visible
+// difference (where the form sits, whether there is a photo beside the copy), and `order`
+// rearranges the sections underneath it. Everything else that is a matter of TASTE rather than
+// structure (font, colour, background, corner style) is still the model's call, because those
+// should fit the brand and forcing them would make the pages arbitrary instead of different.
+export const LAYOUTS = ["split", "centered", "capture", "overlay"];
+// 🔴 "d" IS DELIBERATELY ABSENT. The renderer accepts four order tokens but only produces
+// THREE distinct arrangements: measured against the real renderer, "d" lays the sections out
+// identically to "a". Including it would let two options collide and look like a bug in the
+// generator rather than a quirk of the page builder.
+export const ORDERS = ["a", "b", "c"];
+
+// 🔴 OVERLAY IS DROPPED WHEN THERE IS NO USABLE PHOTO. The renderer already refuses it without
+// a hero (`useOverlay = D.layout === "overlay" && !!hero`), so forcing it on a client with no
+// images does not break, it silently falls back, and TWO options quietly become the same page.
+// A guaranteed difference has to exclude the one that cannot deliver it.
+export function layoutPlan(count, { hasPhoto = false } = {}) {
+  const n = Math.max(1, Number(count) || 1);
+  const usable = hasPhoto ? LAYOUTS : LAYOUTS.filter((l) => l !== "overlay");
+  return Array.from({ length: n }, (_, i) => ({
+    layout: usable[i % usable.length],
+    // Offset so option 2 is not just option 1 with a different hero; the sections below the
+    // fold land in a different order too.
+    order: ORDERS[i % ORDERS.length],
+  }));
+}
 
 // The plain-English blend. Returns the instruction the endpoint hands the model, or null when
 // there is nothing to work from, so an empty box can never fire a pointless model call.

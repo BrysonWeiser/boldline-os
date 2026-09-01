@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
-import { angleFor, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
+import { angleFor, layoutPlan, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
 
 const anthropic = new Anthropic();
 
@@ -253,10 +253,28 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     // for "three versions" reliably returns one idea phrased three ways. Each option gets a
     // distinct ANGLE instead, so choosing between them is a real choice.
     if (count > 1) {
+      // 🔴 THE STRUCTURE IS ASSIGNED, NOT REQUESTED. Asked nicely, the model converges and
+      // returns three headlines on the same page. `overlay` is excluded when the client has no
+      // usable photo, because the renderer refuses it without a hero and would silently fall
+      // back, turning two "different" options into the same page.
+      const plan = layoutPlan(count, { hasPhoto: viewable.length > 0 });
       const results = await Promise.all(
         Array.from({ length: count }, (_, i) => {
           const a = angleFor(i);
-          return oneOption(`THIS VERSION'S ANGLE: ${a.nudge}`).then((lp) => (lp ? { ...lp, angle: a.key, angleLabel: a.label } : null));
+          const d = plan[i];
+          const extra = `THIS VERSION'S ANGLE: ${a.nudge}\n\n`
+            + `THIS VERSION'S LAYOUT IS ALREADY DECIDED: "${d.layout}". Write copy that SUITS it. `
+            + (d.layout === "capture" ? "The lead form sits in the hero, so the headline must earn the form fill on its own with no scrolling. " : "")
+            + (d.layout === "overlay" ? "The copy sits on top of a full-bleed photo, so keep it short and high contrast. " : "")
+            + (d.layout === "split" ? "The copy sits beside a photo, so it can carry a little more detail. " : "")
+            + (d.layout === "centered" ? "The copy is centred above a wide banner, so lead with the single clearest sentence. " : "")
+            + `Still choose font, colour, background and corner style to fit this brand.`;
+          // 🔴 And the layout is OVERWRITTEN after the fact, not merely asked for. A model that
+          // ignores the instruction would otherwise hand back three identical structures, which
+          // is the exact complaint this fixes.
+          return oneOption(extra).then((lp) => (lp
+            ? { ...lp, design: { ...(lp.design || {}), layout: d.layout, order: d.order }, angle: a.key, angleLabel: a.label }
+            : null));
         }),
       );
       const options = results.filter(Boolean);

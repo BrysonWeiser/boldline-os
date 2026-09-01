@@ -142,6 +142,46 @@ match somebody else's code is not a test.** Asserting `overflow:"hidden"` and th
 both strings appear elsewhere (the latter inside its own `typeof` guard). Both assertions are
 now scoped to the component slice.
 
+## 🔴 2026-09-01 — different LAYOUTS, not just different copy
+
+Bryson: *"i also dont just want different copy i also want different layouts too."* He was
+right, and the reason is worth keeping: **left to itself the model converges.** Three calls on
+one brief pick similar design tokens, so three options arrive as three headlines on the same
+page. Asking nicely for variety does not fix that.
+
+**So the structure is ASSIGNED, and then OVERWRITTEN after the model answers.** `layoutPlan()`
+hands each option a distinct `layout` (where the form sits, whether a photo sits beside the
+copy) and a distinct `order` (how the sections below the fold are arranged). The endpoint tells
+the model which shape it is writing into, so the copy suits it, and then sets `design.layout`
+and `design.order` itself. A model that ignores the instruction cannot collapse the options.
+
+**Taste stays the model's call.** Font, colour, background and corner style are still chosen to
+fit the brand, because forcing those would make the options arbitrary rather than different.
+
+| Option | Angle | Layout |
+|---|---|---|
+| 1 | The result | `split` (copy beside a photo) |
+| 2 | The worry | `centered` (copy above a wide banner) |
+| 3 | Speed and ease | `capture` (the lead form IS the hero) |
+| 4 | Why them | `overlay` (copy over a full-bleed photo) |
+
+🔴 **OVERLAY IS DROPPED WHEN THE CLIENT HAS NO USABLE PHOTO.** The renderer already refuses it
+without a hero (`useOverlay = D.layout === "overlay" && !!hero`), so forcing it on a photo-less
+client does not break, it **silently falls back and two "different" options become the same
+page.** A guaranteed difference has to exclude the one that cannot deliver it.
+
+🔴 **And a renderer quirk found by measuring rather than reading: `order` takes four tokens but
+produces only THREE distinct arrangements.** Token `d` lays the sections out identically to `a`.
+`ORDERS` therefore omits `d`, with a test that re-measures the claim, so if the renderer ever
+gains a real fourth arrangement it can go back.
+
+**Proved against the real renderer, not against the plan.** A page's identity in the test is its
+body class (which drives the whole layout in CSS) plus the order its sections actually come out
+in, and three options must produce three distinct signatures **both with and without photos**.
+Six mutations, all caught: overlay forced on a photo-less client, the colliding order token
+restored, every option given the same layout, every option given the same order, the layout
+merely requested instead of enforced, and the plan no longer checking for photos.
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,
