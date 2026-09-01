@@ -2,7 +2,7 @@
 name: lead-handoff
 topic: Ads
 task: send a client's leads on to their own CRM, or serve their landing page on their own domain
-keywords: [crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
+keywords: [landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
 status: built
 summary: Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.
 verified: 2026-08-25
@@ -225,3 +225,26 @@ account and will have it live the same day.
 2026-08-29, and Shaun's endpoint is not deployed either. Building a client-specific integration
 for an unsigned client is how work gets thrown away. The spec is captured here so the build is
 a day's work whenever the signature lands.
+
+## 2026-08-31 — What connecting the domain actually does, and the one gotcha
+
+Bryson asked whether edits would show on the client's site once the domain is connected.
+
+**Nothing is ever copied onto the client's website.** Their site is untouched. The DNS record
+only points a subdomain at this Netlify site, where `netlify/edge-functions/client-domain.js`
+rewrites the request to `netlify/functions/landing.mjs`, which builds the page **fresh from
+Supabase on every single request**. There are no cache headers on that response and no stored
+copy anywhere, so **an edit is live the moment it is saved**. No republish, no propagation
+wait, no purge step.
+
+**🔴 THE GOTCHA, WORTH SAYING BEFORE ANY DOMAIN IS POINTED: an unpublished page is not a 404,
+it is a visible placeholder on the client's own domain.** `landing.mjs:553` returns
+`comingSoonPage(cl.name)` whenever `!lp.published || !lp.headline`, which renders the client's
+business name above *"This page is being finished up. Check back shortly."* So the sequence
+matters. Point the record early and it is harmless while nobody has the address, but **do not
+give the address to anyone, and do not point an ad at it, until the page is actually
+published.**
+
+**Recommendation given, and the reason:** connect the record as early as possible anyway. DNS
+can take hours to spread, and that is not a delay anyone wants discovering on launch morning.
+The draft placeholder costs nothing in the meantime.
