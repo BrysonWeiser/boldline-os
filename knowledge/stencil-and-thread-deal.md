@@ -2,10 +2,10 @@
 name: stencil-and-thread-deal
 topic: Business rules
 task: pick up the Stencil and Thread deal, prep the call, or set up their campaign
-keywords: [stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect]
-status: in-progress
-summary: BoldLine's FIRST real client, close to signing. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. He asked for a technical call. Reply sent 2026-08-25; waiting on his answers.
-verified: 2026-08-25
+keywords: [stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Shaun Smith, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
+status: signed
+summary: BoldLine's FIRST real client. SIGNED 2026-08-30. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Their developer Shaun Smith is also BoldLine's first partnership conversation, settled 2026-09-01 as a no-money two-way referral swap with dev work kept in house.
+verified: 2026-09-01
 ---
 
 ## Who they are
@@ -164,3 +164,53 @@ signed reads as going around him however innocent it is.
 **Product fit worth remembering:** `h-handoff` (one-time build, no monthly) suits a web
 developer's clients far better than a managed retainer does, and is a much easier thing for
 Shaun to hand over.
+
+## ✅ 2026-09-01 — SETTLED: no referral fee, and the dev work stays in house
+
+The timing constraint above is now clear: **Sebastian signed 2026-08-30**, so the partnership
+may be raised. Bryson asked what referral payments would cost him, saying plainly he **cannot
+pay out of pocket right now**, then reached the conclusion himself and instructed:
+*"Make sure that there isn't a fee for referring someone."*
+
+**The decision, which supersedes the finder's-fee row in the table above:**
+
+| Question | Decision |
+|---|---|
+| Referral fee to Shaun | 🔴 **NONE. No money in either direction.** Two-way swap only, exactly the "start here" row above |
+| Ongoing % of the monthly | Still no, and still not to be agreed on a call. One client of history, no churn data |
+| Small dev jobs (DNS record, form wiring) | **In house.** Not subcontracted by default. This reverses the "set up now" verdict in the table above |
+| Paying Shaun at all | Only a **one-off quote for one specific job**, and only when a client's existing site must be touched and nobody will give Bryson access. Never a retainer |
+
+**Why the fee was dropped rather than deferred.** A finder's fee was sized first ($150 at
+~$400/mo, $250 at ~$700/mo, $400 at ~$1,200/mo, always paid *after the client's first invoice
+clears* so it is never funded out of pocket). That structure is sound and is kept here in case
+it is ever wanted. Bryson declined it anyway, and he is right to: the swap costs nothing, needs
+no bookkeeping, and buying referrals from a partner who has sent zero so far prices something
+with no evidence behind it.
+
+**Why the dev work came back in house** (Bryson: *"realistically why can't we just do all of
+this in house?"*). Almost none of it is actually needed:
+
+- The landing page is already built, written, hosted and form-wired by the autobuild bot. Shaun
+  adds nothing to the page the ads point at, and that is the only page that affects performance.
+- Pointing a client's domain is one DNS record, roughly ten minutes, walked through on a call.
+- A form on the client's *existing* site is not needed at all, because the ads never point there.
+
+🔴 **AND THE REAL REASON, WHICH IS STRATEGIC, NOT FINANCIAL: do not sell websites.** Building a
+site by hand is the one job in this business that no bot does and that never ends, because the
+client then owns you for every photo change forever. That is the direct opposite of the stated
+goal (full automation; Bryson's only manual jobs are cold call, close, and check on the bots).
+The cost of taking website work is not the money, it is that it bolts a second, lower-margin,
+un-automatable services business onto the first one. **If this comes up again, the answer is no.**
+
+**The relationship was flipped.** Shaun is worth far more as a source of clients *to* BoldLine
+than as somewhere to send work. He already talks daily to owners who have a website and no
+traffic, which is precisely BoldLine's customer. Bryson would only ever refer people who have
+*no* website, who by definition he would not be talking to in the first place, so the outbound
+half of the swap is close to worthless and should not be paid for.
+
+**The email was written and handed over 2026-09-01** to send immediately: Sebastian signed, the
+dual-post is built and ready to test, the DNS record is the one outstanding ask, referrals are
+two-way with no fees, one-off paid jobs are possible but are not a retainer, and the call is
+offered Wed 2026-09-02 09:00-11:30 or Thu 2026-09-03 09:30-11:00 Phoenix. It states the signing
+secret will be sent separately and **not** over email.
