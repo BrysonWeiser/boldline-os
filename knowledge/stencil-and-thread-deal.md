@@ -4,8 +4,8 @@ topic: Business rules
 task: pick up the Stencil and Thread deal, prep the call, or set up their campaign
 keywords: [stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Shaun Smith, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
 status: signed
-summary: BoldLine's FIRST real client. SIGNED 2026-08-30. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Their developer Shaun Smith is also BoldLine's first partnership conversation, settled 2026-09-01 as a no-money two-way referral swap with dev work kept in house.
-verified: 2026-09-01
+summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Their developer Shaun Smith is also BoldLine's first partnership conversation, settled 2026-08-31 as a no-money two-way referral swap with dev work kept in house.
+verified: 2026-08-31
 ---
 
 ## Who they are
@@ -165,9 +165,11 @@ signed reads as going around him however innocent it is.
 developer's clients far better than a managed retainer does, and is a much easier thing for
 Shaun to hand over.
 
-## ✅ 2026-09-01 — SETTLED: no referral fee, and the dev work stays in house
+## ✅ 2026-08-31 (Phoenix) — SETTLED: no referral fee, and the dev work stays in house
 
-The timing constraint above is now clear: **Sebastian signed 2026-08-30**, so the partnership
+The timing constraint above is now clear: **Sebastian signed Sunday 2026-08-30** (Bryson
+confirmed the day himself the next afternoon, correcting a "Friday" I had put in the draft
+email; see the date-keeping note at the end of this section), so the partnership
 may be raised. Bryson asked what referral payments would cost him, saying plainly he **cannot
 pay out of pocket right now**, then reached the conclusion himself and instructed:
 *"Make sure that there isn't a fee for referring someone."*
@@ -209,8 +211,26 @@ traffic, which is precisely BoldLine's customer. Bryson would only ever refer pe
 *no* website, who by definition he would not be talking to in the first place, so the outbound
 half of the swap is close to worthless and should not be paid for.
 
-**The email was written and handed over 2026-09-01** to send immediately: Sebastian signed, the
+**The email was written and handed over 2026-08-31** to send immediately: Sebastian signed, the
 dual-post is built and ready to test, the DNS record is the one outstanding ask, referrals are
 two-way with no fees, one-off paid jobs are possible but are not a retainer, and the call is
 offered Wed 2026-09-02 09:00-11:30 or Thu 2026-09-03 09:30-11:00 Phoenix. It states the signing
 secret will be sent separately and **not** over email.
+
+### 🔴 Date-keeping gotcha, worth carrying forward
+
+The first draft of that email said Sebastian signed **Friday** and called Wednesday the 2nd
+**"tomorrow"**. Both were wrong, and Bryson caught them: *"he signed the agreement yesterday
+which was Sunday."*
+
+**The cause is a real trap, not a typo.** The session clock runs on **UTC**, and Bryson is in
+**Phoenix (MST, UTC-7, no daylight saving ever)**. Any time after 5pm his time, UTC has already
+rolled to the next calendar day, so the date handed to the assistant is **a day ahead of his**.
+That afternoon UTC read 2026-09-01 while his own Monday 2026-08-31 was still going.
+
+**So never write a weekday or a relative day ("tomorrow", "yesterday", "later this week") into
+anything a client or partner reads without converting to Phoenix first and checking the day
+name.** Getting it wrong in an internal note is harmless. Getting it wrong in an email to a
+client's developer makes BoldLine look like it is not paying attention, which is the exact
+opposite of the impression the first client's launch needs to make. This is the same class of
+mistake as the mis-scheduled 10pm reminder that fired at 5pm.
