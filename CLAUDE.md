@@ -78,6 +78,18 @@ automated.
   campaign names, OS UI labels Bryson alone sees, and code comments. Details in KB `ad-copy-voice`.
 - **Never say "local businesses" — he serves businesses nationally/remotely (standing).**
   Applies to all public copy. See KB `linkedin-brand-presence`.
+- **ARIZONA TIME IS THE ONLY CLOCK — check it, never assume it (Bryson, 2026-08-31: "do you
+  know what time I am, always look at what time and day it is in Arizona unless I say
+  otherwise").** Bryson is in **Phoenix, MST, UTC-7, and Arizona never observes daylight
+  saving**, so the offset is 7 hours year round with no seasonal exception to remember.
+  🔴 **THE SESSION CLOCK IS UTC AND IS ALREADY A DAY AHEAD OF HIM EVERY EVENING** (after 5pm
+  his time), which has now caused two real errors: a reminder set for 10pm that fired at 5pm,
+  and an email to a client's developer that said the contract was signed Friday when it was
+  Sunday. So **run `TZ=America/Phoenix date` before writing ANY time, day name, date, or
+  relative day ("today", "tomorrow", "yesterday", "this week")** — in replies to him, in
+  scheduled reminders, and above all in anything a client or partner will read. When creating
+  a Routine or trigger, convert Phoenix to UTC for the cron and then convert the result BACK
+  to confirm it lands where intended. Details + both incidents in KB `arizona-time`.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
