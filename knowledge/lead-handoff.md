@@ -2,7 +2,7 @@
 name: lead-handoff
 topic: Ads
 task: send a client's leads on to their own CRM, or serve their landing page on their own domain
-keywords: [which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
+keywords: [primary domain, domain alias, add domain alias, os.boldlinemedia.com, OWN_EXACT, OS_HOSTS, lets encrypt, certificate error, pending dns verification, subdomain-owner-verification, cloudflare grey cloud, which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
 status: built
 summary: Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.
 verified: 2026-08-25
@@ -236,6 +236,52 @@ account and will have it live the same day.
 2026-08-29, and Shaun's endpoint is not deployed either. Building a client-specific integration
 for an unsigned client is how work gets thrown away. The spec is captured here so the build is
 a day's work whenever the signature lands.
+
+## 2026-08-31 — 🔴 THE OS NEEDED ITS OWN HOSTNAME BEFORE ANY CLIENT DOMAIN COULD WORK
+
+Doing this for real with Sebastian exposed a design gap that the setup steps above did not
+anticipate, and it would have blocked EVERY client, not just the first.
+
+**Netlify allows exactly one PRIMARY custom domain per site and makes every other one an
+alias.** The netlify.app subdomain cannot hold primary. So adding the first client landing
+page domain made `quote.stencilandthread.com` the primary address for the entire OS, which is
+both wrong and unscalable: every client gets a subdomain pointed here and they cannot all be
+primary.
+
+**The fix, done 2026-08-31 and now the standing architecture:**
+
+| Role | Host | Notes |
+|---|---|---|
+| OS primary | **`os.boldlinemedia.com`** | Bryson's own. CNAME in Cloudflare → `boldlinemedia.netlify.app`, **DNS only / grey cloud** |
+| Every client page | `quote.<theirdomain>.com` etc. | Added with **Add domain alias**, never as primary |
+| Always available | `boldlinemedia.netlify.app` | Keeps its own valid certificate, so it is the fallback if a custom cert lags |
+
+🔴 **AND THE CODE CHANGE THAT HAD TO LAND FIRST.** `OWN_EXACT` in
+`netlify/lib/client-domain.mjs` did not contain `os.boldlinemedia.com`, and anything not in
+that list is BY DESIGN treated as a client landing-page host. So the OS's own new address
+would have done a landing-page lookup, found no client claiming it, and **404'd the entire OS**.
+Added, with two checks in `verify-lead-handoff.mjs` (97 now), both confirmed failing with the
+entry removed. **Any future OS hostname needs the same treatment**, or the `OS_HOSTS` env var,
+which exists precisely so this is fixable in a minute without a deploy.
+
+**Gotchas seen on the night, all expected, none worth chasing:**
+- *"We could not provision a Let's Encrypt certificate"* while a domain is pending DNS. It
+  clears itself once the records resolve. Do not click around trying to fix it.
+- Netlify's UI hides **Add domain alias** entirely when the site has no primary custom domain,
+  showing only **Add a domain**. That is why the alias route is not available on a fresh site.
+- Adding a subdomain of a domain **already in the Netlify account** (boldlinemedia.com, from
+  the marketing site) needs no ownership TXT. A domain **outside** the account
+  (stencilandthread.com) is offered one when added through **Add a domain**, via a
+  `subdomain-owner-verification` TXT at the root. **But added through Add domain alias it
+  needs no TXT at all** — Netlify's pending-verification panel asked for exactly one record:
+  `quote CNAME boldlinemedia.netlify.app.` So the client's web person has ONE record to add,
+  which is what to tell them. (I had corrected the outgoing email to say "a couple of records"
+  based on the earlier Add-a-domain screen; that correction was wrong and was reverted.)
+- Cloudflare's proxy toggle must stay **grey / DNS only**. Orange in front of Netlify causes
+  the redirect loop documented in KB `domain-dns-wix`.
+
+**Consequence for Bryson day to day:** the OS now lives at `os.boldlinemedia.com` and the
+netlify.app address is likely to redirect there.
 
 ## 2026-08-31 — What connecting the domain actually does, and the one gotcha
 
