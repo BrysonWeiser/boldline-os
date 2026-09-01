@@ -2821,7 +2821,11 @@ function LandingOptionsCard({client, onUpdate}){
   const writeAll=async()=>{
     setBusy("all");setErr("");
     try{
-      const d=await call({count:3});
+      // 🔴 A MOVING SEED AND WHAT HE ALREADY HAS. Without both, every press returns the same
+      // three shapes. The seed makes them differ; the exclude list makes "write three more"
+      // explore new ground instead of handing back the three he is looking at.
+      const d=await call({count:3,seed:Date.now(),
+        exclude:variants.map(v=>({angle:v.angle,layout:(v.design||{}).layout}))});
       const made=(d.options||[]).map(o=>blNewVariant(o,{label:o.angleLabel||"",angle:o.angle||""}));
       onUpdate({...client, landingVariants:blAddVariants(variants,made)});
     }catch(e){setErr(e.message||"Could not write the options");}
@@ -2830,7 +2834,7 @@ function LandingOptionsCard({client, onUpdate}){
   const rewriteOne=async(v)=>{
     setBusy(v.id);setErr("");
     try{
-      const d=await call({count:1,blend:v.angle?("Write this version with the following angle: "+v.angle):""});
+      const d=await call({count:1,seed:Date.now(),blend:v.angle?("Write this version with the following angle: "+v.angle):""});
       // 🔴 replaceVariant refuses anything without a headline, so a failed rewrite leaves the
       // option he was about to pick exactly where it was.
       onUpdate({...client, landingVariants:blReplaceVariant(variants,v.id,{...d.landingPage,label:v.label,angle:v.angle,source:"generated",generatedAt:new Date().toISOString()})});

@@ -161,11 +161,81 @@ export function layoutPlan(count, { hasPhoto = false } = {}) {
   const usable = hasPhoto ? LAYOUTS : LAYOUTS.filter((l) => l !== "overlay");
   return Array.from({ length: n }, (_, i) => ({
     layout: usable[i % usable.length],
-    // Offset so option 2 is not just option 1 with a different hero; the sections below the
-    // fold land in a different order too.
     order: ORDERS[i % ORDERS.length],
   }));
 }
+
+// 🔴 AND THE FIX THAT MAKES THE WHOLE FEATURE WORTH HAVING. Bryson, 2026-09-01: *"the landing
+// page layouts and copy options wont be the same everytime i want variety that is the whole
+// point of this."* He was right to check, and it WAS the same every time: `layoutPlan` and
+// `angleFor` both indexed straight off the option number, so "write three options" returned
+// The result / split, The worry / centered, Speed and ease / capture on every press, for
+// every client, forever. Only the wording drifted. That is not three options, it is one
+// option with three headlines.
+//
+// So the plan is now SEEDED and it AVOIDS WHAT HE ALREADY HAS.
+//
+// Deterministic for a given seed, which is what makes it testable; varied across seeds, which
+// is what makes it useful. The caller passes a seed that moves (the clock) and the angles and
+// layouts already sitting on the client, so pressing "write three more" explores new ground
+// instead of handing back the same three shapes he just looked at.
+const rng = (seed) => {
+  let t = (Number(seed) || 0) >>> 0;
+  return () => {
+    t = (t + 0x6D2B79F5) >>> 0;
+    let x = Math.imul(t ^ (t >>> 15), 1 | t);
+    x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+};
+
+const shuffled = (arr, rand) => {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+// Things he has ALREADY SEEN go to the back rather than being banned outright. Banning breaks
+// the moment he has six options covering every angle, and silently returning fewer than he
+// asked for is worse than repeating one.
+const freshestFirst = (all, used, rand) => {
+  const seen = new Set(used.filter(Boolean));
+  const pool = shuffled(all, rand);
+  return [...pool.filter((x) => !seen.has(x)), ...pool.filter((x) => seen.has(x))];
+};
+
+export function planOptions(count, { hasPhoto = false, exclude = [], seed = 0 } = {}) {
+  const n = Math.max(1, Number(count) || 1);
+  const rand = rng(seed);
+  const usableLayouts = hasPhoto ? LAYOUTS : LAYOUTS.filter((l) => l !== "overlay");
+
+  const angleOrder = freshestFirst(ANGLES.map((a) => a.key), (exclude || []).map((e) => e && e.angle), rand);
+  const layoutOrder = freshestFirst(usableLayouts, (exclude || []).map((e) => e && e.layout), rand);
+  const orderOrder = shuffled(ORDERS, rand);
+
+  return Array.from({ length: n }, (_, i) => {
+    const angle = ANGLES.find((a) => a.key === angleOrder[i % angleOrder.length]) || ANGLES[0];
+    return {
+      angle: angle.key,
+      angleLabel: angle.label,
+      nudge: angle.nudge,
+      // 🔴 Distinct within one set: cycling only repeats once there are more options than
+      // there are layouts to give them, which cannot happen at the default of three.
+      layout: layoutOrder[i % layoutOrder.length],
+      order: orderOrder[i % orderOrder.length],
+    };
+  });
+}
+
+// What is already on the client, in the shape planOptions wants for `exclude`.
+export const usedCombos = (client) =>
+  ((client || {}).landingVariants || []).map((v) => ({
+    angle: v && v.angle,
+    layout: v && ((v.design || {}).layout),
+  }));
 
 // The plain-English blend. Returns the instruction the endpoint hands the model, or null when
 // there is nothing to work from, so an empty box can never fire a pointless model call.

@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
-import { angleFor, layoutPlan, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
+import { planOptions, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
 
 const anthropic = new Anthropic();
 
@@ -100,6 +100,15 @@ export default async (req) => {
   // A plain-English rewrite instruction, built by blendPrompt() from options that already
   // exist. Clipped hard: it is free text that reaches a model prompt.
   const blend = clip(body.blend, 4000);
+  // 🔴 VARIETY NEEDS SOMETHING THAT MOVES. Without a seed the plan is a pure function of the
+  // option number and every press returns the identical three shapes. The caller passes the
+  // clock; falling back to it here means a caller that forgets still gets variety rather than
+  // silently getting the same page three times forever.
+  const seed = Number(body.seed) || Date.now();
+  // What is already on the client, so "write three more" explores new ground instead of
+  // handing back the three he is currently looking at.
+  const exclude = (Array.isArray(body.exclude) ? body.exclude : []).slice(0, 24)
+    .map((e) => ({ angle: clip(e && e.angle, 40), layout: clip(e && e.layout, 40) }));
   const cs = body.campaignSetup || {};
   const bv = body.brandVoice || {};
   const media = (Array.isArray(body.mediaLibrary) ? body.mediaLibrary : [])
@@ -253,15 +262,17 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     // for "three versions" reliably returns one idea phrased three ways. Each option gets a
     // distinct ANGLE instead, so choosing between them is a real choice.
     if (count > 1) {
-      // 🔴 THE STRUCTURE IS ASSIGNED, NOT REQUESTED. Asked nicely, the model converges and
-      // returns three headlines on the same page. `overlay` is excluded when the client has no
+      // 🔴 THE STRUCTURE IS ASSIGNED, NOT REQUESTED, AND IT VARIES EVERY TIME. Asked nicely,
+      // the model converges and returns three headlines on the same page. And a plan indexed
+      // off the option number returns the SAME three shapes on every press, for every client,
+      // which is the same failure one step later. `overlay` is excluded when the client has no
       // usable photo, because the renderer refuses it without a hero and would silently fall
       // back, turning two "different" options into the same page.
-      const plan = layoutPlan(count, { hasPhoto: viewable.length > 0 });
+      const plan = planOptions(count, { hasPhoto: viewable.length > 0, seed, exclude });
       const results = await Promise.all(
         Array.from({ length: count }, (_, i) => {
-          const a = angleFor(i);
           const d = plan[i];
+          const a = { key: d.angle, label: d.angleLabel, nudge: d.nudge };
           const extra = `THIS VERSION'S ANGLE: ${a.nudge}\n\n`
             + `THIS VERSION'S LAYOUT IS ALREADY DECIDED: "${d.layout}". Write copy that SUITS it. `
             + (d.layout === "capture" ? "The lead form sits in the hero, so the headline must earn the form fill on its own with no scrolling. " : "")

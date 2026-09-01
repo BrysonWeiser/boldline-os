@@ -182,6 +182,53 @@ Six mutations, all caught: overlay forced on a photo-less client, the colliding 
 restored, every option given the same layout, every option given the same order, the layout
 merely requested instead of enforced, and the plan no longer checking for photos.
 
+## 🔴 2026-09-01 — IT WAS THE SAME EVERY TIME. Bryson caught it.
+
+*"the landing page layouts and copy options wont be the same everytime i want variety that is
+the whole point of this."* He was right to check, and it was:
+
+```
+run 1: The result/split  |  The worry/centered  |  Speed and ease/capture
+run 2: The result/split  |  The worry/centered  |  Speed and ease/capture
+run 3: ... identical, forever, for every client
+```
+
+**Both the angle and the layout were indexed straight off the option number** (`ANGLES[i % 5]`,
+`usable[i % usable.length]`), so pressing "write three options" returned the same three shapes
+on every press and for every client. Only the wording drifted, which is one option with three
+headlines. The feature looked finished and did not do the thing it exists for.
+
+**The fix: the plan is SEEDED and it AVOIDS WHAT HE ALREADY HAS.**
+
+- `planOptions(count, { hasPhoto, exclude, seed })` replaces `layoutPlan` + `angleFor`.
+- **Deterministic for a given seed**, which is what makes it testable; **varied across seeds**,
+  which is what makes it useful. 40 seeds produce well over 10 distinct plans.
+- The OS passes `Date.now()` and the angles and layouts already on the client, so **"write
+  three more" explores new ground** instead of handing back the three he is looking at. With
+  five angles and three used, two of every three come back fresh.
+- The endpoint **falls back to the clock** if a caller forgets the seed, because the failure
+  mode of forgetting is silently returning the same page forever.
+
+🔴 **HISTORY DEPRIORITISES, IT DOES NOT BAN.** Banning empties the pool the moment his six
+options cover every angle, and then every option falls back to the same one. The test for this
+had to assert the three angles are still DISTINCT: asserting the list is still three long
+passes even when all three are identical.
+
+**Every earlier guarantee is re-checked at every seed**, or variety would have been bought by
+breaking what it was added to: layouts distinct, angles distinct, orders distinct, and overlay
+still absent whenever the client has no photo.
+
+### Two more escaped mutations, same root cause as ever
+
+- `seed:Date.now()` was asserted with a bare search of a one-megabyte file. It also matches the
+  single-option **rewrite** call, so it passed while the three-option press had lost its seed.
+  Scoped to `call({count:3,seed:...`.
+- The ban mutation was asserted by list LENGTH, which the fallback keeps at three. The harm is
+  three identical angles, so that is what is asserted now.
+
+**A pattern that can match somebody else's code, and an assertion the fallback guarantees, are
+both ways of testing nothing.**
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,
