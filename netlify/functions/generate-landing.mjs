@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
+import { angleFor, DEFAULT_COUNT, MAX_VARIANTS } from "../lib/landing-variants.mjs";
 
 const anthropic = new Anthropic();
 
@@ -93,6 +94,12 @@ export default async (req) => {
 
   const name = clip(body.name, 200) || "this business";
   const niche = clip(body.niche, 100);
+  // How many options to write. 1 keeps the original single-page behaviour byte for byte, which
+  // matters because the autobuild bot and the existing Generate button both call it that way.
+  const count = Math.min(MAX_VARIANTS, Math.max(1, Number(body.count) || 1));
+  // A plain-English rewrite instruction, built by blendPrompt() from options that already
+  // exist. Clipped hard: it is free text that reaches a model prompt.
+  const blend = clip(body.blend, 4000);
   const cs = body.campaignSetup || {};
   const bv = body.brandVoice || {};
   const media = (Array.isArray(body.mediaLibrary) ? body.mediaLibrary : [])
@@ -167,32 +174,27 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     { type: "text", text: "Write the landing page copy." },
   ];
 
-  const callModel = (content) => anthropic.messages.create({
+  // 🔴 ONE SCRAPE, ONE SET OF IMAGES, N CALLS. Everything above this line is the expensive
+  // part (fetching the client's site, attaching their photos), and it is identical for every
+  // option. Doing it per option would triple the cost and the wait for no benefit.
+  const callModel = (content, extra = "") => anthropic.messages.create({
     model: "claude-opus-4-8",
     max_tokens: 600,
-    system,
+    system: extra ? `${system}\n\n${extra}` : system,
     messages: [{ role: "user", content }],
     tools: [LANDING_COPY_TOOL],
     tool_choice: { type: "tool", name: "landing_page_copy" },
   });
 
-  try {
-    let response;
-    try {
-      response = await callModel(visionContent);
-    } catch (visionErr) {
-      // A broken/unfetchable image (uploaded OR scraped) fails the whole request —
-      // degrade to text-only rather than erroring out.
-      console.error("Vision generation failed, retrying text-only:", visionErr);
-      response = await callModel("Write the landing page copy.");
-    }
-
-    const toolUse = response.content.find((b) => b.type === "tool_use");
-    if (!toolUse) return json({ ok: false, error: "No copy generated" }, 500);
-
+  // Shapes and clamps ONE model result into a landing page object. Extracted from the single
+  // path it used to be inlined in, so every option in a multi-option run gets identical
+  // validation. A second copy of this shaping is exactly how a variant ends up with an
+  // unvalidated layout token or a colour that is not a colour.
+  function shape(input) {
     // 🔴 A LANDING PAGE IS THE MOST-READ THING WE WRITE and it had no dash cleaning at
     // all, only a line in the prompt. Prose join: a page reads worse chopped into stubs.
-    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design, faqs } = humanizeDeep(toolUse.input, { join: ", " });
+    const { headline, subheadline, bullets, ctaText, heroIndex, brandColor, theme, steps, design, faqs } = humanizeDeep(input, { join: ", " });
+    if (!String(headline || "").trim()) return null;
     const dIn = design || {};
     const keep = (v, arr) => (arr.includes(v) ? v : undefined);
     const designOut = {};
@@ -206,25 +208,76 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
       : null;
     const bcRaw = String(brandColor || "").trim();
     const brandHex = /^#?[0-9a-fA-F]{6}$/.test(bcRaw) ? `#${bcRaw.replace(/^#/, "").toLowerCase()}` : "";
-    return json({
-      ok: true,
-      landingPage: {
-        headline: clip(headline, 100),
-        subheadline: clip(subheadline, 200),
-        bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
-        ctaText: clip(ctaText, 50) || "Get My Free Quote",
-        heroPath: chosen ? chosen.path : "",
-        brandColor: brandHex,
-        theme: String(theme).toLowerCase() === "dark" ? "dark" : "light",
-        steps: Array.isArray(steps) ? steps.slice(0, 3).map((s) => clip(s, 60)) : [],
-        design: designOut,
-        faqs: Array.isArray(faqs) ? faqs.map((f) => ({ q: clip(f && f.question, 140), a: clip(f && f.answer, 320) })).filter((f) => f.q && f.a).slice(0, 5) : [],
-        logo: scrape && scrape.logo ? clip(scrape.logo, 500) : "",
-        heroUrl: scrape && scrape.ogImage ? clip(scrape.ogImage, 500) : "",
-      },
-    }, 200);
+    return {
+      headline: clip(headline, 100),
+      subheadline: clip(subheadline, 200),
+      bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
+      ctaText: clip(ctaText, 50) || "Get My Free Quote",
+      heroPath: chosen ? chosen.path : "",
+      brandColor: brandHex,
+      theme: String(theme).toLowerCase() === "dark" ? "dark" : "light",
+      steps: Array.isArray(steps) ? steps.slice(0, 3).map((s) => clip(s, 60)) : [],
+      design: designOut,
+      faqs: Array.isArray(faqs) ? faqs.map((f) => ({ q: clip(f && f.question, 140), a: clip(f && f.answer, 320) })).filter((f) => f.q && f.a).slice(0, 5) : [],
+      logo: scrape && scrape.logo ? clip(scrape.logo, 500) : "",
+      heroUrl: scrape && scrape.ogImage ? clip(scrape.ogImage, 500) : "",
+    };
+  }
+
+  // One option, start to finish: call the model, then shape and clamp what comes back.
+  // Returns null rather than throwing, so one failed option out of three does not lose the
+  // other two. Bryson asked for several to choose from; handing back none because the third
+  // timed out would be the worst reading of that.
+  const oneOption = async (extra) => {
+    let response;
+    try {
+      response = await callModel(visionContent, extra);
+    } catch (visionErr) {
+      // A broken or unfetchable image (uploaded OR scraped) fails the whole request, so
+      // degrade to text-only rather than erroring out.
+      console.error("Vision generation failed, retrying text-only:", visionErr);
+      try {
+        response = await callModel("Write the landing page copy.", extra);
+      } catch (e2) {
+        console.error("Text-only generation also failed:", e2 && e2.message);
+        return null;
+      }
+    }
+    const toolUse = response.content.find((b) => b.type === "tool_use");
+    if (!toolUse) return null;
+    return shape(toolUse.input);
+  };
+
+  try {
+    // 🔴 SEVERAL OPTIONS MEANS SEVERAL ARGUMENTS, NOT SEVERAL REWORDINGS. Asking one model
+    // for "three versions" reliably returns one idea phrased three ways. Each option gets a
+    // distinct ANGLE instead, so choosing between them is a real choice.
+    if (count > 1) {
+      const results = await Promise.all(
+        Array.from({ length: count }, (_, i) => {
+          const a = angleFor(i);
+          return oneOption(`THIS VERSION'S ANGLE: ${a.nudge}`).then((lp) => (lp ? { ...lp, angle: a.key, angleLabel: a.label } : null));
+        }),
+      );
+      const options = results.filter(Boolean);
+      if (!options.length) return json({ ok: false, error: "No copy generated" }, 500);
+      return json({ ok: true, options }, 200);
+    }
+
+    // A plain-English blend of options that already exist.
+    if (blend) {
+      const lp = await oneOption(`REWRITE INSTRUCTION FROM THE ACCOUNT MANAGER. Follow it exactly.\n\n${blend}`);
+      if (!lp) return json({ ok: false, error: "No copy generated" }, 500);
+      return json({ ok: true, landingPage: lp, options: [lp] }, 200);
+    }
+
+    const single = await oneOption("");
+    if (!single) return json({ ok: false, error: "No copy generated" }, 500);
+    return json({ ok: true, landingPage: single, options: [single] }, 200);
   } catch (err) {
     console.error("Landing copy generation failed:", err);
     return json({ ok: false, error: "AI request failed" }, err.status || 500);
   }
 };
+
+// Kept below the handler purely for readability; hoisted, so order does not matter.
