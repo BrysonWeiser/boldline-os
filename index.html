@@ -11288,6 +11288,12 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 // usually faster and better than anything we would bolt on.
                 {k:"crmWebhook",       l:"Send leads on to (web address)", ph:"Their CRM's intake link, if they have one"},
                 {k:"crmWebhookSecret", l:"Password for that link",  ph:"Only if their system asks for one"},
+                // 🔴 WHICH SHAPE THEIR SYSTEM WANTS THE LEAD IN. Almost every client leaves
+                // this blank and gets the standard format. Stencil & Thread's developer asked
+                // for flat form fields with his own names instead, which is a different wire
+                // format rather than a rename, so it is a per-client choice and never the
+                // default. Typing anything unrecognised falls back to the standard format.
+                {k:"crmFormat",        l:"Format their system wants", ph:"Leave blank for standard. Type form for plain form fields"},
                 // Their own subdomain, so the ad shows THEIR name and not ours.
                 {k:"landingDomain",    l:"Page address on their domain", ph:"e.g. quote.theirbusiness.com"},
                 // 🔴 WHO CAN ACTUALLY MAKE THE TWO CHANGES ABOVE. Both the domain and the

@@ -256,6 +256,13 @@ a{color:inherit}
 .inp:focus{outline:none;border-color:${P.brand};box-shadow:0 0 0 3px ${P.tint}}
 .inp::placeholder{color:${P.ph}}
 .fine{font-size:12px;color:${P.muted};text-align:center;margin-top:10px}
+/* Consent. Left aligned and full width on purpose: a centred wall of small print reads as
+   decoration, and this is the text that has to be legible if anyone ever asks what the
+   visitor agreed to. Generous tap target on the box itself for phones. */
+.cons{display:flex;align-items:flex-start;gap:9px;margin-top:12px;text-align:left}
+.cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:${P.brand};cursor:pointer}
+.cons label{font-size:12px;line-height:1.5;color:${P.muted};cursor:pointer}
+.cons label b{color:${P.text};font-weight:600}
 .err{display:none;font-size:12.5px;color:#F87171;margin-bottom:10px;text-align:center}
 .thanks{display:none;text-align:center;padding:22px 6px}
 .thanks h2{font-size:20px;margin-bottom:6px;color:${P.headline}}.thanks p{font-size:14px;color:${P.muted}}
@@ -300,6 +307,30 @@ a{color:inherit}
   const badgeText = fitPhrase(differentiator || offer, 44);
   const badgeH = badgeText ? `<div class="badge"><span class="bdot">✓</span><span>${esc(badgeText)}</span></div>` : "";
 
+  // 🔴 SMS CONSENT. Shaun Smith, 2026-08-29, on why this decides whether a campaign is worth
+  // running at all: *"If the form doesn't carry a consent checkbox, the lead still lands in
+  // the CRM and Sebastian still sees it, but it gets no text. The one-minute response that
+  // makes ad leads convert never happens, and the campaign quietly loses the thing we both
+  // want from it."* Nothing anywhere in this system collected it before.
+  //
+  // Neither box is pre-ticked and neither is `required`. A box the visitor never touched is
+  // not consent, it is the appearance of consent, which is worse than none. And marketing
+  // consent must never gate the form: an untouched form still produces a lead, it just
+  // produces one nobody may text. The rules and the wire format live in ../lib/sms-consent.mjs.
+  //
+  // The business is named in the text rather than "we", because the person reading it is on
+  // the client's own domain and has never heard of BoldLine.
+  const consentHTML = `<div class="cons">
+      <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
+      <label for="lf-sms"><b>Text me about my ${esc(String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote")}.</b>
+      ${esc(cl.name || "This business")} may send you text messages about this enquiry.
+      Message and data rates may apply. Reply STOP at any time to opt out.</label>
+    </div>
+    <div class="cons">
+      <input type="checkbox" id="lf-mkt" name="smsConsentMarketing" value="yes">
+      <label for="lf-mkt">Send me occasional offers and updates too. Optional, and you can stop any time.</label>
+    </div>`;
+
   // The lead form (single instance on the page) — reused in the hero (capture layout)
   // or in the bottom form section (all other layouts). id="lead-form" is the scroll target.
   const formCardHTML = `<div class="fcard reveal" id="lead-form">
@@ -311,12 +342,14 @@ a{color:inherit}
       <input class="inp" name="name" placeholder="Your name" required>
       <input class="inp" name="phone" placeholder="Phone number" required>
       <input class="inp" name="email" type="email" placeholder="Email (optional)">
+      ${consentHTML}
       <button class="cta" type="submit" style="width:100%;justify-content:center">${esc(cta)}</button>
       <div class="fine">🔒 Your info stays private. No spam, ever.</div>
     </form>` : `<form id="lf">
       <input class="inp" id="lf-name" placeholder="Your name" required>
       <input class="inp" id="lf-phone" placeholder="Phone number" required>
       <input class="inp" id="lf-email" type="email" placeholder="Email (optional)">
+      ${consentHTML}
       <div class="err" id="lf-err">Something went wrong — please try again.</div>
       <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
       <div class="fine">🔒 Your info stays private. No spam, ever.</div>
@@ -452,6 +485,14 @@ a{color:inherit}
     var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
     err.style.display='none';btn.disabled=true;btn.textContent='Sending…';
     var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
+    // 🔴 The consent boxes, read at submit. Sent as real booleans, and ALWAYS sent even when
+    // unticked: the intake stores both either way, so a lead who declined is distinguishable
+    // from a lead who was never asked. That distinction is the whole gate on the auto-reply.
+    try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
+      payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);}catch(e){}
+    // Which page they filled it in on. Asked for by the CRM spec, and it stops being obvious
+    // the moment a client has more than one page running.
+    try{payload.page=location.href.split('#')[0];}catch(e){}
     try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
     fetch('/.netlify/functions/lead-intake?token=${encodeURIComponent(cl.leadToken || "")}',{
       method:'POST',headers:{'Content-Type':'application/json'},
