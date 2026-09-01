@@ -2837,7 +2837,11 @@ function LandingOptionsCard({client, onUpdate}){
       const d=await call({count:1,seed:Date.now(),blend:v.angle?("Write this version with the following angle: "+v.angle):""});
       // 🔴 replaceVariant refuses anything without a headline, so a failed rewrite leaves the
       // option he was about to pick exactly where it was.
-      onUpdate({...client, landingVariants:blReplaceVariant(variants,v.id,{...d.landingPage,label:v.label,angle:v.angle,source:"generated",generatedAt:new Date().toISOString()})});
+      // 🔴 A REWRITE CHANGES THE WORDS, NOT THE SHAPE. The single-option path never assigns a
+      // design, so without this the option would take whatever the model happened to pick and
+      // lose the layout that made it different from the other two. Rewrite means "say this
+      // again", not "become a different option".
+      onUpdate({...client, landingVariants:blReplaceVariant(variants,v.id,{...d.landingPage,design:v.design||(d.landingPage||{}).design,label:v.label,angle:v.angle,source:"generated",generatedAt:new Date().toISOString()})});
     }catch(e){setErr(e.message||"Could not rewrite that one");}
     setBusy("");
   };

@@ -311,6 +311,50 @@ setting the colour changes every page the moment it is saved. No regeneration, n
 **Shipping a field is not the same as the field working.** It was never tested against a page
 that already had a colour, which is the only kind that exists.
 
+### 🔴 Round two: only the layout varied, so they still read as one page
+
+Bryson, straight after: *"the layout of everything in the landing pages are still the same as
+well so that needs to be fixed."* Right again, and for a reason the first fix missed.
+
+**Only `layout` and `order` were being assigned.** The other five design tokens (typeface,
+background treatment, benefit card style, corner style, motion) were left to the model, **and
+the model converges on those exactly as it converges on everything else.** So three options
+shared one typeface, one background and one card style, and read as the same page with the
+hero moved around.
+
+**The line drawn, and it is worth keeping:**
+
+| | |
+|---|---|
+| **Brand identity** (colour, light/dark) | Fixed ONCE per client by `resolveBrand`. Never varies between options |
+| **Presentation** (layout, order, benefits, background, shape, font, motion) | Varies per option. He is choosing between them, so they must look different |
+
+All seven presentation tokens now get their own shuffled cycle, so option 2 is not option 1
+with the hero moved: different typeface, different background, different card style, different
+corners. Verified: **7 of 7 tokens differ across the three, at every one of 40 seeds.**
+
+🔴 **And the design is REPLACED, not merged over the model's.** Merging left the five tokens
+the model did supply in place, which is the entire bug. There is a mutation for exactly that.
+
+🔴 **Every value must come from the renderer's own vocabulary.** An invented token falls back
+to `designConfig`'s per-client seed, which is IDENTICAL for every option and would put two of
+them back on the same look. A silent convergence, so it is asserted.
+
+### 🔴 And a rewrite was throwing the shape away
+
+`Rewrite` calls the single-option path, which never assigns a design, so a rewritten option
+took whatever the model happened to pick and **lost the layout that made it different from the
+other two.** It now keeps its own design: rewrite means "say this again", not "become a
+different option".
+
+### The other half of the answer
+
+The fix only applies to options generated AFTER it. Options already on a client were written
+under the old code and keep the look they were given, so **press "Write three more" to see it.**
+
+Five mutations, all caught, then rendered through the real builder to confirm three visibly
+different pages.
+
 ## Related
 
 `ad-landing-page`, `client-autobuild` (the bot that writes the first page), `sms-consent`,

@@ -283,8 +283,13 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
           // 🔴 And the layout is OVERWRITTEN after the fact, not merely asked for. A model that
           // ignores the instruction would otherwise hand back three identical structures, which
           // is the exact complaint this fixes.
+          // 🔴 THE WHOLE DESIGN IS REPLACED, not merged over the model's. Merging left the five
+          // tokens it did supply (typeface, background, card style, corners, motion) intact,
+          // and the model converges on those, so three options shared one look with the hero
+          // moved around. Colour and light/dark are NOT here: those are brand identity and are
+          // resolved once per client below.
           return oneOption(extra).then((lp) => (lp
-            ? { ...lp, design: { ...(lp.design || {}), layout: d.layout, order: d.order }, angle: a.key, angleLabel: a.label }
+            ? { ...lp, design: { ...d.design }, angle: a.key, angleLabel: a.label }
             : null));
         }),
       );
