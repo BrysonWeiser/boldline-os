@@ -138,6 +138,15 @@ export function renderLandingPage(cl, opts = {}) {
   const useCentered = D.layout === "centered";
   const useCapture = D.layout === "capture"; // lead form sits IN the hero (above the fold)
 
+  // 🔴 ONE ALIGNMENT RULE WORTH EXPLAINING, and the reasoning lives out here because this
+  // stylesheet is delivered verbatim to the client's own domain. `.lay-centered .chips`
+  // centres the chip row. Bryson, 2026-09-01: "make sure everything is always uniform and not
+  // out of place", with a screenshot of the centred layout, where the headline, the button,
+  // the trust line and every section heading were centred and then two pills sat hard against
+  // the left edge. The CONTAINER was already centred; the items inside it were not, because a
+  // flex row packs to the start unless told otherwise and text-align does nothing to flex
+  // children. Measured rather than guessed: the row's centre read 490 of 980 while its
+  // resolved alignment read start. Audited by tools/audit-landing-uniformity.js.
   const css = `
 *{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}
 :root{--r:18px}
@@ -213,6 +222,7 @@ a{color:inherit}
 .hero-ov .wrap{padding-top:70px;padding-bottom:44px}
 /* chips */
 .chips{display:flex;flex-wrap:wrap;gap:10px;padding:20px 0}
+.lay-centered .chips{justify-content:center}
 .chip{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:${P.chipText};background:${P.surface};border:1px solid ${P.border};border-radius:999px;padding:9px 15px}
 /* sections */
 .sec{padding:52px 0}

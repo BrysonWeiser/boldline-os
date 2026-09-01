@@ -423,5 +423,31 @@ const fakeFetch = (script) => {
     + "renderer invents, not on what he chooses");
 }
 
+// ── 🔴 NOTHING ON THE PAGE SITS OUT OF PLACE ────────────────────────────────
+// Bryson, 2026-09-01: *"make sure everything is always uniform and not out of place"*, with a
+// screenshot of the centred layout: headline, button, trust line and every section heading
+// centred, and then two pills hard against the left edge.
+//
+// The real check is geometric and lives in `tools/audit-landing-uniformity.js`, which renders
+// all four layouts at all four widths in a browser and measures them. This is the cheap guard
+// that stops the fix being deleted between runs of that.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const css = renderLandingPage({
+    name: "S&T", landingSlug: "s", leadToken: "T",
+    campaignSetup: { serviceArea: "Eugene, OR" },
+    landingPage: { headline: "H", ctaText: "C", published: true, design: { layout: "centered" } },
+  });
+
+  ok("🔴 a centred page centres its chip row too",
+    /\.lay-centered \.chips\{justify-content:center\}/.test(css),
+    "the CONTAINER was already centred; the items inside were not, because a flex row packs "
+    + "to the start unless told otherwise and text-align does nothing to flex children");
+  ok("and the rule is scoped to that layout only",
+    !/^\.chips\{[^}]*justify-content:center/m.test(css),
+    "centring them everywhere would push them off the left edge that every other layout "
+    + "lines up on");
+}
+
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
