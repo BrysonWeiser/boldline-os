@@ -4,7 +4,7 @@ topic: Forms/Leads
 task: collect or debug SMS consent on a landing page, or change what a CRM receives
 keywords: [sms consent, smsConsentTransactional, smsConsentMarketing, consent checkbox, TCPA, A2P, opt in, opt out, STOP, auto reply text, speed to lead, may we text, crmFormat, form urlencoded, flat payload, crmFormPayload, crmBody, Shaun Smith endpoint, lead_id, sms_consent_transactional, details field, first_name, page field]
 status: built
-summary: The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 68 checks, 13 mutations caught.
+summary: The landing page now asks two separate consent questions (text me about my quote / send me offers), neither pre-ticked and neither blocking the form, and the answer follows the lead into the OS and on to the client's CRM. The auto-reply text is gated three ways - ticked sends, declined does not, never asked still sends so existing clients do not silently lose speed-to-lead. Ships with a second per-client CRM wire format (flat form-urlencoded with Shaun's field names) because his endpoint does not take the nested JSON. 76 checks, 17 mutations caught.
 verified: 2026-08-31
 ---
 
@@ -32,6 +32,16 @@ from one `consentHTML` block in `netlify/functions/landing.mjs`:
    about this enquiry. Message and data rates may apply. Reply STOP at any time to opt out."
 2. **Marketing** — "Send me occasional offers and updates too. Optional, and you can stop any
    time."
+
+🔴 **AND THE CONSENT LINE LINKS THREE PAGES: privacy policy, terms, and a text-consent page.**
+Shaun, same spec: A2P registration is checked against these, so a checkbox without them
+collects consent the carrier will not honour, and *"the extensionless versions won't resolve,
+so link them exactly as written"* including the `.html`. They satisfy Google's landing page
+policy too, so the one row does two jobs. Fed from `campaignSetup.privacyUrl` / `termsUrl` /
+`smsOptInUrl`, which the client fills in themselves in the portal under Your Website. Only the
+ones actually set are rendered: a client who does not text their leads leaves all three blank
+and gets no link line, because a dead link on a live page is worse than no link. Links open in
+a new tab so a visitor who taps Privacy mid-form does not lose what they typed.
 
 🔴 **NEITHER IS PRE-TICKED AND NEITHER IS `required`.** A box the visitor never touched is not
 consent, it is the *appearance* of consent, which is worse than collecting none. And marketing
@@ -92,13 +102,13 @@ stops being obvious the moment a client runs more than one page.
 
 ## How it was verified
 
-**68 checks in `tests/verify-sms-consent.mjs`**, executing the real page builder and the real
-`forwardLead` with a fake fetch rather than pattern-matching source. **13 mutations applied and
+**76 checks in `tests/verify-sms-consent.mjs`**, executing the real page builder and the real
+`forwardLead` with a fake fetch rather than pattern-matching source. **17 mutations applied and
 every one caught**, including: absent read as decline, explicit decline ignored, falsey consent
 dropped at storage, any non-empty string read as consent, the intake gate removed, the sender
 ignoring the chosen format, `source` re-added to Shaun's payload, never-asked sent as blank, a
 pre-ticked box, a `required` box, the checkbox missing from either form variant, and the submit
-handler sending consent only when ticked. A deliberate no-op control was correctly **not**
+handler sending consent only when ticked, the three policy links dropped, blank urls rendered as dead links, the links stealing the visitor away mid-form, and the `.html` stripped off them. A deliberate no-op control was correctly **not**
 caught, so the suite is not failing on noise.
 
 **Checked in a real browser** at 390 / 768 / 1280 / 1600: no sideways scroll, boxes visible and

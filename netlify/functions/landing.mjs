@@ -263,6 +263,9 @@ a{color:inherit}
 .cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:${P.brand};cursor:pointer}
 .cons label{font-size:12px;line-height:1.5;color:${P.muted};cursor:pointer}
 .cons label b{color:${P.text};font-weight:600}
+/* The policy links have to be visibly links. A carrier or a reviewer looking for them should
+   not have to hunt, and underlined-on-a-muted-line is the convention people already read. */
+.cons label a{color:${P.text};text-decoration:underline}
 .err{display:none;font-size:12.5px;color:#F87171;margin-bottom:10px;text-align:center}
 .thanks{display:none;text-align:center;padding:22px 6px}
 .thanks h2{font-size:20px;margin-bottom:6px;color:${P.headline}}.thanks p{font-size:14px;color:${P.muted}}
@@ -320,11 +323,34 @@ a{color:inherit}
   //
   // The business is named in the text rather than "we", because the person reading it is on
   // the client's own domain and has never heard of BoldLine.
+  //
+  // 🔴 AND THE THREE LINKS, WHICH ARE A CARRIER REQUIREMENT AND NOT A NICETY. Shaun, on the
+  // same spec: the consent language has to link the client's privacy policy, terms, and a
+  // text-message consent page, *"exactly as written"* including any `.html`, because the
+  // extensionless versions often do not resolve. A2P registration is checked against these,
+  // so a checkbox without them collects consent the carrier will not honour. They also
+  // satisfy Google's own landing page policy, so the one row does two jobs.
+  //
+  // Only the ones actually filled in are rendered. A client who does not text their leads
+  // leaves all three blank and simply gets no link line, rather than a dead link on a live
+  // page, which is the worse of the two failures.
+  const policyLinks = [
+    [cs.privacyUrl, "Privacy Policy"],
+    [cs.termsUrl, "Terms"],
+    [cs.smsOptInUrl, "Text Message Consent"],
+  ].filter(([u]) => String(u || "").trim().startsWith("http"))
+    .map(([u, label]) => `<a href="${esc(String(u).trim())}" target="_blank" rel="noopener">${label}</a>`);
+  const policyLine = policyLinks.length
+    ? ` See ${policyLinks.length > 1
+        ? `${policyLinks.slice(0, -1).join(", ")} and ${policyLinks[policyLinks.length - 1]}`
+        : policyLinks[0]}.`
+    : "";
+
   const consentHTML = `<div class="cons">
       <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
       <label for="lf-sms"><b>Text me about my ${esc(String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote")}.</b>
       ${esc(cl.name || "This business")} may send you text messages about this enquiry.
-      Message and data rates may apply. Reply STOP at any time to opt out.</label>
+      Message and data rates may apply. Reply STOP at any time to opt out.${policyLine}</label>
     </div>
     <div class="cons">
       <input type="checkbox" id="lf-mkt" name="smsConsentMarketing" value="yes">
