@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 135 task-keyed entries under `knowledge/`. They surface automatically via the
+> 136 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**135 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**136 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -522,4 +522,10 @@
 - **[repo-tests](../knowledge/repo-tests.md)** &mdash; &#9989; verified &middot; 2026-08-17  
   Verification suites written into the session scratchpad DO NOT SURVIVE — the container is reclaimed between sessions, so "16 suites passing" was true when reported and then simply gone. Anything guarding a live invariant belongs in `tests/` in git. Also records the Playwright launch fix for this container (the bundled browser build does not match /opt/pw-browsers, so pass executablePath explicitly).  
   <sub>*task:* write or re-run verification tests for this project, or find out why an earlier session's test suites are missing &nbsp;|&nbsp; *keywords:* tests, verify suites, scratchpad, ephemeral container, tests/verify-packages.mjs, verify-pricing-tools, playwright executablePath, chromium-1194, pw-browsers, regression test</sub>
+
+## Working preferences
+
+- **[arizona-time](../knowledge/arizona-time.md)** &mdash; &#9989; verified &middot; 2026-08-31  
+  Bryson is in Phoenix, MST, UTC-7, and Arizona never observes daylight saving, so the offset is 7 hours all year. The session clock is UTC and is already a day ahead of him every evening after 5pm his time, which has caused two real errors. Run `TZ=America/Phoenix date` before writing any time, day name, date or relative day, especially in anything a client or partner reads.  
+  <sub>*task:* write any date, time, day name, deadline or scheduled reminder for Bryson &nbsp;|&nbsp; *keywords:* arizona, phoenix, MST, timezone, time zone, UTC, what time is it, today, tomorrow, yesterday, daylight saving, DST, cron, schedule, reminder, routine, trigger, meeting time, availability, day of week, date wrong, off by one day, what day is it, what day is it today, current time, whats the date, clock</sub>
 

@@ -214,8 +214,9 @@ half of the swap is close to worthless and should not be paid for.
 **The email was written and handed over 2026-08-31** to send immediately: Sebastian signed, the
 dual-post is built and ready to test, the DNS record is the one outstanding ask, referrals are
 two-way with no fees, one-off paid jobs are possible but are not a retainer, and the call is
-offered Wed 2026-09-02 09:00-11:30 or Thu 2026-09-03 09:30-11:00 Phoenix. It states the signing
-secret will be sent separately and **not** over email.
+offered **Thu 2026-09-03 09:30-11:00 or Fri 2026-09-04 09:00-11:30 Phoenix** (Bryson dropped the
+Wednesday and moved that window to Friday, 2026-08-31). It states the signing secret will be
+sent separately and **not** over email.
 
 ### 🔴 Date-keeping gotcha, worth carrying forward
 
