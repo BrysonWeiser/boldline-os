@@ -555,5 +555,40 @@ const COPY = {
   ok("and a light or dark override", /set\("brandTheme",e\.target\.value\)/.test(UI3));
 }
 
+// ── 14. 🔴 THE OVERRIDE HAS TO ACTUALLY REACH THE PAGE ──────────────────────
+// Bryson, 2026-09-01: *"make sure that the fix is live and that the landing pages are
+// updated."* The right instinct, and the second half was broken. The colour field shipped an
+// hour earlier was INERT on every page that already had a colour, which is every generated
+// page: the renderer read `landingPage.brandColor` FIRST and only fell back to the client's.
+// He would have set his client's real brand colour, saved, and watched nothing change.
+//
+// Shipping a field is not the same as the field working. This tests it against the renderer.
+{
+  const { landingTheme, renderLandingPage } = await import("../netlify/functions/landing.mjs");
+
+  const generated = { name: "Stencil & Thread", landingPage: { headline: "H", brandColor: "#c53030", theme: "dark" } };
+  eq("a page keeps its generated colour when nothing is set", landingTheme(generated).brand, "#c53030");
+  eq("and its generated theme", landingTheme(generated).mode, "dark");
+
+  const overridden = { ...generated, brandColor: "#2b6cb0", brandTheme: "light" };
+  eq("🔴 a colour he sets by hand beats the one on the page", landingTheme(overridden).brand, "#2b6cb0",
+    "reading the page first makes the field inert on every page that already has a colour");
+  eq("🔴 and so does a light or dark choice he makes", landingTheme(overridden).mode, "light");
+
+  eq("clearing the field hands control back to the page", landingTheme({ ...generated, brandColor: "" }).brand, "#c53030");
+  ok("with neither set it falls back to a neutral, never a random colour",
+    /^#[0-9a-f]{6}$/.test(landingTheme({ name: "x", landingPage: {} }).brand));
+
+  // 🔴 It has to reach the rendered HTML, not just the palette function. A colour resolved and
+  // then not painted is the same failure one layer down.
+  const html = renderLandingPage({
+    ...overridden, landingSlug: "s", leadToken: "T",
+    landingPage: { ...overridden.landingPage, subheadline: "S", bullets: ["a"], ctaText: "Go", published: true },
+  });
+  ok("🔴 the chosen colour is actually painted on the page", html.includes("#2b6cb0"),
+    "the palette agreeing while the page still renders the old colour would look identical to a fix");
+  ok("and the overridden colour is gone from it", !html.includes("#c53030"));
+}
+
 console.log(`verify-landing-variants: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
