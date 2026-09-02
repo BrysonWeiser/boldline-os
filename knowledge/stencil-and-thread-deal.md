@@ -2,11 +2,27 @@
 name: stencil-and-thread-deal
 topic: Business rules
 task: pick up the Stencil and Thread deal, prep the call, or set up their campaign
-keywords: [stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Shaun Smith, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
+keywords: [stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Sebastian, Sebastian the client, who is the client, who approves, portal owner, Shaun Smith, Shaun the developer, website guy, web person, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
 status: signed
-summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Their developer Shaun Smith is also BoldLine's first partnership conversation, settled 2026-08-31 as a no-money two-way referral swap with dev work kept in house.
+summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN IS THE CLIENT (owns the business, holds the portal, is the ONLY person who approves anything). SHAUN SMITH IS SEBASTIAN'S WEBSITE GUY, not the client, and has no portal. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Shaun is separately BoldLine's first partnership conversation, settled 2026-08-31 as a no-money two-way referral swap with dev work kept in house.
 verified: 2026-08-31
 ---
+
+## 🔴 WHO IS WHO. Read this before writing to either of them.
+
+Bryson had to correct this on 2026-09-02: *"Remember Sebastian is the client with the portal
+not Shaun. Shaun is just Sebastian's website guy."* It had already been recorded correctly
+deep in this entry ("Shaun works FOR Sebastian"), but the SUMMARY at the top named only Shaun,
+and the summary is what the recall hook surfaces. So the error survived, and it produced a
+draft text telling Shaun to approve the landing page in a portal he does not have.
+
+| Person | Who they are | What they do | What they never do |
+|---|---|---|---|
+| **Sebastian** | **THE CLIENT.** Owns Stencil & Thread. Signed the agreement. | Holds the **portal**. Receives every client email. **Approves the landing page, the ad copy, and anything else queued for approval.** Pays the invoices. | Touch DNS or code |
+| **Shaun Smith** | **Sebastian's website guy.** A contractor to the client, and separately a referral partner to BoldLine. | The DNS record for `quote.stencilandthread.com`, the CRM endpoint `/api/ad-lead`, and the shared secret for signing lead forwards | **Approve anything. He has no portal and never gets one.** He is not the client and is not billed |
+
+**So: chase SEBASTIAN for approvals. Talk to SHAUN only about the website plumbing.** Anything
+addressed to the wrong one is a visible mistake in front of BoldLine's first client.
 
 ## Who they are
 
