@@ -184,7 +184,7 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
       "a bare * leaves ::before and ::after animating under reduced motion");
     // 🔴 Without this line the reveal freezes hidden forever, which is worse than the
     // motion it was trying to remove.
-    ok("and it un-hides the scroll reveals", /\.js \.reveal\{opacity:1!important;transform:none!important\}/.test(b));
+    ok("and it un-hides the scroll reveals", /\.js \.reveal\{opacity:1!important;translate:none!important\}/.test(b));
   }
 }
 
@@ -306,17 +306,22 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
   const css = styleOf(render());
   const EXEMPT = new Set(["sheen", "spin"]);
 
-  // (a) The scroll-reveal offset is the movement a visitor sees on every single card,
-  //     row and section. It is a custom property, so it is one string to check.
+  // (a) The scroll-reveal offset is the movement a visitor sees on every single card, row
+  //     and section. It is now a BARE Y DISTANCE fed into `translate:0 var(--rv)`, which
+  //     is stronger than checking a transform string: there is no slot in that declaration
+  //     for a horizontal component, so sideways reveal movement is structurally impossible
+  //     rather than merely absent today.
   const offsets = [...css.matchAll(/--rv:\s*([^;}]+)/g)].map((m) => m[1].trim());
   ok("the page defines reveal offsets", offsets.length >= 2, `${offsets.length} found`);
   for (const o of offsets) {
-    ok(`reveal offset ${o} moves vertically`, /^translateY\(-?[\d.]+px\)$/.test(o),
-      "a reveal offset that is not a plain translateY slides content sideways or zooms it");
+    ok(`reveal offset ${o} is a plain vertical distance`, /^-?[\d.]+px$/.test(o),
+      "anything but a bare length here can carry a horizontal component");
   }
+  ok("and it is consumed as a Y offset only", /\.js \.reveal\{opacity:0;translate:0 var\(--rv\)\}/.test(css),
+    "the offset has to be spent on the Y slot of translate, or the shape of it stops mattering");
   // Both directions are actually reachable, or "up and down" is really just "up".
-  ok("content rises in one style", offsets.some((o) => /translateY\((?!-)/.test(o)));
-  ok("and settles in another", offsets.some((o) => /translateY\(-/.test(o)));
+  ok("content rises in one style", offsets.some((o) => !o.startsWith("-")));
+  ok("and settles in another", offsets.some((o) => o.startsWith("-")));
 
   // (b) No keyframe moves anything horizontally.
   for (const k of keyframesIn(css)) {
@@ -346,11 +351,50 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
       !!body && body[1].split(/\s+/).includes(`mo-${m}`),
       `page came back as ${body ? body[1].split(/\s+/).filter((c) => c.startsWith("mo-")).join(",") : "no body"}`);
     ok(`and the stylesheet answers to it`,
-      m === "up" ? /--rv:translateY\(20px\)/.test(css) : new RegExp(`\\.mo-${m}[ .:{]`).test(css),
+      m === "up" ? /--rv:20px/.test(css) : new RegExp(`\\.mo-${m}[ .:{]`).test(css),
       `the picker can assign "${m}" but nothing in the stylesheet answers to it`);
   }
   ok("and the sideways and zoom styles are gone for good",
     !MOTIONS.includes("side") && !MOTIONS.includes("zoom") && !/\.mo-(side|zoom)\b/.test(css));
+}
+
+// ── 11c. 🔴 THE REVEAL KEEPS HAPPENING, IT DOES NOT HAPPEN ONCE ──────────────────
+// Bryson, 2026-09-02: "make sure the up and down animation happens even after a person
+// has scrolled through the whole page". The old script was worse than he realised. It
+// un-observed each element the first time it appeared, so nothing could ever play twice,
+// AND a blanket 1.5s safety net revealed every element on the page whether it had been
+// reached or not. Between them, anything below the first screenful was already marked
+// revealed before a visitor got near it, so MOST OF THE PAGE NEVER ANIMATED AT ALL.
+//
+// The net cannot simply go: it is the only thing standing between us and blank sections
+// in a context nobody scrolls. So four pieces, and each assertion below is one of the four
+// ways this breaks if a piece is missing.
+{
+  const js = scriptOf(render());
+
+  ok("nothing is un-observed after its first appearance", !/unobserve/.test(js),
+    "un-observing is what made the reveal a one-time event");
+  ok("there is a second observer that re-arms an element once it is off screen",
+    (js.match(/new IntersectionObserver/g) || []).length === 2,
+    "without a re-arm pass, scrolling back up shows content that has already played");
+  ok("the re-arm only fires when the element is genuinely clear of the screen",
+    /rootMargin:EDGE\+'px 0px '\+EDGE\+'px 0px'/.test(js),
+    "re-arming at the exact edge makes content flicker where the visitor can see it");
+  ok("the re-arm observer removes the revealed state", /if\(!e\.isIntersecting\)e\.target\.classList\.remove\('in'\)/.test(js));
+
+  // 🔴 The safety net still exists. Removing it is how blank sections come back.
+  ok("the safety net still guarantees a complete page", /setTimeout\(showAll,1500\)/.test(js));
+
+  // 🔴 And the two pieces that stop the net and the observers contradicting each other.
+  // Without the clearTimeout, a visitor who scrolls early gets everything below revealed
+  // anyway at 1.5s. Without the rearm, the slow reader who scrolls at 3s finds the whole
+  // page already revealed and no observer will fire again, because those elements' state
+  // never changed. Both end up looking at a dead page, which is what he reported.
+  ok("scrolling early cancels the safety net", /clearTimeout\(net\)/.test(js));
+  ok("scrolling late re-arms what the net already revealed", /rearm\(\)/.test(js) && /function rearm\(\)/.test(js));
+  ok("the first-scroll handler runs once and unhooks itself", /removeEventListener\('scroll',first\)/.test(js));
+  ok("and it does not slow scrolling down", /addEventListener\('scroll',first,\{passive:true\}\)/.test(js));
+  ok("a browser with no observer still gets the whole page", /\}catch\(e\)\{showAll\(\);\}/.test(js));
 }
 
 // ── 12. 🔴 BREAK EVERY GUARD ONCE ────────────────────────────────────────────────
@@ -386,11 +430,21 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
 
   // (b2) 🔴 A sideways reveal reintroduced. This is the exact thing being ruled out, and
   //      it is one token away at all times.
-  const sideways = css.replace(".mo-down{--rv:translateY(-22px)}", ".mo-down{--rv:translateX(-24px)}");
+  const sideways = css.replace(".mo-down{--rv:-22px}", ".mo-down{--rv:-22px 0}");
   ok("the down offset exists to be mutated", sideways !== css);
-  ok("caught: a reveal that slides in from the edge",
-    [...sideways.matchAll(/--rv:\s*([^;}]+)/g)].some((m) => !/^translateY\(-?[\d.]+px\)$/.test(m[1].trim())),
+  ok("caught: a reveal offset that could carry a sideways component",
+    [...sideways.matchAll(/--rv:\s*([^;}]+)/g)].some((m) => !/^-?[\d.]+px$/.test(m[1].trim())),
     "content would slide in horizontally again with nothing to say so");
+
+  // (b1b) 🔴 THE REVEAL TAKING `transform` BACK. This is not hypothetical: it is how the
+  //       stylesheet shipped, and it meant EVERY HOVER LIFT ON THE PAGE DID NOTHING, because
+  //       `.js .reveal.in` outranks `.bcard:hover` and pinned transform to none. The rules
+  //       all read correctly. The cards simply never moved, and only a browser could say so.
+  const collide = css.replace(".js .reveal.in{opacity:1;translate:none", ".js .reveal.in{opacity:1;transform:none");
+  ok("the reveal rule exists to be mutated", collide !== css);
+  ok("caught: the reveal taking transform back from every hover state",
+    /\.js \.reveal\.in\{[^}]*transform:none/.test(collide),
+    "the reveal would silently outrank every hover lift again");
 
   // (b3) The hero drift given a sideways component back.
   const diagonal = css.replace("translate3d(0,3.2%,0)", "translate3d(-3%,3.2%,0)");
@@ -399,6 +453,20 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
   ok("caught: the hero glow drifting diagonally again",
     !!driftKf && [...driftKf.body.matchAll(/translate3d\(\s*([^,]+),/g)].some((m) => !/^-?0[a-z%]*$/.test(m[1].trim())));
 
+  // (d0) 🔴 The reveal made one-shot again, which is the exact regression he reported.
+  const js = scriptOf(render());
+  const oneShot = js.replace("if(e.isIntersecting)e.target.classList.add('in');",
+    "if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}");
+  ok("the reveal call exists to be mutated", oneShot !== js);
+  ok("caught: the reveal turned back into a one-time event", /unobserve/.test(oneShot),
+    "elements would play once and never again, with nothing to say so");
+
+  // (d1) The safety net left to fight the observers.
+  const uncancelled = js.replace("clearTimeout(net);", "");
+  ok("caught: the safety net no longer stands down for a visitor who scrolls",
+    !/clearTimeout\(net\)/.test(uncancelled),
+    "everything below the fold would be revealed at 1.5s regardless and never animate");
+
   // (c) The reduced-motion escape hatch weakened to a plain rule.
   const weakened = css.replace("*,*::before,*::after{animation:none!important;transition:none!important}", "*,*::before,*::after{animation:none;transition:none}");
   ok("caught: reduced motion downgraded to a suggestion",
@@ -406,10 +474,10 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
     "without !important the off switch loses to any rule that follows it");
 
   // (d) The line that un-hides the scroll reveals removed.
-  const frozen = css.replace(".js .reveal{opacity:1!important;transform:none!important}", "");
+  const frozen = css.replace(".js .reveal{opacity:1!important;translate:none!important}", "");
   ok("caught: reveals left frozen hidden under reduced motion",
     !/@media\(prefers-reduced-motion:reduce\)\{[^}]*\}\.js \.reveal\{opacity:1!important/.test(frozen)
-    && !/\.js \.reveal\{opacity:1!important;transform:none!important\}/.test(frozen),
+    && !/\.js \.reveal\{opacity:1!important;translate:none!important\}/.test(frozen),
     "a visitor who asked for less motion would get a page of blank sections");
 
   // (e) Something hidden at rest with no way back.
