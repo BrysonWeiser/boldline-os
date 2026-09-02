@@ -102,6 +102,18 @@ export function renderLandingPage(cl, opts = {}) {
   const lp = cl.landingPage || {};
   const cs = cl.campaignSetup || {};
   const bv = cl.brandVoice || {};
+  // 🔴 THE BUSINESS NAME IS TIDIED BEFORE IT IS PRINTED. Found on the live Stencil and
+  // Thread page the night it went up: a stray TAB in front of the name, pasted in with it,
+  // rendering as `Custom Screen Printed Apparel Done Right | \tStencil & Thread` in the
+  // <title>. That is the line Google prints in its search results and the one every browser
+  // tab shows, so a pasted whitespace character ends up in front of a client's name in
+  // public. It was also in the logo's alt text, the header, and the footer.
+  //
+  // Trimmed at RENDER time rather than asked of whoever types it. The record can be fixed
+  // by hand once; this fixes it for every client, including the next person who pastes a
+  // name out of a contract or a spreadsheet with a tab riding along. Internal runs collapse
+  // too, so "Stencil  &   Thread" reads as one space rather than three.
+  const name = String(cl.name == null ? "" : cl.name).replace(/\s+/g, " ").trim();
   const media = cl.mediaLibrary || [];
   const P = landingTheme(cl);
   const D = designConfig(cl);
@@ -553,7 +565,7 @@ a{color:inherit}
   const consentHTML = `<div class="consbox"><div class="cons cons-main">
       <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
       <label for="lf-sms"><b>Yes, text me back about my ${esc(String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote")}.</b>
-      This is how ${esc(cl.name || "we")} reply fastest. Tick it and they can text you about this
+      This is how ${esc(name || "we")} reply fastest. Tick it and they can text you about this
       enquiry. Message and data rates may apply. Reply STOP at any time to stop.${policyLine}</label>
     </div>
     <div class="cons">
@@ -594,10 +606,10 @@ a{color:inherit}
   } else if (useOverlay) {
     heroSection = `<section class="hero hero-ov" style="--heroimg:url('${esc(hero.url)}')"><div class="hero-ov-scrim"></div><div class="wrap hero-ovc">${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div></section>`;
   } else if (useCentered) {
-    const band = hero ? `<div class="wrap"><div class="heroband reveal"><img src="${esc(hero.url)}" alt="${esc(cl.name)}"></div></div>` : "";
+    const band = hero ? `<div class="wrap"><div class="heroband reveal"><img src="${esc(hero.url)}" alt="${esc(name)}"></div></div>` : "";
     heroSection = `<section class="hero"><div class="wrap hero-c">${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div>${band}</section>`;
   } else {
-    const media_ = hero ? `<div class="hero-media reveal"><img class="heroimg" src="${esc(hero.url)}" alt="${esc(cl.name)}">${badgeH}</div>` : "";
+    const media_ = hero ? `<div class="hero-media reveal"><img class="heroimg" src="${esc(hero.url)}" alt="${esc(name)}">${badgeH}</div>` : "";
     heroSection = `<section class="hero"><div class="wrap hero-g${hero ? " has-img" : ""}"><div>${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div>${media_}</div></section>`;
   }
 
@@ -629,7 +641,7 @@ a{color:inherit}
   } else {
     benefitsInner = `<div class="bene ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bcard reveal" style="transition-delay:${i * 60}ms"><div class="bico">✓</div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div>`).join("")}</div>`;
   }
-  const benefitsSection = `<section class="sec${benefitsAlt ? " alt" : ""}"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose ${esc(cl.name)}</h2></div>${benefitsInner}</div></section>`;
+  const benefitsSection = `<section class="sec${benefitsAlt ? " alt" : ""}"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose ${esc(name)}</h2></div>${benefitsInner}</div></section>`;
 
   const stepsSection = `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps">${steps.map((s, i) => `<div class="step reveal" style="transition-delay:${i * 70}ms"><div class="num">${i + 1}</div><h3>${esc(s)}</h3></div>`).join("")}</div></div></section>`;
 
@@ -915,16 +927,16 @@ a{color:inherit}
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
   const bodyClass = `js lay-${layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}
-<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(cl.name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(cl.name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
+<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
 ${bottomBlock}
 ${convId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(convId)}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(convId)});</script>` : ""}
-<footer class="foot"><div class="wrap">${esc(cl.name)}${area ? ` · Serving ${esc(area)}` : reach ? ` · ${esc(reach)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
+<footer class="foot"><div class="wrap">${esc(name)}${area ? ` · Serving ${esc(area)}` : reach ? ` · ${esc(reach)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
 (function(){
