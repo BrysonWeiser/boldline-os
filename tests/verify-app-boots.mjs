@@ -111,6 +111,66 @@ ok("no hook is destructured that the app never calls", surplus.length === 0, `un
   }
 }
 
+// ── 🔴 AND THE THIRD WAY: USING A const BEFORE THE LINE THAT DECLARES IT ─────────
+// Bryson, 2026-09-02: *"this came up when i pressed campaign under my ads"*, with
+// `ReferenceError: Cannot access 'metaLocations' before initialization`. The Meta launch
+// card had `const [f,setF] = useState({ ..., locationsText: toLocationLines(metaLocations) })`
+// about thirty lines ABOVE `const metaLocations = ...`.
+//
+// 🔴 WHY NOTHING CAUGHT IT, WHICH IS THE WHOLE POINT OF THIS SECTION. That code is
+// perfectly valid JavaScript, so Babel compiles it and the two guards above both pass. It
+// only explodes when the component renders, and it only renders when he opens that one
+// card. So the app booted fine, every suite was green, and the card was dead in production.
+// `var` would have been undefined and limped along; `const` throws.
+//
+// The trap is easy to walk back into because the useState argument is a PLAIN OBJECT, not
+// a lazy initialiser, so it is built on the very first render — it looks deferred and is not.
+//
+// So: parse the shipping block and, for every const/let, flag any use that sits textually
+// before its declaration in the same run of statements. Uses inside a nested function are
+// skipped, since those run later. Verified by pointing it at the pre-fix file, where it
+// reported metaLocations and nothing else; against the fixed app the whole 1.1MB block is
+// clean, so this is not a rule the codebase has to be bent around.
+{
+  const block = [...S.matchAll(/<script type="text\/babel"[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1])[0] || "";
+  const offset = S.indexOf(block);
+  const lineOf = (pos) => S.slice(0, offset + pos).split("\n").length;
+
+  const { parse } = await import("@babel/parser");
+  const traverseMod = await import("@babel/traverse");
+  const traverse = traverseMod.default?.default || traverseMod.default || traverseMod;
+
+  let ast = null, perr = "";
+  try { ast = parse(block, { sourceType: "script", plugins: ["jsx"] }); } catch (e) { perr = e.message; }
+  ok("the app parses well enough to check declaration order", !!ast, perr.split("\n")[0]);
+
+  const early = [];
+  if (ast) {
+    traverse(ast, {
+      Scope(path) {
+        for (const name of Object.keys(path.scope.bindings)) {
+          const b = path.scope.bindings[name];
+          if (b.kind !== "const" && b.kind !== "let") continue;
+          const declStart = b.path.node.start;
+          for (const ref of b.referencePaths) {
+            if (ref.node.start == null || ref.node.start >= declStart) continue;
+            // Crossing a function boundary on the way up means the use runs later, not now.
+            let p = ref.parentPath, deferred = false;
+            while (p && p.node !== b.scope.block) {
+              if (p.isFunction()) { deferred = true; break; }
+              p = p.parentPath;
+            }
+            if (!deferred) early.push(`${name} is used on line ${lineOf(ref.node.start)} but declared on line ${lineOf(declStart)}`);
+          }
+        }
+      },
+    });
+  }
+  const uniq = [...new Set(early)];
+  ok("🔴 nothing is used before the line that declares it", uniq.length === 0,
+    `${uniq.slice(0, 8).join("\n        ")}\n        This compiles cleanly and then throws the moment that component renders, killing the card with a red error and no warning anywhere else. Move the declaration above the first use.`);
+}
+
 // ── 🔴 THE OS MAY NOT SEND HIM TO A TAB THAT IS NOT THERE ────────────────────────
 // Bryson, 2026-09-02: *"there isn't an assets tab can you add it"*. There was. It held
 // the media library, the landing page with its Publish and Regenerate buttons, the
