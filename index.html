@@ -8562,6 +8562,26 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   const platShare = Math.max(1, Number(platformCount) || 1);
   const autoDaily = dailyFromMonthly(monthlyBudget, platShare);
   const [budgetTouched,setBudgetTouched] = useState(false);
+  // 🔴 DECLARED BEFORE THE useState BELOW, AND IT HAS TO STAY THERE.
+  // Bryson, 2026-09-02, pressing Campaign on My Ads: "Cannot access 'metaLocations'
+  // before initialization", and the whole card went blank.
+  //
+  // The useState below is a PLAIN OBJECT, not a lazy initialiser, so it is built on every
+  // render including the first. It reads metaLocations, which used to be declared about
+  // thirty lines further down. `const` is not hoisted the way `var` is: it exists but
+  // cannot be touched until its own line runs, so the read threw and React unmounted the
+  // card. Nothing about it looks wrong when reading top to bottom, because the declaration
+  // IS there, just later.
+  //
+  // It depends only on the `client` prop, so moving it up is safe. Anything added to this
+  // component that the useState reads has to be declared above the useState too.
+  const metaLocations = (() => {
+    const cs = client.campaignSetup || {};
+    const own = String(cs.targetLocations || cs.serviceArea || client.location || "").trim();
+    if (own) return own;
+    return client.internal ? "Gilbert, Arizona, Chandler, Arizona, Mesa, Arizona, Tempe, Arizona, Phoenix, Arizona, Scottsdale, Arizona" : "";
+  })();
+
   const [f,setF] = useState({
     name: mseed0.name,
     dailyBudgetDollars: autoDaily > 0 ? autoDaily : 20,
@@ -8602,12 +8622,6 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   // card targets by country and age rather than by city, so unlike the Google card there is
   // no locations box here to read it from. The house account falls back to the metro Bryson
   // actually works, which is what its Google twin defaults to as well.
-  const metaLocations = (() => {
-    const cs = client.campaignSetup || {};
-    const own = String(cs.targetLocations || cs.serviceArea || client.location || "").trim();
-    if (own) return own;
-    return client.internal ? "Gilbert, Arizona, Chandler, Arizona, Mesa, Arizona, Tempe, Arizona, Phoenix, Arizona, Scottsdale, Arizona" : "";
-  })();
   const generateMeta = async () => {
     setGenState("working"); setGenMsg("Writing variants. This takes a minute.");
     try{
