@@ -8,7 +8,7 @@
 //      until NEWSLETTER_SENDING_ENABLED=1 (fresh ones wait, queued, until then).
 // ?test=1 reports what it WOULD do without generating or sending.
 
-import { withFailureAlert } from "../lib/alerts-shared.mjs";
+import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { getSupabase, ensureCompanionDraft, sendDueNewsletters, STALE_AFTER_HOURS } from "../lib/newsletter-shared.mjs";
 
 export default withFailureAlert("newsletter-autopublish", async (req) => {
@@ -41,6 +41,29 @@ export default withFailureAlert("newsletter-autopublish", async (req) => {
   catch (e) { console.error("newsletter-autopublish: ensureCompanionDraft failed:", e.message); }
 
   const sendResult = await sendDueNewsletters(supabase);
+
+  // 🔴 RETIRING IS NEVER SILENT, BECAUSE IT MEANS SOMETHING DID NOT GO OUT.
+  //
+  // The staleness rule was written on 2026-09-02 believing sending was switched OFF, so
+  // retiring meant clearing a deliberately dormant backlog and there was nothing to report.
+  // Bryson then checked Netlify and NEWSLETTER_SENDING_ENABLED was already "1". Sending has
+  // been live all along, which turns the same code into something quite different: with a
+  // working sender, an email can only reach 48 hours past its send time if sending has been
+  // FAILING for two days. Send errors inside sendDueNewsletters are caught and logged, and
+  // withFailureAlert only fires when the whole run throws, so nothing would have said so.
+  //
+  // The pile of unsent emails used to be the only visible evidence of that. Retiring them
+  // quietly would have swept away the evidence and left a broken sender looking healthy,
+  // which is worse than the backlog it was meant to prevent. So a retire raises an alert.
+  if (sendResult && sendResult.retired > 0) {
+    try {
+      await dispatchAlert({
+        title: `Newsletter: ${sendResult.retired} email${sendResult.retired === 1 ? "" : "s"} retired unsent`,
+        body: `${sendResult.retired} scheduled newsletter${sendResult.retired === 1 ? " was" : "s were"} more than 48 hours past ${sendResult.retired === 1 ? "its" : "their"} send time, so ${sendResult.retired === 1 ? "it was" : "they were"} retired instead of sent. Sending is currently ${sendResult.enabled ? "ON" : "OFF"}. If sending is ON this means the sender has been failing, which nothing else reports. Check the Newsletter card on the Website tab and the function logs.`,
+        severity: "amber",
+      });
+    } catch (e) { console.error("newsletter-autopublish: retire alert failed:", e.message); }
+  }
 
   console.log(`newsletter-autopublish: created=${created ? created.post_slug : "none"} send=`, sendResult);
   return new Response(JSON.stringify({ ok: true, created: created ? created.post_slug : null, ...sendResult }), { status: 200, headers: { "content-type": "application/json" } });

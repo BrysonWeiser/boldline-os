@@ -195,5 +195,42 @@ const withSending = async (on, fn) => {
     "an hour-old newsletter being retired means the test is reading the wrong side of the cutoff");
 }
 
+// ── 🔴 RETIRING IS NEVER SILENT ─────────────────────────────────────────────────
+// The staleness rule was written believing sending was switched OFF, so retiring meant
+// clearing a deliberately dormant backlog and there was nothing to report. Bryson then
+// checked Netlify: NEWSLETTER_SENDING_ENABLED was already "1". Sending has been live all
+// along, which turns the same code into something else entirely.
+//
+// 🔴 With a WORKING sender, an email can only reach 48 hours past its send time if sending
+// has been FAILING for two days. Send errors inside sendDueNewsletters are caught and
+// logged, and withFailureAlert only fires when the whole run throws, so nothing reports it.
+// The pile of unsent emails was the only visible evidence. Retiring them quietly would have
+// swept that away and left a broken sender looking healthy, which is worse than the backlog
+// the rule was written to prevent.
+{
+  const { readFileSync } = await import("node:fs");
+  const src = readFileSync(new URL("../netlify/functions/newsletter-autopublish.mjs", import.meta.url), "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  ok("the job can raise an alert at all", /import \{[^}]*dispatchAlert[^}]*\}/.test(code));
+  ok("🔴 and it raises one whenever anything was retired",
+    /if \(sendResult && sendResult\.retired > 0\)/.test(code),
+    "a retire would be invisible, and with sending ON a retire means the sender is broken");
+  ok("the alert says how many", /sendResult\.retired/.test(code));
+  // 🔴 It must report whether sending was on, because that is what decides whether a retire
+  // is routine housekeeping or the only sign of a two-day outage.
+  ok("and whether sending was on, which is what makes it routine or serious",
+    /sendResult\.enabled \? "ON" : "OFF"/.test(code),
+    "without that, the alert cannot tell him which of the two situations he is in");
+  // A failed alert must not take the whole job down with it. The job's real work is done
+  // by then, and losing the run would also lose the companion draft it just created.
+  ok("a failing alert never brings the run down", /\}\s*catch\s*\(e\)\s*\{\s*console\.error\("newsletter-autopublish: retire alert failed/.test(code));
+
+  // 🔴 BREAK IT ONCE.
+  const silent = code.replace(/if \(sendResult && sendResult\.retired > 0\)/, "if (false)");
+  ok("caught: retiring made silent again", !/if \(sendResult && sendResult\.retired > 0\)/.test(silent),
+    "a two-day sending outage would clean up after itself with nothing to show for it");
+}
+
 console.log(fail ? `\n✗ newsletter queue: ${pass} passed, ${fail} FAILED` : `✓ newsletter queue: ${pass} checks passed`);
 process.exit(fail ? 1 : 0);
