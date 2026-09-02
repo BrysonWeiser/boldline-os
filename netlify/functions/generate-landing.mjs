@@ -29,7 +29,7 @@ const LANDING_COPY_TOOL = {
         properties: {
           layout: { type: "string", enum: ["split", "centered", "overlay", "capture"], description: "Overall page layout. 'split' = hero copy beside a photo; 'centered' = centered copy with a wide photo banner below; 'overlay' = full-bleed photo hero with text on top (premium/visual brands with a strong photo); 'capture' = the lead form sits IN the hero above the fold (highest-converting for lead-gen; great when there's no strong photo or the goal is maximum form fills)." },
           font: { type: "string", enum: ["modern", "elegant", "bold"], description: "Type mood. 'modern' clean sans; 'elegant' serif headings (spa/luxury/legal/wellness); 'bold' heavy sans (trades/fitness/automotive)." },
-          motion: { type: "string", enum: ["up", "side", "zoom"], description: "Scroll + entrance motion style." },
+          motion: { type: "string", enum: ["up", "down", "alt"], description: "Entrance motion. All three are vertical: content rises, settles from above, or alternates." },
           background: { type: "string", enum: ["glowgrid", "mesh", "dots", "clean"], description: "Hero background treatment." },
           benefits: { type: "string", enum: ["cards", "list", "numbered"], description: "How the 'why choose us' points are laid out." },
           shape: { type: "string", enum: ["rounded", "soft", "sharp"], description: "Corner style. 'rounded' friendly/approachable; 'sharp' modern/premium." },
@@ -208,7 +208,7 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
     const keep = (v, arr) => (arr.includes(v) ? v : undefined);
     const designOut = {};
     const dm = {
-      layout: ["split", "centered", "overlay", "capture"], font: ["modern", "elegant", "bold"], motion: ["up", "side", "zoom"],
+      layout: ["split", "centered", "overlay", "capture"], font: ["modern", "elegant", "bold"], motion: ["up", "down", "alt"],
       background: ["glowgrid", "mesh", "dots", "clean"], benefits: ["cards", "list", "numbered"], shape: ["rounded", "soft", "sharp"], order: ["a", "b", "c", "d"],
     };
     for (const k of Object.keys(dm)) { const v = keep(dIn[k], dm[k]); if (v) designOut[k] = v; }

@@ -160,7 +160,9 @@ export const BENEFITS = ["cards", "list", "numbered"];
 export const BACKGROUNDS = ["glowgrid", "mesh", "dots", "clean"];
 export const SHAPES = ["rounded", "soft", "sharp"];
 export const FONTS = ["modern", "elegant", "bold"];
-export const MOTIONS = ["up", "side", "zoom"];
+// Vertical only, per Bryson 2026-09-02. Three of them and not two, because planOptions has
+// to hand three page options three DIFFERENT values and a two-item pool cannot.
+export const MOTIONS = ["up", "down", "alt"];
 // 🔴 "d" IS DELIBERATELY ABSENT. The renderer accepts four order tokens but only produces
 // THREE distinct arrangements: measured against the real renderer, "d" lays the sections out
 // identically to "a". Including it would let two options collide and look like a bug in the
