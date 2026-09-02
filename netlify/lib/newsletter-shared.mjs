@@ -164,25 +164,67 @@ export async function ensureCompanionDraft(supabase) {
   return row;
 }
 
+// 🔴 A QUEUED NEWSLETTER GOES OFF. Bryson, 2026-09-02, asking to turn sending on:
+// *"can you just clear the backlog"*.
+//
+// Sending has been off for weeks while the writer kept queueing one companion email per
+// blog post, and the old comment here said the quiet part out loud: *"leave them scheduled
+// so they send the moment sending is turned on"*. So flipping one switch would have fired
+// the entire backlog at the list in a single hourly run: several emails at once, each
+// announcing a blog post that went up weeks ago as though it were new. The first thing a
+// brand new subscriber would ever have received.
+//
+// The fix is not a one-off tidy-up, it is the rule that should always have been here: an
+// email that is more than STALE_AFTER_HOURS past its send time is no longer news, so it is
+// RETIRED instead of sent. That clears the existing backlog by itself on the next run and
+// stops the same trap being reset every time sending is ever paused.
+//
+// Retiring happens WHETHER OR NOT SENDING IS ON, which is the part that actually clears the
+// queue for him: the job runs hourly regardless, so the pile is gone before the switch is
+// ever flipped. It is the same soft delete the OS "delete" button uses, so the row survives
+// and anything retired by mistake can still be read and sent by hand.
+//
+// It cannot loop: ensureCompanionDraft skips a post that already has a companion row and
+// that check does NOT exclude deleted ones, so a retired email is never regenerated.
+export const STALE_AFTER_HOURS = 48;
+
 // ── Send scheduled emails that are due (DORMANT until sending is enabled) ───
 export async function sendDueNewsletters(supabase) {
   const enabled = process.env.NEWSLETTER_SENDING_ENABLED === "1";
-  const nowISO = new Date().toISOString();
+  const now = Date.now();
+  const nowISO = new Date(now).toISOString();
   const { data: due, error } = await supabase
     .from("newsletter_emails")
     .select("*")
     .eq("status", "scheduled")
     .lte("scheduled_for", nowISO);
   if (error) throw error;
-  if (!due || !due.length) return { enabled, sent: 0, pending: 0 };
+  if (!due || !due.length) return { enabled, sent: 0, pending: 0, retired: 0 };
+
+  const cutoff = now - STALE_AFTER_HOURS * 3600 * 1000;
+  // An unparseable or missing send time counts as fresh, never as stale. Getting this
+  // backwards would silently bin a good email, which is the worse of the two mistakes.
+  const isStale = (em) => { const t = Date.parse(em.scheduled_for); return Number.isFinite(t) && t < cutoff; };
+  const stale = due.filter(isStale);
+  const live = due.filter((em) => !isStale(em));
+
+  let retired = 0;
+  for (const em of stale) {
+    const { error: rErr } = await supabase.from("newsletter_emails")
+      .update({ status: "deleted" })
+      .eq("id", em.id);
+    if (rErr) { console.error(`newsletter retire failed for ${em.post_slug || em.id}:`, rErr.message); continue; }
+    retired++;
+    console.log(`newsletter retired as stale: ${em.post_slug || em.id}, was due ${em.scheduled_for}`);
+  }
 
   if (!enabled) {
-    // Dormant: leave them scheduled so they send the moment sending is turned on.
-    return { enabled: false, sent: 0, pending: due.length };
+    // Dormant: anything still fresh waits, so it goes out when sending is turned on.
+    return { enabled: false, sent: 0, pending: live.length, retired };
   }
 
   let sent = 0;
-  for (const em of due) {
+  for (const em of live) {
     try {
       const res = await sendBroadcast(em);
       await supabase.from("newsletter_emails")
@@ -193,7 +235,7 @@ export async function sendDueNewsletters(supabase) {
       console.error(`newsletter send failed for ${em.post_slug || em.id}:`, e.message);
     }
   }
-  return { enabled: true, sent, pending: due.length - sent };
+  return { enabled: true, sent, pending: live.length - sent, retired };
 }
 
 // Resend Broadcast send. Resend replaced "Audiences" with "Segments" (2026):

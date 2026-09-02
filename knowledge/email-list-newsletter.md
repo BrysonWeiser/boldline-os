@@ -27,3 +27,41 @@ Always returns `{ok:true}` for a valid email so the UX never breaks.
 **GOTCHAS:** (1) Resend changed from audience-scoped contacts (`POST /audiences/{id}/contacts`) to account-level (`POST /contacts`) — the first cut of subscribe.mjs used the old endpoint + a needless `RESEND_AUDIENCE_ID`; fixed 2026-07-25. If a signup ever 404s from Resend, check whether the endpoint model changed again. (2) marketing-site `REPORTS_FROM_EMAIL` is intentionally unset (can't verify domain on Wix), so the site doesn't send branded email today — collection needs no sending. Contacts get unsubscribe handling from Resend automatically once broadcasting is on. (3) **Full-access key (2026-08-05):** the marketing key was "Sending access" → `POST /contacts` 401'd `"restricted to only send emails"`, so signups saved to `website_leads` but NEVER reached Resend (the OS showed subscribers from the DB backup while Resend Contacts showed 0 — that mismatch is the tell). Fix = a **Full access** Resend key. The failure is invisible from the UI (form always says "you're in"); the marketing site's Netlify **function log** prints `subscribe Resend failed: Resend 401 …` — that's the fastest diagnosis. (4) **Segments are manual (2026):** Resend renamed Audiences→Segments and broadcasts target a `segment_id`; a segment doesn't auto-include contacts, so `subscribe.mjs` now sends `segments:[RESEND_SEGMENT_ID]` on create. Needs `RESEND_SEGMENT_ID` set on the marketing site too.
 
 **Verified 2026-07-25:** subscribe.mjs + blog-render.mjs `node --check` clean; homepage renders the band at all 4 breakpoints (0px overflow); AJAX submit posts the correct JSON and shows the success state + hides the form; honeypot returns before any POST.
+
+## ➕ 2026-09-02 — Turning sending on would have fired the whole backlog
+
+**Bryson:** *"Turn the newsletter on that way when someone does sign up it's not off"*, then
+*"can you just clear the backlog"*.
+
+- 🔴 **First, the premise needed correcting: SIGN-UPS WERE NEVER OFF.** `NEWSLETTER_SENDING_ENABLED`
+  gates SENDING only. `subscribe.mjs` (marketing site) never reads it, so every signup has been
+  captured to Resend contacts + `website_leads` the whole time. Nobody was ever lost.
+- 🔴 **What the switch would actually have done.** `sendDueNewsletters` held every due email while
+  sending was off, and the comment said it outright: *"leave them scheduled so they send the moment
+  sending is turned on"*. The writer has been queueing one companion email per blog post hourly for
+  weeks. So flipping one switch would have fired the entire backlog in a single run: several emails
+  at once, each announcing a post that went live weeks ago as if it were new, and that is the first
+  thing a brand new subscriber would ever have received.
+- **The fix is a rule, not a tidy-up.** `STALE_AFTER_HOURS = 48`: an email more than 48h past its
+  send time is RETIRED instead of sent. Two things follow. The existing pile clears itself on the
+  next hourly run **whether or not sending is on**, which is what he asked for and means the queue
+  is already empty before he touches the switch. And the trap cannot be reset the next time sending
+  is ever paused.
+- **Retiring is the same soft delete the OS delete button uses** (`status: "deleted"`), so a row
+  retired by mistake can still be read and sent by hand.
+- 🔴 **IT CANNOT LOOP, AND THE REASON LOOKS LIKE AN OVERSIGHT.** `ensureCompanionDraft` skips a post
+  that already has a companion row, and that check is `.eq("post_slug", post.slug)` with **NO
+  `.neq("status","deleted")` filter**. So a retired email is never regenerated. Adding a
+  not-deleted filter there would make the hourly job create and bin a row forever, burning a model
+  call each time. Pinned by a test for exactly that reason.
+- `?test=1` on `newsletter-autopublish` now reports `wouldSend` vs `wouldRetire` instead of one
+  lumped `dueNow`, so the backlog is visible in the run log. (Direct HTTP invocation of a scheduled
+  function returns **403** from outside — the dry run is only readable in Netlify's function logs.)
+- `tests/verify-newsletter-queue.mjs`, 25 checks, runs the REAL sender against a fake database.
+  Covers both sides of the boundary, a missing/unparseable send time counting as fresh (right by
+  ACCIDENT, since `NaN < cutoff` is false, so it is pinned), and three mutations: no cutoff at all
+  (the shipped behaviour), retiring gated behind the switch, and the comparison inverted. All three
+  caught.
+- **Still on Bryson to do in Netlify:** set `NEWSLETTER_SENDING_ENABLED=1` on the **OS site**
+  (`boldlinemedia`, no hyphen) → Site configuration → Environment variables, **then trigger a
+  redeploy**, because an env var change does not reach running functions until the next deploy.
