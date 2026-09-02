@@ -405,6 +405,19 @@ const fakeFetch = (script) => {
     ok(`🔴 the ${label} page a visitor receives has no emojis`, emoji.length === 0,
       `found: ${[...new Set(emoji)].join(" ")}`);
 
+    // 🔴 NO EM DASHES ON ANYTHING A VISITOR READS. Bryson, 2026-08-14, named the em dash as
+    // THE tell that makes copy read as AI-written, and the standing rule covers landing pages
+    // by name. The generated copy was already policed; this page's OWN FURNITURE was not, and
+    // it had six of them: the error line, the thank-you line, the review byline, the closing
+    // reassurance, the form intro, and 🔴 THE PAGE TITLE, which is the line Google prints in
+    // its results and the line every share preview shows. The marketing site regressed exactly
+    // this way once, one dash at a time over eight weeks, each one looking fine on its own.
+    // Rendered output only, so the bullet parser is free to keep splitting on a dash the model
+    // hands it; what matters is that none survives into the page.
+    const dashes = [...html.matchAll(/.{0,44}[\u2014\u2013].{0,44}/g)].map((m) => m[0]);
+    ok(`🔴 the ${label} page a visitor receives has no em dashes`, dashes.length === 0,
+      dashes.join("\n        "));
+
     // 🔴 AND NO INTERNAL COMMENTARY IN THE CLIENT'S PAGE SOURCE. The submit handler is shipped
     // verbatim, so engineering notes written inside that string travel to the client's own
     // domain where their developer can read them. Reasoning belongs outside the template.
