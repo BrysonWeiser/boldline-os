@@ -242,6 +242,49 @@ const AUDIT = `(() => {
     await ctx.close();
   }
 
+  // ── 🔴 (3) THE STICKY MOBILE BAR STANDS DOWN FOR A REAL BUTTON ─────────────────
+  // Bryson, 2026-09-02: *"make sure at the bottom of the page for mobile that there isnt
+  // two buttons like there is now [...] when your at the very top where there is a button
+  // or the very bottom where there is a button I want the one that stays at the bottom of
+  // the screen to disappear."* Two identical calls to action touching each other read as a
+  // mistake, and the sticky one is the one with no reason to be there at that moment.
+  //
+  // Checked by SCROLLING, at phone width, on every layout. The rule is not "hidden at the
+  // top and bottom" but the thing that rule is really about: the bar is visible exactly
+  // when no other call to action is.
+  {
+    for (const layout of LAYOUTS) {
+      const file = join(dir, `${layout}-cards.html`);
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 800 } });
+      const page = await ctx.newPage();
+      await page.route("**/*", (route) => (route.request().url().startsWith("file:") ? route.continue() : route.abort()));
+      await page.goto("file://" + file);
+      await page.waitForTimeout(700);
+
+      const look = async () => page.evaluate(() => {
+        const bar = document.querySelector(".mcta");
+        if (!bar) return null;
+        const others = [...document.querySelectorAll(".cta")].filter((el) => !bar.contains(el))
+          .filter((el) => { const b = el.getBoundingClientRect(); return b.bottom > 0 && b.top < window.innerHeight; });
+        return { tucked: bar.classList.contains("tuck"), others: others.length };
+      });
+      const goto = async (y) => {
+        await page.evaluate((v) => window.scrollTo({ top: v < 0 ? document.documentElement.scrollHeight : v, behavior: "instant" }), y);
+        await page.waitForTimeout(600);
+      };
+
+      for (const [label, y] of [["top", 0], ["middle", 1400], ["bottom", -1]]) {
+        await goto(y);
+        const r = await look();
+        if (!r) { fail(`sticky bar (${layout})`, "no sticky bar rendered at phone width"); break; }
+        // The invariant, stated once and checked at every position.
+        if (r.others > 0 && !r.tucked) fail(`sticky bar (${layout} @${label})`, `${r.others} real buttons on screen and the sticky bar is still showing, so two of them stack`);
+        if (r.others === 0 && r.tucked) fail(`sticky bar (${layout} @${label})`, "no call to action on screen and the sticky bar hid itself anyway, so there is nothing to tap");
+      }
+      await ctx.close();
+    }
+  }
+
   await browser.close();
   console.log(bad ? `\n✗ audit-landing-motion: ${bad} problem(s)` : "audit-landing-motion: every layout complete with script, without script, and with reduced motion");
   process.exit(bad ? 1 : 0);

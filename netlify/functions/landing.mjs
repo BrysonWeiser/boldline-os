@@ -296,6 +296,18 @@ a{color:inherit}
    gave three across and one stranded underneath. */
 .gal{display:grid;gap:12px;grid-template-columns:1fr 1fr}
 .gal.g1{grid-template-columns:1fr}
+/* A LONE PHOTO ON THE LAST ROW SITS IN THE MIDDLE, NOT OFF TO THE LEFT.
+   Bryson, 2026-09-02, with a screenshot of Stencil and Thread's three shirts:
+   *"make sure when there is 3 images the one one the bottom is in the middle and
+   everything is uniform and formatted."* Two on top, the third hard against the left
+   edge with a hole beside it, which reads as a page that broke rather than a page
+   with three photos.
+   The gallery is the ONLY grid on this page with a two-column base, so it is the only
+   one where an odd count strands an item on a phone. The benefits, steps and reviews
+   all stack single-column at this width and cannot.
+   Centred at exactly one column wide, so it stays the same size as the two above it
+   rather than stretching to fill the row, which would be a different kind of wrong. */
+.gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
 .gitem{overflow:hidden;border-radius:var(--r)}
 .gitem img{aspect-ratio:4/3;object-fit:cover;width:100%;transition:transform .5s ease}
 .gitem:hover img{transform:scale(1.06)}
@@ -423,6 +435,19 @@ a{color:inherit}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hdr-cta{transition:transform .18s ease,background-color .18s ease}
 .hdr-cta:hover{transform:translateY(-1px)}
+/* THE STICKY BAR STANDS DOWN WHEN A REAL BUTTON IS ON SCREEN. Bryson, 2026-09-02:
+   *"make sure at the bottom of the page for mobile that there isnt two buttons like
+   there is now [...] when your at the very top where there is a button or the very
+   bottom where there is a button I want the one that stays at the bottom of the
+   screen to disappear."* At the top the hero button and the sticky bar sat one above
+   the other saying the same words, and again at the closing button. Two identical
+   calls to action touching each other read as a mistake, and the sticky one is the
+   one that has no reason to be there at that moment.
+   It slides down rather than vanishing, so it never blinks in and out mid-scroll.
+   Default is VISIBLE and the class is only ever added by script, so a phone with no
+   JavaScript keeps the bar it has always had. */
+.mcta{transition:transform .25s ease,opacity .25s ease}
+.mcta.tuck{transform:translateY(115%);opacity:0;pointer-events:none}
 .mcta a{transition:transform .15s ease}
 .mcta a:active{transform:scale(.97)}
 /* Everything a visitor can point at answers back. */
@@ -462,7 +487,7 @@ a{color:inherit}
    .reveal needs its own line: it is the only thing here whose resting state is invisible,
    so removing its transition alone would freeze it hidden forever. */
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;translate:none!important}}
-@media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}.gal.g1{grid-template-columns:1fr}.gal.g2,.gal.g4{grid-template-columns:repeat(2,1fr)}.gal.g3,.gal.g5{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}.gal.g1{grid-template-columns:1fr}.gal.g2,.gal.g4{grid-template-columns:repeat(2,1fr)}.gal.g3,.gal.g5{grid-template-columns:repeat(3,1fr)}.gal.g3>:last-child,.gal.g5>:last-child{grid-column:auto;justify-self:stretch;width:auto}}
 /* Four cards open out to a single row of four only when the container is genuinely wide
    enough to keep them readable. This block MUST stay after the 720px one: same specificity,
    so source order decides, and put earlier it loses and never applies at all. Numbered
@@ -788,6 +813,31 @@ a{color:inherit}
       settle();
     }
   }catch(e){}`;
+  // Hides the sticky mobile bar whenever any real call-to-action button is on screen.
+  // Observed rather than measured on scroll: an observer fires only when something actually
+  // crosses the edge, where a scroll handler would run on every frame of every scroll.
+  const stickyJS = `
+  try{
+    var bar=document.querySelector('.mcta');
+    var ctas=[];
+    Array.prototype.forEach.call(document.querySelectorAll('.cta'),function(el){
+      if(!bar||!bar.contains(el))ctas.push(el);
+    });
+    if(bar&&ctas.length&&window.IntersectionObserver){
+      var seen=[];
+      for(var i=0;i<ctas.length;i++)seen.push(false);
+      var io2=new IntersectionObserver(function(es){
+        es.forEach(function(e){
+          var idx=ctas.indexOf(e.target);
+          if(idx>=0)seen[idx]=e.isIntersecting;
+        });
+        var any=false;
+        for(var j=0;j<seen.length;j++){if(seen[j]){any=true;break;}}
+        if(any){bar.classList.add('tuck');}else{bar.classList.remove('tuck');}
+      },{threshold:0});
+      ctas.forEach(function(el){io2.observe(el);});
+    }
+  }catch(e){}`;
   const navJS = `
   try{
     Array.prototype.forEach.call(document.querySelectorAll('a[href^="#"]'),function(a){
@@ -854,7 +904,7 @@ a{color:inherit}
     window.addEventListener('scroll',first,{passive:true});
   }catch(e){showAll();}`;
 
-  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}`;
+  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const diffChip = fitPhrase(differentiator, 64);

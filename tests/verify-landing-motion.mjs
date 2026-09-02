@@ -374,8 +374,13 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
 
   ok("nothing is un-observed after its first appearance", !/unobserve/.test(js),
     "un-observing is what made the reveal a one-time event");
+  // 🔴 Counted as "at least two", not "exactly two". Pinning the exact number made this
+  // fail the moment an unrelated feature added a third observer (the sticky mobile bar
+  // standing down for a real button), which is a test breaking on something it does not
+  // care about. The two assertions below identify the re-arm observer by what it DOES,
+  // which is the actual guard; the count never was.
   ok("there is a second observer that re-arms an element once it is off screen",
-    (js.match(/new IntersectionObserver/g) || []).length === 2,
+    (js.match(/new IntersectionObserver/g) || []).length >= 2,
     "without a re-arm pass, scrolling back up shows content that has already played");
   ok("the re-arm only fires when the element is genuinely clear of the screen",
     /rootMargin:EDGE\+'px 0px '\+EDGE\+'px 0px'/.test(js),
