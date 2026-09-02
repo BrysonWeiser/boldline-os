@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 139 task-keyed entries under `knowledge/`. They surface automatically via the
+> 140 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**139 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**140 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -54,6 +54,9 @@
 - **[meta-parked-work](../knowledge/meta-parked-work.md)** &mdash; &#9989; verified &middot; 2026-08-17  
   The running list of work deliberately NOT built because Meta has not granted Marketing API standard access. ~~Meta creative split testing~~ **BUILT 2026-08-19 for BoldLine-owned accounts** (Development tier allows writes to own accounts) — see KB `meta-creative-testing`; one named condition (`META-TIER-GATE`) opens it to clients at approval. The conditions-triggered ad refresh rides the same path and now works on Meta too, for owned accounts. Also parked: 9 of 12 packages stay on "Join the waitlist", and the marketing site's coming-soon state. Nothing here is broken or half-done, it is scoped out on purpose. Bryson asked for it to be marked so it resurfaces at approval rather than being rediscovered.  
   <sub>*task:* find out what work is waiting on Meta approval, or decide what to build the moment Meta grants standard access &nbsp;|&nbsp; *keywords:* meta parked, blocked on meta, once meta is approved, meta split testing, meta creative testing, conditions trigger meta, meta standard access, development tier, MetaLaunchCard, meta-ads.mjs, waitlist</sub>
+- **[meta-traffic-objective](../knowledge/meta-traffic-objective.md)** &mdash; &#9989; verified &middot; 2026-09-02  
+  Every Meta campaign the OS builds is set to OUTCOME_TRAFFIC with optimization_goal LANDING_PAGE_VIEWS and no promoted_object, so Meta is told to buy the cheapest page views rather than leads. That is the likely cause of BoldLine's own house ad getting 6,997 views and 171 clicks at $0.51 for $87 with ZERO leads. The code's own comment says to switch to a leads objective "once the client's pixel + lead events exist" — on BoldLine's own site they now DO exist, and nothing revisits the decision. Not yet changed: a live campaign's objective cannot be edited, it needs a NEW campaign, and that spends money, so it is Bryson's call.  
+  <sub>*task:* work out why a Meta campaign gets clicks but no leads, or change what a Meta campaign optimises for &nbsp;|&nbsp; *keywords:* meta no leads, clicks but no leads, zero leads, 0 leads, OUTCOME_TRAFFIC, OUTCOME_LEADS, LANDING_PAGE_VIEWS, optimization_goal, promoted_object, meta objective, why no conversions, cheap clicks, high ctr no leads, meta pixel, fbq Lead, house account ads, my ads</sub>
 - **[scale-prompt](../knowledge/scale-prompt.md)** &mdash; &#9989; verified &middot; 2026-08-24  
   An hourly check inside ads-sync that asks whether to raise a budget, and never raises one itself. It fires only when the account is BOTH performing and actually out of budget, because raising a budget that is not being spent changes nothing. One-click approval reuses the queue's existing guarded set_daily_budget path, so no new route to real money was written.  
   <sub>*task:* change when the OS suggests scaling ad spend, or work out why a scale alert did or did not fire &nbsp;|&nbsp; *keywords:* scale, scale or keep as is, raise budget, budget limited, scaleReady, scaleCheck, SCALE_MIN_LEADS, SCALE_STEP, set_daily_budget, spend more, ads-sync alert, approval queue budget</sub>

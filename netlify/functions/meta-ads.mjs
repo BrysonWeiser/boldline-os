@@ -656,16 +656,35 @@ async function createCampaign(p) {
   if (p.imageUrl) imageHash = await uploadImage(p.adAccountId, p.imageUrl);
 
   // 2) campaign (CBO daily budget lives here so setBudget targets the campaign).
-  // OUTCOME_TRAFFIC: BoldLine drives clicks to the CLIENT's landing page (the page
-  // captures the lead), so traffic-to-website is the correct, pixel-free objective.
-  // (OUTCOME_LEADS optimizing for link-clicks needs a pixel/promoted_object and
-  // gets rejected; switch to OUTCOME_SALES/LEADS + a promoted_object later, once
-  // the client's pixel + lead events exist.)
+  //
+  // 🔴 WHAT THE CAMPAIGN ASKS META FOR, AND WHY IT IS NOW A CHOICE.
+  //
+  // Bryson, 2026-09-02, on the house campaign: *"we need to look at the meta ad we are
+  // currently running and figure out why i am not getting any leads."* 6,997 views, 171
+  // clicks at $0.51, $87 spent, ZERO leads. Nothing was broken: the form accepts
+  // submissions, the pipeline reaches the OS, and there was no spam hiding anything. The
+  // campaign was asking Meta for the cheapest possible LANDING PAGE VIEWS, and Meta
+  // delivered exactly that. A high CTR at a low CPC with no conversions is the signature
+  // of a traffic objective, not of a broken funnel.
+  //
+  // The old comment here already named its own expiry: "switch to OUTCOME_LEADS + a
+  // promoted_object later, once the client's pixel + lead events exist". For BoldLine's
+  // own site both now exist, so the switch is available — but it stays CONDITIONAL, never
+  // the default, for the reason the original note gave: a client with no pixel would have
+  // the campaign REJECTED at creation. Supplying a pixel id is the opt-in.
+  //
+  // 🔴 Worse than rejection is the quiet case: optimising for a LEAD event on a pixel that
+  // never fires one. Meta cannot find converters that do not exist, so it under-delivers
+  // and the money buys nothing. So this is gated on a pixel id being deliberately pasted
+  // in per client, not on one being detected.
+  const pixelId = String(p.pixelId == null ? "" : p.pixelId).trim();
+  const chaseLeads = !!pixelId;
+
   const camp = await graph("createCampaign", `${a}/campaigns`, {
     method: "POST",
     params: {
       name,
-      objective: "OUTCOME_TRAFFIC",
+      objective: chaseLeads ? "OUTCOME_LEADS" : "OUTCOME_TRAFFIC",
       status: "PAUSED",
       special_ad_categories: "[]",
       daily_budget: String(dollarsToCents(p.dailyBudgetDollars)),
@@ -730,7 +749,18 @@ async function createCampaign(p) {
       // goal without a pixel, and BoldLine's pixel is live and firing on /get-started.
       //
       // Same budget, fewer wasted clicks. Applies to every campaign, house and client.
-      optimization_goal: "LANDING_PAGE_VIEWS",
+      //
+      // With a pixel, the goal becomes the actual conversion instead. OFFSITE_CONVERSIONS
+      // plus a promoted_object naming the pixel and the LEAD event is what tells Meta to
+      // go and find people who FILL THE FORM IN rather than people who open the page.
+      // destination_type is stated explicitly so Meta sends people to the website rather
+      // than defaulting to an on-Facebook instant form, which would bypass the landing
+      // page, the lead pipeline and the CRM forward entirely.
+      optimization_goal: chaseLeads ? "OFFSITE_CONVERSIONS" : "LANDING_PAGE_VIEWS",
+      ...(chaseLeads ? {
+        destination_type: "WEBSITE",
+        promoted_object: JSON.stringify({ pixel_id: pixelId, custom_event_type: "LEAD" }),
+      } : {}),
       // No bid_strategy here — it's set at the campaign level (CBO); Meta rejects
       // a duplicate/conflicting bid_strategy on the ad set when campaign budget is on.
       targeting: JSON.stringify(targeting),

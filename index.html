@@ -8676,6 +8676,9 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     try{
       const d=await metaCall({action:"createCampaign",
         adAccountId:client.metaAdAccountId, pageId:client.metaPageId,
+        // Supplying this is what switches the campaign from chasing page views to chasing
+        // actual form fills. Absent, the campaign is built exactly as it always was.
+        ...(client.metaPixelId?{pixelId:client.metaPixelId}:{}),
         landingUrl:f.landingUrl, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
         locations:f.locationsText, country:f.country||"US",
         ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
@@ -11702,6 +11705,14 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 {k:"googleAdsCustomerId", l:"Google Ads Customer ID", ph:"123-456-7890"},
                 {k:"metaAdAccountId",     l:"Meta Ad Account ID",     ph:"e.g. 1234567890 (digits only)"},
                 {k:"metaPageId",          l:"Meta / Facebook Page ID (for ad creatives)", ph:"e.g. 1098765432109876"},
+                // 🔴 THIS FIELD IS THE SWITCH BETWEEN BUYING CLICKS AND BUYING LEADS.
+                // Empty, a Meta campaign is built to chase the cheapest landing page views,
+                // which is what left the house account on 171 clicks and zero leads. Filled,
+                // it is built to chase the actual form fill on that pixel's Lead event.
+                // Deliberately a field he has to paste into rather than something detected:
+                // pointing Meta at a Lead event that never fires makes it under-deliver and
+                // buy nothing, which is quieter and worse than the campaign being rejected.
+                {k:"metaPixelId",         l:"Meta Pixel ID (turns the ad into a lead chaser)", ph:"digits only. Leave blank to keep buying clicks"},
               ].map(({k,l,ph})=>(
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>

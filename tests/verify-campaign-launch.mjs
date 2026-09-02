@@ -312,7 +312,29 @@ const os = read("../index.html");
 {
   const create = meta.slice(meta.indexOf("async function createCampaign"), meta.indexOf("// ── Handler"));
   const code = create.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
-  ok("Meta optimises for landing page views", /optimization_goal: "LANDING_PAGE_VIEWS"/.test(code));
+  // 🔴 THE GOAL IS NOW A BRANCH, AND THE PIXEL IS WHAT PICKS IT. Bryson, 2026-09-02, on the
+  // house campaign: 6,997 views, 171 clicks, $87, ZERO leads. Nothing was broken — the
+  // campaign was asking Meta for the cheapest landing page views and getting them. A high
+  // CTR at a low CPC with no conversions is the signature of a traffic objective.
+  //
+  // Both branches are asserted, because either alone lets a real failure through. Lose the
+  // no-pixel branch and every client without one has their campaign REJECTED at creation.
+  // Lose the pixel branch and the fix silently reverts to buying clicks.
+  ok("without a pixel it still buys landing page views, so a client with none is unaffected",
+    /optimization_goal: chaseLeads \? "OFFSITE_CONVERSIONS" : "LANDING_PAGE_VIEWS"/.test(code));
+  ok("with a pixel it buys conversions instead",
+    /objective: chaseLeads \? "OUTCOME_LEADS" : "OUTCOME_TRAFFIC"/.test(code));
+  ok("and names the pixel and the LEAD event so Meta knows what to chase",
+    /custom_event_type: "LEAD"/.test(code) && /pixel_id: pixelId/.test(code));
+  // 🔴 Without this Meta may serve an on-Facebook instant form instead, which bypasses the
+  // landing page, the lead pipeline and the CRM forward completely.
+  ok("and sends people to the website rather than an instant form",
+    /destination_type: "WEBSITE"/.test(code));
+  // 🔴 The switch is a pasted pixel id, never something detected. Optimising for a LEAD
+  // event on a pixel that never fires one makes Meta under-deliver and buy nothing, which
+  // is quieter and worse than the campaign being rejected outright.
+  ok("the switch is the pixel id being supplied, not guessed at",
+    /const chaseLeads = !!pixelId/.test(code) && /const pixelId = String\(p\.pixelId/.test(code));
   ok("and no longer for raw link clicks", !/optimization_goal: "LINK_CLICKS"/.test(code),
     "paying for taps that never became a page view");
   // The billing event is what Meta CHARGES on and is deliberately unchanged.
