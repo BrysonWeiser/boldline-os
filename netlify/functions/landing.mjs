@@ -151,7 +151,7 @@ export function renderLandingPage(cl, opts = {}) {
 *{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}
 :root{--r:18px}
 html{scroll-behavior:smooth}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:${P.bg};color:${P.text};line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;--rv:translateY(20px)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:${P.bg};color:${P.text};line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;--rv:20px}
 .sh-soft{--r:12px}.sh-sharp{--r:6px}
 /* EVERYTHING MOVES UP OR DOWN. Bryson, 2026-09-02: "make sure the animations are for up
    and down". The old vocabulary had a sideways slide and a zoom in it; both are gone. The
@@ -160,8 +160,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
    up   = content rises into place (the body default).
    down = content settles down into place.
    alt  = they alternate, so a row arrives from both directions at once. */
-.mo-down{--rv:translateY(-22px)}
-.mo-alt .reveal:nth-child(even){--rv:translateY(-22px)}
+.mo-down{--rv:-22px}
+.mo-alt .reveal:nth-child(even){--rv:-22px}
 a{color:inherit}
 .wrap{max-width:1140px;margin:0 auto;padding:0 20px}
 /* header */
@@ -340,8 +340,17 @@ a{color:inherit}
       stutter in the middle of somebody reading, on the one page we are paying for
       clicks to. Hover and focus effects are exempt: they are brief and only ever
       one element at a time. */
-.js .reveal{opacity:0;transform:var(--rv)}
-.js .reveal.in{opacity:1;transform:none;transition:opacity .6s ease,transform .6s ease}
+/* THE REVEAL MOVES WITH translate, NOT transform, AND THAT IS THE WHOLE POINT.
+   Nearly every element that reveals is also an element you can hover: cards, chips, steps,
+   review tiles. .js .reveal.in outranks .bcard:hover on specificity, so while the reveal
+   owned transform it pinned it to none and EVERY HOVER LIFT ON THE PAGE SILENTLY DID
+   NOTHING. The rules were all there and read correctly; the cards just never moved.
+   translate is a separate property the browser composes with transform, so the two jobs
+   stop competing: the reveal owns translate, every hover and press owns transform.
+   It also makes sideways reveal movement structurally impossible, since --rv is now a
+   single Y offset fed into translate:0 var(--rv) rather than a whole transform string. */
+.js .reveal{opacity:0;translate:0 var(--rv)}
+.js .reveal.in{opacity:1;translate:none;transition:opacity .6s ease,translate .6s ease}
 .js .an{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
 .mo-down .an{animation-name:drop}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
@@ -416,7 +425,7 @@ a{color:inherit}
    three lives on a pseudo-element, so the omission covered the entire motion layer.
    .reveal needs its own line: it is the only thing here whose resting state is invisible,
    so removing its transition alone would freeze it hidden forever. */
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;transform:none!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;translate:none!important}}
 @media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}}
 /* Four cards open out to a single row of four only when the container is genuinely wide
    enough to keep them readable. This block MUST stay after the 720px one: same specificity,
@@ -755,6 +764,60 @@ a{color:inherit}
       });
     });
   }catch(e){}`;
+  // 🔴 THE REVEAL HAS TO KEEP HAPPENING, NOT HAPPEN ONCE.
+  //
+  // Bryson, 2026-09-02: *"make sure the up and down animation happens even after a person has
+  // scrolled through the whole page"*. He was right, and the old version was worse than he
+  // thought. It did two things that between them meant MOST OF THE PAGE NEVER ANIMATED AT ALL:
+  // it un-observed each element the first time it appeared, so nothing could ever play twice,
+  // and a blanket 1.5s safety net revealed EVERY element on the page whether it had been
+  // reached or not. So on a real visit, anything below the first screenful was already marked
+  // revealed before the visitor got anywhere near it, and simply sat there.
+  //
+  // That safety net is not optional, though: it is the only thing standing between us and the
+  // bug it was added for, where a context nobody scrolls (the preview iframe, a screenshot,
+  // a visitor who never moves) shows blank sections where the content should be. So the fix
+  // is four pieces, and each of the four exists for one of the four ways this goes wrong:
+  //
+  //   1. REVEAL observer, tight margin. Adds `in` on entry. No unobserve, so it can fire again.
+  //   2. RE-ARM observer, generous margin. Removes `in` once an element is EDGE px clear of the
+  //      screen, which is where nobody can see it change. Its region strictly contains the
+  //      reveal observer's, so the two can never fight over an element at the boundary.
+  //   3. The 1.5s SAFETY NET, unchanged in what it guarantees: a context that never scrolls
+  //      still ends up showing the whole page.
+  //   4. FIRST SCROLL cancels the safety net and re-arms anything already off screen. This is
+  //      the piece that makes 3 and 1 stop contradicting each other. Without it there are two
+  //      broken visitors: one who scrolls before 1.5s (the net fires anyway and re-reveals
+  //      everything below), and the slow reader who scrolls after it (the net has already run,
+  //      and the re-arm observer will not fire again because those elements' intersection
+  //      state never changed). Both end up with a dead page, which is exactly what he saw.
+  const revealJS = `  var els=[].slice.call(document.querySelectorAll('.reveal'));
+  var EDGE=160;
+  function showAll(){els.forEach(function(el){el.classList.add('in');});}
+  function rearm(){
+    var h=window.innerHeight||0;
+    els.forEach(function(el){
+      var r=el.getBoundingClientRect();
+      if(r.top>h+EDGE||r.bottom< -EDGE)el.classList.remove('in');
+    });
+  }
+  try{
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('in');});
+    },{rootMargin:'0px 0px -6% 0px',threshold:0});
+    var arm=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(!e.isIntersecting)e.target.classList.remove('in');});
+    },{rootMargin:EDGE+'px 0px '+EDGE+'px 0px',threshold:0});
+    els.forEach(function(el){io.observe(el);arm.observe(el);});
+    var net=setTimeout(showAll,1500);
+    var first=function(){
+      window.removeEventListener('scroll',first);
+      clearTimeout(net);
+      rearm();
+    };
+    window.addEventListener('scroll',first,{passive:true});
+  }catch(e){showAll();}`;
+
   const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
@@ -779,13 +842,7 @@ ${convId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
 (function(){
-  var els=[].slice.call(document.querySelectorAll('.reveal'));
-  function showAll(){els.forEach(function(el){el.classList.add('in');});}
-  try{
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{rootMargin:'0px 0px -6% 0px',threshold:.06});
-    els.forEach(function(el){io.observe(el);});
-    setTimeout(showAll,1500);
-  }catch(e){showAll();}
+${revealJS}
 ${formJS}
 })();
 <\/script>
