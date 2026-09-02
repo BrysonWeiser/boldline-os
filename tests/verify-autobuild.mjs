@@ -244,6 +244,42 @@ const runWith = async (clients, over = {}) => {
   // The key is only stamped by the landing step, so the rebuild fires on the NEXT change.
   const p = successPatch("landing", { mediaLibrary: [{ path: "z.jpg" }] }, "t");
   eq("the landing step records which assets it used", p.autoBuild.landingMediaKey, "z.jpg");
+
+// ── 🔴 A PUBLISHED PAGE IS OFF LIMITS TO THE REBUILD ────────────────────────────
+// Bryson, 2026-09-02: *"make sure the os isn't continuously pumping out landing pages
+// and sending for approval, I just got another one for approval when we already
+// published one, I'm not sure if it's because images got added tho"*. It was exactly
+// that, and the extra approval email was the least of it.
+//
+// The builder returns `published: false` by design. So on a LIVE page the media rebuild
+// did not just redraft: it replaced his published copy with a draft, took the page
+// offline, invalidated the approval the client had already given, and would have left a
+// running ad pointing at the coming-soon placeholder while still being paid for.
+//
+// Both halves are asserted, because either one alone would let this back in: the rebuild
+// must still fire before publish (or new photos never reach a page that needs them), and
+// must never fire after (or a bot unpublishes a client's live page).
+{
+  const withPhotos = { ...READY, mediaLibrary: [{ path: "new.jpg" }],
+    autoBuild: { landingAt: "t", landingMediaKey: "old.jpg" } };
+
+  const draft = nextStep({ ...withPhotos, landingPage: { headline: "H", published: false } });
+  eq("new assets still redraft a page that has NOT been published", draft.step, "landing");
+
+  const live = nextStep({ ...withPhotos, landingPage: { headline: "H", published: true } });
+  eq("🔴 new assets never rebuild a page that IS published", live.step, null);
+  ok("and it says why, rather than going quiet", /already published/i.test(live.why), live.why);
+
+  // The signal is not swallowed: the reason names the button that does the job on purpose.
+  ok("it points at the manual way to do it", /regenerate/i.test(live.why), live.why);
+
+  // 🔴 The guard must be the PUBLISHED flag, not the presence of a headline. A drafted page
+  // has a headline too, and gating on that would switch the rebuild off for everyone.
+  const drafted = nextStep({ ...withPhotos, landingPage: { headline: "H" } });
+  eq("a page with a headline but no publish still redrafts", drafted.step, "landing");
+}
+
+
   const c = successPatch("campaign", { mediaLibrary: [{ path: "z.jpg" }] }, "t");
   ok("the campaign step does not touch that key", !("landingMediaKey" in c.autoBuild));
 }
