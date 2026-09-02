@@ -165,3 +165,17 @@ against comment-stripped source.
 - 🔴 **The effective label set is the TABS literal PLUS whatever the `.map` reassigns.** Reading only the array literal reports "Assets" as missing while it is sitting on screen, which is a false failure that would get the guard deleted.
 - Broken both ways to check: reverting the label to per-account, and pointing an instruction at a tab that does not exist. Both caught.
 - **Same family as the two checklist bugs fixed the same day.** The pattern across all three: a second place restating something the OS already knows, drifting from it silently, and only a person noticing.
+
+## ➕ 2026-09-02 (later) — A checklist step doing two people's jobs
+
+**Bryson**, on the launch checklist: *"some of the stuff that says for me to do is already done or doesn't make sense. Like the cost per lead is 50 which is in the contract so that's done but he needs to connect his card still."*
+
+- **"Billing set up" was ONE step covering TWO jobs owned by TWO different people.** Setting the monthly minimum and the per-lead rate is Bryson's and takes a minute. Putting a card on file is the client's and is a chase. The step was owned by `"you"` and ticked off a Stripe id, so it sat unticked telling him to go and do something when the only outstanding half was not his to do.
+- 🔴 **A checklist that hands him a job that is not his is worse than no checklist:** it is a to-do he cannot clear, sitting above the ones he can, and it drags the completion percentage down for a reason he cannot act on.
+- **Split by OWNER**, which is what the file is already organised around:
+  - `rates` (owner **you**) — done when `billingMonthly != null && billingPerLead != null`
+  - `card` (owner **client**) — done when `stripeSubscriptionId` exists
+- 🔴 **Subscription, NOT customer.** The old check was `stripeSubscriptionId || stripeCustomerId`. A Stripe CUSTOMER exists the moment a record is created and proves nothing about a card, so the old test could tick "billing set up" while there was still no way to charge them.
+- The card step now lands in `waitingOnThem`, so the banner chases it instead of the OS nagging him about it.
+- **Both copies changed together** (`index.html` + `netlify/lib/launch-checklist.mjs`); `verify-trade-playbooks` compares them step by step. 🔴 That equivalence check only proves something about a field IF THE FIELD IS IN ITS VARY LIST — a note already in that file from a previous near-miss — so `stripeSubscriptionId`, `billingMonthly` and `billingPerLead` were added there in the same change. Confirmed by desyncing the copies and watching it fail.
+- Required steps went from 10 to 11. Fixtures updated rather than the percentage assertion being loosened.

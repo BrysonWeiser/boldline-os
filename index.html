@@ -934,8 +934,15 @@ function launchChecklist(client){
      next:lcHas(c.docusignEnvelopeId)
        ?"Sent and waiting on their signature. The OS checks every fifteen minutes and ticks this itself, so there is nothing to mark off by hand."
        :"Build it on the Contract tab and send it for signature."},
-    {id:"billing",owner:"you",label:"Billing set up",done:lcHas(c.stripeSubscriptionId)||lcHas(c.stripeCustomerId),
-     next:"Set their monthly minimum and per-lead rate, then start the subscription on the Billing card."},
+    // 🔴 ONE STEP DOING TWO PEOPLE'S JOBS. Bryson, 2026-09-02: *"the cost per lead is 50 which
+    // is in the contract so that's done but he needs to connect his card still."* Split by
+    // OWNER, so the half that is a chase sits in the waiting-on-them bucket the banner reads
+    // from rather than in his pile as a job he cannot clear. Kept identical to
+    // netlify/lib/launch-checklist.mjs, where the full reasoning lives.
+    {id:"rates",owner:"you",label:"Their rates set",done:c.billingMonthly!=null&&c.billingPerLead!=null,
+     next:"Set the monthly minimum and the per-lead rate on the Billing card. If they are in the signed agreement already, copy them across so the OS bills the same numbers."},
+    {id:"card",owner:"client",label:"Their card on file",done:lcHas(c.stripeSubscriptionId),
+     next:"Send them the payment link from the Billing card. They enter their own card, and the subscription starts the moment they do."},
     {id:"adaccount",owner:"client",label:"Their ad account linked",done:lcHas(c.googleAdsCustomerId)||lcHas(c.metaAdAccountId),
      next:"They open Google Ads in their own name on their own card, accept your manager invite, then you paste the customer ID into Edit and Campaign."},
     {id:"details",owner:"you",label:"Campaign details filled in",done:lcHas(cs.mainOffer)&&lcHas(cs.targetLocations),
