@@ -115,6 +115,18 @@ automated.
   `tests/verify-preview-safety.mjs` holds a manifest of every embed and what makes each one safe,
   so a new preview added without a guard FAILS. Add the row when you add the preview. Details in
   KB `preview-safety`.
+- **ANYTHING HE HAS TO DO IN NETLIFY GOES INTO THE 10PM REMINDER (Bryson, 2026-09-02: "make
+  sure anything I have to do with netlify gets sent at 10pm because I can't do it on my
+  phone").** The Netlify dashboard is unusable on a phone and he is on his phone most of the
+  day, so a Netlify instruction given at 2pm is an instruction he cannot act on and will lose.
+  When a task needs a click in Netlify (an env var, a domain alias, a certificate, a manual
+  redeploy), do NOT just explain it in the reply: **add it to that evening's 10pm Phoenix
+  reminder** so every Netlify job lands in one trip. Use `send_later` / `update_trigger`
+  (the standing one is `trig_01A9zh7TN7urCq7p52XbCucd`; if it has already fired, make a new
+  one). 🔴 Convert Phoenix to UTC and convert BACK to confirm, per the Arizona time rule.
+  Tell it to RE-CHECK live state before resending, so the 10pm message reports what is true
+  then rather than repeating what was true earlier. Still explain it in the reply too, in case
+  he is at a computer.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
