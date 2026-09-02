@@ -349,3 +349,14 @@ of dead assertion as the two found in `verify-trade-playbooks` this morning. Rew
 test the **boundary** — at $4,999 combined must be locked, at $5,000 it must open — which
 catches a `>` written for `>=` and catches the floor drifting. Both breaks now confirmed.
 **When an assertion is guaranteed by the data, test the boundary instead.**
+
+## ➕ 2026-09-02 — The Full System packages now cost more per month, not just more to build
+
+**Bryson:** *"for the packages for the full system ones lets make the monthly base a bit higher than the regular systems."*
+
+- **`c-growth` $700 to $900. `c-acquisition` $1,200 to $1,500.** Single-platform tiers unchanged.
+- **Why he is right:** running two channels is more work EVERY MONTH, and only the SETUP fee was ever priced for it (2300 vs 1500, 4900 vs 3000). The monthly minimum was identical to one platform, and the cards said so out loud: *"the same monthly minimum as running one."*
+- 🔴 **The old claim had to die with the price.** "Same monthly minimum" appeared in SIX places (savings field in index.html and portal.mjs, two notes on the marketing site) plus two code comments, and a stale claim sitting next to a contradicting price on the same card is worse than the price itself. Replaced with a stronger claim that is now TRUE: two separate Growth systems are $1,400/mo minimum against $900 combined; two Acquisitions are $2,400 against $1,500.
+- **The test is a BAND, not a number,** so prices can move without it decaying into figures somebody must remember to update: combined must be **above** one platform at the same tier (or the extra monthly work is unpaid) and **below** two bought separately (or nobody would ever combine). Both halves matter and both were broken once to check.
+- 🔴 **A mutation was masked at first:** changing the price in only one catalog copy trips the five-way DRIFT check before the band check is ever reached, so the mutation has to be applied to all copies at once to actually test the band. Worth remembering for any future pricing test.
+- The upgrade ladder still ranks by TIER, not price, so `g-growth -> c-growth` remains a legal upgrade even though it now costs more per month. Pinned.

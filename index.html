@@ -283,11 +283,14 @@ const PACKAGES_DB = {
     { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true, multiCampaign:true  },
   ],
   // No combined Launch tier on purpose — see rule 3 above. Combined costs MORE to
-  // build (two campaign sets) but carries the SAME monthly minimum as one platform
+  // build (two campaign sets) AND a higher monthly minimum than one platform, because
+  // running two channels is more work every month and not just more work to build
+  // (Bryson, 2026-09-02). Still well under buying the two systems separately, which
+  // is the claim the cards now make: $900 against $1,400, and $1,500 against $2,400
   // at the same tier, which is the whole point of rule 2.
   combined: [
-    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:700,  setup:2300, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:5000,  maxBudget:10000, tag:"Best Value",    adSpend:"$5,000 to $10,000/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
-    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1200, setup:4900, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null, tag:"Most Powerful", adSpend:"$10,000+/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
+    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:900,  setup:2300, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:5000,  maxBudget:10000, tag:"Best Value",    adSpend:"$5,000 to $10,000/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels for less than two separate systems" },
+    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1500, setup:4900, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null, tag:"Most Powerful", adSpend:"$10,000+/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels for less than two separate systems" },
   ],
   // E-commerce cannot use per-lead pricing: there is no lead, there is a sale, and it
   // happens without BoldLine touching it. So the performance half is a % of ad spend.
@@ -6032,8 +6035,15 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                    .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
-    {key:"billing",label:"Billing Connected",done:false,note:"BoldLine is finishing setup — coming soon."},
-    {key:"ads",label:"Ad Accounts Linked",done:false,note:"BoldLine is finishing setup — coming soon."},
+    // 🔴 THESE TWO WERE HARDCODED `done:false` WITH A CANNED "coming soon" NOTE. Bryson,
+    // 2026-09-02: *"make sure all the checklists are accurate."* Both facts sit on the client
+    // record and always did, so this card kept saying setup had not happened while the Launch
+    // Checklist on the same screen read the same fields and said it had. A row that cannot
+    // ever tick is not a checklist row, it is a label. Same test launchChecklist uses.
+    {key:"billing",label:"Billing Connected",done:lcHas(client.stripeSubscriptionId)||lcHas(client.stripeCustomerId),
+     note:(lcHas(client.stripeSubscriptionId)||lcHas(client.stripeCustomerId))?"Subscription on file.":"No Stripe customer or subscription yet."},
+    {key:"ads",label:"Ad Accounts Linked",done:lcHas(client.googleAdsCustomerId)||lcHas(client.metaAdAccountId),
+     note:(lcHas(client.googleAdsCustomerId)||lcHas(client.metaAdAccountId))?"Ad account linked.":"Waiting on their ad account id."},
     {key:"campaign",label:"Campaign Setup",done:!!(client.campaignSetup&&client.campaignSetup.mainOffer),note:(client.campaignSetup&&client.campaignSetup.mainOffer)?"Offer & targeting on file.":"Waiting on client input."},
     {key:"brand",label:"Brand Voice",done:!!(client.brandVoice&&client.brandVoice.tone),note:(client.brandVoice&&client.brandVoice.tone)?"Tone & competitors on file.":"Waiting on client input."},
     {key:"media",label:"Media Library",done:!!(client.mediaLibrary&&client.mediaLibrary.length>0),note:(client.mediaLibrary&&client.mediaLibrary.length>0)?`${client.mediaLibrary.length} file${client.mediaLibrary.length===1?"":"s"} uploaded.`:"No assets uploaded yet."},
@@ -6370,15 +6380,25 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               </div>
               {days<=30&&days>=0&&<div style={{marginTop:7,padding:"6px 9px",borderRadius:8,backgroundColor:days<=7?"rgba(239,68,68,.08)":"rgba(245,158,11,.08)",border:`1px solid ${days<=7?C.red:C.amber}33`,fontSize:11,color:days<=7?C.red:C.amber,fontWeight:600}}>{days<=7?"🔴 Urgent:":"🟡"} {days} day{days!==1?"s":""} left — {days<=7?"contact client immediately.":"start renewal conversation on next call."}</div>}
             </Card>}
-            {!client.internal&&<Card>
-              <Label>Onboarding Checklist</Label>
-              {[{l:"Contract signed",done:client.contractSigned},{l:"Intake form complete",done:client.intakeComplete},{l:"Call tracking set up",done:!!client.callTrackingNumber||(!!(pkg && pkg.callTracking)&&client.stage!=="onboarding")},{l:"Landing page built",done:!!(client.landingPage&&client.landingPage.published)||["review","active","optimizing","scaling"].includes(client.stage)},{l:"Ads built and approved",done:["review","active","optimizing","scaling"].includes(client.stage)},{l:"Tracking verified",done:["active","optimizing","scaling"].includes(client.stage)},{l:"Campaign live",done:["active","optimizing","scaling"].includes(client.stage)}].map(({l,done})=>(
-                <div key={l} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:`1px solid ${C.border2}`}}>
-                  <span style={{fontSize:13,color:done?C.green:C.textMuted,flexShrink:0}}>{done?"✓":"○"}</span>
-                  <span style={{fontSize:12,color:done?C.text:C.textMuted}}>{l}</span>
-                </div>
-              ))}
-            </Card>}
+            {/* 🔴 THE SECOND ONBOARDING CHECKLIST IS GONE, AND THIS NOTE IS SO IT DOES NOT COME BACK.
+                Bryson, 2026-09-02, with a screenshot of it: *"make sure all the checklists are accurate.
+                This one isnt."* He had just built AND published the landing page and this card still said
+                "Landing page built" was not done.
+
+                It was a hardcoded seven-row list sitting on the SAME TAB as LaunchChecklistCard above,
+                which reads the real record. So the screen showed two checklists that disagreed, and the
+                wrong one was the one further down the page.
+
+                🔴 Four of its seven rows observed NOTHING. "Ads built and approved", "Tracking verified"
+                and "Campaign live" were the identical expression, stage being one of active/optimizing/
+                scaling, so they could never disagree with each other and all three ticked the instant a
+                dropdown was changed, whether or not a single ad existed. "Landing page built" and "Call
+                tracking set up" had the same stage escape hatch bolted on beside their real check.
+
+                A checklist that reports a label instead of the work is the exact complaint already
+                recorded in KB house-pipeline-honesty. There is one checklist now, launchChecklist(),
+                which is mirrored in netlify/lib/launch-checklist.mjs with a test comparing the two copies
+                step by step, and every one of its rows is read off the client record. */}
             {client.notes&&(
               <Card>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>

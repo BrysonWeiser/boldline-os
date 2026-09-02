@@ -137,15 +137,35 @@ eq("there is no combined Launch tier", os.ALL_PKGS.filter((p) => p.id === "c-lau
 // The old catalog charged $600 for Google Growth and $550 for Meta Growth for no
 // defensible reason. A prospect who wants Facebook instead of Google is not buying a
 // different-value product, so the price may not move. Setup may not move either: both
-// are one build. Only COMBINED costs more, and only in setup.
+// are one build. Only COMBINED costs more, in setup AND, since 2026-09-02, per month.
+//
+// 🔴 THE COMBINED MINIMUM USED TO EQUAL THE SINGLE-PLATFORM ONE, and the cards said so out
+// loud: "the same monthly minimum as running one". Bryson, 2026-09-02: *"for the packages
+// for the full system ones lets make the monthly base a bit higher than the regular
+// systems."* He is right. Two channels is more work EVERY MONTH, not just more work to
+// build, and only the setup fee was ever priced for that.
+//
+// The rule that replaces it is a BAND rather than a number, so the exact prices can move
+// without this test decaying into a list of figures somebody has to remember to update:
+//   above  one platform at the same tier, or the extra monthly work is unpaid
+//   below  two platforms bought separately, or nobody would ever combine
+// Both halves carry weight. Lose the lower bound and the change undoes itself silently;
+// lose the upper and the combined system quietly stops being worth buying at all.
 for (const tier of ["launch", "growth", "acquisition"]) {
   const inTier = os.ALL_PKGS.filter((p) => p.tier === tier && !p.id.startsWith("e-"));
   const single = inTier.filter((p) => !p.id.startsWith("c-"));
+  const combined = inTier.filter((p) => p.id.startsWith("c-"));
   ok(`${tier}: both single platforms exist`, single.length === 2, `found ${single.map((p) => p.id).join(",")}`);
   eq(`${tier}: Google and Meta share a monthly minimum`, single[0].price, single[1].price);
   eq(`${tier}: Google and Meta share a setup fee`, single[0].setup, single[1].setup);
-  for (const p of inTier) {
+  for (const p of single) {
     eq(`${tier}: ${p.id} carries the tier minimum`, p.price, single[0].price);
+  }
+  for (const p of combined) {
+    ok(`${tier}: ${p.id} costs more per month than one platform`, p.price > single[0].price,
+      `combined ${p.price} against single ${single[0].price}. Running two channels is more work every month`);
+    ok(`${tier}: ${p.id} still beats buying both separately`, p.price < single[0].price * 2,
+      `combined ${p.price} against ${single[0].price * 2} for two. At or above that, combining buys nothing`);
   }
 }
 
@@ -427,7 +447,13 @@ for (const [from, to] of [["g-growth", "c-growth"], ["m-growth", "c-growth"], ["
     os.getUpgradeOptions(from).some((p) => p.id === to),
     `only offered ${os.getUpgradeOptions(from).map((p) => p.id).join(",") || "nothing"}`);
 }
-eq("g-growth -> c-growth really is the same monthly minimum", osPkgs["c-growth"].price, osPkgs["g-growth"].price);
+// 🔴 The upgrade ladder ranks by TIER, not price. This is what proves it did not quietly
+// go back to ranking by price when the combined minimum went up: g-growth and c-growth
+// share a tier, so c-growth must stay a legal upgrade even though it now costs more per
+// month than the package being upgraded from.
+ok("g-growth -> c-growth is still an upgrade, despite now costing more per month",
+  osPkgs["c-growth"].price > osPkgs["g-growth"].price,
+  `c-growth ${osPkgs["c-growth"].price} against g-growth ${osPkgs["g-growth"].price}`);
 
 // The top rung closes both Acquisition dead ends. Assert the paths exist AND that they
 // are genuinely additive, since that was the whole reason c-growth could not serve here.

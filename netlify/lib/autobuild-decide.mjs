@@ -81,8 +81,29 @@ export function nextStep(client) {
   // 2. Rebuild the page when the client's assets have changed since it was written.
   //    Only ever when there are assets NOW: going from some to none should not throw away a
   //    working page, and a client who deletes a photo is not asking for a rewrite.
+  //
+  // 🔴 AND NEVER ONCE THE PAGE IS PUBLISHED. Bryson, 2026-09-02: *"make sure the os isn't
+  // continuously pumping out landing pages and sending for approval, I just got another one
+  // for approval when we already published one, I'm not sure if it's because images got
+  // added tho"*. It was exactly that, and the consequence was worse than the extra email he
+  // noticed. `realLanding` returns `published: false` by design, because this job drafts and
+  // Bryson publishes. So a photo uploaded from the client's own portal, which is precisely
+  // what that portal invites them to do, would REWRITE A LIVE PAGE AND TAKE IT OFFLINE:
+  // his published copy replaced by a fresh draft, the client's approval invalidated, and any
+  // running ad pointing at the coming-soon placeholder while still being paid for.
+  //
+  // This restores the rule the rest of this file already lives by, stated at successPatch:
+  // the bot never overwrites work Bryson has committed to. The media exception was carved
+  // out of that rule and was carved too wide. Before publish it is a helpful redraft; after
+  // publish it is a bot silently unpublishing a client's live page.
+  //
+  // New assets on a live page are now HIS call: the Regenerate button on the Assets tab does
+  // the same job, on purpose, whenever he actually wants it.
   const nowKey = mediaKey(c);
   if (ab.landingAt && nowKey && nowKey !== (ab.landingMediaKey || "")) {
+    if (lp.published) {
+      return { step: null, why: "New assets uploaded, but the page is already published. Regenerate it by hand on the Assets tab if you want them on it." };
+    }
     return { step: "landing", why: "" };
   }
 

@@ -22,11 +22,14 @@ const PACKAGES_DB = {
     { id:"m-acquisition", name:"Acquisition System", platform:"Meta Ads",      price:1200, setup:3000, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null,  tag:"",            adSpend:"$10,000+/mo",      optimizationFreq:"weekly",  callTracking:false, weeklyOptimization:true,  customLandingPage:true,  retargeting:true,  splitTesting:true,  crmIntegration:true, multiCampaign:true  },
   ],
   // No combined Launch tier on purpose — see rule 3 above. Combined costs MORE to
-  // build (two campaign sets) but carries the SAME monthly minimum as one platform
+  // build (two campaign sets) AND a higher monthly minimum than one platform, because
+  // running two channels is more work every month and not just more work to build
+  // (Bryson, 2026-09-02). Still well under buying the two systems separately, which
+  // is the claim the cards now make: $900 against $1,400, and $1,500 against $2,400
   // at the same tier, which is the whole point of rule 2.
   combined: [
-    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:700,  setup:2300, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:5000,  maxBudget:10000, tag:"Best Value",    adSpend:"$5,000–$10,000/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
-    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1200, setup:4900, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null, tag:"Most Powerful", adSpend:"$10,000+/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels, same monthly minimum" },
+    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", price:900,  setup:2300, leadFee:true, pricingModel:"per_lead", tier:"growth",      minBudget:5000,  maxBudget:10000, tag:"Best Value",    adSpend:"$5,000–$10,000/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels for less than two separate systems" },
+    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", price:1500, setup:4900, leadFee:true, pricingModel:"per_lead", tier:"acquisition", minBudget:10000, maxBudget:null, tag:"Most Powerful", adSpend:"$10,000+/mo", optimizationFreq:"weekly", callTracking:true, weeklyOptimization:true, customLandingPage:true, retargeting:true, splitTesting:true, crmIntegration:true, multiCampaign:true, savings:"Both channels for less than two separate systems" },
   ],
   // E-commerce cannot use per-lead pricing: there is no lead, there is a sale, and it
   // happens without BoldLine touching it. So the performance half is a % of ad spend.

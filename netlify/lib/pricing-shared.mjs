@@ -46,8 +46,8 @@ export const PACKAGES = [
   { id: "m-launch",      name: "Launch System",      platform: "Meta Ads",      price: 400,  setup: 750,  leadFee: true,  pricingModel: "per_lead", adSpend: "$500 to $2,500/mo",   minBudget: 500, maxBudget: 2500, tier: "launch"      },
   { id: "m-growth",      name: "Growth System",      platform: "Meta Ads",      price: 700,  setup: 1500, leadFee: true,  pricingModel: "per_lead", adSpend: "$2,500 to $10,000/mo", minBudget: 2500, maxBudget: 10000, tier: "growth"     },
   { id: "m-acquisition", name: "Acquisition System", platform: "Meta Ads",      price: 1200, setup: 3000, leadFee: true,  pricingModel: "per_lead", adSpend: "$10,000+/mo",      minBudget: 10000, maxBudget: null, tier: "acquisition" },
-  { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 700,  setup: 2300, leadFee: true, pricingModel: "per_lead", adSpend: "$5,000 to $10,000/mo", minBudget: 5000, maxBudget: 10000, tier: "growth"     },
-  { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1200, setup: 4900, leadFee: true, pricingModel: "per_lead", adSpend: "$10,000+/mo", minBudget: 10000, maxBudget: null, tier: "acquisition" },
+  { id: "c-growth",      name: "Full System — Growth", platform: "Google + Meta", price: 900,  setup: 2300, leadFee: true, pricingModel: "per_lead", adSpend: "$5,000 to $10,000/mo", minBudget: 5000, maxBudget: 10000, tier: "growth"     },
+  { id: "c-acquisition", name: "Full System — Acquisition", platform: "Google + Meta", price: 1500, setup: 4900, leadFee: true, pricingModel: "per_lead", adSpend: "$10,000+/mo", minBudget: 10000, maxBudget: null, tier: "acquisition" },
   // One-time build, no management. $1,500 sits below managed Launch across its
   // 3-month minimum ($750 + 3 x $400 = $1,950) but above the $750 managed setup,
   // which is deliberately underpriced because it buys a recurring client.
