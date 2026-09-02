@@ -90,6 +90,12 @@ const B = new Function(`${browserSrc}
     ["docusignEnvelopeId", "env-1"],
     ["contractSigned", true],
     ["stripeCustomerId", "cus_1"],
+    // The billing step split by owner on 2026-09-02, so the rules now read these three
+    // instead of just a Stripe id. Per the note above, a field a rule reads has to be in
+    // this list or the equivalence between the two copies proves nothing about it.
+    ["stripeSubscriptionId", "sub_1"],
+    ["billingMonthly", 900],
+    ["billingPerLead", 50],
     ["googleAdsCustomerId", "123"],
     ["conversionId", "AW-1"],
     ["conversionActions", { form: { label: "L" }, qualified: { resourceName: "r" } }],
@@ -254,7 +260,7 @@ const B = new Function(`${browserSrc}
 
   // A CRM is genuinely optional, so it must never block a launch.
   const noCrm = serverChecklist({
-    contractSigned: true, stripeCustomerId: "c", googleAdsCustomerId: "1",
+    contractSigned: true, stripeSubscriptionId: "sub", billingMonthly: 900, billingPerLead: 50, googleAdsCustomerId: "1",
     conversionId: "AW-1", conversionActions: { form: { label: "L" }, qualified: { resourceName: "r" } },
     campaignSetup: { mainOffer: "o", targetLocations: "t", landingDomain: "d", excludedKeywords: "k" },
     landingPage: { published: true, headline: "h" }, campaigns: [{ id: 1 }],
@@ -269,22 +275,29 @@ const B = new Function(`${browserSrc}
   // identical and the assertion was guaranteed by arithmetic. What is worth guarding is
   // that the percentage counts the REQUIRED steps, which a real bug could get wrong by
   // counting all of them, or by counting the optional one as done.
-  const oneShort = { contractSigned: true, stripeCustomerId: "c", googleAdsCustomerId: "1",
+  const oneShort = { contractSigned: true, stripeSubscriptionId: "sub", billingMonthly: 900, billingPerLead: 50, googleAdsCustomerId: "1",
     conversionId: "AW-1", conversionActions: { form: { label: "L" }, qualified: { resourceName: "r" } },
     campaignSetup: { mainOffer: "o", targetLocations: "t", landingDomain: "d", excludedKeywords: "k" },
     landingPage: { published: true, headline: "h" }, campaigns: [{ id: 1 }] };   // not live yet
   const nearly = serverChecklist(oneShort);
-  eq("nine of ten reads as nine of ten", `${nearly.done}/${nearly.total}`, "9/10");
-  eq("and as 90 percent, not 100", nearly.percent, 90);
+  eq("ten of eleven reads as ten of eleven", `${nearly.done}/${nearly.total}`, "10/11");
+  eq("and as 90 percent, not 100", nearly.percent, Math.floor(10 / 11 * 100));
   eq("and is not ready", nearly.ready, false);
   eq("with the last step named", nearly.next.id, "live");
   // The optional CRM step is absent here, so it must not be counted in either number.
-  eq("the optional step is excluded from the total", nearly.total, 10);
+  eq("the optional step is excluded from the total", nearly.total, 11);
 
   // Waiting on someone else needs chasing, not doing, and the two get confused in one list.
-  const waiting = serverChecklist({ contractSigned: true, stripeCustomerId: "c" });
+  const waiting = serverChecklist({ contractSigned: true, billingMonthly: 900, billingPerLead: 50 });
   ok("what you are waiting on someone else for is separated",
     waiting.waitingOnThem.some((s) => s.id === "adaccount"));
+  // 🔴 The whole point of splitting the billing step: the rates are his and are done, and
+  // the card is the client's and is a chase. Before the split this sat in HIS pile as a
+  // job he could not clear, above the ones he could.
+  ok("a card he cannot enter for them is a chase, not one of his jobs",
+    waiting.waitingOnThem.some((s) => s.id === "card"));
+  ok("and the rates he has already set do not nag him",
+    !waiting.steps.some((s) => s.id === "rates" && !s.done));
   ok("and your own jobs are not in that list",
     !waiting.waitingOnThem.some((s) => s.owner === "you"));
   ok("every step names who has to move", empty.steps.every((s) => !!OWNERS[s.owner]));

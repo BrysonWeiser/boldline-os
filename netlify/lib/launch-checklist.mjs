@@ -53,10 +53,28 @@ export function launchChecklist(client) {
         ? "Sent and waiting on their signature. The OS checks every fifteen minutes and ticks this itself, so there is nothing to mark off by hand."
         : "Build it on the Contract tab and send it for signature.",
     },
+    // 🔴 THIS WAS ONE STEP DOING TWO PEOPLE'S JOBS. Bryson, 2026-09-02: *"the cost per lead
+    // is 50 which is in the contract so that's done but he needs to connect his card still."*
+    // "Billing set up" was owned by HIM and ticked off a Stripe id, so it sat unticked and
+    // told him to go and do something when the only outstanding half belonged to the client.
+    // A checklist that hands him a job that is not his is worse than no checklist: it is a
+    // to-do he cannot clear, sitting above the one he can.
+    //
+    // Split by OWNER, which is what the whole file is organised around. Setting the rates is
+    // his and takes a minute. Putting a card on file is the client's and is a chase, so it
+    // belongs in the "waiting on them" bucket the banner reads from, not in his pile.
     {
-      id: "billing", owner: "you", label: "Billing set up",
-      done: has(c.stripeSubscriptionId) || has(c.stripeCustomerId),
-      next: "Set their monthly minimum and per-lead rate, then start the subscription on the Billing card.",
+      id: "rates", owner: "you", label: "Their rates set",
+      done: c.billingMonthly != null && c.billingPerLead != null,
+      next: "Set the monthly minimum and the per-lead rate on the Billing card. If they are in the signed agreement already, copy them across so the OS bills the same numbers.",
+    },
+    {
+      // 🔴 Subscription, not customer. A Stripe CUSTOMER exists the moment a record is made
+      // and proves nothing about a card, so the old `|| stripeCustomerId` would tick this
+      // while there was still no way to charge them.
+      id: "card", owner: "client", label: "Their card on file",
+      done: has(c.stripeSubscriptionId),
+      next: "Send them the payment link from the Billing card. They enter their own card, and the subscription starts the moment they do.",
     },
     {
       id: "adaccount", owner: "client", label: "Their ad account linked",
