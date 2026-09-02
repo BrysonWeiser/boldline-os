@@ -65,3 +65,11 @@ Always returns `{ok:true}` for a valid email so the UX never breaks.
 - **Still on Bryson to do in Netlify:** set `NEWSLETTER_SENDING_ENABLED=1` on the **OS site**
   (`boldlinemedia`, no hyphen) → Site configuration → Environment variables, **then trigger a
   redeploy**, because an env var change does not reach running functions until the next deploy.
+
+## 🔴 CORRECTION 2026-09-02 — SENDING WAS ALREADY ON. I reported it as off and was wrong.
+
+- I checked the CODE, saw `NEWSLETTER_SENDING_ENABLED === "1"` is required, said so, and then reported the newsletter as **"switched off"** in a health check. **I could not read Netlify's env vars and said so in the same breath.** That was a leap from *"requires explicit enabling"* to *"is not enabled"*, and it was wrong: Bryson opened Netlify and the value was **already `1`**. Sending has been live all along.
+- **Never state a live setting from what the code's default would be.** Either read it or say it is unknown.
+- 🔴 **THE CORRECTION CHANGES WHAT THE STALENESS RULE MEANS.** `STALE_AFTER_HOURS = 48` was written believing sending was dormant, so retiring meant clearing a deliberately parked backlog and there was nothing to report. **With a WORKING sender, an email can only reach 48h past its send time if sending has been FAILING for two days.** Send errors inside `sendDueNewsletters` are caught and logged, and `withFailureAlert` only fires when the whole run throws, so nothing reports that.
+- **The pile of unsent emails was the only visible evidence of a broken sender.** Retiring quietly would have swept it away and left a failing sender looking healthy, which is worse than the backlog the rule was written to prevent. **So a retire now raises an amber owner alert** naming the count AND whether sending was on, because that is what decides whether it is routine housekeeping or the only sign of a two-day outage. A failing alert never brings the run down, since the companion draft it just created would be lost with it.
+- Also settled: there was almost certainly **never a backlog**. With sending live the hourly job has been clearing due emails all along.
