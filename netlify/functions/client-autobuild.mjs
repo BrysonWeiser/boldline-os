@@ -62,7 +62,7 @@ export async function runAutobuild({ loadClients, buildLanding, buildCampaign, s
           : `Approve ${cl.name}'s campaign`,
         detail: step === "landing"
           ? "Written and saved as a draft. Read it on the Assets tab, then publish it when you are happy. Nothing is live yet."
-          : "Built and paused. Read it on the Campaigns tab, then approve it to make it live. Nothing is spending yet.",
+          : "Built and paused. Read it on the Campaigns screen (More, then Campaigns), then approve it to make it live. Nothing is spending yet.",
         cat: step === "landing" ? "build" : "launch", ts: Date.now(),
       }, ...(cl.pendingActions || [])];
 

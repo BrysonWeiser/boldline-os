@@ -152,3 +152,16 @@ phrases are gone matched **my own comment explaining which phrases were removed*
 now stripped before that assertion, as several other suites already do. Recorded again in
 `repo-tests` because it keeps recurring: *any* assertion that some text is absent must run
 against comment-stripped source.
+
+## ➕ 2026-09-02 — The OS was sending him to tabs that do not exist
+
+**Bryson:** *"there isn't an assets tab can you add it"*. There was, and it held exactly what he wanted: the media library, the landing page with Publish and Regenerate, the approvals queue and a portal preview.
+
+- 🔴 **The tab was only LABELLED "Assets" on the house account.** On a client record the same tab read **"Client View"**, which names only the first card on it. One line did it: the `.map` after `TABS` renamed `portal` to "Assets" and `package` to "Campaigns" **only when `client.internal`**.
+- **That made the product wrong out loud, not just untidy.** SEVEN separate pieces of the OS's own guidance say *"on the Assets tab"* (launch checklist, autobuild alerts, pipeline next-steps), so on every client record the OS was giving directions to a tab that did not exist under that name. It had been doing that for months with nothing noticing.
+- **Fix: `portal` is labelled "Assets" on every account.** `package` keeps its house-account-only rename. Now every existing instruction is true.
+- 🔴 **THE NEW GUARD CAUGHT A SECOND INSTANCE OF THE SAME BUG ON ITS FIRST RUN.** Four pieces of guidance said *"on the Campaigns tab"* and **Campaigns is not a tab at all** — it is a top-level screen reached from More. All of them now say "on the Campaigns screen (More, then Campaigns)".
+- **Enforced in `verify-app-boots.mjs`:** it extracts every *"on the X tab"* instruction across index.html, `autobuild-decide`, `launch-checklist` and `client-autobuild`, and asserts each names a real tab. It also pins the Assets label to those instructions so the two can only move together, and asserts the label does NOT depend on `client.internal`, which is exactly how it broke. Comments are stripped first so prose about the rule cannot be mistaken for the rule.
+- 🔴 **The effective label set is the TABS literal PLUS whatever the `.map` reassigns.** Reading only the array literal reports "Assets" as missing while it is sitting on screen, which is a false failure that would get the guard deleted.
+- Broken both ways to check: reverting the label to per-account, and pointing an instruction at a tab that does not exist. Both caught.
+- **Same family as the two checklist bugs fixed the same day.** The pattern across all three: a second place restating something the OS already knows, drifting from it silently, and only a person noticing.
