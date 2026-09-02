@@ -44,12 +44,43 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { mergeHouseLeads, PRUNE_LIMIT } from "../lib/house-leads-merge.mjs";
+import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
-export default async () => {
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
+// 🔴 EVERY FAILURE IN HERE USED TO REPORT SUCCESS. Bryson, 2026-09-02: *"also make sure
+// the lead check is running."* His My Ads card was saying the check had not run in FOUR
+// hours, against a fifteen-minute schedule.
+//
+// The heartbeat design was right and it is what told him: it refreshes at least hourly, so
+// a stale timestamp means the job is not completing. But every error path below returned
+// `json({ ok: true, error: ... })` — HTTP 200, ok TRUE. Netlify saw ninety-six successful
+// runs a day. Nothing retried, nothing alerted, and the failure dashboard stayed clean.
+// The only surviving signal was one line of amber text on one card, which happened to be
+// noticed. This file's own comment says a failed read must never look like a real zero;
+// that held for the SCREEN and not for the alerting.
+//
+// So: wrapped so a throw alerts, and each swallowed error now raises one too, naming the
+// step that failed. The returns stay 200 on purpose — a scheduled function that 500s gets
+// retried by Netlify, and re-running a merge that already half-wrote is worse than waiting
+// fifteen minutes for the next clean pass.
+const warn = async (step, detail) => {
+  console.error(`house-leads: ${step}: ${detail}`);
+  try {
+    await dispatchAlert({
+      title: "Lead check is not running",
+      body: `The 15-minute job that mirrors website leads onto My Ads failed at "${step}": ${detail}. While this is failing the lead count on My Ads is frozen and new leads will not appear there. Check Netlify, Logs, Functions, house-leads.`,
+      severity: "red",
+    });
+  } catch (e) { console.error("house-leads: alert failed:", e && e.message); }
+};
+
+export default withFailureAlert("house-leads", async () => {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    await warn("startup", "SUPABASE_SERVICE_ROLE_KEY is missing");
+    return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
+  }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   try {
@@ -57,14 +88,14 @@ export default async () => {
     // normal state (he can delete and re-add it), not an error.
     const { data: houses, error: clErr } = await supabase
       .from("clients").select("id, data").eq("data->>internal", "true").limit(1);
-    if (clErr) return json({ ok: true, error: `clients read failed: ${clErr.message}`, added: 0 });
+    if (clErr) { await warn("reading the client list", clErr.message); return json({ ok: true, error: `clients read failed: ${clErr.message}`, added: 0 }); }
     const house = (houses || [])[0];
     if (!house) return json({ ok: true, house: false, added: 0 });
 
     const { data: rows, error: wlErr } = await supabase
       .from("website_leads").select("id, created_at, form, name, business, email, message, status, payload")
       .order("created_at", { ascending: false }).limit(PRUNE_LIMIT);
-    if (wlErr) return json({ ok: true, error: `website_leads read failed: ${wlErr.message}`, added: 0 });
+    if (wlErr) { await warn("reading website_leads", wlErr.message); return json({ ok: true, error: `website_leads read failed: ${wlErr.message}`, added: 0 }); }
 
     const leads = rows || [];
     const cl = house.data || {};
@@ -91,12 +122,12 @@ export default async () => {
     const { error: upErr } = await supabase.from("clients")
       .update({ data: { ...cl, leadsLog: kept, leads: kept.length, leadSync }, updated_at: new Date().toISOString() })
       .eq("id", house.id);
-    if (upErr) return json({ ok: true, error: `client update failed: ${upErr.message}`, added: 0 });
+    if (upErr) { await warn("saving the mirrored leads", upErr.message); return json({ ok: true, error: `client update failed: ${upErr.message}`, added: 0 }); }
 
     console.log(`house-leads: ${leads.length} website lead(s) scanned \u2014 ${added} added, ${updated} status-synced, ${pruned} pruned.`);
     return json({ ok: true, house: true, scanned: leads.length, added, updated, pruned, total: kept.length });
   } catch (e) {
-    console.error("house-leads failed:", e && e.message);
+    await warn("the run itself", String((e && e.message) || e));
     return json({ ok: true, error: String((e && e.message) || e), added: 0 });
   }
-};
+});

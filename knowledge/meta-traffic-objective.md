@@ -65,3 +65,21 @@ Bryson checked Netlify Forms (on the MARKETING site; 🔴 I first sent him to th
 So: **171 clicks in 30 days produced zero submissions of any kind on the page the ad points at.** Nothing is broken. The campaign is buying page views and getting them.
 
 🔴 **Change ONE thing.** The objective is the primary fix. The page converting 0 of 171 is not separately damning while the traffic is low-intent by construction — changing the objective and the page at once would leave no way to tell which mattered.
+
+## ✅ 2026-09-02 — BUILT. The objective is now a per-client choice, and the pixel is the switch.
+
+**Bryson asked the right question first:** *"would going for leads still be good especially because the original purpose of this campaign was to send to meta?"* The campaign exists to earn Meta's Marketing API tier, not to sell. 🔴 **Checking the rejection settled it: chasing leads SERVES that purpose rather than fighting it.** The plan of 2026-08-28 says the reviewer wanted live impressions, clicks, reach, spend **and conversions**, and that *"one column is still empty, and it is the one the reviewer named: CONVERSIONS"* — which is exactly why resubmission was pushed from 4 Sep to **Thu 10 Sep**. A page-views campaign can never fill that column. The other rejection reason (API call volume) is fed by `ads-sync` hourly and is unaffected by which campaign exists.
+
+**What changed in `meta-ads.mjs` `createCampaign`:**
+- `objective`: `OUTCOME_LEADS` when a pixel id is supplied, else `OUTCOME_TRAFFIC` as before
+- `optimization_goal`: `OFFSITE_CONVERSIONS` vs `LANDING_PAGE_VIEWS`
+- `promoted_object`: `{pixel_id, custom_event_type: "LEAD"}`
+- `destination_type: "WEBSITE"` — 🔴 **stated explicitly, or Meta may serve an on-Facebook instant form**, which bypasses the landing page, the lead pipeline and the CRM forward completely.
+
+🔴 **THE SWITCH IS A PASTED PIXEL ID, NEVER SOMETHING DETECTED.** New client field `metaPixelId` ("Meta Pixel ID (turns the ad into a lead chaser)"). Two failure modes justify that: a client with no pixel gets the campaign **rejected at creation** (the original comment's reason for hardcoding traffic), and worse, optimising for a LEAD event on a pixel that never fires one makes Meta under-deliver and buy nothing — quieter and worse than rejection.
+
+**BoldLine's own pixel: `2164699294444030`** (web dataset "BoldLine Website"). `blConversion('form')` fires on the `get-started` submit and maps to the `Lead` event, so there is a real event to optimise toward. Caveat: the pixel has never recorded a Lead, so early delivery may be slow while Meta has no signal to learn from.
+
+**Advice given, not yet done:** run the new Leads campaign alongside the existing Traffic one for 2-3 days before pausing the old one, so impressions and spend never dip in the days before the 10 Sep resubmission. Roughly $20 of overlap against a rejection that costs weeks.
+
+**Loose end, stated rather than hidden:** the ads page carries a SECOND form (the Lead-Leak Check) that posts to `/.netlify/functions/audit`, not Netlify Forms. So "zero in Netlify Forms" does not strictly prove zero submissions; an audit request would appear in the OS Leads tab instead.
