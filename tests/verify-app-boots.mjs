@@ -111,5 +111,62 @@ ok("no hook is destructured that the app never calls", surplus.length === 0, `un
   }
 }
 
+// ── 🔴 THE OS MAY NOT SEND HIM TO A TAB THAT IS NOT THERE ────────────────────────
+// Bryson, 2026-09-02: *"there isn't an assets tab can you add it"*. There was. It held
+// the media library, the landing page with its Publish and Regenerate buttons, the
+// approvals queue and a portal preview. But it was only LABELLED "Assets" on the house
+// account; on a client record the same tab read "Client View".
+//
+// That was not a tidiness problem. SEVEN separate pieces of the OS's own guidance say
+// "on the Assets tab" — the launch checklist, the autobuild alerts, the pipeline next
+// steps — so on every client record the product was giving directions to a tab that did
+// not exist under that name, and it did that for months without anything noticing.
+//
+// This pins the label to the instructions. Rename the tab and the guidance keeps saying
+// Assets, so this fails. Reword the guidance and the tab keeps saying Assets, so this
+// fails. They can only move together.
+{
+  const guidance = [
+    S,
+    readFileSync(join(ROOT, "netlify/lib/autobuild-decide.mjs"), "utf8"),
+    readFileSync(join(ROOT, "netlify/lib/launch-checklist.mjs"), "utf8"),
+    readFileSync(join(ROOT, "netlify/functions/client-autobuild.mjs"), "utf8"),
+  ].join("\n");
+
+  // Every instruction that names the tab, with the comments stripped so this file's own
+  // prose about the rule can never be mistaken for the rule. That mistake has been made
+  // in this repo before.
+  const code = guidance.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const named = [...code.matchAll(/on the ([A-Z][A-Za-z ]{1,14}?) tab/g)].map((m) => m[1]);
+  ok("the OS does tell him which tab to use", named.length >= 5, `${named.length} such instructions`);
+
+  const mapLine = (/\.map\(\(\[k,label\]\)=>[^\n]*/.exec(S) || [""])[0];
+  const TAB_LINE = /\.map\(\(\[k,label\]\)=> k==="portal" \? \[k,"Assets"\]/;
+  ok("and the tab those instructions name is actually labelled that", TAB_LINE.test(S),
+    "the portal tab is no longer unconditionally labelled Assets, so every 'on the Assets tab' instruction now points at nothing");
+
+  // 🔴 The label must not depend on which account is open, which is exactly how it broke.
+  // Matched on the ONE map line, not with a loose gap that could wander across unrelated
+  // code elsewhere in a 1.1MB file. A pattern that can match somebody else's code is not
+  // a test, which this repo has learned the hard way more than once.
+  ok("the label does not depend on whether it is the house account",
+    /^\.map\(\(\[k,label\]\)=> k==="portal" \? \[k,"Assets"\]/.test(mapLine.trim()),
+    `labelling it per account is what made the guidance wrong on every client record: ${mapLine.trim().slice(0, 90)}`);
+
+  // And every tab the guidance names has to be a real tab.
+  // The effective labels are the ones in the TABS literal PLUS any the .map reassigns.
+  // Reading only the literal would miss the rename this whole guard is about, and report
+  // the tab as missing while it is sitting right there on screen.
+  const literal = (/const TABS   = (\[[^\n]*\])/.exec(S) || [])[1] || "";
+  const labels = literal + " " + mapLine;
+  // 🔴 This caught a SECOND instance of the same bug on its first run: four pieces of
+  // guidance said "on the Campaigns tab", and Campaigns is not a tab at all. It is a
+  // top-level screen reached from More. Those now name it as a screen.
+  for (const n of new Set(named)) {
+    ok(`"${n}" is a real tab`, labels.includes(`"${n}"`),
+      `the OS says "on the ${n} tab" but no tab is called that. If it is a screen rather than a tab, say so in the instruction`);
+  }
+}
+
 console.log(`verify-app-boots: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

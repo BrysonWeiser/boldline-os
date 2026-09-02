@@ -74,7 +74,7 @@ export function launchChecklist(client) {
       id: "tracking", owner: "you", label: "Conversion tracking created",
       // Observed from the record the setup writes, so a half-finished run reads as not done.
       done: has(c.conversionId) && !!(ca.form && ca.form.label) && !!(ca.qualified && ca.qualified.resourceName),
-      next: "Press Set this up in the ad account on the Campaigns tab. One button.",
+      next: "Press Set this up in the ad account on the Campaigns screen (More, then Campaigns). One button.",
       why: "Until this exists the campaign is bidding blind, so it comes before anything goes live.",
     },
     {

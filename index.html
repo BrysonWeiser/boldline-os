@@ -666,7 +666,7 @@ const botWorkLog = (cl, pkg, botId) => {
       ],
       note: "The keyword list itself lives in Google Ads. The Campaigns tab reads it live from the account.",
       next: !platG ? "Keywords only apply to Google Search. Link a Google Ads account in Edit to run one."
-            : gCamp > 0 ? null : "Build a Google campaign on the Campaigns tab.",
+            : gCamp > 0 ? null : "Build a Google campaign on the Campaigns screen (More, then Campaigns).",
     }),
     ads: () => ({
       facts: [
@@ -677,7 +677,7 @@ const botWorkLog = (cl, pkg, botId) => {
         F("Spent (30 days)", spend30 ? money(spend30) : ""),
         F("Last checked", perf.syncedAt ? when(perf.syncedAt) : ""),
       ],
-      next: liveCount > 0 ? null : (campCount > 0 ? "Approve the campaign to set it live." : "Build a campaign on the Campaigns tab."),
+      next: liveCount > 0 ? null : (campCount > 0 ? "Approve the campaign to set it live." : "Build a campaign on the Campaigns screen (More, then Campaigns)."),
     }),
     tracking: () => ({
       facts: [
@@ -942,7 +942,7 @@ function launchChecklist(client){
      next:"Edit, then Campaign. Where they are based, where the ads run, the main offer, average job value and profit margin."},
     {id:"tracking",owner:"you",label:"Conversion tracking created",
      done:lcHas(c.conversionId)&&!!(ca.form&&ca.form.label)&&!!(ca.qualified&&ca.qualified.resourceName),
-     next:"Press Set this up in the ad account on the Campaigns tab. One button.",
+     next:"Press Set this up in the ad account on the Campaigns screen (More, then Campaigns). One button.",
      why:"Until this exists the campaign is bidding blind, so it comes before anything goes live."},
     {id:"domain",owner:"dev",label:"Their subdomain pointed at us",done:lcHas(cs.landingDomain),manual:true,
      next:"Their web person adds one DNS record, then you add that hostname in Netlify so the certificate is issued.",
@@ -1619,7 +1619,7 @@ const stageInfo   = (id) => STAGES.find(s=>s.id===id)||STAGES[0];
 // Bryson, 2026-08-21, with his first Meta ad live and serving: "the os isnt taking
 // the data from the live ad". Two separate gaps, both real:
 //   1. the live spend/impressions/clicks the ads-sync job stores every 6 hours were
-//      only ever rendered on the Campaigns tab, so the Overview looked empty, and
+//      only ever rendered on the Campaigns screen (More, then Campaigns), so the Overview looked empty, and
 //   2. the lead count was structurally stuck at 0 — BoldLine's own leads land in the
 //      website_leads table, and nothing joined them to the house account (now fixed
 //      by the house-leads job, so `leadsLog` is real and the divisor below works).
@@ -6032,7 +6032,19 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   // door of its own.
   const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
                    .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log")))
-                   .map(([k,label])=> !client.internal ? [k,label] : k==="package" ? [k,"Campaigns"] : k==="portal" ? [k,"Assets"] : [k,label]);
+                   // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:
+                   // *"there isn't an assets tab can you add it"*. There was, and it holds exactly
+                   // what he was looking for: the media library, the landing page with its Publish
+                   // and Regenerate buttons, the approvals queue and a preview of the portal. On the
+                   // house account it was already called Assets. On a CLIENT it was called "Client
+                   // View", which names only the first card on it.
+                   //
+                   // That split was not just untidy, it made the OS wrong out loud: SEVEN separate
+                   // pieces of its own guidance say "on the Assets tab" (the launch checklist, the
+                   // autobuild alerts, the pipeline next-steps), and on a client record every one of
+                   // them pointed at a tab that did not exist under that name. One label, so the
+                   // instructions are true everywhere. verify-app-boots pins the two together.
+                   .map(([k,label])=> k==="portal" ? [k,"Assets"] : (client.internal && k==="package") ? [k,"Campaigns"] : [k,label]);
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
     // 🔴 THESE TWO WERE HARDCODED `done:false` WITH A CANNED "coming soon" NOTE. Bryson,
@@ -6247,7 +6259,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
             {/* Live ad performance — the numbers off the ad platforms themselves.
                 Stored by the ads-sync job every 6 hours, so this renders instantly and
                 always says how fresh it is. Live-to-the-second numbers are one tap away
-                on the Campaigns tab, which calls Google and Meta directly. */}
+                on the Campaigns screen (More, then Campaigns), which calls Google and Meta directly. */}
             {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&(()=>{
               const st = adPerfStats(client);
               const ago = (iso)=>{ const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
@@ -8849,7 +8861,7 @@ const dailyFromMonthly = (m, platforms) => {
   return m > 0 ? Math.round(m / 30.4 / share) : 0;
 };
 const monthlyFromDaily = (d) => Math.round((Number(d) || 0) * 30.4);
-// Mirrors the runsGoogle/runsMeta detection the Campaigns tab uses to decide
+// Mirrors the runsGoogle/runsMeta detection the Campaigns screen (More, then Campaigns) uses to decide
 // which launch cards to render, so the split can never disagree with the number
 // of cards on screen.
 // ─── WHICH PLATFORMS IS THIS ACCOUNT ACTUALLY ON ─────────────────────────────
@@ -11678,7 +11690,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
             </Card>
             <Card>
               <Label>Ad Account Linking</Label>
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?"Link BoldLine's OWN ad accounts here (paste your Google Ads Customer ID / Meta Ad Account ID). Once linked, build a campaign on the Campaigns tab and Start it live — and ARIA reads live performance.":"Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes."}</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?"Link BoldLine's OWN ad accounts here (paste your Google Ads Customer ID / Meta Ad Account ID). Once linked, build a campaign on the Campaigns screen (More, then Campaigns) and Start it live — and ARIA reads live performance.":"Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes."}</div>
               {[
                 {k:"googleAdsCustomerId", l:"Google Ads Customer ID", ph:"123-456-7890"},
                 {k:"metaAdAccountId",     l:"Meta Ad Account ID",     ph:"e.g. 1234567890 (digits only)"},
