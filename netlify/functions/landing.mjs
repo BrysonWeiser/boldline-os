@@ -128,15 +128,48 @@ export function renderLandingPage(cl, opts = {}) {
   const offer = cs.mainOffer || "";
   const differentiator = bv.differentiator || "";
   const cta = lp.ctaText || "Get My Free Quote";
-  const photos = media.filter((m) => m.category === "photo" && m.url && (!hero || m.path !== hero.path)).slice(0, 6);
+  // 🔴 WHERE A CLIENT'S PHOTOS GO, AND WHICH ONES GET USED. Bryson, 2026-09-02: *"make sure
+  // on the see the results page that there is at least 4-6 good images and if there is less
+  // to make sure that they are all used [...] make sure the images are put in the right
+  // places to look good and make sense and not just in random spots (right now in the header
+  // for one of the landing pages there is a background image of a T-shirt which doesn't make
+  // sense)."* Stencil and Thread uploaded three t-shirt photos and got exactly that: one
+  // shirt stretched full-bleed behind the headline, and only two left for the gallery.
+  //
+  // Two separate mistakes, and neither needs the page to understand what is IN a picture.
+  //
+  // 1. THE HERO ATE ONE. Every photo except the hero was excluded from the gallery, which is
+  //    right for a client with a dozen images and wrong for one with three: it turns a thin
+  //    set into a thinner one. A photo shown in the hero AND in the gallery is not wasted,
+  //    it is used twice, which is what a small set needs. So the hero is only held back when
+  //    there are enough others to fill the gallery without it.
+  const allPhotos = media.filter((m) => m.category === "photo" && m.url);
+  const heroIsUploaded = !!(hero && hero.path && hero.path !== "__web");
+  const spareTheHero = allPhotos.length >= 5;
+  const photos = (spareTheHero ? allPhotos.filter((m) => !hero || m.path !== hero.path) : allPhotos).slice(0, 6);
   const steps = (Array.isArray(lp.steps) && lp.steps.length ? lp.steps : ["Tell us what you need", "Get a fast, free quote", "We handle the rest"]).slice(0, 3);
   const booking = String(cl.bookingUrl || "").trim();
   const ctaHref = booking ? esc(booking) : "#lead-form";
   const ctaAttr = booking ? ' target="_blank" rel="noopener"' : "";
   const telHref = phone ? `tel:${esc(phone.replace(/[^0-9+]/g, ""))}` : "";
-  const useOverlay = D.layout === "overlay" && !!hero;
-  const useCentered = D.layout === "centered";
-  const useCapture = D.layout === "capture"; // lead form sits IN the hero (above the fold)
+  // 2. 🔴 A PRODUCT PHOTO IS NOT WALLPAPER. The overlay layout stretches the hero image
+  //    full-bleed behind the headline under a dark scrim. That is right for a photo of a
+  //    crew on a roof and wrong for a t-shirt on a white background, which is what Bryson
+  //    actually saw. The page cannot tell what is IN a picture, but it does know where the
+  //    picture CAME FROM, and that turns out to be the better signal:
+  //      a scraped og:image (path "__web") is the banner the business already chose to
+  //      represent itself, so it is built to sit behind text;
+  //      an uploaded photo is whatever they had on their phone, usually a product or a job,
+  //      and belongs in a frame beside the copy or in the gallery grid.
+  //    So an uploaded photo only gets the full-bleed treatment when there are enough of them
+  //    that at least one is likely to be a scene rather than a close-up. Below that the page
+  //    falls back to the split layout, where the same photo sits in a rounded panel next to
+  //    the headline and reads as a product shot, which is what it is.
+  const overlaySuits = !!hero && (!heroIsUploaded || allPhotos.length >= 4);
+  const layout = D.layout === "overlay" && !overlaySuits ? "split" : D.layout;
+  const useOverlay = layout === "overlay" && !!hero;
+  const useCentered = layout === "centered";
+  const useCapture = layout === "capture"; // lead form sits IN the hero (above the fold)
 
   // 🔴 ONE ALIGNMENT RULE WORTH EXPLAINING, and the reasoning lives out here because this
   // stylesheet is delivered verbatim to the client's own domain. `.lay-centered .chips`
@@ -259,7 +292,10 @@ a{color:inherit}
 .step .num{width:34px;height:34px;border-radius:10px;background:${P.brand};color:${P.onBrand};font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 .step h3{font-size:15.5px;font-weight:750;color:${P.headline}}
 /* gallery */
+/* The gallery follows its own count, same reason the benefits do: four photos
+   gave three across and one stranded underneath. */
 .gal{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+.gal.g1{grid-template-columns:1fr}
 .gitem{overflow:hidden;border-radius:var(--r)}
 .gitem img{aspect-ratio:4/3;object-fit:cover;width:100%;transition:transform .5s ease}
 .gitem:hover img{transform:scale(1.06)}
@@ -426,7 +462,7 @@ a{color:inherit}
    .reveal needs its own line: it is the only thing here whose resting state is invisible,
    so removing its transition alone would freeze it hidden forever. */
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;translate:none!important}}
-@media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}.gal.g1{grid-template-columns:1fr}.gal.g2,.gal.g4{grid-template-columns:repeat(2,1fr)}.gal.g3,.gal.g5{grid-template-columns:repeat(3,1fr)}}
 /* Four cards open out to a single row of four only when the container is genuinely wide
    enough to keep them readable. This block MUST stay after the 720px one: same specificity,
    so source order decides, and put earlier it loses and never applies at all. Numbered
@@ -572,7 +608,7 @@ a{color:inherit}
 
   const stepsSection = `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps">${steps.map((s, i) => `<div class="step reveal" style="transition-delay:${i * 70}ms"><div class="num">${i + 1}</div><h3>${esc(s)}</h3></div>`).join("")}</div></div></section>`;
 
-  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(p.url)}" alt="${esc(p.label || cl.name)}" loading="lazy"></div>`).join("")}</div></div></section>` : "";
+  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal ${gridFor(photos.length)}">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(p.url)}" alt="${esc(p.label || cl.name)}" loading="lazy"></div>`).join("")}</div></div></section>` : "";
 
   const offerSection = offer ? `<section class="sec"><div class="wrap"><div class="offer reveal"><div class="ok">Limited-time offer</div><h2>${esc(offer)}</h2><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></div></section>` : "";
 
@@ -827,7 +863,7 @@ a{color:inherit}
   // phone number or no service area, which is most of them at the start.
   const chipLabels = [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "", "&#10003; Free quote, no obligation", phone ? "Fast response" : ""].filter(Boolean);
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
-  const bodyClass = `js lay-${D.layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
+  const bodyClass = `js lay-${layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}

@@ -244,5 +244,64 @@ const classesOf = (html, wrap) => {
   ok("six items strand nothing", 6 % 3 === 0);
 }
 
+// ── 🔴 WHERE A CLIENT'S PHOTOS GO, AND WHETHER THEY ALL GET USED ────────────────
+// Bryson, 2026-09-02: *"make sure on the see the results page that there is at least
+// 4-6 good images and if there is less to make sure that they are all used [...] right
+// now in the header for one of the landing pages there is a background image of a
+// T-shirt which doesn't make sense."*
+//
+// Stencil and Thread uploaded three t-shirt photos and got both halves of that wrong:
+// one shirt stretched full-bleed behind the headline, and only two left for the gallery.
+{
+  const P = (n) => ({ category: "photo", url: `https://example.com/${n}.jpg`, path: n });
+  const shoot = (media, layout, extra = {}) => renderLandingPage({
+    name: "Stencil and Thread", brandColor: "#C8A84B", mediaLibrary: media, ...extra,
+    campaignSetup: { mainOffer: "Custom shirts", targetLocations: "Oregon" },
+    landingPage: { headline: "H", subheadline: "S", bullets: ["a: b", "c: d", "e: f"], ctaText: "Go",
+      ...(extra.landingPage || {}),
+      design: { layout, benefits: "cards", background: "clean", shape: "rounded", font: "modern", motion: "up", order: "a" } },
+  });
+  const laidOut = (html) => ((/<body class="([^"]+)"/.exec(html) || [])[1] || "").split(/\s+/).find((c) => c.startsWith("lay-"));
+  const inGallery = (html) => (html.match(/class="gitem reveal"/g) || []).length;
+
+  const three = [P("a"), P("b"), P("c")];
+
+  // 🔴 His case. An uploaded product shot never becomes wallpaper, whatever layout the
+  // design picked, because the page cannot tell a shirt from a scene and a shirt behind
+  // a headline is the failure he actually looked at.
+  for (const layout of ["overlay", "split", "centered", "capture"]) {
+    const html = shoot(three, layout);
+    ok(`${layout}: three product photos never become a full-bleed background`,
+      laidOut(html) !== "lay-overlay", laidOut(html));
+    ok(`${layout}: and all three are used in the gallery`, inGallery(html) === 3, `${inGallery(html)} shown`);
+  }
+
+  // With a real set there is one to spare, so the hero takes one and the gallery still fills.
+  const six = ["a", "b", "c", "d", "e", "f"].map(P);
+  const wide = shoot(six, "overlay");
+  ok("six photos do allow the full-bleed hero", laidOut(wide) === "lay-overlay", laidOut(wide));
+  ok("and the gallery still gets five of them", inGallery(wide) === 5, `${inGallery(wide)} shown`);
+
+  // 🔴 The gallery grid follows its own count, or four photos give three across and one
+  // stranded, which is the bug already fixed once on the benefits grid.
+  const css = styleOf(shoot(three, "split"));
+  // 🔴 Tied to what the gallery ACTUALLY RENDERS, not to how many were uploaded. A first
+  // version compared against the upload count and failed on five, because at five the hero
+  // takes one and the gallery shows four. The assertion was wrong, not the page, and an
+  // assertion that restates the fixture instead of the output is worth nothing anyway.
+  const WANT = { 1: "g1", 2: "g2", 3: "g3", 4: "g4", 5: "g5", 6: "g3" };
+  for (const n of [2, 3, 4, 5, 6]) {
+    const html = shoot(["a", "b", "c", "d", "e", "f"].slice(0, n).map(P), "split");
+    const shown = inGallery(html);
+    const cls = ((/class="gal (g\d)"/.exec(html)) || [])[1];
+    ok(`${n} uploaded: the gallery grid matches the ${shown} it shows`, cls === WANT[shown],
+      `shows ${shown}, asks for ${cls}, expected ${WANT[shown]}`);
+  }
+  ok("the stylesheet answers to those gallery classes", /\.gal\.g2,\.gal\.g4\{/.test(css) && /\.gal\.g3,\.gal\.g5\{/.test(css));
+
+  // 🔴 BREAK IT ONCE. Without the count gate, three uploads go back to being wallpaper.
+  ok("sanity: the gate is what stops it", laidOut(shoot(three, "overlay")) === "lay-split");
+}
+
 console.log(fail ? `\n✗ landing grid: ${pass} passed, ${fail} FAILED` : `✓ landing grid: ${pass} checks passed`);
 process.exit(fail ? 1 : 0);
