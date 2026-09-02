@@ -293,6 +293,66 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
   }
 }
 
+// ── 11b. 🔴 EVERYTHING MOVES UP OR DOWN ──────────────────────────────────────────
+// Bryson, 2026-09-02: "make sure the animations are for up and down". The vocabulary
+// used to include a sideways slide and a zoom, and both were reachable from the page
+// options picker, so a third of the pages he generated slid in from the left edge.
+//
+// Two exemptions, both deliberate and neither one content moving across the page:
+//   sheen — a light travelling ACROSS a button face. A shine that runs vertically down
+//           a button does not read as a shine, it reads as a glitch.
+//   spin  — the sending spinner. A spinner rotates. That is what a spinner is.
+{
+  const css = styleOf(render());
+  const EXEMPT = new Set(["sheen", "spin"]);
+
+  // (a) The scroll-reveal offset is the movement a visitor sees on every single card,
+  //     row and section. It is a custom property, so it is one string to check.
+  const offsets = [...css.matchAll(/--rv:\s*([^;}]+)/g)].map((m) => m[1].trim());
+  ok("the page defines reveal offsets", offsets.length >= 2, `${offsets.length} found`);
+  for (const o of offsets) {
+    ok(`reveal offset ${o} moves vertically`, /^translateY\(-?[\d.]+px\)$/.test(o),
+      "a reveal offset that is not a plain translateY slides content sideways or zooms it");
+  }
+  // Both directions are actually reachable, or "up and down" is really just "up".
+  ok("content rises in one style", offsets.some((o) => /translateY\((?!-)/.test(o)));
+  ok("and settles in another", offsets.some((o) => /translateY\(-/.test(o)));
+
+  // (b) No keyframe moves anything horizontally.
+  for (const k of keyframesIn(css)) {
+    if (EXEMPT.has(k.name)) continue;
+    const sideways = /translateX\(\s*-?[1-9]/.test(k.body)
+      || /skewX\(\s*-?[1-9]/.test(k.body)
+      || [...k.body.matchAll(/translate3d\(\s*([^,]+),/g)].some((m) => !/^-?0[a-z%]*$/.test(m[1].trim()))
+      || [...k.body.matchAll(/translate\(\s*([^,)]+)/g)].some((m) => !/^-?0[a-z%]*$/.test(m[1].trim()));
+    ok(`keyframes ${k.name} does not move sideways`, !sideways, k.body.replace(/\s+/g, " ").trim());
+  }
+
+  // (c) 🔴 Every motion the OPTIONS PICKER can hand out is one the renderer understands.
+  //     A value the renderer does not know falls back to the per-client hash silently, so
+  //     the option Bryson picked and the page he gets stop matching.
+  const { MOTIONS } = await import("../netlify/lib/landing-variants.mjs");
+  ok("the picker offers three motions, so three options can differ", MOTIONS.length === 3, MOTIONS.join(","));
+  // 🔴 RESOLVED END TO END, not looked up in the stylesheet. A first version of this check
+  // asked whether a `.mo-down` rule existed, which it always does, and so it passed happily
+  // while the renderer's own accept-list still said side and zoom. The stylesheet is not the
+  // resolver: designConfig validates the requested token against ITS list and silently falls
+  // back to the per-client hash on anything it does not recognise. That is the actual bug
+  // shape here, and the only way to see it is to ask the renderer for a motion and check
+  // which one the page comes back wearing.
+  for (const m of MOTIONS) {
+    const body = /<body class="([^"]+)"/.exec(render({ motion: m }));
+    ok(`asking the renderer for the ${m} motion returns the ${m} motion`,
+      !!body && body[1].split(/\s+/).includes(`mo-${m}`),
+      `page came back as ${body ? body[1].split(/\s+/).filter((c) => c.startsWith("mo-")).join(",") : "no body"}`);
+    ok(`and the stylesheet answers to it`,
+      m === "up" ? /--rv:translateY\(20px\)/.test(css) : new RegExp(`\\.mo-${m}[ .:{]`).test(css),
+      `the picker can assign "${m}" but nothing in the stylesheet answers to it`);
+  }
+  ok("and the sideways and zoom styles are gone for good",
+    !MOTIONS.includes("side") && !MOTIONS.includes("zoom") && !/\.mo-(side|zoom)\b/.test(css));
+}
+
 // ── 12. 🔴 BREAK EVERY GUARD ONCE ────────────────────────────────────────────────
 // Each mutation is a real way this regresses, applied to the real stylesheet.
 {
@@ -324,6 +384,21 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
     !/\*,\*::before,\*::after\{[^}]*animation:none!important/.test(bareStar),
     "reduced motion would silently stop covering the animations that actually loop");
 
+  // (b2) 🔴 A sideways reveal reintroduced. This is the exact thing being ruled out, and
+  //      it is one token away at all times.
+  const sideways = css.replace(".mo-down{--rv:translateY(-22px)}", ".mo-down{--rv:translateX(-24px)}");
+  ok("the down offset exists to be mutated", sideways !== css);
+  ok("caught: a reveal that slides in from the edge",
+    [...sideways.matchAll(/--rv:\s*([^;}]+)/g)].some((m) => !/^translateY\(-?[\d.]+px\)$/.test(m[1].trim())),
+    "content would slide in horizontally again with nothing to say so");
+
+  // (b3) The hero drift given a sideways component back.
+  const diagonal = css.replace("translate3d(0,3.2%,0)", "translate3d(-3%,3.2%,0)");
+  ok("the drift exists to be mutated", diagonal !== css);
+  const driftKf = keyframesIn(diagonal).find((k) => k.name === "drift");
+  ok("caught: the hero glow drifting diagonally again",
+    !!driftKf && [...driftKf.body.matchAll(/translate3d\(\s*([^,]+),/g)].some((m) => !/^-?0[a-z%]*$/.test(m[1].trim())));
+
   // (c) The reduced-motion escape hatch weakened to a plain rule.
   const weakened = css.replace("*,*::before,*::after{animation:none!important;transition:none!important}", "*,*::before,*::after{animation:none;transition:none}");
   ok("caught: reduced motion downgraded to a suggestion",
@@ -344,6 +419,55 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
     && !/(^|,)\s*\.js\s/.test(r.sel) && !/::/.test(r.sel) && !/\.(err|thanks|mcta|hdr-cta)\b/.test(r.sel));
   ok("caught: an element hidden at rest with no script to bring it back", restsHidden,
     "content that only appears if an animation runs would ship undetected");
+}
+
+// ── 13. 🔴 OPTIONS SAVED BEFORE ANY OF THIS EXISTS STILL GET IT ──────────────────
+// Bryson, 2026-09-02: "can you add them to the existing landing page options for stencil
+// and thread". His three saved options were written before the motion layer existed, and
+// the answer is that there is nothing to add to them, BECAUSE OF HOW THE OPTIONS SYSTEM
+// IS BUILT: an option stores WORDS AND DESIGN TOKENS, never rendered HTML, and both the
+// live page and the in-app preview render fresh through renderLandingPage on every single
+// request. So improving the renderer improves every option that already exists.
+//
+// That is a load-bearing property, not a happy accident, and this is what holds it up. The
+// day somebody caches a rendered page or stores one on the client record, his saved options
+// silently freeze at whatever the page looked like the day they were written.
+{
+  // An option exactly as it was saved before today: a motion the renderer has since stopped
+  // recognising, and no knowledge of anything added since.
+  const stale = { id: "v1", label: "Option 1", generatedAt: "2026-09-01T00:00:00Z", angle: "speed",
+    headline: "Custom work, done right the first time",
+    subheadline: "Tell us what you need and we come back with a real number today.",
+    bullets: FULL.landingPage.bullets, steps: FULL.landingPage.steps, faqs: FULL.landingPage.faqs,
+    ctaText: "Get my quote",
+    design: { layout: "split", benefits: "cards", background: "glowgrid", shape: "rounded", font: "modern", motion: "side", order: "a" } };
+
+  // Rendered the way the options card renders it: the client's real data, this option's page.
+  const html = renderLandingPage({ ...FULL, landingPage: stale });
+  const css = styleOf(html);
+  const body = /<body class="([^"]+)"/.exec(html)[1].split(/\s+/);
+
+  ok("an option saved yesterday still renders", /class="headline an"/.test(html));
+  ok("and it carries the motion layer", /@keyframes drift/.test(css) && /\.hero::before\{animation:drift/.test(css));
+  ok("and the staggered reveals", (html.match(/transition-delay:/g) || []).length >= 8);
+  ok("and the condensing header", /classList\.add\('stuck'\)/.test(scriptOf(html)));
+  // 🔴 The retired token does not leave the page motionless or half-styled. It is not in the
+  // renderer's list any more, so it falls back to a valid one rather than rendering `mo-side`
+  // with no rule behind it.
+  ok("its retired sideways motion falls back to a vertical one",
+    body.some((c) => /^mo-(up|down|alt)$/.test(c)) && !body.includes("mo-side"),
+    body.filter((c) => c.startsWith("mo-")).join(","));
+
+  // 🔴 And nothing anywhere stores or caches a rendered page, which is the property all of
+  // the above rests on.
+  const { readFileSync } = await import("node:fs");
+  const fn = readFileSync(new URL("../netlify/functions/landing.mjs", import.meta.url), "utf8");
+  ok("the renderer sends no cache headers, so a page is never served stale",
+    !/cache-control/i.test(fn), "a cached page would freeze his saved options at the day they were written");
+  const ui = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  ok("the preview asks the live renderer rather than keeping its own copy",
+    /fetch\("\/\.netlify\/functions\/landing"/.test(ui) && !/makeLandingHTML/.test(ui),
+    "a second renderer in the OS is how the portal and the contract both drifted");
 }
 
 console.log(fail ? `\n✗ landing motion: ${pass} passed, ${fail} FAILED` : `✓ landing motion: ${pass} checks passed`);

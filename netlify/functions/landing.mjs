@@ -61,7 +61,7 @@ export function designConfig(cl) {
   return {
     layout: opt("layout", ["split", "centered", "overlay", "capture"], 0),
     bg: opt("background", ["glowgrid", "mesh", "dots", "clean"], 3),
-    motion: opt("motion", ["up", "side", "zoom"], 6),
+    motion: opt("motion", ["up", "down", "alt"], 6),
     benefits: opt("benefits", ["cards", "list", "numbered"], 9),
     font: opt("font", ["modern", "elegant", "bold"], 12),
     shape: opt("shape", ["rounded", "soft", "sharp"], 15),
@@ -153,7 +153,15 @@ export function renderLandingPage(cl, opts = {}) {
 html{scroll-behavior:smooth}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:${P.bg};color:${P.text};line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;--rv:translateY(20px)}
 .sh-soft{--r:12px}.sh-sharp{--r:6px}
-.mo-side{--rv:translateX(-24px)}.mo-zoom{--rv:scale(.94)}
+/* EVERYTHING MOVES UP OR DOWN. Bryson, 2026-09-02: "make sure the animations are for up
+   and down". The old vocabulary had a sideways slide and a zoom in it; both are gone. The
+   three remaining feels are all vertical, which is what keeps the three page options
+   visibly different from each other without anything sliding in from the edge.
+   up   = content rises into place (the body default).
+   down = content settles down into place.
+   alt  = they alternate, so a row arrives from both directions at once. */
+.mo-down{--rv:translateY(-22px)}
+.mo-alt .reveal:nth-child(even){--rv:translateY(-22px)}
 a{color:inherit}
 .wrap{max-width:1140px;margin:0 auto;padding:0 20px}
 /* header */
@@ -335,10 +343,9 @@ a{color:inherit}
 .js .reveal{opacity:0;transform:var(--rv)}
 .js .reveal.in{opacity:1;transform:none;transition:opacity .6s ease,transform .6s ease}
 .js .an{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
-.mo-zoom .an{animation-name:zin}.mo-side .an{animation-name:slin}
+.mo-down .an{animation-name:drop}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-@keyframes zin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
-@keyframes slin{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
+@keyframes drop{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
 /* The header settles when you leave the hero, so the page feels like it is moving
    under a fixed frame rather than sliding as one flat sheet. stuck is added by
    script; without script the header simply stays in its resting state. */
@@ -351,15 +358,13 @@ a{color:inherit}
    never as something asking to be looked at. Transform only, and the hero already
    clips its overflow, so the drift can never widen the page. */
 .hero::before{animation:drift 26s ease-in-out infinite alternate;will-change:transform}
-@keyframes drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(-3%,2%,0) scale(1.09)}}
+@keyframes drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(0,3.2%,0) scale(1.06)}}
 /* The photo hero has no glow to drift, so its scrim breathes instead. Opacity is
    free to animate and the light over the photo shifts by a few percent. */
 .hero-ov-scrim{animation:scrim 13s ease-in-out infinite alternate}
 @keyframes scrim{from{opacity:1}to{opacity:.87}}
 .hero-media .badge{animation:float 5.6s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-.js .hero-media.in .heroimg,.js .heroband.in img{animation:imgin .9s cubic-bezier(.2,.7,.2,1) both}
-@keyframes imgin{from{transform:scale(1.05)}to{transform:none}}
 /* Buttons: a light sweeps across on hover, and the press is acknowledged. A button
    that visibly answers a press feels responsive even when the network is slow. */
 .cta{overflow:hidden}
