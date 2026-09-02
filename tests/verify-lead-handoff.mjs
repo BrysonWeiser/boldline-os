@@ -418,6 +418,19 @@ const fakeFetch = (script) => {
     ok(`🔴 the ${label} page a visitor receives has no em dashes`, dashes.length === 0,
       dashes.join("\n        "));
 
+    // 🔴 NO STRAY WHITESPACE IN FRONT OF THE CLIENT'S NAME. Found on Stencil and Thread's
+    // LIVE page the night it went up: a tab pasted in with the name rendered as
+    // "... | \tStencil & Thread" in the <title>, which is the line Google prints in its
+    // search results and the one every browser tab shows. It was in the logo alt text, the
+    // header and the footer too. Nothing was checking, because nothing renders visibly
+    // wrong on the page itself, only in the places a person does not look at while building.
+    const inTitle = (/<title>([^<]*)<\/title>/.exec(html) || [])[1] || "";
+    ok(`the ${label} page title carries no tab or newline`, !/[\t\n\r]/.test(inTitle), JSON.stringify(inTitle));
+    ok(`the ${label} page title has no doubled spaces`, !/  /.test(inTitle), JSON.stringify(inTitle));
+    const alts = [...html.matchAll(/alt="([^"]*)"/g)].map((m) => m[1]);
+    ok(`no alt text on the ${label} page starts or ends with a space`,
+      alts.every((a) => a === a.trim()), JSON.stringify(alts.filter((a) => a !== a.trim())));
+
     // 🔴 AND NO INTERNAL COMMENTARY IN THE CLIENT'S PAGE SOURCE. The submit handler is shipped
     // verbatim, so engineering notes written inside that string travel to the client's own
     // domain where their developer can read them. Reasoning belongs outside the template.
@@ -460,6 +473,36 @@ const fakeFetch = (script) => {
     !/^\.chips\{[^}]*justify-content:center/m.test(css),
     "centring them everywhere would push them off the left edge that every other layout "
     + "lines up on");
+}
+
+// ── 🔴 A PASTED TAB MUST NOT REACH THE CLIENT'S NAME IN PUBLIC ──────────────────
+// Found on Stencil and Thread's LIVE page the night it went up: a tab pasted in with the
+// business name rendered as "... | \tStencil & Thread" in the <title>, which is the line
+// Google prints in its search results and the one every browser tab shows. Also in the
+// logo's alt text, the header and the footer.
+//
+// 🔴 THE CHECKS ADDED ALONGSIDE THIS ONE COULD NOT FAIL. They assert the rendered title
+// has no tab, but every fixture in this file already uses a clean name, so they were
+// guaranteed by the fixture rather than by the code. Removing the trim entirely left them
+// all passing. This one hands the renderer a deliberately filthy name, which is the only
+// version that actually tests anything.
+{
+  const filthy = "\tStencil  &   Thread \n";
+  const { renderLandingPage: render } = await import("../netlify/functions/landing.mjs");
+  const html = render({
+    name: filthy, landingSlug: "stencil", leadToken: "TOK",
+    campaignSetup: { serviceArea: "Eugene, OR" },
+    landingPage: { headline: "Custom shirts, fast.", subheadline: "25 or more.", ctaText: "Get a quote", published: true,
+      design: { layout: "split", benefits: "cards", background: "clean", shape: "rounded", font: "modern", motion: "up", order: "a" } },
+  });
+  const title = (/<title>([^<]*)<\/title>/.exec(html) || [])[1] || "";
+  ok("a name pasted with a tab and doubled spaces is cleaned before it is printed",
+    /\| Stencil &amp; Thread$/.test(title) && !/[\t\n\r]/.test(title) && !/  /.test(title),
+    JSON.stringify(title));
+  ok("and nowhere on the page keeps the raw version", !html.includes(filthy));
+  const alts = [...html.matchAll(/alt="([^"]*)"/g)].map((m) => m[1]);
+  ok("nor does any alt text", alts.every((a) => a === a.trim() && !/[\t\n\r]/.test(a)),
+    JSON.stringify(alts.filter((a) => a !== a.trim() || /[\t\n\r]/.test(a))));
 }
 
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
