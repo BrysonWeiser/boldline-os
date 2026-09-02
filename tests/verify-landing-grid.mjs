@@ -303,5 +303,71 @@ const classesOf = (html, wrap) => {
   ok("sanity: the gate is what stops it", laidOut(shoot(three, "overlay")) === "lay-split");
 }
 
+// ── 🔴 A LONE PHOTO ON THE LAST ROW SITS IN THE MIDDLE ──────────────────────────
+// Bryson, 2026-09-02, with a screenshot of Stencil and Thread's three shirts: *"make
+// sure when there is 3 images the one one the bottom is in the middle and everything is
+// uniform and formatted."* Two on top, the third hard against the left edge with a hole
+// beside it.
+//
+// The earlier gallery fix only sized the grid from 720px up. The gallery is the ONLY grid
+// on this page with a TWO-COLUMN BASE, so it is the only one where an odd count strands an
+// item on a phone, and a phone is exactly what the in-app preview renders at. The benefits,
+// steps and reviews all stack single-column down there and cannot hit this.
+//
+// The rule: at any width and any count, the last row either holds more than one item, or
+// its single item is centred. Checked through the resolved cascade, not by reading a rule.
+{
+  const P = (n) => ({ category: "photo", url: "https://example.com/" + n + ".jpg", path: n });
+  const gal = (n) => renderLandingPage({
+    name: "Stencil and Thread", brandColor: "#C8A84B",
+    mediaLibrary: "abcdef".slice(0, n).split("").map(P),
+    campaignSetup: { mainOffer: "Shirts", targetLocations: "Oregon" },
+    landingPage: { headline: "H", subheadline: "S", bullets: ["a: b", "c: d", "e: f"], ctaText: "Go",
+      design: { layout: "split", benefits: "cards", background: "clean", shape: "rounded", font: "modern", motion: "up", order: "a" } },
+  });
+
+  for (let n = 2; n <= 6; n++) {
+    const html = gal(n);
+    const css = styleOf(html);
+    const classes = classesOf(html, "gal");
+    const shown = (html.match(/class="gitem reveal"/g) || []).length;
+    ok(`${n} uploaded: the gallery renders`, !!classes && shown >= 2, `${shown} shown`);
+    if (!classes || shown < 2) continue;
+
+    for (const w of WIDTHS) {
+      const cols = columnsFor(css, classes, w);
+      ok(`gallery ${shown} @${w}: has a column count`, cols != null, classes.join("."));
+      if (cols == null) continue;
+      const rows = Math.ceil(shown / cols);
+      const last = shown - (rows - 1) * cols;
+      if (!(cols > 1 && rows > 1 && last === 1)) continue;
+      // A lone trailing item exists at this width, so the centring rule has to reach it.
+      // Resolved the same way the browser does: last matching rule wins.
+      let centred = false;
+      for (const r of parseRules(css)) {
+        if (!mediaApplies(r.media, w)) continue;
+        const sel = r.sel.split(",").map((x) => x.trim());
+        if (!sel.some((x) => classes.every((c) => x.includes("." + c) || c === "gal") && /:last-child/.test(x) && x.includes("." + classes[1]))) continue;
+        centred = /justify-self:\s*center/.test(r.body);
+      }
+      ok(`gallery ${shown} @${w}: the lone last photo is centred, not left`, centred,
+        `${shown} photos in ${cols} columns leaves one alone and nothing centres it`);
+    }
+  }
+
+  // 🔴 BREAK IT ONCE. Without the centring rule the third shirt goes back to the left edge.
+  const css = styleOf(gal(3));
+  const stripped = css.replace(/\.gal\.g3>:last-child,\.gal\.g5>:last-child\{grid-column:1\/-1;justify-self:center;width:calc\(50% - 6px\)\}/, "");
+  ok("the centring rule exists to be removed", stripped !== css);
+  ok("caught: the lone photo pushed back to the left edge",
+    !/\.gal\.g3>:last-child[^}]*justify-self:center/.test(stripped),
+    "three photos would strand the third against the left edge again with nothing to say so");
+
+  // And it must be undone where three go across, or the last photo shrinks for no reason.
+  ok("the centring is undone at the width where three fit across",
+    /@media\(min-width:720px\)[^@]*\.gal\.g3>:last-child,\.gal\.g5>:last-child\{grid-column:auto/.test(css.replace(/\/\*[\s\S]*?\*\//g, "")),
+    "a centred half-width photo would float in the middle of a three-across row");
+}
+
 console.log(fail ? `\n✗ landing grid: ${pass} passed, ${fail} FAILED` : `✓ landing grid: ${pass} checks passed`);
 process.exit(fail ? 1 : 0);
