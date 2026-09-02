@@ -174,7 +174,7 @@ a{color:inherit}
 .faq summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:15px;color:${P.headline};display:flex;justify-content:space-between;gap:12px;align-items:center}
 .faq summary::-webkit-details-marker{display:none}
 .faq summary::after{content:"+";color:${P.brand};font-size:22px;font-weight:800;line-height:1}
-.faq[open] summary::after{content:"–"}
+.faq[open] summary::after{content:"+"}
 .faq p{padding:0 0 16px;font-size:14px;color:${P.muted};line-height:1.6}
 .hdr-cta{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:${P.brand};text-decoration:none;border:1px solid ${P.tint};border-radius:999px;padding:7px 14px;background:${P.tint}}
 .ann{background:${P.band};color:#fff;text-align:center;font-size:13px;font-weight:600;padding:9px 16px}
@@ -313,7 +313,25 @@ a{color:inherit}
 /* typography moods */
 .font-elegant .headline,.font-elegant .sec-t,.font-elegant .formtitle,.font-elegant .offer h2,.font-elegant .form-copy h2,.font-elegant .bcard h3,.font-elegant .bnum h3,.font-elegant .brow h3{font-family:Georgia,'Times New Roman',serif;font-weight:700;letter-spacing:-.005em}
 .font-bold .headline,.font-bold .sec-t,.font-bold .offer h2,.font-bold .form-copy h2{font-weight:900;letter-spacing:-.03em}
-/* reveal / motion */
+/* ── reveal / motion ─────────────────────────────────────────────────────────
+   Bryson, 2026-09-02: "can we also add micro animations so they dont feel stale
+   (do this for every one)". Two rules govern everything in this block, and both
+   exist because of failures this project has already had.
+
+   1. NOTHING HERE IS LOAD-BEARING. Every element's resting state is its
+      finished, visible state, and motion is only ever layered on top. So a page
+      with JavaScript off, a page whose animation never fires, and a visitor whose
+      system asks for reduced motion all render COMPLETE. The one exception is
+      .reveal, which is gated behind the .js class, backed by a 1.5s safety net
+      that shows everything regardless, and explicitly unwound in the reduced-motion
+      block at the end. That exception already bit this file once, when scroll
+      reveals left whole sections blank in a non-scrolling context.
+   2. ANYTHING THAT LOOPS ANIMATES TRANSFORM OR OPACITY ONLY. Those two the browser
+      hands to the graphics card. Width, height, top, left and background-position
+      make it re-measure the page every frame instead, which on a phone reads as a
+      stutter in the middle of somebody reading, on the one page we are paying for
+      clicks to. Hover and focus effects are exempt: they are brief and only ever
+      one element at a time. */
 .js .reveal{opacity:0;transform:var(--rv)}
 .js .reveal.in{opacity:1;transform:none;transition:opacity .6s ease,transform .6s ease}
 .js .an{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
@@ -321,7 +339,79 @@ a{color:inherit}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 @keyframes zin{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 @keyframes slin{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;transform:none!important}}
+/* The header settles when you leave the hero, so the page feels like it is moving
+   under a fixed frame rather than sliding as one flat sheet. stuck is added by
+   script; without script the header simply stays in its resting state. */
+.hdr{transition:box-shadow .25s ease}
+.hdr .wrap{transition:padding .25s ease}
+.hdr.stuck{box-shadow:0 6px 22px rgba(0,0,0,.10)}
+.hdr.stuck .wrap{padding:8px 20px}
+/* The hero glow drifts. This is the one continuous movement on the page and it is
+   deliberately the slowest thing on it: it should register as the page being alive,
+   never as something asking to be looked at. Transform only, and the hero already
+   clips its overflow, so the drift can never widen the page. */
+.hero::before{animation:drift 26s ease-in-out infinite alternate;will-change:transform}
+@keyframes drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(-3%,2%,0) scale(1.09)}}
+/* The photo hero has no glow to drift, so its scrim breathes instead. Opacity is
+   free to animate and the light over the photo shifts by a few percent. */
+.hero-ov-scrim{animation:scrim 13s ease-in-out infinite alternate}
+@keyframes scrim{from{opacity:1}to{opacity:.87}}
+.hero-media .badge{animation:float 5.6s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.js .hero-media.in .heroimg,.js .heroband.in img{animation:imgin .9s cubic-bezier(.2,.7,.2,1) both}
+@keyframes imgin{from{transform:scale(1.05)}to{transform:none}}
+/* Buttons: a light sweeps across on hover, and the press is acknowledged. A button
+   that visibly answers a press feels responsive even when the network is slow. */
+.cta{overflow:hidden}
+.cta:not(.ghost)::before{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.34),transparent);transform:translateX(-220%) skewX(-18deg);opacity:0;pointer-events:none}
+.cta:not(.ghost):hover::before{animation:sheen .75s ease-out}
+@keyframes sheen{0%{transform:translateX(-220%) skewX(-18deg);opacity:1}100%{transform:translateX(340%) skewX(-18deg);opacity:0}}
+.cta:active{transform:translateY(0) scale(.985)}
+/* While the form is sending. The spinner is a pseudo-element so the script can keep
+   using textContent for the label without wiping it. */
+.cta.sending::after{content:"";width:15px;height:15px;flex-shrink:0;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hdr-cta{transition:transform .18s ease,background-color .18s ease}
+.hdr-cta:hover{transform:translateY(-1px)}
+.mcta a{transition:transform .15s ease}
+.mcta a:active{transform:scale(.97)}
+/* Everything a visitor can point at answers back. */
+.chip{transition:transform .18s ease,border-color .18s ease}
+.chip:hover{transform:translateY(-2px);border-color:${P.tint}}
+.step,.rev{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.step:hover,.rev:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.14);border-color:${P.tint}}
+.faq{transition:border-color .2s ease}
+.faq:hover{border-color:${P.tint}}
+.bico{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+.bcard:hover .bico,.brow:hover .bico,.step:hover .num{transform:translateY(-2px) scale(1.07)}
+.step .num{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+.brow{transition:background-color .2s ease}
+.brow:hover{background:${P.surface}}
+.bnum .bn{transition:opacity .25s ease,transform .25s ease}
+.bnum:hover .bn{opacity:.85;transform:translateY(-2px)}
+/* The FAQ marker TURNS instead of swapping glyph. It stays a plus and rotates 45
+   degrees into a cross, so the change is one continuous movement rather than one
+   character blinking into another. Swapping the glyph would also have meant shipping
+   an en dash to a visitor, which the no-AI-voice rule bans outright. */
+.faq summary::after{transition:transform .25s ease}
+.faq[open] summary::after{transform:rotate(45deg)}
+.faq[open] p{animation:faqin .28s ease both}
+@keyframes faqin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+/* The footer link draws its own underline. The consent links are left alone on
+   purpose: they are underlined at rest because someone auditing what a visitor
+   agreed to should not have to hover to find them. */
+.foot a{background-image:linear-gradient(currentColor,currentColor);background-size:0 1px;background-repeat:no-repeat;background-position:0 100%;transition:background-size .25s ease}
+.foot a:hover{background-size:100% 1px}
+/* THE OFF SWITCH. !important rather than source order, because this block is easy
+   to move by accident and it has to win from anywhere.
+   ::before AND ::after ARE LISTED SEPARATELY BECAUSE * DOES NOT MATCH THEM. The bare
+   universal selector matches elements only, so the drifting hero glow, the button sheen
+   and the sending spinner all kept running for a visitor who had asked their computer
+   for less motion. Found in a real browser, not by reading this; every one of those
+   three lives on a pseudo-element, so the omission covered the entire motion layer.
+   .reveal needs its own line: it is the only thing here whose resting state is invisible,
+   so removing its transition alone would freeze it hidden forever. */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;transform:none!important}}
 @media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}}
 /* Four cards open out to a single row of four only when the container is genuinely wide
    enough to keep them readable. This block MUST stay after the 720px one: same specificity,
@@ -415,11 +505,11 @@ a{color:inherit}
       <input class="inp" id="lf-phone" placeholder="Phone number" required>
       <input class="inp" id="lf-email" type="email" placeholder="Email (optional)">
       ${consentHTML}
-      <div class="err" id="lf-err">Something went wrong — please try again.</div>
+      <div class="err" id="lf-err">Something went wrong, please try again.</div>
       <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
       <div class="fine">Your info stays private. No spam, ever.</div>
     </form>`}
-    <div class="thanks" id="lf-thanks"><h2>Got it — thank you!</h2><p>We'll be in touch shortly.</p></div>
+    <div class="thanks" id="lf-thanks"><h2>Got it, thank you.</h2><p>We'll be in touch shortly.</p></div>
   </div>`;
 
   let heroSection;
@@ -437,7 +527,13 @@ a{color:inherit}
   }
 
   // ── benefits (3 styles) ──
-  const parsed = bullets.map((b) => { const p = String(b).split(/[—–:]/); return { h: p[0].trim(), p: p.slice(1).join("—").trim() }; });
+  const parsed = bullets.map((b) => {
+    // Split at the FIRST separator only. Rejoining the tail put an em dash straight back
+    // into the visitor's copy whenever a line contained two of them, which is exactly the
+    // character the no-AI-voice rule bans.
+    const raw = String(b); const at = raw.search(/[\u2014\u2013:]/);
+    return at < 0 ? { h: raw.trim(), p: "" } : { h: raw.slice(0, at).trim(), p: raw.slice(at + 1).trim() };
+  });
   // 🔴 NEVER LEAVE ONE ITEM ALONE ON A ROW. Bryson, 2026-09-01, with a screenshot of four
   // benefits in a three-wide grid: three across, then a lone fourth hanging under the left
   // edge. The grid was a fixed `repeat(3,1fr)` regardless of how many items the writer
@@ -458,11 +554,11 @@ a{color:inherit}
   } else {
     benefitsInner = `<div class="bene ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bcard reveal" style="transition-delay:${i * 60}ms"><div class="bico">✓</div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div>`).join("")}</div>`;
   }
-  const benefitsSection = `<section class="sec${benefitsAlt ? " alt" : ""}"><div class="wrap"><div class="sec-head"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose ${esc(cl.name)}</h2></div>${benefitsInner}</div></section>`;
+  const benefitsSection = `<section class="sec${benefitsAlt ? " alt" : ""}"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose ${esc(cl.name)}</h2></div>${benefitsInner}</div></section>`;
 
-  const stepsSection = `<section class="sec"><div class="wrap"><div class="sec-head"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps">${steps.map((s, i) => `<div class="step reveal" style="transition-delay:${i * 70}ms"><div class="num">${i + 1}</div><h3>${esc(s)}</h3></div>`).join("")}</div></div></section>`;
+  const stepsSection = `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps">${steps.map((s, i) => `<div class="step reveal" style="transition-delay:${i * 70}ms"><div class="num">${i + 1}</div><h3>${esc(s)}</h3></div>`).join("")}</div></div></section>`;
 
-  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal">${photos.map((p) => `<div class="gitem reveal"><img src="${esc(p.url)}" alt="${esc(p.label || cl.name)}" loading="lazy"></div>`).join("")}</div></div></section>` : "";
+  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(p.url)}" alt="${esc(p.label || cl.name)}" loading="lazy"></div>`).join("")}</div></div></section>` : "";
 
   const offerSection = offer ? `<section class="sec"><div class="wrap"><div class="offer reveal"><div class="ok">Limited-time offer</div><h2>${esc(offer)}</h2><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></div></section>` : "";
 
@@ -472,11 +568,11 @@ a{color:inherit}
     const q = (m ? m[1] : l).replace(/^["'“]+|["'”]+$/g, "").trim();
     return { q, who: m ? m[2].trim() : "" };
   });
-  const reviewsSection = reviewList.length ? `<section class="sec alt"><div class="wrap"><div class="sec-head"><div class="sec-k">Reviews</div><h2 class="sec-t">What clients say</h2></div><div class="revs">${reviewList.map((r) => `<div class="rev reveal"><div class="stars">★★★★★</div><p>${esc(r.q)}</p>${r.who ? `<div class="who">— ${esc(r.who)}</div>` : ""}</div>`).join("")}</div></div></section>` : "";
+  const reviewsSection = reviewList.length ? `<section class="sec alt"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Reviews</div><h2 class="sec-t">What clients say</h2></div><div class="revs">${reviewList.map((r, i) => `<div class="rev reveal" style="transition-delay:${i * 70}ms"><div class="stars">★★★★★</div><p>${esc(r.q)}</p>${r.who ? `<div class="who">${esc(r.who)}</div>` : ""}</div>`).join("")}</div></div></section>` : "";
 
   // FAQ — AI-written honest Q&A (no fabricated specifics). Native <details> accordion, no JS.
   const faqs = Array.isArray(lp.faqs) ? lp.faqs.filter((f) => f && f.q && f.a).slice(0, 6) : [];
-  const faqSection = faqs.length ? `<section class="sec"><div class="wrap"><div class="sec-head"><div class="sec-k">FAQ</div><h2 class="sec-t">Common questions</h2></div><div class="faqwrap">${faqs.map((f) => `<details class="faq reveal"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}</div></div></section>` : "";
+  const faqSection = faqs.length ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">FAQ</div><h2 class="sec-t">Common questions</h2></div><div class="faqwrap">${faqs.map((f, i) => `<details class="faq reveal" style="transition-delay:${i * 55}ms"><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join("")}</div></div></section>` : "";
 
   const orders = {
     a: [benefitsSection, reviewsSection, stepsSection, gallerySection, faqSection, offerSection],
@@ -489,11 +585,11 @@ a{color:inherit}
   // Bottom conversion block: the full form section for most layouts; for the capture
   // layout (form already in the hero) a slim closing CTA that scrolls back to it.
   const bottomBlock = useCapture
-    ? `<section class="formsec"><div class="wrap" style="text-align:center"><h2 class="form-copy-h2" style="font-size:clamp(22px,3vw,30px);font-weight:850;color:${P.headline};margin-bottom:8px">Ready to get started?</h2><p style="color:${P.muted};margin-bottom:20px">No pressure, no obligation — get your free quote today.</p><a class="cta" href="#lead-form">${esc(cta)}</a></div></section>`
+    ? `<section class="formsec"><div class="wrap" style="text-align:center"><h2 class="form-copy-h2" style="font-size:clamp(22px,3vw,30px);font-weight:850;color:${P.headline};margin-bottom:8px">Ready to get started?</h2><p style="color:${P.muted};margin-bottom:20px">No pressure and no obligation. Get your free quote today.</p><a class="cta" href="#lead-form">${esc(cta)}</a></div></section>`
     : `<section class="formsec"><div class="wrap"><div class="form-g">
   <div class="form-copy reveal">
     <h2>Ready to get started?</h2>
-    <p>Fill out the form and we'll get right back to you — no pressure, no obligation.</p>
+    <p>Fill out the form and we'll get right back to you. No pressure, no obligation.</p>
     <ul class="rlist"><li><span class="rk">1</span><span>Tell us a bit about what you need.</span></li><li><span class="rk">2</span><span>We'll reach out fast with your free quote.</span></li><li><span class="rk">3</span><span>Book your slot and we handle the rest.</span></li></ul>
   </div>
   ${formCardHTML}
@@ -580,7 +676,7 @@ a{color:inherit}
   if(lf){lf.addEventListener('submit',function(e){
     e.preventDefault();
     var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
-    err.style.display='none';btn.disabled=true;btn.textContent='Sending…';
+    err.style.display='none';btn.disabled=true;btn.classList.add('sending');btn.textContent='Sending…';
     var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
     try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
       payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);}catch(e){}
@@ -595,7 +691,7 @@ a{color:inherit}
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';${formConversion}})
-    .catch(function(){err.style.display='block';btn.disabled=false;btn.textContent=${JSON.stringify(cta)};});
+    .catch(function(){err.style.display='block';btn.disabled=false;btn.classList.remove('sending');btn.textContent=${JSON.stringify(cta)};});
   });}`;
 
   const conversionCall = (convId && formLabel)
@@ -622,6 +718,26 @@ a{color:inherit}
   // having one. Handling the scroll in JS behaves identically in both places, and the plain
   // href stays as the fallback for a visitor with JS off, which only ever happens on the live
   // page where the fragment is correct anyway.
+  // The header condenses once the visitor leaves the hero. Written without comments and
+  // without modern syntax on purpose: this exact script is delivered verbatim to a hand-off
+  // client's own domain, where their developer reads it and their visitors' browsers run it.
+  // rAF-throttled and passive so it cannot make scrolling feel heavy, and every failure mode
+  // simply leaves the header in its resting state, which is the state it ships in.
+  const headerJS = `
+  try{
+    var hdr=document.querySelector('.hdr');
+    if(hdr){
+      var pending=false;
+      var settle=function(){
+        pending=false;
+        var y=window.pageYOffset||document.documentElement.scrollTop||0;
+        if(y>24){hdr.classList.add('stuck');}else{hdr.classList.remove('stuck');}
+      };
+      var onScroll=function(){if(pending)return;pending=true;(window.requestAnimationFrame||setTimeout)(settle,16);};
+      window.addEventListener('scroll',onScroll,{passive:true});
+      settle();
+    }
+  }catch(e){}`;
   const navJS = `
   try{
     Array.prototype.forEach.call(document.querySelectorAll('a[href^="#"]'),function(a){
@@ -634,14 +750,18 @@ a{color:inherit}
       });
     });
   }catch(e){}`;
-  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}`;
+  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const diffChip = fitPhrase(differentiator, 64);
-  const chips = [area ? `<div class="chip">Serving ${esc(area)}</div>` : reach ? `<div class="chip">${esc(reach)}</div>` : "", diffChip ? `<div class="chip">${esc(diffChip)}</div>` : "", `<div class="chip">&#10003; Free quote, no obligation</div>`, phone ? `<div class="chip">Fast response</div>` : ""].filter(Boolean).join("");
+  // Built as labels first so the stagger delay counts the chips that SURVIVE the filter.
+  // Indexing before filtering would leave gaps in the timing whenever a client has no
+  // phone number or no service area, which is most of them at the start.
+  const chipLabels = [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "", "&#10003; Free quote, no obligation", phone ? "Fast response" : ""].filter(Boolean);
+  const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
   const bodyClass = `js lay-${D.layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} — ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} — ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(cl.name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(cl.name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}
 <header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(cl.name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(cl.name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
