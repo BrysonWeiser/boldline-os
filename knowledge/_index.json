@@ -12733,7 +12733,7 @@
         "house account ads",
         "my ads"
       ],
-      "status": "open",
+      "status": "confirmed",
       "summary": "Every Meta campaign the OS builds is set to OUTCOME_TRAFFIC with optimization_goal LANDING_PAGE_VIEWS and no promoted_object, so Meta is told to buy the cheapest page views rather than leads. That is the likely cause of BoldLine's own house ad getting 6,997 views and 171 clicks at $0.51 for $87 with ZERO leads. The code's own comment says to switch to a leads objective \"once the client's pixel + lead events exist\" — on BoldLine's own site they now DO exist, and nothing revisits the decision. Not yet changed: a live campaign's objective cannot be edited, it needs a NEW campaign, and that spends money, so it is Bryson's call.",
       "verified": "2026-09-02",
       "terms": {

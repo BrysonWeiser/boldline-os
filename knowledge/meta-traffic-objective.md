@@ -3,7 +3,7 @@ name: meta-traffic-objective
 topic: Ads
 task: work out why a Meta campaign gets clicks but no leads, or change what a Meta campaign optimises for
 keywords: [meta no leads, clicks but no leads, zero leads, 0 leads, OUTCOME_TRAFFIC, OUTCOME_LEADS, LANDING_PAGE_VIEWS, optimization_goal, promoted_object, meta objective, why no conversions, cheap clicks, high ctr no leads, meta pixel, fbq Lead, house account ads, my ads]
-status: open
+status: confirmed
 summary: Every Meta campaign the OS builds is set to OUTCOME_TRAFFIC with optimization_goal LANDING_PAGE_VIEWS and no promoted_object, so Meta is told to buy the cheapest page views rather than leads. That is the likely cause of BoldLine's own house ad getting 6,997 views and 171 clicks at $0.51 for $87 with ZERO leads. The code's own comment says to switch to a leads objective "once the client's pixel + lead events exist" — on BoldLine's own site they now DO exist, and nothing revisits the decision. Not yet changed: a live campaign's objective cannot be edited, it needs a NEW campaign, and that spends money, so it is Bryson's call.
 verified: 2026-09-02
 ---
@@ -47,6 +47,21 @@ That condition is now met on BoldLine's own site. Nothing revisits the decision,
 
 🔴 **It cannot become the default for CLIENTS until each client has a pixel and a firing Lead event**, which is exactly what the original comment says. A client without one would have the campaign rejected at creation. So the change is per-account, gated on the pixel existing, not a blanket switch.
 
-## Still unverified from outside
+## CONFIRMED 2026-09-02 — every other explanation eliminated
 
-The card also warned *"The lead check has not run since 4 hours ago"* (`house-leads` should run every 15 min). **Whether any form submissions exist at all could not be checked from here** — that needs Netlify's Forms tab or Supabase. If submissions DO exist, this is a counting bug and the objective is a separate matter. Bryson to check Netlify -> Forms.
+Bryson checked Netlify Forms (on the MARKETING site; 🔴 I first sent him to the OS site, which has no forms at all and offers a misleading "Enable form detection" button — **Forms lives on the site serving boldlinemedia.com, not `os.boldlinemedia.com`**).
+
+| Form | Verified | Spam | Last |
+|---|---|---|---|
+| **`get-started`** (where the ad points) | **2, both old** | **NONE** | Aug 24 |
+| `contact` (homepage wizard, NOT ad traffic) | 9, all his own tests | 12, all obvious bots | 2:12 AM |
+
+**The four things that had to be ruled out, and how each died:**
+1. *Form broken* — no. `POST /` with `form-name=get-started` returns **200**, a made-up name returns **404**.
+2. *Pipeline broken* — no. He SAW the test entries in the OS Leads tab and deleted them, so submissions do travel Netlify -> `website_leads` -> OS.
+3. *Leads hidden in spam* — no. **`get-started` has ZERO spam submissions.**
+4. *Honeypot eating real people* — no. Every spam entry is unmistakable bot junk (the same "Hi, I wanted to know your price" template in Bulgarian, Bengali, Afrikaans, Hawaiian and Igbo, plus SEO and backlink pitches). **The spam filter is working correctly.**
+
+So: **171 clicks in 30 days produced zero submissions of any kind on the page the ad points at.** Nothing is broken. The campaign is buying page views and getting them.
+
+🔴 **Change ONE thing.** The objective is the primary fix. The page converting 0 of 171 is not separately damning while the traffic is low-intent by construction — changing the objective and the page at once would leave no way to tell which mattered.
