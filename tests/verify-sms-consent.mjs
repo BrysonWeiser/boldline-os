@@ -29,7 +29,7 @@ const ok = (name, cond, extra) => {
 };
 const eq = (name, got, want) => ok(name, got === want, `got ${JSON.stringify(got)}, wanted ${JSON.stringify(want)}`);
 
-const { consentYes, pickConsent, consentField, mayTextLead, CONSENT_KEYS } =
+const { consentYes, consentGranted, pickConsent, consentField, mayTextLead, weSendTheText, CONSENT_IMPLIED, CONSENT_KEYS } =
   await import("../netlify/lib/sms-consent.mjs");
 const { crmFormat, crmFormPayload, crmBody, crmPayload, forwardLead, signBody, signFields, canonicalFields } =
   await import("../netlify/lib/crm-forward.mjs");
@@ -81,6 +81,46 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
     "the round trip is the test: a lead who unticked the box must still be un-textable after "
     + "being stored and read back");
   ok("an empty lead or no lead is treated as never asked", mayTextLead({}) && mayTextLead(null));
+
+  // 🔴 THE FOURTH CASE, ADDED 2026-09-03 WHEN THE TICK BOX BECAME A DISCLOSURE.
+  ok("🔴 submitted under the disclosure, we may text",
+    mayTextLead({ smsConsentTransactional: CONSENT_IMPLIED }),
+    "the whole form change is worthless if the value it now posts does not permit the text");
+  ok("and casing or padding on the way back does not break it",
+    mayTextLead({ smsConsentTransactional: "  Implied " }));
+
+  // 🔴 AND IT MUST NOT LEAK INTO THE STRICT TEST. `consentYes` is what marketing turns on,
+  // and marketing is the direction where a wrong yes is unrecoverable.
+  ok("🔴 implied is NOT an affirmative tick", !consentYes(CONSENT_IMPLIED),
+    "widening consentYes would have quietly made every lead a marketing opt-in");
+  ok("but it is a basis to send the reply", consentGranted(CONSENT_IMPLIED));
+  ok("and consentGranted is still strict about everything else",
+    !consentGranted("maybe") && !consentGranted("") && !consentGranted(undefined) && !consentGranted(false));
+}
+
+// ── 2b. 🔴 WHO SENDS THE FIRST TEXT ──────────────────────────────────────────
+// Two systems both texting a new lead is the failure that looks like success: neither can
+// see the other, the lead gets two near-identical texts from two numbers, and nothing errors.
+{
+  const withCrm = (smsSender) => ({ campaignSetup: { crmWebhook: "https://crm.example.com/in", smsSender } });
+
+  ok("🔴 by default WE send it", weSendTheText({}) && weSendTheText(withCrm("")) && weSendTheText(null),
+    "a default that handed the text away would silently switch off every existing client's "
+    + "speed-to-lead reply, which is a worse bug than the one this prevents");
+  ok("🔴 set to their system, we stay quiet", !weSendTheText(withCrm("their")),
+    "otherwise the lead gets two texts from two different numbers seconds apart");
+  ok("and the obvious spellings all work",
+    !weSendTheText(withCrm("Theirs")) && !weSendTheText(withCrm(" THEM "))
+      && !weSendTheText(withCrm("client")),
+    "a setting that only accepts one exact word is a setting that silently does nothing");
+
+  // 🔴 The guard that stops a typo turning speed-to-lead off entirely.
+  ok("🔴 but handing it to a system we do not forward to is ignored",
+    weSendTheText({ campaignSetup: { smsSender: "their" } }),
+    "with no address to forward to, nobody texts at all, which is the same silence as a "
+    + "broken integration and no more visible");
+  ok("an unrecognised value falls back to us", weSendTheText(withCrm("shaun")),
+    "guessing that an unknown word means them is guessing in the direction of silence");
 }
 
 // ── 3. What the intake stores ────────────────────────────────────────────────
@@ -96,6 +136,21 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   const none = pickConsent({});
   eq("every key is always written", Object.keys(none).sort().join(","), CONSENT_KEYS.slice().sort().join(","));
   ok("and all default to false", none.smsConsentTransactional === false && none.smsConsentMarketing === false);
+
+  // 🔴 THE RECORD KEEPS *HOW* CONSENT WAS GIVEN, not just that it was.
+  const implied = pickConsent({
+    smsConsentTransactional: "implied",
+    consentDisclosure: "By submitting this form you agree that Stencil & Thread may text you about your quote.",
+  });
+  eq("🔴 implied is stored as implied, not flattened to true", implied.smsConsentTransactional, CONSENT_IMPLIED);
+  ok("🔴 and the exact wording shown is stored with it",
+    /may text you about your quote/.test(implied.consentDisclosure || ""),
+    "otherwise the record proves a disclosure happened but not what it said, and page copy changes");
+  ok("🔴 there is no implied MARKETING consent, ever",
+    pickConsent({ smsConsentMarketing: "implied" }).smsConsentMarketing === false,
+    "offers later need a real tick and no wording on a page can stand in for one");
+  ok("no disclosure key is invented when none was sent",
+    !Object.prototype.hasOwnProperty.call(none, "consentDisclosure"));
 }
 
 // ── 4. The form the visitor actually sees ────────────────────────────────────
@@ -111,13 +166,32 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   const ho = renderLandingPage(cl, { handoff: { phone: "(541) 555-0100" } });
 
   for (const [label, html] of [["managed", managed], ["hand-off", ho]]) {
-    ok(`the ${label} form has a transactional consent box`, html.includes('name="smsConsentTransactional"'));
+    ok(`the ${label} form still records transactional consent`, html.includes('name="smsConsentTransactional"'));
     ok(`the ${label} form has a separate marketing consent box`, html.includes('name="smsConsentMarketing"'));
 
-    // 🔴 A pre-ticked box is not consent, it is the appearance of consent.
+    // 🔴 THE TICK BOX BECAME A LINE OF SMALL PRINT UNDER THE BUTTON (Bryson, 2026-09-03).
+    // Nobody should have to tick a box to be answered by the business they just wrote to;
+    // what the carriers require for that reply is a conspicuous disclosure where the person
+    // acts. Offers later are a different thing and still need a real tick.
+    ok(`🔴 the ${label} form no longer asks the visitor to tick to be answered`,
+      !/id="lf-sms"/.test(html) && /<input type="hidden" id="lf-tx"/.test(html),
+      "the extra tick cost leads and was never what let the business reply");
+    ok(`🔴 and the ${label} disclosure is right there under the button`,
+      html.indexOf('class="fine discl"') > html.indexOf("<button class=\"cta\" type=\"submit\""),
+      "a disclosure the visitor passes AFTER acting is not a disclosure at the point of action");
+
+    // 🔴 THE HIDDEN FIELD AND THE SENTENCE MUST LIVE OR DIE TOGETHER. The field is the claim
+    // "this person was told"; if it could ever post while the sentence was gone, the record
+    // would assert a disclosure that never appeared on screen. Same block, checked as one.
+    const discl = (html.match(/<div class="fine discl">[\s\S]*?<\/div>/) || [""])[0];
+    ok(`🔴 the ${label} hidden consent field sits inside the sentence that justifies it`,
+      /id="lf-tx"/.test(discl) && /may text you about your/.test(discl),
+      "a consent record with no disclosure beside it claims something that never happened");
+
+    // 🔴 The one remaining box is optional in both senses.
     const boxes = html.match(/<input type="checkbox"[^>]*>/g) || [];
     ok(`🔴 no consent box in the ${label} form is pre-ticked`,
-      boxes.length >= 2 && boxes.every((b) => !/\bchecked\b/.test(b)),
+      boxes.length >= 1 && boxes.every((b) => !/\bchecked\b/.test(b)),
       "express consent cannot be given by a box the visitor never touched");
     ok(`🔴 and none of them blocks the form`,
       boxes.every((b) => !/\brequired\b/.test(b)),
@@ -126,21 +200,17 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 
     // The disclosure has to say who is texting and how to stop.
     ok(`the ${label} disclosure names the business, not BoldLine`,
-      html.includes("This is how Stencil &amp; Thread reply fastest"),
+      html.includes("you agree that Stencil &amp; Thread may text you"),
       "the reader is on the client's own domain and has never heard of BoldLine");
-    // 🔴 Shaun, 2026-09-01: *"transactional is the box that gates the instant text... Worth
-    // making the transactional line the more prominent of the two, and writing it so a normal
-    // person understands they're agreeing to be texted back about their quote."* If someone
-    // ticks marketing and skips this one, the lead lands and no text goes out, and the
-    // speed-to-lead advantage the whole campaign is built on quietly disappears.
-    ok(`the ${label} form makes the texting box the prominent one`,
-      /class="cons cons-main"/.test(html) && /\.cons-main label\{font-size:13px/.test(html),
-      "the box that gates the instant text must not look like the optional one beside it");
-    ok(`and it says plainly what ticking it means`,
-      /Yes, text me back about my/.test(html),
+    ok(`and it says plainly what submitting means`,
+      /By submitting this form you agree that/.test(html),
       "a normal person has to understand they are agreeing to be texted about their quote");
     ok(`the ${label} disclosure covers rates and opting out`,
       /Message and data rates may apply/.test(html) && /Reply STOP/.test(html));
+    // 🔴 It is a sentence, not a caption. .fine centres its text, which turns three lines of
+    // legal wording into a ragged pyramid nobody reads.
+    ok(`the ${label} disclosure is set left, not centred`,
+      /\.discl\{text-align:left/.test(html));
   }
 
   // 🔴 THE THREE LINKS. Shaun, same spec: A2P registration is checked against a privacy
@@ -163,8 +233,8 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   }
   ok("🔴 the .html is preserved exactly as given", !/stencilandthread\.com\/privacy"/.test(withLinks),
     "Shaun: the extensionless versions will not resolve, so link them exactly as written");
-  ok("the links sit inside the consent label, not loose on the page",
-    /<label for="lf-sms">[\s\S]*?privacy\.html[\s\S]*?<\/label>/.test(withLinks));
+  ok("the links sit inside the disclosure, not loose on the page",
+    /<div class="fine discl">[\s\S]*?privacy\.html[\s\S]*?<\/div>/.test(withLinks));
   ok("and they open in a new tab so the form is not lost",
     /privacy\.html" target="_blank" rel="noopener"/.test(withLinks),
     "a visitor who taps Privacy mid-form must not lose what they typed");
@@ -188,9 +258,19 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   ok("🔴 the managed submit sends both consents", /payload\.smsConsentTransactional=/.test(managed)
     && /payload\.smsConsentMarketing=/.test(managed),
     "checkboxes the JSON post ignores would collect consent into thin air");
-  ok("🔴 and sends them even when unticked", /!!\(sc&&sc\.checked\)/.test(managed),
+  ok("🔴 and sends marketing even when unticked", /!!\(mc&&mc\.checked\)/.test(managed),
     "sending only when true would make a decline indistinguishable from never being asked, "
     + "which is exactly the case the auto-reply gate turns on");
+  // 🔴 The transactional value posted is "implied", not true. A record saying `true` cannot
+  // tell later whether somebody ticked a box or submitted under a disclosure, and those are
+  // different evidence.
+  ok("🔴 the managed submit posts the implied value, not a bare true",
+    /payload\.smsConsentTransactional=sc\?sc\.value:false/.test(managed)
+      && /value="implied"/.test(managed),
+    "flattening it to true loses how the consent was actually given");
+  ok("🔴 and carries the exact wording that was on screen",
+    /payload\.consentDisclosure="By submitting this form you agree that Stencil/.test(managed),
+    "the record would say a disclosure happened but not what it said, and the page copy can change");
   ok("the managed submit sends the page it was filled in on", /payload\.page=location\.href/.test(managed));
 }
 
@@ -234,6 +314,18 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   const noConsentField = crmFormPayload(client, { name: "Sam", receivedAt: "2026-09-01T00:00:00.000Z" });
   eq("🔴 a lead who was never asked arrives as no, not blank",
     noConsentField.sms_consent_transactional, "no");
+
+  // 🔴 AND AN IMPLIED CONSENT GOES OUT AS "yes". His endpoint only takes yes or no and gates
+  // his own text-back on it, so sending "no" for a disclosure-based consent would stop him
+  // texting every lead we send him. The disclosure under the button is exactly the basis his
+  // A2P registration runs on.
+  const impliedOut = crmFormPayload(client, {
+    name: "Sam", receivedAt: "2026-09-01T00:00:00.000Z", smsConsentTransactional: "implied",
+  });
+  eq("🔴 an implied consent reaches his system as yes", impliedOut.sms_consent_transactional, "yes");
+  eq("🔴 and marketing is still strictly the ticked box",
+    crmFormPayload(client, { name: "Sam", receivedAt: "2026-09-01T00:00:00.000Z", smsConsentMarketing: "implied" })
+      .sms_consent_marketing, "no");
 
   // 🔴 The two he explicitly told us to stop sending.
   ok("🔴 source is absent", !("source" in p), "Shaun sets it server-side so everything feeding the CRM keeps one shape");
@@ -307,8 +399,14 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 {
   const src = readFileSync(join(ROOT, "netlify/functions/lead-intake.mjs"), "utf8");
   const body = src.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
-  ok("🔴 the auto-reply text is gated on consent", /if \(lead\.phone && mayTextLead\(lead\)\)/.test(body),
+  ok("🔴 the auto-reply text is gated on consent", /mayTextLead\(lead\)/.test(body)
+      && /if \(lead\.phone && mayTextLead\(lead\)/.test(body),
     "collecting consent and then texting regardless is worse than never asking");
+  // 🔴 AND ON WHETHER THE TEXT IS OURS TO SEND. Consent and ownership are separate questions,
+  // so both gate the same send. A client whose own CRM texts the lead would otherwise have us
+  // sending a second, near-identical text from a second number seconds later.
+  ok("🔴 and on who owns the first text", /&& weSendTheText\(client\)/.test(body),
+    "two systems both texting a new lead is the failure that reports itself as success");
   ok("the intake records both consents onto the lead", /pickConsent\(body\)/.test(body));
   ok("and the page the form was filled in on", /page: String\(body\.page/.test(body));
   ok("🔴 the email auto-reply is NOT gated on SMS consent",
