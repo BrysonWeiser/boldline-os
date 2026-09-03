@@ -68,7 +68,11 @@ export default async (req) => {
 WHAT IS HAPPENING IN THE SERVICE AREA RIGHT NOW:
 ${cond.block}`,
       });
-      const angles = cleanCreatives(data);
+      // The niche is what a rejected kicker falls back to: "Roofers" becomes "For Roofers",
+      // which is a real label. With no niche the kicker is simply dropped, and the canvas
+      // draws nothing there, which looks deliberate where half a sentence looks broken.
+      const niche = String(body.niche || "").trim();
+      const angles = cleanCreatives(data, niche ? `For ${niche}` : "");
       if (!angles.length) return json({ ok: false, error: "The model returned no usable angles. Try again." }, 502);
       return json({ ok: true, model, angles });
     } catch (e) {

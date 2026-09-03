@@ -9554,7 +9554,13 @@ function AdCreativeStudio({client,onUpdate}){
         <textarea value={f.sub} onChange={e=>setF({...f,sub:e.target.value})} rows={2} style={{...inp,resize:"vertical",lineHeight:1.5}}/>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:11}}>
+      {/* 🔴 220px, not 150px. At 150 these two sit SIDE BY SIDE on a phone, giving each
+          about 165px of usable width, and a 30-character kicker then scrolls sideways
+          inside its own box so only the tail is visible. Bryson reported the kicker as
+          "unfinished" from exactly that: the copy was whole, the box was too narrow to
+          show it. 220 forces one per row below roughly 480px and keeps them paired on a
+          laptop. Anything that has to be READ to be checked needs room to be read. */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginBottom:11}}>
         <div>
           <span style={lbl}>Kicker (small gold line)</span>
           <input value={f.kicker} onChange={e=>setF({...f,kicker:e.target.value})} style={inp}/>

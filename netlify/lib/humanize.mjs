@@ -186,6 +186,51 @@ const isDangling = (w) => DANGLING.has(String(w || "").toLowerCase().replace(/[^
 // an empty slot looks deliberate where a stub looks broken.
 const MIN_PHRASE_WORDS = 2;
 
+// ── Is this phrase a LABEL, or the front half of a sentence? ──────────────────────
+// Bryson, 2026-09-02, looking at the Ad Creative Studio: *"for the kicker the sentence
+// is unfinished"*. The kicker is the small gold line above the headline, and it is a
+// LABEL — "Google Ads Management", "For Roofers", "How We Work". The model kept writing
+// the opening of a sentence instead ("Your budget actually gets"), which reads as broken
+// on a finished image.
+//
+// 🔴 `fitPhrase` cannot catch this and never could. It only walks back when something was
+// CUT, and these fragments arrive already inside the limit — the model wrote a fragment
+// on purpose. So this is a separate question asked of the FINAL text.
+//
+// The rule: a label may not end on a verb that is still waiting for its object. The set
+// below is deliberately verbs only; the dangling articles and prepositions are already
+// handled above and are checked here too, since popping one routinely exposes another.
+const OBJECT_VERBS = new Set([
+  "get", "gets", "make", "makes", "bring", "brings", "give", "gives", "take", "takes",
+  "keep", "keeps", "put", "puts", "turn", "turns", "help", "helps", "send", "sends",
+  "want", "wants", "show", "shows", "need", "needs", "save", "saves", "find", "finds",
+  "build", "builds", "cover", "covers", "include", "includes", "deliver", "delivers",
+  "create", "creates", "spend", "spends", "earn", "earns", "add", "adds", "use", "uses",
+  "mean", "means", "become", "becomes", "tell", "tells", "cost", "costs",
+  "buy", "buys", "pay", "pays",
+  // 🔴 "actually" and nothing else from its family. "finally", "instantly",
+  // "consistently" and "properly" all genuinely END ad copy ("get quotes instantly",
+  // "done properly"), so listing them would delete good labels. "actually" is the one
+  // that is always reaching for the next word.
+  "actually",
+]);
+
+// 🔴 THE EXEMPTION, AND IT IS NOT A LOOPHOLE. A label that OPENS on a question word is a
+// complete noun clause even though it ends on a verb: "What Your Budget Buys" and "Where
+// Your Money Goes" are good copy and would otherwise be thrown away. Without this the
+// guard deletes better headlines than the ones it saves.
+const OPENS_A_CLAUSE = /^(what|how|why|where|when|who|which)\b/i;
+
+const bare = (w) => String(w || "").toLowerCase().replace(/[^a-z']/gi, "");
+
+export const isLeadIn = (s) => {
+  const t = String(s == null ? "" : s).trim().replace(/\s{2,}/g, " ");
+  if (!t) return false;
+  if (OPENS_A_CLAUSE.test(t)) return false;
+  const last = bare(t.split(" ").filter(Boolean).pop());
+  return OBJECT_VERBS.has(last) || DANGLING.has(last);
+};
+
 export const fitPhrase = (s, max) => {
   const full = String(s == null ? "" : s).trim().replace(/\s{2,}/g, " ");
   // 🔴 Only walk back when something was actually CUT. A field that already fits was

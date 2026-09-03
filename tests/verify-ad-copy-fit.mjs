@@ -17,8 +17,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   fitWords, fitPhrase, fitSentence, cleanMeta, cleanGoogle, cleanCreatives,
-  META_TOOL, GOOGLE_TOOL,
+  META_TOOL, GOOGLE_TOOL, CREATIVE_TOOL,
 } from "../netlify/lib/ad-gen-shared.mjs";
+import { isLeadIn } from "../netlify/lib/humanize.mjs";
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; };
@@ -246,5 +247,75 @@ t("the OS trimmer caught the chain too", () => {
   assert.equal(cl30("Roof Repair Done Right"), "Roof Repair Done Right");
 });
 
+
+// ── 🔴 A KICKER IS A LABEL, NOT THE FRONT HALF OF A SENTENCE ─────────────────
+// Bryson, 2026-09-02, mid-way through building a roofing creative: *"for the kicker the
+// sentence is unfinished"*.
+//
+// 🔴 THIS IS A DIFFERENT BUG FROM EVERYTHING ABOVE, AND THAT IS THE WHOLE POINT. Every
+// check above is about text that was CUT by a character limit. These fragments are never
+// cut. The model writes "Your budget actually gets" deliberately, it is 25 characters, it
+// passes every length rule in this file, and it still reads as broken on a finished image.
+// `fitPhrase` cannot help: it walks back only when something was trimmed, on purpose, so
+// that copy which already fits is returned untouched. So the completeness of the FINAL
+// text has to be asked as its own question.
+t("a kicker that trails off is replaced, not shipped", () => {
+  const bad = ["Your budget actually gets", "The one thing that",
+    "More roofing jobs and", "Everything you need to", "Roof leads that actually",
+    "The part nobody tells", "Ads that actually bring"];
+  for (const k of bad) {
+    assert.ok(isLeadIn(k), `not recognised as a lead-in: ${k}`);
+    const [a] = cleanCreatives({ angles: [{ id: "x", label: "T", kicker: k, accent: 0,
+      head: ["Roof leads", "That answer"], sub: "s", why: "w" }] }, "For Roofers");
+    assert.equal(a.kicker, "For Roofers", `lead-in kicker survived: ${a.kicker}`);
+  }
+});
+
+// 🔴 THE FALSE POSITIVES MATTER MORE THAN THE CATCHES. A guard that deletes good labels
+// costs more than the fragments it saves, and these are all real, shippable kickers.
+t("real labels are left completely alone", () => {
+  const good = ["For Roofers", "Google Ads Management", "How We Work", "What Your Budget Buys",
+    "Where Your Money Goes", "Why Owners Switch", "Roof Repair, Phoenix", "No Big Retainer"];
+  for (const k of good) {
+    assert.ok(!isLeadIn(k), `good label rejected: ${k}`);
+    const [a] = cleanCreatives({ angles: [{ id: "x", label: "T", kicker: k, accent: 0,
+      head: ["Roof leads", "That answer"], sub: "s", why: "w" }] }, "For Roofers");
+    assert.equal(a.kicker, k, `good kicker was replaced: ${k} became ${a.kicker}`);
+  }
+});
+
+// The question-word exemption is load-bearing: "What Your Budget Buys" ends on a verb in
+// the reject list and is good copy. Pinned so nobody "simplifies" the rule away.
+t("the question-word exemption is what saves those", () => {
+  assert.ok(isLeadIn("Your Budget Buys"), "precondition: the bare verb ending is caught");
+  assert.ok(!isLeadIn("What Your Budget Buys"), "the exemption did not apply");
+});
+
+// 🔴 THE KNOWN GAP, WRITTEN DOWN RATHER THAN QUIETLY LEFT OUT. This guard reads the LAST
+// word only. "See what your money" is a fragment that ends on a noun, so it survives, and
+// so would "Here is the reason". Catching those means deciding whether an embedded clause
+// has its verb yet, which needs a parser; every cheap approximation tried here also
+// rejected "See What We Do" and "Know What You Get", which are good labels. Deleting good
+// copy costs more than letting a rare plain one through, and the schema now shows the
+// model three counter-examples of exactly this shape, which is the right place to fix it.
+t("the shape this guard deliberately does not catch", () => {
+  assert.ok(!isLeadIn("See what your money"), "if this now passes, the rule changed: re-check the good labels above");
+});
+
+// With no niche to fall back on, the kicker is DROPPED. The canvas draws nothing there,
+// which reads as deliberate, where half a thought reads as a mistake.
+t("with no fallback the bad kicker is dropped rather than kept", () => {
+  const [a] = cleanCreatives({ angles: [{ id: "x", label: "T", kicker: "Your budget actually gets",
+    accent: 0, head: ["Roof leads", "That answer"], sub: "s", why: "w" }] });
+  assert.equal(a.kicker, "");
+});
+
+// And the tool schema has to TELL the model, because a guard that fires on every angle
+// is a guard papering over a prompt that was never fixed.
+t("the schema tells the model a kicker is a label", () => {
+  const d = CREATIVE_TOOL.input_schema.properties.angles.items.properties.kicker.description;
+  assert.match(d, /LABEL/, "the schema still describes the kicker as just a short line");
+  assert.match(d, /Bad:/, "no counter-examples, which is what the model actually copies");
+});
 
 console.log(`✅ ad copy fit: ${n} checks passed`);

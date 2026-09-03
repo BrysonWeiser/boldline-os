@@ -6,7 +6,7 @@
 // cleaning must be IDENTICAL across both paths, so they live here once.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { humanize, NO_DASH_RULE, fitWords, fitPhrase } from "./humanize.mjs";
+import { humanize, NO_DASH_RULE, fitWords, fitPhrase, isLeadIn } from "./humanize.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
@@ -112,7 +112,7 @@ export const CREATIVE_TOOL = {
           properties: {
             id: { type: "string", description: "short-slug" },
             label: { type: "string", description: "Name for the picker, 2-4 words." },
-            kicker: { type: "string", description: "Small line above the headline. 30 characters or fewer." },
+            kicker: { type: "string", description: "The small line above the headline. It is a LABEL, not a sentence, and it must stand on its own without the headline finishing it. 30 characters or fewer. Good: 'For Roofers', 'Google Ads Management', 'How We Work', 'What Your Budget Buys'. Bad: 'Your budget actually gets', 'See what your money', 'The one thing that' — those are the front half of a sentence and read as broken on a finished image." },
             head: { type: "array", description: "2 or 3 lines of headline. Each 24 characters or fewer so it fits the canvas.", items: { type: "string" } },
             accent: { type: "integer", description: "0-based index of the headline line to paint in the brand gold." },
             sub: { type: "string", description: "One supporting sentence, 90 characters or fewer." },
@@ -246,19 +246,29 @@ export const cleanMeta = (data) =>
     description: fitPhrase(stripDashes(v.description), 30),
   })).filter((v) => v.headline && v.primaryText);
 
-export const cleanCreatives = (data) =>
-  (Array.isArray(data && data.angles) ? data.angles : []).map((a, i) => {
+// `fallbackKicker` is what a rejected kicker becomes. Pass the niche in ("Roofers") and a
+// broken lead-in turns into "For Roofers", which is a real label rather than a blank gap.
+export const cleanCreatives = (data, fallbackKicker = "") => {
+  const spare = fitPhrase(stripDashes(fallbackKicker), 30);
+  return (Array.isArray(data && data.angles) ? data.angles : []).map((a, i) => {
     const head = fitAll(a.head, 24).slice(0, 3);
+    // 🔴 The kicker is a LABEL above the headline, not the opening of a sentence. The
+    // model repeatedly handed back the front half of one ("Your budget actually gets"),
+    // which is inside the character limit and so passes every length check, and then
+    // reads as broken on a finished image. Rejected and replaced, not repaired: there is
+    // no honest way to guess the missing half, and half a thought is worse than a label.
+    const kick0 = fitPhrase(stripDashes(a.kicker), 30);
     return {
       id: String(a.id || `angle-${i + 1}`).toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40),
       label: fitWords(stripDashes(a.label), 40) || `Angle ${i + 1}`,
-      kicker: fitPhrase(stripDashes(a.kicker), 30),
+      kicker: isLeadIn(kick0) ? spare : kick0,
       head,
       accent: Math.max(0, Math.min(head.length - 1, Number(a.accent) || 0)),
       sub: fitSentence(stripDashes(a.sub), 90),
       why: stripDashes(a.why),
     };
   }).filter((a) => a.head.length >= 2);
+};
 
 // ── The two prompts, kept here so sync and background can never diverge ──────
 export const systemFor = (isAgency) => {
