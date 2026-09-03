@@ -326,6 +326,32 @@ export async function getAdsForCampaign(adAccountId, campaignId) {
   });
 }
 
+// ── Guarded write: when the campaign should STOP ─────────────────────────────
+// The Meta half of Bryson's 2026-09-03 request. `createCampaign` puts the daily budget on
+// the CAMPAIGN, so the campaign is where its schedule lives too.
+//
+// 🔴 CLEARING IT NEEDS A DIFFERENT CALL, NOT AN EMPTY VALUE. Meta ignores `stop_time: ""`,
+// so removing an end date means posting `stop_time` with the campaign's own "no end" form.
+// Meta's way to say that is to clear the field explicitly, which the Graph API does when the
+// key is sent EMPTY as part of the form body — so it is sent, deliberately, rather than
+// omitted. Omitting it would leave yesterday's end date in place while the OS showed none.
+export async function setEndTime(campaignId, endTime) {
+  const cid = String(campaignId || "");
+  if (!cid) throw Object.assign(new Error("setEndTime: campaignId required"), { stage: "setEndTime" });
+  const d = String(endTime || "").trim();
+  let stop = "";
+  if (d) {
+    const t = new Date(d.length <= 10 ? `${d}T23:59:59` : d);
+    if (isNaN(t.getTime())) throw Object.assign(new Error("setEndTime: date not understood"), { stage: "setEndTime" });
+    // 🔴 END OF the chosen day, not the start of it. A date input gives midnight, and
+    // stopping a campaign at 00:00 on the day he typed means it does not run that day at
+    // all, which is not what anybody means by "run until the 20th".
+    stop = t.toISOString();
+  }
+  await graph("setEndTime", cid, { method: "POST", params: { stop_time: stop } });
+  return { endTime: d || null };
+}
+
 // ── Read ONE campaign in full: its ad sets, and the ads under each ──────────
 // Bryson, 2026-09-03: *"i need a way to be able to open a specific campaign (internal ones
 // included) and it opens up the details of that campaign not the campaign builder screen"*.
@@ -1000,6 +1026,11 @@ export default async (req) => {
         return json({ ok: false, error: "adAccountId, campaignId required" }, 400);
       const result = await getAdsForCampaign(body.adAccountId, body.campaignId);
       return json({ ok: true, action, ads: result });
+    }
+
+    if (action === "setEndTime") {
+      if (!body.campaignId) return json({ ok: false, error: "campaignId required" }, 400);
+      return json({ ok: true, action, ...(await setEndTime(body.campaignId, body.endTime)) });
     }
 
     if (action === "campaignDetail") {
