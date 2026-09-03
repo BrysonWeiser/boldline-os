@@ -4,7 +4,7 @@ topic: Forms/Leads
 task: decide who texts a new lead first, or wire a client's own text-back into the OS
 keywords: [text back, auto reply text, speed to lead, smsSender, weSendTheText, double text, two texts, who texts the lead, Twilio, A2P, 10DLC, Shaun Smith, Sebastian, Stencil and Thread, CRM texts, webhook, lead-intake, notifyLead]
 status: built
-summary: The OS texts a new lead within seconds. So does a client's own CRM once their developer wires it up, and neither system can see the other, so the lead gets two near-identical texts from two numbers and nothing errors. A per-client setting ("Who texts the lead first") decides, defaulting to us, and ignoring "their" when there is no address to forward to so a typo cannot switch off speed-to-lead entirely.
+summary: CONFIRMED 2026-09-03: Autopilot Systems (Shaun) sends the text itself, so Stencil & Thread is set to "their". A2P registration is per business, not per platform, so one BoldLine registration would NOT cover clients. The OS texts a new lead within seconds. So does a client's own CRM once their developer wires it up, and neither system can see the other, so the lead gets two near-identical texts from two numbers and nothing errors. A per-client setting ("Who texts the lead first") decides, defaulting to us, and ignoring "their" when there is no address to forward to so a typo cannot switch off speed-to-lead entirely.
 verified: 2026-09-03
 ---
 
@@ -98,3 +98,24 @@ Order that makes sense:
 🔴 **Do not claim BoldLine's texting is on or off from reading the repo.** The code has an
 `SMS_ENABLED` switch and the KB records it as off since 2026-07-25 with Twilio on trial, but
 whether it has been upgraded since is live state, and live state is not readable from here.
+
+## ✅ 2026-09-03 — CONFIRMED: Autopilot Systems sends the text itself
+
+Bryson, reporting what Shaun said in the meeting: their endpoint **sends the text to the lead
+automatically** when our lead arrives. It is not a filing cabinet Sebastian works by hand.
+
+Shaun also confirmed in the same meeting that **he already went through A2P registration** to
+send automated texts on behalf of clients, and that **the disclosure wording is approved** as
+it now appears under the button.
+
+**So Stencil & Thread's setting is `their`.** Nothing to build, nothing to hand over, nothing
+to collect. The forward already fires; his side does the rest.
+
+🔴 **Set the box even though our texting is off today.** It changes nothing now, because we
+cannot text either way. It matters the day BoldLine registers and switches ours on: a blank
+box means "we send it", so the moment ours works, his leads start getting two texts from two
+numbers. Ten seconds now against a fault only a customer would ever report.
+
+🔴 **Note on sourcing.** This is live state learned from Bryson, not read from code, and it is
+the answer to the one question that could otherwise have left a client with NO first text and
+nothing anywhere reporting it. Do not re-derive it from the repo; the repo cannot know.
