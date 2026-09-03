@@ -565,7 +565,7 @@ const handler = async (event) => {
             try {
               // 🔴 The platform comes from the approval when it has one, and falls back to
               // the OWNER's queued action for the same campaign id. Approvals created before
-              // this change carry no platform, and Sebastian has one outstanding right now.
+              // this change carry no platform, so the fallback is what keeps them launchable.
               const pa = (Array.isArray(apData.pendingActions) ? apData.pendingActions : [])
                 .find((p) => p && p.exec && String(p.exec.campaignId) === String(ap.campaignId));
               const platform = String(ap.platform || (pa && pa.exec && pa.exec.platform) || "").toLowerCase();
