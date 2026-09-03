@@ -6108,21 +6108,45 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
       setGenLanding({busy:false,error:err.message||"Generation failed"});
     }
   };
+  // 🔴 PUBLISHING AND ASKING FOR APPROVAL ARE TWO SEPARATE ACTIONS NOW.
+  //
+  // Bryson, 2026-09-02: *"when I pressed publish for the updated landing page it
+  // automatically published it and sent it for approval... I think we should add a button
+  // that says send for approval... and make it so if I want to manually publish the page
+  // without sending for approval that's what the publish button does"*.
+  //
+  // The old single button did both, which was HIS earlier request (2026-07-30: "don't make
+  // me manually request it") and was right when publishing was the only action available.
+  // It stopped being right once he needed to fix a typo on a live page: every small edit
+  // re-published AND emailed the client a fresh approval request. Superseded on purpose,
+  // not forgotten.
   const handleTogglePublish = () => {
     const goingLive = !(client.landingPage&&client.landingPage.published);
-    const base = {...client, landingPage:{...client.landingPage,published:goingLive}};
-    // AUTO-APPROVAL (Bryson 2026-07-30: don't make me manually request it): the
-    // moment a landing page goes live it's sent to the client to approve + pings
-    // the owner. Dedupe: skip if a landing_page approval is already pending.
-    if (goingLive && !client.internal && !hasPendingApproval(client,"landing_page")) {
-      const item = makeApproval({kind:"landing_page",title:"Your new landing page",body:"Your ad landing page is ready. Take a look and approve it so we can point your ads at it — or request changes and we'll take another pass.",previewUrl:`${window.location.origin}/lp/${client.landingSlug}`});
-      base.approvals=[item,...(client.approvals||[])];
-      base.commLog=[{date:fmt(new Date()),note:`Auto-sent landing page to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
-      onUpdate(base);
-      notifyClientApproval(base,item);
-    } else {
-      onUpdate(base);
-    }
+    onUpdate({...client, landingPage:{...client.landingPage,published:goingLive}});
+  };
+
+  // 🔴 AND THIS IS WHY SENDING FOR APPROVAL IS NOT JUST "MAKE AN APPROVAL ITEM".
+  // An unpublished page does not render: `landing.mjs` serves a Coming Soon placeholder
+  // unless `published` is true. So sending an unpublished page for approval would email the
+  // client a link to a page that is not there, and they would reasonably reply asking what
+  // happened. A one-time preview key is minted so the client can see the real page while it
+  // is still unpublished.
+  //
+  // 🔴 It is its OWN random key, deliberately NOT the portal token. A landing page loads
+  // third-party fonts, and the full URL travels in the referrer header, so putting the
+  // portal token in a page address would hand it to every host the page touches. This key
+  // unlocks one page render and nothing else.
+  const handleSendForApproval = () => {
+    if (client.internal || hasPendingApproval(client,"landing_page")) return;
+    const lp = client.landingPage || {};
+    const key = lp.previewKey || (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID().replace(/-/g,"") : String(Date.now())+Math.random().toString(36).slice(2));
+    const base = {...client, landingPage:{...lp, previewKey:key}};
+    const url = `${window.location.origin}/lp/${client.landingSlug}${lp.published?"":`?preview=${key}`}`;
+    const item = makeApproval({kind:"landing_page",title:"Your new landing page",body:"Your ad landing page is ready. Take a look and approve it so we can point your ads at it, or request changes and we'll take another pass.",previewUrl:url});
+    base.approvals=[item,...(client.approvals||[])];
+    base.commLog=[{date:fmt(new Date()),note:`Sent landing page to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
+    onUpdate(base);
+    notifyClientApproval(base,item);
   };
   const handleProvisionNumber = async () => {
     setCallTrack(s=>({...s,busy:true,error:null}));
@@ -6607,9 +6631,18 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
                 <button onClick={handleGenerateLanding} disabled={genLanding.busy} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:genLanding.busy?"default":"pointer",opacity:genLanding.busy?.6:1}}>{genLanding.busy?"Generating…":(client.landingPage&&client.landingPage.headline)?"Regenerate":"Generate Landing Page"}</button>
                 {client.landingPage&&client.landingPage.headline&&(
-                  <button onClick={handleTogglePublish} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{client.landingPage.published?"Unpublish":"Publish"}</button>
+                  <button onClick={handleTogglePublish} title={client.landingPage.published?"Takes the page offline. Nobody is emailed.":"Puts the page live straight away. Nobody is emailed."} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{client.landingPage.published?"Unpublish":"Publish"}</button>
                 )}
               </div>
+              {/* Separate row, and only for a real client: the house account has nobody to
+                  approve anything. Publishing above never emails; this only emails. */}
+              {client.landingPage&&client.landingPage.headline&&!client.internal&&(
+                hasPendingApproval(client,"landing_page") ? (
+                  <div style={{marginTop:7,fontSize:10.5,color:C.textMuted,lineHeight:1.55,textAlign:"center"}}>Waiting on {client.name} to approve. Nothing else to send.</div>
+                ) : (
+                  <button onClick={handleSendForApproval} title="Emails the client a link to look at and approve. Does not publish." style={{marginTop:7,width:"100%",padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:"pointer"}}>Send to {client.name.split(" ")[0]} for Approval</button>
+                )
+              )}
               {client.landingPage&&client.landingPage.published&&(
                 <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/lp/${client.landingSlug}`)} style={{marginTop:7,width:"100%",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Live Link</button>
               )}
