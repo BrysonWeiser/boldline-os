@@ -102,7 +102,12 @@ const client = () => ({
 
   // The approval item has to carry the id, or nothing can match it later.
   ok("campaign approvals are stamped with the campaign id", /campaignId\?\{campaignId:String\(campaignId\)\}/.test(os));
-  eq("both launch cards stamp it", (os.match(/makeApproval\(\{kind:"campaign",campaignId:/g) || []).length, 2);
+  // 🔴 Matched with the platform between the two, not without it. Approving a campaign now
+  // STARTS it (2026-09-02), and the portal needs to know which account to start it on, so
+  // both cards stamp the platform alongside the id. The old pattern required the id to sit
+  // immediately after the kind and broke the moment that field was added, which would have
+  // read as "the cards stopped stamping the id" when they had not.
+  eq("both launch cards stamp it", (os.match(/makeApproval\(\{kind:"campaign",platform:"(?:google|meta)",campaignId:/g) || []).length, 2);
 }
 
 // ── 🔴 The self-heal must never fire on a failed API call ──────────────────

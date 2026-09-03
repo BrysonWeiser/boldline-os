@@ -1565,7 +1565,11 @@ const blBlendPrompt = (variants, ids, instruction) => {
 };
 
 const hasPendingApproval = (client, kind) => (client.approvals||[]).some(a=>a&&a.kind===kind&&a.status==="pending");
-const makeApproval = ({kind,title,body,previewUrl,campaignId}) => ({id:"ap-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),kind,title,body:body||"",previewUrl:previewUrl||"",...(campaignId?{campaignId:String(campaignId)}:{}),status:"pending",createdAt:new Date().toISOString(),source:"auto"});
+// 🔴 `platform` is stored on a campaign approval so that approving it can actually start
+// the right account's campaign. The portal used to fall back to reading the owner's queued
+// action for the same campaign id, which works but is a second place to keep in sync, and
+// deleting the owner's item would leave the approval unable to say where it belongs.
+const makeApproval = ({kind,title,body,previewUrl,campaignId,platform}) => ({id:"ap-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),kind,title,body:body||"",previewUrl:previewUrl||"",...(campaignId?{campaignId:String(campaignId)}:{}),...(platform?{platform:String(platform)}:{}),status:"pending",createdAt:new Date().toISOString(),source:"auto"});
 
 // Deleting a campaign has to take its paperwork with it.
 //
@@ -8448,7 +8452,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         let campItem=null;
         if(!client.internal){
           const dly=Number(f.dailyBudgetDollars)||0, mo=Math.round(dly*30.4);
-          campItem=makeApproval({kind:"campaign",campaignId:gcid,title:"Your Google ad campaign is ready to launch",body:`Your Google Search campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Google directly. We never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
+          campItem=makeApproval({kind:"campaign",platform:"google",campaignId:gcid,title:"Your Google ad campaign is ready to launch",body:`Your Google Search campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Google directly. We never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
           upd.approvals=[campItem,...(client.approvals||[])];
           upd.commLog=[{date:fmt(new Date()),note:`Auto-sent Google campaign + budget to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
         }
@@ -8768,7 +8772,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         let campItem=null;
         if(!client.internal){
           const dly=Number(f.dailyBudgetDollars)||0, mo=Math.round(dly*30.4);
-          campItem=makeApproval({kind:"campaign",campaignId:d.campaignId,title:"Your Meta ad campaign is ready to launch",body:`Your Facebook/Instagram campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Meta directly. We never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
+          campItem=makeApproval({kind:"campaign",platform:"meta",campaignId:d.campaignId,title:"Your Meta ad campaign is ready to launch",body:`Your Facebook/Instagram campaign "${f.name}" is built and ready to go live. Ad budget: $${dly}/day (about $${mo.toLocaleString()}/month), which you pay Meta directly. We never touch it. Approve to launch, or request changes and we'll adjust before anything spends.`,previewUrl:f.landingUrl});
           upd.approvals=[campItem,...(client.approvals||[])];
           upd.commLog=[{date:fmt(new Date()),note:`Auto-sent Meta campaign + budget to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
         }
