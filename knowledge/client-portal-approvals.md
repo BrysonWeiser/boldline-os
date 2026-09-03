@@ -227,3 +227,69 @@ was verified by rendering standalone at print width, not assumed.
 🔴 **THE BREAKPOINTS ARE THE CONTRACT'S WIDTH, NOT THE PHONE'S.** It renders in an iframe, so
 the media query sees the frame, not the device. A 340px cutoff looks like "small phones" and
 actually fires on ordinary ones. Measure the frame before choosing a number.
+
+---
+
+## 2026-09-02 — Publish and "send for approval" are two buttons now
+
+**Bryson:** *"when I pressed publish for the updated landing page it automatically published
+it and sent it for approval... I think we should add a button that says send for approval...
+and make it so if I want to manually publish the page without sending for approval that's
+what the publish button does"*.
+
+🔴 **The old combined behaviour was HIS OWN earlier request** (2026-07-30: *"don't make me
+manually request it"*), and it was right while publishing was the only action there was. It
+stopped being right the moment he needed to fix a typo on a live page: every small edit
+re-published AND emailed the client another approval request. **Superseded on purpose. Do not
+"restore" it.**
+
+| Button | Publishes | Emails the client |
+|---|---|---|
+| **Publish / Unpublish** | yes | **no** |
+| **Send to <name> for Approval** | **no** | yes |
+
+Both carry hover text saying which one sends mail. Not knowing that was the actual confusion.
+
+### 🔴 The real bug was not the buttons: an unpublished page does not render
+
+`landing.mjs` serves a **Coming Soon placeholder** unless `published` is true. So sending an
+unpublished page for approval would have emailed the client a link to a page that is not
+there, and **every surface on our side would have reported success** while the client sat
+looking at a placeholder.
+
+So sending for approval mints `landingPage.previewKey`, and the approval link carries
+`?preview=<key>` **only while the page is unpublished**.
+
+**Three properties of that key, each closing a real hole:**
+
+1. 🔴 **It is its own random value, NOT the portal token.** A landing page loads third-party
+   fonts, and the full URL travels in the referrer header, so a portal token in a page
+   address is handed to every host the page touches on the first request. This key unlocks
+   one page render and nothing else.
+2. 🔴 **Compared against a NON-EMPTY stored key.** Without the emptiness check, a client with
+   no key set is previewable by anyone sending `?preview=`, which is the entire gate defeated
+   by an empty string.
+3. 🔴 **An existing key is REUSED, never rotated.** Minting a fresh one per send kills the
+   link in any approval email already sitting in the client's inbox, which is the same
+   dead-link failure in a slower costume.
+
+The button is hidden on the **house account** (nobody to approve anything, so it would email
+Bryson about his own page) and while an approval is already pending, with a line saying why
+rather than a control that silently disappears.
+
+### Testing note
+
+`tests/verify-publish-vs-approval.mjs`, 14 checks. The publish gate is **lifted out of
+`landing.mjs` and executed**, not restated, because a restated rule is a second
+implementation that happens to agree today. Six mutations, all caught.
+
+🔴 One test bug fixed on the way, and it is the usual shape: the extraction's END anchor
+matched an identical line ABOVE the gate, so it lifted an empty string and the suite failed
+on "could not lift the gate" rather than on anything real. The end anchor is now searched
+**from** the start anchor.
+
+### Not built, and worth deciding later
+
+Approving in the portal does **not** publish the page. It records the decision and alerts
+Bryson, same as every other approval. Auto-publishing on approval would mean a client action
+putting a page live with nobody looking, so it was left out rather than assumed.
