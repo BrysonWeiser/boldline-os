@@ -43,3 +43,80 @@ verified: 2026-08-12
 **Also fixed while in there:** `setAdGroupStatus(..., "REMOVED")` was sending a status *update*. Google models ad-group removal as a `remove` operation, the same way ad removal already was.
 
 **Verified by 16 cases** using Google's verbatim error body, including that an unrelated failure still raises, the detector survives a malformed body, and exactly three call sites are tolerant.
+
+---
+
+## 2026-09-03 — you can now OPEN a campaign, and Meta finally has a detail view
+
+**Bryson:** *"i need a way to be able to open a specific campaign (internal ones included)
+and it opens up the details of that campaign not the campaign builder screen"*.
+
+### 🔴 Gap 1: Meta returned "unsupported" and drew nothing
+
+`loadDetail` read `if (r.platform !== "google") { setDetail(... state:"unsupported") ; return; }`
+and **nothing rendered that state**. Google campaigns expanded into ad groups, ads and
+keywords; Meta expanded into blank space. **The one campaign he actually had running was
+the one he could not look at.**
+
+`meta-ads.mjs` now exports `getCampaignDetail(adAccountId, campaignId)` and exposes an
+`action: "campaignDetail"`, **deliberately shaped to match Google's**: ad sets come back
+under the same `adGroups` key with the same `impressions / clicks / cost / conversions /
+ads` fields. One panel renders either. Two shapes would have meant two panels, and two
+panels drift until one is quietly wrong.
+
+An ad set also carries what **only** it knows and what appears nowhere else in the OS:
+`dailyBudget`, `optimizationGoal`, `billingEvent`, `destinationType`, and `targeting`
+flattened to `{places, ageMin, ageMax, platforms}`. That is the answer to *who is this ad
+even going to*.
+
+Insights are fetched **once at `level: "adset"` for the whole account** and joined locally,
+not once per ad set. A missing insights response leaves zeros rather than failing the read,
+because "not delivered yet" must not look like "broken".
+
+🔴 **An ad whose ad set is missing is listed under "Ads with no ad set".** Dropping it would
+render a campaign as having **no ads while it is spending money**.
+
+### 🔴 Where the two platforms genuinely differ (each one a shipped bug avoided)
+
+| | Google | Meta |
+|---|---|---|
+| Ad copy | MANY headlines, mixed at serve time | **one** headline + one body |
+| Live status | `ENABLED` | `ACTIVE` |
+| Writes | resource names, all supported | **read only here** |
+
+- Rendering Meta through the Google shape printed **"(no headlines)"** over perfectly good
+  copy, which reads as broken software.
+- Checking only `ENABLED` marked **every live Meta ad set and ad as paused** on a campaign
+  that was spending.
+- Every write button posts a **Google resource name** to `google-ads`. On Meta they are
+  hidden, with a visible line saying *"Read only. Start and pause the whole campaign from
+  the row above"* — a control that silently vanishes reads as broken; one that explains
+  itself reads as deliberate. **Meta ad-set writes were not added**: he asked to SEE, and
+  new destructive surface on the platform he is live on was not worth it unasked.
+
+### Gap 2: getting there from where he actually looks
+
+From **My Ads** a campaign name led nowhere but the builder underneath it, which is what he
+was complaining about. `LiveCampaignsCard` rows now carry **Details ›**, which calls
+`onOpenCampaign(key)` → `CampaignManagerScreen` opens on that campaign.
+
+🔴 **The key must be the one the list opens on** (`campaignResourceName` for Google, `id`
+for Meta). If they ever disagree the deep link silently does nothing: the screen opens, the
+campaign does not, and the button looks broken.
+
+🔴 **It opens ONCE.** The effect is guarded on `openKey` being unset as well as on the key,
+or every re-render drags him back to the campaign he arrived on after he has closed it. The
+focus is cleared on Back, or a later visit from the sidebar jumps somewhere he did not ask.
+
+### Testing note
+
+`tests/verify-campaign-detail.mjs`, 16 checks, eight mutations, all caught.
+
+🔴 One mutation reported the **wrong cause**: removing the Meta call failed with *"the panel
+no longer asks Google for detail"*, because the ternary was checked first. Assertions
+reordered so the likeliest break reports itself rather than its neighbour.
+
+🔴 Two **existing** checks in `verify-approval-cleanup` pinned `CampaignManagerScreen`'s
+exact prop list. Adding `focusKey` made them report *"the Campaign Manager can save"* as
+broken while saving worked perfectly. They now check that it **receives** `onUpdate`.
+**A signature match fails on every future prop; pin the rule, not the spelling.**
