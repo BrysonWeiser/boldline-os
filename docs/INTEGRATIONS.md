@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 141 task-keyed entries under `knowledge/`. They surface automatically via the
+> 142 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**141 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**142 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -108,6 +108,12 @@
 - **[client-portal-approvals](../knowledge/client-portal-approvals.md)** &mdash; &#9989; verified &middot; 2026-07-30  
   Clients approve ANYTHING the owner queues (not just landing pages) from a new "Review" tab in their portal (portal.mjs) that shows a red pending-count badge (mirrors the owner's alert count) and per-item Approve / Request Changes (+ optional note). Decisions POST back, update client.approvals[], and log to commLog; the owner sees them via getAlerts (changes=yellow, awaiting=blue). Owner queues items from the ClientApprovalsCard on the Client View tab, which auto-emails the client (approval_request template). Built 2026-07-30.  
   <sub>*task:* let clients review + approve anything the owner sends (landing page, ad copy, plans) from their portal, with a badge count + auto email notification &nbsp;|&nbsp; *keywords:* client approval, portal review, needs your review, approve, request changes, ClientApprovalsCard, approvals, landing page approval, portal badge, approval_request, notify client</sub>
+
+## Contracts
+
+- **[contract-special-terms](../knowledge/contract-special-terms.md)** &mdash; &#9989; verified &middot; 2026-09-02  
+  Bryson types what he agreed in plain words, a model writes it up as contract clauses, he reads and edits them, and they render in one "Special Terms" section before the signatures. 🔴 THE AI NEVER EDITS THE AGREEMENT ITSELF, only appends to that one bounded section, because a model with a free hand over contract text could quietly weaken the liability cap or move the governing law and nobody would notice until it mattered. Nothing saves itself; the server never writes to the client record. A signed agreement refuses new terms, since the contract renders fresh every time and editing after signature would rewrite the document the client already signed. 16 checks, nine mutations.  
+  <sub>*task:* add a negotiated extra to a client's contract before sending it; understand why the AI is not allowed to edit the agreement itself; change or remove a special term; fix a term on an already-signed contract &nbsp;|&nbsp; *keywords:* special terms, contract terms, edit contract, custom clause, negotiated terms, agreed on the call, first month free, discount clause, notice period, contract-terms.mjs, SpecialTermsCard, specialTerms, flagRisky, clause, addendum, rider, amendment, contract locked, signed contract, precedence</sub>
 
 ## Deploy
 
