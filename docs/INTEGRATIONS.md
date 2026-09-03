@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 142 task-keyed entries under `knowledge/`. They surface automatically via the
+> 143 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**142 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**143 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -114,6 +114,9 @@
 - **[contract-special-terms](../knowledge/contract-special-terms.md)** &mdash; &#9989; verified &middot; 2026-09-02  
   Bryson types what he agreed in plain words, a model writes it up as contract clauses, he reads and edits them, and they render in one "Special Terms" section before the signatures. 🔴 THE AI NEVER EDITS THE AGREEMENT ITSELF, only appends to that one bounded section, because a model with a free hand over contract text could quietly weaken the liability cap or move the governing law and nobody would notice until it mattered. Nothing saves itself; the server never writes to the client record. A signed agreement refuses new terms, since the contract renders fresh every time and editing after signature would rewrite the document the client already signed. 16 checks, nine mutations.  
   <sub>*task:* add a negotiated extra to a client's contract before sending it; understand why the AI is not allowed to edit the agreement itself; change or remove a special term; fix a term on an already-signed contract &nbsp;|&nbsp; *keywords:* special terms, contract terms, edit contract, custom clause, negotiated terms, agreed on the call, first month free, discount clause, notice period, contract-terms.mjs, SpecialTermsCard, specialTerms, flagRisky, clause, addendum, rider, amendment, contract locked, signed contract, precedence</sub>
+- **[contract-terms-versioning](../knowledge/contract-terms-versioning.md)** &mdash; &#9989; verified &middot; 2026-09-02  
+  New agreements carry a "Client Delay and Abandonment" section (14 days to complete intake, written reminder, 10 day grace, then BoldLine may end it; setup fee non-refundable and the Monthly Minimum stays payable). 🔴 The contract renders FRESH every time it is opened, so terms are VERSIONED: v1 is anything signed before 3 Sep 2026, v2 adds this clause, and a signed agreement never gains a clause it was not signed with. Renewal stamps the current version, which the date inference alone could never do because renewing leaves contractSignedAt on the original date. 15 checks, six mutations.  
+  <sub>*task:* add or change a clause in the standard agreement without altering contracts already signed; understand the client delay and abandonment clause; work out which version of the terms a client is on &nbsp;|&nbsp; *keywords:* contract terms version, CONTRACT_TERMS_VERSION, contractTermsVersion, terms v1 v2, abandonment clause, client delay, failed to respond, intake not completed, void the contract, cancellation fee, non-refundable setup fee, retroactive clause, signed contract changed, renewal stamps terms, section numbering</sub>
 
 ## Deploy
 
