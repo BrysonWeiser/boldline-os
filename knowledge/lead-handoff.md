@@ -398,3 +398,55 @@ published.**
 **Recommendation given, and the reason:** connect the record as early as possible anyway. DNS
 can take hours to spread, and that is not a delay anyone wants discovering on launch morning.
 The draft placeholder costs nothing in the meantime.
+
+---
+
+## 🔴 2026-09-03 — every landing URL the OS built used OUR domain, not the client's
+
+**Bryson:** *"for the dns can i get the link because when i copy the link from the os it
+gives me this one https://boldlinemedia.netlify.app/lp/stencil-thread-rdju"*.
+
+**He pressed the harmless button.** FIVE places built that URL by gluing the OS's own origin
+to `/lp/<slug>`, and **not one read `campaignSetup.landingDomain`**:
+
+| Place | What it meant |
+|---|---|
+| **Google launch card** | 🔴 every Google campaign's `landingUrl` was BoldLine's domain |
+| **Meta launch card** | 🔴 same, on every Meta campaign |
+| Approval email (`handleSendForApproval`) | the client got a link to OUR domain, about THEIR page |
+| Pipeline `adLanding` | the "Published" link pointed at us |
+| Copy Live Link | what he actually noticed |
+
+The two launch cards are the serious ones: **Google displays the address an ad points to**,
+so a screen printer's ad was set up to show a marketing agency's domain. That is the rule
+this very file exists to enforce.
+
+### The fix
+
+One helper in `index.html`, `landingUrlFor(cl, {preview})`:
+- their `landingDomain` wins whenever it is set,
+- **returns the ROOT** (`https://quote.stencilandthread.com`), never `/lp/<slug>`,
+- strips a typed scheme or trailing slash, always https,
+- falls back to `origin + /lp/<slug>` when they have no domain.
+
+🔴 **Why the root and not the path.** `routeFor` sends **every** path on a client host to
+their landing page, so `https://quote.../lp/slug` *works*. It works by accident, and it
+reads like one. The canonical address is the bare host.
+
+### 🔴 Why this was invisible, which is the transferable part
+
+**With no domain set, the old code was exactly right.** Nothing looked wrong, no test failed,
+and it could only be noticed once a client actually had a domain — at which point it was
+silently wrong in five places at once. A default that is correct in the common case hides a
+bug until the first real case arrives.
+
+### Testing note
+
+`verify-lead-handoff` **executes the real helper** (lifted out of the shipping file) rather
+than matching patterns, and one check asserts **nothing glues the origin onto `/lp/` by hand
+any more**, so a sixth caller cannot quietly reintroduce it. 190 checks, four mutations, all
+caught.
+
+Two existing assertions were **updated, not deleted**: `verify-publish-vs-approval` pinned
+the inline expression this replaced, so a change fixing a worse bug read as a regression; and
+`verify-house-pipeline`'s extraction had to bring the new helper along or `adLanding` threw.
