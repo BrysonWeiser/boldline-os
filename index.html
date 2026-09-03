@@ -7531,6 +7531,29 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   };
   // The standard (3-month) monthly rate this client's term pricing is anchored to.
   const baseMonthly=(pkg&&pkg.price)||0;
+  // ── 🔴 THE TERM DISCOUNT HAS TO REACH THE PER-LEAD RATE TOO ───────────────────
+  // Bryson, 2026-09-02: *"with the new pricing how will we do the incentives we made to make
+  // companies want to sign up for longer contracts?"*
+  //
+  // Under the greater-of model the client pays the HIGHER of the monthly minimum and the
+  // performance fee, never both. Discounting only the minimum therefore discounts only the
+  // months where the campaigns UNDERPERFORMED. A client whose ads work well never touches
+  // the minimum, so committing for a year bought them literally nothing, and the salesman
+  // had nothing to point at. It also meant the discount landed on exactly the months
+  // BoldLine was already earning least.
+  //
+  // So the same percentage now applies to both numbers. "Commit longer and everything is
+  // cheaper" is one sentence on a call, and it is felt whichever side of the greater-of the
+  // month lands on.
+  //
+  // 🔴 IT SCALES FROM A STORED BASE, NEVER FROM THE CURRENT RATE, or two renewals at twelve
+  // months would compound to 19% off instead of 10%. `baseMonthly` already avoids this by
+  // reading the package price; the per-lead rate has no package-level standard, so the base
+  // is stamped on the client the first time a renewal touches it. That first stamp is only
+  // safe because no client has a term-discounted per-lead rate yet, so today's rate IS the
+  // base. After that the stamp is authoritative.
+  const perLeadNow = client.billingPerLead!=null ? Number(client.billingPerLead) : (PER_LEAD[client.niche]||0);
+  const basePerLead = client.billingPerLeadBase!=null ? Number(client.billingPerLeadBase) : perLeadNow;
   // ── Early termination (Agreement: 30-day notice; ETF = 1 month's fee + term-discount clawback)
   const effMonthly=client.billingMonthly!=null?Number(client.billingMonthly):baseMonthly;
   const etfCalc=(()=>{
@@ -7567,6 +7590,8 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     const base=new Date(client.contractEnd||new Date());
     const newEnd=addMonths(base,months);  // proper calendar months, not *30 days
     const monthly=termMonthly(baseMonthly,months);
+    // Same percentage, the other number. Scaled from the stored base so renewals never compound.
+    const perLead=basePerLead>0?termMonthly(basePerLead,months):null;
     setRenewNote("");
     // v2 — if a live subscription is active, push the new rate to Stripe so the
     // renewal actually changes what auto-charges (no manual Stripe edit needed).
@@ -7587,7 +7612,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     // would keep a client on the terms of the day they first signed for ever. Bryson,
     // 2026-09-02, on the new delay-and-abandonment clause: "this will be for future clients
     // not Sebastian until he renews his contract". This line is the "until he renews" half.
-    onRenew(fmt(newEnd),{contractTermMonths:months,billingMonthly:monthly,contractTermsVersion:CONTRACT_TERMS_VERSION});
+    onRenew(fmt(newEnd),{contractTermMonths:months,billingMonthly:monthly,contractTermsVersion:CONTRACT_TERMS_VERSION,...(perLead!=null?{billingPerLead:perLead,billingPerLeadBase:basePerLead}:{})});
     setRenewNote(note);
     setRenewSaved(true);
     setTimeout(()=>{ setShowRenewal(false);setRenewSaved(false);setRenewNote(""); },note?4000:1500);
@@ -7636,8 +7661,13 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
               const saved=(m2m-mo)*m;
               return <>
                 <div>Renewing for <strong style={{color:C.text}}>{monthsLabel(m)}</strong> at <strong style={{color:C.green}}>${mo.toLocaleString()}/mo</strong> ({termRateLabel(m)})</div>
-                {m===1&&termRate(1)>0&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium over the standard rate.</div>}
-                {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} over the term vs. month-to-month.</div>}
+                {/* 🔴 BOTH numbers, because under the greater-of rule the client only ever
+                    pays one of them and it is usually the per-lead one. Showing only the
+                    minimum meant the discount on a good month was invisible, which is the
+                    same as it not existing when he is trying to close a longer term. */}
+                {basePerLead>0&&<div style={{marginTop:3}}>Per qualified lead: <strong style={{color:C.green}}>${termMonthly(basePerLead,m).toLocaleString()}</strong>{termRate(m)!==0&&<span style={{color:C.textMuted}}> (was ${basePerLead.toLocaleString()})</span>}</div>}
+                {m===1&&termRate(1)>0&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium on both the minimum and the per-lead rate.</div>}
+                {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} on the minimum alone over the term vs. month-to-month, before any per-lead saving.</div>}
                 <div style={{marginTop:3}}>New end date: <strong style={{color:C.green}}>{renewalPreviewDate()}</strong></div>
                 {client.billingStatus==="active"&&mo!==effMonthly&&<div style={{marginTop:3,fontSize:10,color:C.textMuted}}>Their live Stripe subscription will update to this rate automatically.</div>}
               </>;
