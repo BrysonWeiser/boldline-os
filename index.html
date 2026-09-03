@@ -1183,14 +1183,43 @@ const TONES = ["", "Professional", "Friendly & Casual", "Bold & Energetic", "Lux
 // ours to fall back to, so they still read straight off the generated page.
 const HOUSE_LANDING_URL = "https://boldlinemedia.com/get-started";
 
+// ─── 🔴 THE ADDRESS A CLIENT'S PAGE ACTUALLY LIVES AT ────────────────────────
+// Bryson, 2026-09-03: *"for the dns can i get the link because when i copy the link from
+// the os it gives me this one https://boldlinemedia.netlify.app/lp/stencil-thread-rdju"*.
+//
+// 🔴 HE FOUND A REAL BUG AND IT WAS WORSE THAN THE BUTTON HE PRESSED. Five places built
+// this URL, every one of them by gluing the OS's own origin to `/lp/<slug>`, and NONE of
+// them looked at `campaignSetup.landingDomain`. Two of those five are the Google and Meta
+// campaign builders, so **every ad we build pointed at boldlinemedia.netlify.app** — which
+// is the exact thing the standing rule forbids, since Google displays the address an ad
+// points to and a screen printer's ad must not show a marketing agency's domain. The Copy
+// Live Link button was the harmless one.
+//
+// 🔴 AND THE PATH IS DIFFERENT ON THEIR DOMAIN. `routeFor` sends EVERY path on a client
+// host to their landing page, so the page lives at the ROOT: it is
+// https://quote.stencilandthread.com, not .../lp/<slug>. Keeping the /lp/ path would have
+// produced a link that happens to work and reads like an accident.
+//
+// One helper, so a sixth place cannot get it wrong on its own.
+const landingUrlFor = (cl, { preview } = {}) => {
+  const c = cl || {};
+  const dom = String(((c.campaignSetup || {}).landingDomain) || "")
+    .trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  const q = preview ? `?preview=${encodeURIComponent(preview)}` : "";
+  // Their own domain wins whenever it is set. It is set by hand, so its presence means
+  // somebody pointed DNS at us on purpose.
+  if (dom) return `https://${dom}${q}`;
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return c.landingSlug ? `${origin}/lp/${c.landingSlug}${q}` : "";
+};
+
 const adLanding = (cl) => {
   const lp = (cl && cl.landingPage) || {};
   // A generated page that is published always wins, including on the house account —
   // if he ever builds one for his own ads, that is deliberately the newer decision.
   if (lp.published) {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
     return { published: true, written: true, source: "os", label: "Published",
-             url: cl && cl.landingSlug ? `${origin}/lp/${cl.landingSlug}` : "",
+             url: landingUrlFor(cl),
              why: "Your generated landing page is published" };
   }
   if (cl && cl.internal) {
@@ -6315,7 +6344,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
     const lp = client.landingPage || {};
     const key = lp.previewKey || (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID().replace(/-/g,"") : String(Date.now())+Math.random().toString(36).slice(2));
     const base = {...client, landingPage:{...lp, previewKey:key}};
-    const url = `${window.location.origin}/lp/${client.landingSlug}${lp.published?"":`?preview=${key}`}`;
+    const url = landingUrlFor(client, lp.published ? {} : { preview: key });
     const item = makeApproval({kind:"landing_page",title:"Your new landing page",body:"Your ad landing page is ready. Take a look and approve it so we can point your ads at it, or request changes and we'll take another pass.",previewUrl:url});
     base.approvals=[item,...(client.approvals||[])];
     base.commLog=[{date:fmt(new Date()),note:`Sent landing page to ${client.name} for approval`,cat:"update",ts:Date.now()},...(client.commLog||[])];
@@ -6818,7 +6847,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 )
               )}
               {client.landingPage&&client.landingPage.published&&(
-                <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}/lp/${client.landingSlug}`)} style={{marginTop:7,width:"100%",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Live Link</button>
+                <button onClick={()=>navigator.clipboard.writeText(landingUrlFor(client))} style={{marginTop:7,width:"100%",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Live Link</button>
               )}
             </Card>
             )}
@@ -8597,7 +8626,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
   const landingDefault = client.internal ? HOUSE_LANDING_URL
-    : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
+    : landingUrlFor(client);
   const niche = client.niche || "";
   const cs = client.campaignSetup || {};
   const bv = client.brandVoice || {};
@@ -8926,7 +8955,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
 function MetaLaunchCard({client, onUpdate, platformCount}) {
   const linked = client.metaAdAccountId && client.metaPageId;
   const landingDefault = client.internal ? HOUSE_LANDING_URL
-    : (client.landingSlug ? `${window.location.origin}/lp/${client.landingSlug}` : "");
+    : landingUrlFor(client);
   // Newest image wins, and ad creatives beat stock photos: the Creative Studio saves
   // with category "ad-creative" and its own hint promises the launch card uses the
   // newest one. Sorted by savedAt/ts when present, otherwise the library is
