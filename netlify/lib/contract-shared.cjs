@@ -127,6 +127,37 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const nAd=nBase+1, nResp=nBase+2, nNoG=nBase+3, nTerm=nBase+4, nIP=nBase+5, nConf=nBase+6,
         nData=nBase+7, nLiab=nBase+8, nInd=nBase+9, nRel=nBase+10, nLaw=nBase+11, nGen=nBase+12;
 
+  // ── 🔴 SPECIAL TERMS: THE ONLY PART OF THIS DOCUMENT ANYTHING ELSE MAY ADD TO ──
+  // Bryson, 2026-09-02: *"I need a way for the ai to edit the contracts on the go before I
+  // send them... I input the agreed upon price or any other details i want and the ai will
+  // add them to the contract"*.
+  //
+  // The price already merges in (billingMonthly, billingSetup, contractTermMonths,
+  // per-lead). What had nowhere to go was everything else he negotiates on a call: a first
+  // month at half price, a free logo refresh, sixty days' notice instead of thirty.
+  //
+  // 🔴 THE RULE, AND IT IS THE WHOLE SAFETY MODEL: NOTHING MAY REWRITE THE SECTIONS ABOVE.
+  // Additions land here, in one bounded, clearly-headed section, and nowhere else. A model
+  // allowed to edit the body could quietly change the liability cap, the governing law or
+  // the arbitration clause, and a signed contract is the last place on earth a silent
+  // change should be possible. It also means an attorney review of the base document stays
+  // valid: the base is fixed, and everything negotiated is in one place to read.
+  //
+  // Placed LAST and given precedence, which is how a rider works: a later clause that says
+  // it controls is the standard, unambiguous way to vary an earlier one. Varying it in
+  // place would leave two readings of the same section.
+  const nSpec = nBase+13;
+  const specClauses = (cl.specialTerms && Array.isArray(cl.specialTerms.clauses) ? cl.specialTerms.clauses : [])
+    .map(c => ({ heading: String((c&&c.heading)||"").trim(), text: String((c&&c.text)||"").trim() }))
+    .filter(c => c.text);
+  const specialHTML = !specClauses.length ? "" : (
+    '<h2>'+nSpec+'. Special Terms</h2>'
+   +'<p>The parties agreed the following additional terms for this engagement. Where these Special Terms conflict with any earlier section of this Agreement, these Special Terms control.</p>'
+   + specClauses.map((c,i) =>
+       '<p>('+String.fromCharCode(97+(i%26))+') '+(c.heading?'<strong>'+esc(c.heading)+'.</strong> ':'')+esc(c.text)+'</p>'
+     ).join('')
+  );
+
   const metaItem=(l,v)=>'<div class="meta-item"><div class="meta-label">'+l+'</div><div class="meta-value">'+v+'</div></div>';
   const meta =
     metaItem("Service Package",(pkg&&pkg.name)||"—")
@@ -322,6 +353,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<h2>'+nGen+'. General</h2>'
    +'<p>This Agreement (including the Key Commercial Terms above) is the entire agreement between the parties about its subject and supersedes all prior discussions and proposals. Amendments must be in a writing signed (including electronically) by both parties, except that package upgrades and renewal terms may be confirmed by exchange of email or through Agency&rsquo;s client systems. If any provision is held unenforceable, it will be modified to the minimum extent necessary and the rest remains in effect. A waiver must be written and applies only to the instance given. Client may not assign this Agreement without Agency&rsquo;s consent; Agency may assign to a successor of its business. Notices may be given by email to the addresses on page one and are effective on the business day received. <strong>The parties agree this Agreement may be executed electronically, and electronic signatures (including via DocuSign) are valid and binding under the U.S. E-SIGN Act, the Arizona Electronic Transactions Act, and equivalent laws.</strong> This Agreement may be signed in counterparts. There are no third-party beneficiaries to this Agreement. Headings are for convenience only and do not affect interpretation.</p>'
 
+   +specialHTML
    +'<h2>Signatures</h2>'
    +'<p style="font-size:11px">By signing below, each party confirms it has read, understands, and agrees to this Agreement, and that the person signing is authorized to bind that party.</p>'
    +'<div class="sigs">'
