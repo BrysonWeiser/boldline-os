@@ -259,3 +259,59 @@ sits **after** the button.
 | **Submitted under the disclosure (`implied`)** | **Yes** |
 | Asked and declined | No |
 | Never asked | Yes |
+
+
+---
+
+## 🔴 2026-09-03, SAME DAY — THE TICK BOX CAME BACK, AND THE ROUND TRIP IS THE LESSON
+
+Shaun Smith, hours after the disclosure shipped:
+
+> *"What is live now says 'by submitting this form you agree that Stencil & Thread may text
+> you,' which makes texting a condition of getting a quote. That is the opposite of what is
+> filed with the carriers for Sebastian's number, and they audit the live page against the
+> filing. It also drops the message frequency statement and the HELP keyword."*
+
+He was right on all three counts, and the wording was ours, not his.
+
+### 🔴 AND HIS OWN FIX CARRIED THE SAME CONTRADICTION
+
+He asked for his registered line under the button with every submitter recorded as `yes`. His
+registered line contains **"Optional, not required to get a quote"**.
+
+**A sentence saying "optional" above a mechanism with no way to decline is not a weaker
+consent record, it is a FALSE one.** The reader is told they have a choice and is then
+recorded as having made it. The words and the mechanism have to agree. His wording says
+optional, so it needs a box. That was put back to him plainly rather than implemented as
+asked.
+
+### The wording now live, word for word
+
+> Text me updates about my quote and order from &lt;Business&gt;. Optional, not required to get a
+> quote. Msg frequency varies, msg &amp; data rates may apply. Reply STOP to opt out, HELP for
+> help.
+
+Three clauses our own version had quietly lost, each pinned by its own check: **"Optional, not
+required to get a quote"**, **"Msg frequency varies"**, and **HELP as well as STOP**.
+
+### 🔴 THE GENERAL RULE, WHICH OUTLIVES THIS CLIENT
+
+**The consent wording is not ours to word.** It is whatever that business filed with the
+carriers, and the mechanism on the page has to match the promise inside it. Tidier copy is
+drift. `campaignSetup.smsConsentText` ("Their registered texting wording" in Edit, then
+Campaign) makes the next client's filing a **paste, not a code change**; blank falls back to
+the standard line above.
+
+Each lead also stores `consentDisclosure`, the exact label that was beside the box when they
+ticked it, so the record survives a later edit to the page.
+
+### `"implied"` is now legacy: read it, never write it
+
+Nothing produces it. Leads captured during the few hours the disclosure was live still carry
+it, and `mayTextLead` plus `consentField` still honour it, because **changing the mechanism
+must not retroactively revoke a real person's consent** or turn their record into a `no` on
+the way to the client's CRM.
+
+**127 checks; ten mutations, all caught.** 🔴 One (pre-ticking the box) initially failed on
+the *neighbouring* assertion because that one pinned the whole tag; it was loosened so a
+pre-ticked box reports itself.

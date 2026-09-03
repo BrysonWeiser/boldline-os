@@ -82,10 +82,12 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
     + "being stored and read back");
   ok("an empty lead or no lead is treated as never asked", mayTextLead({}) && mayTextLead(null));
 
-  // 🔴 THE FOURTH CASE, ADDED 2026-09-03 WHEN THE TICK BOX BECAME A DISCLOSURE.
-  ok("🔴 submitted under the disclosure, we may text",
+  // 🔴 THE LEGACY FOURTH CASE. Nothing produces "implied" any anymore (the tick box came back
+  // the same day it left), but leads captured in that window carry it. A lead that genuinely
+  // consented must not become un-textable because we changed the mechanism afterwards.
+  ok("🔴 a lead stored during the disclosure window is still textable",
     mayTextLead({ smsConsentTransactional: CONSENT_IMPLIED }),
-    "the whole form change is worthless if the value it now posts does not permit the text");
+    "changing the mechanism must not retroactively revoke a real person's consent");
   ok("and casing or padding on the way back does not break it",
     mayTextLead({ smsConsentTransactional: "  Implied " }));
 
@@ -142,10 +144,16 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
     smsConsentTransactional: "implied",
     consentDisclosure: "By submitting this form you agree that Stencil & Thread may text you about your quote.",
   });
-  eq("🔴 implied is stored as implied, not flattened to true", implied.smsConsentTransactional, CONSENT_IMPLIED);
+  eq("🔴 a legacy implied value round-trips as itself", implied.smsConsentTransactional, CONSENT_IMPLIED);
   ok("🔴 and the exact wording shown is stored with it",
     /may text you about your quote/.test(implied.consentDisclosure || ""),
-    "otherwise the record proves a disclosure happened but not what it said, and page copy changes");
+    "otherwise the record proves consent was given but not to what, and page copy changes");
+  const ticked = pickConsent({
+    smsConsentTransactional: "on",
+    consentDisclosure: "Text me updates about my quote and order from Stencil & Thread. Optional, not required to get a quote.",
+  });
+  ok("a ticked box stores the label that was beside it",
+    ticked.smsConsentTransactional === true && /Optional, not required/.test(ticked.consentDisclosure || ""));
   ok("🔴 there is no implied MARKETING consent, ever",
     pickConsent({ smsConsentMarketing: "implied" }).smsConsentMarketing === false,
     "offers later need a real tick and no wording on a page can stand in for one");
@@ -166,52 +174,69 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   const ho = renderLandingPage(cl, { handoff: { phone: "(541) 555-0100" } });
 
   for (const [label, html] of [["managed", managed], ["hand-off", ho]]) {
-    ok(`the ${label} form still records transactional consent`, html.includes('name="smsConsentTransactional"'));
+    ok(`the ${label} form has a transactional consent box`, html.includes('name="smsConsentTransactional"'));
     ok(`the ${label} form has a separate marketing consent box`, html.includes('name="smsConsentMarketing"'));
 
-    // 🔴 THE TICK BOX BECAME A LINE OF SMALL PRINT UNDER THE BUTTON (Bryson, 2026-09-03).
-    // Nobody should have to tick a box to be answered by the business they just wrote to;
-    // what the carriers require for that reply is a conspicuous disclosure where the person
-    // acts. Offers later are a different thing and still need a real tick.
-    ok(`🔴 the ${label} form no longer asks the visitor to tick to be answered`,
-      !/id="lf-sms"/.test(html) && /<input type="hidden" id="lf-tx"/.test(html),
-      "the extra tick cost leads and was never what let the business reply");
-    ok(`🔴 and the ${label} disclosure is right there under the button`,
-      html.indexOf('class="fine discl"') > html.indexOf("<button class=\"cta\" type=\"submit\""),
-      "a disclosure the visitor passes AFTER acting is not a disclosure at the point of action");
+    // 🔴 THE WORDS AND THE MECHANISM HAVE TO AGREE. This is the whole reason the tick box came
+    // back on 2026-09-03 after a few hours as small print under the button. The registered
+    // wording contains "Optional, not required to get a quote". A sentence saying "optional"
+    // above a mechanism with no way to decline is not a weaker record, it is a FALSE one: the
+    // reader is told they have a choice and is then recorded as having made it.
+    // 🔴 Matched loosely on purpose. Pinning the whole tag made a PRE-TICKED box fail here
+    // instead of on the pre-ticked check below, which is a guard reporting its neighbour's
+    // problem: one edit away from failing for no reason at all.
+    ok(`🔴 the ${label} consent is a box the visitor ticks, not a hidden field`,
+      /<input type="checkbox" id="lf-sms" name="smsConsentTransactional"/.test(html)
+        && !/id="lf-tx"/.test(html) && !/value="implied"/.test(html),
+      "the wording says optional, so there has to be a way to decline it");
 
-    // 🔴 THE HIDDEN FIELD AND THE SENTENCE MUST LIVE OR DIE TOGETHER. The field is the claim
-    // "this person was told"; if it could ever post while the sentence was gone, the record
-    // would assert a disclosure that never appeared on screen. Same block, checked as one.
-    const discl = (html.match(/<div class="fine discl">[\s\S]*?<\/div>/) || [""])[0];
-    ok(`🔴 the ${label} hidden consent field sits inside the sentence that justifies it`,
-      /id="lf-tx"/.test(discl) && /may text you about your/.test(discl),
-      "a consent record with no disclosure beside it claims something that never happened");
-
-    // 🔴 The one remaining box is optional in both senses.
+    // 🔴 A pre-ticked box is not consent, it is the appearance of consent.
     const boxes = html.match(/<input type="checkbox"[^>]*>/g) || [];
     ok(`🔴 no consent box in the ${label} form is pre-ticked`,
-      boxes.length >= 1 && boxes.every((b) => !/\bchecked\b/.test(b)),
+      boxes.length >= 2 && boxes.every((b) => !/\bchecked\b/.test(b)),
       "express consent cannot be given by a box the visitor never touched");
     ok(`🔴 and none of them blocks the form`,
       boxes.every((b) => !/\brequired\b/.test(b)),
       "marketing consent must never be a condition of submitting, and a lead who declines "
       + "must still reach the client");
 
-    // The disclosure has to say who is texting and how to stop.
-    ok(`the ${label} disclosure names the business, not BoldLine`,
-      html.includes("you agree that Stencil &amp; Thread may text you"),
+    // 🔴 THE REGISTERED WORDING, WORD FOR WORD. Shaun Smith, 2026-09-03: the carriers audit
+    // the live page against what the business filed, so every clause here is load-bearing and
+    // the two we had written ourselves out of existence are named separately below.
+    ok(`the ${label} consent line is the registered wording`,
+      html.includes("Text me updates about my quote and order from Stencil &amp; Thread."),
+      "wording we tidied ourselves is wording that no longer matches the filing");
+    ok(`🔴 and it says the texting is OPTIONAL`,
+      /Optional, not required to get a quote\./.test(html),
+      "without this the page makes being texted a condition of getting a quote, which is the "
+      + "opposite of what was filed");
+    ok(`🔴 the ${label} line keeps the message frequency statement`,
+      /Msg frequency varies/.test(html), "dropped by the wording we wrote ourselves");
+    ok(`🔴 and the HELP keyword, not only STOP`,
+      /Reply STOP to opt out, HELP for help\./.test(html), "also dropped by our own wording");
+    ok(`the ${label} consent names the business, not BoldLine`,
+      html.includes("from Stencil &amp; Thread"),
       "the reader is on the client's own domain and has never heard of BoldLine");
-    ok(`and it says plainly what submitting means`,
-      /By submitting this form you agree that/.test(html),
-      "a normal person has to understand they are agreeing to be texted about their quote");
-    ok(`the ${label} disclosure covers rates and opting out`,
-      /Message and data rates may apply/.test(html) && /Reply STOP/.test(html));
-    // 🔴 It is a sentence, not a caption. .fine centres its text, which turns three lines of
-    // legal wording into a ragged pyramid nobody reads.
-    ok(`the ${label} disclosure is set left, not centred`,
-      /\.discl\{text-align:left/.test(html));
+
+    // 🔴 Shaun, 2026-09-01: the box that gates the instant text must not look like the
+    // optional one beside it.
+    ok(`the ${label} form makes the texting box the prominent one`,
+      /class="cons cons-main"/.test(html) && /\.cons-main label\{font-size:13px/.test(html));
   }
+
+  // 🔴 THE WORDING IS NOT OURS TO WORD. Every business files its own, and the page has to
+  // carry THAT one. Without this the next client whose filing reads differently is a code
+  // change, which is how a live page drifts from a filing in the first place.
+  const ownWording = renderLandingPage({
+    ...cl,
+    campaignSetup: { ...cl.campaignSetup, smsConsentText: "Txt me about my order from Acme Co. Optional. Reply STOP to quit." },
+  });
+  ok("🔴 a client's own filed wording is shown word for word",
+    ownWording.includes("Txt me about my order from Acme Co. Optional. Reply STOP to quit."),
+    "a business whose filing differs from our standard line cannot be launched at all");
+  ok("and it replaces the standard line rather than joining it",
+    !/Msg frequency varies/.test(ownWording),
+    "two consent sentences in one label is worse than either alone");
 
   // 🔴 THE THREE LINKS. Shaun, same spec: A2P registration is checked against a privacy
   // policy, a terms page and a text-consent page linked from the consent language itself,
@@ -233,8 +258,8 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   }
   ok("🔴 the .html is preserved exactly as given", !/stencilandthread\.com\/privacy"/.test(withLinks),
     "Shaun: the extensionless versions will not resolve, so link them exactly as written");
-  ok("the links sit inside the disclosure, not loose on the page",
-    /<div class="fine discl">[\s\S]*?privacy\.html[\s\S]*?<\/div>/.test(withLinks));
+  ok("the links sit inside the consent label, not loose on the page",
+    /<label for="lf-sms">[\s\S]*?privacy\.html[\s\S]*?<\/label>/.test(withLinks));
   ok("and they open in a new tab so the form is not lost",
     /privacy\.html" target="_blank" rel="noopener"/.test(withLinks),
     "a visitor who taps Privacy mid-form must not lose what they typed");
@@ -258,19 +283,16 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   ok("🔴 the managed submit sends both consents", /payload\.smsConsentTransactional=/.test(managed)
     && /payload\.smsConsentMarketing=/.test(managed),
     "checkboxes the JSON post ignores would collect consent into thin air");
-  ok("🔴 and sends marketing even when unticked", /!!\(mc&&mc\.checked\)/.test(managed),
+  ok("🔴 and sends them even when unticked", /!!\(sc&&sc\.checked\)/.test(managed)
+      && /!!\(mc&&mc\.checked\)/.test(managed),
     "sending only when true would make a decline indistinguishable from never being asked, "
     + "which is exactly the case the auto-reply gate turns on");
-  // 🔴 The transactional value posted is "implied", not true. A record saying `true` cannot
-  // tell later whether somebody ticked a box or submitted under a disclosure, and those are
-  // different evidence.
-  ok("🔴 the managed submit posts the implied value, not a bare true",
-    /payload\.smsConsentTransactional=sc\?sc\.value:false/.test(managed)
-      && /value="implied"/.test(managed),
-    "flattening it to true loses how the consent was actually given");
+  // 🔴 THE EXACT LABEL THEY WERE SHOWN, stored with the lead. The failure this whole round
+  // trip came from was the live page drifting away from what the client filed with the
+  // carriers, and a per-lead copy of the wording is the only record that survives an edit.
   ok("🔴 and carries the exact wording that was on screen",
-    /payload\.consentDisclosure="By submitting this form you agree that Stencil/.test(managed),
-    "the record would say a disclosure happened but not what it said, and the page copy can change");
+    /payload\.consentDisclosure="Text me updates about my quote and order from Stencil/.test(managed),
+    "without it the record says consent was given but not to what, and the page copy can change");
   ok("the managed submit sends the page it was filled in on", /payload\.page=location\.href/.test(managed));
 }
 
