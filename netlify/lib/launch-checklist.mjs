@@ -111,6 +111,18 @@ export function launchChecklist(client) {
       next: "Ask their developer for the endpoint and the field names it expects. Skip it if they have no CRM.",
     },
     {
+      // 🔴 BLANK IS NOT AN ANSWER HERE, WHICH IS WHY THIS STEP EXISTS. Blank means "we send
+      // it", and we cannot: our own texting is not registered with the phone companies yet.
+      // So a client left on the default gets NO first text and nothing anywhere says so.
+      // Requiring an explicit value forces the decision once per client. Optional, so it
+      // never blocks a launch. Kept identical to the copy in index.html.
+      id: "textback", owner: "you", label: "Who texts the lead first",
+      done: has(cs.smsSender),
+      optional: true,
+      next: "Edit, then Campaign, under Who texts the lead first. Type their if the client's own system sends it. Leaving it with us needs our texting registered with the phone companies first, which is not done yet.",
+      why: "Two systems both texting a new lead is invisible when it goes wrong, and neither one texting costs the fastest follow-up there is.",
+    },
+    {
       id: "research", owner: "you", label: "Keywords and negatives researched",
       done: has(cs.keywordNotes) || has(cs.excludedKeywords),
       next: "The searches to buy and the ones to block. Start from their trade playbook, then add what this client teaches you.",

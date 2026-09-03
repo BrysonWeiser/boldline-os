@@ -56,3 +56,45 @@ credential we hold; their text-back runs entirely on their side.
 7. **Where does a reply go?** If the lead texts back, somebody has to be reading it.
 
 Answers 1 and 3 set the switch. If any of 2, 4 or 6 is a no, leave it on us until it is fixed.
+
+## 🔴 A2P registration does NOT carry over between clients
+
+Bryson, 2026-09-03: *"after we register for the texting thing would we be able to use it for
+any client or do we have to register each time because I want it to be a base thing we use as
+part of the crm"*.
+
+**It is per business, not per platform.** Registration has two layers:
+
+- **The brand** is a legal business: name, tax ID, address, website. It is what the phone
+  companies check the texts against, so it cannot be shared between businesses.
+- **The campaign** is the use case under that brand: sample messages, and how people opted in.
+
+So one BoldLine registration covers **texts sent as BoldLine, from BoldLine's number**. It
+does **not** let us text as a client. To do that as a platform, each client is registered as
+their own brand under our account, using **their** legal name and tax ID, with a campaign per
+client. That is the standard agency setup and most of it can be driven by API, but it needs a
+tax ID from every client and carries a small per-brand and per-month cost.
+
+Roughly: a few dollars one-time per brand, around fifteen dollars one-time to vet a campaign,
+and low single-digit dollars a month per campaign, plus per-message fees. **Confirm current
+pricing before quoting it, it moves.**
+
+### What this means for the product
+
+🔴 **Stencil & Thread is the easy case and the next client probably will not be.** Sebastian
+already has his own registration and his own system, so we set `smsSender` to `their` and
+never touch it. A client with no system of their own has neither, and the whole "full
+automation before the first client" goal means texting on their behalf, which means
+registering them. **It is deferrable, not avoidable.**
+
+Order that makes sense:
+1. Register **BoldLine** once, so our own alerts and our own ads' leads can text. Small, cheap,
+   one time. This is also what currently blocks owner alert texts (`SMS_ENABLED`, Twilio still
+   on trial as of the last note in `major-issue-alerts` and `call-tracking`).
+2. Use the client's own registration whenever they have one.
+3. Build per-client brand registration into onboarding only when enough clients lack one that
+   it pays for itself.
+
+🔴 **Do not claim BoldLine's texting is on or off from reading the repo.** The code has an
+`SMS_ENABLED` switch and the KB records it as off since 2026-07-25 with Twilio on trial, but
+whether it has been upgraded since is live state, and live state is not readable from here.
