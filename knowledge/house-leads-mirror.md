@@ -218,3 +218,78 @@ the record. That keeps the honesty without the noise.
 **86 checks.** Three more deliberate breaks confirmed to fail. One existing assertion had to
 be **updated rather than deleted** when the early-return gained the heartbeat condition:
 its intent (a quiet run writes nothing) still holds, the expression it pinned had changed.
+
+---
+
+## 2026-09-02 — it refreshes live now, and the earlier diagnosis was wrong
+
+**Bryson:** *"lets have the numbers update live"*, after reading the Netlify log himself.
+
+### 🔴 What the log actually said
+
+**No errors.** 96 clean runs a day, about a second each, all reporting
+`5 website lead(s) scanned — 0 added, 0 status-synced, 0 pruned.`
+
+And a **two-and-a-half hour hole** between 06:30 and 09:00 where Netlify simply **did not
+start the job**. Nine runs missed. Scheduled functions on Netlify are best effort, so no
+amount of hardening in our code prevents this. The "not run in 4 hours" warning was correct
+and was pointing at Netlify, not at a bug.
+
+### 🔴 THE CORRECTION THAT CHANGED WHAT WAS WORTH BUILDING
+
+An earlier reply told him leads *"sit in the website's inbox for a couple of hours"*.
+**That was wrong.** Website leads reach the OS **immediately**: the Leads screen reads
+`website_leads` directly on a realtime subscription, refreshed every 20 seconds.
+
+What lags is only the **house account's copy** in `leadsLog`, which feeds:
+the My Ads lead tile, cost per lead, the ad health score, the pipeline stage.
+
+**So this makes a dashboard current. It does not make leads arrive sooner.** He had chosen
+the build on the strength of a false claim, so it was put back to him with the accurate
+picture before anything was written. The on-screen copy said the same false thing and now
+states plainly that the leads themselves are safe on the Leads screen.
+
+### What was built
+
+- The merge moved to `netlify/lib/house-leads-run.mjs`. **One implementation**, called by
+  both the scheduled job and the new endpoint. A check fails if `mergeHouseLeads(` is ever
+  called from more than one place.
+- `netlify/functions/house-leads-sync.mjs` — **owner-JWT authed**, POST only, no alerting of
+  its own (the scheduled job alerts because nobody watches it; this runs while Bryson is
+  looking at the screen, and a red banner for something he can fix by refreshing is noise).
+- `ClientHub` subscribes to `website_leads` via the existing `useLiveData`, house account
+  only, with a re-entrancy guard so a burst of leads cannot fire overlapping merges.
+
+### 🔴 The build that was deliberately NOT done
+
+A push from the marketing site's form handler. It crosses **two separate Netlify sites**,
+needs a **shared secret in an env var** (a job he can only do at a computer, and he had just
+made one such trip), and leaves an endpoint anyone can hammer. The OS is already logged in
+and already subscribed to the table, so it can simply ask. Same freshness, no new secret,
+nothing to configure.
+
+### 🔴 It asks the SERVER, it does not count in the browser
+
+Deriving the house lead count in the UI is far less work and is the trap `house-leads.mjs`
+warns about in its own header: **five other readers, two of them server-side with no browser
+to derive anything in**, would have kept the old figure. One write still fixes all of them.
+
+### The no-write shortcut matters more now
+
+`if (!changed && !staleBeat) return` was there to stop 96 pointless row writes a day. It now
+also stops a My Ads screen left open from rewriting the client record on every realtime
+nudge and every poll. The client row is re-read only when the mirror reports it wrote
+(`beat !== false`).
+
+### Testing note
+
+97 checks, seven mutations, all caught.
+
+🔴 **Ten existing checks read the scheduled function's source, and the code moved.** They
+were **re-pointed at both files read as one body**, not narrowed. Scoping them to the
+scheduled file would have silently retired ten real guards at the exact moment the code
+moved out from under them.
+
+🔴 **Two copy assertions now pin the RULE, not the sentence.** The wording had to change to
+stop implying leads were late, and a phrase-match would have reported an accuracy fix as a
+regression.
