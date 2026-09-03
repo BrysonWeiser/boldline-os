@@ -450,3 +450,46 @@ caught.
 Two existing assertions were **updated, not deleted**: `verify-publish-vs-approval` pinned
 the inline expression this replaced, so a change fixing a worse bug read as a regression; and
 `verify-house-pipeline`'s extraction had to bring the new helper along or `adLanding` threw.
+
+---
+
+## Sending a test lead from the OS (2026-09-03)
+
+Bryson, prepping a call where the client's developer wanted to watch a lead arrive:
+*"can you build a button to automatically send a test from the os right now too"*.
+
+**Where it is:** Client → Edit → Campaign tab, directly under the "Send leads on to" box.
+Button reads **"Send a test lead"** with the line *"It is a dry run: their system checks
+everything and saves nothing."*
+
+**How it works:** `netlify/functions/crm-test.mjs` → `forwardLead(client, testLead(), { dryRun: true })`.
+
+🔴 **THE PLUMBING WAS ALREADY THERE AND UNREACHABLE.** `dryRun` has honoured the developer's
+`test=true` path since 1 September — it signs and posts the real request, his endpoint
+validates the whole payload, answers `{"ok":true,"test":true}` and **records nothing**, and
+dedupes in a separate key namespace so a dry run can never suppress the real lead that
+follows. **No caller in the OS ever passed the flag**, so the only proof the connection
+worked was to wait for a real lead. That is the worst moment to learn the shared secret is
+wrong.
+
+### Rules baked into it
+
+- 🔴 **It never writes to the client record.** `forwardLead` normally stamps its outcome onto
+  the lead so a retry knows what already went; there is no lead here to stamp, and the result
+  goes straight back to the screen. A test that mutated something real would break the
+  standing preview-safety rule.
+- 🔴 **Both consent fields are ABSENT, not `false`.** Absent is what a real untouched form
+  sends, and a test must not fabricate a permission record for a person who does not exist.
+- The fake contact **announces itself to a human** on the other end: name "BoldLine Test
+  Lead", `test@boldlinemedia.com`, message *"This is a connection test sent from BoldLine OS.
+  Nothing to action."*
+- Attribution fields carry recognisable placeholders (`gclid: "TEST-GCLID"`, utm
+  `boldline/test/connection-test`) so the **mapping** can be checked end to end, not just
+  "did a request arrive".
+- Owner JWT, POST only.
+- **A 401 is named**: *"Their system rejected the password (401). The shared secret in the OS
+  does not match theirs."* Generic "failed" would send him hunting.
+- **Unconfigured is instruction, not error**: *"There is no address to send leads to yet. Add
+  it under Edit, then Campaign, in the 'Send leads on to' box."*
+
+Guarded by `tests/verify-campaign-controls.mjs` (shared with the budget/date controls).

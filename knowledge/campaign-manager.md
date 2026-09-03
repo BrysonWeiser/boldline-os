@@ -120,3 +120,48 @@ reordered so the likeliest break reports itself rather than its neighbour.
 exact prop list. Adding `focusKey` made them report *"the Campaign Manager can save"* as
 broken while saving worked perfectly. They now check that it **receives** `onUpdate`.
 **A signature match fails on every future prop; pin the rule, not the spelling.**
+
+---
+
+## Manual daily budget + run-until date (2026-09-03)
+
+Bryson: *"for the campaigns i need a way to manually edit their daily budget and how long I
+want the ads running for"*.
+
+**Where it is:** My Ads → each live campaign row → **Edit**. Panel shows **Daily budget** and
+**Run until**, saved with **"Save to the ad account"**.
+
+**Writes:** `setEndDate` in `google-ads.mjs`, `setEndTime` in `meta-ads.mjs`, plus the
+existing budget write. Meta budget lives on the **campaign** (CBO); Google on the campaign
+budget resource.
+
+### 🔴 The four traps, all of which bite in production
+
+1. **An end date must be REMOVABLE, not only settable.** Google **rejects an empty
+   `end_date`**, so clearing one means writing Google's own runs-forever sentinel
+   **`20371230`**. Without that, a typo'd date could never be undone without rebuilding the
+   campaign.
+2. **And the sentinel must read back as NO end date.** `isoDay("20371230") === ""`. Otherwise
+   the box shows a date in 2037 he never typed, which is exactly the kind of number that
+   makes somebody stop trusting a screen. `isoDay` also flattens a Meta ISO timestamp to a
+   plain day and returns `""` for junk.
+3. **The last day is INCLUDED.** A date input yields midnight, so Meta gets `T23:59:59`.
+   Stopping at 00:00 on the day he typed means not running that day at all, which is not what
+   anybody means by "run until the 20th". The screen says *"The last day is included"* so it
+   is not guesswork.
+4. **A tenfold budget typo is questioned.** `after >= before*3` confirms first, because
+   nothing else in the OS would catch $700/day where $70 was meant until the money was gone.
+   Non-positive is refused outright.
+
+**Every save re-reads the account** (`await load()`), so the row shows what the platform
+actually holds rather than what was typed — a half-applied write would otherwise look
+complete.
+
+🔴 **An empty date box says what empty MEANS**: *"Leave the date empty and it runs until you
+pause it."* Blank otherwise reads as "not set yet" and he would never dare clear it.
+
+### Testing note
+
+`tests/verify-campaign-controls.mjs`, 17 checks, seven mutations, all caught. It also covers
+the CRM test button (KB `lead-handoff`), because both landed in the same unit of work: one
+control that writes nothing on purpose, two that move real money.
