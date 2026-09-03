@@ -9412,12 +9412,54 @@ function AdCreativeStudio({client,onUpdate}){
   const [f,setF]=useState(()=>{ const a=AD_ANGLES[0].build("",""); return {kicker:a.kicker,head:a.head.join("\n"),accent:a.accent,sub:a.sub,offer:"Free 30-minute strategy call"}; });
   const [sizes,setSizes]=useState(()=>AD_SIZES.filter(s=>s.on).map(s=>s.id));
   const [photoPath,setPhotoPath]=useState("");
+  // ─── The niche photo gallery ───────────────────────────────────────────────
+  // Bryson, 2026-09-02: "what if we can open a real gallery based on whatever niche I put
+  // of images that would be good backgrounds for the ads and to be able to visually see
+  // them before I select them". The dropdown below only ever listed files already in the
+  // library, which on the house account is empty, so the control existed with nothing in it.
+  const [stock,setStock]=useState([]);          // [{id,thumb,full,alt,credit}]
+  const [stockState,setStockState]=useState("");// "" | working | saving | error
+  const [stockMsg,setStockMsg]=useState("");
   const [shots,setShots]=useState([]);      // {id,label,dim,url,blob,w,h}
   const [busy,setBusy]=useState("");
   const [err,setErr]=useState("");
   const [saved,setSaved]=useState(0);
 
   const photos=(client.mediaLibrary||[]).filter(m=>m.url&&m.category!=="video");
+
+  const stockCall=async(payload)=>{
+    const { data:{ session } } = await supabaseClient.auth.getSession();
+    const tok = session && session.access_token;
+    if(!tok) throw new Error("Session expired. Refresh the page and log in again.");
+    const r=await fetch("/.netlify/functions/stock-photos",{method:"POST",
+      headers:{"Content-Type":"application/json",Authorization:"Bearer "+tok},body:JSON.stringify(payload)});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok) throw new Error(d.error||`Photo search failed (${r.status})`);
+    return d;
+  };
+  const findPhotos=async()=>{
+    setStockState("working"); setStockMsg(""); setStock([]);
+    try{
+      const q=niche||(client.internal?"":(client.niche||""));
+      const d=await stockCall({action:"search",niche:q});
+      setStock(d.photos||[]);
+      setStockState(""); setStockMsg(`${(d.photos||[]).length} photos for "${d.query}"`);
+    }catch(e){ setStockState("error"); setStockMsg(e.message||"Photo search failed."); }
+  };
+  // 🔴 A chosen photo is COPIED into the media library, not linked. The creative is drawn
+  // on a canvas and read back with toBlob(), and drawing an image from another origin taints
+  // that canvas so the read throws. The preview would look perfect and the download would
+  // fail, which is the worst place to discover it. Copied, it behaves exactly like one of
+  // his own uploads, and it survives Pexels moving the file.
+  const useStockPhoto=async(p)=>{
+    setStockState("saving"); setStockMsg("");
+    try{
+      const d=await stockCall({action:"save",clientId:client.id,photoUrl:p.full,label:p.alt||"Stock photo",credit:p.credit});
+      if(onUpdate) onUpdate({...client,mediaLibrary:d.mediaLibrary});
+      setPhotoPath(d.entry.path);
+      setStock([]); setStockState(""); setStockMsg("Saved to your media library and selected below.");
+    }catch(e){ setStockState("error"); setStockMsg(e.message||"Could not save that photo."); }
+  };
 
   // Re-seed the editable fields from the chosen angle + niche/city.
   const reseed=(id,n,c)=>{
@@ -9569,6 +9611,37 @@ function AdCreativeStudio({client,onUpdate}){
           <span style={lbl}>Footer offer</span>
           <input value={f.offer} onChange={e=>setF({...f,offer:e.target.value})} style={inp}/>
         </div>
+      </div>
+
+      {/* 🔴 NOT gated on photos.length. The dropdown below still is, because a picker with
+          one option in it is noise, but the SEARCH is the thing that fills that library in
+          the first place, so hiding it until the library is non-empty is a door locked from
+          the inside. That is exactly the state the house account was in. */}
+      <div style={{marginBottom:11}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:7}}>
+          <button onClick={findPhotos} disabled={stockState==="working"||stockState==="saving"}
+            style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,
+              background:"transparent",color:C.textDim,cursor:stockState?"default":"pointer",opacity:stockState?.7:1}}>
+            {stockState==="working"?"Looking…":stockState==="saving"?"Saving…":"Find photos for this niche"}
+          </button>
+          {stock.length>0&&(
+            <button onClick={()=>{setStock([]);setStockMsg("");}}
+              style={{fontSize:10.5,color:C.textMuted,background:"none",border:"none",cursor:"pointer",textDecoration:"underline"}}>Close</button>
+          )}
+        </div>
+        {stockMsg&&<div style={{fontSize:10.5,color:stockState==="error"?"#F87171":C.textMuted,marginBottom:7,lineHeight:1.5}}>{stockMsg}</div>}
+        {stock.length>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(104px,1fr))",gap:7,marginBottom:9}}>
+            {stock.map(p=>(
+              <button key={p.id} onClick={()=>useStockPhoto(p)} disabled={stockState==="saving"} title={p.alt}
+                style={{padding:0,border:`1px solid ${C.border}`,borderRadius:8,overflow:"hidden",background:C.bg2,
+                  cursor:stockState==="saving"?"default":"pointer",aspectRatio:"4 / 3",display:"block"}}>
+                <img src={p.thumb} alt={p.alt} loading="lazy"
+                  style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {photos.length>0&&(
