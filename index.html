@@ -2376,7 +2376,8 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
 // already signed keeps the wording it was signed with. Renewal stamps this onto the client.
 //   v1 — everything signed before 3 September 2026.
 //   v2 — adds "Client Delay and Abandonment".
-const CONTRACT_TERMS_VERSION = 2;
+//   v3 — early cancellation costs the remaining Committed Term, not one month.
+const CONTRACT_TERMS_VERSION = 3;
 
 const makeContractHTML=(cl,pkg)=>{
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -2441,10 +2442,19 @@ const makeContractHTML=(cl,pkg)=>{
   // ever, which is not what "not Sebastian until he renews" means. ContractTabContent
   // writes `contractTermsVersion` on renewal.
   const TERMS_V2_FROM = Date.UTC(2026, 8, 3);   // 3 Sep 2026
+  // 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. This was written as
+  // a literal 2 when versioning was introduced, and adding v3 the next day left every new
+  // client silently on v2: the clause was in the file, gated correctly, and reached nobody.
+  // Nothing failed, nothing looked wrong, and an unsigned contract simply did not contain
+  // the term Bryson had asked for. A default that names a specific version goes stale the
+  // moment a version is added, which is exactly when nobody is looking at it.
+  const TERMS_CURRENT = 3;
   const termsVersion = Number.isFinite(Number(cl.contractTermsVersion))
     ? Number(cl.contractTermsVersion)
-    : ((cl.contractSigned && cl.contractSignedAt && new Date(cl.contractSignedAt).getTime() < TERMS_V2_FROM) ? 1 : 2);
+    : ((cl.contractSigned && cl.contractSignedAt && new Date(cl.contractSignedAt).getTime() < TERMS_V2_FROM) ? 1 : TERMS_CURRENT);
   const hasAbandon = termsVersion >= 2;
+  // v3 — early cancellation costs the remaining term rather than one month.
+  const hasFullTermExit = termsVersion >= 3;
   const dAb = hasAbandon ? 1 : 0;
 
   const nBase = 3 + (hasPerf?1:0) + (oneTime?1:0);
@@ -2666,7 +2676,21 @@ const makeContractHTML=(cl,pkg)=>{
         // nothing on. That is the opposite of what was offered, and it is the kind of term
         // a client discovers at the worst possible moment.
         ? '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, and owes only the fees accrued through the effective termination date. <span class="caps">THERE IS NO EARLY-TERMINATION FEE AND NO RATE CLAWBACK UNDER THIS AGREEMENT.</span> Because Client pays only for results actually delivered during the Initial Term, no discounted rate was given in exchange for the Committed Term and there is nothing to recover.</p>'
-        : '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>'))
+        : (hasFullTermExit
+           // 🔴 v3. Bryson, 2026-09-02: cancelling early should cost the REST of the term,
+           // not one month. He committed capacity for the whole term and turned other work
+           // away, so the remaining minimums are the loss. Kept in the liquidated-damages
+           // frame the old clause already used, because that frame is the only reason an
+           // acceleration like this survives being challenged.
+           //
+           // 🔴 A PART MONTH COUNTS AS A WHOLE ONE, at THEIR OWN rate. The alternative he
+           // floated was a flat $400 for a final part month, and a flat number bearing no
+           // relation to their contract is precisely the shape a court reads as a penalty
+           // rather than as a genuine estimate of loss. Worse, on every package above $400
+           // it would make cancelling in the last month CHEAPER than seeing it out, which
+           // rewards exactly the behaviour the clause exists to discourage.
+           ? '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date by written notice to Agency at the email address on page one, effective when Agency receives it. Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) the <strong>Monthly Minimum for each remaining month of the Committed Term</strong>, where any part of a month counts as a whole month, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The Setup Fee is earned on signing and is not refundable in any amount. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses, which are difficult to calculate precisely: Agency reserves capacity for the whole Committed Term and turns away other work to hold it.</p>'
+           : '<p>(b) <strong>By Client, early.</strong> Client may terminate before the End Date on thirty (30) days&rsquo; written notice, provided Client pays, as liquidated damages and not as a penalty: (i) all fees accrued through the effective termination date, plus (ii) an early-termination fee equal to <strong>one (1) month&rsquo;s Monthly Minimum</strong>, plus (iii) if Client received a discounted rate in exchange for the Committed Term, the difference between the Standard Rate ('+money(stdMonthly)+'/mo) and the discounted rate actually paid for each month already billed in the current term. The parties agree these amounts are a reasonable estimate of Agency&rsquo;s losses from early termination, which are difficult to calculate precisely.</p>')))
    +'<p>(c) <strong>By Agency, early.</strong> Agency may terminate before the End Date on thirty (30) days&rsquo; written notice. In that case Agency will refund any prepaid fees covering periods after the effective termination date and, if Agency terminates before the Campaigns launch, the unearned portion of any Setup Fee; no early-termination fee applies to Client.</p>'
    +'<p>(d) <strong>For cause.</strong> Either party may terminate immediately by written notice if the other party materially breaches this Agreement and fails to cure within fifteen (15) days of written notice describing the breach (no cure period applies to Client&rsquo;s non-payment beyond the periods in Section 3.4, or to a breach of confidentiality). Termination for Client&rsquo;s uncured breach does not relieve Client of subsection (b) amounts.</p>'
    +'<p>(e) <strong>Effect.</strong> On termination: all unpaid amounts become immediately due; Agency will stop campaigns as directed, relinquish account access, and deliver any Client-owned materials in its possession; and each party will return or delete the other&rsquo;s Confidential Information on request. Sections addressing fees owed, ownership, confidentiality, data, liability, indemnification, and disputes survive termination.</p>'

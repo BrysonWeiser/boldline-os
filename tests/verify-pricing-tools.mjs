@@ -234,7 +234,10 @@ const os = readFileSync("index.html", "utf8");
   ok("managed keeps the 3-month commitment", /minimum commitment of three \(3\) months/.test(managed));
   ok("managed keeps its holdover clause", /Holdover/.test(managed));
   ok("managed keeps the greater-of rule", /NEVER CHARGED TOGETHER/.test(managed));
-  ok("managed keeps its early-termination fee", /early-termination fee equal to/.test(managed));
+  // Same point as in verify-founding-terms: the cost for cancelling early must still be
+  // there, and v3 states it as the remaining term rather than as a one-month fee.
+  ok("managed keeps a cost for cancelling early",
+    /as liquidated damages and not as a penalty/.test(managed) && /Monthly Minimum/.test(managed));
   ok("no hand-off clause leaks into a managed agreement", !/FULLY DISCHARGED/.test(managed));
   ok("no hand-off waiver leaks into a managed agreement", !/setup fee in full/.test(managed));
 }

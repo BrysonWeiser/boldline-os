@@ -144,7 +144,10 @@ const BASE = {
   ok("and the standard section title", h.includes("4. Monthly Minimum and Performance Fee"));
   ok("and the summary box still states the greater-of rule", h.includes("Whichever is higher, never both"));
   ok("and the standard setup fee", h.includes("$750"));
-  ok("and the early-termination fee", h.includes("early-termination fee equal to"));
+  // 🔴 Checks that cancelling early COSTS something, not the exact wording. v3 replaced
+  // "early-termination fee equal to one month" with the remaining months of the term, so a
+  // phrase-match here reported the fee as GONE when it had only got bigger.
+  ok("and a cost for cancelling early", h.includes("as liquidated damages and not as a penalty") && h.includes("Monthly Minimum"));
   ok("and a client WITH a minimum still has the advance-billing clause, which is what Stripe actually does",
     h.includes("Monthly Minimum is billed monthly in advance"));
   ok("their own agreed rate is used", h.includes("$75 per qualified lead"));

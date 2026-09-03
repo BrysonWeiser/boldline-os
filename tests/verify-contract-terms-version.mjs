@@ -77,7 +77,10 @@ t("🔴 renewing moves an old client onto the current terms", () => {
 });
 
 t("and the renewal path actually writes that stamp", () => {
-  assert.match(S, /const CONTRACT_TERMS_VERSION = 2;/, "there is no current-terms constant to stamp");
+  // 🔴 Deliberately not pinned to a NUMBER here. This assertion said "= 2" and had to be
+  // edited the day v3 landed, which teaches the next person to edit it again rather than
+  // think. The number is pinned once, at the bottom, against the renderer's own behaviour.
+  assert.match(S, /const CONTRACT_TERMS_VERSION = \d+;/, "there is no current-terms constant to stamp");
   assert.match(S, /contractTermsVersion:CONTRACT_TERMS_VERSION/,
     "renewing does not move the client onto the current terms, so an old client stays on the old terms for ever");
 });
@@ -167,6 +170,71 @@ t("no dashes crept into the new clause", () => {
   const sec = html.slice(html.indexOf("Client Delay and Abandonment"), html.indexOf("No Guarantee of Results"));
   assert.ok(!/[—–]/.test(sec), "an em or en dash is in the contract");
   assert.ok(!/\s-\s/.test(sec), "a spaced hyphen is in the contract");
+});
+
+// ── 🔴 v3: CANCELLING EARLY COSTS THE REST OF THE TERM ────────────────────────
+// Bryson, 2026-09-02: *"a clause if the client wants to cancel... they have to tell me in
+// writing and then pay the remaining months minimum and the set up fee is non refundable"*.
+// The old clause already required written notice; what changed is the amount, from one
+// month to every remaining month.
+const REMAIN = /Monthly Minimum for each remaining month/;
+
+t("a new client owes the remaining term, not one month", () => {
+  for (const html of both({ id: "c9", name: "New", packageId: "g-growth" })) {
+    assert.match(html, REMAIN, "cancelling early still costs only one month");
+    assert.match(html, /Setup Fee is earned on signing and is not refundable/, "the setup fee is not stated as non-refundable");
+    assert.match(html, /written notice to Agency at the email address on page one/,
+      "it does not say where written notice has to go, which is the first thing argued about");
+  }
+});
+
+t("🔴 a part month counts as a whole month, at THEIR rate", () => {
+  // Bryson asked whether a final part month should be a flat $400 instead. It should not.
+  // A flat number bearing no relation to their contract is the shape a court reads as a
+  // penalty rather than a genuine estimate of loss, and on every package above $400 it would
+  // make cancelling in the last month CHEAPER than seeing it out.
+  const html = server({ id: "c9", name: "New", packageId: "g-growth" }, PKG, "");
+  assert.match(html, /any part of a month counts as a whole month/, "a final part month is prorated or unpriced");
+  assert.ok(!/\$400/.test(html), "a flat cancellation number was put back in, unrelated to what the client actually pays");
+});
+
+t("🔴 nobody on an older version gets the harsher clause", () => {
+  for (const cl of [SEBASTIAN, { id: "c8", name: "V2", packageId: "g-growth", contractTermsVersion: 2 }]) {
+    for (const html of both(cl)) {
+      assert.ok(!REMAIN.test(html), `an agreement signed under older terms now charges the whole remaining term (${cl.name})`);
+      assert.match(html, /one \(1\) month&rsquo;s Monthly Minimum/, "the old clause was removed instead of kept for the people who signed it");
+    }
+  }
+});
+
+t("results-only and one-time agreements are untouched", () => {
+  // Results-only has no floor to accelerate, and a one-time build has no term at all.
+  // Charging either "the remaining months" would refer to something that does not exist.
+  const RESULTS = { id: "g-growth", name: "Growth", price: 1200, setup: 500 };
+  const ro = server({ id: "r", name: "R", packageId: "g-growth", resultsOnly: true }, RESULTS, "");
+  const ot = server({ id: "h", name: "H", packageId: "h-handoff" }, HANDOFF, "");
+  assert.ok(!REMAIN.test(ot), "a one-time build with no committed term is charged for remaining months");
+  assert.ok(ro.length > 0);
+});
+
+t("🔴 the newest version is not written as a stale literal", () => {
+  // This bug happened. The unsigned default was hardcoded to 2, so adding v3 left every new
+  // client silently on v2: the clause was in the file, gated correctly, and reached nobody.
+  // Nothing failed and nothing looked wrong.
+  const src = readFileSync(join(ROOT, "netlify/lib/contract-shared.cjs"), "utf8");
+  assert.match(src, /const TERMS_CURRENT = \d+;/, "there is no single place naming the newest version");
+  assert.match(src, /: TERMS_CURRENT\);/, "the default version is a literal again, so the next clause will reach nobody");
+});
+
+t("🔴 renewing an old client gives them EXACTLY the new-client contract", () => {
+  // Pins the renewal stamp to the renderer's own idea of current, behaviourally. If the two
+  // numbers ever drift, a renewed client gets terms that exist nowhere else.
+  const renewed = server({ ...SEBASTIAN, contractTermsVersion: 3, name: "New" }, PKG, "");
+  const fresh = server({ id: "c1", name: "New", contactName: "Sebastian", packageId: "g-growth",
+    billingMonthly: 1200, contractTermMonths: 3, contractSigned: true, contractSignedAt: "2026-08-30T12:00:00Z",
+    contractTermsVersion: 3 }, PKG, "");
+  assert.equal(renewed, fresh);
+  assert.match(S, /const CONTRACT_TERMS_VERSION = 3;/, "the renewal stamp is behind the renderer's current version");
 });
 
 console.log(`✓ verify-contract-terms-version: ${n} checks passed`);
