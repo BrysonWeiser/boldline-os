@@ -99,8 +99,8 @@ await at("approving a Google campaign starts it on Google, with a resource name 
 });
 
 await at("🔴 the platform falls back to the owner's queued action", async () => {
-  // Approvals created before this change carry no platform, and one is outstanding on a
-  // real client right now. Without the fallback it would refuse to launch.
+  // Approvals created before this change carry no platform. Without the fallback any such
+  // approval would refuse to launch, and the client would press Approve to no effect.
   const r = await run({ approval: { id: "a2", kind: "campaign", campaignId: "555" },
     client: { pendingActions: [{ exec: { campaignId: "555", platform: "meta" } }] } });
   assert.deepEqual(r.calls, [["meta", "555"]]);

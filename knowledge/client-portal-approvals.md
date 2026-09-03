@@ -320,8 +320,13 @@ went and pressed a second button himself, possibly hours later.
 
 `makeApproval` now stamps `platform` on campaign approvals, and both launch cards pass it.
 **Fallback:** the owner's `pendingActions` entry with the same `exec.campaignId`, because
-approvals created before this change carry no platform and one is outstanding on a real
-client right now.
+approvals created before this change carry no platform, and without the fallback any such
+approval would refuse to launch.
+
+(An earlier version of this note claimed one such approval was outstanding on Stencil &
+Thread. It was not. A campaign approval only exists once a campaign has been BUILT, and no
+campaign can be built for Sebastian until his Google Ads customer id arrives. What he has
+outstanding is a LANDING PAGE approval.)
 
 🔴 **With no platform from either source it REFUSES.** Guessing starts a campaign on the
 wrong account and spends somebody else's money. Refusing is loud and costs nothing.
