@@ -43,7 +43,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { mergeHouseLeads, PRUNE_LIMIT } from "../lib/house-leads-merge.mjs";
+import { syncHouseLeads } from "../lib/house-leads-run.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const json = (body, status = 200) =>
@@ -82,50 +82,12 @@ export default withFailureAlert("house-leads", async () => {
     return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
   try {
-    // The house account. No internal client means nothing to mirror into, which is a
-    // normal state (he can delete and re-add it), not an error.
-    const { data: houses, error: clErr } = await supabase
-      .from("clients").select("id, data").eq("data->>internal", "true").limit(1);
-    if (clErr) { await warn("reading the client list", clErr.message); return json({ ok: true, error: `clients read failed: ${clErr.message}`, added: 0 }); }
-    const house = (houses || [])[0];
-    if (!house) return json({ ok: true, house: false, added: 0 });
-
-    const { data: rows, error: wlErr } = await supabase
-      .from("website_leads").select("id, created_at, form, name, business, email, message, status, payload")
-      .order("created_at", { ascending: false }).limit(PRUNE_LIMIT);
-    if (wlErr) { await warn("reading website_leads", wlErr.message); return json({ ok: true, error: `website_leads read failed: ${wlErr.message}`, added: 0 }); }
-
-    const leads = rows || [];
-    const cl = house.data || {};
-    const { kept, added, updated, pruned, changed } = mergeHouseLeads(cl.leadsLog, leads, { limit: PRUNE_LIMIT });
-
-    // 🔴 A HEARTBEAT, SO "NO LEADS YET" AND "THIS STOPPED WORKING" LOOK DIFFERENT.
-    // Bryson, 2026-08-24: "I also want to make sure the actual lead count works (i havent
-    // gotten any yet but i still want to test that itll work)". He cannot test it with no
-    // leads, and that is exactly the state where a broken mirror is invisible: the screen
-    // reads 0, which is also the correct answer, so nothing looks wrong. Every screen that
-    // shows a lead count now also shows when this last checked, and says so when it has
-    // not run in a while. Same reasoning as the "These numbers are stale" panel on the ad
-    // card: a failed read must never be indistinguishable from a real zero.
-    const prevSync = cl.leadSync || {};
-    const staleBeat = !prevSync.at || (Date.now() - new Date(prevSync.at).getTime()) > 55 * 60e3;
-    const leadSync = { at: new Date().toISOString(), scanned: leads.length, total: kept.length };
-
-    // Nothing changed and the heartbeat is fresh: no write at all. Without this the job
-    // would touch the client row 96 times a day purely to record that it did nothing.
-    if (!changed && !staleBeat) {
-      return json({ ok: true, house: true, scanned: leads.length, added: 0, updated: 0, pruned: 0, total: kept.length, beat: false });
-    }
-
-    const { error: upErr } = await supabase.from("clients")
-      .update({ data: { ...cl, leadsLog: kept, leads: kept.length, leadSync }, updated_at: new Date().toISOString() })
-      .eq("id", house.id);
-    if (upErr) { await warn("saving the mirrored leads", upErr.message); return json({ ok: true, error: `client update failed: ${upErr.message}`, added: 0 }); }
-
-    console.log(`house-leads: ${leads.length} website lead(s) scanned \u2014 ${added} added, ${updated} status-synced, ${pruned} pruned.`);
-    return json({ ok: true, house: true, scanned: leads.length, added, updated, pruned, total: kept.length });
+    // 🔴 The merge itself now lives in ../lib/house-leads-run.mjs, because the OS asks for
+    // the same mirror on demand (house-leads-sync) so the My Ads numbers update the moment
+    // a lead lands rather than waiting for the next quarter hour. ONE implementation: a
+    // second copy here would drift, and the two would disagree about a client's lead count.
+    return json(await syncHouseLeads(supabase, { warn }));
   } catch (e) {
     await warn("the run itself", String((e && e.message) || e));
     return json({ ok: true, error: String((e && e.message) || e), added: 0 });
