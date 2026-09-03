@@ -37,6 +37,7 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { parseLocations } from "../lib/geo-parse.mjs";
+import { resolveGoal } from "../lib/campaign-goals.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -677,8 +678,21 @@ async function createCampaign(p) {
   // never fires one. Meta cannot find converters that do not exist, so it under-delivers
   // and the money buys nothing. So this is gated on a pixel id being deliberately pasted
   // in per client, not on one being detected.
+  //
+  // 🔴 2026-09-02, THE SECOND HALF: IT IS NOW CHOSEN, NOT INFERRED. Bryson: *"Can you make
+  // a way for me to be able to select whether I want an ad I'm making to go for leads
+  // clicks etc"*. Inferring the goal from whether a pixel happened to be saved meant the
+  // campaign's whole purpose was decided by a field nobody was looking at. He picks it now.
+  //
+  // 🔴 AND ASKING FOR LEADS WITHOUT A PIXEL FAILS. It does NOT quietly fall back to
+  // traffic. A silent downgrade is strictly worse than the original bug, because he would
+  // have deliberately chosen Leads and still be buying clicks, with the OS agreeing with
+  // him. Refusing to build costs nothing; building the wrong thing costs money every hour
+  // until somebody notices.
   const pixelId = String(p.pixelId == null ? "" : p.pixelId).trim();
-  const chaseLeads = !!pixelId;
+  const g = resolveGoal(p.goal, { tracking: !!pixelId, platform: "meta" });
+  if (g.error) throw Object.assign(new Error(g.error), { stage: "createCampaign" });
+  const chaseLeads = g.goal === "leads";
 
   const camp = await graph("createCampaign", `${a}/campaigns`, {
     method: "POST",

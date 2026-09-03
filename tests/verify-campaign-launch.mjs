@@ -330,11 +330,21 @@ const os = read("../index.html");
   // landing page, the lead pipeline and the CRM forward completely.
   ok("and sends people to the website rather than an instant form",
     /destination_type: "WEBSITE"/.test(code));
-  // 🔴 The switch is a pasted pixel id, never something detected. Optimising for a LEAD
-  // event on a pixel that never fires one makes Meta under-deliver and buy nothing, which
-  // is quieter and worse than the campaign being rejected outright.
-  ok("the switch is the pixel id being supplied, not guessed at",
-    /const chaseLeads = !!pixelId/.test(code) && /const pixelId = String\(p\.pixelId/.test(code));
+  // 🔴 UPDATED 2026-09-02, SAME RULE, STRONGER MECHANISM. This used to assert
+  // `chaseLeads = !!pixelId` — the goal was INFERRED from whether a pixel happened to be
+  // saved. Bryson: *"a way for me to be able to select whether I want an ad I'm making to
+  // go for leads clicks etc"*, so he picks it now and the pixel merely permits it.
+  //
+  // The rule the old assertion was defending has NOT been relaxed, it has been tightened:
+  // optimising for a LEAD event on a pixel that never fires one makes Meta under-deliver
+  // and buy nothing, which is quieter and worse than an outright rejection. So asking for
+  // leads with no pixel is now REFUSED before anything is created, rather than merely
+  // never being inferred. Full coverage of the choice lives in verify-campaign-goals.
+  ok("the goal is chosen, and the pixel is still what permits it",
+    /const chaseLeads = g\.goal === "leads"/.test(code) && /const pixelId = String\(p\.pixelId/.test(code));
+  ok("🔴 and leads without a pixel stops the build instead of quietly buying clicks",
+    /resolveGoal\(p\.goal, \{ tracking: !!pixelId/.test(code) && /if \(g\.error\) throw/.test(code),
+    "the goal is read but its refusal is ignored, so a campaign he set to Leads would build as traffic");
   ok("and no longer for raw link clicks", !/optimization_goal: "LINK_CLICKS"/.test(code),
     "paying for taps that never became a page view");
   // The billing event is what Meta CHARGES on and is deliberately unchanged.

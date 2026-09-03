@@ -25,6 +25,7 @@ import { parseLocations } from "../lib/geo-parse.mjs";
 import {
   CONVERSION_ACTIONS, ACTION_KEYS, conversionActionPayload, mapConversionRows, uploadPlan,
 } from "../lib/gads-conversions.mjs";
+import { resolveGoal } from "../lib/campaign-goals.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -366,6 +367,14 @@ export async function createCampaign(accessToken, p) {
   if (!p.landingUrl) throw err("landingUrl required");
   if (!/^https?:\/\//i.test(String(p.landingUrl))) throw err("landingUrl must start with http:// or https://");
   if (!(Number(p.dailyBudgetDollars) > 0)) throw err("dailyBudgetDollars must be > 0");
+  // What this campaign is being told to buy. See the bidding strategy below for what each
+  // one becomes, and why an unnamed goal deliberately leaves existing callers untouched.
+  // 🔴 "tracking" is whether this client has Google conversion actions set up. Asking for
+  // leads without them FAILS here, before anything is created, rather than being downgraded.
+  const askedGoal = !!String(p.goal == null ? "" : p.goal).trim();
+  const gRes = resolveGoal(p.goal, { tracking: !!p.hasConversionTracking, platform: "google" });
+  if (gRes.error) throw err(gRes.error);
+  const goal = gRes.goal;
   // TWO INPUT SHAPES. `adGroups[]` is the real one: several tightly themed groups,
   // each with its own keywords and its own ad, so the ad can actually match the
   // search. The flat headlines/descriptions/keywords shape is the original
@@ -458,7 +467,27 @@ export async function createCampaign(accessToken, p) {
       name,
       status: "PAUSED",
       advertisingChannelType: "SEARCH",
-      manualCpc: {},
+      // 🔴 THE SAME CHOICE AS META'S OBJECTIVE, WEARING GOOGLE'S CLOTHES. Bryson,
+      // 2026-09-02: *"a way for me to be able to select whether I want an ad I'm making to
+      // go for leads clicks etc"*. On Google the knob is the bidding strategy, not an
+      // objective: `maximizeConversions` tells Google to spend the budget finding form
+      // fills, `targetSpend` (Maximise Clicks) tells it to buy as many visits as the budget
+      // allows. Manual CPC, the old unconditional value, is neither — it is Google bidding
+      // exactly what it is told and learning nothing, which is the worst of both.
+      //
+      // 🔴 `maximizeConversions` REQUIRES a conversion action on the account, and Google
+      // rejects the whole mutate if there is none. That rejection is deliberate and is the
+      // point: the mutate is atomic, so nothing is created, and Bryson is told rather than
+      // quietly given a clicks campaign he believes is chasing leads.
+      //
+      // 🔴 AND WHEN NO GOAL IS NAMED AT ALL, NOTHING CHANGES. `client-autobuild` builds
+      // client campaigns without one, and those are live accounts spending real money on
+      // their owners' cards. Quietly re-bidding them because a new field appeared in a
+      // different part of the OS is not a change anybody asked for. Silence keeps meaning
+      // manual CPC until Bryson chooses otherwise per campaign.
+      ...(!askedGoal ? { manualCpc: {} }
+        : goal === "leads" ? { maximizeConversions: {} }
+        : { targetSpend: {} }),
       campaignBudget: budgetRN,
       networkSettings: {
         targetGoogleSearch: true,

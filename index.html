@@ -8316,6 +8316,9 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     keywordsText: seed0.keywords.join("\n"),
     locationsText: locationDefault,
     negativeKeywordsText: negativeDefault,
+    // Same rule as the Meta card: default to Leads only when there is something that can
+    // count one, so the Build button never opens on a setting the server would refuse.
+    goal: (client.conversionActions && Object.keys(client.conversionActions).length) ? "leads" : "traffic",
   });
   // Generated structure. When present, the campaign is built from THESE ad groups
   // (several themed groups, each with its own ad) instead of the single group the
@@ -8381,6 +8384,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
         landingUrl:f.landingUrl, matchType:f.matchType, clientName:client.name,
         locations, negativeKeywords,
+        // On Google the goal picks the bidding strategy. Sending it is also what opts this
+        // campaign out of the old manual-CPC default, which every caller that sends no goal
+        // (client-autobuild) deliberately keeps.
+        goal:f.goal, hasConversionTracking:!!(client.conversionActions&&Object.keys(client.conversionActions).length),
         // Generated structure wins. Falling back to the single manual group keeps the
         // card usable with no AI call (and if the generator is ever unavailable).
         ...(gen && gen.adGroups && gen.adGroups.length
@@ -8507,6 +8514,9 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         <textarea value={f.negativeKeywordsText} onChange={e=>set("negativeKeywordsText",e.target.value)} rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
         <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Searches that will never buy — job hunters, students, freebie seekers. Blocking them is the cheapest money you'll save on a small budget.</div>
       </div>
+      <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
+        ready={!!(client.conversionActions&&Object.keys(client.conversionActions).length)}
+        missing={"Set up conversion tracking for this client first, or Google will refuse to build this. There is a button for it further up this screen."}/>
       <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
     </Card>
@@ -8596,6 +8606,10 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     // Empty means the build is refused rather than silently buying the whole country.
     locationsText: toLocationLines(metaLocations),
     imageUrl: (firstImg && firstImg.url) || "",
+    // 🔴 Defaults to Leads ONLY when the pixel is there to count them, because a default
+    // the server would refuse is a build button that fails on first press. With no pixel
+    // it starts on Visits, which is what the campaign has always quietly been.
+    goal: client.metaPixelId ? "leads" : "traffic",
   });
   // Editing the monthly budget (Campaigns tab, or Edit -> Campaign) flows straight
   // through to here. Stops the moment he types his own number, so an override sticks.
@@ -8690,9 +8704,11 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     try{
       const d=await metaCall({action:"createCampaign",
         adAccountId:client.metaAdAccountId, pageId:client.metaPageId,
-        // Supplying this is what switches the campaign from chasing page views to chasing
-        // actual form fills. Absent, the campaign is built exactly as it always was.
+        // The pixel is what MAKES leads possible; `goal` is what ASKS for them. Both are
+        // sent, and the server refuses the combination of "leads" with no pixel rather than
+        // quietly building a traffic campaign he thinks is chasing leads.
         ...(client.metaPixelId?{pixelId:client.metaPixelId}:{}),
+        goal:f.goal,
         landingUrl:f.landingUrl, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
         locations:f.locationsText, country:f.country||"US",
         ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
@@ -8823,6 +8839,9 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         <div style={{width:96}}><label style={lbl}>If unclear</label><input type="text" value={f.country} onChange={e=>set("country",e.target.value.toUpperCase().slice(0,2))} style={box}/></div>
       </div>
       <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:-3,marginBottom:9}}><b style={{color:C.textDim}}>If unclear</b> is only a fallback. Each location above carries its own country, so this is used when a line names none of its own (just &ldquo;Paris&rdquo;).</div>
+      <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
+        ready={!!client.metaPixelId}
+        missing={"Add the Meta Pixel ID first (press Edit above), or Meta has no way to count a lead and this will not build."}/>
       <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
     </Card>
@@ -8878,6 +8897,50 @@ const humanizeAdCopy = (s) => deCompound(String(s == null ? "" : s))
   .replace(/([.!?])\s+([a-z])/g, (m, p, c) => p + " " + c.toUpperCase())
   .replace(/\s{2,}/g, " ")
   .trim();
+
+// ─── What a campaign is told to go and buy ───────────────────────────────────
+// Bryson, 2026-09-02: "a way for me to be able to select whether I want an ad I'm making
+// to go for leads clicks etc". It used to be INFERRED from whether a pixel happened to be
+// saved, which is how the house campaign bought 6,997 page views and zero leads while
+// everyone assumed it was hunting leads.
+//
+// 🔴 THIS IS A SECOND COPY of GOALS in netlify/lib/campaign-goals.mjs, because the browser
+// cannot import a server module. `verify-campaign-goals` EXTRACTS this array out of the
+// shipping file and asserts it matches the server's, id for id and word for word, so the
+// button he reads and the behaviour he gets can never drift apart.
+const CAMPAIGN_GOALS = [
+  { id:"leads",   label:"Leads",  blurb:"Find people likely to fill in the form. Costs more per click and is the point." },
+  { id:"traffic", label:"Visits", blurb:"Buy the most page visits for the money. Cheaper clicks, fewer of them convert." },
+];
+
+// One picker, both platforms. 🔴 It does NOT hide the Leads option when tracking is
+// missing: a control that vanishes teaches nothing, and he would be left wondering where
+// the choice went. It stays pickable and says what is missing, and the server refuses the
+// build rather than downgrading it.
+function GoalPicker({value,onChange,ready,missing}){
+  return (
+    <div style={{marginBottom:11}}>
+      <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"}}>What should this campaign go after?</span>
+      <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+        {CAMPAIGN_GOALS.map(g=>{
+          const on=value===g.id;
+          return (
+            <button key={g.id} onClick={()=>onChange(g.id)}
+              style={{padding:"7px 13px",fontSize:11.5,fontWeight:700,borderRadius:9,cursor:"pointer",
+                border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,0.12)":"transparent",
+                color:on?C.gold:C.textDim}}>{on?"✓ ":""}{g.label}</button>
+          );
+        })}
+      </div>
+      <div style={{fontSize:10,color:C.textMuted,marginTop:6,lineHeight:1.55}}>
+        {(CAMPAIGN_GOALS.find(g=>g.id===value)||CAMPAIGN_GOALS[1]).blurb}
+      </div>
+      {value==="leads"&&!ready&&(
+        <div style={{fontSize:10,color:"#F59E0B",marginTop:5,lineHeight:1.55}}>{missing}</div>
+      )}
+    </div>
+  );
+}
 
 const monthlyBudgetNum = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
 const dailyFromMonthly = (m, platforms) => {
