@@ -2,7 +2,7 @@
 name: meta-traffic-objective
 topic: Ads
 task: work out why a Meta campaign gets clicks but no leads, or change what a Meta campaign optimises for
-keywords: [meta no leads, clicks but no leads, zero leads, 0 leads, OUTCOME_TRAFFIC, OUTCOME_LEADS, LANDING_PAGE_VIEWS, optimization_goal, promoted_object, meta objective, why no conversions, cheap clicks, high ctr no leads, meta pixel, fbq Lead, house account ads, my ads]
+keywords: [campaign goal, goal picker, leads or clicks, choose objective, GoalPicker, CAMPAIGN_GOALS, resolveGoal, campaign-goals.mjs, bidding strategy, maximizeConversions, targetSpend, manualCpc, maximize clicks, meta no leads, clicks but no leads, zero leads, 0 leads, OUTCOME_TRAFFIC, OUTCOME_LEADS, LANDING_PAGE_VIEWS, optimization_goal, promoted_object, meta objective, why no conversions, cheap clicks, high ctr no leads, meta pixel, fbq Lead, house account ads, my ads]
 status: confirmed
 summary: Every Meta campaign the OS builds is set to OUTCOME_TRAFFIC with optimization_goal LANDING_PAGE_VIEWS and no promoted_object, so Meta is told to buy the cheapest page views rather than leads. That is the likely cause of BoldLine's own house ad getting 6,997 views and 171 clicks at $0.51 for $87 with ZERO leads. The code's own comment says to switch to a leads objective "once the client's pixel + lead events exist" — on BoldLine's own site they now DO exist, and nothing revisits the decision. Not yet changed: a live campaign's objective cannot be edited, it needs a NEW campaign, and that spends money, so it is Bryson's call.
 verified: 2026-09-02
@@ -83,3 +83,73 @@ So: **171 clicks in 30 days produced zero submissions of any kind on the page th
 **Advice given, not yet done:** run the new Leads campaign alongside the existing Traffic one for 2-3 days before pausing the old one, so impressions and spend never dip in the days before the 10 Sep resubmission. Roughly $20 of overlap against a rejection that costs weeks.
 
 **Loose end, stated rather than hidden:** the ads page carries a SECOND form (the Lead-Leak Check) that posts to `/.netlify/functions/audit`, not Netlify Forms. So "zero in Netlify Forms" does not strictly prove zero submissions; an audit request would appear in the OS Leads tab instead.
+
+---
+
+## ✅ 2026-09-02 — RESOLVED, and then made a choice rather than a default
+
+Two changes on the same day, in this order.
+
+**First**, the objective became switchable: supplying a pixel id switched the campaign from
+`OUTCOME_TRAFFIC` + `LANDING_PAGE_VIEWS` to `OUTCOME_LEADS` + `OFFSITE_CONVERSIONS` +
+`promoted_object`.
+
+**Then Bryson asked for the real thing:** *"Can you make a way for me to be able to select
+whether I want an ad I'm making to go for leads clicks etc"*. He is right, and the first
+version was still wrong in the same way the bug was: **the campaign's entire purpose was
+decided by a field nobody was looking at.** It is now picked on the card.
+
+### What exists now
+
+`netlify/lib/campaign-goals.mjs` holds `GOALS`, `DEFAULT_GOAL` and `resolveGoal()`. Both
+launch cards render one shared `GoalPicker`.
+
+| Goal | Meta | Google |
+|---|---|---|
+| **Leads** | `OUTCOME_LEADS` + `OFFSITE_CONVERSIONS` + `promoted_object` + `destination_type: WEBSITE` | `maximizeConversions` |
+| **Visits** | `OUTCOME_TRAFFIC` + `LANDING_PAGE_VIEWS` | `targetSpend` (Maximise Clicks) |
+| *(no goal named)* | as Visits | **`manualCpc`, unchanged** |
+
+### 🔴 A goal is never silently downgraded
+
+Asking for **leads with no tracking FAILS** before anything is created. It does not fall
+back to traffic. The fallback is **strictly worse than the original bug**: he would have
+deliberately chosen Leads, seen a success message, and still be buying clicks, with the OS
+agreeing with him. A build that refuses costs nothing.
+
+The two platforms give **different** instructions, because one generic "set up tracking"
+line sends him to the wrong screen. Meta names the pixel and My Ads → Edit; Google names
+conversion tracking.
+
+### 🔴 Silence keeps its old meaning
+
+`client-autobuild` builds client campaigns without naming a goal, on live accounts spending
+real money on their owners' cards. So an unnamed goal keeps **manual CPC** on Google and
+traffic on Meta. `askedGoal` is what distinguishes "unnamed" from "traffic" — without it the
+two cannot behave differently, and every existing client campaign would quietly re-bid.
+
+**Still open:** those auto-built client campaigns therefore still use manual CPC. Switching
+them to Maximise Clicks is probably an improvement for a hands-off account, but it is a
+change to live spend and is Bryson's call, not a tidy-up.
+
+### Why only two goals
+
+`LINK_CLICKS` is strictly worse than `LANDING_PAGE_VIEWS` for the same money: it optimises
+for thumbs that touched the ad rather than browsers that finished loading the page. Offering
+both is offering a worse option with no way to tell them apart. Reach and awareness buy
+views that cannot become a customer for a business paid per job. Pinned in the test so they
+are not added back without reading why they were left out.
+
+### Two copies
+
+The browser cannot import a server module, so `CAMPAIGN_GOALS` in `index.html` duplicates
+`GOALS`. `verify-campaign-goals` **extracts the browser copy out of the shipping file** and
+compares ids, labels and blurbs word for word. The blurb matters as much as the id: it is
+the only explanation he ever gets of what the button does, so a drift means the OS is
+describing behaviour the server does not implement.
+
+**19 checks, plus 2 rewritten in `verify-campaign-launch`. Eight mutations, all caught.**
+🔴 One had to be rewritten because it failed on a PRECONDITION rather than on the thing it
+guards: it anchored on `CAMPAIGN_GOALS.map` and the mutation inserted a `.filter` in front,
+moving the anchor. A guard that fails for the wrong reason is one edit from failing for no
+reason, and then somebody deletes it.
