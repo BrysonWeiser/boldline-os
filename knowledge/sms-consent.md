@@ -189,3 +189,73 @@ the same conversation as the contract review.
 
 `lead-handoff` (the CRM forward and the client's own domain), `conversion-loop`,
 `stencil-and-thread-deal`, `attribution` keys in `netlify/lib/attribution.mjs`.
+
+---
+
+## The transactional tick box became a line of small print (2026-09-03)
+
+Bryson, out of the Stencil & Thread call: *"the form is good we just want to put smaller
+wording under the get a free quote button saying they will get texts, etc. when they fill out
+the form. We want to keep the optional button to sign up for the occasional offer and
+updates"*.
+
+**This looks like weakening the consent record and is the opposite.** The two consents were
+never the same thing:
+
+- **Transactional** is a reply to the enquiry the visitor just sent, from the business they
+  just sent it to. **Nobody needs to tick a box to be answered.** What the carriers require is
+  a **conspicuous disclosure at the point of submission**, which is what now sits directly
+  under the button. Pressing the button after reading it IS the agreement.
+- **Marketing** is offers later, unrelated to this enquiry. That genuinely does need express
+  written consent, so **that box stays** — unticked, optional, never blocking the form.
+
+Every extra tick costs real leads, and asking permission to answer somebody who just asked to
+be answered was the tick least worth its cost.
+
+### What changed
+
+| Before | Now |
+|---|---|
+| `<input type="checkbox" id="lf-sms">` "Yes, text me back about my quote" | Hidden `id="lf-tx"` valued `implied`, inside the disclosure sentence |
+| Consent value `true` / `false` | `"implied"` / `true` / `false` |
+| Links inside `<label for="lf-sms">` | Links inside `<div class="fine discl">` |
+| Two checkboxes | One (marketing only) |
+
+The three policy links are unchanged and still required: A2P registration is checked against
+them.
+
+### 🔴 The value is "implied", not `true`
+
+A record saying `true` cannot tell six months later whether somebody **ticked a box** or
+**submitted under a disclosure**, and those are different evidence. The lead also carries
+**`consentDisclosure`**, the exact sentence that was on screen, so the record proves what was
+actually shown rather than what the page says today.
+
+### 🔴 `consentGranted` is a SEPARATE function from `consentYes`
+
+- `consentYes` — "did this person affirmatively tick something". **Marketing** turns on this,
+  and it stays strict. Widening it to accept `implied` would have quietly made every lead a
+  marketing opt-in, and marketing is the direction where a wrong yes is unrecoverable.
+- `consentGranted` — "do we hold a basis to send this text". `mayTextLead` and the
+  transactional wire field use this.
+
+`consentField` therefore branches on the key: transactional uses `consentGranted` so an
+implied consent **goes out to the client's CRM as `"yes"`**. Sending `"no"` would stop their
+side texting every lead we forward, and the disclosure is precisely the basis their A2P
+registration runs on.
+
+### 🔴 The hidden field and the sentence are built as one block
+
+The field is the claim "this person was told". If it could post while the sentence was gone,
+the record would assert a disclosure that never appeared on screen. They render from the same
+expression and a test checks the field sits **inside** the sentence, and that the whole block
+sits **after** the button.
+
+### The three-way rule is now four-way
+
+| Lead | Text them? |
+|---|---|
+| Ticked (legacy leads) | Yes |
+| **Submitted under the disclosure (`implied`)** | **Yes** |
+| Asked and declined | No |
+| Never asked | Yes |

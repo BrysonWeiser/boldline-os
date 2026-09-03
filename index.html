@@ -12408,6 +12408,14 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 // format rather than a rename, so it is a per-client choice and never the
                 // default. Typing anything unrecognised falls back to the standard format.
                 {k:"crmFormat",        l:"Format their system wants", ph:"Leave blank for standard. Type form for plain form fields"},
+                // 🔴 WHO SENDS THE FIRST TEXT, BECAUSE TWO SYSTEMS BOTH SENDING ONE IS THE
+                // FAILURE THAT LOOKS LIKE SUCCESS. We text a new lead within seconds. So does
+                // the client's own CRM, once their developer wires it up, and Stencil &
+                // Thread's is being wired up now. Neither side can see the other, so the lead
+                // gets two near-identical texts from two different numbers, which reads as a
+                // business that cannot keep its own records straight, and nothing in either
+                // system reports a problem. Type their to hand the text to their system.
+                {k:"smsSender",        l:"Who texts the lead first", ph:"Leave blank for us. Type their if their own system texts them"},
                 // Their own subdomain, so the ad shows THEIR name and not ours.
                 {k:"landingDomain",    l:"Page address on their domain", ph:"e.g. quote.theirbusiness.com"},
                 // 🔴 WHO CAN ACTUALLY MAKE THE TWO CHANGES ABOVE. Both the domain and the

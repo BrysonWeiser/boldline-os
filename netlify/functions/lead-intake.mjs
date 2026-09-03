@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS, appendLead, leadEmailHTML, notifyOwnerOfLead } from "../lib/report-shared.mjs";
 import { forwardLead, forwardResult } from "../lib/crm-forward.mjs";
 import { pickAttribution } from "../lib/attribution.mjs";
-import { pickConsent, mayTextLead } from "../lib/sms-consent.mjs";
+import { pickConsent, mayTextLead, weSendTheText } from "../lib/sms-consent.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,7 +40,10 @@ const notifyLead = async (client, lead) => {
   // asked still does, exactly as before, so adding the checkbox does not silently switch off
   // speed-to-lead for every existing client and every lead arriving from somewhere with no
   // such field. The three-way rule lives in ../lib/sms-consent.mjs.
-  if (lead.phone && mayTextLead(lead)) {
+  // 🔴 AND WHETHER THE TEXT IS OURS TO SEND AT ALL. When the client's own system texts the
+  // lead back, ours would be a second text from a second number seconds later. Consent is a
+  // separate question from who sends it, so both have to pass.
+  if (lead.phone && mayTextLead(lead) && weSendTheText(client)) {
     try {
       await sendSMS({ to: lead.phone, body: body.slice(0, 320) });
     } catch (err) {
