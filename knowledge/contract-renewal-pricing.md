@@ -163,3 +163,31 @@ lifted out of `index.html`. Six mutations, all caught.
 the check matched the **words** on the renewal screen rather than the **condition** that
 renders them. Gating the whole block to `{false&&...}` left the string sitting in the file,
 rendered to nobody, and passed. **Checking a line exists is not checking it is shown.**
+
+### 2026-09-02, immediately after — e-commerce gets the same treatment
+
+**Bryson:** *"What do we do for the e-commerce then"*. Correct catch. A store has no per-lead
+rate; its performance fee is a **percentage of ad spend**. Leaving it alone put e-commerce
+clients straight back in the position just removed for everyone else.
+
+| Standard | 1 mo | 3 mo | 6 mo | 12 mo |
+|---|---|---|---|---|
+| 15% | 16.5% | 15% | 14.5% | 13.5% |
+| 12% (top tier) | 13% | 12% | 11.5% | 11% |
+
+🔴 **`termPct` exists instead of reusing `termMonthly` for one reason: rounding.**
+Whole-unit rounding turns 15% into **16 / 15 / 14 / 14** — six months and a year cost the
+SAME, and a client asking what a year buys them is told nothing. Rounded to the nearest
+**half point** every step separates, and a contract never prints "14.25% of ad spend".
+
+🔴 **No stored base needed here**, unlike the per-lead rate. The standard lives on the
+**package** (`adSpendPct`), exactly as the monthly reads `pkg.price`, so renewals always
+scale from the package and cannot compound. `billingSpendPct` is **only ever written, never
+read back as the base**.
+
+🔴 **Both copies of the contract print the CLIENT'S percentage now**, not the package's.
+Writing a discounted rate onto a client is pointless if the agreement they sign still quotes
+the standard one, and that mismatch surfaces only when a client compares their invoice
+against their contract.
+
+A per-lead client never gets a percentage written onto them, and vice versa.
