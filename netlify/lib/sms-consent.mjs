@@ -26,31 +26,28 @@
 // the click-id names drifted across three files once already.
 export const CONSENT_KEYS = ["smsConsentTransactional", "smsConsentMarketing"];
 
-// 🔴 THE TRANSACTIONAL CHECKBOX IS GONE AS OF 2026-09-03, AND THE CONSENT IS NOT.
+// 🔴 "implied" IS A LEGACY VALUE. NOTHING PRODUCES IT ANY MORE. READ IT, NEVER WRITE IT.
 //
-// Bryson, straight out of the Stencil & Thread call: *"the form is good we just want to put
-// smaller wording under the get a free quote button saying they will get texts, etc. when
-// they fill out the form. We want to keep the optional button to sign up for the occasional
-// offer and updates"*.
+// For a few hours on 2026-09-03 the transactional tick box was a line of small print under the
+// button, and submitting was the consent, recorded as "implied". The reasoning was decent in
+// general: nobody should have to tick a box to be answered by the business they just wrote to.
+// It was wrong HERE, and Shaun Smith caught it the same day:
 //
-// This is the right call and it is worth writing down WHY, because it looks like weakening a
-// consent record and is the opposite. The two consents were never the same thing:
+//   *"What is live now says 'by submitting this form you agree that Stencil & Thread may text
+//   you,' which makes texting a condition of getting a quote. That is the opposite of what is
+//   filed with the carriers for Sebastian's number, and they audit the live page against the
+//   filing."*
 //
-//   TRANSACTIONAL — a reply to the enquiry the visitor just sent, from the business they just
-//     sent it to. Nobody needs to tick a box to be answered. What is required is a
-//     CONSPICUOUS DISCLOSURE at the point of submission, which is exactly what now sits under
-//     the button. Pressing the button after reading it IS the agreement.
-//   MARKETING — offers later, unrelated to this enquiry. That genuinely does need express
-//     written consent, so THAT box stays, unticked, optional, never blocking the form.
+// 🔴 AND HIS OWN FIX CONTAINED THE SAME CONTRADICTION, WHICH IS THE PART WORTH REMEMBERING.
+// He asked for his registered wording, which contains *"Optional, not required to get a
+// quote"*, to sit under the button with every submitter recorded as yes. A sentence that says
+// "optional" above a mechanism with no way to decline is not a weaker consent record, it is a
+// FALSE one: the reader is told they have a choice and is then recorded as having made it.
+// The words and the mechanism have to agree. His wording says optional, so it needs a box.
 //
-// Every extra tick costs real leads, and asking permission to answer somebody who just asked
-// to be answered was the tick least worth its cost.
-//
-// 🔴 SO THE VALUE IS "implied", NOT true. A record that says `true` cannot tell six months
-// later whether somebody ticked a box or submitted under a disclosure, and those are
-// different evidence. The lead also carries `consentDisclosure`, the exact sentence that was
-// on screen, so the record proves what was actually shown rather than what the page says
-// today.
+// The value is kept readable because leads captured during that window carry it, and a lead
+// that was genuinely consented must not become un-textable, or arrive at the client's CRM as
+// "no", because we changed our minds about the mechanism afterwards.
 export const CONSENT_IMPLIED = "implied";
 
 // A checkbox arrives as "on" from a plain HTML form, `true` from our JSON post, and "yes"
@@ -77,15 +74,17 @@ export function pickConsent(body) {
   const b = body || {};
   const out = {};
   for (const k of CONSENT_KEYS) out[k] = consentYes(b[k]);
-  // 🔴 Transactional keeps HOW it was given, rather than flattening to a boolean the moment
-  // it is stored. Marketing stays strictly boolean: there is no implied marketing consent and
-  // there must never be a value that could become one.
+  // 🔴 Transactional keeps HOW it was given rather than flattening to a boolean. Nothing
+  // produces "implied" any more (see the note on CONSENT_IMPLIED), but a lead captured during
+  // that window must round-trip as what it actually was. Marketing stays strictly boolean:
+  // there is no implied marketing consent and there must never be a value that could become one.
   if (String(b.smsConsentTransactional == null ? "" : b.smsConsentTransactional).trim().toLowerCase() === CONSENT_IMPLIED) {
     out.smsConsentTransactional = CONSENT_IMPLIED;
   }
-  // The exact wording that was on screen when they submitted. Without it the record says a
-  // disclosure happened but cannot say what it said, which is the half that matters if the
-  // page copy is ever edited.
+  // 🔴 THE EXACT WORDING THAT WAS ON SCREEN WHEN THEY TICKED, and it matters more now than it
+  // did as a disclosure. The whole failure this replaced was the live page drifting from what
+  // the client filed with the carriers. Storing the label with each lead means the record
+  // shows what that person was actually asked, not what the page says today.
   const disc = String(b.consentDisclosure == null ? "" : b.consentDisclosure).trim();
   if (disc) out.consentDisclosure = disc.slice(0, 600);
   return out;

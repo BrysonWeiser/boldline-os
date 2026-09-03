@@ -362,13 +362,13 @@ a{color:inherit}
 .cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:${P.brand};cursor:pointer}
 .cons label{font-size:12px;line-height:1.5;color:${P.muted};cursor:pointer}
 .cons label b{color:${P.text};font-weight:600}
-/* The disclosure under the button. It is small print by design, but it is a SENTENCE, so it
-   is left-aligned and given real line height rather than inheriting .fine's centring, which
-   turns three lines of legal wording into a ragged pyramid nobody reads. */
-.discl{text-align:left;line-height:1.55;margin-top:12px}
+/* The texting box is the one that gates the instant reply, so it must not look like the
+   optional one beside it. Registered consent wording runs long, so it gets real line height. */
+.cons-main label{font-size:13px;color:${P.text};line-height:1.55}
+.cons-main input{width:20px;height:20px;min-width:20px}
 /* The policy links have to be visibly links. A carrier or a reviewer looking for them should
    not have to hunt, and underlined-on-a-muted-line is the convention people already read. */
-.cons label a,.discl a{color:${P.text};text-decoration:underline}
+.cons label a{color:${P.text};text-decoration:underline}
 .err{display:none;font-size:12.5px;color:#F87171;margin-bottom:10px;text-align:center}
 .thanks{display:none;text-align:center;padding:22px 6px}
 .thanks h2{font-size:20px;margin-bottom:6px;color:${P.headline}}.thanks p{font-size:14px;color:${P.muted}}
@@ -563,31 +563,37 @@ a{color:inherit}
         : policyLinks[0]}.`
     : "";
 
-  // 🔴 THE TRANSACTIONAL TICK BOX IS NOW A LINE OF SMALL PRINT UNDER THE BUTTON.
+  // 🔴 THE TICK BOX IS BACK, AND THE ROUND TRIP IS THE LESSON WORTH KEEPING.
   //
-  // Bryson, straight out of the Stencil & Thread call: *"the form is good we just want to put
-  // smaller wording under the get a free quote button saying they will get texts, etc. when
-  // they fill out the form. We want to keep the optional button to sign up for the occasional
-  // offer and updates"*.
+  // It became a line of small print under the button on 2026-09-03 at Bryson's request, on the
+  // reasoning that nobody should have to tick a box to be answered by the business they just
+  // wrote to. That reasoning is sound in general. It was wrong HERE, and Shaun Smith caught it
+  // the same day:
   //
-  // Nobody should have to tick a box to be answered by the business they just wrote to. What
-  // the carriers actually require for that reply is a CONSPICUOUS DISCLOSURE where the person
-  // acts, which is what this is, and pressing the button after reading it is the agreement.
-  // Offers later are a different thing and still need a real tick, so that box stays.
+  //   *"What is live now says 'by submitting this form you agree that Stencil & Thread may
+  //   text you,' which makes texting a condition of getting a quote. That is the opposite of
+  //   what is filed with the carriers for Sebastian's number, and they audit the live page
+  //   against the filing."*
   //
-  // 🔴 THE DISCLOSURE AND THE HIDDEN FIELD ARE BUILT AS ONE THING, ON PURPOSE. The field says
-  // "this person was told"; if the sentence could ever be removed while the field still
-  // posted, the record would claim a disclosure that never appeared on screen. They are
-  // rendered from the same expression so one cannot outlive the other.
-  const quoteWord = String(cl.niche || "").toLowerCase().includes("quote") ? "request" : "quote";
-  const disclosureText = `By submitting this form you agree that ${name || "we"} may text you about your ${quoteWord}. Message and data rates may apply. Reply STOP at any time to stop.${policyLine.replace(/<[^>]+>/g, "")}`;
-  const disclosureHTML = `<div class="fine discl">
-      <input type="hidden" id="lf-tx" name="smsConsentTransactional" value="implied">
-      By submitting this form you agree that ${esc(name || "we")} may text you about your ${quoteWord}.
-      Message and data rates may apply. Reply STOP at any time to stop.${policyLine}
-    </div>`;
+  // 🔴 THE PAGE MUST MATCH WHAT WAS FILED, AND THE FILING SAYS "OPTIONAL". His registered
+  // wording contains the words *"Optional, not required to get a quote"*. A sentence saying
+  // "optional" under a button that opts everyone in is not a weaker consent record, it is a
+  // FALSE one: the reader is told they have a choice and is then recorded as having made it.
+  // His instruction to keep that wording AND set every submitter to yes cannot both hold. The
+  // only version that is true is the one where the words and the mechanism agree, which means
+  // a box the visitor actually ticks.
+  //
+  // 🔴 SO THE GENERAL RULE, WHICH OUTLIVES THIS CLIENT: the consent wording is not ours to
+  // word. It is whatever that business filed with the carriers, and the mechanism on the page
+  // has to match the promise in that wording. `smsConsentText` exists so the next client whose
+  // filing reads differently is a paste, not a code change.
+  const consentDefault = `Text me updates about my quote and order from ${name || "us"}. Optional, not required to get a quote. Msg frequency varies, msg & data rates may apply. Reply STOP to opt out, HELP for help.`;
+  const consentText = String(cs.smsConsentText || "").trim() || consentDefault;
 
-  const consentHTML = `<div class="consbox">
+  const consentHTML = `<div class="consbox"><div class="cons cons-main">
+      <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
+      <label for="lf-sms">${esc(consentText)}${policyLine}</label>
+    </div>
     <div class="cons">
       <input type="checkbox" id="lf-mkt" name="smsConsentMarketing" value="yes">
       <label for="lf-mkt">Send me occasional offers and updates too. Optional, and you can stop any time.</label>
@@ -606,7 +612,6 @@ a{color:inherit}
       <input class="inp" name="email" type="email" placeholder="Email (optional)">
       ${consentHTML}
       <button class="cta" type="submit" style="width:100%;justify-content:center">${esc(cta)}</button>
-      ${disclosureHTML}
       <div class="fine">Your info stays private. No spam, ever.</div>
     </form>` : `<form id="lf">
       <input class="inp" id="lf-name" placeholder="Your name" required>
@@ -615,7 +620,6 @@ a{color:inherit}
       ${consentHTML}
       <div class="err" id="lf-err">Something went wrong, please try again.</div>
       <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
-      ${disclosureHTML}
       <div class="fine">Your info stays private. No spam, ever.</div>
     </form>`}
     <div class="thanks" id="lf-thanks"><h2>Got it, thank you.</h2><p>We'll be in touch shortly.</p></div>
@@ -787,9 +791,9 @@ a{color:inherit}
     var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
     err.style.display='none';btn.disabled=true;btn.classList.add('sending');btn.textContent='Sending…';
     var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
-    try{var sc=document.getElementById('lf-tx'),mc=document.getElementById('lf-mkt');
-      payload.smsConsentTransactional=sc?sc.value:false;payload.smsConsentMarketing=!!(mc&&mc.checked);
-      if(sc){payload.consentDisclosure=${JSON.stringify(disclosureText)};}}catch(e){}
+    try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
+      payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);
+      payload.consentDisclosure=${JSON.stringify(consentText)};}catch(e){}
     try{payload.page=location.href.split('#')[0];}catch(e){}
     try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
     if(String(location.href).indexOf('about:')===0){

@@ -12436,6 +12436,12 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                 // texted, so the one-minute reply that makes ad leads convert never happens
                 // and nothing reports it as a failure. Keep any .html on the end: the
                 // extensionless versions often do not resolve.
+                // 🔴 THE CONSENT WORDING IS NOT OURS TO WORD. Shaun Smith, 2026-09-03, on
+                // wording we had written ourselves: the phone companies audit the live page
+                // against what that business registered, so the page has to carry THEIR filed
+                // sentence, not a tidier one of ours. Leave it blank and the standard line is
+                // used. Paste theirs in and it is shown word for word.
+                {k:"smsConsentText",   l:"Their registered texting wording", ph:"Leave blank for standard. Paste their filed wording to match it exactly"},
                 {k:"privacyUrl",       l:"Their privacy policy page", ph:"https://theirsite.com/privacy.html"},
                 {k:"termsUrl",         l:"Their terms page",          ph:"https://theirsite.com/terms.html"},
                 {k:"smsOptInUrl",      l:"Their text consent page",   ph:"https://theirsite.com/sms-opt-in.html"},
