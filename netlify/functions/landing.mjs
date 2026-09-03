@@ -993,7 +993,25 @@ export default async (req) => {
 
   const cl = data.data;
   const lp = cl.landingPage || {};
-  if (!lp.published || !lp.headline) return comingSoonPage(cl.name);
+  // 🔴 THE PREVIEW KEY, AND THE ONE THING IT MAY DO.
+  //
+  // Sending an unpublished page for approval used to be impossible without publishing it,
+  // because this line serves a Coming Soon placeholder instead. So the approval email would
+  // have carried a link to a page that is not there. `previewKey` lets the client see the
+  // real page while it is still unpublished, and it does NOTHING else: it does not publish
+  // the page, does not appear on the live page, and grants no access to anything but this
+  // one render.
+  //
+  // It is its own random value and deliberately NOT the portal token. The full URL travels
+  // in the referrer header to every third-party host the page loads (fonts, for one), so a
+  // portal token in a page address would be handed away on the first request.
+  //
+  // Compared with `!==` against a NON-EMPTY stored key. Without the emptiness check, a
+  // client with no key set would be previewable by anyone sending `?preview=`, which is the
+  // whole gate defeated by an empty string.
+  const key = String(url.searchParams.get("preview") || "");
+  const previewing = !!key && !!lp.previewKey && key === String(lp.previewKey);
+  if ((!lp.published && !previewing) || !lp.headline) return comingSoonPage(cl.name);
 
   return html(renderLandingPage(cl));
 };
