@@ -93,3 +93,64 @@ generator over the real client's real signature date. Six mutations, all caught.
 🔴 **One mutation silently failed to apply and reported a pass.** Re-landed properly it failed
 correctly. A mutation that does not reach the code proves nothing and reads exactly like a
 working guard, which is the oldest trap in this repo.
+
+---
+
+## v3, 2026-09-02 — cancelling early costs the remaining term
+
+**Bryson:** *"a clause if the client wants to cancel... they have to tell me in writing and
+then pay the remaining months minimum and the set up fee is non refundable and if they only
+have less than a month left in their contract then the minimum is $400 (or should we do the
+minimum for whatever contract they are on)"*.
+
+🔴 **Written notice and 30 days were ALREADY in the agreement.** Section "Termination (b)"
+has required them all along. The only thing that changed is **the amount**.
+
+| | v1/v2 | **v3** |
+|---|---|---|
+| Early exit costs | one (1) month's Monthly Minimum | **every remaining month of the Committed Term** |
+| Part month | not addressed | **counts as a whole month** |
+| Setup fee | silent on client-initiated exit | **earned on signing, non-refundable in any amount** |
+| Notice | "written notice" | **to the email on page one, effective when received** |
+| Discount clawback | yes | yes, unchanged |
+
+### 🔴 His $400 question, answered: their own minimum, never a flat number
+
+Two independent reasons, either of which settles it:
+
+1. **A flat figure bearing no relation to their contract is the shape a court reads as a
+   penalty**, not a genuine estimate of loss. The entire clause survives on the liquidated
+   damages framing; a $400 number unconnected to the deal undermines it.
+2. On every package priced above $400, a $400 tail makes **cancelling in the last month
+   cheaper than seeing it out**, which rewards exactly the behaviour the clause exists to
+   discourage.
+
+The liquidated-damages wording is kept and extended: *reserved capacity for the whole
+Committed Term and turned away other work to hold it.*
+
+Untouched: results-only (no floor to accelerate) and the one-time hand-off (no term at all).
+Charging either "the remaining months" would name something that does not exist.
+
+### 🔴 THE BUG THIS RELEASE TAUGHT: a version default written as a literal
+
+The unsigned default read `... ? 1 : 2`. Adding v3 therefore left **every new client silently
+on v2**. The clause was in the file, gated correctly, and reached **nobody**. Nothing threw,
+nothing looked wrong, and an unsigned contract simply did not contain the term Bryson had
+just asked for.
+
+**A default naming a specific version goes stale the moment a version is added, which is
+exactly when nobody is looking at it.** It now reads one `TERMS_CURRENT`, and a check fails
+if a literal comes back.
+
+### 🔴 And two existing assertions that lied on the way past
+
+Both matched the phrase `early-termination fee equal to`. The new wording made them report
+the fee as **GONE when it had only got bigger**. They now assert that cancelling early costs
+something, not how it is worded.
+
+A third pinned `CONTRACT_TERMS_VERSION = 2` and had to be edited the day v3 landed, which
+teaches the next person to edit it rather than think about it. It no longer pins the number.
+The number is pinned **once, behaviourally**: a renewed client must get byte-identical terms
+to a brand-new one.
+
+**Lesson for the next clause: assert the RULE, never the sentence.**
