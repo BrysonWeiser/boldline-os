@@ -87,3 +87,79 @@ gotcha 1 (product_data rejected), round 2 hit gotcha 2 (inactive Checkout produc
 The amber-note fallback ("renewed but Stripe update failed → update manually") also proven in
 rounds 1–2 — contract state stayed correct while Stripe lagged. After the test: swap
 STRIPE_SECRET_KEY back to live + redeploy, delete the dummy client (test-mode ids are junk in live).
+
+---
+
+## 🔴 2026-09-02 — the incentive had stopped working under greater-of pricing
+
+**Bryson:** *"with the new pricing how will we do the incentives we made to make companies
+want to sign up for longer contracts?"*
+
+He was right, and **nothing was broken**, which is why nobody noticed.
+
+Term pricing was built when the monthly fee was simply what the client paid. Under the
+**greater-of** model the client pays the **higher** of the Monthly Minimum and the
+performance fee, **never both**.
+
+So discounting only the minimum discounted **only the months where the campaigns
+underperformed**:
+
+| Month | Old behaviour |
+|---|---|
+| Leads below the minimum | They pay the minimum. Discount felt. |
+| **Leads above the minimum** | They pay per-lead. **Discount worth exactly nothing.** |
+
+A client whose ads work well never touches the minimum, so committing for a year bought them
+nothing and there was no number to point at on a call. The discount also landed on exactly
+the months BoldLine was already earning least on.
+
+### The fix
+
+**The same percentage applies to both numbers.** `1:+10%, 3:0, 6:−5%, 12:−10%` now scales
+the per-lead rate as well as the minimum. One sentence on a call: *commit longer and
+everything is cheaper*, felt whichever side of the greater-of the month lands on.
+
+Cost: 10% of a twelve-month client's revenue. In exchange for twelve months locked instead
+of one.
+
+### 🔴 It scales from a stored base, never the current rate
+
+Two twelve-month renewals scaling off the live figure compound to **19% off, not 10%**.
+
+`baseMonthly` already avoided this by reading `pkg.price`. The per-lead rate has **no
+package-level standard**, so `billingPerLeadBase` is stamped on the client the first time a
+renewal touches it.
+
+⚠️ **That first stamp is only safe because no client has a term-discounted per-lead rate
+yet**, so today's `billingPerLead` genuinely IS the base. If you ever discount a per-lead
+rate by hand before a client's first renewal, set `billingPerLeadBase` yourself at the same
+time or the discount gets baked in as their standard.
+
+A client with **no** per-lead rate (e-commerce, billed on spend) is skipped entirely rather
+than having a zero written onto them, which would put a rate in a contract that should not
+name one.
+
+### What he sees
+
+The renewal screen shows **both** figures. Showing only the minimum is what made the
+discount invisible. The saving line says it counts *the minimum alone*, because presenting
+half a saving as the whole one is the kind of number that gets repeated verbatim to a client.
+
+### Options considered and rejected
+
+- **Per-lead only** — strongest incentive, but gives away the most and cuts revenue exactly
+  when performing well.
+- **A perk instead of a discount** (rate lock) — protects all upside, but there is no number
+  to point at on a call.
+- **A flat cap on the performance fee for long terms** — caps the upside, and the ceiling
+  arrives precisely when the client is happiest.
+
+### Testing note
+
+`tests/verify-term-incentive.mjs`, 12 checks, running the real dials and the real maths
+lifted out of `index.html`. Six mutations, all caught.
+
+🔴 One escaped the first pass, and it is the oldest trap in this repo wearing new clothes:
+the check matched the **words** on the renewal screen rather than the **condition** that
+renders them. Gating the whole block to `{false&&...}` left the string sitting in the file,
+rendered to nobody, and passed. **Checking a line exists is not checking it is shown.**
