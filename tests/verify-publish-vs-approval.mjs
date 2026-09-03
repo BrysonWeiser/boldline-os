@@ -120,8 +120,24 @@ t("it refuses to send twice, or to send on the house account", () => {
 
 t("🔴 the key is only attached when the page is NOT live", () => {
   const body = fn("handleSendForApproval");
-  assert.match(body, /lp\.published\?"":`\?preview=\$\{key\}`/,
+  // 🔴 Checks the RULE, not the expression. The URL was built inline here until 2026-09-03,
+  // when it moved into `landingUrlFor` so a client's own domain is used instead of ours —
+  // and that made this assertion fail on a change that fixed a worse bug than it guards.
+  assert.match(body, /landingUrlFor\(client, lp\.published \? \{\} : \{ preview: key \}\)/,
     "the preview key is either always attached or never attached; it belongs only on an unpublished page");
+});
+
+t("🔴 the approval link uses the client's OWN domain when they have one", () => {
+  // The whole point of sending it: a link to boldlinemedia.netlify.app in an email to a
+  // client, about their own page, on their own domain, reads as unfinished work.
+  assert.match(S, /const landingUrlFor = \(cl, \{ preview \} = \{\}\) =>/, "the shared URL helper is gone");
+  assert.match(S, /if \(dom\) return `https:\/\/\$\{dom\}\$\{q\}`;/,
+    "their own domain is not preferred, so every link points at ours");
+  // 🔴 And at the ROOT, not /lp/<slug>: every path on a client host routes to their page,
+  // so keeping the path would produce a link that works by accident and reads like one.
+  const i = S.indexOf("const landingUrlFor");
+  assert.ok(!/\/lp\/\$\{c\.landingSlug\}\$\{q\}`;[\s\S]{0,40}dom/.test(S.slice(i, i + 900)),
+    "the client-domain branch still glues the /lp/ path on");
 });
 
 t("🔴 the preview key is not the portal token", () => {

@@ -505,5 +505,54 @@ const fakeFetch = (script) => {
     JSON.stringify(alts.filter((a) => a !== a.trim() || /[\t\n\r]/.test(a))));
 }
 
+// ── 🔴 THE LINK THE OS HANDS HIM MUST BE THE CLIENT'S OWN DOMAIN ─────────────
+// Bryson, 2026-09-03: *"for the dns can i get the link because when i copy the link from the
+// os it gives me this one https://boldlinemedia.netlify.app/lp/stencil-thread-rdju"*.
+//
+// 🔴 HE PRESSED THE HARMLESS ONE. FIVE places built that URL by gluing the OS's own origin
+// to `/lp/<slug>`, and none of them read `campaignSetup.landingDomain`. Two of the five are
+// the Google and Meta campaign builders, so EVERY AD WE BUILT POINTED AT
+// boldlinemedia.netlify.app — the precise thing this file's own rule forbids, because Google
+// displays the address an ad points to and a screen printer's ad must not show a marketing
+// agency's domain. Copy Live Link was the least of it.
+{
+  const src = readFileSync(join(ROOT, "index.html"), "utf8");
+  const i = src.indexOf("const landingUrlFor = ");
+  ok("the shared URL helper exists", i > 0);
+  const decl = src.slice(i, src.indexOf("\n};", i) + 3);
+  const landingUrlFor = new Function(`${decl}\nreturn landingUrlFor;`)();
+
+  const withDomain = { landingSlug: "stencil-thread-rdju", campaignSetup: { landingDomain: "quote.stencilandthread.com" } };
+  eq("their own domain is used when they have one",
+    landingUrlFor(withDomain), "https://quote.stencilandthread.com");
+
+  // 🔴 The ROOT, not /lp/<slug>. `routeFor` sends every path on a client host to their page,
+  // so the slug path happens to work and reads like an accident.
+  ok("and without our /lp/ path on the end", !/\/lp\//.test(landingUrlFor(withDomain)));
+
+  // 🔴 The whole reason this was invisible: with no domain set, the old behaviour is still
+  // correct, so nothing looked wrong until a client actually had one.
+  ok("with no domain it still falls back to our own address",
+    /\/lp\/stencil-thread-rdju$/.test(landingUrlFor({ landingSlug: "stencil-thread-rdju", campaignSetup: {} })));
+
+  eq("a domain typed with a scheme or a trailing slash is cleaned up",
+    landingUrlFor({ campaignSetup: { landingDomain: "https://quote.stencilandthread.com/" } }),
+    "https://quote.stencilandthread.com");
+  eq("and it is always https, never the http they may have typed",
+    landingUrlFor({ campaignSetup: { landingDomain: "http://quote.stencilandthread.com" } }),
+    "https://quote.stencilandthread.com");
+
+  eq("the preview key rides on their domain too",
+    landingUrlFor(withDomain, { preview: "abc123" }), "https://quote.stencilandthread.com?preview=abc123");
+
+  eq("a client with neither a domain nor a slug gets an empty string, not a broken link",
+    landingUrlFor({ campaignSetup: {} }), "");
+  eq("and a missing client does not throw", landingUrlFor(null), "");
+
+  // 🔴 Nothing may build this URL by hand any more, or the sixth place gets it wrong again.
+  const strays = (src.match(/\$\{window\.location\.origin\}\/lp\//g) || []).length;
+  eq("nothing glues the OS origin onto /lp/ by hand any more", strays, 0);
+}
+
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

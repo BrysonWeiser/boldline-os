@@ -43,6 +43,10 @@ const src = [
   slice(/^const monthlyBudgetNum = /m, /\n/),
   slice(/^const deriveBotStatuses = /m, /\n};\n/) + "\n};\n",
   slice(/^const botWorkLog = /m, /\n};\n/) + "\n};\n",
+  // 🔴 adLanding delegates the URL to landingUrlFor (added 2026-09-03, when every one of the
+  // five places that built a landing URL turned out to ignore the client's own domain), so
+  // the extraction has to bring it along or adLanding throws.
+  slice(/^const landingUrlFor = /m, /\n};\n/) + "\n};\n",
   slice(/^const adPlatformsOf = /m, /\n};\n/) + "\n};\n",
   slice(/^const platformLabel = /m, /\n};\n/) + "\n};\n",
   slice(/^const BOT_IDS = \[/m, /\n\];\n/) + "\n];\n",
