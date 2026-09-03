@@ -277,3 +277,68 @@ name.** Getting it wrong in an internal note is harmless. Getting it wrong in an
 client's developer makes BoldLine look like it is not paying attention, which is the exact
 opposite of the impression the first client's launch needs to make. This is the same class of
 mistake as the mis-scheduled 10pm reminder that fired at 5pm.
+
+---
+
+## 2026-09-02 — chasing Sebastian, and how to use Shaun without damaging either relationship
+
+**Where it stands.** Signed Sunday 30 August. By Wednesday evening 2 September Sebastian had
+uploaded photos to the portal (so he is engaged) but had **not** connected his Google Ads
+account, **not** put a card on file, and **not** approved the landing page. Bryson texted him
+at 10:52am on the 2nd asking for all three at once and had no reply by 7pm.
+
+🔴 **Only the Google Ads Customer ID blocks the ads.** The card blocks Bryson getting PAID.
+Two separate problems. Merging them into one chase is why the message went unanswered.
+
+### Why he is not doing it, which changes the fix
+
+Getting a Customer ID is not a 30 second job if he has no account yet: sign up, enter a card,
+click through Google's setup, roughly 15 minutes **at a computer**. He runs a print shop. That
+task gets pushed to "tonight" and tonight keeps not happening.
+
+**So the fix is not a firmer text, it is taking the job off him:** offer a ten minute call and
+do it together while he is at a computer. That converts a chore he is avoiding into an
+appointment. One ask per message; three asks at once gets none of them done.
+
+### The escalation ladder
+
+| When | Do |
+|---|---|
+| Days 1 to 5 | One-ask texts, friendly. Offer the ten minute call. |
+| ~Day 7 | **Phone him.** A print shop owner answers a call and ignores a fourth text. |
+| ~Day 10 to 14 | Honest, non-passive-aggressive note: he signed on the 30th, nothing can run until the account is connected, and Bryson does not want him paying for a month where nothing happened. Ask straight out whether the timing has changed. |
+| Past two weeks silent | **Pause the engagement rather than let it drift.** Say it is on hold until he is ready and stop doing setup work. Drifting means unpaid work plus feeling unable to ask. |
+
+**Do not build the campaign before the card is connected.** The ad spend is Sebastian's own
+money so that is not the exposure; Bryson's management time is.
+
+### 🔴 Using Shaun, and the line not to cross
+
+Shaun sees Sebastian and gets answers from him, so he is a legitimate route. But the FRAMING
+decides whether it helps or hurts, because Shaun is also BoldLine's first referral partner.
+
+**Never:** *"the only thing I'm waiting on is Sebastian"*. That is a complaint however nicely
+it is said, and it plants two ideas at once — this client is a problem, and **this guy talks
+about his clients**. Neither earns a referral.
+
+**Instead, put the offer at the centre and the delay nowhere:**
+
+> "Sebastian's page is done and live on his domain. Last piece is getting his Google Ads
+> account connected, and I'd rather not make him figure it out alone. If you're talking to
+> him, tell him I'll jump on a ten minute call and do it with him whenever suits."
+
+Same information. Now Bryson is the person removing work from Shaun's client, and Shaun looks
+good for having recommended him.
+
+**Three rules:**
+1. 🔴 **Say nothing about the card, invoices or contract terms.** Money talk about a client to
+   a third party is the version of this that genuinely damages him.
+2. **Ask once.** Routing through Shaun repeatedly teaches Sebastian he need not deal with
+   Bryson directly, and puts Shaun in an awkward spot with his own client.
+3. **Raise it near the END of the meeting, not as an agenda item.** Lead with the page being
+   live on Sebastian's own domain: that is the proof BoldLine delivers, and proof is what the
+   partnership conversation actually turns on. Do not let a partnership meeting shrink into a
+   client admin call.
+
+**Worth asking while there:** whether Sebastian is more of a phone person or an email person.
+Shaun gets answers from him; Bryson is texting. That alone may solve it.
