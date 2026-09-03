@@ -2415,6 +2415,37 @@ const makeContractHTML=(cl,pkg)=>{
   const nAd=nBase+1, nResp=nBase+2, nNoG=nBase+3, nTerm=nBase+4, nIP=nBase+5, nConf=nBase+6,
         nData=nBase+7, nLiab=nBase+8, nInd=nBase+9, nRel=nBase+10, nLaw=nBase+11, nGen=nBase+12;
 
+  // ── 🔴 SPECIAL TERMS: THE ONLY PART OF THIS DOCUMENT ANYTHING ELSE MAY ADD TO ──
+  // Bryson, 2026-09-02: *"I need a way for the ai to edit the contracts on the go before I
+  // send them... I input the agreed upon price or any other details i want and the ai will
+  // add them to the contract"*.
+  //
+  // The price already merges in (billingMonthly, billingSetup, contractTermMonths,
+  // per-lead). What had nowhere to go was everything else he negotiates on a call: a first
+  // month at half price, a free logo refresh, sixty days' notice instead of thirty.
+  //
+  // 🔴 THE RULE, AND IT IS THE WHOLE SAFETY MODEL: NOTHING MAY REWRITE THE SECTIONS ABOVE.
+  // Additions land here, in one bounded, clearly-headed section, and nowhere else. A model
+  // allowed to edit the body could quietly change the liability cap, the governing law or
+  // the arbitration clause, and a signed contract is the last place on earth a silent
+  // change should be possible. It also means an attorney review of the base document stays
+  // valid: the base is fixed, and everything negotiated is in one place to read.
+  //
+  // Placed LAST and given precedence, which is how a rider works: a later clause that says
+  // it controls is the standard, unambiguous way to vary an earlier one. Varying it in
+  // place would leave two readings of the same section.
+  const nSpec = nBase+13;
+  const specClauses = (cl.specialTerms && Array.isArray(cl.specialTerms.clauses) ? cl.specialTerms.clauses : [])
+    .map(c => ({ heading: String((c&&c.heading)||"").trim(), text: String((c&&c.text)||"").trim() }))
+    .filter(c => c.text);
+  const specialHTML = !specClauses.length ? "" : (
+    '<h2>'+nSpec+'. Special Terms</h2>'
+   +'<p>The parties agreed the following additional terms for this engagement. Where these Special Terms conflict with any earlier section of this Agreement, these Special Terms control.</p>'
+   + specClauses.map((c,i) =>
+       '<p>('+String.fromCharCode(97+(i%26))+') '+(c.heading?'<strong>'+esc(c.heading)+'.</strong> ':'')+esc(c.text)+'</p>'
+     ).join('')
+  );
+
   const metaItem=(l,v)=>'<div class="meta-item"><div class="meta-label">'+l+'</div><div class="meta-value">'+v+'</div></div>';
   const meta =
     metaItem("Service Package",(pkg&&pkg.name)||"—")
@@ -2618,6 +2649,7 @@ const makeContractHTML=(cl,pkg)=>{
    +'<h2>'+nGen+'. General</h2>'
    +'<p>This Agreement (including the Key Commercial Terms above) is the entire agreement between the parties about its subject and supersedes all prior discussions and proposals. Amendments must be in a writing signed (including electronically) by both parties, except that package upgrades and renewal terms may be confirmed by exchange of email or through Agency&rsquo;s client systems. If any provision is held unenforceable, it will be modified to the minimum extent necessary and the rest remains in effect. A waiver must be written and applies only to the instance given. Client may not assign this Agreement without Agency&rsquo;s consent; Agency may assign to a successor of its business. Notices may be given by email to the addresses on page one and are effective on the business day received. <strong>The parties agree this Agreement may be executed electronically, and electronic signatures (including via DocuSign) are valid and binding under the U.S. E-SIGN Act, the Arizona Electronic Transactions Act, and equivalent laws.</strong> This Agreement may be signed in counterparts. There are no third-party beneficiaries to this Agreement. Headings are for convenience only and do not affect interpretation.</p>'
 
+   +specialHTML
    +'<h2>Signatures</h2>'
    +'<p style="font-size:11px">By signing below, each party confirms it has read, understands, and agrees to this Agreement, and that the person signing is authorized to bind that party.</p>'
    +'<div class="sigs">'
@@ -7231,6 +7263,143 @@ function BillingCard({client,pkg,onUpdate}) {
   );
 }
 // ─── CONTRACT TAB ─────────────────────────────────────────────────────────────
+// ─── Special Terms: what he agreed on the call, written into the agreement ────
+// Bryson, 2026-09-02: "I need a way for the ai to edit the contracts on the go before I
+// send them... I input the agreed upon price or any other details i want and the ai will
+// add them to the contract".
+//
+// 🔴 THE AI NEVER TOUCHES THE AGREEMENT ITSELF. It drafts additional clauses that land in
+// one bounded Special Terms section at the end, and it has no other way in. A model with a
+// free hand over contract text could quietly weaken the liability cap or move the governing
+// law, and nobody would notice until it mattered.
+//
+// 🔴 AND NOTHING SAVES ITSELF. Drafted clauses sit in this card until he presses Add. A
+// contract term that appeared without a person reading it is the same bug with a friendlier
+// face.
+function SpecialTermsCard({client,pkg,onUpdate}) {
+  const saved = (client.specialTerms && Array.isArray(client.specialTerms.clauses)) ? client.specialTerms.clauses : [];
+  const [note,setNote] = useState("");
+  const [draft,setDraft] = useState(null);      // {clauses, problems, risky}
+  const [state,setState] = useState("idle");    // idle | working | error
+  const [msg,setMsg] = useState("");
+  const [open,setOpen] = useState(saved.length>0);
+
+  // 🔴 A SIGNED AGREEMENT IS FROZEN, and the card says so rather than disappearing. The OS
+  // renders the contract fresh every time it is shown, so editing terms after signature
+  // would silently rewrite the document the client already put their name to. A change
+  // after signing is an amendment, and an amendment is a new signed document.
+  const locked = !!client.contractSigned;
+
+  const draftIt = async () => {
+    setState("working"); setMsg(""); setDraft(null);
+    try{
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      const tok = session && session.access_token;
+      if(!tok) throw new Error("Session expired. Refresh the page and log in again.");
+      const r = await fetch("/.netlify/functions/contract-terms",{method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+tok},
+        body:JSON.stringify({note,clientId:client.id,clientName:client.name,packageName:pkg&&pkg.name,
+          monthly:client.billingMonthly,setup:client.billingSetup,termMonths:client.contractTermMonths})});
+      const d = await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok) throw new Error(d.error||`Could not draft that (${r.status})`);
+      setDraft(d); setState("idle");
+      if(!(d.clauses||[]).length) setMsg("Nothing could be written from that. See below.");
+    }catch(e){ setState("error"); setMsg(e.message||"Could not draft that."); }
+  };
+
+  const addAll = () => {
+    const add = (draft&&draft.clauses)||[];
+    if(!add.length) return;
+    onUpdate({...client, specialTerms:{...(client.specialTerms||{}), clauses:[...saved,...add], note, updatedAt:new Date().toISOString()}});
+    setDraft(null); setNote(""); setMsg("Added. They are in the agreement below.");
+  };
+  const editClause = (i,k,v) => {
+    const next = saved.map((c,j)=> j===i ? {...c,[k]:v} : c);
+    onUpdate({...client, specialTerms:{...(client.specialTerms||{}), clauses:next, updatedAt:new Date().toISOString()}});
+  };
+  const removeClause = (i) => {
+    if(!window.confirm("Remove this term from the agreement?")) return;
+    onUpdate({...client, specialTerms:{...(client.specialTerms||{}), clauses:saved.filter((_,j)=>j!==i), updatedAt:new Date().toISOString()}});
+  };
+
+  const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
+  const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box",fontFamily:"inherit"};
+
+  return (
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:open?10:0}}>
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:C.text}}>Special Terms {saved.length>0&&<span style={{color:C.gold}}>({saved.length})</span>}</div>
+          <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>Anything you agreed that is not the price, the term or the package.</div>
+        </div>
+        <button onClick={()=>setOpen(!open)} style={{padding:"5px 10px",fontSize:10.5,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>{open?"Hide":"Open"}</button>
+      </div>
+      {open&&(<>
+        {locked ? (
+          <div style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:saved.length?10:0}}>
+            This agreement is signed, so its terms are locked. Anything new has to go in a written amendment you both sign.
+          </div>
+        ) : (<>
+          <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>
+            Type what you agreed in your own words. It gets written up properly and added to the end of the agreement, above the signatures. The price, setup fee and term are already in there from the Billing card, so you do not need to repeat them.
+          </div>
+          <textarea value={note} onChange={e=>setNote(e.target.value)} rows={3} style={{...box,resize:"vertical",marginBottom:7}}
+            placeholder={"e.g. first month is half price, and they get a free logo refresh in month two\ne.g. 60 days notice to cancel instead of 30"}/>
+          <button onClick={draftIt} disabled={state==="working"||!note.trim()} style={{width:"100%",padding:"8px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:(state==="working"||!note.trim())?"default":"pointer",opacity:(state==="working"||!note.trim())?.6:1}}>{state==="working"?"Writing…":"Write it up"}</button>
+          {msg&&<div style={{fontSize:10.5,color:state==="error"?C.red:C.textMuted,marginTop:7,lineHeight:1.55}}>{msg}</div>}
+
+          {draft&&(
+            <div style={{marginTop:10,padding:"10px 11px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+              <div style={{fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:7}}>Read this before adding it</div>
+              {(draft.clauses||[]).map((c,i)=>(
+                <div key={i} style={{marginBottom:8}}>
+                  <div style={{fontSize:11.5,fontWeight:700,color:C.textDim}}>{c.heading}</div>
+                  <div style={{fontSize:11.5,color:C.text,lineHeight:1.6}}>{c.text}</div>
+                </div>
+              ))}
+              {/* 🔴 Not a block. He is entitled to negotiate any of these, and a tool that
+                  refuses to write what he agreed is one he stops using. Flagged so the
+                  clause that deserves a second read is wearing the warning. */}
+              {(draft.risky||[]).length>0&&(
+                <div style={{fontSize:10.5,color:C.amber,lineHeight:1.6,marginTop:6}}>Read these twice. They change {(draft.risky||[]).join(", ")}.</div>
+              )}
+              {(draft.problems||[]).length>0&&(
+                <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>
+                  {(draft.problems||[]).map((p,i)=><div key={i}>Not written: {p}</div>)}
+                </div>
+              )}
+              {(draft.clauses||[]).length>0&&(
+                <div style={{display:"flex",gap:7,marginTop:9}}>
+                  <button onClick={()=>setDraft(null)} style={{flex:1,padding:"7px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textMuted,cursor:"pointer"}}>Discard</button>
+                  <button onClick={addAll} style={{flex:2,padding:"7px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>Add to the agreement</button>
+                </div>
+              )}
+            </div>
+          )}
+        </>)}
+
+        {saved.length>0&&(
+          <div style={{marginTop:11}}>
+            <span style={lbl}>In the agreement now</span>
+            {saved.map((c,i)=>(
+              <div key={i} style={{padding:"8px 9px",borderRadius:8,border:`1px solid ${C.border}`,marginBottom:6}}>
+                {locked ? (<>
+                  <div style={{fontSize:11.5,fontWeight:700,color:C.textDim}}>{c.heading}</div>
+                  <div style={{fontSize:11.5,color:C.text,lineHeight:1.6}}>{c.text}</div>
+                </>) : (<>
+                  <input value={c.heading||""} onChange={e=>editClause(i,"heading",e.target.value)} style={{...box,fontWeight:700,marginBottom:5}}/>
+                  <textarea value={c.text||""} onChange={e=>editClause(i,"text",e.target.value)} rows={3} style={{...box,resize:"vertical"}}/>
+                  <button onClick={()=>removeClause(i)} style={{marginTop:5,fontSize:10,color:C.red,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>Remove</button>
+                </>)}
+              </div>
+            ))}
+          </div>
+        )}
+      </>)}
+    </Card>
+  );
+}
+
 function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [copied,setCopied]=useState(false);
   const [showRenewal,setShowRenewal]=useState(false);
@@ -7432,6 +7601,9 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
           </div>
         </Card>
       )}
+      {/* 🔴 ABOVE the send button on purpose. These are the terms that go INTO the document
+          being sent, so meeting them after the Send button is meeting them too late. */}
+      <SpecialTermsCard client={client} pkg={pkg} onUpdate={onUpdate}/>
       {!client.contractSigned&&<Card style={{backgroundColor:ds.bad?"rgba(239,68,68,.06)":"rgba(59,130,246,.06)",borderColor:ds.bad?"rgba(239,68,68,.28)":"rgba(59,130,246,.28)"}}>
         <div style={{fontSize:12,fontWeight:700,color:ds.bad?C.red:"#60A5FA",marginBottom:4}}>{ds.title}</div>
         <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>{ds.detail}</div>
