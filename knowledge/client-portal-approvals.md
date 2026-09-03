@@ -293,3 +293,63 @@ on "could not lift the gate" rather than on anything real. The end anchor is now
 Approving in the portal does **not** publish the page. It records the decision and alerts
 Bryson, same as every other approval. Auto-publishing on approval would mean a client action
 putting a page live with nobody looking, so it was left out rather than assumed.
+
+---
+
+## 🔴 2026-09-02, later — approving something MAKES IT GO LIVE
+
+**Bryson:** *"Once something is approved by whichever party needs to approve it the thing
+should instantly go live"*.
+
+**This was not a missing feature. It was the product saying something untrue.** The campaign
+approval card reads, in writing:
+
+> "Approve to launch, or request changes and we'll adjust before anything spends."
+
+A client pressing Approve had every reason to believe their ads were now running. What
+actually happened: a decision was recorded, Bryson got an email, and **nothing ran** until he
+went and pressed a second button himself, possibly hours later.
+
+| Approval kind | What approving does now |
+|---|---|
+| `landing_page` | Sets `landingPage.published = true`. No API call, no failure mode. |
+| `campaign` | Starts it on the platform at **every level**, via the same `activateCampaign` the owner-side approve uses. |
+| any, "changes" | **Nothing.** That is the point of requesting changes, and it is pinned. |
+
+### Which platform
+
+`makeApproval` now stamps `platform` on campaign approvals, and both launch cards pass it.
+**Fallback:** the owner's `pendingActions` entry with the same `exec.campaignId`, because
+approvals created before this change carry no platform and one is outstanding on a real
+client right now.
+
+🔴 **With no platform from either source it REFUSES.** Guessing starts a campaign on the
+wrong account and spends somebody else's money. Refusing is loud and costs nothing.
+
+### 🔴 Failure is contained and loud, and the three parts matter separately
+
+1. **The approval is still recorded.** Losing a client's approval because Google had a bad
+   minute makes them approve twice and trust the portal less.
+2. **The owner's reminder is NOT cleared.** Clear it on failure and nothing anywhere is left
+   saying the campaign is dead.
+3. **The alert goes RED**, titled "approved but it did NOT go live", instead of the same
+   green tick a working launch gets. A green tick on a dead campaign is how it sits there for
+   days. The alert body now reports what ACTUALLY happened, because since this change
+   "approved" and "live" are two different facts.
+
+### Testing note
+
+`tests/verify-approval-goes-live.mjs`, 13 checks. The real block is **lifted out of
+`portal.mjs` and executed**, with only the dynamic `import(...)` specifier rewritten so the
+platform modules can be stubbed. Six mutations, all caught.
+
+🔴 One EXISTING assertion in `verify-approval-cleanup` had to be **updated, not deleted**: it
+matched `makeApproval({kind:"campaign",campaignId:` and so required the id to sit immediately
+after the kind. Adding `platform` between them made it report "the cards stopped stamping the
+id" when they had not. A pattern that pins field ORDER pins more than it means to.
+
+### Still not automatic
+
+Nothing else has an approval kind yet. If one is added, decide at that moment what "go live"
+means for it, and add it to the block in `portal.mjs` rather than leaving it recording a
+decision that does nothing.
