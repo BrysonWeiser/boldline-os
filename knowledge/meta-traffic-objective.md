@@ -153,3 +153,26 @@ describing behaviour the server does not implement.
 guards: it anchored on `CAMPAIGN_GOALS.map` and the mutation inserted a `.filter` in front,
 moving the anchor. A guard that fails for the wrong reason is one edit from failing for no
 reason, and then somebody deletes it.
+
+### 2026-09-02, later the same evening — the unattended builds moved too
+
+Bryson: *"Do what you think would be best and plainly tell me what you do"*.
+
+`client-autobuild` now sends **`goal: "traffic"`**, so its campaigns bid Maximise Clicks
+rather than manual CPC. Manual CPC is the worst of the three for a campaign nobody watches:
+Google bids exactly what it was told, forever, and drifts out of the auction.
+
+🔴 **It is NOT set to leads, and that is the important half.** `maximizeConversions` bids
+against conversion HISTORY. A new campaign on a new account has none, so Google bids
+timidly and under-spends, which reads as a broken campaign rather than as a bidding choice.
+
+**The manual Google card's default moved for the same reason** and is now always
+`"traffic"`. It used to open on Leads whenever a conversion ACTION existed, and an action
+existing is not history existing.
+
+**Meta's card still opens on Leads with a pixel present.** Its learning phase handles a cold
+start, and buying page views is the failure that started this. The asymmetry is deliberate
+and is pinned with its reasoning so nobody tidies it into a false consistency.
+
+**Rule of thumb worth keeping:** start on Visits, move to Leads once the account has roughly
+15 to 30 real conversions to learn from.
