@@ -2,10 +2,10 @@
 name: ad-generator
 topic: Ads
 task: generate real campaign structure (ad groups, keywords, 15 headlines, negatives, creative angles) instead of string templates
-keywords: [ad generator, ad-generator.mjs, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
+keywords: [ad generator, ad-generator.mjs, kicker, kicker unfinished, isLeadIn, lead-in, label not sentence, creative studio kicker, narrow input, field too narrow, scrolls sideways, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
 status: verified
 summary: "Fill copy" was string templates — 6-7 keywords in one undifferentiated bucket, 8 of Google's 15 headlines, 3 of 4 descriptions, and a SINGLE ad group, byte-identical on every press. New `netlify/functions/ad-generator.mjs` writes a real campaign with a model: 3-5 intent-themed ad groups each carrying its own keywords (with per-keyword match types) and its own full 15-headline ad, plus 15-30 business-specific negatives and an operator note. `createCampaign` now builds N ad groups in one atomic mutate. The Ad Creative Studio's five fixed angles can likewise be rewritten from the real niche. 32 + 27 + 22 + 31 cases.
-verified: 2026-08-19
+verified: 2026-09-02
 ---
 
 **Bryson, 2026-08-14:** *"the keywords the angles for the ad creative studio and everything is just to basic and isnt advanced at all."* Correct, and it was a known gap: the Ad Creative Studio was shipped with the honest note that *"the words are angle TEMPLATES, not a live model call"*.
@@ -89,3 +89,66 @@ The same bug existed in the OS's own template seeds (`cl30`/`cl90` in `GoogleLau
 **17 checks now, and the guards were broken BOTH WAYS**: removing the quantifiers brings the reported fragment back, and adding a word that legitimately ends a sentence (`both` / `too` / `only`) trips the over-correction test. That two-sided break is the point — this fix can fail by doing too little *or* too much.
 
 **NOT built:** the `meta` action exists in the function but `MetaLaunchCard` still uses its template seed; wiring it is a small edit. Sitelinks, callouts and structured snippets are not generated (extra Google API surface). Neither is ad-group-level negative keywords.
+
+---
+
+## 🔴 2026-09-02 — the kicker "sentence is unfinished", and it was TWO bugs wearing one complaint
+
+**Bryson, mid-way through a roofing creative:** *"for the kicker the sentence is unfinished"*, with a
+screenshot of the Ad Creative Studio on his phone showing `…our budget actually gets`.
+
+### Cause 1 — the input box, not the copy
+
+The **Kicker** and **Footer offer** inputs shared `repeat(auto-fit,minmax(150px,1fr))`. On a 390px
+phone that fits TWO columns, so each box got about 165px, and a 30-character kicker scrolled
+sideways inside it showing only the tail. **The copy was complete. There was nowhere to see it.**
+
+Raised to `minmax(220px,1fr)`: one per row below roughly 480px, still paired on a laptop.
+
+**The generalisable bit:** the responsive rule is usually applied to pages. It applies to FORMS too.
+A field whose value has to be read and checked needs enough width to be read, and a value that
+scrolls out of sight looks identical to a value that was truncated.
+
+### Cause 2 — the model really does write lead-ins
+
+The schema said *"Small line above the headline. 30 characters or fewer."* That invites the opening
+of a sentence, and the model obliged: `Your budget actually gets`, `The one thing that`,
+`Everything you need to`.
+
+🔴 **`fitPhrase` cannot catch these and it is important to understand why, because the instinct is
+to "fix the trimmer" again.** `fitPhrase` walks back ONLY when something was cut — that is a
+deliberate design decision recorded above, so that copy which already fits comes back byte-for-byte
+and the trimmer never edits text nobody asked it to edit. These fragments are 25 characters. Nothing
+was cut. Every length check in `verify-ad-copy-fit` passes on them.
+
+So completeness is now asked as a **separate question of the final text**: `isLeadIn()` in
+`humanize.mjs`. A label may not end on a verb still waiting for its object (`gets`, `brings`,
+`buys`, `tells`, …), nor on a dangling article/preposition (the existing `DANGLING` set), nor on
+`actually`. A rejected kicker is **replaced with the niche label** (`For Roofers`, passed in by
+`ad-generator.mjs` from `body.niche`) or **dropped** — `drawAdCreative` draws nothing for an empty
+kicker, and nothing reads as deliberate where half a thought reads as broken.
+
+🔴 **THE QUESTION-WORD EXEMPTION IS LOAD-BEARING, NOT A LOOPHOLE.** `What Your Budget Buys` and
+`Where Your Money Goes` end on verbs in the reject list and are good copy. A label opening on
+what/how/why/where/when/who/which is exempt, and that exemption has its own test so nobody
+"simplifies" it away. Without it the guard deletes better lines than it saves.
+
+The **schema** now calls the kicker a LABEL and gives good AND bad examples. That is the real fix;
+the code guard is the net. A guard firing on every angle would mean a prompt nobody repaired.
+
+### The word list, and why it is short
+
+Only verbs that are genuinely transitive and adverbs that genuinely always lead onward. **Left out
+on purpose:** `finally`, `instantly`, `consistently`, `properly`, `run`, `go` — all of them really do
+end ad copy ("get quotes instantly", "done properly"), so listing them would delete good labels.
+
+### 🔴 The shape this deliberately does NOT catch
+
+A fragment ending on a **noun**: `See what your money`, `Here is the reason`. Spotting those means
+deciding whether an embedded clause has its verb yet, which needs a parser. Every cheap
+approximation tried also rejected `See What We Do` and `Know What You Get`, which are good labels.
+**A false positive costs more than a false negative here**, so the gap is written into the test as
+its own named check rather than quietly left out, and the schema's counter-examples cover the shape.
+
+**23 checks. Three mutations applied to the real files, all three caught:** guard removed, exemption
+removed, schema guidance removed.
