@@ -6150,6 +6150,50 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
   const [callTrack,setCallTrack] = useState({busy:false,error:null,areaCode:""});
   const [mediaBusy,setMediaBusy] = useState(null);
   const [mediaErr,setMediaErr]   = useState(null);
+  // ─── 🔴 THE MY ADS NUMBERS UPDATE THE MOMENT A LEAD LANDS ────────────────────
+  // Bryson, 2026-09-02, after a Netlify log showed the fifteen-minute job skipped for two
+  // and a half hours: *"lets have the numbers update live"*.
+  //
+  // 🔴 WHAT WAS ACTUALLY SLOW, since an earlier reply to him got this wrong. Website leads
+  // ALREADY reach the OS instantly: the Leads screen reads `website_leads` directly on a
+  // realtime subscription. What lagged is the HOUSE ACCOUNT'S copy in `leadsLog`, which is
+  // what the lead tile, cost per lead, the health score and the pipeline stage read. So
+  // this makes a dashboard current; it does not make leads arrive sooner.
+  //
+  // The obvious build was a push from the marketing site's form handler. That crosses two
+  // Netlify sites, needs a shared secret in an env var (a job he can only do at a computer)
+  // and leaves an endpoint anyone can hammer. This needs none of it: the OS is already
+  // logged in and already subscribed to the table, so it just asks.
+  //
+  // 🔴 IT ASKS THE SERVER RATHER THAN COUNTING IN THE BROWSER. Deriving the number here
+  // would be less work and is the trap `house-leads.mjs` warns about at the top: five other
+  // readers, two of them server-side, would keep the old figure. One write still fixes all
+  // of them, it just happens sooner.
+  const syncingHouseLeads = useRef(false);
+  const pullHouseLeads = useCallback(async () => {
+    // Only the house account has a mirror. A real client's leads live on their own record
+    // and are written by a different path entirely.
+    if (!client.internal || syncingHouseLeads.current) return;
+    syncingHouseLeads.current = true;
+    try{
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      const tok = session && session.access_token;
+      if(!tok) return;
+      const r = await fetch("/.netlify/functions/house-leads-sync",{method:"POST",headers:{Authorization:"Bearer "+tok}});
+      const d = await r.json().catch(()=>({}));
+      // Re-read the client only when the mirror actually wrote something. `beat:false` means
+      // it looked and found nothing to do, which is the common case on a screen left open.
+      if(r.ok && d.ok && d.beat!==false){
+        const { data } = await supabaseClient.from("clients").select("data").eq("id",client.id).maybeSingle();
+        if(data && data.data) onUpdate({...data.data, id:client.id, _initialTab:client._initialTab});
+      }
+    }catch(e){ /* the fifteen-minute job still covers this; a red banner here would be noise */ }
+    finally{ syncingHouseLeads.current = false; }
+  },[client.internal,client.id]);
+  // Same subscription the Leads screen uses, so it fires on the same event. The poll is a
+  // slow backstop for a dropped socket, not the main path.
+  useLiveData(pullHouseLeads,{ table:"website_leads", interval:120000, active:!!client.internal, channel:"house-leads-live" });
+
   const pkg    = findPkg(client.packageId);
   const derivedBots = deriveBotStatuses(client);
   const bots   = botsFor(client,pkg).map(b=>{ const e=effectiveBotStatus(client,b.id,derivedBots); return {...b,status:e.status,why:e.why,auto:!!e.auto,manual:!!e.manual}; });
@@ -6454,9 +6498,9 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
                         {st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
                         {/* With no leads yet, 0 is both the right answer and what a
                             broken sync looks like. Say which it is. */}
-                        {st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. A new enquiry shows up here within 15 minutes.</div>}
-                        {st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>The lead check has not run since {ago(st.leadsSyncedAt)}. It should run every 15 minutes, so a lead could be missing from this count.</div>}
-                        {!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It runs every 15 minutes and fills this in on its first pass.</div>}
+                        {st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}
+                        {st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>These numbers were last refreshed {ago(st.leadsSyncedAt)}, so a recent lead may be missing from the count. Leads themselves are safe and are all on the Leads screen. Reopening this screen refreshes it.</div>}
+                        {!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It fills this in on its first pass, usually within a few minutes.</div>}
                       </>}
                   {st.errors.length>0&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,background:`${C.amber}10`}}>
                     <div style={{fontSize:10.5,fontWeight:800,color:C.amber,marginBottom:3}}>These numbers are stale</div>

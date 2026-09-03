@@ -24,7 +24,14 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const SRC = readFileSync(join(ROOT, "netlify/functions/house-leads.mjs"), "utf8");
+// 🔴 The scheduled function AND the shared core it now calls, read as one body.
+// The merge moved into netlify/lib/house-leads-run.mjs on 2026-09-02 so the OS could ask
+// for the same mirror on demand. Every rule below is about the MIRROR, not about which file
+// it sits in, so they are checked against both rather than being relaxed or deleted. If
+// this had been narrowed to the scheduled file, ten real guards would have gone quiet the
+// moment the code moved, and that is the failure mode this comment exists to prevent.
+const SRC = readFileSync(join(ROOT, "netlify/functions/house-leads.mjs"), "utf8")
+  + "\n" + readFileSync(join(ROOT, "netlify/lib/house-leads-run.mjs"), "utf8");
 const UI = readFileSync(join(ROOT, "index.html"), "utf8");
 const TOML = readFileSync(join(ROOT, "netlify.toml"), "utf8");
 
@@ -234,8 +241,13 @@ const wl = (id, over = {}) => ({
 // The logic above is the real thing, so these only pin what the merge cannot see:
 // which row it writes, which table it must never write, and that it is scheduled.
 {
-  ok("the function uses the shared merge, not a second copy",
-    /import \{ mergeHouseLeads, PRUNE_LIMIT \} from "\.\.\/lib\/house-leads-merge\.mjs"/.test(SRC_CODE));
+  // The path is "./" from the lib and "../lib/" from a function, so the check is about
+  // IMPORTING the shared merge rather than about where the importer happens to live.
+  ok("the mirror uses the shared merge, not a second copy",
+    /import \{ mergeHouseLeads, PRUNE_LIMIT \} from "\.[^"]*house-leads-merge\.mjs"/.test(SRC_CODE));
+  ok("🔴 and there is exactly one place that does the mirroring",
+    (SRC_CODE.match(/mergeHouseLeads\(/g) || []).length === 1,
+    "the merge is called from more than one file, so the scheduled job and the on-demand one can disagree about a lead count");
   ok("the house account is still found by the internal flag",
     /\.eq\("data->>internal", "true"\)/.test(SRC_CODE));
   ok("website_leads is only ever read",
@@ -296,7 +308,15 @@ const wl = (id, over = {}) => ({
     /leadsSyncStale: !!\(cl && cl\.leadSync && cl\.leadSync\.at/.test(UI_CODE2));
   ok("the card says zero leads is normal when the check is healthy",
     /No leads yet, and the lead check is running normally/.test(UI));
-  ok("and warns plainly when it is not", /The lead check has not run since/.test(UI));
+  // 🔴 Checks that a stale count is FLAGGED, not the exact sentence. The wording changed on
+  // 2026-09-02 when the OS started refreshing on demand: "the lead check has not run" was
+  // no longer true or useful, because the leads themselves were never late, only this
+  // count. Pinning the sentence would have made an accuracy fix look like a regression.
+  ok("and warns plainly when the count is behind",
+    /These numbers were last refreshed/.test(UI) && /may be missing from the count/.test(UI));
+  // 🔴 And it must not frighten him about the leads themselves, which are never delayed.
+  ok("while making clear no lead is actually lost",
+    /Leads themselves are safe and are all on the Leads screen/.test(UI));
   ok("and says so before the first run too", /has not reported in yet/.test(UI));
   ok("the leads tile shows when it last checked", /checked \$\{ago\(st\.leadsSyncedAt\)\}/.test(UI));
 }
@@ -309,6 +329,58 @@ const wl = (id, over = {}) => ({
   ok("and no longer every six hours", !/schedule = "0 \*\/6 \* \* \*"/.test(TOML));
   ok("the lead mirror still runs every 15 minutes",
     /\[functions\."house-leads"\]\s*\n\s*schedule = "\*\/15 \* \* \* \*"/.test(TOML));
+}
+
+// ── 🔴 8. THE NUMBERS UPDATE WHILE HE IS LOOKING AT THEM ──────────────────────
+// Bryson, 2026-09-02, after a Netlify log showed the fifteen-minute job skipped for two and
+// a half hours: *"lets have the numbers update live"*.
+//
+// 🔴 The distinction that decides what this is worth, and an earlier reply to him got it
+// wrong: website leads ALREADY reach the OS instantly, because the Leads screen reads
+// `website_leads` directly on a realtime subscription. What lagged is the house account's
+// COPY, which the My Ads tiles read. This makes a dashboard current, not leads arrive.
+{
+  const SYNCFN = readFileSync(join(ROOT, "netlify/functions/house-leads-sync.mjs"), "utf8");
+  const RUN = readFileSync(join(ROOT, "netlify/lib/house-leads-run.mjs"), "utf8");
+
+  ok("the on-demand sync runs the same mirror as the schedule",
+    /import \{ syncHouseLeads \} from "\.\.\/lib\/house-leads-run\.mjs"/.test(SYNCFN)
+    && /import \{ syncHouseLeads \} from "\.\.\/lib\/house-leads-run\.mjs"/.test(readFileSync(join(ROOT, "netlify/functions/house-leads.mjs"), "utf8")),
+    "one of the two paths has its own copy of the mirror, so they can disagree about a lead count");
+
+  ok("🔴 it is behind the owner's login",
+    /auth\.getUser\(jwt\)/.test(SYNCFN) && /Not authenticated/.test(SYNCFN),
+    "anyone on the internet can make this run work against the database");
+
+  ok("and refuses anything but a POST", /Method not allowed/.test(SYNCFN));
+
+  // 🔴 The scheduled job alerts because nobody watches it. This one runs because he is
+  // looking at the screen, so a red alert for something he can see and fix by refreshing
+  // would be noise, and noise is how real alerts get ignored.
+  ok("it does not raise a red alert of its own", !/dispatchAlert|withFailureAlert/.test(SYNCFN));
+
+  const UI_CODE3 = code(UI);
+  ok("the OS asks for the mirror on the same event the Leads screen listens to",
+    /useLiveData\(pullHouseLeads,\{ table:"website_leads"/.test(UI_CODE3),
+    "the live update is on a timer only, so it is not actually live");
+
+  ok("🔴 only for the house account",
+    /if \(!client\.internal \|\| syncingHouseLeads\.current\) return;/.test(UI_CODE3),
+    "opening any client would trigger the house mirror, and a real client's leads are written by a different path entirely");
+
+  ok("🔴 two runs cannot overlap",
+    /syncingHouseLeads\.current = true;/.test(UI_CODE3) && /syncingHouseLeads\.current = false;/.test(UI_CODE3),
+    "a burst of leads fires several overlapping merges at the same row");
+
+  ok("and it re-reads the client only when something was actually written",
+    /d\.beat!==false/.test(UI_CODE3),
+    "a screen left open re-fetches the client on every poll for no reason");
+
+  // 🔴 The whole point of the no-write shortcut, which matters MORE now than it did when
+  // only a cron called it: this runs on every realtime nudge and every poll.
+  ok("a quiet on-demand run still writes nothing",
+    /if \(!changed && !staleBeat\) \{/.test(code(RUN)),
+    "a My Ads screen left open would rewrite the client record all day");
 }
 
 console.log(`verify-house-leads: ${pass} passed, ${fail} failed`);
