@@ -111,7 +111,14 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // FLOOR and the Performance Fee counts toward it — whichever is higher is the whole
   // fee for that month, never both. Lead gen bills per qualified lead; e-commerce bills
   // a percentage of ad spend, because a store has no lead to count.
-  const pctFee   = (pkg && pkg.pricingModel === "ad_spend_pct") ? Number(pkg.adSpendPct)||0 : 0;
+  // 🔴 The CLIENT'S rate, falling back to the package's standard. Bryson, 2026-09-02, on the
+  // longer-term discount: *"What do we do for the e-commerce then"*. A store has no per-lead
+  // rate to discount, so its performance fee is this percentage, and until now it lived only
+  // on the package with no way for a client to be on a different one. Renewal writes
+  // `billingSpendPct`; the package number stays the standard rate everything is quoted from.
+  const pctFee   = (pkg && pkg.pricingModel === "ad_spend_pct")
+    ? (cl.billingSpendPct!=null ? Number(cl.billingSpendPct) : (Number(pkg.adSpendPct)||0))
+    : 0;
   const perLeadFee = (pkg && pkg.pricingModel === "per_lead")
     ? (cl.billingPerLead!=null ? Number(cl.billingPerLead) : (pl||0))
     : 0;
