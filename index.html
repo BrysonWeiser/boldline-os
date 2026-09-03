@@ -6171,6 +6171,48 @@ function ClientApprovalsCard({client,onUpdate}) {
   );
 }
 
+// ─── Send a test lead to the client's own system ─────────────────────────────
+// Bryson, 2026-09-03: *"can you build a button to automatically send a test from the os
+// right now too"*.
+//
+// 🔴 It sends a DRY RUN. The request is real, signed and validated end to end; the other
+// side answers ok and records nothing. A test that drops a junk contact into a client's
+// pipeline is a test nobody runs twice, and the first thing it teaches them is that our
+// software makes mess.
+function CrmTestButton({client}) {
+  const [state,setState] = useState("");     // "" | sending | ok | error
+  const [msg,setMsg] = useState("");
+  const send = async () => {
+    setState("sending"); setMsg("");
+    try{
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      const tok = session && session.access_token;
+      if(!tok) throw new Error("Session expired. Refresh the page and log in again.");
+      const r = await fetch("/.netlify/functions/crm-test",{method:"POST",
+        headers:{"Content-Type":"application/json",Authorization:"Bearer "+tok},
+        body:JSON.stringify({clientId:client.id})});
+      const d = await r.json().catch(()=>({}));
+      if(d && d.ok){
+        setState("ok");
+        setMsg(`Their system accepted it${d.status?` (${d.status})`:""}. Nothing was recorded on their side, so you can send this as often as you like.`);
+      }else{
+        setState("error");
+        setMsg((d && d.error) || `That did not go through (${r.status}).`);
+      }
+    }catch(e){ setState("error"); setMsg(e.message||"That did not go through."); }
+  };
+  return (
+    <div style={{marginTop:4}}>
+      <button onClick={send} disabled={state==="sending"}
+        style={{padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:state==="sending"?"default":"pointer",opacity:state==="sending"?.6:1}}>
+        {state==="sending"?"Sending…":"Send a test lead"}
+      </button>
+      {msg&&<div style={{fontSize:10.5,marginTop:6,lineHeight:1.6,color:state==="ok"?C.green:C.red}}>{msg}</div>}
+      {!msg&&<div style={{fontSize:10,color:C.textMuted,marginTop:6,lineHeight:1.6}}>Sends one obviously fake lead to the address above so you can prove the connection works. It is a dry run: their system checks everything and saves nothing.</div>}
+    </div>
+  );
+}
+
 function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   const [tab,setTab]         = useState(client._initialTab||"overview");
   const [openBot,setOpenBot] = useState(null);
@@ -10694,6 +10736,19 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
   );
 }
 
+// A date in the shape a date input wants, from whatever the two platforms hand back.
+// 🔴 Google returns "2026-09-20" OR its "runs forever" sentinel 20371230, and Meta returns a
+// full ISO timestamp. The sentinel has to read as NO END DATE, or the box would show a date
+// in 2037 that he never typed and would have no reason to trust.
+const isoDay = (v) => {
+  const raw = String(v == null ? "" : v).trim();
+  if (!raw) return "";
+  const d = raw.replace(/[^0-9]/g, "").slice(0, 8);
+  if (d === "20371230") return "";
+  if (d.length !== 8) return "";
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+};
+
 function LiveCampaignsCard({client,onOpenCampaign}) {
   const hasG=!!client.googleAdsCustomerId, hasM=!!client.metaAdAccountId;
   const [state,setState]=useState("loading"); // loading | ready | error | none
@@ -10709,6 +10764,52 @@ function LiveCampaignsCard({client,onOpenCampaign}) {
     }catch(e){ setErr(e.message||"Couldn't load campaigns."); setState("error"); }
   };
   useEffect(()=>{ load(); },[client.googleAdsCustomerId,client.metaAdAccountId]);
+
+  // ─── 🔴 EDIT THE BUDGET AND THE RUN DATES BY HAND ───────────────────────────
+  // Bryson, 2026-09-03: *"for the campaigns i need a way to manually edit their daily budget
+  // and how long I want the ads running for"*.
+  //
+  // The budget WRITE existed on both platforms and had no control anywhere; the end date did
+  // not exist at all, so the only way to stop a campaign on a date was to remember to come
+  // back and pause it. A campaign you have to remember to switch off is a campaign that
+  // spends through a weekend nobody was watching.
+  //
+  // 🔴 EVERY SAVE HERE MOVES REAL MONEY ON SOMEBODY ELSE'S ACCOUNT, so it re-reads the
+  // account afterwards and shows what the platform actually holds, not what was typed. The
+  // budget confirms before saving, because a fat-fingered 700 instead of 70 is a tenfold
+  // overspend that nothing else in the OS would question.
+  const [edit,setEdit]=useState(null);       // key -> being edited
+  const [draft,setDraft]=useState({});       // {budget, until}
+  const openEdit=(platform,c)=>{
+    const key = platform==="google"?c.campaignResourceName:c.id;
+    if(edit===key){ setEdit(null); return; }
+    setEdit(key);
+    setDraft({ budget:String(c.dailyBudget!=null?c.dailyBudget:""), until:isoDay(c.endDate||c.stopTime||"") });
+  };
+  const saveEdit=async(platform,c)=>{
+    const key = platform==="google"?c.campaignResourceName:c.id;
+    const before = Number(c.dailyBudget||0);
+    const after = Number(draft.budget);
+    if(draft.budget!=="" && !(after>0)){ setErr("The daily budget has to be a number above zero."); return; }
+    // 🔴 A tenfold typo is the one mistake worth a second question. Nothing else in the OS
+    // would catch $700/day where $70 was meant until the money was gone.
+    if(draft.budget!=="" && before>0 && after>=before*3
+       && !window.confirm(`Change the daily budget from $${before.toLocaleString()} to $${after.toLocaleString()}?\n\nThat is ${Math.round(after/before)} times higher and it spends on ${client.internal?"your":client.name+"'s"} real account.`)) return;
+    setBusy(key); setErr("");
+    try{
+      if(draft.budget!=="" && after!==before){
+        if(platform==="google") await gadsCall({action:"setBudget",customerId:client.googleAdsCustomerId,budgetResourceName:c.budgetResourceName,dollars:after});
+        else await metaCall({action:"setBudget",campaignId:c.id,dailyBudgetDollars:after});
+      }
+      // Sent even when blank: blank is how an end date is REMOVED, and skipping it would
+      // leave yesterday's date in place while this screen showed none.
+      if(platform==="google") await gadsCall({action:"setEndDate",customerId:client.googleAdsCustomerId,campaignResourceName:c.campaignResourceName,endDate:draft.until});
+      else await metaCall({action:"setEndTime",campaignId:c.id,endTime:draft.until});
+      setEdit(null);
+      await load();
+    }catch(e){ setErr(e.message||"That did not save."); }
+    setBusy(null);
+  };
 
   const toggle=async(platform,c)=>{
     const on = platform==="google" ? String(c.status).toUpperCase()==="ENABLED" : String(c.status).toUpperCase()==="ACTIVE";
@@ -10744,7 +10845,34 @@ function LiveCampaignsCard({client,onOpenCampaign}) {
           {onOpenCampaign&&<button onClick={()=>onOpenCampaign(platform==="google"?c.campaignResourceName:c.id)}
             style={{marginLeft:"auto",padding:"5px 11px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>Details ›</button>}
           <button onClick={()=>toggle(platform,c)} disabled={working} style={{marginLeft:onOpenCampaign?0:"auto",padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
+          <button onClick={()=>openEdit(platform,c)} title="Change the daily budget or set a date to stop"
+            style={{padding:"5px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>{edit===(platform==="google"?c.campaignResourceName:c.id)?"Close":"Edit"}</button>
         </div>
+        {edit===(platform==="google"?c.campaignResourceName:c.id)&&(
+          <div style={{marginTop:8,padding:"9px 10px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+            <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 120px",minWidth:0}}>
+                <label style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,display:"block",marginBottom:3}}>Daily budget</label>
+                <input type="number" min="1" step="1" value={draft.budget} onChange={e=>setDraft(d=>({...d,budget:e.target.value}))}
+                  style={{width:"100%",padding:"7px 9px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"}}/>
+              </div>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
+                <label style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,display:"block",marginBottom:3}}>Run until</label>
+                <input type="date" value={draft.until} onChange={e=>setDraft(d=>({...d,until:e.target.value}))}
+                  style={{width:"100%",padding:"7px 9px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"}}/>
+              </div>
+            </div>
+            {/* 🔴 Says what an empty box MEANS. Without this a blank date reads as "not set
+                yet" rather than as "runs until I stop it", and he would never dare clear it. */}
+            <div style={{fontSize:10,color:C.textMuted,marginTop:6,lineHeight:1.6}}>
+              Leave the date empty and it runs until you pause it. The last day is included, so it stops at the end of the day you pick.
+            </div>
+            <div style={{display:"flex",gap:7,marginTop:8}}>
+              <button onClick={()=>setEdit(null)} style={{flex:1,padding:"7px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
+              <button onClick={()=>saveEdit(platform,c)} disabled={working} style={{flex:2,padding:"7px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:working?"default":"pointer",opacity:working?.6:1}}>{working?"Saving…":"Save to the ad account"}</button>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -12301,6 +12429,13 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   <input type="text" value={(form.campaignSetup&&form.campaignSetup[k])||""} onChange={e=>setIn("campaignSetup",k,e.target.value)} placeholder={ph} style={inp}/>
                 </div>
               ))}
+              {/* 🔴 THE ONLY WAY TO KNOW THE CONNECTION WORKS BEFORE A REAL LEAD USES IT.
+                  Bryson, 2026-09-03, prepping a call where Shaun wanted to watch one arrive:
+                  "can you build a button to automatically send a test from the os right
+                  now too". The dry run has existed since 1 September and nothing could
+                  reach it, so the only proof was to wait for a real enquiry, which is
+                  exactly the wrong moment to discover the password is wrong. */}
+              <CrmTestButton client={client}/>
             </Card>
             {/* Brand voice. Market Research proposes the last two; this is where they
                 land when Use is pressed, and where they can be edited afterwards. */}

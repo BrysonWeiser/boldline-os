@@ -207,6 +207,43 @@ export async function setStatus(accessToken, customerId, campaignResourceName, s
   return data;
 }
 
+// ── Guarded write: when the campaign should STOP ─────────────────────────────
+// Bryson, 2026-09-03: *"for the campaigns i need a way to manually edit their daily budget
+// and how long I want the ads running for"*. The budget half already existed; this is the
+// other half, and until now the only way to stop a campaign on a date was to remember to
+// come back and pause it by hand.
+//
+// 🔴 AN EMPTY DATE MEANS "NO END DATE", AND IT HAS TO BE SENDABLE. Google will not accept
+// an empty string for `end_date`; clearing it means writing the sentinel `20371230`, which
+// is Google's own "runs forever" value. Without that, a campaign given an end date could
+// never have it taken off again, and he would be stuck rebuilding the campaign to undo a
+// typo.
+export async function setEndDate(accessToken, customerId, campaignResourceName, endDate) {
+  if (!campaignResourceName) {
+    const e = new Error("setEndDate: campaignResourceName required"); e.stage = "setEndDate"; throw e;
+  }
+  const d = String(endDate || "").trim();
+  // Accepts YYYY-MM-DD (what a date input gives) and hands Google the YYYYMMDD it wants.
+  const digitsOnly = d.replace(/[^0-9]/g, "");
+  if (d && digitsOnly.length !== 8) {
+    const e = new Error("setEndDate: date must be YYYY-MM-DD"); e.stage = "setEndDate"; throw e;
+  }
+  const value = d ? digitsOnly : "20371230";
+  const body = { operations: [{
+    update: { resourceName: campaignResourceName, endDate: value },
+    updateMask: "end_date",
+  }] };
+  const resp = await fetch(`${ADS_BASE}/customers/${digits(customerId)}/campaigns:mutate`, {
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify(body),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("setEndDate", resp.status, data));
+    e.stage = "setEndDate"; e.detail = data; throw e;
+  }
+  return { endDate: d || null };
+}
+
 // ── Destructive: remove a campaign ───────────────────────────────────────────
 // Google has no hard delete — "remove" sets the campaign to REMOVED, which is
 // PERMANENT: a removed campaign can never be re-enabled, only rebuilt. It stops
@@ -954,6 +991,13 @@ export default async (req) => {
         return json({ ok: false, error: "customerId, budgetResourceName, dollars required" }, 400);
       const result = await setBudget(accessToken, body.customerId, body.budgetResourceName, body.dollars);
       return json({ ok: true, action, result });
+    }
+
+    if (action === "setEndDate") {
+      if (!digits(body.customerId) || !body.campaignResourceName)
+        return json({ ok: false, error: "customerId, campaignResourceName required" }, 400);
+      const result = await setEndDate(accessToken, body.customerId, body.campaignResourceName, body.endDate);
+      return json({ ok: true, action, ...result });
     }
 
     if (action === "setStatus") {
