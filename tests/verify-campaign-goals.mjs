@@ -201,10 +201,41 @@ t("each card's warning names that platform's tracking", () => {
 
 t("neither card defaults to a goal its own server would refuse", () => {
   // 🔴 A Build button that fails on first press reads as broken software, not as a missing
-  // setting. Both cards start on Leads only when the thing that counts a lead is present.
+  // setting. Meta starts on Leads only when the pixel that counts one is present.
   assert.match(S, /goal: client\.metaPixelId \? "leads" : "traffic"/, "the Meta card's default ignores the pixel");
-  assert.match(S, /goal: \(client\.conversionActions && Object\.keys\(client\.conversionActions\)\.length\) \? "leads" : "traffic"/,
-    "the Google card's default ignores whether conversion tracking exists");
+});
+
+// ── 🔴 THE DEFAULTS DIFFER PER PLATFORM, ON PURPOSE ────────────────────────────
+// Bryson, 2026-09-02: *"Do what you think would be best"*. The two platforms have
+// different right answers from a cold start, and the difference is worth pinning because it
+// looks like an inconsistency somebody would tidy away.
+//
+// GOOGLE always starts on clicks. `maximizeConversions` bids against conversion HISTORY,
+// and a conversion ACTION existing is not history. With tracking configured but few real
+// conversions, Google bids timidly and under-spends the budget, which reads as a broken
+// campaign rather than as a bidding choice.
+//
+// META starts on leads whenever the pixel is there, because its learning phase handles a
+// cold start, and buying page views is the exact failure that started all of this.
+t("Google starts on clicks even when conversion tracking exists", () => {
+  const i = S.indexOf("negativeKeywordsText: negativeDefault,");
+  assert.ok(i > 0, "could not find the Google card's form state");
+  const near = S.slice(i, i + 1400);
+  assert.match(near, /goal: "traffic"/, "the Google card no longer starts on clicks");
+  assert.ok(!/goal: .*conversionActions.*\? "leads"/.test(near),
+    "the Google card defaults to conversion bidding off the back of a conversion action existing, which is not the same as conversion history existing");
+});
+
+t("the automatic client builds start on clicks too", () => {
+  const AB = readFileSync(join(ROOT, "netlify/functions/client-autobuild.mjs"), "utf8");
+  // 🔴 The wrong-VALUE case is checked BEFORE the missing-value case. Setting it to "leads"
+  // also removes the string "traffic", so with the checks the other way round that mutation
+  // failed with "names no goal", which is not what happened and would send the next person
+  // looking in the wrong place.
+  assert.ok(!/goal: "leads"/.test(AB),
+    "an unattended build was set to conversion bidding, which under-spends on an account with no conversion history");
+  assert.match(AB, /goal: "traffic"/,
+    "client-autobuild names no goal, so its campaigns are back on manual CPC with nobody adjusting the bids");
 });
 
 console.log(`✓ verify-campaign-goals: ${n} checks passed`);

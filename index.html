@@ -8316,9 +8316,19 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     keywordsText: seed0.keywords.join("\n"),
     locationsText: locationDefault,
     negativeKeywordsText: negativeDefault,
-    // Same rule as the Meta card: default to Leads only when there is something that can
-    // count one, so the Build button never opens on a setting the server would refuse.
-    goal: (client.conversionActions && Object.keys(client.conversionActions).length) ? "leads" : "traffic",
+    // 🔴 ALWAYS "traffic" HERE, even when conversion tracking exists, and that is the one
+    // place this card deliberately differs from the Meta one.
+    //
+    // A conversion ACTION existing is not the same as conversion HISTORY existing, and
+    // `maximizeConversions` bids against history. On an account that has tracking set up
+    // but few actual conversions yet, Google bids timidly and under-spends the budget,
+    // which looks like a broken campaign rather than a bidding choice. Clicks first,
+    // conversions once there is something to learn from.
+    //
+    // Meta's card still opens on Leads with a pixel present, because Meta's learning phase
+    // handles a cold start and buying page views is the exact failure that started all of
+    // this. Different platforms, different right answer, both stated rather than copied.
+    goal: "traffic",
   });
   // Generated structure. When present, the campaign is built from THESE ad groups
   // (several themed groups, each with its own ad) instead of the single group the

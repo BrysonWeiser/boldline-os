@@ -135,6 +135,21 @@ const realCampaign = async (cl) => {
     adGroups: clean.adGroups,
     locations: cs.targetLocations,
     negatives: cs.excludedKeywords,
+    // 🔴 "traffic" (Maximise Clicks), CHOSEN, and deliberately not "leads". Bryson,
+    // 2026-09-02, on whether to move these off the old manual CPC: *"Do what you think
+    // would be best"*.
+    //
+    // Manual CPC with nobody adjusting bids is the worst of the three. Google bids exactly
+    // what it was told, forever, and learns nothing, so a campaign nobody is watching
+    // slowly drifts out of the auction. These are built and left alone by definition.
+    //
+    // But NOT conversion bidding either, and this is the part that is easy to get wrong.
+    // `maximizeConversions` needs conversion history to bid against. A brand new campaign
+    // on a brand new account has none, so Google bids timidly, under-spends the budget and
+    // takes far longer to learn anything. The right order is clicks first, conversions once
+    // the account has real conversions in it, which is why the picker on the launch card
+    // exists: this is the automatic starting point, and Bryson moves it when there is data.
+    goal: "traffic",
   });
   return { campaigns: [...(Array.isArray(cl.campaigns) ? cl.campaigns : []), built] };
 };
