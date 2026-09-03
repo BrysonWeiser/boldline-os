@@ -537,19 +537,83 @@ const handler = async (event) => {
         });
         if (!found) return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true }) }; // already decided / gone — idempotent
         const logEntry = { date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }), note: `Client ${decision === "approved" ? "APPROVED" : "requested CHANGES on"} "${title}"${note ? `: ${note}` : ""}`, cat: "update", ts: Date.now() };
-        const apData = { ...data.data, approvals: next, commLog: [logEntry, ...((data.data.commLog) || [])] };
+        let apData = { ...data.data, approvals: next, commLog: [logEntry, ...((data.data.commLog) || [])] };
+
+        // ── 🔴 APPROVING SOMETHING MAKES IT GO LIVE ────────────────────────────
+        // Bryson, 2026-09-02: *"Once something is approved by whichever party needs to
+        // approve it the thing should instantly go live"*.
+        //
+        // Before this, a client pressing Approve recorded a decision and emailed Bryson,
+        // and then nothing happened until he went and pressed a second button himself.
+        // 🔴 THE CAMPAIGN CARD ALREADY PROMISED OTHERWISE IN WRITING: "Approve to launch,
+        // or request changes and we'll adjust before anything spends". The client had
+        // every reason to believe their ads were running. That is not a missing feature,
+        // it is the product telling them something untrue.
+        //
+        // Failures below are contained on purpose: the DECISION is always recorded, even
+        // if going live fails. Losing a client's approval because Google had a bad minute
+        // would make them approve twice and trust the portal less.
+        const goLive = [];
+        if (decision === "approved") {
+          const ap = list.find((a) => a && a.id === body.approval.id) || {};
+          if (ap.kind === "landing_page") {
+            // No API call, no failure mode. It is one flag on the record we are already saving.
+            apData = { ...apData, landingPage: { ...(apData.landingPage || {}), published: true } };
+            goLive.push("Their landing page is now live.");
+          }
+          if (ap.kind === "campaign" && ap.campaignId) {
+            try {
+              // 🔴 The platform comes from the approval when it has one, and falls back to
+              // the OWNER's queued action for the same campaign id. Approvals created before
+              // this change carry no platform, and Sebastian has one outstanding right now.
+              const pa = (Array.isArray(apData.pendingActions) ? apData.pendingActions : [])
+                .find((p) => p && p.exec && String(p.exec.campaignId) === String(ap.campaignId));
+              const platform = String(ap.platform || (pa && pa.exec && pa.exec.platform) || "").toLowerCase();
+              if (platform === "meta") {
+                const { activateCampaign } = await import("./meta-ads.mjs");
+                await activateCampaign(ap.campaignId);
+              } else if (platform === "google") {
+                const { getAccessToken, activateCampaign } = await import("./google-ads.mjs");
+                const cid = String(apData.googleAdsCustomerId || "").replace(/[^0-9]/g, "");
+                if (!cid) throw new Error("no Google Ads customer id on this client");
+                const tok = await getAccessToken();
+                await activateCampaign(tok, cid, `customers/${cid}/campaigns/${String(ap.campaignId).replace(/[^0-9]/g, "")}`, ap.campaignId);
+              } else {
+                throw new Error("could not tell which platform this campaign is on");
+              }
+              // 🔴 Clear the owner's copy. Bryson, 2026-08-20, about a different leftover:
+              // *"if a campaign needs approve itll give me the notification but then if i
+              // delete the campaign the notification is still there."* Same shape here: a
+              // queue item that still says "Launch this" for something already launched.
+              apData = { ...apData, pendingActions: (apData.pendingActions || []).filter((p) => !(p && p.exec && String(p.exec.campaignId) === String(ap.campaignId))) };
+              goLive.push("Their campaign is now live and spending.");
+            } catch (e) {
+              const why = String((e && e.message) || e);
+              console.error("portal approval go-live failed:", why);
+              goLive.push(`🔴 COULD NOT START THE CAMPAIGN: ${why}. Start it by hand from Your Live Campaigns.`);
+            }
+          }
+        }
         const { error: apErr } = await supabaseAdmin.from("clients").update({ data: apData, updated_at: new Date().toISOString() }).eq("id", data.id);
         if (apErr) { console.error("Portal approval save failed:", apErr); return { statusCode: 500, body: JSON.stringify({ ok: false, error: "save failed" }) }; }
         // Notify the owner IMMEDIATELY so they can follow up (email + SMS-if-enabled). Best-effort.
         try {
           const { dispatchAlert } = await import("../lib/alerts-shared.mjs");
           const who = data.data.name || "A client";
+          // 🔴 The alert says what ACTUALLY HAPPENED, not what was approved. Now that
+          // approving makes things go live, "approved" and "live" are two different facts,
+          // and a failed activation has to look different from a successful one or Bryson
+          // reads a green tick and leaves a dead campaign sitting there. A go-live that
+          // failed is RED, because it is a job he now has to do by hand.
+          const broke = goLive.some((g) => g.startsWith("🔴"));
           await dispatchAlert({
-            title: decision === "approved" ? `✅ ${who} approved: ${title}` : `📝 ${who} requested changes: ${title}`,
+            title: decision !== "approved" ? `📝 ${who} requested changes: ${title}`
+              : broke ? `🔴 ${who} approved "${title}" but it did NOT go live`
+              : `✅ ${who} approved: ${title}`,
             body: decision === "approved"
-              ? `${who} just approved "${title}" in their portal. You're clear to move forward — reach out if there's a next step.`
+              ? `${who} just approved "${title}" in their portal.${goLive.length ? ` ${goLive.join(" ")}` : " Nothing needed switching on."}`
               : `${who} requested changes on "${title}" in their portal.${note ? ` Their note: "${note}"` : ""} Follow up with them.`,
-            severity: "yellow",
+            severity: broke ? "red" : "yellow",
           });
         } catch (e) { console.warn("approval owner-alert failed:", e && e.message); }
         return { statusCode: 200, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ok: true }) };
