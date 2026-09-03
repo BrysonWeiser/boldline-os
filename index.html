@@ -6142,7 +6142,7 @@ function ClientApprovalsCard({client,onUpdate}) {
   );
 }
 
-function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
+function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   const [tab,setTab]         = useState(client._initialTab||"overview");
   const [openBot,setOpenBot] = useState(null);
   const [showEdit,setShowEdit] = useState(false);
@@ -6865,7 +6865,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop}) {
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
             {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
-            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client}/>}
+            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client} onOpenCampaign={onOpenCampaign}/>}
             {!client.internal && <ScorecardCard client={client}/>}
             <ConversionLoopCard client={client} onUpdate={onUpdate}/>
             {!client.internal && <TradePlaybookCard client={client}/>}
@@ -10201,7 +10201,13 @@ function AddKeywordRow({onAdd,busy}){
   );
 }
 
-function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate}){
+// 🔴 `focusKey` is how a campaign gets OPENED rather than merely listed. Bryson,
+// 2026-09-03: *"i need a way to be able to open a specific campaign (internal ones included)
+// and it opens up the details of that campaign not the campaign builder screen"*. The list
+// could already expand a row, but only if he found the row himself; from My Ads the only
+// thing a campaign name led to was the builder. Passing the key through means ONE detail
+// panel serves both places instead of a second one growing inside the card.
+function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate,focusKey}){
   const linked=(clients||[]).filter(c=>c.googleAdsCustomerId||c.metaAdAccountId);
   const [rows,setRows]=useState([]);
   const [errors,setErrors]=useState([]);
@@ -10219,15 +10225,30 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
 
   const loadDetail=async(r,{force}={})=>{
     const k=keyOf(r);
-    if(r.platform!=="google"){ setDetail(d=>({...d,[k]:{state:"unsupported"}})); return; }
+    // 🔴 META USED TO LAND HERE AS "unsupported" AND DRAW NOTHING. Bryson, 2026-09-03:
+    // *"i need a way to be able to open a specific campaign (internal ones included) and it
+    // opens up the details of that campaign not the campaign builder screen"*. Google
+    // campaigns already opened; Meta was the one platform he actually had running, and it
+    // was the one he could not look at. Both read the same `campaignDetail` action name and
+    // both return `adGroups`, so everything below renders either without a special case.
     if(!force && detail[k] && detail[k].state==="ready") return;
     setDetail(d=>({...d,[k]:{state:"loading"}}));
     try{
-      const res=await gadsCall({action:"campaignDetail",customerId:r.client.googleAdsCustomerId,campaignId:r.c.id});
-      setDetail(d=>({...d,[k]:{state:"ready",adGroups:res.adGroups||[]}}));
+      const res = r.platform==="google"
+        ? await gadsCall({action:"campaignDetail",customerId:r.client.googleAdsCustomerId,campaignId:r.c.id})
+        : await metaCall({action:"campaignDetail",adAccountId:r.client.metaAdAccountId,campaignId:r.c.id});
+      setDetail(d=>({...d,[k]:{state:"ready",adGroups:res.adGroups||[],campaign:res.campaign||null,platform:r.platform}}));
     }catch(e){ setDetail(d=>({...d,[k]:{state:"error",error:e.message||"Could not load"}})); }
   };
   const toggleOpen=(r)=>{ const k=keyOf(r); if(openKey===k){ setOpenKey(null); return; } setOpenKey(k); loadDetail(r); };
+  // Open the requested campaign as soon as the list arrives, once. 🔴 Guarded on `openKey`
+  // being unset as well as on the key, or every re-render would drag him back to the
+  // campaign he arrived on after he had closed it and opened another.
+  useEffect(()=>{
+    if(!focusKey || openKey || state!=="ready") return;
+    const hit=(rows||[]).find(r=>keyOf(r)===focusKey);
+    if(hit){ setOpenKey(focusKey); loadDetail(hit); }
+  },[focusKey,openKey,state,rows]);
 
   // Every piece-level write re-reads the campaign afterwards, so the screen always
   // shows what Google actually has rather than what we hoped it did.
@@ -10461,39 +10482,73 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
           if(d.state==="loading") return <div style={{fontSize:11,color:C.textMuted,padding:"10px 0 4px"}}>Reading the ad groups…</div>;
           if(d.state==="error")   return <div style={{fontSize:11,color:C.red,padding:"10px 0 4px",lineHeight:1.5}}>{d.error}</div>;
           if(d.state!=="ready")   return null;
-          if(!(d.adGroups||[]).length) return <div style={{fontSize:11,color:C.textMuted,padding:"10px 0 4px"}}>No ad groups on this campaign.</div>;
+          const isG = d.platform!=="meta";
+          if(!(d.adGroups||[]).length) return <div style={{fontSize:11,color:C.textMuted,padding:"10px 0 4px"}}>No {isG?"ad groups":"ad sets"} on this campaign.</div>;
           return (
             <div style={{marginTop:9,paddingLeft:isDesktop?12:0,borderLeft:isDesktop?`2px solid ${C.border2}`:"none"}}>
+              {/* What the campaign as a whole was told to do. On Meta the objective is the
+                  single most important thing about a campaign and cannot be changed after
+                  it is built, so it belongs where he can see it before wondering why the
+                  numbers look the way they do. */}
+              {d.campaign&&(
+                <div style={{fontSize:10,color:C.textMuted,padding:"6px 0",lineHeight:1.6}}>
+                  {d.campaign.objective&&<>Objective <b style={{color:C.textDim}}>{String(d.campaign.objective).replace(/^OUTCOME_/,"").toLowerCase()}</b> · </>}
+                  {d.campaign.dailyBudget>0&&<>${d.campaign.dailyBudget.toLocaleString()}/day · </>}
+                  {d.campaign.startTime&&<>started {new Date(d.campaign.startTime).toLocaleDateString()}</>}
+                </div>
+              )}
+              {!isG&&<div style={{fontSize:10,color:C.textMuted,padding:"0 0 6px",lineHeight:1.6}}>Read only. Start and pause the whole campaign from the row above, or edit the pieces in Meta Ads Manager.</div>}
               {d.adGroups.map(g=>{
-                const gLive=String(g.status||"").toUpperCase()==="ENABLED";
+                const gLive=["ENABLED","ACTIVE"].includes(String(g.status||"").toUpperCase());
                 return (
                   <div key={g.id} style={{padding:"9px 0",borderTop:`1px solid ${C.border2}`}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                       <span style={{fontSize:11.5,fontWeight:800,color:C.textDim,flex:"1 1 140px",minWidth:0}}>{g.name}</span>
                       <Chip label={gLive?"Live":String(g.status||"").toLowerCase()} color={gLive?C.green:C.textMuted} small/>
                       <span style={{fontSize:9.5,color:C.textMuted,fontFamily:"monospace"}}>{Number(g.impressions).toLocaleString()} impr · {g.clicks} clicks · ${g.cost.toLocaleString()} · {g.conversions} conv</span>
-                      <span style={{display:"flex",gap:6,marginLeft:"auto"}}>
+                      {isG&&<span style={{display:"flex",gap:6,marginLeft:"auto"}}>
                         <button disabled={pieceBusy===g.id} onClick={()=>pieceAction(r,g.id,()=>gadsCall({action:"setAdGroupStatus",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,status:gLive?"PAUSED":"ENABLED"}),
                           gLive?null:`Start the ad group "${g.name}"?\n\nIts ads become eligible to spend the campaign's budget.`)}
                           style={{padding:"3px 9px",fontSize:10,fontWeight:800,borderRadius:7,border:"none",cursor:"pointer",backgroundColor:gLive?"rgba(255,255,255,.06)":"#059669",color:gLive?C.textDim:"#fff",opacity:pieceBusy===g.id?.6:1}}>{pieceBusy===g.id?"…":gLive?"Pause":"Start"}</button>
                         <button disabled={pieceBusy===g.id} onClick={()=>pieceAction(r,g.id,()=>gadsCall({action:"setAdGroupStatus",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,status:"REMOVED"}),
                           `Delete the ad group "${g.name}"?\n\nIts ads and ${(g.keywords||[]).length} keyword(s) go with it. In Google Ads a removal is PERMANENT — it cannot be undone.`)}
                           style={{padding:"3px 9px",fontSize:10,fontWeight:800,borderRadius:7,border:`1px solid ${C.red}44`,cursor:"pointer",backgroundColor:"transparent",color:C.red,opacity:pieceBusy===g.id?.6:1}}>Delete</button>
-                      </span>
+                      </span>}
                     </div>
+                    {/* Meta's ad set is where the budget, the optimisation goal and the
+                        targeting actually live, and none of it is visible anywhere else in
+                        the OS. This is the answer to "who is this ad even going to". */}
+                    {!isG&&(
+                      <div style={{fontSize:9.5,color:C.textMuted,marginTop:3,lineHeight:1.6}}>
+                        {g.dailyBudget>0&&<>${g.dailyBudget.toLocaleString()}/day · </>}
+                        {g.optimizationGoal&&<>optimising for {String(g.optimizationGoal).toLowerCase().replace(/_/g," ")} · </>}
+                        {(g.targeting&&g.targeting.ageMin)?<>ages {g.targeting.ageMin} to {g.targeting.ageMax} · </>:null}
+                        {(g.targeting&&(g.targeting.places||[]).length)?<>{g.targeting.places.join(", ")}</>:<>no places recorded</>}
+                      </div>
+                    )}
                     {(g.ads||[]).length>1&&<div style={{fontSize:9.5,color:C.gold,marginTop:4}}>Split test running: {(g.ads||[]).length} ads sharing this budget.</div>}
                     {(g.ads||[]).map(a=>{
-                      const aLive=String(a.status||"").toUpperCase()==="ENABLED";
+                      const aLive=["ENABLED","ACTIVE"].includes(String(a.status||"").toUpperCase());
                       return (
                         <div key={a.id} style={{display:"flex",alignItems:"flex-start",gap:8,padding:"5px 0 5px 10px",marginTop:4,borderLeft:`2px solid ${aLive?C.green+"55":C.border2}`}}>
                           <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:10.5,color:C.textDim,lineHeight:1.45}}>{(a.headlines||[]).slice(0,3).join(" · ")||"(no headlines)"}</div>
-                            <div style={{fontSize:9.5,color:C.textMuted,marginTop:2}}>{aLive?"Live":"Paused"} · {a.impressions.toLocaleString()} impr · {a.clicks} clicks · {a.conversions} conv · {(a.headlines||[]).length}h/{(a.descriptions||[]).length}d</div>
+                            {/* 🔴 The two platforms describe an ad completely differently.
+                                Google gives many headlines it mixes at serve time; Meta has
+                                exactly one headline and one body. Showing Meta's ad through
+                                the Google shape printed "(no headlines)" on an ad that has
+                                perfectly good copy, which reads as broken. */}
+                            {isG
+                              ? <div style={{fontSize:10.5,color:C.textDim,lineHeight:1.45}}>{(a.headlines||[]).slice(0,3).join(" · ")||"(no headlines)"}</div>
+                              : <>
+                                  <div style={{fontSize:10.5,fontWeight:700,color:C.textDim,lineHeight:1.45}}>{a.headline||a.name||"(untitled ad)"}</div>
+                                  {a.primaryText&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:2,lineHeight:1.55}}>{String(a.primaryText).slice(0,180)}{String(a.primaryText).length>180?"…":""}</div>}
+                                </>}
+                            <div style={{fontSize:9.5,color:C.textMuted,marginTop:2}}>{aLive?"Live":"Paused"} · {a.impressions.toLocaleString()} impr · {a.clicks} clicks · {isG?a.conversions:a.leads} {isG?"conv":"leads"}{isG?` · ${(a.headlines||[]).length}h/${(a.descriptions||[]).length}d`:(a.ctaType?` · ${String(a.ctaType).toLowerCase().replace(/_/g," ")}`:"")}</div>
                           </div>
-                          <button disabled={pieceBusy===a.id} onClick={()=>pieceAction(r,a.id,()=>gadsCall({action:"setAdStatus",customerId:r.client.googleAdsCustomerId,adResourceName:a.resourceName,status:aLive?"PAUSED":"ENABLED"}))}
-                            style={{flexShrink:0,padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",opacity:pieceBusy===a.id?.6:1}}>{pieceBusy===a.id?"…":aLive?"Pause ad":"Start ad"}</button>
-                          <button disabled={pieceBusy===a.id} onClick={()=>pieceAction(r,a.id,()=>gadsCall({action:"setAdStatus",customerId:r.client.googleAdsCustomerId,adResourceName:a.resourceName,status:"REMOVED"}),`Delete this ad permanently? Google removals cannot be undone.`)}
-                            style={{flexShrink:0,padding:"3px 7px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${C.red}33`,background:"transparent",color:C.red,cursor:"pointer",opacity:pieceBusy===a.id?.6:1}}>✕</button>
+                          {isG&&<button disabled={pieceBusy===a.id} onClick={()=>pieceAction(r,a.id,()=>gadsCall({action:"setAdStatus",customerId:r.client.googleAdsCustomerId,adResourceName:a.resourceName,status:aLive?"PAUSED":"ENABLED"}))}
+                            style={{flexShrink:0,padding:"3px 8px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",opacity:pieceBusy===a.id?.6:1}}>{pieceBusy===a.id?"…":aLive?"Pause ad":"Start ad"}</button>}
+                          {isG&&<button disabled={pieceBusy===a.id} onClick={()=>pieceAction(r,a.id,()=>gadsCall({action:"setAdStatus",customerId:r.client.googleAdsCustomerId,adResourceName:a.resourceName,status:"REMOVED"}),`Delete this ad permanently? Google removals cannot be undone.`)}
+                            style={{flexShrink:0,padding:"3px 7px",fontSize:10,fontWeight:700,borderRadius:6,border:`1px solid ${C.red}33`,background:"transparent",color:C.red,cursor:"pointer",opacity:pieceBusy===a.id?.6:1}}>✕</button>}
                         </div>
                       );
                     })}
@@ -10509,7 +10564,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
                         ))}
                       </div>
                     )}
-                    <AddKeywordRow onAdd={(list)=>pieceAction(r,`add-${g.id}`,()=>gadsCall({action:"addKeywords",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,keywords:list}))} busy={pieceBusy===`add-${g.id}`}/>
+                    {isG&&<AddKeywordRow onAdd={(list)=>pieceAction(r,`add-${g.id}`,()=>gadsCall({action:"addKeywords",customerId:r.client.googleAdsCustomerId,adGroupResourceName:g.resourceName,keywords:list}))} busy={pieceBusy===`add-${g.id}`}/>}
                   </div>
                 );
               })}
@@ -10610,7 +10665,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
   );
 }
 
-function LiveCampaignsCard({client}) {
+function LiveCampaignsCard({client,onOpenCampaign}) {
   const hasG=!!client.googleAdsCustomerId, hasM=!!client.metaAdAccountId;
   const [state,setState]=useState("loading"); // loading | ready | error | none
   const [g,setG]=useState([]); const [m,setM]=useState([]);
@@ -10652,7 +10707,14 @@ function LiveCampaignsCard({client}) {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <span style={{fontSize:10,color:C.textMuted}}>{Number(c.impressions||0).toLocaleString()} impr · {Number(c.clicks||0).toLocaleString()} clicks · ${Number(c.cost||c.spend||0).toLocaleString()} · {Number(c.conversions||0)} conv <span style={{opacity:.6}}>(30d)</span></span>
-          <button onClick={()=>toggle(platform,c)} disabled={working} style={{marginLeft:"auto",padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
+          {/* 🔴 The way INTO a campaign. Bryson, 2026-09-03: he wanted opening a campaign to
+              show him that campaign, and from here the only thing a name led to was the
+              builder below it. This hands the Campaigns screen the same key it uses to
+              expand a row, so it opens on this campaign. One detail panel, not a second one
+              grown inside this card. */}
+          {onOpenCampaign&&<button onClick={()=>onOpenCampaign(platform==="google"?c.campaignResourceName:c.id)}
+            style={{marginLeft:"auto",padding:"5px 11px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>Details ›</button>}
+          <button onClick={()=>toggle(platform,c)} disabled={working} style={{marginLeft:onOpenCampaign?0:"auto",padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
         </div>
       </div>
     );
@@ -13544,6 +13606,10 @@ function App({onLogout}) {
   const [clients,setClients]           = useState([]);
   const [dataState,setDataState]       = useState("loading"); // loading | ready | error
   const [screen,setScreen]             = useState("home");
+  // Which campaign the Campaigns screen should open on arrival. Set by "Details" on a live
+  // campaign row so he lands on that campaign rather than on a list he has to search.
+  const [focusCampaign,setFocusCampaign] = useState(null);
+  const openCampaign = useCallback((key)=>{ setFocusCampaign(key||null); setScreen("campaigns"); },[]);
   const [segment,setSegment]           = useState(null); // alerts | expiring | clients
   const [activeClient,setActiveClient] = useState(null);
   const [showARIA,setShowARIA]         = useState(false);
@@ -13891,12 +13957,12 @@ function App({onLogout}) {
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
-        {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>setScreen("home")} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient}/>}
+        {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>{setFocusCampaign(null);setScreen("home");}} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient} focusKey={focusCampaign}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
-        {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop} onOpenCampaign={openCampaign}/>}
         {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onDelete={deleteLead} onRefresh={loadLeads} isDesktop={isDesktop} error={leadError} onDismissError={()=>setLeadError("")}/>}
         {screen==="website"&&<WebsiteScreen/>}
       </div>

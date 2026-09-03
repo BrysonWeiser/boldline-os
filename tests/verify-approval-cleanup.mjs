@@ -94,11 +94,17 @@ const client = () => ({
 {
   ok("the delete path clears the approvals", /withoutCampaign\(r\.client,r\.c\.id\)/.test(os));
   ok("and only saves when something changed", /if\(next!==r\.client\) onUpdate\(next\)/.test(os));
-  ok("the Campaign Manager can save", /function CampaignManagerScreen\(\{clients,onBack,isDesktop,onSelectClient,onUpdate\}\)/.test(os));
+  // 🔴 Pins that it RECEIVES onUpdate, not the exact prop list. The old pattern spelled
+  // every prop out and broke the day `focusKey` was added for opening one campaign, which
+  // is not a regression at all: it reported "the Campaign Manager can save" as broken while
+  // saving worked perfectly. A signature match fails on every future prop too.
+  ok("the Campaign Manager can save",
+    /function CampaignManagerScreen\(\{[^}]*\bonUpdate\b[^}]*\}\)/.test(os));
   // Not [^>]* — the props contain arrow functions, whose "=>" ends the character class
-  // early and makes this fail on correct code.
+  // early and makes this fail on correct code. The tail is generous for the same reason as
+  // above: props added after onUpdate must not break it.
   ok("and is given a save function",
-    /<CampaignManagerScreen[\s\S]{0,300}?onUpdate=\{updateClient\}[\s\S]{0,20}?\/>/.test(os));
+    /<CampaignManagerScreen[\s\S]{0,400}?onUpdate=\{updateClient\}[\s\S]{0,200}?\/>/.test(os));
 
   // The approval item has to carry the id, or nothing can match it later.
   ok("campaign approvals are stamped with the campaign id", /campaignId\?\{campaignId:String\(campaignId\)\}/.test(os));

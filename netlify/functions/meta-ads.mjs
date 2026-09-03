@@ -326,6 +326,107 @@ export async function getAdsForCampaign(adAccountId, campaignId) {
   });
 }
 
+// ── Read ONE campaign in full: its ad sets, and the ads under each ──────────
+// Bryson, 2026-09-03: *"i need a way to be able to open a specific campaign (internal ones
+// included) and it opens up the details of that campaign not the campaign builder screen"*.
+//
+// 🔴 The Campaigns screen could already open a GOOGLE campaign and show its ad groups, ads
+// and keywords. Meta returned "unsupported" and drew nothing, so the one campaign he
+// actually has running was the one he could not look at.
+//
+// Shaped to match Google's `getCampaignDetail` on purpose — a list of groups, each with its
+// own numbers and its own ads — so ONE component in the OS renders both. The alternative
+// was a second Meta-shaped panel, and two panels drift.
+//
+// Insights are fetched once for the whole account at ad-set level and joined here rather
+// than queried per ad set, which would be one HTTP call per set for a number Meta will hand
+// over in a single response.
+export async function getCampaignDetail(adAccountId, campaignId) {
+  const a = acct(adAccountId);
+  const cid = String(campaignId || "");
+  if (!cid) throw Object.assign(new Error("campaignDetail: campaignId required"), { stage: "campaignDetail" });
+
+  const [campRes, setsRes, ads] = await Promise.all([
+    graph("campaignDetail", cid, { params: { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,created_time,start_time,stop_time" } }),
+    graph("campaignDetail", `${cid}/adsets`, {
+      params: { fields: "id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,billing_event,destination_type,targeting,created_time", limit: "100" },
+    }),
+    getAdsForCampaign(adAccountId, cid),
+  ]);
+
+  // Ad-set level numbers for the last 30 days. A brand-new set with no delivery is not an
+  // error, so a failure here leaves the numbers at zero rather than failing the whole read.
+  let bySet = {};
+  try {
+    const ins = await graph("campaignDetail", `${a}/insights`, {
+      params: { level: "adset", date_preset: "last_30d", fields: "adset_id,spend,impressions,clicks,actions", limit: "500" },
+    });
+    (ins.data || []).forEach((r) => { bySet[r.adset_id] = r; });
+  } catch { bySet = {}; }
+
+  // Targeting is a deep object and most of it is noise on screen. Pull out the parts he
+  // actually set: where, who, and on what.
+  const readTargeting = (t) => {
+    const g = (t && t.geo_locations) || {};
+    const places = [
+      ...((g.cities || []).map((c) => c.name).filter(Boolean)),
+      ...((g.regions || []).map((r) => r.name).filter(Boolean)),
+      ...((g.countries || [])),
+    ];
+    return {
+      places: places.slice(0, 12),
+      ageMin: (t && t.age_min) || null,
+      ageMax: (t && t.age_max) || null,
+      platforms: (t && t.publisher_platforms) || [],
+    };
+  };
+
+  const groups = ((setsRes && setsRes.data) || []).map((set) => {
+    const i = bySet[set.id] || {};
+    return {
+      id: String(set.id),
+      name: set.name,
+      status: set.effective_status || set.status,
+      dailyBudget: centsToDollars(set.daily_budget),
+      lifetimeBudget: centsToDollars(set.lifetime_budget),
+      optimizationGoal: set.optimization_goal || "",
+      billingEvent: set.billing_event || "",
+      destinationType: set.destination_type || "",
+      targeting: readTargeting(set.targeting),
+      impressions: Number(i.impressions || 0),
+      clicks: Number(i.clicks || 0),
+      cost: Number(i.spend || 0),
+      conversions: leadsFromActions(i.actions),
+      ads: ads.filter((ad) => String(ad.adsetId) === String(set.id)),
+    };
+  });
+
+  // 🔴 An ad whose ad set was deleted, or that Meta did not return a set for, must still be
+  // visible. Dropping it would show a campaign as having no ads while it is spending money.
+  const placed = new Set(groups.flatMap((g) => g.ads.map((ad) => String(ad.id))));
+  const orphans = ads.filter((ad) => !placed.has(String(ad.id)));
+  if (orphans.length) {
+    groups.push({ id: "__unplaced", name: "Ads with no ad set", status: "", dailyBudget: 0, lifetimeBudget: 0,
+      optimizationGoal: "", billingEvent: "", destinationType: "", targeting: readTargeting(null),
+      impressions: 0, clicks: 0, cost: 0, conversions: 0, ads: orphans });
+  }
+
+  return {
+    campaign: {
+      id: String(campRes.id || cid),
+      name: campRes.name || "",
+      status: campRes.effective_status || campRes.status || "",
+      objective: campRes.objective || "",
+      dailyBudget: centsToDollars(campRes.daily_budget),
+      lifetimeBudget: centsToDollars(campRes.lifetime_budget),
+      createdTime: campRes.created_time || "",
+      startTime: campRes.start_time || "",
+      stopTime: campRes.stop_time || "",
+    },
+    adGroups: groups,
+  };
+}
+
 // ── Guarded write: pause or resume ONE AD (not the campaign) ─────────────────
 // Pausing a losing ad leaves the ad set and its budget untouched. The same money
 // simply stops buying the worse creative.
@@ -899,6 +1000,12 @@ export default async (req) => {
         return json({ ok: false, error: "adAccountId, campaignId required" }, 400);
       const result = await getAdsForCampaign(body.adAccountId, body.campaignId);
       return json({ ok: true, action, ads: result });
+    }
+
+    if (action === "campaignDetail") {
+      if (!body.adAccountId || !body.campaignId)
+        return json({ ok: false, error: "adAccountId, campaignId required" }, 400);
+      return json({ ok: true, action, ...(await getCampaignDetail(body.adAccountId, body.campaignId)) });
     }
 
     if (action === "deleteCampaign") {
