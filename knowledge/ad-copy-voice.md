@@ -170,3 +170,37 @@ violation. And the comment trap was pre-empted for the fifth time by stripping c
 before asserting absence, because the line that removes a phrase always quotes it.
 
 All three files fixed and each one broken individually to confirm the guard bites.
+
+## 2026-09-04 — the last dashes a client could actually read
+
+Bryson: *"Do the clean up but still make it obvious which package it is but that it's the full
+system"*.
+
+**Two surfaces the rule named and the suite was not checking.**
+
+1. 🔴 **Every client lifecycle email. Forty-one dashes.** The welcome, the ad-account request,
+   the invoice, the receipt, the past-due notice, the renewal, the approval request, the
+   thank-you. All hand written by us, all shipped, and `verify-no-dashes` was only looking at
+   the portal and the marketing site. Each one was rewritten into real sentences rather than
+   find-and-replaced, and the file is now scanned. 🔴 **The entity form counts too**: the
+   footer read `BoldLine Media &mdash; Google &amp; Meta`, which renders as a dash and would
+   have survived a search for the character.
+
+2. 🔴 **The package name, which had a carve-out saying it was exempt.** `"Full System — Growth"`
+   was skipped in two places as *"a product name, not copy this suite may rewrite"*.
+
+### The rename, and what it exposed
+
+**The marketing site and the catalog never agreed on that package's name.** The site said
+**"Full System: Growth"**; the OS said **"Full System — Growth"**. A helper in
+`verify-packages` quietly normalised the two together, so **a client could read one name on the
+public site and a different one inside their own portal** and nothing flagged it.
+
+Both now use the site's colon form. That keeps the public name and the Meta flip checklist
+intact, satisfies the rule (a colon is not a dash), and makes the two agree for the first time.
+The em dash stays in the normaliser only so a stale record still matches.
+
+**Both exemptions deleted**, so the guarantee is now stronger than before rather than
+differently shaped. Only `Campaign Progress —` remains, a placeholder inside a graphic when
+there is no stage yet, not a sentence.
+

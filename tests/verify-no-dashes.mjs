@@ -285,10 +285,12 @@ t("no dash connects a sentence in the client portal", async () => {
       .replace(/\s+/g, " ");
     for (const m of text.matchAll(/[^.!?]{0,45}[—–][^.!?]{0,45}/g)) {
       const s = m[0].trim();
-      // A package NAME is Bryson's product name, not copy this suite may rewrite. The
-      // stage ring prints a dash when there is no stage yet, which is a placeholder in a
-      // graphic rather than a sentence.
-      if (/Full System [—–]/.test(s)) continue;
+      // 🔴 THE PACKAGE-NAME EXEMPTION IS GONE, because the name is. "Full System — Growth"
+      // was the last em dash a client could actually read, carved out here as "a product
+      // name, not copy". It is now "Full System: Growth" everywhere, matching what the
+      // marketing site already said, so the carve-out would only hide a future one.
+      // The stage ring still prints a dash when there is no stage yet: a placeholder in a
+      // graphic, not a sentence.
       if (/Campaign Progress [—–]/.test(s)) continue;
       offenders.push(s);
     }
@@ -353,14 +355,32 @@ const visibleText = (html) => html
 
 // 🔴 Proven against the real thing before it was trusted: run on the file as it stood
 // before this cleanup it reported 35 offenders, and every one was visible on screen.
+// 🔴 EVERY LIFECYCLE EMAIL A CLIENT RECEIVES, WHICH THIS SUITE DID NOT SCAN AT ALL.
+// Bryson's rule names emails explicitly, and there were 41 dashes in them: the welcome, the
+// ad-account request, the invoice, the receipt, the past-due notice, the renewal, the
+// approval request and the thank-you. Every one hand written by us, every one shipped, and
+// the suite that exists to stop exactly this was only looking at the portal and the site.
+// 🔴 The entity form counts too: the footer read "BoldLine Media &mdash; Google &amp; Meta",
+// which renders as a dash and would have survived a search for the character.
+t("no dash connects a sentence in any client lifecycle email", () => {
+  const src = readFileSync(new URL("../netlify/lib/client-emails-shared.mjs", import.meta.url), "utf8");
+  const offenders = [];
+  for (const line of src.split("\n")) {
+    // Code comments are ours to write however we like; only the copy is client facing.
+    if (/^\s*(\/\/|\*|\/\*)/.test(line)) continue;
+    const text = line.replace(/&mdash;/g, "\u2014").replace(/&ndash;/g, "\u2013");
+    for (const m of text.matchAll(/[^.!?]{0,45}[\u2014\u2013][^.!?]{0,45}/g)) offenders.push(m[0].trim());
+  }
+  assert.equal(offenders.length, 0,
+    `client emails read as AI-written here:\n        ${[...new Set(offenders)].join("\n        ")}`);
+});
+
 t("no dash connects a sentence anywhere on the marketing site", () => {
   const offenders = [];
   for (const f of ["../marketing-site/index.html", "../marketing-site/get-started/index.html"]) {
     const text = visibleText(readFileSync(new URL(f, import.meta.url), "utf8"));
     for (const m of text.matchAll(/[^.!?]{0,45}[—–][^.!?]{0,45}/g)) {
       const s = m[0].trim();
-      // Package NAMES are Bryson's product names, not copy this suite may rewrite.
-      if (/Full System [—–]/.test(s)) continue;
       offenders.push(`${f.split("/").slice(-2).join("/")}: ${s}`);
     }
   }
