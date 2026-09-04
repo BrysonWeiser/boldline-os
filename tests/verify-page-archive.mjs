@@ -170,6 +170,60 @@ t("the card is rendered, and can save, view and delete", () => {
     "deleting is irreversible and nothing keeps another copy, so it must ask first");
 });
 
+// ── 5b. 🔴 SEEING IT AT THE SIZE PEOPLE SEE IT ──────────────────────────────
+// Bryson chose this over a paid screenshot service and over a card generator: with one
+// client, what he needs is to open a saved page at phone width and screenshot it himself.
+// A real screenshot, no new service, no credential, no monthly fee.
+t("🔴 the phone view exists and is reachable from the row", () => {
+  assert.match(UI, /const wrapperHTML = \(a\) =>/, "there is no framed viewer");
+  assert.match(UI, /onClick=\{\(\)=>openFramed\(a\)\}/, "the viewer is never reachable");
+  assert.match(S, /Phone view/, "the button has no label he would recognise");
+});
+
+t("🔴 it opens at PHONE width by default", () => {
+  // Opening at desktop width and asking him to switch defeats the point: the screenshot he
+  // wants is the one people actually see.
+  assert.match(UI, /iframe\{[^}]*width:390px/, "the frame does not start at phone width");
+  assert.match(UI, /id=\\"w1\\" checked/, "phone is not the selected size on open");
+});
+
+t("and tablet and desktop are one tap away", () => {
+  assert.match(UI, /#w2:checked~\.stage iframe\{width:768px\}#w3:checked~\.stage iframe\{width:1280px\}/,
+    "the other widths are advertised but do nothing");
+});
+
+t("🔴 THE WRAPPER CONTAINS NO SCRIPT, and that is a deliberate constraint", () => {
+  // A script here would need `</scr`+`ipt>` escaping inside a file that is itself one giant
+  // script block, which is the exact shape of edit that has blanked this whole app before.
+  // The width switch is CSS radios for that reason, so this is pinned rather than assumed.
+  const i = UI.indexOf("const wrapperHTML = (a) =>");
+  const body = UI.slice(i, UI.indexOf("\n  };", i));
+  assert.ok(!/<script/i.test(body), "the wrapper carries a script, which needs escaping this file cannot safely hold");
+  assert.match(body, /input type=\\"radio\\"/, "the width switch is not the CSS-only one");
+});
+
+t("🔴 the frame is sandboxed as well", () => {
+  // The archive is already dead when written. This is the second lock on a bolted door, and
+  // it costs nothing.
+  const i = UI.indexOf("const wrapperHTML = (a) =>");
+  const body = UI.slice(i, UI.indexOf("\n  };", i));
+  assert.match(body, /sandbox title=/, "the frame grants the archive full privileges");
+});
+
+t("🔴 the label and URL are escaped into the wrapper", () => {
+  // A client's business name goes into this document. An apostrophe or an angle bracket in
+  // it would otherwise break the page, and a quote in the URL would break out of the src.
+  const i = UI.indexOf("const wrapperHTML = (a) =>");
+  const body = UI.slice(i, UI.indexOf("\n  };", i));
+  assert.match(body, /replace\(\/\[<>&\]\/g/, "the page title is injected raw");
+  assert.match(body, /replace\(\/"\/g, "&quot;"\)/, "the archive URL is injected raw into an attribute");
+});
+
+t("a blocked pop-up says so instead of doing nothing", () => {
+  assert.match(S, /Your browser blocked the new tab/,
+    "the button silently does nothing, which reads as broken");
+});
+
 t("🔴 a saved page opens in a new tab, never inside the OS", () => {
   // It carries the client's own full-page styling. Dropping that into the OS is how a preview
   // ends up restyling or navigating the app around it.
