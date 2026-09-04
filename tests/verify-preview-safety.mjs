@@ -50,6 +50,15 @@ const MANIFEST = {
   "Email preview": "sandboxed with no allow-scripts, so nothing in it can run",
 };
 
+// 🔴 NOT IN THE MANIFEST, AND DELIBERATELY SO: saved landing pages (2026-09-04). They are the
+// sharpest preview-safety case in the codebase, because an archived page carries the client's
+// REAL lead token and lands in a PUBLIC bucket, so a tap on its form would create a real lead
+// from a page nobody is running. They are absent here because they are not `srcDoc` embeds:
+// they are neutralised at the moment they are WRITTEN (every script, the form action, the
+// token and every href) and opened in a new tab rather than inside the OS. Guarded by
+// tests/verify-page-archive.mjs. If an archive is ever shown in an iframe instead, it belongs
+// in the manifest above.
+
 // ── 1. 🔴 NO UNREVIEWED PREVIEWS ─────────────────────────────────────────────
 {
   // Pull the title off every iframe that is handed rendered HTML.

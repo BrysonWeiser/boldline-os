@@ -234,7 +234,16 @@ t("🔴 renewing an old client gives them EXACTLY the new-client contract", () =
     billingMonthly: 1200, contractTermMonths: 3, contractSigned: true, contractSignedAt: "2026-08-30T12:00:00Z",
     contractTermsVersion: 3 }, PKG, "");
   assert.equal(renewed, fresh);
-  assert.match(S, /const CONTRACT_TERMS_VERSION = 3;/, "the renewal stamp is behind the renderer's current version");
+  // 🔴 PINNED TO THE RENDERER, NOT TO A NUMBER I TYPED HERE. What matters is that the stamp
+  // the OS writes on a renewal equals the version the contract renderer treats as current.
+  // Hard-coding the digit means every new clause version fails this check for no reason and
+  // gets "fixed" by bumping the test, which is how a stale stamp ships unnoticed.
+  const rendererCurrent = (readFileSync(join(ROOT, "netlify/lib/contract-shared.cjs"), "utf8")
+    .match(/const TERMS_CURRENT = (\d+);/) || [])[1];
+  assert.ok(rendererCurrent, "the renderer no longer names a current version");
+  assert.match(S, new RegExp(`const CONTRACT_TERMS_VERSION = ${rendererCurrent};`),
+    "the renewal stamp is behind the renderer's current version, so a renewed client would be "
+    + "written back onto an older set of terms than the document they are signing");
 });
 
 console.log(`✓ verify-contract-terms-version: ${n} checks passed`);

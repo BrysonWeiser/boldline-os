@@ -159,7 +159,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // Nothing failed, nothing looked wrong, and an unsigned contract simply did not contain
   // the term Bryson had asked for. A default that names a specific version goes stale the
   // moment a version is added, which is exactly when nobody is looking at it.
-  const TERMS_CURRENT = 3;
+  const TERMS_CURRENT = 4;
   const termsVersion = Number.isFinite(Number(cl.contractTermsVersion))
     ? Number(cl.contractTermsVersion)
     : ((cl.contractSigned && cl.contractSignedAt && new Date(cl.contractSignedAt).getTime() < TERMS_V2_FROM) ? 1 : TERMS_CURRENT);
@@ -209,6 +209,36 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // Placed LAST and given precedence, which is how a rider works: a later clause that says
   // it controls is the standard, unambiguous way to vary an earlier one. Varying it in
   // place would leave two readings of the same section.
+  // ── 🔴 v4: SHOWCASE RIGHTS, AND THE PROMISE THAT MAKES THEM ACCEPTABLE ──
+  // Bryson, 2026-09-04: *"should we also add in future contracts that we are able to use any
+  // work we've done for content purposes or whatever purposes but will not sell information"*.
+  //
+  // v1-v3 carried a single vague line about "portfolio rights". That is too thin to rely on
+  // for the thing he actually wants to do, which is publish the landing pages, the ads and
+  // the process as case studies and content.
+  //
+  // 🔴 THE CARVE-OUT IS NOT A COURTESY, IT IS WHAT MAKES THE REST SIGNABLE. Every lead this
+  // agency generates is a real person's name, email and phone number, held on the client's
+  // behalf. Saying in the contract, in words a normal person can read, that those are never
+  // used, shared or sold is what lets a client agree to the rest without a lawyer. It also
+  // happens to be what BoldLine already does, so writing it down costs nothing.
+  //
+  // Three more limits, each one there because it is the objection a real client would raise:
+  // their confidential business information stays out; results can be shown without naming
+  // them; and any single item can be pulled on request. A clause people sign beats a broader
+  // clause they argue about.
+  const hasShowcase = termsVersion >= 4;
+  // 🔴 AN OPT-OUT, so a client who refuses never costs the deal. Recorded on the client rather
+  // than negotiated into Special Terms, because this is a yes/no at signing, not a rider.
+  const showcaseOptOut = !!cl.showcaseOptOut;
+  const showcaseHTML = showcaseOptOut
+    ? '<p>(c) <strong>Showcase rights.</strong> Client has not granted Agency the right to publish work produced under this Agreement. Agency will not identify Client publicly or display work produced for Client without Client&rsquo;s prior written consent.</p>'
+    : ('<p>(c) <strong>Showcase and case study rights.</strong> Client grants Agency a perpetual, worldwide, royalty-free right to reproduce and display the work Agency produced under this Agreement, including landing pages, advertisements, creative assets and campaign structure, together with Client&rsquo;s business name and logo, for the purpose of describing Agency&rsquo;s services. This includes screenshots, recordings, written case studies, social and email content, and Agency&rsquo;s website and portfolio.</p>'
+      +'<p>(d) <strong>Client data is never used.</strong> This right does not extend to any lead, customer or contact information. Agency will not publish, share, license or sell the personal information of Client&rsquo;s leads or customers, including names, email addresses, telephone numbers and any message they submitted, to any third party for any purpose. Agency processes that information solely to deliver the services under this Agreement.</p>'
+      +'<p>(e) <strong>What is excluded.</strong> This right does not extend to Client&rsquo;s Confidential Information, including Client&rsquo;s costs, margins, supplier terms, pricing to its own customers, or anything Client identifies in writing as confidential.</p>'
+      +'<p>(f) <strong>Results.</strong> Agency may publish performance results achieved under this Agreement. On Client&rsquo;s written request, Agency will describe Client generically rather than by name in any material that includes those results.</p>'
+      +'<p>(g) <strong>Removal.</strong> On Client&rsquo;s written request Agency will, within thirty (30) days, stop publishing any specified item and remove it from material Agency controls. Agency is not required to recall material already distributed or printed.</p>');
+
   const nSpec = nBase+13;
   const specClauses = (cl.specialTerms && Array.isArray(cl.specialTerms.clauses) ? cl.specialTerms.clauses : [])
     .map(c => ({ heading: String((c&&c.heading)||"").trim(), text: String((c&&c.text)||"").trim() }))
@@ -401,7 +431,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<h2>'+nIP+'. Intellectual Property</h2>'
    +'<p>(a) Upon payment in full of all amounts owed, Client owns the ad accounts, campaigns, landing pages, leads, creative assets, and data produced specifically for Client under this Agreement (the &ldquo;Deliverables&rdquo;).</p>'
    +'<p>(b) Agency retains all rights in its pre-existing and independently developed materials, including its methods, processes, software, prompts, templates, automation systems, and know-how (&ldquo;Agency Tools&rdquo;). To the extent any Agency Tools are embedded in a Deliverable, Agency grants Client a perpetual, non-exclusive license to use them as part of that Deliverable. Nothing in this Agreement transfers Agency Tools themselves.</p>'
-   +'<p>(c) <strong>Portfolio rights.</strong> Client grants Agency the right to identify Client as a client and to display non-confidential work samples and aggregate, anonymized performance results in Agency&rsquo;s portfolio and marketing. Client may revoke this by written notice at any time, prospectively.</p>'
+   +(hasShowcase ? showcaseHTML : '<p>(c) <strong>Portfolio rights.</strong> Client grants Agency the right to identify Client as a client and to display non-confidential work samples and aggregate, anonymized performance results in Agency&rsquo;s portfolio and marketing. Client may revoke this by written notice at any time, prospectively.</p>')
 
    +'<h2>'+nConf+'. Confidentiality</h2>'
    +'<p>Each party will use the other&rsquo;s non-public business information (&ldquo;Confidential Information&rdquo;) only to perform this Agreement and will protect it with at least reasonable care, during the term and for two (2) years after. Confidential Information excludes information that is public through no fault of the recipient, already known, independently developed, or lawfully received from a third party; disclosure required by law is permitted with prompt notice where lawful. The pricing in this Agreement is Confidential Information of both parties.</p>'
