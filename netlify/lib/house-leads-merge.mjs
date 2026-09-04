@@ -13,6 +13,8 @@
 // Read the whole website_leads table in one page. If a run ever comes back full we are no
 // longer looking at everything, so that run must not prune — deleting a lead because it
 // fell off the end of a page would be data loss, not cleanup.
+import { originFields } from "./lead-origin.mjs";
+
 export const PRUNE_LIMIT = 1000;
 
 // 🔴 NOT EVERY ROW IN `website_leads` IS A LEAD, and the first version of this job mirrored
@@ -59,6 +61,11 @@ const phoneOf = (row) => {
 // toggles and the follow-up tools all read that shape.
 export const toLeadEntry = (row) => ({
   status: mapStatus(row.status),
+  // 🔴 WHERE THEY CAME FROM TRAVELS WITH THE LEAD. The website row keeps it in `payload`,
+  // which this entry deliberately does not copy wholesale, so without lifting it out the
+  // house Leads tab would show a lead with no idea which ad produced it. Empty for anything
+  // that arrived before the site started recording it, which reads as "not recorded".
+  origin: originFields(row),
   followUps: [],
   name: clean(row.name),
   phone: phoneOf(row),
@@ -88,6 +95,8 @@ export function mergeHouseLeads(existing, leads, { limit = PRUNE_LIMIT } = {}) {
   const prior = Array.isArray(existing) ? existing : [];
 
   let added = 0, updated = 0, pruned = 0;
+  // The entries themselves, not just how many, so the caller can say who just arrived.
+  const addedLeads = [];
   const seen = new Set();
   const kept = [];
 
@@ -113,11 +122,13 @@ export function mergeHouseLeads(existing, leads, { limit = PRUNE_LIMIT } = {}) {
 
   for (const row of rows) {
     if (seen.has(String(row.id))) continue;
-    kept.push(toLeadEntry(row));
+    const entry = toLeadEntry(row);
+    kept.push(entry);
+    addedLeads.push(entry);
     added++;
   }
 
   // Newest first, matching how appendLead prepends and how the Leads tab reads.
   kept.sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
-  return { kept, added, updated, pruned, changed: !!(added || updated || pruned) };
+  return { kept, added, addedLeads, updated, pruned, changed: !!(added || updated || pruned) };
 }

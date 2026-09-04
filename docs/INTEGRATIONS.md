@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 153 task-keyed entries under `knowledge/`. They surface automatically via the
+> 154 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**153 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**154 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -183,6 +183,9 @@
 - **[house-leads-mirror](../knowledge/house-leads-mirror.md)** &mdash; &#9989; verified &middot; 2026-08-22  
   BoldLine's own ads send people to /get-started, whose leads land in the `website_leads` table, but the house account keeps leads on the client record in `leadsLog`. Nothing joined them, so the My Ads overview read `leads: 0` forever and five separate things derived from that number were wrong with it. A 15-minute `house-leads` job now mirrors website leads onto the internal client (deduped on the row id, status synced one way until he moves it by hand), and the Overview gained a Live Ad Performance card that renders the ads-sync snapshot instead of hiding it on the Campaigns tab.  
   <sub>*task:* work out why BoldLine's own My Ads account shows no leads, no cost per lead or no live ad numbers, or change how website leads reach the house account &nbsp;|&nbsp; *keywords:* house account, leadSync, heartbeat, lead count test, ads-sync hourly, sync stale, zero leads or broken, my ads, internal client, website_leads, leadsLog, house-leads, mirror, leads 0, avg cpl, cost per lead, ad health score, adPerf, ads-sync, live ad performance, acquisition roi, leads arriving, house-leads-merge, delete lead, lead comes back, deleted lead reappears, tombstone, calendly re-insert, newsletter subscribers as leads, website_leads RLS insert</sub>
+- **[lead-attribution](../knowledge/lead-attribution.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  BoldLine's marketing site never recorded where a visitor came from, so the first real lead could not be traced to an ad, and the ad dashboards could never have answered it (they hold totals, not which click became a person). `marketing-site/attribution.js` now captures click ids, UTM tags, referrer and landing page on arrival and posts them in ONE declared hidden field per form (Netlify Forms silently drops fields that script creates). `netlify/lib/lead-origin.mjs` plus an inlined browser copy turn that into a sentence ("Facebook or Instagram ad", "Google search", "Typed the address in"), shown on every lead card and in the house account's Leads tab. A new lead now fires a phone push, sent only AFTER the row is written so it can never repeat. And pressing a lead card opens everything the lead holds, which it previously did not do because the card had no handler at all. 29 checks, 12 mutations caught, verified in a real browser at four widths.  
+  <sub>*task:* know which ad or search produced a lead, get a phone alert when one lands, and open a lead to see everything it holds &nbsp;|&nbsp; *keywords:* lead attribution, where did the lead come from, fbclid, gclid, utm, attribution.js, blOrigin, lead-origin, leadOrigin, originFields, came from, paid click, new lead push, lead notification, press the lead nothing happens, lead detail, website_leads payload</sub>
 - **[netlify-forms-wiring](../knowledge/netlify-forms-wiring.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Two static forms (contact + recommendation) are Netlify-Forms-wired (data-netlify=true, name, hidden form-name input, bot-field honeypot, AJAX-POST urlencoded to /). Netlify detects them at build; they appear under the marketing site's Forms tab. Enable notifications in the dashboard; a submission-created function also fires per verified submission.  
   <sub>*task:* wire up or debug marketing-site form capture and email notifications &nbsp;|&nbsp; *keywords:* data-netlify, form-name, bot-field, honeypot, submission-created, recommendation-form</sub>

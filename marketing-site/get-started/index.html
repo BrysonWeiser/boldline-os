@@ -307,6 +307,7 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
 
       <form class="lead-form" id="leadForm" name="get-started" method="POST" data-netlify="true" netlify-honeypot="bot-field">
         <input type="hidden" name="form-name" value="get-started">
+        <input type="hidden" name="attribution" value="">
         <p class="lead-hp"><label>Leave this empty: <input name="bot-field"></label></p>
         <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" required></div>
         <div class="frow"><label for="lf-biz">Business</label><input id="lf-biz" type="text" name="business" required></div>
@@ -483,11 +484,12 @@ window.BL_TRACK = {
     // lead tracking still worked on the page. A second implementation of one thing is how
     // half of it silently stops happening.
     try { if(window.blConversion) blConversion('audit'); } catch(e){}
-    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'get-started'})})
+    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'get-started',attribution:(window.blOrigin?window.blOrigin():null)})})
       .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way, and it lands within one business day.</div>';})
       .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
   });
 })();
 </script>
+<script src="/attribution.js" defer></script>
 </body>
 </html>
