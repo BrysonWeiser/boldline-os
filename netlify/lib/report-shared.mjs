@@ -19,8 +19,8 @@ export const PACKAGES_DB = {
   // No combined Launch tier: Google + Meta starts at $5,000/mo of ad budget, because
   // splitting less than that across two platforms means neither one learns.
   combined: [
-    { id:"c-growth", name:"Full System — Growth", platform:"Google + Meta", optimizationFreq:"weekly"  },
-    { id:"c-acquisition", name:"Full System — Acquisition", platform:"Google + Meta", optimizationFreq:"weekly"  },
+    { id:"c-growth", name:"Full System: Growth", platform:"Google + Meta", optimizationFreq:"weekly"  },
+    { id:"c-acquisition", name:"Full System: Acquisition", platform:"Google + Meta", optimizationFreq:"weekly"  },
   ],
   // One-time build, no ongoing management. It carries `optimizationFreq:"none"` so any
   // job that keys off a cadence skips it by data rather than by a special case.
@@ -705,15 +705,61 @@ const EXPECTED_GAP_DAYS = { weekly: 7, monthly: 30 };
 // No dedicated logging table exists, so pipeline health is inferred from the
 // same client data the reports already use: accounts past their expected
 // cadence (plus slack) suggest the report job may not be reaching them.
-const buildOSDataBlock = (rows) => {
-  const clients = (rows || []).map((r) => r.data);
+// 🔴 TWO THINGS THIS REPORT GOT WRONG, BOTH REPORTED BY BRYSON ON 2026-09-04.
+//
+// 1. *"it is also saying i have two clients but i only have 1 and then my own ads running"*.
+//    BoldLine's OWN account is a row in `clients` with `internal: true`, because that is how
+//    the OS gives its own advertising the same machinery every client gets. Counting it made
+//    a one-client agency look like a two-client agency, and every average below it was
+//    computed over a "client" that pays nothing, signs nothing and renews nothing.
+//
+// 2. *"make sure it takes information from the whole month and uses it not just what it sees
+//    when it writes the report."* It was reading `liveStats().leads`, which is the LIFETIME
+//    length of the lead log. On the first monthly report that is indistinguishable from the
+//    month; by month three it is a number that only ever goes up and says nothing about the
+//    month it is titled after.
+//
+// 🔴 AND THE HALF THAT CANNOT SIMPLY BE FIXED, WHICH IS WHY IT IS LABELLED INSTEAD OF GUESSED.
+// Leads carry `receivedAt`, so a calendar month is exact arithmetic. SPEND does not: all that
+// is stored is `adPerf.totals.spend30d`, a TRAILING 30-DAY reading from whenever the hourly
+// sync last ran. That is not the month and no amount of dividing makes it the month. So it is
+// reported as what it is, with the time it was read, and the prompt is told not to call it a
+// monthly figure. A number presented as something it is not is worse than no number.
+const MONTH_KEY = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+const leadsInMonth = (c, key) => (Array.isArray(c.leadsLog) ? c.leadsLog : [])
+  .filter((l) => l && l.receivedAt && MONTH_KEY(new Date(l.receivedAt)) === key).length;
+
+export const buildOSDataBlock = (rows, now = new Date()) => {
+  const all = (rows || []).map((r) => r.data).filter(Boolean);
+  // BoldLine's own advertising account is not a client. It is still worth reporting, so it is
+  // pulled out and reported as itself rather than dropped.
+  const house = all.find((c) => c.internal) || null;
+  const clients = all.filter((c) => !c.internal);
   const active = clients.filter((c) => c.contractStatus === "active");
+
+  // The month the report is ABOUT. It runs on the 1st, so that is the month just finished,
+  // not the handful of hours of the new one it happens to be running in.
+  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthDate = new Date(end.getTime() - 86400000);          // last day of the month just ended
+  const thisKey = MONTH_KEY(monthDate);
+  const prevKey = MONTH_KEY(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth() - 1, 15)));
+  const monthName = monthDate.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+
+  const leadsThisMonth = active.reduce((sum, c) => sum + leadsInMonth(c, thisKey), 0);
+  const leadsPrevMonth = active.reduce((sum, c) => sum + leadsInMonth(c, prevKey), 0);
+  const perClientMonth = active.map((c) => `${c.name}: ${leadsInMonth(c, thisKey)}`);
+  const houseLeadsMonth = house ? leadsInMonth(house, thisKey) : 0;
+  // Signed during the month, read from the contract date rather than from a counter that
+  // would have to be maintained.
+  const newThisMonth = clients
+    .filter((c) => c.contractStart && MONTH_KEY(new Date(c.contractStart)) === thisKey)
+    .map((c) => c.name);
 
   const healths = active.map((c) => calcHealth(c));
   const avgHealth = healths.length ? healths.reduce((a, b) => a + b, 0) / healths.length : 0;
   const lowHealth = active.filter((c) => calcHealth(c) < 5).map((c) => `${c.name} (${calcHealth(c).toFixed(1)}/10)`);
 
-  const totalLeads = active.reduce((sum, c) => sum + liveStats(c).leads, 0);
+  const totalLeadsAllTime = active.reduce((sum, c) => sum + liveStats(c).leads, 0);
   const aboveTargetCPL = active.filter((c) => {
     const target = PER_LEAD[c.niche] || 75;
     const lv = liveStats(c);
@@ -751,12 +797,28 @@ const buildOSDataBlock = (rows) => {
 
   const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
 
-  return `PORTFOLIO OVERVIEW
-Total Clients: ${clients.length}
+  const syncedAt = active.map((c) => (c.adPerf || {}).syncedAt).filter(Boolean).sort().pop()
+    || (house && (house.adPerf || {}).syncedAt) || null;
+  const spendReading = active.reduce((sum, c) => sum + Number(((c.adPerf || {}).totals || {}).spend30d || 0), 0);
+
+  return `REPORTING PERIOD
+This report covers ${monthName}. Every figure labelled "in ${monthName}" is counted from the
+actual dates on the records, not from whatever the screen happened to show today.
+
+PORTFOLIO OVERVIEW
+Clients: ${clients.length} (BoldLine's own advertising account is NOT counted as a client)
 Active Clients: ${active.length}
+New Clients Signed in ${monthName}: ${newThisMonth.length ? newThisMonth.join(", ") : "None"}
 Average Health Score: ${avgHealth.toFixed(1)}/10
 Low-Health Accounts (below 5/10): ${lowHealth.length ? lowHealth.join(", ") : "None"}
-Total Leads Generated (active accounts): ${totalLeads}
+Client Leads in ${monthName}: ${leadsThisMonth}
+Client Leads the Month Before: ${leadsPrevMonth}
+Leads per Client in ${monthName}: ${perClientMonth.length ? perClientMonth.join(", ") : "None"}
+BoldLine's Own Ads, Leads in ${monthName}: ${house ? houseLeadsMonth : "no internal account"}
+Total Client Leads All Time (for context, NOT this month): ${totalLeadsAllTime}
+Ad Spend Reading: $${Math.round(spendReading).toLocaleString()} across active clients. THIS IS A
+TRAILING 30-DAY FIGURE read at ${syncedAt || "an unknown time"}, NOT ${monthName}'s spend. Do not
+describe it as this month's spend, and do not compute a monthly cost per lead from it.
 Accounts Above Target CPL: ${aboveTargetCPL.length ? aboveTargetCPL.join(", ") : "None"}
 Renewals Within 30 Days: ${renewalsSoon.length ? renewalsSoon.join(", ") : "None"}
 Incomplete Intake: ${incompleteIntake.length ? incompleteIntake.join(", ") : "None"}
@@ -777,14 +839,20 @@ ${dataText}
 
 OUTPUT FORMAT:
 Do NOT include a greeting, salutation, subject line, or sign-off. Start directly with the first section. Write each section header on its own line in bold markdown, using exactly these headers in this order:
-- **Overall Health** — one to two sentences on the state of the business portfolio right now
+- **Overall Health** — one to two sentences on how the business did over the month this report covers, not a snapshot of today
 - **What's Working** — what's going well across accounts, be specific with names and numbers
 - **What Needs Attention** — accounts or trends that need Bryson's attention, ranked by urgency
 - **System Health** — status of the reporting pipeline and configuration based on the technical data provided
 - **Recommendations** — concrete, prioritized ideas for making the BoldLine OS itself better: automations worth adding, workflow inefficiencies worth fixing, features worth building, anything that would make the system run smoother or save Bryson time — not just account follow-ups
 
 Use "- " for bullet points within a section where a list is clearer than prose. Be specific with numbers and account names. Don't soften bad news.`,
-  user: `Write this month's OS health report. Use all the portfolio and system data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
+  user: `Write the OS health report for the month named in REPORTING PERIOD. Use all the portfolio and system data provided.
+
+Two rules about the numbers, both from real mistakes:
+- Report the month the data names. Anything labelled "all time" or "trailing 30 days" is context, never this month's result, and must not be described as one.
+- BoldLine's own advertising account is not a client. Never add it to the client count.
+
+Do not include a greeting or sign-off. Start directly with the first section header.`,
 });
 
 export const runOSHealthReport = async (req) => {

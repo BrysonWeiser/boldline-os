@@ -539,8 +539,13 @@ const cardsIn = (panelName) => [...panelOfSite(panelName).matchAll(CARD_RE)].map
 // the right answer or just a negotiation. So it has NO panel, and its absence is
 // asserted rather than left to chance.
 const PANEL_OF_FAMILY = { g: "google", m: "meta", c: "combined", e: "ecom" };
-// The site writes "Full System: Launch" and "&amp;"; the catalog writes "Full System —
-// Launch" and "&". Same products.
+// 🔴 THE SITE AND THE CATALOG NEVER AGREED ON THE COMBINED PACKAGE'S NAME. The site said
+// "Full System: Growth"; the catalog said "Full System \u2014 Growth". This helper quietly
+// normalised the two together, so nobody noticed a client reading one name on the public
+// site and a different one inside their own portal. Both now say the colon form (2026-09-04,
+// while removing em dashes from client-facing copy), and the em dash stays in the
+// normalisation only so a stale record or an old draft still matches. `&amp;` is real and
+// permanent: the site is HTML, the catalog is not.
 const norm = (n) => n.replace(/&amp;/g, "&").replace(/\s*[—:]\s*/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
 const allCards = ["google", "meta", "combined", "ecom"].flatMap(cardsIn);
 const PUBLIC_PKGS = os.ALL_PKGS.filter((p) => !isOneTime(p));

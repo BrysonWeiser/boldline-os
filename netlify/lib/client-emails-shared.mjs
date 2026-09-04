@@ -47,7 +47,7 @@ const steps = (items) => `<table role="presentation" width="100%" cellpadding="0
   </tr>`).join("")}
 </table>`;
 
-const signoff = () => `<p style="margin:22px 0 0;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK.body}">Talk soon,<br>${b("Bryson — BoldLine Media")}</p>`;
+const signoff = () => `<p style="margin:22px 0 0;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK.body}">Talk soon,<br>${b("Bryson, BoldLine Media")}</p>`;
 
 // ── the shell ──────────────────────────────────────────────────────────────
 export function emailShell({ preheader, bodyHtml, footerNote }) {
@@ -63,7 +63,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
       </td></tr>
       <tr><td style="background:${DARK.card};border:1px solid ${DARK.cardBorder};border-top:3px solid ${GOLD};border-radius:16px;padding:30px 28px">${bodyHtml}</td></tr>
       <tr><td align="center" style="padding:18px 10px 0">
-        <div style="font-family:${SANS};font-size:11px;line-height:1.65;color:${DARK.faint}">${footerNote || "BoldLine Media &mdash; Google &amp; Meta ads, managed for you."}<br>Questions? Just reply to this email.</div>
+        <div style="font-family:${SANS};font-size:11px;line-height:1.65;color:${DARK.faint}">${footerNote || "BoldLine Media. Google &amp; Meta ads, managed for you."}<br>Questions? Just reply to this email.</div>
       </td></tr>
     </table>
   </td></tr>
@@ -76,11 +76,11 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
 const T = {
   welcome: (c) => ({
     subject: `Welcome to BoldLine Media, ${c.businessName || "welcome aboard"}`,
-    preheader: "Your account is set up — here's your client portal and what happens next.",
+    preheader: "Your account is set up. Here's your client portal and what happens next.",
     bodyHtml:
       h1(`Welcome aboard, ${escapeHTML(firstName(c.contactName))}.`) +
-      p(`We're thrilled to have ${b(escapeHTML(c.businessName || "your business"))} on board. BoldLine plans, builds, and runs your ${escapeHTML(c.packageName ? c.packageName + " " : "")}ad campaigns and the landing pages behind them — so you can focus on running your business while we bring you the leads.`) +
-      p(`Everything lives in your ${gold("client portal")} — track leads, see performance, upload photos, and message us anytime:`) +
+      p(`We're thrilled to have ${b(escapeHTML(c.businessName || "your business"))} on board. BoldLine plans, builds, and runs your ${escapeHTML(c.packageName ? c.packageName + " " : "")}ad campaigns and the landing pages behind them, so you can focus on running your business while we bring you the leads.`) +
+      p(`Everything lives in your ${gold("client portal")}. Track leads, see performance, upload photos, and message us anytime:`) +
       button("Open Your Client Portal", c.portalUrl || SITE) +
       rule() +
       p(b("What happens next:")) +
@@ -95,28 +95,28 @@ const T = {
 
   onboarding_access: (c) => ({
     subject: `Quick next step for ${c.businessName || "your campaign"}: ad account access`,
-    preheader: "One quick step so we can start building — grant BoldLine manager access.",
+    preheader: "One quick step so we can start building. Grant BoldLine manager access.",
     bodyHtml:
       h1("One quick step to get started") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))} — to start building your campaigns, we need ${b("manager access")} to your ad account.`) +
-      p(`Important: ${gold("your ad account always stays yours.")} You own it and you pay the ad spend directly to Google/Meta — we never touch your billing. We only need manager-level access to build, optimize, and report.`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, to start building your campaigns we need ${b("manager access")} to your ad account.`) +
+      p(`Important: ${gold("your ad account always stays yours.")} You own it and you pay the ad spend directly to Google/Meta. We never touch your billing. We only need manager-level access to build, optimize, and report.`) +
       p(b("Here's how to grant access:")) +
       steps([
         "Open your client portal and go to the <b>Connect Your Ad Accounts</b> section.",
         "Follow the short walkthrough for Google and/or Meta.",
-        "That's it — we'll take it from there and confirm once we're in.",
+        "That's it. We'll take it from there and confirm once we're in.",
       ]) +
       button("Connect Your Ad Accounts", c.portalUrl || SITE) +
-      small("Not sure about a step? Just reply — happy to hop on a quick call and do it together.") +
+      small("Not sure about a step? Just reply. Happy to hop on a quick call and do it together.") +
       signoff(),
   }),
 
   contract_signed: (c) => ({
-    subject: `You're all set — your BoldLine agreement is signed`,
+    subject: `You're all set, your BoldLine agreement is signed`,
     preheader: "Your agreement is signed and on file. Here's what's next.",
     bodyHtml:
       h1("You're all set") +
-      p(`Thanks ${escapeHTML(firstName(c.contactName))} — your BoldLine Media agreement is ${b("signed and on file.")} A copy is always available in your portal.`) +
+      p(`Thanks ${escapeHTML(firstName(c.contactName))}, your BoldLine Media agreement is ${b("signed and on file.")} A copy is always available in your portal.`) +
       p("Next up, we'll get your billing and ad account connected, then start building. You'll approve everything before anything goes live.") +
       button("View in Your Portal", c.portalUrl || SITE) +
       signoff(),
@@ -140,12 +140,12 @@ const T = {
     const rows = [];
     if (setup > 0) rows.push(["One-time setup", money(setup)]);
     if (usingLeads && leads > 0) {
-      rows.push([`Qualified leads — ${leadCount} × ${money(leadRate)}`, money(leads)]);
+      rows.push([`Qualified leads (${leadCount} × ${money(leadRate)})`, money(leads)]);
       // Said out loud, because a client who knows they have a minimum will look for it and
       // wonder where it went.
       if (monthly > 0) rows.push([`Your ${money(monthly)} monthly minimum is included in the above, not added`, ""]);
     } else if (monthly > 0) {
-      rows.push([`Monthly minimum${c.packageName ? " — " + c.packageName : ""}`, money(monthly)]);
+      rows.push([`Monthly minimum${c.packageName ? ", " + c.packageName : ""}`, money(monthly)]);
       if (leads > 0) rows.push([`${leadCount} qualified lead${leadCount === 1 ? "" : "s"} at ${money(leadRate)} counted toward the minimum, not added`, ""]);
     }
     const total = setup + feeThisMonth;
@@ -155,7 +155,7 @@ const T = {
     // and invites a reply asking what it is.
     if (total <= 0) {
       return {
-        subject: `Nothing due this month — ${c.businessName || "your account"}`,
+        subject: `Nothing due this month for ${c.businessName || "your account"}`,
         preheader: `No qualified leads this period, so there is nothing to pay.`,
         bodyHtml:
           h1("Nothing to pay this month") +
@@ -166,14 +166,14 @@ const T = {
       };
     }
     return {
-      subject: `Invoice from BoldLine Media — ${money(total)} due`,
-      preheader: `Your invoice for ${c.businessName || "your account"} — pay securely online.`,
+      subject: `Invoice from BoldLine Media, ${money(total)} due`,
+      preheader: `Your invoice for ${c.businessName || "your account"}. Pay securely online.`,
       bodyHtml:
         h1("Your invoice") +
         p(`Hi ${escapeHTML(firstName(c.contactName))}, here's your invoice for ${b(escapeHTML(c.businessName || "your account"))}. You can pay securely online in a few taps:`) +
         detailBox(rows) +
         button("Pay Securely Online", c.payUrl || c.portalUrl || SITE) +
-        small("On the secure Stripe page you can pay by card or bank — or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine fees only — your ad spend is billed separately by Google/Meta directly to you.") +
+        small("On the secure Stripe page you can pay by card or bank, or scan the QR code to pay from your phone. A receipt is emailed automatically once payment clears. This invoice covers BoldLine fees only. Your ad spend is billed separately by Google/Meta directly to you.") +
         signoff(),
     };
   },
@@ -193,39 +193,39 @@ const T = {
     }
     if (c.date) rows.push(["Date", c.date]);
     return {
-      subject: `Payment received — thank you`,
+      subject: `Payment received, thank you`,
       preheader: `We received your payment of ${money(amount)}. Thank you!`,
       bodyHtml:
-        h1("Payment received — thank you") +
+        h1("Payment received, thank you") +
         p(`Thanks ${escapeHTML(firstName(c.contactName))}! We've received your payment of ${b(money(amount))} for ${b(escapeHTML(c.businessName || "your account"))}. Here's your itemized receipt:`) +
         detailBox(rows) +
         (c.invoiceUrl
           ? button("View / Download Invoice", c.invoiceUrl) +
-            small("Your full invoice, with a downloadable PDF, is on the secure Stripe page. It covers BoldLine fees only — your ad spend is billed separately by Google/Meta directly to you.")
+            small("Your full invoice, with a downloadable PDF, is on the secure Stripe page. It covers BoldLine fees only. Your ad spend is billed separately by Google/Meta directly to you.")
           : button("Open Your Portal", c.portalUrl || SITE)) +
-        p("Nothing else needed on your end — we're hard at work on your campaigns. You can see everything anytime in your portal.") +
+        p("Nothing else needed on your end. We're hard at work on your campaigns. You can see everything anytime in your portal.") +
         signoff(),
     };
   },
 
   past_due: (c) => ({
     subject: `Action needed: a payment didn't go through`,
-    preheader: "Your latest payment didn't process — a quick update fixes it.",
+    preheader: "Your latest payment didn't process. A quick update fixes it.",
     bodyHtml:
       h1("A quick heads-up on your payment") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))} — your most recent payment${Number(c.amount) > 0 ? ` of ${b(money(c.amount))}` : ""} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, your most recent payment${Number(c.amount) > 0 ? ` of ${b(money(c.amount))}` : ""} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
       button("Update Payment Method", c.payUrl || c.portalUrl || SITE) +
-      small("Your campaigns keep running for now — we just wanted to catch this early so nothing gets interrupted. If you think this is a mistake, reply and we'll sort it out.") +
+      small("Your campaigns keep running for now. We just wanted to catch this early so nothing gets interrupted. If you think this is a mistake, reply and we'll sort it out.") +
       signoff(),
   }),
 
   renewal: (c) => ({
-    subject: `Your BoldLine plan renews soon — let's keep the momentum`,
+    subject: `Your BoldLine plan renews soon, let's keep the momentum`,
     preheader: "Your term is coming up for renewal. Here's how to keep going.",
     bodyHtml:
       h1("Let's keep the momentum going") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))} — your current term with BoldLine is ${b("coming up for renewal" + (c.termEnd ? " on " + escapeHTML(c.termEnd) : "") + ".")}`) +
-      p("We've loved working with " + b(escapeHTML(c.businessName || "you")) + ", and we'd love to keep the leads coming. Renewing is effortless — nothing changes on your end, your campaigns just keep running without a gap.") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, your current term with BoldLine is ${b("coming up for renewal" + (c.termEnd ? " on " + escapeHTML(c.termEnd) : "") + ".")}`) +
+      p("We've loved working with " + b(escapeHTML(c.businessName || "you")) + ", and we'd love to keep the leads coming. Renewing is effortless. Nothing changes on your end, your campaigns just keep running without a gap.") +
       button("Review Your Plan", c.portalUrl || SITE) +
       p("Want to talk results, adjust your plan, or scale up? Just reply and we'll set up a quick call.") +
       signoff(),
@@ -236,8 +236,8 @@ const T = {
     preheader: "Something's ready for your review and approval in your portal.",
     bodyHtml:
       h1("Something's ready for your review") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))} — ${b(escapeHTML(c.approvalTitle || "an item"))} is ready and needs your approval before we move forward.`) +
-      p("Open your portal to take a look and either approve it or request changes — it only takes a minute:") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.approvalTitle || "an item"))} is ready and needs your approval before we move forward.`) +
+      p("Open your portal to take a look and either approve it or request changes. It only takes a minute:") +
       button("Review & Approve", c.portalUrl || SITE) +
       small("You'll find it under the “Needs Your Review” section of your portal. Nothing moves forward until you approve, so take your time.") +
       signoff(),
@@ -245,26 +245,26 @@ const T = {
 
   thank_you: (c) => ({
     subject: `Thank you from BoldLine Media`,
-    preheader: "It's been a pleasure — here's your final wrap-up and a standing invitation.",
+    preheader: "It's been a pleasure. Here's your final wrap-up and a standing invitation.",
     bodyHtml:
-      h1("Thank you — it's been a pleasure") +
+      h1("Thank you, it's been a pleasure") +
       p(`Hi ${escapeHTML(firstName(c.contactName))}, we wanted to say a genuine thank you for trusting BoldLine Media with ${b(escapeHTML(c.businessName || "your business"))}. It's been a pleasure running your campaigns.`) +
-      p(`A couple of things as we wrap up: ${gold("your ad account stays entirely yours")} — everything we built lives in your account, and your final performance report is in your portal. Nothing goes away.`) +
+      p(`A couple of things as we wrap up: ${gold("your ad account stays entirely yours")}. Everything we built lives in your account, and your final performance report is in your portal. Nothing goes away.`) +
       button("View Your Final Report", c.portalUrl || SITE) +
-      p("If you ever want to pick things back up or need a hand down the road, our door is always open — just reply to this email. Wishing you huge success ahead.") +
+      p("If you ever want to pick things back up or need a hand down the road, our door is always open. Just reply to this email. Wishing you huge success ahead.") +
       signoff(),
   }),
 
   // Auto-nudge for a signed client who hasn't finished their intake yet.
   onboarding_nudge: (c) => ({
     subject: `Quick step to launch ${c.businessName || "your campaigns"}`,
-    preheader: "One short form stands between you and live campaigns — about 5 minutes.",
+    preheader: "One short form stands between you and live campaigns. About 5 minutes.",
     bodyHtml:
       h1("Let's get your campaigns live") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))} — we're ready to start building for ${b(escapeHTML(c.businessName || "your business"))}, and there's just one quick step on your side: finishing your onboarding details in the portal.`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, we're ready to start building for ${b(escapeHTML(c.businessName || "your business"))}, and there's just one quick step on your side: finishing your onboarding details in the portal.`) +
       p("It takes about five minutes and tells us exactly who to target and what makes you the obvious choice:") +
       button("Finish Your Onboarding", c.portalUrl || SITE) +
-      small("The sooner this is done, the sooner your ads go live and the leads start coming in. Stuck on anything? Just reply — we're happy to walk you through it.") +
+      small("The sooner this is done, the sooner your ads go live and the leads start coming in. Stuck on anything? Just reply. We're happy to walk you through it.") +
       signoff(),
   }),
 
@@ -273,11 +273,11 @@ const T = {
     const n = Number(c.milestone || c.leadCount || 0);
     return {
       subject: `${n} leads and counting for ${c.businessName || "your business"}`,
-      preheader: `You've reached ${n} leads with BoldLine — here's to the next milestone.`,
+      preheader: `You've reached ${n} leads with BoldLine. Here's to the next milestone.`,
       bodyHtml:
         h1(`${n} leads delivered`) +
-        p(`Hi ${escapeHTML(firstName(c.contactName))} — quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(escapeHTML(c.businessName || "your business"))}. Every one is a real potential customer who raised their hand for you.`) +
-        p("We're just getting warmed up — your campaigns keep running and optimizing. You can see every lead anytime in your portal:") +
+        p(`Hi ${escapeHTML(firstName(c.contactName))}, quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(escapeHTML(c.businessName || "your business"))}. Every one is a real potential customer who raised their hand for you.`) +
+        p("We're just getting warmed up. Your campaigns keep running and optimizing. You can see every lead anytime in your portal:") +
         button("See Your Leads", c.portalUrl || SITE) +
         small("Thanks for trusting us with your growth. Here's to the next milestone."),
     };

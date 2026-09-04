@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 147 task-keyed entries under `knowledge/`. They surface automatically via the
+> 148 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**147 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**148 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -540,6 +540,12 @@
 - **[live-stats](../knowledge/live-stats.md)** &mdash; &#9989; verified &middot; 2026-08-22  
   A sweep for stand-in data found two real defects. The Overview platform tile read the PACKAGE rather than the account, so the house account said "Google + Meta" while running Meta only, disagreeing with the health score two cards below. And `client.cpl` is never written by any code path, yet five things read it as live, including an alert meant to warn about wasted spend, which therefore could never fire.  
   <sub>*task:* check whether a number on a screen or in a report is live, or fix somewhere reading a stored field that nothing writes &nbsp;|&nbsp; *keywords:* live data, stand ins, client.cpl, cost per lead never computed, liveStats, adPerfStats, platformLabel, platform wrong, alerts-watch cplBlowout, dead alert, report data, leads counter, stale field</sub>
+
+## Reports
+
+- **[os-report-period](../knowledge/os-report-period.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  The monthly OS health report counted BoldLine's own ad account as a client (one client read as two) and reported LIFETIME lead totals under a monthly heading. It now excludes the internal account and reports it separately, counts leads for the calendar month just ended from the dates on the records, and labels the ad spend honestly as a trailing 30-day reading because that is the only spend figure stored. 18 checks, seven mutations caught.  
+  <sub>*task:* fix or change what the monthly OS health report counts, or why its numbers look wrong &nbsp;|&nbsp; *keywords:* os health report, monthly report, two clients, client count wrong, internal account counted, buildOSDataBlock, leadsInMonth, MONTH_KEY, whole month, snapshot, trailing 30 days, spend30d, reporting period, ARIA report, liveStats leads lifetime</sub>
 
 ## Supabase
 
