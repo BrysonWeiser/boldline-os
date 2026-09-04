@@ -173,11 +173,82 @@ t("🔴 the card says whether they actually got their report", () => {
 });
 
 t("a waiting report is amber and a failed one is red, because they are different problems", () => {
-  const i = S.indexOf('if(st==="error")');
+  const i = S.indexOf("Their free report could not be sent");
   assert.ok(i > 0, "the failed state is gone");
-  assert.match(S.slice(i, i + 200), /color:C\.red/, "a prospect who got nothing is not flagged");
+  assert.match(S.slice(i - 60, i), /color:C\.red/, "a prospect who got nothing is not flagged");
   const j = S.indexOf("They asked for the free report and it has not gone out yet");
-  assert.match(S.slice(j - 120, j), /color:C\.amber/, "a report still on its way looks like a failure");
+  assert.match(S.slice(j - 60, j), /color:C\.amber/, "a report still on its way looks like a failure");
+});
+
+// ── 5. 🔴 "I ALREADY SENT THIS ONE MYSELF" ───────────────────────────────────
+// Bryson, 2026-09-04: *"Make sure for this lead it knows I sent the report"*, after writing
+// to the prospect by hand while the OS went on saying the report had not gone out.
+t("🔴 a report he sent himself is recorded, and the robot stands down for good", () => {
+  assert.equal(needsAudit(row({ payload: { auditStatus: "sent_by_hand", auditedAt: new Date(NOW - 3 * 3600e3).toISOString() } }), NOW), false,
+    "a prospect he already wrote to is sent a canned report on top of his own email");
+});
+
+t("🔴 AND IT SURVIVES HIM MOVING THE LEAD BACK TO NEW", () => {
+  // The sales stage is what he is doing about a lead, not what the prospect received.
+  // Re-working a lead must not reopen the door to a second report.
+  assert.equal(needsAudit(row({ status: "new", payload: { auditStatus: "sent_by_hand", auditedAt: new Date(NOW - 3 * 3600e3).toISOString() } }), NOW), false,
+    "moving the lead back to New posts them a second report they never asked for twice");
+});
+
+t("the card offers the button, and says so once pressed", () => {
+  assert.match(UI, /onReportSent&&<button onClick=\{\(\)=>onReportSent\(lead\)\}/, "there is no way to tell it he sent one");
+  assert.match(S, /You sent this one yourself, so nothing else will go out to them\./, "pressing it says nothing back");
+  assert.match(UI, /const handled = String\(lead\.status\|\|"new"\)!=="new";/,
+    "a lead he has taken on still reads as though a robot is about to email them");
+});
+
+t("🔴 the write RE-READS the row first, or it can erase a stamp and send twice", () => {
+  assert.match(UI, /const \{ data \} = await supabaseClient\.from\("website_leads"\)\.select\("payload"\)\.eq\("id", lead\.id\)\.maybeSingle\(\);/,
+    "it writes the copy this screen loaded minutes ago, which can wipe a 'sent' stamp written since");
+  assert.match(UI, /if \(base\.auditStatus === "sent" \|\| base\.auditStatus === "review_sent"\)/,
+    "pressing it after the bot already sent one overwrites the truth with a guess");
+});
+
+t("a refused save is not reported as done", () => {
+  const i = UI.indexOf("markReportSentByHand");
+  const block = UI.slice(i, i + 1400);
+  assert.match(block, /if \(error\) throw error;/, "a database refusal looks like a success");
+  assert.match(block, /setLeadError\(/, "the failure goes to the console where nobody will see it");
+});
+
+// ── 6. 🔴 THE SAME LEAD ANNOUNCED ON EVERY LAUNCH ────────────────────────────
+// Bryson: *"each time I close and reopen the os it keeps telling me about the new lead and I
+// have to swipe it away every time. After its status is set to contacted it shouldn't keep
+// notifying me"*.
+t("🔴 nothing is announced until the leads have actually arrived", () => {
+  // THE BUG: `leads` starts empty and the fetch has not returned, so the "seen" set was
+  // seeded with NOTHING. The next run found every lead unseen and announced all of them.
+  // Seeding on the first RUN is not the same as seeding on the first LOAD.
+  assert.match(UI, /if \(!leadsLoaded\) return;/, "the seen set is still seeded off an empty list on every launch");
+  assert.match(UI, /setLeadsLoaded\(true\);/, "nothing ever reports that the leads arrived");
+  assert.match(UI, /\}, \[leads, leadsLoaded, pushToast\]\);/, "the effect cannot see whether the leads have loaded");
+});
+
+t("🔴 and it remembers across launches, on the device", () => {
+  assert.match(UI, /window\.localStorage\.setItem\(LEAD_TOAST_KEY/, "it forgets the moment he closes the app");
+  assert.match(UI, /window\.localStorage\.getItem\(LEAD_TOAST_KEY\)/, "it never reads back what it remembered");
+  assert.match(UI, /\.slice\(-300\)/, "the remembered list grows for the life of the install");
+});
+
+t("🔴 a lead he has already worked is never announced", () => {
+  assert.match(UI, /leads\.filter\(l => String\(l\.status \|\| "new"\) === "new" && !seenLeadIds\.current\.has\(l\.id\)\)/,
+    "a contacted lead is announced again, which is exactly what he asked to stop");
+});
+
+t("the first run on a new device seeds silently rather than announcing everything", () => {
+  assert.match(UI, /seenLeadIds\.current = new Set\(leads\.map\(l => l\.id\)\);\s*\n\s*persist\(\);\s*\n\s*return;/,
+    "installing the app announces every lead he has ever had");
+});
+
+t("storage being refused does not take the app down", () => {
+  const i = UI.indexOf("LEAD_TOAST_KEY");
+  const block = UI.slice(i - 200, i + 1200);
+  assert.ok((block.match(/catch \(e\)/g) || []).length >= 2, "a browser with storage blocked throws instead of just toasting twice");
 });
 
 console.log(`✓ verify-lead-leak-delivery: ${n} checks passed`);

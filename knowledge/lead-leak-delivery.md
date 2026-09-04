@@ -50,6 +50,16 @@ Three failed attempts raises a **red** owner alert naming the prospect, their si
 
 A `lead_leak` lead now shows one line: sent automatically (green) · written and waiting for your review (gold) · writing it now · **could not be sent, they are still waiting** (red, with the reason) · **has not gone out yet, it sends on its own within ten minutes** (amber). Working this out on the day required reading the raw record and knowing which stamp to look for.
 
+## 🔴 "I sent it myself" (added the same day)
+
+Bryson, after writing to the prospect by hand: *"Make sure for this lead it knows I sent the report"*. The card went on saying the report had not gone out, with no way to tell it otherwise.
+
+A button on the card writes `auditStatus: "sent_by_hand"`, and the sweep treats that exactly like a real send.
+
+🔴 **This is the durable half, and the status check is the weak one.** Skipping leads that are off "new" stops the robot today, but a sales stage records what *he* is doing about a lead, not what the *prospect received*. Move the lead back to New to work it again and the status guard reopens, and a stranger gets a second report they never asked for once. The stamp does not reopen.
+
+🔴 **The write re-reads the row first.** The whole payload goes back in one piece, so writing the copy the screen loaded minutes ago could erase a "sent" stamp the sweep wrote in between, and erasing "sent" is precisely how a prospect gets emailed twice. Same rule as the CRM retry queue. It also refuses to overwrite a genuine `sent`/`review_sent` with a guess.
+
 ## Still outstanding (Bryson's, on a computer)
 Both are in the 10pm Netlify reminder for 2026-09-04:
 1. `AUDIT_TRIGGER_SECRET` set to the **same** value on both sites (`boldline-media` WITH the hyphen = marketing, `boldlinemedia` NO hyphen = OS). Only buys instant instead of ten minutes now, so it is no longer urgent.
