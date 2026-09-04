@@ -97,8 +97,10 @@ t("the rows render, and say which campaign is which", () => {
 t("🔴 the totals above are labelled as totals", () => {
   // This is the whole misunderstanding: with one campaign the summary looked like that
   // campaign, so with two he reasonably read the blend as one of them.
-  assert(/The figures above are every campaign added together/.test(S),
+  assert(/Showing every campaign added together/.test(S),
     "nothing says the numbers at the top are a sum, which is exactly how this was misread");
+  assert(/Tap one to put its numbers at the top/.test(S),
+    "the rows look like a read-only list, so nobody discovers they can be pressed");
 });
 
 t("🔴 a paused campaign says WHY its numbers are zero", () => {
@@ -138,6 +140,76 @@ t("the row survives a snapshot written before this existed", () => {
   // reason the screen does not throw on all of them.
   assert(/\(g\.list\|\|\[\]\)/.test(UI) && /\(m\.list\|\|\[\]\)/.test(UI),
     "every existing client record has no list yet, so the screen would crash for all of them");
+});
+
+// ── Pressing one campaign puts ITS numbers at the top ────────────────────────
+// Bryson, 2026-09-04: *"I want when I press a campaign for my internal campaign I want the
+// one I press the have the numbers come up to the big section of analytics instead of the
+// small numbers on each campaign"*.
+t("🔴 the card is a real component, so it can remember a selection", () => {
+  // It was an inline arrow inside ClientHub, called from a `&&`. A hook there changes order
+  // the day the condition flips, and React tears the whole screen down.
+  assert(/function LiveAdPerformanceCard\(\{client\}\)/.test(UI), "the card cannot hold state");
+  assert(/const \[focus,setFocus\] = useState\(null\)/.test(UI), "there is nothing to select into");
+  assert(/&&<LiveAdPerformanceCard client=\{client\}\/>\}/.test(UI), "the component is never rendered");
+});
+
+t("the rows are pressable and show which one is on", () => {
+  assert(/onClick=\{\(\)=>setFocus\(on\?null:key\)\}/.test(UI), "a row cannot be pressed, or cannot be un-pressed");
+  assert(/background:on\?C\.goldDim:C\.bg3/.test(UI), "the chosen row looks the same as the others");
+  // 🔴 Pin the GATE, not the words. `/Show all/` passed with the button behind `false&&`,
+  // because the string was still in the file. Checking a line exists is not checking it shows.
+  assert(/\{sel&&<button onClick=\{\(\)=>setFocus\(null\)\}/.test(UI) && /Show all/.test(S),
+    "once focused there is no way back to the whole account");
+});
+
+t("🔴 THE FAKE COST PER LEAD. The account's leads must never sit beside one campaign's spend", () => {
+  // `leadsLog` is every enquiry the business received from anywhere. A single campaign has no
+  // such number. Pairing them yields a cost per lead that is pure fiction and looks entirely
+  // plausible, which is the worst kind of wrong number.
+  const i = UI.indexOf("const view = sel");
+  assert(i > 0, "the focused view is gone");
+  const body = UI.slice(i, UI.indexOf("return (", i));
+  const focused = body.slice(0, body.indexOf(": {"));
+  assert(!/st\.leads30|st\.cpl|leadsLog/.test(focused),
+    "a focused campaign is showing the ACCOUNT's lead count or cost per lead, so the figure "
+    + "beside one campaign's spend is invented");
+  assert(/cpl: \(conv>0&&spend>0\) \? spend\/conv : null/.test(focused),
+    "cost per lead is not computed from that campaign's own spend and conversions");
+});
+
+t("🔴 and the tile is RELABELLED rather than quietly changing meaning", () => {
+  assert(/leadLabel: sel\.platform==="meta"\?"Leads":"Conversions"/.test(UI),
+    "the tile still says Leads while showing the platform's conversion count, which are "
+    + "different numbers and the difference is the whole point");
+  assert(/counted by "\+\(sel\.platform==="meta"\?"Meta":"Google"\)/.test(UI),
+    "nothing says where the number came from");
+});
+
+t("🔴 the header always says whose numbers are on screen", () => {
+  assert(/Showing \$\{sel\.name\|\|"one campaign"\}/.test(UI), "a focused card does not name the campaign");
+  assert(/Showing every campaign added together/.test(S), "the unfocused card does not say it is a sum");
+});
+
+t("🔴 a live campaign with nothing to show says which of the two reasons it is", () => {
+  // This is the question he actually asked: one campaign live, no numbers.
+  assert(/Running, but nobody has seen it yet/.test(S),
+    "a new campaign shows five zeros and looks broken");
+  assert(/refresh once an hour/.test(S), "he refreshes and refreshes expecting it to be instant");
+  assert(/This one is paused, so every number above is zero/.test(S),
+    "a paused campaign's zeros read as a fault");
+});
+
+t("account-only notes do not show while one campaign is focused", () => {
+  // "No leads yet, and the lead check is running normally" is about the whole business. Beside
+  // one campaign it is answering a question nobody asked.
+  assert(/\{!sel&&st\.leadsTotal===0/.test(UI) && /\{!sel&&st\.impressions===0/.test(UI),
+    "account-wide notes appear underneath a single campaign's figures");
+});
+
+t("🔴 a campaign that disappears between syncs does not strand the card", () => {
+  assert(/st\.campaigns\.find\(c=>`\$\{c\.platform\}-\$\{c\.id\}`===focus\) \|\| null/.test(UI),
+    "a deleted campaign leaves the card showing figures for something that is gone");
 });
 
 console.log(`✓ verify-campaign-breakdown: ${n} checks passed`);

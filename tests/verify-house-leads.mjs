@@ -281,8 +281,11 @@ const wl = (id, over = {}) => ({
   ok("a failed account read is surfaced rather than shown as a zero",
     /These numbers are stale/.test(UI_CODE));
   // Parity: the card is not house-only. A client with a linked account gets it too.
+  // 🔴 Pins the RULE, not the spelling. This used to match the exact inline arrow the card
+  // was written as, so extracting it into a real component on 2026-09-04 read as "clients
+  // lost the card" when nothing of the sort had happened. Assert who gets it instead.
   ok("clients with a linked account get the same card",
-    /\{\(client\.internal\|\|client\.googleAdsCustomerId\|\|client\.metaAdAccountId\)&&\(\(\)=>\{\s*\n\s*const st = adPerfStats\(client\);/.test(UI));
+    /\{\(client\.internal\|\|client\.googleAdsCustomerId\|\|client\.metaAdAccountId\)&&<LiveAdPerformanceCard client=\{client\}\/>\}/.test(UI));
 }
 
 // ── 9. A heartbeat, so "no leads yet" and "this broke" look different ─────────
