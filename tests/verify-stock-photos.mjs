@@ -121,10 +121,15 @@ t("a non-image response is refused even from the allowed host", () => {
   assert.match(FN, /startsWith\("image\/"\)/, "content type is not checked, so any file on the host could be saved");
 });
 
-t("a saved photo is filed exactly like an uploaded one", () => {
-  // 🔴 The launch card, the landing page renderer and this studio all filter the media
-  // library on category. Any other value here saves the file somewhere nothing looks.
-  assert.match(FN, /category: "photo"/, "a stock photo is not filed under the category everything else reads");
+t("🔴 the CALLER decides what a stock copy is for", () => {
+  // This used to be hard-coded to "photo", the category an uploaded picture gets, so a bare
+  // stock photo chosen as the BACKGROUND for a creative became a candidate for the ad itself
+  // and showed up in Assets as though Bryson had made it (2026-09-04). A background is raw
+  // material. The Creative Studio asks for "source"; a landing-page photo still asks for
+  // "photo". Both are still copied, because the canvas cannot read a cross-origin image back.
+  assert.match(FN, /category: category,/, "the category is hard-coded again, so every copy has the same role");
+  assert.match(FN, /body\.category === "source" \? "source" : "photo"/,
+    "an unknown category would file the photo where nothing looks for it");
   assert.match(FN, /getPublicUrl/, "no public URL is produced, so nothing could display it");
 });
 
@@ -139,6 +144,13 @@ t("a missing key explains itself in Bryson's words", () => {
 
 // ── The OS side ────────────────────────────────────────────────────────────────
 const S = readFileSync(join(ROOT, "index.html"), "utf8");
+
+t("🔴 the Creative Studio asks for a BACKGROUND, not a finished ad", () => {
+  // Split from the check above because `S` is read further down this file than that test.
+  assert.match(S, /credit:p\.credit,category:"source"/,
+    "the background picker still files backgrounds as finished ad images, so a bare photo "
+    + "with no words on it can be chosen as the ad");
+});
 
 t("🔴 the search button is not hidden behind a non-empty library", () => {
   // This is the bug the whole feature exists to fix, in a new costume: the dropdown was
