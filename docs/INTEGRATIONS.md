@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 154 task-keyed entries under `knowledge/`. They surface automatically via the
+> 155 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**154 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**155 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -186,6 +186,9 @@
 - **[lead-attribution](../knowledge/lead-attribution.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   BoldLine's marketing site never recorded where a visitor came from, so the first real lead could not be traced to an ad, and the ad dashboards could never have answered it (they hold totals, not which click became a person). `marketing-site/attribution.js` now captures click ids, UTM tags, referrer and landing page on arrival and posts them in ONE declared hidden field per form (Netlify Forms silently drops fields that script creates). `netlify/lib/lead-origin.mjs` plus an inlined browser copy turn that into a sentence ("Facebook or Instagram ad", "Google search", "Typed the address in"), shown on every lead card and in the house account's Leads tab. A new lead now fires a phone push, sent only AFTER the row is written so it can never repeat. And pressing a lead card opens everything the lead holds, which it previously did not do because the card had no handler at all. 29 checks, 12 mutations caught, verified in a real browser at four widths.  
   <sub>*task:* know which ad or search produced a lead, get a phone alert when one lands, and open a lead to see everything it holds &nbsp;|&nbsp; *keywords:* lead attribution, where did the lead come from, fbclid, gclid, utm, attribution.js, blOrigin, lead-origin, leadOrigin, originFields, came from, paid click, new lead push, lead notification, press the lead nothing happens, lead detail, website_leads payload</sub>
+- **[lead-leak-delivery](../knowledge/lead-leak-delivery.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  The free Lead-Leak Check's ONLY trigger was a cross-site POST gated on `AUDIT_TRIGGER_SECRET` set by hand on BOTH Netlify sites. It was not set, so no request was ever made and a real prospect asked for a free report and received nothing, in total silence, with not even an error row to find. New `lead-leak-sweep.mjs` runs every 10 minutes INSIDE the OS, where no shared secret can be missing, and sends anything the trigger missed using the SAME `auditLead` function (lifted out of the background handler, not copied). Three attempts then a red owner alert naming the prospect. The lead card now says whether the report was sent, is pending, or failed. 🔴 A lead moved off "new" is skipped, so a prospect Bryson has already answered by hand is never sent a canned report on top. 18 checks, 10 mutations caught.  
+  <sub>*task:* make sure the free Lead-Leak Check report actually reaches the prospect, and find out when it does not &nbsp;|&nbsp; *keywords:* lead leak check, free audit not sent, AUDIT_TRIGGER_SECRET, lead-leak-sweep, auditLead, auditStatus, auditTries, audit never ran, silent failure, free report, lead_leak, scheduled safety net</sub>
 - **[netlify-forms-wiring](../knowledge/netlify-forms-wiring.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Two static forms (contact + recommendation) are Netlify-Forms-wired (data-netlify=true, name, hidden form-name input, bot-field honeypot, AJAX-POST urlencoded to /). Netlify detects them at build; they appear under the marketing site's Forms tab. Enable notifications in the dashboard; a submission-created function also fires per verified submission.  
   <sub>*task:* wire up or debug marketing-site form capture and email notifications &nbsp;|&nbsp; *keywords:* data-netlify, form-name, bot-field, honeypot, submission-created, recommendation-form</sub>

@@ -40,6 +40,14 @@
 [functions."lead-followup"]
   schedule = "0 13 * * *"
 
+# The safety net under the free Lead-Leak Check. Its only trigger used to be a POST from
+# the marketing site gated on a secret set by hand on BOTH Netlify sites; the secret was
+# not set, so a real prospect asked for the free report and received nothing, silently.
+# This runs inside the OS where no shared secret can be missing, picks up anything the
+# trigger missed and sends it, and alerts loudly when it genuinely cannot.
+[functions."lead-leak-sweep"]
+  schedule = "*/10 * * * *"
+
 # Daily billing enforcement: syncs overdue invoices from Stripe, accrues the
 # Agreement's 1.5%/mo late interest after day 10 (as a pending invoice item on
 # the client's next bill), and emails the owner on late/interest/recovered
