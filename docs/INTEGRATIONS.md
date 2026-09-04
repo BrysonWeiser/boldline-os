@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 152 task-keyed entries under `knowledge/`. They surface automatically via the
+> 153 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**152 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**153 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -69,6 +69,12 @@
 - **[campaign-breakdown](../knowledge/campaign-breakdown.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   My Ads showed account-wide TOTALS that looked like one campaign's numbers while there was only one, and silently became a blend once there were two. Worse, the snapshot kept only live campaigns, so a campaign created PAUSED (which is every campaign the OS builds) appeared nowhere at all. Now every campaign gets its own row, paused ones included, saying in words why their numbers are zero. 14 checks, ten mutations caught.  
   <sub>*task:* see one campaign's own numbers, or work out why a new campaign appears to do nothing &nbsp;|&nbsp; *keywords:* my ads, live ad performance, per campaign stats, campaign breakdown, adPerf list, liveList, paused campaign invisible, campaign not doing anything, new campaign nothing, totals not one campaign, ads-sync, trimCampaign, CAMPAIGN_LIST_CAP, running paused pill, approve campaign, ENABLED ACTIVE</sub>
+
+## Ads/Meta
+
+- **[meta-delivery-states](../knowledge/meta-delivery-states.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  Meta reports `status` (the campaign's own switch) AND `effective_status` (whether it is serving). The OS had two disagreeing definitions of "live" and one sentence for every non-serving state. New `netlify/lib/meta-status.mjs` splits the question into `metaOn` (the switch, what Pause acts on, what the snapshot stores as `live`) and `metaDelivering` (serving, what `ads-autopilot` needs before moving money). `index.html` gains a `META_DELIVERY` table so each state gets its own plain-English explanation, and `campaignIsOn` so every screen agrees. 🔴 `IN_PROCESS` is NOT a fault: it is Facebook applying an edit, which is what you see right after changing a budget from the OS, and it clears itself. 20 checks, 8 mutations caught, verified in a real browser against the exact state from Bryson's screenshot.  
+  <sub>*task:* read a Meta campaign's status correctly, tell "switched on" from "serving right now", and explain IN_PROCESS / ADSET_PAUSED / DISAPPROVED to Bryson &nbsp;|&nbsp; *keywords:* effective_status, effectiveStatus, IN_PROCESS, in process, ADSET_PAUSED, PENDING_REVIEW, DISAPPROVED, WITH_ISSUES, PENDING_BILLING_INFO, not delivering, metaOn, metaDelivering, campaignIsOn, META_DELIVERY, live vs delivering, campaign says paused but is running</sub>
 
 ## Assets/Landing pages
 

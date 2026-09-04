@@ -43,6 +43,7 @@ import {
 } from "./google-ads.mjs";
 import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle, cleanMeta } from "../lib/ad-gen-shared.mjs";
 import { getLocalConditions, conditionsFingerprint } from "../lib/local-conditions.mjs";
+import { metaDelivering, googleDelivering } from "../lib/meta-status.mjs";
 
 const DAYS_PER_MONTH = 30.4;
 
@@ -204,8 +205,13 @@ export const judgeSplit = (ads, { minClicks, minLift, convKey = "conversions" })
 const monthlyBudgetOf = (cl) => Number(String((cl && cl.adBudget) || "").replace(/[^0-9.]/g, "")) || 0;
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 const sum = (a, f) => a.reduce((s, x) => s + (Number(f(x)) || 0), 0);
-const googleLive = (c) => String(c.status || "").toUpperCase() === "ENABLED";
-const metaLive = (c) => String(c.effectiveStatus || c.status || "").toUpperCase() === "ACTIVE";
+// 🔴 THIS JOB WANTS "SERVING", NOT "SWITCHED ON", AND THAT IS DELIBERATE. It moves money
+// between campaigns based on how they are performing, so a campaign that is on but held up in
+// review or blocked underneath has no performance to judge and must not be shifted into. The
+// snapshot job (`ads-sync`) asks the OTHER question — see `netlify/lib/meta-status.mjs` for
+// why one word could not honestly answer both.
+const googleLive = googleDelivering;
+const metaLive = metaDelivering;
 
 export default withFailureAlert("ads-autopilot", async () => {
   if (String(process.env.ADS_AUTOPILOT || "").toLowerCase() === "off") {
