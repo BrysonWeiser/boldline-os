@@ -110,7 +110,7 @@ t("🔴 the Google-only write buttons do not appear on a Meta campaign", () => {
   assert.match(UI, /\{isG&&<span style=\{\{display:"flex",gap:6,marginLeft:"auto"\}\}>/, "the ad-group pause and delete buttons are not gated to Google");
   assert.match(UI, /\{isG&&<button disabled=\{pieceBusy===a\.id\}/, "the per-ad buttons are not gated to Google");
   assert.match(UI, /\{isG&&<AddKeywordRow/, "the keyword adder is offered on Meta, which has no keywords");
-  assert.match(S, /Read only\. Start and pause the whole campaign from the row above/,
+  assert.match(S, /Read only\. Start, pause and set the daily budget from the row above/,
     "nothing tells him why a Meta campaign has no buttons, so it reads as broken rather than as deliberate");
 });
 

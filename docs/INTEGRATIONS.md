@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 151 task-keyed entries under `knowledge/`. They surface automatically via the
+> 152 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**151 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**152 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -384,6 +384,9 @@
 - **[contract-renewal-pricing](../knowledge/contract-renewal-pricing.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Term-based renewal pricing — BUILT 2026-07-15, TEST-MODE E2E VERIFIED 2026-07-16. New clients always start on a 3-month term at the standard package rate. At RENEWAL the client picks 1/3/6/12 months; month-to-month is +10%, 3mo is the standard anchor (0%), 6mo −5%, 12mo −10%, applied to the package's monthly price. v1 = pricing math + renewal UI (per-term price + savings) + contract doc reflect the term & effective rate. v2 = renewal pushes the new monthly to the live Stripe subscription automatically via `update-subscription` (no manual Stripe edit) — proven end-to-end in Stripe test mode after two real Stripe-quirk fixes (see gotchas). Charges management fee ONLY, never ad spend.  
   <sub>*task:* change how contract renewal pricing / term discounts work, or the renewal flow on the Contract tab &nbsp;|&nbsp; *keywords:* termMonthly, termRate, termRateLabel, TERM_RATE, renewMonths, handleRenew, contractTermMonths, billingMonthly, update-subscription, renewal discount, month-to-month premium</sub>
+- **[daily-budget-editing](../knowledge/daily-budget-editing.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  One shared `DailyBudgetEditor` component (index.html) puts a real budget control on the two screens Bryson actually uses — the focused campaign inside **My Ads → Live Ad Performance**, and every row of the **Campaigns** screen. The write already existed on both platforms and on a third screen he never opens (`LiveCampaignsCard`, Package tab), which is why "there is no way to do this" and "the code exists" were both true. Adds `meta-ads.mjs action=setAdSetBudget` because a Meta campaign built by hand in Ads Manager keeps its budget on the AD SET, not the campaign, and the campaign then reports no budget at all. Guards: typo confirmation on a 3x jump AND on a big number set from no known budget, a $100,000/day ceiling, a live look-up of Google's budget id, and the platform's own refusal shown rather than swallowed. `tests/verify-budget-editing.mjs` compiles the component out of index.html and RUNS it (18 checks; 15 mutations caught).  
+  <sub>*task:* change what one campaign spends per day from the OS, on Google or Meta, including Meta ad-set budgets &nbsp;|&nbsp; *keywords:* daily budget, change budget, edit budget, DailyBudgetEditor, setBudget, setAdSetBudget, budgetResourceName, CBO, ABO, ad set budget, campaign budget, budget typo, My Ads budget, campaigns screen budget, individual ads budget</sub>
 - **[deal-prep](../knowledge/deal-prep.md)** &mdash; &#9989; verified &middot; 2026-08-01  
   Owner-side "Deal Prep" tool (BUILT 2026-08-01) — Bryson types a prospect's name/niche/website/notes; a background function web-researches the company with Claude and returns a pre-call briefing (company snapshot, digital-presence gaps, talking points, objection handling) + a recommended package with the per-lead ROI math + the full package lineup priced for that niche. Needs a one-time Supabase table (deal_briefs); no new env vars. Per-lead fees are a STARTER table in pricing-shared.mjs for Bryson to edit.  
   <sub>*task:* research a prospect before a sales call, get a pitch + recommended package to close the deal; edit per-niche lead pricing; work on the Deal Prep tool &nbsp;|&nbsp; *keywords:* deal prep, deal-prep, pre-call research, prospect research, close deals, sales call, pitch, recommended package, per-lead fee, lead fee, niche pricing, web search, deal-research, deal_briefs, pricing-shared, getNicheLeadFee, DealPrepScreen, web_search, background function</sub>
