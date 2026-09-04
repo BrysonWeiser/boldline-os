@@ -6492,6 +6492,53 @@ function CrmTestButton({client}) {
   );
 }
 
+// ─── IS IT ON, AND IS IT ACTUALLY RUNNING ────────────────────────────────────
+//
+// Bryson, 2026-09-04, minutes after pausing the views campaign and raising the budget on the
+// leads one: a screenshot of a campaign reading **Live · Not delivering**, under the sentence
+// *"Meta says this campaign is on, but it isn't serving (in process) — usually the ad set or
+// the ad underneath is paused. Fix it in Meta Ads Manager."* on a campaign with 786 views and
+// $9.05 of spend.
+//
+// 🔴 `IN_PROCESS` IS NOT A FAULT. It is Facebook still applying an edit, which is the single
+// most likely thing to be true straight after changing a budget from the OS. It clears itself.
+// One sentence was being shown for EVERY non-serving state, so a normal, transient, self
+// healing state was reported with the explanation for a broken one, and it sent him into Ads
+// Manager hunting for a problem that was not there. A wrong explanation is worse than none:
+// none makes him ask, wrong makes him act.
+//
+// So each state says what it actually means, and states that are not faults are not coloured
+// like faults. Anything Facebook invents later falls through to the honest generic line.
+const META_DELIVERY = {
+  IN_PROCESS:          {fault:false,chip:"Updating",           note:"Facebook is still applying a change you made. It clears on its own, usually within the hour, and the campaign keeps running while it does."},
+  PENDING_REVIEW:      {fault:false,chip:"In review",          note:"Facebook is still reviewing this one. It starts as soon as they approve it, usually within a few hours."},
+  PREAPPROVED:         {fault:false,chip:"Approved",           note:"Facebook has approved this ahead of its start time. It begins on schedule."},
+  ADSET_PAUSED:        {fault:true, chip:"Not delivering",     note:"The ad set inside this campaign is paused, so nothing runs even though the campaign is switched on. Start the ad set in Meta Ads Manager."},
+  CAMPAIGN_PAUSED:     {fault:true, chip:"Not delivering",     note:"Facebook has this one paused on their end even though the switch here says on. Start it in Meta Ads Manager."},
+  DISAPPROVED:         {fault:true, chip:"Rejected",           note:"Facebook rejected the ad, so it cannot run. Open Meta Ads Manager to see their reason and fix it."},
+  WITH_ISSUES:         {fault:true, chip:"Has a problem",      note:"Facebook has flagged something on this one and it is not running properly. Open Meta Ads Manager to see what they want."},
+  PENDING_BILLING_INFO:{fault:true, chip:"No payment method",  note:"The ad account has no working payment method, so nothing can spend. Add a card in Meta Ads Manager."},
+};
+// null when there is nothing to say, which is the overwhelmingly common case.
+const metaDelivery = (eff) => {
+  const k = String(eff||"").toUpperCase();
+  if(!k || k==="ACTIVE") return null;
+  return META_DELIVERY[k] || {fault:true,chip:"Not delivering",
+    note:`Facebook says this campaign is on but it is not serving (${k.toLowerCase().replace(/_/g," ")}). Check it in Meta Ads Manager.`};
+};
+
+// 🔴 ONE DEFINITION OF "ON", USED BY EVERY SCREEN. There were two, and they disagreed. The
+// Campaigns screen read the campaign's own switch, so it said Live. The stored hourly snapshot
+// read the effective status, so the SAME campaign was about to appear in My Ads as Paused,
+// under "Not running, so it has not been seen by anyone and has spent nothing" — of a campaign
+// that had been seen 786 times and spent real money. On is the switch. Serving is a separate
+// question with its own answer above.
+const campaignIsOn = (c) => {
+  const s = String((c||{}).status||"").toUpperCase();
+  if(!s) return !!(c||{}).live;                       // snapshots written before the status was kept
+  return (c||{}).platform==="meta" ? s==="ACTIVE" : s==="ENABLED";
+};
+
 // ─── CHANGE ONE CAMPAIGN'S DAILY BUDGET, FROM WHEREVER YOU ARE LOOKING AT IT ──
 //
 // Bryson, 2026-09-04: *"make sure there is a way for me to update the daily budget for my
@@ -6663,8 +6710,13 @@ function LiveAdPerformanceCard({client}) {
   // hourly snapshot, so without this the number he just changed keeps reading as the old one
   // for up to an hour and the save looks like it did nothing.
   const [budgets,setBudgets] = useState({});         // "google-123" -> new daily budget
+  // 🔴 "ON" IS DECIDED HERE, FROM THE CAMPAIGN'S OWN SWITCH, not from whatever the stored
+  // snapshot happened to flag. A snapshot written while Facebook was applying a budget change
+  // marked a running campaign as not live, and this row then said it had never run.
   const camps = st.campaigns.map(c=>{ const k=`${c.platform}-${c.id}`;
-    return budgets[k]!=null ? {...c,dailyBudget:budgets[k]} : c; });
+    const on = campaignIsOn(c);
+    const c2 = budgets[k]!=null ? {...c,dailyBudget:budgets[k]} : c;
+    return c2.live===on ? c2 : {...c2,live:on}; });
   // A campaign that vanishes between syncs (deleted, or dropped past the cap) must not leave
   // the card stuck showing a campaign that is not there.
   const sel = camps.find(c=>`${c.platform}-${c.id}`===focus) || null;
@@ -6723,6 +6775,10 @@ function LiveAdPerformanceCard({client}) {
                 asked. Say which of the two reasons it is rather than leaving five zeros. */}
             {sel&&sel.live&&view.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Running, but nobody has seen it yet. A brand new campaign usually takes a few hours to start showing, and these figures refresh once an hour.</div>}
             {sel&&!sel.live&&<div style={{fontSize:10.5,color:C.amber,marginTop:9,lineHeight:1.55}}>This one is paused, so every number above is zero because it has not run.</div>}
+            {/* Switched on, but Facebook is not serving it this minute. Says which of those
+                states it is, because "in process" and "rejected" call for opposite reactions. */}
+            {sel&&sel.live&&sel.platform==="meta"&&(()=>{ const d=metaDelivery(sel.effectiveStatus); return d
+              ? <div style={{fontSize:10.5,color:d.fault?C.amber:C.textMuted,marginTop:9,lineHeight:1.55}}>{d.note}</div> : null; })()}
             {/* 🔴 THE BUDGET CONTROL SITS ON THE CAMPAIGN HE JUST TAPPED, not on the card as
                 a whole. The card's totals are several campaigns added together and there is
                 no such thing as "the budget" for those, so this appears only once one
@@ -6743,6 +6799,7 @@ function LiveAdPerformanceCard({client}) {
                 <div style={{display:"flex",flexDirection:"column",gap:7}}>
                   {camps.map(c=>{
                     const key=`${c.platform}-${c.id}`, on=key===focus;
+                    const dstate = c.live&&c.platform==="meta" ? metaDelivery(c.effectiveStatus) : null;
                     return (
                       <button key={key} onClick={()=>setFocus(on?null:key)}
                         style={{textAlign:"left",width:"100%",font:"inherit",cursor:"pointer",
@@ -6753,6 +6810,8 @@ function LiveAdPerformanceCard({client}) {
                           <span style={{fontSize:12,fontWeight:700,color:on?C.gold:C.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name||"Untitled campaign"}</span>
                           <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",flexShrink:0,padding:"2px 7px",borderRadius:6,
                             color:c.live?C.green:C.amber,backgroundColor:(c.live?C.green:C.amber)+"1a",border:`1px solid ${(c.live?C.green:C.amber)}44`}}>{c.live?"Running":"Paused"}</span>
+                          {dstate&&<span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",flexShrink:0,padding:"2px 7px",borderRadius:6,
+                            color:dstate.fault?C.amber:C.textMuted,backgroundColor:(dstate.fault?C.amber:C.textMuted)+"1a",border:`1px solid ${(dstate.fault?C.amber:C.textMuted)}44`}}>{dstate.chip}</span>}
                         </div>
                         {!c.live
                           ? <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55}}>Not running, so it has not been seen by anyone and has spent nothing. Approve it on the Campaigns screen to set it live.{c.dailyBudget>0?` It is set to $${c.dailyBudget}/day once it starts.`:""}</div>
@@ -6763,6 +6822,10 @@ function LiveAdPerformanceCard({client}) {
                               <span><b style={{color:C.textDim,fontWeight:700}}>{c.conversions||0}</b> {c.platform==="meta"?"leads":"conversions"}</span>
                               {c.dailyBudget>0&&<span>${c.dailyBudget}/day</span>}
                             </div>}
+                        {/* 🔴 A campaign that is ON but not serving keeps its real numbers AND
+                            gets the reason. The old code had only two branches, so this state
+                            had to borrow one of them, and it borrowed the wrong one. */}
+                        {dstate&&<div style={{fontSize:10,color:dstate.fault?C.amber:C.textMuted,marginTop:5,lineHeight:1.55}}>{dstate.note}</div>}
                       </button>
                     );
                   })}
@@ -10955,14 +11018,13 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
   };
   useEffect(()=>{ load(); },[linked.length]);
 
-  const isOn=(r)=>r.platform==="google"
-    ? String(r.c.status||"").toUpperCase()==="ENABLED"
-    : String(r.c.status||"").toUpperCase()==="ACTIVE";
-  // Meta only: the campaign switch says ACTIVE but delivery is blocked further
-  // down (ad set paused, no active ads). Worth surfacing — it looks "Live" but
-  // spends nothing, which is exactly the sort of thing you find out too late.
-  const notDelivering=(r)=>r.platform==="meta"&&isOn(r)
-    &&!!r.c.effectiveStatus&&String(r.c.effectiveStatus).toUpperCase()!=="ACTIVE";
+  // The same one definition of "on" the whole OS uses, so this screen and My Ads can never
+  // again describe the same campaign two different ways.
+  const isOn=(r)=>campaignIsOn({...r.c,platform:r.platform});
+  // 🔴 AND WHY IT IS NOT SERVING, WHICH IS NOT ONE ANSWER. This used to be a boolean and one
+  // sentence blaming the ad set, shown for every state including the ones that are normal and
+  // clear themselves. See META_DELIVERY for what each state actually means.
+  const deliveryState=(r)=>r.platform==="meta"&&isOn(r)?metaDelivery(r.c.effectiveStatus):null;
   const keyOf=(r)=>r.platform==="google"?r.c.campaignResourceName:r.c.id;
   const spendOf=(r)=>Number((r.platform==="google"?r.c.cost:r.c.spend)||0);
 
@@ -11073,14 +11135,14 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
   );
 
   const row=(r)=>{
-    const on=isOn(r), k=keyOf(r), working=busy===k, stalled=notDelivering(r);
+    const on=isOn(r), k=keyOf(r), working=busy===k, dstate=deliveryState(r);
     return (
       <div key={k} style={{padding:"11px 0",borderBottom:`1px solid ${C.border2}`}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5,flexWrap:"wrap"}}>
           <span style={{fontSize:9,fontWeight:800,padding:"1px 6px",borderRadius:5,backgroundColor:r.platform==="google"?"rgba(66,133,244,.14)":"rgba(24,119,242,.14)",color:r.platform==="google"?"#7CA9FF":"#5B9BFF",flexShrink:0}}>{r.platform==="google"?"Google":"Meta"}</span>
           <span style={{fontSize:12.5,fontWeight:700,color:C.text,flex:"1 1 160px",minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.c.name}</span>
           <Chip label={on?"Live":"Paused"} color={on?C.green:C.textMuted} small/>
-          {stalled&&<Chip label="Not delivering" color={C.amber} small/>}
+          {dstate&&<Chip label={dstate.chip} color={dstate.fault?C.amber:C.textMuted} small/>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <span style={{fontSize:10,color:C.textMuted}}>
@@ -11222,7 +11284,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
             </div>
           );
         })()}
-        {stalled&&<div style={{fontSize:10,color:C.amber,marginTop:5,lineHeight:1.5}}>Meta says this campaign is on, but it isn't serving ({String(r.c.effectiveStatus).toLowerCase().replace(/_/g," ")}) — usually the ad set or the ad underneath is paused. Fix it in Meta Ads Manager.</div>}
+        {dstate&&<div style={{fontSize:10,color:dstate.fault?C.amber:C.textMuted,marginTop:5,lineHeight:1.5}}>{dstate.note}</div>}
       </div>
     );
   };

@@ -36,6 +36,7 @@ import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import { liveStats, PER_LEAD } from "../lib/report-shared.mjs";
 import { getCampaigns as metaCampaigns } from "./meta-ads.mjs";
 import { getAccessToken as gadsToken, getCampaigns as gadsCampaigns } from "./google-ads.mjs";
+import { metaOn, metaDelivering, googleOn, googleDelivering } from "../lib/meta-status.mjs";
 
 const DAYS_PER_MONTH = 30.4; // matches MyAdsInsights in index.html
 const OVER_BUDGET_GRACE = 1.05; // 5% headroom before "over budget" trips
@@ -48,11 +49,14 @@ const monthlyBudgetOf = (cl) => Number(String((cl && cl.adBudget) || "").replace
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 const sum = (arr, f) => arr.reduce((s, x) => s + (Number(f(x)) || 0), 0);
 
-// A campaign is "live" (i.e. able to spend) on Google when ENABLED; on Meta when
-// its EFFECTIVE status is ACTIVE — a campaign can read ACTIVE while its ad set is
-// paused, and effective_status is the one that tells the truth about delivery.
-const googleLive = (c) => String(c.status || "").toUpperCase() === "ENABLED";
-const metaLive = (c) => String(c.effectiveStatus || c.status || "").toUpperCase() === "ACTIVE";
+// 🔴 "SWITCHED ON" AND "SERVING RIGHT NOW" ARE TWO QUESTIONS, AND THIS FILE USED TO ANSWER
+// ONLY THE SECOND ONE — under the name `live`. So a Meta campaign that was on, had been seen
+// 786 times and had spent real money was stored as NOT live the moment Meta reported a
+// transient `IN_PROCESS` (which is what it reports while applying a budget change made from
+// the OS). My Ads then described it as "not running, so it has not been seen by anyone and has
+// spent nothing". Both halves false, from one word meaning two things. Reasoning in
+// `netlify/lib/meta-status.mjs`; both answers are now stored per campaign. (`metaOn`,
+// `metaDelivering`, `googleOn` and `googleDelivering` are imported at the top of this file.)
 
 // ─── WHEN IS "SPEND MORE" THE RIGHT ADVICE ───────────────────────────────────
 // Bryson, 2026-08-24: "for my own ads when it thinks we should scale i want to get an
@@ -136,7 +140,13 @@ const trimCampaign = (c, spendKey) => ({
 });
 
 // Roll a platform's campaign array into the numbers the pacing check needs.
-function summarize(campaigns, isLive, spendKey) {
+//
+// 🔴 `isLive` IS THE SWITCH AND `isDelivering` IS WHETHER IT IS SERVING. Both are stored per
+// campaign, because collapsing them is what let a running campaign be described as never
+// having run. `liveList` and the pacing maths deliberately use the SWITCH: a campaign that is
+// on but held up in review still has that money committed to it, and will spend it the moment
+// Meta lets it through.
+function summarize(campaigns, isLive, isDelivering, spendKey) {
   const live = campaigns.filter(isLive);
   return {
     ok: true,
@@ -149,7 +159,7 @@ function summarize(campaigns, isLive, spendKey) {
       .slice()
       .sort((a, b) => (isLive(b) - isLive(a)) || (Number(b[spendKey] || 0) - Number(a[spendKey] || 0)))
       .slice(0, CAMPAIGN_LIST_CAP)
-      .map((c) => ({ ...trimCampaign(c, spendKey), live: isLive(c) })),
+      .map((c) => ({ ...trimCampaign(c, spendKey), live: isLive(c), delivering: isDelivering(c) })),
     campaigns: campaigns.length,
     live: live.length,
     liveDailyBudget: round2(sum(live, (c) => c.dailyBudget)),
@@ -204,7 +214,7 @@ export default withFailureAlert("ads-sync", async () => {
       if (!googleConfigured) { google.ok = false; google.error = "Google Ads credentials are not set in Netlify."; }
       else if (!accessToken) { google.ok = false; google.error = googleAuthError || "Google Ads auth unavailable."; }
       else {
-        try { Object.assign(google, summarize(await gadsCampaigns(accessToken, gid), googleLive, "cost")); google.linked = true; googleOk++; }
+        try { Object.assign(google, summarize(await gadsCampaigns(accessToken, gid), googleOn, googleDelivering, "cost")); google.linked = true; googleOk++; }
         catch (e) { google.ok = false; google.error = (e && e.message) || "Google Ads read failed"; }
       }
     }
@@ -212,7 +222,7 @@ export default withFailureAlert("ads-sync", async () => {
     if (mid) {
       if (!metaConfigured) { meta.ok = false; meta.error = "META_SYSTEM_USER_TOKEN is not set in Netlify."; }
       else {
-        try { Object.assign(meta, summarize(await metaCampaigns(mid), metaLive, "spend")); meta.linked = true; metaOk++; }
+        try { Object.assign(meta, summarize(await metaCampaigns(mid), metaOn, metaDelivering, "spend")); meta.linked = true; metaOk++; }
         catch (e) { meta.ok = false; meta.error = (e && e.message) || "Meta read failed"; }
       }
     }
