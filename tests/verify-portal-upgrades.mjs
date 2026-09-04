@@ -98,10 +98,19 @@ const render = (o) => {
   // What is actually worth guarding is the BOUNDARY: one dollar below the two-platform
   // unlock a combined package must be locked, and at the unlock it must open. That fails if
   // the comparison is ever written as > instead of >=, or if the floor drifts.
+  // 🔴 SLICE THE WHOLE CARD, NOT A WINDOW AFTER THE NAME. This used to take 320 characters
+  // FORWARD from "Full System", which silently assumed the qualification line came after the
+  // package name. Moving it above the name on 2026-09-04 (Bryson: list how to qualify, then
+  // the cost) made these read as "the unlock figure is gone" when it had merely moved. And
+  // widening the window backwards would be worse than the bug: it would reach into the
+  // PREVIOUS card and could match that package's "You qualify", passing on the wrong card.
+  // So split on the real card boundary and take the one that contains the name.
   const comboRow = (budget) => {
-    const b = text(upgradeBlock(render({ packageId: "g-growth", adBudget: `$${budget}/mo` })));
-    const i = b.search(/Full System/i);
-    return i < 0 ? "" : b.slice(i, i + 320);
+    const html = upgradeBlock(render({ packageId: "g-growth", adBudget: `$${budget}/mo` }));
+    // The lookahead matters: plain `"uopt"` also matches uopt-qual, uopt-feats and
+    // uopt-locked, which shreds the card into pieces and finds nothing.
+    const card = html.split(/<div class="uopt(?=[" ])/).find((c) => /Full System/i.test(c));
+    return card ? text('<div class="uopt' + card) : "";
   };
   const under = comboRow(4999);
   const at    = comboRow(5000);
