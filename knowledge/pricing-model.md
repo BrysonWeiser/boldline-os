@@ -360,3 +360,39 @@ catches a `>` written for `>=` and catches the floor drifting. Both breaks now c
 - **The test is a BAND, not a number,** so prices can move without it decaying into figures somebody must remember to update: combined must be **above** one platform at the same tier (or the extra monthly work is unpaid) and **below** two bought separately (or nobody would ever combine). Both halves matter and both were broken once to check.
 - 🔴 **A mutation was masked at first:** changing the price in only one catalog copy trips the five-way DRIFT check before the band check is ever reached, so the mutation has to be applied to all copies at once to actually test the band. Worth remembering for any future pricing test.
 - The upgrade ladder still ranks by TIER, not price, so `g-growth -> c-growth` remains a legal upgrade even though it now costs more per month. Pinned.
+
+## The portal upgrade card reads qualification FIRST (2026-09-04)
+
+Bryson: *"in the client portal the way upgrades happen and the pricing needs to be updated. It
+needs to list how to qualify for an upgrade and then from there tell them the monthly minimum
+cost"*.
+
+🔴 **Most of this already existed** (built 2026-08-26): the section explains the tier is set by
+ad budget, calls every figure a **monthly minimum, not an added fee**, states *"whichever is
+higher, never both"*, shows the client's current budget, and prints *"Unlocks at $2,500/mo of
+ad budget. That is $1,700/mo more than you run today"*. His screenshot predated it. **His
+backlog can be older than the code, so render the thing before rebuilding it.**
+
+What was genuinely wrong was the **order**: the price sat above the qualification line. It now
+reads qualification, then name, then minimum, matching what he asked for. `.uopt-qual` swapped
+`margin-top` for `margin-bottom` since it is now first in the card.
+
+Also fixed: the invoice email's one-line description in the OS still said **"(setup +
+monthly)"**, the old additive model and the exact sum section 4.1 forbids. The email TEMPLATE
+was corrected on 2026-08-26; this label was left describing the bug. Now *"setup, then the
+monthly minimum or qualified leads, whichever is higher"*.
+
+### Testing note
+
+🔴 **Three checks in `verify-portal-upgrades` broke and the fix was in the TEST.** They sliced
+320 characters **forward** from the package name, silently assuming the qualification line came
+after it. Widening the window backwards would have been worse than the bug: it reaches into the
+PREVIOUS card and can match that package's *"You qualify"*, passing on the wrong card. They now
+split on the real card boundary — with a lookahead, because a plain `"uopt"` also matches
+`uopt-qual`, `uopt-feats` and `uopt-locked` and shreds the card into pieces.
+
+🔴 And a mutation of `Math.max(minBudget, COMBO_MIN_BUDGET)` **escaped**, which is not a gap:
+the combined package's own `minBudget` is already 5000, so the `Math.max` is defensive and
+changes nothing today. The test's own comment says so. The boundary that IS load-bearing,
+`>=` versus `>` at the unlock, was mutated and caught.
+

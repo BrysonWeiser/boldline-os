@@ -300,7 +300,12 @@ export const EMAIL_TYPES = [
   { id: "welcome", label: "Welcome + Portal", icon: "\u{1F44B}", auto: "when they pay", desc: "Sent right after they sign \u2014 warm welcome + portal login + what's next." },
   { id: "onboarding_access", label: "Ad Account Access", icon: "\u{1F511}", auto: "a day after the welcome", desc: "Asks the client to grant BoldLine manager access to their ad account." },
   { id: "contract_signed", label: "Contract Signed", icon: "\u2705", auto: "the moment they sign", desc: "Confirmation that their agreement is signed and on file." },
-  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup + monthly)." },
+  // 🔴 THE DESCRIPTION HAD TO MATCH WHAT THE INVOICE ACTUALLY BILLS. It said "setup +
+  // monthly", which is the OLD model and the exact addition the contract forbids: section 4.1
+  // reads "THE TWO ARE NEVER CHARGED TOGETHER". The template itself was fixed on 2026-08-26
+  // after it invoiced a client the minimum AND the lead fees; this line was left describing
+  // the bug. Bryson caught it 2026-09-04: *"it would be setup + qualified leads"*.
+  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup, then the monthly minimum or qualified leads, whichever is higher)." },
   { id: "receipt", label: "Payment Receipt", icon: "\u{1F4B3}", auto: "when a payment goes through", desc: "Thank-you + confirmation after a successful payment." },
   { id: "past_due", label: "Payment Past-Due", icon: "\u23F0", auto: "when a payment fails", desc: "Polite heads-up that a payment didn't process, with an update link." },
   { id: "renewal", label: "Renewal Reminder", icon: "\u{1F504}", auto: "30 days before the term ends", desc: "Nudge before the term ends \u2014 keep the campaigns running." },
