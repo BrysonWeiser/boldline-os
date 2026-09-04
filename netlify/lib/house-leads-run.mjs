@@ -44,7 +44,7 @@ export async function syncHouseLeads(supabase, { warn = async () => {} } = {}) {
 
   const leads = rows || [];
   const cl = house.data || {};
-  const { kept, added, updated, pruned, changed } = mergeHouseLeads(cl.leadsLog, leads, { limit: PRUNE_LIMIT });
+  const { kept, added, addedLeads, updated, pruned, changed } = mergeHouseLeads(cl.leadsLog, leads, { limit: PRUNE_LIMIT });
 
   // 🔴 A HEARTBEAT, SO "NO LEADS YET" AND "THIS STOPPED WORKING" LOOK DIFFERENT.
   // Bryson, 2026-08-24: "I also want to make sure the actual lead count works (i havent
@@ -67,6 +67,40 @@ export async function syncHouseLeads(supabase, { warn = async () => {} } = {}) {
     .update({ data: { ...cl, leadsLog: kept, leads: kept.length, leadSync }, updated_at: new Date().toISOString() })
     .eq("id", house.id);
   if (upErr) { await warn("saving the mirrored leads", upErr.message); return { ok: true, error: `client update failed: ${upErr.message}`, added: 0 }; }
+
+  // ─── 🔴 A LEAD HE DOES NOT KNOW ABOUT IS A LEAD HE LOSES ────────────────────
+  // Bryson, 2026-09-04, on his first one: *"make sure I get an alert on my phone as well
+  // when a new lead lands"*. He is on his phone most of the day and the whole product is
+  // speed to lead: minutes decide whether a prospect is still thinking about you.
+  //
+  // 🔴 SENT AFTER THE WRITE, NEVER BEFORE. If the push went first and the save then failed,
+  // the next run would see the same lead as new and buzz him again for it, every fifteen
+  // minutes, forever. Once the row is written the lead is no longer new to anything, so this
+  // can only fire once per lead no matter which caller got here first.
+  //
+  // Push only, not the full alert channel: the website already emails him on every
+  // submission, so routing this through `dispatchAlert` would mean two emails and a text
+  // message for one lead, and an alert he learns to ignore is worse than no alert.
+  if (addedLeads.length) {
+    try {
+      const { sendPushToAll } = await import("./push-shared.mjs");
+      const { leadOrigin } = await import("./lead-origin.mjs");
+      for (const lead of addedLeads.slice(0, 5)) {
+        const who = lead.name || lead.business || lead.email || "Someone";
+        const o = leadOrigin(lead);
+        const bits = [o.known ? `From ${o.label}.` : null, lead.business || null, lead.email || null];
+        await sendPushToAll({
+          title: `New lead: ${who}`,
+          body: bits.filter(Boolean).join(" · ") || "Open the OS to see the details.",
+          severity: "green", url: "/",
+        });
+      }
+    } catch (e) {
+      // A missed buzz must never cost the mirror. The lead is already saved.
+      console.error("house-leads: new-lead push failed:", e && e.message);
+      await warn("sending the new-lead alert", e && e.message);
+    }
+  }
 
   console.log(`house-leads: ${leads.length} website lead(s) scanned — ${added} added, ${updated} status-synced, ${pruned} pruned.`);
   return { ok: true, house: true, scanned: leads.length, added, updated, pruned, total: kept.length };

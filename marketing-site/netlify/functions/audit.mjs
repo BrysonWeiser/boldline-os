@@ -7,6 +7,20 @@
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
+// Where the visitor came from, as the site's script recorded it. An allow list rather than
+// a pass-through, because this endpoint is public.
+const ORIGIN_KEYS = ["gclid","wbraid","gbraid","fbclid","msclkid","ttclid",
+  "utm_source","utm_medium","utm_campaign","utm_term","utm_content","referrer","landing_page"];
+const pickOrigin = (v) => {
+  const o = v && typeof v === "object" ? v : {};
+  const out = {};
+  for (const k of ORIGIN_KEYS) {
+    const s = String(o[k] == null ? "" : o[k]).trim().slice(0, 300);
+    if (s) out[k] = s;
+  }
+  return out;
+};
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const json = (obj, status = 200) =>
@@ -74,7 +88,10 @@ export default async (req) => {
       const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
       const { data, error } = await supabase.from("website_leads").insert({
         form: "lead_leak", email, name,
-        payload: { website, name, source, kind: "Lead-Leak Check request" },
+        // 🔴 Only the names we know, and only strings. This endpoint is public, so
+        // copying whatever arrives onto a stored record is how a form becomes a way to
+        // write junk into the OS.
+        payload: { website, name, source, kind: "Lead-Leak Check request", attribution: pickOrigin(body.attribution) },
       }).select("id").single();
       if (error) throw error;
       leadId = data && data.id;

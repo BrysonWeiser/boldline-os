@@ -1542,7 +1542,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
     if(!website){m.textContent='Please add your website.';return;}
     if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
     b.disabled=true;var old=b.textContent;b.textContent='Sending…';m.textContent='';
-    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'homepage'})})
+    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'homepage',attribution:(window.blOrigin?window.blOrigin():null)})})
       .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
       .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
   });
@@ -1604,6 +1604,7 @@ html.js-tabs .tstep{opacity:0;transform:translateY(14px)}
 
     <form class="lead-form" id="leadForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
       <input type="hidden" name="form-name" value="contact">
+      <input type="hidden" name="attribution" value="">
       <p class="lead-hp"><label>Leave this empty: <input name="bot-field" autocomplete="off" tabindex="-1"></label></p>
       <div class="frow"><label for="lf-name">Name</label><input id="lf-name" type="text" name="name" autocomplete="name" required></div>
       <div class="frow"><label for="lf-biz">Business</label><input id="lf-biz" type="text" name="business" autocomplete="organization" required></div>
@@ -1745,6 +1746,7 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
       </div>
       <form class="rec-email" id="recEmailForm" name="recommendation" method="POST" data-netlify="true" netlify-honeypot="bot-field">
         <input type="hidden" name="form-name" value="recommendation">
+        <input type="hidden" name="attribution" value="">
         <input type="hidden" name="recommended" id="recRecommended" value="">
         <p class="lead-hp"><label>Leave this empty: <input name="bot-field" autocomplete="off" tabindex="-1"></label></p>
         <label for="re-email">Not ready to book? Drop your email and we'll follow up with a plan for your business. No spam.</label>
@@ -2079,6 +2081,7 @@ window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
 })();
 </script>
 
+<script src="/attribution.js" defer></script>
 <script src="/glossary.js" defer></script>
 
 <script>

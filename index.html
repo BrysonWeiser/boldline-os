@@ -1772,6 +1772,86 @@ function adImagesFor(cl,groupKey){
   return {images:g.items,group:g,fellBack:!!groupKey&&!wanted};
 }
 
+// ─── WHERE A LEAD CAME FROM ──────────────────────────────────────────────────
+//
+// Bryson, 2026-09-04, on BoldLine's first lead: *"I'm not sure where from yet though because
+// the os ad analytics haven't updated"*.
+//
+// 🔴 THE AD NUMBERS WERE NEVER GOING TO ANSWER THAT. Spend and clicks are totals for a
+// campaign; they cannot say which click became this person. Only what the visitor's browser
+// was carrying at the moment they filled the form can, and the marketing site was throwing
+// all of it away. So the site now records it and this turns it back into a sentence.
+//
+// 🔴 THE BROWSER CANNOT IMPORT THE LIB, so this is the second copy of
+// `netlify/lib/lead-origin.mjs` and the two must agree. `verify-lead-origin.mjs` extracts
+// this copy and runs every case against BOTH.
+const LO_CLICK_IDS = {gclid:"Google ad",wbraid:"Google ad",gbraid:"Google ad",
+  fbclid:"Facebook or Instagram ad",msclkid:"Bing ad",ttclid:"TikTok ad"};
+const LO_KEYS = [...Object.keys(LO_CLICK_IDS),"utm_source","utm_medium","utm_campaign","utm_term","utm_content","referrer","landing_page"];
+const LO_STR = (v)=>String(v==null?"":v).trim();
+function originFields(lead){
+  const l=lead||{}, bag={};
+  const soak=(o)=>{ if(!o||typeof o!=="object") return;
+    for(const k of LO_KEYS){ const v=LO_STR(o[k]).slice(0,300); if(v&&!bag[k]) bag[k]=v; } };
+  soak(l);
+  const p = l.payload&&typeof l.payload==="object" ? l.payload : null;
+  soak(p);
+  // A lead mirrored onto the house account keeps its origin in `origin`, because the mirror
+  // deliberately does not copy the whole payload across.
+  soak(l.origin);
+  // The site posts ONE declared field holding JSON, because Netlify only records fields that
+  // are written into the form's HTML. Bad JSON is ignored: this runs while drawing a card
+  // and a malformed field must never blank the lead.
+  for(const src of [l,p]){
+    const raw = src && src.attribution;
+    if(!raw) continue;
+    if(typeof raw==="object"){ soak(raw); continue; }
+    try{ soak(JSON.parse(String(raw))); }catch(e){}
+  }
+  return bag;
+}
+const LO_HOSTS = [[/(^|\.)google\./i,"Google search"],[/(^|\.)bing\./i,"Bing search"],[/(^|\.)duckduckgo\./i,"DuckDuckGo search"],
+  [/(^|\.)(facebook|fb)\./i,"Facebook"],[/(^|\.)instagram\./i,"Instagram"],[/(^|\.)linkedin\./i,"LinkedIn"],
+  [/(^|\.)(x|twitter)\./i,"X"],[/(^|\.)youtube\./i,"YouTube"],[/(^|\.)tiktok\./i,"TikTok"],[/(^|\.)reddit\./i,"Reddit"]];
+const LO_SOURCES = [[/facebook|instagram|^ig$|^fb$|^meta$/i,"Facebook or Instagram"],[/google/i,"Google"],
+  [/bing|microsoft/i,"Bing"],[/tiktok/i,"TikTok"],[/linkedin/i,"LinkedIn"],[/youtube/i,"YouTube"]];
+const LO_PAID = /^(cpc|ppc|paid|paidsocial|paid_social|paid-social|cpm|display|ads?)$/i;
+const LO_title = (s)=>{ const v=LO_STR(s).replace(/[-_+]+/g," ").replace(/\s+/g," ").trim();
+  return v ? v[0].toUpperCase()+v.slice(1) : ""; };
+const LO_landing = (f)=>(f.landing_page&&f.landing_page!=="/" ? `landed on ${f.landing_page}` : "");
+function LO_detail(f){
+  const bits=[];
+  if(f.utm_campaign) bits.push(LO_title(f.utm_campaign));
+  if(f.utm_content)  bits.push(LO_title(f.utm_content));
+  if(f.utm_term)     bits.push(`searched "${f.utm_term}"`);
+  const page=LO_landing(f); if(page) bits.push(page);
+  return bits.join(" · ");
+}
+const LO_host = (url)=>{ const s=LO_STR(url); if(!s) return "";
+  try{ return new URL(s).hostname.replace(/^www\./,""); }
+  catch(e){ return s.replace(/^https?:\/\//,"").split("/")[0].replace(/^www\./,""); } };
+function leadOrigin(lead){
+  const f = originFields(lead);
+  for(const [key,label] of Object.entries(LO_CLICK_IDS)){
+    if(f[key]) return {label,detail:LO_detail(f),paid:true,known:true};
+  }
+  const src=f.utm_source||"", med=f.utm_medium||"";
+  if(src){
+    const named=(LO_SOURCES.find(([re])=>re.test(src))||[])[1]||LO_title(src);
+    const paid=LO_PAID.test(med);
+    return {label: paid?`${named} ad`:(med?`${named} (${med.toLowerCase()})`:named), detail:LO_detail(f), paid, known:true};
+  }
+  const host=LO_host(f.referrer);
+  if(host){
+    const named=(LO_HOSTS.find(([re])=>re.test(host))||[])[1]||host;
+    // 🔴 NOT called an ad. A Facebook referrer with no click id is far more likely to be a
+    // tap on a post, and guessing would quietly poison the cost per lead.
+    return {label:named,detail:LO_landing(f),paid:false,known:true};
+  }
+  if(f.landing_page) return {label:"Typed the address in, or had it saved",detail:LO_landing(f),paid:false,known:true};
+  return {label:"Not recorded",detail:"",paid:false,known:false};
+}
+
 const adPerfStats = (cl) => {
   const perf   = (cl && cl.adPerf) || {};
   const t      = perf.totals || {};
@@ -8848,6 +8928,11 @@ function LeadsTabContent({client,onUpdate}) {
                 <div style={S.f1min}>
                   <div style={{fontSize:13,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{lead.name || (lead.source==="call_tracking" ? "Inbound Call" : "Unknown")}</div>
                   <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{sourceLabel(lead.source)} · {lead.receivedAt ? fmt(lead.receivedAt) : "—"}</div>
+                  {/* Which ad or which search produced this person. The form they used is
+                      above; this is the part the ad dashboards can never tell him. */}
+                  {(()=>{ const o=leadOrigin(lead); return o.known
+                    ? <div style={{fontSize:10,color:o.paid?C.gold:C.textMuted,marginTop:2}}>Came from {o.label}{o.detail?` · ${o.detail}`:""}</div>
+                    : null; })()}
                 </div>
                 <Chip label={st.label} color={st.color} small/>
               </div>
@@ -14228,7 +14313,28 @@ function LeadCard({lead,onUpdate,onDelete}){
   const [reachOpen,setReachOpen]=useState(false);
   const [draft,setDraft]=useState("");
   const [copied,setCopied]=useState("");
-  useEffect(()=>{ setNotes(lead.notes||""); setConfirmDel(false); setReachOpen(false); },[lead.id]);
+  // 🔴 PRESSING A LEAD DID NOTHING. Bryson, 2026-09-04: *"on the phone when I press the lead
+  // in the leads tab no information pops up"*. He was right, and it was not a broken handler:
+  // the card had no handler at all. Everything it knew was already printed, so on a lead that
+  // left no message it printed a name and a badge and looked empty, and pressing it to find
+  // out more was the obvious thing to do and the one thing that did nothing.
+  const [open,setOpen]=useState(false);
+  useEffect(()=>{ setNotes(lead.notes||""); setConfirmDel(false); setReachOpen(false); setOpen(false); },[lead.id]);
+  const origin = leadOrigin(lead);
+  // Everything the lead carries that is not already on the card, so "no information" can
+  // never be the answer again. Attribution is shown as a sentence above, not as raw keys.
+  const HIDE = new Set(["id","created_at","updated_at","status","notes","name","business","email","message",
+    "recommended","form","payload","attribution","origin","bot-field","form-name",...LO_KEYS]);
+  const extras = (()=>{
+    const out=[], seen=new Set();
+    const add=(k,v)=>{ const key=String(k); if(HIDE.has(key)||seen.has(key)) return;
+      const s=String(v==null?"":v).trim(); if(!s||s.length>400) return; seen.add(key); out.push([key,s]); };
+    for(const [k,v] of Object.entries(lead||{})) if(typeof v!=="object") add(k,v);
+    const p = lead&&lead.payload&&typeof lead.payload==="object" ? lead.payload : {};
+    for(const [k,v] of Object.entries(p)) if(typeof v!=="object") add(k,v);
+    return out;
+  })();
+  const prettyKey = (k)=>k.replace(/[-_]+/g," ").replace(/\b\w/g,(c)=>c.toUpperCase());
   const isQuiz = lead.form==="recommendation";
   // A booked call arrives from Calendly, not from a form. Worth its own badge: it is the
   // strongest kind of lead BoldLine gets, and telling it apart from a form fill at a glance
@@ -14248,13 +14354,24 @@ function LeadCard({lead,onUpdate,onDelete}){
   const doCopy = (t,w) => { try{ navigator.clipboard.writeText(t); setCopied(w); setTimeout(()=>setCopied(""),1500); }catch(e){} };
   return (
     <div style={{...card,borderLeft:`3px solid ${leadStatusColor(lead.status)}`,display:"flex",flexDirection:"column",gap:10}}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+      {/* The whole header is the button, because that is what he pressed. */}
+      <button onClick={()=>setOpen(v=>!v)} style={{display:"flex",alignItems:"flex-start",gap:8,width:"100%",textAlign:"left",background:"none",border:"none",padding:0,font:"inherit",cursor:"pointer"}}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:14,fontWeight:700,color:C.text}}>{title}</div>
           {lead.name&&lead.business&&<div style={{fontSize:11.5,color:C.textDim}}>{lead.business}</div>}
         </div>
         <span style={{fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",whiteSpace:"nowrap",borderRadius:20,padding:"3px 9px",color:isCall?C.green:isQuiz?C.purple:C.gold,backgroundColor:isCall?"rgba(34,211,160,0.14)":isQuiz?"rgba(139,92,246,0.14)":C.goldDim}}>{isCall?"Booked call":isQuiz?"Quiz":"Contact"}</span>
+        <span style={{fontSize:11,color:C.textMuted,flexShrink:0,marginTop:2}}>{open?"▾":"▸"}</span>
+      </button>
+      {/* 🔴 WHERE THEY CAME FROM, ON THE CARD, NOT BURIED. It is the first thing he asks and
+          the ad dashboards cannot answer it. `paid` is only claimed on real evidence. */}
+      <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+        <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>Came from</span>
+        <span style={{fontSize:11.5,fontWeight:700,color:origin.known?(origin.paid?C.gold:C.textDim):C.textMuted}}>{origin.label}</span>
+        {origin.paid&&<span style={{fontSize:8.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"2px 6px",borderRadius:5,color:C.gold,background:C.goldDim}}>Paid click</span>}
       </div>
+      {origin.detail&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:-4,lineHeight:1.5}}>{origin.detail}</div>}
+      {!origin.known&&open&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:-4}}>This one arrived before the website started recording where visitors come from. Everything from now on will say.</div>}
       {lead.email&&<a href={"mailto:"+lead.email} style={{fontSize:12.5,color:C.gold,textDecoration:"none",wordBreak:"break-all"}}>{lead.email}</a>}
       {lead.recommended&&<div style={{fontSize:12,color:C.textDim}}>Recommended: <span style={{color:C.text}}>{lead.recommended}</span></div>}
       {cal&&(cal.rescheduleUrl||cal.cancelUrl)&&(
@@ -14265,6 +14382,26 @@ function LeadCard({lead,onUpdate,onDelete}){
         </div>
       )}
       {lead.message&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{lead.message}</div>}
+      {open&&(
+        <div style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+          <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:7}}>Everything we have</div>
+          {[["Name",lead.name],["Business",lead.business],["Email",lead.email],["Phone",phone],
+            ["Which form",lead.form?prettyKey(lead.form):null],["Recommended",lead.recommended],
+            ["Came from",origin.known?origin.label:"Not recorded"],["Campaign",origin.detail||null],
+            ...extras.map(([k,v])=>[prettyKey(k),v])]
+            .filter(([,v])=>v!=null&&String(v).trim()!=="")
+            .map(([k,v])=>(
+              <div key={k} style={{display:"flex",gap:10,padding:"4px 0",alignItems:"baseline"}}>
+                <span style={{fontSize:10,color:C.textMuted,width:96,flexShrink:0}}>{k}</span>
+                <span style={{fontSize:11.5,color:C.textDim,flex:1,minWidth:0,wordBreak:"break-word"}}>{String(v)}</span>
+              </div>
+            ))}
+          {lead.message&&<div style={{marginTop:6,paddingTop:7,borderTop:`1px solid ${C.border2}`}}>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:3}}>What they wrote</div>
+            <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{lead.message}</div>
+          </div>}
+        </div>
+      )}
       <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
         <select value={lead.status} onChange={e=>onUpdate({...lead,status:e.target.value})} style={{...inp,width:"auto",padding:"7px 10px",fontSize:11.5}}>
           {LEAD_STATUSES.map(s=><option key={s} value={s}>{LEAD_STATUS_LABEL[s]||s}</option>)}
