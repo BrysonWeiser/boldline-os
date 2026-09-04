@@ -6492,6 +6492,153 @@ function CrmTestButton({client}) {
   );
 }
 
+// ─── CHANGE ONE CAMPAIGN'S DAILY BUDGET, FROM WHEREVER YOU ARE LOOKING AT IT ──
+//
+// Bryson, 2026-09-04: *"make sure there is a way for me to update the daily budget for my
+// individual ads"*.
+//
+// 🔴 THERE WAS ONE, AND IT WAS SOMEWHERE HE NEVER GOES. The budget write has existed on both
+// platforms since the approval queue was built, and a hand editor was added to
+// `LiveCampaignsCard` on 2026-09-03. That card lives on a client's Package tab, four taps
+// deep. The two screens he actually uses — My Ads, and Campaigns from the phone menu — both
+// PRINTED the daily budget as plain text with nothing to press. A control that exists in a
+// place nobody visits is indistinguishable from one that does not exist, which is exactly how
+// this got reported as missing.
+//
+// 🔴 SO IT IS ONE COMPONENT, NOT A THIRD COPY OF THE SAME MONEY-MOVING CODE. Every guard —
+// the typo confirmation, the ceiling, re-reading the platform afterwards — lives here once.
+// A fourth screen that wants budget editing gets it by rendering this, and it cannot get the
+// guards wrong by forgetting to copy one.
+//
+// 🔴 AND A META CAMPAIGN KEEPS ITS BUDGET IN ONE OF TWO PLACES. Campaigns the OS builds carry
+// it on the campaign. Campaigns built by hand in Meta Ads Manager usually carry it on the ad
+// set, and then the campaign truthfully reports no daily budget at all. Writing to the
+// campaign in that case does not fail loudly, it just is not where the money is. So when the
+// campaign has no budget of its own this looks inside and edits the ad set that does.
+function DailyBudgetEditor({client,platform,campaign,onSaved,label}) {
+  const [open,setOpen]   = useState(false);
+  const [state,setState] = useState("idle");   // idle | looking | ready | none
+  const [targets,setTargets] = useState([]);   // [{id,kind,name,current}]
+  const [draft,setDraft] = useState({});       // targetId -> typed string
+  const [busy,setBusy]   = useState(null);
+  const [err,setErr]     = useState("");
+  const [note,setNote]   = useState("");
+
+  const isMeta   = platform==="meta";
+  const current  = Number((campaign||{}).dailyBudget||0);
+  const whose    = client.internal ? "your" : `${client.name||"the client"}'s`;
+
+  const start = async () => {
+    if(open){ setOpen(false); return; }
+    setOpen(true); setErr(""); setNote("");
+    // The common case: the budget sits on the campaign and we already know it.
+    if(!isMeta || current>0){
+      const t=[{id:String(campaign.id),kind:"campaign",name:"",current}];
+      setTargets(t); setDraft({[t[0].id]:current>0?String(current):""}); setState("ready");
+      return;
+    }
+    // Meta with nothing on the campaign: the budget is on an ad set inside it.
+    setState("looking");
+    try{
+      const d = await metaCall({action:"campaignDetail",adAccountId:client.metaAdAccountId,campaignId:campaign.id});
+      const sets=(d.adGroups||[]).filter(g=>Number(g.dailyBudget||0)>0)
+        .map(g=>({id:String(g.id),kind:"adset",name:g.name||"Ad set",current:Number(g.dailyBudget||0)}));
+      if(sets.length){
+        setTargets(sets);
+        setDraft(Object.fromEntries(sets.map(s=>[s.id,String(s.current)])));
+        setState("ready");
+      }else{
+        // A total (lifetime) budget is a different thing entirely and there is no safe
+        // daily edit for it. Say which it is rather than showing a dead input.
+        const lifetime=(d.adGroups||[]).some(g=>Number(g.lifetimeBudget||0)>0)||Number((d.campaign||{}).lifetimeBudget||0)>0;
+        setNote(lifetime
+          ? "This campaign runs on a total budget for its whole run, not a daily one. Change that in Meta Ads Manager."
+          : "No daily budget found on this campaign or its ad sets, so there is nothing to change here yet.");
+        setState("none");
+      }
+    }catch(e){ setErr(e.message||"Could not read this campaign."); setState("none"); }
+  };
+
+  const save = async (t) => {
+    const after = Number(draft[t.id]);
+    setErr(""); setNote("");
+    if(!(after>0)){ setErr("The daily budget has to be a number above zero."); return; }
+    if(after>100000){ setErr("That is above what the OS will send. Change a budget that large in the ad platform itself."); return; }
+    const before = Number(t.current||0);
+    // 🔴 A TENFOLD TYPO IS THE ONE MISTAKE WORTH A SECOND QUESTION. $700/day where $70 was
+    // meant is the whole month gone in three days and nothing else in the OS would query it.
+    // Two shapes: a big jump from a known budget, and a big number where we knew of none
+    // (the second cannot trip a multiplier rule, which is how it would otherwise slip past).
+    const jump = before>0 && after>=before*3;
+    const cold = before<=0 && after>=100;
+    if((jump||cold) && !window.confirm(
+      `Set the daily budget to $${after.toLocaleString()} a day?\n\n`
+      + (before>0 ? `It is $${before.toLocaleString()} a day now, so that is ${Math.round(after/before)} times higher.\n\n` : "")
+      + `That is about $${Math.round(after*30).toLocaleString()} a month and it spends on ${whose} real ad account.`)) return;
+    setBusy(t.id);
+    try{
+      if(platform==="google"){
+        // The write needs the budget's own id, which the stored hourly snapshot does not
+        // carry. Asking Google for it costs one call and also proves the campaign is still
+        // there, so a renamed or deleted campaign says so instead of failing oddly.
+        let brn = campaign.budgetResourceName;
+        if(!brn){
+          const d=await gadsCall({action:"campaigns",customerId:client.googleAdsCustomerId});
+          const c=(d.campaigns||[]).find(x=>String(x.id)===String(campaign.id));
+          if(!c) throw new Error(`"${campaign.name||campaign.id}" is not in the Google account any more. Nothing was changed.`);
+          brn=c.budgetResourceName;
+        }
+        if(!brn) throw new Error("Google did not report a budget for this campaign, so it cannot be changed from here.");
+        await gadsCall({action:"setBudget",customerId:client.googleAdsCustomerId,budgetResourceName:brn,dollars:after});
+      }else if(t.kind==="adset"){
+        await metaCall({action:"setAdSetBudget",adSetId:t.id,dailyBudgetDollars:after});
+      }else{
+        await metaCall({action:"setBudget",campaignId:campaign.id,dailyBudgetDollars:after});
+      }
+      setTargets(ts=>ts.map(x=>x.id===t.id?{...x,current:after}:x));
+      setNote(`Saved. ${t.kind==="adset"?`"${t.name}"`:"This campaign"} now spends up to $${after.toLocaleString()} a day.`);
+      if(onSaved) onSaved(after,t);
+    }catch(e){ setErr(e.message||"That did not save."); }
+    setBusy(null);
+  };
+
+  const btn={padding:"5px 11px",fontSize:10.5,fontWeight:800,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"};
+  return (
+    <div style={{marginTop:8}}>
+      <button onClick={start} style={{...btn,borderColor:open?C.borderAccent:C.border,color:open?C.gold:C.textDim}}>
+        {open?"Close":(current>0?`Change budget ($${current.toLocaleString()}/day)`:(label||"Set a daily budget"))}
+      </button>
+      {open&&(
+        <div style={{marginTop:8,padding:"10px 11px",borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3}}>
+          {state==="looking"&&<div style={{fontSize:10.5,color:C.textMuted}}>Checking where this campaign keeps its budget…</div>}
+          {state==="ready"&&targets.map(t=>(
+            <div key={t.id} style={{marginBottom:targets.length>1?10:0}}>
+              {t.kind==="adset"&&<div style={{fontSize:10,color:C.textMuted,marginBottom:4,lineHeight:1.5}}>Budget for <b style={{color:C.textDim}}>{t.name}</b>, the ad set inside this campaign.</div>}
+              <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+                <span style={{fontSize:13,fontWeight:800,color:C.textDim}}>$</span>
+                <input value={draft[t.id]!=null?draft[t.id]:""} inputMode="decimal"
+                  onChange={e=>{const v=e.target.value.replace(/[^0-9.]/g,"");setDraft(d=>({...d,[t.id]:v}));}}
+                  placeholder="0"
+                  style={{width:82,padding:"6px 9px",fontSize:12.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text}}/>
+                <span style={{fontSize:10.5,color:C.textMuted}}>per day</span>
+                <button onClick={()=>save(t)} disabled={busy===t.id}
+                  style={{padding:"6px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:busy===t.id?"default":"pointer",backgroundColor:busy===t.id?C.border:C.gold,color:busy===t.id?C.textMuted:"#15110A"}}>
+                  {busy===t.id?"Saving…":"Save"}
+                </button>
+              </div>
+            </div>
+          ))}
+          {state==="ready"&&<div style={{fontSize:10,color:C.textMuted,marginTop:8,lineHeight:1.55}}>
+            This changes the real budget on {whose} ad account straight away. It is the most the ads can spend in a day, not what they will spend.
+          </div>}
+          {err&&<div style={{fontSize:10.5,color:C.red,marginTop:7,lineHeight:1.55}}>{err}</div>}
+          {note&&<div style={{fontSize:10.5,color:C.green,marginTop:7,lineHeight:1.55}}>{note}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // The Live Ad Performance card, and the ONE campaign it is showing.
 //
 // Bryson, 2026-09-04: *"I want when I press a campaign for my internal campaign I want the
@@ -6512,9 +6659,15 @@ function CrmTestButton({client}) {
 function LiveAdPerformanceCard({client}) {
   const st = adPerfStats(client);
   const [focus,setFocus] = useState(null);           // "google-123" or null for the whole account
+  // 🔴 A BUDGET CHANGED HERE MUST SHOW HERE, IMMEDIATELY. These rows come from the stored
+  // hourly snapshot, so without this the number he just changed keeps reading as the old one
+  // for up to an hour and the save looks like it did nothing.
+  const [budgets,setBudgets] = useState({});         // "google-123" -> new daily budget
+  const camps = st.campaigns.map(c=>{ const k=`${c.platform}-${c.id}`;
+    return budgets[k]!=null ? {...c,dailyBudget:budgets[k]} : c; });
   // A campaign that vanishes between syncs (deleted, or dropped past the cap) must not leave
   // the card stuck showing a campaign that is not there.
-  const sel = st.campaigns.find(c=>`${c.platform}-${c.id}`===focus) || null;
+  const sel = camps.find(c=>`${c.platform}-${c.id}`===focus) || null;
   const ago = (iso)=>{ const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
     if(!isFinite(m)||m<0) return ""; if(m<60) return `${m} min ago`;
     const h=Math.round(m/60); return h<48?`${h} hour${h===1?"":"s"} ago`:`${Math.round(h/24)} days ago`; };
@@ -6570,19 +6723,25 @@ function LiveAdPerformanceCard({client}) {
                 asked. Say which of the two reasons it is rather than leaving five zeros. */}
             {sel&&sel.live&&view.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Running, but nobody has seen it yet. A brand new campaign usually takes a few hours to start showing, and these figures refresh once an hour.</div>}
             {sel&&!sel.live&&<div style={{fontSize:10.5,color:C.amber,marginTop:9,lineHeight:1.55}}>This one is paused, so every number above is zero because it has not run.</div>}
+            {/* 🔴 THE BUDGET CONTROL SITS ON THE CAMPAIGN HE JUST TAPPED, not on the card as
+                a whole. The card's totals are several campaigns added together and there is
+                no such thing as "the budget" for those, so this appears only once one
+                campaign is chosen and it changes that one campaign. */}
+            {sel&&<DailyBudgetEditor client={client} platform={sel.platform} campaign={sel}
+              onSaved={(d)=>setBudgets(b=>({...b,[`${sel.platform}-${sel.id}`]:d}))}/>}
             {!sel&&st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
             {!sel&&st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}
             {!sel&&st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>These numbers were last refreshed {ago(st.leadsSyncedAt)}, so a recent lead may be missing from the count. Leads themselves are safe and are all on the Leads screen. Reopening this screen refreshes it.</div>}
             {!sel&&!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It fills this in on its first pass, usually within a few minutes.</div>}
-            {st.campaigns.length>0&&(
+            {camps.length>0&&(
               <div style={{marginTop:12,borderTop:`1px solid ${C.border2}`,paddingTop:10}}>
                 <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:2}}>
                   <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>By campaign</div>
-                  <div style={{fontSize:9.5,color:C.textMuted}}>{st.campaigns.length} total</div>
+                  <div style={{fontSize:9.5,color:C.textMuted}}>{camps.length} total</div>
                 </div>
-                <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:9}}>Tap one to put its numbers at the top.</div>
+                <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:9}}>Tap one to put its numbers at the top, and to change what it spends a day.</div>
                 <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                  {st.campaigns.map(c=>{
+                  {camps.map(c=>{
                     const key=`${c.platform}-${c.id}`, on=key===focus;
                     return (
                       <button key={key} onClick={()=>setFocus(on?null:key)}
@@ -10939,6 +11098,10 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
             <button onClick={()=>remove(r)} disabled={working} title="Delete this campaign permanently" style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:8,border:`1px solid ${C.red}44`,cursor:working?"default":"pointer",backgroundColor:"transparent",color:C.red,opacity:working?.6:1}}>Delete</button>
           </span>
         </div>
+        {/* 🔴 THE BUDGET WAS PRINTED HERE AND COULD NOT BE PRESSED. This is the screen the
+            phone menu opens, so for a phone it was the whole of the OS's campaign controls,
+            and changing what a campaign spends meant opening Google or Meta directly. */}
+        <DailyBudgetEditor client={r.client} platform={r.platform} campaign={r.c} onSaved={()=>load()}/>
         {swapFor&&keyOf(swapFor)===k&&(()=>{
           const imgs=swapImages(swapFor);
           return (
@@ -10985,7 +11148,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
                   {d.campaign.startTime&&<>started {new Date(d.campaign.startTime).toLocaleDateString()}</>}
                 </div>
               )}
-              {!isG&&<div style={{fontSize:10,color:C.textMuted,padding:"0 0 6px",lineHeight:1.6}}>Read only. Start and pause the whole campaign from the row above, or edit the pieces in Meta Ads Manager.</div>}
+              {!isG&&<div style={{fontSize:10,color:C.textMuted,padding:"0 0 6px",lineHeight:1.6}}>Read only. Start, pause and set the daily budget from the row above, or edit the rest in Meta Ads Manager.</div>}
               {d.adGroups.map(g=>{
                 const gLive=["ENABLED","ACTIVE"].includes(String(g.status||"").toUpperCase());
                 return (

@@ -15,6 +15,8 @@
 //   "test"           -> lists the ad accounts the token can see. Smoke test.
 //   "campaigns"      -> { adAccountId } read campaigns + last-30-day insights.
 //   "setBudget"      -> { adAccountId, campaignId, dailyBudgetDollars } guarded write.
+//   "setAdSetBudget" -> { adSetId, dailyBudgetDollars } guarded write, for the
+//                       campaigns that keep the budget on the ad set instead.
 //   "setStatus"      -> { adAccountId, campaignId, status } PAUSED|ACTIVE guarded write.
 //   "createCampaign" -> { adAccountId, pageId, landingUrl, ... } builds a full
 //                       lead-gen campaign (campaign→adset→creative→ad), ALL PAUSED
@@ -605,6 +607,22 @@ export async function setBudget(campaignId, dollars) {
   });
 }
 
+// ── Guarded write: AD SET daily budget ───────────────────────────────────────
+//
+// 🔴 A META CAMPAIGN KEEPS ITS BUDGET IN ONE OF TWO PLACES, AND ONLY ONE OF THEM
+// EXISTED HERE. `createCampaign` puts the budget on the CAMPAIGN, so `setBudget`
+// above covered everything the OS builds. A campaign built by hand in Meta Ads
+// Manager usually puts it on the AD SET instead, and then the campaign reports no
+// daily budget at all — which read on screen as "this one has no budget" and left
+// no way to change it. Same money, different object, so the write has to exist for
+// both or half his campaigns are uneditable.
+export async function setAdSetBudget(adSetId, dollars) {
+  return graph("setAdSetBudget", `${adSetId}`, {
+    method: "POST",
+    params: { daily_budget: String(dollarsToCents(dollars)) },
+  });
+}
+
 // ── Turning "Gilbert, Arizona" into something Meta can target ────────────────
 //
 // 🔴 THE BUG THIS EXISTS TO FIX (found 2026-08-20, before Bryson's first launch).
@@ -995,6 +1013,13 @@ export default async (req) => {
       if (!body.campaignId || body.dailyBudgetDollars == null)
         return json({ ok: false, error: "campaignId, dailyBudgetDollars required" }, 400);
       const result = await setBudget(body.campaignId, body.dailyBudgetDollars);
+      return json({ ok: true, action, result });
+    }
+
+    if (action === "setAdSetBudget") {
+      if (!body.adSetId || body.dailyBudgetDollars == null)
+        return json({ ok: false, error: "adSetId, dailyBudgetDollars required" }, 400);
+      const result = await setAdSetBudget(body.adSetId, body.dailyBudgetDollars);
       return json({ ok: true, action, result });
     }
 

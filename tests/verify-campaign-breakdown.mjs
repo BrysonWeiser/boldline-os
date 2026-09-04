@@ -208,8 +208,13 @@ t("account-only notes do not show while one campaign is focused", () => {
 });
 
 t("🔴 a campaign that disappears between syncs does not strand the card", () => {
-  assert(/st\.campaigns\.find\(c=>`\$\{c\.platform\}-\$\{c\.id\}`===focus\) \|\| null/.test(UI),
+  // The rule, not one spelling of it: the focused campaign is LOOKED UP in the current list
+  // every render and falls back to null. Keeping the campaign object itself in state is the
+  // failure this guards, because a deleted campaign would then keep rendering its old figures.
+  assert(/const sel = camps\.find\(c=>`\$\{c\.platform\}-\$\{c\.id\}`===focus\) \|\| null/.test(UI),
     "a deleted campaign leaves the card showing figures for something that is gone");
+  assert(/useState\(null\);\s*\/\/ "google-123" or null/.test(UI),
+    "the focused campaign is stored as an object rather than a key, so it cannot go stale");
 });
 
 console.log(`✓ verify-campaign-breakdown: ${n} checks passed`);
