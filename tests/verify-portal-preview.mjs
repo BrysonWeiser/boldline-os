@@ -38,7 +38,11 @@ const js = transform(blocks[0][1], { presets: ["react"], compact: false, comment
 const sandbox = `
   const React={createElement:()=>null,useState:()=>[null,()=>{}],useEffect:()=>{},useRef:()=>({}),
     useMemo:(f)=>f(),useCallback:(f)=>f,createContext:()=>({Provider:null}),useContext:()=>({}),
-    useReducer:()=>[null,()=>{}],useLayoutEffect:()=>{}};
+    useReducer:()=>[null,()=>{}],useLayoutEffect:()=>{},
+    // React itself provides this, so the stub must too. The crash boundary added on
+    // 2026-09-04 is a class component, and \`extends undefined\` throws at DEFINITION time,
+    // which takes the whole file down before a single check runs.
+    Component:class{constructor(p){this.props=p;this.state={};}setState(){}}};
   const ReactDOM={createRoot:()=>({render:()=>{}})};
   const window={location:{origin:"https://example.test"},addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){}}),navigator:{}};
   const document={getElementById:()=>null,querySelector:()=>null,querySelectorAll:()=>[],addEventListener(){},createElement:()=>({style:{},appendChild(){}}),body:{appendChild(){}}};

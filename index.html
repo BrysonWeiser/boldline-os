@@ -33,6 +33,54 @@
       el.textContent='ERROR line '+l+' col '+c+':\n'+m+'\n\n'+(e?e.stack:'');
     };
   </script>
+  <!-- 🔴 THE SILENT WHITE SCREEN, AND WHY NOTHING ABOVE CATCHES IT.
+       Bryson, 2026-09-04, from his phone: *"the os won't load it just keeps going to a white
+       screen"*. An hour went into looking for a bug in the app. The app was fine.
+
+       The four scripts above come from unpkg, over the internet, and the service worker
+       deliberately does not cache cross-origin requests. If any of them fails to arrive —
+       a dropped bar of signal, a captive wifi portal, unpkg having a bad minute — then
+       the babel block below is never transformed, because Babel is the thing that
+       transforms it. NOTHING RUNS. No error is thrown, so `window.onerror` above stays
+       silent, and the React error boundary cannot help either because React is the thing
+       that is missing. The page is simply blank, forever, with no way for him to tell
+       anybody anything. That is the worst failure mode in the whole app.
+
+       So: check the libraries are actually here, and if they are not, say so in words he
+       can act on. Plain DOM, no dependencies, because everything it might depend on is
+       precisely what has gone missing. -->
+  <script>
+    (function () {
+      var NEED = [["React","React"],["ReactDOM","React"],["Babel","the code compiler"],["supabase","the database"]];
+      function missing() {
+        var out = [];
+        for (var i = 0; i < NEED.length; i++) if (!window[NEED[i][0]]) out.push(NEED[i][1]);
+        return out.filter(function (v, i, a) { return a.indexOf(v) === i; });
+      }
+      function show() {
+        var gone = missing();
+        if (!gone.length) return;                       // everything arrived, nothing to say
+        var root = document.getElementById("root");
+        if (!root || root.innerHTML.trim().length > 0) return;   // the app drew something: leave it alone
+        root.innerHTML =
+          '<div style="min-height:100vh;background:#0B0D10;color:#E5E7EB;padding:28px 20px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif">'
+          + '<div style="max-width:520px;margin:0 auto">'
+          + '<div style="font-size:19px;font-weight:800;margin-bottom:8px">The OS could not finish loading</div>'
+          + '<div style="font-size:13.5px;line-height:1.65;color:#9CA3AF;margin-bottom:16px">'
+          + 'Part of the app did not download, which is almost always the connection rather than the OS. '
+          + 'Nothing is lost. Get onto wifi or a stronger signal and try again.</div>'
+          + '<button id="bl-retry" style="padding:11px 16px;font-size:13px;font-weight:700;border-radius:10px;border:none;cursor:pointer;background:#C8A84B;color:#1a1400">Try again</button>'
+          + '<div style="font-size:11.5px;color:#6B7280;margin-top:16px;line-height:1.6">Did not arrive: ' + gone.join(", ") + '</div>'
+          + '</div></div>';
+        var b = document.getElementById("bl-retry");
+        if (b) b.onclick = function () { location.reload(); };
+      }
+      // Two chances: once the page has loaded, and again a few seconds later for a slow
+      // connection that is still crawling rather than dead.
+      window.addEventListener("load", function () { setTimeout(show, 1200); });
+      setTimeout(show, 9000);
+    })();
+  </script>
   <!-- 🔴 "react" ONLY. NEVER PUT "env" BACK. Bryson, 2026-08-27: "is there a way we can
        optimize the os so it loads faster?" This one word was two thirds of the wait.
        The browser compiles all ~1.1 MB of the app below on EVERY page load, and `env`
@@ -14258,8 +14306,59 @@ function App({onLogout}) {
   );
 }
 
+// 🔴 A CRASH MUST SAY SOMETHING. Bryson, 2026-09-04: *"the os won't load it just keeps going
+// to a white screen"*, from his phone, with no way to tell me anything more.
+//
+// That is the real problem in that sentence. React unmounts the whole tree when a render
+// throws, so ANY error anywhere becomes a blank page with the reason visible only in a
+// developer console, which is a thing he does not have and would not open. An hour went into
+// guessing at a fault that would have named itself in one screenshot.
+//
+// So: catch it, show it, and give him the two buttons that actually fix things. The message
+// is plain English first, with the technical line underneath for me, and a copy button so a
+// screenshot is not the only way to send it.
+class CrashScreen extends React.Component {
+  constructor(p){ super(p); this.state = { err:null, info:"" }; }
+  static getDerivedStateFromError(err){ return { err }; }
+  componentDidCatch(err, info){
+    this.setState({ info: String((info && info.componentStack) || "").split("\n").slice(0,6).join("\n") });
+    try { console.error("BoldLine OS crashed:", err, info); } catch(_){}
+  }
+  render(){
+    if (!this.state.err) return this.props.children;
+    const detail = `${String(this.state.err && this.state.err.message || this.state.err)}\n${this.state.info}`.trim();
+    const btn = { padding:"11px 14px", fontSize:13, fontWeight:700, borderRadius:10, border:"none", cursor:"pointer" };
+    return (
+      <div style={{minHeight:"100vh",background:"#0B0D10",color:"#E5E7EB",padding:"28px 20px",fontFamily:"system-ui,-apple-system,Segoe UI,Roboto,sans-serif"}}>
+        <div style={{maxWidth:560,margin:"0 auto"}}>
+          <div style={{fontSize:19,fontWeight:800,marginBottom:8}}>Something in the OS broke</div>
+          <div style={{fontSize:13.5,lineHeight:1.65,color:"#9CA3AF",marginBottom:18}}>
+            Nothing is lost. Your clients, leads and campaigns are all safe, this is only the screen failing to draw.
+            Try reloading first. If it keeps happening, send me the details below and I will fix it.
+          </div>
+          <div style={{display:"flex",gap:9,flexWrap:"wrap",marginBottom:18}}>
+            <button style={{...btn,background:"#C8A84B",color:"#1a1400"}} onClick={()=>location.reload()}>Reload</button>
+            {/* 🔴 The second button is the one that fixes a phone holding a half-loaded app:
+                it clears the stored copy and the installed shell, then loads fresh. */}
+            <button style={{...btn,background:"#1F242B",color:"#E5E7EB"}} onClick={async()=>{
+              try { if (navigator.serviceWorker) { const rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.unregister())); } } catch(_){}
+              try { if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } } catch(_){}
+              location.reload(true);
+            }}>Clear and reload</button>
+            <button style={{...btn,background:"#1F242B",color:"#E5E7EB"}} onClick={()=>{
+              try { navigator.clipboard.writeText(detail); } catch(_){}
+            }}>Copy details</button>
+          </div>
+          <div style={{fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:"#6B7280",marginBottom:6}}>What went wrong</div>
+          <pre style={{whiteSpace:"pre-wrap",wordBreak:"break-word",fontSize:11.5,lineHeight:1.6,color:"#D1D5DB",background:"#12161B",border:"1px solid #262C34",borderRadius:10,padding:"12px 13px",margin:0}}>{detail}</pre>
+        </div>
+      </div>
+    );
+  }
+}
+
 const _root = ReactDOM.createRoot(document.getElementById('root'));
-_root.render(React.createElement(AuthGate));
+_root.render(React.createElement(CrashScreen, null, React.createElement(AuthGate)));
   </script>
 
   <!-- PWA: register the network-first service worker (installable + offline shell). -->

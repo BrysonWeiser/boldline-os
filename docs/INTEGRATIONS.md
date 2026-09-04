@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 146 task-keyed entries under `knowledge/`. They surface automatically via the
+> 147 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**146 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**147 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -474,6 +474,12 @@
 - **[visual-editor](../knowledge/visual-editor.md)** &mdash; &#9989; verified &middot; 2026-07-29  
   The blog and newsletter editors used to show the raw HTML of body_html in a textarea, which Bryson couldn't read. Both now use a shared VisualEditor (index.html, just above the BLOG MANAGEMENT section) — a contentEditable WYSIWYG that renders the content formatted and lets you edit the words in place, with a one-tap "Edit raw HTML ▶" toggle kept for power edits. For a full-document email, splitDoc peels off the <body> wrapper before editing and re-stitches prefix+editedInner+suffix on save so the email's <head>/styles/<body> attributes are never lost; blog posts are HTML fragments and edit directly. Built 2026-07-29.  
   <sub>*task:* edit blog posts and newsletter emails as readable content instead of raw HTML &nbsp;|&nbsp; *keywords:* visual editor, WYSIWYG, contentEditable, splitDoc, blog editor, newsletter editor, body_html, edit raw HTML, readable, review content, BlogManagementCard, NewsletterManagementCard</sub>
+
+## OS/App
+
+- **[white-screen](../knowledge/white-screen.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  The OS loaded to a silent white screen on Bryson's phone. The app was fine. React, Babel and Supabase come from unpkg and the service worker cached the shell but not them, so one dropped bar of signal meant the babel block was never compiled, nothing ran, nothing threw, and no error handler could fire. Now the libraries are cached, a missing one says so in plain English, and a React crash shows a readable message with a copy button. 13 checks, reproduced in a real browser both before and after.  
+  <sub>*task:* diagnose the OS loading to a blank page, or add a new failure that must not be silent &nbsp;|&nbsp; *keywords:* white screen, blank page, os won't load, app not loading, unpkg, CDN, React missing, Babel missing, service worker cache, CrashScreen, error boundary, window.onerror, silent failure, PWA stuck, clear and reload, CACHE_VERSION v71, offline libraries</sub>
 
 ## OS/Data
 
