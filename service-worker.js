@@ -13,7 +13,9 @@
 // so a cached shell should never win while online, but an already-running installed PWA
 // keeps the code it booted with. Bumping wipes every prior cache on activate, which
 // guarantees the next launch boots the current deploy rather than the one in memory.
-const CACHE_VERSION = "v70";  // v70: 2026-08-31 download the e-signed original from DocuSign
+const CACHE_VERSION = "v71";  // v71: 2026-09-04 cache the unpkg libraries — a dropped signal
+                              // used to leave a silent white screen, because Babel never arrived
+                              // to run the app and nothing threw an error to say so.
 const CACHE = "boldline-os-" + CACHE_VERSION;
 const SHELL = "/index.html";
 
@@ -37,7 +39,36 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;                       // never touch POST/PUT (auth, form posts, functions)
 
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;        // let cross-origin pass (Supabase, unpkg CDNs)
+
+  // 🔴 CACHE THE LIBRARIES THE APP CANNOT START WITHOUT. Bryson, 2026-09-04, from his phone:
+  // *"the os won't load it just keeps going to a white screen"*.
+  //
+  // React, ReactDOM, Babel and the Supabase client all come from unpkg, and this worker used
+  // to wave every cross-origin request straight through. So the shell was cached and the four
+  // things that make the shell do anything were not. One dropped bar of signal and
+  // `<script type="text/babel">` never runs, because Babel is what runs it. No error, no
+  // message, a blank page. The single worst failure in the app, and it was one line.
+  //
+  // CACHE FIRST for these, not network first, and deliberately so: they are pinned versions
+  // that never change under the same URL, so there is nothing to go stale, and serving them
+  // from disk also removes them from the critical path on every launch. Everything else keeps
+  // the network-first behaviour that stops the OS's own code going stale after a deploy.
+  if (url.origin === "https://unpkg.com") {
+    event.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        // An opaque response (no CORS) still replays correctly from the cache, so it is worth
+        // keeping. A genuine error is not: caching a 404 would break the app permanently.
+        if (res && (res.ok || res.type === "opaque")) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        }
+        return res;
+      }))
+    );
+    return;
+  }
+
+  if (url.origin !== self.location.origin) return;        // let other cross-origin pass (Supabase API)
   if (url.pathname.startsWith("/.netlify/")) return;      // never cache serverless functions
   if (url.pathname === "/portal" || url.pathname === "/lead" || url.pathname.startsWith("/lp/")) return; // dynamic function routes
 
