@@ -89,10 +89,37 @@ is the entire reason terms are versioned):
 🔴 **`showcaseOptOut` on the client swaps the whole grant for a refusal**, so a client who
 says no never costs the deal.
 
-## Not built yet
+## Phone view: see it at the size people see it
 
-**Images and video from a saved page.** A true screenshot needs a real browser, which Netlify
-functions do not have. The options are a paid screenshot service (an API key and one Netlify
-env var) or generating a branded example card on a canvas in the OS from the archived page's
-headline, colours and hero image, the same approach as `scripts/build-ad-creatives.js`. The
-archive is the prerequisite for both and is what would otherwise have been lost.
+A **Phone view** button on each saved row opens it in a new tab inside a frame at **390px**,
+with one-tap **Tablet (768)** and **Desktop (1280)**. Screenshot it and that is a real
+screenshot at the size that matters.
+
+🔴 **THE WRAPPER CONTAINS NO SCRIPT, and that is a constraint rather than a style choice.** A
+script there would need `</scr` + `ipt>` escaping inside `index.html`, which is itself one
+giant script block, and that is the exact shape of edit that has blanked this whole app
+before. The width switch is three CSS radio buttons and a sibling selector. Pinned by a check
+so nobody "improves" it back into JavaScript.
+
+The frame is also `sandbox`ed. The archive is already dead when it is written, so this is a
+second lock on a bolted door, and it costs nothing. The client's business name and the archive
+URL are escaped into the wrapper, because a business name with an apostrophe or a quote in a
+URL would otherwise break the document.
+
+## Why not a screenshot service, yet
+
+Bryson asked which to build. **Neither, yet**, and the recommendation is recorded because the
+answer changes with scale:
+
+- **A card generator loses the thing that matters.** What makes the work look good IS the
+  page. A graphic built from the headline and the brand colours only says "we built
+  something".
+- **A screenshot service is the right eventual answer**, because it works on **anything with a
+  URL**, including a client's OLD site beside the new landing page. That before-and-after is
+  the actual case study, and a card generator cannot produce it at all. A few dollars a month
+  and one Netlify trip for the key.
+- **But not at one client and no results.** Between now and the third client that is perhaps
+  five images. Unlike the archive, it is not urgent: **a saved page can be screenshotted at
+  any point in the future, whereas an unsaved page is gone the moment the record changes.**
+
+Revisit when case studies are a regular job.

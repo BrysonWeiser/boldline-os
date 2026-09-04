@@ -6324,6 +6324,53 @@ function PageArchiveCard({client,onUpdate}) {
 
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("en-US",{ dateStyle:"medium", timeStyle:"short" }); };
 
+  // 🔴 SEE IT AT THE SIZE PEOPLE ACTUALLY SEE IT, so a screenshot is worth taking.
+  //
+  // Bryson, 2026-09-04, choosing between a paid screenshot service and a card generator:
+  // neither, yet. He has one client. What he needs today is to open a saved page at phone
+  // width and screenshot it himself, which costs nothing and produces a REAL screenshot
+  // rather than a designed graphic. The service is worth buying when he is making case
+  // studies regularly, not before.
+  //
+  // 🔴 NO SCRIPT IN THE WRAPPER, and the width switch is pure CSS radio buttons because of
+  // it. A script here would have to carry `</scr` + `ipt>` escaping inside a file that is
+  // itself one big script block, which is the exact shape of edit that has blanked this app
+  // before. Radios and a sibling selector need none of that.
+  //
+  // The frame is sandboxed with nothing allowed. The archive is already dead when it is
+  // written, so this is the second lock on a door that is already bolted.
+  const wrapperHTML = (a) => {
+    const url = String(a.url || "").replace(/"/g, "&quot;");
+    const name = String(a.label || "Saved page").replace(/[<>&]/g, (c) => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[c]));
+    return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>" + name + "</title><style>"
+      + "*{box-sizing:border-box}body{margin:0;background:#0B0D10;color:#E5E7EB;font:14px -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}"
+      + ".bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid #262C34;background:#12161B}"
+      + ".ttl{font-weight:700;font-size:13px;margin-right:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
+      + ".bar label{font-size:12px;font-weight:700;color:#9CA3AF;border:1px solid #262C34;border-radius:8px;padding:5px 11px;cursor:pointer}"
+      + "input{position:absolute;opacity:0;pointer-events:none}"
+      + "#w1:checked~.bar label[for=w1],#w2:checked~.bar label[for=w2],#w3:checked~.bar label[for=w3]{color:#C8A84B;border-color:#C8A84B;background:rgba(200,168,75,.1)}"
+      + ".stage{display:flex;justify-content:center;padding:18px 10px}"
+      + "iframe{border:1px solid #262C34;border-radius:10px;background:#fff;height:calc(100vh - 90px);width:390px}"
+      + "#w2:checked~.stage iframe{width:768px}#w3:checked~.stage iframe{width:1280px}"
+      + ".hint{font-size:11px;color:#6B7280;padding:0 14px 14px;text-align:center;line-height:1.5}"
+      + "</style></head><body>"
+      + "<input type=\"radio\" name=\"w\" id=\"w1\" checked><input type=\"radio\" name=\"w\" id=\"w2\"><input type=\"radio\" name=\"w\" id=\"w3\">"
+      + "<div class=\"bar\"><div class=\"ttl\">" + name + "</div>"
+      + "<label for=\"w1\">Phone</label><label for=\"w2\">Tablet</label><label for=\"w3\">Desktop</label></div>"
+      + "<div class=\"stage\"><iframe src=\"" + url + "\" sandbox title=\"" + name + "\"></iframe></div>"
+      + "<div class=\"hint\">Screenshot this to use it as an example. Nothing on the page works, it is a saved copy.</div>"
+      + "</body></html>";
+  };
+
+  const openFramed = (a) => {
+    const w = window.open("", "_blank");
+    // A blocked pop-up leaves nothing on screen and no explanation, which reads as a dead
+    // button. Say what happened and what to change.
+    if (!w) { setError("Your browser blocked the new tab. Allow pop-ups for the OS and press it again."); return; }
+    w.document.write(wrapperHTML(a));
+    w.document.close();
+  };
+
   return (
     <Card>
       <Label>Saved Copies of the Page</Label>
@@ -6350,6 +6397,8 @@ function PageArchiveCard({client,onUpdate}) {
                 {/* 🔴 A NEW TAB, NEVER AN IFRAME IN THE OS. A saved page carries the client's
                     own full-page styling, and dropping that inside the OS is how a preview
                     ends up navigating or restyling the app around it. */}
+                <button onClick={()=>openFramed(a)} title="Opens it at phone size so you can screenshot it the way people see it"
+                  style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.gold,background:"none",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"5px 9px",cursor:"pointer"}}>Phone view</button>
                 <a href={a.url} target="_blank" rel="noopener noreferrer"
                   style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.textDim,textDecoration:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"5px 9px"}}>View</a>
                 <button onClick={()=>remove(a)} disabled={busy===a.id}
