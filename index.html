@@ -13795,7 +13795,17 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // Mobile "More" bottom sheet — the overflow destinations that don't fit in the
 // bottom bar (Calendar, Deal Prep, Revenue). Keeps mobile at feature parity
 // with the desktop sidebar.
-function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, onCampaigns, onContent }) {
+// 🔴 EVERY DESTINATION THE SIDEBAR HAS. Bryson, 2026-09-04: *"In the os on mobile there
+// isn't a my ads tab just campaigns and the other tabs"*.
+//
+// `openMyAds` existed and was wired to the desktop sidebar and the dashboard card, but this
+// sheet was never handed it. On a phone, the account he checks most often had no entry in the
+// navigation at all: reachable only by scrolling the dashboard and finding a card.
+//
+// 🔴 The comment above SideNav claimed "same destinations as BottomNav" while the two had
+// drifted apart, which is exactly how a missing entry survives a read of the code. Parity is
+// now asserted in tests/verify-nav-parity.mjs rather than described in a comment.
+function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onRevenue, onCampaigns, onContent }) {
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:13,width:"100%",padding:"14px 14px",borderRadius:13,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left",marginBottom:9}}>
       <span style={{width:38,height:38,borderRadius:10,background:"rgba(200,168,75,0.10)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
@@ -13812,6 +13822,7 @@ function MoreSheet({ onClose, onCalendar, onDealPrep, onLeadScout, onRevenue, on
       <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:C.bg2,borderTopLeftRadius:20,borderTopRightRadius:20,borderTop:`1px solid ${C.border}`,padding:"16px 16px calc(20px + env(safe-area-inset-bottom))",animation:"fadeIn .2s ease both"}}>
         <div style={{width:38,height:4,borderRadius:2,background:"rgba(255,255,255,0.15)",margin:"0 auto 14px"}}/>
         <div style={{fontSize:12,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:12,paddingLeft:2}}>More</div>
+        {row(sv(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>),"My Ads","BoldLine's own ads, leads and campaigns",onMyAds)}
         {row(sv(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>),"Campaigns","Every ad campaign — start, pause, delete",onCampaigns)}
         {row(sv(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>),"Content Studio","Video ideas + scripts, short and long form",onContent)}
         {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
@@ -14041,8 +14052,12 @@ function useIsDesktop(bp=1024){
 }
 
 // ─── DESKTOP SIDEBAR ──────────────────────────────────────────────────────────
-// Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden
-// there. Same destinations as BottomNav plus a first-class Revenue entry.
+// Persistent left rail — only rendered on desktop; the mobile BottomNav is hidden there.
+// 🔴 THE MOBILE EQUIVALENT IS BottomNav PLUS MoreSheet, NOT BottomNav ALONE, and this comment
+// used to say "same destinations as BottomNav" as though the bar were the whole story. It is
+// not: the bar holds five, the sheet holds the rest, and My Ads went missing from the sheet
+// for exactly as long as that sentence made the split look accounted for. Parity is asserted
+// in tests/verify-nav-parity.mjs now, because a comment cannot fail.
 function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
@@ -14473,7 +14488,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
       {/* Sits OUTSIDE .os-content on purpose: that element animates its opacity, which
           makes it a permanent stacking context and would trap this behind the screen
           (the same trap that hid the bot chat bar). A refused save has to be seen. */}
