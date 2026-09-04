@@ -66,3 +66,58 @@ spend, conversions and daily budget, or, when paused:
 
 Almost always: **it is paused, waiting to be approved.** That is by design, and it is now said
 out loud on the row instead of being inferred from an unchanged total.
+
+---
+
+## 2026-09-04, same day — pressing a campaign drives the big tiles
+
+Bryson: *"I want when I press a campaign for my internal campaign I want the one I press the
+have the numbers come up to the big section of analytics instead of the small numbers on each
+campaign"*.
+
+Each row is now a button. Pressing it puts **that campaign's** views, clicks, spend,
+conversions and cost per lead into the five big tiles; pressing it again, or **Show all**,
+returns to the account total. The header always names what is on screen: *"Showing every
+campaign added together"* or *"Showing <campaign>"*.
+
+### 🔴 The card had to become a real component first
+
+It was an inline arrow inside `ClientHub`, called from a `&&`. **A hook cannot live there** —
+the day the condition flips, the hook order changes and React tears the screen down. Hence
+`LiveAdPerformanceCard`, with `focus` as real state.
+
+### 🔴 THE FAKE COST PER LEAD, which is the trap worth remembering
+
+The account tiles read leads from **`leadsLog`**, every enquiry the business received from
+anywhere. **A single campaign has no such number.** Showing the account's lead count beside one
+campaign's spend produces a cost per lead that is **pure fiction and looks entirely
+plausible**, which is the worst kind of wrong number.
+
+So a focused campaign reports the **platform's own conversion count**, and the tile is
+**relabelled** — "Conversions (counted by Google)" or "Leads (counted by Meta)" — rather than
+quietly changing what the word "Leads" means. Two checks pin this and both mutations were
+caught.
+
+Account-wide notes ("No leads yet, and the lead check is running normally") are hidden while a
+campaign is focused, because beside one campaign they answer a question nobody asked.
+
+### The answer to "only the old one shows numbers"
+
+Nothing is broken. `ads-sync` runs **hourly** and both platforms are queried over the **last 30
+days**, so a campaign that went live an hour ago genuinely has almost nothing. The card now
+says so instead of showing five bare zeros: *"Running, but nobody has seen it yet. A brand new
+campaign usually takes a few hours to start showing, and these figures refresh once an hour."*
+
+### Testing note
+
+22 checks, ten mutations all caught, plus a real-browser run that presses a campaign and
+confirms the top tile shows **that campaign's** 4,360 views rather than the account's 5,260.
+
+🔴 One mutation escaped first: `/Show all/` passed with the button behind `false&&`, because
+the string was still in the file. **Checking a line EXISTS is not checking it is SHOWN** —
+re-pinned on the render gate.
+
+🔴 And two existing checks broke because they pinned the card's inline arrow rather than the
+rule. `verify-house-leads` reported "clients lost the card" when the card had merely been
+extracted into a component. **A pattern that pins a signature pins more than it means to.**
+

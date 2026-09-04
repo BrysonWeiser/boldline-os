@@ -6282,6 +6282,134 @@ function CrmTestButton({client}) {
   );
 }
 
+// The Live Ad Performance card, and the ONE campaign it is showing.
+//
+// Bryson, 2026-09-04: *"I want when I press a campaign for my internal campaign I want the
+// one I press the have the numbers come up to the big section of analytics instead of the
+// small numbers on each campaign"*.
+//
+// It used to be an inline block inside ClientHub, which is why it could not remember a
+// selection: a hook cannot live in a function called from a `&&`, because the day the
+// condition flips the hook order changes and React tears the screen down. So it is a real
+// component now, and the selection is state.
+//
+// 🔴 THE TRAP HERE IS "LEADS", AND IT IS NOT A COSMETIC ONE. The account tiles read leads
+// from `leadsLog`, which is every enquiry the business received from anywhere. A single
+// campaign has no such number. Showing the account's lead count beside ONE campaign's spend
+// would produce a cost per lead that is pure fiction and looks entirely plausible, which is
+// the worst kind of wrong number. So a focused campaign reports the platform's OWN conversion
+// count, and the tile is RELABELLED to say so rather than quietly changing meaning.
+function LiveAdPerformanceCard({client}) {
+  const st = adPerfStats(client);
+  const [focus,setFocus] = useState(null);           // "google-123" or null for the whole account
+  // A campaign that vanishes between syncs (deleted, or dropped past the cap) must not leave
+  // the card stuck showing a campaign that is not there.
+  const sel = st.campaigns.find(c=>`${c.platform}-${c.id}`===focus) || null;
+  const ago = (iso)=>{ const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
+    if(!isFinite(m)||m<0) return ""; if(m<60) return `${m} min ago`;
+    const h=Math.round(m/60); return h<48?`${h} hour${h===1?"":"s"} ago`:`${Math.round(h/24)} days ago`; };
+  const cell=(label,value,sub)=>(
+    <div key={label} style={{flex:"1 1 90px",minWidth:0,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 11px"}}>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:3}}>{label}</div>
+      <div style={{fontSize:17,fontWeight:800,color:C.text,lineHeight:1}}>{value}</div>
+      {sub&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:3,lineHeight:1.35}}>{sub}</div>}
+    </div>
+  );
+
+  // What the five big tiles show. Two completely separate sources, deliberately not blended.
+  const view = sel
+    ? (()=>{ const conv=Number(sel.conversions||0), spend=Number(sel.spend||0);
+        return { impressions:Number(sel.impressions||0), clicks:Number(sel.clicks||0), spend,
+          ctr: sel.impressions>0 ? sel.clicks/sel.impressions : null,
+          leadLabel: sel.platform==="meta"?"Leads":"Conversions",
+          leadValue: conv, leadSub: "counted by "+(sel.platform==="meta"?"Meta":"Google"),
+          cpl: (conv>0&&spend>0) ? spend/conv : null };
+      })()
+    : { impressions:st.impressions, clicks:st.clicks, spend:st.spend30, ctr:st.ctr,
+        leadLabel:"Leads", leadValue:st.leads30,
+        leadSub: st.leadsSyncedAt?`checked ${ago(st.leadsSyncedAt)}`:"last 30 days",
+        cpl: st.cpl };
+
+  return (
+    <Card>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:9}}>
+        <Label>Live Ad Performance</Label>
+        {st.syncedAt&&<span style={{fontSize:9.5,color:C.textMuted,flexShrink:0}}>Updated {ago(st.syncedAt)}</span>}
+      </div>
+      {/* 🔴 WHOSE NUMBERS ARE THESE. Without this line the tiles silently change meaning when
+          a campaign is picked, which is exactly the confusion the breakdown was built to end. */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9,flexWrap:"wrap"}}>
+        <span style={{fontSize:11.5,color:sel?C.gold:C.textMuted,fontWeight:sel?700:400,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {sel?`Showing ${sel.name||"one campaign"}`:"Showing every campaign added together"}
+        </span>
+        {sel&&<button onClick={()=>setFocus(null)} style={{fontSize:10.5,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"4px 9px",cursor:"pointer",flexShrink:0}}>Show all</button>}
+      </div>
+      {!st.hasSnapshot
+        ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{(client.googleAdsCustomerId||client.metaAdAccountId)
+            ? `No numbers pulled in yet. ${client.internal?"Your":"This"} ad account is connected and this fills in within six hours of a campaign starting to serve.`
+            : `Link ${client.internal?"your":"the"} ad account in Edit and the spend, views and clicks show up here.`}</div>
+        : <>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {cell("Views",view.impressions.toLocaleString(),"last 30 days")}
+              {cell("Clicks",view.clicks.toLocaleString(),view.ctr!=null?`${(view.ctr*100).toFixed(1)}% of views`:null)}
+              {cell("Spent","$"+Math.round(view.spend).toLocaleString(),"last 30 days")}
+              {cell(view.leadLabel,view.leadValue,view.leadSub)}
+              {cell("Cost / lead",view.cpl!=null?"$"+Math.round(view.cpl).toLocaleString():"—",view.cpl!=null?"spend ÷ leads":"needs a lead and some spend")}
+            </div>
+            {/* 🔴 A campaign that is live with nothing to show is the question he actually
+                asked. Say which of the two reasons it is rather than leaving five zeros. */}
+            {sel&&sel.live&&view.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Running, but nobody has seen it yet. A brand new campaign usually takes a few hours to start showing, and these figures refresh once an hour.</div>}
+            {sel&&!sel.live&&<div style={{fontSize:10.5,color:C.amber,marginTop:9,lineHeight:1.55}}>This one is paused, so every number above is zero because it has not run.</div>}
+            {!sel&&st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
+            {!sel&&st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}
+            {!sel&&st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>These numbers were last refreshed {ago(st.leadsSyncedAt)}, so a recent lead may be missing from the count. Leads themselves are safe and are all on the Leads screen. Reopening this screen refreshes it.</div>}
+            {!sel&&!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It fills this in on its first pass, usually within a few minutes.</div>}
+            {st.campaigns.length>0&&(
+              <div style={{marginTop:12,borderTop:`1px solid ${C.border2}`,paddingTop:10}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:2}}>
+                  <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>By campaign</div>
+                  <div style={{fontSize:9.5,color:C.textMuted}}>{st.campaigns.length} total</div>
+                </div>
+                <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:9}}>Tap one to put its numbers at the top.</div>
+                <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                  {st.campaigns.map(c=>{
+                    const key=`${c.platform}-${c.id}`, on=key===focus;
+                    return (
+                      <button key={key} onClick={()=>setFocus(on?null:key)}
+                        style={{textAlign:"left",width:"100%",font:"inherit",cursor:"pointer",
+                          background:on?C.goldDim:C.bg3,border:`1px solid ${on?C.gold:(c.live?C.border:C.border2)}`,
+                          borderRadius:10,padding:"9px 11px",opacity:c.live?1:.82}}>
+                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:5,flexWrap:"wrap"}}>
+                          <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:C.textMuted,flexShrink:0}}>{c.platform==="meta"?"Meta":"Google"}</span>
+                          <span style={{fontSize:12,fontWeight:700,color:on?C.gold:C.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name||"Untitled campaign"}</span>
+                          <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",flexShrink:0,padding:"2px 7px",borderRadius:6,
+                            color:c.live?C.green:C.amber,backgroundColor:(c.live?C.green:C.amber)+"1a",border:`1px solid ${(c.live?C.green:C.amber)}44`}}>{c.live?"Running":"Paused"}</span>
+                        </div>
+                        {!c.live
+                          ? <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55}}>Not running, so it has not been seen by anyone and has spent nothing. Approve it on the Campaigns screen to set it live.{c.dailyBudget>0?` It is set to $${c.dailyBudget}/day once it starts.`:""}</div>
+                          : <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:10.5,color:C.textMuted}}>
+                              <span><b style={{color:C.textDim,fontWeight:700}}>{c.impressions.toLocaleString()}</b> views</span>
+                              <span><b style={{color:C.textDim,fontWeight:700}}>{c.clicks.toLocaleString()}</b> clicks</span>
+                              <span><b style={{color:C.textDim,fontWeight:700}}>${Math.round(c.spend||0).toLocaleString()}</b> spent</span>
+                              <span><b style={{color:C.textDim,fontWeight:700}}>{c.conversions||0}</b> {c.platform==="meta"?"leads":"conversions"}</span>
+                              {c.dailyBudget>0&&<span>${c.dailyBudget}/day</span>}
+                            </div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {st.campaigns.length===0&&st.errors.length===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>No campaigns in the ad account yet. Build one on the Campaigns screen and it appears here, paused, until you approve it.</div>}
+          </>}
+      {st.errors.length>0&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,background:`${C.amber}10`}}>
+        <div style={{fontSize:10.5,fontWeight:800,color:C.amber,marginBottom:3}}>These numbers are stale</div>
+        {st.errors.map(e=><div key={e} style={{fontSize:10.5,color:C.textDim,lineHeight:1.5}}>{e}</div>)}
+      </div>}
+    </Card>
+  );
+}
+
 function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   const [tab,setTab]         = useState(client._initialTab||"overview");
   const [openBot,setOpenBot] = useState(null);
@@ -6605,91 +6733,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 Stored by the ads-sync job every 6 hours, so this renders instantly and
                 always says how fresh it is. Live-to-the-second numbers are one tap away
                 on the Campaigns screen (More, then Campaigns), which calls Google and Meta directly. */}
-            {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&(()=>{
-              const st = adPerfStats(client);
-              const ago = (iso)=>{ const m=Math.round((Date.now()-new Date(iso).getTime())/60000);
-                if(!isFinite(m)||m<0) return ""; if(m<60) return `${m} min ago`;
-                const h=Math.round(m/60); return h<48?`${h} hour${h===1?"":"s"} ago`:`${Math.round(h/24)} days ago`; };
-              const cell=(label,value,sub)=>(
-                <div key={label} style={{flex:"1 1 90px",minWidth:0,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 11px"}}>
-                  <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:3}}>{label}</div>
-                  <div style={{fontSize:17,fontWeight:800,color:C.text,lineHeight:1}}>{value}</div>
-                  {sub&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:3,lineHeight:1.35}}>{sub}</div>}
-                </div>
-              );
-              return (
-                <Card>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:9}}>
-                    <Label>Live Ad Performance</Label>
-                    {st.syncedAt&&<span style={{fontSize:9.5,color:C.textMuted,flexShrink:0}}>Updated {ago(st.syncedAt)}</span>}
-                  </div>
-                  {!st.hasSnapshot
-                    ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{(client.googleAdsCustomerId||client.metaAdAccountId)
-                        ? `No numbers pulled in yet. ${client.internal?"Your":"This"} ad account is connected and this fills in within six hours of a campaign starting to serve.`
-                        : `Link ${client.internal?"your":"the"} ad account in Edit and the spend, views and clicks show up here.`}</div>
-                    : <>
-                        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                          {cell("Views",st.impressions.toLocaleString(),"last 30 days")}
-                          {cell("Clicks",st.clicks.toLocaleString(),st.ctr!=null?`${(st.ctr*100).toFixed(1)}% of views`:null)}
-                          {cell("Spent","$"+Math.round(st.spend30).toLocaleString(),"last 30 days")}
-                          {cell("Leads",st.leads30,st.leadsSyncedAt?`checked ${ago(st.leadsSyncedAt)}`:"last 30 days")}
-                          {cell("Cost / lead",st.cpl!=null?"$"+Math.round(st.cpl).toLocaleString():"—",st.cpl!=null?"spend ÷ leads":"needs a lead and some spend")}
-                        </div>
-                        {st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
-                        {/* With no leads yet, 0 is both the right answer and what a
-                            broken sync looks like. Say which it is. */}
-                        {st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}
-                        {st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>These numbers were last refreshed {ago(st.leadsSyncedAt)}, so a recent lead may be missing from the count. Leads themselves are safe and are all on the Leads screen. Reopening this screen refreshes it.</div>}
-                        {!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It fills this in on its first pass, usually within a few minutes.</div>}
-                        {/* 🔴 THE NUMBERS ABOVE ARE THE WHOLE ACCOUNT ADDED UP. With one
-                            campaign that looks like that campaign; with two it is a blend
-                            and nothing says so. These rows are the per-campaign answer, and
-                            they carry the PAUSED ones, which is where "why is my new campaign
-                            doing nothing" actually gets answered. */}
-                        {st.campaigns.length>0&&(
-                          <div style={{marginTop:12,borderTop:`1px solid ${C.border2}`,paddingTop:10}}>
-                            <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:2}}>
-                              <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>By campaign</div>
-                              <div style={{fontSize:9.5,color:C.textMuted}}>{st.campaigns.length} total</div>
-                            </div>
-                            <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:9}}>The figures above are every campaign added together. These are each one on its own.</div>
-                            <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                              {st.campaigns.map(c=>(
-                                <div key={`${c.platform}-${c.id}`} style={{background:C.bg3,border:`1px solid ${c.live?C.border:C.border2}`,borderRadius:10,padding:"9px 11px",opacity:c.live?1:.82}}>
-                                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:5,flexWrap:"wrap"}}>
-                                    <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:C.textMuted,flexShrink:0}}>{c.platform==="meta"?"Meta":"Google"}</span>
-                                    <span style={{fontSize:12,fontWeight:700,color:C.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name||"Untitled campaign"}</span>
-                                    <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",flexShrink:0,padding:"2px 7px",borderRadius:6,
-                                      color:c.live?C.green:C.amber,backgroundColor:(c.live?C.green:C.amber)+"1a",border:`1px solid ${(c.live?C.green:C.amber)}44`}}>{c.live?"Running":"Paused"}</span>
-                                  </div>
-                                  {/* 🔴 A paused campaign's zeros are not a problem, they are
-                                      the consequence of it being paused, and saying so is the
-                                      difference between "it is broken" and "press approve". */}
-                                  {!c.live
-                                    ? <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55}}>Not running, so it has not been seen by anyone and has spent nothing. Approve it on the Campaigns screen to set it live.{c.dailyBudget>0?` It is set to $${c.dailyBudget}/day once it starts.`:""}</div>
-                                    : <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:10.5,color:C.textMuted}}>
-                                        <span><b style={{color:C.textDim,fontWeight:700}}>{c.impressions.toLocaleString()}</b> views</span>
-                                        <span><b style={{color:C.textDim,fontWeight:700}}>{c.clicks.toLocaleString()}</b> clicks</span>
-                                        <span><b style={{color:C.textDim,fontWeight:700}}>${Math.round(c.spend||0).toLocaleString()}</b> spent</span>
-                                        <span><b style={{color:C.textDim,fontWeight:700}}>{c.conversions||0}</b> {c.platform==="meta"?"leads":"conversions"}</span>
-                                        {c.dailyBudget>0&&<span>${c.dailyBudget}/day</span>}
-                                      </div>}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {/* An account that reads fine but lists nothing has no campaigns at
-                            all, which is different from a sync that has not run. */}
-                        {st.campaigns.length===0&&st.errors.length===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>No campaigns in the ad account yet. Build one on the Campaigns screen and it appears here, paused, until you approve it.</div>}
-                      </>}
-                  {st.errors.length>0&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,background:`${C.amber}10`}}>
-                    <div style={{fontSize:10.5,fontWeight:800,color:C.amber,marginBottom:3}}>These numbers are stale</div>
-                    {st.errors.map(e=><div key={e} style={{fontSize:10.5,color:C.textDim,lineHeight:1.5}}>{e}</div>)}
-                  </div>}
-                </Card>
-              );
-            })()}
+            {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&<LiveAdPerformanceCard client={client}/>}
             {!client.internal&&pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
               <Label>Monthly Revenue</Label>
               <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
