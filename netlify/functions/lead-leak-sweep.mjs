@@ -58,8 +58,13 @@ export function needsAudit(row, now = Date.now()) {
   // difference. Moving a lead off "new" is him saying he has it, and it is one tap.
   if (String(row.status || "new") !== "new") return false;
   const status = String(p.auditStatus || "");
-  // Sent, or a person is reviewing it: done either way.
-  if (status === "sent" || status === "review_sent") return false;
+  // Sent by the bot, sent by Bryson himself, or waiting on his review: done either way.
+  //
+  // 🔴 `sent_by_hand` IS THE DURABLE HALF OF THIS, and the status check above is the weak
+  // one. A sales stage records what he is doing about a lead, not what the prospect has
+  // received: move the lead back to New to work it again and the status guard reopens, and a
+  // stranger gets a second report they never asked for once. This stamp does not.
+  if (status === "sent" || status === "review_sent" || status === "sent_by_hand") return false;
   // 🔴 "running" is claimed by whoever is working on it right now, and `auditedAt` is that
   // claim. Picking it up again would email the same prospect twice. A claim older than the
   // longest a background function can live is a crash, not work in progress.

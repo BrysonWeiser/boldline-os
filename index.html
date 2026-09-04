@@ -14307,7 +14307,7 @@ function leadTimeAgo(iso){
   return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric"});
 }
 
-function LeadCard({lead,onUpdate,onDelete}){
+function LeadCard({lead,onUpdate,onReportSent,onDelete}){
   const [notes,setNotes]=useState(lead.notes||"");
   const [confirmDel,setConfirmDel]=useState(false);
   const [reachOpen,setReachOpen]=useState(false);
@@ -14380,10 +14380,24 @@ function LeadCard({lead,onUpdate,onDelete}){
         if(String(lead&&lead.form||"")!=="lead_leak") return null;
         const st = String(p.auditStatus||"");
         if(st==="sent") return <div style={{fontSize:10.5,color:C.green,lineHeight:1.5}}>Their free report was sent automatically.</div>;
+        if(st==="sent_by_hand") return <div style={{fontSize:10.5,color:C.green,lineHeight:1.5}}>You sent this one yourself, so nothing else will go out to them.</div>;
         if(st==="review_sent") return <div style={{fontSize:10.5,color:C.gold,lineHeight:1.5}}>Their report is written and waiting for you to review it. They have not received it yet.</div>;
         if(st==="running") return <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5}}>Writing their free report now.</div>;
-        if(st==="error") return <div style={{fontSize:10.5,color:C.red,lineHeight:1.55}}>Their free report could not be sent{p.auditError?`: ${String(p.auditError).slice(0,140)}`:""}. They are still waiting. It retries on its own for a day.</div>;
-        return <div style={{fontSize:10.5,color:C.amber,lineHeight:1.55}}>They asked for the free report and it has not gone out yet. It sends on its own within about ten minutes.</div>;
+        // 🔴 THE WAITING STATES CARRY A BUTTON, because the alternative was what happened on
+        // the day: he wrote to the prospect himself, and the OS went on saying the report had
+        // not gone out, with no way to tell it otherwise.
+        const handled = String(lead.status||"new")!=="new";
+        const line = st==="error"
+          ? <span style={{color:C.red}}>Their free report could not be sent{p.auditError?`: ${String(p.auditError).slice(0,140)}`:""}. They are still waiting.</span>
+          : handled
+            ? <span style={{color:C.textMuted}}>The automatic report is standing down because you have taken this lead on.</span>
+            : <span style={{color:C.amber}}>They asked for the free report and it has not gone out yet. It sends on its own within about ten minutes.</span>;
+        return (
+          <div style={{fontSize:10.5,lineHeight:1.55}}>
+            {line}
+            {onReportSent&&<button onClick={()=>onReportSent(lead)} style={{marginLeft:7,padding:"3px 9px",fontSize:10,fontWeight:800,borderRadius:7,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>I sent it myself</button>}
+          </div>
+        );
       })()}
       {!origin.known&&open&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:-4}}>This one arrived before the website started recording where visitors come from. Everything from now on will say.</div>}
       {lead.email&&<a href={"mailto:"+lead.email} style={{fontSize:12.5,color:C.gold,textDecoration:"none",wordBreak:"break-all"}}>{lead.email}</a>}
@@ -14459,7 +14473,7 @@ function LeadCard({lead,onUpdate,onDelete}){
   );
 }
 
-function LeadsScreen({leads,onUpdate,onDelete,onRefresh,isDesktop,error,onDismissError}){
+function LeadsScreen({leads,onUpdate,onReportSent,onDelete,onRefresh,isDesktop,error,onDismissError}){
   const [filter,setFilter]=useState("all");
   const counts = LEAD_STATUSES.reduce((a,s)=>{a[s]=leads.filter(l=>l.status===s).length;return a;},{});
   const shown = filter==="all"?leads:leads.filter(l=>l.status===filter);
@@ -14494,7 +14508,7 @@ function LeadsScreen({leads,onUpdate,onDelete,onRefresh,isDesktop,error,onDismis
         </div>
       ):(
         <div style={isDesktop?{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:12,alignItems:"start"}:{display:"flex",flexDirection:"column",gap:12}}>
-          {shown.map(l=><LeadCard key={l.id} lead={l} onUpdate={onUpdate} onDelete={onDelete}/>)}
+          {shown.map(l=><LeadCard key={l.id} lead={l} onUpdate={onUpdate} onReportSent={onReportSent} onDelete={onDelete}/>)}
         </div>
       )}
     </div>
@@ -14603,6 +14617,9 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
   const [showMore,setShowMore]         = useState(false);
   const [leads,setLeads]               = useState([]);
+  // 🔴 "The leads have arrived" is not the same question as "is the leads array empty", and
+  // conflating them is what announced every lead on every launch. See the toast effect.
+  const [leadsLoaded,setLeadsLoaded]   = useState(false);
   const [leadError,setLeadError]       = useState("");   // shown on the Leads screen when a save or delete is refused
   const [clientError,setClientError]   = useState("");   // shown app-wide when a client save is refused (see updateClient)
   // Set by Lead Scout when you push a prospect into Deal Prep; DealPrepScreen
@@ -14677,6 +14694,7 @@ function App({onLogout}) {
     // (form:"deleted") carry nothing but the id of a Calendly booking that was deleted,
     // and exist only to stop the Calendly sync recreating it.
     setLeads((data || []).filter(l => l.form !== "newsletter" && l.form !== "deleted"));
+    setLeadsLoaded(true);
   }, []);
   useEffect(() => { loadLeads(); }, [loadLeads]);
   useLiveData(loadLeads, { table: "website_leads", interval: 20000 });
@@ -14726,16 +14744,58 @@ function App({onLogout}) {
     fresh.slice(0, 4).forEach(pushToast);
   }, [clients, dataState, pushToast]);
 
-  // ── New-website-lead toasts ── seeds the "seen" set on first load so existing
-  // leads don't toast, then pops one the moment a new lead lands.
+  // ── New-website-lead toasts ─────────────────────────────────────────────────
+  //
+  // Bryson, 2026-09-04: *"each time I close and reopen the os it keeps telling me about the
+  // new lead and I have to swipe it away every time. After its status is set to contacted it
+  // shouldn't keep notifying me"*.
+  //
+  // 🔴 THREE FAULTS, AND THE FIRST ONE IS WHY IT FIRED EVERY SINGLE LAUNCH.
+  //
+  // The comment above this code said it seeded the "seen" set on first load so existing leads
+  // would not toast. It did seed on the first RUN, which is not the same thing: `leads`
+  // starts as an empty array and the fetch has not returned yet, so the set was seeded with
+  // NOTHING. The next run, when the data actually arrived, found every lead unseen and
+  // announced all of them. The bug was not that the seed was missing, it was that the seed
+  // ran against an empty list, which is exactly what "it worked on my machine with one lead
+  // already in memory" looks like.
+  //
+  // 🔴 SECOND: the set lived only in memory, so even a correct seed forgot everything the
+  // moment he closed the app. On a phone he opens twenty times a day that is twenty
+  // announcements of the same lead. It is remembered on the device now.
+  //
+  // 🔴 THIRD, AND THE PART HE ASKED FOR: a lead he has already worked is not news, however
+  // new it is to this browser. Only leads still sitting at "new" are announced.
   const seenLeadIds = useRef(null);
+  const LEAD_TOAST_KEY = "bl_announced_leads";
   useEffect(() => {
-    const ids = new Set(leads.map(l => l.id));
-    if (seenLeadIds.current === null) { seenLeadIds.current = ids; return; }
-    const fresh = leads.filter(l => !seenLeadIds.current.has(l.id));
-    seenLeadIds.current = ids;
+    // Nothing is announced until the leads have genuinely arrived, or the seed is a lie.
+    if (!leadsLoaded) return;
+    const persist = () => {
+      // Capped: this is a convenience, not a record, and an unbounded list would grow for
+      // the life of the install.
+      try { window.localStorage.setItem(LEAD_TOAST_KEY, JSON.stringify([...seenLeadIds.current].slice(-300))); }
+      catch (e) { /* private mode, or storage refused: toasting twice is not worth a crash */ }
+    };
+    if (seenLeadIds.current === null) {
+      let stored = null;
+      try { const raw = window.localStorage.getItem(LEAD_TOAST_KEY); if (raw) stored = JSON.parse(raw); } catch (e) { stored = null; }
+      if (Array.isArray(stored)) {
+        seenLeadIds.current = new Set(stored);
+      } else {
+        // First run on this device: seed silently from what is already here, so installing
+        // the app does not announce every lead he has ever had.
+        seenLeadIds.current = new Set(leads.map(l => l.id));
+        persist();
+        return;
+      }
+    }
+    const fresh = leads.filter(l => String(l.status || "new") === "new" && !seenLeadIds.current.has(l.id));
+    if (!fresh.length) return;
+    fresh.forEach(l => seenLeadIds.current.add(l.id));
+    persist();
     fresh.slice(0, 3).forEach(l => pushToast({ severity: "gold", label: "New lead", nav: "leads", client: "Website", msg: l.name || l.business || l.email || "New website lead" }));
-  }, [leads, pushToast]);
+  }, [leads, leadsLoaded, pushToast]);
 
   // ── A REFUSED SAVE MUST NOT LOOK LIKE A SUCCESSFUL ONE ───────────────────────
   // Every change to a client record is optimistic: the screen updates instantly and the
@@ -14775,6 +14835,40 @@ function App({onLogout}) {
         console.error("Lead save failed:", error);
         setLeadError("That change couldn't be saved. Refresh to see what's actually stored.");
       });
+  }, []);
+
+  // ─── "I ALREADY SENT THIS ONE MYSELF" ────────────────────────────────────────
+  // Bryson, 2026-09-04, having written to a prospect by hand after the automatic report
+  // failed to go out: *"Make sure for this lead it knows I sent the report"*.
+  //
+  // 🔴 MOVING THE LEAD OFF "NEW" WAS NEVER GOING TO BE ENOUGH, and relying on it was the
+  // weaker half of yesterday's fix. It stops the robot today, but it is a SALES stage, not a
+  // record of what the prospect received. Move the lead back to New to work it again, and the
+  // sweep would post them a second report a stranger never asked for twice. This writes the
+  // fact itself, so it survives every later change of mind.
+  //
+  // 🔴 RE-READS BEFORE IT WRITES. The whole payload goes back in one piece, so writing the
+  // copy this screen loaded minutes ago could erase a stamp the sweep wrote in between, and
+  // erasing "sent" is exactly how a prospect gets emailed twice. Same rule as the CRM retry
+  // queue: read the row, merge, write.
+  const markReportSentByHand = useCallback(async (lead) => {
+    if (!lead || !lead.id) return;
+    try {
+      const { data } = await supabaseClient.from("website_leads").select("payload").eq("id", lead.id).maybeSingle();
+      const base = (data && data.payload) || lead.payload || {};
+      // Already sent by the bot while he was deciding: leave the truth alone.
+      if (base.auditStatus === "sent" || base.auditStatus === "review_sent") {
+        setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, payload: base } : l));
+        return;
+      }
+      const payload = { ...base, auditStatus: "sent_by_hand", auditedAt: new Date().toISOString() };
+      const { error } = await supabaseClient.from("website_leads").update({ payload }).eq("id", lead.id);
+      if (error) throw error;
+      setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, payload } : l));
+    } catch (e) {
+      console.error("Marking the report as sent failed:", e);
+      setLeadError("That couldn't be saved. Refresh to see what's actually stored.");
+    }
   }, []);
 
   // ── Deleting a lead has to STAY deleted ──────────────────────────────────────
@@ -14949,7 +15043,7 @@ function App({onLogout}) {
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop} onOpenCampaign={openCampaign}/>}
-        {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onDelete={deleteLead} onRefresh={loadLeads} isDesktop={isDesktop} error={leadError} onDismissError={()=>setLeadError("")}/>}
+        {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onReportSent={markReportSentByHand} onDelete={deleteLead} onRefresh={loadLeads} isDesktop={isDesktop} error={leadError} onDismissError={()=>setLeadError("")}/>}
         {screen==="website"&&<WebsiteScreen/>}
       </div>
       </div>
