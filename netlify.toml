@@ -63,6 +63,14 @@
 [functions."calendly-leads"]
   schedule = "*/15 * * * *"
 
+# Re-sends leads whose forward to the client's own system failed, so a blip on our side
+# DELAYS a lead instead of losing it. Promised to Shaun Smith 2026-09-03 in place of the
+# unsigned browser post he asked for. Every 15 minutes, and a no-op on almost all of them:
+# the back-off delays live on each lead, and this cadence exists so the FIRST retry lands
+# five minutes after a blip rather than an hour later.
+[functions."crm-retry"]
+  schedule = "*/15 * * * *"
+
 # Closes the loop on e-signatures. Every 15 minutes it asks DocuSign where each outstanding
 # envelope got to, flips a client to active the moment they sign, and alerts Bryson. Polling
 # rather than DocuSign Connect: Connect is not on the eSignature Standard plan, and polling

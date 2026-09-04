@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 144 task-keyed entries under `knowledge/`. They surface automatically via the
+> 145 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**144 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**145 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -153,6 +153,9 @@
 - **[client-text-back](../knowledge/client-text-back.md)** &mdash; &#9989; verified &middot; 2026-09-03  
   CONFIRMED 2026-09-03: Autopilot Systems (Shaun) sends the text itself, so Stencil & Thread is set to "their". A2P registration is per business, not per platform, so one BoldLine registration would NOT cover clients. The OS texts a new lead within seconds. So does a client's own CRM once their developer wires it up, and neither system can see the other, so the lead gets two near-identical texts from two numbers and nothing errors. A per-client setting ("Who texts the lead first") decides, defaulting to us, and ignoring "their" when there is no address to forward to so a typo cannot switch off speed-to-lead entirely.  
   <sub>*task:* decide who texts a new lead first, or wire a client's own text-back into the OS &nbsp;|&nbsp; *keywords:* text back, auto reply text, speed to lead, smsSender, weSendTheText, double text, two texts, who texts the lead, Twilio, A2P, 10DLC, Shaun Smith, Sebastian, Stencil and Thread, CRM texts, webhook, lead-intake, notifyLead</sub>
+- **[crm-retry-queue](../knowledge/crm-retry-queue.md)** &mdash; &#9989; verified &middot; 2026-09-03  
+  A scheduled sweep re-sends leads whose forward to the client's own system failed, backing off over about 28 hours and then giving up loudly. Built as the honest answer to Shaun Smith's request for an unsigned browser post straight to the client's site, which was spoofable, let a lead reach the client without reaching the OS (breaking billing attribution), and whose fallback could not run in the cases it was meant to cover. 54 checks, fourteen mutations caught.  
+  <sub>*task:* understand or debug why a lead did or did not reach a client's own system, or change the retry behaviour &nbsp;|&nbsp; *keywords:* crm retry, retry queue, lead not delivered, forward failed, crm-retry.mjs, sweepClientLeads, dueForRetry, nextCrmState, retryDelayMs, needsAHuman, CRM_RETRY_MAX_TRIES, gaveUp, backoff, scheduled function, lead stuck, 401 password, Shaun Smith, browser post, direct post, unsigned endpoint, attribution, duplicate lead</sub>
 - **[house-leads-mirror](../knowledge/house-leads-mirror.md)** &mdash; &#9989; verified &middot; 2026-08-22  
   BoldLine's own ads send people to /get-started, whose leads land in the `website_leads` table, but the house account keeps leads on the client record in `leadsLog`. Nothing joined them, so the My Ads overview read `leads: 0` forever and five separate things derived from that number were wrong with it. A 15-minute `house-leads` job now mirrors website leads onto the internal client (deduped on the row id, status synced one way until he moves it by hand), and the Overview gained a Live Ad Performance card that renders the ads-sync snapshot instead of hiding it on the Campaigns tab.  
   <sub>*task:* work out why BoldLine's own My Ads account shows no leads, no cost per lead or no live ad numbers, or change how website leads reach the house account &nbsp;|&nbsp; *keywords:* house account, leadSync, heartbeat, lead count test, ads-sync hourly, sync stale, zero leads or broken, my ads, internal client, website_leads, leadsLog, house-leads, mirror, leads 0, avg cpl, cost per lead, ad health score, adPerf, ads-sync, live ad performance, acquisition roi, leads arriving, house-leads-merge, delete lead, lead comes back, deleted lead reappears, tombstone, calendly re-insert, newsletter subscribers as leads, website_leads RLS insert</sub>
