@@ -14371,6 +14371,20 @@ function LeadCard({lead,onUpdate,onDelete}){
         {origin.paid&&<span style={{fontSize:8.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"2px 6px",borderRadius:5,color:C.gold,background:C.goldDim}}>Paid click</span>}
       </div>
       {origin.detail&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:-4,lineHeight:1.5}}>{origin.detail}</div>}
+      {/* 🔴 DID THEY GET WHAT THEY ASKED FOR. Someone who requests the free website check
+          is owed a report within a minute or two. When that failed it failed in total
+          silence, and the only way to find out was to notice there was no stamp on the
+          record. A promise to a prospect is not something to have to go looking for. */}
+      {(()=>{
+        const p = (lead&&lead.payload)||{};
+        if(String(lead&&lead.form||"")!=="lead_leak") return null;
+        const st = String(p.auditStatus||"");
+        if(st==="sent") return <div style={{fontSize:10.5,color:C.green,lineHeight:1.5}}>Their free report was sent automatically.</div>;
+        if(st==="review_sent") return <div style={{fontSize:10.5,color:C.gold,lineHeight:1.5}}>Their report is written and waiting for you to review it. They have not received it yet.</div>;
+        if(st==="running") return <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5}}>Writing their free report now.</div>;
+        if(st==="error") return <div style={{fontSize:10.5,color:C.red,lineHeight:1.55}}>Their free report could not be sent{p.auditError?`: ${String(p.auditError).slice(0,140)}`:""}. They are still waiting. It retries on its own for a day.</div>;
+        return <div style={{fontSize:10.5,color:C.amber,lineHeight:1.55}}>They asked for the free report and it has not gone out yet. It sends on its own within about ten minutes.</div>;
+      })()}
       {!origin.known&&open&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:-4}}>This one arrived before the website started recording where visitors come from. Everything from now on will say.</div>}
       {lead.email&&<a href={"mailto:"+lead.email} style={{fontSize:12.5,color:C.gold,textDecoration:"none",wordBreak:"break-all"}}>{lead.email}</a>}
       {lead.recommended&&<div style={{fontSize:12,color:C.textDim}}>Recommended: <span style={{color:C.text}}>{lead.recommended}</span></div>}

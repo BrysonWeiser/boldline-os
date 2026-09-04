@@ -213,40 +213,30 @@ const buildEmailHtml = ({ bodyMd, siteLabel }) => {
   });
 };
 
-// ── handler ─────────────────────────────────────────────────────────────────
-export default async (req) => {
-  if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
-  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
-
-  const secret = process.env.AUDIT_TRIGGER_SECRET;
-  let body;
-  try { body = JSON.parse((await req.text()) || "{}"); }
-  catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
-
-  // Shared-secret gate — the marketing site is unauthenticated, so this is what
-  // stops anyone from invoking the bot. If the secret isn't configured, refuse
-  // rather than run open to the world.
-  if (!secret || String(body.secret || "") !== secret) return json({ ok: false, error: "Unauthorized" }, 401);
-
-  const leadId = String(body.leadId || "").trim();
-  const website = String(body.website || "").trim();
-  const email = String(body.email || "").trim().toLowerCase();
-  if (!leadId || !email) return json({ ok: false, error: "leadId and email are required" }, 400);
-
-  const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
+// ── One lead, audited and sent ──────────────────────────────────────────────
+//
+// 🔴 LIFTED OUT OF THE HANDLER ON 2026-09-04 SO A SECOND CALLER CAN REACH IT, and the
+// reason is worth keeping. The only way to start this bot was a POST from the marketing
+// site, gated on a secret that has to be set IDENTICALLY on two separate Netlify sites.
+// It was not set. So the gate on the marketing site was simply false, no request was ever
+// made, and a real prospect asked for a free report and got NOTHING, in total silence.
+// Nobody found out until Bryson opened the lead an hour later and there was no audit stamp
+// on it. `lead-leak-sweep.mjs` now runs the same function on a schedule from inside the OS,
+// where no shared secret exists to be missing.
+export async function auditLead(supabase, { leadId, website, email, name }) {
   // Load the lead + de-dupe: never audit the same request twice (background
   // functions can be retried, and the trigger is best-effort fire-and-forget).
   const { data: lead, error: loadErr } = await supabase
     .from("website_leads").select("id, email, payload").eq("id", leadId).single();
-  if (loadErr || !lead) return json({ ok: false, error: "lead not found" }, 404);
+  if (loadErr || !lead) return { ok: false, error: "lead not found", status: 404 };
   const payload = lead.payload || {};
-  if (payload.auditedAt) return json({ ok: true, skipped: "already audited" });
+  if (payload.auditedAt) return { ok: true, skipped: "already audited" };
 
   // Claim it right away (best-effort optimistic lock) so a duplicate trigger that
   // lands while we're working bails out at the guard above.
+  const tries = Number(payload.auditTries || 0) + 1;
   await supabase.from("website_leads")
-    .update({ payload: { ...payload, auditedAt: new Date().toISOString(), auditStatus: "running" } })
+    .update({ payload: { ...payload, auditedAt: new Date().toISOString(), auditStatus: "running", auditTries: tries } })
     .eq("id", leadId);
 
   try {
@@ -274,16 +264,45 @@ export default async (req) => {
     }
 
     await supabase.from("website_leads")
-      .update({ payload: { ...payload, website: payload.website || website, auditedAt: new Date().toISOString(), auditStatus: reviewOnly ? "review_sent" : "sent", auditSubject: subject } })
+      .update({ payload: { ...payload, website: payload.website || website, auditedAt: new Date().toISOString(), auditStatus: reviewOnly ? "review_sent" : "sent", auditTries: tries, auditSubject: subject } })
       .eq("id", leadId);
-    return json({ ok: true, id: leadId, mode: reviewOnly ? "review" : "sent" });
+    return { ok: true, id: leadId, mode: reviewOnly ? "review" : "sent" };
   } catch (e) {
     const msg = String((e && e.message) || e);
     console.error("lead-leak-audit failed:", msg);
-    // Release the claim so a retry can run, and record what went wrong.
+    // Release the claim so a retry can run, and record what went wrong. 🔴 The try count
+    // is KEPT, or a permanently broken step (an unfunded AI account, say) would be retried
+    // forever and the sweep would never be able to say "this one needs a person".
     await supabase.from("website_leads")
-      .update({ payload: { ...payload, auditedAt: null, auditStatus: "error", auditError: msg } })
+      .update({ payload: { ...payload, auditedAt: null, auditStatus: "error", auditTries: tries, auditError: msg } })
       .eq("id", leadId);
-    return json({ ok: false, error: msg }, 500);
+    return { ok: false, error: msg, tries, status: 500 };
   }
+}
+
+// ── handler ─────────────────────────────────────────────────────────────────
+export default async (req) => {
+  if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
+
+  const secret = process.env.AUDIT_TRIGGER_SECRET;
+  let body;
+  try { body = JSON.parse((await req.text()) || "{}"); }
+  catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+
+  // Shared-secret gate — the marketing site is unauthenticated, so this is what
+  // stops anyone from invoking the bot. If the secret isn't configured, refuse
+  // rather than run open to the world. 🔴 A refusal here is no longer the end of the
+  // story: the scheduled sweep picks the lead up regardless, so a missing secret now
+  // costs a few minutes rather than the whole report.
+  if (!secret || String(body.secret || "") !== secret) return json({ ok: false, error: "Unauthorized" }, 401);
+
+  const leadId = String(body.leadId || "").trim();
+  const website = String(body.website || "").trim();
+  const email = String(body.email || "").trim().toLowerCase();
+  if (!leadId || !email) return json({ ok: false, error: "leadId and email are required" }, 400);
+
+  const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const r = await auditLead(supabase, { leadId, website, email, name: body.name });
+  return json(r, r.status || 200);
 };
