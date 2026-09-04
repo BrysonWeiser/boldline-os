@@ -1713,6 +1713,19 @@ const adPerfStats = (cl) => {
       g.linked && g.ok===false ? `Google Ads: ${g.error||"could not be read"}` : null,
       m.linked && m.ok===false ? `Meta Ads: ${m.error||"could not be read"}` : null,
     ].filter(Boolean),
+    // 🔴 ONE ROW PER CAMPAIGN, PAUSED ONES INCLUDED. Bryson, 2026-09-04: *"when I press my
+    // ads it only shows one ads statistics and I can't change it"*, in the same breath as
+    // asking why a campaign he had just built *"isn't doing anything"*.
+    //
+    // Both were the same gap. The card above shows account-wide TOTALS, so with one campaign
+    // it looks like that campaign's numbers and with two it silently becomes a blend of them.
+    // And every campaign the OS builds starts PAUSED on purpose, so the new one contributed
+    // nothing and appeared nowhere. Nothing on screen said "built, paused, waiting for you",
+    // which is the actual answer and now the thing a row says out loud.
+    campaigns: [
+      ...((g.list||[]).map(c=>({...c, platform:"google"}))),
+      ...((m.list||[]).map(c=>({...c, platform:"meta"}))),
+    ].sort((a,b)=>(Number(b.live)-Number(a.live))||(Number(b.spend||0)-Number(a.spend||0))),
   };
 };
 
@@ -6580,6 +6593,47 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                         {st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}
                         {st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>These numbers were last refreshed {ago(st.leadsSyncedAt)}, so a recent lead may be missing from the count. Leads themselves are safe and are all on the Leads screen. Reopening this screen refreshes it.</div>}
                         {!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It fills this in on its first pass, usually within a few minutes.</div>}
+                        {/* 🔴 THE NUMBERS ABOVE ARE THE WHOLE ACCOUNT ADDED UP. With one
+                            campaign that looks like that campaign; with two it is a blend
+                            and nothing says so. These rows are the per-campaign answer, and
+                            they carry the PAUSED ones, which is where "why is my new campaign
+                            doing nothing" actually gets answered. */}
+                        {st.campaigns.length>0&&(
+                          <div style={{marginTop:12,borderTop:`1px solid ${C.border2}`,paddingTop:10}}>
+                            <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:2}}>
+                              <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted}}>By campaign</div>
+                              <div style={{fontSize:9.5,color:C.textMuted}}>{st.campaigns.length} total</div>
+                            </div>
+                            <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:9}}>The figures above are every campaign added together. These are each one on its own.</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                              {st.campaigns.map(c=>(
+                                <div key={`${c.platform}-${c.id}`} style={{background:C.bg3,border:`1px solid ${c.live?C.border:C.border2}`,borderRadius:10,padding:"9px 11px",opacity:c.live?1:.82}}>
+                                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:5,flexWrap:"wrap"}}>
+                                    <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:C.textMuted,flexShrink:0}}>{c.platform==="meta"?"Meta":"Google"}</span>
+                                    <span style={{fontSize:12,fontWeight:700,color:C.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name||"Untitled campaign"}</span>
+                                    <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",flexShrink:0,padding:"2px 7px",borderRadius:6,
+                                      color:c.live?C.green:C.amber,backgroundColor:(c.live?C.green:C.amber)+"1a",border:`1px solid ${(c.live?C.green:C.amber)}44`}}>{c.live?"Running":"Paused"}</span>
+                                  </div>
+                                  {/* 🔴 A paused campaign's zeros are not a problem, they are
+                                      the consequence of it being paused, and saying so is the
+                                      difference between "it is broken" and "press approve". */}
+                                  {!c.live
+                                    ? <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55}}>Not running, so it has not been seen by anyone and has spent nothing. Approve it on the Campaigns screen to set it live.{c.dailyBudget>0?` It is set to $${c.dailyBudget}/day once it starts.`:""}</div>
+                                    : <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:10.5,color:C.textMuted}}>
+                                        <span><b style={{color:C.textDim,fontWeight:700}}>{c.impressions.toLocaleString()}</b> views</span>
+                                        <span><b style={{color:C.textDim,fontWeight:700}}>{c.clicks.toLocaleString()}</b> clicks</span>
+                                        <span><b style={{color:C.textDim,fontWeight:700}}>${Math.round(c.spend||0).toLocaleString()}</b> spent</span>
+                                        <span><b style={{color:C.textDim,fontWeight:700}}>{c.conversions||0}</b> {c.platform==="meta"?"leads":"conversions"}</span>
+                                        {c.dailyBudget>0&&<span>${c.dailyBudget}/day</span>}
+                                      </div>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* An account that reads fine but lists nothing has no campaigns at
+                            all, which is different from a sync that has not run. */}
+                        {st.campaigns.length===0&&st.errors.length===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>No campaigns in the ad account yet. Build one on the Campaigns screen and it appears here, paused, until you approve it.</div>}
                       </>}
                   {st.errors.length>0&&<div style={{marginTop:10,padding:"8px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,background:`${C.amber}10`}}>
                     <div style={{fontSize:10.5,fontWeight:800,color:C.amber,marginBottom:3}}>These numbers are stale</div>

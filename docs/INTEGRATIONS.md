@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 145 task-keyed entries under `knowledge/`. They surface automatically via the
+> 146 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**145 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**146 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -63,6 +63,12 @@
 - **[trade-playbooks](../knowledge/trade-playbooks.md)** &mdash; &#9989; verified &middot; 2026-08-26  
   Two things that turn the first client's time into a permanent asset. A per-trade playbook of searches to block, questions to ask and what a bad lead looks like, where a SEEDED guess and a LEARNED fact are stored and shown separately. And a launch checklist whose every step is observed from the client record rather than ticked by hand.  
   <sub>*task:* reuse what one client taught us on the next client in that trade, or check what still has to happen before a client goes live &nbsp;|&nbsp; *keywords:* trade playbook, negative keywords by trade, qualifying questions, disqualifiers, learned vs seeded, recordLearning, playbookFor, launch checklist, launchChecklist, LaunchChecklistCard, TradePlaybookCard, PlaybookCtx, tradePlaybooks, onboarding, client two, mirrored copy, browser copy drift</sub>
+
+## Ads/Campaigns
+
+- **[campaign-breakdown](../knowledge/campaign-breakdown.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  My Ads showed account-wide TOTALS that looked like one campaign's numbers while there was only one, and silently became a blend once there were two. Worse, the snapshot kept only live campaigns, so a campaign created PAUSED (which is every campaign the OS builds) appeared nowhere at all. Now every campaign gets its own row, paused ones included, saying in words why their numbers are zero. 14 checks, ten mutations caught.  
+  <sub>*task:* see one campaign's own numbers, or work out why a new campaign appears to do nothing &nbsp;|&nbsp; *keywords:* my ads, live ad performance, per campaign stats, campaign breakdown, adPerf list, liveList, paused campaign invisible, campaign not doing anything, new campaign nothing, totals not one campaign, ads-sync, trimCampaign, CAMPAIGN_LIST_CAP, running paused pill, approve campaign, ENABLED ACTIVE</sub>
 
 ## Billing
 

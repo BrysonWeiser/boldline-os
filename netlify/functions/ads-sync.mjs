@@ -108,6 +108,33 @@ function scaleCheck(cl, adPerf, liveCampaigns) {
   };
 }
 
+// 🔴 EVERY CAMPAIGN, NOT ONLY THE LIVE ONES. Bryson, 2026-09-04: *"when I press my ads it
+// only shows one ads statistics and I can't change it"*, right after asking why a campaign he
+// had just built *"isn't doing anything"*.
+//
+// Both questions had the same root. The snapshot kept only `liveList`, so a campaign created
+// PAUSED — which is EVERY campaign this OS builds, deliberately, because nothing may spend
+// before he approves it — appeared **nowhere at all**. Not as paused, not as zero. Nowhere.
+// So the newest campaign was invisible on the one screen he checks, and the card above it
+// showed account-wide totals that had not moved, which reads exactly like a broken campaign
+// rather than one waiting on a press.
+//
+// Trimmed to the fields a row needs and capped, because this is stored on the client record
+// and an account with hundreds of old campaigns should not bloat every read of it.
+const CAMPAIGN_LIST_CAP = 50;
+const trimCampaign = (c, spendKey) => ({
+  id: c.id,
+  name: c.name,
+  status: c.status,
+  ...(c.effectiveStatus ? { effectiveStatus: c.effectiveStatus } : {}),
+  ...(c.campaignResourceName ? { campaignResourceName: c.campaignResourceName } : {}),
+  dailyBudget: Number(c.dailyBudget || 0),
+  impressions: Number(c.impressions || 0),
+  clicks: Number(c.clicks || 0),
+  spend: round2(Number(c[spendKey] || 0)),
+  conversions: round2(Number((spendKey === "cost" ? c.conversions : c.leads) || 0)),
+});
+
 // Roll a platform's campaign array into the numbers the pacing check needs.
 function summarize(campaigns, isLive, spendKey) {
   const live = campaigns.filter(isLive);
@@ -115,6 +142,14 @@ function summarize(campaigns, isLive, spendKey) {
     ok: true,
     // Kept so the scale check can name the one campaign a budget change would land on.
     liveList: live,
+    // 🔴 Every campaign, live or paused, so the OS can show one row per campaign. Ordered
+    // live first so a running campaign is never pushed below a paused one he built and
+    // forgot about, then by spend, which is how the platforms themselves rank them.
+    list: campaigns
+      .slice()
+      .sort((a, b) => (isLive(b) - isLive(a)) || (Number(b[spendKey] || 0) - Number(a[spendKey] || 0)))
+      .slice(0, CAMPAIGN_LIST_CAP)
+      .map((c) => ({ ...trimCampaign(c, spendKey), live: isLive(c) })),
     campaigns: campaigns.length,
     live: live.length,
     liveDailyBudget: round2(sum(live, (c) => c.dailyBudget)),
