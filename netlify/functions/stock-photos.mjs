@@ -147,13 +147,20 @@ export default async (req) => {
     }
 
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    // Only the two roles a stock photo can have. Anything else would file it under a name
+    // nothing filters on, which is how the background became indistinguishable from an ad.
+    const category = body.category === "source" ? "source" : "photo";
     const entry = {
       url: pub.publicUrl,
       path,
-      // 🔴 "photo", the same category an uploaded picture gets. The launch card, the landing
-      // page renderer and the Creative Studio all filter on it, so anything else would save
-      // the file into a library that nothing can see.
-      category: "photo",
+      // 🔴 WHAT THE COPY IS FOR, AND THE CALLER DECIDES. This used to be hard-coded to
+      // "photo", the category an uploaded picture gets, so a bare stock photo chosen as the
+      // BACKGROUND for a creative became a candidate for the ad itself and showed up in the
+      // Assets tab as though Bryson had made it (his words, 2026-09-04: *"the image i select
+      // to use as a background image also got saved into the assets tab to be used for ads
+      // which i dont want"*). A background is raw material. The Creative Studio now asks for
+      // "source"; a photo picked for the landing page still asks for "photo".
+      category: category,
       label: (String(body.label || "").trim() || "Stock photo").slice(0, 200),
       uploadedAt: new Date().toISOString(),
       // Kept so a saved photo can be told apart from one of the client's own later.

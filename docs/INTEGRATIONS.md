@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 150 task-keyed entries under `knowledge/`. They surface automatically via the
+> 151 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**150 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**151 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -75,6 +75,12 @@
 - **[page-archive](../knowledge/page-archive.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   A landing page is rebuilt from the database on every request, so no copy of it exists and the version that worked is lost the moment the record changes. The OS can now save one, list them, open them and delete them. The saved copy is neutralised at write time (every script, the form, the lead token and every link) because an archive of a live page can otherwise create a real lead. Contract terms v4 adds showcase rights with an explicit promise never to sell lead data. 26 checks, ten mutations caught.  
   <sub>*task:* save, view or delete a copy of a client's landing page, or use client work as content &nbsp;|&nbsp; *keywords:* page archive, saved page, save landing page, case study, portfolio, showcase rights, contract v4, neutraliseArchive, page-archive.mjs, ARCHIVE_BUCKET, pageArchives, showcaseOptOut, screenshot landing page, no copy of the page, lead token public bucket</sub>
+
+## Assets/Media
+
+- **[media-roles](../knowledge/media-roles.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  Picking a stock photo as a creative background copied it into the library as a normal photo, so a bare image became a candidate for the ad itself. And the launch card used the newest ad-creative FILE, so making a second angle later silently switched a running ad onto it. Backgrounds are now filed as "source" and excluded everywhere, and each Save stamps a group so an ad runs one chosen set. 16 checks, ten mutations caught.  
+  <sub>*task:* control which images an ad uses, or why a background photo appeared in Assets &nbsp;|&nbsp; *keywords:* background image saved to assets, source category, media roles, ad-creative, creative set, adCreativeGroup, creativeGroups, adImagesFor, storm images, wrong image in ad, newest wins, canvas taint, media library category</sub>
 
 ## Billing
 

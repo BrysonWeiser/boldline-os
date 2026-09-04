@@ -1729,6 +1729,49 @@ const stageInfo   = (id) => STAGES.find(s=>s.id===id)||STAGES[0];
 //      by the house-leads job, so `leadsLog` is real and the divisor below works).
 // Everything here reads the STORED snapshot rather than calling the ad platforms, so
 // opening the Overview is instant; the card says how old the snapshot is.
+// 🔴 MIRRORS netlify/lib/media-roles.mjs. The browser cannot import it, so this is a second
+// copy, and tests/verify-media-roles.mjs EXTRACTS this one and runs both against the same
+// cases. Change one and the other must change with it.
+//
+// What each file in the library is FOR. Bryson, 2026-09-04: a stock photo chosen as the
+// BACKGROUND for a creative was copied in as "photo" and became a candidate for the ad
+// itself; and the launch card took "the newest ad-creative", so a second angle made later
+// silently took over a running ad.
+const isSourceOnly = (m) => String((m||{}).category||"")==="source";
+const adImages = (cl) => (((cl||{}).mediaLibrary)||[]).filter(m=>m&&m.url&&!isSourceOnly(m)&&String(m.category||"")!=="video");
+const groupOf = (m) => String((m||{}).group||"") || `single:${(m||{}).path||(m||{}).url||""}`;
+function creativeGroups(cl){
+  const imgs = adImages(cl).filter(m=>String(m.category||"")==="ad-creative");
+  const byKey = new Map();
+  for(const m of imgs){
+    const k = groupOf(m);
+    if(!byKey.has(k)) byKey.set(k,{key:k,label:"",at:"",items:[]});
+    const g = byKey.get(k);
+    g.items.push(m);
+    const at = String(m.uploadedAt||"");
+    if(at>g.at) g.at=at;
+    if(!g.label) g.label=String(m.groupLabel||"").trim();
+  }
+  const out=[...byKey.values()];
+  for(const g of out){
+    if(!g.label){
+      const first=g.items[0]||{};
+      const mm=/^ad-(.+?)-\d+x\d+-\d+/.exec(String(first.label||""));
+      g.label = mm ? mm[1].replace(/[-_]+/g," ") : (first.label||"Saved creative");
+    }
+    g.items.sort((a,b)=>(Number(b.w||0)*Number(b.h||0))-(Number(a.w||0)*Number(a.h||0)));
+  }
+  out.sort((a,b)=>(a.at<b.at?1:a.at>b.at?-1:0));
+  return out;
+}
+function adImagesFor(cl,groupKey){
+  const groups=creativeGroups(cl);
+  if(!groups.length) return {images:adImages(cl),group:null,fellBack:false};
+  const wanted = groupKey ? groups.find(g=>g.key===groupKey) : null;
+  const g = wanted || groups[0];
+  return {images:g.items,group:g,fellBack:!!groupKey&&!wanted};
+}
+
 const adPerfStats = (cl) => {
   const perf   = (cl && cl.adPerf) || {};
   const t      = perf.totals || {};
@@ -9329,8 +9372,18 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   // with category "ad-creative" and its own hint promises the launch card uses the
   // newest one. Sorted by savedAt/ts when present, otherwise the library is
   // append-newest-first already.
-  const usableImgs = (client.mediaLibrary||[]).filter(m=>m.url && m.category!=="video");
-  const creativeImgs = usableImgs.filter(m=>String(m.category||"")==="ad-creative");
+  // 🔴 EXCLUDES "source". A stock photo picked as the BACKGROUND for a creative is copied
+  // into the library so the canvas can read it back, and it used to be filed as "photo",
+  // which made a bare photo with no words on it a candidate for the ad itself.
+  const usableImgs = (client.mediaLibrary||[]).filter(m=>m.url && m.category!=="video" && m.category!=="source");
+  // 🔴 AND IT FOLLOWS THE CHOSEN SET, NOT THE CLOCK. One press of Save in the Creative Studio
+  // writes the same design at four sizes. Taking "the newest file" meant that making a second
+  // angle later silently switched a running ad onto it, which is what Bryson reported:
+  // storm images taking over an ad that was meant to run the leads angle.
+  const groupPick = String((client.campaignSetup||{}).adCreativeGroup||"");
+  const creativeSets = creativeGroups(client);
+  const picked = adImagesFor(client, groupPick);
+  const creativeImgs = picked.images.filter(m=>String(m.category||"")==="ad-creative");
   const firstImg = (creativeImgs.length?creativeImgs:usableImgs)[0];
   // House account: BoldLine advertising to WIN a given kind of business as a client.
   const metaAgencySeed = (aud) => {
@@ -9617,6 +9670,31 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
                 <span> &middot; overriding {platShare>1?"your half of ":""}${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
               )}
               {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
+            </div>
+          )}
+          {/* 🔴 WHICH SET THIS AD RUNS, chosen rather than inferred from a timestamp. One press
+              of Save in the Creative Studio writes the same design at four sizes; before this,
+              the card took the newest FILE, so making a second angle later silently switched a
+              running ad onto it. That is the storm-images-on-the-leads-ad problem. */}
+          {k==="imageUrl"&&creativeSets.length>1&&(
+            <div style={{marginTop:7}}>
+              <label style={lbl}>Which creative set this ad uses</label>
+              <select value={groupPick||(picked.group?picked.group.key:"")}
+                onChange={e=>{ const v=e.target.value;
+                  onUpdate({...client,campaignSetup:{...(client.campaignSetup||{}),adCreativeGroup:v}});
+                  const g=creativeSets.find(x=>x.key===v);
+                  if(g&&g.items[0]){ setImgTouched(false); set("imageUrl",g.items[0].url); } }}
+                style={box}>
+                {creativeSets.map(g=>(
+                  <option key={g.key} value={g.key}>{g.label}{g.items.length>1?` \u2014 ${g.items.length} sizes`:""}</option>
+                ))}
+              </select>
+              <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
+                Only this set is used. The other designs in your library are left alone.
+              </div>
+              {picked.fellBack&&<div style={{fontSize:9.5,color:C.amber,lineHeight:1.5,marginTop:3}}>
+                The set this was pinned to is gone, so it is using the newest one instead.
+              </div>}
             </div>
           )}
         </div>
@@ -10315,10 +10393,13 @@ function AdCreativeStudio({client,onUpdate}){
   const useStockPhoto=async(p)=>{
     setStockState("saving"); setStockMsg("");
     try{
-      const d=await stockCall({action:"save",clientId:client.id,photoUrl:p.full,label:p.alt||"Stock photo",credit:p.credit});
+      // 🔴 "source", NOT "photo". The copy is only here so the canvas can read it back; it is
+      // a background, not something he made. Filed as "photo" it appeared in Assets and could
+      // be picked as the ad itself, which is exactly what he reported.
+      const d=await stockCall({action:"save",clientId:client.id,photoUrl:p.full,label:p.alt||"Stock photo",credit:p.credit,category:"source"});
       if(onUpdate) onUpdate({...client,mediaLibrary:d.mediaLibrary});
       setPhotoPath(d.entry.path);
-      setStock([]); setStockState(""); setStockMsg("Saved to your media library and selected below.");
+      setStock([]); setStockState(""); setStockMsg("Background selected. It is not saved as an ad, only the finished image is.");
     }catch(e){ setStockState("error"); setStockMsg(e.message||"Could not save that photo."); }
   };
 
@@ -10363,6 +10444,13 @@ function AdCreativeStudio({client,onUpdate}){
     setBusy("save"); setErr(""); let n=0, lib=client.mediaLibrary||[];
     try{
       const stamp=Date.now();
+      // 🔴 ONE PRESS SAVES THE SAME DESIGN AT FOUR SIZES, AND THEY MUST STAY A SET. Without a
+      // shared stamp the launch card can only say "newest", so making a second angle later
+      // silently switches a running ad to it. This is the storm-vs-leads complaint: two
+      // angles in one library and the ad following the clock instead of the choice.
+      const group=`${(angleId||"creative")}-${stamp}`;
+      // What he would call this set on screen. The headline is what he recognises it by.
+      const groupLabel=(String(f.head||"").split("\n").filter(l=>l.trim())[0]||angleId||"Saved creative").slice(0,80);
       for(const s of shots){
         const name=`ad-${(angleId||"creative")}-${s.w}x${s.h}-${stamp}.jpg`;
         const sign=await fetch(`/.netlify/functions/media?action=sign&token=${encodeURIComponent(client.portalToken)}`,
@@ -10372,7 +10460,7 @@ function AdCreativeStudio({client,onUpdate}){
         const put=await fetch(sd.signedUrl,{method:"PUT",headers:{"Content-Type":"image/jpeg"},body:s.blob});
         if(!put.ok) throw new Error("Upload failed.");
         const conf=await fetch(`/.netlify/functions/media?action=confirm&token=${encodeURIComponent(client.portalToken)}`,
-          {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:sd.path,category:"ad-creative",label:name})});
+          {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:sd.path,category:"ad-creative",label:name,group,groupLabel,w:s.w,h:s.h})});
         const cd=await conf.json().catch(()=>({}));
         if(!conf.ok||!cd.ok) throw new Error(cd.error||"Couldn't save to the media library.");
         if(cd.mediaLibrary) lib=cd.mediaLibrary;
@@ -10744,7 +10832,9 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
   const [swapPick,setSwapPick]=useState("");      // chosen image url
   const swapImages=(r)=>{
     const lib=(r&&r.client&&r.client.mediaLibrary)||[];
-    const usable=lib.filter(m=>m&&m.url&&String(m.category||"")!=="video");
+    // 🔴 Same exclusion as the launch card. Three places chose images independently and a fix
+    // applied to one would have left the others still offering a bare background photo.
+    const usable=lib.filter(m=>m&&m.url&&String(m.category||"")!=="video"&&String(m.category||"")!=="source");
     // Newest first, and creatives from the Studio ahead of general photos.
     return [...usable.filter(m=>m.category==="ad-creative"),...usable.filter(m=>m.category!=="ad-creative")];
   };

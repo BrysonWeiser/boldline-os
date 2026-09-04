@@ -71,6 +71,15 @@ export default async (req) => {
     category,
     label: String(body.label || "file").slice(0, 200),
     uploadedAt: new Date().toISOString(),
+    // 🔴 WHICH SET THIS FILE BELONGS TO. The Creative Studio saves one design at four
+    // placement sizes in a single press, and without this the only thing an ad could say was
+    // "newest", so a second angle made later silently took over a running ad. Optional: an
+    // uploaded photo has no set and simply omits it.
+    ...(body.group ? { group: String(body.group).slice(0, 120) } : {}),
+    ...(body.groupLabel ? { groupLabel: String(body.groupLabel).slice(0, 120) } : {}),
+    // The pixel size, so the sizes in a set can be ordered without parsing the filename.
+    ...(Number(body.w) > 0 ? { w: Number(body.w) } : {}),
+    ...(Number(body.h) > 0 ? { h: Number(body.h) } : {}),
   };
 
   const client = data.data;
