@@ -4,17 +4,20 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 157 task-keyed entries under `knowledge/`. They surface automatically via the
+> 158 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**157 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**158 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
 - **[ad-generator](../knowledge/ad-generator.md)** &mdash; &#9989; verified &middot; 2026-09-02  
   Fill copy" was string templates — 6-7 keywords in one undifferentiated bucket, 8 of Google's 15 headlines, 3 of 4 descriptions, and a SINGLE ad group, byte-identical on every press. New `netlify/functions/ad-generator.mjs` writes a real campaign with a model: 3-5 intent-themed ad groups each carrying its own keywords (with per-keyword match types) and its own full 15-headline ad, plus 15-30 business-specific negatives and an operator note. `createCampaign` now builds N ad groups in one atomic mutate. The Ad Creative Studio's five fixed angles can likewise be rewritten from the real niche. 32 + 27 + 22 + 31 cases.  
   <sub>*task:* generate real campaign structure (ad groups, keywords, 15 headlines, negatives, creative angles) instead of string templates &nbsp;|&nbsp; *keywords:* ad generator, ad-generator.mjs, kicker, kicker unfinished, isLeadIn, lead-in, label not sentence, creative studio kicker, narrow input, field too narrow, scrolls sideways, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit</sub>
+- **[ads-sync-stall](../knowledge/ads-sync-stall.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  Bryson asked whether his ad numbers were still updating after a few hours of no movement, and neither he nor the OS could answer. Three causes looked identical on screen: the job ran and nothing changed, the job ran and the platform refused, or the job never ran (Netlify schedules are best effort and a 2.5h gap with zero errors has happened here before). Now the card WARNS past 2.5 hours and carries a **Check now** button backed by `ads-sync-now.mjs`, an owner-authed endpoint that RUNS the scheduled job itself rather than a copy. Also adds `tests/verify-ads-sync-runs.mjs`, which actually EXECUTES `summarize` for the first time: every existing suite read that file as text, so a runtime break in the day's earlier change would have left all of them green while the numbers silently froze. 15 checks, nine mutations caught.  
+  <sub>*task:* tell whether the hourly ad numbers are actually updating, force a refresh, and prove the sync still runs &nbsp;|&nbsp; *keywords:* analytics not updating, ads-sync stalled, adSyncStale, ads-sync-now, check now, numbers stopped, updated hours ago, scheduled function skipped, best effort schedule</sub>
 - **[budget-split](../knowledge/budget-split.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   A monthly ad budget is the TOTAL across every platform, so it is now divided by how many platforms are actually running before it fills a daily-budget field. Before this both launch cards independently derived the FULL monthly figure — $200/mo showed $7/day on Google AND $7/day on Meta, which spends $400/mo and burns the budget in half a month. Caught by Bryson 2026-08-14. Fixed with a `platformCount` prop threaded from the Campaigns tab (the same place that decides which cards render, so the split can never disagree with the cards on screen), plus corrected copy on the setup card, which had literally been instructing him to type the total into each campaign. 36 cases.  
   <sub>*task:* how one monthly ad budget becomes the daily budget on each platform &nbsp;|&nbsp; *keywords:* budget split, monthly budget, daily budget, dailyFromMonthly, platformCount, platShare, adPlatformsOf, double spend, Google and Meta both running, burn through budget twice as fast</sub>
