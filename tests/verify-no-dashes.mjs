@@ -250,6 +250,43 @@ t("no hardcoded marketing hyphen survives in client-facing copy", () => {
   assert.equal(offenders.length, 0, `hardcoded marketing hyphen: ${offenders.join("; ")}`);
 });
 
+// ── 🔴 THE OUTREACH DRAFTS, WHICH GO STRAIGHT TO A PROSPECT ─────────────
+//
+// Bryson, 2026-09-04, asking a plain question about the Book a Call button: *"which email
+// does it send from"*. Reading the code to answer it turned up an em dash in the email
+// SUBJECT LINE and another in the text message, in BOTH copies of the card, four places in
+// total, none of which any check had ever looked at.
+//
+// 🔴 THIS IS THE MOST DIRECT CLIENT-FACING COPY IN THE WHOLE OS AND IT LOOKED INTERNAL.
+// Everything else the dash rule guards is obviously outward: the portal, the site, the ad
+// copy, the client emails. These two strings sit inside a React component in the OS's own
+// dashboard, so they read as app code, and they are the exact words a prospect gets in
+// their inbox and on their phone. Where a string LIVES says nothing about who READS it.
+t("🔴 the Book a Call email and text drafts carry no dash", () => {
+  const src = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const offenders = [];
+  // The drafts and the subject line, wherever they appear. Both cards are checked because
+  // the house Leads tab and the global Leads screen hold separate copies of the same code.
+  const spots = [
+    [/const emailDraft = \([^)]*\) => \{[\s\S]{0,900}?\};/g, "the email draft"],
+    [/const smsDraft = \([^)]*\) => `[^`]*`;/g, "the text draft"],
+    [/subject=\$\{encodeURIComponent\("[^"]*"\)\}/g, "the email subject"],
+  ];
+  let found = 0;
+  for (const [re, label] of spots) {
+    const hits = src.match(re) || [];
+    found += hits.length;
+    for (const h of hits) {
+      if (/[—–]/.test(h)) offenders.push(`${label}: ${h.slice(0, 90)}`);
+      if (/ - /.test(h)) offenders.push(`${label} (spaced hyphen): ${h.slice(0, 90)}`);
+    }
+  }
+  // 🔴 If the patterns stop matching, this passes while checking nothing. There are two of
+  // each, one per card, so anything under six means the check has gone blind.
+  assert.ok(found >= 6, `only ${found} outreach strings found, so this check is not reading them`);
+  assert.equal(offenders.length, 0, `a dash in what a prospect actually receives: ${offenders.join("; ")}`);
+});
+
 // ── 🔴 THE CLIENT PORTAL, RENDERED AND READ ─────────────────────────────
 //
 // The check above catches hyphenated marketing compounds. It never looked for the
