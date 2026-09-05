@@ -28,6 +28,7 @@ import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL, sendEmail, escapeHTML, GOLD } from "../lib/report-shared.mjs";
 import { emailShell } from "../lib/client-emails-shared.mjs";
+import { lookAtSite, metricLines } from "../lib/site-vision.mjs";
 
 const BOOK_URL = "https://calendly.com/theboldlinemedia/30min";
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
@@ -125,11 +126,12 @@ const buildSystem = () => `You are the analyst behind BoldLine Media's free "Lea
 
 The reader is a business owner who just requested this audit on our website. This email IS the audit — it must deliver real value on its own, feel personal to THEIR site, and leave them thinking "these people clearly know what they're doing." It is also a first impression, so be helpful and encouraging — never insulting, never generic.
 
-You are given: (a) what we pulled from their homepage (title, meta description, main headline, whether it has a mobile viewport tag, a click-to-call link, a contact form, image/script counts, page weight, and a text sample, where anything reported as not visible in the page source means WE COULD NOT SEE IT rather than that it does not exist), and (b) web search, which you should use to check their Google Business Profile, reviews, and whether they appear to be running ads.
+You are given: (a) a SCREENSHOT of their homepage as a phone renders it, when one is available, plus Google's own speed measurements of the live page, (b) what we pulled from their homepage (title, meta description, main headline, whether it has a mobile viewport tag, a click-to-call link, a contact form, image/script counts, page weight, and a text sample, where anything reported as not visible in the page source means WE COULD NOT SEE IT rather than that it does not exist), and (c) web search, which you should use to check their Google Business Profile, reviews, and whether they appear to be running ads.
 
 HARD ACCURACY RULES — this goes to a real stranger, so a single wrong claim kills the deal and the brand:
 - Base every observation on the actual page data provided or something you genuinely confirmed via web search. If you did NOT confirm something, do not assert it — either leave it out or phrase it as a question ("I couldn't find a Google Business Profile — if you don't have one yet, that's the single biggest quick win").
 - NEVER invent specifics: no made-up review counts, star ratings, owner names, traffic numbers, or "you're losing $X per month." No fabricated statistics of any kind.
+- 🔴 WHEN A SCREENSHOT IS ATTACHED, IT IS THE TRUTH AND THE PAGE SOURCE IS NOT. The screenshot is the page after it finished loading in a real browser on a phone, which is what their customer actually gets. The page source is the skeleton that arrived first. Where the two disagree, believe the screenshot, and you may then describe what you can SEE as fact: the layout, what is above the fold, how the buttons read, whether a form is visible, how it looks on a phone. Say what you noticed looking at it, because that is what proves you really looked. If there is NO screenshot this time, you are back to the source alone and the rule below applies at full strength.
 - 🔴 NEVER TELL THEM SOMETHING IS MISSING FROM THEIR SITE. You are reading the first HTML response only. Wix, Squarespace, GoDaddy, Webflow and every JavaScript site add their contact forms, phone links and half their page after that, so a thing you cannot see is very often sitting right there on the live page. Anything marked NOT VISIBLE IN THE PAGE SOURCE is UNKNOWN, not absent, and you must not build a finding on it. This is the single most damaging mistake available to you: every other point in this email asks them to take your word for it, but "you have no contact form" is something they can disprove in four seconds by scrolling their own homepage, and the moment they do, everything else you wrote is worthless too. If you want to raise it anyway, ASK: "I could not see a form on the homepage, though it may be further down or added by your site builder. If people can only reach you by calling, adding one short form is the quickest win there is." Never state it as fact.
 - NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 - Do not claim they are or aren't running ads unless web search actually shows it; otherwise frame it conditionally ("if you're running Google Ads...").
@@ -151,7 +153,7 @@ Then a blank line, then the audit body in light markdown. Formatting rules for t
 - Close with 2-3 sentences: which single fix to do first, and a low-pressure invitation to book a quick free call with Bryson to walk through it. Do NOT paste any URL or booking link — a button is added automatically below your text.
 Use only "**bold**" for the leak names and "- " for bullets. No top-level "#" headings. Keep the whole thing tight — a busy owner should read it in under two minutes.`;
 
-const generateReport = async (site) => {
+const generateReport = async (site, vision) => {
   // 🔴 The exact words handed to the model for anything we looked for and did not find.
   // Written out once so no single line can drift back into asserting an absence.
   const NOT_SEEN = "NOT VISIBLE IN THE PAGE SOURCE (this may simply mean it is added by "
@@ -179,11 +181,24 @@ const generateReport = async (site) => {
       : null,
     site.ok ? `Homepage weight: ~${site.bytesKB} KB, ${site.imgCount} images, ${site.scriptCount} scripts.` : null,
     site.text ? `Homepage text sample: "${site.text.slice(0, 1500)}"` : null,
+    // 🔴 WHAT A REAL BROWSER SAW, WHICH IS A DIFFERENT AND BETTER SOURCE. Everything above is
+    // read out of the first HTML response; these are measured after the page has finished
+    // assembling itself, which is the page a customer actually gets.
+    ...(vision && vision.ok ? ["", "MEASURED IN A REAL BROWSER ON A PHONE:", ...metricLines(vision)] : []),
+    vision && vision.ok && vision.screenshot
+      ? `A SCREENSHOT OF THE ${vision.screenshot.kind.toUpperCase()} IS ATTACHED. It shows the page AFTER it finished loading, so it is the truth about what a visitor sees. Where the screenshot and the page source disagree, THE SCREENSHOT WINS.`
+      : `NOTE: no screenshot this time (${(vision && vision.note) || "the visual check did not run"}), so you are working from the page source alone and must be correspondingly careful about anything you cannot see.`,
   ].filter(Boolean).join("\n");
 
   const userMsg = `Here is the prospect's site data. Research their online presence with web search (Google Business Profile, reviews, whether they appear to run ads), then write the Lead-Leak Check exactly as specified.\n\n${facts}`;
 
-  let messages = [{ role: "user", content: userMsg }];
+  // The picture goes FIRST, because it is the thing the rest is describing.
+  const shot = vision && vision.ok && vision.screenshot;
+  const content = shot
+    ? [{ type: "image", source: { type: "base64", media_type: shot.mediaType, data: shot.data } },
+       { type: "text", text: userMsg }]
+    : userMsg;
+  let messages = [{ role: "user", content }];
   let response;
   // web_search runs a server-side loop; a pause_turn means "re-send to resume."
   for (let i = 0; i < 4; i++) {
@@ -290,7 +305,11 @@ export async function auditLead(supabase, { leadId, website, email, name }) {
       throw new Error("Email is not configured (RESEND_API_KEY / REPORTS_FROM_EMAIL).");
     }
     const site = await inspectSite(website || payload.website);
-    const { subject, bodyMd } = await generateReport(site);
+    // Fail-soft on purpose: a report without the picture is the report we sent yesterday, and
+    // that is far better than no report at all.
+    const vision = await lookAtSite(site.url || website || payload.website);
+    console.log("lead-leak-audit vision:", vision.note);
+    const { subject, bodyMd } = await generateReport(site, vision);
     const siteLabel = site.ok && site.url ? hostOf(site.url) : hostOf(website || payload.website || "");
     const html = buildEmailHtml({ bodyMd, siteLabel });
 
@@ -310,7 +329,7 @@ export async function auditLead(supabase, { leadId, website, email, name }) {
     }
 
     await supabase.from("website_leads")
-      .update({ payload: { ...payload, website: payload.website || website, auditedAt: new Date().toISOString(), auditStatus: reviewOnly ? "review_sent" : "sent", auditTries: tries, auditSubject: subject } })
+      .update({ payload: { ...payload, website: payload.website || website, auditedAt: new Date().toISOString(), auditStatus: reviewOnly ? "review_sent" : "sent", auditTries: tries, auditSubject: subject, auditLooked: vision.note } })
       .eq("id", leadId);
     return { ok: true, id: leadId, mode: reviewOnly ? "review" : "sent" };
   } catch (e) {
