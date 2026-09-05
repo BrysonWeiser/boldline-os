@@ -31,6 +31,7 @@ const eq = (name, got, want) => ok(name, got === want, `got ${JSON.stringify(got
 const {
   dueForRetry, nextCrmState, sweepClientLeads, retryDelayMs, needsAHuman,
   CRM_RETRY_MAX_TRIES, CRM_RETRY_DELAYS_MS,
+  stuckForMs: stuckForMsEarly,
 } = await import("../netlify/lib/crm-retry.mjs");
 
 const T0 = Date.parse("2026-09-04T12:00:00.000Z");
@@ -118,6 +119,22 @@ const lead = (crm, extra = {}) => ({ leadId: "L1", receivedAt: "2026-09-04T11:00
     "delivered after four tries is a different fact from delivered, and it is the one that "
     + "says an endpoint is unreliable while still working");
   ok("the old error does not survive the success", !won.error);
+
+  // 🔴 THE FIRST-FAILURE STAMP IS SET ONCE AND NEVER MOVED, and this has to be proved through
+  // the real function rather than by handing it a `since` in a fixture. A mutation that reset
+  // it on every retry escaped the whole stuck suite, because every one of those cases built
+  // the timestamp itself. The bug it hides is the exact thing Shaun asked us to catch: a lead
+  // failing on a loop would look brand new after every attempt and could never be reported.
+  const first = nextCrmState({}, { ok: false, status: 500 }, new Date(T0 - 3 * HOUR));
+  const second = nextCrmState(first, { ok: false, status: 500 }, new Date(T0 - 2 * HOUR));
+  const third = nextCrmState(second, { ok: false, status: 500 }, new Date(T0));
+  eq("🔴 the first-failure stamp survives every retry", third.since, first.since);
+  ok("and it is the FIRST failure, not the latest",
+    Date.parse(third.since) === T0 - 3 * HOUR,
+    `got ${third.since}, wanted the first attempt three hours ago`);
+  ok("🔴 so the lead reads as three hours stuck, not as brand new",
+    stuckForMsEarly({ crm: third }, T0) >= 2.9 * HOUR,
+    "a lead failing on a loop looks new after every attempt and is never reported");
 }
 
 // ── 4. 🔴 A CONFIGURATION ERROR IS NOT AN OUTAGE ─────────────────────────────
@@ -207,12 +224,96 @@ const lead = (crm, extra = {}) => ({ leadId: "L1", receivedAt: "2026-09-04T11:00
   ok("and the reason survives", /socket hang up/.test(boom.lastError));
 
   // `forwardLead` answers null when it decides there is nothing to do. That must not burn a try.
+  //
+  // 🔴 THIS ASSERTS THE TRY COUNT, NOT `changed`. It used to read `changed === false`, which
+  // stood in for "nothing happened" and stopped being the same thing the day the stuck-lead
+  // stamp arrived: a lead an hour into the queue is now legitimately marked as reported, so
+  // the record genuinely did change, for a reason that has nothing to do with skips. Pinning
+  // the count says what this case is actually about.
   const skipped = await sweepClientLeads(client([lead({ ok: false, at: ago(HOUR), tries: 1 })]), {
     now: T0, forward: async () => null,
   });
   ok("🔴 a deliberate skip does not burn an attempt",
-    skipped.changed === false && skipped.failed === 0,
+    skipped.failed === 0 && Number(skipped.leadsLog[0].crm.tries) === 1,
     "counting a skip as a failure walks a healthy lead to the give-up cap for no reason");
+}
+
+// ── 7b. 🔴 STUCK IN THE QUEUE, SAID OUT LOUD WHILE IT STILL MATTERS ──────────
+//
+// Shaun Smith (Stencil & Thread's developer), 2026-09-04, agreeing to relay-only delivery:
+// *"Two asks on the queue: alert yourself if anything sits in it longer than a few minutes,
+// and keep the lead_id stable across retries so my dedupe catches the replay."*
+//
+// 🔴 THE GAP WAS REAL AND IT WAS A DAY WIDE. The queue spoke up in exactly two situations: a
+// wrong password (first failed sweep) and giving up (after the whole ladder, which runs over
+// a DAY). An ordinary outage in between was completely silent for that entire day. A lead is
+// a person who has just asked to be called back.
+{
+  const { stuckForMs, isNewlyStuck, STUCK_AFTER_MS } = await import("../netlify/lib/crm-retry.mjs");
+
+  eq("a delivered lead is not stuck", stuckForMs(lead({ ok: true, at: ago(HOUR), tries: 1 }), T0), 0);
+  eq("a lead never attempted is not stuck", stuckForMs(lead(null), T0), 0);
+
+  // 🔴 MEASURED FROM THE FIRST FAILURE, NOT THE LAST ATTEMPT. `at` marches forward on every
+  // retry, so without `since` a lead failing hourly would look one hour old forever and could
+  // never trip a stuck check no matter how long it had really been waiting.
+  const long = lead({ ok: false, at: ago(60e3), since: ago(4 * HOUR), tries: 5 });
+  ok("🔴 a lead retried a minute ago but stuck for hours reads as hours",
+    stuckForMs(long, T0) >= 3.9 * HOUR,
+    "the stuck check reads the last attempt, so a lead failing on a loop can never be reported");
+
+  ok("a lead a few minutes in has not tripped it yet",
+    !isNewlyStuck(lead({ ok: false, at: ago(60e3), since: ago(60e3), tries: 1 }), T0),
+    "one slow moment alerts him, which trains him to ignore the alert");
+  ok("and one past the threshold has",
+    isNewlyStuck(lead({ ok: false, at: ago(STUCK_AFTER_MS + 60e3), since: ago(STUCK_AFTER_MS + 60e3), tries: 1 }), T0));
+
+  // 🔴 ONCE PER LEAD, NEVER ONCE PER SWEEP. The ladder runs over a day and this job wakes
+  // every fifteen minutes, so without the stamp one stuck lead sends about a hundred
+  // identical alerts.
+  ok("🔴 an already-reported lead is not reported again",
+    !isNewlyStuck(lead({ ok: false, at: ago(4 * HOUR), since: ago(4 * HOUR), tries: 5, stuckAlerted: true }), T0),
+    "one stuck lead would alert him every fifteen minutes for a day");
+
+  // 🔴 A SEPARATE PASS OVER EVERY LEAD. A lead sitting out a four-hour back-off is the most
+  // stuck thing in the queue and is exactly what the due-for-retry gate and the per-client cap
+  // both skip, so checking inside that loop would mean the longer a lead was stuck, the less
+  // likely it was to be reported.
+  const waiting = lead({ ok: false, at: ago(2 * 60e3), since: ago(3 * HOUR), tries: 4 }, { leadId: "waiting", name: "Dana" });
+  const swept = await sweepClientLeads(client([waiting]), { now: T0, forward: async () => { throw new Error("must not be retried yet"); } });
+  eq("🔴 a lead waiting out a back-off is still reported as stuck", swept.stuck.length, 1,
+    "the most stuck leads in the queue are the ones this never looks at");
+  eq("the report names the lead", swept.stuck[0].name, "Dana");
+  ok("and says how long", swept.stuck[0].minutes >= 179, `got ${swept.stuck[0].minutes}`);
+  ok("the stamp is written back so it cannot repeat", swept.leadsLog[0].crm.stuckAlerted === true);
+  ok("and the record is marked changed so the stamp is saved", swept.changed === true,
+    "the stamp is worked out and thrown away, so it alerts again on the very next sweep");
+
+  const again = await sweepClientLeads(client([swept.leadsLog[0]]), { now: T0, forward: async () => ({ ok: false, status: 500 }) });
+  eq("🔴 the second sweep says nothing about the same lead", again.stuck.length, 0,
+    "he gets the same alert every fifteen minutes until it gives up");
+}
+
+// ── 7c. 🔴 THE DEDUPE KEY SHAUN'S SYSTEM MATCHES ON ──────────────────────────
+{
+  const FWD = await import("../netlify/lib/crm-forward.mjs");
+  const src = readFileSync(join(ROOT, "netlify/lib/crm-forward.mjs"), "utf8");
+  ok("🔴 the id sent is the one stored on the lead, so a retry replays the same value",
+    /leadId: str\(l\.leadId\) \|\| str\(l\.receivedAt\)/.test(src)
+    && /lead_id: str\(l\.leadId\) \|\| str\(l\.receivedAt\)/.test(src),
+    "a fresh id per attempt makes every retry look like a brand new lead to their dedupe, "
+    + "which is exactly the duplicate contact he asked us to prevent");
+  ok("and it is never generated at send time",
+    !/randomUUID|Date\.now\(\)/.test(src.slice(src.indexOf("leadId: str"), src.indexOf("leadId: str") + 200)),
+    "the id is made when the lead is sent rather than when it arrived, so it changes on retry");
+  // The retry path hands the STORED lead back to the forwarder, so the value cannot drift.
+  const seenIds = [];
+  await sweepClientLeads(client([lead({ ok: false, at: ago(HOUR), since: ago(HOUR), tries: 1 }, { leadId: "STABLE-1" })]),
+    { now: T0, forward: async (_c, l) => { seenIds.push(l.leadId); return { ok: false, status: 500 }; } });
+  await sweepClientLeads(client([lead({ ok: false, at: ago(HOUR), since: ago(HOUR), tries: 2 }, { leadId: "STABLE-1" })]),
+    { now: T0, forward: async (_c, l) => { seenIds.push(l.leadId); return { ok: false, status: 500 }; } });
+  ok("🔴 two separate retries send the SAME id", seenIds.length === 2 && seenIds[0] === "STABLE-1" && seenIds[1] === "STABLE-1",
+    `their dedupe cannot catch the replay: ${JSON.stringify(seenIds)}`);
 }
 
 // ── 8. One client cannot starve the others ───────────────────────────────────

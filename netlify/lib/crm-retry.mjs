@@ -71,6 +71,39 @@ export const needsAHuman = (crm) => {
   return s === 401 || s === 403;
 };
 
+// ─── 🔴 A LEAD STUCK IN THE QUEUE, SAID OUT LOUD WHILE IT STILL MATTERS ──────
+//
+// Shaun Smith (Stencil & Thread's developer), 2026-09-04, agreeing to relay-only delivery:
+// *"Two asks on the queue: alert yourself if anything sits in it longer than a few minutes,
+// and keep the lead_id stable across retries so my dedupe catches the replay."*
+//
+// He is right, and the gap was real. Until now the queue spoke up in exactly two situations:
+// a wrong password (reported on the first failed sweep, because no amount of waiting fixes
+// it) and giving up entirely (after the whole back-off ladder, which runs over a DAY). An
+// ordinary outage in between, their server answering 500 or not answering at all, was
+// completely silent for that whole day. A lead is a person who has just asked to be called
+// back, so a day of silence is the customer.
+//
+// 🔴 MEASURED FROM THE FIRST FAILURE, NOT FROM THE LAST ATTEMPT. `crm.at` moves forward on
+// every try, so a lead failing every hour would look one hour old forever and could never
+// trip a stuck check. `crm.since` is stamped once and carried.
+export const STUCK_AFTER_MS = 10 * 60e3;
+
+// How long this lead has been undelivered, or 0 if it is not waiting on anything.
+export function stuckForMs(lead, now = Date.now()) {
+  const crm = (lead || {}).crm;
+  if (!crm || crm.ok) return 0;
+  const since = Date.parse(String(crm.since || crm.at || ""));
+  if (!Number.isFinite(since)) return 0;
+  return Math.max(0, now - since);
+}
+
+// 🔴 ONCE PER LEAD, NEVER ONCE PER SWEEP. The ladder runs for over a day and this job wakes
+// every fifteen minutes, so without the stamp one stuck lead would send him roughly a hundred
+// identical alerts and he would learn to swipe the whole category away.
+export const isNewlyStuck = (lead, now = Date.now()) =>
+  stuckForMs(lead, now) >= STUCK_AFTER_MS && !((lead || {}).crm || {}).stuckAlerted;
+
 // Is this lead due for another go right now?
 //
 // 🔴 EVERY CLAUSE HERE IS A SEPARATE WAY TO CAUSE HARM, so they are written out rather than
@@ -107,7 +140,12 @@ export function nextCrmState(prev, result, now = new Date()) {
     return { ...result, tries, retried: true, at: result.at || at };
   }
   const gaveUp = tries >= CRM_RETRY_MAX_TRIES;
-  return { ...(result || {}), ok: false, tries, retried: true, at: result && result.at ? result.at : at, ...(gaveUp ? { gaveUp: true } : {}) };
+  // 🔴 `since` IS STAMPED ONCE AND NEVER MOVED. `at` is the last attempt and marches forward
+  // with every retry, so a lead failing hourly would look one hour old forever and no
+  // stuck-in-the-queue check could ever fire. This is the moment it first went wrong.
+  const since = (prev && prev.since) || (prev && prev.at) || at;
+  return { ...(result || {}), ok: false, tries, retried: true, since,
+    at: result && result.at ? result.at : at, ...(gaveUp ? { gaveUp: true } : {}) };
 }
 
 // One client's backlog. Returns what changed and what is worth telling Bryson, and writes
@@ -118,7 +156,7 @@ export function nextCrmState(prev, result, now = new Date()) {
 export async function sweepClientLeads(client, { now = Date.now(), max = 25, forward = forwardLead } = {}) {
   const c = client || {};
   const log = Array.isArray(c.leadsLog) ? c.leadsLog.slice() : [];
-  const out = { changed: false, leadsLog: log, sent: 0, failed: 0, gaveUp: 0, needsAHuman: false, lastError: "" };
+  const out = { changed: false, leadsLog: log, sent: 0, failed: 0, gaveUp: 0, needsAHuman: false, lastError: "", stuck: [] };
   if (!crmTarget(c)) return out;                // nothing configured: nothing to retry into
 
   let done = 0;
@@ -148,6 +186,22 @@ export async function sweepClientLeads(client, { now = Date.now(), max = 25, for
       // person and a day of silent retries is a day of lost leads.
       if (needsAHuman(crm) && crm.tries === 1) out.needsAHuman = true;
     }
+  }
+
+  // 🔴 A SEPARATE PASS, OVER EVERY LEAD, NOT ONLY THE ONES TRIED THIS RUN. A lead sitting out
+  // a four-hour back-off is the most stuck thing in the queue and is precisely the one this
+  // loop's `max` cap and the due-for-retry gate both skip. Checking inside that loop would
+  // have meant the longer a lead was stuck, the less likely it was to be reported.
+  for (let i = 0; i < log.length; i++) {
+    const lead = log[i];
+    if (!isNewlyStuck(lead, now)) continue;
+    log[i] = { ...lead, crm: { ...lead.crm, stuckAlerted: true } };
+    out.changed = true;
+    out.stuck.push({
+      name: (lead && lead.name) || (lead && lead.phone) || "a lead",
+      minutes: Math.round(stuckForMs(lead, now) / 60000),
+      error: (lead.crm && (lead.crm.error || (lead.crm.status ? `their system answered ${lead.crm.status}` : ""))) || "no answer",
+    });
   }
   return out;
 }
