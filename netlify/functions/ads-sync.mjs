@@ -34,7 +34,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import { liveStats, PER_LEAD } from "../lib/report-shared.mjs";
-import { getCampaigns as metaCampaigns } from "./meta-ads.mjs";
+import { getCampaigns as metaCampaigns, getAccountHealth as metaAccountHealth } from "./meta-ads.mjs";
 import { getAccessToken as gadsToken, getCampaigns as gadsCampaigns } from "./google-ads.mjs";
 import { metaOn, metaDelivering, googleOn, googleDelivering } from "../lib/meta-status.mjs";
 
@@ -224,6 +224,14 @@ export default withFailureAlert("ads-sync", async () => {
       else {
         try { Object.assign(meta, summarize(await metaCampaigns(mid), metaOn, metaDelivering, "spend")); meta.linked = true; metaOk++; }
         catch (e) { meta.ok = false; meta.error = (e && e.message) || "Meta read failed"; }
+        // 🔴 THE ACCOUNT, NOT JUST ITS CAMPAIGNS. A campaign can read perfectly healthy while
+        // the account underneath has hit a spending limit or lost its card, and Meta does not
+        // mark the campaign as broken when that happens: it just stops delivering. That is
+        // exactly what a campaign showing RUNNING with frozen numbers looks like, and nothing
+        // the OS read could explain it. Best effort on purpose: this is a diagnosis, and
+        // losing it must never cost us the numbers themselves.
+        try { meta.account = await metaAccountHealth(mid); }
+        catch (e) { console.warn("ads-sync: Meta account health read failed:", e && e.message); }
       }
     }
 

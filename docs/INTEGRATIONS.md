@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 158 task-keyed entries under `knowledge/`. They surface automatically via the
+> 159 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**158 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**159 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -75,6 +75,9 @@
 
 ## Ads/Meta
 
+- **[meta-account-health](../knowledge/meta-account-health.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+  Every Meta fact the OS held was per campaign, and every one of them can read perfectly healthy while the ACCOUNT underneath refuses to spend another penny. Meta does not mark the campaign broken when that happens, it just stops delivering, so the screen says Running and the numbers freeze with nothing anywhere to explain it. New `getAccountHealth` reads the account's own state (spend cap, amount spent, balance, funding, status), the hourly sync stores it, and the card says in plain words what has stopped it and where to fix it. 🔴 Meta reports money in CENTS, so a $10 cap arrives as "1000" and reading it as dollars is a hundredfold error that would silence the warning entirely. 12 checks, nine mutations caught, verified in a browser.  
+  <sub>*task:* work out why a Meta campaign that says RUNNING has stopped spending, and see it in the OS &nbsp;|&nbsp; *keywords:* ad stopped spending, running but no spend, spend cap, spending limit, account_status, disable_reason, amount_spent, accountHealth, accountTrouble, meta account disabled, card declined, ads not delivering, numbers frozen</sub>
 - **[meta-delivery-states](../knowledge/meta-delivery-states.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   Meta reports `status` (the campaign's own switch) AND `effective_status` (whether it is serving). The OS had two disagreeing definitions of "live" and one sentence for every non-serving state. New `netlify/lib/meta-status.mjs` splits the question into `metaOn` (the switch, what Pause acts on, what the snapshot stores as `live`) and `metaDelivering` (serving, what `ads-autopilot` needs before moving money). `index.html` gains a `META_DELIVERY` table so each state gets its own plain-English explanation, and `campaignIsOn` so every screen agrees. 🔴 `IN_PROCESS` is NOT a fault: it is Facebook applying an edit, which is what you see right after changing a budget from the OS, and it clears itself. 20 checks, 8 mutations caught, verified in a real browser against the exact state from Bryson's screenshot.  
   <sub>*task:* read a Meta campaign's status correctly, tell "switched on" from "serving right now", and explain IN_PROCESS / ADSET_PAUSED / DISAPPROVED to Bryson &nbsp;|&nbsp; *keywords:* effective_status, effectiveStatus, IN_PROCESS, in process, ADSET_PAUSED, PENDING_REVIEW, DISAPPROVED, WITH_ISSUES, PENDING_BILLING_INFO, not delivering, metaOn, metaDelivering, campaignIsOn, META_DELIVERY, live vs delivering, campaign says paused but is running</sub>

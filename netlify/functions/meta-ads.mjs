@@ -15,6 +15,9 @@
 //   "test"           -> lists the ad accounts the token can see. Smoke test.
 //   "campaigns"      -> { adAccountId } read campaigns + last-30-day insights.
 //   "setBudget"      -> { adAccountId, campaignId, dailyBudgetDollars } guarded write.
+//   "accountHealth"  -> { adAccountId } reads the ACCOUNT's own state: spend cap, amount
+//                       spent, balance, funding and status. A campaign can look healthy
+//                       while the account it sits on has stopped paying for anything.
 //   "setAdSetBudget" -> { adSetId, dailyBudgetDollars } guarded write, for the
 //                       campaigns that keep the budget on the ad set instead.
 //   "setStatus"      -> { adAccountId, campaignId, status } PAUSED|ACTIVE guarded write.
@@ -40,6 +43,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { parseLocations } from "../lib/geo-parse.mjs";
 import { resolveGoal } from "../lib/campaign-goals.mjs";
+import { trimAccount } from "../lib/meta-account-health.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -220,6 +224,21 @@ function leadsFromActions(actions) {
 
 // Exported so the scheduled ads-sync job can read performance without going back
 // out over HTTP (and without needing an owner session). Same call, same shape.
+// 🔴 THE ACCOUNT, NOT THE CAMPAIGN. A campaign can read perfectly healthy while the account
+// underneath refuses to spend another penny, and Meta does not mark the campaign as broken
+// when that happens: it simply stops delivering. Bryson, 2026-09-04, on a campaign marked
+// RUNNING with $9.05 spent and nothing more for seven hours on a $14 a day budget: *"why has
+// the ad not been doing anything for the past few hours"*. Nothing the OS read could have
+// answered him, because everything it read was per campaign. Reasoning in
+// `netlify/lib/meta-account-health.mjs`.
+export async function getAccountHealth(adAccountId) {
+  const a = acct(adAccountId);
+  const raw = await graph("accountHealth", a, {
+    params: { fields: "account_status,disable_reason,spend_cap,amount_spent,balance,currency,funding_source,funding_source_details" },
+  });
+  return trimAccount(raw);
+}
+
 export async function getCampaigns(adAccountId) {
   const a = acct(adAccountId);
   const camps = await graph("campaigns", `${a}/campaigns`, {
@@ -996,6 +1015,11 @@ export default async (req) => {
       const accounts = await listAdAccounts();
       const businesses = await listBusinesses(); // exercises business_management
       return json({ ok: true, action, graphVersion: GRAPH_VERSION, accounts, count: accounts.length, businesses });
+    }
+
+    if (action === "accountHealth") {
+      if (!acct(body.adAccountId)) return json({ ok: false, error: "adAccountId required" }, 400);
+      return json({ ok: true, action, account: await getAccountHealth(body.adAccountId) });
     }
 
     if (action === "campaigns") {

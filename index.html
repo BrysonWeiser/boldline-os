@@ -1863,6 +1863,7 @@ const adPerfStats = (cl) => {
   const impressions = Number(t.impressions||0);
   const clicks = Number(t.clicks||0);
   return {
+    metaAccount: (perf.meta||{}).account || null,
     syncedAt: perf.syncedAt||null,
     hasSnapshot: !!perf.syncedAt,
     // 🔴 STALLED AND UNCHANGED LOOK IDENTICAL, AND THAT IS THE WHOLE PROBLEM.
@@ -6579,6 +6580,48 @@ function CrmTestButton({client}) {
   );
 }
 
+// ─── 🔴 WHY A CAMPAIGN THAT SAYS RUNNING HAS STOPPED SPENDING ────────────────
+//
+// Bryson, 2026-09-04, on a campaign marked RUNNING with $9.05 spent and not a cent more for
+// seven hours on a $14 a day budget: *"why has the ad not been doing anything for the past
+// few hours"*.
+//
+// 🔴 THE CAMPAIGN WAS NOT THE PROBLEM, AND THE CAMPAIGN WAS ALL WE WERE LOOKING AT. Every
+// Meta fact the OS held was per campaign, and every one of them can read perfectly healthy
+// while the ACCOUNT underneath refuses to spend another penny. Meta does not mark the
+// campaign broken when that happens. It just quietly stops delivering.
+//
+// The browser copy of `netlify/lib/meta-account-health.mjs`. Kept in step by a test that
+// extracts this and runs both.
+const MA_STATES = {
+  1:{ok:true,label:"active"},
+  2:{ok:false,label:"disabled",say:"Facebook has disabled this ad account, so nothing can run. Open Meta Ads Manager to see why."},
+  3:{ok:false,label:"unsettled",say:"There is an unpaid balance on this ad account, so Facebook has stopped delivery until it is settled."},
+  7:{ok:false,label:"pending risk review",say:"Facebook is reviewing this ad account and has paused delivery while it does. This usually clears on its own."},
+  8:{ok:false,label:"pending settlement",say:"Facebook is waiting on a payment to settle before it will deliver again."},
+  9:{ok:false,label:"in grace period",say:"This ad account is in a grace period over a payment problem. Delivery stops when it ends."},
+  100:{ok:false,label:"pending closure",say:"This ad account is being closed, so nothing will run on it."},
+  101:{ok:false,label:"closed",say:"This ad account is closed."},
+};
+const MA_num = (v)=>{ const x=Number(v); return Number.isFinite(x)?x:null; };
+function accountTrouble(acct){
+  const a = acct||{};
+  const state = MA_STATES[Number(a.accountStatus)];
+  if(state && !state.ok) return {blocked:true,reason:state.label,say:state.say};
+  if(a.accountStatus!=null && !state) return {blocked:true,reason:`status ${a.accountStatus}`,
+    say:`Facebook reports an unusual state on this ad account (status ${a.accountStatus}), and it may not be delivering. Check it in Meta Ads Manager.`};
+  // 🔴 THE CAP, WHICH IS THE ONE NOBODY REMEMBERS SETTING. Every campaign on the account
+  // stops the moment the total reaches it, and the campaigns still read as active.
+  const cap = MA_num(a.spendCap), spent = MA_num(a.amountSpent);
+  if(cap!=null && cap>0 && spent!=null){
+    if(spent>=cap) return {blocked:true,reason:"spend cap reached",
+      say:`This ad account has a lifetime spending limit of $${cap.toLocaleString()} and it has now spent $${spent.toLocaleString()}, so Facebook has stopped every campaign on it. Raise or remove the limit in Meta Ads Manager under Billing, then Payment settings.`};
+    if(spent>=cap*0.9) return {blocked:false,reason:"spend cap close",
+      say:`This ad account is close to its lifetime spending limit ($${spent.toLocaleString()} of $${cap.toLocaleString()}). Everything stops when it is reached.`};
+  }
+  return null;
+}
+
 // ─── IS IT ON, AND IS IT ACTUALLY RUNNING ────────────────────────────────────
 //
 // Bryson, 2026-09-04, minutes after pausing the views campaign and raising the budget on the
@@ -6879,6 +6922,15 @@ function LiveAdPerformanceCard({client,onUpdate}) {
       {/* 🔴 SAYS THE NUMBERS ARE OLD, INSTEAD OF LEAVING HIM TO WONDER. Stalled and unchanged
           used to look identical, which is the state he reported from. */}
       {st.adSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginBottom:9,lineHeight:1.55}}>These figures were last checked {ago(st.syncedAt)}. They normally refresh every hour, so something skipped. Press Check now and they should catch up.</div>}
+      {/* 🔴 THE ACCOUNT UNDERNEATH, WHICH IS WHERE A "RUNNING" CAMPAIGN ACTUALLY DIES.
+          A spending limit reached, a declined card or a disabled account stops every campaign
+          on it while every campaign still reads as active. This is the only place in the OS
+          that can say so, and without it the answer is a frozen number and no explanation. */}
+      {(()=>{ const tr = accountTrouble(st.metaAccount); return tr
+        ? <div style={{fontSize:11,color:tr.blocked?C.red:C.amber,marginBottom:9,lineHeight:1.6,padding:"9px 11px",borderRadius:10,border:`1px solid ${(tr.blocked?C.red:C.amber)}44`,background:`${tr.blocked?C.red:C.amber}10`}}>
+            <b>{tr.blocked?"Your Facebook ad account has stopped spending.":"Heads up on your Facebook ad account."}</b> {tr.say}
+          </div>
+        : null; })()}
       {pullMsg&&<div style={{fontSize:10.5,color:/Could not|did not|expired/.test(pullMsg)?C.red:C.green,marginBottom:9,lineHeight:1.55}}>{pullMsg}</div>}
       {/* 🔴 WHOSE NUMBERS ARE THESE. Without this line the tiles silently change meaning when
           a campaign is picked, which is exactly the confusion the breakdown was built to end. */}
