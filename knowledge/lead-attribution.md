@@ -70,3 +70,31 @@ The header is now a button, and what opens is **every field the lead holds** (to
 - `netlify/lib/house-leads-run.mjs` — the new-lead push.
 - `index.html` — the card's open state, the "Came from" line, the detail block, the house Leads tab line.
 - `tests/verify-lead-origin.mjs` (new).
+
+## 🔴 When the platform counts more leads than the OS received
+
+Bryson, 2026-09-05: his Meta campaign reported **2 leads**, the account view said **1**, and the Leads tab held only the one from the day before.
+
+**Both numbers were correct.** They measure different things, and the card already relabels to say so: a focused campaign shows the platform's OWN conversion count ("counted by Meta"), while the account view counts leads that actually reached the OS. That distinction was built deliberately, to stop a fictional cost per lead.
+
+**But the two sat on separate screens, so only a sharp eye caught the gap at all, and the gap is the interesting part.** A real difference means one of three things, and each is worth knowing:
+- a form that submitted and never reached us (a lost customer),
+- a tracker firing on something that is not a lead,
+- the same person counted twice.
+
+The account view now says so in words when the platforms report more than the OS received, and explains that a small gap is normal so it does not read as a fault.
+
+### 🔴 And the likeliest cause was ours, fixed at source
+
+On `/get-started` the free-audit form fired the Meta conversion **before** the fetch that saves the lead:
+
+```js
+blConversion('audit');            // told Facebook a lead happened
+fetch('/.netlify/functions/audit', …)   // …then tried to save it
+```
+
+So a failed or refused save still told Facebook a lead happened. The platform counts a person we never received, **the cost per lead reads better than it is**, and the missing lead is invisible because nothing anywhere recorded it. A lead we did not save is not a lead.
+
+It now fires inside the success path, and a non-OK response throws rather than being treated as a save.
+
+The `get-started` Netlify form is the one exception and stays as it is: it is a normal browser post that navigates away, so there is no success to wait for.

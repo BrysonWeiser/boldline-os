@@ -225,4 +225,43 @@ t("the before-and-after comparison is of the real totals, not of nothing", () =>
     "the comparison reads a different field than the one it captured");
 });
 
+// ── 7. 🔴 THE PLATFORM COUNTED MORE PEOPLE THAN WE RECEIVED ──────────────────
+//
+// Bryson, 2026-09-05: his campaign said TWO leads, the OS had ONE, and the Leads tab had the
+// same one from the day before. Both numbers were correct and they measure different things,
+// which is exactly why the DIFFERENCE is the thing worth saying. The two sat on separate
+// screens, so only a sharp eye caught it at all.
+const GS = readFileSync(join(ROOT, "marketing-site/get-started/index.html"), "utf8");
+
+t("🔴 the gap is said out loud, and only when there is one", () => {
+  assert.match(UIC, /\{!sel&&st\.conversions>st\.leads30&&st\.leadsSyncedAt&&<div/,
+    "a platform counting more leads than we received is never mentioned");
+  assert.match(UI, /They measure different things, so a small gap is normal/,
+    "it presents the gap as a fault, when the two counts legitimately differ");
+  assert.match(UI, /a form that failed on its way to us or a tracker counting something that is not a lead/,
+    "it reports a gap without saying what would cause one");
+});
+
+t("🔴 it is on the ACCOUNT view, not beside one campaign", () => {
+  // One campaign's conversions against every lead the business received is apples to oranges,
+  // and it would fire constantly on any account with more than one campaign.
+  const i = UIC.indexOf("st.conversions>st.leads30");
+  assert.ok(i > 0);
+  assert.match(UIC.slice(i - 30, i), /\{!sel&&/, "the comparison shows while a single campaign is focused");
+});
+
+t("🔴 THE LIKELIEST CAUSE, FIXED AT SOURCE: the conversion fires only after the save", () => {
+  // Firing first means a failed or refused save still tells Facebook a lead happened, so the
+  // platform counts a person we never received. The cost per lead then reads better than it
+  // is, and the missing lead is invisible because nothing anywhere recorded it.
+  const i = GS.indexOf("fetch('/.netlify/functions/audit'");
+  const j = GS.indexOf("blConversion('audit')");
+  assert.ok(i > 0 && j > i,
+    "the audit form still reports the conversion BEFORE it knows the lead was saved");
+  assert.match(GS, /if\(!r\.ok\) throw new Error\('save refused'\);/,
+    "a refused save is treated as a success, so it still counts as a lead to Facebook");
+  const after = GS.slice(j - 300, j);
+  assert.match(after, /\.then\(function\(r\)\{/, "the conversion is not inside the success path");
+});
+
 console.log(`✓ verify-ads-sync-runs: ${n} checks passed`);

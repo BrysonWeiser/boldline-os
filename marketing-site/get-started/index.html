@@ -483,9 +483,18 @@ window.BL_TRACK = {
     // Meta and told GA4 and Google Ads nothing. Caught 2026-08-28 when Bryson asked whether
     // lead tracking still worked on the page. A second implementation of one thing is how
     // half of it silently stops happening.
-    try { if(window.blConversion) blConversion('audit'); } catch(e){}
+    // 🔴 THE CONVERSION IS REPORTED ONLY AFTER THE LEAD IS ACTUALLY SAVED, and the order
+    // used to be the other way round. Bryson, 2026-09-05, on his own campaign: Meta counted
+    // TWO leads while exactly ONE existed in the OS. Firing first means a failed or refused
+    // save still tells Facebook a lead happened, so Meta counts a person we never received:
+    // the cost per lead reads better than it is, and the missing one is invisible because
+    // nothing anywhere recorded it. A lead we did not save is not a lead.
     fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'get-started',attribution:(window.blOrigin?window.blOrigin():null)})})
-      .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way, and it lands within one business day.</div>';})
+      .then(function(r){
+        if(!r.ok) throw new Error('save refused');
+        try { if(window.blConversion) blConversion('audit'); } catch(e){}
+        f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way, and it lands within one business day.</div>';
+      })
       .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
   });
 })();

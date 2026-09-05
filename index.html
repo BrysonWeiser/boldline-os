@@ -6967,6 +6967,16 @@ function LiveAdPerformanceCard({client,onUpdate}) {
             {sel&&<DailyBudgetEditor client={client} platform={sel.platform} campaign={sel}
               onSaved={(d)=>setBudgets(b=>({...b,[`${sel.platform}-${sel.id}`]:d}))}/>}
             {!sel&&st.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Nobody has seen the ad in the last 30 days. If you only just switched it on, give it a few hours.</div>}
+            {/* 🔴 THE PLATFORM COUNTED MORE PEOPLE THAN WE RECEIVED, AND THAT GAP IS A LEAD.
+                Bryson, 2026-09-05: Meta said two leads on his campaign, the OS had one, and
+                the two numbers sat on different screens so only a sharp eye caught it. They
+                genuinely measure different things, which is why both are correct and why the
+                DIFFERENCE is the thing worth saying out loud. Every cause is worth knowing:
+                a form that submitted and never reached us, a tracker firing on something
+                that is not a lead, or the same person counted twice. */}
+            {!sel&&st.conversions>st.leads30&&st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>
+              The ad platforms counted {st.conversions} {st.conversions===1?"lead":"leads"} and {st.leads30} reached the OS. They measure different things, so a small gap is normal, but a real one usually means either a form that failed on its way to us or a tracker counting something that is not a lead. Worth a look if it stays.
+            </div>}
             {!sel&&st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}
             {!sel&&st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>These numbers were last refreshed {ago(st.leadsSyncedAt)}, so a recent lead may be missing from the count. Leads themselves are safe and are all on the Leads screen. Reopening this screen refreshes it.</div>}
             {!sel&&!st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>The lead check has not reported in yet. It fills this in on its first pass, usually within a few minutes.</div>}
