@@ -149,9 +149,13 @@ t("the row survives a snapshot written before this existed", () => {
 t("🔴 the card is a real component, so it can remember a selection", () => {
   // It was an inline arrow inside ClientHub, called from a `&&`. A hook there changes order
   // the day the condition flips, and React tears the whole screen down.
-  assert(/function LiveAdPerformanceCard\(\{client\}\)/.test(UI), "the card cannot hold state");
+  // 🔴 Pins that it is a FUNCTION COMPONENT, not its exact prop list. Pinning the props made
+  // this fail the day the card gained an `onUpdate` so it could refresh itself, reporting
+  // "the card cannot hold state" about a card that holds state perfectly well.
+  assert(/function LiveAdPerformanceCard\(\{client[,}]/.test(UI), "the card cannot hold state");
   assert(/const \[focus,setFocus\] = useState\(null\)/.test(UI), "there is nothing to select into");
-  assert(/&&<LiveAdPerformanceCard client=\{client\}\/>\}/.test(UI), "the component is never rendered");
+  // Same lesson one line down: pin that it IS rendered, not the props it is rendered with.
+  assert(/&&<LiveAdPerformanceCard\b/.test(UI), "the component is never rendered");
 });
 
 t("the rows are pressable and show which one is on", () => {

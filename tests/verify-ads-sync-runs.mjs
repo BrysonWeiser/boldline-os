@@ -186,4 +186,43 @@ t("🔴 and it is owner only, because it hits both ad platforms on demand", () =
   assert.match(NOW_FN, /if \(req\.method !== "POST"\)/, "a plain page visit would trigger a real sync");
 });
 
+// ── 6. 🔴 "IT WORKED BUT NOTHING UPDATED" ────────────────────────────────────
+//
+// Bryson, minutes after the button shipped. He was right, and it was the button. The job
+// writes to the database; the open screen was still holding the copy it loaded when he opened
+// it, so a PERFECT refresh looked identical to a broken one. The first version's success
+// message told him to reopen the screen, which is an instruction standing in for a missing
+// feature. A button that says it checked must show what it found.
+t("🔴 the press re-reads the record and puts it on screen", () => {
+  assert.match(UIC, /const \{ data \} = await supabaseClient\.from\("clients"\)\.select\("data"\)\.eq\("id",client\.id\)\.maybeSingle\(\);/,
+    "the button syncs the database and never looks at the result, so the screen cannot change");
+  assert.match(UIC, /if\(fresh && onUpdate\) onUpdate\(\{\.\.\.fresh, id:client\.id/,
+    "the fresh record is fetched and thrown away");
+  assert.match(UIC, /function LiveAdPerformanceCard\(\{client,onUpdate\}\)/,
+    "the card has no way to hand a refreshed client back up");
+  assert.match(UIC, /<LiveAdPerformanceCard client=\{client\} onUpdate=\{onUpdate\}\/>/,
+    "the card is rendered without the handler, so the refresh silently does nothing");
+  assert.ok(!/Reopen this screen to see the newest figures/.test(UI),
+    "🔴 it still tells him to go and reload the page himself, which is the bug wearing a fix");
+});
+
+t("🔴 and it says WHICH of the three things happened", () => {
+  // "Nothing happened" was all three at once: a platform refused, nothing is linked, or the
+  // numbers are genuinely unchanged. Each now has its own sentence.
+  assert.match(UI, /The platforms report exactly the same figures as before/,
+    "unchanged numbers still look like a broken button");
+  assert.match(UI, /no ad account is linked to this record, so there was nothing to read/,
+    "an unlinked account reports a successful check of nothing");
+  assert.match(UI, /the figures above have been updated/, "a real update is not confirmed");
+  assert.match(UIC, /if\(errs\.length\) setPullMsg\(errs\.join\(" · "\)\);/,
+    "a platform that refused is swallowed and reported as a success");
+});
+
+t("the before-and-after comparison is of the real totals, not of nothing", () => {
+  assert.match(UIC, /const before = JSON\.stringify\(\(\(client\.adPerf\|\|\{\}\)\.totals\)\|\|\{\}\);/,
+    "there is nothing to compare against, so it can never tell changed from unchanged");
+  assert.match(UIC, /before===JSON\.stringify\(\(perf\.totals\)\|\|\{\}\)/,
+    "the comparison reads a different field than the one it captured");
+});
+
 console.log(`✓ verify-ads-sync-runs: ${n} checks passed`);

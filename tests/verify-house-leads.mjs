@@ -285,7 +285,10 @@ const wl = (id, over = {}) => ({
   // was written as, so extracting it into a real component on 2026-09-04 read as "clients
   // lost the card" when nothing of the sort had happened. Assert who gets it instead.
   ok("clients with a linked account get the same card",
-    /\{\(client\.internal\|\|client\.googleAdsCustomerId\|\|client\.metaAdAccountId\)&&<LiveAdPerformanceCard client=\{client\}\/>\}/.test(UI));
+    // 🔴 The GATE, not the props. This already carried a comment saying it pins the rule and
+    // not the spelling, and it was still matching an exact prop list, so adding a prop broke
+    // it again in the same way. Match who gets the card and stop there.
+    /\{\(client\.internal\|\|client\.googleAdsCustomerId\|\|client\.metaAdAccountId\)&&<LiveAdPerformanceCard\b/.test(UI));
 }
 
 // ── 9. A heartbeat, so "no leads yet" and "this broke" look different ─────────
