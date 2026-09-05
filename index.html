@@ -1865,6 +1865,13 @@ const adPerfStats = (cl) => {
   return {
     syncedAt: perf.syncedAt||null,
     hasSnapshot: !!perf.syncedAt,
+    // 🔴 STALLED AND UNCHANGED LOOK IDENTICAL, AND THAT IS THE WHOLE PROBLEM.
+    // Bryson, 2026-09-04: *"Make sure that the analytics for my ads are updating. They haven't
+    // updated in a few hours now"*. The card showed how old the numbers were and never said
+    // whether that was normal. The job runs hourly, so anything past two and a half hours is
+    // the schedule slipping, which has happened on this account before with no error at all.
+    // The lead mirror has had exactly this warning for a fortnight; the ad numbers never did.
+    adSyncStale: !!(perf.syncedAt && (Date.now() - new Date(perf.syncedAt).getTime()) > 2.5 * 3600e3),
     spend30, impressions, clicks,
     conversions: Number(t.conversions||0),
     ctr: impressions>0 ? clicks/impressions : null,
@@ -6790,6 +6797,26 @@ function LiveAdPerformanceCard({client}) {
   // hourly snapshot, so without this the number he just changed keeps reading as the old one
   // for up to an hour and the save looks like it did nothing.
   const [budgets,setBudgets] = useState({});         // "google-123" -> new daily budget
+  // ─── 🔴 PULL THE NUMBERS NOW, RATHER THAN WAITING AN HOUR TO FIND OUT ────────
+  // When the figures stop moving there are three possible reasons and this card used to show
+  // the same thing for all of them: the job ran and nothing changed, the job ran and the ad
+  // platform refused, or the job never ran. Netlify's schedules are best effort and a two and
+  // a half hour gap with no error has happened here before. One press separates all three.
+  const [pulling,setPulling] = useState(false);
+  const [pullMsg,setPullMsg] = useState("");
+  const pullNow = async () => {
+    setPulling(true); setPullMsg("");
+    try{
+      const { data:{ session } } = await supabaseClient.auth.getSession();
+      const tok = session && session.access_token;
+      if(!tok) throw new Error("Your session expired. Refresh the page and log in again.");
+      const r = await fetch("/.netlify/functions/ads-sync-now",{method:"POST",headers:{Authorization:"Bearer "+tok}});
+      const d = await r.json().catch(()=>({}));
+      if(!r.ok || !d.ok) throw new Error(d.error || `That did not go through (${r.status}).`);
+      setPullMsg("Checked just now. Reopen this screen to see the newest figures.");
+    }catch(e){ setPullMsg(e.message||"Could not check just now."); }
+    setPulling(false);
+  };
   // 🔴 "ON" IS DECIDED HERE, FROM THE CAMPAIGN'S OWN SWITCH, not from whatever the stored
   // snapshot happened to flag. A snapshot written while Facebook was applying a budget change
   // marked a running campaign as not live, and this row then said it had never run.
@@ -6829,8 +6856,13 @@ function LiveAdPerformanceCard({client}) {
     <Card>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:9}}>
         <Label>Live Ad Performance</Label>
-        {st.syncedAt&&<span style={{fontSize:9.5,color:C.textMuted,flexShrink:0}}>Updated {ago(st.syncedAt)}</span>}
+        {st.syncedAt&&<span style={{fontSize:9.5,color:st.adSyncStale?C.amber:C.textMuted,flexShrink:0}}>Updated {ago(st.syncedAt)}</span>}
+        <button onClick={pullNow} disabled={pulling} style={{fontSize:9.5,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 8px",cursor:pulling?"default":"pointer",flexShrink:0,opacity:pulling?.6:1}}>{pulling?"Checking…":"Check now"}</button>
       </div>
+      {/* 🔴 SAYS THE NUMBERS ARE OLD, INSTEAD OF LEAVING HIM TO WONDER. Stalled and unchanged
+          used to look identical, which is the state he reported from. */}
+      {st.adSyncStale&&<div style={{fontSize:10.5,color:C.amber,marginBottom:9,lineHeight:1.55}}>These figures were last checked {ago(st.syncedAt)}. They normally refresh every hour, so something skipped. Press Check now and they should catch up.</div>}
+      {pullMsg&&<div style={{fontSize:10.5,color:/Could not|did not|expired/.test(pullMsg)?C.red:C.green,marginBottom:9,lineHeight:1.55}}>{pullMsg}</div>}
       {/* 🔴 WHOSE NUMBERS ARE THESE. Without this line the tiles silently change meaning when
           a campaign is picked, which is exactly the confusion the breakdown was built to end. */}
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9,flexWrap:"wrap"}}>
