@@ -6790,7 +6790,7 @@ function DailyBudgetEditor({client,platform,campaign,onSaved,label}) {
 // would produce a cost per lead that is pure fiction and looks entirely plausible, which is
 // the worst kind of wrong number. So a focused campaign reports the platform's OWN conversion
 // count, and the tile is RELABELLED to say so rather than quietly changing meaning.
-function LiveAdPerformanceCard({client}) {
+function LiveAdPerformanceCard({client,onUpdate}) {
   const st = adPerfStats(client);
   const [focus,setFocus] = useState(null);           // "google-123" or null for the whole account
   // 🔴 A BUDGET CHANGED HERE MUST SHOW HERE, IMMEDIATELY. These rows come from the stored
@@ -6813,7 +6813,24 @@ function LiveAdPerformanceCard({client}) {
       const r = await fetch("/.netlify/functions/ads-sync-now",{method:"POST",headers:{Authorization:"Bearer "+tok}});
       const d = await r.json().catch(()=>({}));
       if(!r.ok || !d.ok) throw new Error(d.error || `That did not go through (${r.status}).`);
-      setPullMsg("Checked just now. Reopen this screen to see the newest figures.");
+      // 🔴 RE-READ THE RECORD, OR THE PRESS CANNOT POSSIBLY SHOW ANYTHING. Bryson, after the
+      // first version: *"It worked but nothing updated"*. He was right and it was this. The
+      // job writes to the database; this screen was still holding the copy it loaded when he
+      // opened it, so a perfect refresh looked identical to a broken one. The old message
+      // told him to reopen the screen, which is an instruction standing in for a missing
+      // feature. A button that says it checked must show what it found.
+      const before = JSON.stringify(((client.adPerf||{}).totals)||{});
+      const { data } = await supabaseClient.from("clients").select("data").eq("id",client.id).maybeSingle();
+      const fresh = data && data.data;
+      if(fresh && onUpdate) onUpdate({...fresh, id:client.id, _initialTab:client._initialTab});
+      const perf = (fresh && fresh.adPerf) || {};
+      const errs = [ (perf.google||{}).linked && (perf.google||{}).ok===false ? `Google: ${(perf.google||{}).error||"could not be read"}` : null,
+                     (perf.meta||{}).linked && (perf.meta||{}).ok===false ? `Meta: ${(perf.meta||{}).error||"could not be read"}` : null ].filter(Boolean);
+      // 🔴 THREE DIFFERENT ANSWERS, SAID OUT LOUD. "Nothing happened" was all three at once.
+      if(errs.length) setPullMsg(errs.join(" · "));
+      else if(!d.detail || !Number(d.detail.synced)) setPullMsg("Checked, but no ad account is linked to this record, so there was nothing to read.");
+      else if(before===JSON.stringify((perf.totals)||{})) setPullMsg("Checked just now. The platforms report exactly the same figures as before, so nothing has changed since the last check.");
+      else setPullMsg("Checked just now, and the figures above have been updated.");
     }catch(e){ setPullMsg(e.message||"Could not check just now."); }
     setPulling(false);
   };
@@ -7277,7 +7294,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 Stored by the ads-sync job every 6 hours, so this renders instantly and
                 always says how fresh it is. Live-to-the-second numbers are one tap away
                 on the Campaigns screen (More, then Campaigns), which calls Google and Meta directly. */}
-            {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&<LiveAdPerformanceCard client={client}/>}
+            {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&<LiveAdPerformanceCard client={client} onUpdate={onUpdate}/>}
             {!client.internal&&pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
               <Label>Monthly Revenue</Label>
               <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>

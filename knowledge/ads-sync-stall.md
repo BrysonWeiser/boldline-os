@@ -47,3 +47,31 @@ In a real browser with a snapshot deliberately aged five hours: the age shows, t
 - `netlify/functions/ads-sync-now.mjs` (new).
 - `index.html` — `adSyncStale`, the warning, the Check now button and its result line.
 - `tests/verify-ads-sync-runs.mjs` (new).
+
+## 🔴 "It worked but nothing updated" (same evening, and it was the button)
+
+Bryson pressed Check now, got a success, and nothing on screen moved. He was right and it was mine.
+
+**The job writes to the database. The open screen was still holding the copy it loaded when he opened it.** So a perfect refresh looked identical to a broken one. The first version's success message even said *"Reopen this screen to see the newest figures"*, which is an instruction standing in for a missing feature. **A button that says it checked must show what it found.**
+
+The press now re-reads the client record and hands it back up through `onUpdate`, so the tiles change under his thumb.
+
+### 🔴 And "nothing happened" was three different answers at once
+
+Each now has its own sentence:
+- a platform refused → the error, named, in red
+- nothing is linked → "no ad account is linked to this record, so there was nothing to read"
+- the numbers are genuinely the same → **"The platforms report exactly the same figures as before, so nothing has changed since the last check"**
+- something moved → "Checked just now, and the figures above have been updated"
+
+That last pair is the whole point. Unchanged numbers and a broken button used to be indistinguishable, which is exactly the report he made.
+
+### Two older checks had pinned a spelling and broke
+
+Adding one prop to the card failed `verify-campaign-breakdown` ("the card cannot hold state") and `verify-house-leads` ("clients with a linked account get the same card"). Both were matching the component's **exact prop list**. The house-leads one already carried a comment saying it pinned the rule and not the spelling, and was still pinning a spelling. Both now match the component by name and the render gate, not its arguments.
+
+### 🔴 The harness lesson, which is the same one this codebase keeps learning
+
+Verifying this took six attempts, and three of them failed for reasons that had nothing to do with the product: the browser stub had no auth token, a relative fetch from `file://` is blocked by CORS, and **one harness edit silently did not apply because it targeted a string that did not exist**, so the run reported "unchanged" about data that was never changed. That last one is the exact hazard every mutation run in this repo is written to catch, and it bit the harness itself. **Assert that an edit applied. A replace that matches nothing is indistinguishable from a passing test.**
+
+Proven in a real browser over HTTP: views went 5,260 to 88,888 on screen after the press, the stale warning cleared, and with unchanged data it correctly said so instead.
