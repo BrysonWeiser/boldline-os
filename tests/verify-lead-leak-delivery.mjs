@@ -251,4 +251,61 @@ t("storage being refused does not take the app down", () => {
   assert.ok((block.match(/catch \(e\)/g) || []).length >= 2, "a browser with storage blocked throws instead of just toasting twice");
 });
 
+// ── 7. 🔴 NEVER TELL A PROSPECT SOMETHING IS MISSING WHEN WE JUST COULD NOT SEE IT ──
+//
+// Bryson, 2026-09-04, after the report had already gone to a real roofing company:
+// *"I looked through their website and if you scroll down all the way to the bottom there is
+// a form people can fill out"*. The report said there was none.
+//
+// The site inspection reads the FIRST HTML RESPONSE. Wix, Squarespace, GoDaddy, Webflow,
+// HubSpot, JotForm and every React site add their forms afterwards, so the markup is not in
+// what we fetched. The check was right about what it saw and wrong about the world, and it
+// handed the model "Contact form on homepage: not found" as a FACT.
+//
+// 🔴 IT IS THE WORST THING TO GET WRONG IN A FREE AUDIT. Every other finding asks the
+// prospect to take our word for it. This one they can disprove in four seconds by scrolling
+// their own homepage, and the moment they do, every other finding is worthless too.
+t("🔴 a form we cannot see is reported as UNKNOWN, never as absent", () => {
+  assert.match(BG, /const NOT_SEEN = "NOT VISIBLE IN THE PAGE SOURCE/,
+    "the words handed to the model for a thing we did not find are not defined in one place");
+  assert.match(BG, /never tell them[\s\S]{0,80}they do not have one/,
+    "nothing stops the model turning 'we did not see it' into 'you do not have one'");
+  for (const field of ["Click-to-call \\(tel:\\) link", "Contact form on homepage", "Email link"]) {
+    const re = new RegExp(`\`${field}: \\$\\{site\\.\\w+ \\? "present" : NOT_SEEN\\}\``);
+    assert.match(BG, re, `${field} still reports a plain "not found", which reads as a fact`);
+  }
+  assert.ok(!/: "present" : "not found"/.test(BG),
+    "🔴 one of the three still says 'not found', and one checkable mistake costs the whole report");
+});
+
+t("🔴 the rule is in the prompt too, not only in the data", () => {
+  // The facts can be worded perfectly and the model can still write "you have no form".
+  assert.match(BG, /NEVER TELL THEM SOMETHING IS MISSING FROM THEIR SITE/,
+    "the instruction that actually governs the writing is missing");
+  assert.match(BG, /disprove in four seconds by scrolling their own homepage/,
+    "the rule does not say WHY, so it reads as one more style note");
+  assert.match(BG, /If you want to raise it anyway, ASK:/,
+    "it forbids the claim without offering the honest version, so a real weakness goes unmentioned");
+});
+
+t("🔴 and the detector looks past a bare <form> tag", () => {
+  // A single regex for "<form" misses every site builder, which is most small businesses.
+  assert.match(BG, /const FORM_HINTS = \[/, "there is only one way to spot a form again");
+  for (const [pattern, why] of [
+    [/jotform\|typeform/, "embedded third-party forms"],
+    [/wpcf7/, "Contact Form 7, which is most of WordPress"],
+    [/type=\["'\]\(\?:email\|tel\)/, "an email or phone input, which is a form by any other name"],
+    [/data-\(\?:testid\|hook\)/, "Wix and similar builders"],
+  ]) {
+    assert.match(BG, pattern, `the form check does not recognise ${why}`);
+  }
+});
+
+t("a page assembled in the browser says so, so nothing missing is commented on at all", () => {
+  assert.match(BG, /const jsRendered = scriptCount >= 8 && bodyText\.length < 1500;/,
+    "a page with almost no text in its source is treated as though we read the whole thing");
+  assert.match(BG, /THIS PAGE IS BUILT IN THE BROWSER/, "the model is never told the reading was unreliable");
+  assert.match(BG, /Do not comment on it at all\./, "it is told the data is weak and still allowed to use it");
+});
+
 console.log(`✓ verify-lead-leak-delivery: ${n} checks passed`);
