@@ -68,9 +68,41 @@ const inspectSite = async (rawUrl) => {
     const hasViewport = /<meta[^>]+name=["']viewport["']/i.test(raw);
     const hasTel = /href=["']tel:/i.test(raw);
     const hasMailto = /href=["']mailto:/i.test(raw);
-    const hasForm = /<form[\s>]/i.test(raw);
     const imgCount = (raw.match(/<img[\s>]/gi) || []).length;
     const scriptCount = (raw.match(/<script[\s>]/gi) || []).length;
+
+    // ── 🔴 NEVER CLAIM A SITE HAS NO FORM. WE CANNOT SEE ONE THAT IS NOT THERE YET. ──
+    //
+    // Bryson, 2026-09-04, after reading a report that had already gone to a real prospect:
+    // *"I looked through their website and if you scroll down all the way to the bottom there
+    // is a form people can fill out"*. The report said there was none.
+    //
+    // This check reads the FIRST HTML RESPONSE. Wix, Squarespace, GoDaddy, Webflow, HubSpot,
+    // JotForm and every React site render their forms afterwards, with JavaScript or inside
+    // an iframe, so the markup simply is not in what we fetched. The check was right about
+    // what it saw and wrong about the world, and it handed the model "Contact form on
+    // homepage: not found" as a FACT.
+    //
+    // 🔴 IT IS THE WORST POSSIBLE THING TO GET WRONG IN A FREE AUDIT. Every other finding
+    // asks the prospect to take our word for it. This one they can disprove in four seconds
+    // by scrolling their own homepage, and the moment they do, every other finding in the
+    // report is worthless too. One checkable mistake costs the whole document.
+    //
+    // Two fixes, and the second matters more than the first. Look harder, and then REFUSE TO
+    // ASSERT THE NEGATIVE: absence of evidence is reported as exactly that.
+    const FORM_HINTS = [
+      /<form[\s>]/i,
+      /<input[^>]+type=["'](?:email|tel)["']/i,                        // a form by any other name
+      /wpcf7|gravity_?form|hs-form|hbspt|jotform|typeform|wufoo|formstack|formidable|ninja_?forms/i,
+      /docs\.google\.com\/forms|forms\.gle/i,
+      /name=["'](?:your-email|your-name|entry\.\d|contact\[)/i,        // Contact Form 7, Google Forms
+      /data-(?:testid|hook)=["'][^"']*form/i,                          // Wix and friends
+    ];
+    const hasForm = FORM_HINTS.some((re) => re.test(raw));
+    // A page whose visible words are thin next to its script count is being assembled in the
+    // browser, so anything we did NOT find proves nothing at all about the live page.
+    const bodyText = raw.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const jsRendered = scriptCount >= 8 && bodyText.length < 1500;
     const text = raw
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -80,7 +112,7 @@ const inspectSite = async (rawUrl) => {
       .slice(0, 4000);
     return {
       url: finalUrl, ok: true, status: res.status,
-      title, metaDesc, h1, hasViewport, hasTel, hasMailto, hasForm,
+      title, metaDesc, h1, hasViewport, hasTel, hasMailto, hasForm, jsRendered,
       imgCount, scriptCount, bytesKB: Math.round(raw.length / 1024), text,
     };
   } catch (e) {
@@ -93,11 +125,12 @@ const buildSystem = () => `You are the analyst behind BoldLine Media's free "Lea
 
 The reader is a business owner who just requested this audit on our website. This email IS the audit — it must deliver real value on its own, feel personal to THEIR site, and leave them thinking "these people clearly know what they're doing." It is also a first impression, so be helpful and encouraging — never insulting, never generic.
 
-You are given: (a) what we pulled from their homepage (title, meta description, main headline, whether it has a mobile viewport tag, a click-to-call link, a contact form, image/script counts, page weight, and a text sample), and (b) web search, which you should use to check their Google Business Profile, reviews, and whether they appear to be running ads.
+You are given: (a) what we pulled from their homepage (title, meta description, main headline, whether it has a mobile viewport tag, a click-to-call link, a contact form, image/script counts, page weight, and a text sample, where anything reported as not visible in the page source means WE COULD NOT SEE IT rather than that it does not exist), and (b) web search, which you should use to check their Google Business Profile, reviews, and whether they appear to be running ads.
 
 HARD ACCURACY RULES — this goes to a real stranger, so a single wrong claim kills the deal and the brand:
 - Base every observation on the actual page data provided or something you genuinely confirmed via web search. If you did NOT confirm something, do not assert it — either leave it out or phrase it as a question ("I couldn't find a Google Business Profile — if you don't have one yet, that's the single biggest quick win").
 - NEVER invent specifics: no made-up review counts, star ratings, owner names, traffic numbers, or "you're losing $X per month." No fabricated statistics of any kind.
+- 🔴 NEVER TELL THEM SOMETHING IS MISSING FROM THEIR SITE. You are reading the first HTML response only. Wix, Squarespace, GoDaddy, Webflow and every JavaScript site add their contact forms, phone links and half their page after that, so a thing you cannot see is very often sitting right there on the live page. Anything marked NOT VISIBLE IN THE PAGE SOURCE is UNKNOWN, not absent, and you must not build a finding on it. This is the single most damaging mistake available to you: every other point in this email asks them to take your word for it, but "you have no contact form" is something they can disprove in four seconds by scrolling their own homepage, and the moment they do, everything else you wrote is worthless too. If you want to raise it anyway, ASK: "I could not see a form on the homepage, though it may be further down or added by your site builder. If people can only reach you by calling, adding one short form is the quickest win there is." Never state it as fact.
 - NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 - Do not claim they are or aren't running ads unless web search actually shows it; otherwise frame it conditionally ("if you're running Google Ads...").
 - If their site is genuinely strong, say so honestly and focus the audit on the next level up (ads, landing pages, conversion tracking) instead of inventing problems.
@@ -119,6 +152,11 @@ Then a blank line, then the audit body in light markdown. Formatting rules for t
 Use only "**bold**" for the leak names and "- " for bullets. No top-level "#" headings. Keep the whole thing tight — a busy owner should read it in under two minutes.`;
 
 const generateReport = async (site) => {
+  // 🔴 The exact words handed to the model for anything we looked for and did not find.
+  // Written out once so no single line can drift back into asserting an absence.
+  const NOT_SEEN = "NOT VISIBLE IN THE PAGE SOURCE (this may simply mean it is added by "
+    + "JavaScript, which this check cannot see, so treat it as UNKNOWN and never tell them "
+    + "they do not have one)";
   const facts = [
     `Website: ${site.url}`,
     site.ok
@@ -128,9 +166,17 @@ const generateReport = async (site) => {
     `Main headline (H1): ${site.h1 || "(none found)"}`,
     `Meta description: ${site.metaDesc || "(missing)"}`,
     `Mobile viewport tag: ${site.hasViewport ? "present" : "MISSING — page may not be mobile-friendly"}`,
-    `Click-to-call (tel:) link: ${site.hasTel ? "present" : "not found"}`,
-    `Contact form on homepage: ${site.hasForm ? "present" : "not found"}`,
-    `Email link: ${site.hasMailto ? "present" : "not found"}`,
+    // 🔴 A THING WE FOUND IS A FACT. A THING WE DID NOT FIND IS NOT.
+    // These three are read out of the first HTML response, and every site builder on earth
+    // (Wix, Squarespace, GoDaddy, Webflow) renders them afterwards with JavaScript. Reporting
+    // "not found" as "you do not have one" is how a report told a real roofing company they
+    // had no contact form while one sat at the bottom of their own homepage.
+    `Click-to-call (tel:) link: ${site.hasTel ? "present" : NOT_SEEN}`,
+    `Contact form on homepage: ${site.hasForm ? "present" : NOT_SEEN}`,
+    `Email link: ${site.hasMailto ? "present" : NOT_SEEN}`,
+    site.jsRendered
+      ? "🔴 THIS PAGE IS BUILT IN THE BROWSER (heavy scripts, very little text in the source). Anything above marked as not seen is UNKNOWN, not absent. Do not comment on it at all."
+      : null,
     site.ok ? `Homepage weight: ~${site.bytesKB} KB, ${site.imgCount} images, ${site.scriptCount} scripts.` : null,
     site.text ? `Homepage text sample: "${site.text.slice(0, 1500)}"` : null,
   ].filter(Boolean).join("\n");

@@ -70,3 +70,21 @@ Both are in the 10pm Netlify reminder for 2026-09-04:
 - `netlify/functions/lead-leak-audit-background.mjs` — `auditLead` exported; try count kept on error.
 - `index.html` — the report-status line on the lead card.
 - `tests/verify-lead-leak-delivery.mjs` (new).
+
+## 🔴 Never tell a prospect something is missing when we just could not see it
+
+Bryson, 2026-09-04, after the report had already gone to a real roofing company: *"I looked through their website and if you scroll down all the way to the bottom there is a form people can fill out"*. **The report said there was none.**
+
+`inspectSite` reads the **first HTML response only**. Wix, Squarespace, GoDaddy, Webflow, HubSpot, JotForm and every React site add their forms afterwards, with JavaScript or inside an iframe, so the markup is simply not in what we fetched. The check was right about what it saw and wrong about the world, and it handed the model `Contact form on homepage: not found` as a **fact**.
+
+🔴 **This is the worst thing to get wrong in a free audit.** Every other finding asks the prospect to take our word for it. This one they can disprove in four seconds by scrolling their own homepage, and the moment they do, every other finding in the report is worthless too. **One checkable mistake costs the whole document.**
+
+Three fixes, and the second matters more than the first:
+
+1. **Look harder.** `FORM_HINTS` now matches a bare `<form>`, an `<input type="email|tel">` (a form by any other name), the big embedded providers (JotForm, Typeform, HubSpot, Wufoo, Formstack, Gravity, Contact Form 7, Ninja), Google Forms, and Wix-style `data-testid`/`data-hook` attributes.
+2. **Refuse to assert the negative.** Anything looked for and not found is handed over as `NOT VISIBLE IN THE PAGE SOURCE (this may simply mean it is added by JavaScript, which this check cannot see, so treat it as UNKNOWN and never tell them they do not have one)`. Defined once, so no single line can drift back to "not found". Applies to the form, the click-to-call link and the email link alike.
+3. **The prompt carries the rule too**, because the facts can be worded perfectly and the model can still write "you have no form". It states the reason (they can disprove it in four seconds) and gives the honest alternative: ask, do not assert.
+
+Plus `jsRendered` (many scripts, almost no text in the source) tells the model the whole reading was unreliable and to **not comment on anything missing at all**.
+
+**The manual lesson, which is the same one:** the summary Claude produced when reading that site the first time also missed the footer form. A page fetched as raw HTML is not the page a person sees. Ask what IS there; never conclude what is not.
