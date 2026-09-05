@@ -88,3 +88,21 @@ can hide.**
 🔴 **And one test failure was the fixture, not the code:** a lead seven tries in was aged only
 an hour, so the cap check read as broken while the back-off was working perfectly. Aged past
 the last delay instead.
+
+## 🔴 Shaun's two asks on the queue (2026-09-04), and the day-wide gap one of them found
+
+Shaun Smith, agreeing to relay-only delivery and dropping the direct-post request: *"Two asks on the queue: alert yourself if anything sits in it longer than a few minutes, and keep the lead_id stable across retries so my dedupe catches the replay."*
+
+**Ask 2 was already true.** `leadId` is a UUID stamped once by `lead-intake` and stored on the lead, and the retry path hands the STORED lead object back to the forwarder, so both wire formats replay the same value. Pinned now in the suite from both directions: the id must come off the lead, and it must not be generated at send time.
+
+**Ask 1 found a real gap, and it was a day wide.** The queue spoke up in exactly two situations: a wrong password (reported on the first failed sweep, because no amount of waiting fixes it) and giving up entirely (after the whole back-off ladder, which runs over 24 hours). An ordinary outage in between, their server answering 500 or not answering at all, was **completely silent for that entire day**. A lead is a person who has just asked to be called back.
+
+Now: `STUCK_AFTER_MS = 10 minutes`, an amber alert naming the lead, how long it has waited, and what their system said.
+
+Three things make it work, and each is its own way to get it wrong:
+
+- 🔴 **Measured from the FIRST failure (`crm.since`), not the last attempt.** `crm.at` marches forward on every retry, so without a separate stamp a lead failing hourly would look one hour old forever and could never trip a stuck check no matter how long it had really been waiting. `since` is set once in `nextCrmState` and carried through every retry. **A mutation that reset it escaped the entire stuck suite**, because every one of those cases built the timestamp by hand; the fix was a case that runs `nextCrmState` three times and asserts the stamp survives.
+- 🔴 **A separate pass over EVERY lead**, not inside the retry loop. A lead sitting out a four-hour back-off is the most stuck thing in the queue and is exactly what the due-for-retry gate and the per-client `max` cap both skip. Checking inside that loop would mean the longer a lead was stuck, the less likely it was to be reported.
+- 🔴 **Once per lead, never once per sweep** (`crm.stuckAlerted`). The ladder runs over a day and this job wakes every 15 minutes, so without the stamp one stuck lead would send about a hundred identical alerts.
+
+One older check had to be re-aimed: *"a deliberate skip does not burn an attempt"* asserted `changed === false` as a stand-in for "nothing happened", which stopped being the same thing once a stuck lead legitimately gets stamped. It now pins the try count, which is what the case was always about.

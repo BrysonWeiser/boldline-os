@@ -84,6 +84,24 @@ export default withFailureAlert("crm-retry", async () => {
         smsText: `BoldLine: ${res.gaveUp} lead(s) for ${who} never reached their system. They are safe in the OS.`,
       });
     }
+    // 🔴 STUCK, BUT NOT YET GIVEN UP. Shaun Smith, 2026-09-04: *"alert yourself if anything
+    // sits in it longer than a few minutes"*. Between the wrong-password case above and the
+    // gave-up case, an ordinary outage was silent for over a DAY while the ladder ran. A
+    // lead is a person who has just asked to be called back, so a day of silence is the
+    // customer. Reported once per lead, never once per sweep.
+    if (res.stuck.length) {
+      const n = res.stuck.length;
+      const oldest = res.stuck.reduce((a, b) => (b.minutes > a.minutes ? b : a), res.stuck[0]);
+      alerts.push({
+        title: `${who}: ${n} lead${n === 1 ? "" : "s"} waiting to reach their system`,
+        body: `${n === 1 ? `${oldest.name} has` : `${n} leads have`} been waiting ${oldest.minutes} minutes to reach ${who}'s system and ${n === 1 ? "has" : "have"} not arrived yet. `
+          + `We are still trying and nothing is lost, but ${n === 1 ? "nobody has" : "nobody has"} followed up with them on their side.\n\n`
+          + `What their system said: ${oldest.error}\n\n`
+          + `${n === 1 ? "The lead is" : "The leads are"} safe in the OS and can be worked from the Leads screen in the meantime.`,
+        severity: "amber",
+        smsText: `BoldLine: ${n} lead(s) for ${who} stuck ${oldest.minutes} min trying to reach their system. Safe in the OS.`,
+      });
+    }
   }
 
   // 🔴 Alerts go out AFTER every client is swept, not during. An alert that threw mid-loop
