@@ -8885,7 +8885,7 @@ function LeadsTabContent({client,onUpdate}) {
     const ref = l.message ? `\n\nYou mentioned: "${String(l.message).slice(0,200)}"` : "";
     return `Hi ${firstName(l)},\n\nThanks for reaching out to BoldLine Media${biz}! I'd love to learn about your business and show you how we can bring you more customers with Google and Meta ads.${ref}\n\nGrab a quick 30-minute call at whatever time works best for you:\n${CALENDLY_URL}\n\nTalk soon,\nBryson\nBoldLine Media`;
   };
-  const smsDraft = (l) => `Hi ${firstName(l)}, it's Bryson from BoldLine Media — thanks for reaching out! Grab a quick call whenever works for you: ${CALENDLY_URL}`;
+  const smsDraft = (l) => `Hi ${firstName(l)}, it's Bryson from BoldLine Media. Thanks for reaching out! Grab a quick call whenever works for you: ${CALENDLY_URL}`;
   const openReachOut = (idx,l) => { setOpenOutreach(openOutreach===idx?null:idx); setDraft(emailDraft(l)); setCopied(""); };
   const doCopy = (text,what) => { try{ navigator.clipboard.writeText(text); setCopied(what); setTimeout(()=>setCopied(""),1500); }catch(e){} };
 
@@ -9008,7 +9008,7 @@ function LeadsTabContent({client,onUpdate}) {
                   <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Book a call — reach out from your own email or phone (personal beats a no-reply blast).</div>
                   <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={7} style={{width:"100%",padding:"9px 11px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:8}}/>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {lead.email&&<a href={`mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent("BoldLine Media — let's book a quick call")}&body=${encodeURIComponent(draft)}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#1D4ED8",color:"#fff",textDecoration:"none",cursor:"pointer"}}>✉️ Email</a>}
+                    {lead.email&&<a href={`mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent("BoldLine Media, let's book a quick call")}&body=${encodeURIComponent(draft)}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#1D4ED8",color:"#fff",textDecoration:"none",cursor:"pointer"}}>✉️ Email</a>}
                     {lead.phone&&<a href={`sms:${String(lead.phone).replace(/[^0-9+]/g,"")}?body=${encodeURIComponent(smsDraft(lead))}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#059669",color:"#fff",textDecoration:"none",cursor:"pointer"}}>💬 Text</a>}
                     <button onClick={()=>doCopy(draft,"email")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="email"?"✓ Copied":"Copy"}</button>
                     <button onClick={()=>doCopy(CALENDLY_URL,"link")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="link"?"✓ Link copied":"Copy booking link"}</button>
@@ -14349,7 +14349,7 @@ function LeadCard({lead,onUpdate,onReportSent,onDelete}){
     const ref = lead.message ? `\n\nYou mentioned: "${String(lead.message).slice(0,200)}"` : "";
     return `Hi ${first},\n\nThanks for reaching out to BoldLine Media${biz}! I'd love to learn about your business and show you how we can bring you more customers with Google and Meta ads.${ref}\n\nGrab a quick 30-minute call at whatever time works best for you:\n${CALENDLY_URL}\n\nTalk soon,\nBryson\nBoldLine Media`;
   };
-  const smsDraft = () => `Hi ${first}, it's Bryson from BoldLine Media — thanks for reaching out! Grab a quick call whenever works for you: ${CALENDLY_URL}`;
+  const smsDraft = () => `Hi ${first}, it's Bryson from BoldLine Media. Thanks for reaching out! Grab a quick call whenever works for you: ${CALENDLY_URL}`;
   const openReach = () => { setReachOpen(v=>!v); setDraft(emailDraft()); setCopied(""); };
   const doCopy = (t,w) => { try{ navigator.clipboard.writeText(t); setCopied(w); setTimeout(()=>setCopied(""),1500); }catch(e){} };
   return (
@@ -14442,7 +14442,7 @@ function LeadCard({lead,onUpdate,onReportSent,onDelete}){
           <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Reach out from your own email or phone (personal beats a no-reply blast).</div>
           <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={7} style={{width:"100%",padding:"9px 11px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:8}}/>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {lead.email&&<a href={`mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent("BoldLine Media — let's book a quick call")}&body=${encodeURIComponent(draft)}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#1D4ED8",color:"#fff",textDecoration:"none"}}>✉️ Email</a>}
+            {lead.email&&<a href={`mailto:${encodeURIComponent(lead.email)}?subject=${encodeURIComponent("BoldLine Media, let's book a quick call")}&body=${encodeURIComponent(draft)}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#1D4ED8",color:"#fff",textDecoration:"none"}}>✉️ Email</a>}
             {phone&&<a href={`sms:${String(phone).replace(/[^0-9+]/g,"")}?body=${encodeURIComponent(smsDraft())}`} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:"#059669",color:"#fff",textDecoration:"none"}}>💬 Text</a>}
             <button onClick={()=>doCopy(draft,"email")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="email"?"✓ Copied":"Copy"}</button>
             <button onClick={()=>doCopy(CALENDLY_URL,"link")} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>{copied==="link"?"✓ Link copied":"Copy booking link"}</button>

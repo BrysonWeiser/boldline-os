@@ -204,3 +204,12 @@ The em dash stays in the normaliser only so a stale record still matches.
 differently shaped. Only `Campaign Progress —` remains, a placeholder inside a graphic when
 there is no stage yet, not a sentence.
 
+## 🔴 The outreach drafts (found 2026-09-04, four places, never checked)
+
+Bryson asked a plain question about the Book a Call button on a lead. Reading the code to answer it turned up an **em dash in the email SUBJECT LINE** ("BoldLine Media — let's book a quick call") and another in the **text message** ("it's Bryson from BoldLine Media — thanks for reaching out"), each existing twice, because the house account's Leads tab and the global Leads screen hold separate copies of the same card.
+
+🔴 **This is the most direct client-facing copy in the whole OS and it looked internal.** Everything else the dash rule guards is obviously outward: the portal, the marketing site, ad copy, client emails. These two strings sit inside a React component in Bryson's own dashboard, so they read as app code. They are the exact words a prospect gets in their inbox and on their phone.
+
+**Where a string lives says nothing about who reads it.**
+
+Now checked in `verify-no-dashes`: the drafts and the subject are read out of both cards and fail on an em dash, an en dash or a spaced hyphen. The check also **counts what it matched and fails below six**, because a pattern that silently stops matching is a check that passes while reading nothing.
