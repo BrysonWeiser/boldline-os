@@ -329,11 +329,97 @@ const CLIENT = {
     /name="company"[^>]*tabindex="-1"/.test(gs));
 
   // Fewer fields, more submissions. Three is the floor that still identifies a person.
-  const fields = (gs.match(/<input(?![^>]*type="hidden")(?![^>]*tabindex="-1")|<textarea/g) || []).length;
-  ok("the page is not asking for more than it needs", fields <= 6, `${fields} visible fields`);
+  //
+  // 🔴 RAISED FROM 6 TO 7 ON 2026-09-07, DELIBERATELY, AND HERE IS THE ARGUMENT.
+  // The audit form went from two fields to four (a name and a phone were added). That is
+  // the opposite direction to the one this guard was written to protect, so it does not get
+  // to pass quietly on a bumped number.
+  //
+  // What happened: a real prospect (a Scottsdale roofing company) asked for the free check
+  // and arrived as an email address and nothing else. No name, no number. Working out who to
+  // ring took a licence lookup, a LinkedIn search and about fifteen minutes, and the lead
+  // still sat uncalled for three days. A lead nobody can phone is worth close to nothing, so
+  // the two saved fields were not saving anything worth keeping.
+  //
+  // Why the conversion argument does not defend the old shape here: the two-field version
+  // ran on this page against 4,360 impressions and 88 landing page views and produced ZERO
+  // leads. Field count was demonstrably not the binding constraint, so trading a little
+  // friction for a callable lead costs nothing that was being collected anyway.
+  //
+  // The cap still exists, and it still bites: what it forbids is this page drifting back
+  // toward the seven-field call-back form that started all of this.
+  //
+  // The honeypot is excluded now too. It is not a field a human ever sees, and counting it
+  // was quietly inflating the number this assertion argues about.
+  const fields = (gs.match(/<input(?![^>]*type="hidden")(?![^>]*tabindex="-1")(?![^>]*name="bot-field")|<textarea/g) || []).length;
+  ok("the page is not asking for more than it needs", fields <= 7, `${fields} visible fields`);
+  // Pin the SHAPE, not just the total, so the cap cannot be spent on the wrong form.
+  ok("🔴 the free-check form asks for the four things needed to follow one up",
+    /id="lk-website"/.test(gs) && /id="lk-name"/.test(gs) && /id="lk-email"/.test(gs) && /id="lk-phone"/.test(gs),
+    "a website and an email alone produce a lead nobody can phone");
+  ok("and every one of them is required, or the number goes back to being optional in practice",
+    [/id="lk-website"[^>]*required/, /id="lk-name"[^>]*required/, /id="lk-email"[^>]*required/, /id="lk-phone"[^>]*required/].every((re) => re.test(gs)));
+  ok("the phone field is a real phone field, so a mobile shows the number pad",
+    /id="lk-phone"[^>]*type="tel"/.test(gs) && /id="lk-phone"[^>]*inputmode="tel"/.test(gs));
+  ok("🔴 the name and phone actually reach the endpoint, not just the page",
+    /name:\s*name/.test(gs) && /phone:\s*phone/.test(gs),
+    "collecting a number and not sending it is worse than not asking, because it looks handled");
+  // Lenient by design: nobody types a phone number the same way twice.
+  ok("the number is accepted in any format a person actually types",
+    /replace\(\/\[\^0-9\]\/g,''\)\.length>=10/.test(gs),
+    "rejecting (480) 426-0885 or +1 480 426 0885 loses real leads to punctuation");
   ok("🔴 the call-back form still takes a name, a business and an email",
     /name="name"[^>]*required/.test(gs) && /name="business"[^>]*required/.test(gs) && /name="email"[^>]*required/.test(gs),
     "trimming fields must not cost the three that make a lead worth having");
+}
+
+// ── 🔴 THE SAME FORM ON THE HOMEPAGE, AND THE ENDPOINT BEHIND BOTH ───────────
+// There are TWO copies of the free-check form (homepage and /get-started) and one endpoint
+// serving them. A field added to one copy and forgotten on the other is invisible: the page
+// looks right, the lead arrives half-filled, and nobody finds out until someone tries to
+// phone it. So the homepage is pinned to the same shape, not just assumed to match.
+{
+  const home = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+  const fn = readFileSync(new URL("../marketing-site/netlify/functions/audit.mjs", import.meta.url), "utf8");
+  const fnCode = fn.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+
+  ok("🔴 the homepage free-check form asks for the same four things as the ads page",
+    /id="lk-website"/.test(home) && /id="lk-name"/.test(home) && /id="lk-email"/.test(home) && /id="lk-phone"/.test(home),
+    "two copies of one form drifting apart is how a lead arrives with half its fields");
+  ok("all four are required there too",
+    [/id="lk-website"[^>]*required/, /id="lk-name"[^>]*required/, /id="lk-email"[^>]*required/, /id="lk-phone"[^>]*required/].every((re) => re.test(home)));
+  ok("and the homepage sends them on as well",
+    /name:\s*name/.test(home) && /phone:\s*phone/.test(home));
+  ok("the homepage still tags its own source, or every lead looks like an ad lead",
+    /source:\s*'homepage'/.test(home));
+
+  // 🔴 THE COLUMN THAT DOES NOT EXIST. `website_leads` has form, name, business, email,
+  // message, recommended and payload. Naming `phone` as a top-level column makes the whole
+  // insert fail, which loses the entire lead in order to gain one field. It belongs in the
+  // payload, which the OS lead card already reads.
+  ok("🔴 the endpoint stores the phone in the payload, never as its own column",
+    /payload:\s*\{[^}]*\bphone\b/.test(fnCode) && !/insert\(\{[^}]*^\s*phone:/m.test(fnCode),
+    "website_leads has no phone column, so naming one would fail the insert and lose the lead");
+  ok("it reads a phone off the request at all", /body\.phone/.test(fnCode));
+  ok("and does not second-guess the format the form already checked",
+    !/PHONE_RE|phone.*test\(|invalid phone/i.test(fnCode),
+    "a stricter opinion here silently drops real leads over an extension or a +1");
+  ok("the owner alert carries the number, since it is the thing he acts on",
+    /\["Phone", phone\]/.test(fnCode));
+  ok("🔴 and the number is tappable in that alert, because he reads it on his phone",
+    /href="tel:\$\{esc\(String\((phone|v)\)/.test(fnCode),
+    "a number he has to retype is a number that gets called tomorrow instead of now");
+  ok("the audit bot is told the phone too, so the report can use it",
+    /leadId, website, email, name, phone/.test(fnCode));
+}
+
+// ── The lead card in the OS turns that number into one tap ────────────────────
+{
+  ok("🔴 the OS lead card dials the number instead of printing it",
+    /k==="Phone"[\s\S]{0,200}href=\{`tel:/.test(UI),
+    "he works leads from his phone; a number as plain text is something to retype");
+  ok("and it still reads the phone from the payload, where the endpoint puts it",
+    /lead\.phone\s*\|\|\s*\(lead\.payload\s*&&\s*lead\.payload\.phone\)/.test(UI));
 }
 
 console.log(`verify-conversion-loop: ${pass} passed, ${fail} failed`);

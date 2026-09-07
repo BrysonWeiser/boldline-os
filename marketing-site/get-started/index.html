@@ -228,7 +228,9 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
     <form class="reveal d3" id="leakForm" style="max-width:430px;margin:26px auto 0;display:flex;flex-direction:column;gap:10px;text-align:left">
       <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       <input id="lk-website" type="text" placeholder="Your website (e.g. yourbusiness.com)" autocomplete="url" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-name" type="text" placeholder="Your name" autocomplete="name" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
       <input id="lk-email" type="email" placeholder="Where should we send it? (email)" autocomplete="email" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-phone" type="tel" inputmode="tel" placeholder="Best number to reach you" autocomplete="tel" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
       <button class="btn cal" type="submit" id="lkBtn" style="margin-top:2px">Show me where I'm losing customers &rarr;</button>
       <div id="lkMsg" role="status" style="font-size:13px;color:#9CA3AF;min-height:18px;text-align:center"></div>
     </form>
@@ -469,13 +471,20 @@ window.BL_TRACK = {
 (function(){
   var f=document.getElementById('leakForm'); if(!f) return;
   var EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Lenient on purpose: people type (480) 426-0885, 480.426.0885 and +1 480 426 0885.
+  // Count the digits and accept anything that could actually be dialled.
+  var DIGITS10=function(v){return String(v||'').replace(/[^0-9]/g,'').length>=10;};
   f.addEventListener('submit',function(e){
     e.preventDefault();
     var w=document.getElementById('lk-website'),em=document.getElementById('lk-email'),b=document.getElementById('lkBtn'),m=document.getElementById('lkMsg');
+    var nm=document.getElementById('lk-name'),ph=document.getElementById('lk-phone');
     var website=(w.value||'').trim(),email=(em.value||'').trim();
+    var name=(nm.value||'').trim(),phone=(ph.value||'').trim();
     if(f.company&&f.company.value){return;}
     if(!website){m.textContent='Please add your website.';return;}
+    if(name.length<2){m.textContent='Please add your name.';return;}
     if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
+    if(!DIGITS10(phone)){m.textContent='Please add a phone number we can reach you on.';return;}
     b.disabled=true;var old=b.textContent;b.textContent='Sending...';m.textContent='';
     // 🔴 blConversion, NOT a raw fbq call. The page already has one tracker that reports a
     // lead to GA4, to Google Ads AND to Meta, and dedupes so a double-tap is not two leads.
@@ -489,7 +498,7 @@ window.BL_TRACK = {
     // save still tells Facebook a lead happened, so Meta counts a person we never received:
     // the cost per lead reads better than it is, and the missing one is invisible because
     // nothing anywhere recorded it. A lead we did not save is not a lead.
-    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,source:'get-started',attribution:(window.blOrigin?window.blOrigin():null)})})
+    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,name:name,phone:phone,source:'get-started',attribution:(window.blOrigin?window.blOrigin():null)})})
       .then(function(r){
         if(!r.ok) throw new Error('save refused');
         try { if(window.blConversion) blConversion('audit'); } catch(e){}

@@ -14532,7 +14532,13 @@ function LeadCard({lead,onUpdate,onReportSent,onDelete}){
             .map(([k,v])=>(
               <div key={k} style={{display:"flex",gap:10,padding:"4px 0",alignItems:"baseline"}}>
                 <span style={{fontSize:10,color:C.textMuted,width:96,flexShrink:0}}>{k}</span>
-                <span style={{fontSize:11.5,color:C.textDim,flex:1,minWidth:0,wordBreak:"break-word"}}>{String(v)}</span>
+                {/* 🔴 THE NUMBER IS A LINK, because he reads these on his phone and the
+                    job the moment he sees one is to ring it. Printed as plain text it is
+                    something to memorise and retype, which is how a lead waits three days.
+                    Same treatment the email above it already gets. */}
+                {k==="Phone"
+                  ? <a href={`tel:${String(v).replace(/[^0-9+]/g,"")}`} style={{fontSize:11.5,color:C.gold,textDecoration:"none",fontWeight:700,flex:1,minWidth:0,wordBreak:"break-word"}}>{String(v)}</a>
+                  : <span style={{fontSize:11.5,color:C.textDim,flex:1,minWidth:0,wordBreak:"break-word"}}>{String(v)}</span>}
               </div>
             ))}
           {lead.message&&<div style={{marginTop:6,paddingTop:7,borderTop:`1px solid ${C.border2}`}}>
