@@ -493,3 +493,41 @@ wrong.
   it under Edit, then Campaign, in the 'Send leads on to' box."*
 
 Guarded by `tests/verify-campaign-controls.mjs` (shared with the budget/date controls).
+
+## 🔴 2026-09-07 — WE COULD SEND A LEAD UNSIGNED, IN SILENCE, TO AN ENDPOINT THAT REJECTS UNSIGNED
+
+Shaun Smith, the same afternoon he fixed the missing text: *"Also live: the endpoint is
+signed-only. The origin allowlist is gone, so nothing gets in without your signature."*
+
+From that moment an unsigned POST is **rejected**, not merely degraded. So the question became
+whether our relay can ever fail to sign. It could, and the way it failed was the dangerous kind.
+
+**The chain, every link of which looks harmless on its own:**
+
+1. `crmTarget` defaults a missing secret to `""` rather than refusing.
+2. `signFields` with an empty secret **returns `{}`. It does not throw.**
+3. So the `try/catch` around it never fires, `authHeaders` is empty, and the POST goes out with
+   no signature headers.
+4. Nothing anywhere records that it was unsigned.
+
+**One cleared or mistyped field in a client record was therefore enough to send every lead
+unsigned, and against a signed-only endpoint every one of them is rejected.** The only symptom
+visible to anyone is the client never hearing about their leads, which is indistinguishable from
+a quiet week. That is the same shape as the free-report failure in KB `lead-leak-delivery`, and
+the second time this codebase has produced a silence that looks like an absence of business.
+
+> 🔴 **A missing credential must be a loud failure, never a quieter request.** The instinct to
+> "send it anyway without the header" is what turns a config error into invisible data loss.
+
+**The fix.** A `form` client with no usable signature never sends. `forwardLead` returns a
+recorded failure (`"not sent: no signing secret configured, and this CRM rejects unsigned
+requests"`) instead. The lead is already saved in the OS by that point and the retry queue carries
+it, so nothing is lost, and a recorded failure is something a human can see. Scoped to the `form`
+format deliberately: that is Shaun's contract and it is signed-only by definition, whereas the
+legacy JSON scheme may have unsigned consumers and must not be broken on a guess.
+
+**Not currently broken for Stencil & Thread** — the secret is set, and Shaun confirmed on 7 Sep
+that *"the relay, the signature, and the field mapping are all correct"* for both test leads. This
+closes the trap before it can spring, which is the only useful time to do it.
+
+3 checks in `verify-sms-consent` (135 total), mutation caught: deleting the guard fails the suite.
