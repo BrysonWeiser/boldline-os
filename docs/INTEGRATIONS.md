@@ -531,9 +531,9 @@
 
 ## Ops / automation
 
-- **[morning-brief-routine](../knowledge/morning-brief-routine.md)** &mdash; &#9989; verified &middot; 2026-07-29  
-  A recurring Routine (trigger id trig_01AvKbwqaidkJZs3gYYVAusV) fires a FRESH Claude session every day at 8:00 AM Arizona (cron "0 15 * * *" UTC), which reads docs/MORNING-BRIEF.md + the live business state (knowledge/ index, docs/DEPLOYS.md) and writes Bryson a prioritized daily game plan (🎯 top priority · 📈 BoldLine · 📞 get clients · 💡 new income · 💪 gym · ✅ quick wins), delivered as a push notification + email. Read-only (never commits/deploys/emails). Set up 2026-07-29. Update docs/MORNING-BRIEF.md to change what it focuses on.  
-  <sub>*task:* the automated daily morning brief Claude sends Bryson (priorities for the day — ads, clients, new businesses, income, gym) &nbsp;|&nbsp; *keywords:* morning brief, daily brief, routine, scheduled task, trigger, morning routine, daily priorities, game plan, MORNING-BRIEF.md, cron, 8am arizona</sub>
+- **[morning-brief-routine](../knowledge/morning-brief-routine.md)** &mdash; &#9989; verified &middot; 2026-09-07  
+  A recurring Routine (trigger id trig_01AvKbwqaidkJZs3gYYVAusV) fires a FRESH Claude session every day at 8:00 AM Arizona (cron "0 15 * * *" UTC), which reads docs/MORNING-BRIEF.md + the live business state (knowledge/ index, docs/DEPLOYS.md) and writes Bryson a prioritized daily game plan (🎯 top priority · 📈 BoldLine · 📞 get clients · 💡 new income · 💪 gym · ✅ quick wins), delivered as a push notification + email. Read-only (never commits/deploys/emails). Set up 2026-07-29. Update docs/MORNING-BRIEF.md to change what it focuses on. 🔴 2026-09-07: the brief SILENTLY did not send because the scheduled session hit a permission prompt (it ran a whole-disk `find /` looking for the repo) and parked in REQUIRES_ACTION with nobody there to answer. Prompt now forbids filesystem searches and tells it to degrade rather than hang. GENERIC LESSON FOR EVERY ROUTINE: a scheduled session that asks a question never finishes, and the silence is indistinguishable from having nothing to say.  
+  <sub>*task:* the automated daily morning brief Claude sends Bryson (priorities for the day — ads, clients, new businesses, income, gym) &nbsp;|&nbsp; *keywords:* morning brief, daily brief, routine, scheduled task, trigger, morning routine, daily priorities, game plan, MORNING-BRIEF.md, cron, 8am arizona, brief did not send, no brief, routine stuck, routine pending, permission prompt, REQUIRES_ACTION, scheduled session hung, find /</sub>
 
 ## Ops / procedures
 
