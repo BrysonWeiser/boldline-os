@@ -341,13 +341,27 @@ ways rather than by reading:
 
 > 🔴 **A partner reporting a bug in your code is a hypothesis, not a finding.** Editing
 > `consentField` to satisfy this would have taken correct, test-pinned behaviour and broken it,
-> in the one direction where being wrong texts someone who never agreed. The two live
-> possibilities are that both test leads really were ticked, or that his own ingest defaults the
-> field. Both are on his side to check, and the retest he asked for settles it either way.
+> in the one direction where being wrong texts someone who never agreed.
 
-**The one caveat that could produce a real `"yes"` wrongly: a lead carrying the legacy
-`"implied"`.** Nothing produces it any more and the live page has none, so it is ruled out here,
-but it is the only value that turns an unticked-looking lead into a yes.
+### ✅ RESOLVED THE SAME EVENING: there was never a defect. Both test leads were ticked.
+
+Bryson, checking his own memory of the test: *"both times I ticked the box for the texts."* The
+first report ("only the second one had the box ticked") was a misremembered detail from a test run
+quickly on a phone.
+
+So **"both arrived with transactional consent set to yes" was the relay working exactly as
+designed.** Two ticked boxes, two yeses. Nothing on Shaun's side was defaulting anything either.
+
+**This is the whole lesson in one incident.** A partner reported a bug, in good faith, with a
+plausible mechanism, against a specific field. The bug did not exist. What did exist was a wrong
+recollection of what was typed into a form three hours earlier, and **there is no way to tell
+those two apart by reading code.** Reproducing it, against the deployed page and the real
+functions, is what separated them, and it took about ten minutes. Changing the code on the
+strength of the report would have shipped a real defect to fix an imaginary one.
+
+**The one value that could still produce a `"yes"` on an unticked-looking lead is the legacy
+`"implied"`.** Nothing produces it any more and the live page carries none, so it was ruled out
+here, but it stays the first thing to check if this ever comes up again.
 
 ## 🔴 The actual defect this hunt found: the JSON format carried NO consent at all
 
