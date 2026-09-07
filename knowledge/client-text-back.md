@@ -119,3 +119,39 @@ numbers. Ten seconds now against a fault only a customer would ever report.
 🔴 **Note on sourcing.** This is live state learned from Bryson, not read from code, and it is
 the answer to the one question that could otherwise have left a client with NO first text and
 nothing anywhere reporting it. Do not re-derive it from the repo; the repo cannot know.
+
+## 🔴 2026-09-07 — LIVE TEST: our side is clean, THE TEXT NEVER FIRED
+
+Two real submissions through the live quote form at `quote.stencilandthread.com`, ~10am
+Phoenix Monday 7 September, run by Bryson in a private window carrying fake tracking
+(`?gclid=TESTBOLDLINE0907&utm_source=google&utm_medium=cpc&utm_campaign=test_lead&utm_content=verification`).
+
+Named **"Test Lead BoldLine"** and **"test lead 2"**, both on Bryson's own cell and email.
+The second had the **text consent box ticked**, which rules out consent as the explanation.
+
+**What worked, and this is the part worth keeping:**
+- Both leads saved to Stencil & Thread with attribution resolved on the card
+  ("Came from Google ad · Test lead · Verification"), so `attribution.js` → `lead-intake`
+  → `leadOrigin` is proven end to end on a real client's real page.
+- Owner email and the lead auto-reply email both fired.
+- **The forward was ATTEMPTED and ACCEPTED.** Settings verified in the OS by Bryson:
+  "Send leads on to" = `https://stencilandthread.com/api/ad-lead`, format = `form`,
+  who texts first = `their`. Neither lead row carries the amber CRM-failure box, and
+  `lead-intake` records a `crm` result on the row whenever `crmTarget` resolves, so the
+  absence of that box means Shaun's endpoint returned 2xx.
+- A bare `GET` to that address from the sandbox returns **405**, so the path exists and his
+  server is up. (405 is the healthy answer for a POST-only intake.)
+
+**What did not happen: no text, on either lead.** That is on Autopilot Systems' side.
+Emailed to Shaun the same morning; he is off grid until Tuesday 8 September.
+
+🔴 **THE TRAP THIS TEST NEARLY FELL INTO, worth remembering for the next client.**
+`forwardLead` returns `null` when no webhook is configured, so **nothing is recorded on the
+lead and NO warning appears**. An unconfigured client looks EXACTLY like a perfectly
+delivered one on the lead row. So "no amber warning" only means "delivered" once you have
+also confirmed the webhook box is filled in. Checking the row alone would have let us blame
+Shaun for a blank field of ours.
+
+**Do not delete the test leads until Shaun confirms** — he needs them present to check his
+logs. Then delete them: Sebastian's package bills per qualified lead, and a test sitting in
+the count becomes a line on an invoice.
