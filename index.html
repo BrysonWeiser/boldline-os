@@ -14571,7 +14571,18 @@ function LeadCard({lead,onUpdate,onReportSent,onDelete}){
           </div>
         </div>
       )}
-      <input value={notes} onChange={e=>setNotes(e.target.value)} onBlur={()=>{ if(notes!==(lead.notes||"")) onUpdate({...lead,notes}); }} placeholder="Add a note…" style={{...inp,fontSize:12,padding:"8px 11px"}}/>
+      {/* 🔴 A TEXTAREA, NOT AN INPUT. Bryson, 2026-09-07: *"can we make it so the notes for
+          leads is easier to read after I put them in right now I have to scroll side to side
+          to read my notes"*. A single-line input holds any amount of text and shows about
+          forty characters of it, so a note long enough to be worth writing becomes a note he
+          cannot read back without dragging through it sideways. Notes here are call records
+          ("menu then voicemail, owner is Weston, try 8am"), which is exactly the length that
+          breaks. It wraps now, grows to fit what is already written, and still saves on blur. */}
+      <textarea value={notes} onChange={e=>setNotes(e.target.value)}
+        onBlur={()=>{ if(notes!==(lead.notes||"")) onUpdate({...lead,notes}); }}
+        rows={Math.min(8,Math.max(2,Math.ceil((notes||"").length/38)+(notes||"").split("\n").length-1))}
+        placeholder="Add a note…"
+        style={{...inp,fontSize:12,padding:"8px 11px",lineHeight:1.55,fontFamily:"inherit",resize:"vertical",whiteSpace:"pre-wrap"}}/>
       {confirmDel?(
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:11,color:C.textDim,marginRight:"auto"}}>Delete this lead permanently?</span>

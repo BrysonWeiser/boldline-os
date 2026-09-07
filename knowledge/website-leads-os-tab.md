@@ -19,3 +19,21 @@ verified: 2026-07-02
 **Live:** a `leads-live` realtime channel + a 20s poll + focus refetch, plus a bottom-left "New lead" toast that deep-links to the Leads tab. Degrades gracefully if the table doesn't exist yet (empty state, no crash).
 
 **Delete:** each card has a "Delete lead" control (inline Cancel/Delete confirm) for spam/test leads; `deleteLead` does an optimistic local remove + a `website_leads` delete via the `website_leads_auth_delete` RLS policy.
+
+## 2026-09-07 — the note box wraps now instead of scrolling sideways
+
+Bryson: *"can we make it so the notes for leads is easier to read after I put them in right now I
+have to scroll side to side to read my notes"*.
+
+The note control on a lead card was a single-line `<input>`. It accepts any amount of text and
+shows about forty characters of it, so the moment a note is worth writing it becomes a note that
+cannot be read back without dragging through it horizontally. These notes are call records
+("menu then voicemail, owner is Weston, try 8am"), which is exactly the length that breaks.
+
+Now a `<textarea>` with `white-space:pre-wrap`, `resize:vertical`, and a row count derived from
+the text already in it (2 to 8 rows), so an existing note opens showing all of itself. Saving is
+unchanged, still on blur.
+
+Verified headlessly at 390 / 768 / 1280 / 1600 with a real 238 character note: the old single
+line scrolled sideways at every width, the new one wraps, shows in full and never scrolls the
+page horizontally.
