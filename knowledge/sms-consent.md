@@ -315,3 +315,56 @@ the way to the client's CRM.
 **127 checks; ten mutations, all caught.** 🔴 One (pre-ticking the box) initially failed on
 the *neighbouring* assertion because that one pinned the whole tag; it was loosened so a
 pre-ticked box reports itself.
+
+## 🔴 2026-09-07 — SHAUN SAID OUR RELAY FORCES "yes". IT DOES NOT. CHECK BEFORE YOU "FIX".
+
+Shaun Smith, after the two live test leads through Stencil & Thread's quote form:
+
+> *"both of your leads arrived with transactional consent set to yes, but you said only the
+> second one had the box ticked. So the relay is still forcing yes instead of passing the actual
+> checkbox value. Please make it send exactly what the box says."*
+
+**That change was NOT made, because the code already does exactly what he asked.** Verified two
+ways rather than by reading:
+
+1. **The live page was fetched** (`quote.stencilandthread.com`). It carries the real checkbox,
+   posts `payload.smsConsentTransactional = !!(sc && sc.checked)`, and contains **no `implied`
+   anywhere**. So the deployed page sends a genuine boolean.
+2. **The real functions were run** over `pickConsent` into `crmFormPayload`:
+
+| Lead | Stored | Sent to his endpoint |
+|---|---|---|
+| Box unticked | `false` | `sms_consent_transactional="no"` |
+| Box ticked | `true` | `"yes"` |
+| Field absent (never asked) | `false` | `"no"` |
+| Legacy `"implied"` | `"implied"` | `"yes"` (deliberate, see CONSENT_IMPLIED) |
+
+> 🔴 **A partner reporting a bug in your code is a hypothesis, not a finding.** Editing
+> `consentField` to satisfy this would have taken correct, test-pinned behaviour and broken it,
+> in the one direction where being wrong texts someone who never agreed. The two live
+> possibilities are that both test leads really were ticked, or that his own ingest defaults the
+> field. Both are on his side to check, and the retest he asked for settles it either way.
+
+**The one caveat that could produce a real `"yes"` wrongly: a lead carrying the legacy
+`"implied"`.** Nothing produces it any more and the live page has none, so it is ruled out here,
+but it is the only value that turns an unticked-looking lead into a yes.
+
+## 🔴 The actual defect this hunt found: the JSON format carried NO consent at all
+
+`crmPayload` (the nested `json` wire format) sent no consent fields whatsoever. It went unnoticed
+because the only CRM-wired client is on the `form` format, which has carried consent since it was
+written, **and `json` is the DEFAULT** (`crmFormat` returns `"json"` unless a client is explicitly
+set to `"form"`).
+
+So **every future client's CRM would have received a lead with no consent signal**, and a CRM with
+no consent either texts everybody, which is precisely the TCPA exposure the checkbox exists to
+prevent, or texts nobody, which silently kills speed-to-lead. **Both failures look exactly like a
+working integration.**
+
+Fixed the same day: `lead.smsConsentTransactional` and `lead.smsConsentMarketing` now ride in the
+JSON payload, using the **same `consentField` helper** as the form format so the two wire formats
+can never disagree about one lead. Tests assert both formats agree, plus the ticked/unticked
+values, and the mutation (deleting the two lines) is caught. `verify-sms-consent` now 132 checks.
+
+**The general shape, worth carrying:** a field that only one code path exercises is a field that
+is only tested where it is used. The format nobody uses yet is the one that silently rots.

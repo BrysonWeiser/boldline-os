@@ -71,6 +71,18 @@ export const crmPayload = (client, lead, { source = "boldline" } = {}) => {
       phone: str(l.phone),
       message: str(l.message),
       source: str(l.source) || "unknown",
+      // 🔴 CONSENT TRAVELS IN THIS FORMAT TOO. It did not until 2026-09-07, and the omission
+      // was invisible because the only client wired to a CRM uses the `form` format, which
+      // has carried it since it was written. But `json` is the DEFAULT (see crmFormat), so
+      // every future client would have handed their CRM a lead with no consent signal at all.
+      //
+      // That matters more than a missing field usually would: a CRM that receives no consent
+      // either texts everybody, which is the TCPA problem the checkbox exists to prevent, or
+      // texts nobody, which silently kills speed-to-lead. Both failures look like the
+      // integration working. Same yes/no strings and the same helper as the form format, so
+      // the two can never disagree about what a given lead consented to.
+      smsConsentTransactional: consentField(l, "smsConsentTransactional"),
+      smsConsentMarketing: consentField(l, "smsConsentMarketing"),
     },
     // The ad attribution. Passed along so the CRM can report by campaign too, and so
     // nobody has to ask us where a contact came from.

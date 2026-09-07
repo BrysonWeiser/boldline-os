@@ -330,6 +330,26 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   eq("but a real one wins", crmFormPayload(client, { ...lead, firstName: "Dee" }).first_name, "Dee");
 
   eq("consent is his literal yes", p.sms_consent_transactional, "yes");
+  // 🔴 THE JSON FORMAT CARRIES CONSENT TOO, and until 2026-09-07 it carried NONE.
+  // Invisible, because the only CRM-wired client is on the `form` format. But `json` is the
+  // DEFAULT, so the next client's CRM would have received a lead with no consent signal at
+  // all: it either texts everybody (the TCPA problem the box exists to prevent) or nobody
+  // (speed-to-lead silently gone). Both look like a working integration.
+  {
+    const jTicked = crmPayload({}, { name: "T", ...pickConsent({ smsConsentTransactional: true }) });
+    const jUnticked = crmPayload({}, { name: "T", ...pickConsent({ smsConsentTransactional: false }) });
+    eq("🔴 the json format sends a ticked box as yes", jTicked.lead.smsConsentTransactional, "yes");
+    eq("🔴 and an unticked box as no, never absent", jUnticked.lead.smsConsentTransactional, "no");
+    eq("marketing rides along in json as well", jTicked.lead.smsConsentMarketing, "no");
+    // The two wire formats must never disagree about one lead's consent.
+    const lead = { name: "T", ...pickConsent({ smsConsentTransactional: true, smsConsentMarketing: true }) };
+    eq("🔴 both formats agree on transactional",
+      crmPayload({}, lead).lead.smsConsentTransactional,
+      crmFormPayload({}, lead).sms_consent_transactional);
+    eq("🔴 both formats agree on marketing",
+      crmPayload({}, lead).lead.smsConsentMarketing,
+      crmFormPayload({}, lead).sms_consent_marketing);
+  }
   eq("and his literal no", p.sms_consent_marketing, "no");
   // 🔴 The absent case. His endpoint gates the text on this, so a lead we never asked must
   // arrive as "no" rather than as an empty field he might read as anything.
