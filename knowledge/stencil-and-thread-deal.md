@@ -342,3 +342,49 @@ good for having recommended him.
 
 **Worth asking while there:** whether Sebastian is more of a phone person or an email person.
 Shaun gets answers from him; Bryson is texting. That alone may solve it.
+
+## 🔴 2026-09-07 — A WEEK SIGNED, NOTHING RUNNING, AND THE TERM CLOCK MOVED
+
+**The situation.** Signed 30 August. As of Monday 7 September the Google ads had still never
+run: Sebastian had not sent his Google Ads account number and had not put a card on the
+account. Bryson had called and left a voicemail, texted, and sent several follow-ups across
+the weekend with no reply, while Sebastian posted repeatedly to Instagram. So he was reading
+his phone and not answering about this.
+
+**Bryson's read, and it was the right one.** He proposed telling Sebastian that his **initial
+three month term now starts on the day the ads switch on, not the signing date**, as a
+one-time extension.
+
+🔴 **This is materially better than the version I first suggested**, which was "I won't bill
+you until the ads are live". That one sounds generous and *is worth nothing*, because
+founding terms already carry **no monthly minimum** (KB `pricing-model`): he pays per
+qualified lead in arrears, so with no ads there is nothing to bill either way. A client who
+notices that has been offered a favour that costs nothing, which is worse than offering
+nothing. **Check what a concession actually costs before dressing it up as one.**
+
+**What the real concession buys, and it is not goodwill:** every silent day was burning
+BoldLine's **case study window**, not Sebastian's money. The whole point of a founding client
+is three months of live results to sell the next client with. Moving the start date protects
+that, at zero cash cost today. The only thing given up is that the monthly minimum (which
+begins at renewal) begins later.
+
+### Three rules that came out of it
+
+1. **Say it in a text, confirm it in an email.** Term dates live in an agreement he already
+   signed, and the generator refuses new terms on a signed agreement (KB
+   `contract-special-terms`). A texted concession with no written record is two different
+   memories in November.
+2. **Hold an outside date privately, and do NOT put it in the message.** A deadline sours a
+   goodwill note. Bryson's line is **30 September**. Reminder set:
+   `trig_017YQGW1qd2Y2mkitLLf6ae8` (one-shot, 9am Phoenix, fresh session), which re-checks
+   whether the ads are live and, if not, is explicitly instructed **not** to recommend a
+   second extension.
+3. 🔴 **A second extension is the failure mode.** "I'll extend it" done twice means there is
+   no contract clock at all, and it teaches a client that silence buys time.
+
+### On escalating through Shaun
+Bryson wanted Shaun to chase Sebastian. Sequenced instead: **one more message from Bryson
+first**, then Shaun's already-scheduled Tuesday email carries one soft line as a backstop.
+Leading with Shaun tells the client Bryson could not reach him and had to go through his web
+guy, which is a weak position in week one with a first client. And Shaun is a **referral
+partner**, so using him as a debt collector spends that relationship too.
