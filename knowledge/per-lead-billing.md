@@ -4,8 +4,8 @@ topic: OS app
 task: change how per-qualified-lead fees are billed to clients, the lead-billing review panel, or which leads count as billable
 keywords: [charge-leads, preview-invoice, billingPerLead, PER_LEAD, leadsLog, notBillable, billed, billableCount, perLeadRate, invoiceitems, per-lead fee, junk lead, spam lead, flagLead, exclude lead, qualified lead, invoice_review, billingNextCharge, invoiceReminderSent, upcoming invoice]
 status: verified
-summary: Per-qualified-lead billing — BUILT 2026-08-02, EXTENDED same day (junk flagger + one-bill preview + pre-invoice reminder). Every delivered lead is billable at the client's per-lead rate; the owner reviews the batch on the Billing card (Contract tab), toggles off junk/spam, then one-tap approves and the total rides the client's NEXT monthly Stripe invoice as one line item (pending invoice item, same auto-sweep the late-interest watcher uses — NOT a standalone charge). A heuristic junk flagger marks likely-junk leads WITH the reason (never auto-excludes — Bryson's call). An "Upcoming Invoice" preview (stripe-billing preview-invoice → invoices/upcoming) shows fee+setup+leads+interest bundled on ONE bill with the auto-charge date. billing-watch fires a review reminder (push+email, once/cycle) ~7 days before the invoice auto-charges when there are undecided leads. Invoicing model = AUTO-CHARGE, REVIEW-GATED (Bryson chose this 2026-08-02 over hold-until-send / emailed-invoice). Rate = client.billingPerLead override, else PER_LEAD[niche] (only Roofing/Med Spa/Auto Detailing have defaults) — inline rate editor essential elsewhere. No new Supabase table (uses client.leadsLog) and no new env vars. Verified headlessly at all 4 widths + unit-tested flagger (false positive "Dana Cole"→placeholder-substring fixed).
-verified: 2026-08-02
+summary: Per-qualified-lead billing — BUILT 2026-08-02, EXTENDED same day (junk flagger + one-bill preview + pre-invoice reminder). Every delivered lead is billable at the client's per-lead rate; the owner reviews the batch on the Billing card (Contract tab), toggles off junk/spam, then one-tap approves and the total rides the client's NEXT monthly Stripe invoice as one line item (pending invoice item, same auto-sweep the late-interest watcher uses — NOT a standalone charge). A heuristic junk flagger marks likely-junk leads WITH the reason (never auto-excludes — Bryson's call). An "Upcoming Invoice" preview (stripe-billing preview-invoice → invoices/upcoming) shows fee+setup+leads+interest bundled on ONE bill with the auto-charge date. billing-watch fires a review reminder (push+email, once/cycle) ~7 days before the invoice auto-charges when there are undecided leads. Invoicing model = AUTO-CHARGE, REVIEW-GATED (Bryson chose this 2026-08-02 over hold-until-send / emailed-invoice). Rate = client.billingPerLead override, else PER_LEAD[niche] (only Roofing/Med Spa/Auto Detailing have defaults) — inline rate editor essential elsewhere. No new Supabase table (uses client.leadsLog) and no new env vars. Verified headlessly at all 4 widths + unit-tested flagger (false positive "Dana Cole"→placeholder-substring fixed). 🔴 2026-09-07 GOTCHA: the whole Lead Billing panel, Exclude buttons included, is gated on `managed` (billingStatus active or card_on_file), so a client with NO CARD YET cannot have any lead marked not-billable at all. Junk and test leads on a client being set up can only be DELETED, and if left they resurface as billable the day the card is connected. Suggested fix if it recurs: gate only the Approve button, not the review list.
+verified: 2026-09-07
 ---
 
 **What triggered it (Bryson, 2026-08-02):** "do we automatically calculate and charge the cost
@@ -101,3 +101,37 @@ that's ≤7 days out AND there are undecided leads (`!billed && !notBillable`) A
 same condition (auto-clears once all leads are decided). New client fields (no migration; plain
 JSON on the client): `billingNextCharge`, `invoiceReminderSent`; per-lead flags on each lead:
 `billed`, `billedAt`, `notBillable`.
+
+## 🔴 2026-09-07 — A JUNK LEAD CANNOT BE EXCLUDED UNTIL THE CLIENT HAS A CARD ON FILE
+
+**Found the hard way.** Two fake test leads were pushed through Stencil & Thread's live quote
+form to diagnose the client's missing auto-text. The advice given was "exclude them on the
+Billing card so they can never reach an invoice". **Bryson: *"i cant exclude anything yet since
+his card is not connected."* He was right.**
+
+**The gate.** The whole Lead Billing block, Exclude buttons included, sits inside
+`{managed&&<>…}`, and `managed = !oneTime && (status==="active" || status==="card_on_file")`
+where `status = client.billingStatus||"none"`. **No card on file means no billing status, which
+means the entire panel is not rendered.** The `notBillable` flag is therefore unreachable through
+the UI for exactly the clients most likely to be accumulating test and junk leads: the ones still
+being set up.
+
+**Why this is worse than it first looks.** The leads are not lost, they are *deferred*. They stay
+in `leadsLog` as ordinary unbilled, un-excluded rows, and the day the card is finally connected
+the panel appears with all of them sitting in it, freshly billable, weeks after anyone remembers
+which were real. The exposure lands on the **first invoice of a new client relationship**, which
+is the single worst moment to be wrong about money.
+
+**The only lever before the card is on: DELETE the lead.** Nothing else touches it.
+
+**Handled for Sebastian by a reminder, not by code** (`trig_01DwLnCnnDAGRWFicKZG4GUT`, Tue
+2026-09-08 9:30am Phoenix): the two test leads stay in place while Shaun debugs against them, and
+get deleted the moment he confirms he is done. Deliberately not built around, because the risk
+window closes as soon as those two rows go.
+
+**If this bites a second time, the fix is small and worth doing:** render the lead REVIEW list
+(and its Exclude toggles) whenever there are unbilled leads, and gate only the *Approve / charge*
+button on `managed`. Excluding a lead writes a flag to the client record and moves no money, so
+there is no reason it needs Stripe to exist first. `chargeLeads` already refuses independently
+(`if(!client.stripeCustomerId){ setLeadMsg("Save a card on file first."); return; }`), so the
+money path stays protected without the review path being hidden.
