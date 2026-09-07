@@ -88,3 +88,56 @@ Three fixes, and the second matters more than the first:
 Plus `jsRendered` (many scripts, almost no text in the source) tells the model the whole reading was unreliable and to **not comment on anything missing at all**.
 
 **The manual lesson, which is the same one:** the summary Claude produced when reading that site the first time also missed the footer form. A page fetched as raw HTML is not the page a person sees. Ask what IS there; never conclude what is not.
+
+## 🔴 2026-09-07 — HOW TO ACTUALLY WORK A FREE-CHECK LEAD, learned on the first real one
+
+The Scottsdale roofing company that prompted this whole entry became the first free-check lead
+worked end to end. What came out of it is a repeatable playbook, and one uncomfortable lesson.
+
+### The report is the EXCUSE to call, never the pitch
+
+The lead arrived Friday 4 Sep as **an email address and a website and nothing else**. No name, no
+phone. Identifying who to ring took the company site, the Arizona contractor licence (ROC 343909,
+qualifying party Weston Robert Zellers) and LinkedIn to confirm he is the owner. **That is fifteen
+minutes per lead, and the lead still sat uncalled for three days.** The form was changed the same
+day to require a name and a phone; see KB `ads-page-conversion`.
+
+### 🔴 CALL THE PROSPECT'S OWN NUMBER BEFORE YOU CALL THEM. It outperformed the report.
+
+Their website says *"when you reach out, you will be connected directly to our owner."* Ringing it
+at 1pm on a working Monday gave an automated menu, then a rang-out, then voicemail.
+
+> **For a trade that sells urgency, a missed call is a lost job, and that is a finding no static
+> page-reader can produce.** It cost thirty seconds, it is impossible to argue with because the
+> prospect can test it themselves, and it is far stronger than anything in the written audit.
+
+**So: dial the prospect's own number as a customer would before the outreach call.** Note what
+happens. It is the single best opening line available, and it needs no tooling at all.
+
+### The uncomfortable part: the report we had already sent was wrong
+
+It told them they had no contact form. They have one at the bottom of their homepage. `inspectSite`
+reads raw HTML and `PAGESPEED_API_KEY` was still unset, so the check never actually *looked* at the
+page. The guards written on 2026-09-04 (never assert a negative) are in the code; this report went
+out before the key existed to make the reading reliable.
+
+**The recovery, and it is the right move generally: correct it yourself, first, out loud.** Opening
+with *"one line in that report was wrong and I'd rather tell you than have you find it"* turns the
+single checkable error into the reason to trust everything else. Hoping they did not notice is the
+losing play, because it is the one finding they can disprove in four seconds.
+
+### The outreach rules that came out of it
+
+| Rule | Why |
+|---|---|
+| **Two calls, then email only** | A third call to a small business turns persistence into a nuisance. Weston got a Monday voicemail and one Tuesday callback, then it moved to email |
+| **Name a window, not a time** | "Thursday between 8:30 and 10" lets them choose, and avoids trading messages over a fifteen minute call |
+| **Never offer a slot you cannot keep** | Better to offer ONE real window and ask them to name an alternative than to name a second day and cancel |
+| **Never leave the finding on a voicemail** | It is the only reason they have to call back. Spend it and the message is just noise |
+| **🔴 Never pretend to be a customer to get past a gatekeeper** | It works, and then the real conversation has to open with an admission of lying. In a trade where everyone knows everyone, that is the story that travels |
+
+### Do not oversell the missed-call finding
+
+It leads naturally to "we can track your calls", and the OS **does** have call tracking built. It is
+still on a Twilio trial account and unusable for real clients (KB `call-tracking`). **Present the
+missed call as a problem spotted, never as a product on offer, until Twilio is upgraded.**
