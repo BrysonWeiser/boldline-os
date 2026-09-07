@@ -122,3 +122,24 @@ profile strength). Bryson's account was created 2026-08-11, so if "Create page" 
 out ("we couldn't create your page / complete your profile and try again"), it is NOT a
 copy problem — send ~20-30 connection requests, confirm the Founder position is listed,
 and retry in a few days. Everything else in this entry is ready to paste when it unblocks.
+
+## 🔴 STANDING RULE (Bryson, 2026-09-07): never mention the day job to a client, partner or prospect
+
+Drafting a note to Shaun Smith, a line read *"I'm on shift until 10 tonight, so I'll send the two
+retest leads once I'm back at my computer."* Bryson cut it: *"Don't tell him I'm on shift just say
+I'll resend the test later tonight."*
+
+**He is right, and it generalises to everyone outside.** Bryson works a day job 2pm to 10pm
+weekdays while building BoldLine. That is his business and nobody else's. A partner or client who
+learns it stops reading him as an agency owner and starts reading him as someone doing this on the
+side, which changes how seriously his timelines, his pricing and his advice get taken. It also
+invites the question he should never have to answer, which is what happens to their campaign when
+his shift runs long.
+
+**So: give the WHEN, never the WHY.** "Later tonight", "first thing Thursday", "Thursday morning
+between 8:30 and 10". A time commitment is complete on its own; a reason for it is an excuse, and
+an excuse invites a follow-up question.
+
+This is the same instinct as never telling a prospect about the wisdom-teeth surgery when declining
+a Friday meeting (same day): **decline or reschedule with a time, not a reason.** Applies to
+clients, prospects, referral partners and their developers alike.
