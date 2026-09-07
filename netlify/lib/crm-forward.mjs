@@ -293,6 +293,33 @@ export async function forwardLead(client, lead, { fetchImpl = fetch, now, ...opt
       : (await signBody(bodyText, target.secret)) ? { "x-boldline-signature": await signBody(bodyText, target.secret) } : {};
   } catch (_) { authHeaders = {}; }
 
+  // 🔴 NEVER SEND A LEAD UNSIGNED TO AN ENDPOINT THAT REQUIRES A SIGNATURE.
+  //
+  // Shaun Smith, 2026-09-07: *"the endpoint is signed-only. The origin allowlist is gone, so
+  // nothing gets in without your signature."* From that moment an unsigned POST is not a
+  // degraded delivery, it is a rejected one.
+  //
+  // And unsigned was reachable in total silence. `signFields` returns `{}` when the secret is
+  // an empty string: it does not throw, so the catch above never fires, and the request went
+  // out with no signature headers and no error anywhere. `crmTarget` defaults a missing
+  // secret to `""`, so ONE cleared or mistyped field in a client record was enough. The only
+  // symptom would have been the client never hearing about their leads, which is
+  // indistinguishable from a quiet week. This codebase has been bitten by that exact shape
+  // before (KB `lead-leak-delivery`).
+  //
+  // So a `form` client with no usable signature is a CONFIGURATION FAILURE, recorded as one,
+  // and the lead is never sent. It is already saved in the OS by this point, the retry queue
+  // will carry it, and a recorded failure is something a human can see. A silent 401 is not.
+  if (crmFormat(client) === "form" && !authHeaders["X-BoldLine-Signature"]) {
+    return {
+      ok: false,
+      at: new Date().toISOString(),
+      status: 0,
+      error: "not sent: no signing secret configured, and this CRM rejects unsigned requests",
+      attempts: 0,
+    };
+  }
+
   let last = { error: "not attempted" };
   for (let attempt = 1; attempt <= CRM_MAX_ATTEMPTS; attempt++) {
     const controller = new AbortController();

@@ -330,6 +330,32 @@ const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
   eq("but a real one wins", crmFormPayload(client, { ...lead, firstName: "Dee" }).first_name, "Dee");
 
   eq("consent is his literal yes", p.sms_consent_transactional, "yes");
+  // 🔴 NEVER SEND UNSIGNED TO A SIGNED-ONLY ENDPOINT, AND NEVER DO IT QUIETLY.
+  // Shaun made his endpoint signed-only on 2026-09-07 and removed the origin allowlist, so an
+  // unsigned POST is rejected, not merely degraded. Unsigned was reachable in SILENCE:
+  // signFields returns {} for an empty secret rather than throwing, crmTarget defaults a
+  // missing secret to "", so one cleared field in a client record sent every lead unsigned
+  // with no error anywhere. The only symptom is a client never hearing about their leads,
+  // which looks exactly like a quiet week.
+  {
+    const url = "https://crm.test/api/ad-lead";
+    const noSecret = { campaignSetup: { crmFormat: "form", crmWebhook: url } };
+    const withSecret = { campaignSetup: { crmFormat: "form", crmWebhook: url, crmWebhookSecret: "s3cret" } };
+    const lead = { name: "T", phone: "1" };
+    let sent = false;
+    const fake = async () => { sent = true; return { ok: true, status: 200, text: async () => "{}" }; };
+
+    sent = false;
+    const blocked = await forwardLead(noSecret, lead, { fetchImpl: fake });
+    ok("🔴 a form client with no signing secret does NOT send the lead", sent === false,
+      "an unsigned POST to a signed-only endpoint is a rejection, not a delivery");
+    ok("and it records a failure a human can actually see", blocked && blocked.ok === false && /signing secret/.test(blocked.error || ""),
+      "a silent 401 is indistinguishable from no leads that week");
+
+    sent = false;
+    const okRes = await forwardLead(withSecret, lead, { fetchImpl: fake });
+    ok("a properly configured form client still sends", sent === true && okRes && okRes.ok === true);
+  }
   // 🔴 THE JSON FORMAT CARRIES CONSENT TOO, and until 2026-09-07 it carried NONE.
   // Invisible, because the only CRM-wired client is on the `form` format. But `json` is the
   // DEFAULT, so the next client's CRM would have received a lead with no consent signal at
