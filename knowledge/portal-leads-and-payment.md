@@ -38,9 +38,16 @@ overflow is arithmetically impossible at any width. Base padding also came down 
 `11px 14px` to `11px 12px`. Verified headless at 360/390/768/1280/1600: one row, no
 horizontal scroll, every panel renders.
 
-## Payment Method (Account tab)
+## Payment Method (inside Your Information, on the Account tab)
 
-New accordion, above Your Agreement, with an amber dot until a card exists. Three states:
+🔴 **It is a card inside "Your Information", not a section of its own.** Bryson,
+2026-09-08: *"put the connect payment option under the your information section under the
+account tab"*. It first shipped as its own tap-to-open section, which meant a client had to
+know to open it. Your Information is the one section a new client already opens, because it
+is where he fills everything else in, and this sits directly under the card where he
+connects his ad account: connect the account, then the card that pays for the leads it
+brings, one trip. Until a card exists the card is outlined in gold so it is not scrolled
+past. Three states:
 
 | Client record | What he sees |
 |---|---|
@@ -76,9 +83,41 @@ bill, and a client who fears a charge does not click.
    (`netlify/lib/launch-checklist.mjs` and `index.html`). Its wording now names where the
    Billing card actually is, because he could not find it.
 
+## Setting the rate, where he looks for it
+
+🔴 **The per-lead rate is now on the Edit screen too.** Bryson, 2026-09-08: *"there is no
+place to put 50 in the edit tab"*. It existed only on the Billing card at the bottom of the
+Contract tab, a different screen behind a different tab, so the one number the whole invoice
+is built from was hidden behind the document it appears in. New "What You Bill Them" card in
+`EditClientSheet` carries **Per qualified lead ($)** and **Monthly minimum ($)**, the same
+two fields the Billing card writes, so setting it either place is the same act. Hidden on the
+house account, which bills nobody.
+
+Both store a **number or null, never a string** — everything downstream multiplies the rate,
+and `"50"` times a lead count is not 50 times a lead count. Blank clears back to the niche
+default rather than storing an empty string, which would read as a real rate of nothing. Both
+fields read the record as well as write it, or they would show blank over a real number and
+the next save would wipe the rate in the signed agreement.
+
+## 🔴 The deploy that did not deploy
+
+Writing *"Sebastian's account is ACTIVE under manager <id>"* into this KB **failed the
+Netlify build**: the secret scanner fails on the value of any env var appearing in a
+committed file, and the manager account number is `GOOGLE_ADS_MANAGER_CUSTOMER_ID`. Git said
+merged, the live site said otherwise, and the portal fix simply never reached the client.
+Diagnosed with the one command from KB `netlify-secret-scan-deploys` (curl the live file and
+grep for a marker only the new build has), and the ancestry check it insists on — the id was
+absent from the last successful deploy, so it was a valid suspect rather than a guess.
+
+Fixed the documented way: **`GOOGLE_ADS_MANAGER_CUSTOMER_ID` added to
+`SECRETS_SCAN_OMIT_KEYS`** in `netlify.toml`. A Google Ads customer id is an identifier, not
+a credential — it is printed in Google's own interface and shown to every client who approves
+a manager link request. The credentials (developer token, OAuth refresh token) stay fully
+scanned. The id stays in the KB, per the standing decision.
+
 ## Tests
 
-`tests/verify-portal-leads.mjs` — 39 checks. Pins the five tabs, their order, the two
+`tests/verify-portal-leads.mjs` — 48 checks. Pins the five tabs, their order, the two
 separate panels, every payment-method state, the preview guard, the agreed rate, and all
 three bug fixes. `tests/verify-portal-upgrades.mjs` pins the tab list by name **and** the
-flex rule that makes five safe. 13 mutations, 13 caught.
+flex rule that makes five safe. 22 mutations written across both rounds, all caught.
