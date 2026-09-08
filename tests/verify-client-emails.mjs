@@ -55,7 +55,13 @@ const BASE = {
     // missing, which LOOKS like it worked. A client clicking "Open Your Client Portal"
     // and landing on a homepage is worse than a broken link, because nobody reports it.
     const links = [...r.html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]).filter((u) => !u.startsWith("mailto:"));
-    const stranded = links.filter((u) => !u.includes("token=") && !u.includes("stripe"));
+    // 🔴 `#reviews` IS A DELIBERATE PUBLIC DESTINATION, NOT A FALLBACK. Added 2026-09-07
+    // with the review request email, which asks a client to post publicly and therefore
+    // must NOT point into their private portal. Narrow on purpose: the anchor is what makes
+    // it deliberate, so a portal button degrading to the bare marketing site still has no
+    // anchor and is still caught. Widening this to "any link to SITE" would have disarmed
+    // the whole assertion.
+    const stranded = links.filter((u) => !u.includes("token=") && !u.includes("stripe") && !u.includes("#reviews"));
     ok(`🔴 ${t.label} has no button silently falling back to the plain site`, stranded.length === 0,
       stranded.join(", "));
     ok(`${t.label} leaves no unfilled placeholder`, !/\$\{|undefined|\[object/i.test(text(r.html)),

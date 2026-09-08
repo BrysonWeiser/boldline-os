@@ -37,3 +37,80 @@ Bryson: "When there's something the client needs to approve (e.g. the landing pa
 - **Data:** likely a `client.approvals[]` array (item = {id, kind:"landing_page", title, previewUrl/html, status:"pending|approved|changes", note, ts}); owner pushes an item from the OS; client Approve/Request-changes writes back via the portal token endpoint (same pattern as portal save/upgrade/media).
 - **Notify:** email the client automatically when an approval is queued (reuse report-shared.sendEmail + a branded dark template like client-emails-shared); surface their decision back to the owner (OS alert/notification + commLog).
 - Mirrors the existing OWNER-side approval queue (pendingActions) but client-facing.
+
+## 🔴 2026-09-07 — FOUR GAPS BETWEEN "SIGNED" AND "RUNNING", FOUND IN A SWEEP
+
+Bryson asked for a full audit of the site, the bots, the OS and the reports. Every finding
+below sat in the same blind spot: **what the OS does for a client who has signed but whose ads
+have not started.** Nothing was erroring. Each would have surfaced only as a client
+relationship quietly going wrong.
+
+### 1. A performance report was going to go out for a campaign that never existed
+
+`dueForMonthly` counts 30 days from `contractStart`. `isReportable` checked active, non-demo,
+has-an-email, and **never asked whether there was anything to report.** Stencil & Thread signed
+30 August, so on **29 September** BoldLine's first client was going to receive an automatically
+written monthly performance report about ads that had never run, with a copy to Bryson, two days
+before the honest conversation he had already scheduled with himself for the 30th.
+
+> 🔴 **A report with nothing in it is worse than no report.** It burns the one thing a founding
+> client is actually buying, which is the belief that somebody is watching their money.
+
+New `hasAdActivity(client)`: `adPerf.syncedAt` exists AND impressions, 30-day spend or live
+campaigns is above zero. **Ad activity only, deliberately.** Leads are not the test, because a
+client with no campaign can still have rows in `leadsLog` — Stencil & Thread's were two FAKE
+test leads used to debug the text-back — and counting those would let the guard pass and produce
+a report describing leads that were never real.
+
+**The owner briefing is NOT gated on it.** The week a client's ads have not started is the week
+Bryson most needs telling. Only the client-facing send is withheld, and the monthly run's skip
+reason says which of the two skips happened.
+
+### 2 + 3. The entire onboarding sequence was gated on payment, so a founding client got nothing
+
+Welcome, ad-account access, and the day 2 and day 5 nudges all waited on `emailAuto.welcome`,
+which **only `stripe-webhook` ever set, and only on `checkout.session.completed`.**
+
+That is not an edge case, it is the founding offer. **Founding terms are results-only with no
+monthly minimum, so a client can be fully signed and correctly owe nothing for weeks.** Stencil
+& Thread signed 30 August and by 7 September had received nothing automatic at all — no welcome,
+no portal link, and crucially no ad-account-access email, *while the single thing blocking their
+launch was ad-account access.* The automation built to chase exactly that had never been allowed
+to start.
+
+**Bryson's call:** *"Signing that way nothing is blocked and doesn't send even if payment isn't
+processed."* `client-nurture` now sends the welcome when `contractSigned` or an active contract
+is seen. Both paths set and check the same flag, so whichever fires first wins and the other
+becomes a no-op; a client who pays at signing is unaffected. The OS email catalog said
+`auto: "when they pay"`, which was then a *wrong label*, and a wrong label is worse than none
+because he would stop watching for it. Now "when they sign".
+
+### 4. Nothing had ever asked anyone for a review
+
+The review system was complete: the form on the marketing site, the approve-before-display step,
+the rendering, even the live Google review link. **No code anywhere asked a client to leave one.**
+A review wall nobody is invited to fill in stays empty forever, and no social proof is the
+biggest weakness in the sales conversation while BoldLine has one client.
+
+New `review_request` email, sent **once per client, ever**, and conservatively: active contract,
+real ad activity, at least 10 delivered leads, at least 45 days in, and never in the same run as
+a milestone celebration. It offers the site and Google routes, and ends by inviting a complaint
+instead — *"if anything is not going the way you hoped, reply to this instead"* — which is the
+honest version of asking and stops a bad review before it is public.
+
+### The alert that would have caught all of it on day seven
+
+Eight days of BoldLine's first and only client going nowhere and **nothing in the OS said so.**
+The closest existing alert, `noLeads`, could not fire, because the two fake test leads meant
+`leads === 0` was false. New `neverLaunched`: active, 7+ days since contract start, no ad
+activity ever. Once, on the transition, like every other alert here.
+
+`noLeads` now also requires `hasAdActivity`, because firing it at a campaign that never existed
+tells Bryson to *"check targeting/tracking"* — **the wrong diagnosis pointed at the wrong
+system.** Never launched and launched-but-failing are different problems with different fixes.
+
+**Verification:** new `tests/verify-client-lifecycle-gaps.mjs`, 27 checks, **7 of 7 mutations
+caught.** Full suite 65 suites, 0 failures. One existing guard in `verify-client-emails` caught
+the new review template legitimately (every button must not silently fall back to the bare
+marketing site); it was widened by exactly one anchor, `#reviews`, and both original failure
+modes were re-tested and still bite.

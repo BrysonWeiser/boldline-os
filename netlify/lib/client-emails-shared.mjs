@@ -14,6 +14,9 @@ import { GOLD, escapeHTML } from "./report-shared.mjs";
 
 const DARK = { bg:"#070810", card:"#0C0D18", cardBorder:"rgba(255,255,255,.08)", head:"#F5F3EA", body:"#C6CAE0", muted:"#8B91B8", faint:"#5A6078", chip:"#12131F" };
 const SITE = "https://boldlinemedia.com"; // last-resort fallback so a button link is never empty
+// Where the review request points. The reviews section on the marketing site, which is
+// collect-then-approve: nothing appears publicly until Bryson approves it.
+const REVIEW_URL = `${SITE}#reviews`;
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
 const SERIF = "Georgia,'Times New Roman',serif";
 
@@ -282,6 +285,30 @@ const T = {
         small("Thanks for trusting us with your growth. Here's to the next milestone."),
     };
   },
+
+  // 🔴 THE ONE EMAIL THAT ASKS FOR SOMETHING BACK. Added 2026-09-07.
+  //
+  // Found in a sweep Bryson asked for: the whole review system existed, the form on the
+  // site, his approval step, the display, even the live Google review link, and NOTHING
+  // ANYWHERE EVER ASKED ANYONE FOR A REVIEW. A review wall nobody is invited to fill in
+  // stays empty forever, and no social proof is BoldLine's biggest sales weakness while it
+  // has one client.
+  //
+  // Deliberately short, and it asks ONCE. The ask is sized to what a busy owner will
+  // actually do: two sentences, not a form. Both routes are offered because they do
+  // different jobs, the site one becomes a testimonial he controls, the Google one is a
+  // public star rating that helps the business get found.
+  review_request: (c) => ({
+    subject: `Quick favour, ${c.businessName || "one moment"}?`,
+    preheader: "Two minutes, and it genuinely helps us more than you'd think.",
+    bodyHtml:
+      h1("Would you mind saying how it's going?") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.businessName || "your business"))} has been running with us for a little while now and the leads are coming through, so I wanted to ask a favour while it's fresh.`) +
+      p("Would you write a couple of lines about how it's gone? Honest is better than glowing. It takes about two minutes and it helps the next business owner decide whether this is worth a try.") +
+      button("Leave a Review", REVIEW_URL) +
+      small("If you'd rather leave it on Google instead, that works just as well, and it helps you get found too. And if anything is not going the way you hoped, reply to this instead and tell me. I would much rather fix it than be reviewed on it.") +
+      signoff(),
+  }),
 };
 
 // public catalog for the OS UI
@@ -297,7 +324,7 @@ const T = {
 // says "automatic" about something no job sends. That check is the whole point: a wrong
 // label here is worse than no label, because he would stop watching for it.
 export const EMAIL_TYPES = [
-  { id: "welcome", label: "Welcome + Portal", icon: "\u{1F44B}", auto: "when they pay", desc: "Sent right after they sign \u2014 warm welcome + portal login + what's next." },
+  { id: "welcome", label: "Welcome + Portal", icon: "\u{1F44B}", auto: "when they sign", desc: "Sent right after they sign \u2014 warm welcome + portal login + what's next." },
   { id: "onboarding_access", label: "Ad Account Access", icon: "\u{1F511}", auto: "a day after the welcome", desc: "Asks the client to grant BoldLine manager access to their ad account." },
   { id: "contract_signed", label: "Contract Signed", icon: "\u2705", auto: "the moment they sign", desc: "Confirmation that their agreement is signed and on file." },
   // 🔴 THE DESCRIPTION HAD TO MATCH WHAT THE INVOICE ACTUALLY BILLS. It said "setup +
@@ -312,6 +339,7 @@ export const EMAIL_TYPES = [
   { id: "thank_you", label: "Thank-You / Offboarding", icon: "\u{1F64F}", auto: null, desc: "Gracious wrap-up when a contract ends and isn't renewed." },
   { id: "onboarding_nudge", label: "Onboarding Nudge", icon: "\u23F3", auto: "day 2 and day 5, until intake is done", desc: "Auto-nudges a new client to finish their intake so campaigns can launch (day 2 + 5)." },
   { id: "lead_milestone", label: "Lead Milestone", icon: "\u{1F389}", auto: "when they hit 10, 25, 50, 100 leads", desc: "Auto-celebrates a client hitting a lead milestone (10 / 25 / 50 / 100\u2026)." },
+  { id: "review_request", label: "Review Request", icon: "\u2B50", auto: "once, after a good first stretch", desc: "Asks a happy client for a short review, on the site or on Google. Sends once per client, ever." },
 ];
 
 // ── 🔴 WHAT A HAND-SENT EMAIL HAS TO RECORD ──────────────────────────────────

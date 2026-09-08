@@ -490,10 +490,37 @@ export const handoffIsFinished = (client) => {
 const handoffDone = (client, pkg) =>
   !!pkg && pkg.optimizationFreq === "none" && handoffIsFinished(client);
 
-// CLIENT-FACING reports: a real client, active, with somewhere to send it.
+// 🔴 HAVE THIS CLIENT'S ADS EVER ACTUALLY RUN?
+//
+// Found 2026-09-07 in a sweep Bryson asked for. Stencil & Thread signed 30 August and the
+// ads never started, because the client had not sent his Google Ads account number or put a
+// card on it. Nothing in the reporting path asked whether there was anything to report:
+// `dueForMonthly` counts 30 days from `contractStart`, so on 29 September BoldLine's FIRST
+// client was going to be emailed an automatically written "performance report" about a
+// campaign that never existed, with a copy to Bryson, two days before the honest
+// conversation he had already scheduled with himself for the 30th.
+//
+// 🔴 A REPORT WITH NOTHING IN IT IS WORSE THAN NO REPORT. It tells the client we are not
+// paying attention, and it burns the one thing a founding client is buying, which is the
+// belief that somebody is watching their money.
+//
+// Ad activity ONLY, deliberately. Leads are not the test: a client with no campaign can
+// still have rows in `leadsLog` (Stencil & Thread's were two FAKE test leads used to debug
+// the text-back), and counting those would let the guard pass and produce a report
+// describing leads that were never real.
+export const hasAdActivity = (client) => {
+  const ap = (client || {}).adPerf || {};
+  if (!ap.syncedAt) return false;          // no ad account linked, or the sync never ran
+  const t = ap.totals || {};
+  return Number(t.impressions || 0) > 0 || Number(t.spend30d || 0) > 0 || Number(t.liveCampaigns || 0) > 0;
+};
+
+// CLIENT-FACING reports: a real client, active, with somewhere to send it, AND something
+// that actually happened. The ad-activity test is last because it is the only one that can
+// change on its own: the others describe the account, this one describes the month.
 const isReportable = (client, pkg) =>
   !!pkg && !client.internal && !isDemo(client) && !handoffDone(client, pkg)
-  && client.contractStatus === "active" && !!client.email;
+  && client.contractStatus === "active" && !!client.email && hasAdActivity(client);
 
 // OWNER briefings are a different question. They go to Bryson, not to a client, so
 // they need no client email and no contract — and the house account is exactly the
@@ -523,6 +550,9 @@ const processWeekly = async (supabaseAdmin, row, testMode = false) => {
   const ownerOk = isOwnerBriefable(client, pkg);
   const clientOk = isReportable(client, pkg);
   if (!ownerOk && !clientOk) return { id: row.id, skipped: "not a reportable client" };
+  // The owner briefing still runs for a client whose ads have never started — that is
+  // precisely the week Bryson most needs telling. Only the CLIENT-facing send is withheld.
+
 
   const ownerDue = ownerOk && (testMode || gapOk(client.lastOwnerBriefing, OWNER_BRIEFING_GAP_DAYS));
   const clientDue = clientOk && pkg.optimizationFreq === "weekly" && (testMode || gapOk(client.lastReportSent, 5));
@@ -577,6 +607,11 @@ const processWeekly = async (supabaseAdmin, row, testMode = false) => {
 const processMonthly = async (supabaseAdmin, row, testMode = false) => {
   const client = row.data;
   const pkg = findPkg(client.packageId);
+  // Two different skips, kept apart so the run log says which. "Ads have never run" is a
+  // thing Bryson may want to act on; "not a monthly client" never is.
+  if (pkg && client.contractStatus === "active" && !client.internal && !isDemo(client) && !hasAdActivity(client)) {
+    return { id: row.id, skipped: "ads have never run — no report sent" };
+  }
   if (!isReportable(client, pkg) || pkg.optimizationFreq !== "monthly") return { id: row.id, skipped: "not a monthly client" };
   if (!testMode && !dueForMonthly(client, 30)) return { id: row.id, skipped: "not due yet this month" };
 
