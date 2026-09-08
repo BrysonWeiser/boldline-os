@@ -126,3 +126,27 @@ told one thing on the site and another on the call believes neither.
   number: their site promises callers reach the owner directly, and a 1pm Monday call got a menu
   and then voicemail, while their Yelp listing advertises **24 hours, Monday to Saturday**. No
   desk research produces that. See KB `lead-leak-delivery`.
+
+### 🔴 FIXING THE PROMPT WAS NOT ENOUGH — the screen still quoted the old price
+
+Bryson's screenshot showed the package list rendered directly UNDER the briefing still reading
+**"$400/mo min · $750 setup · $75/lead"**. So the prose said one offer and the price list beside
+it said another, on the same screen, at the moment he is reading a recommendation.
+
+> 🔴 **A price shown next to a recommendation IS the quote, whatever the words above it say.**
+> Fixing the model's instructions changed what it wrote and nothing about what he would read off
+> the screen while talking.
+
+The Deal Prep package card now shows, while the offer is live: the per-lead fee as the headline
+number, **"no monthly minimum"** in green, and the setup fee **struck through and marked waived**
+rather than hidden, because he has to see what he is giving away to sell it as worth anything. A
+labelled banner underneath says which pricing is on screen, since a struck-out number with no
+explanation reads as a bug.
+
+`FOUNDING_OFFER_ACTIVE` is **mirrored in `index.html`** (the OS is one browser file and cannot
+import from `netlify/lib`), and a test asserts the two copies are equal, so they cannot drift into
+quoting different offers.
+
+**The general rule this produced:** when a promise lives only in copy, find every surface that
+states the same fact — the prompt, the screen, the contract, the emails, the site. A promotion
+held in one hardcoded sentence is invisible to all of them.

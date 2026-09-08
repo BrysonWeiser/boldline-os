@@ -18,6 +18,8 @@ import { FOUNDING_OFFER_ACTIVE, FOUNDING_CLIENT_COUNT, foundingTermsBlock, packa
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEAL = readFileSync(join(ROOT, "netlify/functions/deal-research-background.mjs"), "utf8");
 const SITE = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+const OS = readFileSync(join(ROOT, "index.html"), "utf8");
+const OSCODE = OS.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)).join("\n");
 
 let pass = 0, fail = 0;
 const ok = (name, cond, why = "") => { if (cond) pass++; else { fail++; console.log(`  FAIL  ${name}${why ? "\n        " + why : ""}`); } };
@@ -60,6 +62,32 @@ if (FOUNDING_OFFER_ACTIVE) {
   ok("with the offer off, no founding terms are injected", block === "");
   ok("and the site banner is gone too", !/Founding client offer/i.test(SITE),
     "the switch and the banner are one promise and must come down together");
+}
+
+// ── 🔴 THE SCREEN HAS TO AGREE WITH THE BRIEFING ─────────────────────────────
+// Fixing the prompt was NOT enough. The package list rendered directly under the briefing in
+// Deal Prep still printed "$400/mo min · $750 setup", so the screen contradicted the words
+// above it. A price shown beside a recommendation IS the quote, whatever the prose says.
+ok("the OS mirrors the founding switch, since it cannot import from netlify/lib",
+  /const FOUNDING_OFFER_ACTIVE = (true|false);/.test(OSCODE),
+  "two copies of one fact is the cost of the OS being a single browser file; a test is what keeps them equal");
+ok("🔴 the OS copy agrees with the server copy right now",
+  new RegExp(`const FOUNDING_OFFER_ACTIVE = ${FOUNDING_OFFER_ACTIVE};`).test(OSCODE),
+  "if these drift, the briefing and the price list beside it quote different offers");
+ok("the Deal Prep package card is aware of the offer at all",
+  /FOUNDING_OFFER_ACTIVE&&pkg\.leadFee&&leadFee/.test(OSCODE));
+if (FOUNDING_OFFER_ACTIVE) {
+  ok("🔴 it leads with the per-lead fee, not a monthly minimum he would not charge",
+    /\$\{leadFee\}<span[^>]*>\/lead/.test(OSCODE));
+  ok("it says no monthly minimum in plain words on the card itself",
+    /color:C\.green,fontWeight:700\}\}>no monthly minimum</.test(OSCODE),
+    "the loose check also matched the banner below, so the card could say the opposite and pass");
+  ok("and shows the setup fee struck through rather than hiding it",
+    /textDecoration:"line-through"/.test(OSCODE) && /waived/.test(OSCODE),
+    "he needs to know what he is giving away, or he cannot sell it as worth anything");
+  ok("the card explains which pricing is on screen",
+    /Founding client pricing is shown/.test(OSCODE),
+    "a struck-out number with no label reads as a bug");
 }
 
 // The standard prices must still be intact underneath, because the offer ends.
