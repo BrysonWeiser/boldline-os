@@ -52,3 +52,57 @@ claim, a dropped price anchor, a dropped ad-spend line, and a dash creeping into
 
 As of 2026-08-28 **zero clients have signed.** Stencil & Thread's agreement is out and their
 setup fee is already waived in the OS, so they are founding client one when they sign.
+
+## 🔴 2026-09-07 — IT TAKES ITSELF DOWN NOW. NOBODY HAS TO REMEMBER.
+
+Bryson: *"Make sure once I land a third client that once the contract is signed that triggers
+the copy and website banner to take down the offer."*
+
+**Why a switch was not good enough.** Earlier the same day the offer was moved out of website
+copy and into a constant, `FOUNDING_OFFER_ACTIVE`, after Deal Prep quoted the standard prices to
+a live prospect. A constant is still a thing to forget on the single day it matters: the day the
+third client signs, the site would keep advertising a free build worth **$1,500 to $4,900**, and
+he would find out when somebody asked for it.
+
+**The source of truth is now the clients themselves** (`netlify/lib/founding.mjs`). It counts
+signed, real, non-internal, non-demo clients and compares to three. It cannot drift from reality
+because it IS reality.
+
+| Rule | Why |
+|---|---|
+| `contractSigned` OR `contractStatus === "active"` counts | Stencil & Thread signed an **emailed PDF**, not DocuSign. A signature-only test would have missed the first client |
+| Demo and internal never count | The demo exists so empty screens look alive; letting it eat a founding place would be absurd |
+| **Monotonic** — never re-opens if a client churns | *"We gave the first three a free build"* is a statement about history, not about current headcount. Re-opening would re-advertise something already given away |
+
+### What changed on each surface
+
+- **The marketing site** (both pages) — the banner is now `hidden` in the HTML and revealed only
+  when `/.netlify/functions/founding-status` explicitly answers `active === true`.
+- **Deal Prep's briefing** — reads the live count before writing, and **falls back to STANDARD
+  prices if the lookup fails**. Quoting more than the offer is a conversation. Quoting a giveaway
+  that is gone is a promise he then has to break.
+- **The OS package card** — computes from the loaded client list and now shows *"2 of 3 places
+  left"* rather than a fixed sentence.
+- **An alert** — one message, on the transition, telling him the offer is spent and that the
+  banner and pricing have already switched themselves off. A pitch that changes silently is a
+  pitch he learns about from a prospect.
+
+### 🔴 A deliberate exception to "never gate content on JS", and the reasoning
+
+KB `content-visibility-no-js` says never hide content behind JS, because a scroll-reveal once
+left the whole page blank to crawlers. **That rule still holds and is not being broken:** the
+hero, packages, FAQ and reviews are all in the HTML. Verified with scripts disabled, the page
+still renders **12,139 characters** of visible text.
+
+This is one promotional claim, and it is the one thing on the page where being wrong costs real
+money. So it **fails closed** in every direction: endpoint spent, endpoint 500, endpoint
+unreachable, JS off — all four hide the banner. Only an explicit `active: true` shows it. Worst
+case he loses a line of persuasion. The other fail direction hands out a free build.
+
+**Verification:** `tests/verify-founding-in-deal-prep.mjs`, 33 checks, **10 of 10 mutations
+caught**, plus a real browser run of all five states above.
+
+> 🔴 **And a caught mistake worth keeping.** The first version of those tests was appended
+> BELOW the file's `process.exit()`, so the whole block never ran, and the suite still printed
+> "17 passed, 0 failed". Nine mutations came back NOT CAUGHT in a row, which is what exposed it.
+> **A green suite is not evidence a test executed.** Mutation-test new assertions, always.

@@ -20,6 +20,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats, hasAdActivity } from "../lib/report-shared.mjs";
+import { countFoundingClients, FOUNDING_CLIENT_COUNT } from "../lib/founding.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 
 const ACTIVE_STAGES = ["active", "optimizing", "scaling"];
@@ -85,6 +86,35 @@ export default withFailureAlert("alerts-watch", async () => {
 
   let checked = 0, alerted = 0;
   const STALE_APPROVAL_DAYS = 3;
+
+  // 🔴 THE FOUNDING OFFER IS SPENT — tell him the day it happens, once.
+  //
+  // Bryson, 2026-09-07: the offer must come down by itself when the third client signs. The
+  // site and the OS now do that on their own, from the live client count. This alert exists
+  // because a thing that changes silently is a thing he finds out about from a prospect: he
+  // needs to know his pitch just changed, and that the free build is no longer his to offer.
+  //
+  // Once, ever, on the transition. Stored on the house/internal record so it is not attached
+  // to any one client, and never re-fires if a client later churns (the offer is spent on
+  // history, not on the current headcount).
+  {
+    const all = (rows || []).map((r) => r.data).filter(Boolean);
+    const signed = countFoundingClients(all);
+    const houseRow = (rows || []).find((r) => r.data && r.data.internal);
+    const flagged = !!(houseRow && houseRow.data && houseRow.data.foundingOfferSpentAlerted);
+    if (signed >= FOUNDING_CLIENT_COUNT && !flagged && houseRow) {
+      await dispatchAlert({
+        title: "Founding offer is now spent",
+        body: `You have ${signed} signed clients, so the founding offer has been fully taken up.\n\nThe website banner and the pricing shown in Deal Prep have already switched themselves off, so nothing is still advertising a free build. From here, new prospects get the standard pricing: the setup fee applies and the monthly minimum is back.\n\nWorth deciding whether you want a new offer in its place.`,
+        severity: "yellow",
+      });
+      alerted++;
+      await supabase.from("clients")
+        .update({ data: { ...houseRow.data, foundingOfferSpentAlerted: new Date().toISOString() }, updated_at: new Date().toISOString() })
+        .eq("id", houseRow.id);
+    }
+  }
+
   for (const row of rows || []) {
     const cl = row.data || {};
 
