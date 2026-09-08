@@ -130,3 +130,22 @@ is a test that quietly covers a fraction of what it claims.
 `sms-consent` (where both bugs were found), `lead-handoff`, `repo-tests` (the testing doctrine,
 including the Playwright route-shadowing trap that wasted a cycle here twice), `sheet-layering`
 (the backtick-in-a-template-literal trap, which also bit during this work).
+
+## 🔴 2026-09-08 — THE GUARD WORKED AND LOOKED EXACTLY LIKE A BUG
+
+Bryson typed Sebastian's Google Ads Customer ID into the portal **preview** and got
+**"Save failed. Try again"**. Nothing had failed. The preview replaces `fetch` so every write
+is rejected, which is the whole point, and the save handler had one generic catch for both
+cases.
+
+> **A safety guard that reports itself as a defect is a guard somebody eventually "fixes".**
+> He spent part of a live client call believing the portal was broken.
+
+It now says **"Preview only, nothing saved"** in the preview and keeps the real failure text in
+the real portal. Both portal copies changed.
+
+**The second, worse consequence:** because the preview cannot save, the Customer ID he had been
+entering was never stored, so the setup checklist still read *"Waiting on their ad account id"*
+while he believed it was done. **The ID has to be entered in the OS edit screen, not the portal
+preview.** Worth remembering as the general shape: a preview that silently discards input will
+have someone doing real work in it.
