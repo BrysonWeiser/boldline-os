@@ -154,8 +154,24 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
   const saved = render({ billingPerLead: 50, billingStatus: "card_on_file" });
   ok("once a card is saved it says so instead of asking again",
     /Payment method saved/.test(saved) && !/Add My Payment Method/.test(saved));
-  ok("and the amber dot that marks unfinished setup clears with it",
-    /accdot/.test(offered) && !/Payment Method<span class="accdot">/.test(saved));
+  // 🔴 IT LIVES INSIDE "YOUR INFORMATION", not in a section of its own. Bryson, 2026-09-08:
+  // *"put the connect payment option under the your information section under the account
+  // tab"*. Its own tap-to-open section meant a client had to know to open it; Your
+  // Information is the section a new client already opens to fill everything else in.
+  {
+    const info = offered.indexOf("Everything we build your ads from");
+    const nextSection = offered.indexOf('<details class="acc"', info);
+    const inside = offered.slice(info, nextSection);
+    ok("🔴 the payment card sits inside Your Information, not in a section of its own",
+      inside.includes("Payment Method") && !/<div class="at">Payment Method/.test(offered),
+      "a section a client has to know to open is a section he does not open");
+    ok("and it sits directly under the card where he connects his ad account",
+      inside.indexOf("Connect Your Google Ads") < inside.indexOf("Payment Method"),
+      "connect the account, then the card that pays for the leads it brings: one trip");
+  }
+  ok("an unfinished payment card is marked so it is not scrolled past",
+    /border-color:rgba\(200,168,75,\.4\)[^"]*"><div class="lbl" style="color:#C8A84B[^>]*>Payment Method/.test(offered)
+    && !/border-color:rgba\(200,168,75,\.4\)[^"]*"><div class="lbl" style="color:#C8A84B[^>]*>Payment Method/.test(saved));
   ok("🔴 a spent link is never offered again even if the field lingers",
     !/Add My Payment Method/.test(render({ billingStatus: "card_on_file", billingCheckoutUrl: "https://checkout.stripe.com/c/pay/abc" })),
     "Stripe clears the field, but a stale record must not send a client to a dead checkout");
@@ -182,6 +198,34 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
     "the checklist lives in two files; changing one and not the other is the standing trap here");
   ok("it names where the Billing card actually is, since he could not find it",
     /Contract tab and scroll to the Billing card/.test(step));
+}
+
+// ── 7. The agreed rate is settable where he looks for it ─────────────────────
+// Bryson, 2026-09-08: *"there is no place to put 50 in the edit tab but it is on the contract
+// that his price per qualified lead is $50"*. It existed only on the Billing card at the
+// bottom of the Contract tab, a different screen behind a different tab, so the one number
+// the whole invoice is built from was hidden behind the document it appears in.
+{
+  const card = OS.slice(OS.indexOf("What You Bill Them"), OS.indexOf("What You Bill Them") + 2200);
+  ok("the Edit screen has a per-qualified-lead field",
+    /Per qualified lead \(\$\)/.test(card) && /set\("billingPerLead"/.test(card));
+  ok("and the monthly minimum beside it, so a results-only deal can be set in one place",
+    /Monthly minimum \(\$\)/.test(card) && /set\("billingMonthly"/.test(card));
+  // Both fields have to READ the record as well as write it, or they show blank over a real
+  // number and the next save quietly wipes the rate that is in the signed agreement.
+  ok("🔴 and both fields show what is already stored rather than starting empty",
+    /value=\{form\.billingPerLead\?\?""\}/.test(card) && /value=\{form\.billingMonthly\?\?""\}/.test(card),
+    "a field that shows blank over a real number invites a save that wipes it");
+  ok("🔴 it stores a number, not the text of a number",
+    /set\("billingPerLead",e\.target\.value===""\?null:Number\(e\.target\.value\)\)/.test(card),
+    "everything downstream multiplies this, and \"50\" times a lead count is not 50 times a lead count");
+  ok("🔴 and blank clears it rather than storing an empty rate",
+    /\?null:Number/.test(card) && !/\?"":Number/.test(card),
+    "an empty string is not null, and it would read as a real rate of nothing");
+  ok("it says what blank falls back to instead of leaving him guessing",
+    /Blank uses the standard \$\{form\.niche\} rate/.test(card));
+  ok("it is hidden on the house account, which bills nobody",
+    /\{!client\.internal&&<Card>\s*\n\s*<Label>What You Bill Them<\/Label>/.test(OS));
 }
 
 console.log(`verify-portal-leads: ${pass} passed, ${fail} failed`);

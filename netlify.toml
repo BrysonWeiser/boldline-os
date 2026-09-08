@@ -15,10 +15,19 @@
   #     account map is impossible to document without naming which id is which, and every
   #     Meta debugging session so far has turned on exactly that distinction. Added
   #     2026-08-14 after it failed 7 consecutive production builds.
+  #   • GOOGLE_ADS_MANAGER_CUSTOMER_ID — BoldLine's manager (MCC) account number. Same
+  #     reasoning as META_APP_ID and the same standing decision (Bryson, 2026-08-14: "lets
+  #     keep them"): a Google Ads customer id is an IDENTIFIER, not a credential. It is
+  #     printed in the Google Ads interface, shown to every client who approves a manager
+  #     link request, and authenticates nothing on its own — the credentials are
+  #     GOOGLE_ADS_DEVELOPER_TOKEN and the OAuth refresh token, which stay fully scanned.
+  #     Added 2026-09-08: writing "Sebastian's account is ACTIVE under manager <id>" into
+  #     the KB failed the build, and the whole point of recording which id is which is that
+  #     "the manager one" is useless six months later.
   # Every genuinely-secret key (Stripe, Twilio auth, Supabase service role, Google Ads,
   # Resend, Meta system-user token, etc.) stays fully scanned — none of their values are
   # ever committed.
-  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL,META_APP_ID"
+  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL,META_APP_ID,GOOGLE_ADS_MANAGER_CUSTOMER_ID"
 
 # WEEKLY (Mon 15:00 UTC): a weekly internal briefing to Bryson on EVERY active
 # client (even monthly-tier ones, so he stays current) + the client-facing

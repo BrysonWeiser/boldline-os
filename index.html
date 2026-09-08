@@ -13530,6 +13530,38 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   shown back and it waits to be pressed. */}
               {!client.internal&&<LinkRequestRow customerId={form.googleAdsCustomerId} />}
             </Card>
+            {/* 🔴 THE AGREED RATE, WHERE HE ACTUALLY LOOKS FOR IT. Bryson, 2026-09-08:
+                *"there is no place to put 50 in the edit tab but it is on the contract that
+                his price per qualified lead is $50"*. It existed only on the Billing card at
+                the bottom of the Contract tab, which is a different screen reached by a
+                different tab, so the one number the whole invoice is built from was hidden
+                behind the document it appears in. Same field either place, so setting it here
+                and setting it there are the same act.
+                🔴 STORED AS A NUMBER, NEVER A STRING. Everything downstream multiplies it,
+                and "50" times a lead count is not 50 times a lead count. Blank clears it back
+                to the standard rate for their trade rather than storing an empty string,
+                which would read as a real rate of nothing. */}
+            {!client.internal&&<Card>
+              <Label>What You Bill Them</Label>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>These are the numbers the OS invoices from. They should match their signed agreement. The same two fields live on the Billing card on the Contract tab.</div>
+              <div style={fieldStyle}>
+                <label style={fieldLabelStyle}>Per qualified lead ($)</label>
+                <input type="number" min="0" step="1" inputMode="decimal"
+                  value={form.billingPerLead??""}
+                  onChange={e=>set("billingPerLead",e.target.value===""?null:Number(e.target.value))}
+                  placeholder={PER_LEAD[form.niche]!=null?`Blank uses the standard ${form.niche} rate of $${PER_LEAD[form.niche]}`:"Leave blank if you do not bill per lead"}
+                  style={inp}/>
+              </div>
+              <div style={fieldStyle}>
+                <label style={fieldLabelStyle}>Monthly minimum ($)</label>
+                <input type="number" min="0" step="1" inputMode="decimal"
+                  value={form.billingMonthly??""}
+                  onChange={e=>set("billingMonthly",e.target.value===""?null:Number(e.target.value))}
+                  placeholder={pkg?`Blank uses the package price of $${pkg.price}`:"Blank uses the package price"}
+                  style={inp}/>
+              </div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:2}}>Set the monthly minimum to <strong style={{color:C.text}}>0</strong> for a results-only client who pays per lead and nothing else.</div>
+            </Card>}
             <Card>
               <Label>Reviews / Testimonials</Label>
               <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:8}}>Paste the client's <strong>real</strong> reviews — one per line, as <code>quote — Name</code>. These appear on the landing page. The AI never invents these; leave blank to hide the section.</div>
