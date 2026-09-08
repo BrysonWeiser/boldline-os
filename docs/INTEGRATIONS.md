@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 159 task-keyed entries under `knowledge/`. They surface automatically via the
+> 161 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**159 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**161 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -138,6 +138,9 @@
 - **[client-portal-approvals](../knowledge/client-portal-approvals.md)** &mdash; &#9989; verified &middot; 2026-07-30  
   Clients approve ANYTHING the owner queues (not just landing pages) from a new "Review" tab in their portal (portal.mjs) that shows a red pending-count badge (mirrors the owner's alert count) and per-item Approve / Request Changes (+ optional note). Decisions POST back, update client.approvals[], and log to commLog; the owner sees them via getAlerts (changes=yellow, awaiting=blue). Owner queues items from the ClientApprovalsCard on the Client View tab, which auto-emails the client (approval_request template). Built 2026-07-30.  
   <sub>*task:* let clients review + approve anything the owner sends (landing page, ad copy, plans) from their portal, with a badge count + auto email notification &nbsp;|&nbsp; *keywords:* client approval, portal review, needs your review, approve, request changes, ClientApprovalsCard, approvals, landing page approval, portal badge, approval_request, notify client</sub>
+- **[portal-leads-and-payment](../knowledge/portal-leads-and-payment.md)** &mdash; &#9989; verified &middot; 2026-09-08  
+  The client portal now has FIVE tabs (Status | Review | Leads | Reports | Account). Leads was briefly folded into Reports because five buttons overflowed a 360px strip; Bryson reversed that the same day and the overflow was fixed in CSS instead (`@media(max-width:460px){.nb{flex:1 1 0}}` — the buttons divide the strip rather than sizing to their text, so they cannot overflow at any width). A Payment Method accordion on the Account tab shows the Stripe link the OS issued (`billingCheckoutUrl`) so a client can add a card himself; it never creates a link. Three real bugs fixed alongside: the portal quoted the niche default per-lead rate instead of the client's agreed `billingPerLead`; a Stripe `mode:"setup"` checkout was recorded as `billingStatus:"active"` when there is no subscription; and the launch checklist's "card on file" step looked only for a subscription id, so it could never tick for a results-only client. Built 2026-09-08.  
+  <sub>*task:* give the client his own Leads tab, a separate Reports tab, and a place to add a payment method; fix the per-lead rate and card-on-file state the portal was getting wrong &nbsp;|&nbsp; *keywords:* portal leads tab, leads tab, reports tab, five tabs, nav overflow, 360px tabs, payment method, add a card, card on file, billingCheckoutUrl, results only billing, per lead rate, billingPerLead, setup session, stripe setup mode, launch checklist card step, portal payment</sub>
 
 ## Contracts
 
@@ -216,6 +219,12 @@
 - **[git-relay-proxy-recovery](../knowledge/git-relay-proxy-recovery.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   If git push fails with "could not read Username", the remote may have been reset to an api.anthropic.com ingress URL — set origin back to the GitHub HTTPS URL (the proxy's insteadOf rewrite handles auth) and retry. A one-off workaround relayed a commit via the GitHub MCP push_files.  
   <sub>*task:* recover git push when it fails with "could not read Username" because the relay/proxy auth broke &nbsp;|&nbsp; *keywords:* could-not-read-username, GIT_ASKPASS, insteadOf, push_files, api.anthropic.com, git-relay</sub>
+
+## Google Ads
+
+- **[manager-link-status](../knowledge/manager-link-status.md)** &mdash; &#9989; verified &middot; 2026-09-08  
+  Two fixes, 2026-09-08. (1) The "Send manager link request" button never worked — `customerClientLinks:mutate` takes a single `operation`, not an `operations` array like every other mutate in google-ads.mjs, and Google's error ("Unknown name 'operations': Cannot find field") reads like a permissions problem. Bryson had to send the request by hand mid-call. (2) New `linkStatus` action queries `customer_client_link` on the MANAGER account and reports ACTIVE / PENDING / refused / NONE, so the OS knows whether we manage a client's account. Observed from Google every time, never stored — a client can revoke manager access from their own account without telling us. Sebastian's account 924-850-6870 is ACTIVE under manager 989-283-2533.  
+  <sub>*task:* send a client's Google Ads manager link request from the OS and know whether we actually have manager access &nbsp;|&nbsp; *keywords:* manager link, customerClientLinks, customer_client_link, linkClient, linkStatus, manager access, MCC link, link request, google ads access, operations unknown name, LinkRequestRow</sub>
 
 ## Infra
 

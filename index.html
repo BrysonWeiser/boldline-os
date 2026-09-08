@@ -1014,8 +1014,12 @@ function launchChecklist(client){
     // netlify/lib/launch-checklist.mjs, where the full reasoning lives.
     {id:"rates",owner:"you",label:"Their rates set",done:c.billingMonthly!=null&&c.billingPerLead!=null,
      next:"Set the monthly minimum and the per-lead rate on the Billing card. If they are in the signed agreement already, copy them across so the OS bills the same numbers."},
-    {id:"card",owner:"client",label:"Their card on file",done:lcHas(c.stripeSubscriptionId),
-     next:"Send them the payment link from the Billing card. They enter their own card, and the subscription starts the moment they do."},
+    // 🔴 A SUBSCRIPTION ID IS NOT THE ONLY WAY TO HOLD A CARD. A results-only deal has no
+    // monthly, so there is nothing to subscribe to: the card is saved through a Stripe setup
+    // session and leaves behind only a billing status. Our first client is on that deal and
+    // this step would have told Bryson to keep chasing a card already on file. 2026-09-08.
+    {id:"card",owner:"client",label:"Their card on file",done:lcHas(c.stripeSubscriptionId)||c.billingStatus==="card_on_file"||c.billingStatus==="active",
+     next:"Open the Contract tab and scroll to the Billing card. Press the button there to create their payment link, then send it. They can also add a card themselves from the Payment Method section of their portal."},
     {id:"adaccount",owner:"client",label:"Their ad account linked",done:lcHas(c.googleAdsCustomerId)||lcHas(c.metaAdAccountId),
      next:"They open Google Ads in their own name on their own card, accept your manager invite, then you paste the customer ID into Edit and Campaign."},
     {id:"details",owner:"you",label:"Campaign details filled in",done:lcHas(cs.mainOffer)&&lcHas(cs.targetLocations),
@@ -4701,11 +4705,35 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
 // Sends the Google Ads manager link request for one client, from the OS.
 // Two presses, always: the first shows the number back, the second sends. See the note at
 // the call site for why this is never automatic.
+//
+// 🔴 IT ALSO ANSWERS "DO WE HAVE ACCESS?", AND IT ASKS GOOGLE RATHER THAN REMEMBERING.
+// Bryson, 2026-09-08: *"make sure the os knows that we already sent the manager request and
+// it was approved so we have manager access to sebastians google ad account"*. The tempting
+// build is a stored tick. A client can revoke manager access from their own account at any
+// moment without telling us, and a stored tick would keep saying yes with the ads no longer
+// ours to touch. So a 10-digit ID triggers one read of the link row on our manager account,
+// and this row reports whatever Google says today. Sending the request by hand outside the
+// OS, which is exactly what happened with our first client, still shows up here as granted.
 function LinkRequestRow({customerId}) {
   const [state,setState] = useState("");      // "" | "confirm" | "sending" | "sent" | "error"
   const [msg,setMsg] = useState("");
+  const [link,setLink] = useState(null);      // null = not checked yet | {status,linked} | {error}
   const digits = String(customerId||"").replace(/[^0-9]/g,"");
   const pretty = digits.length===10 ? `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}` : digits;
+
+  // Only a complete ID is worth a round trip: a half-typed number is not a question Google
+  // can answer, and asking about one would send a request-shaped read for a stranger's id.
+  useEffect(()=>{
+    let dead=false;
+    if(digits.length!==10){ setLink(null); return; }
+    setLink({checking:true});
+    (async()=>{
+      try{ const d=await gadsCall({action:"linkStatus",customerId:digits}); if(!dead) setLink({status:d.status,linked:!!d.linked}); }
+      catch(e){ if(!dead) setLink({error:String((e&&e.message)||e)}); }
+    })();
+    return ()=>{dead=true;};
+  },[digits]);
+
   if (!digits) return null;
 
   const send = async () => {
@@ -4717,9 +4745,19 @@ function LinkRequestRow({customerId}) {
     } catch(e) { setState("error"); setMsg(String((e&&e.message)||e)); }
   };
 
+  // Google's answer, in the words Bryson uses. "ACTIVE" is a Google word, not his.
+  const linkLine = !link ? null
+    : link.checking ? {c:C.textMuted,t:"Checking with Google whether we manage this account…"}
+    : link.error ? {c:C.textMuted,t:"Could not check with Google just now. "+link.error}
+    : link.linked ? {c:C.green,t:"✓ We manage this account. Access is approved and live."}
+    : link.status==="PENDING" ? {c:C.amber,t:"Request sent, waiting on them to approve it in their own account."}
+    : link.status==="NONE" ? {c:C.textMuted,t:"No request has been sent for this account yet."}
+    : {c:C.amber,t:"They have not granted access. Send the request again below."};
+
   return (
     <div style={{marginTop:4,paddingTop:11,borderTop:`1px solid ${C.border2}`}}>
-      {state==="sent"
+      {linkLine&&<div style={{fontSize:11,color:linkLine.c,lineHeight:1.6,marginBottom:link&&link.linked?0:9}}>{linkLine.t}</div>}
+      {link&&link.linked ? null : state==="sent"
         ? <div style={{fontSize:11,color:C.green,lineHeight:1.6}}>✓ {msg}</div>
         : state==="confirm"
           ? (<div>

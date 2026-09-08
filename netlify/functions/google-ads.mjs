@@ -215,7 +215,13 @@ export async function linkClientAccount(accessToken, clientCustomerId) {
     const e = new Error("That is BoldLine's own manager account, not a client's.");
     e.stage = "linkClient"; throw e;
   }
-  const body = { operations: [{ create: { clientCustomer: `customers/${client}`, status: "PENDING" } }] };
+  // 🔴 `operation`, SINGULAR, AND THAT ONE LETTER IS THE WHOLE BUG. Every other mutate in
+  // this file takes `operations: [...]`, so this one was written the same way and Google
+  // answered "Unknown name 'operations': Cannot find field" — an error that reads like a
+  // permissions problem and is not. CustomerClientLinkService is the exception: it links one
+  // account at a time and its request carries a single `operation`. Found 2026-09-08, after
+  // Bryson had already had to send the request by hand on a call.
+  const body = { operation: { create: { clientCustomer: `customers/${client}`, status: "PENDING" } } };
   const resp = await fetch(`${ADS_BASE}/customers/${mcc}/customerClientLinks:mutate`, {
     method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify(body),
   });
@@ -225,6 +231,45 @@ export async function linkClientAccount(accessToken, clientCustomerId) {
     e.stage = "linkClient"; e.detail = data; throw e;
   }
   return data;
+}
+
+// ── Is this client's account actually under our manager account? ─────────────
+//
+// Bryson, 2026-09-08: *"make sure the os knows that we already sent the manager request and
+// it was approved so we have manager access to sebastians google ad account"*. The obvious
+// build is a tick box saying "access granted", and it is the wrong one: a client can revoke
+// manager access at any moment, from their own account, without telling us, and a stored
+// tick would keep saying yes long after the ads stopped being ours to touch. Same rule the
+// launch checklist runs on — observed, never stored.
+//
+// So this asks Google. `customer_client_link` lives on the MANAGER account and holds one row
+// per account we have asked for, with the client's answer in `status`:
+//   ACTIVE    they approved it, we manage the account
+//   PENDING   sent, waiting on them
+//   REFUSED / CANCELLED / INACTIVE   no access
+// No row at all means no request was ever sent.
+export async function getClientLinkStatus(accessToken, clientCustomerId) {
+  const client = digits(clientCustomerId);
+  const mcc = digits(G.mcc);
+  if (!client) { const e = new Error("clientCustomerId required"); e.stage = "linkStatus"; throw e; }
+  if (!mcc) { const e = new Error("No BoldLine manager account configured"); e.stage = "linkStatus"; throw e; }
+  const query = `SELECT customer_client_link.client_customer, customer_client_link.status,
+      customer_client_link.manager_link_id
+    FROM customer_client_link
+    WHERE customer_client_link.client_customer = 'customers/${client}'`;
+  const resp = await fetch(`${ADS_BASE}/customers/${mcc}/googleAds:search`, {
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify({ query }),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("linkStatus", resp.status, data));
+    e.stage = "linkStatus"; e.detail = data; throw e;
+  }
+  const rows = (data.results || []).map((r) => (r.customerClientLink || {}).status).filter(Boolean);
+  // A client can be asked twice (a refused request then a fresh one), so ACTIVE anywhere in
+  // the list is the honest answer, and PENDING beats a stale refusal.
+  const status = rows.includes("ACTIVE") ? "ACTIVE" : rows.includes("PENDING") ? "PENDING" : (rows[0] || "NONE");
+  return { status, linked: status === "ACTIVE", statuses: rows };
 }
 
 // ── Guarded write: pause / enable a campaign ──────────────────────────────────
@@ -1025,6 +1070,12 @@ export default async (req) => {
       if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
       const result = await linkClientAccount(accessToken, body.customerId);
       return json({ ok: true, action, customerId: digits(body.customerId), result });
+    }
+
+    if (action === "linkStatus") {
+      if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
+      const link = await getClientLinkStatus(accessToken, body.customerId);
+      return json({ ok: true, action, customerId: digits(body.customerId), ...link });
     }
 
     if (action === "campaigns") {

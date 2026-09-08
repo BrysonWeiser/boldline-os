@@ -305,15 +305,26 @@ const render = (o) => {
   const real = tabsOf(src);
   const preview = tabsOf(osSrc);
 
-  // 🔴 FOUR TABS AS OF 2026-08-31. Six was 451px of buttons in a 390px strip, so Contract
-  // sat off-screen until you swiped; Package, Info and Contract are now tap-to-open sections
-  // inside Account. Pinned by name so a fifth tab has to be a decision, not a drift.
-  same("the real portal has exactly the four tabs", real,
-    ["account", "approvals", "reports", "status"]);
+  // 🔴 FIVE TABS AS OF 2026-09-08. Six was 451px of buttons in a 390px strip, so Contract
+  // sat off-screen until you swiped; Package, Info and Contract became tap-to-open sections
+  // inside Account. Leads was folded into Reports on 2026-09-08 for the same width reason
+  // and Bryson reversed that the same day: he wants them apart, because a client on per-lead
+  // pricing reads his leads daily and his written report weekly. The fifth only fits because
+  // the CSS changed with it (see the flex rule asserted below), so the two are pinned
+  // together. Pinned by name so a sixth has to be a decision, not a drift.
+  same("the real portal has exactly the five tabs", real,
+    ["account", "approvals", "leads", "reports", "status"]);
+
+  // 🔴 THE THING THAT MAKES FIVE SAFE, not the count itself. Without this rule the buttons
+  // size to their text and overflow a 360px phone, which is how Contract went off-screen at
+  // six. Under it they divide the strip, so they cannot overflow at any width.
+  ok("and on a phone the tab buttons share the strip instead of sizing to their text",
+    /@media\(max-width:460px\)\{\.nb\{flex:1 1 0/.test(src),
+    "five tabs only fit at 360px because of this rule; drop it and the last tab goes off-screen");
   ok("the preview really is a subset, not a different set",
     preview.every((t) => real.includes(t)), `preview has ${preview.filter((t) => !real.includes(t)).join(", ")} which the real portal does not`);
-  same("and the preview omits exactly the two known tabs", real.filter((t) => !preview.includes(t)),
-    ["approvals", "reports"]);
+  same("and the preview omits exactly the three known tabs", real.filter((t) => !preview.includes(t)),
+    ["approvals", "leads", "reports"]);
 
   // 🔴 The claim on the preview is the part that actually misled. If the wording ever goes
   // back to promising exactness, this fails.

@@ -7,7 +7,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { linkClientAccount } from "../netlify/functions/google-ads.mjs";
+import { linkClientAccount, getClientLinkStatus } from "../netlify/functions/google-ads.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const GADS = readFileSync(join(ROOT, "netlify/functions/google-ads.mjs"), "utf8");
@@ -57,6 +57,57 @@ ok("🔴 it refuses anything that is not 10 digits, in words he can read mid-cal
   const m = await threw(() => linkClientAccount("t", "1234567890"));
   ok("a well-formed id gets past the guards toward the API", m === null || /manager account|fetch|network|token/i.test(m), m || "");
 }
+
+// ── 🔴 THE ONE-LETTER BUG THAT MADE THE BUTTON USELESS ───────────────────────
+// Every other mutate in google-ads.mjs takes `operations: [...]`, so this one was written
+// the same way, and Google answered "Unknown name 'operations': Cannot find field" — an
+// error that reads like a permissions problem. Bryson had to send the request by hand on a
+// live client call. CustomerClientLinkService links one account at a time and its request
+// carries a single `operation`.
+{
+  // Comment lines stripped: the note explaining the bug names `operations: [...]` in prose,
+  // and a test that reads its own explanation as the code it is checking proves nothing.
+  const fn = GADS.slice(GADS.indexOf("export async function linkClientAccount"),
+                        GADS.indexOf("export async function getClientLinkStatus"))
+    .split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n");
+  ok("🔴 the link request sends one `operation`, not an `operations` list",
+    /const body = \{ operation: \{ create: \{/.test(fn) && !/operations:\s*\[/.test(fn),
+    "Google rejects `operations` on this endpoint, and its error names a field, not a permission");
+}
+
+// ── Do we actually have access? ──────────────────────────────────────────────
+// Bryson, 2026-09-08: *"make sure the os knows that we already sent the manager request and
+// it was approved so we have manager access to sebastians google ad account"*. The tempting
+// build is a stored tick. A client can revoke manager access from their own account at any
+// time without telling us, and a stored tick would keep saying yes.
+ok("the endpoint can be asked whether a client account is actually under us",
+  /action === "linkStatus"/.test(GADS));
+ok("🔴 and it ASKS GOOGLE rather than reading a flag off the client record",
+  /FROM customer_client_link/.test(GADS) && !/googleAdsLinkStatus/.test(UI),
+  "a stored tick keeps saying yes after a client revokes access, which is the one case it matters");
+ok("it reads the link row on the MANAGER account, where those rows live",
+  /customers\/\$\{mcc\}\/googleAds:search/.test(GADS));
+ok("🔴 ACTIVE anywhere wins, because a refused request then a fresh one leaves two rows",
+  /rows\.includes\("ACTIVE"\) \? "ACTIVE" : rows\.includes\("PENDING"\)/.test(GADS),
+  "picking the first row would report a stale refusal on an account we now manage");
+ok("no row at all reads as NONE, not as refused",
+  /\|\| "NONE"/.test(GADS) || /rows\[0\] \|\| "NONE"/.test(GADS));
+ok("it refuses an empty id", (await threw(() => getClientLinkStatus("t", ""))) === "clientCustomerId required");
+
+// The OS side of the same question.
+ok("the OS checks the status itself once a full 10-digit ID is present",
+  /gadsCall\(\{action:"linkStatus",customerId:digits\}\)/.test(UI));
+ok("🔴 and it does NOT ask about a half-typed number",
+  /if\(digits\.length!==10\)\{ setLink\(null\); return; \}/.test(UI),
+  "a partial id is a stranger's account, and asking about it is a request-shaped read on it");
+ok("granted access is stated in his words, not Google's",
+  /We manage this account\. Access is approved and live\./.test(UI)
+  && !/>ACTIVE</.test(UI));
+ok("🔴 and once access is live the send-request button is gone, not sitting there to re-press",
+  /link&&link\.linked \? null : state==="sent"/.test(UI),
+  "a Send request button under a green Access is live line is an invitation to break it");
+ok("a failed check says so rather than reading as no access",
+  /Could not check with Google just now/.test(UI));
 
 console.log(`verify-manager-link: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
