@@ -388,3 +388,20 @@ first**, then Shaun's already-scheduled Tuesday email carries one soft line as a
 Leading with Shaun tells the client Bryson could not reach him and had to go through his web
 guy, which is a weak position in week one with a first client. And Shaun is a **referral
 partner**, so using him as a debt collector spends that relationship too.
+
+## 2026-09-08 — HIS PER-LEAD RATE IS $50, AND IT HAS TO BE SET BY HAND
+
+Bryson: *"its $50 per qualified lead for him"*. Not the $75 that gets quoted around roofing,
+which is the default for that niche and belongs to a different prospect.
+
+🔴 **Screen printing has NO default per-lead rate in the OS.** Only Roofing ($75), Med Spa ($35)
+and Auto Detailing ($15) carry one, so Stencil & Thread's rate reads **$0 until it is typed in**,
+and while it is $0 the Approve button on the Lead Billing card stays disabled with an amber
+warning. **Leads would arrive and could not be billed.**
+
+Set it on the client's **Contract tab → Billing card → the "edit" link beside the rate → 50**.
+
+Sanity check on the number: his average order is about $1,000 at roughly 50% margin and he closes
+seven or eight of ten, so a qualified lead is worth around **$375 in profit** to him. At $50 he
+pays about **13%** of what a lead is worth. Comfortable for him, and it is the founding rate, so
+do not read it as the standard for the next screen printer.
