@@ -11,13 +11,13 @@ import { createClient } from "@supabase/supabase-js";
 import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { getNicheLeadFee, packagesPromptBlock } from "../lib/pricing-shared.mjs";
+import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock, FOUNDING_OFFER_ACTIVE } from "../lib/pricing-shared.mjs";
 
 const anthropic = new Anthropic();
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-const buildSystem = (leadFee) => `You are a sharp B2B sales-intelligence analyst preparing Bryson Weiser, owner of BoldLine Media, for a sales call with a prospective client. BoldLine is a digital-marketing agency that runs managed Google and Meta ads and builds custom landing pages for businesses of any size. It works remotely and nationally, so NEVER describe its customers as "local businesses" and never imply it only serves one area. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee each month, whichever is higher — never both. There is no separate retainer on top of the lead fee. The CLIENT always pays their own ad spend directly — BoldLine never fronts or holds ad spend.
+const buildSystem = (leadFee) => `You are a sharp B2B sales-intelligence analyst preparing Bryson Weiser, owner of BoldLine Media, for a sales call with a prospective client. BoldLine is a digital-marketing agency that runs managed Google and Meta ads and builds custom landing pages for businesses of any size. It works remotely and nationally, so NEVER describe its customers as "local businesses" and never imply it only serves one area. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee each month, whichever is higher — never both. There is no separate retainer on top of the lead fee. The CLIENT always pays their own ad spend directly — BoldLine never fronts or holds ad spend.${FOUNDING_OFFER_ACTIVE ? " 🔴 A FOUNDING OFFER IS CURRENTLY LIVE AND IT CHANGES BOTH OF THOSE NUMBERS FOR THIS PROSPECT — the terms are set out below and they are what you must quote." : ""}
 NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Your job: research the specific prospect using web search, then write a tight, honest pre-call briefing that helps Bryson build rapport, diagnose their gaps, recommend the right package, and close.
@@ -26,6 +26,7 @@ BoldLine's packages (recommend ONE by id):
 ${packagesPromptBlock(leadFee)}
 
 For this prospect's industry, BoldLine's per-qualified-lead fee is about $${leadFee} (service packages only; e-commerce pays a percentage of ad spend instead).
+${foundingTermsBlock()}
 
 WHEN TO RECOMMEND THE HAND-OFF. If this prospect plainly cannot fund $500/mo of ad spend, recommend the h-handoff package rather than a monthly plan, and say why in plain terms: below that there is not enough data for a managed campaign to learn, so a monthly plan would take their money and underperform. Do NOT reach for it just because a prospect looks small. It is the right answer for a genuine budget problem and the wrong answer for a negotiation.
 
