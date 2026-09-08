@@ -76,3 +76,53 @@ See `pricing-shared.mjs` for pricing, `service-agreement` for how packages/per-l
 phone, employees, years, rating, ad status, gaps) into the notes field — which the research prompt already
 treats as GROUND TRUTH — so the briefing builds on the scout's findings instead of starting cold. The seed
 is consumed once and cleared. See `lead-scout`.
+
+## 🔴 2026-09-07 — DEAL PREP WAS QUOTING THE WRONG OFFER, AND IT ALMOST REACHED A CALL
+
+The briefing it produced for **Scottsdale Roofing and Gutters** recommended `g-launch` and told
+Bryson to quote *"$750 one-time setup, then $400/mo minimum or $75 per qualified lead, whichever
+is higher"*. Every number is correct in the catalog. **Every number is wrong for a prospect he
+would actually sign today.**
+
+| Deal Prep said | The real offer |
+|---|---|
+| $750 one-time setup | **Waived.** Free for the first three clients (KB `founding-offer`) |
+| $400/mo minimum, whichever is higher | **No monthly minimum at all.** Founding clients pay per qualified lead in arrears (KB `pricing-model`, `results-only-billing`) |
+
+> 🔴 **"You owe $400 whether it works or not" and "you owe nothing unless I deliver" are not a
+> difference in price. They are different products.** And the second one is the entire answer to
+> the objection Deal Prep itself predicts most often, which is *"I got burned by a marketing
+> company before"*. He was one call away from reading a materially worse offer than the one he
+> gives, off a screen he built to help him sell.
+
+**Why it happened, and the shape worth remembering.** `deal-research-background.mjs` builds its
+prompt from `packagesPromptBlock()`, which reads the standard `PACKAGES` table. The founding
+offer lived in exactly two places: **a hardcoded sentence on the marketing site, and Bryson's
+head.** Nothing in code knew it existed. A promotion held only in copy is invisible to every
+system that quotes a price.
+
+**The fix.** `pricing-shared.mjs` now owns the offer: `FOUNDING_OFFER_ACTIVE`,
+`FOUNDING_CLIENT_COUNT`, and `foundingTermsBlock()`, injected into the Deal Prep prompt with an
+explicit note on the standard pricing sentence saying it is overridden. **Two pricing statements
+in one prompt with nothing saying which wins is precisely how it quoted the wrong one.**
+
+The block also **forbids inventing a deadline or a countdown**. The offer's real limit is a
+count, not a date, and a made-up deadline turns an honest constraint into a sales trick, which
+breaks the standing rule that nothing may read as manufactured.
+
+**ONE SWITCH, AND IT IS A PAIR.** Flip `FOUNDING_OFFER_ACTIVE` to false when the third client
+signs, and take the site banner down in the same change. A test asserts they agree: switching the
+flag off while the site still advertises the offer **fails the suite**, because a prospect who is
+told one thing on the site and another on the call believes neither.
+
+`tests/verify-founding-in-deal-prep.mjs`, 12 checks, 5 of 5 mutations caught.
+
+### Two other things this brief got wrong, worth knowing before trusting one
+
+- **It could not identify the owner.** It floated "Danny" from a Yelp review, unconfirmed. The
+  owner is **Weston Zellers**, established from three sources (their own site, Arizona ROC
+  343909, LinkedIn). A brief is a starting point, not the answer.
+- **It cannot phone them.** The strongest finding on this prospect came from dialling their
+  number: their site promises callers reach the owner directly, and a 1pm Monday call got a menu
+  and then voicemail, while their Yelp listing advertises **24 hours, Monday to Saturday**. No
+  desk research produces that. See KB `lead-leak-delivery`.
