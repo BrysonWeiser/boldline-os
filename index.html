@@ -4698,6 +4698,48 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
   );
 }
 
+// Sends the Google Ads manager link request for one client, from the OS.
+// Two presses, always: the first shows the number back, the second sends. See the note at
+// the call site for why this is never automatic.
+function LinkRequestRow({customerId}) {
+  const [state,setState] = useState("");      // "" | "confirm" | "sending" | "sent" | "error"
+  const [msg,setMsg] = useState("");
+  const digits = String(customerId||"").replace(/[^0-9]/g,"");
+  const pretty = digits.length===10 ? `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}` : digits;
+  if (!digits) return null;
+
+  const send = async () => {
+    setState("sending"); setMsg("");
+    try {
+      await gadsCall({action:"linkClient",customerId:digits});
+      setState("sent");
+      setMsg("Request sent. They approve it in their own account under Access and security, then Managers.");
+    } catch(e) { setState("error"); setMsg(String((e&&e.message)||e)); }
+  };
+
+  return (
+    <div style={{marginTop:4,paddingTop:11,borderTop:`1px solid ${C.border2}`}}>
+      {state==="sent"
+        ? <div style={{fontSize:11,color:C.green,lineHeight:1.6}}>✓ {msg}</div>
+        : state==="confirm"
+          ? (<div>
+              <div style={{fontSize:11,color:C.textDim,lineHeight:1.6,marginBottom:8}}>
+                Ask <strong style={{color:C.text}}>{pretty}</strong> to let BoldLine manage their Google Ads? They will see the request in their own account.
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <button onClick={send} style={{padding:"9px 18px",minHeight:36,fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Send request</button>
+                <button onClick={()=>setState("")} style={{padding:"9px 18px",minHeight:36,fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+              </div>
+            </div>)
+          : (<>
+              <button onClick={()=>{setState("confirm");setMsg("");}} disabled={state==="sending"} style={{padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.gold}55`,backgroundColor:"transparent",color:C.gold,cursor:state==="sending"?"default":"pointer"}}>{state==="sending"?"Sending…":"Send manager link request"}</button>
+              <div style={{fontSize:10,color:C.textMuted,marginTop:6,lineHeight:1.5}}>Save the ID first. Sends from BoldLine's manager account; the client approves it on their side.</div>
+            </>)}
+      {state==="error"&&<div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{msg} You can still do it by hand in Google Ads: Accounts, then the + button, then Link existing account.</div>}
+    </div>
+  );
+}
+
 // ─── AI LEAD SCOUT (find prospects -> score them -> hand to Deal Prep) ────────
 // Pick a niche + the exact areas you want to work, and a background function
 // (netlify/functions/lead-scout*.mjs) web-researches real businesses, pulls the
@@ -13439,6 +13481,16 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   <input type="text" value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/>
                 </div>
               ))}
+              {/* 🔴 ASK THE CLIENT'S ACCOUNT FOR MANAGER ACCESS, WITHOUT LEAVING THE OS.
+                  Until 2026-09-08 this was six clicks inside Google's own interface, and
+                  nothing in the OS did it. Bryson asked for it to happen automatically when
+                  the Customer ID is saved.
+                  🔴 IT IS A BUTTON, NOT AUTOMATIC, AND THAT IS THE WHOLE POINT. A manager
+                  link request is visible to whoever owns the number typed in. Firing on save
+                  means one mistyped digit sends a stranger a request from an agency they have
+                  never heard of, asking for control of their ad account. So the number is
+                  shown back and it waits to be pressed. */}
+              {!client.internal&&<LinkRequestRow customerId={form.googleAdsCustomerId} />}
             </Card>
             <Card>
               <Label>Reviews / Testimonials</Label>
