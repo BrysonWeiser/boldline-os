@@ -19,10 +19,13 @@
 // campaign spend is live (see KB major-issue-alerts).
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats, hasAdActivity } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 
 const ACTIVE_STAGES = ["active", "optimizing", "scaling"];
+// How long a signed client may go without their ads ever starting before it is raised.
+// Matches the point in the chase ladder where a phone call replaces another text.
+const NEVER_LAUNCHED_DAYS = 7;
 const daysSince = (s) => (s ? Math.floor((Date.now() - new Date(s).getTime()) / 864e5) : null);
 
 // Returns the set of currently-tripped conditions for a client (stored data only).
@@ -39,14 +42,35 @@ export const evalConditions = (cl) => {
   const live = daysSince(cl.contractStart);
   return {
     perfCrash: health < 5,
-    noLeads: !!cl.adBudget && leads === 0 && live != null && live >= 14,
+    // 🔴 `noLeads` NOW REQUIRES THE ADS TO HAVE ACTUALLY RUN. Without that test it fires on
+    // a client whose campaign never started and tells Bryson to "check targeting/tracking",
+    // which is the wrong diagnosis pointed at the wrong system. Never launched and launched
+    // but failing are different problems with different fixes, and `neverLaunched` below is
+    // the other one.
+    noLeads: !!cl.adBudget && hasAdActivity(cl) && leads === 0 && live != null && live >= 14,
     cplBlowout: leads > 0 && lv.cpl > 0 && lv.cpl >= 2 * target,
+    // 🔴 SIGNED, PAID FOR OR NOT, AND NOTHING EVER STARTED. Added 2026-09-07.
+    //
+    // Stencil & Thread signed 30 August. By 7 September the ads had still never run, because
+    // the client had not sent his Google Ads account number or put a card on it. NOTHING IN
+    // THE OS SAID SO. Eight days of BoldLine's first and only client going nowhere, caught
+    // only because Bryson happened to be thinking about it, and the alert that looks closest
+    // (`noLeads`) could not fire because two fake test leads were sitting in the record.
+    //
+    // A client who signs and then never launches is the most expensive silence in this
+    // business: it burns the case-study window that the whole founding offer exists to buy,
+    // and it looks exactly like a client who is simply doing fine.
+    //
+    // Seven days, because the honest chase ladder starts around then, and once only: this is
+    // a state that persists for weeks, so it must alert on the transition, never daily.
+    neverLaunched: live != null && live >= NEVER_LAUNCHED_DAYS && !hasAdActivity(cl),
   };
 };
 
 const MESSAGES = {
   perfCrash: (cl) => `health score has crashed to ${calcHealth(cl).toFixed(1)}/10`,
   noLeads: (cl) => `campaign has been live ${daysSince(cl.contractStart)} days with a budget set but ZERO leads — check targeting/tracking`,
+  neverLaunched: (cl) => `signed ${daysSince(cl.contractStart)} days ago and the ads have NEVER run — no ad account linked, or no spend yet. Nothing is being delivered and the clock is running`,
   cplBlowout: (cl) => `cost per lead is $${liveStats(cl).cpl} — 2x+ the $${PER_LEAD[cl.niche] || 50} target (spend is inefficient)`,
 };
 
@@ -86,7 +110,7 @@ export default withFailureAlert("alerts-watch", async () => {
     }
 
     const cur = evalConditions(cl);
-    const keys = ["perfCrash", "noLeads", "cplBlowout"];
+    const keys = ["perfCrash", "noLeads", "cplBlowout", "neverLaunched"];
     if (keys.every((k) => cur[k] === undefined)) continue; // not an active reportable client
     checked++;
 
@@ -106,7 +130,7 @@ export default withFailureAlert("alerts-watch", async () => {
     }
 
     if (stateChanged) {
-      const nextState = { perfCrash: !!cur.perfCrash, noLeads: !!cur.noLeads, cplBlowout: !!cur.cplBlowout };
+      const nextState = { perfCrash: !!cur.perfCrash, noLeads: !!cur.noLeads, cplBlowout: !!cur.cplBlowout, neverLaunched: !!cur.neverLaunched };
       await supabase.from("clients").update({ data: { ...cl, alertState: nextState }, updated_at: new Date().toISOString() }).eq("id", row.id);
     }
   }
