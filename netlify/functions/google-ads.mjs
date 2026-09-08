@@ -186,6 +186,47 @@ export async function setBudget(accessToken, customerId, budgetResourceName, dol
   return data;
 }
 
+// ── Ask a client's account to let BoldLine manage it ─────────────────────────
+//
+// Bryson, 2026-09-08, mid-morning before a client call: *"can you make it so when i put in the
+// 10 digit id later for sebastian the os automatically sends the manage link request or do i
+// have to do it manually"*. Until now: manually, six clicks inside Google's own interface.
+//
+// 🔴 THIS IS DELIBERATELY NOT AUTOMATIC ON SAVE, and that is the important design decision.
+// A manager link request is VISIBLE TO WHOEVER OWNS THE NUMBER TYPED IN. Firing it the moment
+// a Customer ID is saved means one mistyped digit sends a stranger a request from an agency
+// they have never heard of, asking for control of their ad account. The convenience is worth
+// nothing next to that, so the OS shows the number back and waits for a press.
+//
+// The link is created PENDING against the MANAGER account, not the client's: the client then
+// approves it on their side. We cannot grant ourselves access, which is exactly right.
+export async function linkClientAccount(accessToken, clientCustomerId) {
+  const client = digits(clientCustomerId);
+  const mcc = digits(G.mcc);
+  if (!client) { const e = new Error("clientCustomerId required"); e.stage = "linkClient"; throw e; }
+  if (client.length !== 10) {
+    // Google would reject it anyway, but its error is opaque and this one is readable at a
+    // moment when he is on a call with the client.
+    const e = new Error(`A Google Ads Customer ID is 10 digits. Got ${client.length}.`);
+    e.stage = "linkClient"; throw e;
+  }
+  if (!mcc) { const e = new Error("No BoldLine manager account configured"); e.stage = "linkClient"; throw e; }
+  if (client === mcc) {
+    const e = new Error("That is BoldLine's own manager account, not a client's.");
+    e.stage = "linkClient"; throw e;
+  }
+  const body = { operations: [{ create: { clientCustomer: `customers/${client}`, status: "PENDING" } }] };
+  const resp = await fetch(`${ADS_BASE}/customers/${mcc}/customerClientLinks:mutate`, {
+    method: "POST", headers: baseHeaders(accessToken), body: JSON.stringify(body),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const e = new Error(apiErrMsg("linkClient", resp.status, data));
+    e.stage = "linkClient"; e.detail = data; throw e;
+  }
+  return data;
+}
+
 // ── Guarded write: pause / enable a campaign ──────────────────────────────────
 export async function setStatus(accessToken, customerId, campaignResourceName, status) {
   const s = String(status || "").toUpperCase();
@@ -978,6 +1019,12 @@ export default async (req) => {
       const mcc = digits(G.mcc);
       return json({ ok: true, action, apiVersion: API_VERSION, mccId: mcc,
         accounts, mccVisible: accounts.includes(mcc), count: accounts.length });
+    }
+
+    if (action === "linkClient") {
+      if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
+      const result = await linkClientAccount(accessToken, body.customerId);
+      return json({ ok: true, action, customerId: digits(body.customerId), result });
     }
 
     if (action === "campaigns") {

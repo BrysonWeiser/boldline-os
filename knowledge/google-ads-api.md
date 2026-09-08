@@ -43,3 +43,41 @@ verified: 2026-07-19
 - **Handler branch:** `if (action === "createCampaign") { … return json({ ok:true, action, ...result }); }`.
 - **`GoogleLaunchCard({client})` on the client Package tab** (index.html), gated `/google/i.test(pkg.platform)`. `linked = !!client.googleAdsCustomerId`. Pre-fills headlines/descriptions/keywords from niche/offer/differentiator/area and `landingUrl` from `landingSlug`; textareas (headlines ≤30 / descriptions ≤90 / keywords one-per-line), match-type select (Broad/Phrase/Exact). Launch → `gadsCall({action:"createCampaign", customerId, name, dailyBudgetDollars, landingUrl, headlines, descriptions, keywords, matchType})`. Both launch cards (Google + Meta) are gated by package platform on the Package tab.
 - **⚠ FIRST-LINKED-CLIENT TEST PLAN:** link a real Google client to the MCC, set `googleAdsCustomerId`, open Package tab → Build Campaign with a tiny budget, then confirm in the Google Ads UI that the campaign/adgroup/RSA/keywords landed PAUSED. Google's mutate is stricter than Meta's (exact field casing, resource-name refs) — watch the returned error `detail` on first run.
+
+## 2026-09-08 — the manager link request can now be sent from the OS
+
+Bryson, between two client calls: *"can you make it so when i put in the 10 digit id later for
+sebastian the os automatically sends the manage link request or do i have to do it manually"*.
+Until this, manually: six clicks inside Google's own interface, and nothing in the OS did it.
+Every other Google action we have (campaigns, budgets, status, conversions) only works on an
+account that is ALREADY linked, so this was the one step in the chain with no code behind it.
+
+**`linkClient` action** → `POST /customers/{mcc}/customerClientLinks:mutate` with
+`{ create: { clientCustomer: "customers/{id}", status: "PENDING" } }`, sent from the MANAGER
+account. The client then approves on their side. **We ask; we can never grant ourselves access,**
+and a test asserts the status stays `PENDING` for exactly that reason.
+
+### 🔴 IT IS A BUTTON, NOT AUTOMATIC ON SAVE, AND THAT WAS THE REAL DECISION
+
+He asked for it to fire when the Customer ID is saved. It does not, on purpose.
+
+> **A manager link request is visible to whoever owns the number typed in.** Firing on save means
+> one mistyped digit sends a stranger a request from an agency they have never heard of, asking
+> for control of their ad account. The convenience is worth nothing next to that.
+
+So the OS shows the number back, formatted, and waits for a second press. Reading the number
+back is the only check that catches a typo before it leaves the building.
+
+Other rules it shipped with:
+- **Refuses anything that is not 10 digits**, in words readable mid-call. Google's own error for
+  this is opaque and he reads it with a client waiting.
+- Refuses BoldLine's own manager id, and the button never renders on the internal house account.
+- **A failure prints the manual path** (Accounts, +, Link existing account). This runs while he
+  is on a call, and a dead end there is the worst possible outcome.
+- Uses the shared `gadsCall` helper, not a second hand-rolled fetch.
+
+**Shipped untested against the live API**, deliberately and with that said out loud: it cannot be
+exercised without a real unlinked account, and the house account is already linked. The fallback
+is the six clicks he would have done anyway, so the downside is bounded.
+
+`tests/verify-manager-link.mjs`, 12 checks, 6 of 6 mutations caught.
