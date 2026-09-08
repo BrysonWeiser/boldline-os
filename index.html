@@ -854,6 +854,23 @@ const NICHE_GROUPS = {
 const NICHES    = Object.values(NICHE_GROUPS).flat();
 const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
 
+// ─── THE FOUNDING OFFER ───────────────────────────────────────────────────────
+// 🔴 MIRRORS `FOUNDING_OFFER_ACTIVE` in netlify/lib/pricing-shared.mjs. The OS is one file
+// running Babel in the browser, so it cannot import from netlify/lib. Change BOTH, and take
+// the banner off the marketing site in the same commit (sentinel CS:FOUNDING).
+//
+// Why it exists at all: on 2026-09-07 the Deal Prep briefing for Scottsdale Roofing told
+// Bryson to quote "$750 setup, then $400/mo minimum". Both are right in the price list and
+// both are wrong for anyone he would sign today, because the first three clients get the
+// setup waived and pay NO monthly minimum, only per qualified lead in arrears.
+//
+// 🔴 The prompt was fixed first, and that was not enough: the package list rendered directly
+// UNDER the briefing still showed "$400/mo min · $750 setup", so the screen still contradicted
+// the words above it. A price shown next to a recommendation IS the quote, whatever the prose
+// says. Anything that prints a price to Bryson before a client record exists has to know.
+const FOUNDING_OFFER_ACTIVE = true;
+const FOUNDING_CLIENT_COUNT = 3;
+
 // ─── TRADE PLAYBOOKS + LAUNCH CHECKLIST ───────────────────────────────────────
 // 🔴 MIRRORS netlify/lib/trade-playbooks.mjs AND netlify/lib/launch-checklist.mjs.
 // The OS is one file running Babel in the browser, so it cannot import from netlify/lib.
@@ -4639,14 +4656,29 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
                     </div>
                     <div style={{fontSize:10.5,color:C.textMuted,marginTop:2}}>ad spend {pkg.adSpend}</div>
                   </div>
+                  {/* 🔴 WHAT HE WOULD ACTUALLY QUOTE, not what the catalog says. While the
+                      founding offer is live the monthly minimum does not apply and the setup
+                      is free, so showing the standard pair here would put the wrong number
+                      in front of him at the exact moment he is reading a recommendation. */}
                   <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${pkg.price}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/mo min</span></div>
-                    <div style={{fontSize:9.5,color:C.textMuted}}>${pkg.setup} setup{pkg.leadFee&&leadFee?` · $${leadFee}/lead`:""}</div>
+                    {FOUNDING_OFFER_ACTIVE&&pkg.leadFee&&leadFee?(<>
+                      <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${leadFee}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/lead</span></div>
+                      <div style={{fontSize:9.5,color:C.green,fontWeight:700}}>no monthly minimum</div>
+                      <div style={{fontSize:9.5,color:C.textMuted}}><span style={{textDecoration:"line-through",opacity:.6}}>${pkg.setup} setup</span> waived</div>
+                    </>):(<>
+                      <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${pkg.price}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/mo min</span></div>
+                      <div style={{fontSize:9.5,color:C.textMuted}}>${pkg.setup} setup{pkg.leadFee&&leadFee?` · $${leadFee}/lead`:""}</div>
+                    </>)}
                   </div>
                 </div>
               );})}
             </div>
           ))}
+          {FOUNDING_OFFER_ACTIVE&&(
+            <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:4,padding:"8px 10px",borderRadius:8,background:C.goldDim,border:`1px solid ${C.gold}44`}}>
+              <strong>Founding client pricing is shown.</strong> First {FOUNDING_CLIENT_COUNT} clients: setup waived, no monthly minimum, they pay per qualified lead only. Standard pricing is the crossed-out figure.
+            </div>
+          )}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
         </div>
       )}
