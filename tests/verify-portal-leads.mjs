@@ -90,5 +90,21 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
     "lead names arrive from a public form; anyone could have typed that");
 }
 
+// 🔴 A SAFETY GUARD MUST NOT REPORT ITSELF AS A BUG.
+// The owner's preview rejects every write on purpose (KB `preview-safety`), so pressing Save
+// there showed "Save failed. Try again" and Bryson reasonably read it as broken. A guard that
+// looks like a defect is one somebody eventually "fixes".
+{
+  const src = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  ok("🔴 in the preview, a blocked save says it was blocked, not that it failed",
+    /BL_PREVIEW\?'Preview only, nothing saved':'Save failed\. Try again'/.test(src),
+    "the preview blocks writes deliberately; calling that a failure invites someone to undo the guard");
+  ok("and the real portal still reports a genuine failure honestly",
+    /'Save failed\. Try again'/.test(src));
+  ok("the owner-side copy says the same thing",
+    /BL_PREVIEW\?'Preview only, nothing saved'/.test(OS),
+    "two portal copies, one behaviour");
+}
+
 console.log(`verify-portal-leads: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
