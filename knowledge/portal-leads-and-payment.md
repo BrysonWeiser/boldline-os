@@ -2,9 +2,9 @@
 name: portal-leads-and-payment
 topic: Client portal
 task: give the client his own Leads tab, a separate Reports tab, and a place to add a payment method; fix the per-lead rate and card-on-file state the portal was getting wrong
-keywords: [portal leads tab, leads tab, reports tab, five tabs, nav overflow, 360px tabs, payment method, add a card, card on file, billingCheckoutUrl, results only billing, per lead rate, billingPerLead, setup session, stripe setup mode, launch checklist card step, portal payment]
+keywords: [portal testimonials, client reviews, own testimonials, reviews box, startCard, self serve card, connect payment portal, portal leads tab, leads tab, reports tab, five tabs, nav overflow, 360px tabs, payment method, add a card, card on file, billingCheckoutUrl, results only billing, per lead rate, billingPerLead, setup session, stripe setup mode, launch checklist card step, portal payment]
 status: verified
-summary: The client portal now has FIVE tabs (Status | Review | Leads | Reports | Account). Leads was briefly folded into Reports because five buttons overflowed a 360px strip; Bryson reversed that the same day and the overflow was fixed in CSS instead (`@media(max-width:460px){.nb{flex:1 1 0}}` — the buttons divide the strip rather than sizing to their text, so they cannot overflow at any width). A Payment Method accordion on the Account tab shows the Stripe link the OS issued (`billingCheckoutUrl`) so a client can add a card himself; it never creates a link. Three real bugs fixed alongside: the portal quoted the niche default per-lead rate instead of the client's agreed `billingPerLead`; a Stripe `mode:"setup"` checkout was recorded as `billingStatus:"active"` when there is no subscription; and the launch checklist's "card on file" step looked only for a subscription id, so it could never tick for a results-only client. Built 2026-09-08.
+summary: The client portal now has FIVE tabs (Status | Review | Leads | Reports | Account). Leads was briefly folded into Reports because five buttons overflowed a 360px strip; Bryson reversed that the same day and the overflow was fixed in CSS instead (`@media(max-width:460px){.nb{flex:1 1 0}}` — the buttons divide the strip rather than sizing to their text, so they cannot overflow at any width). Inside Your Information on the Account tab the client now has a Payment Method card that CREATES its own Stripe setup session (`{startCard:true}` on the token endpoint, `mode:"setup"` only, so it charges nothing) rather than waiting on a link Bryson pastes in, and a Your Reviews box for typing his own testimonials straight onto his landing page. Three real bugs fixed alongside: the portal quoted the niche default per-lead rate instead of the client's agreed `billingPerLead`; a Stripe `mode:"setup"` checkout was recorded as `billingStatus:"active"` when there is no subscription; and the launch checklist's "card on file" step looked only for a subscription id, so it could never tick for a results-only client. Built 2026-09-08.
 verified: 2026-09-08
 ---
 
@@ -83,6 +83,57 @@ bill, and a client who fears a charge does not click.
    (`netlify/lib/launch-checklist.mjs` and `index.html`). Its wording now names where the
    Billing card actually is, because he could not find it.
 
+## The client starts his own card, with nobody in the loop
+
+🔴 Bryson, 2026-09-08: *"i dont want to have to send them a link I want them to be able to
+connect it through the client portal"*. The button first shipped showing only a link Bryson
+had created in the OS and pasted in. With no link the client read *"your account manager will
+send you a secure link"*, which is a dead end dressed as an answer, and on a results-only deal
+that is the difference between invoicing a delivered lead and not being able to.
+
+The portal endpoint now takes **`{startCard:true}`** on the client's own token and creates the
+Stripe session itself, importing `stripe` and `ensureCustomer` from `netlify/lib/stripe-shared.mjs`
+rather than carrying a second copy.
+
+🔴 **The only thing it can create is `mode:"setup"`, which charges nothing.** It cannot take a
+payment, start a subscription, or set a rate. The worst a stolen portal token could do is cause
+a card-entry page to exist for the client whose token it already is. It refuses when a card is
+already saved, and refuses without an email while naming the box to fill. It **mints a fresh
+session every press** rather than reusing `billingCheckoutUrl`, because a Stripe link expires
+and a client sent to a dead page assumes we are broken. The return URL is the client's **own
+portal**, never the OS (both checkout paths once dropped a paying client onto an admin login
+screen). In a preview the POST is blocked and the button says so instead of reading as broken.
+
+## Your Reviews, typed by the client
+
+Bryson, 2026-09-08: *"add in the client portal a spot for them to put their own testimonials"*.
+Until this, a real review reached a landing page only by Bryson typing it into the OS from
+something the client emailed him, so the highest-converting block on the page depended on a
+manual round trip nobody scheduled.
+
+Textarea under the media card in Your Information, writing the same `reviews` field the OS Edit
+screen and `landing.mjs` already use. One per line, name after a dash. The copy states out loud
+that we never write or change them, and blank hides the reviews section rather than filling it
+with anything invented.
+
+🔴 **The whitelist is the trap here.** `sanitizeFields` in `portal.mjs` drops anything not named
+in it, with no error, so a new box whose field is not whitelisted shows a tick and saves nothing.
+`reviews` is its own entry with a 2000-character clip, because six reviews do not fit the
+200-character limit the other fields use.
+
+🔴 **`landing.mjs` now splits on a plain hyphen too.** The owner-side field has always documented
+an em dash, which nobody types on a phone keyboard (and the standing copy rule bans anyway). The
+hyphen carries a guard the other delimiters do not, since a hyphen is ordinary punctuation: the
+trailing chunk becomes a NAME only if it is ≤40 characters, ≤5 words, starts with a capital, and
+does not end in `!?,;:`. A final full stop **is** allowed and must be, because "Maria B." is a
+surname initial and rejecting it threw away the commonest real case. Whitespace is required on
+both sides, so "top-notch" and "A-Grade" are never splits. Em dash, en dash and pipe keep their
+old behaviour exactly.
+
+New testimonials write a `commLog` entry ("Client added 2 testimonials in their portal"), and
+only when the text actually changed, so re-saving the tab is not noise. A review that lands
+silently is a review nobody rebuilds the page for.
+
 ## Setting the rate, where he looks for it
 
 🔴 **The per-lead rate is now on the Edit screen too.** Bryson, 2026-09-08: *"there is no
@@ -117,7 +168,7 @@ scanned. The id stays in the KB, per the standing decision.
 
 ## Tests
 
-`tests/verify-portal-leads.mjs` — 48 checks. Pins the five tabs, their order, the two
+`tests/verify-portal-leads.mjs` — 72 checks. Pins the five tabs, their order, the two
 separate panels, every payment-method state, the preview guard, the agreed rate, and all
 three bug fixes. `tests/verify-portal-upgrades.mjs` pins the tab list by name **and** the
-flex rule that makes five safe. 22 mutations written across both rounds, all caught.
+flex rule that makes five safe. 40 mutations written across three rounds, all caught.
