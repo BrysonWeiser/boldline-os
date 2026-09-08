@@ -868,8 +868,16 @@ const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
 // UNDER the briefing still showed "$400/mo min · $750 setup", so the screen still contradicted
 // the words above it. A price shown next to a recommendation IS the quote, whatever the prose
 // says. Anything that prints a price to Bryson before a client record exists has to know.
-const FOUNDING_OFFER_ACTIVE = true;
 const FOUNDING_CLIENT_COUNT = 3;
+// 🔴 MIRRORS netlify/lib/founding.mjs. Computed from the CLIENTS, never a constant somebody
+// has to remember to flip (Bryson, 2026-09-07: *"once I land a third client... that triggers
+// the copy and website banner to take down the offer"*). Monotonic on purpose: once three have
+// signed the offer is spent forever, even if one later churns, because "we gave the first three
+// a free build" is a statement about history.
+const foundingCountsFor = (c) => c && !c.internal && !c.demo && (!!c.contractSigned || c.contractStatus==="active");
+const foundingSignedCount = (clients) => (clients||[]).filter(foundingCountsFor).length;
+const foundingOfferOpen = (clients) => foundingSignedCount(clients) < FOUNDING_CLIENT_COUNT;
+const foundingSlotsLeft = (clients) => Math.max(0, FOUNDING_CLIENT_COUNT - foundingSignedCount(clients));
 
 // ─── TRADE PLAYBOOKS + LAUNCH CHECKLIST ───────────────────────────────────────
 // 🔴 MIRRORS netlify/lib/trade-playbooks.mjs AND netlify/lib/launch-checklist.mjs.
@@ -4492,7 +4500,11 @@ function LeadFeeFinder({defaults,onUse,isDesktop}){
   );
 }
 
-function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
+function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
+  // Live, not a constant: the price shown next to a recommendation must be the price he would
+  // actually quote today, and that stops being the founding price the moment the third signs.
+  const foundingOpen = foundingOfferOpen(clients);
+  const slotsLeft = foundingSlotsLeft(clients);
   const [form,setForm]=useState({companyName:"",niche:"",website:"",location:"",notes:""});
   const [state,setState]=useState("form"); // form | working | done | error
   const [msg,setMsg]=useState("");
@@ -4661,7 +4673,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
                       is free, so showing the standard pair here would put the wrong number
                       in front of him at the exact moment he is reading a recommendation. */}
                   <div style={{textAlign:"right",flexShrink:0}}>
-                    {FOUNDING_OFFER_ACTIVE&&pkg.leadFee&&leadFee?(<>
+                    {foundingOpen&&pkg.leadFee&&leadFee?(<>
                       <div style={{fontSize:13,fontWeight:800,color:rec?C.gold:C.text}}>${leadFee}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}>/lead</span></div>
                       <div style={{fontSize:9.5,color:C.green,fontWeight:700}}>no monthly minimum</div>
                       <div style={{fontSize:9.5,color:C.textMuted}}><span style={{textDecoration:"line-through",opacity:.6}}>${pkg.setup} setup</span> waived</div>
@@ -4674,9 +4686,9 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed}){
               );})}
             </div>
           ))}
-          {FOUNDING_OFFER_ACTIVE&&(
+          {foundingOpen&&(
             <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:4,padding:"8px 10px",borderRadius:8,background:C.goldDim,border:`1px solid ${C.gold}44`}}>
-              <strong>Founding client pricing is shown.</strong> First {FOUNDING_CLIENT_COUNT} clients: setup waived, no monthly minimum, they pay per qualified lead only. Standard pricing is the crossed-out figure.
+              <strong>Founding client pricing is shown.</strong> {slotsLeft} of {FOUNDING_CLIENT_COUNT} {slotsLeft===1?"place":"places"} left: setup waived, no monthly minimum, they pay per qualified lead only. Standard pricing is the crossed-out figure.
             </div>
           )}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
@@ -15195,7 +15207,7 @@ function App({onLogout}) {
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
-        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)}/>}
+        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>{setFocusCampaign(null);setScreen("home");}} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient} focusKey={focusCampaign}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}

@@ -11,13 +11,14 @@ import { createClient } from "@supabase/supabase-js";
 import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock, FOUNDING_OFFER_ACTIVE } from "../lib/pricing-shared.mjs";
+import { getNicheLeadFee, packagesPromptBlock, foundingTermsBlock } from "../lib/pricing-shared.mjs";
+import { foundingOfferActive } from "../lib/founding.mjs";
 
 const anthropic = new Anthropic();
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-const buildSystem = (leadFee) => `You are a sharp B2B sales-intelligence analyst preparing Bryson Weiser, owner of BoldLine Media, for a sales call with a prospective client. BoldLine is a digital-marketing agency that runs managed Google and Meta ads and builds custom landing pages for businesses of any size. It works remotely and nationally, so NEVER describe its customers as "local businesses" and never imply it only serves one area. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee each month, whichever is higher — never both. There is no separate retainer on top of the lead fee. The CLIENT always pays their own ad spend directly — BoldLine never fronts or holds ad spend.${FOUNDING_OFFER_ACTIVE ? " 🔴 A FOUNDING OFFER IS CURRENTLY LIVE AND IT CHANGES BOTH OF THOSE NUMBERS FOR THIS PROSPECT — the terms are set out below and they are what you must quote." : ""}
+const buildSystem = (leadFee, foundingOpen) => `You are a sharp B2B sales-intelligence analyst preparing Bryson Weiser, owner of BoldLine Media, for a sales call with a prospective client. BoldLine is a digital-marketing agency that runs managed Google and Meta ads and builds custom landing pages for businesses of any size. It works remotely and nationally, so NEVER describe its customers as "local businesses" and never imply it only serves one area. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee each month, whichever is higher — never both. There is no separate retainer on top of the lead fee. The CLIENT always pays their own ad spend directly — BoldLine never fronts or holds ad spend.${foundingOpen ? " 🔴 A FOUNDING OFFER IS CURRENTLY LIVE AND IT CHANGES BOTH OF THOSE NUMBERS FOR THIS PROSPECT — the terms are set out below and they are what you must quote." : ""}
 NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Your job: research the specific prospect using web search, then write a tight, honest pre-call briefing that helps Bryson build rapport, diagnose their gaps, recommend the right package, and close.
@@ -26,7 +27,7 @@ BoldLine's packages (recommend ONE by id):
 ${packagesPromptBlock(leadFee)}
 
 For this prospect's industry, BoldLine's per-qualified-lead fee is about $${leadFee} (service packages only; e-commerce pays a percentage of ad spend instead).
-${foundingTermsBlock()}
+${foundingTermsBlock(foundingOpen)}
 
 WHEN TO RECOMMEND THE HAND-OFF. If this prospect plainly cannot fund $500/mo of ad spend, recommend the h-handoff package rather than a monthly plan, and say why in plain terms: below that there is not enough data for a managed campaign to learn, so a monthly plan would take their money and underperform. Do NOT reach for it just because a prospect looks small. It is the right answer for a genuine budget problem and the wrong answer for a negotiation.
 
@@ -67,7 +68,7 @@ Name the recommended package and WHY it fits their size/goals. Then the lead mat
 
 Be specific and concrete. Bryson is reading this right before dialing — make every line useful on the call.`;
 
-const runResearch = async (input) => {
+const runResearch = async (input, foundingOpen = true) => {
   const leadFee = getNicheLeadFee(input.niche);
   const userLines = [
     `Prospect company: ${input.companyName}`,
@@ -90,7 +91,7 @@ const runResearch = async (input) => {
       max_tokens: 12000,
       thinking: { type: "adaptive" },
       tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 4 }],
-      system: buildSystem(leadFee),
+      system: buildSystem(leadFee, foundingOpen),
       messages,
     });
     if (response.stop_reason === "pause_turn") {
@@ -133,8 +134,18 @@ export default async (req) => {
   // Mark pending so the poller shows progress immediately.
   await supabase.from("deal_briefs").upsert({ id, status: "pending", input, result: null, error: null, updated_at: new Date().toISOString() });
 
+  // 🔴 IS THE FOUNDING OFFER STILL OPEN? Read from the clients, not from a constant, so the
+  // briefing stops quoting a waived setup fee the moment the third client signs. A failed
+  // lookup falls back to the STANDARD prices: quoting more than the offer is a conversation,
+  // quoting a giveaway that no longer exists is a promise he then has to break.
+  let foundingOpen = false;
   try {
-    const result = await runResearch(input);
+    const { data: clientRows } = await supabase.from("clients").select("data");
+    foundingOpen = foundingOfferActive((clientRows || []).map((r) => r.data).filter(Boolean));
+  } catch (e) { console.error("deal-research: founding check failed, quoting standard prices:", e && e.message); }
+
+  try {
+    const result = await runResearch(input, foundingOpen);
     await supabase.from("deal_briefs").update({ status: "done", result, updated_at: new Date().toISOString() }).eq("id", id);
     return json({ ok: true, id });
   } catch (e) {

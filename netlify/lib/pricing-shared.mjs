@@ -90,22 +90,24 @@ export const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpe
 // The second one is the entire answer to the objection Deal Prep itself predicts most often,
 // which is "I got burned by a marketing company before".
 //
-// ONE SWITCH. Flip to false when the third founding client signs, at which point the banner
-// on the marketing site comes down too (KB `founding-offer`, sentinel CS:FOUNDING). Both are
-// the same promise, so they must never disagree.
-export const FOUNDING_OFFER_ACTIVE = true;
-export const FOUNDING_CLIENT_COUNT = 3;
+// 🔴 NO SWITCH ANY MORE. It started as a hand-flipped constant, which is still a thing to
+// forget on the one day it matters: the day the third client signs, the site would go on
+// advertising a free build worth $1,500 to $4,900 and Bryson would find out when somebody
+// asked for it. `netlify/lib/founding.mjs` counts the signed clients instead, so the offer's
+// state IS reality rather than a description of it. Callers pass the answer in.
+export { FOUNDING_CLIENT_COUNT } from "./founding.mjs";
 
 // What a founding prospect is actually offered, written for a model to read and repeat.
-export const foundingTermsBlock = () =>
-  !FOUNDING_OFFER_ACTIVE ? "" : `
+// `active` comes from the live client count; falsey means the block disappears entirely.
+export const foundingTermsBlock = (active = true) =>
+  !active ? "" : `
 🔴 FOUNDING CLIENT OFFER — THIS OVERRIDES THE SETUP FEE AND THE MONTHLY MINIMUM ABOVE.
-BoldLine is signing its first ${FOUNDING_CLIENT_COUNT} clients on founding terms, and this prospect would be one of them. Quote THESE terms, not the standard prices:
+BoldLine is signing its first 3 clients on founding terms, and this prospect would be one of them. Quote THESE terms, not the standard prices:
 - The one-time setup fee is WAIVED entirely. Not reduced, waived. Say the normal figure so they know what it is worth, then say it is free for them.
 - There is NO monthly minimum. They pay ONLY the per-qualified-lead fee, in arrears, after the leads are delivered. If BoldLine delivers nothing in a month, they owe nothing that month.
 - Everything else is unchanged: the client keeps their own ad account in their own name, pays their ad spend directly to Google, and BoldLine never holds or fronts it.
 Lead with the risk reversal, because it is the whole point: they pay only for results, so there is no way for them to lose money on a month that does not work. It is also the honest reason the offer is limited: BoldLine wants the case studies.
-DO NOT invent a deadline or a countdown. If asked how many places are left, the honest answer is that the offer covers the first ${FOUNDING_CLIENT_COUNT} clients.
+DO NOT invent a deadline or a countdown. If asked how many places are left, the honest answer is that the offer covers the first 3 clients.
 `;
 
 export const packagesPromptBlock = (leadFee) =>
