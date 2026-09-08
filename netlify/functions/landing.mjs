@@ -677,7 +677,28 @@ a{color:inherit}
 
   // Reviews — REAL ones only, from the owner-entered client.reviews (one per line, "quote — Name"). Never AI-fabricated.
   const reviewList = String(cl.reviews || "").split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 6).map((l) => {
-    const m = l.match(/^(.*\S)\s+[—–|]\s+([^—–|]+)$/); // split on the LAST delimiter so quotes may contain dashes
+    // Split on the LAST delimiter so a quote may itself contain dashes.
+    //
+    // 🔴 A PLAIN HYPHEN COUNTS TOO, AS OF 2026-09-08, because clients now type these
+    // themselves in their portal and nobody reaches for an em dash on a phone keyboard.
+    // Whitespace on both sides is required, so "top-notch" inside a quote is never a split.
+    // The hyphen carries a guard the other delimiters do not: a trailing chunk only becomes
+    // a NAME if it is short and unpunctuated. Otherwise "they came out same day - amazing"
+    // would credit the review to a customer called Amazing. Em dash, en dash and pipe keep
+    // their old behaviour exactly, because owner-entered lines already rely on it.
+    let m = l.match(/^(.*\S)\s+[—–|]\s+([^—–|]+)$/);
+    if (!m) {
+      const h = l.match(/^(.*\S)\s+-\s+([^-]+)$/);
+      const tail = h ? h[2].trim() : "";
+      // A NAME, not a trailing clause: short, few words, and starting with a capital. A
+      // final full stop is allowed and must be, because "Maria B." is a surname initial and
+      // rejecting it threw away the commonest real case of all. What this keeps out is
+      // "they came out same day - and the price was fair", which would otherwise credit the
+      // review to a customer called "and the price was fair".
+      const looksLikeName = tail.length <= 40 && tail.split(/\s+/).length <= 5
+        && /^[A-Z0-9]/.test(tail) && !/[!?,;:]$/.test(tail);
+      if (h && looksLikeName) m = h;
+    }
     const q = (m ? m[1] : l).replace(/^["'“]+|["'”]+$/g, "").trim();
     return { q, who: m ? m[2].trim() : "" };
   });
