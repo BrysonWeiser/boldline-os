@@ -358,3 +358,51 @@ id" when they had not. A pattern that pins field ORDER pins more than it means t
 Nothing else has an approval kind yet. If one is added, decide at that moment what "go live"
 means for it, and add it to the block in `portal.mjs` rather than leaving it recording a
 decision that does nothing.
+
+## 🔴 2026-09-08 — TWO THINGS THE FIRST CLIENT FOUND, LIVE, ON A CALL
+
+Both surfaced while Bryson had Sebastian on the phone. Both were the kind of gap you only see
+when a real client uses the thing.
+
+### 1. The Connect card looked broken because its Save button was five cards away
+
+Sebastian pasted his Google Ads Customer ID and nothing happened. The card had the input, the
+shared **Save My Information** button at the bottom of the Account tab does save it, but it sits
+below Business Details, Campaign Setup and several other cards. From where he was looking there
+was no button at all.
+
+> **A form with its save button off-screen is a form the user believes is broken**, and the
+> failure is silent: he assumed it had not worked, which is the worst possible read during
+> onboarding.
+
+Both connect cards (Google and Meta) now carry their own **Save** button directly under the
+fields, with a line saying it saves everything on the tab so the two buttons cannot look like
+they do different things. Patched in **both** portal copies (`portal.mjs` and `makePortalHTML`
+in `index.html`), per the standing dual-copy rule.
+
+### 2. 🔴 THE CLIENT COULD NOT SEE THEIR OWN LEADS. ANYWHERE.
+
+Sebastian asked where he sees his leads. Bryson said the Reports tab. **He was wrong, and there
+was no right answer:** the portal rendered the written performance report and `leadsLog` appeared
+**zero times** in the whole file. A client billed per qualified lead could not see a single one
+of the leads he is paying for.
+
+The Reports tab is now the **Leads** tab: the leads list first, the written report underneath.
+
+| Decision | Why |
+|---|---|
+| **It took over Reports rather than becoming a fifth tab** | Five tabs measured **384px in a 360px strip**. That is the exact failure fixed on 2026-08-31 when six tabs pushed Contract off-screen. `verify-portal-upgrades` pins the count at four and correctly failed when I added one |
+| Labelled **Leads**, not Reports | It is the word the client used when he asked |
+| **Display only. No buttons, no inputs** | BoldLine grades the leads, not the client (decided 2026-08-25). A client-facing grading control was deliberately never built and this does not sneak one in. A test asserts the panel contains no `<button>` or `<input>` |
+| The **qualified count is shown**, with what it means and how to dispute one | That number is what his invoice is built from. Hiding it would be worse than showing it |
+| Phone and email are **tap to call / tap to send** | He reads this on a phone and speed to lead is the entire product |
+| Every field **escaped** | Lead names arrive from a public form. Anyone could type markup into it |
+| Capped at 100 | A long-running client should not be handed a page that never stops rendering |
+
+**Verification:** `tests/verify-portal-leads.mjs`, 17 checks, 5 of 5 mutations caught, plus the
+real portal rendered in a browser at **360 / 390 / 768 / 1280 / 1600** confirming four tabs, one
+row, no overflow, and both the leads and the report present. Full suite 69 suites.
+
+**Not added to the owner-side preview**, which already renders a deliberate subset (Status and
+Account only) and is pinned as such by `verify-portal-upgrades`. To see what a client sees, open
+the real portal link.
