@@ -63,3 +63,29 @@ wants the individual call records that Google's count-based reporting doesn't gi
 (`marketing-site/get-started/index.html`) so BoldLine's own ads get real call tracking — it currently
 has NO phone number (only Calendly + the get-started form). Blocked on an actual My-Ads number
 existing (Twilio paid + provision), and on the tracking-approach decision above.
+
+## 🔴 PARKED UNTIL TWILIO IS UPGRADED — the list, so it resurfaces instead of being rediscovered
+
+Same pattern as KB `meta-parked-work`: work that is not broken and not half done, it is scoped out
+on purpose behind one external unlock. **The moment Twilio is off the free trial, raise this list.**
+
+Why the trial blocks everything: it holds only ONE number, it will only send to numbers verified
+in the Twilio console, and it prefixes every message with a trial greeting. So nothing here can
+touch a real client or a real lead until it is a paid account.
+
+| Parked | What unlocks | Worth |
+|---|---|---|
+| **Review request as a TEXT, not an email** (Bryson asked for this reminder, 2026-09-07) | The `review_request` email in `client-emails-shared.mjs` becomes a text with the same link, or a text that follows the email a day later | Highest of the three. A review request is a two minute favour, which is exactly the shape a text suits and an email does not. Likely several times the response rate |
+| **Call tracking for clients** | A dedicated number per client that forwards to their real phone and logs each inbound call as a lead | The whole reason it was built. Also the honest answer to the missed-call finding at Scottsdale Roofing, which currently must be described as a problem spotted and NEVER sold as a product |
+| **A real business number for BoldLine** | Click-to-call on the marketing site, and a number that is not Bryson's personal mobile | Credibility, listed as optional in KB `pre-client-readiness` |
+
+🔴 **THE CONSENT RULE APPLIES TO ALL OF IT.** A review request by text goes to a client, not a
+lead, so it is a business-to-business message rather than the consumer consent case in KB
+`sms-consent` — but the client's own agreement to be texted still has to exist, and A2P
+registration is **per business, not per platform**, so BoldLine's own registration covers
+BoldLine's own sending and nothing else. Do not assume a client's registration covers us or
+ours covers them.
+
+**Do NOT build any of it before the upgrade.** It cannot be tested against a real number, and an
+untested messaging path that reaches a client is exactly the class of failure this project keeps
+being bitten by.
