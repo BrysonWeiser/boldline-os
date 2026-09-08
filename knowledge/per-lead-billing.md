@@ -135,3 +135,43 @@ button on `managed`. Excluding a lead writes a flag to the client record and mov
 there is no reason it needs Stripe to exist first. `chargeLeads` already refuses independently
 (`if(!client.stripeCustomerId){ setLeadMsg("Save a card on file first."); return; }`), so the
 money path stays protected without the review path being hidden.
+
+## 🔴 2026-09-07 — A CLIENT'S LEADS COULD NOT BE DELETED. FROM ANYWHERE. ON ANY DEVICE.
+
+Bryson, going to clear the two fake test leads off Stencil & Thread: *"In the leads tab for
+Sebastian I don't have a way to delete the leads at least on mobile."*
+
+He was right, and it was not a mobile problem. **There was no deletion path for `leadsLog` at
+all.** I had told him to use the Delete button he had seen on a *website* lead, which is a
+different list in a different table (`website_leads`, KB `website-leads-os-tab`). Every reference
+to `leadsLog` in the OS was read-only or a patch; nothing removed a row.
+
+**Why this list in particular.** It is the one where rubbish costs money:
+
+- the per-lead invoice is built from it,
+- the health score and cost-per-lead read it,
+- and a fake lead **suppresses the "no leads yet" alert**, because `leads === 0` stops being true.
+
+The two test leads were doing all three at once, on BoldLine's first client. Combined with the
+gate found the same day (the Exclude buttons only appear once a client has a card on file, so
+`notBillable` was unreachable for Sebastian), there was **no way whatsoever** to get them off the
+record.
+
+### The rules it shipped with
+
+| Rule | Why |
+|---|---|
+| 🔴 **A billed lead can never be deleted** | Once a lead has ridden an invoice, the client has a line on a bill that must stay explainable months later. Deleting it leaves money charged against nothing. `notBillable` is the tool for excluding from FUTURE billing |
+| The guard lives in `deleteLead`, not just the button | A UI-only guard is bypassed by the next caller that forgets it |
+| A billed lead **says** why it cannot go | A control that is silently absent reads as a bug, which is exactly how this whole gap presented |
+| Two taps, always | Irreversible, and he works the OS one-handed on a phone |
+| The confirm pair is **bigger than the OS's other controls** | Measured **19px tall** on the first attempt. Not a thumb target for something that cannot be undone. Now 36px |
+| It writes to `commLog` | Otherwise the lead count changes one day and nothing anywhere says why |
+
+`tests/verify-lead-delete.mjs`, 10 checks, **5 of 5 mutations caught**, logic exercised directly
+(both fakes removed, billed lead refused, two history entries written) and the row measured at
+390 / 768 / 1280 / 1600.
+
+**The lesson worth carrying:** I answered a "how do I" question by naming a button from a similar
+screen without checking it existed on the one he was looking at. **Two lists called "leads" are
+not one list.**

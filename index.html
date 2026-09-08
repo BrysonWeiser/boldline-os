@@ -9033,6 +9033,33 @@ function LeadsTabContent({client,onUpdate}) {
   const patchLead = (idx,patch) => onUpdate({...client, leadsLog: leads.map((l,i)=> i===idx ? stamp(l,patch) : l)});
   const setLeadStatus = (idx,status) => patchLead(idx,{status});
 
+  // 🔴 REMOVING A LEAD FROM A CLIENT'S RECORD. There was NO way to do this, anywhere, on any
+  // device (found 2026-09-07 when Bryson went to clear two fake test leads and could not).
+  //
+  // Every other list in the OS can be cleaned up. This one could not, and it is the list where
+  // rubbish costs money: leads here are what the per-lead invoice is built from, they feed the
+  // health score and the cost-per-lead, and a fake one suppresses the "no leads yet" alert by
+  // making the account look like it is producing. Two test leads were doing all three at once
+  // on BoldLine's first client.
+  //
+  // 🔴 A BILLED LEAD CAN NEVER BE DELETED. Once a lead has ridden an invoice, the client has a
+  // line on a bill that must still be explainable months later. Deleting it would leave money
+  // charged against something with no record behind it, which is the one version of this that
+  // is worse than clutter. Excluding it from FUTURE billing is what `notBillable` is for.
+  const [confirmDelLead,setConfirmDelLead] = useState(null);
+  const deleteLead = (idx) => {
+    const l = leads[idx];
+    if (!l || l.billed) return;   // guarded here as well as in the UI, so no caller can bypass it
+    onUpdate({
+      ...client,
+      leadsLog: leads.filter((_,i)=>i!==idx),
+      // Deleting a lead is a real edit to a client's record, so it leaves a trace. Without
+      // this the number simply changes one day and nothing anywhere says why.
+      commLog: [{ at:new Date().toISOString(), note:`Lead removed from record: ${l.name || l.email || l.phone || "unnamed"}${l.receivedAt ? " (received "+fmt(l.receivedAt)+")" : ""}`, cat:"note" }, ...(client.commLog||[])],
+    });
+    setConfirmDelLead(null);
+  };
+
   // ── Book-a-call outreach (house account only) ──
   const firstName = (l) => String(l.name||"there").trim().split(/\s+/)[0] || "there";
   const emailDraft = (l) => {
@@ -9109,6 +9136,21 @@ function LeadsTabContent({client,onUpdate}) {
                 ))}
                 {client.internal&&<button onClick={()=>openReachOut(idx,lead)} style={{marginLeft:followCount>0?0:"auto",padding:"3px 10px",fontSize:9,fontWeight:800,borderRadius:7,border:`1px solid ${C.gold}55`,backgroundColor:openOutreach===idx?C.goldDim:"transparent",color:C.gold,cursor:"pointer",whiteSpace:"nowrap"}}>📅 {openOutreach===idx?"Close":"Reach Out & Book"}</button>}
                 {followCount>0&&<span style={{fontSize:9,color:C.textMuted,marginLeft:"auto"}}>{followCount} follow-up{followCount===1?"":"s"} sent</span>}
+              </div>
+
+              {/* Remove a lead that should never have been on the record. Deliberately plain
+                  and last in the row, because it is rare and irreversible: nothing about it
+                  should invite a stray thumb on a phone. Two taps, always. */}
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginTop:6}}>
+                {lead.billed
+                  ? <span style={{fontSize:9,color:C.textMuted}}>Billed, so it stays on the record</span>
+                  : confirmDelLead===idx
+                    ? (<>
+                        <span style={{fontSize:10,color:C.textDim}}>Delete this lead for good?</span>
+                        <button onClick={()=>deleteLead(idx)} style={{padding:"9px 18px",minHeight:36,fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.red,color:"#fff",cursor:"pointer"}}>Delete</button>
+                        <button onClick={()=>setConfirmDelLead(null)} style={{padding:"9px 18px",minHeight:36,fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+                      </>)
+                    : <button onClick={()=>setConfirmDelLead(idx)} style={{padding:"4px 10px",fontSize:9,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>Delete lead</button>}
               </div>
 
               {/* ── Grading the lead, which is what Google actually learns from ──────
