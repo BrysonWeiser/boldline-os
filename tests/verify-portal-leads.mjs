@@ -41,13 +41,27 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
 // ── 2. The client can see their leads ────────────────────────────────────────
 {
   const empty = render({ leadsLog: [] });
-  // 🔴 Leads take OVER the Reports tab rather than adding a fifth. Five tabs overflow the
-  // strip at 360px, the same failure that pushed Contract off-screen at six on 2026-08-31.
+  // 🔴 LEADS AND REPORTS ARE TWO TABS, NOT ONE, and that was a reversal the same day.
+  // Leads first took over the Reports tab, because five buttons measured 384px in a 360px
+  // strip. Bryson, 2026-09-08: *"i dont want the reports and lead pages combined into a
+  // leads tab i want them seperate so a seperate leads and report tab between review and
+  // account"*. He is right about the priority: a client on per-lead pricing opens his leads
+  // daily and reads the written report weekly, so stacking them buried the daily one. The
+  // overflow got fixed in CSS instead (verify-portal-upgrades pins that rule).
   ok("the tab is labelled Leads, which is the word clients use",
-    />Leads<\/button>/.test(empty) && !/>Reports<\/button>/.test(empty));
-  ok("and it did not add a fifth tab",
-    [...new Set([...empty.matchAll(/onclick="show\('([a-z]+)'/g)].map(m=>m[1]))].length === 4,
-    "five tabs overflow a 360px phone, which is the bug this portal already had once");
+    />Leads<\/button>/.test(empty));
+  ok("and Reports kept its own tab rather than being swallowed",
+    />Reports<\/button>/.test(empty));
+  const tabOrder = [...empty.matchAll(/onclick="show\('([a-z]+)'/g)].map(m=>m[1]);
+  ok("there are five tabs and no more",
+    [...new Set(tabOrder)].length === 5,
+    `got ${[...new Set(tabOrder)].join(", ")}`);
+  ok("🔴 with Leads and Reports sitting between Review and Account, which is where he asked",
+    tabOrder.slice(0,5).join(",") === "status,approvals,leads,reports,account",
+    `tab order is ${tabOrder.slice(0,5).join(",")}`);
+  ok("and the two panels are separate, so the report is not stacked under the leads",
+    /id="t-leads"/.test(empty) && /id="t-reports"/.test(empty)
+      && empty.indexOf('id="t-leads"') < empty.indexOf('id="t-reports"'));
   ok("with nothing yet it explains what will appear, rather than looking broken",
     /will appear here/.test(empty));
 
@@ -55,9 +69,11 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
     { name: "Maria Whitfield", phone: "(541) 555-0142", email: "maria@x.org", receivedAt: "2026-09-07T17:20:00Z", qualified: true, message: "120 hoodies" },
     { name: "Dan Rivera", phone: "541-555-0188", receivedAt: "2026-09-06T15:02:00Z" },
   ] });
-  ok("🔴 the written performance report is still reachable, below the leads",
+  ok("🔴 the written performance report is still reachable, on its own tab",
     /Performance Report/.test(withLeads.slice(withLeads.indexOf('id="t-reports"'))),
-    "moving leads in must not quietly lose the report that used to live here");
+    "splitting the tabs must not quietly lose the report");
+  ok("and the leads panel holds the leads, not the report",
+    /Your Leads/.test(withLeads.slice(withLeads.indexOf('id="t-leads"'), withLeads.indexOf('id="t-reports"'))));
   ok("real leads are listed with their names", /Maria Whitfield/.test(withLeads) && /Dan Rivera/.test(withLeads));
   ok("🔴 the phone number is tap to call",
     /href="tel:5415550142"/.test(withLeads),
@@ -104,6 +120,68 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
   ok("the owner-side copy says the same thing",
     /BL_PREVIEW\?'Preview only, nothing saved'/.test(OS),
     "two portal copies, one behaviour");
+}
+
+// ── 5. The client has somewhere to put a card ────────────────────────────────
+// Bryson, 2026-09-08: *"in the os he doesnt have a place to add a payment method for when i
+// bill him"*. The only route to a card was Bryson pressing a button in the OS and emailing
+// the resulting Stripe link by hand, so a client who lost that email had nowhere to go. On a
+// results-only deal, which is what our first client is on, no card means no way to invoice a
+// lead already delivered.
+{
+  const none = render({ billingPerLead: 50 });
+  ok("a client with no link yet is told one is coming, not left staring at nothing",
+    /Your account manager will send you a secure link/.test(none));
+  ok("and there is no dead button when there is nothing to press",
+    !/Add My Payment Method/.test(none));
+
+  const offered = render({ billingPerLead: 50, billingCheckoutUrl: "https://checkout.stripe.com/c/pay/abc" });
+  ok("with a link issued, the client can add a card himself",
+    /Add My Payment Method/.test(offered)
+    && /href="https:\/\/checkout\.stripe\.com\/c\/pay\/abc"/.test(offered));
+  ok("🔴 it says plainly that nothing is charged today",
+    /Nothing is charged today/.test(offered),
+    "a payment page with no warning reads as a bill, and a client who fears a charge does not click");
+  ok("🔴 and it quotes HIS agreed rate, not the niche default",
+    /billed \$50 per qualified lead/.test(offered),
+    "a per-lead price in the portal that is not the price in the contract looks authoritative and is wrong");
+  ok("the card opens in a new tab rather than taking over the portal",
+    /target="_blank" rel="noopener"/.test(offered));
+  ok("🔴 and in a preview it goes nowhere at all",
+    /onclick="return blPay\(this\)"/.test(offered) && /function blPay\(a\)\{if\(BL_PREVIEW\)/.test(offered),
+    "a preview must never navigate to a real payment page: standing rule after the CTA that walked into the OS");
+
+  const saved = render({ billingPerLead: 50, billingStatus: "card_on_file" });
+  ok("once a card is saved it says so instead of asking again",
+    /Payment method saved/.test(saved) && !/Add My Payment Method/.test(saved));
+  ok("and the amber dot that marks unfinished setup clears with it",
+    /accdot/.test(offered) && !/Payment Method<span class="accdot">/.test(saved));
+  ok("🔴 a spent link is never offered again even if the field lingers",
+    !/Add My Payment Method/.test(render({ billingStatus: "card_on_file", billingCheckoutUrl: "https://checkout.stripe.com/c/pay/abc" })),
+    "Stripe clears the field, but a stale record must not send a client to a dead checkout");
+  ok("we never claim to hold the card number ourselves",
+    /never see or store the number/.test(saved));
+}
+
+// ── 6. A saved card counts as a saved card ───────────────────────────────────
+// A results-only deal has no monthly, so nothing subscribes: a Stripe setup session leaves
+// behind a billing status and no subscription id. Two places assumed the id.
+{
+  const WEBHOOK = readFileSync(join(ROOT, "netlify/functions/stripe-webhook.mjs"), "utf8");
+  ok("🔴 a setup checkout is recorded as a card on file, not as active billing",
+    /billingStatus: obj\.mode === "setup" \? "card_on_file" : "active"/.test(WEBHOOK),
+    "stamping active on a client with no subscription shows Billing Active next to a launch step that says no card");
+
+  const LC = readFileSync(join(ROOT, "netlify/lib/launch-checklist.mjs"), "utf8");
+  const step = LC.slice(LC.indexOf('id: "card"'), LC.indexOf('id: "adaccount"'));
+  ok("🔴 the launch checklist ticks the card step for a results-only client too",
+    /billingStatus === "card_on_file"/.test(step),
+    "our first client is on exactly this deal; the step would have told Bryson to chase a card already on file");
+  ok("and the OS copy of the checklist agrees",
+    /done:lcHas\(c\.stripeSubscriptionId\)\|\|c\.billingStatus==="card_on_file"/.test(OS),
+    "the checklist lives in two files; changing one and not the other is the standing trap here");
+  ok("it names where the Billing card actually is, since he could not find it",
+    /Contract tab and scroll to the Billing card/.test(step));
 }
 
 console.log(`verify-portal-leads: ${pass} passed, ${fail} failed`);

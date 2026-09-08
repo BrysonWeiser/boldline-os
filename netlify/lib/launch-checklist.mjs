@@ -72,9 +72,15 @@ export function launchChecklist(client) {
       // 🔴 Subscription, not customer. A Stripe CUSTOMER exists the moment a record is made
       // and proves nothing about a card, so the old `|| stripeCustomerId` would tick this
       // while there was still no way to charge them.
+      // 🔴 A SUBSCRIPTION ID IS NOT THE ONLY WAY TO HOLD A CARD, and assuming it was made
+      // this step unclearable for the exact client it mattered most for. A results-only deal
+      // has no monthly, so there is nothing to subscribe to: the card is saved through a
+      // Stripe setup session and the only thing it leaves behind is a billing status. Our
+      // first client is on that deal, and this step would have told Bryson to keep chasing a
+      // card that was already on file. Found 2026-09-08.
       id: "card", owner: "client", label: "Their card on file",
-      done: has(c.stripeSubscriptionId),
-      next: "Send them the payment link from the Billing card. They enter their own card, and the subscription starts the moment they do.",
+      done: has(c.stripeSubscriptionId) || c.billingStatus === "card_on_file" || c.billingStatus === "active",
+      next: "Open the Contract tab and scroll to the Billing card. Press the button there to create their payment link, then send it. They can also add a card themselves from the Payment Method section of their portal.",
     },
     {
       id: "adaccount", owner: "client", label: "Their ad account linked",

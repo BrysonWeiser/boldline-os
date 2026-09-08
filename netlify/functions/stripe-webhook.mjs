@@ -89,8 +89,16 @@ export default async (req) => {
   switch (event.type) {
     case "checkout.session.completed":
       // The client just authorized payment; the subscription now exists.
+      //
+      // 🔴 EXCEPT ON A RESULTS-ONLY DEAL, WHERE NOTHING RECURRING EXISTS AND NEVER WILL.
+      // A `mode:"setup"` checkout saves a card and charges nothing, so it completes with no
+      // subscription at all. This branch was stamping "active" on it anyway, which read as
+      // "the monthly is running" on a client who has no monthly, and left the launch
+      // checklist insisting there was no card on file, because that step looks for a
+      // subscription id that a setup session cannot produce. Our first client is on exactly
+      // this deal, so the wrong badge would have shipped with him. Found 2026-09-08.
       patch = {
-        billingStatus: "active",
+        billingStatus: obj.mode === "setup" ? "card_on_file" : "active",
         stripeCustomerId: obj.customer || undefined,
         stripeSubscriptionId: obj.subscription || undefined,
         billingCheckoutUrl: null, // link is spent
