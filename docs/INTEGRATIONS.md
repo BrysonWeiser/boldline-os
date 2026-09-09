@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 163 task-keyed entries under `knowledge/`. They surface automatically via the
+> 164 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**163 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**164 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -372,6 +372,9 @@
 
 ## OS
 
+- **[client-campaign-tab](../knowledge/client-campaign-tab.md)** &mdash; &#9989; verified &middot; 2026-09-09  
+  Everything needed to launch a client's ads existed and worked, scattered down the Package tab under the plan, the scorecard and the trade playbook. Building a campaign is the most common thing done on a new client and it was the hardest thing on the screen to find. New **Campaign** tab, second in the client tab strip right after Overview, holding the ordered guide, conversion tracking, the Google/Meta launch cards and the live campaign list. New `CampaignStartHere` card states the ORDER (account, landing page, tracking, build) and writes out only the one step that is actually blocking, all observed from the record. The house account's Package tab no longer relabels itself "Campaigns", which would have collided. Built 2026-09-09.  
+  <sub>*task:* build a client's ad campaign without digging for the controls &nbsp;|&nbsp; *keywords:* campaign tab, campaign creation, build campaign, where do i build ads, CampaignStartHere, launch card, conversion tracking order, client tabs, campaign section</sub>
 - **[lead-count-observed](../knowledge/lead-count-observed.md)** &mdash; &#9989; verified &middot; 2026-09-08  
   Sebastian's record showed "2 leads" on the client card and Overview tile while his Leads tab correctly showed none, because seven places read a STORED `cl.leads` number that only demo seed clients ever set, and deleting a lead removes it from `leadsLog` without touching that tally. One shared `leadCount(cl)` helper now counts the real list everywhere, falling back to the stored number only for demo clients (which have no `leadsLog` at all). Fixed 2026-09-08.  
   <sub>*task:* fix a client showing leads that were deleted, and keep every screen counting the same list &nbsp;|&nbsp; *keywords:* lead count wrong, deleted leads still showing, cl.leads, leadCount, stale count, leads tab disagrees, two leads, stored count, observed never stored</sub>
