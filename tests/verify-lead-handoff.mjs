@@ -572,6 +572,21 @@ const fakeFetch = (script) => {
     "13MB of phone photos on one page is why it looked broken, and the file itself was fine");
   ok("and a quality is set, so a resize does not just re-serve the original weight",
     /[?&]quality=\d+/.test(sized(OBJ, 1100)));
+
+  // 🔴 THE RESIZE MUST NOT CROP, AND WIDTH ALONE DOES. Supabase defaults to resize=cover,
+  // and given a width with no height it pairs it with the original's long side: a 4032x3024
+  // photo came back 1100x4032, a narrow strip out of the middle. Bryson, on the live page:
+  // *"the images aren't showing the right spots... they showed the logos/embroidery"*. He
+  // was looking at a shirt with the print cropped off it. This is the second time in one
+  // evening that a live client's page paid for a change to these photos.
+  {
+    const u = sized(OBJ, 1100);
+    ok("🔴 it asks for a square box and contain, so nothing is ever cut off",
+      /[?&]height=1100(&|$)/.test(u) && /[?&]resize=contain(&|$)/.test(u),
+      "a width with no height makes the resizer CROP, which is what removed the print from the shirt");
+    ok("and the box is square, so a portrait photo is not squeezed into a landscape one",
+      new URL(u).searchParams.get("width") === new URL(u).searchParams.get("height"));
+  }
   ok("🔴 it only ever rewrites OUR OWN storage URLs",
     sized("https://example.com/a.png", 900) === "https://example.com/a.png"
     && sized("https://evil.co/storage/v1/object/public/x/y.png", 900) === "https://evil.co/storage/v1/object/public/x/y.png",
@@ -610,6 +625,13 @@ const fakeFetch = (script) => {
         .every((u) => u.includes("/render/image/public/")),
       "one full-size photo left in is enough to stall the page on a phone");
   }
+
+  // 🔴 AND THE TILE MUST NOT CROP EITHER, or the resizer's careful work is undone in CSS.
+  // A 4:3 cover tile took a horizontal band out of the middle of a portrait photo and showed
+  // blank fabric. We cannot know what in a client's photo matters, so we never cut one.
+  ok("🔴 gallery tiles show the whole photo rather than cropping to fill",
+    /\.gitem img\{aspect-ratio:1\/1;object-fit:contain/.test(LANDING),
+    "object-fit:cover on a fixed-ratio tile crops the subject out, and the subject is the client's product");
 
   ok("the hero, the gallery and the logo all go through it",
     (LANDING.match(/esc\(sized\(/g) || []).length >= 4,
