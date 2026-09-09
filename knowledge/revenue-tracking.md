@@ -62,3 +62,46 @@ late payment, and an invoice with no period. Counting drafts as revenue was conf
 ## Related
 
 `pricing-model`, `billing-automation`, `per-lead-fee-finder`.
+
+---
+
+## 🔴 2026-09-09 — THE PER-CLIENT NUMBERS WERE THE PRICE LIST, NOT THE CONTRACT
+
+Bryson, looking at Sebastian's Overview: *"make sure the actual revenue tracker for each client
+is accurate based on the contract not just the package"*. The card read **$400/mo min · $750
+setup**. Sebastian is a founding client: **setup waived, no monthly minimum, $50 a qualified
+lead**. All three numbers were wrong, and they were wrong in our favour, which is the
+embarrassing direction.
+
+Six places already read the override fields correctly. **Four did not**, so the OS quoted two
+different prices for the same client depending which screen he was on:
+
+| Where | Was | Now |
+|---|---|---|
+| Overview **Monthly Revenue** card | `pkg.price` / `pkg.setup` / `PER_LEAD[niche]` | the contract |
+| Overview **Monthly minimum** tile | `pkg.price` | the contract |
+| Dashboard **MRR** total | summed `pkg.price` for every client | summed contracted floors |
+| Revenue screen floor rows | monthly right, **setup** still `pkg.setup` | both from the contract |
+
+One helper, `contractTerms(client, pkg)`, returns `{monthly, setup, perLead, setupWaived,
+monthlyWaived, resultsOnly}`. `billingMonthly` / `billingSetup` / `billingPerLead` are the
+contract; the package is only a default.
+
+🔴 **`!= null`, NEVER `||`, and this is the whole bug.** A waived setup and a zero monthly are
+both legitimate values and both falsy, so `client.billingSetup || pkg.setup` silently
+reinstates the fee the client was told he would not pay. The discount is stored as `0` and `0`
+is falsy. An empty string still means "not set", so a cleared field falls back to the package
+rather than charging nothing.
+
+Two things the card now says out loud:
+- A **results-only** client leads with `$50/qualified lead` instead of a minimum he does not
+  pay.
+- A waiver is **named against the list price it replaces** ("Founding terms. The package lists
+  $400/mo and $750 setup"), because a deal that reads like a mistake gets "corrected" by
+  somebody six months from now.
+
+And `setupWaived` is false when the package has no setup fee at all — there is nothing to
+waive, and claiming otherwise to a client is a claim that is not true.
+
+`tests/verify-contract-terms.mjs` — 21 checks, extracting and RUNNING the helper against
+Sebastian's real record. 9 mutations, all caught.

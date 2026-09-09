@@ -380,6 +380,42 @@ const ALL_PKGS = Object.values(PACKAGES_DB).flat();
 // "Whichever is more" — the floor or what the month actually earned. Every surface
 // that quotes a number (deal prep, the billing card, the contract, the portal, the
 // marketing site) runs this, so none of them can disagree with the invoice.
+// ─── WHAT THIS CLIENT IS ACTUALLY CONTRACTED TO PAY ──────────────────────────
+//
+// Bryson, 2026-09-09, looking at Sebastian's Overview: *"make sure the actual revenue
+// tracker for each client is accurate based on the contract not just the package"*. The card
+// read **$400/mo min · $750 setup**. Sebastian is a founding client: the setup was WAIVED,
+// there is NO monthly minimum, and he pays $50 a qualified lead. Every one of those three
+// numbers was the price list rather than the signed agreement.
+//
+// 🔴 THE OVERRIDE FIELDS ARE THE CONTRACT AND THE PACKAGE IS ONLY A DEFAULT. `billingMonthly`,
+// `billingSetup` and `billingPerLead` are what the Billing card writes, what the contract
+// document prints, and what Stripe invoices. Six places already read them correctly and four
+// did not, so the OS quoted two different prices for the same client depending which screen
+// he was on. One helper now, so they cannot drift apart again.
+//
+// 🔴 `!= null` NOT `||`. A waived setup and a zero monthly are both legitimate values and
+// both falsy, so `client.billingSetup || pkg.setup` silently reinstates the fee he waived.
+// That is exactly the bug on screen: the discount is stored as 0 and 0 is falsy.
+const contractTerms = (client, pkg) => {
+  const c = client || {}, p = pkg || {};
+  const num = (v, fallback) => (v != null && String(v).trim() !== "" ? Number(v) : Number(fallback) || 0);
+  const monthly = num(c.billingMonthly, p.price);
+  const setup   = num(c.billingSetup, p.setup);
+  const perLead = c.billingPerLead != null && String(c.billingPerLead).trim() !== ""
+    ? Number(c.billingPerLead)
+    : (PER_LEAD[c.niche] || 0);
+  return {
+    monthly, setup, perLead,
+    // Stated separately because "waived" and "this package has no setup fee" read the same
+    // on screen and mean very different things in a conversation with the client.
+    setupWaived: setup === 0 && Number(p.setup || 0) > 0,
+    monthlyWaived: monthly === 0 && Number(p.price || 0) > 0,
+    // No monthly at all and a per-lead rate: he earns only when the client earns.
+    resultsOnly: monthly === 0 && perLead > 0,
+  };
+};
+
 const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
   if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
   // A one-time build has no monthly side at all. Returning a zero floor rather than
@@ -5919,7 +5955,10 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
   // The GUARANTEED FLOOR, not revenue: under the greater-of model this is the least
   // every client can bill in a month, and a good month bills more. Actual invoiced
   // revenue lives on the Revenue screen, which reads it from Stripe.
-  const MRR       = clients.reduce((s,c)=>s+((findPkg(c.packageId) && findPkg(c.packageId).price)||0),0);
+  // 🔴 CONTRACTED FLOORS, NOT LIST PRICES. This summed the package price for every client, so
+  // a founding client on no monthly minimum still added his package's $400 to the total and
+  // the dashboard reported money that will never be invoiced.
+  const MRR       = clients.reduce((s,c)=>s+contractTerms(c,findPkg(c.packageId)).monthly,0);
   const active    = clients.filter(c=>c.stage==="active").length;
   const allAlerts = clients.flatMap(c=>getAlerts(c));
   const expiring  = clients.filter(c=>{ const d=daysUntil(c.contractEnd); return d>=0&&d<=30; });
@@ -6279,7 +6318,7 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
   // Demo and internal accounts are excluded — they are not customers.
   const real = clients.filter(c=>!c.demo&&!c.internal);
   const floorRows = real
-    .map(cl=>{ const pkg=findPkg(cl.packageId); return {cl,pkg,floor:(cl.billingMonthly!=null?cl.billingMonthly:((pkg&&pkg.price)||0)),setup:(pkg&&pkg.setup)||0}; })
+    .map(cl=>{ const pkg=findPkg(cl.packageId); const t=contractTerms(cl,pkg); return {cl,pkg,floor:t.monthly,setup:t.setup}; })
     .sort((a,b)=>b.floor-a.floor);
   const floorTotal = floorRows.reduce((s,r)=>s+r.floor,0);
   const paying = floorRows.filter(r=>r.floor>0).length;
@@ -7782,7 +7821,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                     {l:"Avg CPL",v:st.cpl!=null?`$${Math.round(st.cpl).toLocaleString()}`:"—"},
                     {l:"Health Score",v:`${calcHealth(client).toFixed(1)}/10`},
                     {l:"Contract End",v:client.contractEnd||"—"},
-                    {l:"Monthly minimum",v:pkg?`$${pkg.price}/mo`:"—"},
+                    // The signed number, not the list price. Same helper the revenue card runs.
+                    {l:"Monthly minimum",v:pkg?(contractTerms(client,pkg).monthly>0?`$${contractTerms(client,pkg).monthly}/mo`:"None"):"—"},
                   ]; })()
               ).map(({l,v})=>(
                 <Card key={l}><Label>{l}</Label><div style={{fontSize:12,fontWeight:600,color:C.text}}>{v}</div></Card>
@@ -7795,8 +7835,27 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
             {(client.internal||client.googleAdsCustomerId||client.metaAdAccountId)&&<LiveAdPerformanceCard client={client} onUpdate={onUpdate}/>}
             {!client.internal&&pkg&&<Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
               <Label>Monthly Revenue</Label>
-              <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${pkg.price.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
-              <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>${pkg.setup.toLocaleString()} setup {client.niche&&PER_LEAD[client.niche]?`· $${PER_LEAD[client.niche]}/lead`:""}</div>
+              {(()=>{
+                const t = contractTerms(client, pkg);
+                return (<>
+                  {/* A results-only client has no monthly at all, and showing him a minimum
+                      he does not pay is the whole complaint. Lead the number he earns from. */}
+                  {t.resultsOnly ? (
+                    <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.perLead.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/qualified lead</span></div>
+                  ) : (
+                    <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.monthly.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
+                  )}
+                  <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
+                    {t.setup>0 ? `$${t.setup.toLocaleString()} setup` : t.setupWaived ? "Setup waived" : "No setup fee"}
+                    {t.resultsOnly ? (t.monthlyWaived?" · no monthly minimum":"") : (t.perLead?` · $${t.perLead.toLocaleString()}/lead`:"")}
+                  </div>
+                  {/* Named out loud, because a founding deal that reads like a mistake gets
+                      "corrected" by somebody six months from now. */}
+                  {(t.setupWaived||t.monthlyWaived)&&(
+                    <div style={{fontSize:10,color:C.gold,marginTop:5,lineHeight:1.5}}>Founding terms. The package lists ${Number(pkg.price||0).toLocaleString()}/mo and ${Number(pkg.setup||0).toLocaleString()} setup.</div>
+                  )}
+                </>);
+              })()}
             </Card>}
             {/* Live health score breakdown */}
             {client.internal&&(()=>{
