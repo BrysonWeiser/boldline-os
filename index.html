@@ -10303,6 +10303,32 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   // INVISIBLE until they already existed in a client's live Google account. He was being
   // asked to press Build on copy he had no way to read.
   const [openGroup,setOpenGroup] = useState(null);
+  // 🔴 WHICH AD GROUPS ACTUALLY GET BUILT. Bryson, 2026-09-09, after working out that four
+  // groups share one budget but still compete for it: he wants to launch three and hold the
+  // research-stage one back until the others are producing. Before this it was all of them or
+  // none, and the only way to drop one was to regenerate and hope.
+  //
+  // `null` means every group, so a fresh generation starts with everything ticked and he
+  // unticks what he does not want. Reset on every generate, because these are indexes and a
+  // regenerated campaign has different groups behind the same numbers.
+  const [picked,setPicked] = useState(null);
+
+  // Writes an edit back into the generated structure Build actually sends. Keywords keep
+  // their match type, which is carried in the punctuation Google itself uses:
+  // [exact], "phrase", bare broad. So he can change a match type by changing the brackets,
+  // which is the same notation printed above the box.
+  const editGroup = (i, field, text) => setGen(prev=>{
+    if(!prev||!prev.adGroups) return prev;
+    const groups = prev.adGroups.slice();
+    const lines = String(text||"").split("\n").map(x=>x.trim()).filter(Boolean);
+    groups[i] = { ...groups[i], [field]: field==="keywords"
+      ? lines.map(t=>{
+          const exact = /^\[.*\]$/.test(t), phrase = /^".*"$/.test(t);
+          return { text: t.replace(/^[\["]|[\]"]$/g,"").trim(), matchType: exact?"EXACT":phrase?"PHRASE":"BROAD" };
+        }).filter(k=>k.text)
+      : lines };
+    return { ...prev, adGroups: groups };
+  });
   const [genState,setGenState] = useState("idle"); // idle | working | error
   const [genMsg,setGenMsg] = useState("");
   const generate = async () => {
@@ -10321,7 +10347,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         locations: f.locationsText.split("\n").map(x=>x.trim()).filter(Boolean).join(", "),
         avgTicket: cs.avgTicket||"", differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
         landingUrl: f.landingUrl, avoid: cs.excludedKeywords||"" });
-      setGen(d);
+      setGen(d); setPicked(null);
       // Fold the generated negatives into the box so they are visible and editable.
       const negs = [...new Set([...f.negativeKeywordsText.split("\n").map(x=>x.trim()).filter(Boolean), ...(d.negativeKeywords||[])])];
       setF(prev=>({...prev, negativeKeywordsText: negs.join("\n")}));
@@ -10345,15 +10371,25 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"};
   const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
-  const launch=async()=>{
+  // 🔴 THE SOURCE IS NOW EXPLICIT. There are two Build buttons and they mean different
+  // things: the one under the generated groups builds those, the one under the manual fields
+  // builds those. Inferring it from "is there a generation" made the manual fields
+  // unreachable the moment anything had been generated.
+  const launch=async(mode)=>{
+    const useGen = mode==="gen" && gen && gen.adGroups && gen.adGroups.length;
+    const chosen = useGen ? gen.adGroups.filter((g,i)=>!picked||picked.has(i)) : [];
     const headlines=f.headlinesText.split("\n").map(humanizeAdCopy).filter(Boolean);
     const descriptions=f.descriptionsText.split("\n").map(humanizeAdCopy).filter(Boolean);
     const keywords=f.keywordsText.split("\n").map(s=>s.trim()).filter(Boolean);
     if(!(Number(f.dailyBudgetDollars)>0)){ setState("error"); setMsg("Daily budget must be greater than 0."); return; }
     if(!f.landingUrl){ setState("error"); setMsg("A landing page URL is required."); return; }
-    if(headlines.length<3){ setState("error"); setMsg("Add at least 3 headlines (each ≤30 characters), one per line."); return; }
-    if(descriptions.length<2){ setState("error"); setMsg("Add at least 2 descriptions (each ≤90 characters), one per line."); return; }
-    if(!keywords.length){ setState("error"); setMsg("Add at least 1 keyword, one per line."); return; }
+    if(useGen){
+      if(!chosen.length){ setState("error"); setMsg("Tick at least one ad group to build."); return; }
+    }else{
+      if(headlines.length<3){ setState("error"); setMsg("Add at least 3 headlines (each ≤30 characters), one per line."); return; }
+      if(descriptions.length<2){ setState("error"); setMsg("Add at least 2 descriptions (each ≤90 characters), one per line."); return; }
+      if(!keywords.length){ setState("error"); setMsg("Add at least 1 keyword, one per line."); return; }
+    }
     const locations=f.locationsText.split("\n").map(s=>s.trim()).filter(Boolean);
     const negativeKeywords=f.negativeKeywordsText.split("\n").map(s=>s.trim()).filter(Boolean);
     if(!locations.length){ setState("error"); setMsg("Add at least 1 target location, one per line — without one Google shows your ads in every country on earth."); return; }
@@ -10369,9 +10405,9 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         goal:f.goal, hasConversionTracking:!!(client.conversionActions&&Object.keys(client.conversionActions).length),
         // Generated structure wins. Falling back to the single manual group keeps the
         // card usable with no AI call (and if the generator is ever unavailable).
-        ...(gen && gen.adGroups && gen.adGroups.length
-          ? { adGroups: gen.adGroups }
-          : { headlines, descriptions, keywords })});
+        // Only the groups he ticked. The rest are not built at all, rather than built and
+        // paused: a paused ad group in the account is a thing to remember to delete later.
+        ...(useGen ? { adGroups: chosen } : { headlines, descriptions, keywords })});
       const missed=(d.locationsUnresolved||[]);
       setState("done"); setMsg(`✓ Campaign created PAUSED — ${d.adGroupsCreated||1} ad group${(d.adGroupsCreated||1)===1?"":"s"} (${(d.adGroupNames||[]).join(", ")}), ${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}, targeting ${(d.locationsTargeted||[]).join(", ")||"—"}${d.negativeKeywordsCreated?`, ${d.negativeKeywordsCreated} negative keywords`:""}.${missed.length?` ⚠ Google did not recognise: ${missed.join(", ")} — these are NOT targeted.`:""} It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
       const gcid=String(d.campaignResourceName||"").split("/").pop();
@@ -10428,6 +10464,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           <div style={{marginTop:9}}>
             {gen.adGroups.map((g,i)=>{
               const open = openGroup===i;
+              const on2 = !picked || picked.has(i);
               // Read off the generated copy rather than trusted: the generator is told the
               // limits and mostly respects them, and "mostly" is not something to find out
               // from Google rejecting the build.
@@ -10442,7 +10479,14 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
               return (
               <div key={i} style={{padding:"7px 0",borderTop:`1px solid ${C.border2}`}}>
                 {/* The whole row is the control, because on a phone a caret is a 10px target. */}
-                <div onClick={()=>setOpenGroup(open?null:i)} style={{cursor:"pointer"}}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:9}}>
+                  {/* Its own tap target, outside the row that opens the group, or ticking a
+                      box would expand it and expanding it would untick it. */}
+                  <button onClick={()=>setPicked(p=>{ const n=new Set(p||gen.adGroups.map((_,k)=>k)); n.has(i)?n.delete(i):n.add(i); return n; })}
+                    title={on2?"This group will be built":"This group will be skipped"}
+                    style={{flexShrink:0,marginTop:2,width:22,height:22,borderRadius:6,cursor:"pointer",fontSize:12,fontWeight:800,lineHeight:1,
+                      border:`1px solid ${on2?C.borderAccent:C.border}`,backgroundColor:on2?"rgba(200,168,75,.14)":"transparent",color:on2?C.gold:C.textMuted}}>{on2?"✓":""}</button>
+                <div onClick={()=>setOpenGroup(open?null:i)} style={{cursor:"pointer",flex:1,minWidth:0,opacity:on2?1:.5}}>
                   <div style={{display:"flex",alignItems:"baseline",gap:6}}>
                     <span style={{fontSize:11.5,fontWeight:800,color:open?C.gold:C.textDim}}>{g.name}</span>
                     <span style={{fontSize:9,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>{g.intent}</span>
@@ -10458,20 +10502,32 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
                     </div>
                   )}
                 </div>
+                </div>
                 {open&&(
                   <div style={{marginTop:7,paddingLeft:9,borderLeft:`2px solid ${C.borderAccent}`}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:3}}>All {g.keywords.length} keywords</div>
-                    <div style={{fontSize:10,color:C.textDim,lineHeight:1.7,wordBreak:"break-word",marginBottom:9}}>
-                      {g.keywords.map(k=>k.matchType==="EXACT"?"["+k.text+"]":k.matchType==="PHRASE"?'"'+k.text+'"':k.text).join("   ")}
-                    </div>
+                    {/* 🔴 EDITABLE, NOT JUST READABLE. Bryson, 2026-09-09: *"ways to edit the
+                        ad groups that were made if I want to"*. Reading the copy before it
+                        goes into a client's account was the first half; being able to fix a
+                        line without regenerating the whole campaign is the other. Edits write
+                        straight back into the generated structure that Build sends. */}
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:3}}>All {g.keywords.length} keywords <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· one per line, match type is kept</span></div>
+                    <textarea value={g.keywords.map(k=>k.matchType==="EXACT"?"["+k.text+"]":k.matchType==="PHRASE"?'"'+k.text+'"':k.text).join("\n")}
+                      onChange={e=>editGroup(i,"keywords",e.target.value)} rows={Math.min(12,Math.max(3,g.keywords.length))}
+                      style={{...box,resize:"vertical",fontFamily:"inherit",fontSize:10.5,marginBottom:9}}/>
                     <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:2}}>
                       {(g.headlines||[]).length} headlines <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· 30 character limit</span>
                     </div>
-                    <div style={{marginBottom:9}}>{(g.headlines||[]).map(h=>line(h,30))}</div>
+                    <div style={{marginBottom:4}}>{(g.headlines||[]).map(h=>line(h,30))}</div>
+                    <textarea value={(g.headlines||[]).join("\n")} onChange={e=>editGroup(i,"headlines",e.target.value)}
+                      rows={Math.min(16,Math.max(3,(g.headlines||[]).length))}
+                      style={{...box,resize:"vertical",fontFamily:"inherit",fontSize:10.5,marginBottom:9}}/>
                     <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:2}}>
                       {(g.descriptions||[]).length} descriptions <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· 90 character limit</span>
                     </div>
-                    <div>{(g.descriptions||[]).map(d=>line(d,90))}</div>
+                    <div style={{marginBottom:4}}>{(g.descriptions||[]).map(d=>line(d,90))}</div>
+                    <textarea value={(g.descriptions||[]).join("\n")} onChange={e=>editGroup(i,"descriptions",e.target.value)}
+                      rows={Math.min(8,Math.max(2,(g.descriptions||[]).length))}
+                      style={{...box,resize:"vertical",fontFamily:"inherit",fontSize:10.5}}/>
                     {(longH||longD)>0&&(
                       <div style={{fontSize:9.5,color:C.amber,lineHeight:1.55,marginTop:7}}>
                         The amber ones are over Google's limit and would be refused. Regenerate, or shorten them yourself before you build.
@@ -10483,10 +10539,41 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
               );
             })}
             {gen.notes&&<div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.55,marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border2}`}}><b style={{color:C.textDim}}>What to watch: </b>{gen.notes}</div>}
-            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:7}}>Build Campaign will use these ad groups. The single-group fields below are the manual fallback and are ignored while this is here. <button onClick={()=>{setGen(null);setGenMsg("");}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>discard</button></div>
+            {/* 🔴 THIS NOTE USED TO LIE. It said the fields below were "ignored while this is
+                here", which is false: the campaign name, daily budget, landing page,
+                locations, negatives and goal are all sent with a generated build too. Only
+                the headline/description/keyword boxes are the manual fallback. Bryson,
+                2026-09-09: *"i still need a way to set what the campaign should be ... things
+                like the campaign name daily budget etc."* — he had them all along and the
+                note told him they did nothing. */}
+            <div style={{marginTop:9,paddingTop:9,borderTop:`1px solid ${C.border2}`}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:5}}>Builds with these settings</div>
+              {[["Campaign name",f.name||"—"],
+                ["Daily budget",(Number(f.dailyBudgetDollars)>0?"$"+f.dailyBudgetDollars+"/day":"— not set")],
+                ["Landing page",f.landingUrl||"— not set"],
+                ["Locations",f.locationsText.split("\n").map(x=>x.trim()).filter(Boolean).join(", ")||"— not set"],
+                ["Negatives",(()=>{const n=f.negativeKeywordsText.split("\n").map(x=>x.trim()).filter(Boolean).length;return n?n+" blocked search"+(n===1?"":"es"):"none";})()],
+                ["Goal",((CAMPAIGN_GOALS.find(g=>g.id===f.goal)||{}).label)||"—"]].map(([k,v])=>(
+                <div key={k} style={{display:"flex",gap:8,alignItems:"baseline",padding:"1.5px 0"}}>
+                  <span style={{fontSize:9.5,color:C.textMuted,flexShrink:0,width:88}}>{k}</span>
+                  <span style={{fontSize:10,color:String(v).startsWith("—")?C.amber:C.textDim,wordBreak:"break-word",flex:1}}>{v}</span>
+                </div>
+              ))}
+              <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:6}}>Change any of these in <b style={{color:C.textDim}}>Campaign settings</b> just below — they apply to this build. The headline, description and keyword boxes down there do <b style={{color:C.textDim}}>not</b>: your ticked ad groups bring their own. <button onClick={()=>{setGen(null);setGenMsg("");setPicked(null);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>discard these ad groups</button></div>
+              {(()=>{ const n=gen.adGroups.filter((g,i)=>!picked||picked.has(i)).length;
+                return (
+                <button onClick={()=>launch("gen")} disabled={state==="creating"}
+                  style={{width:"100%",marginTop:9,padding:"10px",fontSize:12.5,fontWeight:800,borderRadius:9,border:"none",
+                    backgroundColor:n?(state==="done"?"#059669":C.gold):C.border,color:n?(state==="done"?"#fff":"#15110A"):C.textMuted,
+                    cursor:state==="creating"||!n?"default":"pointer",opacity:state==="creating"?.7:1}}>
+                  {state==="creating"?"Building campaign…":!n?"Tick at least one ad group":`Build these ${n} ad group${n===1?"":"s"} (Paused)`}
+                </button>
+                );})()}
+            </div>
           </div>
         )}
       </div>
+      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Campaign settings <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· used by both build buttons</span></div>
       {[
         {k:"name",l:"Campaign name",t:"text"},
         {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
@@ -10507,6 +10594,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           )}
         </div>
       ))}
+      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:gen?C.textMuted:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Manual ad copy <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· {gen?"only used by the outline button at the very bottom":"one ad group, built by the button at the bottom"}</span></div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Headlines — one per line, ≤30 chars each (3+ required)</label>
         <textarea value={f.headlinesText} onChange={e=>set("headlinesText",e.target.value)}
@@ -10548,6 +10636,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           {["PHRASE","BROAD","EXACT"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o[0]+o.slice(1).toLowerCase()}</option>)}
         </select>
       </div>
+      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Campaign settings, continued <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· used by both build buttons</span></div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Target locations — one per line (required)</label>
         <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)}
@@ -10566,7 +10655,8 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
         ready={!!(client.conversionActions&&Object.keys(client.conversionActions).length)}
         missing={"Set up conversion tracking for this client first, or Google will refuse to build this. Scroll up to the Conversion Tracking card and press Set this up in the ad account."}/>
-      <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
+      <button onClick={()=>launch("manual")} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":gen?"transparent":C.gold,color:state==="done"?"#fff":gen?C.textDim:"#15110A",boxShadow:gen?`inset 0 0 0 1px ${C.border}`:"none",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":gen?"Build one ad group from the copy above (Paused)":"Build Campaign (Paused)"}</button>
+      {gen&&<div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:5}}>This button ignores your generated ad groups and builds a single ad group from the headline, description and keyword boxes above it. To build the ticked ad groups, use the gold button up in the generated list.</div>}
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
     </Card>
   );

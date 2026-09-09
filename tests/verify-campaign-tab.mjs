@@ -265,9 +265,16 @@ ok("the conversion-tracking instruction names the Campaign tab",
   const card = UI.slice(UI.indexOf("function GoogleLaunchCard"), UI.indexOf("function MetaLaunchCard"));
   ok("a generated group opens when pressed",
     /setOpenGroup\(open\?null:i\)/.test(card) && /const \[openGroup,setOpenGroup\]/.test(card));
-  ok("🔴 the whole row is the target, not a caret",
-    /<div onClick=\{\(\)=>setOpenGroup\(open\?null:i\)\} style=\{\{cursor:"pointer"\}\}>/.test(card),
-    "a 10px caret is not a tap target on a phone");
+  // The open/close target is a DIV carrying the row, not the caret span inside it. The
+  // style object grew when the tick boxes landed (2026-09-09), so this matches the
+  // properties that matter rather than the exact literal it used to be.
+  {
+    const m = card.match(/<div onClick=\{\(\)=>setOpenGroup\(open\?null:i\)\} style=\{\{([^}]*)\}\}>/);
+    ok("🔴 the whole row is the target, not a caret", !!m && /cursor:"pointer"/.test(m[1]),
+      "a 10px caret is not a tap target on a phone");
+    ok("and the row fills the space left of the tick box", !!m && /flex:1/.test(m[1]),
+      "a target that only spans its text leaves dead space that looks pressable");
+  }
   ok("opening one shows EVERY keyword, not the first six",
     /All \{g\.keywords\.length\} keywords/.test(card)
     && /g\.keywords\.map\(k=>k\.matchType==="EXACT"/.test(card));
