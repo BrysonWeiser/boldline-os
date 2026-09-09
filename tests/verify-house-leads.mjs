@@ -271,8 +271,14 @@ const wl = (id, over = {}) => ({
   const UI_CODE = code(UI);
   ok("the health score counts the log",
     /const leads = \(\(cl && cl\.leadsLog\) \|\| \[\]\)\.length/.test(UI_CODE));
-  ok("the pipeline counts the log",
-    /const leads\s+= \(cl\.leadsLog \|\| \[\]\)\.length/.test(UI_CODE));
+  // 🔴 UPDATED 2026-09-08. This used to pin the inline expression
+  // `(cl.leadsLog || []).length || Number(cl.leads || 0)`, which READS as "count the list,
+  // fall back if there is none" and BEHAVES as "count the list unless the answer is none":
+  // an empty log is falsy, so deleting every lead resurrected the stale stored number. The
+  // guard now pins the shared helper, so the intent survives and the bug cannot come back.
+  ok("the pipeline counts the log rather than a stored number",
+    /const leads\s+= leadCount\(cl\);/.test(UI_CODE)
+    && /const leadCount = \(cl\) => Array\.isArray/.test(UI_CODE));
   ok("adPerfStats exists and reads the stored snapshot",
     /const adPerfStats = \(cl\) =>/.test(UI_CODE) && /cl\.adPerf/.test(UI_CODE));
   ok("cost per lead is computed from spend and leads, not stored",
