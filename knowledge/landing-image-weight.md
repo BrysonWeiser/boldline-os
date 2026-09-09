@@ -105,9 +105,42 @@ the broken page and what a screen reader reads out even when it works. `photoAlt
 label the client actually typed (minus its extension) and falls back to the business name for
 anything matching a camera pattern (`IMG_`, `DSC_`, `PXL_`, `MVIMG_`, bare digits).
 
+## 🔴 AND A PHONE SCREENSHOT IS NOT A PRODUCT PHOTO
+
+Bryson, 2026-09-09, finding one on a client's LIVE landing page: *"it should only be showing
+the t-shirt not the full screenshot"*. The uploaded file was **1284x2778, an iPhone Pro screen
+exactly**, so the page showed the status bar, the filename `IMG_8991.JPG` and the
+Download / Photos / Drive / Share buttons around a small picture of a shirt.
+
+**The shape gives it away and nothing was looking.** A phone screen is about 2.2 times taller
+than it is wide; a camera photo is 4:3 or 3:2. Measured on the three files actually on that
+page: the two real photos are `4032x3024` (ratio 0.75), the screenshot `1284x2778` (2.16). One
+line, essentially no false positives on real work:
+
+```js
+Math.max(w, h) / Math.min(w, h) > 1.9
+```
+
+Two places use it:
+- **The portal warns the client at the moment they pick the file**, before it uploads, in
+  words about their phone rather than about pixels. It **warns, never blocks** — he might
+  genuinely want it, and a blocked upload with no explanation is worse than a photo he can
+  delete in two taps.
+- **The OS flags it on the Client Media tile** (Assets tab), naming the size so the judgement
+  is checkable, next to the Delete button that was already there.
+
+🔴 **It flags, it never hides.** Silently dropping the photo would leave him wondering why
+only two of the three appeared, which is a worse problem than the one being fixed.
+
+🔴 **A size is now recorded on every upload** (`w`/`h` through the confirm call) — the portal
+already decoded the image to shrink it, so the dimensions were free. Photos uploaded before
+today carry no size and are never flagged, because flagging all of them would be noise. The
+`w > 0 && h > 0` guard is load-bearing for a HALF-recorded size: without it a zero height
+divides to Infinity and flags a photo nobody measured.
+
 ## Tests
 
-`tests/verify-lead-handoff.mjs`, 211 checks. The helpers are **extracted and executed**, not
+`tests/verify-lead-handoff.mjs`, 227 checks. The helpers are **extracted and executed**, not
 pattern-matched, and a page is **rendered with real fixtures** and its `<img>` tags read — a
 mutation swapping the gallery's alt back to the raw label passed cleanly until that render
-existed. 16 mutations, all caught.
+existed. 24 mutations, all caught.

@@ -665,13 +665,66 @@ const fakeFetch = (script) => {
     /indexOf\('image\/'\)!==0\)\{cb\(file\);return;\}/.test(PORTAL),
     "losing an upload is a far worse outcome than a slow one");
   ok("🔴 and it never uploads something bigger than what he picked",
-    /if\(!b\|\|b\.size>=file\.size\)\{cb\(file\);return;\}/.test(PORTAL),
+    /if\(!b\|\|b\.size>=file\.size\)\{[\s\S]{0,80}?cb\(file\);return;\}/.test(PORTAL),
     "a small image can come out heavier after a re-encode, which would be a shrink step that grows files");
   ok("a decode failure falls back to the original rather than failing the upload",
     /rd\.onerror=function\(\)\{cb\(file\);\}/.test(PORTAL) && /img\.onerror=function\(\)\{cb\(file\);\}/.test(PORTAL));
   ok("the owner-side copy of the portal shrinks them too",
     /function blShrink\(file,category,cb\)/.test(OSSRC),
     "the portal lives in two files; changing one and not the other is the standing trap here");
+}
+
+// ── A PHONE SCREENSHOT IS NOT A PRODUCT PHOTO ───────────────────────────────
+// Bryson, 2026-09-09, finding one on a client's LIVE landing page: *"it should only be
+// showing the t-shirt not the full screenshot"*. The file was 1284x2778, an iPhone Pro
+// screen exactly, so the page showed the status bar, the filename and the share buttons
+// around a small picture of a shirt.
+{
+  const OSSRC = readFileSync(join(ROOT, "index.html"), "utf8");
+  const m = /const looksLikeScreenshot = \(m\) => \{[\s\S]*?\n\};/.exec(OSSRC);
+  ok("there is one rule for it", !!m);
+  const looksLikeScreenshot = new Function("return " + m[0].replace(/^const looksLikeScreenshot = /, "").replace(/;$/, ""))();
+
+  ok("🔴 the exact file that reached the live page is caught",
+    looksLikeScreenshot({ w: 1284, h: 2778 }),
+    "1284x2778 is an iPhone Pro screen, and nothing anyone photographs is that shape");
+  ok("and other phone screens are too",
+    looksLikeScreenshot({ w: 1170, h: 2532 }) && looksLikeScreenshot({ w: 1080, h: 2400 }));
+  ok("🔴 a real camera photo is NOT flagged, whichever way up",
+    !looksLikeScreenshot({ w: 4032, h: 3024 }) && !looksLikeScreenshot({ w: 3024, h: 4032 }),
+    "a false positive here tells a client their own photo of their own work is wrong");
+  ok("nor is a square or a normal crop",
+    !looksLikeScreenshot({ w: 1000, h: 1000 }) && !looksLikeScreenshot({ w: 1600, h: 900 }));
+  ok("a wide banner is caught too, since that is a landscape screen grab",
+    looksLikeScreenshot({ w: 2778, h: 1284 }));
+  ok("🔴 an upload with no size recorded says nothing at all",
+    !looksLikeScreenshot({}) && !looksLikeScreenshot({ w: 0, h: 0 }) && !looksLikeScreenshot(null)
+    // 🔴 And a HALF-recorded size is the case the guard is actually load-bearing for:
+    // without it this divides by zero, gets Infinity, and flags a photo nobody measured.
+    && !looksLikeScreenshot({ w: 100, h: 0 }) && !looksLikeScreenshot({ w: 0, h: 100 }),
+    "every photo uploaded before today has no size on it, and flagging all of them would be noise");
+
+  ok("🔴 it FLAGS rather than hiding the photo",
+    /It FLAGS, it never hides/.test(OSSRC) && !/looksLikeScreenshot\(m\)\)\s*return null/.test(OSSRC),
+    "silently dropping one would leave him wondering why only two of three appeared");
+  ok("the flag names the size, so the judgement is checkable",
+    /Looks like a phone screenshot \(\{m\.w\}x\{m\.h\}\)/.test(OSSRC));
+  ok("and says what to ask the client for",
+    /Ask for the photo itself/.test(OSSRC));
+
+  // The other half: warn the client BEFORE it is uploaded at all.
+  const PORTAL = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  for (const [name, src] of [["the live portal", PORTAL], ["the owner-side copy", OSSRC]]) {
+    ok(`${name} warns the client at the moment they pick one`,
+      /function blScreenshot\(w,h\)\{[^}]*r>1\.9/.test(src)
+      && /That looks like a screenshot of your phone, not a photo/.test(src),
+      "the portal lives in two files; changing one and not the other is the standing trap here");
+    ok(`${name} still lets them upload it`,
+      !/blScreenshot\([^)]*\)\)\{[^}]*return;\}/.test(src.replace(/_st\.textContent[^;]*;/g, "")),
+      "he might genuinely want it, and a blocked upload with no explanation is worse than a photo he can delete in two taps");
+    ok(`${name} records the real pixel size so the OS can flag it later`,
+      /w:up\._w\|\|0,h:up\._h\|\|0/.test(src));
+  }
 }
 
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
