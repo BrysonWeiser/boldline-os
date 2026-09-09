@@ -65,9 +65,42 @@ an instruction to someone who does not know where that lives.
   `netlify/lib/launch-checklist.mjs`. `verify-app-boots` already fails when the OS names a
   tab that does not exist, and that guard is what makes the new name safe.
 
+## Delete, on the row he is looking at
+
+Bryson, 2026-09-09, looking at the stray campaign Google made Sebastian create while opening
+his account: *"I need a way to delete this ad"*. Delete existed — on the **global Campaigns
+screen**, a different screen behind a different menu. Standing in front of the campaign with
+no way to remove it is the same complaint that built that screen, one level down.
+
+`LiveCampaignsCard` rows now carry **Delete** after Start and Edit, red and last, because it
+is the one press on that row that cannot be taken back.
+
+🔴 **Same actions and same two confirmations as the Campaigns screen** (`removeCampaign` /
+`deleteCampaign`). A second, gentler path to a destructive thing is how a destructive thing
+gets done by accident. A live campaign is asked about twice and is **PAUSED before it is
+removed**, so a delete that fails halfway leaves it stopped rather than running.
+
+## 🔴 One name for one thing
+
+Bryson, same message: *"how do I set up the tracking"* — while the card was on screen,
+directly above what he was reading. The build card's warning said *"set up conversion
+tracking… there is a button for it further up this screen"*, and the card further up this
+screen was headed **"What Google Learns From"**. Both true, neither leading to the other.
+
+The heading is now **Conversion Tracking**, the plain-English explanation opens by saying it
+is what the builder below asks for, and the warning names the card and the button instead of
+pointing vaguely upward. A card he cannot find by name is a card he cannot find.
+
 ## Tests
 
-`tests/verify-campaign-tab.mjs`, 37 checks. The steps array is **extracted and executed**, and
+`tests/verify-campaign-tab.mjs`, 48 checks. The steps array is **extracted and executed**, and
 the component itself is **compiled through Babel and rendered** into a recording React (same
 harness as `verify-budget-editing`) so the assertions read the words that actually land on
-screen. 14 mutations, all caught, including a genuine reordering of tracking after the build.
+screen. 21 mutations, all caught, including a genuine reordering of tracking after the build.
+
+🔴 **The delete guard is EXECUTED, not matched.** The first version of it checked that the
+word "confirm" appeared, and three mutations walked straight through — a confirm wired to a
+constant, a missing confirm, and a live campaign deleted without being paused. It now
+extracts `remove()` and runs it with a fake `window.confirm` and fake API callers, asserting
+the exact call sequence: declining calls nothing, a paused campaign takes one confirmation,
+a live one takes two, and a live one emits `setStatus:PAUSED` before `removeCampaign`.

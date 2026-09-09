@@ -3860,11 +3860,11 @@ function ConversionLoopCard({client,onUpdate}){
   return (
     <Card>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
-        <Label>What Google Learns From</Label>
+        <Label>Conversion Tracking</Label>
         <Chip label={done?"Set up":"Not set up"} color={done?C.green:C.amber} small/>
       </div>
       <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginBottom:10}}>
-        Google can't tell a real customer from someone filling in a form out of curiosity. This teaches it.
+        This is the tracking the campaign builder below asks for. Google can't tell a real customer from someone filling in a form out of curiosity, and this teaches it.
         Form submissions get counted but never chased. Qualified leads and closed customers are what the bidding aims at,
         so the money goes toward people who look like {client.name}'s actual buyers.
       </div>
@@ -10073,7 +10073,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       </div>
       <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
         ready={!!(client.conversionActions&&Object.keys(client.conversionActions).length)}
-        missing={"Set up conversion tracking for this client first, or Google will refuse to build this. There is a button for it further up this screen."}/>
+        missing={"Set up conversion tracking for this client first, or Google will refuse to build this. Scroll up to the Conversion Tracking card and press Set this up in the ad account."}/>
       <button onClick={launch} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":C.gold,color:state==="done"?"#fff":"#15110A",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":"Build Campaign (Paused)"}</button>
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}
     </Card>
@@ -11960,6 +11960,38 @@ function LiveCampaignsCard({client,onOpenCampaign}) {
     setBusy(null);
   };
 
+  // ─── DELETE, ON THE SCREEN WHERE HE IS LOOKING AT IT ────────────────────────
+  // Bryson, 2026-09-09, looking at the stray campaign Google made Sebastian create while
+  // opening his account: *"I need a way to delete this ad"*. Delete existed, on the global
+  // Campaigns screen, which is a different screen reached from a different menu. Standing
+  // there with the campaign on screen and no way to remove it is the same complaint that
+  // built that screen in the first place, one level down.
+  //
+  // 🔴 SAME ACTION AND SAME TWO CONFIRMATIONS AS THE CAMPAIGNS SCREEN. A second, gentler
+  // path to a destructive thing is how a destructive thing gets done by accident, and this
+  // one cannot be undone: rebuilding a campaign loses its whole learning history.
+  const remove=async(platform,c)=>{
+    const on = platform==="google" ? String(c.status).toUpperCase()==="ENABLED" : String(c.status).toUpperCase()==="ACTIVE";
+    const whose = client.internal ? "your own" : `${client.name}'s`;
+    if(!window.confirm(`Delete "${c.name}"?\n\nThis permanently removes the campaign from ${whose} ${platform==="google"?"Google":"Meta"} account. It can NOT be undone, and rebuilding it starts its learning from scratch.`)) return;
+    // A campaign that is actively spending gets a second question, because deleting the
+    // wrong live one costs money and history at the same time.
+    if(on && !window.confirm(`Last check — "${c.name}" is live and spending.\n\nDelete it for good?`)) return;
+    const key = platform==="google"?c.campaignResourceName:c.id;
+    setBusy(key); setErr("");
+    try{
+      // Paused first, so a delete that fails halfway leaves it stopped rather than running.
+      if(on){
+        if(platform==="google") await gadsCall({action:"setStatus",customerId:client.googleAdsCustomerId,campaignResourceName:c.campaignResourceName,status:"PAUSED"});
+        else await metaCall({action:"setStatus",campaignId:c.id,status:"PAUSED"});
+      }
+      if(platform==="google") await gadsCall({action:"removeCampaign",customerId:client.googleAdsCustomerId,campaignResourceName:c.campaignResourceName});
+      else await metaCall({action:"deleteCampaign",campaignId:c.id});
+      await load();
+    }catch(e){ setErr(e.message||"That campaign could not be deleted."); }
+    setBusy(null);
+  };
+
   const row=(platform,c)=>{
     const on = platform==="google" ? String(c.status).toUpperCase()==="ENABLED" : String(c.status).toUpperCase()==="ACTIVE";
     const key = platform==="google"?c.campaignResourceName:c.id;
@@ -11983,6 +12015,9 @@ function LiveCampaignsCard({client,onOpenCampaign}) {
           <button onClick={()=>toggle(platform,c)} disabled={working} style={{marginLeft:onOpenCampaign?0:"auto",padding:"5px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",cursor:working?"default":"pointer",backgroundColor:on?"rgba(255,255,255,.06)":"#059669",color:on?C.textDim:"#fff",opacity:working?.6:1}}>{working?"…":on?"⏸ Pause":"▶ Start Ads"}</button>
           <button onClick={()=>openEdit(platform,c)} title="Change the daily budget or set a date to stop"
             style={{padding:"5px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>{edit===(platform==="google"?c.campaignResourceName:c.id)?"Close":"Edit"}</button>
+          {/* Red, and last. It is the one press on this row that cannot be taken back. */}
+          <button onClick={()=>remove(platform,c)} disabled={working} title="Delete this campaign permanently"
+            style={{padding:"5px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.red}44`,backgroundColor:`${C.red}10`,color:C.red,cursor:working?"default":"pointer",whiteSpace:"nowrap",opacity:working?.5:1}}>Delete</button>
         </div>
         {edit===(platform==="google"?c.campaignResourceName:c.id)&&(
           <div style={{marginTop:8,padding:"9px 10px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
@@ -12028,7 +12063,7 @@ function LiveCampaignsCard({client,onOpenCampaign}) {
         {g.map(c=>row("google",c))}
         {m.map(c=>row("meta",c))}
         {err&&<div style={{fontSize:11,color:C.red,marginTop:8}}>{err}</div>}
-        <div style={{fontSize:10,color:C.textMuted,marginTop:9,lineHeight:1.6}}>Campaigns build <b>Paused</b> so nothing spends by accident. <b style={{color:C.green}}>Start Ads</b> takes one live; <b>Pause</b> stops spend instantly. Changes apply straight to your ad account.</div>
+        <div style={{fontSize:10,color:C.textMuted,marginTop:9,lineHeight:1.6}}>Campaigns build <b>Paused</b> so nothing spends by accident. <b style={{color:C.green}}>Start Ads</b> takes one live; <b>Pause</b> stops spend instantly. <b style={{color:C.red}}>Delete</b> removes one from the ad account for good, and that cannot be undone. Changes apply straight to your ad account.</div>
       </>}
     </Card>
   );
