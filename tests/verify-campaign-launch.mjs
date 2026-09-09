@@ -151,7 +151,7 @@ const os = read("../index.html");
   const m = os.slice(os.indexOf("function MetaLaunchCard"));
   const body = m.slice(0, m.indexOf("\nfunction ", 10));
   ok("the Meta card has a locations field", /locationsText/.test(body));
-  ok("it is seeded from the client's own service area", /toLocationLines\(metaLocations\)/.test(body));
+  ok("it is seeded from the client's own service area", /tidyField\.locations\(metaLocations\)/.test(body));
   ok("it is sent to the builder", /locations:f\.locationsText/.test(body));
   ok("the old country-only payload is gone", !/geo:\{countries:\[f\.country/.test(body),
     "this is what targeted the whole country");
@@ -162,9 +162,14 @@ const os = read("../index.html");
 // The first version paired every other comma-separated chunk, which turns
 // "Phoenix, Mesa, Tempe" into "Phoenix, Mesa" — a place that is not where anyone meant.
 {
-  const i = os.indexOf("const US_STATE ="), j = os.indexOf("\n\nfunction AreaConditionsCard");
+  // 🔴 RENAMED 2026-09-09. `toLocationLines` became `tidyField.locations` when every
+  // format-constrained field got a shared formatter and this one started running on the
+  // textarea itself rather than only seeding it. Same seeder, same rule, so the cases below
+  // are unchanged and still the point of this block.
+  const i = os.indexOf("const US_STATE ="), j = os.indexOf("\nfunction FieldNotes(");
   ok("the location seeder is present", i > 0 && j > i);
-  const { toLocationLines } = new Function(os.slice(i, j) + "\nreturn { toLocationLines };")();
+  const { tidyField } = new Function(os.slice(i, j) + "\nreturn { tidyField };")();
+  const toLocationLines = tidyField.locations;
 
   eq("comma-separated city/state pairs split correctly",
     toLocationLines("Gilbert, Arizona, Chandler, Arizona, Mesa, Arizona"),
