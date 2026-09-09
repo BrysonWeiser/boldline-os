@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 165 task-keyed entries under `knowledge/`. They surface automatically via the
+> 166 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**165 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**166 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -375,6 +375,9 @@
 - **[client-campaign-tab](../knowledge/client-campaign-tab.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   Everything needed to launch a client's ads existed and worked, scattered down the Package tab under the plan, the scorecard and the trade playbook. Building a campaign is the most common thing done on a new client and it was the hardest thing on the screen to find. New **Campaign** tab, second in the client tab strip right after Overview, holding the ordered guide, conversion tracking, the Google/Meta launch cards and the live campaign list. New `CampaignStartHere` card states the ORDER (account, landing page, tracking, build) and writes out only the one step that is actually blocking, all observed from the record. The house account's Package tab no longer relabels itself "Campaigns", which would have collided. Built 2026-09-09.  
   <sub>*task:* build a client's ad campaign without digging for the controls &nbsp;|&nbsp; *keywords:* campaign tab, campaign creation, build campaign, where do i build ads, CampaignStartHere, launch card, conversion tracking order, client tabs, campaign section</sub>
+- **[crop-studio](../knowledge/crop-studio.md)** &mdash; &#9989; verified &middot; 2026-09-09  
+  A crop editor on the OS Client Media card (Assets tab). Drag to move, drag the corner to resize, with Free / Square / Landscape / Wide presets, all on pointer events because he is on a phone. 🔴 It NEVER destroys the original: the crop uploads as a NEW photo and the original is re-filed as `source`, a category everything already excludes from pages and ads, so a bad crop costs one more crop rather than the client's only photo of a job. Cuts at the FILE's resolution capped at 1600px, fills white first so a transparent PNG does not crop to black, and loads the image cross-origin so the canvas can be read at all. Built 2026-09-09.  
+  <sub>*task:* crop a client's photo from the OS without asking them to re-upload it &nbsp;|&nbsp; *keywords:* crop, crop studio, image editor, crop photo, edit client photo, CropStudio, media library crop, screenshot crop, retire original, source category</sub>
 - **[field-formats](../knowledge/field-formats.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   Fields whose label explains a required format now apply it. `tidyField` (index.html) formats on BLUR, never on keystroke: `locations` (one place per line, splitting on and/&/;/newline and pairing City+State only when the second half really is a state), `adLines` and `keywords` (one per line, de-duplicated, keywords also split on commas), `customerId` (ten digits to 123-456-7890), `digits`, `url` (adds https://), `tidy`. What needs a human decision is never guessed at — `locationNotes` and `lineNotes` flag it in amber through one shared `FieldNotes` component. 🔴 Over-length ad copy is FLAGGED, never truncated: auto-trimming to 30 characters is what produced the live headline "Serving Eugene and Lane". Built 2026-09-09.  
   <sub>*task:* make fields with a required shape (one per line, City State, ten-digit id, a URL) format themselves &nbsp;|&nbsp; *keywords:* one per line, target locations, format field, auto format, tidyField, locationNotes, lineNotes, FieldNotes, customer id dashes, https prefix, keyword commas, headline 30 characters, character limit</sub>

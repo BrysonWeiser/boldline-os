@@ -3675,6 +3675,152 @@ function CampaignStartHere({client, pkg}){
   );
 }
 
+// ─── CROP A CLIENT'S PHOTO WITHOUT ASKING THEM TO RE-SHOOT IT ────────────────
+//
+// Bryson, 2026-09-09, after finding a phone screenshot on a client's live page: *"is there a
+// way i can just crop the images myself like a little editor for myself"*. The alternative
+// was messaging the client, waiting, and hoping the next upload is better, with the wrong
+// picture live the whole time.
+//
+// 🔴 IT NEVER DESTROYS THE ORIGINAL. The crop uploads as a NEW photo and the original is
+// re-filed as `source`, which is an existing category that everything already excludes from
+// pages and ads (KB `media-roles`). So a bad crop costs one more crop, not the client's only
+// photo of a job they did months ago, and the client never sees a file of theirs disappear.
+//
+// Pointer events, not mouse events: he is on a phone almost every time he opens this.
+function CropStudio({ client, media, onDone, onCancel }) {
+  const wrapRef = React.useRef(null);
+  const imgRef  = React.useRef(null);
+  const [nat,setNat]   = useState(null);      // {w,h} of the real file
+  const [box,setBox]   = useState(null);      // crop rect in DISPLAYED pixels
+  const [drag,setDrag] = useState(null);
+  const [ratio,setRatio] = useState(0);       // 0 = free
+  const [busy,setBusy] = useState(false);
+  const [err,setErr]   = useState("");
+
+  // Start with the middle of the picture, which is where the subject of a screenshot is.
+  const onLoad = () => {
+    const el = imgRef.current; if (!el) return;
+    setNat({ w: el.naturalWidth, h: el.naturalHeight });
+    const w = el.clientWidth, h = el.clientHeight;
+    const side = Math.min(w, h) * 0.8;
+    setBox({ x: (w - side) / 2, y: (h - side) / 2, w: side, h: side });
+  };
+
+  const clamp = (b) => {
+    const el = imgRef.current; if (!el) return b;
+    const W = el.clientWidth, H = el.clientHeight;
+    let { x, y, w, h } = b;
+    w = Math.max(28, Math.min(w, W)); h = Math.max(28, Math.min(h, H));
+    if (ratio) { h = w / ratio; if (h > H) { h = H; w = h * ratio; } }
+    x = Math.max(0, Math.min(x, W - w)); y = Math.max(0, Math.min(y, H - h));
+    return { x, y, w, h };
+  };
+
+  const start = (mode) => (e) => {
+    e.preventDefault(); e.stopPropagation();
+    const r = wrapRef.current.getBoundingClientRect();
+    setDrag({ mode, px: e.clientX - r.left, py: e.clientY - r.top, box });
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (_) {}
+  };
+  const move = (e) => {
+    if (!drag || !box) return;
+    const r = wrapRef.current.getBoundingClientRect();
+    const dx = (e.clientX - r.left) - drag.px, dy = (e.clientY - r.top) - drag.py;
+    const b = drag.box;
+    setBox(clamp(drag.mode === "move"
+      ? { ...b, x: b.x + dx, y: b.y + dy }
+      : { x: b.x, y: b.y, w: b.w + dx, h: ratio ? (b.w + dx) / ratio : b.h + dy }));
+  };
+  const end = () => setDrag(null);
+
+  const save = async () => {
+    const el = imgRef.current;
+    if (!el || !box || !nat) return;
+    setBusy(true); setErr("");
+    try {
+      // 🔴 CROP AT THE FILE'S OWN RESOLUTION, not at the size it happens to be shown at.
+      // Cutting from the on-screen copy would hand back a 300px image off a 12MP photo.
+      const sx = nat.w / el.clientWidth, sy = nat.h / el.clientHeight;
+      let cw = Math.round(box.w * sx), ch = Math.round(box.h * sy);
+      const cap = 1600, over = Math.max(cw, ch) / cap;
+      const ow = over > 1 ? Math.round(cw / over) : cw;
+      const oh = over > 1 ? Math.round(ch / over) : ch;
+      const cv = document.createElement("canvas"); cv.width = ow; cv.height = oh;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, ow, oh);
+      ctx.drawImage(el, Math.round(box.x * sx), Math.round(box.y * sy), cw, ch, 0, 0, ow, oh);
+      const blob = await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.88));
+      if (!blob) throw new Error("The crop could not be created. Try a slightly smaller area.");
+
+      const base = String(media.label || "photo").replace(/\.[^.]+$/, "");
+      const name = `${base}-cropped.jpg`;
+      const tok = encodeURIComponent(client.portalToken);
+      const cat = media.category === "logo" ? "logo" : "photo";
+      const sign = await fetch(`/.netlify/functions/media?action=sign&token=${tok}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: name, category: cat }),
+      }).then((r) => r.json());
+      if (!sign || !sign.ok) throw new Error((sign && sign.error) || "Could not start the upload.");
+      const put = await fetch(sign.signedUrl, { method: "PUT", headers: { "Content-Type": "image/jpeg" }, body: blob });
+      if (!put.ok) throw new Error("The upload was refused.");
+      const conf = await fetch(`/.netlify/functions/media?action=confirm&token=${tok}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: sign.path, category: cat, label: name, w: ow, h: oh }),
+      }).then((r) => r.json());
+      if (!conf || !conf.ok) throw new Error((conf && conf.error) || "The crop uploaded but could not be saved.");
+
+      // The original is retired, never deleted. `source` is already excluded from every page
+      // and every ad, so it stops showing without anything being lost.
+      const next = (conf.mediaLibrary || []).map((x) =>
+        x && x.path === media.path ? { ...x, category: "source" } : x);
+      onDone(next);
+    } catch (e) {
+      setErr(String((e && e.message) || e));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:400,background:"rgba(4,6,10,.92)",display:"flex",flexDirection:"column",padding:14,overflow:"auto"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+        <div style={{fontSize:13,fontWeight:800,color:C.text}}>Crop this photo</div>
+        <button onClick={onCancel} style={{marginLeft:"auto",padding:"6px 12px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+      </div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginBottom:9}}>
+        Drag the box to move it, drag its bottom-right corner to resize. The original is kept and simply stops being used, so you can crop again if you get it wrong.
+      </div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:9}}>
+        {[["Free",0],["Square",1],["Landscape",4/3],["Wide",16/9]].map(([lab,r])=>(
+          <button key={lab} onClick={()=>{setRatio(r); setBox(b=>b?clamp({...b,h:r?b.w/r:b.h}):b);}}
+            style={{padding:"5px 11px",fontSize:10.5,fontWeight:700,borderRadius:7,cursor:"pointer",
+              border:`1px solid ${ratio===r?C.borderAccent:C.border}`,
+              backgroundColor:ratio===r?"rgba(200,168,75,.12)":"transparent",color:ratio===r?C.gold:C.textDim}}>{lab}</button>
+        ))}
+      </div>
+      <div ref={wrapRef} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
+        style={{position:"relative",display:"inline-block",alignSelf:"center",maxWidth:"100%",touchAction:"none"}}>
+        <img ref={imgRef} src={media.url} alt="" crossOrigin="anonymous" onLoad={onLoad} draggable={false}
+          style={{maxWidth:"100%",maxHeight:"52vh",display:"block",borderRadius:8,userSelect:"none"}}/>
+        {box&&(
+          <div onPointerDown={start("move")}
+            style={{position:"absolute",left:box.x,top:box.y,width:box.w,height:box.h,cursor:"move",
+              border:`2px solid ${C.gold}`,boxShadow:"0 0 0 9999px rgba(0,0,0,.55)",touchAction:"none"}}>
+            <div onPointerDown={start("size")}
+              style={{position:"absolute",right:-13,bottom:-13,width:26,height:26,borderRadius:"50%",
+                background:C.gold,border:"2px solid #15110A",cursor:"nwse-resize",touchAction:"none"}}/>
+          </div>
+        )}
+      </div>
+      {err&&<div style={{fontSize:11,color:C.red,lineHeight:1.55,marginTop:9}}>{err}</div>}
+      <button onClick={save} disabled={busy||!box}
+        style={{marginTop:12,padding:"11px",fontSize:12.5,fontWeight:800,borderRadius:9,border:"none",
+          backgroundColor:C.gold,color:"#15110A",cursor:busy?"default":"pointer",opacity:busy?.6:1}}>
+        {busy?"Saving…":"Save the crop"}</button>
+    </div>
+  );
+}
+
 function LaunchChecklistCard({client}){
   const [open,setOpen] = useState(false);
   if(client.internal) return null;              // BoldLine does not onboard itself
@@ -7306,6 +7452,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   const [callTrack,setCallTrack] = useState({busy:false,error:null,areaCode:""});
   const [mediaBusy,setMediaBusy] = useState(null);
   const [mediaErr,setMediaErr]   = useState(null);
+  // Which photo the crop editor is open on, or null. One at a time.
+  const [cropping,setCropping]   = useState(null);
   // ─── 🔴 THE MY ADS NUMBERS UPDATE THE MOMENT A LEAD LANDS ────────────────────
   // Bryson, 2026-09-02, after a Netlify log showed the fifteen-minute job skipped for two
   // and a half hours: *"lets have the numbers update live"*.
@@ -7893,6 +8041,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                               Looks like a phone screenshot ({m.w}x{m.h}). It will show the whole screen on their page. Ask for the photo itself.
                             </div>
                           )}
+                          {m.category!=="video"&&(
+                            <button onClick={()=>setCropping(m)} disabled={mediaBusy===m.path}
+                              style={{width:"100%",padding:"5px 0",fontSize:10,fontWeight:700,borderRadius:7,marginBottom:5,
+                                border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:"pointer"}}>Crop</button>
+                          )}
                           <button onClick={()=>handleDeleteMedia(m)} disabled={mediaBusy===m.path} style={{width:"100%",padding:"5px 0",fontSize:10,fontWeight:700,borderRadius:7,border:"1px solid rgba(248,113,113,.3)",backgroundColor:"rgba(248,113,113,.08)",color:C.red,cursor:mediaBusy===m.path?"default":"pointer",opacity:mediaBusy===m.path?.5:1}}>{mediaBusy===m.path?"Deleting…":"Delete"}</button>
                         </div>
                       </div>
@@ -7901,6 +8054,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 </div>
               )}
             </Card>
+            {cropping&&(
+              <CropStudio client={client} media={cropping}
+                onCancel={()=>setCropping(null)}
+                onDone={(lib)=>{ onUpdate({...client, mediaLibrary:lib}); setCropping(null); }}/>
+            )}
             {client.internal ? (
               <Card style={{borderColor:`${C.gold}2a`}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
