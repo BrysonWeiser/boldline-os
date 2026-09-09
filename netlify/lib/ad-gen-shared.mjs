@@ -6,6 +6,7 @@
 // cleaning must be IDENTICAL across both paths, so they live here once.
 
 import Anthropic from "@anthropic-ai/sdk";
+import { dropSelfBlockingNegatives } from "./trade-playbooks.mjs";
 import { humanize, NO_DASH_RULE, fitWords, fitPhrase, isLeadIn } from "./humanize.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
@@ -65,7 +66,7 @@ export const GOOGLE_TOOL = {
           required: ["name", "theme", "intent", "keywords", "headlines", "descriptions"],
         },
       },
-      negativeKeywords: { type: "array", description: "15 to 30 negatives specific to THIS business, beyond the obvious (free, jobs, salary). Think about who searches these words but could never buy.", items: { type: "string" } },
+      negativeKeywords: { type: "array", description: "15 to 30 negatives specific to THIS business, beyond the obvious (jobs, salary, tutorial). Think about who searches these words but could never buy. NEVER return a bare word that also appears in a buying search: \"free\" blocks \"free quote\", \"quote\" and \"estimate\" block the exact searches this campaign wants. Use the phrase that carries the bad intent instead, such as \"for free\" or \"free sample\".", items: { type: "string" } },
       notes: { type: "string", description: "One short paragraph for the operator: what this structure is betting on and what to watch in the first two weeks." },
     },
     required: ["adGroups", "negativeKeywords", "notes"],
@@ -208,11 +209,13 @@ export function cleanGoogle(data) {
     };
   }).filter((g) => g.keywords.length && g.headlines.length >= 3 && g.descriptions.length >= 2);
 
-  const negativeKeywords = (Array.isArray(data && data.negativeKeywords) ? data.negativeKeywords : [])
-    .map((n) => String(n || "").toLowerCase().replace(/["\[\]+]/g, "").trim())
-    .filter((n) => n && n.length <= LIMITS.keyword)
-    .filter((n, i, a) => a.indexOf(n) === i)
-    .slice(0, 50);
+  // The prompt is told not to write these; a prompt is guidance, so they are dropped too.
+  const [negativeKeywords] = dropSelfBlockingNegatives(
+    (Array.isArray(data && data.negativeKeywords) ? data.negativeKeywords : [])
+      .map((n) => String(n || "").toLowerCase().replace(/["\[\]+]/g, "").trim())
+      .filter((n) => n && n.length <= LIMITS.keyword)
+      .filter((n, i, a) => a.indexOf(n) === i)
+      .slice(0, 50));
 
   return { adGroups, negativeKeywords, notes: stripDashes(data && data.notes) };
 }

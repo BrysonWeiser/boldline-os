@@ -922,7 +922,7 @@ const foundingSlotsLeft = (clients) => Math.max(0, FOUNDING_CLIENT_COUNT - found
 // same inputs and compares the OUTPUT, so a change to one that the other did not get is a
 // failing test rather than a slow drift nobody notices.
 const UNIVERSAL_NEGATIVES = [
-  "free","cheap","cheapest","discount","bargain",
+  "for free","free download","free sample","cheap","cheapest","bargain","discount code","coupon","promo code",
   "jobs","job","salary","hiring","career","careers","intern","internship","resume","entry level",
   "course","courses","training","tutorial","how to","diy","udemy","certification",
   "software","tool","tools","template","reddit","wikipedia","meaning","definition",
@@ -10409,7 +10409,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         // paused: a paused ad group in the account is a thing to remember to delete later.
         ...(useGen ? { adGroups: chosen } : { headlines, descriptions, keywords })});
       const missed=(d.locationsUnresolved||[]);
-      setState("done"); setMsg(`✓ Campaign created PAUSED — ${d.adGroupsCreated||1} ad group${(d.adGroupsCreated||1)===1?"":"s"} (${(d.adGroupNames||[]).join(", ")}), ${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}, targeting ${(d.locationsTargeted||[]).join(", ")||"—"}${d.negativeKeywordsCreated?`, ${d.negativeKeywordsCreated} negative keywords`:""}.${missed.length?` ⚠ Google did not recognise: ${missed.join(", ")} — these are NOT targeted.`:""} It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
+      // The build refuses a negative that would block the landing page's own offer.
+      // Said out loud, or he keeps a block he believes is in place and is not.
+      const refused=(d.negativesRefused||[]);
+      setState("done"); setMsg(`✓ Campaign created PAUSED — ${d.adGroupsCreated||1} ad group${(d.adGroupsCreated||1)===1?"":"s"} (${(d.adGroupNames||[]).join(", ")}), ${d.keywordsCreated} keyword${d.keywordsCreated===1?"":"s"}, targeting ${(d.locationsTargeted||[]).join(", ")||"—"}${d.negativeKeywordsCreated?`, ${d.negativeKeywordsCreated} negative keywords`:""}.${missed.length?` ⚠ Google did not recognise: ${missed.join(", ")} — these are NOT targeted.`:""}${refused.length?` Not blocked, on purpose: ${refused.join(", ")} — those words also appear in "free quote", which is the button on the landing page this campaign points at.`:""} It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
       const gcid=String(d.campaignResourceName||"").split("/").pop();
       if(gcid&&onUpdate){
         const upd={...client, pendingActions:[

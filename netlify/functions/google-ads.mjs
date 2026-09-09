@@ -22,6 +22,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { parseLocations } from "../lib/geo-parse.mjs";
+import { dropSelfBlockingNegatives } from "../lib/trade-playbooks.mjs";
 import {
   CONVERSION_ACTIONS, ACTION_KEYS, conversionActionPayload, mapConversionRows, uploadPlan,
 } from "../lib/gads-conversions.mjs";
@@ -588,8 +589,13 @@ export async function createCampaign(accessToken, p) {
   const locationNames = (Array.isArray(p.locations) ? p.locations : [])
     .map((l) => String(l || "").trim()).filter(Boolean).slice(0, 20);
   if (!locationNames.length) throw err("at least 1 target location required (e.g. \"Gilbert, Arizona\") — without one Google targets every country on earth");
-  const negativeKeywords = (Array.isArray(p.negativeKeywords) ? p.negativeKeywords : [])
-    .map((k) => String(k || "").trim()).filter(Boolean).slice(0, 50);
+  // 🔴 The last gate before a negative reaches the account. A bare "free" blocks
+  // "free quote", which is the button on the landing page this very campaign points at.
+  // Refused here rather than at any one source, because the box, the generator and a
+  // learned playbook can each supply one. What was dropped is reported, never swallowed.
+  const [negativeKeywords, negativesRefused] = dropSelfBlockingNegatives(
+    (Array.isArray(p.negativeKeywords) ? p.negativeKeywords : [])
+      .map((k) => String(k || "").trim()).filter(Boolean).slice(0, 50));
   const name = String(p.name || "BoldLine Search Campaign").slice(0, 120);
   const budgetRN = `customers/${cid}/campaignBudgets/-1`;
   const campaignRN = `customers/${cid}/campaigns/-2`;
@@ -751,6 +757,7 @@ export async function createCampaign(accessToken, p) {
     locationsTargeted: geo.map((g) => g.canonicalName),
     locationsUnresolved: geo.unresolved || [],
     negativeKeywordsCreated: negativeKeywords.length,
+    negativesRefused,
     status: "PAUSED",
     note: "Created PAUSED — review it in Google Ads, then enable to start spend. Nothing spends until you do.",
   };

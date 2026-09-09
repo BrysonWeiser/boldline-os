@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 166 task-keyed entries under `knowledge/`. They surface automatically via the
+> 167 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**166 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**167 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -63,6 +63,9 @@
 - **[scale-prompt](../knowledge/scale-prompt.md)** &mdash; &#9989; verified &middot; 2026-08-24  
   An hourly check inside ads-sync that asks whether to raise a budget, and never raises one itself. It fires only when the account is BOTH performing and actually out of budget, because raising a budget that is not being spent changes nothing. One-click approval reuses the queue's existing guarded set_daily_budget path, so no new route to real money was written.  
   <sub>*task:* change when the OS suggests scaling ad spend, or work out why a scale alert did or did not fire &nbsp;|&nbsp; *keywords:* scale, scale or keep as is, raise budget, budget limited, scaleReady, scaleCheck, SCALE_MIN_LEADS, SCALE_STEP, set_daily_budget, spend more, ads-sync alert, approval queue budget</sub>
+- **[self-blocking-negatives](../knowledge/self-blocking-negatives.md)** &mdash; &#9989; verified &middot; 2026-09-09  
+  The seed negative list every client started from began with the bare word "free", which in Google blocks EVERY search containing it — including "free quote", the button on every landing page BoldLine builds. Bare "discount" likewise blocked "bulk discount", a buying search for a printer. Fixed at the seed (bare words replaced by the phrases that carry the bad intent) AND enforced at the build, where the typed box, the model's output and a learned playbook all arrive; what gets refused is reported in the success message, never dropped silently. 76 checks, 13 mutations.  
+  <sub>*task:* choose or debug negative keywords, or work out why a campaign gets no impressions on its best search &nbsp;|&nbsp; *keywords:* negative keywords, negatives, free, free quote, blocked own offer, self blocking, NEVER_NEGATIVE, dropSelfBlockingNegatives, UNIVERSAL_NEGATIVES, negativesRefused, near me, discount, bulk discount, coupon, promo code, no impressions, why no leads, negative keyword blocking, campaign gets no traffic</sub>
 - **[trade-playbooks](../knowledge/trade-playbooks.md)** &mdash; &#9989; verified &middot; 2026-08-26  
   Two things that turn the first client's time into a permanent asset. A per-trade playbook of searches to block, questions to ask and what a bad lead looks like, where a SEEDED guess and a LEARNED fact are stored and shown separately. And a launch checklist whose every step is observed from the client record rather than ticked by hand.  
   <sub>*task:* reuse what one client taught us on the next client in that trade, or check what still has to happen before a client goes live &nbsp;|&nbsp; *keywords:* trade playbook, negative keywords by trade, qualifying questions, disqualifiers, learned vs seeded, recordLearning, playbookFor, launch checklist, launchChecklist, LaunchChecklistCard, TradePlaybookCard, PlaybookCtx, tradePlaybooks, onboarding, client two, mirrored copy, browser copy drift</sub>
