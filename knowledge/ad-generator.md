@@ -2,7 +2,7 @@
 name: ad-generator
 topic: Ads
 task: generate real campaign structure (ad groups, keywords, 15 headlines, negatives, creative angles) instead of string templates
-keywords: [match type, keyword match type, phrase, exact, broad, quotes, brackets, auto format keywords, kwMatch, liveMatch, applyMatchType, generatedMatchType, mixed match type, campaign settings block, settings order, where do i change the budget, tick boxes, tick box, select ad groups, pick ad groups, choose ad groups, which ad groups, build these ad groups, two build buttons, build campaign paused, edit ad group, edit generated ad groups, editGroup, picked, campaign settings, daily budget generated, manual ad copy, manual fallback, ad generator, ad-generator.mjs, kicker, kicker unfinished, isLeadIn, lead-in, label not sentence, creative studio kicker, narrow input, field too narrow, scrolls sideways, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
+keywords: [settings not saving, does not save, resets, lost my work, campaign draft, campaignDraft, useSavedDraft, autosave, auto save, debounce, flush on unmount, stale client, draft persistence, start over, reset campaign settings, match type, keyword match type, phrase, exact, broad, quotes, brackets, auto format keywords, kwMatch, liveMatch, applyMatchType, generatedMatchType, mixed match type, campaign settings block, settings order, where do i change the budget, tick boxes, tick box, select ad groups, pick ad groups, choose ad groups, which ad groups, build these ad groups, two build buttons, build campaign paused, edit ad group, edit generated ad groups, editGroup, picked, campaign settings, daily budget generated, manual ad copy, manual fallback, ad generator, ad-generator.mjs, kicker, kicker unfinished, isLeadIn, lead-in, label not sentence, creative studio kicker, narrow input, field too narrow, scrolls sideways, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
 status: verified
 summary: "Fill copy" was string templates — 6-7 keywords in one undifferentiated bucket, 8 of Google's 15 headlines, 3 of 4 descriptions, and a SINGLE ad group, byte-identical on every press. New `netlify/functions/ad-generator.mjs` writes a real campaign with a model: 3-5 intent-themed ad groups each carrying its own keywords (with per-keyword match types) and its own full 15-headline ad, plus 15-30 business-specific negatives and an operator note. `createCampaign` now builds N ad groups in one atomic mutate. The Ad Creative Studio's five fixed angles can likewise be rewritten from the real niche. 32 + 27 + 22 + 31 cases.
 verified: 2026-09-02
@@ -201,3 +201,30 @@ Reordered to: **Campaign settings** (name, budget, landing page, match type, loc
 ### Verified
 
 `tests/verify-match-type.mjs` — **56 checks, 15 mutations caught**, extracting and RUNNING the formatter, the reader and `applyMatchType`: his exact example (phrase puts everything in quotes), round-trips that must not nest, `MIXED` and junk values changing nothing, and every generated keyword actually changing in both directions. `verify-group-picker` gained the ordering assertions (settings before generated before manual, and each named field inside the settings block). Rendered headlessly with the generated groups showing at **390 / 768 / 1280 / 1600** — no horizontal overflow, nothing offscreen, consistent field widths.
+
+## 2026-09-09 (later still) — THE SETTINGS WERE NEVER SAVED ANYWHERE
+
+**Bryson:** *"make sure when the campaign settings are changed they actually save and stay saved"*. They did not, and nothing said so, because nothing was broken.
+
+The launch card's form was plain component state, seeded from computed defaults on mount. **The campaign name, daily budget, landing page, match type, target locations, negative keywords, goal, the typed service, and the entire generated campaign existed only in that browser tab.** Switching to another tab inside the same client threw them away. So did the app reloading while he answered a text message. Losing the generated campaign is the expensive one: it costs a model call and a minute or two of waiting, every single time.
+
+The draft now lives on the **client record** — the thing that already syncs and is already backed up — so it also follows him from his phone to his desktop. `useSavedDraft(client, onUpdate, slot, value, active)` is written to be reusable; the Meta card can adopt it unchanged when Meta is approved.
+
+### 🔴 The three ways an auto-save like this goes wrong, each of which is its own bug
+
+1. **Writing on MOUNT.** A save fired just because the card rendered would replace a real saved draft with freshly computed defaults, which is precisely the loss it exists to prevent. Only a genuine edit arms it.
+2. **Saving against a STALE client.** `onUpdate` replaces the **whole** record, so spreading a `client` captured 900ms earlier silently undoes a lead, an approval or a note that landed in between. The flush reads the latest through a ref, never the closure.
+3. **Flushing only on a TIMER.** A debounce with no unmount flush loses the last edit every time, and leaving right after typing is exactly when he expects it kept.
+
+### Two smaller traps, both real
+
+- **`picked` is a `Set`.** Written to the database it comes back as `{}` — which is **not** null, so `picked.has` throws and every ad group reads as unticked. Stored as an array, restored as a Set.
+- **The restore merges FIELD BY FIELD**, never `savedF || defaults`. A whole-object swap means any field added to the form later comes back `undefined` for every client who saved a draft before it existed, which React renders as an uncontrolled input that then wipes itself.
+
+**And it says so on screen.** An invisible auto-save is indistinguishable from no auto-save, which is the state he was complaining about. The card says the settings are kept and offers **start over** (with a confirm) for when a draft goes stale — the landing page changed, the budget changed — because otherwise there is no way back to the defaults.
+
+### Verified
+
+`tests/verify-draft-persistence.mjs` — **58 checks, 20 mutations, all caught.** The real hook is extracted and RUN against a hand-driven React: no write on mount, one write for five keystrokes, no write for an unchanged re-render, the lead that arrived mid-debounce surviving the save, the unmount flush landing the last edit, an untouched card writing nothing on the way out, and a client with no id never being written.
+
+🔴 **The fake `clearTimeout` had to really cancel.** It was a no-op at first, and a no-op cannot tell a working debounce from a missing one — both look like a growing pile of pending timers, so the "five keystrokes, one save" assertion would have passed a card that wrote once per character.

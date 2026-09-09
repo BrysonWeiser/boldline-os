@@ -10196,6 +10196,54 @@ function AreaConditionsCard({locations}) {
   );
 }
 
+// ─── A CARD'S FORM THAT SURVIVES LEAVING THE SCREEN ──────────────────────────
+// Bryson, 2026-09-09: *"make sure when the campaign settings are changed they actually
+// save and stay saved"*. They did not. The launch card's fields were plain component
+// state, so the campaign name, daily budget, locations, negatives, goal and the whole
+// generated campaign were seeded from defaults on mount and thrown away on unmount.
+// Switching tabs inside the client was enough. So was answering a text message on a phone
+// long enough for the app to reload. Nothing warned him, because nothing was broken: the
+// values were simply never anywhere.
+//
+// The draft lives on the CLIENT RECORD, which is the thing that already syncs and is
+// already backed up, so it also follows him from his phone to his desktop.
+//
+// 🔴 THREE THINGS THIS HAS TO GET RIGHT, and each one is a bug on its own:
+//   1. NEVER write just because the card rendered. A save fired on mount would overwrite
+//      a real draft with freshly computed defaults, which is the exact loss it exists to
+//      prevent. Only an actual edit arms it.
+//   2. NEVER save against a stale client. `onUpdate` replaces the WHOLE record, so
+//      spreading a `client` captured 900ms ago would silently undo a lead, an approval or
+//      a note that arrived in between. The flush reads the latest through a ref.
+//   3. FLUSH ON THE WAY OUT. A debounce that only fires on a timer loses the last edit
+//      every time — and leaving right after typing is precisely when he expects it kept.
+function useSavedDraft(client, onUpdate, slot, value, active) {
+  const clientRef = useRef(client); clientRef.current = client;
+  const valueRef = useRef(value);   valueRef.current = value;
+  const onUpdateRef = useRef(onUpdate); onUpdateRef.current = onUpdate;
+  const dirty = useRef(false);
+  const mounted = useRef(false);
+  const flush = useRef(() => {
+    if (!dirty.current) return;
+    const c = clientRef.current, up = onUpdateRef.current;
+    if (!c || !c.id || !up) return;
+    dirty.current = false;
+    up({ ...c, [slot]: { ...valueRef.current, savedAt: Date.now() } });
+  });
+  const key = JSON.stringify(value);
+  useEffect(() => {
+    // The first pass is the card appearing, not him changing anything.
+    if (!mounted.current) { mounted.current = true; return; }
+    if (!active) return;
+    dirty.current = true;
+    const t = setTimeout(() => flush.current(), 900);
+    return () => clearTimeout(t);
+  }, [key, active]);
+  // Leaving the screen is a save, not a discard.
+  useEffect(() => () => flush.current(), []);
+  return flush.current;
+}
+
 function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const playbooks = usePlaybooks();
   const linked = !!client.googleAdsCustomerId;
@@ -10293,14 +10341,20 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   // real client taught us about their market comes with it (KB `trade-playbooks`).
   const negativeDefault = negativeTerms(client.niche, playbooks.store).join("\n");
 
-  const [audience,setAudience] = useState("");
+  // What was saved last time he was on this card, if anything.
+  const saved = (client && client.campaignDraft) || null;
+  const savedF = (saved && saved.f) || null;
+  const [audience,setAudience] = useState((saved && saved.audience) || "");
   const monthlyBudget = monthlyBudgetNum(client);
   // Split the monthly budget across the platforms actually being run — otherwise
   // Google and Meta each take the full figure and the month burns twice as fast.
   const platShare = Math.max(1, Number(platformCount) || 1);
   const autoDaily = dailyFromMonthly(monthlyBudget, platShare);
-  const [budgetTouched,setBudgetTouched] = useState(false);
-  const [f,setF] = useState({
+  const [budgetTouched,setBudgetTouched] = useState(!!(saved && saved.budgetTouched));
+  // 🔴 MERGED FIELD BY FIELD, never `saved.f || defaults`. A whole-object swap means any
+  // field added to this form LATER comes back undefined for every client who saved a draft
+  // before it existed, which React renders as an uncontrolled input that then wipes itself.
+  const [f,setF] = useState(()=>{ const d = {
     name: seed0.name,
     dailyBudgetDollars: autoDaily > 0 ? autoDaily : 20,
     landingUrl: landingDefault,
@@ -10323,11 +10377,19 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     // handles a cold start and buying page views is the exact failure that started all of
     // this. Different platforms, different right answer, both stated rather than copied.
     goal: "traffic",
+  };
+    if(!savedF) return d;
+    const out={...d};
+    for(const k of Object.keys(d)) if(savedF[k]!==undefined && savedF[k]!==null) out[k]=savedF[k];
+    return out;
   });
   // Generated structure. When present, the campaign is built from THESE ad groups
   // (several themed groups, each with its own ad) instead of the single group the
   // manual fields below describe.
-  const [gen,setGen] = useState(null);         // {adGroups, negativeKeywords, notes, totals}
+  // The generated campaign is saved too, and is the most expensive thing on this card to
+  // lose: it costs a model call and a minute or two of waiting, and switching tabs threw
+  // it away.
+  const [gen,setGen] = useState((saved && saved.gen) || null);  // {adGroups, negativeKeywords, notes, totals}
   // 🔴 WHICH GROUP IS OPEN. Bryson, 2026-09-09, looking at five generated ad groups:
   // *"when i press on one nothing happens"*. They were a summary and nothing more — a name,
   // six of the keywords and a count — so the 15 headlines and 4 descriptions per group were
@@ -10342,7 +10404,9 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   // `null` means every group, so a fresh generation starts with everything ticked and he
   // unticks what he does not want. Reset on every generate, because these are indexes and a
   // regenerated campaign has different groups behind the same numbers.
-  const [picked,setPicked] = useState(null);
+  // Stored as an ARRAY, because a Set written to the database comes back as `{}` — which
+  // is not null, so `picked.has` would throw and every group would read as unticked.
+  const [picked,setPicked] = useState(()=> Array.isArray(saved && saved.picked) ? new Set(saved.picked) : null);
 
   // Writes an edit back into the generated structure Build actually sends. Keywords keep
   // their match type, which is carried in the punctuation Google itself uses:
@@ -10376,6 +10440,22 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       return {...prev, adGroups: prev.adGroups.map(g=>({...g,
         keywords: ((g&&g.keywords)||[]).map(k=>({...k, matchType:v})) }))};
     });
+  };
+  // Everything on this card that he can change, kept on the client record. `picked` is
+  // flattened to an array here rather than at the setter, so the tick logic keeps working
+  // with the Set it was written against.
+  const saveDraft = useSavedDraft(client, onUpdate, "campaignDraft",
+    { f, gen, audience, budgetTouched, picked: picked ? [...picked] : null },
+    !!(client && client.id));
+  const clearDraft = () => {
+    if(!onUpdate || !client) return;
+    if(!confirm("Put every setting on this card back to its starting value? Your typed campaign name, budget, locations, negatives and any generated ad groups are cleared.")) return;
+    const next={...client}; delete next.campaignDraft; onUpdate(next);
+    setF({ name:seed0.name, dailyBudgetDollars: autoDaily>0?autoDaily:20, landingUrl:landingDefault,
+      matchType:"PHRASE", headlinesText:seed0.headlines.join("\n"), descriptionsText:seed0.descriptions.join("\n"),
+      keywordsText:seed0.keywords.join("\n"), locationsText:locationDefault,
+      negativeKeywordsText:negativeDefault, goal:"traffic" });
+    setGen(null); setPicked(null); setAudience(""); setBudgetTouched(false); setGenMsg(""); setMsg("");
   };
   const generate = async () => {
     setGenState("working"); setGenMsg("Writing the campaign. This takes a minute or two.");
@@ -10506,6 +10586,13 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           : <>Name <b style={{color:C.textDim}}>one service</b> and tap <b style={{color:C.textDim}}>Fill copy</b>, then Build. Change it and build again — each service gets its own campaign, which is how the ad ends up matching what was actually searched for. Leave blank to cover everything they do.</>}</div>
       </div>
       <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Campaign settings <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· used by both build buttons</span></div>
+      {/* Says it is kept, because "did that save?" is the question this answers, and an
+          invisible auto-save is indistinguishable from no auto-save. */}
+      <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,margin:"0 0 9px"}}>
+        {saved
+          ? <>Saved on {client.name}, so these stay put when you leave this screen and follow you to your other devices. <button onClick={clearDraft} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>start over</button></>
+          : <>Anything you change here saves itself and will still be here next time you open this client.</>}
+      </div>
       {[
         {k:"name",l:"Campaign name",t:"text"},
         {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
