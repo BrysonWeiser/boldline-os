@@ -44,6 +44,17 @@ const ok = (name, cond, why = "") => { if (cond) pass++; else { fail++; console.
   ok("a cropped logo stays a logo rather than becoming a photo",
     /media\.category === "logo" \? "logo" : "photo"/.test(SRC),
     "filing a logo as a photo would put it in the gallery of their work");
+  // 🔴 landing.mjs resolves the hero by PATH FIRST and does not check the category, so a
+  // retired original would stay the hero forever: the page would keep showing the exact
+  // picture he just cropped because it was bad. Cropping the hero is the case where he cared
+  // most about how it looks.
+  ok("🔴 cropping the pinned hero moves the pin onto the crop",
+    /lp\.heroPath === media\.path\s*\?\s*\{ landingPage: \{ \.\.\.lp, heroPath: sign\.path, heroUrl: "" \} \}/.test(SRC),
+    "the hero is found by path and the category is never checked, so a retired original stays the hero");
+  ok("and cropping any other photo leaves the hero alone",
+    /: null;/.test(SRC) && /onDone\(next, patch\)/.test(SRC));
+  ok("the screen applies whatever the editor hands back",
+    /onDone=\{\(lib,patch\)=>\{ onUpdate\(\{\.\.\.client, mediaLibrary:lib, \.\.\.\(patch\|\|\{\}\)\}\)/.test(UI));
   ok("the client is never asked to confirm anything, since this is the owner's tool",
     !/window\.confirm/.test(SRC));
 }
