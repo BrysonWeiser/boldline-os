@@ -382,3 +382,27 @@ values, and the mutation (deleting the two lines) is caught. `verify-sms-consent
 
 **The general shape, worth carrying:** a field that only one code path exercises is a field that
 is only tested where it is used. The format nobody uses yet is the one that silently rots.
+
+---
+
+## ✅ 2026-09-09 — VERIFIED END TO END ON THE LIVE FORM
+
+Two test leads through the real form at `quote.stencilandthread.com`, on different phone
+numbers so the receiving system treated them as two people:
+
+| Lead | Consent box | Text received |
+|---|---|---|
+| Test One | ticked | **yes** |
+| Test Two | neither box ticked | **no** |
+
+Confirmed by Bryson from the handsets, not inferred from logs. This exercises the whole chain
+in one go: the form recorded the answer, `crm-forward` carried it to Autopilot in Shaun's flat
+form-urlencoded format, and **his** system (Stencil & Thread is set to `smsSender: "their"`,
+KB `client-text-back`) acted on it correctly in both directions.
+
+🔴 **The negative case is the one that mattered.** A text sent to somebody who did not tick the
+box is the compliance failure; a text that arrives when it should is merely the feature
+working. Both were checked, and the silent one was checked deliberately rather than assumed.
+
+Earlier tests on 2026-09-07 were inconclusive because both had the box ticked, so the "does
+declining actually stop it" half had never been exercised until now.
