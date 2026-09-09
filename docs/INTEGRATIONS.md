@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 161 task-keyed entries under `knowledge/`. They surface automatically via the
+> 162 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**161 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**162 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -231,6 +231,12 @@
 - **[netlify-secret-scan-deploys](../knowledge/netlify-secret-scan-deploys.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   7 consecutive production builds failed on "Exposed secrets detected - META_APP_ID" while every merge reported success in git, so the OS silently ran day-old code. The tell was that git and the live site disagreed. Fixed by adding META_APP_ID to SECRETS_SCAN_OMIT_KEYS - it is a PUBLIC identifier (embedded in every client-side Meta SDK snippet), not a credential. Deleting the offending id from docs was tried first and was the wrong approach: the first candidate turned out to already be in the last SUCCESSFUL deploy.  
   <sub>*task:* diagnose why the OS is running old code, and fix a failing Netlify secret scan &nbsp;|&nbsp; *keywords:* build credits, build minutes, out of credits, deploy did not run, stale deploy, git and live site disagree, CACHE_VERSION check, netlify, deploy failed, exposed secrets detected, SECRETS_SCAN_OMIT_KEYS, META_APP_ID, stale OS, old code, build failed, PWA cache, service worker</sub>
+
+## Landing pages
+
+- **[landing-image-weight](../knowledge/landing-image-weight.md)** &mdash; &#9989; verified &middot; 2026-09-08  
+  Sebastian's live landing page showed three broken-image icons with the filenames as visible text. NOTHING WAS BROKEN — the files were public, valid, and served HTTP 200. They were three photos straight off an iPhone 13 Pro, 12 megapixels each, 13MB between them, on one page, on a phone; Safari gave up before they finished and painted the broken icon, which looks exactly like a dead link. Fixed at both ends. (1) `landing.mjs` now serves every stored photo through Supabase's `/storage/v1/render/image/public/` resizer at a sane width, which fixes photos ALREADY uploaded and negotiates WebP off the browser's Accept header: 5.3MB became 72KB, the page went from 13MB to under half a megabyte. (2) The portal shrinks an image in the browser BEFORE upload (max 1600px, JPEG 0.85, PNG kept for logos so transparency survives). Alt text no longer leaks camera filenames. Found and fixed 2026-09-08.  
+  <sub>*task:* fix landing page photos that show as broken images, and stop client uploads arriving at full phone resolution &nbsp;|&nbsp; *keywords:* broken images, images not loading, landing page photos, image weight, iphone photos, 12 megapixel, supabase render image, image transformation, resize on upload, blShrink, photoAlt, alt text filename, IMG_6360, page too heavy, slow landing page</sub>
 
 ## Leads
 

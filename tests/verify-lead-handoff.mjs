@@ -554,5 +554,103 @@ const fakeFetch = (script) => {
   eq("nothing glues the OS origin onto /lp/ by hand any more", strays, 0);
 }
 
+// ── EVERY PHOTO IS RESIZED ON THE WAY OUT ────────────────────────────────────
+// Bryson, 2026-09-08, looking at Sebastian's live page: three broken-image icons with the
+// filenames showing through. 🔴 NOTHING WAS BROKEN. The files were public, valid, and
+// served 200. They were three photos straight off an iPhone 13 Pro, 12 megapixels each,
+// 13MB between them, on one page, on a phone. Safari gave up before they finished and
+// painted the broken icon, which looks exactly like a dead link and is nothing of the sort.
+{
+  // Extracted and RUN, not pattern-matched: a regex that says the helper looks right tells
+  // you nothing about what it returns for a real URL.
+  const helpers = LANDING.slice(LANDING.indexOf("  const photoAlt ="), LANDING.indexOf("  // <<< end image helpers"));
+  const { sized, photoAlt } = new Function("return (()=>{" + helpers + "return {sized,photoAlt};})()")();
+  const OBJ = "https://ahcrpxuwdyrxlethpdns.supabase.co/storage/v1/object/public/client-media/c1/photo/1-IMG_6360.png";
+
+  ok("🔴 a stored photo is served through the resizer, not at full size",
+    sized(OBJ, 1100).includes("/storage/v1/render/image/public/") && /[?&]width=1100/.test(sized(OBJ, 1100)),
+    "13MB of phone photos on one page is why it looked broken, and the file itself was fine");
+  ok("and a quality is set, so a resize does not just re-serve the original weight",
+    /[?&]quality=\d+/.test(sized(OBJ, 1100)));
+  ok("🔴 it only ever rewrites OUR OWN storage URLs",
+    sized("https://example.com/a.png", 900) === "https://example.com/a.png"
+    && sized("https://evil.co/storage/v1/object/public/x/y.png", 900) === "https://evil.co/storage/v1/object/public/x/y.png",
+    "a link typed in by hand must come out exactly as it was typed");
+  ok("a relative path is left alone rather than mangled into a broken absolute one",
+    sized("assets/logo.png", 900) === "assets/logo.png");
+  ok("nothing at all is a safe input",
+    sized("", 900) === "" && sized(null, 900) === "");
+
+  // 🔴 AND IT HAS TO REACH THE OUTPUT. Testing the helper in isolation proves the helper
+  // works, not that the page calls it. A mutation swapping the gallery's alt back to the raw
+  // label passed cleanly until this rendered a real page and read the tag.
+  {
+    const { renderLandingPage: render } = await import("../netlify/functions/landing.mjs");
+    const withPhotos = render({
+      name: "Stencil & Thread",
+      niche: "Screen printing",
+      campaignSetup: { serviceArea: "Eugene, Oregon", mainOffer: "Custom apparel" },
+      landingPage: { headline: "Custom shirts, done right", subheadline: "Fast turnarounds." },
+      mediaLibrary: [
+        { category: "photo", label: "IMG_6360.png", url: "https://ahcrpxuwdyrxlethpdns.supabase.co/storage/v1/object/public/client-media/c1/photo/1-IMG_6360.png" },
+        { category: "photo", label: "Team outside the shop.jpg", url: "https://ahcrpxuwdyrxlethpdns.supabase.co/storage/v1/object/public/client-media/c1/photo/2-b.jpg" },
+        { category: "photo", label: "IMG_6110.jpeg", url: "https://ahcrpxuwdyrxlethpdns.supabase.co/storage/v1/object/public/client-media/c1/photo/3-c.jpg" },
+      ],
+    });
+    const alts = [...withPhotos.matchAll(/<img[^>]*alt="([^"]*)"/g)].map((m) => m[1]);
+    ok("🔴 no camera filename reaches a rendered page as alt text",
+      alts.length > 0 && !alts.some((a) => /^(img|dsc|pxl)[_ -]?\d/i.test(a)),
+      `alt text on the page: ${alts.join(" | ")}`);
+    ok("and the label the client wrote does reach it",
+      alts.includes("Team outside the shop"),
+      `alt text on the page: ${alts.join(" | ")}`);
+    ok("🔴 every image tag on the rendered page points at the resizer",
+      [...withPhotos.matchAll(/<img[^>]*src="([^"]*)"/g)].map((m) => m[1])
+        .filter((u) => u.includes("supabase.co"))
+        .every((u) => u.includes("/render/image/public/")),
+      "one full-size photo left in is enough to stall the page on a phone");
+  }
+
+  ok("the hero, the gallery and the logo all go through it",
+    (LANDING.match(/esc\(sized\(/g) || []).length >= 4,
+    "one un-resized image is enough to stall the page on a phone");
+
+  // 🔴 A CAMERA FILENAME IS NOT ALT TEXT. It is what showed on his screen when the images
+  // failed, and what a screen reader reads out even when they work.
+  ok("🔴 a raw camera filename never becomes alt text",
+    photoAlt({ label: "IMG_6360.png" }, "Stencil & Thread") === "Stencil & Thread"
+    && photoAlt({ label: "PXL_20240101_1.jpg" }, "Stencil & Thread") === "Stencil & Thread"
+    && photoAlt({ label: "20240101.png" }, "Stencil & Thread") === "Stencil & Thread",
+    "IMG_6360.png is exactly what a visitor read on the live page");
+  ok("but a label the client actually wrote is kept, without its extension",
+    photoAlt({ label: "Team photo outside the shop.jpg" }, "X") === "Team photo outside the shop"
+    && photoAlt({ label: "Our new heat press" }, "X") === "Our new heat press");
+  ok("and a missing label falls back to the business name rather than empty alt",
+    photoAlt({}, "Stencil & Thread") === "Stencil & Thread"
+    && photoAlt({ label: "  " }, "Stencil & Thread") === "Stencil & Thread");
+}
+
+// ── AND THE NEXT UPLOAD IS SMALL BEFORE IT EVER LEAVES THE PHONE ─────────────
+{
+  const PORTAL = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  const OSSRC = readFileSync(join(ROOT, "index.html"), "utf8");
+  ok("the portal shrinks a photo in the browser before uploading it",
+    /function blShrink\(file,category,cb\)/.test(PORTAL) && /blShrink\(file,category,function\(up\)/.test(PORTAL));
+  ok("🔴 a logo keeps its transparency instead of gaining a white box",
+    /var keepPng=category==='logo';/.test(PORTAL) && /keepPng\?'image\/png':'image\/jpeg'/.test(PORTAL),
+    "flattening a logo to JPEG puts a white rectangle behind it, which on a dark page is worse than the original problem");
+  ok("🔴 a video, or anything a canvas cannot decode, is uploaded untouched",
+    /indexOf\('image\/'\)!==0\)\{cb\(file\);return;\}/.test(PORTAL),
+    "losing an upload is a far worse outcome than a slow one");
+  ok("🔴 and it never uploads something bigger than what he picked",
+    /if\(!b\|\|b\.size>=file\.size\)\{cb\(file\);return;\}/.test(PORTAL),
+    "a small image can come out heavier after a re-encode, which would be a shrink step that grows files");
+  ok("a decode failure falls back to the original rather than failing the upload",
+    /rd\.onerror=function\(\)\{cb\(file\);\}/.test(PORTAL) && /img\.onerror=function\(\)\{cb\(file\);\}/.test(PORTAL));
+  ok("the owner-side copy of the portal shrinks them too",
+    /function blShrink\(file,category,cb\)/.test(OSSRC),
+    "the portal lives in two files; changing one and not the other is the standing trap here");
+}
+
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

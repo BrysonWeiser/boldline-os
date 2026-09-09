@@ -115,6 +115,26 @@ export function renderLandingPage(cl, opts = {}) {
   // too, so "Stencil  &   Thread" reads as one space rather than three.
   const name = String(cl.name == null ? "" : cl.name).replace(/\s+/g, " ").trim();
   const media = cl.mediaLibrary || [];
+
+  // A label the client typed is real alt text. A camera filename is not, and it is what
+  // showed through on the broken page: IMG_6360.png, IMG_6110.jpeg, IMG_6679.jpeg.
+  const photoAlt = (p, fallback) => {
+    const l = String((p && p.label) || "").trim();
+    const bare = l.replace(/\.[a-z0-9]{2,5}$/i, "");
+    const cameraish = !l || /^(img|dsc|dscn|pxl|photo|image|screenshot|scan|mvimg|pano)[ _-]?[\d_-]+$/i.test(bare) || /^[\d_-]+$/.test(bare);
+    // The extension goes either way. Nobody describes a picture as "outside the shop.jpg".
+    return cameraish ? fallback : bare;
+  };
+
+  const sized = (url, w) => {
+    const u = String(url || "");
+    const mark = "/storage/v1/object/public/";
+    const i = u.indexOf(mark);
+    if (i < 0 || !/^https:\/\/[a-z0-9-]+\.supabase\.co\//.test(u)) return u;
+    return u.slice(0, i) + "/storage/v1/render/image/public/" + u.slice(i + mark.length) + `?width=${w}&quality=72`;
+  };
+  // <<< end image helpers (the suite extracts everything above this line and runs it)
+
   const P = landingTheme(cl);
   const D = designConfig(cl);
 
@@ -632,10 +652,10 @@ a{color:inherit}
   } else if (useOverlay) {
     heroSection = `<section class="hero hero-ov" style="--heroimg:url('${esc(hero.url)}')"><div class="hero-ov-scrim"></div><div class="wrap hero-ovc">${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div></section>`;
   } else if (useCentered) {
-    const band = hero ? `<div class="wrap"><div class="heroband reveal"><img src="${esc(hero.url)}" alt="${esc(name)}"></div></div>` : "";
+    const band = hero ? `<div class="wrap"><div class="heroband reveal"><img src="${esc(sized(hero.url, 1600))}" alt="${esc(name)}"></div></div>` : "";
     heroSection = `<section class="hero"><div class="wrap hero-c">${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div>${band}</section>`;
   } else {
-    const media_ = hero ? `<div class="hero-media reveal"><img class="heroimg" src="${esc(hero.url)}" alt="${esc(name)}">${badgeH}</div>` : "";
+    const media_ = hero ? `<div class="hero-media reveal"><img class="heroimg" src="${esc(sized(hero.url, 1600))}" alt="${esc(name)}">${badgeH}</div>` : "";
     heroSection = `<section class="hero"><div class="wrap hero-g${hero ? " has-img" : ""}"><div>${eyebrowH}${headlineH}${subH}${ctasH}${trustH}</div>${media_}</div></section>`;
   }
 
@@ -671,10 +691,28 @@ a{color:inherit}
 
   const stepsSection = `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps">${steps.map((s, i) => `<div class="step reveal" style="transition-delay:${i * 70}ms"><div class="num">${i + 1}</div><h3>${esc(s)}</h3></div>`).join("")}</div></div></section>`;
 
-  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal ${gridFor(photos.length)}">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(p.url)}" alt="${esc(p.label || cl.name)}" loading="lazy"></div>`).join("")}</div></div></section>` : "";
+  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal ${gridFor(photos.length)}">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(sized(p.url, 1100))}" alt="${esc(photoAlt(p, cl.name))}" loading="lazy" decoding="async"></div>`).join("")}</div></div></section>` : "";
 
   const offerSection = offer ? `<section class="sec"><div class="wrap"><div class="offer reveal"><div class="ok">Limited-time offer</div><h2>${esc(offer)}</h2><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></div></section>` : "";
 
+  // ─── EVERY PHOTO ON THIS PAGE IS RESIZED ON THE WAY OUT ──────────────────────
+  //
+  // Bryson, 2026-09-08, on Sebastian's live page: *"the images are showing up like this"*,
+  // with three broken-image icons and the filenames showing through as alt text.
+  //
+  // 🔴 NOTHING WAS BROKEN. The files were public, valid and served 200. They were three
+  // photos straight off an iPhone 13 Pro — 12 megapixels each, 13MB between them, on one
+  // page, on a phone. Safari gave up before they finished and painted the broken icon,
+  // which looks exactly like a dead link and is nothing of the sort. The most expensive
+  // kind of bug: the page is live, the client is looking at it, and everything "works".
+  //
+  // Supabase can resize on delivery, so the fix applies to photos ALREADY uploaded rather
+  // than only to the next ones. Same object, same bucket, rendered at a sane width, and it
+  // negotiates WebP off the browser's own Accept header: 5.3MB became 72KB, 3.0MB became
+  // 261KB, the page went from 13MB to under half a megabyte.
+  //
+  // 🔴 It rewrites ONLY our own storage URLs. A link typed in by hand, or an image hosted
+  // anywhere else, is passed through exactly as given.
   // Reviews — REAL ones only, from the owner-entered client.reviews (one per line, "quote — Name"). Never AI-fabricated.
   const reviewList = String(cl.reviews || "").split("\n").map((l) => l.trim()).filter(Boolean).slice(0, 6).map((l) => {
     // Split on the LAST delimiter so a quote may itself contain dashes.
@@ -977,7 +1015,7 @@ a{color:inherit}
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}
-<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(logoUrl)}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
+<header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(sized(logoUrl, 400))}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
 ${chips ? `<div class="wrap"><div class="chips">${chips}</div></div>` : ""}
 ${middle}
