@@ -629,9 +629,18 @@ const fakeFetch = (script) => {
   // 🔴 AND THE TILE MUST NOT CROP EITHER, or the resizer's careful work is undone in CSS.
   // A 4:3 cover tile took a horizontal band out of the middle of a portrait photo and showed
   // blank fabric. We cannot know what in a client's photo matters, so we never cut one.
-  ok("🔴 gallery tiles show the whole photo rather than cropping to fill",
-    /\.gitem img\{aspect-ratio:1\/1;object-fit:contain/.test(LANDING),
-    "object-fit:cover on a fixed-ratio tile crops the subject out, and the subject is the client's product");
+  // 🔴 THIRD ATTEMPT AT THESE TILES, AND THE RULE IS SETTLED. `cover` on a fixed shape cropped
+  // the print off the shirt. `contain` on a fixed shape kept the photo whole and left grey
+  // bars: *"the images dont fill out the boxes"*. Both force somebody else's photo into a
+  // shape we chose. The tile takes the PHOTO's shape instead, so it fills its box completely
+  // and nothing is ever cut off.
+  ok("🔴 gallery tiles take the photo's own shape rather than forcing one",
+    /\.gitem img\{width:100%;height:auto;display:block/.test(LANDING)
+    && !/\.gitem img\{[^}]*object-fit/.test(LANDING)
+    && !/\.gitem img\{[^}]*aspect-ratio/.test(LANDING),
+    "any fixed shape either crops the client's product out or leaves empty bars around it");
+  ok("and uneven rows sit at the top instead of stretching",
+    /\.gal\{align-items:start\}/.test(LANDING));
 
   ok("the hero, the gallery and the logo all go through it",
     (LANDING.match(/esc\(sized\(/g) || []).length >= 4,

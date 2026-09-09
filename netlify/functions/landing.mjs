@@ -353,7 +353,7 @@ a{color:inherit}
    rather than stretching to fill the row, which would be a different kind of wrong. */
 .gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
 .gitem{overflow:hidden;border-radius:var(--r)}
-.gitem{background:rgba(255,255,255,.035)}.gitem img{aspect-ratio:1/1;object-fit:contain;width:100%;display:block;transition:transform .5s ease}
+.gal{align-items:start}.gitem img{width:100%;height:auto;display:block;transition:transform .5s ease}
 .gitem:hover img{transform:scale(1.06)}
 /* offer */
 .offer{position:relative;overflow:hidden;background:${P.bandGrad};border-radius:calc(var(--r) + 4px);padding:40px 26px;text-align:center;color:#fff}

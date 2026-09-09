@@ -98,6 +98,32 @@ here it was the entire product. Both halves are pinned in `tests/verify-lead-han
 the URL must carry `height` and `resize=contain` with a square box, and the tile must be
 `contain`. Four mutations, all caught.
 
+## 🔴 THIRD ATTEMPT AT THE GALLERY TILES, AND THE RULE IS NOW SETTLED
+
+Three shapes were tried on the same tiles in two days, and the first two were both wrong in
+the same way: they forced somebody else's photo into a shape we chose.
+
+| Tried | What happened |
+|---|---|
+| `aspect-ratio:4/3; object-fit:cover` | Cropped a horizontal band out of a portrait photo and showed **blank fabric**. The print was gone from the shirt. |
+| `aspect-ratio:1/1; object-fit:contain` | Kept every photo whole and left grey bars. Bryson: *"the images dont fill out the boxes"*. |
+| **`width:100%; height:auto`** ✅ | The tile takes the **photo's** shape. Fills its box completely AND nothing is ever cut off. |
+
+`.gal{align-items:start}` so uneven rows sit at the top rather than stretching. Rows can differ
+in height, which is what a gallery of real photos looks like, and the crop tool (KB
+`crop-studio`) exists now if he wants them uniform.
+
+🔴 **The general rule: never choose a shape for a client's photo.** We cannot know what in it
+matters. Every fixed aspect ratio either crops their product out or leaves empty bars around
+it, and both look like a mistake on a page a stranger is judging them by.
+
+**Verified in a browser with REAL images at 360/390/768/1280/1600**: every tile has a zero-pixel
+gap between the image and its box, the portraits come back at ratio 0.75 and the landscape at
+1.33, and there is no horizontal overflow. 🔴 The first run of that check passed while proving
+nothing, because the test images were remote URLs that never loaded in the sandbox, so they had
+no intrinsic size and "fills the box" was trivially true of a zero-sized image. The fixtures are
+now data URIs with genuine dimensions.
+
 ## Fix 3 — a camera filename is not alt text
 
 `alt="${p.label || cl.name}"` printed `IMG_6360.png`, which is exactly what a visitor read on
