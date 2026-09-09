@@ -42,6 +42,22 @@ work. Videos get no Crop button at all, because a canvas cannot crop one.
 - **Pointer events with `touchAction:"none"`** and a 26px handle, because on a phone a corner
   pixel is not a target and a drag would otherwise scroll the page.
 
+## 🔴 The hero pin has to follow the crop
+
+Found by Bryson asking whether the landing page updates by itself. It does, immediately: the
+page is rendered per request from the client record with `cache-control: no-cache`, and the
+gallery reads `media.filter(m => m.category === "photo")`, so the crop appears and the retired
+original disappears with no republish.
+
+**Except the hero.** `landing.mjs` resolves it as
+`lp.heroPath && media.find(m => m.path === lp.heroPath)` — **by path, without checking the
+category**. A retired original pinned as the hero would therefore stay the hero forever, and
+the page would keep showing the exact picture he just cropped because it was bad. Cropping the
+hero is precisely the case where he cared most about how it looks.
+
+So a crop of the pinned hero moves the pin onto the new file (and clears `heroUrl`, the
+website-scraped fallback). Cropping any other photo leaves the hero alone.
+
 ## 🔴 Gotcha, hit TWICE now
 
 `CropStudio` is JSX and must live **with the components**, not among the plain-JS helpers
@@ -55,7 +71,7 @@ if the extraction comes back empty.
 
 ## Tests
 
-- `tests/verify-crop-studio.mjs` — 29 checks. The clamp maths is extracted and RUN: a box
+- `tests/verify-crop-studio.mjs` — 32 checks. The clamp maths is extracted and RUN: a box
   dragged off the edge, one bigger than the picture, one collapsed to nothing, and a locked
   ratio inside a picture too short for it.
 - `tests/verify-crop-pixels.mjs` — runs the component's **real `save()`** in headless
@@ -64,5 +80,5 @@ if the extraction comes back empty.
   in half must be ~200px rather than the ~180px it was displayed at. Skips cleanly with no
   browser. Pattern-matching cannot tell you a crop cut the right part of the picture.
 
-11 mutations, all caught, including reading the on-screen size, deleting the original, and
+13 mutations, all caught, including reading the on-screen size, leaving the hero pinned to the retired original, deleting the original, and
 offering the button on a video.

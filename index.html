@@ -3774,7 +3774,17 @@ function CropStudio({ client, media, onDone, onCancel }) {
       // and every ad, so it stops showing without anything being lost.
       const next = (conf.mediaLibrary || []).map((x) =>
         x && x.path === media.path ? { ...x, category: "source" } : x);
-      onDone(next);
+
+      // 🔴 IF THE PHOTO BEING CROPPED IS THE PINNED HERO, THE PIN HAS TO FOLLOW IT.
+      // landing.mjs resolves the hero by PATH first and does not check the category, so a
+      // retired original stays the hero forever: the page keeps showing the exact picture he
+      // just cropped because it was bad. And cropping the hero is precisely the case where
+      // he cared most about how it looks.
+      const lp = client.landingPage || {};
+      const patch = lp.heroPath === media.path
+        ? { landingPage: { ...lp, heroPath: sign.path, heroUrl: "" } }
+        : null;
+      onDone(next, patch);
     } catch (e) {
       setErr(String((e && e.message) || e));
       setBusy(false);
@@ -8057,7 +8067,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
             {cropping&&(
               <CropStudio client={client} media={cropping}
                 onCancel={()=>setCropping(null)}
-                onDone={(lib)=>{ onUpdate({...client, mediaLibrary:lib}); setCropping(null); }}/>
+                onDone={(lib,patch)=>{ onUpdate({...client, mediaLibrary:lib, ...(patch||{})}); setCropping(null); }}/>
             )}
             {client.internal ? (
               <Card style={{borderColor:`${C.gold}2a`}}>
