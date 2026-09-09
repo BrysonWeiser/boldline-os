@@ -179,5 +179,81 @@ ok("the conversion-tracking instruction names the Campaign tab",
     "the checklist lives in two files; changing one and not the other is the standing trap here");
 }
 
+// ── 7. Delete, on the screen where he is looking at the campaign ─────────────
+// Bryson, 2026-09-09, looking at the stray campaign Google made Sebastian create while he
+// was opening his account: *"I need a way to delete this ad"*. Delete existed, on the global
+// Campaigns screen, which is a different screen behind a different menu.
+{
+  const card = UI.slice(UI.indexOf("function LiveCampaignsCard"), UI.indexOf("function VisualEditor"));
+  ok("the campaign list has a Delete on each row",
+    /onClick=\{\(\)=>remove\(platform,c\)\}/.test(card) && />Delete<\/button>/.test(card));
+  ok("it calls the same actions as the Campaigns screen, not a second way of doing it",
+    /action:"removeCampaign"/.test(card) && /action:"deleteCampaign"/.test(card),
+    "a second path to a destructive thing is how a destructive thing gets done by accident");
+  // 🔴 EXTRACTED AND RUN, because the guards here are BEHAVIOUR. A regex proving the word
+  // "confirm" appears passes happily when the confirm has been wired to a constant, which is
+  // exactly the mutation that got through the first version of this test.
+  {
+    const src = S.slice(S.indexOf("  const remove=async(platform,c)=>{"));
+    const body = src.slice(0, src.indexOf("\n  };\n") + 6);
+    const drive = async (status, answers) => {
+      const calls = [];
+      let asked = 0;
+      const scope = {
+        window: { confirm: () => { const a = answers[asked]; asked++; return a; } },
+        client: { name: "Stencil & Thread", googleAdsCustomerId: "1234567890" },
+        gadsCall: async (p) => { calls.push("gads:" + p.action + (p.status ? ":" + p.status : "")); return {}; },
+        metaCall: async (p) => { calls.push("meta:" + p.action + (p.status ? ":" + p.status : "")); return {}; },
+        load: async () => { calls.push("reload"); },
+        setBusy: () => {}, setErr: () => {},
+      };
+      const fn = new Function(...Object.keys(scope), body + "\nreturn remove;")(...Object.values(scope));
+      await fn("google", { name: "Campaign #1", status, campaignResourceName: "customers/1/campaigns/9" });
+      return { calls, asked };
+    };
+
+    const declined = await drive("PAUSED", [false]);
+    ok("🔴 saying no to the confirmation deletes nothing at all",
+      declined.calls.length === 0 && declined.asked === 1,
+      `it called: ${declined.calls.join(", ") || "nothing"}`);
+
+    const paused = await drive("PAUSED", [true]);
+    ok("a paused campaign is deleted after one confirmation",
+      paused.asked === 1 && paused.calls.join(",") === "gads:removeCampaign,reload",
+      `asked ${paused.asked} times, called: ${paused.calls.join(", ")}`);
+
+    const liveNo = await drive("ENABLED", [true, false]);
+    ok("🔴 a LIVE campaign asks a second time, and backing out there deletes nothing",
+      liveNo.asked === 2 && liveNo.calls.length === 0,
+      "deleting the wrong live campaign costs money and its whole learning history at once");
+
+    const liveYes = await drive("ENABLED", [true, true]);
+    ok("🔴 and a live one is PAUSED before it is removed",
+      liveYes.calls.join(",") === "gads:setStatus:PAUSED,gads:removeCampaign,reload",
+      `a delete that fails halfway must leave it stopped, not running. It called: ${liveYes.calls.join(", ")}`);
+  }
+  ok("it says the delete cannot be undone, in the confirm and on the card",
+    /can NOT be undone/.test(card) && /cannot be undone/.test(card));
+  ok("Delete is the last button on the row, after Start and Edit",
+    card.indexOf(">Delete</button>") > card.indexOf('openEdit(platform,c)'),
+    "the one press that cannot be taken back should not be the easy one to hit");
+}
+
+// ── 8. One name for one thing ────────────────────────────────────────────────
+// 🔴 Bryson, 2026-09-09: *"how do I set up the tracking"* — while the card was on screen,
+// directly above what he was reading. The build card's warning said "set up conversion
+// tracking, there is a button further up this screen", and the card further up was headed
+// "What Google Learns From". Both true, neither leading to the other.
+{
+  ok("🔴 the tracking card is called what the rest of the OS calls it",
+    /<Label>Conversion Tracking<\/Label>/.test(UI) && !/What Google Learns From/.test(UI),
+    "a card he cannot find by name is a card he cannot find");
+  ok("and the warning that sends him there names the card and the button",
+    /Scroll up to the Conversion Tracking card and press Set this up in the ad account/.test(UI),
+    "\"further up this screen\" is not a destination");
+  ok("the button still says the same thing the guidance says it says",
+    /Set this up in the ad account/.test(UI));
+}
+
 console.log(`verify-campaign-tab: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
