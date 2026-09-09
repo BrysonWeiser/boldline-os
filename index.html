@@ -9775,6 +9775,20 @@ const tidyField = {
 
 // What is still wrong with a list of ad lines, said with the line and its length, because
 // "one of these is too long" is not useful on a phone with eight of them on screen.
+// Builds the "fix" the notes button needs, or nothing at all when the only problem is that
+// there are too few lines — a button that cannot help is worse than no button.
+function fixLines(text, max, onApply, ctx){
+  const lines=String(text||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const over=lines.filter(l=>l.length>max);
+  if(!over.length) return null;
+  return {
+    payload:{ lines:over, max, ...(ctx||{}) },
+    // The rewriter is handed a function, not a list, so the lines it could NOT shorten come
+    // back through unchanged and in place rather than being dropped out of the box.
+    apply:(swap)=>onApply(lines.map(swap).join("\n")),
+  };
+}
+
 function lineNotes(text, max, min, what){
   const lines=String(text||"").split("\n").map(x=>x.trim()).filter(Boolean);
   const notes=[];
@@ -9797,8 +9811,28 @@ function locationNotes(text){
 
 // One place the amber "still needs you" notes are rendered, so every field says it the same
 // way and adding a field cannot invent a new way of saying it.
-function FieldNotes({notes}){
+function FieldNotes({notes, fix}){
+  const [busy,setBusy] = useState(false);
+  const [msg,setMsg]   = useState("");
   if(!notes || !notes.length) return null;
+
+  // 🔴 THE BUTTON ONLY APPEARS WHEN THERE IS SOMETHING IT CAN ACTUALLY DO. `fix` is passed
+  // only by fields whose problem is length, and only with the lines that are over it. A
+  // "Fix with AI" button next to "Google needs at least 3 headlines" would be a button that
+  // cannot help, which is worse than no button.
+  const run = async () => {
+    setBusy(true); setMsg("");
+    try{
+      const d = await adGenCall({ action:"shorten", ...fix.payload });
+      const map = new Map((d.lines||[]).filter(r=>r&&r.rewritten).map(r=>[r.original,r.rewritten]));
+      if(!map.size){ setMsg("Nothing came back short enough. Try again, or shorten it yourself."); setBusy(false); return; }
+      // Only the lines it actually fixed are replaced. Everything else he wrote stays his.
+      fix.apply(line=>map.get(line)||line);
+      setMsg(`Rewrote ${map.size} line${map.size===1?"":"s"}. Read ${map.size===1?"it":"them"} before you build.`);
+    }catch(e){ setMsg(String((e&&e.message)||e)); }
+    setBusy(false);
+  };
+
   return (
     <div style={{marginTop:4}}>
       {notes.map((n,i)=>(
@@ -9806,6 +9840,14 @@ function FieldNotes({notes}){
           <span style={{flexShrink:0}}>!</span><span>{n}</span>
         </div>
       ))}
+      {fix&&(
+        <button onClick={run} disabled={busy}
+          style={{marginTop:6,padding:"5px 10px",fontSize:10.5,fontWeight:700,borderRadius:7,
+            border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,
+            cursor:busy?"default":"pointer",opacity:busy?.6:1}}>
+          {busy?"Rewriting…":"✨ Let the AI shorten these"}</button>
+      )}
+      {msg&&<div style={{fontSize:9.5,color:/Rewrote/.test(msg)?C.green:C.red,marginTop:5,lineHeight:1.55}}>{msg}</div>}
     </div>
   );
 }
@@ -10162,14 +10204,28 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         <textarea value={f.headlinesText} onChange={e=>set("headlinesText",e.target.value)}
           onBlur={e=>set("headlinesText",tidyField.adLines(e.target.value))}
           rows={5} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
-        <FieldNotes notes={lineNotes(f.headlinesText,30,3,"headlines")}/>
+        <FieldNotes notes={lineNotes(f.headlinesText,30,3,"headlines")}
+          fix={fixLines(f.headlinesText,30,t=>set("headlinesText",t),{
+            agency: !!client.internal, name: client.name, niche: client.niche,
+            offer: (client.campaignSetup||{}).mainOffer, locations: f.locationsText,
+            avgTicket: (client.campaignSetup||{}).avgTicket,
+            differentiator: (client.brandVoice||{}).differentiator, landingUrl: f.landingUrl,
+            avoid: (client.campaignSetup||{}).excludedKeywords,
+          })}/>
       </div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Descriptions — one per line, ≤90 chars each (2+ required)</label>
         <textarea value={f.descriptionsText} onChange={e=>set("descriptionsText",e.target.value)}
           onBlur={e=>set("descriptionsText",tidyField.adLines(e.target.value))}
           rows={3} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
-        <FieldNotes notes={lineNotes(f.descriptionsText,90,2,"descriptions")}/>
+        <FieldNotes notes={lineNotes(f.descriptionsText,90,2,"descriptions")}
+          fix={fixLines(f.descriptionsText,90,t=>set("descriptionsText",t),{
+            agency: !!client.internal, name: client.name, niche: client.niche,
+            offer: (client.campaignSetup||{}).mainOffer, locations: f.locationsText,
+            avgTicket: (client.campaignSetup||{}).avgTicket,
+            differentiator: (client.brandVoice||{}).differentiator, landingUrl: f.landingUrl,
+            avoid: (client.campaignSetup||{}).excludedKeywords,
+          })}/>
       </div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Keywords — one per line</label>
