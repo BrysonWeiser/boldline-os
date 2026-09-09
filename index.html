@@ -1729,6 +1729,48 @@ const hasPendingApproval = (client, kind) => (client.approvals||[]).some(a=>a&&a
 // deleting the owner's item would leave the approval unable to say where it belongs.
 const makeApproval = ({kind,title,body,previewUrl,campaignId,platform}) => ({id:"ap-"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),kind,title,body:body||"",previewUrl:previewUrl||"",...(campaignId?{campaignId:String(campaignId)}:{}),...(platform?{platform:String(platform)}:{}),status:"pending",createdAt:new Date().toISOString(),source:"auto"});
 
+// ─── HAS THE CLIENT ACTUALLY AGREED TO THIS CAMPAIGN GOING LIVE? ─────────────
+// Bryson, 2026-09-09, having built his first real client's campaign and seen it queued for
+// approval on both sides: *"does it go live right away when Sebastian approves it or do I
+// still need to approve it afterwards?"*
+//
+// The client's approval alone starts it, which is correct and is what he wanted. The
+// problem was the other direction, which nobody had looked at: HIS OWN Approve button ran
+// the same activation with no reference to the client at all. Whoever pressed first
+// launched it. So pressing his own button would have started spending SEBASTIAN'S money on
+// ads Sebastian had never seen, while Sebastian's portal sat there still asking him to
+// approve them, under a line that reads "Nothing goes live without your OK."
+//
+// 🔴 That is not a missing feature, it is the product saying something untrue — the same
+// shape as the bug fixed in portal.mjs on 2026-09-02, and it also cuts straight across the
+// standing rule that the client pays for every penny of ad spend and therefore decides.
+//
+// So the owner's button now WAITS on the client, and overriding is a deliberate act with
+// the consequence spelled out. It is not blocked: a client who will not answer is a real
+// situation, and so is a go-live that failed on Google's side after they said yes.
+const clientApprovalFor = (cl, campaignId) =>
+  (Array.isArray(cl && cl.approvals) ? cl.approvals : [])
+    .find(a => a && a.kind === "campaign" && String(a.campaignId||"") === String(campaignId||"")) || null;
+
+// Returns null when there is nothing to wait for, or {approval, state} when there is.
+// 🔴 NO MATCHING APPROVAL IS THE STRONGEST REASON TO WAIT, not a reason to skip the check:
+// it means the client was never asked at all.
+const launchGate = (cl, action) => {
+  const ex = action && action.exec;
+  if (!ex || ex.kind !== "enable_campaign") return null;   // pausing or a budget change is his call alone
+  if (!cl || cl.internal) return null;                     // the house account has no client to ask
+  const ap = clientApprovalFor(cl, ex.campaignId);
+  if (ap && ap.status === "approved") return null;         // they said yes; this is just a retry
+  return { approval: ap,
+    state: !ap ? "never-asked" : ap.status === "changes" ? "wants-changes" : "not-answered" };
+};
+const launchGateWords = (cl, g) => {
+  const who = (cl && cl.name) || "The client";
+  return g.state === "never-asked" ? `${who} has never been asked about this campaign.`
+    : g.state === "wants-changes" ? `${who} asked for CHANGES to this campaign instead of approving it.`
+    : `${who} has not answered yet.`;
+};
+
 // Deleting a campaign has to take its paperwork with it.
 //
 // Bryson, 2026-08-20: "if a campaign needs approve itll give me the notification but then
@@ -15059,6 +15101,9 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
     const linkedId=ex&&(platform==="meta"?cl.metaAdAccountId:cl.googleAdsCustomerId);
     if(decision==="approved"&&ex&&linkedId){
       if(executingId)return;
+      // 🔴 WAIT FOR THE CLIENT, unless he deliberately overrides. Their money, their call.
+      const gate=launchGate(cl,action);
+      if(gate&&!confirm(`${launchGateWords(cl,gate)}\n\nStarting it now spends THEIR money on ads they have not agreed to, and their portal tells them nothing goes live without their OK.\n\nStart it anyway?`)) return;
       setExecutingId(action.id);
       setExecErrors(p=>{const n={...p};delete n[action.id];return n;});
       try{
@@ -15089,9 +15134,20 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
           }
         }
         setExecutingId(null);
+        // 🔴 An override has to CLOSE the client's request too, or their portal keeps asking
+        // them to approve a campaign that is already live and already spending — which is
+        // the same untruth the gate exists to prevent, just one step later.
+        const gAp=gate&&gate.approval;
         onUpdate({...cl,
           pendingActions:(cl.pendingActions||[]).filter(a=>a.id!==action.id),
-          commLog:[{date:fmt(new Date()),note:`Approved + EXECUTED: ${action.title} (${summary})`,cat:"update",ts:Date.now()},...(cl.commLog||[])],
+          ...(gAp?{approvals:(cl.approvals||[]).map(a=>a&&a.id===gAp.id
+            ? {...a,status:"approved",decidedAt:new Date().toISOString(),decidedBy:"owner",
+               note:"Started by BoldLine before you replied. Tell us if you want it paused."}
+            : a)}:{}),
+          commLog:[{date:fmt(new Date()),
+            note:gate?`⚠ OVERRODE ${cl.name} and started it anyway: ${action.title} (${summary}) — they had ${gate.state==="never-asked"?"never been asked":gate.state==="wants-changes"?"asked for changes":"not answered"}`
+                     :`Approved + EXECUTED: ${action.title} (${summary})`,
+            cat:"update",ts:Date.now()},...(cl.commLog||[])],
         });
       }catch(e){
         setExecutingId(null);
@@ -15193,8 +15249,13 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                 <span style={{width:6,height:6,borderRadius:"50%",backgroundColor:C.gold,display:"inline-block"}}/>
                 Pending Approvals
               </div>
-              {pendingApprovals.map(({client:cl,...action})=>(
-                <div key={action.id} style={{backgroundColor:C.bg3,border:`1px solid ${C.gold}33`,borderRadius:11,padding:"13px 14px",marginBottom:8}}>
+              {pendingApprovals.map(({client:cl,...action})=>{
+                // 🔴 SAY IT BEFORE HE PRESSES, not in a dialog after. A button labelled
+                // "Approve" that turns out to override a client is a button he learns not
+                // to trust; one labelled "Start without them" is a decision he can make.
+                const gate=launchGate(cl,action);
+                return (
+                <div key={action.id} style={{backgroundColor:C.bg3,border:`1px solid ${gate?C.amber+"55":C.gold+"33"}`,borderRadius:11,padding:"13px 14px",marginBottom:8}}>
                   <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:9}}>
                     <div style={{width:34,height:34,borderRadius:9,backgroundColor:`${C.purple}18`,border:`1px solid ${C.purple}2a`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>✦</div>
                     <div style={S.f1min}>
@@ -15202,14 +15263,20 @@ function NotificationsPanel({clients,onUpdate,onClose,onNavigate}) {
                       {action.detail&&<div style={{fontSize:11,color:C.textDim,marginTop:3,lineHeight:1.6}}>{action.detail}</div>}
                       <div style={{fontSize:10,color:C.textMuted,marginTop:4}}>{cl.name} · {CATEGORY_LABELS[approvalCategory(action)]||CATEGORY_LABELS.other}{action.exec?` · ${execPlatformLabel(action)}`:""} · {approvalSource(action)}</div>
                       {execErrors[action.id]&&<div style={{fontSize:10.5,color:C.red,marginTop:5,lineHeight:1.5}}>⚠ {execErrors[action.id]}</div>}
+                      {gate&&(
+                        <div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>
+                          ⏳ {launchGateWords(cl,gate)} It goes live by itself the moment they approve in their portal, and this disappears. Starting it yourself spends their money on ads they have not agreed to.
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div style={S.row7}>
                     <button onClick={()=>decideAction(cl,action,"rejected")} disabled={executingId===action.id} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer",opacity:executingId===action.id?.5:1}}>Reject</button>
-                    <button onClick={()=>decideAction(cl,action,"approved")} disabled={executingId===action.id} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.gold}44`,backgroundColor:C.goldDim,color:C.gold,cursor:"pointer",opacity:executingId===action.id?.7:1}}>{executingId===action.id?`Executing in ${execPlatformLabel(action)||"the ad account"}…`:execErrors[action.id]?"Retry Execution":"Approve"}</button>
+                    <button onClick={()=>decideAction(cl,action,"approved")} disabled={executingId===action.id} style={{flex:2,padding:"8px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${gate?C.amber+"66":C.gold+"44"}`,backgroundColor:gate?"rgba(245,158,11,.10)":C.goldDim,color:gate?C.amber:C.gold,cursor:"pointer",opacity:executingId===action.id?.7:1}}>{executingId===action.id?`Executing in ${execPlatformLabel(action)||"the ad account"}…`:execErrors[action.id]?"Retry Execution":gate?"Start without them":"Approve"}</button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,padding:"2px 2px 0"}}>Approving an item marked ⚡ makes the change in that ad account immediately, on whichever platform the item names, and logs it as "EXECUTED" in the activity log. Items without ⚡ are just logged for you to carry out yourself. Rejecting only records your decision; nothing is ever changed.</div>
             </div>
           )}
