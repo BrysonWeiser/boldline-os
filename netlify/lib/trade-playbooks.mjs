@@ -25,8 +25,37 @@
 // People who can never buy from ANY lead-gen client, whatever the trade. Cheap to exclude
 // and expensive to leave in on a small daily budget: on $16 a day, a handful of clicks
 // from job hunters is a meaningful share of the month.
+// 🔴 A NEGATIVE THAT BLOCKS THE CLIENT'S OWN CALL TO ACTION. Found 2026-09-09 on the
+// first real client's campaign, sitting in the box seconds before he pressed Build.
+// A one-word negative in Google blocks EVERY search containing that word, so the bare
+// word "free" blocks "free quote screen printing" — and "Get Your Free Quote" is the
+// button on every landing page BoldLine builds. We were paying to write the offer and
+// then paying again to block the people searching for it.
+//
+// The bad intent lives in the SECOND word, never the first: "for free" and "free sample"
+// are freebie hunters, "free quote" is a buyer. So the bare words go and the phrases stay,
+// and this list refuses the bare ones wherever they come back from — a model writing
+// negatives, a playbook a client taught us, or the box typed by hand.
+export const NEVER_NEGATIVE = [
+  "free", "quote", "quotes", "estimate", "estimates", "consultation", "consult", "near me",
+  // The phrase forms too, because "free quote" as a negative is the same disaster spelled
+  // out longer, and "the second word carries the intent" stops being true the moment the
+  // second word is the offer.
+  "free quote", "free quotes", "free estimate", "free estimates", "free consultation",
+  "get a quote", "request a quote", "get a free quote",
+];
+const nnNorm = (t) => String(t || "").toLowerCase().replace(/["\[\]+]/g, "").replace(/\s+/g, " ").trim();
+// Returns [kept, refused] so the caller can SAY what it dropped. A silently ignored
+// instruction is how an operator ends up trusting a block that never existed.
+export function dropSelfBlockingNegatives(terms) {
+  const bad = new Set(NEVER_NEGATIVE.map(nnNorm));
+  const kept = [], refused = [];
+  for (const t of terms || []) (bad.has(nnNorm(t)) ? refused : kept).push(t);
+  return [kept, refused];
+}
+
 export const UNIVERSAL_NEGATIVES = [
-  "free", "cheap", "cheapest", "discount", "bargain",
+  "for free", "free download", "free sample", "cheap", "cheapest", "bargain", "discount code", "coupon", "promo code",
   "jobs", "job", "salary", "hiring", "career", "careers", "intern", "internship", "resume", "entry level",
   "course", "courses", "training", "tutorial", "how to", "diy", "udemy", "certification",
   "software", "tool", "tools", "template", "reddit", "wikipedia", "meaning", "definition",
