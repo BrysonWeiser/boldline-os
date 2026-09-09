@@ -3246,7 +3246,7 @@ const makePortalHTML=(cl,pkg,notice)=>{
     +`<div class="card media-card"><div class="lbl" style="color:#C8A84B;font-size:11px">📸 Your Photos &amp; Video</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">This is the media we'll use in your ads and landing page. Add your logo, photos, and a short video so everything looks like you. Files upload as soon as you tap Upload (no need to press Save).</div>${mediaItems.length?'':'<div class="media-empty" id="media-empty">No media from you yet. Add your photos, logo, or a short video below so we can start building your ads.</div>'}<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin-bottom:6px">Worth adding, if you have them</div><ul class="reco-list">${RECOMMENDED_ASSETS.map(r=>`<li>${esc(r)}</li>`).join('')}</ul><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin:4px 0 6px">What are you uploading?</div><select class="inp" id="media-cat"><option value="photo">Photo</option><option value="logo">Logo</option><option value="video">Video</option><option value="review">Review / testimonial</option></select><input class="inp" type="file" id="media-file" accept="image/*,video/*" onchange="autoCat(this)"><button class="btn" id="media-upload-btn" onclick="uploadMedia(this)">Upload File</button><div id="media-status" style="font-size:11px;color:#6B7280;margin-top:6px"></div><div id="media-list" style="margin-top:10px">${mediaItems.length?mediaItems.map(m=>`<div class="media-item" data-path="${esc(m.path)}">${m.category==="video"?'<span class="media-thumb media-thumb-vid">▶</span>':`<img class="media-thumb" src="${esc(m.url)}" alt="">`}<span class="media-cat">${esc(m.category)}</span><span class="media-name">${esc(m.label)}</span><button class="media-del" onclick="delMedia(this)" title="Remove">✕</button></div>`).join(''):'<div style="font-size:11px;color:#6B7280">No files uploaded yet.</div>'}</div></div>`
     +reviewsCard
     +`<div class="card"><div class="lbl">Campaign Setup</div><input class="inp" data-key="adBudget" placeholder="Monthly Ad Budget (e.g. $2,500/mo)" value="${esc(cl.adBudget||'')}"><input class="inp" data-key="campaignSetup.mainOffer" placeholder="Main service to advertise" value="${esc(cs.mainOffer||'')}"><input class="inp" data-key="campaignSetup.avgTicket" placeholder="Average job / ticket value" value="${esc(cs.avgTicket||'')}"><input class="inp" data-key="campaignSetup.targetLocations" placeholder="Target locations (cities, zip codes)" value="${esc(cs.targetLocations||'')}"><input class="inp" data-key="campaignSetup.excludedKeywords" placeholder="Anything we should avoid in your ads?" value="${esc(cs.excludedKeywords||'')}"><input class="inp" data-key="campaignSetup.leadDestination" placeholder="Where should leads be sent? (email or phone)" value="${esc(cs.leadDestination||'')}"><input class="inp" data-key="campaignSetup.crmSystem" placeholder="CRM or booking system (if any)" value="${esc(cs.crmSystem||'')}"></div>`
-    +`<div class="card"><div class="lbl">Your Website</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:12px;line-height:1.6">Two quick things about your own site. We do not need access to it.</div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin-bottom:6px">Who looks after it</div><input class="inp" data-key="campaignSetup.webContact" placeholder="Name and email of whoever manages your site" value="${esc(cs.webContact||'')}"><div style="font-size:11px;color:#6B7280;margin:-2px 0 14px;line-height:1.55">We sometimes need one small change from them, like pointing a web address at your new landing page. It is usually five minutes of their time.</div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin-bottom:6px">If you text your leads</div><div style="font-size:11px;color:#6B7280;margin-bottom:9px;line-height:1.55">To send a new lead an instant text, your form has to link these three pages first. That is a phone carrier requirement, not ours. Leave them blank if you do not text your leads. Keep any .html on the end, because the shorter version often will not open.</div><input class="inp" data-key="campaignSetup.privacyUrl" placeholder="Privacy policy page (https://...)" value="${esc(cs.privacyUrl||'')}"><input class="inp" data-key="campaignSetup.termsUrl" placeholder="Terms page (https://...)" value="${esc(cs.termsUrl||'')}"><input class="inp" data-key="campaignSetup.smsOptInUrl" placeholder="Text message consent page (https://...)" value="${esc(cs.smsOptInUrl||'')}"></div>`
+    +`<div class="card"><div class="lbl">Your Website</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:12px;line-height:1.6">Two quick things about your own site. We do not need access to it.</div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin-bottom:6px">Who looks after it</div><input class="inp" data-key="campaignSetup.webContact" placeholder="Name and email of whoever manages your site" value="${esc(cs.webContact||'')}"><div style="font-size:11px;color:#6B7280;margin:-2px 0 14px;line-height:1.55">We sometimes need one small change from them, like pointing a web address at your new landing page. It is usually five minutes of their time.</div><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin-bottom:6px">If you text your leads</div><div style="font-size:11px;color:#6B7280;margin-bottom:9px;line-height:1.55">To send a new lead an instant text, your form has to link these three pages first. That is a phone carrier requirement, not ours. Leave them blank if you do not text your leads. Keep any .html on the end, because the shorter version often will not open.</div><input class="inp" onblur="blUrl(this)" data-key="campaignSetup.privacyUrl" placeholder="Privacy policy page (https://...)" value="${esc(cs.privacyUrl||'')}"><input class="inp" onblur="blUrl(this)" data-key="campaignSetup.termsUrl" placeholder="Terms page (https://...)" value="${esc(cs.termsUrl||'')}"><input class="inp" onblur="blUrl(this)" data-key="campaignSetup.smsOptInUrl" placeholder="Text message consent page (https://...)" value="${esc(cs.smsOptInUrl||'')}"></div>`
     +`<div class="card"><div class="lbl">Brand Voice</div><select class="inp" data-key="brandVoice.tone">${TONES.map(t=>`<option value="${esc(t)}" ${bv.tone===t?'selected':''}>${t||'How would you describe your brand?'}</option>`).join('')}</select><input class="inp" data-key="brandVoice.competitors" placeholder="Top competitors" value="${esc(bv.competitors||'')}"><input class="inp" data-key="brandVoice.differentiator" placeholder="What makes you different?" value="${esc(bv.differentiator||'')}"></div>`
     +`<button class="btn" id="savebtn" onclick="saveInfo(this)">Save My Information</button>`
     +`</div></div></details>`
@@ -3262,7 +3262,7 @@ const makePortalHTML=(cl,pkg,notice)=>{
         : '')
     +'<button class="btn" style="margin:0 0 10px" onclick="printContract()">Save or Print a Copy</button><div style="font-size:10px;color:#6B7280;margin:-4px 0 10px">Opens your print window. Choose &ldquo;Save as PDF&rdquo; to keep a copy.</div><div style="border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><iframe id="bl-contract-frame" title="Service Agreement" srcdoc="'+makeContractHTML(cl,pkg).replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" style="width:100%;height:70vh;min-height:520px;border:none;display:block;background:#fff"></iframe></div></div></div></div>'
     +'</div></div></details></div>'
-    +`<script>var selUpgName=null;var TOKEN=${JSON.stringify(cl.portalToken||"")};var BL_PREVIEW=String(location.href).indexOf('about:')===0;if(BL_PREVIEW){var _blFetch=window.fetch;window.fetch=function(u,o){var m=((o&&o.method)||'GET').toUpperCase();if(m==='GET'||m==='HEAD')return _blFetch.apply(this,arguments);return Promise.reject(new Error('preview'));};window.alert=function(){};window.confirm=function(){return false;};try{var _blBar=document.createElement('div');_blBar.textContent='Preview only. Buttons here do nothing.';_blBar.style.cssText='position:sticky;top:0;z-index:999;background:#C8A84B;color:#15110A;font-size:11px;font-weight:700;text-align:center;padding:5px 8px;letter-spacing:.02em';document.body.insertBefore(_blBar,document.body.firstChild);}catch(e){}}function saveInfo(btn){var obj={};document.querySelectorAll('[data-key]').forEach(el=>{var path=el.getAttribute('data-key').split('.'),cur=obj;for(var i=0;i<path.length-1;i++){cur[path[i]]=cur[path[i]]||{};cur=cur[path[i]];}cur[path[path.length-1]]=el.value;});var orig=btn.textContent;btn.disabled=true;btn.textContent='Saving…';fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:obj})}).then(r=>{if(!r.ok)throw 0;btn.textContent='✓ Saved';setTimeout(()=>{btn.disabled=false;btn.textContent=orig;},1800);}).catch(()=>{btn.textContent=BL_PREVIEW?'Preview only, nothing saved':'Save failed. Try again';btn.disabled=false;});}function blShrink(file,category,cb){if(!file||String(file.type||'').indexOf('image/')!==0){cb(file);return;}var keepPng=category==='logo';var rd=new FileReader();rd.onerror=function(){cb(file);};rd.onload=function(e){var img=new Image();img.onerror=function(){cb(file);};img.onload=function(){try{var mx=1600,w=img.width,h=img.height;if(w<=mx&&h<=mx&&file.size<900000){cb(file);return;}if(w>mx||h>mx){if(w>=h){h=Math.round(h*mx/w);w=mx;}else{w=Math.round(w*mx/h);h=mx;}}var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');if(!keepPng){ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,w,h);}ctx.drawImage(img,0,0,w,h);c.toBlob(function(b){if(!b||b.size>=file.size){cb(file);return;}var nm=String(file.name||'photo').replace(/\.[^.]+$/,'')+(keepPng?'.png':'.jpg');var out;try{out=new File([b],nm,{type:b.type});}catch(err){out=b;out.name=nm;}cb(out);},keepPng?'image/png':'image/jpeg',0.85);}catch(err){cb(file);}};img.src=e.target.result;};rd.readAsDataURL(file);}function uploadMedia(btn){var fileInput=document.getElementById('media-file'),file=fileInput.files[0],status=document.getElementById('media-status'),category=document.getElementById('media-cat').value;if(!file){status.style.color='#F59E0B';status.textContent='Choose a file first.';return;}btn.disabled=true;status.style.color='#6B7280';status.textContent='Getting your photo ready…';blShrink(file,category,function(up){status.textContent='Uploading…';fetch('/.netlify/functions/media?action=sign&token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:up.name,category:category})}).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>fetch(d.signedUrl,{method:'PUT',headers:{'Content-Type':up.type||'application/octet-stream'},body:up}).then(r2=>{if(!r2.ok)throw 0;return d;})).then(d=>fetch('/.netlify/functions/media?action=confirm&token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:d.path,category:category,label:up.name})})).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d2=>{status.style.color='#10B981';status.textContent='✓ Uploaded';var entry=(d2.mediaLibrary&&d2.mediaLibrary[0])||{};var mEmpty=document.getElementById('media-empty');if(mEmpty)mEmpty.style.display='none';var list=document.getElementById('media-list');if(list.textContent.indexOf('No files uploaded yet')>=0)list.innerHTML='';var item=document.createElement('div');item.className='media-item';item.setAttribute('data-path',entry.path||'');var thumb;if(category==='video'){thumb=document.createElement('span');thumb.className='media-thumb media-thumb-vid';thumb.textContent='▶';}else{thumb=document.createElement('img');thumb.className='media-thumb';thumb.src=entry.url||'';}var catSpan=document.createElement('span');catSpan.className='media-cat';catSpan.textContent=category;var nameSpan=document.createElement('span');nameSpan.className='media-name';nameSpan.textContent=up.name;var del=document.createElement('button');del.className='media-del';del.textContent='✕';del.setAttribute('onclick','delMedia(this)');item.appendChild(thumb);item.appendChild(catSpan);item.appendChild(nameSpan);item.appendChild(del);list.insertBefore(item,list.firstChild);fileInput.value='';btn.disabled=false;}).catch(()=>{status.style.color='#EF4444';status.textContent='Upload failed. Try again.';btn.disabled=false;});});}function delMedia(btn){var row=btn.closest('.media-item'),path=row&&row.getAttribute('data-path');if(!path)return;if(!confirm('Remove this file? It will no longer be available for your ads or landing page.'))return;btn.disabled=true;btn.textContent='…';fetch('/.netlify/functions/media?action=delete&token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:path})}).then(r=>{if(!r.ok)throw 0;return r.json();}).then(()=>{var list=row.parentNode;row.remove();if(list&&!list.querySelector('.media-item'))list.innerHTML='<div style="font-size:11px;color:#6B7280">No files uploaded yet.</div>';}).catch(()=>{btn.disabled=false;btn.textContent='✕';var status=document.getElementById('media-status');if(status){status.style.color='#EF4444';status.textContent='Could not remove. Try again.';}});}function autoCat(input){var f=input.files[0];if(f&&f.type&&f.type.indexOf('video/')===0){document.getElementById('media-cat').value='video';}}function printContract(){var f=document.getElementById('bl-contract-frame');if(!f)return;try{f.contentWindow.focus();f.contentWindow.print();}catch(e){alert('Could not open the print dialog — use your browser menu to print instead.');}}function goContract(){var btns=document.querySelectorAll('.nb');for(var i=0;i<btns.length;i++){if(btns[i].textContent.indexOf('Account')===0){show('account',btns[i]);var d=document.getElementById('acc-agreement');if(d){d.open=true;setTimeout(function(){d.scrollIntoView({block:'start'});},60);}return;}}}function blStartCard(btn){var n=document.getElementById('bl-pay-note');if(BL_PREVIEW){if(n)n.textContent='Preview only. Nothing was created and no page opened.';return;}var orig=btn.textContent;btn.disabled=true;btn.textContent='Opening secure page…';if(n)n.textContent='';fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({startCard:true})}).then(function(r){return r.json();}).then(function(d){if(!d||!d.ok||!d.url){btn.disabled=false;btn.textContent=orig;if(n)n.textContent=(d&&d.error)||'We could not open the payment page just now. Please try again in a moment.';return;}if(n)n.textContent='Taking you to Stripe…';window.location.href=d.url;}).catch(function(){btn.disabled=false;btn.textContent=orig;if(n)n.textContent='We could not open the payment page just now. Please check your connection and try again.';});}function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));var p=document.getElementById('t-'+n);p.style.display='block';p.classList.remove('tab-anim');void p.offsetWidth;p.classList.add('tab-anim');b.classList.add('on');}function selUpg(el,i){selUpgName=el.getAttribute('data-name');document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function askUpg(){if(!selUpgName)return;var w=document.getElementById('upg-action');if(!w)return;w.innerHTML='<div style="font-size:12px;color:#9CA3AF;margin:12px 0 10px;line-height:1.55">Ask about moving up to <b style="color:#F0F2FF">'+selUpgName+'</b>? We will confirm what changes and what it costs. Nothing changes until you say yes.</div><div style="display:flex;gap:8px"><button class="btn" style="margin-top:0;flex:1;background:transparent;border-color:rgba(255,255,255,.15);color:#9CA3AF" onclick="cancelUpg()">Cancel</button><button class="btn" id="upg-confirm" style="margin-top:0;flex:1" onclick="confirmUpg()">Send Request</button></div>';}function cancelUpg(){var w=document.getElementById('upg-action');if(w)w.innerHTML='<button class="btn" id="upgbtn" onclick="askUpg()">Ask About Scaling Up</button>';}function confirmUpg(){if(!selUpgName)return;var b=document.getElementById('upg-confirm');if(b){b.disabled=true;b.textContent='Sending…';}fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({upgrade:selUpgName})}).then(function(r){if(!r.ok)throw 0;document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}).catch(function(){if(b){b.disabled=false;b.textContent='Send Request';}alert('Something went wrong. Please try again or contact your account manager.');});}function blHelpEsc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}function blHelpBubble(role,text){var t=document.getElementById('bl-help-thread');if(!t)return null;var b=document.createElement('div');b.style.cssText='max-width:88%;padding:8px 11px;border-radius:12px;font-size:12px;line-height:1.55;'+(role==='user'?'align-self:flex-end;background:rgba(200,168,75,.14);border:1px solid rgba(200,168,75,.28);color:#F5F3ED':'align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);color:#D1D5DB');b.innerHTML=blHelpEsc(text).replace(/\\n/g,'<br>');t.appendChild(b);t.scrollTop=t.scrollHeight;return b;}var blHelpHistory=[],blHelpImg=null;function blHelpPickImg(input){var f=input.files&&input.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(e){var img=new Image();img.onload=function(){var mx=1200,w=img.width,h=img.height;if(w>mx||h>mx){if(w>=h){h=Math.round(h*mx/w);w=mx;}else{w=Math.round(w*mx/h);h=mx;}}var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);blHelpImg=c.toDataURL('image/jpeg',0.85);var ind=document.getElementById('bl-help-img');if(ind){ind.style.display='block';ind.innerHTML='📎 Screenshot attached &nbsp;<a href="#" style="color:#9CA3AF" onclick="blHelpClearImg();return false">remove</a>';}};img.src=e.target.result;};rd.readAsDataURL(f);input.value='';}function blHelpClearImg(){blHelpImg=null;var ind=document.getElementById('bl-help-img');if(ind){ind.style.display='none';ind.innerHTML='';}}function blHelpSend(){var inp=document.getElementById('bl-help-input'),btn=document.getElementById('bl-help-send');if(!inp||!btn)return;var msg=(inp.value||'').trim();if(!msg&&!blHelpImg)return;var shown=msg||'(screenshot)';blHelpBubble('user',shown+(blHelpImg?' 📎':''));var sendImg=blHelpImg;inp.value='';blHelpClearImg();btn.disabled=true;btn.textContent='…';var think=blHelpBubble('assistant','…');fetch('/.netlify/functions/portal-assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,message:msg,history:blHelpHistory.slice(-12),image:sendImg||undefined})}).then(function(r){return r.json();}).then(function(d){if(think&&think.parentNode)think.parentNode.removeChild(think);if(!d||!d.ok){blHelpBubble('assistant',(d&&d.error)||'Sorry, something went wrong. Please try again.');}else{blHelpBubble('assistant',d.reply);blHelpHistory.push({role:'user',text:shown});blHelpHistory.push({role:'assistant',text:d.reply});}btn.disabled=false;btn.textContent='Send';}).catch(function(){if(think&&think.parentNode)think.parentNode.removeChild(think);blHelpBubble('assistant','I could not reach the assistant. Please check your connection and try again.');btn.disabled=false;btn.textContent='Send';});}try{var _ts=document.getElementById('t-status');if(_ts)_ts.classList.add('tab-anim');}catch(e){}<\/script>`
+    +`<script>var selUpgName=null;var TOKEN=${JSON.stringify(cl.portalToken||"")};var BL_PREVIEW=String(location.href).indexOf('about:')===0;if(BL_PREVIEW){var _blFetch=window.fetch;window.fetch=function(u,o){var m=((o&&o.method)||'GET').toUpperCase();if(m==='GET'||m==='HEAD')return _blFetch.apply(this,arguments);return Promise.reject(new Error('preview'));};window.alert=function(){};window.confirm=function(){return false;};try{var _blBar=document.createElement('div');_blBar.textContent='Preview only. Buttons here do nothing.';_blBar.style.cssText='position:sticky;top:0;z-index:999;background:#C8A84B;color:#15110A;font-size:11px;font-weight:700;text-align:center;padding:5px 8px;letter-spacing:.02em';document.body.insertBefore(_blBar,document.body.firstChild);}catch(e){}}function blUrl(el){var t=(el.value||'').trim();el.value=t?(/^https?:\/\//i.test(t)?t:'https://'+t.replace(/^\/+/,'')):'';}function saveInfo(btn){var obj={};document.querySelectorAll('[data-key]').forEach(el=>{var path=el.getAttribute('data-key').split('.'),cur=obj;for(var i=0;i<path.length-1;i++){cur[path[i]]=cur[path[i]]||{};cur=cur[path[i]];}cur[path[path.length-1]]=el.value;});var orig=btn.textContent;btn.disabled=true;btn.textContent='Saving…';fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fields:obj})}).then(r=>{if(!r.ok)throw 0;btn.textContent='✓ Saved';setTimeout(()=>{btn.disabled=false;btn.textContent=orig;},1800);}).catch(()=>{btn.textContent=BL_PREVIEW?'Preview only, nothing saved':'Save failed. Try again';btn.disabled=false;});}function blShrink(file,category,cb){if(!file||String(file.type||'').indexOf('image/')!==0){cb(file);return;}var keepPng=category==='logo';var rd=new FileReader();rd.onerror=function(){cb(file);};rd.onload=function(e){var img=new Image();img.onerror=function(){cb(file);};img.onload=function(){try{var mx=1600,w=img.width,h=img.height;if(w<=mx&&h<=mx&&file.size<900000){cb(file);return;}if(w>mx||h>mx){if(w>=h){h=Math.round(h*mx/w);w=mx;}else{w=Math.round(w*mx/h);h=mx;}}var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');if(!keepPng){ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,w,h);}ctx.drawImage(img,0,0,w,h);c.toBlob(function(b){if(!b||b.size>=file.size){cb(file);return;}var nm=String(file.name||'photo').replace(/\.[^.]+$/,'')+(keepPng?'.png':'.jpg');var out;try{out=new File([b],nm,{type:b.type});}catch(err){out=b;out.name=nm;}cb(out);},keepPng?'image/png':'image/jpeg',0.85);}catch(err){cb(file);}};img.src=e.target.result;};rd.readAsDataURL(file);}function uploadMedia(btn){var fileInput=document.getElementById('media-file'),file=fileInput.files[0],status=document.getElementById('media-status'),category=document.getElementById('media-cat').value;if(!file){status.style.color='#F59E0B';status.textContent='Choose a file first.';return;}btn.disabled=true;status.style.color='#6B7280';status.textContent='Getting your photo ready…';blShrink(file,category,function(up){status.textContent='Uploading…';fetch('/.netlify/functions/media?action=sign&token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({filename:up.name,category:category})}).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d=>fetch(d.signedUrl,{method:'PUT',headers:{'Content-Type':up.type||'application/octet-stream'},body:up}).then(r2=>{if(!r2.ok)throw 0;return d;})).then(d=>fetch('/.netlify/functions/media?action=confirm&token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:d.path,category:category,label:up.name})})).then(r=>{if(!r.ok)throw 0;return r.json();}).then(d2=>{status.style.color='#10B981';status.textContent='✓ Uploaded';var entry=(d2.mediaLibrary&&d2.mediaLibrary[0])||{};var mEmpty=document.getElementById('media-empty');if(mEmpty)mEmpty.style.display='none';var list=document.getElementById('media-list');if(list.textContent.indexOf('No files uploaded yet')>=0)list.innerHTML='';var item=document.createElement('div');item.className='media-item';item.setAttribute('data-path',entry.path||'');var thumb;if(category==='video'){thumb=document.createElement('span');thumb.className='media-thumb media-thumb-vid';thumb.textContent='▶';}else{thumb=document.createElement('img');thumb.className='media-thumb';thumb.src=entry.url||'';}var catSpan=document.createElement('span');catSpan.className='media-cat';catSpan.textContent=category;var nameSpan=document.createElement('span');nameSpan.className='media-name';nameSpan.textContent=up.name;var del=document.createElement('button');del.className='media-del';del.textContent='✕';del.setAttribute('onclick','delMedia(this)');item.appendChild(thumb);item.appendChild(catSpan);item.appendChild(nameSpan);item.appendChild(del);list.insertBefore(item,list.firstChild);fileInput.value='';btn.disabled=false;}).catch(()=>{status.style.color='#EF4444';status.textContent='Upload failed. Try again.';btn.disabled=false;});});}function delMedia(btn){var row=btn.closest('.media-item'),path=row&&row.getAttribute('data-path');if(!path)return;if(!confirm('Remove this file? It will no longer be available for your ads or landing page.'))return;btn.disabled=true;btn.textContent='…';fetch('/.netlify/functions/media?action=delete&token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({path:path})}).then(r=>{if(!r.ok)throw 0;return r.json();}).then(()=>{var list=row.parentNode;row.remove();if(list&&!list.querySelector('.media-item'))list.innerHTML='<div style="font-size:11px;color:#6B7280">No files uploaded yet.</div>';}).catch(()=>{btn.disabled=false;btn.textContent='✕';var status=document.getElementById('media-status');if(status){status.style.color='#EF4444';status.textContent='Could not remove. Try again.';}});}function autoCat(input){var f=input.files[0];if(f&&f.type&&f.type.indexOf('video/')===0){document.getElementById('media-cat').value='video';}}function printContract(){var f=document.getElementById('bl-contract-frame');if(!f)return;try{f.contentWindow.focus();f.contentWindow.print();}catch(e){alert('Could not open the print dialog — use your browser menu to print instead.');}}function goContract(){var btns=document.querySelectorAll('.nb');for(var i=0;i<btns.length;i++){if(btns[i].textContent.indexOf('Account')===0){show('account',btns[i]);var d=document.getElementById('acc-agreement');if(d){d.open=true;setTimeout(function(){d.scrollIntoView({block:'start'});},60);}return;}}}function blStartCard(btn){var n=document.getElementById('bl-pay-note');if(BL_PREVIEW){if(n)n.textContent='Preview only. Nothing was created and no page opened.';return;}var orig=btn.textContent;btn.disabled=true;btn.textContent='Opening secure page…';if(n)n.textContent='';fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({startCard:true})}).then(function(r){return r.json();}).then(function(d){if(!d||!d.ok||!d.url){btn.disabled=false;btn.textContent=orig;if(n)n.textContent=(d&&d.error)||'We could not open the payment page just now. Please try again in a moment.';return;}if(n)n.textContent='Taking you to Stripe…';window.location.href=d.url;}).catch(function(){btn.disabled=false;btn.textContent=orig;if(n)n.textContent='We could not open the payment page just now. Please check your connection and try again.';});}function show(n,b){document.querySelectorAll('[id^="t-"]').forEach(e=>e.style.display="none");document.querySelectorAll('.nb').forEach(e=>e.classList.remove('on'));var p=document.getElementById('t-'+n);p.style.display='block';p.classList.remove('tab-anim');void p.offsetWidth;p.classList.add('tab-anim');b.classList.add('on');}function selUpg(el,i){selUpgName=el.getAttribute('data-name');document.querySelectorAll('.uopt').forEach((e,j)=>{e.classList.toggle('sel',i===j)});var b=document.getElementById('upgbtn');if(b){b.disabled=false;b.style.opacity='1';}}function askUpg(){if(!selUpgName)return;var w=document.getElementById('upg-action');if(!w)return;w.innerHTML='<div style="font-size:12px;color:#9CA3AF;margin:12px 0 10px;line-height:1.55">Ask about moving up to <b style="color:#F0F2FF">'+selUpgName+'</b>? We will confirm what changes and what it costs. Nothing changes until you say yes.</div><div style="display:flex;gap:8px"><button class="btn" style="margin-top:0;flex:1;background:transparent;border-color:rgba(255,255,255,.15);color:#9CA3AF" onclick="cancelUpg()">Cancel</button><button class="btn" id="upg-confirm" style="margin-top:0;flex:1" onclick="confirmUpg()">Send Request</button></div>';}function cancelUpg(){var w=document.getElementById('upg-action');if(w)w.innerHTML='<button class="btn" id="upgbtn" onclick="askUpg()">Ask About Scaling Up</button>';}function confirmUpg(){if(!selUpgName)return;var b=document.getElementById('upg-confirm');if(b){b.disabled=true;b.textContent='Sending…';}fetch('/.netlify/functions/portal?token='+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({upgrade:selUpgName})}).then(function(r){if(!r.ok)throw 0;document.getElementById('upgrade-section').innerHTML='<div style="text-align:center;padding:24px"><div style="font-size:30px;margin-bottom:10px">✓</div><div style="font-size:15px;font-weight:700;color:#F0F2FF;margin-bottom:8px">Request Sent</div><div style="font-size:12px;color:#6B7280">Your account manager will be in touch within 1 business day.</div></div>';}).catch(function(){if(b){b.disabled=false;b.textContent='Send Request';}alert('Something went wrong. Please try again or contact your account manager.');});}function blHelpEsc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}function blHelpBubble(role,text){var t=document.getElementById('bl-help-thread');if(!t)return null;var b=document.createElement('div');b.style.cssText='max-width:88%;padding:8px 11px;border-radius:12px;font-size:12px;line-height:1.55;'+(role==='user'?'align-self:flex-end;background:rgba(200,168,75,.14);border:1px solid rgba(200,168,75,.28);color:#F5F3ED':'align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);color:#D1D5DB');b.innerHTML=blHelpEsc(text).replace(/\\n/g,'<br>');t.appendChild(b);t.scrollTop=t.scrollHeight;return b;}var blHelpHistory=[],blHelpImg=null;function blHelpPickImg(input){var f=input.files&&input.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(e){var img=new Image();img.onload=function(){var mx=1200,w=img.width,h=img.height;if(w>mx||h>mx){if(w>=h){h=Math.round(h*mx/w);w=mx;}else{w=Math.round(w*mx/h);h=mx;}}var c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);blHelpImg=c.toDataURL('image/jpeg',0.85);var ind=document.getElementById('bl-help-img');if(ind){ind.style.display='block';ind.innerHTML='📎 Screenshot attached &nbsp;<a href="#" style="color:#9CA3AF" onclick="blHelpClearImg();return false">remove</a>';}};img.src=e.target.result;};rd.readAsDataURL(f);input.value='';}function blHelpClearImg(){blHelpImg=null;var ind=document.getElementById('bl-help-img');if(ind){ind.style.display='none';ind.innerHTML='';}}function blHelpSend(){var inp=document.getElementById('bl-help-input'),btn=document.getElementById('bl-help-send');if(!inp||!btn)return;var msg=(inp.value||'').trim();if(!msg&&!blHelpImg)return;var shown=msg||'(screenshot)';blHelpBubble('user',shown+(blHelpImg?' 📎':''));var sendImg=blHelpImg;inp.value='';blHelpClearImg();btn.disabled=true;btn.textContent='…';var think=blHelpBubble('assistant','…');fetch('/.netlify/functions/portal-assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,message:msg,history:blHelpHistory.slice(-12),image:sendImg||undefined})}).then(function(r){return r.json();}).then(function(d){if(think&&think.parentNode)think.parentNode.removeChild(think);if(!d||!d.ok){blHelpBubble('assistant',(d&&d.error)||'Sorry, something went wrong. Please try again.');}else{blHelpBubble('assistant',d.reply);blHelpHistory.push({role:'user',text:shown});blHelpHistory.push({role:'assistant',text:d.reply});}btn.disabled=false;btn.textContent='Send';}).catch(function(){if(think&&think.parentNode)think.parentNode.removeChild(think);blHelpBubble('assistant','I could not reach the assistant. Please check your connection and try again.');btn.disabled=false;btn.textContent='Send';});}try{var _ts=document.getElementById('t-status');if(_ts)_ts.classList.add('tab-anim');}catch(e){}<\/script>`
     +'</body></html>';
 };
 
@@ -9680,20 +9680,134 @@ function MetaAdsTestCard() {
 // area of the code is meant to prevent, so it only pairs when the second half of each
 // pair actually looks like a state.
 const US_STATE = /^(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC|alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)$/i;
-function toLocationLines(text){
-  const raw=String(text||"").trim();
-  if(!raw) return "";
-  // Newlines and semicolons are unambiguous separators, so trust them when present.
-  const explicit=raw.split(/[;\n]/).map(x=>x.trim()).filter(Boolean);
-  if(explicit.length>1) return explicit.join("\n");
-  const parts=raw.split(",").map(x=>x.trim()).filter(Boolean);
-  if(parts.length<2) return parts.join("\n");
-  const out=[];
-  for(let i=0;i<parts.length;i++){
-    if(i+1<parts.length&&US_STATE.test(parts[i+1])){ out.push(parts[i]+", "+parts[i+1]); i++; }
-    else out.push(parts[i]);
+// ─── FIELDS THAT DEMAND A SHAPE NOW GET GIVEN IT ─────────────────────────────
+//
+// Bryson, 2026-09-09: *"make sure that anything that requires a specific format like the one
+// area per line is automatically formatted like that"*. He had typed
+//
+//     Eugene and Lane County
+//     Oregon
+//
+// into a box whose label says one per line, and Google would have been asked to target a
+// place called "Eugene and Lane County" and then the entire state of Oregon on a $17 a day
+// budget. The box explained the format underneath it. Explaining a format is not the same
+// as applying one, and the cost of getting it wrong is spent money in the wrong town.
+//
+// 🔴 THESE RUN ON BLUR, NEVER ON EVERY KEYSTROKE. Reformatting text under a cursor while
+// somebody is still typing moves the cursor and eats characters, which is worse than the
+// mess it tidies. He types freely; it tidies when he leaves the field.
+//
+// 🔴 AND THEY ONLY DO WHAT IS UNAMBIGUOUS. Splitting "Eugene and Lane County" into two
+// places is mechanical. Deciding that the "Oregon" underneath was meant as the state for
+// both of them is a GUESS, and a wrong guess here buys ads in the wrong town silently.
+// Anything needing a human decision is left alone and flagged on screen instead (see
+// `locationNotes`), because the whole point of this area of the code is that targeting the
+// wrong place is the failure worth preventing.
+const tidyField = {
+  // One thing per line: newlines, semicolons and commas all mean "next one", and so does a
+  // free-standing "and" or "&". Blank lines and duplicates go.
+  lines(text){
+    return [...new Set(String(text||"")
+      .split(/[\n;,]|\s+(?:and|&)\s+/i)
+      .map(x=>x.trim().replace(/\s{2,}/g," "))
+      .filter(Boolean))].join("\n");
+  },
+  // Same, but a "City, State" pair has to survive the comma that separates it.
+  locations(text){
+    const raw=String(text||"").trim();
+    if(!raw) return "";
+    // Newlines and semicolons are unambiguous, so each is its own line before anything else.
+    const chunks=raw.split(/[;\n]/).map(x=>x.trim()).filter(Boolean);
+    const out=[];
+    for(const chunk of chunks){
+      // "Eugene and Lane County" is two places. "and" inside a real place name is rare and
+      // the alternative is buying ads for a town that does not exist.
+      for(const piece of chunk.split(/\s+(?:and|&)\s+/i).map(x=>x.trim()).filter(Boolean)){
+        const parts=piece.split(",").map(x=>x.trim()).filter(Boolean);
+        if(parts.length<2){ out.push(parts.join("")); continue; }
+        // 🔴 ONLY PAIR WHEN THE SECOND HALF ACTUALLY LOOKS LIKE A STATE. Pairing every other
+        // chunk works for "Gilbert, Arizona, Mesa, Arizona" and produces NONSENSE like
+        // "Phoenix, Mesa" the moment somebody types a bare city.
+        for(let k=0;k<parts.length;k++){
+          if(k+1<parts.length&&US_STATE.test(parts[k+1])){ out.push(parts[k]+", "+parts[k+1]); k++; }
+          else out.push(parts[k]);
+        }
+      }
+    }
+    return [...new Set(out.filter(Boolean))].join("\n");
+  },
+  // A Google Ads customer id is ten digits shown as 123-456-7890. He pastes it however
+  // Google gave it to him.
+  customerId(text){
+    const d=String(text||"").replace(/[^0-9]/g,"");
+    return d.length===10 ? `${d.slice(0,3)}-${d.slice(3,6)}-${d.slice(6)}` : String(text||"").trim();
+  },
+  // Meta ids are digits. An "act_" prefix is how Meta itself writes them and is not one.
+  digits(text){ return String(text||"").replace(/[^0-9]/g,""); },
+  // A URL with no scheme is not a link. Left alone when empty, because empty is a real
+  // answer on every field this is used for.
+  url(text){
+    const t=String(text||"").trim();
+    if(!t) return "";
+    return /^https?:\/\//i.test(t) ? t : "https://"+t.replace(/^\/+/,"");
+  },
+  // Free text, just tidied: no leading or trailing space, no runs of blank lines.
+  tidy(text){ return String(text||"").replace(/[ \t]+$/gm,"").replace(/\n{3,}/g,"\n\n").trim(); },
+  // Headlines and descriptions: one per line, tidied and de-duplicated, and NOT truncated.
+  //
+  // 🔴 IT MUST NOT TRUNCATE, and the campaign on screen is the reason. An auto-trim to 30
+  // characters is what produced the headline "Serving Eugene and Lane", which is not a
+  // shorter sentence, it is a broken one, and it would have run on a real client's ads.
+  // Cutting text to fit is a decision about wording and belongs to a person. Anything over
+  // the limit is flagged instead, with its length, so he can shorten it himself.
+  adLines(text){
+    return [...new Set(String(text||"")
+      .split(/\n/).map(x=>x.trim().replace(/\s{2,}/g," ")).filter(Boolean))].join("\n");
+  },
+  // Keywords are one per line and cannot contain a comma: Google reads a comma as the end of
+  // the keyword, so "screen printing, Eugene" silently becomes a different keyword than the
+  // one that was typed. Splitting on it is what was meant every time.
+  keywords(text){
+    return [...new Set(String(text||"")
+      .split(/[\n,;]/).map(x=>x.trim().replace(/\s{2,}/g," ")).filter(Boolean))].join("\n");
+  },
+};
+
+// What is still wrong with a list of ad lines, said with the line and its length, because
+// "one of these is too long" is not useful on a phone with eight of them on screen.
+function lineNotes(text, max, min, what){
+  const lines=String(text||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  const notes=[];
+  for(const l of lines) if(l.length>max) notes.push(`"${l}" is ${l.length} characters. Google's limit is ${max}, so shorten it by ${l.length-max}.`);
+  if(min && lines.length<min) notes.push(`Google needs at least ${min} ${what}. There ${lines.length===1?"is":"are"} ${lines.length}.`);
+  return notes;
+}
+
+// What is actually wrong with a location list, said out loud rather than guessed at. Each
+// note names the line it is about, because "one of these is wrong" is not useful on a phone.
+function locationNotes(text){
+  const notes=[];
+  for(const line of String(text||"").split("\n").map(x=>x.trim()).filter(Boolean)){
+    if(US_STATE.test(line)) notes.push(`"${line}" is a whole state. That is every town in it, which a small daily budget cannot cover. Put the town first, like "Eugene, ${line}".`);
+    else if(!line.includes(",")) notes.push(`"${line}" has no state or country after it. Google may match the wrong one. Write it as "${line}, Oregon".`);
   }
-  return out.join("\n");
+  return notes;
+}
+
+
+// One place the amber "still needs you" notes are rendered, so every field says it the same
+// way and adding a field cannot invent a new way of saying it.
+function FieldNotes({notes}){
+  if(!notes || !notes.length) return null;
+  return (
+    <div style={{marginTop:4}}>
+      {notes.map((n,i)=>(
+        <div key={i} style={{fontSize:9.5,color:C.amber,lineHeight:1.55,display:"flex",gap:6}}>
+          <span style={{flexShrink:0}}>!</span><span>{n}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function AreaConditionsCard({locations}) {
@@ -10045,15 +10159,24 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       ))}
       <div style={{marginBottom:9}}>
         <label style={lbl}>Headlines — one per line, ≤30 chars each (3+ required)</label>
-        <textarea value={f.headlinesText} onChange={e=>set("headlinesText",e.target.value)} rows={5} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <textarea value={f.headlinesText} onChange={e=>set("headlinesText",e.target.value)}
+          onBlur={e=>set("headlinesText",tidyField.adLines(e.target.value))}
+          rows={5} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <FieldNotes notes={lineNotes(f.headlinesText,30,3,"headlines")}/>
       </div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Descriptions — one per line, ≤90 chars each (2+ required)</label>
-        <textarea value={f.descriptionsText} onChange={e=>set("descriptionsText",e.target.value)} rows={3} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <textarea value={f.descriptionsText} onChange={e=>set("descriptionsText",e.target.value)}
+          onBlur={e=>set("descriptionsText",tidyField.adLines(e.target.value))}
+          rows={3} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <FieldNotes notes={lineNotes(f.descriptionsText,90,2,"descriptions")}/>
       </div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Keywords — one per line</label>
-        <textarea value={f.keywordsText} onChange={e=>set("keywordsText",e.target.value)} rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <textarea value={f.keywordsText} onChange={e=>set("keywordsText",e.target.value)}
+          onBlur={e=>set("keywordsText",tidyField.keywords(e.target.value))}
+          rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <FieldNotes notes={lineNotes(f.keywordsText,80,0,"keywords")}/>
       </div>
       <div style={{marginBottom:10}}>
         <label style={lbl}>Keyword match type</label>
@@ -10063,12 +10186,17 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       </div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Target locations — one per line (required)</label>
-        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)}
+          onBlur={e=>set("locationsText",tidyField.locations(e.target.value))}
+          rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <FieldNotes notes={locationNotes(f.locationsText)}/>
         <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Anywhere in the world, one per line. <b style={{color:C.textDim}}>City, State</b> at home (Gilbert, Arizona), <b style={{color:C.textDim}}>City, Country</b> abroad (London, United Kingdom), or a country on its own (Canada). You do not have to be based there. Ads show only to people <b style={{color:C.textDim}}>physically in</b> these areas, not people merely interested in them. Leave this empty and nothing gets built.</div>
       </div>
       <div style={{marginBottom:10}}>
         <label style={lbl}>Negative keywords — one per line</label>
-        <textarea value={f.negativeKeywordsText} onChange={e=>set("negativeKeywordsText",e.target.value)} rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <textarea value={f.negativeKeywordsText} onChange={e=>set("negativeKeywordsText",e.target.value)}
+          onBlur={e=>set("negativeKeywordsText",tidyField.keywords(e.target.value))}
+          rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
         <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Searches that will never buy — job hunters, students, freebie seekers. Blocking them is the cheapest money you'll save on a small budget.</div>
       </div>
       <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
@@ -10171,7 +10299,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     country: "US",
     // Meta targets by resolved geo KEY, not by name, so these are looked up server-side.
     // Empty means the build is refused rather than silently buying the whole country.
-    locationsText: toLocationLines(metaLocations),
+    locationsText: tidyField.locations(metaLocations),
     imageUrl: (firstImg && firstImg.url) || "",
     // 🔴 Defaults to Leads ONLY when the pixel is there to count them, because a default
     // the server would refuse is a build button that fails on first press. With no pixel
@@ -10417,7 +10545,10 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       ))}
       <div style={{marginBottom:9}}>
         <label style={lbl}>Target locations — one per line (required)</label>
-        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)} rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)}
+          onBlur={e=>set("locationsText",tidyField.locations(e.target.value))}
+          rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <FieldNotes notes={locationNotes(f.locationsText)}/>
         <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Anywhere in the world, one per line. <b style={{color:C.textDim}}>City, State</b> at home (Gilbert, Arizona), <b style={{color:C.textDim}}>City, Country</b> abroad (London, United Kingdom), or a country on its own (Canada). You do not have to be based there. Cities get a 25 mile radius. <b style={{color:C.textDim}}>Leave this empty and the build is refused</b> &mdash; without it Meta shows your ad across a whole country and the budget is gone before it reaches anyone nearby.</div>
       </div>
       <div style={{display:"flex",gap:8,marginBottom:9}}>
@@ -13611,7 +13742,16 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               ].map(({k,l,ph})=>(
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>
-                  <input type="text" value={(form.campaignSetup&&form.campaignSetup[k])||""} onChange={e=>setIn("campaignSetup",k,e.target.value)} placeholder={ph} style={inp}/>
+                  {/* Each of these has a shape it must be in, and the OS knows what that is.
+                      A URL with no scheme is not a link; a location list has one per line;
+                      a keyword list cannot carry commas. */}
+                  <input type="text" value={(form.campaignSetup&&form.campaignSetup[k])||""} onChange={e=>setIn("campaignSetup",k,e.target.value)}
+                    onBlur={e=>setIn("campaignSetup",k,
+                      /Url$/.test(k) ? tidyField.url(e.target.value)
+                      : k==="targetLocations" ? tidyField.locations(e.target.value)
+                      : k==="excludedKeywords" ? tidyField.keywords(e.target.value)
+                      : tidyField.tidy(e.target.value))}
+                    placeholder={ph} style={inp}/>
                 </div>
               ))}
               {/* 🔴 THE ONLY WAY TO KNOW THE CONNECTION WORKS BEFORE A REAL LEAD USES IT.
@@ -13683,7 +13823,14 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               ].map(({k,l,ph})=>(
                 <div key={k} style={fieldStyle}>
                   <label style={fieldLabelStyle}>{l}</label>
-                  <input type="text" value={form[k]||""} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/>
+                  {/* 🔴 ON BLUR, NEVER ON EVERY KEYSTROKE. Reformatting an id under the
+                      cursor while he is still typing it moves the cursor and eats digits.
+                      Google hands the Customer ID out as 123-456-7890 in one place and
+                      1234567890 in another; Meta writes its account id as act_123. Both are
+                      the same number and the OS should not care which he pasted. */}
+                  <input type="text" value={form[k]||""} onChange={e=>set(k,e.target.value)}
+                    onBlur={e=>set(k, k==="googleAdsCustomerId" ? tidyField.customerId(e.target.value) : tidyField.digits(e.target.value))}
+                    placeholder={ph} style={inp}/>
                 </div>
               ))}
               {/* 🔴 ASK THE CLIENT'S ACCOUNT FOR MANAGER ACCESS, WITHOUT LEAVING THE OS.
