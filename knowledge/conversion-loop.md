@@ -101,3 +101,50 @@ lead to be counted twice, dropping iPhone click ids, and marking rejected rows a
 🔴 One assertion crashed instead of reporting when broken (`clickIdOf(...).kind` on a null),
 which killed every check after it. A guard that crashes is not a guard that reports; it is
 null-safe now.
+
+---
+
+## 🔴 2026-09-09 — THE UPLOAD NOW SENDS ITSELF
+
+**Why (Bryson):** he asked what the two buttons on the card actually do, was told the honest
+answer that **nothing sent them on a schedule**, and said *"Yes can you make it automatic"*.
+
+The upload existed and worked, behind two buttons somebody had to remember to press. **A
+signal nobody remembers to send is a signal the bidding never gets, and the failure is
+completely silent:** the ads just quietly stay average and nothing anywhere says why. That is
+the opposite of the goal, which is full automation before the first client.
+
+**`netlify/functions/conversion-sync.mjs`, daily at `0 4 * * *`** (04:00 UTC = **9pm
+Phoenix**, so a lead graded during the working day goes the same evening and the run never
+collides with him pressing the buttons by hand).
+
+Each run, for every client that is `uploadable`:
+1. sends every newly **qualified** lead carrying an ad click,
+2. sends every newly **closed customer**, with the order value where there is one,
+3. marks only what Google accepted, so a rejected row is retried tomorrow rather than hidden.
+
+🔴 **`sendConversions` was LIFTED OUT of the `google-ads.mjs` handler, not copied**, and the
+button's endpoint now calls the same function. Two copies of "what has already been sent" is
+how a button and a scheduled job start disagreeing about what Google has been told, and
+nobody would ever notice.
+
+**Who is skipped, and why each matters:**
+- **Demo clients.** Their leads are invented and the whole point is teaching a real ad
+  account what a real buyer looks like. Same rule the weekly report and lead follow-up run on.
+- **Half-finished tracking.** Both actions must exist, not just `conversionId`. Uploading
+  into an action that does not exist makes Google refuse the entire batch.
+
+**It does not fail silently either**, because silence is the exact failure mode it exists to
+fix. One client's error never ends the run (a run that stops on the first error starves every
+account after it in the list), and any failure or rejection raises an owner alert — red for an
+outright failure, amber for refused rows — saying that a rejection usually means the
+conversion action was deleted in the ad account, and naming the button to press.
+
+**The card had to change too.** Without a line saying it happens by itself, the buttons still
+read as a chore, which is the thing that was fixed. It now says *"This sends itself every
+night, so there is nothing to remember"*, and explains the buttons are for when he wants
+Google to know sooner.
+
+`tests/verify-conversion-sync.mjs` — 23 checks, importing and RUNNING the eligibility rules.
+8 mutations, all caught, including uploading a demo client, never sending closed customers,
+and shipping the job without scheduling it.

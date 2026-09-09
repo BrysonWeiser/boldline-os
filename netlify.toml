@@ -125,6 +125,19 @@
 [functions."ads-sync"]
   schedule = "0 * * * *"
 
+# DAILY (04:00 UTC = 9pm Phoenix): tells Google which of yesterday's leads turned out to be
+# real, and which became paying customers.
+#
+# 🔴 THIS IS THE SIGNAL THE BIDDING LEARNS FROM. Google can see a form was filled in and
+# nothing else, so left alone it goes and finds more of everyone who fills in forms. The
+# upload existed behind two buttons somebody had to remember to press, and a signal nobody
+# remembers to send is one the ads never get, silently.
+#
+# Overnight on purpose: a lead graded during the working day is sent that same evening, and
+# the run never collides with Bryson using the buttons by hand.
+[functions."conversion-sync"]
+  schedule = "0 4 * * *"
+
 # Every 15 minutes: mirrors BoldLine's OWN inbound leads (the website form, the quiz
 # and Calendly bookings, all of which land in website_leads) onto the My Ads house
 # account, so its lead count, cost-per-lead, health score, pipeline and ROI funnel are
