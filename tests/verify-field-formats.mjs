@@ -124,7 +124,7 @@ const { tidyField, locationNotes, lineNotes } =
   ok("and the three carrier-filed URLs are",
     /\/Url\$\/\.test\(k\) \? tidyField\.url/.test(UI));
   ok("one component renders every note, so a new field cannot invent a new way of saying it",
-    /function FieldNotes\(\{notes\}\)/.test(UI)
+    /function FieldNotes\(\{notes, fix\}\)/.test(UI)
     && (UI.match(/<FieldNotes /g) || []).length >= 5);
 }
 
@@ -149,6 +149,80 @@ const { tidyField, locationNotes, lineNotes } =
     el("theirsite.com/privacy.html") === "https://theirsite.com/privacy.html");
   ok("a real link is left exactly as it is", el("https://x.com/p") === "https://x.com/p");
   ok("blank stays blank, because not texting leads is a real answer", el("   ") === "");
+}
+
+// ── The "let the AI shorten these" button ────────────────────────────────────
+// Bryson, 2026-09-09: *"for the headline fix and other fixes like it can we make it so there
+// is a way for me to press a button to have the ai fix it if I want"*. Flagging an
+// over-length headline is right, and it still leaves him holding the pen at 8pm.
+{
+  const m = /function fixLines\(text, max, onApply, ctx\)\{[\s\S]*?\n\}/.exec(S);
+  ok("there is one helper deciding whether a fix is even possible", !!m);
+  const fixLines = new Function(m[0] + "\nreturn fixLines;")();
+
+  ok("🔴 no button when nothing is over the limit",
+    fixLines("Short one\nShort two", 30, () => {}) === null,
+    "a button that cannot help is worse than no button");
+  ok("🔴 and none when the only problem is too FEW lines",
+    fixLines("One short line", 30, () => {}) === null,
+    "\"Google needs at least 3 headlines\" is not something a rewrite can solve");
+
+  const long = "Professional Custom Apparel And Screen Printing You Can Trust";
+  const fix = fixLines(`Short one\n${long}`, 30, () => {});
+  ok("🔴 it sends ONLY the lines that are actually broken",
+    fix.payload.lines.length === 1 && fix.payload.lines[0] === long,
+    "he wrote some of these himself, and a fix that rewrites the ones already fine loses his words");
+  ok("it sends the limit so the model knows what it is aiming at", fix.payload.max === 30);
+  ok("and the client's own details, so a rewrite still names their town and service",
+    !!fixLines("x".repeat(40), 30, () => {}, { name: "Stencil & Thread", niche: "Screen printing" }).payload.name);
+
+  // 🔴 The apply path is what puts words back in the box, so it is RUN.
+  {
+    let out = null;
+    const f = fixLines(`Keep me\n${long}\nKeep me too`, 30, (t) => { out = t; });
+    f.apply((line) => (line === long ? "Custom apparel, printed fast" : line));
+    ok("🔴 lines it did not touch stay exactly where they were",
+      out === "Keep me\nCustom apparel, printed fast\nKeep me too",
+      `order and untouched lines must survive. Got: ${JSON.stringify(out)}`);
+  }
+  {
+    let out = null;
+    const f = fixLines(`Keep me\n${long}`, 30, (t) => { out = t; });
+    f.apply((line) => line);   // the model could not shorten it
+    ok("and a line it could NOT shorten stays in the box rather than vanishing",
+      out === `Keep me\n${long}`,
+      "dropping it would silently delete a headline he wrote");
+  }
+
+  ok("the button is offered on headlines and descriptions",
+    (UI.match(/fix=\{fixLines\(/g) || []).length === 2);
+  ok("it calls the shared owner-authed generator, not a hand-rolled fetch",
+    /adGenCall\(\{ action:"shorten"/.test(UI));
+  ok("🔴 and only the lines it managed to rewrite are swapped in",
+    /\(d\.lines\|\|\[\]\)\.filter\(r=>r&&r\.rewritten\)/.test(UI),
+    "a null rewrite means it could not do it, and pretending otherwise would blank the line");
+}
+
+// ── The server refuses a rewrite that is still broken ────────────────────────
+{
+  const GEN = readFileSync(join(ROOT, "netlify/functions/ad-generator.mjs"), "utf8");
+  ok("there is a shorten action", /if \(action === "shorten"\)/.test(GEN));
+  ok("🔴 it only ever considers lines that are over the limit",
+    /\.filter\(\(l\) => l && l\.length > max\)/.test(GEN));
+  ok("🔴 a rewrite still over the limit is REFUSED, not trimmed to fit",
+    /const ok = fixed && fixed\.length <= max && fixed !== original;/.test(GEN),
+    "trimming here would reproduce the exact bug the button exists to fix");
+  ok("an unchanged line counts as a failure, not a success",
+    /fixed !== original/.test(GEN),
+    "handing back the same line reads as \"the button does nothing\"");
+  ok("the prompt names the real broken headline as the thing not to do",
+    /Serving Eugene and Lane County.*must not come back as/.test(GEN),
+    "the model is told the failure mode in the words it actually happened in");
+  ok("it strips dashes with the shared helper rather than a second copy",
+    /stripDashes\(String\(\(hit && hit\.rewritten\)/.test(GEN),
+    "the em dash rule is a standing one and must not fork");
+  ok("nothing over the limit can come back as a 200 with no lines fixed",
+    /if \(!fixedCount\) return json\(\{ ok: false/.test(GEN));
 }
 
 console.log(`verify-field-formats: ${pass} passed, ${fail} failed`);

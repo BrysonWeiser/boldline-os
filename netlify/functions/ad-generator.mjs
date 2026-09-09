@@ -18,6 +18,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import {
   TOOL_FOR, MAX_TOKENS_FOR, runTool, cleanCreatives, brief, systemFor, promptFor, friendlyError,
+  LIMITS, stripDashes,
 } from "../lib/ad-gen-shared.mjs";
 import { getLocalConditions } from "../lib/local-conditions.mjs";
 export { LIMITS, fitWords, fitSentence, cleanGoogle } from "../lib/ad-gen-shared.mjs";
@@ -78,6 +79,55 @@ ${cond.block}`,
     } catch (e) {
       const m = String((e && e.message) || e);
       console.error("ad-generator creatives failed:", m);
+      return json({ ok: false, error: friendlyError(m) }, 500);
+    }
+  }
+
+  // ── Hand one over-length line back and get the same meaning, shorter ───────
+  //
+  // 🔴 ONLY THE LINES THAT ARE ACTUALLY BROKEN, never the whole box. He may have written
+  // some of these himself, and a "fix" that quietly rewrites the ones that were already
+  // fine is a fix that loses his words.
+  if (action === "shorten") {
+    const max = Math.max(10, Math.min(200, Number(body.max) || LIMITS.headline));
+    const lines = (Array.isArray(body.lines) ? body.lines : [])
+      .map((l) => String(l || "").trim()).filter((l) => l && l.length > max).slice(0, 20);
+    if (!lines.length) return json({ ok: true, lines: [], note: "Nothing was over the limit." });
+    try {
+      const { data, model } = await runTool({
+        tool: TOOL_FOR.shorten, maxTokens: MAX_TOKENS_FOR.shorten,
+        system: systemFor(!!body.agency),
+        prompt: `Each line below is too long for where it runs. Rewrite each one so it says the SAME THING in ${max} characters or fewer.
+
+THE BUSINESS:
+${brief(body)}
+
+RULES FOR THIS JOB:
+- Keep the meaning. If a line names a place, a service or an offer, the rewrite still names it.
+- ${max} characters is a hard ceiling. COUNT THEM. A rewrite one character over is useless to me.
+- Do NOT just cut the end off. "Serving Eugene and Lane County" must not come back as "Serving Eugene and Lane", which is a broken sentence. Rewrite it, for example "Serving Eugene and Lane Co".
+- Finish the thought. Never end mid-word, mid-phrase, or on a word like "and", "the" or "your".
+- Return one rewrite per line, in the same order, copying each original back exactly.
+
+THE LINES:
+${lines.map((l, i) => `${i + 1}. (${l.length} chars) ${l}`).join("\n")}`,
+      });
+      const back = Array.isArray(data && data.lines) ? data.lines : [];
+      const out = lines.map((original) => {
+        const hit = back.find((r) => String((r && r.original) || "").trim() === original);
+        const fixed = stripDashes(String((hit && hit.rewritten) || "").trim().replace(/\s{2,}/g, " "));
+        // 🔴 A rewrite that is still too long, empty, or unchanged is REFUSED rather than
+        // trimmed. Trimming here would reproduce the exact bug this button exists to fix,
+        // and silently handing back the same line reads as "the button does nothing".
+        const ok = fixed && fixed.length <= max && fixed !== original;
+        return { original, rewritten: ok ? fixed : null };
+      });
+      const fixedCount = out.filter((r) => r.rewritten).length;
+      if (!fixedCount) return json({ ok: false, error: "The rewrite came back too long as well. Try again, or shorten it yourself." }, 502);
+      return json({ ok: true, model, lines: out, fixed: fixedCount, asked: lines.length });
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      console.error("ad-generator shorten failed:", m);
       return json({ ok: false, error: friendlyError(m) }, 500);
     }
   }

@@ -154,7 +154,7 @@ export async function runTool({ system, prompt, tool, maxTokens }) {
 // fails the entire googleAds:mutate, so nothing over-length may reach the API.
 // Now the SHARED humanizer (netlify/lib/humanize.mjs). The local version matched only
 // "—" and "–", so "Roof repair - done right" went out untouched.
-const stripDashes = (s) => humanize(String(s == null ? "" : s));
+export const stripDashes = (s) => humanize(String(s == null ? "" : s));
 
 // ── Truncation that never cuts a word in half ────────────────────────────────
 // `fitWords` and `fitPhrase` MOVED to humanize.mjs (2026-08-24) and are re-exported
@@ -321,8 +321,45 @@ Each angle is a static image: a small kicker line, 2 or 3 short headline lines, 
 Give me 5 to 7 angles that make genuinely different arguments. Not one idea reworded. Headline lines must be 24 characters or fewer each or they will not fit the canvas.`;
 };
 
-export const TOOL_FOR = { google: GOOGLE_TOOL, meta: META_TOOL, creatives: CREATIVE_TOOL };
-export const MAX_TOKENS_FOR = { google: 8000, meta: 3000, creatives: 3000 };
+// ─── REWRITE THE LINES THAT DO NOT FIT ───────────────────────────────────────
+//
+// Bryson, 2026-09-09: *"for the headline fix and other fixes like it can we make it so
+// there is a way for me to press a button to have the ai fix it if I want"*.
+//
+// The OS already flags an over-length headline rather than cutting it, because cutting is
+// what produced the live headline "Serving Eugene and Lane" — a broken sentence, not a
+// shorter one. Flagging is right and it still leaves him holding the pen at 8pm. This gives
+// him the option of handing that one line back, and only that line.
+//
+// 🔴 IT REWRITES, IT DOES NOT TRUNCATE. The whole point is that a machine cutting text at a
+// character count is exactly the failure being fixed. The model is asked for the same
+// meaning in fewer words, and anything it returns still over the limit is rejected rather
+// than trimmed into the same broken shape.
+export const SHORTEN_TOOL = {
+  name: "shorten_lines",
+  description: "Rewrite each given line so it fits the character limit, keeping its meaning.",
+  input_schema: {
+    type: "object",
+    properties: {
+      lines: {
+        type: "array",
+        description: "One rewrite per line given, in the SAME ORDER. Never merge or drop a line.",
+        items: {
+          type: "object",
+          properties: {
+            original: { type: "string", description: "The line you were given, copied exactly." },
+            rewritten: { type: "string", description: "The same meaning, inside the character limit." },
+          },
+          required: ["original", "rewritten"],
+        },
+      },
+    },
+    required: ["lines"],
+  },
+};
+
+export const TOOL_FOR = { google: GOOGLE_TOOL, meta: META_TOOL, creatives: CREATIVE_TOOL, shorten: SHORTEN_TOOL };
+export const MAX_TOKENS_FOR = { google: 8000, meta: 3000, creatives: 3000, shorten: 2000 };
 
 export const friendlyError = (m) =>
   /credit|balance|quota|insufficient/i.test(m) ? "The Anthropic account is out of credits. Top it up at console.anthropic.com and try again."
