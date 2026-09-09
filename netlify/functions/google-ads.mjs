@@ -272,6 +272,47 @@ export async function getClientLinkStatus(accessToken, clientCustomerId) {
   return { status, linked: status === "ACTIVE", statuses: rows };
 }
 
+// ── Tell Google which leads were real, for ONE client and ONE stage ──────────
+//
+// 🔴 LIFTED OUT OF THE HANDLER SO THE NIGHTLY JOB RUNS THE SAME CODE. Bryson,
+// 2026-09-09, on the two buttons: *"Yes can you make it automatic"*. A second copy of
+// "which leads have already been sent" is how a button and a scheduled job start
+// disagreeing about what Google has been told, and nobody would ever notice.
+export async function sendConversions(supabase, accessToken, { clientId, customerId, stage }) {
+  const { data: row } = await supabase.from("clients").select("data").eq("id", clientId).maybeSingle();
+  const cl = (row && row.data) || null;
+  if (!cl) return { ok: false, error: "Client not found", status: 404 };
+
+  const plan = uploadPlan(cl, { stage });
+  if (!plan.ok) return { ok: false, error: plan.error, status: 400 };
+  if (!plan.rows.length) {
+    return { ok: true, stage, uploaded: 0, rejected: 0, rejects: [], skipped: plan.skipped,
+      note: "Nothing new to send. Every lead at this stage has either been sent already or has no click to match it to." };
+  }
+
+  const res = await uploadClickConversions(accessToken, customerId, plan.rows.map((r) => r.row));
+
+  // 🔴 ONLY MARK WHAT GOOGLE ACTUALLY TOOK. Marking a rejected row as sent would hide it
+  // forever, and the lead would never reach the bidding it was meant to feed.
+  const rejected = new Set(res.rejects.map((r) => r.index).filter((i) => i != null));
+  const at = new Date().toISOString();
+  const leads = (cl.leadsLog || []).slice();
+  let marked = 0;
+  plan.rows.forEach((r, i) => {
+    if (rejected.has(i)) return;
+    const lead = leads[r.index];
+    if (!lead) return;
+    leads[r.index] = { ...lead, gadsUploaded: { ...(lead.gadsUploaded || {}), [stage]: at } };
+    marked++;
+  });
+  const { error: upErr } = await supabase.from("clients")
+    .update({ data: { ...cl, leadsLog: leads }, updated_at: at }).eq("id", clientId);
+  if (upErr) console.error("sendConversions: could not record what was sent:", upErr.message);
+
+  return { ok: true, stage, uploaded: marked, rejected: res.rejected, rejects: res.rejects,
+    skipped: plan.skipped, saved: !upErr };
+}
+
 // ── Guarded write: pause / enable a campaign ──────────────────────────────────
 export async function setStatus(accessToken, customerId, campaignResourceName, status) {
   const s = String(status || "").toUpperCase();
@@ -1196,43 +1237,14 @@ export default async (req) => {
     }
 
     // ── Tell Google which leads were real ────────────────────────────────────
+    // ── Tell Google which leads were real ────────────────────────────────────
     if (action === "uploadConversions") {
       if (!digits(body.customerId)) return json({ ok: false, error: "customerId required" }, 400);
       if (!body.clientId) return json({ ok: false, error: "clientId required" }, 400);
-      const stage = String(body.stage || "qualified");
-
-      const { data: row } = await supabase.from("clients").select("data").eq("id", body.clientId).maybeSingle();
-      const cl = (row && row.data) || null;
-      if (!cl) return json({ ok: false, error: "Client not found" }, 404);
-
-      const plan = uploadPlan(cl, { stage });
-      if (!plan.ok) return json({ ok: false, error: plan.error }, 400);
-      if (!plan.rows.length) {
-        return json({ ok: true, action, stage, uploaded: 0, skipped: plan.skipped,
-          note: "Nothing new to send. Every lead at this stage has either been sent already or has no click to match it to." });
-      }
-
-      const res = await uploadClickConversions(accessToken, body.customerId, plan.rows.map((r) => r.row));
-
-      // 🔴 ONLY MARK WHAT GOOGLE ACTUALLY TOOK. Marking a rejected row as sent would
-      // hide it forever, and the lead would never reach the bidding it was meant to feed.
-      const rejected = new Set(res.rejects.map((r) => r.index).filter((i) => i != null));
-      const at = new Date().toISOString();
-      const leads = (cl.leadsLog || []).slice();
-      let marked = 0;
-      plan.rows.forEach((r, i) => {
-        if (rejected.has(i)) return;
-        const lead = leads[r.index];
-        if (!lead) return;
-        leads[r.index] = { ...lead, gadsUploaded: { ...(lead.gadsUploaded || {}), [stage]: at } };
-        marked++;
+      const r = await sendConversions(supabase, accessToken, {
+        clientId: body.clientId, customerId: body.customerId, stage: String(body.stage || "qualified"),
       });
-      const { error: upErr } = await supabase.from("clients")
-        .update({ data: { ...cl, leadsLog: leads }, updated_at: at }).eq("id", body.clientId);
-      if (upErr) console.error("uploadConversions: could not record what was sent:", upErr.message);
-
-      return json({ ok: true, action, stage, uploaded: marked,
-        rejected: res.rejected, rejects: res.rejects, skipped: plan.skipped, saved: !upErr });
+      return json({ ...r, action }, r.ok ? 200 : (r.status || 400));
     }
 
     return json({ ok: false, error: `Unknown action: ${action}` }, 400);

@@ -3894,6 +3894,15 @@ function ConversionLoopCard({client,onUpdate}){
                 {busy===stage?"Sending…":pending(stage)?`Send ${pending(stage)} ${word}${pending(stage)===1?"":"s"}`:`No new ${word}s`}</button>
             ))}
           </div>
+          {/* 🔴 THE BUTTONS ARE NOW A SHORTCUT, NOT A CHORE, AND THE CARD HAS TO SAY SO.
+              Until 2026-09-09 nothing sent these on a schedule, so forgetting to press them
+              meant the bidding never learned and nothing anywhere said why. A nightly job
+              runs the same upload; these send it sooner. Without this line they still read
+              as a job he has to remember, which is the thing that was fixed. */}
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginTop:8}}>
+            This sends itself every night, so there is nothing to remember. Use the buttons
+            when you want Google to know sooner, right after grading a batch.
+          </div>
           <button onClick={setup} disabled={!!busy} style={{marginTop:7,width:"100%",padding:"6px",fontSize:10,fontWeight:700,borderRadius:8,
             border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:busy?"default":"pointer"}}>
             {busy==="setup"?"Checking…":"Re-check the setup"}</button>
