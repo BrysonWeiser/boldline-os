@@ -353,7 +353,7 @@ a{color:inherit}
    rather than stretching to fill the row, which would be a different kind of wrong. */
 .gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
 .gitem{overflow:hidden;border-radius:var(--r)}
-.gal{align-items:start}.gitem img{width:100%;height:auto;display:block;transition:transform .5s ease}
+.gal{align-items:start}.gitem img{width:100%;height:auto;display:block;transition:transform .5s ease}.gal.uni .gitem img{aspect-ratio:var(--galr);object-fit:cover}
 .gitem:hover img{transform:scale(1.06)}
 /* offer */
 .offer{position:relative;overflow:hidden;background:${P.bandGrad};border-radius:calc(var(--r) + 4px);padding:40px 26px;text-align:center;color:#fff}
@@ -987,6 +987,49 @@ a{color:inherit}
   //      everything below), and the slow reader who scrolls after it (the net has already run,
   //      and the re-arm observer will not fire again because those elements' intersection
   //      state never changed). Both end up with a dead page, which is exactly what he saw.
+  // ─── ONE SHAPE FOR THE GALLERY, TAKEN FROM THE PHOTOS THEMSELVES ─────────────
+  //
+  // Bryson, 2026-09-09: *"add a rule to make sure they are all still uniform that way one
+  // image isnt one size and shape and another image is completely different size and shape"*.
+  // A ragged row of different-shaped tiles reads as unfinished on a page a stranger is
+  // judging the business by.
+  //
+  // 🔴 THE SHAPE IS MEASURED, NOT CHOSEN, which is the whole difference from the two versions
+  // that were wrong. Picking 4:3 cropped the print off portrait photos of shirts; picking a
+  // square left grey bars. The MEDIAN of what this client actually uploaded fits most of
+  // their photos exactly, so most tiles crop nothing at all, and only a genuine odd one out
+  // is trimmed.
+  //
+  // 🔴 MEASURED IN THE BROWSER, because photos uploaded before today carry no stored size and
+  // there is no second chance to ask the file. If the script never runs, the CSS above leaves
+  // every photo at its own shape, which is safe and simply not uniform.
+  // The median is clamped so one freak image cannot make every tile a letterbox or a tower,
+  // and settle() runs immediately AND on every later load because the gallery images are
+  // loading="lazy": below the fold, which on a phone is exactly where this gallery sits, a
+  // lazy image is not complete at parse time and its load event does not fire until it is
+  // scrolled to. The first version waited for all of them and therefore waited forever.
+  //
+  // 🔴 NO COMMENTS INSIDE THE STRING. It is delivered verbatim to the client's own domain
+  // where their developer reads it, which is a standing rule and one the suite enforces.
+  const galleryJS = `
+  var gal=document.querySelector('.gal');
+  if(gal){
+    var ims=[].slice.call(gal.querySelectorAll('img'));
+    var settle=function(){
+      var rs=ims.map(function(i){return i.naturalWidth&&i.naturalHeight?i.naturalWidth/i.naturalHeight:0;})
+                .filter(function(r){return r>0;}).sort(function(a,b){return a-b;});
+      if(!rs.length) return;
+      var m=rs.length%2?rs[(rs.length-1)/2]:(rs[rs.length/2-1]+rs[rs.length/2])/2;
+      m=Math.max(0.62,Math.min(1.6,m));
+      gal.style.setProperty('--galr',String(m.toFixed(3)));
+      gal.classList.add('uni');
+    };
+    settle();
+    ims.forEach(function(i){ i.addEventListener('load',settle); });
+    window.addEventListener('load',settle);
+  }
+`;
+
   const revealJS = `  var els=[].slice.call(document.querySelectorAll('.reveal'));
   var EDGE=160;
   function showAll(){els.forEach(function(el){el.classList.add('in');});}
@@ -1038,6 +1081,7 @@ ${convId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
 (function(){
+${galleryJS}
 ${revealJS}
 ${formJS}
 })();

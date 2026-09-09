@@ -124,6 +124,39 @@ nothing, because the test images were remote URLs that never loaded in the sandb
 no intrinsic size and "fills the box" was trivially true of a zero-sized image. The fixtures are
 now data URIs with genuine dimensions.
 
+### And then uniform, from a shape that is MEASURED
+
+Bryson, same session: *"add a rule to make sure they are all still uniform that way one image
+isnt one size and shape and another image is completely different size and shape"*. A ragged
+row of different-shaped tiles reads as unfinished on a page a stranger judges the business by.
+
+🔴 **The shape is measured, not chosen, and that is the whole difference from the two versions
+that were wrong.** A small script takes the **median aspect ratio of that client's own photos**
+and applies it to every tile via `--galr` + `.gal.uni`. Most of their photos therefore fit the
+tile exactly and crop nothing at all; only a genuine odd one out is trimmed. Clamped to
+0.62–1.6 so one freak image cannot make every tile a letterbox or a tower.
+
+Measured **in the browser**, because photos uploaded before today carry no stored dimensions
+and there is no second chance to ask the file. If the script never runs, the base CSS leaves
+each photo at its own shape, which is not uniform but is never a crop.
+
+🔴 **`loading="lazy"` broke the first version of this.** Below the fold, which on a phone is
+exactly where the gallery sits, a lazy image is not `complete` at parse time and its `load`
+event does not fire until it is scrolled to. Waiting for all of them waited forever and the
+tiles silently never became uniform. It now measures whatever is available immediately and
+re-measures on every later `load` and on `window.load`; `settle()` is idempotent.
+
+🔴 **The suite caught me shipping internal comments to a client's page.** The reasoning was
+written inside the script template literal, which is delivered verbatim to the client's own
+domain where their developer reads it. Standing rule, enforced by `verify-lead-handoff`.
+
+Two checks, because neither alone is enough: `verify-lead-handoff` pins the median, the clamp,
+the lazy-load handling and the no-JS fallback; `tests/verify-gallery-uniform.mjs` renders the
+page in a real browser at five widths and asserts every tile is the same shape, has a
+zero-pixel gap, and that the shape actually equals the median of the fixture photos (0.75) —
+because hardcoding any single ratio is also "uniform". Six mutations, every one caught by at
+least one of the two, and the ones each misses are covered by the other.
+
 ## Fix 3 — a camera filename is not alt text
 
 `alt="${p.label || cl.name}"` printed `IMG_6360.png`, which is exactly what a visitor read on

@@ -635,12 +635,30 @@ const fakeFetch = (script) => {
   // shape we chose. The tile takes the PHOTO's shape instead, so it fills its box completely
   // and nothing is ever cut off.
   ok("🔴 gallery tiles take the photo's own shape rather than forcing one",
-    /\.gitem img\{width:100%;height:auto;display:block/.test(LANDING)
-    && !/\.gitem img\{[^}]*object-fit/.test(LANDING)
-    && !/\.gitem img\{[^}]*aspect-ratio/.test(LANDING),
+    /\.gal\{align-items:start\}\.gitem img\{width:100%;height:auto;display:block/.test(LANDING)
+    && !/[^.]\.gitem img\{[^}]*object-fit/.test(LANDING.replace(/\.gal\.uni [^}]*\}/g, "")),
     "any fixed shape either crops the client's product out or leaves empty bars around it");
   ok("and uneven rows sit at the top instead of stretching",
     /\.gal\{align-items:start\}/.test(LANDING));
+
+  // 🔴 UNIFORM, BUT FROM A SHAPE THAT WAS MEASURED RATHER THAN CHOSEN. Bryson, 2026-09-09:
+  // *"add a rule to make sure they are all still uniform"*. A ragged row of different-shaped
+  // tiles reads as unfinished on a page a stranger judges the business by. The median of what
+  // THIS client uploaded fits most of their photos exactly, so most tiles crop nothing.
+  ok("every tile takes one shape once it has been measured",
+    /\.gal\.uni \.gitem img\{aspect-ratio:var\(--galr\);object-fit:cover\}/.test(LANDING));
+  ok("🔴 and the shape is the MEDIAN of the client's own photos, not a number we picked",
+    /var m=rs\.length%2\?rs\[\(rs\.length-1\)\/2\]:\(rs\[rs\.length\/2-1\]\+rs\[rs\.length\/2\]\)\/2;/.test(LANDING),
+    "picking 4:3 cropped the print off portrait shirts and picking a square left grey bars");
+  ok("one freak image cannot make every tile a letterbox or a tower",
+    /Math\.max\(0\.62,Math\.min\(1\.6,m\)\)/.test(LANDING));
+  ok("🔴 it does not wait for lazy images that will never fire below the fold",
+    /settle\(\);\s*\n\s*ims\.forEach\(function\(i\)\{ i\.addEventListener\('load',settle\); \}\);/.test(LANDING)
+    && /window\.addEventListener\('load',settle\)/.test(LANDING),
+    "a lazy image below the fold does not load until scrolled to, so waiting for all of them waits forever");
+  ok("and with the script never running, every photo simply keeps its own shape",
+    /\.gitem img\{width:100%;height:auto;display:block/.test(LANDING),
+    "the no-JS fallback must not be a crop");
 
   ok("the hero, the gallery and the logo all go through it",
     (LANDING.match(/esc\(sized\(/g) || []).length >= 4,
