@@ -248,7 +248,11 @@ ok("no button calls launch with no mode", !/onClick=\{launch\}/.test(card),
 // The generated button must live inside the generated block, or it renders with nothing
 // to build.
 {
-  const genBlock = card.slice(card.indexOf("{gen&&gen.adGroups&&("), card.indexOf("Campaign settings <span"));
+  // The settings moved ABOVE the generate block (2026-09-09), so the old end marker now
+  // sits before the start marker. The slice is asserted non-empty so that mistake fails
+  // loudly instead of passing every regex against an empty string.
+  const genBlock = card.slice(card.indexOf("{gen&&gen.adGroups&&("), card.indexOf("Manual ad copy <span"));
+  ok("the generated block was found", genBlock.length > 500, `got ${genBlock.length} chars`);
   ok("the generated button is under the generated ad groups", /launch\("gen"\)/.test(genBlock));
   ok("the manual button is not", !/launch\("manual"\)/.test(genBlock));
   ok("the button counts the ticked groups", /Build these \$\{n\} ad group/.test(genBlock), "he should see how many he is about to build");
@@ -273,7 +277,32 @@ ok("a missing setting is called out rather than shown blank",
 
 // Headings, so the fields below are findable from the note that points at them.
 ok("the shared settings are headed 'Campaign settings'", /Campaign settings <span/.test(card));
-ok("the heading says both buttons use them", (card.match(/used by both build buttons/g) || []).length >= 2);
+ok("the heading says both buttons use them", /used by both build buttons/.test(card));
+// 🔴 THE SETTINGS ARE ONE BLOCK NOW. They used to be split in half BY the manual copy
+// boxes, so half of them sat under a heading reading "Manual ad copy" and the screen, read
+// top to bottom, said they were manual-only. They were never manual-only. Bryson:
+// *"if the manual section doesnt effect the generate full campaign section i need a way to
+// edit whether I want to change the keyword match type, the target location, daily budget,
+// etc."* — he had all of them, below the wrong heading.
+ok("the settings are not split by the manual copy any more",
+  !/Campaign settings, continued/.test(card),
+  "a setting sitting below a heading that says manual reads as manual, whatever it does");
+{
+  const iSet = card.indexOf("Campaign settings <span");
+  const iGen = card.indexOf("{gen&&gen.adGroups&&(");
+  const iMan = card.indexOf("Manual ad copy <span");
+  ok("settings first, then the generated groups, then the manual copy",
+    iSet > 0 && iSet < iGen && iGen < iMan,
+    `order was settings@${iSet}, generated@${iGen}, manual@${iMan}`);
+  const settings = card.slice(iSet, iGen);
+  for (const fieldLabel of ["Campaign name", "Daily budget ($/day)", "Landing / final URL",
+                            "Keyword match type", "Target locations", "Negative keywords"]) {
+    ok(`"${fieldLabel}" is in the shared settings block`, settings.includes(fieldLabel));
+  }
+  ok("the goal picker is in there too", /<GoalPicker value=\{f\.goal\}/.test(settings));
+  ok("and the copy boxes are NOT", !/Headlines — one per line/.test(settings),
+    "the whole point is that nothing manual sits inside the shared settings");
+}
 ok("the copy boxes are headed as manual", /Manual ad copy <span/.test(card));
 
 // Regenerating and discarding both clear the selection, or ticks from an old set of

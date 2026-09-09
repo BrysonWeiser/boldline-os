@@ -10031,6 +10031,37 @@ const tidyField = {
     return [...new Set(String(text||"")
       .split(/[\n,;]/).map(x=>x.trim().replace(/\s{2,}/g," ")).filter(Boolean))].join("\n");
   },
+  // Google writes a keyword's match type as punctuation: [exact], "phrase", bare broad.
+  // Bryson, 2026-09-09: *"when a setting like that is changed to exact or phrase or broad
+  // the keywords are automatically updated and formated to meet the keyword match type"*.
+  // Re-wraps every line, stripping whatever wrapper was there first so switching back and
+  // forth cannot end up with ["nested"] — which Google reads as a different keyword.
+  // "MIXED" is not a match type, it is the WORD for "these disagree", so it changes nothing.
+  kwMatch(text, mt){
+    const m=String(mt||"").toUpperCase();
+    if(!["EXACT","PHRASE","BROAD"].includes(m)) return String(text||"");
+    return String(text||"").split(/\n/).map(l=>{
+      let bare=l.trim();
+      // Peel repeatedly: a value that has been through this twice already may be ["x"].
+      for(let i=0;i<3;i++){
+        const next=bare.replace(/^\[(.*)\]$/,"$1").replace(/^"(.*)"$/,"$1").trim();
+        if(next===bare) break;
+        bare=next;
+      }
+      return !bare ? "" : m==="EXACT" ? "["+bare+"]" : m==="PHRASE" ? '"'+bare+'"' : bare;
+    }).filter(Boolean).join("\n");
+  },
+};
+
+// What match type the generated ad groups are ACTUALLY using, read off the keywords
+// themselves rather than stored. They start mixed on purpose — the generator is told to
+// put the proven buyer terms on exact and most of the rest on phrase — and a control that
+// claims "Phrase" while four keywords are exact is lying about the account being built.
+const generatedMatchType = (gen) => {
+  const all=((gen&&gen.adGroups)||[]).flatMap(g=>(g&&g.keywords)||[])
+    .map(k=>String((k&&k.matchType)||"PHRASE").toUpperCase());
+  if(!all.length) return null;
+  return all.every(t=>t===all[0]) ? all[0] : "MIXED";
 };
 
 // What is still wrong with a list of ad lines, said with the line and its length, because
@@ -10331,6 +10362,21 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   });
   const [genState,setGenState] = useState("idle"); // idle | working | error
   const [genMsg,setGenMsg] = useState("");
+  // OBSERVED, NOT STORED. What the dropdown SHOWS is what the keywords actually are, so
+  // hand-editing one group's brackets moves the control to "Mixed" by itself.
+  const liveMatch = generatedMatchType(gen) || f.matchType;
+  // Changing it rewrites everything it claims to govern: the generated keywords AND the
+  // punctuation in the manual box. A setting that renames itself without changing the
+  // thing it names is worse than no setting.
+  const applyMatchType = (v) => {
+    if(!["EXACT","PHRASE","BROAD"].includes(v)) return;
+    setF(prev=>({...prev, matchType:v, keywordsText: tidyField.kwMatch(prev.keywordsText, v)}));
+    setGen(prev=>{
+      if(!prev||!prev.adGroups) return prev;
+      return {...prev, adGroups: prev.adGroups.map(g=>({...g,
+        keywords: ((g&&g.keywords)||[]).map(k=>({...k, matchType:v})) }))};
+    });
+  };
   const generate = async () => {
     setGenState("working"); setGenMsg("Writing the campaign. This takes a minute or two.");
     try{
@@ -10348,6 +10394,9 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         avgTicket: cs.avgTicket||"", differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
         landingUrl: f.landingUrl, avoid: cs.excludedKeywords||"" });
       setGen(d); setPicked(null);
+      // The generator picks per keyword. Adopt what it chose so the control agrees with
+      // the account that would be built.
+      { const mt=generatedMatchType(d); if(mt&&mt!=="MIXED") set("matchType",mt); }
       // Fold the generated negatives into the box so they are visible and editable.
       const negs = [...new Set([...f.negativeKeywordsText.split("\n").map(x=>x.trim()).filter(Boolean), ...(d.negativeKeywords||[])])];
       setF(prev=>({...prev, negativeKeywordsText: negs.join("\n")}));
@@ -10397,7 +10446,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     try{
       const d=await gadsCall({action:"createCampaign",
         customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
-        landingUrl:f.landingUrl, matchType:f.matchType, clientName:client.name,
+        landingUrl:f.landingUrl, clientName:client.name,
+        // Only ever a real match type. "MIXED" describes the generated set, it is not a
+        // value Google accepts, and it is only the FALLBACK for a keyword carrying none.
+        matchType:(["EXACT","PHRASE","BROAD"].includes(f.matchType)?f.matchType:"PHRASE"),
         locations, negativeKeywords,
         // On Google the goal picks the bidding strategy. Sending it is also what opts this
         // campaign out of the old manual-CPC default, which every caller that sends no goal
@@ -10453,6 +10505,57 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           ? <>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the campaign for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</>
           : <>Name <b style={{color:C.textDim}}>one service</b> and tap <b style={{color:C.textDim}}>Fill copy</b>, then Build. Change it and build again — each service gets its own campaign, which is how the ad ends up matching what was actually searched for. Leave blank to cover everything they do.</>}</div>
       </div>
+      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Campaign settings <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· used by both build buttons</span></div>
+      {[
+        {k:"name",l:"Campaign name",t:"text"},
+        {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
+        {k:"landingUrl",l:"Landing / final URL",t:"text"},
+      ].map(({k,l,t})=>(
+        <div key={k} style={{marginBottom:9}}>
+          <label style={lbl}>{l}</label>
+          <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
+          {k==="dailyBudgetDollars"&&(
+            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
+              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo on Google"}
+              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled &mdash; {platShare>1?<>half of your ${monthlyBudget.toLocaleString()}/mo, <b style={{color:C.textDim}}>split evenly with Meta</b></>:<>your full ${monthlyBudget.toLocaleString()}/mo budget</>}</span>}
+              {monthlyBudget>0&&budgetTouched&&(
+                <span> &middot; overriding {platShare>1?"your half of ":""}${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
+              )}
+              {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
+            </div>
+          )}
+        </div>
+      ))}
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>Keyword match type</label>
+        <select value={liveMatch} onChange={e=>applyMatchType(e.target.value)} style={box}>
+          {liveMatch==="MIXED"&&<option value="MIXED" style={{background:C.bg2}}>Mixed, as the AI wrote them</option>}
+          {["PHRASE","BROAD","EXACT"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o[0]+o.slice(1).toLowerCase()}</option>)}
+        </select>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
+          {liveMatch==="MIXED"
+            ? <>Your ad groups use a <b style={{color:C.textDim}}>mix</b> right now, which is usually what you want: the money terms exact, the rest phrase. Picking one below rewrites <b style={{color:C.textDim}}>every</b> keyword to it, in the ad groups and in the manual box.</>
+            : <>Applies to <b style={{color:C.textDim}}>every</b> keyword, in the generated ad groups and in the manual box, and rewrites the punctuation to match. <b style={{color:C.textDim}}>Phrase</b> is the right default. <b style={{color:C.textDim}}>Broad</b> lets Google guess what is related, which leans on conversion history a brand new account does not have.</>}
+        </div>
+      </div>
+      <div style={{marginBottom:9}}>
+        <label style={lbl}>Target locations — one per line (required)</label>
+        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)}
+          onBlur={e=>set("locationsText",tidyField.locations(e.target.value))}
+          rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <FieldNotes notes={locationNotes(f.locationsText)}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Anywhere in the world, one per line. <b style={{color:C.textDim}}>City, State</b> at home (Gilbert, Arizona), <b style={{color:C.textDim}}>City, Country</b> abroad (London, United Kingdom), or a country on its own (Canada). You do not have to be based there. Ads show only to people <b style={{color:C.textDim}}>physically in</b> these areas, not people merely interested in them. Leave this empty and nothing gets built.</div>
+      </div>
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>Negative keywords — one per line</label>
+        <textarea value={f.negativeKeywordsText} onChange={e=>set("negativeKeywordsText",e.target.value)}
+          onBlur={e=>set("negativeKeywordsText",tidyField.keywords(e.target.value))}
+          rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Searches that will never buy — job hunters, students, freebie seekers. Blocking them is the cheapest money you'll save on a small budget.</div>
+      </div>
+      <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
+        ready={!!(client.conversionActions&&Object.keys(client.conversionActions).length)}
+        missing={"Set up conversion tracking for this client first, or Google will refuse to build this. Scroll up to the Conversion Tracking card and press Set this up in the ad account."}/>
       <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,border:`1px solid ${gen?C.green+"55":C.border}`,backgroundColor:gen?"rgba(34,211,160,0.06)":"transparent"}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:gen?9:6}}>
           <button onClick={generate} disabled={genState==="working"} style={{flex:1,padding:"9px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",backgroundColor:genState==="working"?C.border:C.gold,color:genState==="working"?C.textMuted:"#15110A",cursor:genState==="working"?"default":"pointer"}}>
@@ -10576,28 +10679,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           </div>
         )}
       </div>
-      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Campaign settings <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· used by both build buttons</span></div>
-      {[
-        {k:"name",l:"Campaign name",t:"text"},
-        {k:"dailyBudgetDollars",l:"Daily budget ($/day)",t:"number"},
-        {k:"landingUrl",l:"Landing / final URL",t:"text"},
-      ].map(({k,l,t})=>(
-        <div key={k} style={{marginBottom:9}}>
-          <label style={lbl}>{l}</label>
-          <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
-          {k==="dailyBudgetDollars"&&(
-            <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
-              {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo on Google"}
-              {monthlyBudget>0&&!budgetTouched&&<span> &middot; auto-filled &mdash; {platShare>1?<>half of your ${monthlyBudget.toLocaleString()}/mo, <b style={{color:C.textDim}}>split evenly with Meta</b></>:<>your full ${monthlyBudget.toLocaleString()}/mo budget</>}</span>}
-              {monthlyBudget>0&&budgetTouched&&(
-                <span> &middot; overriding {platShare>1?"your half of ":""}${monthlyBudget.toLocaleString()}/mo <button onClick={()=>{setBudgetTouched(false);set("dailyBudgetDollars",autoDaily);}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>reset</button></span>
-              )}
-              {monthlyBudget<=0&&<span> &middot; set a monthly budget above and this fills itself</span>}
-            </div>
-          )}
-        </div>
-      ))}
-      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:gen?C.textMuted:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Manual ad copy <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· {gen?"only used by the outline button at the very bottom":"one ad group, built by the button at the bottom"}</span></div>
+      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:gen?C.textMuted:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Manual ad copy <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· {gen?"one ad group, built only by the outline button below it":"one ad group, built by the button below"}</span></div>
       <div style={{marginBottom:9}}>
         <label style={lbl}>Headlines — one per line, ≤30 chars each (3+ required)</label>
         <textarea value={f.headlinesText} onChange={e=>set("headlinesText",e.target.value)}
@@ -10629,35 +10711,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       <div style={{marginBottom:9}}>
         <label style={lbl}>Keywords — one per line</label>
         <textarea value={f.keywordsText} onChange={e=>set("keywordsText",e.target.value)}
-          onBlur={e=>set("keywordsText",tidyField.keywords(e.target.value))}
+          onBlur={e=>set("keywordsText",tidyField.kwMatch(tidyField.keywords(e.target.value),liveMatch))}
           rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
         <FieldNotes notes={lineNotes(f.keywordsText,80,0,"keywords")}/>
       </div>
-      <div style={{marginBottom:10}}>
-        <label style={lbl}>Keyword match type</label>
-        <select value={f.matchType} onChange={e=>set("matchType",e.target.value)} style={box}>
-          {["PHRASE","BROAD","EXACT"].map(o=><option key={o} value={o} style={{background:C.bg2}}>{o[0]+o.slice(1).toLowerCase()}</option>)}
-        </select>
-      </div>
-      <div style={{fontSize:9.5,fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,margin:"14px 0 7px",paddingTop:11,borderTop:`1px solid ${C.border2}`}}>Campaign settings, continued <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· used by both build buttons</span></div>
-      <div style={{marginBottom:9}}>
-        <label style={lbl}>Target locations — one per line (required)</label>
-        <textarea value={f.locationsText} onChange={e=>set("locationsText",e.target.value)}
-          onBlur={e=>set("locationsText",tidyField.locations(e.target.value))}
-          rows={4} placeholder={"Gilbert, Arizona\nLondon, United Kingdom\nCanada"} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
-        <FieldNotes notes={locationNotes(f.locationsText)}/>
-        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Anywhere in the world, one per line. <b style={{color:C.textDim}}>City, State</b> at home (Gilbert, Arizona), <b style={{color:C.textDim}}>City, Country</b> abroad (London, United Kingdom), or a country on its own (Canada). You do not have to be based there. Ads show only to people <b style={{color:C.textDim}}>physically in</b> these areas, not people merely interested in them. Leave this empty and nothing gets built.</div>
-      </div>
-      <div style={{marginBottom:10}}>
-        <label style={lbl}>Negative keywords — one per line</label>
-        <textarea value={f.negativeKeywordsText} onChange={e=>set("negativeKeywordsText",e.target.value)}
-          onBlur={e=>set("negativeKeywordsText",tidyField.keywords(e.target.value))}
-          rows={4} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
-        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>Searches that will never buy — job hunters, students, freebie seekers. Blocking them is the cheapest money you'll save on a small budget.</div>
-      </div>
-      <GoalPicker value={f.goal} onChange={v=>set("goal",v)}
-        ready={!!(client.conversionActions&&Object.keys(client.conversionActions).length)}
-        missing={"Set up conversion tracking for this client first, or Google will refuse to build this. Scroll up to the Conversion Tracking card and press Set this up in the ad account."}/>
       <button onClick={()=>launch("manual")} disabled={state==="creating"} style={{width:"100%",padding:"10px",fontSize:12.5,fontWeight:700,borderRadius:9,border:"none",backgroundColor:state==="done"?"#059669":gen?"transparent":C.gold,color:state==="done"?"#fff":gen?C.textDim:"#15110A",boxShadow:gen?`inset 0 0 0 1px ${C.border}`:"none",cursor:state==="creating"?"default":"pointer",opacity:state==="creating"?.7:1}}>{state==="creating"?"Building campaign…":state==="done"?"✓ Created (Paused)":gen?"Build one ad group from the copy above (Paused)":"Build Campaign (Paused)"}</button>
       {gen&&<div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:5}}>This button ignores your generated ad groups and builds a single ad group from the headline, description and keyword boxes above it. To build the ticked ad groups, use the gold button up in the generated list.</div>}
       {msg&&<div style={{fontSize:11,marginTop:9,lineHeight:1.6,color:state==="error"?C.red:"#34D399",wordBreak:"break-word"}}>{msg}</div>}

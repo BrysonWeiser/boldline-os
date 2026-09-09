@@ -2,7 +2,7 @@
 name: ad-generator
 topic: Ads
 task: generate real campaign structure (ad groups, keywords, 15 headlines, negatives, creative angles) instead of string templates
-keywords: [tick boxes, tick box, select ad groups, pick ad groups, choose ad groups, which ad groups, build these ad groups, two build buttons, build campaign paused, edit ad group, edit generated ad groups, editGroup, picked, campaign settings, daily budget generated, manual ad copy, manual fallback, ad generator, ad-generator.mjs, kicker, kicker unfinished, isLeadIn, lead-in, label not sentence, creative studio kicker, narrow input, field too narrow, scrolls sideways, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
+keywords: [match type, keyword match type, phrase, exact, broad, quotes, brackets, auto format keywords, kwMatch, liveMatch, applyMatchType, generatedMatchType, mixed match type, campaign settings block, settings order, where do i change the budget, tick boxes, tick box, select ad groups, pick ad groups, choose ad groups, which ad groups, build these ad groups, two build buttons, build campaign paused, edit ad group, edit generated ad groups, editGroup, picked, campaign settings, daily budget generated, manual ad copy, manual fallback, ad generator, ad-generator.mjs, kicker, kicker unfinished, isLeadIn, lead-in, label not sentence, creative studio kicker, narrow input, field too narrow, scrolls sideways, adGenCall, ad groups, keyword intent, match type, responsive search ad, 15 headlines, negative keywords, creative angles, AD_ANGLES, agencySeed, kwSeed, cut off, cut short, truncated, mid-word, mid-sentence, unfinished sentence, incomplete headline, fitWords, fitPhrase, fitSentence, clPhrase, cl30, character limit]
 status: verified
 summary: "Fill copy" was string templates — 6-7 keywords in one undifferentiated bucket, 8 of Google's 15 headlines, 3 of 4 descriptions, and a SINGLE ad group, byte-identical on every press. New `netlify/functions/ad-generator.mjs` writes a real campaign with a model: 3-5 intent-themed ad groups each carrying its own keywords (with per-keyword match types) and its own full 15-headline ad, plus 15-30 business-specific negatives and an operator note. `createCampaign` now builds N ad groups in one atomic mutate. The Ad Creative Studio's five fixed angles can likewise be rewritten from the real niche. 32 + 27 + 22 + 31 cases.
 verified: 2026-09-02
@@ -170,3 +170,34 @@ Three problems, and the third one is the interesting one.
 **Editing a generated group.** Opening a group now shows editable boxes, not just readable ones, so a single bad headline does not cost a whole regeneration. Keyword match type is carried in the punctuation Google itself uses (`[exact]`, `"phrase"`, bare broad), which is the same notation printed above the box, so changing the brackets changes the match type. Edits write straight back into the structure the build sends.
 
 **`tests/verify-group-picker.mjs` — 75 checks, 17 mutations, all caught.** The real `launch` and `editGroup` are extracted from `index.html` and **run** against a recording `gadsCall`, so this asserts the payload rather than the source: ticked groups only, no manual copy leaking in, and every one of the six campaign settings present in **both** modes. Also runs the tick-box handler itself (the first untick starting from all, re-ticking restoring), proves the on-screen tick uses the identical test as the build's filter, and proves an edit reaches the payload. The false sentence has its own assertion so it cannot come back.
+
+## 2026-09-09 (later) — THE MATCH TYPE CONTROL WAS A DECORATION, AND THE SETTINGS WERE UNDER THE WRONG HEADING
+
+**Bryson:** *"can you make sure that when a setting like that is changed to exact or phrase or broad the keywords are automatically updated and formated to meet the keyword match type. An example would be when it is set to phrase everything is automatically put into quotes. also if the manual section doesnt effect the generate full campaign section i need a way to edit whether I want to change the keyword match type, the target location, daily budget, etc."*
+
+Two findings in one message, and the second one is a lesson about layout rather than code.
+
+### The dropdown did nothing to a generated campaign
+
+Every generated keyword carries its **own** match type, and the dropdown was only ever the **fallback for a keyword that has none** — which never happens, because the generator's schema requires one. So the control could read **Phrase** while the account about to be built was part exact, part broad. A setting that renames itself without changing the thing it names is worse than no setting: it is a lie you can point at.
+
+Now:
+
+- **`tidyField.kwMatch(text, mt)`** re-punctuates a keyword list to a match type, in the notation Google itself uses: `[exact]`, `"phrase"`, bare broad. It **peels any existing wrapper first**, so switching back and forth can never produce `["nested"]` — which Google reads as a different keyword. It runs on the dropdown AND on the keyword box's blur.
+- **`applyMatchType(v)`** writes to **both** places: the manual box's punctuation and every generated keyword's `matchType`.
+- 🔴 **`generatedMatchType(gen)` reads the answer off the keywords rather than a stored value**, so the dropdown shows `Mixed` by itself when the groups disagree, and moves back to a named type the moment they agree — including after a hand-edit of one group's brackets. Same "observed, never stored" rule as every other status in the OS. `MIXED` is offered as an option **only while it is true**, and is never sent to Google (it is not a value the API accepts).
+- Generating **adopts** whatever the generator chose, instead of keeping the claim from before the generation.
+
+**Mixed is usually right and the note says so** — money terms exact, most of the rest phrase — so picking a single type is presented as an override, with what it will do spelled out.
+
+### 🔴 THE SETTINGS WERE SPLIT IN HALF BY THE MANUAL COPY BOXES
+
+He asked for a way to set the target location and daily budget for a generated build. **He already had one.** The card's order was: name, budget, landing page → **MANUAL AD COPY** (headlines, descriptions, keywords, match type) → locations, negatives, goal. So half the shared settings sat *below a heading that said manual*, and reading the screen top to bottom told you they were manual-only. They never were.
+
+Reordered to: **Campaign settings** (name, budget, landing page, match type, locations, negatives, goal) → **Generate full campaign** (groups, tick boxes, its build button) → **Manual ad copy** (the three copy boxes, its build button). Settings once, then the two ways to build.
+
+**This is the second time in one day that a wrong label cost a feature request for something that already existed** (the first was the note claiming the settings were "ignored"). Worth remembering as a class of bug: on this card, ordering and headings are not decoration, they are the documentation.
+
+### Verified
+
+`tests/verify-match-type.mjs` — **56 checks, 15 mutations caught**, extracting and RUNNING the formatter, the reader and `applyMatchType`: his exact example (phrase puts everything in quotes), round-trips that must not nest, `MIXED` and junk values changing nothing, and every generated keyword actually changing in both directions. `verify-group-picker` gained the ordering assertions (settings before generated before manual, and each named field inside the settings block). Rendered headlessly with the generated groups showing at **390 / 768 / 1280 / 1600** — no horizontal overflow, nothing offscreen, consistent field widths.

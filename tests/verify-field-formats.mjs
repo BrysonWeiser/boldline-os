@@ -112,10 +112,17 @@ const { tidyField, locationNotes, lineNotes } =
     !/onChange=\{e=>set\([^)]*tidyField\./.test(UI),
     "reformatting under the cursor while he is still typing moves the cursor and eats characters");
   for (const [field, fn] of [["headlinesText","adLines"],["descriptionsText","adLines"],
-                             ["keywordsText","keywords"],["locationsText","locations"]]) {
+                             ["negativeKeywordsText","keywords"],["locationsText","locations"]]) {
     ok(`${field} is formatted on blur`,
       new RegExp(`onBlur=\\{e=>set\\("${field}",tidyField\\.${fn}`).test(UI));
   }
+  // The keywords box gained a second pass (2026-09-09): after the one-per-line tidy it is
+  // re-punctuated to whatever match type is selected, so "phrase" really does put
+  // everything in quotes. Both passes are asserted, and in that order — wrapping first and
+  // splitting second would split ON the quotes it had just added.
+  ok("keywordsText is tidied AND punctuated to the match type, on blur",
+    /onBlur=\{e=>set\("keywordsText",tidyField\.kwMatch\(tidyField\.keywords\(e\.target\.value\),liveMatch\)\)\}/.test(UI),
+    "the match type control is what makes the punctuation mean something");
   ok("both launch cards format their locations, not just the Google one",
     (UI.match(/onBlur=\{e=>set\("locationsText",tidyField\.locations/g) || []).length === 2,
     "the Meta card has the same box and would have kept the old behaviour");
