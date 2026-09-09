@@ -91,12 +91,32 @@ The heading is now **Conversion Tracking**, the plain-English explanation opens 
 is what the builder below asks for, and the warning names the card and the button instead of
 pointing vaguely upward. A card he cannot find by name is a card he cannot find.
 
+## 🔴 The generated ad groups can be read before they are built
+
+Bryson, 2026-09-09, looking at five generated ad groups: *"when i press on one nothing
+happens"*. He was right, and nothing was broken: the rows were a summary and nothing more, a
+name, six of the keywords and a count, with no click handler at all.
+
+**The 15 headlines and 4 descriptions per group were invisible until they already existed in
+a client's live Google account.** He was being asked to press Build on copy he could not
+read. Same shape as the lead cards that had no handler (KB `lead-attribution`): a row that
+looks pressable and is not.
+
+Each group now opens on tap. The whole row is the target, because a caret is a 10px target on
+a phone. Inside: **every** keyword with its match type, all headlines and all descriptions,
+each with its character count. Anything over Google's limit is amber, and the count of
+over-length lines shows on the CLOSED row too, so a group he never opens still declares that
+its copy would be refused. Only one group opens at a time, or the card becomes a wall.
+
+The generator is *told* the limits and mostly respects them. "Mostly" is not something to
+learn from Google refusing the build.
+
 ## Tests
 
-`tests/verify-campaign-tab.mjs`, 48 checks. The steps array is **extracted and executed**, and
+`tests/verify-campaign-tab.mjs`, 58 checks. The steps array is **extracted and executed**, and
 the component itself is **compiled through Babel and rendered** into a recording React (same
 harness as `verify-budget-editing`) so the assertions read the words that actually land on
-screen. 21 mutations, all caught, including a genuine reordering of tracking after the build.
+screen. 28 mutations, all caught, including a genuine reordering of tracking after the build.
 
 🔴 **The delete guard is EXECUTED, not matched.** The first version of it checked that the
 word "confirm" appeared, and three mutations walked straight through — a confirm wired to a

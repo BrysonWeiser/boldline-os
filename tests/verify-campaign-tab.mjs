@@ -255,5 +255,45 @@ ok("the conversion-tracking instruction names the Campaign tab",
     /Set this up in the ad account/.test(UI));
 }
 
+// ── 9. The generated ad groups can actually be READ ──────────────────────────
+// Bryson, 2026-09-09, looking at five generated ad groups: *"when i press on one nothing
+// happens"*. They were a summary and nothing more — a name, six of the keywords and a count.
+// 🔴 The 15 headlines and 4 descriptions per group were INVISIBLE until they already existed
+// in a client's live Google account, so he was being asked to press Build on copy he had no
+// way to read.
+{
+  const card = UI.slice(UI.indexOf("function GoogleLaunchCard"), UI.indexOf("function MetaLaunchCard"));
+  ok("a generated group opens when pressed",
+    /setOpenGroup\(open\?null:i\)/.test(card) && /const \[openGroup,setOpenGroup\]/.test(card));
+  ok("🔴 the whole row is the target, not a caret",
+    /<div onClick=\{\(\)=>setOpenGroup\(open\?null:i\)\} style=\{\{cursor:"pointer"\}\}>/.test(card),
+    "a 10px caret is not a tap target on a phone");
+  ok("opening one shows EVERY keyword, not the first six",
+    /All \{g\.keywords\.length\} keywords/.test(card)
+    && /g\.keywords\.map\(k=>k\.matchType==="EXACT"/.test(card));
+  ok("🔴 and the headlines and descriptions, which could not be read at all before",
+    /\{g\.headlines\|\|\[\]\}/.test(card.replace(/\s+/g, " ")) || /\(g\.headlines\|\|\[\]\)\.map\(h=>line\(h,30\)\)/.test(card),
+    "this is the copy that goes into a client's live account");
+  ok("descriptions too, at their own limit",
+    /\(g\.descriptions\|\|\[\]\)\.map\(d=>line\(d,90\)\)/.test(card));
+  ok("every line shows its character count",
+    /\{String\(t\)\.length\}/.test(card));
+  ok("🔴 anything over the limit is coloured and counted on the closed row too",
+    /longH\+longD\} too long/.test(card)
+    // BOTH the text and its counter go amber. Colouring one and not the other was a
+    // mutation that walked through the first version of this check.
+    && (card.match(/String\(t\)\.length>max\?C\.amber/g) || []).length === 2,
+    "the generator is TOLD the limits and mostly respects them, and mostly is not something to learn from Google refusing the build");
+  ok("it says what to do about an over-length line",
+    /over Google's limit and would be refused/.test(card));
+  ok("a closed row invites the press rather than looking inert",
+    // Both the "+N more" row and the short row say so; one of them alone leaves the other
+    // looking exactly as dead as it did before.
+    (card.match(/tap to read/g) || []).length === 2,
+    "the rows looked pressable and were not, which is the whole complaint");
+  ok("only one group is open at a time, so the card does not become a wall",
+    /setOpenGroup\(open\?null:i\)/.test(card) && !/openGroups/.test(card));
+}
+
 console.log(`verify-campaign-tab: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

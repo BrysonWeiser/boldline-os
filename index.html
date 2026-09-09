@@ -10046,6 +10046,12 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   // (several themed groups, each with its own ad) instead of the single group the
   // manual fields below describe.
   const [gen,setGen] = useState(null);         // {adGroups, negativeKeywords, notes, totals}
+  // 🔴 WHICH GROUP IS OPEN. Bryson, 2026-09-09, looking at five generated ad groups:
+  // *"when i press on one nothing happens"*. They were a summary and nothing more — a name,
+  // six of the keywords and a count — so the 15 headlines and 4 descriptions per group were
+  // INVISIBLE until they already existed in a client's live Google account. He was being
+  // asked to press Build on copy he had no way to read.
+  const [openGroup,setOpenGroup] = useState(null);
   const [genState,setGenState] = useState("idle"); // idle | working | error
   const [genMsg,setGenMsg] = useState("");
   const generate = async () => {
@@ -10169,20 +10175,62 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         {genMsg&&<div style={{fontSize:10.5,lineHeight:1.55,color:genState==="error"?C.red:C.green,wordBreak:"break-word"}}>{genMsg}</div>}
         {gen&&gen.adGroups&&(
           <div style={{marginTop:9}}>
-            {gen.adGroups.map((g,i)=>(
+            {gen.adGroups.map((g,i)=>{
+              const open = openGroup===i;
+              // Read off the generated copy rather than trusted: the generator is told the
+              // limits and mostly respects them, and "mostly" is not something to find out
+              // from Google rejecting the build.
+              const longH = (g.headlines||[]).filter(h=>String(h).length>30).length;
+              const longD = (g.descriptions||[]).filter(d=>String(d).length>90).length;
+              const line = (t,max)=>(
+                <div key={t} style={{display:"flex",gap:7,alignItems:"baseline",padding:"2px 0"}}>
+                  <span style={{fontSize:10.5,color:String(t).length>max?C.amber:C.textDim,lineHeight:1.5,flex:1,wordBreak:"break-word"}}>{t}</span>
+                  <span style={{fontSize:9,fontFamily:"monospace",color:String(t).length>max?C.amber:C.textMuted,flexShrink:0}}>{String(t).length}</span>
+                </div>
+              );
+              return (
               <div key={i} style={{padding:"7px 0",borderTop:`1px solid ${C.border2}`}}>
-                <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-                  <span style={{fontSize:11.5,fontWeight:800,color:C.textDim}}>{g.name}</span>
-                  <span style={{fontSize:9,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>{g.intent}</span>
-                  <span style={{marginLeft:"auto",fontSize:9.5,color:C.textMuted,fontFamily:"monospace",flexShrink:0}}>{g.keywords.length}kw · {g.headlines.length}h</span>
+                {/* The whole row is the control, because on a phone a caret is a 10px target. */}
+                <div onClick={()=>setOpenGroup(open?null:i)} style={{cursor:"pointer"}}>
+                  <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                    <span style={{fontSize:11.5,fontWeight:800,color:open?C.gold:C.textDim}}>{g.name}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".05em"}}>{g.intent}</span>
+                    {(longH||longD)>0&&<span style={{fontSize:9,fontWeight:700,color:C.amber}}>{longH+longD} too long</span>}
+                    <span style={{marginLeft:"auto",fontSize:9.5,color:C.textMuted,fontFamily:"monospace",flexShrink:0}}>{g.keywords.length}kw · {g.headlines.length}h</span>
+                    <span style={{fontSize:9,color:C.gold,flexShrink:0}}>{open?"▴":"▾"}</span>
+                  </div>
+                  <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.45,marginTop:2}}>{g.theme}</div>
+                  {!open&&(
+                    <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3,wordBreak:"break-word"}}>
+                      {g.keywords.slice(0,6).map(k=>`${k.matchType==="EXACT"?"["+k.text+"]":k.matchType==="PHRASE"?'"'+k.text+'"':k.text}`).join("  ")}
+                      {g.keywords.length>6?`  +${g.keywords.length-6} more, tap to read`:"  tap to read the ad"}
+                    </div>
+                  )}
                 </div>
-                <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.45,marginTop:2}}>{g.theme}</div>
-                <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3,wordBreak:"break-word"}}>
-                  {g.keywords.slice(0,6).map(k=>`${k.matchType==="EXACT"?"["+k.text+"]":k.matchType==="PHRASE"?'"'+k.text+'"':k.text}`).join("  ")}
-                  {g.keywords.length>6?`  +${g.keywords.length-6} more`:""}
-                </div>
+                {open&&(
+                  <div style={{marginTop:7,paddingLeft:9,borderLeft:`2px solid ${C.borderAccent}`}}>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:3}}>All {g.keywords.length} keywords</div>
+                    <div style={{fontSize:10,color:C.textDim,lineHeight:1.7,wordBreak:"break-word",marginBottom:9}}>
+                      {g.keywords.map(k=>k.matchType==="EXACT"?"["+k.text+"]":k.matchType==="PHRASE"?'"'+k.text+'"':k.text).join("   ")}
+                    </div>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:2}}>
+                      {(g.headlines||[]).length} headlines <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· 30 character limit</span>
+                    </div>
+                    <div style={{marginBottom:9}}>{(g.headlines||[]).map(h=>line(h,30))}</div>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:".07em",textTransform:"uppercase",color:C.gold,marginBottom:2}}>
+                      {(g.descriptions||[]).length} descriptions <span style={{color:C.textMuted,fontWeight:400,letterSpacing:0,textTransform:"none"}}>· 90 character limit</span>
+                    </div>
+                    <div>{(g.descriptions||[]).map(d=>line(d,90))}</div>
+                    {(longH||longD)>0&&(
+                      <div style={{fontSize:9.5,color:C.amber,lineHeight:1.55,marginTop:7}}>
+                        The amber ones are over Google's limit and would be refused. Regenerate, or shorten them yourself before you build.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
             {gen.notes&&<div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.55,marginTop:8,paddingTop:8,borderTop:`1px solid ${C.border2}`}}><b style={{color:C.textDim}}>What to watch: </b>{gen.notes}</div>}
             <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:7}}>Build Campaign will use these ad groups. The single-group fields below are the manual fallback and are ignored while this is here. <button onClick={()=>{setGen(null);setGenMsg("");}} style={{background:"none",border:"none",color:C.gold,fontWeight:700,cursor:"pointer",padding:0,fontSize:9.5}}>discard</button></div>
           </div>
