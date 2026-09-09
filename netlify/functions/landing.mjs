@@ -131,7 +131,19 @@ export function renderLandingPage(cl, opts = {}) {
     const mark = "/storage/v1/object/public/";
     const i = u.indexOf(mark);
     if (i < 0 || !/^https:\/\/[a-z0-9-]+\.supabase\.co\//.test(u)) return u;
-    return u.slice(0, i) + "/storage/v1/render/image/public/" + u.slice(i + mark.length) + `?width=${w}&quality=72`;
+    // 🔴 WIDTH ALONE CROPS. THIS COST A LIVE CLIENT'S PAGE A SECOND TIME IN ONE EVENING.
+    // Supabase's resizer defaults to `resize=cover`, and given a width with no height it
+    // pairs it with the original's long side: a 4032x3024 photo came back 1100x4032, a
+    // narrow strip cut out of the middle, and everything that made the photo worth showing
+    // was in the two thirds it threw away. Bryson, looking at Sebastian's live page: *"the
+    // images aren't showing the right spots... they showed the logos/embroidery"*. He was
+    // looking at a shirt with the print cropped off it.
+    //
+    // A SQUARE BOX PLUS `contain` IS THE FIX. The longest side is scaled to `w`, the other
+    // follows the real aspect ratio, and nothing is ever cut. Portrait comes back portrait,
+    // landscape comes back landscape, and neither loses an edge. (It also applies the EXIF
+    // rotation an iPhone leaves on a photo, so what comes out is the way up he shot it.)
+    return u.slice(0, i) + "/storage/v1/render/image/public/" + u.slice(i + mark.length) + `?width=${w}&height=${w}&resize=contain&quality=72`;
   };
   // <<< end image helpers (the suite extracts everything above this line and runs it)
 
@@ -341,7 +353,7 @@ a{color:inherit}
    rather than stretching to fill the row, which would be a different kind of wrong. */
 .gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
 .gitem{overflow:hidden;border-radius:var(--r)}
-.gitem img{aspect-ratio:4/3;object-fit:cover;width:100%;transition:transform .5s ease}
+.gitem{background:rgba(255,255,255,.035)}.gitem img{aspect-ratio:1/1;object-fit:contain;width:100%;display:block;transition:transform .5s ease}
 .gitem:hover img{transform:scale(1.06)}
 /* offer */
 .offer{position:relative;overflow:hidden;background:${P.bandGrad};border-radius:calc(var(--r) + 4px);padding:40px 26px;text-align:center;color:#fff}

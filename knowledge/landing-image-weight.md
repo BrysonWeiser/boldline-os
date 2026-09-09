@@ -72,6 +72,32 @@ Four guards, each of which is a way this could quietly do harm:
   after a re-encode; if it does, the original goes.
 - **Any decode failure falls back to the original** rather than failing the upload.
 
+## 🔴 THE FOLLOW-UP BUG: THE RESIZER CROPPED, AND SO DID THE TILE
+
+Same evening, same page. The photos loaded, and the print was gone from the shirts.
+Bryson: *"the images aren't showing the right spots... they showed the logos/embroidery"*.
+
+**Supabase's resizer defaults to `resize=cover`, and a `width` with no `height` does not scale
+proportionally — it pairs the width with the original's long side and CROPS.** Measured on the
+real file: a 4032x3024 photo requested at `?width=1100` came back **1100x4032**, a narrow strip
+taken out of the middle, throwing away two thirds of the width. On a photo of a shirt laid flat,
+that is exactly where the print is.
+
+**Fix: a SQUARE box plus `contain`** — `?width=<w>&height=<w>&resize=contain&quality=72`. The
+longest side scales to `w`, the other follows the true aspect ratio, nothing is ever cut.
+A 4032x3024 iPhone photo returns 825x1100 (it also applies the EXIF rotation the phone left on,
+so it comes out the way up it was shot). Gallery weight after the fix: **216 KB for three photos**.
+
+**And the tile was cropping again on top.** `.gitem img{aspect-ratio:4/3;object-fit:cover}` took
+a horizontal band out of the middle of a portrait photo and showed blank fabric. Now
+`aspect-ratio:1/1;object-fit:contain` on a faintly tinted tile: the grid stays even, every photo
+shows whole, portrait and landscape both.
+
+🔴 **THE RULE THIS LEAVES: NEVER CROP A CLIENT'S PHOTO.** We cannot know what in it matters, and
+here it was the entire product. Both halves are pinned in `tests/verify-lead-handoff.mjs` —
+the URL must carry `height` and `resize=contain` with a square box, and the tile must be
+`contain`. Four mutations, all caught.
+
 ## Fix 3 — a camera filename is not alt text
 
 `alt="${p.label || cl.name}"` printed `IMG_6360.png`, which is exactly what a visitor read on
@@ -81,7 +107,7 @@ anything matching a camera pattern (`IMG_`, `DSC_`, `PXL_`, `MVIMG_`, bare digit
 
 ## Tests
 
-`tests/verify-lead-handoff.mjs`, 208 checks. The helpers are **extracted and executed**, not
+`tests/verify-lead-handoff.mjs`, 211 checks. The helpers are **extracted and executed**, not
 pattern-matched, and a page is **rendered with real fixtures** and its `<img>` tags read — a
 mutation swapping the gallery's alt back to the raw label passed cleanly until that render
-existed. 12 mutations, all caught.
+existed. 16 mutations, all caught.
