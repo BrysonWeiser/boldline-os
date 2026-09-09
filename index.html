@@ -714,7 +714,7 @@ const botWorkLog = (cl, pkg, botId) => {
       ],
       note: "The keyword list itself lives in Google Ads. The Campaigns tab reads it live from the account.",
       next: !platG ? "Keywords only apply to Google Search. Link a Google Ads account in Edit to run one."
-            : gCamp > 0 ? null : "Build a Google campaign on the Campaigns screen (More, then Campaigns).",
+            : gCamp > 0 ? null : "Open the client and build it on their Campaign tab.",
     }),
     ads: () => ({
       facts: [
@@ -725,7 +725,7 @@ const botWorkLog = (cl, pkg, botId) => {
         F("Spent (30 days)", spend30 ? money(spend30) : ""),
         F("Last checked", perf.syncedAt ? when(perf.syncedAt) : ""),
       ],
-      next: liveCount > 0 ? null : (campCount > 0 ? "Approve the campaign to set it live." : "Build a campaign on the Campaigns screen (More, then Campaigns)."),
+      next: liveCount > 0 ? null : (campCount > 0 ? "Approve the campaign to set it live." : "Open the client and build it on their Campaign tab."),
     }),
     tracking: () => ({
       facts: [
@@ -1026,7 +1026,7 @@ function launchChecklist(client){
      next:"Edit, then Campaign. Where they are based, where the ads run, the main offer, average job value and profit margin."},
     {id:"tracking",owner:"you",label:"Conversion tracking created",
      done:lcHas(c.conversionId)&&!!(ca.form&&ca.form.label)&&!!(ca.qualified&&ca.qualified.resourceName),
-     next:"Press Set this up in the ad account on the Campaigns screen (More, then Campaigns). One button.",
+     next:"Open the client, go to their Campaign tab, and press Set this up in the ad account. One button.",
      why:"Until this exists the campaign is bidding blind, so it comes before anything goes live."},
     {id:"domain",owner:"dev",label:"Their subdomain pointed at us",done:lcHas(cs.landingDomain),manual:true,
      next:"Their web person adds one DNS record, then you add that hostname in Netlify so the certificate is issued.",
@@ -3587,6 +3587,75 @@ const briefMdToNodes = (md) => {
 // checklist that lies is worse than none because it gets trusted. A step is done when the
 // thing it describes is actually true on the record. The two the OS genuinely cannot see
 // (a signed contract, a DNS record on someone else's domain) say so out loud.
+// ─── GETTING ONE CLIENT'S ADS LIVE, IN ORDER ─────────────────────────────────
+//
+// Bryson, 2026-09-09: *"make it very easy to use"*. The pieces to launch a campaign all
+// existed and all worked; what was missing was any statement of what has to happen BEFORE
+// what. Build the campaign before conversion tracking exists and Google refuses it, with an
+// error that does not say so. Build it before the landing page is published and the ads
+// point at nothing. He learned that order from me, in chat, twice. It belongs on the screen.
+//
+// 🔴 OBSERVED, NEVER TICKED, same rule as the launch checklist and the pipeline panels. Each
+// step reads the record, so it cannot drift, and the ONE step that is actually blocking is
+// the only one written out in full. A list of four green ticks is not a to-do list.
+function CampaignStartHere({client, pkg}){
+  const cs = client.campaignSetup || {};
+  const ca = client.conversionActions || {};
+  const lp = client.landingPage || {};
+  const runsGoogle = client.internal
+    ? (client.platforms||[]).some(p=>/google/i.test(p))
+    : /google/i.test((pkg&&pkg.platform)||"");
+  const linked = runsGoogle ? !!client.googleAdsCustomerId : !!(client.metaAdAccountId && client.metaPageId);
+  const camps  = Array.isArray(client.campaigns) ? client.campaigns : [];
+
+  const steps = [
+    { id:"link",  label:"Their ad account is linked", done: linked,
+      // Deliberately names the tab AND the card. "Link the account" is not an instruction
+      // to someone who does not know where that lives.
+      todo: runsGoogle
+        ? "Open Edit, then Campaign, and paste their 10 digit Google Ads Customer ID into Ad Account Linking. Send the manager request from the button underneath and wait for them to accept it."
+        : "Open Edit, then Campaign, and paste their Meta Ad Account ID and Page ID into Ad Account Linking." },
+    { id:"page",  label:"Their landing page is published", done: !!(lp.published && lp.headline),
+      todo: lp.headline
+        ? "The page is written but not published yet. Open the Client View tab, read it through, and press Publish."
+        : "Open the Client View tab and press Generate Landing Page. Read it, then publish it. The ads need somewhere to send people." },
+    { id:"track", label:"Conversion tracking is set up", done: !!(client.conversionId && ca.form && ca.form.label && ca.qualified && ca.qualified.resourceName),
+      todo: "Press the button on the tracking card just below this one. It is one press. Do it before you build the campaign, because Google will refuse a campaign with a lead goal until this exists." },
+    { id:"build", label:"The campaign is built", done: camps.length > 0,
+      todo: "Use the build card below. Press Generate full campaign, read what it wrote, fix anything that does not sound like them, fill in the target locations, then press Build. It arrives paused and spends nothing until you approve it." },
+  ];
+  const next = steps.find(st=>!st.done);
+  const doneCount = steps.filter(st=>st.done).length;
+
+  return (
+    <Card style={next ? {backgroundColor:C.goldDim,borderColor:C.borderAccent} : {backgroundColor:"rgba(34,211,160,.05)",borderColor:"rgba(34,211,160,.25)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:9}}>
+        <Label>{next ? "Getting Their Ads Live" : "Their Ads Are Built"}</Label>
+        <span style={{fontSize:11,fontWeight:700,color:next?C.gold:C.green,fontVariantNumeric:"tabular-nums"}}>{doneCount} of {steps.length}</span>
+      </div>
+      {next ? (
+        <div style={{marginBottom:11}}>
+          <div style={{fontSize:9.5,fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",color:C.gold,marginBottom:4}}>Do this next</div>
+          <div style={{fontSize:13.5,fontWeight:700,color:C.text,marginBottom:4}}>{next.label}</div>
+          <div style={{fontSize:12,color:C.textDim,lineHeight:1.65}}>{next.todo}</div>
+        </div>
+      ) : (
+        <div style={{fontSize:12,color:C.textDim,lineHeight:1.65,marginBottom:11}}>
+          Everything is in place. Campaigns arrive paused, so check them below or on the Campaigns screen and set them live when you are happy.
+        </div>
+      )}
+      <div>
+        {steps.map((st,i)=>(
+          <div key={st.id} style={{display:"flex",gap:9,alignItems:"center",padding:"6px 0",borderTop:i===0?"none":`1px solid ${C.border2}`}}>
+            <span style={{color:st.done?C.green:(next&&next.id===st.id)?C.gold:C.textMuted,fontSize:12,width:14,flexShrink:0}}>{st.done?"✓":"○"}</span>
+            <span style={{fontSize:12,fontWeight:st.done?400:600,color:st.done?C.textMuted:C.text}}>{st.label}</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function LaunchChecklistCard({client}){
   const [open,setOpen] = useState(false);
   if(client.internal) return null;              // BoldLine does not onboard itself
@@ -7270,7 +7339,14 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   // (Bryson, 2026-08-24: "i also need a seperate tab to be able to view my competitors").
   // It is the one screen you go back to READ rather than to do something, so it needs a
   // door of its own.
-  const TABS   = [["overview","Overview"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
+  // 🔴 CAMPAIGN IS SECOND, RIGHT AFTER OVERVIEW. Bryson, 2026-09-09: *"when I go into an
+  // individual client there is a campaign creation section that way I don't have to dig for
+  // it"*. Everything needed to get a client's ads live already existed, scattered down the
+  // Package tab underneath the plan, the scorecard and the trade playbook — which is a tab
+  // about what they BOUGHT, not about running their ads. Building a campaign is the single
+  // most common thing he does on a new client, so it gets its own tab in the first position
+  // he looks at rather than a scroll through something else.
+  const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads","Leads"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
                    .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log")))
                    // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:
                    // *"there isn't an assets tab can you add it"*. There was, and it holds exactly
@@ -7284,7 +7360,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                    // autobuild alerts, the pipeline next-steps), and on a client record every one of
                    // them pointed at a tab that did not exist under that name. One label, so the
                    // instructions are true everywhere. verify-app-boots pins the two together.
-                   .map(([k,label])=> k==="portal" ? [k,"Assets"] : (client.internal && k==="package") ? [k,"Campaigns"] : [k,label]);
+                   .map(([k,label])=> k==="portal" ? [k,"Assets"] : [k,label]);
+  // 🔴 THE HOUSE ACCOUNT USED TO CALL ITS PACKAGE TAB "Campaigns", and that relabel is gone
+  // as of 2026-09-09. Every piece of campaign machinery moved onto the real Campaign tab, so
+  // the old name would have sat next to it reading "Campaign | ... | Campaigns" and pointing
+  // at a tab that no longer builds anything.
   const onboardingSteps = [
     {key:"contract",label:"Contract Signed",done:!!client.contractSigned,note:client.contractSigned?"Signed and on file.":"Awaiting signature."},
     // 🔴 THESE TWO WERE HARDCODED `done:false` WITH A CANNED "coming soon" NOTE. Bryson,
@@ -7879,21 +7959,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
           </div>
         )}
 
-        {tab==="package"&&(
+        {tab==="campaign"&&(
           <>
-            {client.internal
-              ? <Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
-                  <Label>Run Your Own Ads</Label>
-                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns here — the same tools you use for clients. Set your budget, add your payment card, and connect your accounts below, then build a campaign further down.</div>
-                </Card>
-              : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
+            {!client.internal && <CampaignStartHere client={client} pkg={pkg}/>}
             {client.internal && <MyAdsInsights client={client} onUpdate={onUpdate}/>}
             {client.internal && <MyAdsSetupCards client={client} onUpdate={onUpdate}/>}
-            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client} onOpenCampaign={onOpenCampaign}/>}
-            {!client.internal && <ScorecardCard client={client}/>}
             <ConversionLoopCard client={client} onUpdate={onUpdate}/>
-            {!client.internal && <TradePlaybookCard client={client}/>}
-            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
             {(()=>{
               // For the house account the launch cards follow the platforms you pick
               // in Edit → Info; for real clients they follow their package platform.
@@ -7913,6 +7984,21 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 )}
               </>);
             })()}
+            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <LiveCampaignsCard client={client} onOpenCampaign={onOpenCampaign}/>}
+          </>
+        )}
+
+        {tab==="package"&&(
+          <>
+            {client.internal
+              ? <Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
+                  <Label>Run Your Own Ads</Label>
+                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns here — the same tools you use for clients. Set your budget, add your payment card, and connect your accounts below, then build a campaign further down.</div>
+                </Card>
+              : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
+            {!client.internal && <ScorecardCard client={client}/>}
+            {!client.internal && <TradePlaybookCard client={client}/>}
+            {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
           </>
         )}
 
