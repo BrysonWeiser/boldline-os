@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 162 task-keyed entries under `knowledge/`. They surface automatically via the
+> 163 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**162 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**163 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -372,6 +372,9 @@
 
 ## OS
 
+- **[lead-count-observed](../knowledge/lead-count-observed.md)** &mdash; &#9989; verified &middot; 2026-09-08  
+  Sebastian's record showed "2 leads" on the client card and Overview tile while his Leads tab correctly showed none, because seven places read a STORED `cl.leads` number that only demo seed clients ever set, and deleting a lead removes it from `leadsLog` without touching that tally. One shared `leadCount(cl)` helper now counts the real list everywhere, falling back to the stored number only for demo clients (which have no `leadsLog` at all). Fixed 2026-09-08.  
+  <sub>*task:* fix a client showing leads that were deleted, and keep every screen counting the same list &nbsp;|&nbsp; *keywords:* lead count wrong, deleted leads still showing, cl.leads, leadCount, stale count, leads tab disagrees, two leads, stored count, observed never stored</sub>
 - **[os-calendar](../knowledge/os-calendar.md)** &mdash; &#9989; verified &middot; 2026-08-07  
   Built 2026-08-06 (Bryson). A CalendarScreen in the OS (desktop sidebar "Calendar" + mobile "More" sheet) shows a month grid + selected-day agenda that AGGREGATES every dated thing — pure client-side data, NO AI, so it works regardless of Anthropic API-credit balance. Sources: Calendly meetings (via new calendly.mjs), invoice auto-charges + "review leads" reminders (7d before), contract renewals/expiries (+30d-before window), and scheduled newsletter + blog content. Color-coded dots (meeting=red, billing=gold, contract=amber, content=blue); tap an event to jump to its client. Meetings need CALENDLY_API_TOKEN (a Calendly Personal Access Token — requires a PAID Calendly plan; API access isn't on the free tier). Fail-soft: no token = calendar still renders, meetings just omitted with a "connect Calendly" hint. MANUAL events (meeting/task/reminder) can be added by hand via a "+ Add" button → calendar_events Supabase table (calendar.mjs CRUD). **✅ 2026-08-21: Bryson UPGRADED to a paid Calendly plan ($10/mo) and CALENDLY_API_TOKEN is set in Netlify — Calendly meetings now render in the OS calendar, confirmed live by him. The manual-event path stays as the fallback, but it is no longer the only route.** (Superseded: the 2026-08-06 note that he was on free Calendly.)  
   <sub>*task:* the built-in OS Calendar (month view + agenda), what dated events it aggregates, how meetings sync from Calendly, and the mobile "More" nav &nbsp;|&nbsp; *keywords:* calendar, CalendarScreen, buildCalendarEvents, calendly.mjs, CALENDLY_API_TOKEN, scheduled events, meetings sync, agenda, MoreSheet, mobile nav parity, month grid, calendar-digest, morning digest, agenda notification, reminders, push notification, upcoming meetings</sub>

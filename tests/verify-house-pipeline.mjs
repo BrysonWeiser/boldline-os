@@ -47,6 +47,10 @@ const src = [
   // five places that built a landing URL turned out to ignore the client's own domain), so
   // the extraction has to bring it along or adLanding throws.
   slice(/^const landingUrlFor = /m, /\n};\n/) + "\n};\n",
+  // 🔴 Same trap as landingUrlFor above: deriveBotStatuses counts leads through the shared
+  // leadCount helper (added 2026-09-08, when a stored count kept showing two deleted leads),
+  // so the extraction has to bring it along or deriveBotStatuses throws.
+  slice(/^const leadCount = /m, /\n/) + "\n",
   slice(/^const adPlatformsOf = /m, /\n};\n/) + "\n};\n",
   slice(/^const platformLabel = /m, /\n};\n/) + "\n};\n",
   slice(/^const BOT_IDS = \[/m, /\n\];\n/) + "\n];\n",

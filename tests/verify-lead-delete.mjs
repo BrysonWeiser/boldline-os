@@ -56,5 +56,30 @@ ok("🔴 a deletion is written to the client's history",
 ok("the note names the lead, so the record is readable later",
   /l\.name \|\| l\.email \|\| l\.phone \|\| "unnamed"/.test(UI));
 
+// ── A DELETED LEAD IS DELETED EVERYWHERE, NOT JUST ON THE LEADS TAB ─────────
+// Bryson, 2026-09-08: *"On the os it is showing he has 2 leads (the ones that were deleted so
+// it doesn't show them in the actual leads tab)"*. Two screens disagreed about one client: the
+// Leads tab read the real list and said none, six other places read a STORED `cl.leads` and
+// said two. A count that is stored rather than counted can only ever go stale.
+{
+  const m = UI.match(/const leadCount = \(cl\) => [^\n]+/);
+  ok("there is one helper for the lead count", !!m);
+  const leadCount = m ? new Function("return " + m[0].replace(/^const leadCount = /, "").replace(/;$/, ""))() : null;
+
+  ok("🔴 a client whose leads were all deleted counts zero, not the old number",
+    leadCount({ leadsLog: [], leads: 2 }) === 0,
+    "this is the exact record that showed 2 on one screen and none on another");
+  ok("and a client with leads counts the real list",
+    leadCount({ leadsLog: [{}, {}, {}], leads: 99 }) === 3);
+  ok("a demo client with no list keeps its seeded number, so the tour still reads right",
+    leadCount({ leads: 24 }) === 24 && leadCount({}) === 0);
+
+  ok("🔴 nothing reads the stored count directly any more",
+    !/\bcl\.leads\s*[>|]/.test(UI) && !/client\.leads\|\|0/.test(UI) && !/\(b\.leads\|\|0\)/.test(UI),
+    "one screen left on the stored number is enough to contradict every other one");
+  ok("the client card, the sort, the health score and the overview tile all use it",
+    (UI.match(/leadCount\(/g) || []).length >= 6);
+}
+
 console.log(`verify-lead-delete: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

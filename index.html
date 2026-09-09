@@ -1377,7 +1377,7 @@ const deriveBotStatuses = (cl) => {
   const linked      = !!(cl.googleAdsCustomerId || cl.metaAdAccountId);
   // The log is the truth; `leads` is a cache of its length that the website-lead
   // mirror does not bump on every path.
-  const leads       = (cl.leadsLog || []).length || Number(cl.leads || 0);
+  const leads       = leadCount(cl);
   const s = (status, why) => ({ status, why });
 
   const out = {
@@ -1570,7 +1570,7 @@ const getAlerts = (cl) => {
   if (!cl.internal && cl.contractStatus==="active" && ["active","optimizing","scaling"].includes(cl.stage)) {
     const health = calcHealth(cl);
     const target = PER_LEAD[cl.niche]||50;
-    const leads = cl.leads||0;
+    const leads = leadCount(cl);
     const liveDays = cl.contractStart ? Math.floor((Date.now()-new Date(cl.contractStart).getTime())/864e5) : null;
     if (health<5) a.push({type:"perf_crash",msg:`Performance crash — health score is ${health.toFixed(1)}/10. Needs attention.`,severity:"red"});
     if (cl.adBudget && leads===0 && liveDays!=null && liveDays>=14) a.push({type:"no_leads",msg:`Campaign live ${liveDays} days with a budget set but ZERO leads — check targeting/tracking.`,severity:"red"});
@@ -1881,6 +1881,23 @@ function leadOrigin(lead){
   return {label:"Not recorded",detail:"",paid:false,known:false};
 }
 
+// ─── HOW MANY LEADS THIS CLIENT ACTUALLY HAS ─────────────────────────────────
+//
+// Bryson, 2026-09-08: *"On the os it is showing he has 2 leads (the ones that were deleted
+// so it doesn't show them in the actual leads tab)"*. Two screens disagreed about the same
+// client: the Leads tab read the real list and said none, six other places read a STORED
+// `cl.leads` number and said two.
+//
+// 🔴 A COUNT THAT IS STORED RATHER THAN COUNTED CAN ONLY EVER GO STALE. Deleting a lead
+// removes it from `leadsLog`, which is the list every screen shows, and nothing on earth
+// keeps a separate tally in step with that. Same rule as the pipeline panels and the launch
+// checklist: observed, never stored. `cl.cpl` already carries this warning two lines below
+// the worst offender; the lead count never did.
+//
+// The stored number survives ONLY for the demo clients, which have no `leadsLog` at all and
+// would otherwise render as an empty product tour.
+const leadCount = (cl) => Array.isArray(cl && cl.leadsLog) ? cl.leadsLog.length : Number((cl && cl.leads) || 0);
+
 const adPerfStats = (cl) => {
   const perf   = (cl && cl.adPerf) || {};
   const t      = perf.totals || {};
@@ -2012,10 +2029,11 @@ const calcHealth = (cl) => {
   score += stageScore[cl.stage]||0;
 
   // ── Lead performance (max 2 pts) ──────────────────────────────────────────
-  if (cl.leads>0)  score += 0.5;   // at least something coming in
-  if (cl.leads>10) score += 0.5;   // meaningful volume
-  if (cl.leads>30) score += 0.5;   // strong volume
-  if (cl.leads>0 && cl.cpl>0) {
+  const _lc = leadCount(cl);
+  if (_lc>0)  score += 0.5;   // at least something coming in
+  if (_lc>10) score += 0.5;   // meaningful volume
+  if (_lc>30) score += 0.5;   // strong volume
+  if (_lc>0 && cl.cpl>0) {
     const niche = cl.niche;
     const target = PER_LEAD[niche]||50; // use per-lead fee as CPL benchmark
     if (cl.cpl <= target * 0.75) score += 0.5;       // beating target by 25%+
@@ -5668,7 +5686,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
     })
     .sort((a,b)=>{
       if (sortBy==="health")  return calcHealth(b)-calcHealth(a);
-      if (sortBy==="leads")   return (b.leads||0)-(a.leads||0);
+      if (sortBy==="leads")   return leadCount(b)-leadCount(a);
       if (sortBy==="expiry")  return daysUntil(a.contractEnd)-daysUntil(b.contractEnd);
       return a.name.localeCompare(b.name); // default: alphabetical
     });
@@ -5952,10 +5970,10 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
                 <Chip label={stage.label} color={stage.color} small/>
                 <span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>
                 <span style={{fontSize:10,fontWeight:600,color:healthColor(health)}}>⬡ {health.toFixed(1)}/10</span>
-                {cl.leads>0&&(
+                {leadCount(cl)>0&&(
                   <>
                     <span style={{width:3,height:3,borderRadius:"50%",backgroundColor:C.textMuted,display:"inline-block"}}/>
-                    <span style={{fontSize:10,color:C.textMuted}}>{cl.leads} leads · ${cl.cpl}/CPL</span>
+                    <span style={{fontSize:10,color:C.textMuted}}>{leadCount(cl)} leads{cl.cpl?` · $${cl.cpl}/CPL`:""}</span>
                   </>
                 )}
                 {days<=30&&days>=0&&(
@@ -7488,7 +7506,9 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                     {l:"Platform",v:platformLabel(client,pkg)},
                     {l:"Ad Budget",v:client.adBudget||"—"},
                     {l:"Niche",v:client.niche||"—"},
-                    {l:"Leads",v:st.leadsTotal||client.leads||0},
+                    // 🔴 NO FALLBACK TO THE STORED NUMBER. It is what showed two deleted
+                    // leads on this tile while the Leads tab correctly showed none.
+                    {l:"Leads",v:st.leadsTotal},
                     // Same live calculation the house account uses; the stored `cpl`
                     // is only a fallback for a client whose spend has not synced yet.
                     // No fallback to `client.cpl`: nothing has ever written that field,
