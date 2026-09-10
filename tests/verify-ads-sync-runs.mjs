@@ -234,8 +234,13 @@ t("the before-and-after comparison is of the real totals, not of nothing", () =>
 const GS = readFileSync(join(ROOT, "marketing-site/get-started/index.html"), "utf8");
 
 t("🔴 the gap is said out loud, and only when there is one", () => {
-  assert.match(UIC, /\{!sel&&st\.conversions>st\.leads30&&st\.leadsSyncedAt&&<div/,
+  // Became the named `leadGap` on 2026-09-09 when the same warning was added to the
+  // CAMPAIGN view: it was gated on !sel, so the screen Bryson actually taps into showed
+  // the platform's count with no caveat at all.
+  assert.match(UIC, /const leadGap = !!\(st\.leadsSyncedAt && Number\(st\.conversions\|\|0\) > Number\(st\.leads30\|\|0\)\);/,
     "a platform counting more leads than we received is never mentioned");
+  assert.match(UIC, /\{!sel&&leadGap&&<div/, "the account view no longer says it");
+  assert.match(UIC, /\{sel&&leadGap&&<div/, "the campaign view says nothing about the gap");
   assert.match(UI, /They measure different things, so a small gap is normal/,
     "it presents the gap as a fault, when the two counts legitimately differ");
   assert.match(UI, /a form that failed on its way to us or a tracker counting something that is not a lead/,
@@ -245,9 +250,17 @@ t("🔴 the gap is said out loud, and only when there is one", () => {
 t("🔴 it is on the ACCOUNT view, not beside one campaign", () => {
   // One campaign's conversions against every lead the business received is apples to oranges,
   // and it would fire constantly on any account with more than one campaign.
-  const i = UIC.indexOf("st.conversions>st.leads30");
+  // 🔴 STILL TRUE, AND STILL THE POINT: one campaign's conversions against every lead the
+  // business received is apples to oranges. The campaign view now warns about the ACCOUNT's
+  // gap in words, but must never compute a per-campaign cost per lead from the account's
+  // lead count.
+  const i = UIC.indexOf("const view = sel");
+  const focused = UIC.slice(i, UIC.indexOf(": {", i));
   assert.ok(i > 0);
-  assert.match(UIC.slice(i - 30, i), /\{!sel&&/, "the comparison shows while a single campaign is focused");
+  assert.ok(!/st\.leads30|st\.cpl\b/.test(focused),
+    "a focused campaign is computing from the ACCOUNT's lead count");
+  assert.match(UIC, /Across the whole account/,
+    "the campaign warning claims to know which campaign lost the lead, which is not knowable");
 });
 
 t("🔴 THE LIKELIEST CAUSE, FIXED AT SOURCE: the conversion fires only after the save", () => {
