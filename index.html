@@ -7416,19 +7416,36 @@ function LiveAdPerformanceCard({client,onUpdate}) {
     </div>
   );
 
-  // What the five big tiles show. Two completely separate sources, deliberately not blended.
+  // 🔴 THE PLATFORMS COUNT MORE LEADS THAN ACTUALLY ARRIVE, AND ONLY ONE SCREEN SAID SO.
+  // Bryson, 2026-09-09: *"fix the glitch that saying I have two leads but in reality it's
+  // one"*. Meta counted 2 on a campaign; exactly 1 person reached the OS.
+  //
+  // The 2 is META'S OWN NUMBER and cannot be un-counted here — it lives in Facebook's
+  // records and no amount of code on this side rewrites it. What CAN be fixed is the OS
+  // repeating it as if it were fact. The combined view already said the difference out
+  // loud; the note was gated on `!sel`, so tapping into the campaign — which is the screen
+  // he was actually looking at — showed the 2 with no caveat at all.
+  //
+  // Worse, the cost per lead there is spend ÷ THAT number: $78 ÷ 2 = $39, when the real
+  // figure for a lead that reached him is $78. A cost per lead that reads half its true
+  // value is not a display quirk, it is the number he would decide a budget on.
+  const leadGap = !!(st.leadsSyncedAt && Number(st.conversions||0) > Number(st.leads30||0));
   const view = sel
     ? (()=>{ const conv=Number(sel.conversions||0), spend=Number(sel.spend||0);
+        const plat = sel.platform==="meta"?"Meta":"Google";
         return { impressions:Number(sel.impressions||0), clicks:Number(sel.clicks||0), spend,
           ctr: sel.impressions>0 ? sel.clicks/sel.impressions : null,
           leadLabel: sel.platform==="meta"?"Leads":"Conversions",
-          leadValue: conv, leadSub: "counted by "+(sel.platform==="meta"?"Meta":"Google"),
-          cpl: (conv>0&&spend>0) ? spend/conv : null };
+          leadValue: conv, leadSub: "counted by "+plat,
+          cpl: (conv>0&&spend>0) ? spend/conv : null,
+          // Named after its source whenever the two disagree, so the figure cannot be read
+          // as "what a lead costs me" when it is "what one costs by their counting".
+          cplSub: leadGap ? "spend ÷ what "+plat+" counted" : "spend ÷ leads" };
       })()
     : { impressions:st.impressions, clicks:st.clicks, spend:st.spend30, ctr:st.ctr,
         leadLabel:"Leads", leadValue:st.leads30,
         leadSub: st.leadsSyncedAt?`checked ${ago(st.leadsSyncedAt)}`:"last 30 days",
-        cpl: st.cpl };
+        cpl: st.cpl, cplSub: "spend ÷ leads" };
 
   return (
     <Card>
@@ -7468,7 +7485,7 @@ function LiveAdPerformanceCard({client,onUpdate}) {
               {cell("Clicks",view.clicks.toLocaleString(),view.ctr!=null?`${(view.ctr*100).toFixed(1)}% of views`:null)}
               {cell("Spent","$"+Math.round(view.spend).toLocaleString(),"last 30 days")}
               {cell(view.leadLabel,view.leadValue,view.leadSub)}
-              {cell("Cost / lead",view.cpl!=null?"$"+Math.round(view.cpl).toLocaleString():"—",view.cpl!=null?"spend ÷ leads":"needs a lead and some spend")}
+              {cell("Cost / lead",view.cpl!=null?"$"+Math.round(view.cpl).toLocaleString():"—",view.cpl!=null?view.cplSub:"needs a lead and some spend")}
             </div>
             {/* 🔴 A campaign that is live with nothing to show is the question he actually
                 asked. Say which of the two reasons it is rather than leaving five zeros. */}
@@ -7494,7 +7511,14 @@ function LiveAdPerformanceCard({client,onUpdate}) {
                 DIFFERENCE is the thing worth saying out loud. Every cause is worth knowing:
                 a form that submitted and never reached us, a tracker firing on something
                 that is not a lead, or the same person counted twice. */}
-            {!sel&&st.conversions>st.leads30&&st.leadsSyncedAt&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>
+            {/* 🔴 THE SAME WARNING ON THE CAMPAIGN SCREEN. It was gated on `!sel`, so the
+                view he actually taps into showed the platform's count bare. Which campaign
+                lost the person is not knowable from an account-level gap, so this says
+                exactly that rather than inventing a per-campaign figure. */}
+            {sel&&leadGap&&<div style={{fontSize:10.5,color:C.amber,marginTop:9,lineHeight:1.55}}>
+              That {view.leadValue} is {sel.platform==="meta"?"Meta":"Google"}'s own count. Across the whole account they counted {st.conversions} while {st.leads30} actually reached the OS, so treat the cost per lead above as a best case. The real one is higher.
+            </div>}
+            {!sel&&leadGap&&<div style={{fontSize:10.5,color:C.amber,marginTop:6,lineHeight:1.55}}>
               The ad platforms counted {st.conversions} {st.conversions===1?"lead":"leads"} and {st.leads30} reached the OS. They measure different things, so a small gap is normal, but a real one usually means either a form that failed on its way to us or a tracker counting something that is not a lead. Worth a look if it stays.
             </div>}
             {!sel&&st.leadsTotal===0&&st.leadsSyncedAt&&!st.leadsSyncStale&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:6,lineHeight:1.55}}>No leads yet, and the lead check is running normally. While this screen is open a new enquiry appears here within seconds.</div>}

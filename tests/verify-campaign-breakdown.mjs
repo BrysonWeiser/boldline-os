@@ -186,7 +186,10 @@ t("🔴 and the tile is RELABELLED rather than quietly changing meaning", () => 
   assert(/leadLabel: sel\.platform==="meta"\?"Leads":"Conversions"/.test(UI),
     "the tile still says Leads while showing the platform's conversion count, which are "
     + "different numbers and the difference is the whole point");
-  assert(/counted by "\+\(sel\.platform==="meta"\?"Meta":"Google"\)/.test(UI),
+  // The platform name was hoisted into `plat` on 2026-09-09 so the cost-per-lead caption
+  // could name it too. Asserted by intent rather than by the inline expression it was.
+  assert(/const plat = sel\.platform==="meta"\?"Meta":"Google";/.test(UI)
+      && /leadSub: "counted by "\+plat/.test(UI),
     "nothing says where the number came from");
 });
 
