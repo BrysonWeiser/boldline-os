@@ -7171,6 +7171,22 @@ const campaignIsOn = (c) => {
   return (c||{}).platform==="meta" ? s==="ACTIVE" : s==="ENABLED";
 };
 
+// 🔴 PAUSED IS NOT THE SAME AS NEVER RAN, AND THE OS SAID IT WAS.
+// Bryson, 2026-09-09, sent the My Ads screen for a paused campaign showing 10,421 views,
+// 226 clicks and $106 spent, with a line underneath reading "This one is paused, so every
+// number above is zero because it has not run" — and, in the list, "Not running, so it has
+// not been seen by anyone and has spent nothing." It had been seen twenty thousand times and
+// had spent a hundred and six dollars of his money.
+//
+// The wrong rule was "paused means no numbers". That is true only of a campaign that never
+// started. A campaign paused YESTERDAY still carries thirty days of history, and this is
+// exactly what he does to a campaign he is done with, so it is the normal case rather than
+// the edge one. Worse than the wrong sentence: the list HID the figures entirely, so $106 of
+// spend was invisible on the screen whose job is to show him where his money went.
+//
+// So the sentence is decided by what the campaign DID, never by the switch.
+const camPastRun = (c) => Number((c||{}).impressions||0) > 0 || Number((c||{}).spend||0) > 0;
+
 // ─── CHANGE ONE CAMPAIGN'S DAILY BUDGET, FROM WHEREVER YOU ARE LOOKING AT IT ──
 //
 // Bryson, 2026-09-04: *"make sure there is a way for me to update the daily budget for my
@@ -7457,7 +7473,9 @@ function LiveAdPerformanceCard({client,onUpdate}) {
             {/* 🔴 A campaign that is live with nothing to show is the question he actually
                 asked. Say which of the two reasons it is rather than leaving five zeros. */}
             {sel&&sel.live&&view.impressions===0&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:9,lineHeight:1.55}}>Running, but nobody has seen it yet. A brand new campaign usually takes a few hours to start showing, and these figures refresh once an hour.</div>}
-            {sel&&!sel.live&&<div style={{fontSize:10.5,color:C.amber,marginTop:9,lineHeight:1.55}}>This one is paused, so every number above is zero because it has not run.</div>}
+            {sel&&!sel.live&&<div style={{fontSize:10.5,color:C.amber,marginTop:9,lineHeight:1.55}}>{camPastRun(view)
+              ? "This one is paused, so it is not spending anything today. The figures above are what it did over the last 30 days, while it was still running."
+              : "This one is paused, so every number above is zero because it has not run."}</div>}
             {/* Switched on, but Facebook is not serving it this minute. Says which of those
                 states it is, because "in process" and "rejected" call for opposite reactions. */}
             {sel&&sel.live&&sel.platform==="meta"&&(()=>{ const d=metaDelivery(sel.effectiveStatus); return d
@@ -7506,7 +7524,7 @@ function LiveAdPerformanceCard({client,onUpdate}) {
                           {dstate&&<span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",flexShrink:0,padding:"2px 7px",borderRadius:6,
                             color:dstate.fault?C.amber:C.textMuted,backgroundColor:(dstate.fault?C.amber:C.textMuted)+"1a",border:`1px solid ${(dstate.fault?C.amber:C.textMuted)}44`}}>{dstate.chip}</span>}
                         </div>
-                        {!c.live
+                        {!c.live&&!camPastRun(c)
                           ? <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55}}>Not running, so it has not been seen by anyone and has spent nothing. Approve it on the Campaigns screen to set it live.{c.dailyBudget>0?` It is set to $${c.dailyBudget}/day once it starts.`:""}</div>
                           : <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:10.5,color:C.textMuted}}>
                               <span><b style={{color:C.textDim,fontWeight:700}}>{c.impressions.toLocaleString()}</b> views</span>

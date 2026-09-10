@@ -2,7 +2,7 @@
 name: meta-delivery-states
 topic: Ads/Meta
 task: read a Meta campaign's status correctly, tell "switched on" from "serving right now", and explain IN_PROCESS / ADSET_PAUSED / DISAPPROVED to Bryson
-keywords: [effective_status, effectiveStatus, IN_PROCESS, in process, ADSET_PAUSED, PENDING_REVIEW, DISAPPROVED, WITH_ISSUES, PENDING_BILLING_INFO, not delivering, metaOn, metaDelivering, campaignIsOn, META_DELIVERY, live vs delivering, campaign says paused but is running]
+keywords: [paused campaign spent nothing, has spent nothing, every number above is zero, paused but spent, camPastRun, paused history, past run, campaign history after pausing, effective_status, effectiveStatus, IN_PROCESS, in process, ADSET_PAUSED, PENDING_REVIEW, DISAPPROVED, WITH_ISSUES, PENDING_BILLING_INFO, not delivering, metaOn, metaDelivering, campaignIsOn, META_DELIVERY, live vs delivering, campaign says paused but is running]
 status: verified
 summary: Meta reports `status` (the campaign's own switch) AND `effective_status` (whether it is serving). The OS had two disagreeing definitions of "live" and one sentence for every non-serving state. New `netlify/lib/meta-status.mjs` splits the question into `metaOn` (the switch, what Pause acts on, what the snapshot stores as `live`) and `metaDelivering` (serving, what `ads-autopilot` needs before moving money). `index.html` gains a `META_DELIVERY` table so each state gets its own plain-English explanation, and `campaignIsOn` so every screen agrees. 🔴 `IN_PROCESS` is NOT a fault: it is Facebook applying an edit, which is what you see right after changing a budget from the OS, and it clears itself. 20 checks, 8 mutations caught, verified in a real browser against the exact state from Bryson's screenshot.
 verified: 2026-09-04
@@ -72,3 +72,27 @@ Extracts `META_DELIVERY` / `metaDelivery` / `campaignIsOn` from `index.html` and
 - `netlify/functions/ads-autopilot.mjs` — same behaviour, now imported and named.
 - `index.html` — `META_DELIVERY`, `metaDelivery`, `campaignIsOn`; both screens.
 - `tests/verify-delivery-states.mjs` (new).
+
+## 🔴 2026-09-09 — THE OTHER HALF: A PAUSED CAMPAIGN THAT HAD ALREADY RUN
+
+The 2026-09-04 fix corrected **which campaigns get called paused**. It never questioned **what the sentence claims about one that really is.**
+
+Bryson sent the My Ads screen for a genuinely PAUSED campaign reading **10,421 views, 226 clicks, $106 spent**, with a line under it saying:
+
+> *"This one is paused, so every number above is zero because it has not run."*
+
+and, in the campaign list below:
+
+> *"Not running, so it has not been seen by anyone and has spent nothing."*
+
+It had been seen twenty thousand times and had spent **a hundred and six dollars of his money**.
+
+**The wrong rule was "paused means no numbers."** That holds only for a campaign that never started. A campaign paused *yesterday* still carries thirty days of history, and pausing a campaign he is finished with is **the normal thing he does**, not an edge case. This one was the traffic-objective campaign he paused on 2026-09-04 (KB `meta-traffic-objective`).
+
+🔴 **Worse than the wrong sentence: the list HID THE FIGURES ENTIRELY.** `!c.live` swapped the whole stats row for that sentence, so $106 of spend was invisible on the one screen whose job is to show him where his money went.
+
+**Fixed by asking what the campaign DID, never the switch.** `camPastRun(c)` is true when impressions or spend are above zero (either alone is enough, and both are coerced from strings because a snapshot round-tripped through the database can come back as text). A campaign that ran now reads *"paused, so it is not spending anything today. The figures above are what it did over the last 30 days, while it was still running."* A campaign that never ran keeps the original sentence, which was correct for it all along.
+
+**21 checks, nine mutations, all caught.** One assertion initially miscounted because **both sentences are also quoted in the comment explaining the fix** — comment lines are stripped before counting.
+
+**The pattern worth carrying:** this is the third time in this file's history that a status flag was used to infer facts about money. The switch says what will happen next. It says nothing about what already happened.
