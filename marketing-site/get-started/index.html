@@ -407,7 +407,13 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
       var data = {}; new FormData(form).forEach(function(v,k){ data[k]=v; });
       btn.disabled = true; btn.textContent = 'Sending…';
       fetch('/', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: encode(data) })
-        .then(function(r){ if(!r.ok) throw 0; form.style.display='none'; ok.style.display='block'; ok.scrollIntoView({behavior:'smooth',block:'center'}); })
+        .then(function(r){ if(!r.ok) throw 0;
+          /* The conversion is reported HERE, after Netlify has taken the post, and only when
+             the honeypot is empty. Netlify accepts a honeypot hit with a 200 and then throws
+             it away, so a bot would otherwise be reported to Meta as a lead that never
+             reaches the OS. Same rule the audit form was given on 2026-09-05. */
+          try { if(!data['bot-field'] && window.blConversion) blConversion('form'); } catch(e){}
+          form.style.display='none'; ok.style.display='block'; ok.scrollIntoView({behavior:'smooth',block:'center'}); })
         .catch(function(){ btn.disabled=false; btn.textContent='Send & Get a Call Back'; alert('Something went wrong. Please try again, or book a call above.'); });
     });
   }
@@ -455,8 +461,13 @@ window.BL_TRACK = {
   loadPixel(T.metaPixelId);
 
   window.blConversion = function(kind){
-    if(fired[kind]) return;            // one lead per visitor per kind
-    fired[kind] = true;
+    // 🔴 EVERY LEAD-SHAPED ACTION SHARES ONE SLOT. The dedupe used to be per kind, so a
+    // visitor who filled the audit form AND the backup form sent Meta two Lead events, and
+    // Meta counted two people where there was one. A booking is genuinely a different event
+    // (Schedule), so it keeps its own slot.
+    var slot = kind === 'book' ? 'book' : 'lead';
+    if(fired[slot]) return;
+    fired[slot] = true;
 
     // GA4 — always on, so there is a record even before the ad platforms are wired.
     try { if(window.gtag) gtag('event', 'generate_lead', { method: kind }); } catch(e){}
@@ -479,9 +490,18 @@ window.BL_TRACK = {
     if(String(e.data.event || '') === 'calendly.event_scheduled') window.blConversion('book');
   });
 
-  // The backup form. Netlify posts it normally, so fire just before it leaves.
-  var form = document.querySelector('form[name="get-started"]');
-  if(form) form.addEventListener('submit', function(){ window.blConversion('form'); });
+  // 🔴 THE BACKUP FORM REPORTS ITS OWN CONVERSION, in the success branch of its AJAX post
+  // further up this page. There used to be a second listener here that fired on the submit
+  // EVENT, under a comment claiming "Netlify posts it normally, so fire just before it
+  // leaves". That comment was simply false: the form is intercepted with preventDefault and
+  // posted by fetch. So every submit told Meta a lead had happened before anything had been
+  // saved, and a honeypot hit, a refused post or a dropped connection all counted as leads
+  // that never reached the OS.
+  //
+  // Found 2026-09-09 from Meta reporting TWO leads on the house campaign against ONE in the
+  // OS. The identical bug had already been found and fixed on the audit form on 2026-09-05;
+  // this copy was left behind, which is what a second implementation of one thing always
+  // costs. A lead we did not save is not a lead.
 })();
 </script>
 
