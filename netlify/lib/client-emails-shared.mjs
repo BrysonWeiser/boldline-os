@@ -234,17 +234,33 @@ const T = {
       signoff(),
   }),
 
-  approval_request: (c) => ({
-    subject: `Your review is needed${c.approvalTitle ? ": " + c.approvalTitle : ""}`,
-    preheader: "Something's ready for your review and approval in your portal.",
+  // 🔴 ONE TEMPLATE, TWO TONES. `reminderDays` turns this from the first ask into a
+  // reminder, because sending the identical "something's ready" email for the third time
+  // on day 14 reads like a broken robot, and a client who is already hesitating reads a
+  // broken robot as a reason to keep not answering.
+  approval_request: (c) => {
+    const days = Number(c.reminderDays) || 0;
+    const item = b(escapeHTML(c.approvalTitle || "an item"));
+    return {
+    subject: days
+      ? `Still waiting on you${c.approvalTitle ? ": " + c.approvalTitle : ""}`
+      : `Your review is needed${c.approvalTitle ? ": " + c.approvalTitle : ""}`,
+    preheader: days
+      ? "A quick reminder, this is still sitting in your portal waiting for you."
+      : "Something's ready for your review and approval in your portal.",
     bodyHtml:
-      h1("Something's ready for your review") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.approvalTitle || "an item"))} is ready and needs your approval before we move forward.`) +
+      (days ? h1("Just a reminder") : h1("Something's ready for your review")) +
+      (days
+        ? p(`Hi ${escapeHTML(firstName(c.contactName))}, ${item} has been waiting for your approval for ${escapeHTML(String(days))} day${days === 1 ? "" : "s"}. Nothing has started yet, and nothing will until you give us the go ahead.`)
+        : p(`Hi ${escapeHTML(firstName(c.contactName))}, ${item} is ready and needs your approval before we move forward.`)) +
       p("Open your portal to take a look and either approve it or request changes. It only takes a minute:") +
       button("Review & Approve", c.portalUrl || SITE) +
-      small("You'll find it under the “Needs Your Review” section of your portal. Nothing moves forward until you approve, so take your time.") +
+      (days
+        ? small("If something is holding you up, or you want anything changed first, just reply to this email and tell us. We would rather adjust it than leave it sitting.")
+        : small("You'll find it under the “Needs Your Review” section of your portal. Nothing moves forward until you approve, so take your time.")) +
       signoff(),
-  }),
+    };
+  },
 
   thank_you: (c) => ({
     subject: `Thank you from BoldLine Media`,
