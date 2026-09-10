@@ -406,3 +406,47 @@ working. Both were checked, and the silent one was checked deliberately rather t
 
 Earlier tests on 2026-09-07 were inconclusive because both had the box ticked, so the "does
 declining actually stop it" half had never been exercised until now.
+
+## ✅ 2026-09-09 — SHAUN'S RECORD-LEVEL CONFIRMATION (found in spam, see below)
+
+His written reply, from `shaun@autopilotsystems.org`, confirms the chain at the level that
+matters: what actually landed on the CRM record, not just what the handsets showed.
+
+| | Test One (box **ticked**) | Test Two (box **unticked**) |
+|---|---|---|
+| Contact | created | created |
+| Opportunity | **order** opportunity, in Sebastian's Order Status pipeline | **lead** opportunity, no order |
+| Text | delivered **9:19:42 Pacific, two seconds after the post** | **none** |
+
+> *"That's the result that matters for Sebastian's number, and it's clean."*
+
+🔴 **ATTRIBUTION IS CONFIRMED END TO END, WHICH HAD NEVER BEEN PROVEN BEFORE.** All six
+tracking values arrived on the record: **gclid, click timestamp, source, campaign, lead id,
+landing page**. Every earlier check proved a lead *arrived*; this is the first proof that the
+lead arrived knowing **which click paid for it**, which is the whole basis of the reporting and
+of per-lead billing.
+
+> *"The field name and format are fine as they are. Don't change anything."* — so the flat
+> form-urlencoded wire format for this client is now frozen by agreement, not just by test.
+
+He deleted both test records on his side. **Bryson still has to clear the two on ours** before
+the count is zero.
+
+He also closed the 2026-09-07 misreport himself: *"Two yeses was right, the relay was never the
+problem, and I'm glad I was wrong about it."* Reproducing rather than "fixing" was correct, and
+the partner said so in writing.
+
+### 🔴 HIS EMAIL LANDED IN BRYSON'S SPAM FOLDER
+
+Sent 10:17 AM, still unfound at 5:23 PM when the text arrived. It cost most of a day on the one
+open item (the go-live date Shaun is waiting for), and would have cost more if Shaun had not
+followed up by text.
+
+**Fix it once:** open the message, mark **Not spam**, add `shaun@autopilotsystems.org` to
+Contacts, and create a Gmail filter on that address with **Never send it to Spam**. A partner's
+mail going to spam is worse than an annoyance here, because BoldLine's whole loop with him is
+asynchronous and nothing in the OS watches his inbox.
+
+**The general risk this points at:** a client's or partner's reply going to spam is invisible and
+looks exactly like them not replying, and BoldLine's own follow-up logic assumes silence means
+silence. Worth remembering the next time someone "has not answered".
