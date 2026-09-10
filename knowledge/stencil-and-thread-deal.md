@@ -405,3 +405,25 @@ Sanity check on the number: his average order is about $1,000 at roughly 50% mar
 seven or eight of ten, so a qualified lead is worth around **$375 in profit** to him. At $50 he
 pays about **13%** of what a lead is worth. Comfortable for him, and it is the founding rate, so
 do not read it as the standard for the next screen printer.
+
+## ✅ 2026-09-09 (Wed evening, Phoenix) — SHAUN IS CLEAR. THE ONLY THING LEFT IS SEBASTIAN'S TAP.
+
+Shaun replied by text to Bryson's follow-up:
+
+> *"All good. Already cleared both test leads out of the CRM this morning, and my email reply has the full confirmation on the records. Nothing else I need from you on the landing page side. Just shoot me the date the ads switch on so I can watch the first real leads come through and confirm the tracking lands. Appreciate you rerunning the test the clean way."*
+
+**Three things settled:**
+
+| | |
+|---|---|
+| Test leads | **Cleared by Shaun** the morning of 2026-09-09. Sebastian is not looking at them. |
+| Landing page / plumbing | **Nothing outstanding on his side.** "We're finishing up on the landing page" was Bryson's own framing and turns out not to be a real blocker. |
+| Consent misreport | Closed. Shaun accepted the rerun without argument. See KB `sms-consent` for why the code was never changed. |
+
+🔴 **He also sent an EMAIL reply with the record-level confirmation, which had not been read when the text arrived.** Worth reading rather than treating the text as the whole answer.
+
+**The one open item is a date.** Shaun wants the day the ads switch on so he can watch the first real leads land and confirm tracking end to end. That is a partner offering free verification of the exact link most likely to break silently, so it is worth giving him.
+
+**And that date is gated on one thing: Sebastian pressing Approve in his portal.** The campaign is built, paused, and queued. Nothing else is in the way. Per the tone rule above, this is NOT what Shaun gets told — he gets a date when there is one.
+
+**Standing state as of this evening:** campaign built and paused, waiting on Sebastian's approval; on approval it goes live by itself and Bryson is alerted (KB `launch-gate`). Bryson's own Approve button now reads **Start without them** and warns before overriding.

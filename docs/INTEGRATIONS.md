@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 168 task-keyed entries under `knowledge/`. They surface automatically via the
+> 169 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**168 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**169 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -147,6 +147,12 @@
 - **[portal-leads-and-payment](../knowledge/portal-leads-and-payment.md)** &mdash; &#9989; verified &middot; 2026-09-08  
   The client portal now has FIVE tabs (Status | Review | Leads | Reports | Account). Leads was briefly folded into Reports because five buttons overflowed a 360px strip; Bryson reversed that the same day and the overflow was fixed in CSS instead (`@media(max-width:460px){.nb{flex:1 1 0}}` — the buttons divide the strip rather than sizing to their text, so they cannot overflow at any width). Inside Your Information on the Account tab the client now has a Payment Method card that CREATES its own Stripe setup session (`{startCard:true}` on the token endpoint, `mode:"setup"` only, so it charges nothing) rather than waiting on a link Bryson pastes in, and a Your Reviews box for typing his own testimonials straight onto his landing page. Three real bugs fixed alongside: the portal quoted the niche default per-lead rate instead of the client's agreed `billingPerLead`; a Stripe `mode:"setup"` checkout was recorded as `billingStatus:"active"` when there is no subscription; and the launch checklist's "card on file" step looked only for a subscription id, so it could never tick for a results-only client. Built 2026-09-08.  
   <sub>*task:* give the client his own Leads tab, a separate Reports tab, and a place to add a payment method; fix the per-lead rate and card-on-file state the portal was getting wrong &nbsp;|&nbsp; *keywords:* portal testimonials, client reviews, own testimonials, reviews box, startCard, self serve card, connect payment portal, portal leads tab, leads tab, reports tab, five tabs, nav overflow, 360px tabs, payment method, add a card, card on file, billingCheckoutUrl, results only billing, per lead rate, billingPerLead, setup session, stripe setup mode, launch checklist card step, portal payment</sub>
+
+## Clients
+
+- **[approval-chase](../knowledge/approval-chase.md)** &mdash; &#9989; verified &middot; 2026-09-09  
+  A client sitting on an approval used to produce ONE yellow alert to Bryson on day 3 and nothing ever again, and the client themselves was never contacted by the OS at all. Now the OS emails the client on days 3, 7 and 14, in reminder-flavoured copy that names how long it has been waiting and invites the real objection, then STOPS and raises one red hand-off telling Bryson to phone them. Never chases a client who asked for changes, the demo client, the house account, or anyone with no portal to open. The chase is recorded only after the send succeeds. 65 checks, 18 mutations caught.  
+  <sub>*task:* understand or change what happens when a client goes quiet on something sent for their approval &nbsp;|&nbsp; *keywords:* client not responding, silent client, chase client, nudge client, stale approval, unanswered approval, approval reminder, APPROVAL_CHASE_DAYS, chaseDue, chaseable, chasesSent, handedOffAt, alerts-watch, follow up automation, client went quiet, no reply, reminder email, escalation</sub>
 
 ## Contracts
 

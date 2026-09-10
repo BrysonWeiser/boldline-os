@@ -22,11 +22,42 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats, hasAdActivity } from "../lib/report-shared.mjs";
 import { countFoundingClients, FOUNDING_CLIENT_COUNT } from "../lib/founding.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
+import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 
 const ACTIVE_STAGES = ["active", "optimizing", "scaling"];
 // How long a signed client may go without their ads ever starting before it is raised.
 // Matches the point in the chase ladder where a phone call replaces another text.
 const NEVER_LAUNCHED_DAYS = 7;
+
+// ─── CHASING THE CLIENT, NOT JUST TELLING BRYSON ─────────────────────────────
+// Bryson, 2026-09-09, asked what happens if his first real client goes quiet on a campaign
+// approval again. The honest answer was: almost nothing. This watcher alerted HIM on day 3,
+// once, and then never again, and the CLIENT was never contacted by the OS at all. So a
+// signed client could sit on a built, paused campaign indefinitely while the system that is
+// supposed to be automating follow-up said one thing to one person on one day.
+//
+// 🔴 A stalled approval costs BoldLine everything and the client nothing on results-only
+// terms: no leads means no invoice, so every quiet week is unpaid time with no clock running
+// on them. That is the reason this escalates rather than repeating.
+//
+// Days since the approval was sent on which the CLIENT is emailed. Matches the chase ladder
+// already written down for Stencil & Thread: a couple of reminders, then a human phones them.
+const APPROVAL_CHASE_DAYS = [3, 7, 14];
+// How many chases have actually gone out. Read off the record of sends, never a counter kept
+// beside it, so a failed send cannot leave the count ahead of reality.
+export const chasesSent = (a) => (Array.isArray(a && a.chases) ? a.chases.length : 0);
+// Which chase is due for an approval this many days old, or null. Returns the LAST unsent
+// step that is due, so a watcher that missed a day catches up rather than skipping a rung.
+export const chaseDue = (a, ageDays) => {
+  const sent = chasesSent(a);
+  if (sent >= APPROVAL_CHASE_DAYS.length) return null;         // ladder finished
+  const day = APPROVAL_CHASE_DAYS[sent];
+  return ageDays >= day ? { step: sent + 1, of: APPROVAL_CHASE_DAYS.length, day } : null;
+};
+// 🔴 Only an UNANSWERED approval is chased. "changes" is an answer, and chasing a client who
+// asked for changes to approve the thing they asked to change is how you lose one.
+export const chaseable = (cl, a) => !!cl && !cl.internal && !cl.demo && !!cl.email && !!cl.portalToken
+  && !!a && a.status === "pending" && !!a.createdAt;
 const daysSince = (s) => (s ? Math.floor((Date.now() - new Date(s).getTime()) / 864e5) : null);
 
 // Returns the set of currently-tripped conditions for a client (stored data only).
@@ -137,6 +168,55 @@ export default withFailureAlert("alerts-watch", async () => {
       const nudgedIds = new Set(staleUnnudged.map((a) => a.id));
       cl.approvals = approvals.map((a) => (nudgedIds.has(a.id) ? { ...a, nudgedAt: new Date().toISOString() } : a));
       await supabase.from("clients").update({ data: cl, updated_at: new Date().toISOString() }).eq("id", row.id);
+    }
+
+    // ── Chase the CLIENT, on a ladder, then hand it to a human ────────────────
+    // 🔴 The record of what was sent is written only AFTER the send succeeds. Recording
+    // first would burn a rung of the ladder on an email that never left, and the client
+    // would get two chases instead of three with nothing anywhere saying why.
+    {
+      const live = Array.isArray(cl.approvals) ? cl.approvals : [];
+      let changed = false;
+      for (const a of live) {
+        if (!chaseable(cl, a)) continue;
+        const age = Math.floor((nowMs - new Date(a.createdAt).getTime()) / 864e5);
+        const due = chaseDue(a, age);
+        if (due) {
+          const res = await autoSendClientEmail(cl, "approval_request", {
+            approvalTitle: a.title, reminderDays: age,
+          });
+          if (!res.sent) { console.error(`approval chase to ${cl.name} failed: ${res.reason}`); continue; }
+          a.chases = [...(a.chases || []), { at: new Date().toISOString(), day: due.day, age }];
+          cl.commLog = [{ ...res.logEntry, note: `Auto-reminded ${cl.name} about "${a.title}" (day ${age}, reminder ${due.step} of ${due.of})` }, ...(cl.commLog || [])];
+          changed = true;
+          await dispatchAlert({
+            title: `📨 Reminded ${cl.name} about "${a.title}" (${due.step} of ${due.of})`,
+            body: `${cl.name} still hasn't approved "${a.title}" after ${age} days, so the OS emailed them a reminder. ${due.step === due.of ? "That was the last automatic reminder. Nothing else will be sent, so this is yours to chase by phone now." : `The next one goes out around day ${APPROVAL_CHASE_DAYS[due.step]}.`}`,
+            severity: "yellow",
+          });
+          alerted++;
+          continue;
+        }
+        // 🔴 THE LADDER ENDS. Emailing someone forever is not persistence, it is noise they
+        // learn to ignore, and it stops Bryson realising the thing needs a human. One
+        // hand-off alert, once, and then the OS stays quiet about this approval.
+        if (chasesSent(a) >= APPROVAL_CHASE_DAYS.length && !a.handedOffAt) {
+          a.handedOffAt = new Date().toISOString();
+          changed = true;
+          await dispatchAlert({
+            title: `🔴 ${cl.name} has not answered "${a.title}" in ${age} days`,
+            body: `All ${APPROVAL_CHASE_DAYS.length} automatic reminders have gone to ${cl.name} and "${a.title}" is still unanswered after ${age} days. The OS will not email them again about it. Phone them, or ask straight out whether the timing has changed.`,
+            severity: "red",
+          });
+          alerted++;
+        }
+      }
+      if (changed) {
+        const { error } = await supabase.from("clients").update({ data: cl, updated_at: new Date().toISOString() }).eq("id", row.id);
+        // 🔴 A failed write means the chase record is lost and the same email goes again
+        // tomorrow. Say so, rather than letting a client get the same reminder every day.
+        if (error) console.error(`approval chase bookkeeping failed for ${cl.name}: ${error.message}`);
+      }
     }
 
     const cur = evalConditions(cl);
