@@ -324,7 +324,14 @@ const CLIENT = {
     "the only fbq lead call on the page should be the one inside blConversion");
   ok("the shared tracker still reaches all three, or routing to it buys nothing",
     /gtag\('event', 'generate_lead'/.test(gs) && /send_to: T\.googleAdsId/.test(gs) && /fbq\('track', kind/.test(gs));
-  ok("and it still refuses to count the same visitor twice", /if\(fired\[kind\]\) return;/.test(gs));
+  // The dedupe stopped being keyed on `kind` on 2026-09-09: per-kind meant a visitor who
+  // filled the audit form AND the backup form sent Meta two Lead events, so every
+  // lead-shaped action now shares one slot while a booking keeps its own. Asserted by
+  // intent rather than by the literal expression it used to be.
+  ok("and it still refuses to count the same visitor twice",
+    /if\(fired\[slot\]\) return;/.test(gs) && /var slot = kind === 'book' \? 'book' : 'lead';/.test(gs));
+  ok("🔴 two different lead forms are still one lead", !/if\(fired\[kind\]\) return;/.test(gs),
+    "keying the dedupe on kind is what let one person count twice");
   ok("the honeypot came across with it, or the audit inbox fills with bots",
     /name="company"[^>]*tabindex="-1"/.test(gs));
 
