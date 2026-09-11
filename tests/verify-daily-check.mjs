@@ -14,7 +14,7 @@
 // broken page, does this check go red.
 
 import { readFileSync } from "node:fs";
-import { scriptsParse, previewScriptParses, summarize, hoursSince, STALE_HOURS } from "../netlify/functions/daily-check.mjs";
+import { scriptsParse, previewScriptParses, summarize, hoursSince, STALE_HOURS, deployBehind } from "../netlify/functions/daily-check.mjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
@@ -92,6 +92,57 @@ eq("junk in does not throw", scriptsParse(null).bad, []);
   eq("a missing timestamp is unknown, not fresh", hoursSince(null), null,
     "treating never-read as up to date is how a job that never ran reads as healthy");
   eq("and junk is unknown too", hoursSince("not a date"), null);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 3b. 🔴 IS THE SITE RUNNING THE CODE WE THINK IT IS?
+// ══════════════════════════════════════════════════════════════════════════════
+// In August seven builds in a row were rejected by Netlify's secret scanner while git
+// reported every merge as fine, and the OS served day-old code for days. This job runs FROM
+// the deploy, so it cannot see its own staleness by looking inward. Asking GitHub is the
+// only way, and a difference alone is not a fault because a build takes minutes.
+{
+  const mins = (m) => new Date(Date.now() - m * 6e4).toISOString();
+  const same = deployBehind({ deployed: "abc1234567", head: "abc1234567", headAt: mins(0) });
+  ok("a matching commit is current", same.ok === true);
+  ok("and it names what is live", /abc1234/.test(same.why), same.why);
+
+  const building = deployBehind({ deployed: "old0000000", head: "new1111111", headAt: mins(4) });
+  ok("🔴 a commit pushed minutes ago is NOT a failure", building.ok === true,
+    "a build takes a few minutes; failing here would page him on every single push");
+  ok("and it says why it is not worried", /still building/.test(building.why), building.why);
+
+  const stuck = deployBehind({ deployed: "old0000000", head: "new1111111", headAt: mins(300) });
+  ok("🔴 a head sitting there for hours IS a failure", stuck.ok === false,
+    "this is the August incident: merged in git, never deployed");
+  ok("it names both commits", /old0000/.test(stuck.why) && /new1111/.test(stuck.why), stuck.why);
+  ok("it says how long", /5h ago/.test(stuck.why), stuck.why);
+  ok("and it says what it means, not just what differs", /is NOT live/.test(stuck.why));
+  ok("and where to look", /Netlify deploy log/.test(stuck.why));
+
+  // The boundary, checked on both sides rather than assumed.
+  ok("just inside the grace period is fine", deployBehind({ deployed: "a", head: "b", headAt: mins(24) }).ok === true);
+  ok("just outside it is not", deployBehind({ deployed: "a", head: "b", headAt: mins(26) }).ok === false);
+
+  // 🔴 UNKNOWN IS NOT OK. Without the token, or without a commit ref, this must skip rather
+  // than quietly claim the deploy is fine.
+  ok("no commit ref means unknown, not fine", deployBehind({ deployed: "", head: "b", headAt: mins(0) }).ok === null);
+  ok("no branch head means unknown, not fine", deployBehind({ deployed: "a", head: null, headAt: mins(0) }).ok === null);
+  ok("and an unreadable head is unknown too", deployBehind({ deployed: "a", head: undefined }).ok === null);
+  ok("a difference with no push date is still a failure", deployBehind({ deployed: "a", head: "b" }).ok === false,
+    "no date is not a reason to assume a build is in flight");
+}
+
+{
+  const src = readFileSync(new URL("../netlify/functions/daily-check.mjs", import.meta.url), "utf8");
+  ok("the check is wired to GitHub", /api\.github\.com\/repos\/BrysonWeiser\/boldline-os\/commits\/main/.test(src));
+  ok("it reads the deployed commit from Netlify", /process\.env\.COMMIT_REF/.test(src));
+  ok("🔴 with no token it SKIPS rather than failing",
+    /add\("The deploy is current", null,[\s\S]{0,120}GITHUB_READ_TOKEN is not set in Netlify/.test(src),
+    "a missing setting must not look like a broken deploy every morning, and null is the skip while false is a red alert");
+  ok("and the skip says what to set", /GITHUB_READ_TOKEN/.test(src));
+  ok("the token is never written into the repo", !/ghp_|github_pat_/.test(src),
+    "credentials live in Netlify, never here");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
