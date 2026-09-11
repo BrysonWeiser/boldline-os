@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 172 task-keyed entries under `knowledge/`. They surface automatically via the
+> 173 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**172 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**173 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -159,6 +159,9 @@
 - **[approval-chase](../knowledge/approval-chase.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   A client sitting on an approval used to produce ONE yellow alert to Bryson on day 3 and nothing ever again, and the client themselves was never contacted by the OS at all. Now the OS emails the client on days 3, 7 and 14, in reminder-flavoured copy that names how long it has been waiting and invites the real objection, then STOPS and raises one red hand-off telling Bryson to phone them. Never chases a client who asked for changes, the demo client, the house account, or anyone with no portal to open. The chase is recorded only after the send succeeds. 65 checks, 18 mutations caught.  
   <sub>*task:* understand or change what happens when a client goes quiet on something sent for their approval &nbsp;|&nbsp; *keywords:* client not responding, silent client, chase client, nudge client, stale approval, unanswered approval, approval reminder, APPROVAL_CHASE_DAYS, chaseDue, chaseable, chasesSent, handedOffAt, alerts-watch, follow up automation, client went quiet, no reply, reminder email, escalation</sub>
+- **[springbok-wellness-deal](../knowledge/springbok-wellness-deal.md)** &mdash; &#9989; verified &middot; 2026-09-11  
+  BoldLine's SECOND client. Brendon, owner of Springbok Wellness, a chiropractor. Closed verbally on a call Thursday 2026-09-10; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.  
+  <sub>*task:* work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-lead definition for a clinic &nbsp;|&nbsp; *keywords:* springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches</sub>
 
 ## Contracts
 
