@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 172 task-keyed entries under `knowledge/`. They surface automatically via the
+> 174 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**172 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**174 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -159,6 +159,9 @@
 - **[approval-chase](../knowledge/approval-chase.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   A client sitting on an approval used to produce ONE yellow alert to Bryson on day 3 and nothing ever again, and the client themselves was never contacted by the OS at all. Now the OS emails the client on days 3, 7 and 14, in reminder-flavoured copy that names how long it has been waiting and invites the real objection, then STOPS and raises one red hand-off telling Bryson to phone them. Never chases a client who asked for changes, the demo client, the house account, or anyone with no portal to open. The chase is recorded only after the send succeeds. 65 checks, 18 mutations caught.  
   <sub>*task:* understand or change what happens when a client goes quiet on something sent for their approval &nbsp;|&nbsp; *keywords:* client not responding, silent client, chase client, nudge client, stale approval, unanswered approval, approval reminder, APPROVAL_CHASE_DAYS, chaseDue, chaseable, chasesSent, handedOffAt, alerts-watch, follow up automation, client went quiet, no reply, reminder email, escalation</sub>
+- **[springbok-wellness-deal](../knowledge/springbok-wellness-deal.md)** &mdash; &#9989; verified &middot; 2026-09-11  
+  BoldLine's SECOND client. Brendon, owner of Springbok Wellness, a chiropractor. Closed verbally on a call Thursday 2026-09-10; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.  
+  <sub>*task:* work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-lead definition for a clinic &nbsp;|&nbsp; *keywords:* springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches</sub>
 
 ## Contracts
 
@@ -498,6 +501,9 @@
 - **[my-ads-internal-account](../knowledge/my-ads-internal-account.md)** &mdash; &#9989; verified &middot; 2026-08-07  
   BoldLine runs its OWN ads (and dogfoods the whole client flow) via a "My Ads" house account — a client record flagged `internal:true` that reuses ALL the client machinery (Package Google/Meta launch cards, landing pages, leads, ARIA) but is kept OUT of the client list + MRR/revenue/count/billing, and has NO Client-Portal or Contract tab. Reached from its own "My Ads" section (dashboard card + desktop sidebar item). Built 2026-07-24 (Bryson: run ads for myself + be the first test client). Doubles as the first real Google account linked to the MCC → the live E2E test of the launch card + approve→execute.  
   <sub>*task:* run ads for BoldLine itself via the "My Ads" house account (internal, not a client) and how it's kept out of business metrics &nbsp;|&nbsp; *keywords:* my ads, internal, house account, makeInternalClient, realClients, myAccount, dogfood, first client, google launch, self client, run own ads, MyAdsSetupCards, monthly budget, NicheSelect, niche catalog, custom niche, payment card, connect accounts, Customer ID, log tab removed</sub>
+- **[nightly-backup](../knowledge/nightly-backup.md)** &mdash; &#9989; verified &middot; 2026-09-11  
+  Nothing was backing up the database. The OS and the marketing site are code and GitHub already keeps every version of them, so "back up the OS" was a job silently already done; the Supabase project holding every client, lead, campaign and contract was the half with no copy at all. `netlify/functions/backup-run.mjs` runs at 08:00 UTC (1:00am Phoenix) and copies 13 tables into a PRIVATE `backups` bucket as one gzipped JSON file named by day, downloads the file back and compares row counts before trusting it, then prunes to the newest 5. Emails OWNER_EMAIL every morning whether or not anything is wrong, with row counts, a comparison against yesterday (a table that shrank or emptied goes red and also fires dispatchAlert), and a 7-day signed download link. 96 checks, 28 mutations caught.  
+  <sub>*task:* understand, change or restore from the nightly backup of the database &nbsp;|&nbsp; *keywords:* backup, backups, nightly backup, backup-run, backup-shared, keep the last 5, restore, restore a backup, recover data, data loss, deleted a client, deleted leads, lost data, undo a delete, disaster recovery, 1am backup, morning backup email, backups bucket, snapshot, database backup, supabase backup, gzip snapshot, signed url, verifyAgainst, toPrune, countWarnings, table emptied overnight, is my data safe</sub>
 - **[os-alerts-notifications](../knowledge/os-alerts-notifications.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   OS alerts are derived from clients; a quiet refreshClients (Supabase realtime + 15s poll + focus refetch) keeps the count live, and new alerts pop a bottom-left toast (seenAlertKeys diff). Contract-expiry/intake alerts are dismissible (dismissedAlerts, keys c7:/c30:/intake). The portal "Upgrade" CTA uses a two-step confirm that persists upgradeRequest → live alert.  
   <sub>*task:* work on OS owner alerts/notifications (live refresh, toasts, dismissing) and the portal upgrade request &nbsp;|&nbsp; *keywords:* refreshClients, seenAlertKeys, dismissedAlerts, notifCount, NotificationsPanel, upgradeRequest</sub>
