@@ -141,6 +141,19 @@
 [functions."daily-check"]
   schedule = "40 13 * * *"
 
+# 🔴 THE ONLY COPY OF THE BUSINESS. 08:00 UTC = 1:00am America/Phoenix (AZ has no DST).
+# Bryson, 2026-09-11: "I want to start keeping a backup data base of everything we have ...
+# keep the last 5 ... I also get an email each morning ... run this everyday at 1am".
+#
+# The OS and the marketing site are code and GitHub already keeps every version of them. The
+# DATABASE was the half nothing protected: every client, lead, campaign and contract sits in
+# one Supabase project, and a bad write or a wrong delete took all of it with no way back.
+# This copies it nightly into a PRIVATE bucket, reads the file back to prove it is readable,
+# then deletes anything past the fifth. Emails the result every morning, working or not,
+# because a backup that only speaks when it breaks looks exactly like one that has died.
+[functions."backup-run"]
+  schedule = "0 8 * * *"
+
 [functions."conversion-sync"]
   schedule = "0 4 * * *"
 
