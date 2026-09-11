@@ -75,6 +75,31 @@ export const hoursSince = (iso) => {
   return Number.isFinite(t) ? (Date.now() - t) / 3.6e6 : null;
 };
 
+// ── Is the site actually running the code we think it is? ───────────────────
+// 🔴 THE ONE FAILURE THIS JOB COULD NOT SEE ON ITS OWN. In August seven builds in a row were
+// rejected by Netlify's secret scanner while git reported every merge as fine, and the OS
+// quietly served day-old code for days (KB `netlify-secret-scan-deploys`). This function
+// runs FROM that deploy, so it cannot notice its own staleness by looking inward. The only
+// way to see it is to ask GitHub what the branch head is and compare.
+//
+// A difference is not automatically a fault: a build takes a few minutes, so a commit pushed
+// moments ago is expected to be ahead. Only a head that has been sitting there past the
+// grace period means a build failed or never started.
+export const deployBehind = ({ deployed, head, headAt, now = Date.now(), graceMinutes = 25 }) => {
+  if (!deployed) return { ok: null, why: "this deploy does not know which commit it was built from" };
+  if (!head) return { ok: null, why: "could not read the branch head from GitHub" };
+  const short = (c) => String(c).slice(0, 7);
+  if (String(deployed) === String(head)) return { ok: true, why: `live on ${short(head)}` };
+  const mins = headAt ? (now - new Date(headAt).getTime()) / 6e4 : null;
+  if (mins != null && mins < graceMinutes) {
+    return { ok: true, why: `${short(head)} was pushed ${Math.round(mins)} min ago and is probably still building` };
+  }
+  return { ok: false,
+    why: `the live site is running ${short(deployed)} but main is ${short(head)}`
+       + (mins != null ? `, pushed ${Math.round(mins / 60)}h ago` : "")
+       + ". A build has failed or never ran, so every change since then is NOT live. Check the Netlify deploy log." };
+};
+
 // One place decides what counts as a failure, so the alert and the stored row agree.
 export const summarize = (checks) => {
   const failed = checks.filter((c) => c.ok === false);
@@ -90,11 +115,11 @@ export const summarize = (checks) => {
   };
 };
 
-const get = async (url, ms = 15000) => {
+const get = async (url, ms = 15000, headers = {}) => {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), ms);
   try {
-    const r = await fetch(url, { signal: ac.signal, headers: { "user-agent": "BoldLine daily-check" } });
+    const r = await fetch(url, { signal: ac.signal, headers: { "user-agent": "BoldLine daily-check", ...headers } });
     const body = await r.text();
     return { status: r.status, ok: r.ok, body };
   } catch (e) {
@@ -163,7 +188,29 @@ export default async (req) => withFailureAlert("daily-check", async () => {
         : `last read ${ageAd.toFixed(1)}h ago, and it should be within ${STALE_HOURS.adPerf}h. The hourly sync has stopped.`);
   }
 
-  // ── 5. The endpoints the OS leans on ──────────────────────────────────────
+  // ── 5. Is the deploy current? ─────────────────────────────────────────────
+  // Needs GITHUB_READ_TOKEN in Netlify (a read-only token; the repo is private). Without it
+  // this skips rather than failing, so the rest of the check still runs.
+  {
+    const deployed = process.env.COMMIT_REF || "";
+    const tok = process.env.GITHUB_READ_TOKEN || "";
+    if (!tok) {
+      add("The deploy is current", null, "GITHUB_READ_TOKEN is not set in Netlify, so the live commit cannot be compared with main");
+    } else {
+      const r = await get("https://api.github.com/repos/BrysonWeiser/boldline-os/commits/main", 15000,
+        { authorization: "Bearer " + tok, accept: "application/vnd.github+json" });
+      let head = null, headAt = null;
+      try {
+        const j = JSON.parse(r.body || "{}");
+        head = j.sha || null;
+        headAt = (j.commit && j.commit.committer && j.commit.committer.date) || null;
+      } catch (e) { /* falls through to the null head below */ }
+      const v = deployBehind({ deployed, head, headAt });
+      add("🔴 The deploy is current", v.ok, v.why);
+    }
+  }
+
+  // ── 6. The endpoints the OS leans on ──────────────────────────────────────
   // A GET with no arguments should be REFUSED, not crash. A 500 here means the function
   // fails to start, which is how a whole feature goes missing without anything saying so.
   for (const fn of ["portal", "landing", "lead-intake"]) {
@@ -174,7 +221,7 @@ export default async (req) => withFailureAlert("daily-check", async () => {
 
   const sum = summarize(checks);
 
-  // ── 6. Say something, but only when it is worth saying ────────────────────
+  // ── 7. Say something, but only when it is worth saying ────────────────────
   // 🔴 A checker that only speaks when things break is indistinguishable from a checker that
   // has itself died. So a failure alerts immediately, and Monday morning gets an all-clear
   // whether or not anything was wrong.

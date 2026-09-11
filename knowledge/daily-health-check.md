@@ -2,9 +2,9 @@
 name: daily-health-check
 topic: OS app
 task: understand or change the automatic checks that watch the OS, the client portal and the live site
-keywords: [daily check, health check, daily-check.mjs, is everything working, automatic testing, CI, github actions, run-all, run all tests, tests do not run, live site check, deployed site, green repo broken site, monitoring, all clear, monday all-clear, health_checks]
+keywords: [deploy is current, stale deploy, deployBehind, COMMIT_REF, GITHUB_READ_TOKEN, build failed silently, merged but not live, git says merged, daily check, health check, daily-check.mjs, is everything working, automatic testing, CI, github actions, run-all, run all tests, tests do not run, live site check, deployed site, green repo broken site, monitoring, all clear, monday all-clear, health_checks]
 status: built
-summary: There was no CI and no live-site check, so 86 test suites only ran when somebody typed the command, and nothing ever looked at what Netlify actually served. Two layers now. `tests/run-all.mjs` plus a GitHub Action runs every suite on every push and again at 6:10am Phoenix. `netlify/functions/daily-check.mjs` runs at 6:40am against the LIVE site: it fetches the OS, a real client's portal and their landing page, and PARSES the scripts, which is the only check that could have seen the 2026-09-10 outage. Read only, alerts red on failure, and sends a Monday all-clear so silence means the check is alive. 45 checks, 16 mutations caught.
+summary: There was no CI and no live-site check, so 86 test suites only ran when somebody typed the command, and nothing ever looked at what Netlify actually served. Two layers now. `tests/run-all.mjs` plus a GitHub Action runs every suite on every push and again at 6:10am Phoenix. `netlify/functions/daily-check.mjs` runs at 6:40am against the LIVE site: it fetches the OS, a real client's portal and their landing page, and PARSES the scripts, which is the only check that could have seen the 2026-09-10 outage. Read only, alerts red on failure, and sends a Monday all-clear so silence means the check is alive. 65 checks, 24 mutations caught.
 verified: 2026-09-10
 ---
 
@@ -51,6 +51,18 @@ Both are invisible to anything that only reads the repo.
 
 ## Verified
 
-`tests/verify-daily-check.mjs` — **45 checks, 16 mutations, all caught.** The first assertion is the one that matters: it feeds the checker the **exact broken page from 2026-09-10** and requires it to go red, then feeds it the healthy one and requires it to go green. It also re-breaks the real `index.html` preview in memory and confirms the check catches that too, so the guard cannot rot into a check that only passes.
+`tests/verify-daily-check.mjs` — **65 checks, 24 mutations, all caught.** The first assertion is the one that matters: it feeds the checker the **exact broken page from 2026-09-10** and requires it to go red, then feeds it the healthy one and requires it to go green. It also re-breaks the real `index.html` preview in memory and confirms the check catches that too, so the guard cannot rot into a check that only passes.
 
-**One thing it does NOT do yet:** notice that a deploy failed while git says merged. The scheduled function runs from the same deploy, so it cannot detect its own staleness. Catching that needs the live site compared against the repo's head commit, which needs a GitHub token in Netlify. Worth doing if the secret-scan incident ever repeats.
+## 🔴 And the one it could not see on its own: a deploy that never happened
+
+In August, seven builds in a row were rejected by Netlify's secret scanner **while git reported every merge as fine**, and the OS quietly served day-old code for days (KB `netlify-secret-scan-deploys`). This job runs FROM the deploy, so it can never notice its own staleness by looking inward.
+
+`deployBehind()` compares Netlify's `COMMIT_REF` (the commit this deploy was built from) against the head of `main` read from GitHub.
+
+**A difference alone is not a fault.** A build takes minutes, so a commit pushed moments ago is *expected* to be ahead. Only a head that has sat there past a **25 minute grace period** means a build failed or never started. Without that grace this would page him on every single push, and an alarm that fires on normal work is an alarm he turns off.
+
+**Unknown is not OK.** No `COMMIT_REF`, or no readable head from GitHub, reports as **skipped**, never as fine.
+
+**It needs `GITHUB_READ_TOKEN` in Netlify** (read-only; the repo is private). 🔴 **Until that is set the check SKIPS rather than failing**, so the rest of the morning check still runs and he does not get a red alert every day for a setting that is simply absent. `null` is the skip and `false` is the alarm; a mutation swapping them initially survived and the assertion now pins the literal.
+
+**Setting it:** Netlify → the site → Site configuration → Environment variables → Add a variable → key `GITHUB_READ_TOKEN`, value a GitHub fine-grained token with **Contents: Read-only** on this repo. Then redeploy. The value never goes in the repo.
