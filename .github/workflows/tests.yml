@@ -1,0 +1,34 @@
+# Runs every suite on every push, and again each morning.
+#
+# There was no CI at all until 2026-09-10. That day the client portal shipped a syntax error
+# that killed every button on it, live, for a full day, and nothing anywhere noticed. The
+# suites existed and would have caught plenty; they just never ran unless somebody typed the
+# command.
+#
+# The daily run matters separately from the push run: a suite can start failing without any
+# push, because several of them read live files and external shapes.
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  schedule:
+    # 13:10 UTC = 6:10am Phoenix, so a failure is waiting when Bryson wakes up rather than
+    # arriving in the middle of his day. Phoenix never changes offset, so this never drifts.
+    - cron: "10 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Run every suite
+        run: node tests/run-all.mjs --quiet
