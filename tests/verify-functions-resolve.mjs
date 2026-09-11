@@ -54,6 +54,10 @@ const GLOBALS = new Set([
   "encodeURI", "decodeURI", "atob", "btoa", "crypto", "performance", "arguments",
   "Uint8Array", "Uint16Array", "Uint32Array", "Int8Array", "Int16Array", "Int32Array",
   "Float32Array", "Float64Array", "ArrayBuffer", "DataView", "ReadableStream", "WritableStream",
+  // Both are real globals and both are used on purpose by daily-check, which parses the
+  // scripts the live site serves: `new Function(code)` is the parse itself, and `eval` is
+  // how the OS page's portal literal is turned into the text a browser would receive.
+  "Function", "eval",
 ]);
 
 const walk = (dir) => readdirSync(join(ROOT, dir), { withFileTypes: true })

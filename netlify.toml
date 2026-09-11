@@ -135,6 +135,12 @@
 #
 # Overnight on purpose: a lead graded during the working day is sent that same evening, and
 # the run never collides with Bryson using the buttons by hand.
+# 13:40 UTC = 6:40am Phoenix. Runs AFTER the GitHub Action's 6:10 test run, so if both are
+# going to complain they arrive together rather than an hour apart. Checks the LIVE site,
+# which is the half the test suite structurally cannot see.
+[functions."daily-check"]
+  schedule = "40 13 * * *"
+
 [functions."conversion-sync"]
   schedule = "0 4 * * *"
 
