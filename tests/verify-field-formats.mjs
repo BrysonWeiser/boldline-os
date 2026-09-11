@@ -148,8 +148,15 @@ const { tidyField, locationNotes, lineNotes } =
       (src.match(/onblur="blUrl\(this\)"/g) || []).length === 3,
       "privacy, terms and SMS consent are filed together and are checked together");
   }
-  // Run the real thing rather than trusting the regex.
-  const m = /function blUrl\(el\)\{[\s\S]*?\}(?=function saveInfo)/.exec(PORTAL);
+  // 🔴 RUN WHAT THE BROWSER RUNS, not what the file says. This used to pull blUrl straight
+  // out of the source and eval it, which only worked BECAUSE the template literal was eating
+  // the regex escapes. The day that was fixed, this test broke, having passed for a day
+  // while every button in the real portal was dead. The emitted script is the truth.
+  const { emittedPortalScript } = await import("./helpers/portal-script.mjs");
+  const live = emittedPortalScript("netlify/functions/portal.mjs");
+  ok("the portal script was emitted for testing", !!live);
+  const m = /function blUrl\(el\)\{[\s\S]*?\}(?=function saveInfo)/.exec(live.code);
+  ok("blUrl was found in the emitted script", !!m);
   const blUrl = new Function(m[0] + "\nreturn blUrl;")();
   const el = (v) => { const o = { value: v }; blUrl(o); return o.value; };
   ok("🔴 it adds the scheme and keeps the path, including the .html the carriers want",
