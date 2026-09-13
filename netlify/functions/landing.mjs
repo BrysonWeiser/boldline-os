@@ -91,6 +91,26 @@ export function designConfig(cl) {
 //     fine. Hand-off mode fires their own Google Ads conversion tag on form submit.
 //
 // `opts.handoff` is `{ phone, conversionId, conversionLabel }`. Absent = normal page.
+// 🔴 AN EMPTY GALLERY TILE MUST NOT LOOK LIKE A BROKEN ONE.
+//
+// Bryson, 2026-09-13, on Sebastian's live page: *"the landing page is still working good it
+// loads the only issue is not all the images loaded"*. Every photo was fine: HTTP 200, valid
+// pixels, every time, checked directly. What he caught was a tile laid out at full size and
+// faded in on schedule with NOTHING IN IT yet.
+//
+// Reproduced by holding one gallery image back: the tile sits at full opacity and full height,
+// empty, beside two tiles showing photos. On a dark page that is a black square, which is
+// exactly what a dead image looks like. The tile now carries a surface colour, so a photo that
+// has not arrived reads as a slot still filling rather than a hole.
+//
+// The first few are also fetched eagerly. Measured in Chrome this changes almost nothing
+// (70ms versus 15ms — the gallery is near enough to the viewport that lazy loads it anyway),
+// so this is INSURANCE, not the fix: Safari's lazy threshold is its own and could not be
+// tested here, and the gallery is one screen down on a phone, so everybody scrolls to it and
+// lazy saves nothing. Photos are 70KB to 170KB each after the resizer (KB
+// `landing-image-weight`), so four eager is a rounding error. Beyond four, lazy is right again.
+const GALLERY_EAGER = 4;
+
 export function renderLandingPage(cl, opts = {}) {
   const HO = opts.handoff || null;
 
@@ -121,7 +141,14 @@ export function renderLandingPage(cl, opts = {}) {
   const photoAlt = (p, fallback) => {
     const l = String((p && p.label) || "").trim();
     const bare = l.replace(/\.[a-z0-9]{2,5}$/i, "");
-    const cameraish = !l || /^(img|dsc|dscn|pxl|photo|image|screenshot|scan|mvimg|pano)[ _-]?[\d_-]+$/i.test(bare) || /^[\d_-]+$/.test(bare);
+    // 🔴 The crop editor appends a suffix, and `IMG_6360-cropped` walked straight past this
+    // filter and printed on Sebastian's live page as the photo's description (Bryson saw it
+    // 2026-09-13). Editor suffixes are stripped before the test: "IMG_6360" and
+    // "IMG_6360-cropped" are the same non-description. The test stays FULLY ANCHORED, because
+    // matching these ordinary words anywhere in a label would silently replace every properly
+    // written description with the business name, which is a worse bug and an invisible one.
+    const core = bare.replace(/[ _-]*(cropped|crop|edited|edit|copy|final|resized|small|large|\(\d+\))$/i, "").trim();
+    const cameraish = !l || /^(img|dsc|dscn|pxl|photo|image|screenshot|scan|mvimg|pano)[ _-]?[\d_-]*$/i.test(core) || /^[\d_-]+$/.test(core);
     // The extension goes either way. Nobody describes a picture as "outside the shop.jpg".
     return cameraish ? fallback : bare;
   };
@@ -352,7 +379,7 @@ a{color:inherit}
    Centred at exactly one column wide, so it stays the same size as the two above it
    rather than stretching to fill the row, which would be a different kind of wrong. */
 .gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
-.gitem{overflow:hidden;border-radius:var(--r)}
+.gitem{overflow:hidden;border-radius:var(--r);background:${P.surface}}
 .gal{align-items:start}.gitem img{width:100%;height:auto;display:block;transition:transform .5s ease}.gal.uni .gitem img{aspect-ratio:var(--galr);object-fit:cover}
 .gitem:hover img{transform:scale(1.06)}
 /* offer */
@@ -703,7 +730,7 @@ a{color:inherit}
 
   const stepsSection = `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps">${steps.map((s, i) => `<div class="step reveal" style="transition-delay:${i * 70}ms"><div class="num">${i + 1}</div><h3>${esc(s)}</h3></div>`).join("")}</div></div></section>`;
 
-  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal ${gridFor(photos.length)}">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(sized(p.url, 1100))}" alt="${esc(photoAlt(p, cl.name))}" loading="lazy" decoding="async"></div>`).join("")}</div></div></section>` : "";
+  const gallerySection = photos.length >= 2 ? `<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal ${gridFor(photos.length)}">${photos.map((p, i) => `<div class="gitem reveal" style="transition-delay:${i * 60}ms"><img src="${esc(sized(p.url, 1100))}" alt="${esc(photoAlt(p, cl.name))}"${i < GALLERY_EAGER ? '' : ' loading="lazy"'} decoding="async"></div>`).join("")}</div></div></section>` : "";
 
   const offerSection = offer ? `<section class="sec"><div class="wrap"><div class="offer reveal"><div class="ok">Limited-time offer</div><h2>${esc(offer)}</h2><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></div></section>` : "";
 

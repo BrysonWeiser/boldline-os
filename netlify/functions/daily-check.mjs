@@ -100,6 +100,50 @@ export const deployBehind = ({ deployed, head, headAt, now = Date.now(), graceMi
        + ". A build has failed or never ran, so every change since then is NOT live. Check the Netlify deploy log." };
 };
 
+// 🔴 WHERE A CLIENT'S LANDING PAGE ACTUALLY LIVES.
+//
+// Bryson, 2026-09-13: the check emailed him *"Stencil & Thread's landing page loads: returned
+// 404"*, he opened the page himself, and it was fine. It was fine every day. This check had
+// been fetching `/.netlify/functions/landing?c=<id>`, and **`landing.mjs` has no `c`
+// parameter**. It resolves a client by `/lp/<slug>` or by the host header, and nothing else.
+// So the URL could not have worked for any client, ever: a check whose only possible outcome
+// is failure, reporting a fault that does not exist.
+//
+// He is right that this is worse than no check. An alarm that cries wolf on day one is an
+// alarm nobody reads on the day it is telling the truth, and it costs him a morning each time.
+// So the address is now derived from the same two fields the router actually reads.
+//
+// The client's OWN domain is preferred when they have one, because that is the address the
+// ads point at and the only one a visitor ever types. `/lp/<slug>` is our own route and is
+// the fallback. No slug and no domain means there is nothing to check, which is a SKIP.
+// Every image the page actually asks the browser for, as absolute URLs, deduped and capped.
+// The cap keeps a client with a thirty-photo gallery from turning a health check into a crawl.
+export const PAGE_IMAGE_LIMIT = 8;
+export const pageImages = (html, limit = PAGE_IMAGE_LIMIT) => {
+  const out = [];
+  for (const m of String(html || "").matchAll(/<img\b[^>]*?\ssrc=["']([^"']+)["']/gi)) {
+    // `&amp;` is correct in an attribute and the browser undoes it. Fetching it verbatim
+    // would send a literal "amp;" and 400 on every resized image, which is a false alarm of
+    // precisely the kind this file is being fixed for.
+    const src = m[1].replace(/&amp;/g, "&").trim();
+    if (!src || /^data:/i.test(src)) continue;
+    if (!/^https?:\/\//i.test(src)) continue;   // relative srcs need a base we may not have
+    if (!out.includes(src)) out.push(src);
+    if (out.length >= limit) break;
+  }
+  return out;
+};
+
+export const landingUrlFor = (client, base) => {
+  const cl = client || {};
+  const domain = String((cl.campaignSetup && cl.campaignSetup.landingDomain) || "")
+    .trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  if (domain) return { url: `https://${domain}/`, why: "their own domain, which is what the ads point at" };
+  const slug = String(cl.landingSlug || "").trim();
+  if (slug) return { url: `${base}/lp/${encodeURIComponent(slug)}`, why: "our own address for it" };
+  return null;
+};
+
 // One place decides what counts as a failure, so the alert and the stored row agree.
 export const summarize = (checks) => {
   const failed = checks.filter((c) => c.ok === false);
@@ -167,15 +211,36 @@ export default withFailureAlert("daily-check", async () => {
     }
 
     // ── 3. Their landing page, which is where the ad money lands ─────────────
-    const lp = (client.landingPage && client.landingPage.published) ? await get(`${BASE}/.netlify/functions/landing?c=${encodeURIComponent(client.id)}`) : null;
-    if (!lp) add("A published landing page to check", null, "this client has no published page yet");
+    const target = (client.landingPage && client.landingPage.published) ? landingUrlFor(client, BASE) : null;
+    const lp = target ? await get(target.url) : null;
+    if (!lp) add("A published landing page to check", null,
+      client.landingPage && client.landingPage.published
+        ? "their page is published but has no address set yet, so there is nothing to fetch"
+        : "this client has no published page yet");
     else {
-      add(`${client.name}'s landing page loads`, lp.ok, lp.ok ? "" : `returned ${lp.status} ${lp.error || ""}`);
+      add(`${client.name}'s landing page loads`, lp.ok,
+        lp.ok ? "" : `${target.url} returned ${lp.status} ${lp.error || ""} (checked ${target.why})`);
       if (lp.ok) {
         add("The landing page still has its lead form", /<form/i.test(lp.body) && /name=["']phone["']/i.test(lp.body),
           "a landing page with no form collects nothing, and the ads keep spending");
         const r = scriptsParse(lp.body);
         add("The landing page's script parses", r.bad.length === 0, r.bad[0] || "");
+
+        // 🔴 THE CHECK NEVER LOOKED AT THE PHOTOS, WHICH IS THE ONE THING HE WAS LOOKING AT.
+        // Bryson, 2026-09-13, reported photos missing from this exact page. Everything here
+        // asked whether the HTML arrived; nothing asked whether the pictures in it did. A
+        // page that returns 200 with dead images is a page the ads are still paying for.
+        const imgs = pageImages(lp.body);
+        if (!imgs.length) add("The landing page's photos load", null, "this page has no images on it");
+        else {
+          const bad = [];
+          for (const src of imgs) {
+            const r2 = await get(src, 12000);
+            if (!r2.ok) bad.push(`${src.split("/").pop().split("?")[0]} returned ${r2.status || r2.error}`);
+          }
+          add("The landing page's photos load", bad.length === 0,
+            bad.length ? `${bad.length} of ${imgs.length} did not: ${bad.slice(0, 3).join("; ")}` : `${imgs.length} checked`);
+        }
       }
     }
 
