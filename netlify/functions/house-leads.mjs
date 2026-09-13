@@ -44,7 +44,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { syncHouseLeads } from "../lib/house-leads-run.mjs";
-import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
+import { withFailureAlert } from "../lib/alerts-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -61,19 +61,27 @@ const json = (body, status = 200) =>
 // noticed. This file's own comment says a failed read must never look like a real zero;
 // that held for the SCREEN and not for the alerting.
 //
-// So: wrapped so a throw alerts, and each swallowed error now raises one too, naming the
+// So: wrapped so a throw is recorded, and each swallowed error is logged loudly naming the
 // step that failed. The returns stay 200 on purpose — a scheduled function that 500s gets
 // retried by Netlify, and re-running a merge that already half-wrote is worse than waiting
 // fifteen minutes for the next clean pass.
+//
+// 🔴 2026-09-12, 11pm: THIS USED TO SEND A RED ALERT ON EVERY SINGLE FAILED RUN, AND THAT
+// WAS WRONG. One "Gateway Timeout" reading the client list woke Bryson for a blip that was
+// gone a second later. The fix above (every call now retries three times) kills most of
+// those outright. This is the other half, and it is the more important half: a job that
+// runs 96 times a day must not page on its own first bad run, because if the fault lasts an
+// hour he gets four identical alerts, and if it lasts a day he gets ninety-six and mutes
+// the channel that is supposed to reach him when something real happens. The identical
+// lesson is written down in report-shared beside the retry, from the clock-skew incident.
+//
+// A failed run now stays quiet and simply DOES NOT REFRESH THE HEARTBEAT. `alerts-watch`
+// reads that heartbeat every fifteen minutes and says something ONCE if the mirror has
+// genuinely stopped for two hours. That watcher is a separate job with its own database
+// connection, so it keeps working while this one cannot, which is exactly the property a
+// thing judging another thing's health needs to have.
 const warn = async (step, detail) => {
   console.error(`house-leads: ${step}: ${detail}`);
-  try {
-    await dispatchAlert({
-      title: "Lead check is not running",
-      body: `The 15-minute job that mirrors website leads onto My Ads failed at "${step}": ${detail}. While this is failing the lead count on My Ads is frozen and new leads will not appear there. Check Netlify, Logs, Functions, house-leads.`,
-      severity: "red",
-    });
-  } catch (e) { console.error("house-leads: alert failed:", e && e.message); }
 };
 
 export default withFailureAlert("house-leads", async () => {
@@ -90,6 +98,6 @@ export default withFailureAlert("house-leads", async () => {
     return json(await syncHouseLeads(supabase, { warn }));
   } catch (e) {
     await warn("the run itself", String((e && e.message) || e));
-    return json({ ok: true, error: String((e && e.message) || e), added: 0 });
+    return json({ ok: false, error: String((e && e.message) || e), added: 0 });
   }
 });

@@ -21,26 +21,38 @@
 // of them; it just happens sooner now.
 
 import { mergeHouseLeads, PRUNE_LIMIT } from "./house-leads-merge.mjs";
+import { retryQuery } from "./report-shared.mjs";
 
 /**
  * Mirror `website_leads` onto the internal (house) client record.
  * @param {object} supabase  a service-role client
  * @param {object} opts      { warn } — called as warn(step, detail) on a swallowed failure
- * @returns {object} the same shape both callers report
+ * @returns {object} the same shape both callers report. `ok:false` means this run did not
+ *                   complete, so the heartbeat was NOT refreshed and something watching it
+ *                   from the outside will notice if it keeps happening.
  */
+// 🔴 EVERY SUPABASE CALL IN HERE RETRIES. Added 2026-09-12 after one "Gateway Timeout" on
+// the client read sent Bryson a red alert at 11pm for a blip that was gone a second later.
+// Three attempts a second apart; a fault that survives all three is real.
+//
+// The UPDATE is safe to retry because it REPLACES the whole row (`update({ data })` on one
+// id), so applying it twice lands exactly where applying it once did. It is not an append,
+// and it must never become one without this changing with it.
 export async function syncHouseLeads(supabase, { warn = async () => {} } = {}) {
   // The house account. No internal client means nothing to mirror into, which is a normal
   // state (he can delete and re-add it), not an error.
-  const { data: houses, error: clErr } = await supabase
-    .from("clients").select("id, data").eq("data->>internal", "true").limit(1);
-  if (clErr) { await warn("reading the client list", clErr.message); return { ok: true, error: `clients read failed: ${clErr.message}`, added: 0 }; }
+  const { data: houses, error: clErr } = await retryQuery(
+    () => supabase.from("clients").select("id, data").eq("data->>internal", "true").limit(1),
+    { job: "house-leads", step: "reading the client list" });
+  if (clErr) { await warn("reading the client list", clErr.message); return { ok: false, error: `clients read failed: ${clErr.message}`, added: 0 }; }
   const house = (houses || [])[0];
   if (!house) return { ok: true, house: false, added: 0 };
 
-  const { data: rows, error: wlErr } = await supabase
-    .from("website_leads").select("id, created_at, form, name, business, email, message, status, payload")
-    .order("created_at", { ascending: false }).limit(PRUNE_LIMIT);
-  if (wlErr) { await warn("reading website_leads", wlErr.message); return { ok: true, error: `website_leads read failed: ${wlErr.message}`, added: 0 }; }
+  const { data: rows, error: wlErr } = await retryQuery(
+    () => supabase.from("website_leads").select("id, created_at, form, name, business, email, message, status, payload")
+      .order("created_at", { ascending: false }).limit(PRUNE_LIMIT),
+    { job: "house-leads", step: "reading website_leads" });
+  if (wlErr) { await warn("reading website_leads", wlErr.message); return { ok: false, error: `website_leads read failed: ${wlErr.message}`, added: 0 }; }
 
   const leads = rows || [];
   const cl = house.data || {};
@@ -63,10 +75,12 @@ export async function syncHouseLeads(supabase, { warn = async () => {} } = {}) {
     return { ok: true, house: true, scanned: leads.length, added: 0, updated: 0, pruned: 0, total: kept.length, beat: false };
   }
 
-  const { error: upErr } = await supabase.from("clients")
-    .update({ data: { ...cl, leadsLog: kept, leads: kept.length, leadSync }, updated_at: new Date().toISOString() })
-    .eq("id", house.id);
-  if (upErr) { await warn("saving the mirrored leads", upErr.message); return { ok: true, error: `client update failed: ${upErr.message}`, added: 0 }; }
+  const { error: upErr } = await retryQuery(
+    () => supabase.from("clients")
+      .update({ data: { ...cl, leadsLog: kept, leads: kept.length, leadSync }, updated_at: new Date().toISOString() })
+      .eq("id", house.id),
+    { job: "house-leads", step: "saving the mirrored leads" });
+  if (upErr) { await warn("saving the mirrored leads", upErr.message); return { ok: false, error: `client update failed: ${upErr.message}`, added: 0 }; }
 
   // ─── 🔴 A LEAD HE DOES NOT KNOW ABOUT IS A LEAD HE LOSES ────────────────────
   // Bryson, 2026-09-04, on his first one: *"make sure I get an alert on my phone as well

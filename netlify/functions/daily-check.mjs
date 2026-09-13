@@ -22,6 +22,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
+import { STALE_HOURS, hoursSince } from "../lib/heartbeats.mjs";
 
 const BASE = String(process.env.URL || "https://boldlinemedia.netlify.app").replace(/\/$/, "");
 
@@ -69,11 +70,10 @@ export const previewScriptParses = (osHtml) => {
 };
 
 // How stale a stored reading may get before it means the job behind it stopped.
-export const STALE_HOURS = { adPerf: 8, leads: 2 };
-export const hoursSince = (iso) => {
-  const t = iso ? new Date(iso).getTime() : NaN;
-  return Number.isFinite(t) ? (Date.now() - t) / 3.6e6 : null;
-};
+// 🔴 ONE DEFINITION, shared with alerts-watch (../lib/heartbeats.mjs). These used to live
+// here alone, and `leads` sat unused for two days while nothing server-side watched the lead
+// mirror at all. Re-exported so this file's own callers keep working.
+export { STALE_HOURS, hoursSince } from "../lib/heartbeats.mjs";
 
 // ── Is the site actually running the code we think it is? ───────────────────
 // 🔴 THE ONE FAILURE THIS JOB COULD NOT SEE ON ITS OWN. In August seven builds in a row were

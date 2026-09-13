@@ -22,6 +22,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats, hasAdActivity } from "../lib/report-shared.mjs";
 import { countFoundingClients, FOUNDING_CLIENT_COUNT } from "../lib/founding.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
+import { leadMirrorState, STALE_HOURS } from "../lib/heartbeats.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 
 const ACTIVE_STAGES = ["active", "optimizing", "scaling"];
@@ -143,6 +144,42 @@ export default withFailureAlert("alerts-watch", async () => {
       await supabase.from("clients")
         .update({ data: { ...houseRow.data, foundingOfferSpentAlerted: new Date().toISOString() }, updated_at: new Date().toISOString() })
         .eq("id", houseRow.id);
+    }
+  }
+
+  // ── 🔴 HAS THE LEAD MIRROR ACTUALLY STOPPED? ───────────────────────────────
+  //
+  // 2026-09-12, 11pm: the 15-minute mirror hit one Gateway Timeout and red-alerted Bryson on
+  // the spot. Supabase was fine a second later. That job no longer alerts at all; it retries,
+  // and if it still cannot finish it simply does not refresh its heartbeat.
+  //
+  // 🔴 THE HEALTH OF A JOB IS JUDGED FROM OUTSIDE IT. A job that reports its own failures can
+  // only report the failures it survives, and it pages on blips because it cannot tell a blip
+  // from an outage from inside a single run. This watcher has its own database connection and
+  // its own schedule, so it keeps working while the mirror cannot, and it sees the one thing
+  // that actually distinguishes the two: how long the stall has lasted.
+  //
+  // Said ONCE per stall and re-armed on recovery. Without the re-arm this fires once ever and
+  // then stays silent through every future outage, which is worse than not having it.
+  {
+    const houseRow = (rows || []).find((r) => r.data && r.data.internal);
+    const st = leadMirrorState(houseRow);
+    if (st.alert) {
+      await dispatchAlert({
+        title: "Lead check has stopped",
+        body: `The job that copies website leads onto My Ads has not completed for ${st.hours.toFixed(1)} hours, and it is meant to run every 15 minutes.\n\nYour leads are NOT lost. They are still saving to the Leads screen and you still get an email and a buzz for each one. What is frozen is the lead count and cost per lead on My Ads, which will catch up by itself once this is running again.\n\nCheck Netlify, Logs, Functions, house-leads.`,
+        severity: "red",
+      });
+      alerted++;
+      await supabase.from("clients")
+        .update({ data: { ...houseRow.data, leadMirrorAlertedAt: new Date().toISOString() }, updated_at: new Date().toISOString() })
+        .eq("id", houseRow.id);
+    } else if (st.clear) {
+      const { leadMirrorAlertedAt, ...recovered } = houseRow.data;
+      await supabase.from("clients")
+        .update({ data: recovered, updated_at: new Date().toISOString() })
+        .eq("id", houseRow.id);
+      console.log(`alerts-watch: lead mirror recovered, ${st.why}`);
     }
   }
 

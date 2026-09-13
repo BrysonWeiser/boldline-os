@@ -330,16 +330,36 @@ export const sendEmail = async ({ to, subject, html, text }) => {
 //
 // Two quick retries, then let the error through. A failure that survives three attempts a
 // second apart is real and worth waking him for.
-export const loadAllClients = async (supabase, job = "job") => {
-  let last;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, attempt * 1000));
-    const { data, error } = await supabase.from("clients").select("id, data");
-    if (!error) return data;
-    last = error;
-    console.warn(`${job}: client lookup attempt ${attempt + 1} failed:`, error.message);
+//
+// 🔴 2026-09-12: THE SAME BLIP, IN A JOB THAT NEVER GOT THIS. At 11pm the 15-minute lead
+// mirror hit one "Gateway Timeout" reading the client list and red-alerted Bryson on the
+// spot. Supabase answered fine on the next attempt. The retry below had been written for
+// exactly that, for exactly the reason above, and only the report jobs were using it,
+// because it was welded to one specific query. So it is now a general helper and every
+// caller that talks to Supabase on a schedule can have it.
+//
+// Retry a Supabase call that came back with an error. Returns the same { data, error } the
+// caller expected, so a failure that survives every attempt is still handled normally rather
+// than thrown at a scheduled job that has no one to catch it.
+export const retryQuery = async (run, { job = "job", step = "query", attempts = 3, gapMs = 1000 } = {}) => {
+  let last = null;
+  for (let i = 0; i < attempts; i++) {
+    if (i) await new Promise((r) => setTimeout(r, i * gapMs));
+    const res = await run();
+    // error is forced to null, never left undefined: callers destructure { data, error }
+    // and `if (error)` must mean the same thing on every path out of here.
+    if (!res || !res.error) return { ...(res || {}), error: null, attempts: i + 1 };
+    last = res.error;
+    console.warn(`${job}: ${step} attempt ${i + 1} of ${attempts} failed: ${last.message}`);
   }
-  throw new Error(`client lookup failed after 3 attempts: ${last.message}`);
+  return { data: null, error: last, attempts };
+};
+
+export const loadAllClients = async (supabase, job = "job") => {
+  const { data, error, attempts } = await retryQuery(
+    () => supabase.from("clients").select("id, data"), { job, step: "client lookup" });
+  if (error) throw new Error(`client lookup failed after ${attempts} attempts: ${error.message}`);
+  return data;
 };
 
 export const appendLead = async (supabaseAdmin, row, lead) => {
