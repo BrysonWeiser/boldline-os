@@ -309,8 +309,18 @@ ok("a failing email never fails the backup", /sendEmail\([\s\S]*?\)\.catch\(/.te
     "a warning pushed after the list is read is a warning nobody sees");
 }
 
-ok("a crash is alerted rather than swallowed", /withFailureAlert\("backup-run"/.test(FN),
-  "a backup job that dies silently is worse than no backup, because it is trusted");
+// 🔴 THIS ASSERTION USED TO BE A GREP FOR `withFailureAlert("backup-run"` AND IT PASSED WHILE
+// THE JOB HAD NEVER RUN ONCE. The text was there. It is there in the broken version too: the
+// wrapper was on the INSIDE of an extra arrow, so the export handed Netlify a function
+// instead of running it. Greps prove a line exists, never that it is reachable. Now the
+// module is imported and the wrapper itself is asked. Full story in verify-scheduled-wiring.
+{
+  const mod = await import("../netlify/functions/backup-run.mjs");
+  eq("🔴 the backup actually runs when Netlify calls it", mod.default.wrappedJob, "backup-run",
+    "it shipped wrapped the wrong way round on 2026-09-11 and never ran a single time");
+  ok("a crash is alerted rather than swallowed", /withFailureAlert\("backup-run"/.test(FN),
+    "a backup job that dies silently is worse than no backup, because it is trusted");
+}
 
 console.log(`verify-backup: ${pass} passed, ${fails.length} failed`);
 if (fails.length) { fails.forEach(f => console.log("  ✗ " + f)); process.exit(1); }
