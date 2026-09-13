@@ -40,7 +40,7 @@ const emailHTML = ({ text, ok }) => {
 </div></body></html>`;
 };
 
-export default async () => withFailureAlert("backup-run", async () => {
+export default withFailureAlert("backup-run", async () => {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const startedAt = new Date();

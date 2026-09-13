@@ -66,7 +66,17 @@ export const dispatchAlert = async ({ title, body = "", severity = "red", smsTex
 // Wrap a scheduled-job handler so any unhandled failure becomes a "system /
 // integration failure" alert (Bryson asked for these) instead of a silent
 // outage. Re-throws after alerting so Netlify still records the failure.
-export const withFailureAlert = (jobName, handler) => async (...args) => {
+//
+// 🔴 2026-09-13: THE WRAPPER CAME BACK TAGGED AFTER TWO JOBS WERE SILENTLY NEVER WIRED IN.
+// This returns a FUNCTION. Written `export default withFailureAlert(name, fn)` that function
+// IS the handler and everything works. Written `export default async () => withFailureAlert(
+// name, fn)` the export returns the wrapper instead of running it, so the job body never
+// executes, nothing throws, and no alert can fire because the alerting is inside the thing
+// that never ran. `backup-run` and `daily-check` both shipped that way and neither had ever
+// run. The tag below is how `tests/verify-scheduled-wiring.mjs` tells the two apart without
+// executing anything.
+export const withFailureAlert = (jobName, handler) => {
+  const wrapped = async (...args) => {
   try {
     return await handler(...args);
   } catch (err) {
@@ -80,4 +90,7 @@ export const withFailureAlert = (jobName, handler) => async (...args) => {
     });
     return new Response("job failed", { status: 500 });
   }
+  };
+  wrapped.wrappedJob = jobName;
+  return wrapped;
 };

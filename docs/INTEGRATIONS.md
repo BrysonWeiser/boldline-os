@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 175 task-keyed entries under `knowledge/`. They surface automatically via the
+> 176 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**175 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**176 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -558,6 +558,9 @@
 - **[results-only-billing](../knowledge/results-only-billing.md)** &mdash; &#9989; verified &middot; 2026-08-27  
   A client with no monthly minimum could not be charged AT ALL — no card could be saved, charge-leads refused, and approved lead fees sat as pending invoice items waiting for a subscription invoice that would never exist. Fixed 2026-08-27: Checkout in mode:"setup" saves a card with no subscription (billingStatus "card_on_file"), and each approved batch of leads raises and charges a standalone invoice immediately. Found and fixed a hand-off client having no checkout button at all in the same pass.  
   <sub>*task:* charge a client who has no monthly minimum, or debug why approved leads never got invoiced &nbsp;|&nbsp; *keywords:* save-card, results-only, no monthly minimum, arrears, card_on_file, setup mode checkout, pending_invoice_items_behavior, charge-leads arrears, resolvePaymentMethod, ensureCustomer, billingStatus card_on_file, founding client billing, awaiting_card</sub>
+- **[scheduled-job-wiring](../knowledge/scheduled-job-wiring.md)** &mdash; &#9989; verified &middot; 2026-09-13  
+  `withFailureAlert` RETURNS a function, so `export default withFailureAlert(name, fn)` works and `export default async () => withFailureAlert(name, fn)` hands Netlify the wrapper instead of running it. The body never executes, nothing throws, and no alert can fire because the alerting lives inside the wrapper that was never invoked. `backup-run` and `daily-check` both shipped that way and NEITHER HAD EVER RUN, discovered 2026-09-13 when Bryson asked which address the backup email went to and the answer was that no email was ever sent. The wrapper now tags itself (`wrapped.wrappedJob = jobName`) and `tests/verify-scheduled-wiring.mjs` reads every scheduled job out of netlify.toml, imports it, and fails if a job that mentions the wrapper does not carry the tag. 14 checks, 7 mutations caught.  
+  <sub>*task:* add or debug a scheduled Netlify job, or work out why a job that looks fine never runs &nbsp;|&nbsp; *keywords:* scheduled function never runs, job did not run, backup never ran, daily check never ran, no backup email, withFailureAlert, wrappedJob, export default, extra arrow, job silently does nothing, netlify scheduled function, cron not firing, verify-scheduled-wiring, wiring, job looks fine but nothing happens, no email from job</sub>
 - **[service-agreement](../knowledge/service-agreement.md)** &mdash; &#9989; verified &middot; 2026-07-16  
   Full lawyer-style Advertising Services Agreement — BUILT 2026-07-16, replaces the old one-page stub. One data-driven template (makeContractHTML in index.html) serves every package — fees, term, features, per-lead fee (only when the niche has one), and ROAS bonus (only on ecom packages) all pull from client+package data, with section numbers computed so conditional sections never break the numbering. AZ law + AAA arbitration (remote-friendly) for national/international use. Both-sides exits: 30-day notice; client early exit = 1 month ETF + term-discount clawback; agency early exit = pro-rated refund, no ETF. Strong protections: no-results guarantee, platform-dependency shield, ad-spend liability firewall (hard constraint), liability cap (3 months fees), mutual indemnities, TCPA/consent responsibility on client, chargeback clause, e-sign validity. DRAFT — needs one-hour AZ attorney review before first real signature. /BL_SIGN_HERE/ DocuSign anchor preserved.  
   <sub>*task:* change the client service agreement / contract template, its clauses, or how it adapts per package &nbsp;|&nbsp; *keywords:* makeContractHTML, service agreement, contract template, early termination fee, ETF, holdover, arbitration, no guarantee, indemnification, liability cap, BL_SIGN_HERE, portfolio rights, per-lead, qualified lead, ROAS bonus</sub>

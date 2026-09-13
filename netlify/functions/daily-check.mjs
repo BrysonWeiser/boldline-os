@@ -127,7 +127,7 @@ const get = async (url, ms = 15000, headers = {}) => {
   } finally { clearTimeout(timer); }
 };
 
-export default async (req) => withFailureAlert("daily-check", async () => {
+export default withFailureAlert("daily-check", async () => {
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const checks = [];
   const add = (name, ok, detail) => checks.push({ name, ok, detail: detail || "" });
