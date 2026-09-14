@@ -107,8 +107,23 @@ if (stillGated) {
 } else {
   // ── STATE: flipped. Nothing may be left behind. ───────────────────────────
   console.log("state: FLIPPED (Meta approved)");
+  // 🔴 ELEVEN, NOT TWELVE, AND THIS ASSERTION HAD NEVER ONCE RUN UNTIL TODAY.
+  // It said 12 because that was true when it was written. **Full System: Launch** was deleted
+  // on 2026-08-18 when pricing moved to the greater-of model (running both platforms starts at
+  // $5,000/mo of ad budget, so a combined Launch tier could only be sold to someone it hurts),
+  // and the checklist has said so ever since. But this whole branch only executes once the
+  // sentinels are gone, so the stale number sat here for a month and failed on the one morning
+  // it mattered. Same shape as the scheduled jobs that had never run (KB `scheduled-job-wiring`).
+  //
+  // Counted PER PANEL rather than as a total, so a card vanishing from one panel and appearing
+  // in another cannot cancel out.
+  const perPanel = { google: 3, meta: 3, combined: 2, ecom: 3 };
+  for (const [name, n] of Object.entries(perPanel)) {
+    eq(`${name} panel has ${n} packages`, ctasIn(panelOf(name)).length, n);
+  }
   const all = GATED_PANELS.concat("google").flatMap((n) => ctasIn(panelOf(n)));
-  eq("all 12 packages are present", all.length, 12);
+  eq("all 11 packages are present", all.length,
+    Object.values(perPanel).reduce((a, b) => a + b, 0));
   ok("every package books a call", all.every((c) => /calendly/.test(c.href)),
     all.filter((c) => !/calendly/.test(c.href)).map((c) => c.text).join(" | "));
   ok("no waitlist copy survives anywhere", !/Join the waitlist/i.test(site));

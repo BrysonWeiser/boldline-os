@@ -3,10 +3,31 @@ name: meta-marketing-api
 topic: OS app
 task: continue the Meta (Facebook) Marketing API setup and business verification
 keywords: [meta-marketing-api, business-portfolio, business-verification, ads_management, ads_read, app-review, marketing-api-access-tier, standard-access, development-tier, security-center, screencast]
-status: awaiting-review
+status: approved
 summary: App Review came back 2026-08-12 PARTIALLY APPROVED — ads_management, business_management, pages_show_list, pages_read_engagement, public_profile all APPROVED (everything the OS code actually calls). Rejected: (1) Marketing API Access Tier — "not a sufficient number of Ads API calls in the last 15 days", so the app is stuck on Development tier = own ad accounts only; (2) ads_read — screencast showed static/placeholder numbers, reviewer wants live impressions/clicks/reach/spend/conversions populating for one ad account, and wants told the app is server-to-server/system-user. PLAN: don't resubmit yet — run real Meta ads on the My Ads house account (allowed on Development tier today) for 15+ days to generate genuine API traffic + real numbers, drop ads_read from the resubmission (ads_management is a superset), then re-request the tier. Meta gates only Meta-ads clients — Google clients sellable regardless.
 verified: 2026-08-12
 ---
+
+# ✅ APPROVED — 2026-09-14, 12:20pm Phoenix
+
+**Marketing API Access Tier: APPROVED.** Submitted 12:20pm, approved the same afternoon. The five
+existing permissions (`pages_show_list`, `business_management`, `pages_read_engagement`,
+`public_profile`, `ads_management`) all came back **Renewed**. `ads_read` was deliberately not
+re-requested and is not needed: `ads_management` covers reading.
+
+**Turnaround was hours, not the 20 days Meta quotes.** Consistent with the brand-verification
+change Google-style automation brought in during 2026.
+
+**What made the difference vs the July rejection**, which was purely *"not a sufficient number of
+Ads API calls in the last 15 days"*: real Meta ads ran on the house account from mid-August, and
+`ads-sync` calls the Insights endpoint hourly per linked account. About a month of genuine traffic
+instead of almost none. The reviewer text also led with the server-to-server / System User
+statement the previous reviewer asked for by name, and stated the hourly call volume explicitly.
+
+🔴 **The site was flipped out of its coming-soon state the same hour, automatically**, per the
+standing trigger in CLAUDE.md. See `site-coming-soon`. Parked feature work is in `meta-parked-work`
+and is now unblocked.
+
 
 ## ✅ RESUBMITTED 2026-09-14 (Monday, Phoenix). Answer due within ~20 days.
 

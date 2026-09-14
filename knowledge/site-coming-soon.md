@@ -8,6 +8,32 @@ summary: boldlinemedia.com temporarily shows "Coming soon — estimated October 
 verified: 2026-08-13
 ---
 
+# ✅ FLIPPED BACK — 2026-09-14, the hour Meta approved
+
+All 31 `CS:META-SOON` sentinels removed (29 in `marketing-site/index.html`, 2 in
+`get-started/index.html`). Every one of the 11 packages now books a call. No waitlist button, no
+"Coming soon" pill, no coming-soon copy survives anywhere.
+
+**Flipped by the SENTINELS, per `docs/META-FLIP-CHECKLIST.md`, not by `git revert a4b83f0`** — the
+revert would have left the Full System: Acquisition card's waitlist button in place, because that
+card was added after the commit.
+
+The two traps the checklist warns about both held: `rec-gate` is a `/* */` JavaScript comment, not
+HTML, and `styles` + `rec-gate` carry a trailing note after the id. The removal matched on
+`CS:META-SOON:START <id>` and accepted either comment syntax, so neither was skipped.
+
+🔴 **A test assertion in the flipped branch was stale and had never once run.**
+`verify-meta-flip` expected **12** packages; the site has **11**, because Full System: Launch was
+deleted on 2026-08-18 when pricing moved to the greater-of model. That branch only executes once
+the sentinels are gone, so a wrong number sat there for a month and failed on the one morning it
+mattered. Now counted **per panel** (google 3, meta 3, combined 2, ecom 3) so a card moving between
+panels cannot cancel out. Same shape as KB `scheduled-job-wiring`: code that has never executed is
+not tested code.
+
+Verified in a real browser at 390/768/1280/1600: no sideways scroll, no page errors, all four tabs
+present and clean.
+
+
 **Why (Bryson, 2026-08-13):** he's starting cold calls for Google Ads clients now, and the site implied Meta was available. It isn't — Meta rejected the Marketing API standard tier and it needs 15+ days of real ad traffic before resubmission (KB `meta-marketing-api`). Selling something he can't deliver on a first call is the fastest way to lose a client he hasn't got yet.
 
 **What is actually blocked.** Of the 11 packages, only the **3 Google-only** ones are Meta-independent. `Combined` is `Google + Meta` and **both E-Commerce tiers are `Meta + Google`** — so E-Commerce is gated too, which is easy to miss because the e-commerce package copy never names a platform. Checked against `PACKAGES_DB` rather than assumed.
