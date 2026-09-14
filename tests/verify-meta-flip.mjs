@@ -129,6 +129,43 @@ if (stillGated) {
   ok("no waitlist copy survives anywhere", !/Join the waitlist/i.test(site));
   ok("no coming-soon pill survives", !/class="soon"/.test(site));
   for (const [f, src] of bothFiles) ok(`${f} has no sentinels left`, !/CS:META-SOON/.test(src));
+
+  // ── Meta has to be OFFERED, not merely un-gated ──────────────────────────
+  // The flip removed the sentinels, but two places choose platforms for the
+  // visitor and neither carried one. The contact wizard's first question still
+  // read "Google Ads / Not sure yet" for a day after Meta went live.
+  const wizOpts = (site.match(/<div class="opts" data-key="platform">([\s\S]*?)<\/div>/) || [, ""])[1];
+  const wizVals = [...wizOpts.matchAll(/data-val="([^"]+)"/g)].map((m) => m[1]);
+  ok("the contact wizard offers Meta", wizVals.some((v) => /meta/i.test(v)), wizVals.join(" | "));
+  ok("the contact wizard offers both platforms together",
+    wizVals.some((v) => /google/i.test(v) && /meta/i.test(v)), wizVals.join(" | "));
+
+  // 🔴 EXECUTED, NOT GREPPED. FAMILIES.meta existing proves nothing about whether
+  // any answer combination can REACH it — the gated build had the map intact and
+  // the routing disabled. So run the shipped pickFamily over every combination
+  // the modal can actually produce and assert each family comes out at least once.
+  const recSrc = (site.match(/var FAMILIES = \{[\s\S]*?\n  \}\n/) || [])[0];
+  ok("the recommender's family map and routing are still in the page", !!recSrc);
+  if (recSrc) {
+    const budgets = optVals("budget"), types = optVals("type"), channels = optVals("channel");
+    eq("the modal still asks all three questions",
+      [budgets.length, types.length, channels.length].every((n) => n > 0), true);
+    const run = new Function("answers", recSrc + "\nreturn pickFamily();");
+    const seen = new Set();
+    for (const budget of budgets) for (const type of types) for (const channel of channels) {
+      seen.add(run({ budget, type, channel }));
+    }
+    for (const fam of ["google", "meta", "combined", "ecom"]) {
+      ok(`a real answer set reaches the ${fam} packages`, seen.has(fam), [...seen].join(", "));
+    }
+  }
+}
+
+// Pulls the buttons a recommender question actually offers, so the routing above is
+// exercised with the real inputs rather than values invented by the test.
+function optVals(q) {
+  const block = (site.match(new RegExp(`<div class="q" data-q="${q}">([\\s\\S]*?)</div>\\s*</div>`)) || [, ""])[1];
+  return [...block.matchAll(/data-val="([^"]+)"/g)].map((m) => m[1]);
 }
 
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")

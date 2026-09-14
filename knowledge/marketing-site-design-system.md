@@ -40,3 +40,31 @@ original upload; 240px, q82 progressive, lazy, alt "Bryson, founder of BoldLine 
 **To revert to the monogram** (Bryson wants this option kept open): replace the
 `<div class="founder-avatar"><img …></div>` with `<div class="founder-avatar">B</div>` — the
 circle/monogram CSS still supports both.
+## Pricing-section notes: card treatment, not a pale filler band (2026-09-14)
+
+Bryson, filming his monitor: *"Can we do something about these text boxes to make them look better
+instead of just a filler? The way they are it makes the website look cheap."* He meant the note
+that closes the pricing section ("You pay one number, not two…") and its twin above the Combined
+Systems cards.
+
+**What was wrong.** They had a container rule, but a token one: a 2.8%-white fill, a hairline
+border, 14px of padding, **and no max-width at all**. So on a wide monitor the note ran the full
+section width, wider than the package cards above it, with lines long enough to lose your place.
+Three stacked blocks at three different widths read as filler because nothing lined up with
+anything.
+
+**How they read now**, in the site's own vocabulary rather than a new one:
+- The note is a real card: `var(--card)` under a faint gold top-tint gradient, `var(--line)` border,
+  14px radius, 24/28px padding, a soft drop shadow, and a **2px gold spine** down the left edge
+  (`::before`, gold fading to nothing downward) so it reads as a deliberate callout.
+- **It takes the width of the grid it sits with.** `.rule-note:has(+ .pkg-grid)` → 1100px,
+  `:has(+ .pkg-grid.cols-2)` → 760px, and the closing copy (`.rule-note.foot`) caps at 820px for a
+  readable measure. This is the standing "cards that share a container share a width" rule; before
+  it, the Combined note was 60px wider than the two cards under it.
+- **Not every block became a box.** `.equal-effort` stays open centered text, separated by a 76px
+  gold hairline (`::before`), and `.cap-note` stays small and quiet at 560px. Boxed fact → open
+  promise → quiet link is a hierarchy; three boxes would have been three more slabs.
+
+Verified at 390 / 768 / 1280 / 1600 with the reveal animations forced on: no horizontal scroll at
+any width, note and grid identical width and x-offset on both the Combined panel and the section
+close.
