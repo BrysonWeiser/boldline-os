@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 178 task-keyed entries under `knowledge/`. They surface automatically via the
+> 179 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**178 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**179 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -657,6 +657,12 @@
 - **[os-report-period](../knowledge/os-report-period.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   The monthly OS health report counted BoldLine's own ad account as a client (one client read as two) and reported LIFETIME lead totals under a monthly heading. It now excludes the internal account and reports it separately, counts leads for the calendar month just ended from the dates on the records, and labels the ad spend honestly as a trailing 30-day reading because that is the only spend figure stored. 18 checks, seven mutations caught.  
   <sub>*task:* fix or change what the monthly OS health report counts, or why its numbers look wrong &nbsp;|&nbsp; *keywords:* os health report, monthly report, two clients, client count wrong, internal account counted, buildOSDataBlock, leadsInMonth, MONTH_KEY, whole month, snapshot, trailing 30 days, spend30d, reporting period, ARIA report, liveStats leads lifetime</sub>
+
+## Sales
+
+- **[sales-call-playbook](../knowledge/sales-call-playbook.md)** &mdash; &#9989; verified &middot; 2026-09-14  
+  Bryson asked for one standard question list and a repeatable meeting flow for every prospect. Built as "The Close Sheet" (artifact https://claude.ai/code/artifact/11a36113-b5f6-4a25-a426-343925b71b53) and derived BACKWARDS from `launch-checklist.mjs` and the portal's own `data-key` fields, so the questions map to fields the OS actually uses rather than to a generic template. 🔴 THE KEY DECISION IS TWO LISTS, NOT ONE: a first call only asks what sets the price and decides fit, because everything else is friction that costs the deal; the other twenty fields are an intake job after signing, and most of them the client types into their own portal. Includes the five numbers that set the price, the arithmetic that justifies a per-lead fee, six walk-away signals, and Brendon's specific call.  
+  <sub>*task:* run a sales call or a client intake call, or decide what to ask a prospect &nbsp;|&nbsp; *keywords:* sales call, discovery call, questions to ask a client, intake questions, client onboarding questions, meeting flow, call script, qualify a prospect, walk away signals, disqualify, per lead pricing, what is a lead worth, close rate, average job value, qualified lead definition, capacity, speed to lead, brendon, springbok, close sheet</sub>
 
 ## Supabase
 
