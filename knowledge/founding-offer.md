@@ -8,6 +8,28 @@ summary: The setup fee ($1,500 to $4,900) is waived for BoldLine's first three c
 verified: 2026-08-28
 ---
 
+## 🔴 SIGNED MEANS IN THE OS, AND NOTHING MOVES BEFORE THAT (Bryson, 2026-09-14)
+
+*"until they are in the os still act as if we only have one that means dont change the banners
+the offers or anything yet"* — said after being told "congrats on the third client" when the
+third was only likely.
+
+A verbal yes, a handshake, or "he's signing Friday" is **not** a client. Nothing that depends on
+the count may move until the signed contract is on the record: not the site banner, not the
+offer, not Deal Prep's quoted prices, not package copy, and not a number said back to him in
+conversation.
+
+The code already works this way and must keep working this way: `isFoundingClient` counts only
+on `contractSigned` or `contractStatus === "active"`, so a client record that merely exists (a
+prospect being prepared, someone who agreed on a call) counts for nothing. Verified again
+2026-09-14. **When in doubt, count lower** — a deal that slips after the offer came down means
+the site withdrew a free build worth $1,500 to $4,900 from prospects who could still have had
+it, and the pitch changed on the strength of something that never happened.
+
+As of 2026-09-14 the real count is **one**: Stencil & Thread, signed 30 August. Springbok
+Wellness agreed on a call 10 September with the contract not yet sent, so it counts for nothing.
+
+
 Bryson, 2026-08-27: *"for my first 3 clients I am waiving the set up fee entirely that way I
 can get clients and get case studies. **I also want to advertise this as well.**"*
 

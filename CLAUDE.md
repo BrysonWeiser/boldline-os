@@ -127,6 +127,20 @@ automated.
   Tell it to RE-CHECK live state before resending, so the 10pm message reports what is true
   then rather than repeating what was true earlier. Still explain it in the reply too, in case
   he is at a computer.
+- **A DEAL IS NOT REAL UNTIL IT IS IN THE OS (Bryson, 2026-09-14: "until they are in the os
+  still act as if we only have one that means dont change the banners the offers or anything
+  yet").** A verbal yes on a call, a handshake, a "he's signing Friday" is NOT a client. Until
+  the signed contract is on the record in the OS, **change nothing that depends on the client
+  count**: not the site banner, not the founding offer, not pricing or Deal Prep quotes, not
+  package copy, not a report, and not a number quoted back to him in chat. Do not congratulate
+  a count either — he corrected exactly that. 🔴 **The code already agrees and must stay that
+  way:** `isFoundingClient` in `netlify/lib/founding.mjs` counts a client only on
+  `contractSigned` or `contractStatus === "active"`, never on a record merely existing, and
+  `verify-founding-in-deal-prep` pins it. The risk this guards against is real and expensive:
+  a deal that slips means the site has already withdrawn a free build worth $1,500 to $4,900
+  from prospects who could still have had it, and he has quietly changed his own pitch on the
+  strength of something that did not happen. **When in doubt, count lower.** Details in KB
+  `founding-offer`.
 - **Confirm before irreversible or outward-facing actions.**
 - **Default to the cheaper model; flag when a task needs Opus (Bryson, 2026-07-02).**
   Bryson runs on **Sonnet** by default to control credit usage. Before ATTEMPTING a
