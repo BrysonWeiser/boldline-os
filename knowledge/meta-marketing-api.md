@@ -3,10 +3,50 @@ name: meta-marketing-api
 topic: OS app
 task: continue the Meta (Facebook) Marketing API setup and business verification
 keywords: [meta-marketing-api, business-portfolio, business-verification, ads_management, ads_read, app-review, marketing-api-access-tier, standard-access, development-tier, security-center, screencast]
-status: verified
+status: awaiting-review
 summary: App Review came back 2026-08-12 PARTIALLY APPROVED — ads_management, business_management, pages_show_list, pages_read_engagement, public_profile all APPROVED (everything the OS code actually calls). Rejected: (1) Marketing API Access Tier — "not a sufficient number of Ads API calls in the last 15 days", so the app is stuck on Development tier = own ad accounts only; (2) ads_read — screencast showed static/placeholder numbers, reviewer wants live impressions/clicks/reach/spend/conversions populating for one ad account, and wants told the app is server-to-server/system-user. PLAN: don't resubmit yet — run real Meta ads on the My Ads house account (allowed on Development tier today) for 15+ days to generate genuine API traffic + real numbers, drop ads_read from the resubmission (ads_management is a superset), then re-request the tier. Meta gates only Meta-ads clients — Google clients sellable regardless.
 verified: 2026-08-12
 ---
+
+## ✅ RESUBMITTED 2026-09-14 (Monday, Phoenix). Answer due within ~20 days.
+
+Requested **Marketing API Access Tier ONLY**. `ads_read` was deliberately removed from the
+draft before submitting.
+
+**Why ads_read was dropped, and it should stay dropped.** `ads_management` is already approved
+and covers reading, so ads_read adds nothing. More decisively, its rejection demanded a
+screencast showing *"the complete Meta login flow"* and *"a user granting app access"*, and
+BoldLine OS is server to server with a System User token and no consumer login. **There is no
+login flow to film**, so that requirement can never be satisfied, and leaving it in the basket
+would have returned another rejection alongside whatever happened to the tier.
+
+**Route used:** App Review feedback page → **Request again** → it builds a draft containing
+every unapproved item → delete the ones you do not want from the draft → complete the
+checklist → Submit. The button greys out after use because the draft already exists; the draft
+lives under Review → App Review, not on the feedback page.
+
+**What changed since the July rejection:**
+- The tier was refused for *"not a sufficient number of Ads API calls in the last 15 days"*.
+  Real Meta ads have run on the house account since mid-August, and `ads-sync` calls the
+  Insights endpoint **hourly** per linked account plus an account-health read on the same
+  schedule, so there is roughly a month of genuine traffic instead of almost none.
+- The reviewer text was rewritten: it now leads with the server-to-server / System User
+  statement (the reviewer asked for that by name), states the hourly call volume explicitly,
+  and no longer references ads_read. 🔴 The previously saved text claimed the backend called
+  Insights **every six hours**, which was wrong; the code says hourly. Corrected before sending.
+- Screencast re-recorded showing live figures populating for one named ad account.
+
+**🔴 Gotcha for next time:** the screencast upload is NOT on the permission row. It is the
+**"(Optional) Include supporting documentation"** drag-and-drop box at the very bottom of the
+**Reviewer instructions** step, below the gift-codes and geo-blocking boxes.
+
+**Also:** Bryson is on **Windows**, not Mac. Screen recording is **Win + Alt + R** (saves to
+Videos\Captures). An earlier runbook gave Mac keys, and he filmed his monitor with his phone as
+a result. A phone video of a screen fails Meta's Screen Recording Guide on its own.
+
+The weekly Monday Routine (`trig_012hH9VLXchaMj7LUc461Wrb`) is the follow-up. On approval, the
+CLAUDE.md standing trigger reverts the site's coming-soon state immediately, without being asked.
+
 
 > **What to BUILD the moment the tier is granted is tracked separately in KB
 > `meta-parked-work`** — Meta creative split testing, then the conditions-triggered refresh
