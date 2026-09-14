@@ -17154,7 +17154,7 @@
         "security-center",
         "screencast"
       ],
-      "status": "verified",
+      "status": "awaiting-review",
       "summary": "App Review came back 2026-08-12 PARTIALLY APPROVED — ads_management, business_management, pages_show_list, pages_read_engagement, public_profile all APPROVED (everything the OS code actually calls). Rejected: (1) Marketing API Access Tier — \"not a sufficient number of Ads API calls in the last 15 days\", so the app is stuck on Development tier = own ad accounts only; (2) ads_read — screencast showed static/placeholder numbers, reviewer wants live impressions/clicks/reach/spend/conversions populating for one ad account, and wants told the app is server-to-server/system-user. PLAN: don't resubmit yet — run real Meta ads on the My Ads house account (allowed on Development tier today) for 15+ days to generate genuine API traffic + real numbers, drop ads_read from the resubmission (ads_management is a superset), then re-request the tier. Meta gates only Meta-ads clients — Google clients sellable regardless.",
       "verified": "2026-08-12",
       "terms": {
