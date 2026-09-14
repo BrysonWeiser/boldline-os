@@ -24,16 +24,47 @@ export default async (req) => {
   if (action === "get") {
     const id = url.searchParams.get("id") || "";
     if (!id) return json({ ok: false, error: "id required" }, 400);
-    const { data, error } = await supabase.from("deal_briefs").select("id, status, result, error, created_at").eq("id", id).maybeSingle();
+    const { data, error } = await supabase.from("deal_briefs").select("id, status, result, error, input, created_at").eq("id", id).maybeSingle();
     if (error) return json({ ok: false, error: error.message }, 500);
     if (!data) return json({ ok: true, status: "unknown" });
-    return json({ ok: true, status: data.status, result: data.result || null, error: data.error || null });
+    // The answers come back with the brief, or reopening one shows an empty form and he
+    // retypes a call he has already had.
+    return json({ ok: true, status: data.status, result: data.result || null, error: data.error || null,
+      answers: ((data.input || {}).meetingAnswers) || null, input: data.input || null });
   }
 
   if (action === "recent") {
     const { data, error } = await supabase.from("deal_briefs").select("id, status, input, created_at").order("created_at", { ascending: false }).limit(50);
     if (error) return json({ ok: false, error: error.message }, 500);
     return json({ ok: true, briefs: data || [] });
+  }
+
+  // 🔴 MEETING ANSWERS LIVE IN `input`, AND THAT IS DELIBERATE.
+  //
+  // Bryson types these while he is on a call, so losing them to a page reload is not
+  // acceptable, which rules out keeping them in the browser. The obvious home would be a new
+  // column, and a new column means a Supabase migration he has to remember to run. A feature
+  // that silently does nothing until somebody pastes SQL is exactly how Lead Scout hung
+  // (KB `lead-scout-schema-hang`), so no migration.
+  //
+  // `input` is the right half of the row: the background job writes it ONCE when the brief is
+  // created and never touches it again, while `result` is overwritten by the research run. So
+  // answers parked here cannot be clobbered by anything, and they sit with the prospect they
+  // belong to. Read, merge, write, so a second save never drops the first one's fields.
+  if (action === "notes") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    const id = url.searchParams.get("id") || "";
+    if (!id) return json({ ok: false, error: "id required" }, 400);
+    let body;
+    try { body = JSON.parse((await req.text()) || "{}"); }
+    catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    const { data: row, error: readErr } = await supabase.from("deal_briefs").select("input").eq("id", id).maybeSingle();
+    if (readErr) return json({ ok: false, error: readErr.message }, 500);
+    if (!row) return json({ ok: false, error: "That briefing is not there any more." }, 404);
+    const input = { ...(row.input || {}), meetingAnswers: { ...(body.answers || {}) }, notesSavedAt: new Date().toISOString() };
+    const { error } = await supabase.from("deal_briefs").update({ input, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) return json({ ok: false, error: error.message }, 500);
+    return json({ ok: true, savedAt: input.notesSavedAt });
   }
 
   if (action === "delete") {

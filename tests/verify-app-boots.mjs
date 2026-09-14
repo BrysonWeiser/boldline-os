@@ -200,7 +200,13 @@ ok("no hook is destructured that the app never calls", surplus.length === 0, `un
   const named = [...code.matchAll(/on the ([A-Z][A-Za-z ]{1,14}?) tab/g)].map((m) => m[1]);
   ok("the OS does tell him which tab to use", named.length >= 5, `${named.length} such instructions`);
 
-  const mapLine = (/\.map\(\(\[k,label\]\)=>[^\n]*/.exec(S) || [""])[0];
+  // 🔴 ANCHORED ON `k==="portal"`, NOT ON THE FIRST `.map(([k,label])` IN THE FILE.
+  // The looser pattern matched a segmented control added to Deal Prep on 2026-09-14 that
+  // happened to destructure the same two names and sits 2,500 lines earlier, so this guard
+  // silently started reading unrelated code and reported the tab rename as broken. The
+  // comment below already said a pattern that can match somebody else's code is not a test.
+  // It was still one line too loose.
+  const mapLine = (/\.map\(\(\[k,label\]\)=> k==="portal"[^\n]*/.exec(S) || [""])[0];
   const TAB_LINE = /\.map\(\(\[k,label\]\)=> k==="portal" \? \[k,"Assets"\]/;
   ok("and the tab those instructions name is actually labelled that", TAB_LINE.test(S),
     "the portal tab is no longer unconditionally labelled Assets, so every 'on the Assets tab' instruction now points at nothing");

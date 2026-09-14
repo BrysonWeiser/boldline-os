@@ -4773,6 +4773,43 @@ function LeadFeeFinder({defaults,onUse,isDesktop}){
       location:defaults.location||f.location,adBudget:defaults.adBudget||f.adBudget}));
   },[defaults&&defaults.niche,defaults&&defaults.company,defaults&&defaults.adBudget]);
 
+  // Debounced so a call's worth of typing is a handful of writes, not one per keystroke.
+  const answer=(id)=>(e)=>{
+    const v=e.target.value;
+    setAnswers(prev=>{
+      const next={...prev,[id]:v};
+      if(saveTimer.current) clearTimeout(saveTimer.current);
+      if(briefId){
+        saveTimer.current=setTimeout(async()=>{
+          setNotesState("saving");
+          const token=await authToken();
+          if(!token){ setNotesState("error"); return; }
+          try{
+            const r=await fetch("/.netlify/functions/deal-research?action=notes&id="+encodeURIComponent(briefId),
+              {method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+               body:JSON.stringify({answers:next})}).then(x=>x.json());
+            setNotesState(r&&r.ok?"saved":"error");
+          }catch{ setNotesState("error"); }
+        },900);
+      }
+      return next;
+    });
+  };
+
+  // 🔴 ONE BUTTON, AND IT MAKES A REAL CLIENT RECORD, NOT A DRAFT.
+  // The shape comes from `clientFromMeeting`, which is the same shape the Add Client sheet
+  // produces on purpose: two ways of making a client would be two shapes to keep in step.
+  // It lands at "onboarding" with no contract signed and no package, because a good meeting is
+  // not a signature and nothing that counts clients may count this one yet.
+  const makeClient=()=>{
+    if(!onCreateClient) return;
+    const cl=clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes});
+    setMade(cl.name);
+    onCreateClient(cl);
+  };
+
+  const answered=MEETING_QUESTIONS.filter(q=>String(answers[q.id]||"").trim()).length;
+
   const run=async()=>{
     if(!form.niche.trim()&&!form.company.trim()){ setMsg("Type a niche or a company name first."); setState("error"); return; }
     setState("working"); setMsg(""); setRes(null);
@@ -4879,7 +4916,135 @@ function LeadFeeFinder({defaults,onUse,isDesktop}){
   );
 }
 
-function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
+// ── MEETING QUESTIONS ─────────────────────────────────────── DEALPREP-QUESTIONS-START
+// Bryson, 2026-09-14: *"a section in the os where I can do the deal prep and then in there
+// there is the list of meeting questions to go over and then a place to put the answers and
+// then from there a button ... to take all the information I gathered into a client that way
+// I don't have to manually put everything in"*.
+//
+// 🔴 EVERY QUESTION DECLARES WHERE ITS ANSWER LANDS. That is the whole design. A hand-written
+// mapper sitting next to a hand-written question list is two lists that drift, and the way you
+// find out they drifted is a client created with a field silently empty. Here a question and
+// its destination are one object, so adding a question carries it into the client with nothing
+// else to remember, and `tests/verify-deal-to-client.mjs` fails if any question points at a
+// field the client record does not actually use.
+//
+// `ask` is when it gets asked, and it is not decoration. A first call has one job, which is to
+// find out whether this is a fit and what to charge; everything else is friction that costs the
+// deal. So "first" is the short list you run on a sales call, and "intake" is the longer one
+// after they have signed. Same reasoning as the Close Sheet.
+const MEETING_QUESTIONS = [
+  // ── The five numbers that set the price ──
+  { id:"avgTicket",    ask:"first",  sec:"The numbers",  path:"campaignSetup.avgTicket",
+    q:"What is an average job worth to you?", feeds:"Sets the price" },
+  { id:"closeRate",    ask:"first",  sec:"The numbers",  path:"salesNotes.closeRate",
+    q:"Out of ten people who enquire, how many end up buying?", feeds:"Sets the price" },
+  { id:"leadsNow",     ask:"first",  sec:"The numbers",  path:"salesNotes.leadsNow",
+    q:"How many enquiries are you getting in a month now?", feeds:"Baseline" },
+  { id:"spendNow",     ask:"first",  sec:"The numbers",  path:"salesNotes.spendNow",
+    q:"What are you spending on marketing at the moment, and on what?", feeds:"Budget anchor" },
+  { id:"capacity",     ask:"first",  sec:"The numbers",  path:"salesNotes.capacity",
+    q:"How many more jobs a month could you take before it starts to hurt?", feeds:"Stops overselling" },
+
+  // ── Fit, and the one that matters most ──
+  { id:"qualifiedLead",ask:"first",  sec:"Fit",          path:"qualifiedLeadDef",
+    q:"Describe a bad lead. What makes you roll your eyes?", feeds:"Your billing depends on this" },
+  { id:"bestCustomer", ask:"first",  sec:"Fit",          path:"salesNotes.bestCustomer",
+    q:"And your best ever customer. What did that one look like?", feeds:"Targeting" },
+  { id:"speedToLead",  ask:"first",  sec:"Fit",          path:"salesNotes.speedToLead",
+    q:"When an enquiry comes in, who picks it up and how quickly?", feeds:"Deal breaker if nobody does" },
+  { id:"pastAds",      ask:"first",  sec:"Fit",          path:"salesNotes.pastAds",
+    q:"Have you run ads before? What happened?", feeds:"Context" },
+
+  // ── Who they are ──
+  { id:"contactName",  ask:"first",  sec:"Their details",path:"contactName",
+    q:"Who is the main contact, and is that who signs?", feeds:"Contract" },
+  { id:"email",        ask:"first",  sec:"Their details",path:"email",
+    q:"Best email for the agreement and their portal?", feeds:"Contract and portal" },
+  { id:"businessPhone",ask:"first",  sec:"Their details",path:"businessPhone",
+    q:"Best phone number for the business?", feeds:"Ads and landing page" },
+  { id:"businessAddress",ask:"intake",sec:"Their details",path:"businessAddress",
+    q:"Business address?", feeds:"Local targeting" },
+
+  // ── Intake, after they sign ──
+  { id:"mainOffer",    ask:"intake", sec:"The campaign", path:"campaignSetup.mainOffer",
+    q:"What is the one offer we lead with? Not a list, one.", feeds:"Landing page" },
+  { id:"serviceArea",  ask:"intake", sec:"The campaign", path:"campaignSetup.serviceArea",
+    q:"What area do you actually serve?", feeds:"Targeting" },
+  { id:"targetLocations",ask:"intake",sec:"The campaign",path:"campaignSetup.targetLocations",
+    q:"Which towns or areas should the ads run in?", feeds:"Targeting" },
+  { id:"excludedKeywords",ask:"intake",sec:"The campaign",path:"campaignSetup.excludedKeywords",
+    q:"Anything you do NOT want to be found for?", feeds:"Negative keywords" },
+  { id:"leadDestination",ask:"intake",sec:"The campaign",path:"campaignSetup.leadDestination",
+    q:"Where should a new lead land? Email, text, or a system you use?", feeds:"Lead routing" },
+  { id:"competitors",  ask:"intake", sec:"Their voice",  path:"brandVoice.competitors",
+    q:"Who do you actually lose work to, by name?", feeds:"Ad copy" },
+  { id:"differentiator",ask:"intake",sec:"Their voice",  path:"brandVoice.differentiator",
+    q:"Why do customers pick you over them?", feeds:"Ad copy" },
+  { id:"tone",         ask:"intake", sec:"Their voice",  path:"brandVoice.tone",
+    q:"Should the ads sound formal, plain spoken, or warm?", feeds:"Ad copy" },
+  { id:"webPerson",    ask:"intake", sec:"Their voice",  path:"salesNotes.webPerson",
+    q:"Who is your web person, and can I speak to them?", feeds:"They point the subdomain at us" },
+];
+
+// Write a dotted path onto a nested object without clobbering its siblings.
+const setPath = (obj, path, value) => {
+  const parts = String(path||"").split(".").filter(Boolean);
+  if (!parts.length) return obj;
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!cur[parts[i]] || typeof cur[parts[i]] !== "object") cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = value;
+  return obj;
+};
+
+// 🔴 A PROSPECT IS NOT A CLIENT UNTIL IT IS SAVED, AND THIS IS WHERE THAT LINE IS.
+// The record this builds is deliberately identical in shape to the one the Add Client sheet
+// produces, because two ways of making a client is two shapes to keep in step, and the day
+// they differ is the day a campaign build reads a field that only one of them writes.
+//
+// It also starts at `stage: "onboarding"` with `contractSigned: false` and no package, exactly
+// like a hand-added client: a good meeting is not a signature, and nothing that counts clients
+// may count this one until the contract comes back (standing rule in CLAUDE.md).
+function clientFromMeeting(answers, brief) {
+  const a = answers || {};
+  const b = brief || {};
+  const name = String(b.companyName || a.companyName || "").trim() || "New client";
+  const cl = {
+    id: uid(),
+    name,
+    niche: String(b.niche || "").trim(),
+    contactName: "", email: "", businessAddress: "", businessPhone: "",
+    packageId: "", stage: "onboarding", platforms: [], adBudget: "",
+    notes: String(b.notes || ""),
+    contractStart: fmt(today), contractEnd: fmt(addMonths(today, 3)), contractTermMonths: 3,
+    portalToken: crypto.randomUUID(), leadToken: crypto.randomUUID(),
+    intakeComplete: false, contractSigned: false, contractStatus: "pending",
+    healthScore: null, leads: 0, cpl: 0,
+    alerts: [], commLog: [], leadsLog: [], upgradeRequest: null, botStatuses: {},
+    campaignSetup: { serviceArea:"", mainOffer:"", avgTicket:"", targetLocations:"",
+      excludedKeywords:"", leadDestination:"", crmSystem:"" },
+    brandVoice: { tone:"", competitors:"", differentiator:"" },
+    // Everything said on the call that has no field of its own. Kept rather than dropped,
+    // because "what did he tell me about his close rate" is the question you ask in month two.
+    salesNotes: {},
+    qualifiedLeadDef: "",
+    callTrackingNumber: "", callTrackingNumberSid: "",
+    mediaLibrary: [], landingSlug: makeSlug(name),
+    landingPage: { headline:"", subheadline:"", bullets:[], ctaText:"", published:false, generatedAt:null },
+  };
+  for (const q of MEETING_QUESTIONS) {
+    const v = String(a[q.id] == null ? "" : a[q.id]).trim();
+    if (v) setPath(cl, q.path, v);
+  }
+  cl.salesNotes.capturedAt = new Date().toISOString();
+  return cl;
+}
+// ───────────────────────────────────────────────────────────── DEALPREP-QUESTIONS-END
+
+function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient}){
   // Live, not a constant: the price shown next to a recommendation must be the price he would
   // actually quote today, and that stops being the founding price the moment the third signs.
   const foundingOpen = foundingOfferOpen(clients);
@@ -4891,8 +5056,17 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
   const [recent,setRecent]=useState(null); // null = hidden; [] = loaded
   const [nicheFilter,setNicheFilter]=useState("all");
   const [showFee,setShowFee]=useState(false);   // per-lead fee finder, collapsed by default
+  // ── Meeting notes ──────────────────────────────────────────────────────────
+  // `briefId` is what ties the answers to a prospect. Without a brief there is nothing to save
+  // against, so the panel says so rather than quietly throwing typing away.
+  const [briefId,setBriefId]=useState(null);
+  const [answers,setAnswers]=useState({});
+  const [askList,setAskList]=useState("first");   // first | intake | all
+  const [notesState,setNotesState]=useState("");  // "" | saving | saved | error
+  const [made,setMade]=useState(null);
+  const saveTimer=useRef(null);
   const pollRef=useRef(null);
-  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
+  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); if(saveTimer.current) clearTimeout(saveTimer.current); },[]);
   // Lead Scout hands a prospect straight over: prefill the form with everything it
   // already researched so the briefing builds on that instead of starting cold.
   useEffect(()=>{
@@ -4917,7 +5091,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
       if(Date.now()-started>240000){ clearInterval(pollRef.current); setState("error"); setMsg("This is taking longer than expected — it may still finish. Try again in a moment."); return; }
       try{
         const r=await fetch("/.netlify/functions/deal-research?action=get&id="+encodeURIComponent(id),{headers:{"Authorization":"Bearer "+token}}).then(x=>x.json());
-        if(r&&r.status==="done"&&r.result){ clearInterval(pollRef.current); setResult({...r.result,_prospect:form.companyName}); setState("done"); }
+        if(r&&r.status==="done"&&r.result){ clearInterval(pollRef.current); setResult({...r.result,_prospect:form.companyName}); setState("done"); setBriefId(id); setAnswers({}); setMade(null); }
         else if(r&&r.status==="error"){ clearInterval(pollRef.current); setState("error"); setMsg(r.error||"The research run hit an error. Try again."); }
         else if(r&&r.ok===false&&r.error){ clearInterval(pollRef.current); setState("error"); setMsg(/deal_briefs|relation|does not exist|schema cache|could not find/i.test(r.error) ? "Setup needed: the deal_briefs table isn't in Supabase yet. Run the setup SQL (see the deal_briefs table step), then try again." : ("Server error: "+r.error)); }
       }catch{}
@@ -4934,7 +5108,10 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
     if(b.status!=="done"){ setState("error"); setMsg(b.status==="error"?"That brief errored out — run it again.":"That brief is still running — give it a moment."); return; }
     const token=await authToken(); if(!token) return;
     try{ const r=await fetch("/.netlify/functions/deal-research?action=get&id="+encodeURIComponent(b.id),{headers:{"Authorization":"Bearer "+token}}).then(x=>x.json());
-      if(r&&r.status==="done"&&r.result){ setResult({...r.result,_prospect:(b.input&&b.input.companyName)||"Prospect"}); setState("done"); setRecent(null); } }
+      if(r&&r.status==="done"&&r.result){ setResult({...r.result,_prospect:(b.input&&b.input.companyName)||"Prospect"}); setState("done"); setRecent(null);
+        // Reopening a brief brings its meeting answers back with it, so a call already had is
+        // never retyped.
+        setBriefId(b.id); setAnswers((r&&r.answers)||{}); setMade(null); setNotesState(""); } }
     catch{}
   };
   const deleteBrief=async(b)=>{
@@ -5071,6 +5248,68 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients}){
             </div>
           )}
           <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:4}}>AI research — verify anything you'll quote on the call. Per-lead fees are starter estimates; adjust as you like.</div>
+
+          {/* ── ON THE CALL ────────────────────────────────────────────────────
+              Bryson, 2026-09-14: the questions, somewhere to put the answers, and one button
+              that turns them into a client so nothing is typed twice. Answers save themselves
+              about a second after he stops typing, so a dropped call costs nothing. */}
+          <div style={{marginTop:26}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
+              <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold}}>On the call</div>
+              <div style={{marginLeft:"auto",display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                {[["first","Sales call"],["intake","After they sign"],["all","Everything"]].map(([key,label])=>(
+                  <button key={key} onClick={()=>setAskList(key)} style={{padding:"5px 10px",fontSize:10.5,fontWeight:700,borderRadius:8,cursor:"pointer",
+                    border:`1px solid ${askList===key?C.gold+"66":C.border}`,background:askList===key?C.goldDim:"transparent",color:askList===key?C.gold:C.textMuted}}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,marginBottom:12}}>
+              {askList==="first"
+                ? "The short list. A first call only needs what sets the price and decides fit, and every extra question is friction that costs the deal."
+                : askList==="intake"
+                ? "After they have signed. Most of this they can also type into their own portal."
+                : "Every question, both calls."}
+              {" "}{answered>0?`${answered} answered.`:""}
+              {notesState==="saving"&&<span style={{color:C.textMuted}}> Saving…</span>}
+              {notesState==="saved"&&<span style={{color:C.green}}> ✓ Saved</span>}
+              {notesState==="error"&&<span style={{color:C.red}}> Not saved. Check your connection.</span>}
+            </div>
+
+            {(()=>{ const shown=MEETING_QUESTIONS.filter(q=>askList==="all"||q.ask===askList);
+              const secs=[]; shown.forEach(q=>{ if(!secs.length||secs[secs.length-1].sec!==q.sec) secs.push({sec:q.sec,items:[]}); secs[secs.length-1].items.push(q); });
+              return secs.map(group=>(
+                <div key={group.sec} style={{marginBottom:14}}>
+                  <div style={{fontSize:10,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:7}}>{group.sec}</div>
+                  {group.items.map(q=>(
+                    <div key={q.id} style={{marginBottom:10}}>
+                      <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap",marginBottom:4}}>
+                        <label htmlFor={"mq-"+q.id} style={{fontSize:12.5,color:C.text,lineHeight:1.5,flex:"1 1 240px",minWidth:0}}>{q.q}</label>
+                        <span style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,background:C.goldDim,padding:"2px 6px",borderRadius:5,whiteSpace:"nowrap",flexShrink:0}}>{q.feeds}</span>
+                      </div>
+                      <textarea id={"mq-"+q.id} value={answers[q.id]||""} onChange={answer(q.id)} rows={2}
+                        placeholder="Their answer…"
+                        style={{width:"100%",padding:"8px 10px",fontSize:12.5,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,resize:"vertical",fontFamily:"inherit",lineHeight:1.5}}/>
+                    </div>
+                  ))}
+                </div>
+              ));
+            })()}
+
+            {made
+              ? <div style={{padding:"13px 14px",borderRadius:11,border:`1px solid ${C.green}55`,background:"rgba(16,185,129,0.07)",fontSize:12.5,color:C.text,lineHeight:1.6}}>
+                  <strong>{made}</strong> was created and everything you typed went with it. They are sitting at onboarding with no contract signed yet, so nothing counts them as a client until one comes back.
+                </div>
+              : <button onClick={makeClient} disabled={!answered}
+                  style={{width:"100%",padding:"13px 14px",fontSize:13,fontWeight:800,borderRadius:11,border:"none",cursor:answered?"pointer":"not-allowed",
+                    background:answered?C.gradB:"rgba(255,255,255,.05)",color:answered?"#1a1400":C.textMuted}}>
+                  Create the client from these answers
+                </button>}
+            {!made&&(
+              <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:7}}>
+                {answered?"Everything above lands on their record. You still pick their package and send the contract from the client screen.":"Answer at least one question first."}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -16395,7 +16634,7 @@ function App({onLogout}) {
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
-        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients}/>}
+        {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients} onCreateClient={addClient}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>{setFocusCampaign(null);setScreen("home");}} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient} focusKey={focusCampaign}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
