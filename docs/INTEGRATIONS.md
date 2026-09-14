@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 179 task-keyed entries under `knowledge/`. They surface automatically via the
+> 180 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**179 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**180 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -471,6 +471,9 @@
 - **[deal-prep](../knowledge/deal-prep.md)** &mdash; &#9989; verified &middot; 2026-08-01  
   Owner-side "Deal Prep" tool (BUILT 2026-08-01) — Bryson types a prospect's name/niche/website/notes; a background function web-researches the company with Claude and returns a pre-call briefing (company snapshot, digital-presence gaps, talking points, objection handling) + a recommended package with the per-lead ROI math + the full package lineup priced for that niche. Needs a one-time Supabase table (deal_briefs); no new env vars. Per-lead fees are a STARTER table in pricing-shared.mjs for Bryson to edit.  
   <sub>*task:* research a prospect before a sales call, get a pitch + recommended package to close the deal; edit per-niche lead pricing; work on the Deal Prep tool &nbsp;|&nbsp; *keywords:* deal prep, deal-prep, pre-call research, prospect research, close deals, sales call, pitch, recommended package, per-lead fee, lead fee, niche pricing, web search, deal-research, deal_briefs, pricing-shared, getNicheLeadFee, DealPrepScreen, web_search, background function</sub>
+- **[deal-prep-to-client](../knowledge/deal-prep-to-client.md)** &mdash; &#9989; verified &middot; 2026-09-14  
+  Deal Prep now carries the meeting questions, a box for each answer, and one button that turns them into a real client record so nothing is typed twice. 🔴 THE DESIGN IS THAT EVERY QUESTION DECLARES WHERE ITS ANSWER LANDS (`path`), so the question list and the conversion are one object and cannot drift; adding a question carries it into the client with nothing else to edit. Answers auto-save ~0.9s after typing stops, into `deal_briefs.input.meetingAnswers` (NOT a new column, because a migration nobody runs is how Lead Scout hung silently) and come back when a brief is reopened. The created client is deliberately identical in shape to one from the Add Client sheet and lands unsigned at onboarding, so nothing counts it as a client. 188 checks, 14 mutations caught.  
+  <sub>*task:* change the meeting questions in Deal Prep, or the button that turns a meeting into a client &nbsp;|&nbsp; *keywords:* meeting questions, deal prep questions, MEETING_QUESTIONS, clientFromMeeting, setPath, create client from meeting, convert prospect to client, meeting notes, deal brief notes, sales call in the os, no manual entry, qualifiedLeadDef, salesNotes, deal-research notes action</sub>
 - **[docusign-integration](../knowledge/docusign-integration.md)** &mdash; &#9989; verified &middot; 2026-08-27  
   ✅ FULLY LIVE IN PRODUCTION as of 2026-08-27, verified by a real unwatermarked test envelope. Go-live approved, key promoted, production keypair + JWT consent done, Netlify env vars swapped. 'Send via DocuSign' on any client's Contract tab now sends a legally binding envelope. Watch the multi-line PEM paste gotcha (normalizeKey self-heals it).  
   <sub>*task:* send or debug DocuSign e-signature envelopes from the OS, and plan the production go-live &nbsp;|&nbsp; *keywords:* docusign-send.mjs, jwt-grant, normalizeKey, DOCUSIGN_PRIVATE_KEY, go-live, BL_SIGN_HERE, go live form voided, generic email domains not allowed, gmail rejected, corporate domain email, cloudflare email routing, bryson@boldlinemedia.com, production account id guid, trial account cannot be used</sub>
