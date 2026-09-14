@@ -4,9 +4,37 @@ topic: OS app
 task: change the meeting questions in Deal Prep, or the button that turns a meeting into a client
 keywords: [meeting questions, deal prep questions, MEETING_QUESTIONS, clientFromMeeting, setPath, create client from meeting, convert prospect to client, meeting notes, deal brief notes, sales call in the os, no manual entry, qualifiedLeadDef, salesNotes, deal-research notes action]
 status: built
-summary: Deal Prep now carries the meeting questions, a box for each answer, and one button that turns them into a real client record so nothing is typed twice. 🔴 THE DESIGN IS THAT EVERY QUESTION DECLARES WHERE ITS ANSWER LANDS (`path`), so the question list and the conversion are one object and cannot drift; adding a question carries it into the client with nothing else to edit. Answers auto-save ~0.9s after typing stops, into `deal_briefs.input.meetingAnswers` (NOT a new column, because a migration nobody runs is how Lead Scout hung silently) and come back when a brief is reopened. The created client is deliberately identical in shape to one from the Add Client sheet and lands unsigned at onboarding, so nothing counts it as a client. 188 checks, 14 mutations caught.
+summary: Deal Prep now carries the meeting questions, a box for each answer, and one button that turns them into a real client record so nothing is typed twice. 🔴 THE DESIGN IS THAT EVERY QUESTION DECLARES WHERE ITS ANSWER LANDS (`path`), so the question list and the conversion are one object and cannot drift; adding a question carries it into the client with nothing else to edit. Answers auto-save ~0.9s after typing stops, into `deal_briefs.input.meetingAnswers` (NOT a new column, because a migration nobody runs is how Lead Scout hung silently) and come back when a brief is reopened. The created client is deliberately identical in shape to one from the Add Client sheet and lands unsigned at onboarding, so nothing counts it as a client. 208 checks, 14 mutations caught. 🔴 It shipped broken once: the handlers landed in the neighbouring component because the insertion anchor was not unique, and every grep-based assertion passed anyway; the suite now checks SCOPE by slicing the component.
 verified: 2026-09-14
 ---
+
+## 🔴 IT SHIPPED BROKEN, AND THE TESTS PASSED ANYWAY (2026-09-14, same afternoon)
+
+Opening Deal Prep crashed the screen: **"answered is not defined"**.
+
+The handlers (`answer`, `makeClient`, `answered`) were inserted into **`LeadFeeFinder`**, the
+component sitting directly above `DealPrepScreen`, because the insertion anchored on
+`const run=async()=>{` and **there are three of those in index.html**. The first one belongs to
+LeadFeeFinder. DealPrepScreen then referenced names declared two components away.
+
+**Every assertion in the suite passed while that was true.** They were regex greps over a 1.1MB
+file, and the code they looked for genuinely existed. It was just in the wrong place.
+
+That is the identical mistake this same commit had just fixed in `verify-app-boots` (a pattern
+that matched the first `.map(([k,label])` anywhere in the file). Made again, in the same
+afternoon, by the person who wrote that fix.
+
+**The guard now, and the rule for any future index.html work:** `verify-deal-to-client` slices the
+component with `bodyOf("DealPrepScreen")` and asserts every name the panel uses is *declared
+inside that slice*, that the panel's JSX is *used inside that slice*, and that `LeadFeeFinder`
+carries none of it. Re-breaking the file exactly as it shipped fails five assertions.
+
+🔴 **A grep proving a string exists in index.html proves nothing about scope.** index.html is one
+1.1MB file of top-level components, so any anchor that is not unique will silently land code in a
+neighbour, and the result reads perfectly in a diff. Anchor on something unique to the component,
+and assert scope, not presence. Third time this class of bug has cost a deploy (see also KB
+`portal-script-parse`, `scheduled-job-wiring`).
+
 
 **Bryson, 2026-09-14:** *"a section in the os where I can do the deal prep and then in there there
 is the list of meeting questions to go over and then a place to put the answers and then from

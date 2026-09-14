@@ -177,7 +177,63 @@ const { MEETING_QUESTIONS, setPath, clientFromMeeting } = new Function(
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 3. IT IS ACTUALLY WIRED UP
+// 3. 🔴 IN THE RIGHT COMPONENT, NOT JUST SOMEWHERE IN THE FILE
+// ══════════════════════════════════════════════════════════════════════════════
+// 2026-09-14: the handlers for this feature were inserted into `LeadFeeFinder`, the component
+// that happens to sit directly above DealPrepScreen and also has a `const run=async()=>{`.
+// DealPrepScreen then referenced `answered`, which was declared two components away, and the
+// screen crashed with "answered is not defined" the moment Bryson opened it.
+//
+// EVERY ASSERTION IN THE SECTION BELOW PASSED WHILE THAT WAS TRUE, because they were regex
+// greps over a 1.1MB file and the code they were looking for genuinely existed. It was just in
+// the wrong place. That is the identical mistake this suite's own commit had just fixed in
+// verify-app-boots, made again, in the same afternoon, by the person who wrote the fix.
+//
+// So: slice the component and check scope, rather than asking whether a string appears.
+const bodyOf = (fnName) => {
+  const at = S.indexOf(`function ${fnName}(`);
+  if (at < 0) return "";
+  const end = S.indexOf("\nfunction ", at + fnName.length + 10);
+  return S.slice(at, end < 0 ? S.length : end);
+};
+{
+  const dp = bodyOf("DealPrepScreen");
+  ok("DealPrepScreen is findable", dp.length > 2000, `${dp.length} chars`);
+
+  // Everything this feature introduces has to be DECLARED inside DealPrepScreen.
+  const declared = [
+    "const [briefId,setBriefId]", "const [answers,setAnswers]", "const [askList,setAskList]",
+    "const [notesState,setNotesState]", "const [made,setMade]", "const saveTimer=",
+    "const answer=(id)=>", "const makeClient=", "const answered=",
+  ];
+  for (const d of declared) {
+    ok(`🔴 ${d.replace(/const |=.*/g, "").trim()} is declared inside DealPrepScreen`, dp.includes(d),
+      "declared in another component is exactly how this crashed: the name exists in the file and is out of scope on screen");
+  }
+
+  // And USED there, so a declaration that drifts away from its use is caught from both ends.
+  for (const u of ["answered>0", "onChange={answer(q.id)}", "onClick={makeClient}", "value={answers[q.id]"]) {
+    ok(`${u} is used inside DealPrepScreen`, dp.includes(u));
+  }
+
+  // 🔴 And NOT sitting in the neighbour it landed in. Named explicitly because that is the
+  // component the insertion anchor actually matched.
+  const lf = bodyOf("LeadFeeFinder");
+  ok("LeadFeeFinder is findable", lf.length > 500);
+  for (const d of ["const answered=", "const makeClient=", "const answer=(id)=>", "const [answers,setAnswers]"]) {
+    ok(`LeadFeeFinder does not carry ${d.replace(/const |=.*/g, "").trim()}`, !lf.includes(d),
+      "the meeting-notes code belongs to Deal Prep; in here it is both dead and a crash");
+  }
+
+  // The generic version of the same rule: nothing the panel reads may be declared elsewhere.
+  const usedNames = ["answers", "answered", "askList", "notesState", "made", "briefId", "saveTimer", "makeClient", "answer"];
+  const missing = usedNames.filter((n) => !new RegExp(`(const|let|var)\\s*\\[?\\s*${n}\\b`).test(dp));
+  eq("🔴 every name the panel uses is declared in the same component", missing, [],
+    "a name declared in a different component reads fine in a grep and throws on screen");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 4. IT IS ACTUALLY WIRED UP
 // ══════════════════════════════════════════════════════════════════════════════
 {
   ok("Deal Prep takes a way to create a client", /function DealPrepScreen\(\{[^}]*onCreateClient/.test(S));
