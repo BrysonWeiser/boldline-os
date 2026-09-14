@@ -4773,43 +4773,6 @@ function LeadFeeFinder({defaults,onUse,isDesktop}){
       location:defaults.location||f.location,adBudget:defaults.adBudget||f.adBudget}));
   },[defaults&&defaults.niche,defaults&&defaults.company,defaults&&defaults.adBudget]);
 
-  // Debounced so a call's worth of typing is a handful of writes, not one per keystroke.
-  const answer=(id)=>(e)=>{
-    const v=e.target.value;
-    setAnswers(prev=>{
-      const next={...prev,[id]:v};
-      if(saveTimer.current) clearTimeout(saveTimer.current);
-      if(briefId){
-        saveTimer.current=setTimeout(async()=>{
-          setNotesState("saving");
-          const token=await authToken();
-          if(!token){ setNotesState("error"); return; }
-          try{
-            const r=await fetch("/.netlify/functions/deal-research?action=notes&id="+encodeURIComponent(briefId),
-              {method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-               body:JSON.stringify({answers:next})}).then(x=>x.json());
-            setNotesState(r&&r.ok?"saved":"error");
-          }catch{ setNotesState("error"); }
-        },900);
-      }
-      return next;
-    });
-  };
-
-  // 🔴 ONE BUTTON, AND IT MAKES A REAL CLIENT RECORD, NOT A DRAFT.
-  // The shape comes from `clientFromMeeting`, which is the same shape the Add Client sheet
-  // produces on purpose: two ways of making a client would be two shapes to keep in step.
-  // It lands at "onboarding" with no contract signed and no package, because a good meeting is
-  // not a signature and nothing that counts clients may count this one yet.
-  const makeClient=()=>{
-    if(!onCreateClient) return;
-    const cl=clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes});
-    setMade(cl.name);
-    onCreateClient(cl);
-  };
-
-  const answered=MEETING_QUESTIONS.filter(q=>String(answers[q.id]||"").trim()).length;
-
   const run=async()=>{
     if(!form.niche.trim()&&!form.company.trim()){ setMsg("Type a niche or a company name first."); setState("error"); return; }
     setState("working"); setMsg(""); setRes(null);
@@ -5077,6 +5040,43 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   },[seed]);
   const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
   const set=(key)=>(e)=>{ const v=e.target.value; setForm(f=>({...f,[key]:v})); };
+
+  // Debounced so a call's worth of typing is a handful of writes, not one per keystroke.
+  const answer=(id)=>(e)=>{
+    const v=e.target.value;
+    setAnswers(prev=>{
+      const next={...prev,[id]:v};
+      if(saveTimer.current) clearTimeout(saveTimer.current);
+      if(briefId){
+        saveTimer.current=setTimeout(async()=>{
+          setNotesState("saving");
+          const token=await authToken();
+          if(!token){ setNotesState("error"); return; }
+          try{
+            const r=await fetch("/.netlify/functions/deal-research?action=notes&id="+encodeURIComponent(briefId),
+              {method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+               body:JSON.stringify({answers:next})}).then(x=>x.json());
+            setNotesState(r&&r.ok?"saved":"error");
+          }catch{ setNotesState("error"); }
+        },900);
+      }
+      return next;
+    });
+  };
+
+  // 🔴 ONE BUTTON, AND IT MAKES A REAL CLIENT RECORD, NOT A DRAFT.
+  // The shape comes from `clientFromMeeting`, which is the same shape the Add Client sheet
+  // produces on purpose: two ways of making a client would be two shapes to keep in step.
+  // It lands at "onboarding" with no contract signed and no package, because a good meeting is
+  // not a signature and nothing that counts clients may count this one yet.
+  const makeClient=()=>{
+    if(!onCreateClient) return;
+    const cl=clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes});
+    setMade(cl.name);
+    onCreateClient(cl);
+  };
+
+  const answered=MEETING_QUESTIONS.filter(q=>String(answers[q.id]||"").trim()).length;
 
   const run=async()=>{
     if(!form.companyName.trim()||!form.niche.trim()){ setMsg("Company name and niche are required."); return; }
