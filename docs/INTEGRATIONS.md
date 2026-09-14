@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 177 task-keyed entries under `knowledge/`. They surface automatically via the
+> 178 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**177 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**178 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -246,6 +246,9 @@
 
 ## Google Ads
 
+- **[google-ads-api-cloud-project](../knowledge/google-ads-api-cloud-project.md)** &mdash; &#9989; verified &middot; 2026-09-14  
+  Google emailed 2026-09-13 that Google Ads API access levels have moved from developer tokens onto Google Cloud projects. BoldLine's token transferred automatically — Google Ads customer 989-283-2533, access level BASIC, Cloud project 600403499313. NOTHING BREAKS NOW and existing code keeps working; sending the developer-token header is merely optional from here. API versions released in the first half of 2027 will stop accepting it, and the legacy API Center page is decommissioned around the same time. The header comes out in the same change that bumps API_VERSION past the last version that accepts it, never earlier. The one genuinely time-sensitive item is IAM: once API Center is gone, Google's administrative and compliance emails go ONLY to Cloud project Owners and Editors, so Bryson's account must hold one of those roles on project 600403499313 or he stops being warned about his own ad infrastructure.  
+  <sub>*task:* understand the Google Ads API developer-token sunset, or bump the API version &nbsp;|&nbsp; *keywords:* developer token, developer-token, sunsetting developer tokens, google cloud project, API Center, google ads api version, API_VERSION, GOOGLE_ADS_API_VERSION, v24, access level BASIC, 15000 operations, cloud project 600403499313, customer 989-283-2533, IAM owner editor, google ads api overview page, 2027 deadline, compliance email</sub>
 - **[manager-link-status](../knowledge/manager-link-status.md)** &mdash; &#9989; verified &middot; 2026-09-08  
   Two fixes, 2026-09-08. (1) The "Send manager link request" button never worked — `customerClientLinks:mutate` takes a single `operation`, not an `operations` array like every other mutate in google-ads.mjs, and Google's error ("Unknown name 'operations': Cannot find field") reads like a permissions problem. Bryson had to send the request by hand mid-call. (2) New `linkStatus` action queries `customer_client_link` on the MANAGER account and reports ACTIVE / PENDING / refused / NONE, so the OS knows whether we manage a client's account. Observed from Google every time, never stored — a client can revoke manager access from their own account without telling us. Sebastian's account 924-850-6870 is ACTIVE under manager 989-283-2533.  
   <sub>*task:* send a client's Google Ads manager link request from the OS and know whether we actually have manager access &nbsp;|&nbsp; *keywords:* manager link, customerClientLinks, customer_client_link, linkClient, linkStatus, manager access, MCC link, link request, google ads access, operations unknown name, LinkRequestRow</sub>
