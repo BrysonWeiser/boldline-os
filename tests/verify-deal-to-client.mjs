@@ -175,6 +175,15 @@ const { MEETING_QUESTIONS, setPath, clientFromMeeting } = new Function(
   ok("the Package tab has a no-package screen", /if \(!pkg\) \{/.test(S),
     "it used to read pkg.price straight out and take the client screen down");
   ok("which offers the picker rather than an apology", /No package yet/.test(S) && /Choose their package/.test(S));
+  // 🔴 handleManualUpgrade takes an ID. Handing it the package object made findPkg return
+  // undefined and the screen threw on `.name` the moment Bryson picked one. Both pickers on
+  // this tab must call it the same way.
+  {
+    const calls = [...S.matchAll(/onManualUpgrade&&onManualUpgrade\(([^)]*)\)/g)].map((m) => m[1]);
+    ok("the no-package picker passes an id", calls.length > 0 && calls.every((c) => /\.id\b/.test(c)),
+      `it passes ${JSON.stringify(calls)}; handleManualUpgrade does findPkg(newPkgId) and an object finds nothing`);
+    ok("and the existing picker still does too", /setSelectedManualPkg\(p\.id\)/.test(S));
+  }
   // 🔴 Comments QUOTE the broken pattern on purpose, so the next person knows what went wrong.
   // Testing the raw file matches that quote and fails forever. Only the code is searched.
   const CODE = S.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
