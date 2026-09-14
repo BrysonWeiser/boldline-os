@@ -2650,7 +2650,10 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
           <Label>Choose their package</Label>
           <div style={{marginTop:8}}>
             {choices.map(p=>(
-              <button key={p.id} onClick={()=>onManualUpgrade&&onManualUpgrade(p)}
+              {/* 🔴 handleManualUpgrade takes an ID, not the package object. Passing the object
+                  made findPkg return undefined and the screen threw on `.name`. The existing
+                  picker 100 lines below passes `p.id`; this one now matches it. */}
+              <button key={p.id} onClick={()=>onManualUpgrade&&onManualUpgrade(p.id)}
                 style={{width:"100%",display:"flex",alignItems:"center",gap:10,textAlign:"left",padding:"11px 12px",borderRadius:10,marginBottom:6,cursor:"pointer",
                   border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit"}}>
                 <div style={{flex:1,minWidth:0}}>
