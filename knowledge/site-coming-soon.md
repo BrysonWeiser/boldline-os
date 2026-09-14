@@ -2,10 +2,10 @@
 name: site-coming-soon
 topic: Marketing
 task: the marketing site's temporary "Meta coming soon" state, and the automatic trigger that reverts it
-keywords: [coming soon, meta coming soon, site gating, CS:META-SOON, sentinel comments, revert a4b83f0, october 2026 estimate, google only, auto revert trigger, meta approval watch]
+keywords: [coming soon, wizard lost meta, contact wizard platform options, pickFamily reachability, meta coming soon, site gating, CS:META-SOON, sentinel comments, revert a4b83f0, october 2026 estimate, google only, auto revert trigger, meta approval watch]
 status: verified
 summary: boldlinemedia.com temporarily shows "Coming soon — estimated October 2026" on the Meta Ads, Combined Systems and E-Commerce package tabs (Google is untouched and genuinely open), so Bryson can cold call for Google clients without over-promising. The ENTIRE change is one self-contained commit **`a4b83f0`**, designed to be reverted in one step the moment Meta grants standard access. Reverting is AUTOMATIC by two mechanisms: a standing rule in CLAUDE.md that any session must act on the instant it learns Meta is live, and a weekly Routine (`trig_012hH9VLXchaMj7LUc461Wrb`, Mondays 09:00 Phoenix) that checks and either reverts or asks Bryson directly. Every edit is wrapped in `CS:META-SOON` sentinel comments as a fallback if `git revert` ever conflicts.
-verified: 2026-08-13
+verified: 2026-09-14
 ---
 
 # ✅ FLIPPED BACK — 2026-09-14, the hour Meta approved
@@ -17,6 +17,43 @@ All 31 `CS:META-SOON` sentinels removed (29 in `marketing-site/index.html`, 2 in
 **Flipped by the SENTINELS, per `docs/META-FLIP-CHECKLIST.md`, not by `git revert a4b83f0`** — the
 revert would have left the Full System: Acquisition card's waitlist button in place, because that
 card was added after the commit.
+
+## 🔴 The flip deleted something it should have kept, and the checklist told it to
+
+Bryson caught it the same day: *"at the bottom of the website its still just google meta wasn't
+added."* The **contact wizard's first question** ("What do you need help with?") came back offering
+only **Google Ads** and **Not sure yet**.
+
+**Why.** The gating commit did not *label* the existing Meta buttons, it **added** them, wrapped in
+`<!-- CS:META-SOON:START wizard -->` … `END wizard`. The checklist's rule for a START/END block is
+"delete the whole block including both markers", so the flip did exactly what it was told and took
+the buttons with it. The block markers could not tell the difference between *scaffolding added for
+the gated state* and *real content that merely arrived inside the gated state*.
+
+**The lesson for any future gating job:** a START/END block must contain ONLY things that should
+cease to exist. Anything the visitor should still see afterwards goes outside the markers, even if
+its wording changes. Wrap the `(soon)` label, not the button.
+
+**Restored** with the original `data-val` strings byte-for-byte (`Meta Ads`, `Google + Meta`) so the
+Netlify form payload and the whole lead pipeline are unchanged, and the original label
+**"Facebook / Instagram"** rather than "Meta Ads" — in a lead form the visitor may not know the word
+Meta. Four chips now, wrapping to two rows on a phone.
+
+**The recommender was fine.** Its `FAMILIES` map and routing survived intact; a Meta result is
+reachable and so is Combined. But that was checked by *running* it, not by grepping for `meta:`.
+
+## Pinned so it cannot silently regress
+
+`tests/verify-meta-flip.mjs` now asserts, in its flipped branch:
+- the contact wizard offers a Meta option, and a both-platforms option
+- **the shipped `pickFamily` is executed** across every combination the modal can actually produce
+  (its real button values, read out of the page), and each of google / meta / combined / ecom must
+  come out at least once
+
+The second one is the point. `FAMILIES.meta` existing proves nothing about whether any answer can
+reach it — the gated build had the map intact and the routing switched off. Both assertions were
+mutation-tested: removing the wizard buttons fails 2 checks, making the social branch return
+`google` fails "a real answer set reaches the meta packages".
 
 The two traps the checklist warns about both held: `rec-gate` is a `/* */` JavaScript comment, not
 HTML, and `styles` + `rec-gate` carry a trailing note after the id. The removal matched on
