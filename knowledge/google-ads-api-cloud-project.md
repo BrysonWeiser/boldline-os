@@ -2,7 +2,7 @@
 name: google-ads-api-cloud-project
 topic: Google Ads
 task: understand the Google Ads API developer-token sunset, or bump the API version
-keywords: [developer token, developer-token, sunsetting developer tokens, google cloud project, API Center, google ads api version, API_VERSION, GOOGLE_ADS_API_VERSION, v24, access level BASIC, 15000 operations, cloud project 600403499313, customer 989-283-2533, IAM owner editor, google ads api overview page, 2027 deadline, compliance email]
+keywords: [when to apply standard access, standard access, basic access limit, 15000 operations, operations per day, rate limit, quota, brand verification, apply for standard, developer token, developer-token, sunsetting developer tokens, google cloud project, API Center, google ads api version, API_VERSION, GOOGLE_ADS_API_VERSION, v24, access level BASIC, 15000 operations, cloud project 600403499313, customer 989-283-2533, IAM owner editor, google ads api overview page, 2027 deadline, compliance email]
 status: noted
 summary: Google emailed 2026-09-13 that Google Ads API access levels have moved from developer tokens onto Google Cloud projects. BoldLine's token transferred automatically — Google Ads customer 989-283-2533, access level BASIC, Cloud project 600403499313. NOTHING BREAKS NOW and existing code keeps working; sending the developer-token header is merely optional from here. API versions released in the first half of 2027 will stop accepting it, and the legacy API Center page is decommissioned around the same time. The header comes out in the same change that bumps API_VERSION past the last version that accepts it, never earlier. The one genuinely time-sensitive item is IAM: once API Center is gone, Google's administrative and compliance emails go ONLY to Cloud project Owners and Editors, so Bryson's account must hold one of those roles on project 600403499313 or he stops being warned about his own ad infrastructure.
 verified: 2026-09-14
@@ -49,8 +49,45 @@ Bryson's address is not on project 600403499313 with one of those roles, he stop
 Google's warnings about his own ad infrastructure — including the ones that precede a
 suspension. That is a two-minute check and it is the only action item from the whole email.
 
-## Access level BASIC, worth knowing before it bites
+## 🔴 When to apply for Standard — researched 2026-09-14, answer is "not yet, and not on client count"
 
-BASIC is roughly 15,000 operations a day. That is ample for two clients and is not a problem
-today. It becomes one at scale, and applying for Standard takes review time, so the moment
-client count starts climbing is the moment to apply rather than the moment it starts failing.
+Bryson asked when to apply, expecting a third client that week. Measured rather than guessed.
+
+**How Google counts.** A `Search` or `SearchStream` request is ONE operation. A mutate counts
+every operation inside it (50 keywords in one call is 50). Basic is **15,000 operations/day**;
+Standard is unlimited.
+
+**What BoldLine actually spends, per client per day:**
+
+| Job | Frequency | Ops per client per run | Per day |
+|---|---|---|---|
+| `ads-sync` performance read | hourly | 1 search | 24 |
+| `ads-autopilot` | every 2h | 1 to 2 | 12 to 24 |
+| `conversion-sync` | daily | 1 per conversion | a handful |
+| `client-autobuild` | hourly, gated | usually 0 | ~0 |
+
+**≈ 40 to 50 operations per client per day at rest.** Three clients is ~150 a day, **about 1%
+of the cap**. A full campaign build is a one-off spike of roughly 80 to 100 (budget + campaign
++ ad groups + keywords + ads in one atomic mutate), so even twenty builds in a day is ~2,000.
+
+**The cap bites somewhere near 300 clients at rest.** Client count is therefore the wrong
+trigger. 🔴 The right trigger is **half the cap, ~7,500 operations a day**, or the day we ship
+anything that reads far more per client (search-term mining across all accounts, keyword-level
+hourly reporting, anything touching KeywordPlanIdeaService — which BoldLine does NOT use today
+and which carries its own 1 QPS limit).
+
+**And do not apply early "just in case".** Google's own wording: Standard *"is only granted to
+developers who require unlimited Google Ads API operations, such as large companies or tools
+that serve many users."* Applying at three clients invites a question with no good answer, and
+a refusal is worse than not having asked.
+
+## 🔴 What IS worth doing now: brand verification
+
+Since a July 2026 pilot, **brand verification on the linked Cloud project gates every new Basic
+and Standard access request**, and with it done a review lands in minutes to hours instead of
+sitting in the backlog Google acknowledged in February 2026. Done with no deadline pressing it
+is a ten-minute job; done the week the cap starts biting it is the difference between an
+afternoon and several weeks with ads that cannot be managed.
+
+It lives in the same Cloud Console as the IAM check: OAuth consent screen, user type External,
+publishing status Production, branding details filled in.
