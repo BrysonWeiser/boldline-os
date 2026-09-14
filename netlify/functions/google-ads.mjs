@@ -107,6 +107,18 @@ export async function getAccessToken() {
   return data.access_token;
 }
 
+// 🔴 THE developer-token HEADER HAS A SUNSET DATE: FIRST HALF OF 2027.
+//
+// Google emailed 2026-09-13: access levels moved off developer tokens onto Google Cloud
+// projects. BoldLine's token transferred automatically (BASIC level, Cloud project
+// 600403499313, Google Ads customer 989-283-2533 — public identifiers, kept on purpose per
+// CLAUDE.md). Sending the header is now OPTIONAL and still accepted.
+//
+// DO NOT REMOVE IT EARLY. It is harmless today and removing it buys nothing, while an
+// integration that already works is the last thing to go poking at. API versions released in
+// the first half of 2027 will stop accepting it, and the version is the natural trigger: this
+// header comes out in the same change that bumps API_VERSION past the last one that takes it.
+// See the API_VERSION note above and KB `google-ads-api-cloud-project`.
 const baseHeaders = (accessToken, withLoginCustomer = true) => {
   const h = {
     authorization: `Bearer ${accessToken}`,
