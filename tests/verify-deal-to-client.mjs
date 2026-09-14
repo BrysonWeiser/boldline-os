@@ -28,7 +28,16 @@ ok("the meeting-questions block is still in the app", a > 0 && b > a,
   "its boundary comments are how this suite finds it; renaming them silently unhooks the whole file");
 const src = S.slice(a, b);
 
+// Stubs that behave like the real ones, including the case that matters: an id nothing
+// matches returns undefined, which is exactly what findPkg("") does.
+const PKGS = [
+  { id: "g_starter", name: "Google Starter", price: 800, setup: 500, platform: "google" },
+  { id: "g_growth", name: "Google Growth", price: 1500, setup: 900, platform: "google" },
+];
 const scope = {
+  findPkg: (id) => PKGS.find((p) => p.id === id),
+  buildBots: (pkg) => (pkg ? [{ id: "intake" }, { id: "research" }, { id: "build" }] : []),
+  ALL_PKGS: PKGS,
   uid: () => "testid",
   fmt: (d) => String(d),
   today: new Date("2026-09-14T12:00:00Z"),
@@ -133,14 +142,57 @@ const { MEETING_QUESTIONS, setPath, clientFromMeeting } = new Function(
   eq("the brief's notes come across", cl.notes, "met Thursday");
 }
 
+// 🔴 THE PACKAGE, WHICH IS WHAT CRASHED THE CLIENT SCREEN ON 2026-09-14.
+// The first version left packageId empty. Nothing in the OS had ever seen a client without
+// one, because the Add Client sheet refuses to save without it, so the Package tab read
+// `pkg.price` freely and took the whole screen down. The package is now chosen at creation.
+{
+  const cl = clientFromMeeting({ contactName: "B" }, { companyName: "Co" }, "g_growth");
+  eq("🔴 the chosen package is on the client", cl.packageId, "g_growth");
+  ok("and its bots are built, like a hand-added client", Object.keys(cl.botStatuses).length > 1,
+    "an empty bot list leaves the pipeline with nothing to show");
+  eq("with intake already running", cl.botStatuses.intake, "active");
+  for (const b of ["research", "build"]) eq(`${b} starts waiting`, cl.botStatuses[b], "waiting");
+
+  // An id nothing matches must not invent a package.
+  const none = clientFromMeeting({}, {}, "not-a-package");
+  eq("an unknown package id leaves it empty rather than guessing", none.packageId, "");
+  eq("and builds no bots", Object.keys(none.botStatuses).join(""), "intake");
+}
+{
+  // The UI must not let him get that far.
+  ok("🔴 the button needs a package as well as an answer", /disabled=\{!answered\|\|!newPkgId\}/.test(S),
+    "creating a client with no package is what crashed their own Package tab");
+  ok("and the picker defaults to what the briefing recommended", /if\(recId&&!newPkgId\) setNewPkgId\(recId\)/.test(S),
+    "he has just quoted them from that recommendation; making him re-pick it is friction for nothing");
+  ok("the picker is on screen", S.includes("Package you quoted them"));
+  ok("and it says why the button is off", S.includes("Choose the package you quoted them."));
+}
+
+// 🔴 AND THE SCREEN SURVIVES ONE ANYWAY, because a packageless client can still arrive by
+// other routes and a crash is never the right answer.
+{
+  ok("the Package tab has a no-package screen", /if \(!pkg\) \{/.test(S),
+    "it used to read pkg.price straight out and take the client screen down");
+  ok("which offers the picker rather than an apology", /No package yet/.test(S) && /Choose their package/.test(S));
+  // 🔴 Comments QUOTE the broken pattern on purpose, so the next person knows what went wrong.
+  // Testing the raw file matches that quote and fails forever. Only the code is searched.
+  const CODE = S.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  eq("and the half-guards that threw are gone", /\(pkg && pkg\.(price|setup)\)\.toLocaleString/.test(CODE), false,
+    "that yields undefined and then calls a method on it, which is no guard at all");
+  eq("the founding-terms line is guarded too", /Number\(pkg\.price\|\|0\)/.test(CODE), false,
+    "pkg.price throws before ||0 can help");
+  ok("(and the comments still explain both)", /\(pkg && pkg\.price\)\.toLocaleString/.test(S),
+    "the next person needs to know why these are written the way they are");
+}
+
 // 🔴 A GOOD MEETING IS NOT A SIGNATURE. Standing rule in CLAUDE.md as of 2026-09-14: nothing
 // may count a client who has not signed. A record created here must not look signed.
 {
-  const cl = clientFromMeeting({ contactName: "X" }, { companyName: "Someone" });
+  const cl = clientFromMeeting({ contactName: "X" }, { companyName: "Someone" }, "g_starter");
   eq("🔴 it is not marked signed", cl.contractSigned, false);
   eq("🔴 nor active", cl.contractStatus, "pending");
   eq("it starts at onboarding", cl.stage, "onboarding");
-  eq("with no package chosen", cl.packageId, "");
   eq("and no intake ticked off", cl.intakeComplete, false);
   ok("so the founding count still ignores it", !cl.contractSigned && cl.contractStatus !== "active",
     "isFoundingClient counts on contractSigned or an active contract; this must satisfy neither");
@@ -242,7 +294,7 @@ const bodyOf = (fnName) => {
     "a second creation path would save a client the main list never sees");
   ok("the button calls it", /const makeClient=\(\)=>\{[\s\S]{0,400}onCreateClient\(cl\)/.test(S));
   ok("the button is on screen", S.includes("Create the client from these answers"));
-  ok("and it refuses to run on an empty form", /disabled=\{!answered\}/.test(S),
+  ok("and it refuses to run on an empty form", /disabled=\{!answered\|\|!newPkgId\}/.test(S),
     "a client made from no answers is a blank record he then has to fill in by hand anyway");
   ok("answers are typed into a real field per question", /value=\{answers\[q\.id\]\|\|""\}/.test(S));
   ok("each question shows what it feeds", /\{q\.feeds\}/.test(S));
