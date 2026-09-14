@@ -8,6 +8,44 @@ summary: Deal Prep now carries the meeting questions, a box for each answer, and
 verified: 2026-09-14
 ---
 
+## 🔴 SECOND CRASH, SAME DAY: A CLIENT WITH NO PACKAGE
+
+After the scope fix, opening the new client's Package tab threw **"Cannot read properties of
+undefined (reading 'toLocaleString')"**.
+
+`clientFromMeeting` created the client with `packageId: ""`. **The OS had never had a client
+without a package**, because `AddClientSheet` refuses to save without one (`canSave` requires it),
+so `findPkg(client.packageId)` had never once returned undefined and `PackageTabContent` read
+`pkg.price` freely. The guard that was there, `(pkg && pkg.price).toLocaleString()`, **yields
+undefined and then calls a method on it, which is no guard at all**.
+
+Fixed in three places, in order of importance:
+
+1. **The package is now chosen when the client is created.** A select sits above the button,
+   defaulting to the package the briefing recommended, and the button stays disabled without one.
+   This is honest rather than defensive: the recommendation is on screen directly above, and he
+   has just quoted them from it. `clientFromMeeting(answers, brief, packageId)` also builds the
+   bot list, so the record matches a hand-added client exactly.
+2. **The Package tab survives one anyway**, because a packageless client can arrive by other
+   routes and a crash is never the right answer. It now shows a "No package yet" screen that
+   offers the picker.
+3. **The half-guards are real guards**: `Number((pkg && pkg.price) || 0)`. Also
+   `Number(pkg.price||0)` on the founding-terms line, which throws before the `||0` can help.
+
+Checked and safe already: `contractTerms` (`pkg || {}`) and `calcMonthlyBill` (`if (!pkg) return`),
+so the money roll-ups never had this problem.
+
+## What actually caught things, and what did not
+
+- The **grep-based assertions caught nothing** in either crash. Both bugs were "the code exists,
+  in the wrong place" or "the code exists, and is wrong".
+- The **scope guard** (`bodyOf("DealPrepScreen")`) caught crash one on a deliberate re-break.
+- **`verify-app-boots`'s use-before-declare check caught a third bug before deploy**: the picker's
+  default effect read `recId` 49 lines above its declaration, which compiles and throws on render.
+- 🔴 **Nothing rendered the screen.** Both crashes reached Bryson because the feature shipped
+  without the component ever being mounted. That is the gap still open.
+
+
 ## 🔴 IT SHIPPED BROKEN, AND THE TESTS PASSED ANYWAY (2026-09-14, same afternoon)
 
 Opening Deal Prep crashed the screen: **"answered is not defined"**.

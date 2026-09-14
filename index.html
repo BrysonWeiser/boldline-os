@@ -2624,6 +2624,48 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
     setTimeout(()=>{ setUpgradeApplied(false); setSelectedManualPkg(null); },1800);
   };
 
+  // 🔴 A CLIENT CAN EXIST WITHOUT A PACKAGE, AND UNTIL 2026-09-14 NOTHING HERE BELIEVED THAT.
+  //
+  // The Add Client sheet has always REQUIRED a package to save, so `findPkg(client.packageId)`
+  // had never once returned undefined and the code below reads `pkg.price` freely. Creating a
+  // client straight from a meeting changed that: at that point he has had one call and has not
+  // chosen a package yet, which is the honest state. Opening their Package tab then crashed the
+  // whole client screen on `(pkg && pkg.price).toLocaleString()` — a guard that returns
+  // undefined and then calls a method on it, which is no guard at all.
+  //
+  // So this is not a defensive null check bolted on. It is the screen for a real state the OS
+  // now has: a signed-nothing prospect who needs a package picked. It offers the picker rather
+  // than an apology, because choosing one is the next thing he does.
+  if (!pkg) {
+    const choices = ALL_PKGS.slice().sort((a,b)=>a.price-b.price);
+    return (
+      <div style={S.col12}>
+        <Card style={{borderColor:C.borderAccent,background:`${C.gold}0d`}}>
+          <Label>No package yet</Label>
+          <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>
+            {client.name} came in from a meeting, so nothing is chosen yet. Pick the package you quoted them and everything on this tab fills in.
+          </div>
+        </Card>
+        <Card>
+          <Label>Choose their package</Label>
+          <div style={{marginTop:8}}>
+            {choices.map(p=>(
+              <button key={p.id} onClick={()=>onManualUpgrade&&onManualUpgrade(p)}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:10,textAlign:"left",padding:"11px 12px",borderRadius:10,marginBottom:6,cursor:"pointer",
+                  border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12.5,fontWeight:700,color:C.text}}>{p.name}</div>
+                  <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>${Number(p.setup||0).toLocaleString()} setup</div>
+                </div>
+                <div style={{fontSize:15,fontWeight:800,color:C.gold,flexShrink:0}}>${Number(p.price||0).toLocaleString()}<span style={{fontSize:10,fontWeight:400,color:C.textMuted}}>/mo</span></div>
+              </button>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div style={S.col12}>
 
@@ -2637,9 +2679,9 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
             {(pkg && pkg.savings)&&<div style={{fontSize:11,color:C.green,fontWeight:600,marginTop:3}}>{pkg.savings}</div>}
           </div>
           <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${(pkg && pkg.price).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
+            <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${Number((pkg && pkg.price) || 0).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
             <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead)} — whichever is higher</div>
-            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${(pkg && pkg.setup).toLocaleString()} setup (one-time)</div>
+            <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${Number((pkg && pkg.setup) || 0).toLocaleString()} setup (one-time)</div>
           </div>
         </div>
         <div style={{marginTop:10,padding:"6px 9px",borderRadius:8,backgroundColor:"rgba(0,0,0,0.3)",
@@ -4971,22 +5013,33 @@ const setPath = (obj, path, value) => {
 // It also starts at `stage: "onboarding"` with `contractSigned: false` and no package, exactly
 // like a hand-added client: a good meeting is not a signature, and nothing that counts clients
 // may count this one until the contract comes back (standing rule in CLAUDE.md).
-function clientFromMeeting(answers, brief) {
+function clientFromMeeting(answers, brief, packageId) {
   const a = answers || {};
   const b = brief || {};
+  // 🔴 A CLIENT WITHOUT A PACKAGE IS A STATE THIS APP HAS NEVER HAD.
+  // The Add Client sheet has always REQUIRED one to save, so everything downstream (the
+  // Package tab, the contract, the bot list, the revenue roll-up) reads it freely. The first
+  // version of this function left it empty and opening the new client's Package tab crashed
+  // the whole screen. Rather than teach a dozen screens a new state, the package is chosen
+  // here, which is honest anyway: the recommendation is on screen directly above this button
+  // and he has just quoted them from it.
+  const pkg = findPkg(packageId) || null;
+  const bots = pkg ? buildBots(pkg) : [];
+  const botStatuses = Object.fromEntries(bots.map((x) => [x.id, "waiting"]));
+  botStatuses.intake = "active";
   const name = String(b.companyName || a.companyName || "").trim() || "New client";
   const cl = {
     id: uid(),
     name,
     niche: String(b.niche || "").trim(),
     contactName: "", email: "", businessAddress: "", businessPhone: "",
-    packageId: "", stage: "onboarding", platforms: [], adBudget: "",
+    packageId: pkg ? pkg.id : "", stage: "onboarding", platforms: [], adBudget: "",
     notes: String(b.notes || ""),
     contractStart: fmt(today), contractEnd: fmt(addMonths(today, 3)), contractTermMonths: 3,
     portalToken: crypto.randomUUID(), leadToken: crypto.randomUUID(),
     intakeComplete: false, contractSigned: false, contractStatus: "pending",
     healthScore: null, leads: 0, cpl: 0,
-    alerts: [], commLog: [], leadsLog: [], upgradeRequest: null, botStatuses: {},
+    alerts: [], commLog: [], leadsLog: [], upgradeRequest: null, botStatuses,
     campaignSetup: { serviceArea:"", mainOffer:"", avgTicket:"", targetLocations:"",
       excludedKeywords:"", leadDestination:"", crmSystem:"" },
     brandVoice: { tone:"", competitors:"", differentiator:"" },
@@ -5027,6 +5080,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   const [askList,setAskList]=useState("first");   // first | intake | all
   const [notesState,setNotesState]=useState("");  // "" | saving | saved | error
   const [made,setMade]=useState(null);
+  const [newPkgId,setNewPkgId]=useState("");
   const saveTimer=useRef(null);
   const pollRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); if(saveTimer.current) clearTimeout(saveTimer.current); },[]);
@@ -5070,8 +5124,8 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   // It lands at "onboarding" with no contract signed and no package, because a good meeting is
   // not a signature and nothing that counts clients may count this one yet.
   const makeClient=()=>{
-    if(!onCreateClient) return;
-    const cl=clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes});
+    if(!onCreateClient||!newPkgId) return;
+    const cl=clientFromMeeting(answers,{companyName:(result&&result._prospect)||form.companyName,niche:form.niche,notes:form.notes},newPkgId);
     setMade(cl.name);
     onCreateClient(cl);
   };
@@ -5126,6 +5180,8 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
 
   const leadFee=result&&result.nicheLeadFee;
   const recId=result&&result.recommendedPackageId;
+  // Default to whatever the briefing recommended, since that is the price he just quoted.
+  useEffect(()=>{ if(recId&&!newPkgId) setNewPkgId(recId); },[recId]);
   const back = !isDesktop && (
     <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
   );
@@ -5295,18 +5351,30 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
               ));
             })()}
 
+            {!made&&(
+              <div style={{marginBottom:9}}>
+                <div style={{fontSize:10,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>Package you quoted them</div>
+                <select value={newPkgId} onChange={e=>setNewPkgId(e.target.value)}
+                  style={{width:"100%",padding:"10px 11px",fontSize:12.5,borderRadius:9,border:`1px solid ${newPkgId?C.border:C.gold+"66"}`,background:C.bg3,color:C.text,fontFamily:"inherit"}}>
+                  <option value="">Choose one…</option>
+                  {ALL_PKGS.slice().sort((x,y)=>x.price-y.price).map(pk=>(
+                    <option key={pk.id} value={pk.id}>{pk.name}{pk.id===recId?" (recommended)":""} — ${Number(pk.price||0).toLocaleString()}/mo</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {made
               ? <div style={{padding:"13px 14px",borderRadius:11,border:`1px solid ${C.green}55`,background:"rgba(16,185,129,0.07)",fontSize:12.5,color:C.text,lineHeight:1.6}}>
                   <strong>{made}</strong> was created and everything you typed went with it. They are sitting at onboarding with no contract signed yet, so nothing counts them as a client until one comes back.
                 </div>
-              : <button onClick={makeClient} disabled={!answered}
-                  style={{width:"100%",padding:"13px 14px",fontSize:13,fontWeight:800,borderRadius:11,border:"none",cursor:answered?"pointer":"not-allowed",
-                    background:answered?C.gradB:"rgba(255,255,255,.05)",color:answered?"#1a1400":C.textMuted}}>
+              : <button onClick={makeClient} disabled={!answered||!newPkgId}
+                  style={{width:"100%",padding:"13px 14px",fontSize:13,fontWeight:800,borderRadius:11,border:"none",cursor:(answered&&newPkgId)?"pointer":"not-allowed",
+                    background:(answered&&newPkgId)?C.gradB:"rgba(255,255,255,.05)",color:(answered&&newPkgId)?"#1a1400":C.textMuted}}>
                   Create the client from these answers
                 </button>}
             {!made&&(
               <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:7}}>
-                {answered?"Everything above lands on their record. You still pick their package and send the contract from the client screen.":"Answer at least one question first."}
+                {!answered?"Answer at least one question first.":!newPkgId?"Choose the package you quoted them.":"Everything above lands on their record. You still send the contract from the client screen."}
               </div>
             )}
           </div>
@@ -8175,7 +8243,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                   {/* Named out loud, because a founding deal that reads like a mistake gets
                       "corrected" by somebody six months from now. */}
                   {(t.setupWaived||t.monthlyWaived)&&(
-                    <div style={{fontSize:10,color:C.gold,marginTop:5,lineHeight:1.5}}>Founding terms. The package lists ${Number(pkg.price||0).toLocaleString()}/mo and ${Number(pkg.setup||0).toLocaleString()} setup.</div>
+                    <div style={{fontSize:10,color:C.gold,marginTop:5,lineHeight:1.5}}>Founding terms. The package lists ${Number((pkg&&pkg.price)||0).toLocaleString()}/mo and ${Number((pkg&&pkg.setup)||0).toLocaleString()} setup.</div>
                   )}
                 </>);
               })()}
