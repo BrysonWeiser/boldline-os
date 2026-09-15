@@ -16,6 +16,8 @@ Google's announcement email, received 2026-09-13, forwarded by Bryson 2026-09-14
 |---|---|
 | Google Ads customer ID | **989-283-2533** |
 | Google Cloud project | **600403499313** |
+| Its name in the console | **BoldLine Ads API** (project ID `boldline-ads-api`) |
+| 🔴 Where it lives | **"No organization"**, NOT under `theboldlinemedia-org` |
 | Access level | **BASIC** |
 
 ## What changed
@@ -91,3 +93,26 @@ afternoon and several weeks with ads that cannot be managed.
 
 It lives in the same Cloud Console as the IAM check: OAuth consent screen, user type External,
 publishing status Production, branding details filled in.
+
+## 🔴 How to actually FIND this project in the console (2026-09-14)
+
+Bryson opened console.cloud.google.com to do the IAM job and landed somewhere else entirely, because
+the console drops you into whatever project it used last and the picker is filtered by organization.
+Three things make this project easy to miss, and all three bit in one sitting:
+
+1. **The console opened on "My First Project"** (number **994350686555**, under
+   `theboldlinemedia-org`) — an empty starter project with a $300 free-trial banner across the top.
+   Nothing to do with the ads. **Ignore that banner; there is nothing to activate.**
+2. **The project picker defaults to the organization**, and `theboldlinemedia-org` contains ONLY that
+   starter project. Searching the number there returns nothing, which reads like "he has lost
+   access" rather than "wrong filter".
+3. **The ads project sits under "No organization"**, alongside a second project called
+   **BoldLine OS** (`boldline-os`). Neither name carries the number, so the right one has to be
+   confirmed by opening it and reading "Project number" on the welcome page.
+
+**The route:** project picker (the chip beside the Google Cloud logo) → the **organization dropdown
+inside that dialog** → **No organization** → **All** tab → **BoldLine Ads API**. Then check the
+welcome page says **Project number: 600403499313** before changing anything.
+
+**Never press "New project"** in the corner of that dialog while looking for it. A third empty
+project is the one outcome that makes this worse next time.
