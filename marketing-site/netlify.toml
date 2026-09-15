@@ -2,6 +2,40 @@
   publish = "."
   functions = "netlify/functions"
 
+# ── BoldLine's OWN audience landing pages ────────────────────────────────────
+# Bryson, 2026-09-15, wants a page per audience for his own ads: one for car detailers, a
+# different one for roofers, and so on. Google prints the address under the ad, so it has to
+# read as boldlinemedia.com and not as a netlify.app test site.
+#
+# The pages are built and served by the OS (one account, many pages), and these two rules
+# proxy them onto this domain. He chose this over a subdomain each BECAUSE it is set up once:
+# every new audience after this is just a name typed into the OS, with no DNS record and no
+# Netlify job standing between him and a live page.
+#
+# 🔴 BOTH RULES ARE LOAD-BEARING, and the second one is the easy one to forget. The lead form
+# posts to a RELATIVE path, so on this domain it would post HERE, where no such thing exists.
+# Every enquiry would 404 while the ads kept spending, and the visitor would just see
+# "something went wrong" — the quiet failure the hand-off note in landing.mjs was written
+# about. `/lead` is the OS's existing public alias for the lead endpoint; `/.netlify/*` is
+# reserved by Netlify and is deliberately NOT what is proxied here.
+[[redirects]]
+  from = "/for/:slug"
+  to = "https://boldlinemedia.netlify.app/lp/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/for/:slug/"
+  to = "https://boldlinemedia.netlify.app/lp/:slug"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/lead"
+  to = "https://boldlinemedia.netlify.app/lead"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/sitemap.xml"
   to = "/.netlify/functions/sitemap"

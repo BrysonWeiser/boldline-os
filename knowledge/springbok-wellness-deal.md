@@ -4,7 +4,7 @@ topic: Clients
 task: work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-lead definition for a clinic
 keywords: [springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches]
 status: open
-summary: BoldLine's SECOND client. Brendon, owner of Springbok Wellness, a chiropractor. Closed verbally on a call Thursday 2026-09-10; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
+summary: 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
 verified: 2026-09-11
 ---
 
@@ -52,3 +52,16 @@ He wants **TMJ** and symptom searches like **lower back pain** and **neck pain**
 | `lower back pain`, `why does my neck hurt` | has a symptom, has NOT decided on a chiropractor | 🔴 **Hold.** Huge volume, cheap clicks, mostly people wanting a free stretch video. This is where a small budget dies |
 
 So: open with the provider-intent terms, add TMJ as its own group early because it is cheap and motivated, and only go after bare symptom searches once there is conversion data for Google to lean on. The generator already builds intent-themed ad groups, so this falls out of how the OS works if the groups are ticked deliberately.
+
+## Status, 2026-09-15
+
+The agreement **was sent on 14 September and VOIDED the same day**: it went out with no package on
+it, so it showed no service, no platform, and — the dangerous part — no per-qualified-lead clause at
+all. Bryson caught it himself within minutes. He told Brendon it was voided and that they would
+settle the details on the call rather than resend blind. **That cannot happen again**: the OS now
+refuses to send an incomplete agreement and says what is missing (KB `contract-gaps`).
+
+**The call is Wednesday 16 September.** The intake questions to work through are in the OS under
+**Deal Prep**, and the answers typed there build the client record and feed the contract in one
+button, so nothing is typed twice (KB `deal-prep-to-client`). His qualified-lead definition is the
+one thing to settle on that call, and the reasoning is above.

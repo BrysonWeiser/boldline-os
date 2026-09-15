@@ -43,6 +43,11 @@ const ok = (name, cond, extra) => {
 // ── Every embed the OS renders, and why each one cannot do harm ──────────────
 // Adding a preview means adding a row here. That is the whole mechanism.
 const MANIFEST = {
+  // Also covers BoldLine's own audience pages (2026-09-15): `AudiencePagesCard` renders them
+  // through this SAME embed, handing it the account with `landingPage` swapped, so it carries
+  // the same real leadToken and rides the same guard. That is a reason to keep using this
+  // component rather than a second preview, and a reason to re-read this row if anyone ever
+  // gives audience pages their own.
   "Landing Page Preview": "carries the real leadToken; guarded by an about: check before the intake fetch",
   "Client Portal": "carries the real portalToken; guarded by BL_PREVIEW blocking every non-GET request",
   "Service Agreement": "inert document, no fetch / form / onclick / external links",
@@ -97,10 +102,17 @@ const MANIFEST = {
     landingPage: { headline: "Shirts", subheadline: "Fast", ctaText: "Get a quote", published: true },
   });
 
-  ok("🔴 a submit from a preview cannot reach the intake",
-    /indexOf\('about:'\)===0/.test(page)
-      && page.indexOf("indexOf('about:')===0") < page.indexOf("functions/lead-intake?token="),
-    "the guard has to sit BEFORE the send, or it is not a guard");
+  // 🔴 The send moved to `/lead` on 2026-09-15 so a page still reaches the intake when it is
+  // served from another domain (KB `landing-pages-per-audience`). Both halves are required to
+  // be present before their order is judged: a missing guard indexes to -1, which compares as
+  // "before" everything and would have passed this on a page carrying no guard whatsoever.
+  {
+    const g = page.indexOf("indexOf('about:')===0");
+    const f = page.indexOf("fetch('/lead?token=");
+    ok("the preview guard and the send are both on the page", g >= 0 && f >= 0, `guard ${g}, send ${f}`);
+    ok("🔴 a submit from a preview cannot reach the intake", g >= 0 && f >= 0 && g < f,
+      "the guard has to sit BEFORE the send, or it is not a guard");
+  }
   ok("🔴 and its own buttons cannot navigate the frame to the OS",
     /querySelectorAll\('a\[href\^="#"\]'\)/.test(page) && /preventDefault\(\)/.test(page),
     "a bare fragment href resolves against the PARENT document inside an iframe srcdoc");

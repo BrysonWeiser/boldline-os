@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { findPage, clientForPage } from "../lib/landing-pages-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
@@ -76,7 +77,7 @@ export function designConfig(cl) {
 // three things break the moment this page leaves BoldLine's domain and every one of them
 // fails QUIETLY, which is the worst kind:
 //
-//  1. THE LEAD FORM. It posts to `/.netlify/functions/lead-intake`, a RELATIVE path. On
+//  1. THE LEAD FORM. It posts to `/lead`, a RELATIVE path. On
 //     their host that path does not exist, so every enquiry hits a 404 and the visitor
 //     sees "something went wrong". The business would be paying for clicks that can never
 //     reach them and would have no way of knowing why. In hand-off mode the form becomes
@@ -899,7 +900,7 @@ a{color:inherit}
       document.getElementById('lf-thanks').style.display='block';
       return;
     }
-    fetch('/.netlify/functions/lead-intake?token=${encodeURIComponent(cl.leadToken || "")}',{
+    fetch('/lead?token=${encodeURIComponent(cl.leadToken || "")}',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
     }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';${formConversion}})
@@ -1163,7 +1164,7 @@ export default async (req) => {
   if (!slug && !host) return notFoundPage();
 
   const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data, error } = slug
+  let { data, error } = slug
     ? await supabaseAdmin.from("clients").select("id, data").eq("data->>landingSlug", slug).maybeSingle()
     // Case-insensitive, so nobody has to remember which casing they typed it in. The host
     // has already been checked against a hostname pattern, so it cannot smuggle the `%`
@@ -1174,9 +1175,30 @@ export default async (req) => {
     console.error("Landing page lookup failed:", error);
     return notFoundPage();
   }
+
+  // 🔴 AN ACCOUNT MAY HOLD MORE THAN ONE PAGE, and the extra ones live in `landingPages[]`
+  // rather than in `landingSlug`, so the indexed lookup above cannot see them. Only reached
+  // when that lookup found nothing, so an ordinary page costs exactly what it did before.
+  //
+  // It SCANS rather than filtering inside the JSON on the server. A jsonb containment filter
+  // would be neater and is not testable from here, and an untestable query on the path a paid
+  // click takes is precisely the shape of thing this project keeps shipping broken. There are
+  // a handful of records; revisit when that stops being true.
+  let extraPage = null;
+  if (!data && slug) {
+    const { data: rows, error: scanErr } = await supabaseAdmin
+      .from("clients").select("id, data").not("data->landingPages", "is", null);
+    if (scanErr) { console.error("Extra landing page lookup failed:", scanErr); return notFoundPage(); }
+    for (const row of rows || []) {
+      const hit = findPage(row && row.data, slug);
+      if (hit) { data = row; extraPage = hit; break; }
+    }
+  }
   if (!data) return notFoundPage();
 
-  const cl = data.data;
+  // Rendered by handing the renderer a copy of the account with this page's content in place,
+  // so every layout, guard and test that covers the main page covers these unchanged.
+  const cl = extraPage ? clientForPage(data.data, extraPage) : data.data;
   const lp = cl.landingPage || {};
   // 🔴 THE PREVIEW KEY, AND THE ONE THING IT MAY DO.
   //

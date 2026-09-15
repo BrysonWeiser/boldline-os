@@ -301,9 +301,19 @@ const fakeFetch = (script) => {
     + "button feel alive is an obvious future edit, and this is what makes it safe");
   ok("and it still shows the thank-you state, so the preview stays useful",
     /indexOf\('about:'\)===0\)\{[\s\S]{0,220}lf-thanks/.test(managed));
-  ok("🔴 the guard sits BEFORE the fetch, not after it",
-    managed.indexOf("indexOf('about:')===0") < managed.indexOf("functions/lead-intake?token="),
-    "a guard after the send is not a guard");
+  // 🔴 BOTH PIECES MUST BE PRESENT BEFORE THE ORDER MEANS ANYTHING. This compared two
+  // indexOf results directly, so if the GUARD ever vanished its index would be -1, which is
+  // "before" everything, and the check would pass on a page with no guard at all — the exact
+  // failure it exists to prevent. The send moved to `/lead` on 2026-09-15 so that a page works
+  // when it is served from another domain; the guard's job is unchanged.
+  {
+    const g = managed.indexOf("indexOf('about:')===0");
+    const f = managed.indexOf("fetch('/lead?token=");
+    ok("the preview guard and the send are both still there", g >= 0 && f >= 0,
+      `guard ${g}, send ${f}`);
+    ok("🔴 the guard sits BEFORE the fetch, not after it", g >= 0 && f >= 0 && g < f,
+      "a guard after the send is not a guard");
+  }
 }
 
 // ── 🔴 NOTHING ON A CLIENT'S PAGE MAY POINT BACK AT BOLDLINE ────────────────

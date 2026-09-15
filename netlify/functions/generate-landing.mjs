@@ -94,6 +94,12 @@ export default async (req) => {
 
   const name = clip(body.name, 200) || "this business";
   const niche = clip(body.niche, 100);
+  // 🔴 THE PAGE POINTS THE OTHER WAY WHEN THIS IS SET, AND GETTING IT BACKWARDS IS THE WHOLE
+  // RISK. Everything below was written for a local service business selling to consumers. An
+  // AUDIENCE page is BoldLine selling ad management TO the owner of that trade, so passing
+  // "Roofers" as the niche would have produced a page selling roofing to homeowners, under
+  // Bryson's own domain, pointed at by his own ads. Absent, nothing about this file changes.
+  const audience = clip(body.audience, 100);
   // How many options to write. 1 keeps the original single-page behaviour byte for byte, which
   // matters because the autobuild bot and the existing Generate button both call it that way.
   const count = Math.min(MAX_VARIANTS, Math.max(1, Number(body.count) || 1));
@@ -128,7 +134,14 @@ export default async (req) => {
     .filter((m) => m.category !== "video" && m.url.startsWith(`${SUPABASE_URL}/`))
     .slice(0, 10);
 
-  const dataBlock = `Business: ${name}
+  const dataBlock = audience ? `Business writing the page: ${name} (a digital marketing agency)
+WHO THE VISITOR IS: the owner of a ${audience} business. They are the CUSTOMER here, not the
+business being advertised. The page sells ${name}'s service TO them.
+What ${name} sells them: Google and Meta ads managed end to end, plus the landing page, call
+tracking and lead follow-up behind the ads. The client keeps and pays for their own ad account;
+${name} never holds or marks up their ad spend.
+Brand tone: ${clip(bv.tone, 50) || "Direct, plain-spoken, no hype"}
+Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}` : `Business: ${name}
 Niche: ${niche || "Not specified"}
 Main offer: ${clip(cs.mainOffer, 300) || "Not specified"}
 Average job/ticket value: ${clip(cs.avgTicket, 100) || "Not specified"}
@@ -145,12 +158,31 @@ Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
   // The page must lead on the same thing the ads do, or the click is wasted. "landing" mode
   // gives the durable framing (season, recurring pattern) rather than today's alert, because
   // this page sits at the same URL for months.
-  const cond = await getLocalConditions({
+  // Skipped for an audience page: it speaks to a trade nationally rather than to one service
+  // area, so there is no location to look conditions up for and the call would be spent on an
+  // empty string.
+  const cond = audience ? { block: "" } : await getLocalConditions({
     locations: cs.targetLocations || cs.serviceArea || "",
     mode: "landing",
   });
 
-  const system = `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
+  const audienceSystem = `You are writing the on-page copy for a single-page ad landing page for a DIGITAL MARKETING AGENCY. The visitor is the OWNER of a ${audience} business, and the page is selling them the agency's ad management service. You are NOT writing a page that advertises ${audience} services to the public. Everything on the page speaks to a ${audience} owner about getting more customers for their own business.
+
+Write like one business owner talking to another. Lead with the problem they actually feel (quiet months, leads that never answer, money spent on ads with nothing to show), then what the service does about it. Be specific to ${audience}: the jobs they sell, the seasons they have, what a good customer is worth to them.
+
+🔴 NEVER invent results, numbers, case studies, client names, testimonials, star ratings or "X businesses served". The agency is new and has almost no track record, so a fabricated proof point is both a lie and instantly checkable. Sell the approach and the honesty, never fake evidence. Do not promise specific lead volumes or a guaranteed return.
+NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written. Write two sentences, or use a comma. Hyphens INSIDE a word are fine: done-for-you, no-obligation, 24-hour.
+
+Also write 3-4 honest FAQs (faqs) answering what a ${audience} owner would actually ask: what it costs, who owns the ad account, how long before it works, what happens if it does not. Keep answers to 1-2 sentences and truthful. The honest answer to "how fast" is that paid ads compound and the first weeks are mostly learning.
+
+BUSINESS DATA:
+${dataBlock}${mediaBlock}
+
+Fill in the DESIGN directives (layout, font, motion, background, benefits, shape, order). Use the agency's own look: a dark, premium page with a gold accent. Set brandColor to #C8A84B and theme to dark.
+
+Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
+
+  const system = audience ? audienceSystem : `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
 NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Also write 3-4 honest FAQs (faqs) that overcome common objections for this kind of service — pricing approach, timing, what to expect, guarantees ONLY if the business actually offers them. Keep answers to 1-2 sentences, general and truthful. If the client's website logo/main image is attached, use it to judge the real brand colors + theme.

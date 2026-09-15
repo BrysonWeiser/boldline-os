@@ -289,7 +289,7 @@ const os = readFileSync("index.html", "utf8");
   ok("without a tag, no gtag is loaded", !bare.includes("googletagmanager"));
 
   // The MANAGED page must be completely untouched by any of this.
-  ok("managed still posts to lead-intake", managed.includes("lead-intake"));
+  ok("managed still posts to our own intake", managed.includes("fetch('/lead?token="));
   ok("managed still uses the tracking number", managed.includes("6025550100"));
   ok("managed is not a Netlify form", !managed.includes("data-netlify"));
   ok("managed loads no gtag", !managed.includes("googletagmanager"));

@@ -7281,6 +7281,177 @@ function ClientApprovalsCard({client,onUpdate}) {
 // every page from the database on every request, which is why an edit is live instantly. It
 // also means the version that worked exists only until somebody edits the record. A client
 // changes their headline, or churns, and the page that produced leads is gone for good.
+// ── A LANDING PAGE PER AUDIENCE, FOR BOLDLINE'S OWN ADS ──────────────────────
+//
+// Bryson, 2026-09-15: *"i want to run an ad targeting car detailers i want to have a landing
+// page that fits that ad ... and then I also want the ability to run a seperate ad lets say for
+// roofers and have a landing page that fits that ad"*.
+//
+// 🔴 THE PAGE SELLS TO THE TRADE, IT DOES NOT SELL THE TRADE. Generating with the niche set to
+// "Roofers" the ordinary way would write a page advertising roofing to homeowners, on Bryson's
+// own domain, paid for by Bryson's own ads. `generate-landing` takes an `audience` instead,
+// which flips the whole prompt around. The word typed in the box below is that audience.
+//
+// Addresses are boldlinemedia.com/for/<name>, proxied to this app. Nothing here writes the
+// account's MAIN page: that stays exactly where it is, above.
+function AudiencePagesCard({client,onUpdate}) {
+  const pages = Array.isArray(client.landingPages) ? client.landingPages : [];
+  const [name,setName] = useState("");
+  const [busy,setBusy] = useState("");
+  const [error,setError] = useState("");
+  const [openId,setOpenId] = useState(null);
+
+  // Address-safety lives in ONE place, shared with the server that serves these pages, so the
+  // OS can never offer an address the router would resolve to something else.
+  const slugify = (v) => String(v||"").toLowerCase().trim().replace(/&/g," and ")
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60);
+  const taken = (ignoreId) => {
+    const out = new Set();
+    if (client.landingSlug) out.add(String(client.landingSlug).toLowerCase());
+    pages.forEach(p=>{ if(p.id!==ignoreId) out.add(String(p.slug).toLowerCase()); });
+    return out;
+  };
+  const freeSlug = (wanted,ignoreId) => {
+    const base = slugify(wanted) || "page";
+    const t = taken(ignoreId);
+    if (!t.has(base)) return base;
+    for (let n=2;n<200;n++){ const c=`${base}-${n}`.slice(0,60); if(!t.has(c)) return c; }
+    return `${base}-${Date.now().toString(36)}`.slice(0,60);
+  };
+  const addrFor = (p) => `https://boldlinemedia.com/for/${p.slug}`;
+  const save = (next) => onUpdate({...client, landingPages:next});
+
+  const add = () => {
+    const label = name.trim();
+    if (!label) return;
+    if (pages.length >= 24) { setError("That is as many pages as one account should carry."); return; }
+    setError("");
+    const now = new Date();
+    save([...pages, {
+      id:`lp-${now.toISOString().slice(0,10)}-${Math.random().toString(36).slice(2,8)}`,
+      at: now.toISOString(), label: label.slice(0,80), slug: freeSlug(label),
+      page:{headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null}, variants:[],
+    }]);
+    setName("");
+  };
+
+  const write = async (p) => {
+    setBusy(p.id); setError("");
+    try {
+      const r = await fetch("/.netlify/functions/generate-landing",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ name:client.name, audience:p.label,
+          campaignSetup:client.campaignSetup, brandVoice:client.brandVoice, mediaLibrary:client.mediaLibrary })});
+      const d = await r.json().catch(()=>({}));
+      if(!r.ok||!d.ok) throw new Error(d.error||"That did not work.");
+      save(pages.map(x=>x.id===p.id
+        ? {...x, page:{...d.landingPage, published:(x.page&&x.page.published)||false, generatedAt:new Date().toISOString()}}
+        : x));
+    } catch(e){ setError(e.message||"That did not work."); }
+    setBusy("");
+  };
+
+  const togglePublish = (p) => save(pages.map(x=>x.id===p.id
+    ? {...x, page:{...(x.page||{}), published: !(x.page&&x.page.published)}} : x));
+
+  const rename = (p, label) => {
+    const clean = String(label||"").slice(0,80);
+    save(pages.map(x=>x.id===p.id ? {...x, label:clean, slug:freeSlug(clean,p.id)} : x));
+  };
+
+  const remove = (p) => {
+    // 🔴 Asks, because the address stops answering the moment this goes and any ad still
+    // pointed at it lands on nothing while it keeps charging for the click.
+    if(!window.confirm(`Delete the "${p.label}" page? Any ad still pointing at ${addrFor(p)} will stop working.`)) return;
+    save(pages.filter(x=>x.id!==p.id));
+  };
+
+  return (
+    <Card>
+      <Label>Landing Pages By Audience</Label>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginTop:6,marginBottom:11}}>
+        One page per type of business you advertise to. Run an ad aimed at car detailers and send it
+        to a page written for detailers, and a separate ad for roofers to its own page. Each one
+        gets its own web address on your site.
+      </div>
+      {error&&<div style={{fontSize:11,color:C.red,marginBottom:9,lineHeight:1.5}}>{error}</div>}
+
+      <div style={{display:"flex",gap:7,marginBottom:12}}>
+        <input value={name} onChange={e=>setName(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter") add(); }}
+          placeholder="Who is it for? e.g. Car Detailers"
+          style={{...inp,flex:1,fontSize:12,padding:"8px 10px"}}/>
+        <button onClick={add} disabled={!name.trim()}
+          style={{flexShrink:0,padding:"8px 14px",fontSize:11,fontWeight:700,borderRadius:8,
+            border:`1px solid ${name.trim()?C.borderAccent:C.border}`,
+            backgroundColor:name.trim()?"rgba(200,168,75,.1)":"rgba(255,255,255,.03)",
+            color:name.trim()?C.gold:C.textMuted,cursor:name.trim()?"pointer":"default"}}>Add page</button>
+      </div>
+
+      {pages.length===0
+        ? <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55}}>No audience pages yet. Type who your next ad is aimed at and press Add page.</div>
+        : <div style={{display:"flex",flexDirection:"column",gap:9}}>
+            {pages.map(p=>{
+              const live = !!(p.page&&p.page.published&&p.page.headline);
+              const written = !!(p.page&&p.page.headline);
+              const open = openId===p.id;
+              return (
+                <div key={p.id} style={{background:C.bg3,border:`1px solid ${live?"rgba(34,211,160,0.3)":C.border}`,borderRadius:10,padding:"10px 11px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12.5,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.label}</div>
+                      <div style={{fontSize:10,color:C.textMuted,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>boldlinemedia.com/for/{p.slug}</div>
+                    </div>
+                    <span style={{flexShrink:0,fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,
+                      backgroundColor:live?"rgba(34,211,160,0.12)":"rgba(255,255,255,.05)",
+                      border:`1px solid ${live?"rgba(34,211,160,0.3)":C.border}`,
+                      color:live?C.green:C.textMuted}}>{live?"Live":written?"Not live":"Empty"}</span>
+                    <button onClick={()=>setOpenId(open?null:p.id)}
+                      style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"5px 9px",cursor:"pointer"}}>{open?"Close":"Open"}</button>
+                  </div>
+                  {open&&(
+                    <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${C.border}`}}>
+                      <input defaultValue={p.label} onBlur={e=>rename(p,e.target.value)}
+                        placeholder="Who is it for?" style={{...inp,width:"100%",fontSize:12,padding:"8px 10px",marginBottom:9}}/>
+                      <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,marginBottom:9}}>
+                        Changing this renames the page and its web address. Any ad already pointing at the old address stops working.
+                      </div>
+                      {written&&(
+                        <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:9}}>
+                          <LandingPreview client={{...client, landingSlug:p.slug, landingPage:p.page}}/>
+                        </div>
+                      )}
+                      <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                        <button onClick={()=>write(p)} disabled={busy===p.id}
+                          style={{flex:1,minWidth:130,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:busy===p.id?"default":"pointer",opacity:busy===p.id?.6:1}}>
+                          {busy===p.id?"Writing…":written?"Rewrite for this audience":"Write the page"}</button>
+                        {written&&(
+                          <button onClick={()=>togglePublish(p)} title={live?"Takes it offline straight away.":"Puts it live straight away."}
+                            style={{flex:1,minWidth:100,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{live?"Take offline":"Put it live"}</button>
+                        )}
+                      </div>
+                      <div style={{display:"flex",gap:7,marginTop:7,flexWrap:"wrap"}}>
+                        {live&&<a href={addrFor(p)} target="_blank" rel="noopener noreferrer"
+                          style={{flex:1,minWidth:90,textAlign:"center",padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,textDecoration:"none"}}>Open it ↗</a>}
+                        <button onClick={()=>navigator.clipboard.writeText(addrFor(p))}
+                          style={{flex:1,minWidth:90,padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy address</button>
+                        <button onClick={()=>remove(p)}
+                          style={{flex:1,minWidth:90,padding:"7px 10px",fontSize:10,fontWeight:700,borderRadius:7,border:`1px solid ${C.red}44`,backgroundColor:"transparent",color:C.red,cursor:"pointer"}}>Delete</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>}
+      <div style={{fontSize:10,color:C.textMuted,marginTop:11,lineHeight:1.55}}>
+        A page only answers at its address once it is live. Writing one never puts it live, and
+        nothing here touches your main page above.
+      </div>
+    </Card>
+  );
+}
+
 function PageArchiveCard({client,onUpdate}) {
   const [busy,setBusy]   = useState("");
   const [error,setError] = useState("");
@@ -8583,6 +8754,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 onDone={(lib,patch)=>{ onUpdate({...client, mediaLibrary:lib, ...(patch||{})}); setCropping(null); }}/>
             )}
             {client.internal ? (
+              <>
               <Card style={{borderColor:`${C.gold}2a`}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                   <Label>Your Ad Landing Page</Label>
@@ -8598,6 +8770,10 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                   <button onClick={()=>navigator.clipboard.writeText(HOUSE_LANDING_URL)} style={{flex:1,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Copy Ad URL</button>
                 </div>
               </Card>
+              {/* Directly under the main page, because that is the thing these are alternatives
+                  to. The main page above is hand-built and is not touched by any of this. */}
+              <AudiencePagesCard client={client} onUpdate={onUpdate}/>
+              </>
             ) : (
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
