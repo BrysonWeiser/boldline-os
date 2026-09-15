@@ -2805,6 +2805,57 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
 //   v3 — early cancellation costs the remaining Committed Term, not one month.
 const CONTRACT_TERMS_VERSION = 4;
 
+// ── 🔴 WHAT IS MISSING FROM THIS AGREEMENT, BEFORE IT CAN BE SENT ─────────────
+// Bryson, 2026-09-15: *"if there is a contract that is missing information such as missing
+// the package, the cost per qualified lead, etc. instead of letting me send it dont let me
+// send it and then give a message for what is missing that way I dont ever accidentally send
+// out contracts with missing information again."*
+//
+// He sent Brendon an agreement on 14 September with **no package on it**: Service Package
+// "—", Advertising Platform "—", and — the part that made it dangerous — **the entire
+// per-qualified-lead section silently absent**, because that clause is gated on the package's
+// pricing model. He noticed himself, minutes later, and had to void it.
+//
+// 🔴 THE FAILURE IS SILENT AND THAT IS THE WHOLE PROBLEM. A contract with a gap does not
+// throw, does not warn, and does not look broken at a glance — it renders a complete,
+// professional, signable document that happens to be missing the clause about money. The
+// client signs whatever it says. So the check runs BEFORE the send, not after, and the button
+// is genuinely disabled rather than warned about.
+//
+// 🔴 EVERY ENTRY WAS CONFIRMED BY RENDERING A CONTRACT WITHOUT IT AND LOOKING AT THE DAMAGE,
+// not by listing fields that felt important. `verify-contract-gaps` holds that line: for each
+// gap it renders the real document and asserts the damage is really there, so a check nobody
+// needs cannot quietly accumulate here and start blocking sends for no reason.
+function contractGaps(cl, pkg) {
+  const c = cl || {};
+  const out = [];
+  const add = (what, where) => out.push({ what, where });
+  const blank = (v) => !String(v == null ? "" : v).trim();
+
+  // The package drives the service, the platform, the prices AND which fee clause exists at
+  // all. Nothing else here comes close to it for damage done.
+  if (!pkg) {
+    add("No package is picked", "Pick it on the Package tab. Without it the agreement says no service, no platform, and has no section at all about what they pay for results.");
+  } else if (pkg.pricingModel === "per_lead") {
+    // 🔴 COMPUTED THE WAY THE DOCUMENT COMPUTES IT, falling back to the niche rate, because a
+    // blank field is fine when the niche has a standard rate and a filled-in 0 is not fine
+    // ever. Checking `billingPerLead != null` would pass a client whose niche has no rate,
+    // which is exactly the case that renders a contract with no fee clause.
+    const fee = c.billingPerLead != null ? Number(c.billingPerLead) : (PER_LEAD[c.niche] || 0);
+    if (!(fee > 0)) add("No price per qualified lead", "Set it on the Package tab. Without it the agreement has no section about what they pay for results, and everything else still looks finished.");
+  } else if (pkg.pricingModel === "ad_spend_pct") {
+    const pct = c.billingSpendPct != null ? Number(c.billingSpendPct) : (Number(pkg.adSpendPct) || 0);
+    if (!(pct > 0)) add("No percentage of ad spend", "Set it on the Package tab. A store has no lead to count, so this percentage IS their performance fee, and without it the agreement has no section about it.");
+  }
+
+  if (blank(c.name)) add("No business name", "Add it on the Overview tab. The agreement has to name who is signing it.");
+  if (blank(c.contactName)) add("No contact name", "Add it on the Overview tab. This is the name on the signature line.");
+  if (blank(c.email)) add("No email address", "Add it on the Overview tab. There is nowhere to send it and nowhere for them to sign.");
+  if (blank(c.businessAddress)) add("No business address", "Add it on the Overview tab. An agreement that does not say where the business is, is a weaker agreement.");
+  if (blank(c.contractStart)) add("No start date", "Set it on the Contract tab. The committed term has nothing to count from.");
+  return out;
+}
+
 const makeContractHTML=(cl,pkg)=>{
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const money=(n)=>"$"+Number(n||0).toLocaleString();
@@ -9341,8 +9392,12 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
     :dsSt==="delivered"
     ?{title:"Opened, Not Signed Yet",detail:`${client.email} opened it but hasn't signed. ${waited}`,awaiting:true,bad:false}
     :{title:"Waiting on Signature",detail:`Sitting in ${client.email}'s inbox, not opened yet. ${waited}`,awaiting:true,bad:false};
+  // 🔴 THE LIST IS COMPUTED HERE AND CHECKED AGAIN INSIDE THE HANDLER. Disabling a button is
+  // a hint, not a guard: it is one stale render, one Enter key or one restored tab away from
+  // firing anyway, and what it fires is an irreversible email to a client.
+  const gaps=contractGaps(client,pkg);
   const sendDocuSign=async()=>{
-    if(!client.email){ setDsState("error"); setDsMsg("Add the client's email on the Overview tab first."); return; }
+    if(gaps.length){ setDsState("error"); setDsMsg(`Not sending: ${gaps.map(g=>g.what.toLowerCase()).join(", ")}. Fill those in first.`); return; }
     setDsState("sending"); setDsMsg("");
     try{
       const { data:{ session } }=await supabaseClient.auth.getSession();
@@ -9561,7 +9616,19 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       {!client.contractSigned&&<Card style={{backgroundColor:ds.bad?"rgba(239,68,68,.06)":"rgba(59,130,246,.06)",borderColor:ds.bad?"rgba(239,68,68,.28)":"rgba(59,130,246,.28)"}}>
         <div style={{fontSize:12,fontWeight:700,color:ds.bad?C.red:"#60A5FA",marginBottom:4}}>{ds.title}</div>
         <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>{ds.detail}</div>
-        <button onClick={sendDocuSign} disabled={dsState==="sending"||dsState==="sent"} style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:ds.awaiting?`1px solid ${C.border}`:"none",backgroundColor:dsState==="sent"?"#059669":ds.awaiting?"rgba(255,255,255,.04)":"#1D4ED8",color:ds.awaiting&&dsState!=="sent"?C.textDim:"#fff",cursor:dsState==="sending"||dsState==="sent"?"default":"pointer",opacity:dsState==="sending"?.7:1}}>{dsState==="sending"?"Sending…":dsState==="sent"?"✓ Sent for Signature":ds.awaiting?"Send Another Copy":"Send via DocuSign →"}</button>
+        {/* 🔴 WHAT IS MISSING, ABOVE THE BUTTON, WITH THE BUTTON OFF. He sent Brendon an
+            agreement with no package on it and no fee clause at all, and nothing stopped him
+            or even hinted. Each line says what is missing AND where to fix it, because a
+            block that does not tell you how to get past it is just a locked door. */}
+        {gaps.length>0&&<div style={{backgroundColor:"rgba(239,68,68,.07)",border:`1px solid rgba(239,68,68,.3)`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+          <div style={{fontSize:11.5,fontWeight:700,color:C.red,marginBottom:7}}>Can&rsquo;t send yet &mdash; {gaps.length===1?"1 thing is":`${gaps.length} things are`} missing</div>
+          {gaps.map((g,i)=>(
+            <div key={i} style={{fontSize:11,color:C.textMuted,lineHeight:1.55,marginTop:i?7:0}}>
+              <span style={{color:C.text,fontWeight:700}}>{g.what}.</span> {g.where}
+            </div>
+          ))}
+        </div>}
+        <button onClick={sendDocuSign} disabled={gaps.length>0||dsState==="sending"||dsState==="sent"} title={gaps.length?`Missing: ${gaps.map(g=>g.what.toLowerCase()).join(", ")}`:""} style={{width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:(ds.awaiting||gaps.length)?`1px solid ${C.border}`:"none",backgroundColor:gaps.length?"rgba(255,255,255,.03)":dsState==="sent"?"#059669":ds.awaiting?"rgba(255,255,255,.04)":"#1D4ED8",color:gaps.length?C.textMuted:(ds.awaiting&&dsState!=="sent"?C.textDim:"#fff"),cursor:(gaps.length||dsState==="sending"||dsState==="sent")?"default":"pointer",opacity:dsState==="sending"?.7:1}}>{gaps.length?"Finish the agreement first":dsState==="sending"?"Sending…":dsState==="sent"?"✓ Sent for Signature":ds.awaiting?"Send Another Copy":"Send via DocuSign →"}</button>
         {dsState==="sent"&&<div style={{fontSize:11,color:"#34D399",marginTop:8,lineHeight:1.6}}>Envelope sent to {client.email}. They&rsquo;ll receive an email to sign.</div>}
         {dsState==="error"&&<div style={{fontSize:11,color:C.red,marginTop:8,lineHeight:1.6}}>{dsMsg||"Something went wrong."}</div>}
         {(ds.awaiting||dsState==="sent")&&<div style={{fontSize:10,color:C.textMuted,marginTop:8,lineHeight:1.6}}>Checked automatically every 15 minutes. The moment they sign, this marks itself signed and you get a notification. Nothing to tick by hand.</div>}
