@@ -102,7 +102,31 @@ export const clientForPage = (cl, page) => {
   // would have silently discarded the very thing he picked. So the design stays, the single
   // write passes a moving seed and the other pages' layouts to exclude, and the options card
   // is wired up per page.
-  const pageCopy = (page.page || {});
+  // 🔴 BOLDLINE'S OWN FURNITURE, NOT A LOCAL SERVICE BUSINESS'S.
+  //
+  // Bryson: *"its still sort of using stuff from stencil & threads landing page such as the free
+  // quotes with the checkmark, the very top of the page there is a bar that includes what it
+  // is."* The eyebrow, the trust row, the chip row and the announcement bar are built by the
+  // renderer from strings written for a local service business: "Serving Gilbert, Arizona",
+  // "Free quote, no obligation", "Fast response", "Free quotes". Two pages carrying all four
+  // read as the same page however different the words between them, and choosing between
+  // written options could never have touched any of it.
+  //
+  // BoldLine does not do quotes, does not serve a town, and has no "fast response" promise to
+  // make. So the defaults are replaced with ones that are true, and keyed to the audience so
+  // the roofers page and the detailers page do not say the same thing either. A page that has
+  // written its own keeps its own.
+  const who = String(page.label || "").trim();
+  const pageCopy = {
+    eyebrow: who ? `For ${who.toLowerCase()}` : "For business owners",
+    trust: ["You keep your own ad account", "\u2713 Free plan, no obligation"],
+    chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
+            "\u2713 Free plan, no obligation", "No long contract to start"],
+    // Empty string, not absent: absent means "fall back to the account's main offer", which
+    // would print BoldLine's own sales line in a bar across the top of every audience page.
+    announce: "",
+    ...(page.page || {}),
+  };
   return { ...cl, landingSlug: page.slug, landingPage: pageCopy,
     brandColor: page.brandColor || BOLDLINE_BRAND,
     brandTheme: page.theme || BOLDLINE_THEME,

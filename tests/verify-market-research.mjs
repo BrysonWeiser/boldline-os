@@ -366,6 +366,9 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   const ADGEN = readFileSync(join(ROOT, "netlify/lib/ad-gen-shared.mjs"), "utf8");
   const LANDING = readFileSync(join(ROOT, "netlify/functions/landing.mjs"), "utf8");
   const LANDING_CODE = stripComments(LANDING);
+  // Imported so the emoji rule below can be judged on the RENDERED row rather than on the
+  // shape of the line that builds it.
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 
   // The brief labels the offer so a model cannot read it as approved copy.
   ok("the offer is labelled as a note, not as ad copy",
@@ -393,9 +396,27 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   // an assertion about wording that had not actually changed. So check the BEHAVIOUR:
   // when there is no service area, the row falls back to the national reach line.
   ok("so does the trust row", /area \? `<span><b>\$\{esc\(area\)\}<\/b><\/span>` : reach \? `<span><b>\$\{esc\(reach\)\}<\/b><\/span>`/.test(LANDING_CODE));
+  // 🔴 CHECKED ON THE RENDERED ROW, NOT ON THE SOURCE LINE. This read the source with
+  // `/const trustBits = \[/`, so it broke the moment that line stopped starting with a `[`
+  // (2026-09-15, when a page gained the ability to supply its own trust row). It failed loudly
+  // rather than passing, which is the right way round, but it was pinned to the shape of a
+  // line of code rather than to the thing the rule is actually about. `✓` is typography and
+  // stays; emoji are what the standing rule forbids on a client-facing page.
   ok("and the trust row carries no emoji", (() => {
-    const row = /const trustBits = \[[\s\S]*?\n/.exec(LANDING_CODE);
-    return !!row && !/\p{Extended_Pictographic}/u.test(row[0]);
+    const row = (html) => (html.match(/<div class="trust an"[^>]*>([\s\S]*?)<\/div>/) || [])[1] || "";
+    const pages = [
+      renderLandingPage({ id: "c", name: "A Client", landingSlug: "a", leadToken: "T",
+        campaignSetup: { serviceArea: "Eugene, OR" },
+        landingPage: { headline: "H", ctaText: "Q", published: true } }),
+      renderLandingPage({ id: "c", name: "A Client", landingSlug: "b", leadToken: "T",
+        campaignSetup: {},   // no service area, so the row falls back to the national line
+        landingPage: { headline: "H", ctaText: "Q", published: true } }),
+      renderLandingPage({ id: "c", name: "Own Row", landingSlug: "c", leadToken: "T",
+        campaignSetup: {},
+        landingPage: { headline: "H", ctaText: "Q", published: true,
+          trust: ["You keep your own ad account", "\u2713 Free plan, no obligation"] } }),
+    ];
+    return pages.every((h) => row(h).length > 0 && !/\p{Extended_Pictographic}/u.test(row(h)));
   })());
 
   // 🔴 And a raw slice printed the owner's typed note chopped mid-word on a live page.

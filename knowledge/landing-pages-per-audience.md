@@ -201,6 +201,45 @@ Mutations caught: the card removed, the audience prop dropped, the seed dropped,
 dropped, `niche` sent instead of `audience`, and the design strip reinstated (caught by the
 preview-parity check, from the other side).
 
+## 🔴 THE FURNITURE WAS A LOCAL SERVICE BUSINESS'S, AND NO OPTION COULD CHANGE IT
+
+Bryson: *"its still sort of using stuff from stencil & threads landing page such as the free quotes
+with the checkmark, the very top of the page there is a bar that includes what it is."* Right, and
+this is the part none of the previous three attempts could have touched, because **the renderer
+builds it, not the writer**:
+
+| Built in code | Was |
+|---|---|
+| Announcement bar | the account's `campaignSetup.mainOffer`, printed across the top |
+| Eyebrow | `niche` or "Trusted local service" / "Marketing that brings you customers" |
+| Hero trust row | service area · **"✓ Free quotes"** · "Fast response" |
+| Chip row | **"Serving <town>"** · differentiator · **"✓ Free quote, no obligation"** · "Fast response" |
+
+Two pages carrying all four read as the same page however different the words between them.
+**BoldLine does not do quotes, does not serve a town, and has no fast-response promise to make.**
+
+A page may now carry `eyebrow`, `trust[]`, `chips[]` and `announce`. **Absent, every default is
+exactly what it was**, so no client page moves; `announce: ""` means "no bar", which is distinct
+from having said nothing (absent still falls back to the main offer). `clientForPage` supplies
+BoldLine's, **keyed to the audience** so the roofers page and the detailers page do not say the
+same thing: eyebrow "For roofers", chips "Built for roofers · ✓ Free plan, no obligation · No long
+contract to start". A page that writes its own keeps its own.
+
+Both directions are asserted: BoldLine's page contains none of the four phrases, and Stencil &
+Thread's still contains all of them including their offer bar.
+
+**A check that was pinned to a line's shape, fixed on the way.** `verify-market-research` asserted
+the trust row carried no emoji by matching `/const trustBits = \[/` on the source. That stopped
+matching the moment the line no longer started with a `[`. It failed loudly rather than passing,
+which is the right way round, but it was pinned to the shape of a line of code rather than to the
+rule. It now **renders three pages and checks the actual trust row**, and still fails when an emoji
+is put back.
+
+**Process note worth keeping:** mutation testing in this repo restores by copying a `.bak` back.
+Using `git checkout -- <file>` instead **silently discarded uncommitted work** on that file, and
+the `|| cp` fallback never ran because the checkout succeeded. Restore from the backup, never from
+git, while a change is uncommitted.
+
 **Still true and not yet addressed:** the section skeleton is one template. If the pages still read
 as siblings after choosing distinct angles, that is the thing to change, and it is a renderer
 change rather than a prompt one.

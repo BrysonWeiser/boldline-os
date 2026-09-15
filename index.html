@@ -7330,7 +7330,15 @@ function AudiencePagesCard({client,onUpdate}) {
   // browser file and cannot import it, so it is duplicated here and the duplication is held
   // honest by a test that runs BOTH and compares the results. Change one, change the other.
   const previewClient = (cl,pg) => {
-    return { ...cl, landingSlug:pg.slug, landingPage:(pg.page||{}),
+    const who=String(pg.label||"").trim();
+    const pageCopy={
+      eyebrow: who?`For ${who.toLowerCase()}`:"For business owners",
+      trust:["You keep your own ad account","\u2713 Free plan, no obligation"],
+      chips:[who?`Built for ${who.toLowerCase()}`:"Built for your trade",
+             "\u2713 Free plan, no obligation","No long contract to start"],
+      announce:"",
+      ...(pg.page||{}) };
+    return { ...cl, landingSlug:pg.slug, landingPage:pageCopy,
       brandColor:pg.brandColor||"#c8a84b", brandTheme:pg.theme||"dark",
       campaignSetup:{ ...(cl.campaignSetup||{}), smsConsent:false },
       landingVariants:Array.isArray(pg.variants)?pg.variants:[] };

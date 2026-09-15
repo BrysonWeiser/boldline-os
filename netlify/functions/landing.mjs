@@ -197,7 +197,22 @@ export function renderLandingPage(cl, opts = {}) {
   const area = national ? "" : rawArea;
   // Said positively instead. Never "local businesses", per the standing rule.
   const reach = national ? "Working with businesses nationwide" : "";
-  const offer = cs.mainOffer || "";
+  const offer = lp.announce != null ? String(lp.announce) : (cs.mainOffer || "");
+  // 🔴 THE FURNITURE IS NOT ALWAYS A LOCAL SERVICE BUSINESS'S FURNITURE.
+  //
+  // Bryson, 2026-09-15, on his own audience pages: *"its still sort of using stuff from stencil
+  // & threads landing page such as the free quotes with the checkmark, the very top of the page
+  // there is a bar that includes what it is."* He was right, and no amount of choosing between
+  // written options could ever have fixed it: the eyebrow, the trust row, the chip row and the
+  // announcement bar are built HERE, from strings hard-coded for a local service business.
+  // "Serving Gilbert, Arizona", "Free quote, no obligation", "Fast response", "Free quotes".
+  // Two pages sharing all four read as the same page however different the words between them.
+  //
+  // So a page may now carry its own. Absent, every default below is exactly what it was, so no
+  // client page changes; `announce: ""` is how a page says it wants no bar at all, which is
+  // distinct from not having said anything.
+  const ownTrust = Array.isArray(lp.trust) ? lp.trust.filter(Boolean).map(String).slice(0, 4) : null;
+  const ownChips = Array.isArray(lp.chips) ? lp.chips.filter(Boolean).map(String).slice(0, 4) : null;
   const differentiator = bv.differentiator || "";
   const cta = lp.ctaText || "Get My Free Quote";
   // 🔴 WHERE A CLIENT'S PHOTOS GO, AND WHICH ONES GET USED. Bryson, 2026-09-02: *"make sure
@@ -574,10 +589,16 @@ a{color:inherit}
   // Same rule as the "Serving one town" claim below: a business that sells remotely must
   // not head its own page as a local service. Only the fallback changes, a real niche is
   // still printed as given.
-  const eyebrowH = `<div class="eyebrow an">${esc(cl.niche || (national ? "Marketing that brings you customers" : "Trusted local service"))}</div>`;
+  const eyebrowText = lp.eyebrow != null ? String(lp.eyebrow)
+    : (cl.niche || (national ? "Marketing that brings you customers" : "Trusted local service"));
+  const eyebrowH = eyebrowText ? `<div class="eyebrow an">${esc(eyebrowText)}</div>` : "";
   const headlineH = `<h1 class="headline an" style="animation-delay:.06s">${esc(lp.headline)}</h1>`;
   const subH = `<p class="subhead an" style="animation-delay:.12s">${esc(lp.subheadline || "")}</p>`;
-  const trustBits = [area ? `<span><b>${esc(area)}</b></span>` : reach ? `<span><b>${esc(reach)}</b></span>` : "", `<span><b>&#10003; Free quotes</b></span>`, phone ? `<span><b>Fast response</b></span>` : ""].filter(Boolean).join("");
+  const trustBits = (ownTrust
+    ? ownTrust.map((t) => `<span><b>${esc(t)}</b></span>`)
+    : [area ? `<span><b>${esc(area)}</b></span>` : reach ? `<span><b>${esc(reach)}</b></span>` : "",
+       `<span><b>&#10003; Free quotes</b></span>`,
+       phone ? `<span><b>Fast response</b></span>` : ""]).filter(Boolean).join("");
   const trustH = trustBits ? `<div class="trust an" style="animation-delay:.24s">${trustBits}</div>` : "";
   const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">Call now</a>` : ""}</div>`;
   // 🔴 A RAW .slice(0, 40) PRINTED THE OWNER'S TYPED NOTE, CHOPPED MID-WORD, ON A LIVE
@@ -1104,7 +1125,10 @@ a{color:inherit}
   // Built as labels first so the stagger delay counts the chips that SURVIVE the filter.
   // Indexing before filtering would leave gaps in the timing whenever a client has no
   // phone number or no service area, which is most of them at the start.
-  const chipLabels = [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "", "&#10003; Free quote, no obligation", phone ? "Fast response" : ""].filter(Boolean);
+  const chipLabels = (ownChips
+    ? ownChips.map((c) => esc(c))
+    : [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
+       "&#10003; Free quote, no obligation", phone ? "Fast response" : ""]).filter(Boolean);
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
   // 🔴 `js` IS NOT IN THIS LIST, AND THAT IS DELIBERATE. It used to be, hard-coded, which
   // meant the `.js` gate was never actually a test for JavaScript — it was on before a single
