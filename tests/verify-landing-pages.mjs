@@ -6,7 +6,7 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert";
 import { renderLandingPage, landingTheme, designConfig } from "../netlify/functions/landing.mjs";
-import { pageSlug, freeSlug, findPage, listPages, clientForPage, newPage, publicUrlFor, slugsTaken }
+import { pageSlug, freeSlug, findPage, listPages, clientForPage, newPage, publicUrlFor, slugsTaken, audienceFurniture }
   from "../netlify/lib/landing-pages-shared.mjs";
 
 let pass = 0; const fails = [];
@@ -254,9 +254,14 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
   // EXECUTED and deep-compared against the real thing. A field added to either and not the
   // other fails here, whatever it is.
   t("🔴 the OS preview is built exactly like the live page, field for field", () => {
-    const src = (card.match(/const previewClient = \(cl,pg\) => \{[\s\S]*?\n  \};/) || [])[0];
+    const ui2 = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    // Two pieces now: the furniture lives at module level so the options card can reach it too,
+    // and the preview builder is inside the card. Both are lifted and run together.
+    const furn = (ui2.match(/const blAudienceFurniture = \(label\) => \{[\s\S]*?\n\};/) || [])[0];
+    const src = (card.match(/const previewClient = \(cl,pg\) => \(\{[\s\S]*?\n\n/) || [])[0];
+    assert.ok(furn, "the OS no longer has a furniture definition to compare against");
     assert.ok(src, "the OS no longer has a preview builder to compare against");
-    const previewClient = new Function(`${src} return previewClient;`)();
+    const previewClient = new Function(`${furn}\n${src}\nreturn previewClient;`)();
 
     const account = { id: "house", internal: true, name: "BoldLine Media", landingSlug: "boldline",
       leadToken: "TOK", brandColor: "#123456", brandTheme: "light",
@@ -274,6 +279,37 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     for (const page of cases) {
       assert.deepEqual(previewClient(account, page), clientForPage(account, page),
         `the OS preview and the live page disagree for "${page.slug}"`);
+    }
+  });
+
+  t("🔴 and the furniture itself matches, field for field", () => {
+    // The sharper assertion, because the furniture is now needed in four places and three of
+    // them are not the live page: the preview, the three written options, and whichever option
+    // is chosen. A drift here reaches all of them at once.
+    const ui2 = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const furn = (ui2.match(/const blAudienceFurniture = \(label\) => \{[\s\S]*?\n\};/) || [])[0];
+    assert.ok(furn, "the OS has no furniture definition");
+    const mirror = new Function(`${furn} return blAudienceFurniture;`)();
+    for (const label of ["Roofers", "Car Detailers", "", "Med Spas"]) {
+      assert.deepEqual(mirror(label), audienceFurniture(label),
+        `the OS and the server disagree about the furniture for "${label}"`);
+    }
+  });
+
+  t("🔴 a written option carries the furniture, not just the live page", () => {
+    // A variant REPLACES landingPage wholesale, so decorating the live page alone never reached
+    // it: an option previewed and then chosen arrived with the renderer's local-service
+    // defaults. Bryson saw exactly that. Dressing happens at CREATION, so the option he looks
+    // at and the page he gets when he presses "Use this one" are the same thing.
+    // 🔴 SCOPED TO THE OPTIONS CARD, which is where variants are made. The first version of
+    // this assertion looked in AudiencePagesCard and failed on code that was perfectly fine —
+    // the same wrong-component mistake that shipped Deal Prep broken (KB `deal-prep-to-client`).
+    const ui2 = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const opts = ui2.slice(ui2.indexOf("function LandingOptionsCard"), ui2.indexOf("function PageArchiveCard"));
+    assert.match(opts, /const dress=\(lp\)=>audience\?\{\.\.\.blAudienceFurniture\(audience\),\.\.\.\(lp\|\|\{\}\)\}:lp;/,
+      "there is no dressing step, so options are written undressed");
+    for (const site of ["blNewVariant(dress(o)", "...dress(d.landingPage)", "blNewVariant(dress(d.landingPage)"]) {
+      assert.ok(opts.includes(site), `a variant is still created undressed: ${site}`);
     }
   });
 

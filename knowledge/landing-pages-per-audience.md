@@ -298,6 +298,41 @@ Both now **render pages and read the result**. The second one also had a broken 
 `NATIONAL_MARKETS` is a list of cities to research, not a national signal, so the "national" page
 was actually local and the check passed on nothing. Both were mutation-tested afterwards.
 
+## 🔴 THE FURNITURE HAS TO TRAVEL WITH THE PAGE OBJECT, NOT BE PAINTED ON AROUND IT
+
+Bryson, screenshotting the **options card**: *"the landing page is still duplicating data."* The
+option previewed with `MARKETING AGENCY` as its eyebrow, **"✓ Free quotes"** in the trust row and
+**"✓ Free quote, no obligation"** in the chips. Everything the previous fix had removed.
+
+**Because a variant REPLACES `landingPage` wholesale.** `LandingPreview` renders
+`{...client, landingPage: overrideLanding}`, and a variant carries only the words the writer
+produced. So the furniture, which had been applied when the LIVE page was assembled, was simply
+not on the object being rendered, and the renderer fell back to its local-service defaults with
+the eyebrow reading `cl.niche`.
+
+🔴 **And it was not only a preview problem.** `blApplyVariant` writes the chosen variant as the
+live page, so pressing "Use this one" would have published the undressed version too. Decorating
+the preview alone would have shown him one page and published another.
+
+**Fixed by putting the furniture ON the object at CREATION.** `audienceFurniture(label)` is now one
+exported function, and every variant is dressed with it the moment it is built — the three
+options, a rewritten one, and a blend. Preview and apply then agree by construction rather than by
+being decorated in two places.
+
+**Four places need it and three are not the live page:** the OS preview, the three written
+options, and whichever option is chosen. That is why it is one function rather than an inline
+literal, and why the OS's single mirror is now compared to the server's **field for field across
+several labels** rather than only through `previewClient`.
+
+Mutations caught: options written undressed, a rewritten option losing it, the OS furniture
+drifting from the server's, and the server dropping a field the OS still sets.
+
+**A wrong-component assertion, caught by its own failure.** The first version of the
+"options carry the furniture" check searched `AudiencePagesCard` for a helper that lives in
+`LandingOptionsCard`, and failed on code that was perfectly correct. Same shape as the bug that
+shipped Deal Prep broken (KB `deal-prep-to-client`): assert against the component that actually
+holds the code.
+
 **Still true and not yet addressed:** the section skeleton is one template. If the pages still read
 as siblings after choosing distinct angles, that is the thing to change, and it is a renderer
 change rather than a prompt one.
