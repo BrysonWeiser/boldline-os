@@ -178,7 +178,7 @@ Also write 3-4 honest FAQs (faqs) answering what a ${audience} owner would actua
 BUSINESS DATA:
 ${dataBlock}${mediaBlock}
 
-Fill in the DESIGN directives (layout, font, motion, background, benefits, shape, order). Use the agency's own look: a dark, premium page with a gold accent. Set brandColor to #C8A84B and theme to dark.
+Fill in the DESIGN directives (layout, font, motion, background, benefits, shape, order). The page is ALWAYS rendered in the agency's own gold on a dark ground, applied in code, so do not set brandColor or theme and do not try to change them. Choose the remaining directives to suit a dark, premium, gold-accented page, and vary them between audiences so two pages do not read as the same template.
 
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 

@@ -131,6 +131,33 @@ re-read it if anyone ever gives audience pages their own embed.
 Delete button was written `backgroundColor:"none"`, which is not a valid colour, so React dropped it
 and the browser's default light button styling showed through on a dark card.
 
+## 🔴 They render in BOLDLINE's brand, and that is stamped in code
+
+Bryson, 2026-09-15: *"make sure the landing pages for my ads match my branding right now they are
+matching stencil & threads branding."*
+
+They were not carrying a client's colours. They were carrying **nobody's**. `landingTheme` falls
+back to **`#4f6bed` on a light page** when no brand colour is set, and that is the same fallback
+Stencil & Thread's page lands on, so BoldLine's own ads pointed at a page that looked like another
+company's.
+
+`landingTheme`'s own comment says the colour comes from the client's branding and *"Never
+BoldLine's"*. **That is right for a CLIENT page and exactly inverted here**: these pages ARE
+BoldLine's, advertising BoldLine, on BoldLine's domain. So `clientForPage` stamps
+`brandColor: #c8a84b` and `brandTheme: dark` as TOP-LEVEL fields, which beat whatever the generator
+wrote. A page may still carry its own if one is ever wanted per audience.
+
+🔴 **In code, not in the prompt.** The prompt asked for gold on dark too, and a prompt is a request
+while this is a guarantee. The prompt now says the colour is applied in code and not to set it, so
+the next person does not debug the wrong half; a test pins that wording.
+
+**The OS preview stamps the same values.** A preview showing indigo-on-white while the live page is
+gold-on-dark gets wrong the one thing a preview exists for.
+
+Verified by rendering a real audience page: page background `rgb(12,13,17)`, button
+`rgb(200,168,75)`. A real client's page is unchanged, asserted both for a hand-set colour and a
+generated one.
+
 ## Still to do
 
 1. The existing **Page Options** card scoped to a page, so each audience gets several candidates to
