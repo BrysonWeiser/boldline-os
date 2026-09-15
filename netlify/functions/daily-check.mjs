@@ -221,8 +221,18 @@ export default withFailureAlert("daily-check", async () => {
       add(`${client.name}'s landing page loads`, lp.ok,
         lp.ok ? "" : `${target.url} returned ${lp.status} ${lp.error || ""} (checked ${target.why})`);
       if (lp.ok) {
-        add("The landing page still has its lead form", /<form/i.test(lp.body) && /name=["']phone["']/i.test(lp.body),
-          "a landing page with no form collects nothing, and the ads keep spending");
+        // 🔴 THE RENDERER EMITS TWO DIFFERENT FORMS AND THIS ONLY KNEW ONE OF THEM.
+        // `landing.mjs` branches on hand-off mode: a hand-off page posts natively to Netlify
+        // Forms and names its fields (`name="phone"`), while an ordinary page posts through
+        // our own script and identifies them by id (`id="lf-phone"`) with no name attribute
+        // at all. This asserted the hand-off shape only, so it failed every single morning on
+        // a page whose form was present and working, which is precisely the cry-wolf check
+        // Bryson called out on 2026-09-13. Accept either shape; the test renders both.
+        const hasForm = /<form/i.test(lp.body);
+        const hasPhone = /name=["']phone["']/i.test(lp.body) || /id=["']lf-phone["']/i.test(lp.body);
+        add("The landing page still has its lead form", hasForm && hasPhone,
+          !hasForm ? "there is no form on the page at all"
+            : "the form has no phone field, so a lead arrives with no way to call them back");
         const r = scriptsParse(lp.body);
         add("The landing page's script parses", r.bad.length === 0, r.bad[0] || "");
 

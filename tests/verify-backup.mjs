@@ -194,6 +194,48 @@ eq("growth says nothing either", countWarnings(man({ clients: 5 }), man({ client
   ok("and it says it is missing from tonight's copy", /NOT in tonight/.test(w[0].text), w[0].text);
   ok("rather than claiming it was deleted", !/EMPTY/.test(w[0].text),
     "an unreadable table and a wiped table need different reactions");
+  ok("and it says the rows were there yesterday, which is what makes it an incident",
+    /WAS there yesterday with 4 rows/.test(w[0].text), w[0].text);
+}
+// ── 🔴 NEVER CREATED IS NOT THE SAME EVENT AS VANISHED ──────────────────────
+//
+// Bryson got a red alert at 1am: "health_checks could not be read, so it is NOT in tonight's
+// copy". True, and unactionable: that table has never existed in Supabase, so it fired red
+// every single night about a configuration gap. A nightly red he cannot clear is a nightly
+// red he stops reading, which is the exact noise failure recorded in KB
+// `lead-check-alert-noise` — in the job built to be trustworthy.
+//
+// The error text is identical in both cases, so the two are told apart by HISTORY.
+{
+  const err = "Could not find the table 'public.health_checks' in the schema cache";
+  const neverExisted = countWarnings(man({ health_checks: { rows: 0, error: err } }), man({ clients: 4 }));
+  eq("a table that has never once been readable is a note, not red",
+    neverExisted.map((x) => x.level), ["note"]);
+  ok("and it says it does not exist yet rather than implying data was lost",
+    /does not exist in the database yet/.test(neverExisted[0].text), neverExisted[0].text);
+  ok("and it never claims it is missing from tonight's copy",
+    !/NOT in tonight/.test(neverExisted[0].text), neverExisted[0].text);
+
+  // The dangerous case must stay loud: same error, but it was readable yesterday.
+  const dropped = countWarnings(man({ health_checks: { rows: 0, error: err } }),
+    man({ health_checks: 120 }));
+  eq("🔴 but the same error on a table that WAS there is still red", dropped.map((x) => x.level), ["red"]);
+  ok("and it says it has been dropped or renamed",
+    /dropped or renamed/.test(dropped[0].text), dropped[0].text);
+
+  // 🔴 AN OUTAGE ON ITS SECOND NIGHT MUST STILL BE RED. A first pass at this told the two
+  // cases apart by history alone, which meant a table unreadable two nights running silently
+  // became "does not exist in the database yet" — a false sentence about the clients table in
+  // the middle of a live outage, and the alarm going quiet exactly as it got worse. Only
+  // PostgREST's schema-cache miss means "not in the database"; every other error is a table
+  // that exists and could not be reached.
+  for (const e of ["connection lost", "timeout", "permission denied for table clients"]) {
+    const stillBroken = countWarnings(man({ clients: { rows: 0, error: e } }),
+      man({ clients: { rows: 0, error: e } }));
+    eq(`"${e}" stays red on the second night too`, stillBroken.map((x) => x.level), ["red"]);
+    ok(`and "${e}" never claims the table does not exist`,
+      !/does not exist in the database/.test(stillBroken[0].text), stillBroken[0].text);
+  }
 }
 {
   const w = countWarnings(man({ login_events: { rows: 500, cap: 500 } }), man({ login_events: { rows: 500, cap: 500 } }));

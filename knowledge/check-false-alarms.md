@@ -78,3 +78,73 @@ stripped before the test. **The test stays fully anchored on purpose**: matching
 English words anywhere in a label would silently replace every properly written description with
 the business name, which is a worse bug and an invisible one. Seven real descriptions containing
 those words are pinned in the suite.
+
+## 🔴 The same defect again, in the very commit that fixed it (2026-09-15)
+
+The 6:40am check emailed *"Daily check: 1 of 15 checks failed — The landing page still has its
+lead form: a landing page with no form collects nothing, and the ads keep spending"*, about a page
+whose form was sitting there working.
+
+**`landing.mjs` renders TWO different forms**, branching on hand-off mode:
+
+| Mode | Markup | How a lead is sent |
+|---|---|---|
+| Hand-off (`opts.handoff`) | `<input name="phone">` | native POST to Netlify Forms, so fields need `name` |
+| Ordinary | `<input id="lf-phone">`, **no `name` at all** | our own script reads by id and posts to `lead-intake` |
+
+The check asserted `name="phone"` only. **Stencil & Thread is not a hand-off client, so it could
+never pass** — the identical can-only-fail shape as the `landing?c=<id>` URL above, written into the
+same commit that fixed that one. It had been firing every morning since.
+
+**Fixed:** accept either shape, and say which thing is wrong (no form at all / no phone field)
+rather than one sentence for both. **Pinned by rendering BOTH branches through the real renderer**
+and running the shipped condition, lifted out of `daily-check.mjs` and executed, over each. Writing
+a sample of each markup into the test would only have proved the sample matched the regex — which
+is exactly how the original passed review.
+
+Mutations caught: reverting to the hand-off shape only, and dropping the form-tag check (caught by
+a fixture where the inputs survive but the `<form>` wrapper does not, since loose inputs submit
+nowhere while the page still looks complete).
+
+## 🔴 `health_checks` has never existed, so the check has never stored a result
+
+The 1am backup emailed red: *"health_checks could not be read, so it is NOT in tonight's copy
+(Could not find the table 'public.health_checks' in the schema cache)"*.
+
+**True, and it had been true every night.** `daily-check.mjs` writes its result to `health_checks`
+so a pattern is visible later, wrapped in a try/catch whose comment says *"its own failure never
+fails the check"* — so **every insert since the job was built has failed silently** and no health
+history exists at all. The table was never created in Supabase.
+
+**Bryson creates it** (Supabase → SQL Editor → paste → Run):
+
+```sql
+create table if not exists public.health_checks (
+  id         bigserial primary key,
+  ran_at     timestamptz not null default now(),
+  ok         boolean,
+  summary    text,
+  detail     jsonb
+);
+alter table public.health_checks enable row level security;
+```
+
+Service-role writes bypass RLS, which is the only writer, so no policy is needed.
+
+**Also fixed: the alert was crying wolf nightly.** A table that was never created is a
+configuration gap he cannot clear from an email; a nightly red he cannot action is a nightly red he
+stops opening, which is the noise failure in KB `lead-check-alert-noise` reappearing inside the job
+built to be trustworthy. So:
+
+- **Only PostgREST's schema-cache miss** means "not in the database" → a **note** saying it does not
+  exist yet. Every other error (connection lost, timeout, permission denied) is a table that exists
+  and could not be reached, and **stays red however many nights it runs**.
+- A table that **was readable in the previous copy** and errors now stays **red** and says it has
+  been dropped or renamed, with yesterday's row count.
+
+🔴 **A first attempt told the two apart by history alone.** That made a table unreadable two nights
+running silently become *"does not exist in the database yet"* — a false sentence about the clients
+table in the middle of a live outage, with the alarm going quiet exactly as things got worse. It
+was caught by writing the assertion down and reading what it actually claimed. **Known limitation,
+stated rather than hidden:** a genuinely dropped table reads red on the first morning and settles
+to a note from the second.

@@ -207,5 +207,50 @@ eq("junk in does not throw", scriptsParse(null).bad, []);
   ok("and a hung suite is a failure, not an hour of waiting", /timed out after 180s/.test(readFileSync(new URL("../tests/run-all.mjs", import.meta.url), "utf8")));
 }
 
+// ── 🔴 THE LEAD-FORM CHECK KNEW ONLY ONE OF THE TWO FORMS ───────────────────
+//
+// It failed every morning on Stencil & Thread's page with "a landing page with no form
+// collects nothing, and the ads keep spending", while the form was sitting there working.
+//
+// `landing.mjs` renders TWO forms. A hand-off page posts natively to Netlify Forms and names
+// its fields (`name="phone"`). An ordinary page posts through our own script and identifies
+// them by id (`id="lf-phone"`), with no name attribute at all. The check asserted the
+// hand-off shape only, so on every non-hand-off client it could not pass — the same
+// can-only-fail shape as the `landing?c=<id>` URL, in the very commit that fixed that one.
+//
+// So the assertion is now run against pages from the REAL renderer, both branches. Writing
+// out a sample of each here would only prove the sample matched the regex.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const CL = { id: "c1", name: "Stencil & Thread", landingSlug: "st", leadToken: "tok",
+    businessPhone: "(541) 555-0100", campaignSetup: { serviceArea: "Eugene, OR" },
+    landingPage: { headline: "Custom shirts, fast.", subheadline: "25 or more.",
+      ctaText: "Get My Free Quote", published: true } };
+
+  // The check's own condition, lifted out of daily-check.mjs and executed, so the two cannot
+  // drift apart. A copy retyped here would pass while the shipped one stayed broken.
+  const src = readFileSync(new URL("../netlify/functions/daily-check.mjs", import.meta.url), "utf8");
+  const cond = (src.match(/const hasForm = [\s\S]*?const hasPhone = .*?;/) || [])[0];
+  ok("the lead-form condition is still in the check", !!cond);
+  const judge = cond ? new Function("body", `const lp={body};${cond.replace(/lp\.body/g, "body")}return hasForm && hasPhone;`) : null;
+
+  if (judge) {
+    for (const [what, opts] of [["an ordinary page", {}], ["a hand-off page", { handoff: { domain: "quote.example.com" } }]]) {
+      const body = renderLandingPage(CL, opts);
+      ok(`🔴 the lead-form check passes on ${what}`, judge(body),
+        "this is the alert that fired every morning on a page whose form was fine");
+    }
+    // And it must still go red when the form really is gone, or it is worth nothing.
+    const gutted = renderLandingPage(CL, {}).replace(/<form[\s\S]*?<\/form>/i, "");
+    ok("and it still goes red when the form is actually missing", !judge(gutted));
+    const noPhone = renderLandingPage(CL, {}).replace(/id=["']lf-phone["']/i, 'id="lf-nothing"');
+    ok("and when the form has no phone field", !judge(noPhone));
+    // The wrapper going missing while the inputs stay is a real shape of renderer regression:
+    // loose inputs submit nowhere, so the page looks complete and collects nothing.
+    const noTag = renderLandingPage(CL, {}).replace(/<form\b[^>]*>/i, "<div>").replace(/<\/form>/i, "</div>");
+    ok("and when the inputs survive but the form tag does not", !judge(noTag));
+  }
+}
+
 console.log(`verify-daily-check: ${pass} passed, ${fails.length} failed`);
 if (fails.length) { fails.forEach(f => console.log("  ✗ " + f)); process.exit(1); }
