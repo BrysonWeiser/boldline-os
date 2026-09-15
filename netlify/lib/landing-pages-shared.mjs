@@ -102,13 +102,20 @@ export const audienceFurniture = (label) => {
     eyebrow: who ? `For ${who.toLowerCase()}` : "For business owners",
     // The two rows must not repeat each other, and neither may repeat a benefit bullet. The
     // renderer de-duplicates as a backstop, but a default that leans on it arrives half empty.
-    trust: ["\u2713 Free plan, no obligation", "No long contract to start"],
+    // 🔴 EVERY LINE HERE IS A CLAIM ON A PAGE BOLDLINE PAYS FOR CLICKS TO, SO IT HAS TO BE
+    // TRUE. This said "No long contract to start" and the agreement has a THREE MONTH MINIMUM
+    // (marketing site FAQ: "Why is there a three month minimum to start?"). Bryson caught it:
+    // *"make sure its also truthful it says no long contracts but there is a 3 month minimum
+    // when you first sign on."* Stating the term plainly is also the better sell, because it
+    // answers the objection instead of dodging it and then surprising them on the call.
+    trust: ["\u2713 Free plan, no obligation", "Three months to start, then month to month"],
     chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
             "Google and Meta, managed end to end"],
     // The renderer's defaults for these two are a local service business's, and both say
     // "free quote". BoldLine does not quote, it plans.
+    // "calls" presumed a phone lead; most arrive as a form. "Leads" is what is actually promised.
     steps: ["Tell us about your business", "We build the plan and the page",
-            "Ads go live and the calls come to you"],
+            "Ads go live and the leads come to you"],
     readyList: ["Tell us what you sell and who you sell it to.",
                 "We come back with a plan and what it would cost.",
                 "You decide. No pressure either way."],
