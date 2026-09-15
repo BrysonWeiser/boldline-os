@@ -395,7 +395,27 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   // markup, and the no-emoji rule for client-facing pages later removed it, which broke
   // an assertion about wording that had not actually changed. So check the BEHAVIOUR:
   // when there is no service area, the row falls back to the national reach line.
-  ok("so does the trust row", /area \? `<span><b>\$\{esc\(area\)\}<\/b><\/span>` : reach \? `<span><b>\$\{esc\(reach\)\}<\/b><\/span>`/.test(LANDING_CODE));
+  // 🔴 AND THIS ONE WAS PINNED TO A LINE'S SHAPE TOO, which is the same defect the comment
+  // directly above congratulates itself for having fixed. It matched the exact markup of the
+  // ternary that builds the trust row, so it broke the moment that row learned to de-duplicate
+  // itself (2026-09-15), while the RULE it guards never changed. Rendered and read instead: a
+  // business that sells nationally must not have its town printed on its page, and must get the
+  // national line in its place.
+  ok("so does the trust row", (() => {
+    const row = (html) => (html.match(/<div class="trust an"[^>]*>([\s\S]*?)<\/div>/) || [])[1] || "";
+    const base = { id: "c", name: "A Client", leadToken: "T",
+      landingPage: { headline: "H", ctaText: "Q", published: true, bullets: ["x"] } };
+    const local = renderLandingPage({ ...base, landingSlug: "l",
+      campaignSetup: { serviceArea: "Gilbert, Arizona" } });
+    // 🔴 `NATIONAL_MARKETS` is a list of CITIES to research, not a national signal, and using
+    // it here made the "national" fixture local, so the check passed on nothing. `sellsNationally`
+    // reads the wording of the service area, so the fixture has to say it.
+    const natl = renderLandingPage({ ...base, landingSlug: "n", niche: "Marketing Agency",
+      campaignSetup: { serviceArea: "Gilbert, Arizona", targetLocations: "Nationwide" } });
+    return row(local).includes("Gilbert, Arizona")
+      && !natl.includes("Gilbert, Arizona")
+      && row(natl).includes("Working with businesses nationwide");
+  })());
   // 🔴 CHECKED ON THE RENDERED ROW, NOT ON THE SOURCE LINE. This read the source with
   // `/const trustBits = \[/`, so it broke the moment that line stopped starting with a `[`
   // (2026-09-15, when a page gained the ability to supply its own trust row). It failed loudly

@@ -7333,9 +7333,14 @@ function AudiencePagesCard({client,onUpdate}) {
     const who=String(pg.label||"").trim();
     const pageCopy={
       eyebrow: who?`For ${who.toLowerCase()}`:"For business owners",
-      trust:["You keep your own ad account","\u2713 Free plan, no obligation"],
+      trust:["\u2713 Free plan, no obligation","No long contract to start"],
       chips:[who?`Built for ${who.toLowerCase()}`:"Built for your trade",
-             "\u2713 Free plan, no obligation","No long contract to start"],
+             "Google and Meta, managed end to end"],
+      steps:["Tell us about your business","We build the plan and the page",
+             "Ads go live and the calls come to you"],
+      readyList:["Tell us what you sell and who you sell it to.",
+                 "We come back with a plan and what it would cost.",
+                 "You decide. No pressure either way."],
       announce:"",
       ...(pg.page||{}) };
     return { ...cl, landingSlug:pg.slug, landingPage:pageCopy,

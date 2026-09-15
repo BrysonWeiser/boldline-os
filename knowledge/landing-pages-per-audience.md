@@ -240,6 +240,64 @@ Using `git checkout -- <file>` instead **silently discarded uncommitted work** o
 the `|| cp` fallback never ran because the checkout succeeded. Restore from the backup, never from
 git, while a change is uncommitted.
 
+## Are the pages original, or made from references? (2026-09-15)
+
+Bryson: *"just make sure that the landing pages are original and arent made from references."*
+Checked rather than asserted:
+
+- **No example page, competitor page, reference or sample copy is ever put in front of the
+  writer.** Searched the whole generator for it; there is none.
+- **The only external content it can pull is a website scrape**, and that is the CLIENT'S OWN
+  site, used to read their brand colours. The audience payload sends **no `website`**, so nothing
+  is fetched for BoldLine's pages.
+- **Each call is stateless and receives only what the caller sends.** For an audience page that
+  is BoldLine's own name, the audience label, his own campaign setup, brand voice and media
+  library, plus a seed and the OTHER audience pages' angle and layout NAMES so it avoids
+  repeating them. No other client's data can reach it.
+- 🔴 **One canned thing was found and fixed.** The five `ANGLES` are a fixed creative brief shared
+  by every page, which is legitimate (they are directions, not content) — except one read *"Lead
+  with the specific OFFER or the free quote as the hook"*. A local service business's assumption,
+  reaching every page written from that angle. Now neutral wording, and pinned.
+
+## 🔴 Nothing is said twice
+
+*"also make sure information isnt listed twice."* True of **every page this renderer has ever
+produced**, not only the new ones:
+
+| Repeated | Where |
+|---|---|
+| A client's town | trust row, chip row AND footer |
+| "Fast response" | trust row and chip row |
+| A benefit bullet | trust row and the benefits section |
+| "Free plan, no obligation" | both rows of an audience page (my own defaults) |
+
+**One `dedupKey` and one running `said` set**, shared by the trust row and the chip row. Writing a
+second copy for the chips was the same mistake in miniature, and the first attempt did exactly
+that before it was consolidated. Bullets are seeded into the set first, because a bullet has room
+to explain itself and a chip does not.
+
+🔴 **Matched on EXACT normalised equality, never a substring.** Lowercase, strip the tick and a
+leading "Serving", drop punctuation. Enough to see "Eugene, OR" and "Serving Eugene, OR" are one
+fact, and deliberately too strict to notice "Free quotes" and "Free quote, no obligation" are
+nearly one: **dropping a line off a live client's page because it merely RESEMBLED another is a
+worse failure than printing one twice.** Both behaviours are asserted.
+
+**Two more hard-coded local-service lists found on the way**, both now overridable with the
+defaults unchanged: the how-it-works steps (*"Get a fast, free quote"*) and the three lines beside
+the form (*"We'll reach out fast with your free quote"*). BoldLine does not quote, it plans.
+
+## 🔴 Two more checks that were pinned to a line's SHAPE
+
+Both in `verify-market-research`, both about the landing page, both broken by restructuring a line
+whose RULE never changed:
+
+- the trust row carries no emoji — matched `/const trustBits = \[/` on the source
+- a national business is not given a town — matched the exact markup of a ternary
+
+Both now **render pages and read the result**. The second one also had a broken fixture:
+`NATIONAL_MARKETS` is a list of cities to research, not a national signal, so the "national" page
+was actually local and the check passed on nothing. Both were mutation-tested afterwards.
+
 **Still true and not yet addressed:** the section skeleton is one template. If the pages still read
 as siblings after choosing distinct angles, that is the thing to change, and it is a renderer
 change rather than a prompt one.

@@ -119,9 +119,20 @@ export const clientForPage = (cl, page) => {
   const who = String(page.label || "").trim();
   const pageCopy = {
     eyebrow: who ? `For ${who.toLowerCase()}` : "For business owners",
-    trust: ["You keep your own ad account", "\u2713 Free plan, no obligation"],
+    // 🔴 THE TWO ROWS MUST NOT SAY THE SAME THING, AND NEITHER SHOULD REPEAT A BULLET. The
+    // renderer de-duplicates as a backstop, but a default that leans on it arrives half empty.
+    // These were "You keep your own ad account" in the trust row, which is also the first
+    // benefit on most of these pages, and "Free plan, no obligation" in BOTH rows.
+    trust: ["\u2713 Free plan, no obligation", "No long contract to start"],
     chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
-            "\u2713 Free plan, no obligation", "No long contract to start"],
+            "Google and Meta, managed end to end"],
+    // The default steps are a local service business's, and the middle one says "free quote".
+    // BoldLine does not quote, it plans.
+    steps: ["Tell us about your business", "We build the plan and the page",
+            "Ads go live and the calls come to you"],
+    readyList: ["Tell us what you sell and who you sell it to.",
+                "We come back with a plan and what it would cost.",
+                "You decide. No pressure either way."],
     // Empty string, not absent: absent means "fall back to the account's main offer", which
     // would print BoldLine's own sales line in a bar across the top of every audience page.
     announce: "",

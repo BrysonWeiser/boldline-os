@@ -211,6 +211,11 @@ export function renderLandingPage(cl, opts = {}) {
   // So a page may now carry its own. Absent, every default below is exactly what it was, so no
   // client page changes; `announce: ""` is how a page says it wants no bar at all, which is
   // distinct from not having said anything.
+  // The three lines beside the form, which were hard-coded and said "free quote" too. Same
+  // rule as everything else here: absent is exactly the wording that was there before.
+  const readyList = (Array.isArray(lp.readyList) && lp.readyList.length
+    ? lp.readyList : ["Tell us a bit about what you need.", "We'll reach out fast with your free quote.",
+                      "Book your slot and we handle the rest."]).filter(Boolean).map(String).slice(0, 3);
   const ownTrust = Array.isArray(lp.trust) ? lp.trust.filter(Boolean).map(String).slice(0, 4) : null;
   const ownChips = Array.isArray(lp.chips) ? lp.chips.filter(Boolean).map(String).slice(0, 4) : null;
   const differentiator = bv.differentiator || "";
@@ -594,11 +599,33 @@ a{color:inherit}
   const eyebrowH = eyebrowText ? `<div class="eyebrow an">${esc(eyebrowText)}</div>` : "";
   const headlineH = `<h1 class="headline an" style="animation-delay:.06s">${esc(lp.headline)}</h1>`;
   const subH = `<p class="subhead an" style="animation-delay:.12s">${esc(lp.subheadline || "")}</p>`;
+  // 🔴 THE SAME PROMISE TWICE IS NOT TWICE THE PROMISE. Bryson, 2026-09-15: *"also make sure
+  // information isnt listed twice."* True of every page this file has ever rendered: a client's
+  // town appeared in the trust row, again in the chip row and again in the footer.
+  //
+  // ONE key function and ONE running set, shared by the trust row and the chip row below.
+  // Writing a second copy of this for the chips is the same mistake in miniature.
+  //
+  // Matched on EXACT normalised equality, never on a substring. Lowercase, strip the tick and
+  // a leading "Serving", drop punctuation. Enough to see that "Eugene, OR" and "Serving
+  // Eugene, OR" are one fact, and deliberately too strict to notice that "Free quotes" and
+  // "Free quote, no obligation" are nearly one: dropping a line off a live client's page
+  // because it merely RESEMBLED another is a worse failure than printing one twice.
+  const dedupKey = (t) => String(t || "")
+    .replace(/&#10003;|\u2713/g, " ").toLowerCase()
+    .replace(/^\s*serving\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  // A bullet already on the page wins over a chip or a trust bit, because the bullet is the
+  // one with room to explain itself.
+  const said = new Set((bullets || [])
+    .map((b) => dedupKey(typeof b === "string" ? b : (b && b.text) || "")).filter(Boolean));
+  const fresh = (t) => { const k = dedupKey(t); if (!k || said.has(k)) return false; said.add(k); return true; };
   const trustBits = (ownTrust
-    ? ownTrust.map((t) => `<span><b>${esc(t)}</b></span>`)
-    : [area ? `<span><b>${esc(area)}</b></span>` : reach ? `<span><b>${esc(reach)}</b></span>` : "",
-       `<span><b>&#10003; Free quotes</b></span>`,
-       phone ? `<span><b>Fast response</b></span>` : ""]).filter(Boolean).join("");
+    ? ownTrust
+    : [area || reach || "", "&#10003; Free quotes", phone ? "Fast response" : ""])
+    .filter(Boolean)
+    .filter(fresh)
+    .map((t) => `<span><b>${/&#10003;/.test(t) ? t : esc(t)}</b></span>`).join("");
   const trustH = trustBits ? `<div class="trust an" style="animation-delay:.24s">${trustBits}</div>` : "";
   const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">Call now</a>` : ""}</div>`;
   // 🔴 A RAW .slice(0, 40) PRINTED THE OWNER'S TYPED NOTE, CHOPPED MID-WORD, ON A LIVE
@@ -835,7 +862,7 @@ a{color:inherit}
   <div class="form-copy reveal">
     <h2>Ready to get started?</h2>
     <p>Fill out the form and we'll get right back to you. No pressure, no obligation.</p>
-    <ul class="rlist"><li><span class="rk">1</span><span>Tell us a bit about what you need.</span></li><li><span class="rk">2</span><span>We'll reach out fast with your free quote.</span></li><li><span class="rk">3</span><span>Book your slot and we handle the rest.</span></li></ul>
+    <ul class="rlist">${readyList.map((t, i) => `<li><span class="rk">${i + 1}</span><span>${esc(t)}</span></li>`).join("")}</ul>
   </div>
   ${formCardHTML}
 </div></div></section>`;
@@ -1128,7 +1155,9 @@ a{color:inherit}
   const chipLabels = (ownChips
     ? ownChips.map((c) => esc(c))
     : [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
-       "&#10003; Free quote, no obligation", phone ? "Fast response" : ""]).filter(Boolean);
+       "&#10003; Free quote, no obligation", phone ? "Fast response" : ""])
+    .filter(Boolean)
+    .filter(fresh);
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
   // 🔴 `js` IS NOT IN THIS LIST, AND THAT IS DELIBERATE. It used to be, hard-coded, which
   // meant the `.js` gate was never actually a test for JavaScript — it was on before a single
