@@ -116,3 +116,38 @@ welcome page says **Project number: 600403499313** before changing anything.
 
 **Never press "New project"** in the corner of that dialog while looking for it. A third empty
 project is the one outcome that makes this worse next time.
+
+## 🔴 Brand verification: the app name MUST match the home page (2026-09-14)
+
+Google rejected a verification attempt on project `boldline-ads-api` with:
+
+> The app name "BoldLine Ads API" configured for your OAuth consent screen does not match the app
+> name on your home page.
+
+**boldlinemedia.com says "BoldLine Media" everywhere** — the title, the nav, the footer — so the
+consent screen has to say **BoldLine Media** too. The Cloud project can keep its own name
+(`BoldLine Ads API`); only the **Branding → App name** field is judged against the site.
+
+I had told him to leave it as "BoldLine Ads API" on the reasoning that renaming meant re-verifying.
+That was exactly backwards: it was already rejected for that name, and the rejection was sitting on
+the page. **Read the "Issues found from the previous verification attempt" panel before advising
+anything about branding fields.**
+
+Values that pass, all confirmed live (200) on 2026-09-14:
+
+| Field | Value |
+|---|---|
+| App name | **BoldLine Media** |
+| User support email | theboldlinemedia@gmail.com |
+| Application home page | `https://boldlinemedia.com` |
+| Privacy policy | `https://boldlinemedia.com/privacy` |
+| Terms of service | `https://boldlinemedia.com/terms` |
+| Authorized domain | `boldlinemedia.com` |
+| Developer contact | both brysonaweiser@ and theboldlinemedia@ are already listed |
+
+After fixing, the re-submit path is **Verify branding → "I have fixed the issues" → Proceed**, never
+"I believe the issues found are incorrect" when Google's complaint is factually right.
+
+**Layout note:** Google renamed this whole area to **Google Auth Platform**. There is no single
+"OAuth consent screen" page any more — branding lives under **Branding**, user type and publishing
+status under **Audience**, and verification under **Verification Center**.
