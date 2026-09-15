@@ -1663,6 +1663,31 @@ const BL_VARIANT_ONLY = ["id","label","generatedAt","source","angle"];
 const BL_NEVER = ["published","publishedAt"];
 const blClean = (obj, drop) => { const out={}; for (const k of Object.keys(obj||{})) if (!drop.includes(k)) out[k]=obj[k]; return out; };
 let blSeq = 0;
+// 🔴 ONE MIRROR OF `audienceFurniture` FROM netlify/lib/landing-pages-shared.mjs. The OS is a
+// single browser file and cannot import it, so it is duplicated here and a test runs BOTH and
+// compares. Change one, change the other.
+//
+// It is needed in more places than the live page, which is what went wrong first time: a
+// written OPTION replaces `landingPage` wholesale, so an option previewed and then chosen
+// arrived carrying the renderer's local-service defaults ("✓ Free quotes", an eyebrow reading
+// the account's niche). The furniture has to travel with the page object, not be painted on
+// around it.
+const blAudienceFurniture = (label) => {
+  const who = String(label || "").trim();
+  return {
+    eyebrow: who ? `For ${who.toLowerCase()}` : "For business owners",
+    trust: ["\u2713 Free plan, no obligation", "No long contract to start"],
+    chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
+            "Google and Meta, managed end to end"],
+    steps: ["Tell us about your business", "We build the plan and the page",
+            "Ads go live and the calls come to you"],
+    readyList: ["Tell us what you sell and who you sell it to.",
+                "We come back with a plan and what it would cost.",
+                "You decide. No pressure either way."],
+    announce: "",
+  };
+};
+
 const blNewVariant = (copy, opts) => {
   const o = opts||{};
   const body = blClean(blClean(copy||{}, BL_NEVER), BL_VARIANT_ONLY);
@@ -3478,6 +3503,10 @@ function LandingOptionsCard({client, onUpdate, audience}){
   // 🔴 AUDIENCE OR NICHE, NEVER BOTH. Sending `niche:"Roofers"` writes a page advertising
   // roofing to homeowners; `audience:"Roofers"` writes one selling to the roofer. Same word,
   // opposite page.
+  // Applied at CREATION rather than at preview, so the option he looks at and the page he gets
+  // when he presses "Use this one" are the same thing. Decorating only the preview would have
+  // shown him one page and published another.
+  const dress=(lp)=>audience?{...blAudienceFurniture(audience),...(lp||{})}:lp;
   const brief=()=>({name:client.name,campaignSetup:client.campaignSetup,
     brandVoice:client.brandVoice,mediaLibrary:client.mediaLibrary,
     ...(audience?{audience}:{niche:client.niche,website:client.website})});
@@ -3497,7 +3526,7 @@ function LandingOptionsCard({client, onUpdate, audience}){
       // explore new ground instead of handing back the three he is looking at.
       const d=await call({count:3,seed:Date.now(),
         exclude:variants.map(v=>({angle:v.angle,layout:(v.design||{}).layout}))});
-      const made=(d.options||[]).map(o=>blNewVariant(o,{label:o.angleLabel||"",angle:o.angle||""}));
+      const made=(d.options||[]).map(o=>blNewVariant(dress(o),{label:o.angleLabel||"",angle:o.angle||""}));
       onUpdate({...client, landingVariants:blAddVariants(variants,made)});
     }catch(e){setErr(e.message||"Could not write the options");}
     setBusy("");
@@ -3512,7 +3541,7 @@ function LandingOptionsCard({client, onUpdate, audience}){
       // design, so without this the option would take whatever the model happened to pick and
       // lose the layout that made it different from the other two. Rewrite means "say this
       // again", not "become a different option".
-      onUpdate({...client, landingVariants:blReplaceVariant(variants,v.id,{...d.landingPage,design:v.design||(d.landingPage||{}).design,label:v.label,angle:v.angle,source:"generated",generatedAt:new Date().toISOString()})});
+      onUpdate({...client, landingVariants:blReplaceVariant(variants,v.id,{...dress(d.landingPage),design:v.design||(d.landingPage||{}).design,label:v.label,angle:v.angle,source:"generated",generatedAt:new Date().toISOString()})});
     }catch(e){setErr(e.message||"Could not rewrite that one");}
     setBusy("");
   };
@@ -3522,7 +3551,7 @@ function LandingOptionsCard({client, onUpdate, audience}){
     setBusy("blend");setErr("");
     try{
       const d=await call({count:1,blend:prompt});
-      const made=blNewVariant(d.landingPage,{label:"Blended",source:"blended",angle:say});
+      const made=blNewVariant(dress(d.landingPage),{label:"Blended",source:"blended",angle:say});
       onUpdate({...client, landingVariants:blAddVariants(variants,[made])});
       setSay("");setSel([]);
     }catch(e){setErr(e.message||"Could not blend those");}
@@ -7329,25 +7358,13 @@ function AudiencePagesCard({client,onUpdate}) {
   // 🔴 THE MIRROR OF `clientForPage` IN netlify/lib/landing-pages-shared.mjs. The OS is one
   // browser file and cannot import it, so it is duplicated here and the duplication is held
   // honest by a test that runs BOTH and compares the results. Change one, change the other.
-  const previewClient = (cl,pg) => {
-    const who=String(pg.label||"").trim();
-    const pageCopy={
-      eyebrow: who?`For ${who.toLowerCase()}`:"For business owners",
-      trust:["\u2713 Free plan, no obligation","No long contract to start"],
-      chips:[who?`Built for ${who.toLowerCase()}`:"Built for your trade",
-             "Google and Meta, managed end to end"],
-      steps:["Tell us about your business","We build the plan and the page",
-             "Ads go live and the calls come to you"],
-      readyList:["Tell us what you sell and who you sell it to.",
-                 "We come back with a plan and what it would cost.",
-                 "You decide. No pressure either way."],
-      announce:"",
-      ...(pg.page||{}) };
-    return { ...cl, landingSlug:pg.slug, landingPage:pageCopy,
-      brandColor:pg.brandColor||"#c8a84b", brandTheme:pg.theme||"dark",
-      campaignSetup:{ ...(cl.campaignSetup||{}), smsConsent:false },
-      landingVariants:Array.isArray(pg.variants)?pg.variants:[] };
-  };
+  const previewClient = (cl,pg) => ({
+    ...cl, landingSlug:pg.slug,
+    landingPage:{ ...blAudienceFurniture(pg.label), ...(pg.page||{}) },
+    brandColor:pg.brandColor||"#c8a84b", brandTheme:pg.theme||"dark",
+    campaignSetup:{ ...(cl.campaignSetup||{}), smsConsent:false },
+    landingVariants:Array.isArray(pg.variants)?pg.variants:[] });
+
   const save = (next) => onUpdate({...client, landingPages:next});
 
   const add = () => {

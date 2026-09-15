@@ -86,6 +86,38 @@ export const findPage = (cl, slug) => {
 export const BOLDLINE_BRAND = "#c8a84b";
 export const BOLDLINE_THEME = "dark";
 
+// 🔴 ONE DEFINITION OF BOLDLINE'S OWN PAGE FURNITURE, because it is needed in four places and
+// three of them are not the live page: the OS preview, the three written OPTIONS, and whichever
+// option gets chosen. The first version defined it only where the live page is built, so an
+// option previewed and then applied arrived carrying the renderer's local-service defaults —
+// "✓ Free quotes", "✓ Free quote, no obligation", and an eyebrow reading MARKETING AGENCY off
+// the account's niche. Bryson saw exactly that in the options card: *"the landing page is still
+// duplicating data."*
+//
+// A variant REPLACES `landingPage` wholesale, so decorating the live page alone was never going
+// to reach it. The furniture has to travel with the page object itself.
+export const audienceFurniture = (label) => {
+  const who = String(label || "").trim();
+  return {
+    eyebrow: who ? `For ${who.toLowerCase()}` : "For business owners",
+    // The two rows must not repeat each other, and neither may repeat a benefit bullet. The
+    // renderer de-duplicates as a backstop, but a default that leans on it arrives half empty.
+    trust: ["\u2713 Free plan, no obligation", "No long contract to start"],
+    chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
+            "Google and Meta, managed end to end"],
+    // The renderer's defaults for these two are a local service business's, and both say
+    // "free quote". BoldLine does not quote, it plans.
+    steps: ["Tell us about your business", "We build the plan and the page",
+            "Ads go live and the calls come to you"],
+    readyList: ["Tell us what you sell and who you sell it to.",
+                "We come back with a plan and what it would cost.",
+                "You decide. No pressure either way."],
+    // Empty string, not absent: absent falls back to the account's main offer, which would
+    // print BoldLine's own sales line in a bar across the top of every page.
+    announce: "",
+  };
+};
+
 export const clientForPage = (cl, page) => {
   if (!cl || !page) return cl;
   // 🔴 THE PAGE'S OWN DESIGN IS KEPT, AND AN EARLIER VERSION OF THIS THREW IT AWAY.
@@ -102,42 +134,7 @@ export const clientForPage = (cl, page) => {
   // would have silently discarded the very thing he picked. So the design stays, the single
   // write passes a moving seed and the other pages' layouts to exclude, and the options card
   // is wired up per page.
-  // 🔴 BOLDLINE'S OWN FURNITURE, NOT A LOCAL SERVICE BUSINESS'S.
-  //
-  // Bryson: *"its still sort of using stuff from stencil & threads landing page such as the free
-  // quotes with the checkmark, the very top of the page there is a bar that includes what it
-  // is."* The eyebrow, the trust row, the chip row and the announcement bar are built by the
-  // renderer from strings written for a local service business: "Serving Gilbert, Arizona",
-  // "Free quote, no obligation", "Fast response", "Free quotes". Two pages carrying all four
-  // read as the same page however different the words between them, and choosing between
-  // written options could never have touched any of it.
-  //
-  // BoldLine does not do quotes, does not serve a town, and has no "fast response" promise to
-  // make. So the defaults are replaced with ones that are true, and keyed to the audience so
-  // the roofers page and the detailers page do not say the same thing either. A page that has
-  // written its own keeps its own.
-  const who = String(page.label || "").trim();
-  const pageCopy = {
-    eyebrow: who ? `For ${who.toLowerCase()}` : "For business owners",
-    // 🔴 THE TWO ROWS MUST NOT SAY THE SAME THING, AND NEITHER SHOULD REPEAT A BULLET. The
-    // renderer de-duplicates as a backstop, but a default that leans on it arrives half empty.
-    // These were "You keep your own ad account" in the trust row, which is also the first
-    // benefit on most of these pages, and "Free plan, no obligation" in BOTH rows.
-    trust: ["\u2713 Free plan, no obligation", "No long contract to start"],
-    chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
-            "Google and Meta, managed end to end"],
-    // The default steps are a local service business's, and the middle one says "free quote".
-    // BoldLine does not quote, it plans.
-    steps: ["Tell us about your business", "We build the plan and the page",
-            "Ads go live and the calls come to you"],
-    readyList: ["Tell us what you sell and who you sell it to.",
-                "We come back with a plan and what it would cost.",
-                "You decide. No pressure either way."],
-    // Empty string, not absent: absent means "fall back to the account's main offer", which
-    // would print BoldLine's own sales line in a bar across the top of every audience page.
-    announce: "",
-    ...(page.page || {}),
-  };
+  const pageCopy = { ...audienceFurniture(page.label), ...(page.page || {}) };
   return { ...cl, landingSlug: page.slug, landingPage: pageCopy,
     brandColor: page.brandColor || BOLDLINE_BRAND,
     brandTheme: page.theme || BOLDLINE_THEME,
