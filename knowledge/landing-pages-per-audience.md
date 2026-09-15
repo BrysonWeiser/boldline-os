@@ -440,8 +440,58 @@ flag, drifting back to indigo, **and a change made on the SERVER side** that the
 preview is a second implementation and will drift. Either share the code, or compare the two by
 running them.
 
+## 🔴 POINTING AN AD AT ONE OF THEM (2026-09-15)
+
+Bryson: *"when i make the ads and i want to select the landing page i said to use how do i do
+that?"* Honest answer at the time: **he could not.** Both launch cards carried a bare text box
+("Landing / final URL") pre-filled with the account's single page, so using an audience page meant
+leaving the screen, copying the address, coming back, and pasting it. On his own account the box
+pre-filled with `HOUSE_LANDING_URL` (`/get-started`), so every campaign he built started aimed at
+the wrong page and stayed that way unless he remembered, every single time.
+
+**Now:** `LandingTargetPicker` sits directly under that field in **both** `GoogleLaunchCard` and
+`MetaLaunchCard`, as a row of pills — *Main page* plus one per audience page. Picking one writes
+the address into the same field, so nothing downstream changed and the field is still typeable.
+The component and its helpers (`audienceTargets`, `sameUrl`/`tidyUrl`, `deadAudienceTarget`,
+`AUDIENCE_PAGE_BASE`) live immediately above `GoogleLaunchCard` in `index.html`.
+
+🔴 **The part that costs money is the guard, not the picker.** `landing.mjs` serves the real page
+only when it is **published AND has a headline**, and returns a coming-soon holder otherwise. An ad
+pointed at such an address looks completely correct in the OS, in the ad, and in the campaign
+report, and every click it buys lands on a placeholder. So:
+
+- `live` checks **both** flags, not just `published`. The published-but-empty page is the easy half
+  to forget.
+- A page that is not live is **greyed out and labelled "not live yet"**, with the reason on hover.
+- `deadAudienceTarget` runs in **both** `launch()` bodies at **spend time**, not just at pick time.
+  Greying out a button does nothing about a pasted address, a page unpublished *after* the draft
+  was written, or a draft auto-saved and reopened next week. The refusal names the page and says
+  how to fix it.
+- Addresses compare tidied (trailing slash, case, surrounding space), because the paste path is
+  exactly the one the picker cannot police. **Blank does not match blank**, or an account with no
+  main page lights up the *Main page* pill.
+
+**`tests/verify-landing-target.mjs` (52 checks).** The helpers and both real `launch()` bodies are
+extracted from `index.html` and RUN. The "live" rule is cross-checked by **lifting the real publish
+gate out of `landing.mjs` and executing it**, page shape by page shape, rather than restating the
+rule in the test — a test that restates the rule it is testing passes forever while the two drift
+apart. Two further checks prove the server both withholds some pages and serves others, so the
+agreement cannot be vacuous. **7/7 mutations caught**, including removing the guard from one card
+and leaving it on the other.
+
+🔴 **Two extraction anchors broke, and one of them is a lesson.** `verify-group-picker` built
+`launch()` in a scope that did not contain the new helper, so the harness became **more permissive
+than the real page**; fixed by handing it the REAL helper, not a stub returning null (a stub would
+pass forever and hide the day the refusal starts firing wrongly). And `verify-draft-persistence`
+sliced *"from `useSavedDraft` to `function GoogleLaunchCard(`"*, so inserting anything between them
+swallowed its JSX and died with a syntax error pointing at code it had no business reading; it now
+anchors to the hook's own closing brace. **Slicing to "whatever function is declared next" is a
+trap** and there are more of them in `tests/`.
+
+Responsive: checked headlessly at 390/768/1280/1600 by compiling the real component with Babel and
+rendering it. No horizontal scroll, no pill spilling its card; the row wraps 4 rows / 2 / 1 / 1.
+
 ## Still to do
 
 1. The existing **Page Options** card scoped to a page, so each audience gets several candidates to
    choose between. `landingPages[].variants` already exists for exactly this.
-2. Campaign creation pointing an ad at a chosen page.

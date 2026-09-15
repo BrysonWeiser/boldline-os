@@ -29,6 +29,15 @@ const eq = (l, a, b) => ok(l, JSON.stringify(a) === JSON.stringify(b), `expected
 
 const os = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const card = os.slice(os.indexOf("function GoogleLaunchCard("), os.indexOf("function MetaLaunchCard("));
+
+// 🔴 THE REAL HELPER, NOT A STUB THAT SAYS YES. launch() now refuses to build a campaign
+// aimed at an audience page that is not live yet (see verify-landing-target). The harness
+// has to supply what the real page supplies, or it is more permissive than the OS and stops
+// being a test of the OS. A stub returning null would pass these checks forever and hide the
+// day the refusal starts firing on campaigns it should not.
+const { deadAudienceTarget } = new Function(
+  os.slice(os.indexOf("const AUDIENCE_PAGE_BASE ="), os.indexOf("function LandingTargetPicker(")) +
+  "\nreturn { deadAudienceTarget };")();
 ok("the Google launch card was found", card.length > 2000, `got ${card.length} chars`);
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -65,7 +74,7 @@ const fields = (over = {}) => ({
 async function run({ mode, gen = null, picked = null, f = fields(), client = { name: "Stencil & Thread", googleAdsCustomerId: "924", conversionActions: { lead: 1 } } }) {
   let sent = null, state = "idle", msg = "";
   const scope = {
-    gen, picked, f, client,
+    gen, picked, f, client, deadAudienceTarget,
     setState: (v) => { state = v; },
     setMsg: (v) => { msg = v; },
     humanizeAdCopy: (s) => String(s).trim(),
