@@ -46,7 +46,7 @@ const t = (name, fn) => {
   return r;
 };
 
-const { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, isArchivePath } = await import("../netlify/lib/page-archive-shared.mjs");
+const { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, isArchivePath, archiveViewUrl } = await import("../netlify/lib/page-archive-shared.mjs");
 const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 
 // A REAL page from the REAL renderer. Neutralising tested against a hand-written sample would
@@ -357,6 +357,52 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
     assert.equal(res.status, 404);
     assert.equal(seen.downloaded.length, 0, "a file nothing points at was still handed out");
     assert.match(await res.text(), /deleted/);
+  });
+
+  // 🔴 THE WHOLE CHAIN, EXECUTED, BECAUSE EVERY FAILURE OF THIS FEATURE HAS BEEN A JOINT.
+  // Each half was fine on its own each time: the saver wrote a good file, the viewer served
+  // good HTML, the UI built a link. What broke was where they meet — Supabase in the middle,
+  // then a path format the two halves disagreed about. So this runs the REAL renderer, the
+  // REAL neutraliser, the REAL entry builder, the REAL link the OS puts on the button, and
+  // the REAL route, with only the bucket and the database faked, and asserts the client's
+  // own headline comes back out the far end.
+  await t("🔴 save a real page, click the real View link, get the real page back", async () => {
+    // The link is the OS's own code, lifted out of index.html and run, not re-implemented
+    // here. Re-implementing it is how a test agrees with itself instead of with the app.
+    const src = (S.match(/const viewHref = \(a\) =>[\s\S]*?;\n/) || [])[0];
+    assert.ok(src, "viewHref is not in the OS any more, so this proves nothing");
+    const viewHref = new Function(`${src} return viewHref;`)();
+
+    const cid = uid();
+    const entry = archiveEntry({ label: "Case study", headline: "x", clientId: cid });
+    const stored = neutraliseArchive(renderLandingPage(CLIENT), entry);
+    assert.match(stored, /Saved copy/, "the fixture never got through the neutraliser");
+
+    const bucket = new Map([[entry.path, stored]]);
+    // The saver writes `url` with its own helper and the UI builds the href with its own
+    // code. Nothing reads the stored one today, so the two can drift apart unnoticed until
+    // the day something does. Pin them equal.
+    const record = { data: { pageArchives: [{ ...entry, url: archiveViewUrl(entry.path) }] } };
+    assert.equal(record.data.pageArchives[0].url, viewHref(entry),
+      "the address the saver records and the address the button uses have drifted apart");
+    const sb = {
+      from: () => ({ select: () => ({ eq: (_c, v) => ({ maybeSingle: async () =>
+        ({ data: v === cid ? record : null }) }) }) }),
+      storage: { from: () => ({ download: async (k) => bucket.has(k)
+        ? { data: { text: async () => bucket.get(k) }, error: null }
+        : { data: null, error: { message: "not found" } } }) },
+    };
+
+    const href = viewHref(entry);
+    assert.ok(href.startsWith("/.netlify/functions/page-archive?"), `the button links to ${href}`);
+    const res = await viewArchive(new Request(`https://os.example${href}`), sb);
+    assert.equal(res.status, 200, "the page the OS just saved is refused by the OS's own viewer");
+    assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+    const out = await res.text();
+    assert.match(out, /<html/i, "what came back is not a web page");
+    assert.match(out, new RegExp(CLIENT.landingPage.headline.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+      "the client's own headline did not survive the round trip");
+    assert.doesNotMatch(out, /<script/i, "a script survived into the served page");
   });
 
   await t("a page whose file has gone says so instead of serving nothing", async () => {
