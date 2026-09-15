@@ -130,7 +130,7 @@ export const ANGLES = [
   { key: "objection", label: "The worry", nudge: "Lead with the biggest WORRY or objection a buyer has here, and answer it head on.", layout: "centered" },
   { key: "speed", label: "Speed and ease", nudge: "Lead with how FAST and how EASY this is compared with the alternative.", layout: "capture" },
   { key: "proof", label: "Why them", nudge: "Lead with what makes THIS business the safe choice. No invented statistics, awards or testimonials.", layout: "overlay" },
-  { key: "offer", label: "The offer", nudge: "Lead with the specific OFFER or the free quote as the hook.", layout: "capture" },
+  { key: "offer", label: "The offer", nudge: "Lead with the specific OFFER as the hook, whatever this business actually offers to start.", layout: "capture" },
 ];
 
 export const angleFor = (i) => ANGLES[((Number(i) || 0) % ANGLES.length + ANGLES.length) % ANGLES.length];

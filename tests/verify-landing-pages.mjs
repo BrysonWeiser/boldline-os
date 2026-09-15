@@ -423,6 +423,73 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     assert.match(h, /class="ann"><b>25\+ piece orders/);
   });
 
+  // ── 7d. 🔴 NOTHING IS SAID TWICE ───────────────────────────────────────────
+  //
+  // Bryson, 2026-09-15: *"also make sure information isnt listed twice."* True of every page
+  // this renderer has ever produced: a client's town appeared in the trust row, again in the
+  // chip row and again in the footer, and the audience pages repeated a benefit bullet in the
+  // trust row and the same promise in both rows.
+  const rowsOf = (h) => ({
+    trust: [...((h.match(/<div class="trust an"[^>]*>([\s\S]*?)<\/div>/) || ["", ""])[1])
+      .matchAll(/<b>([^<]*)<\/b>/g)].map((m) => m[1].trim()),
+    chips: [...h.matchAll(/<div class="chip reveal"[^>]*>([^<]*)<\/div>/g)].map((m) => m[1].trim()),
+    bullets: [...h.matchAll(/<h3>([^<]*)<\/h3>/g)].map((m) => m[1].trim()),
+  });
+  const norm = (t) => String(t).replace(/&#10003;|\u2713/g, " ").toLowerCase()
+    .replace(/^\s*serving\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
+
+  t("🔴 a client's town is not printed in two rows at once", () => {
+    const h = renderLandingPage({ id: "c", name: "S&T", landingSlug: "st", leadToken: "T",
+      callTrackingNumber: "(541) 555-0199", campaignSetup: { serviceArea: "Eugene, OR" },
+      landingPage: { headline: "S", ctaText: "Q", published: true, bullets: ["Free digital proof"] } });
+    const { trust, chips } = rowsOf(h);
+    const both = trust.map(norm).filter((k) => chips.map(norm).includes(k));
+    assert.deepEqual(both, [], `said in both rows: ${both.join(", ")}`);
+    assert.ok(trust.map(norm).includes("eugene or"), "the town vanished entirely, which is the other failure");
+  });
+
+  t("🔴 nothing in either row repeats a benefit bullet", () => {
+    const house = { id: "h", name: "BoldLine", landingSlug: "boldline", leadToken: "T",
+      campaignSetup: {}, landingPage: { headline: "m" } };
+    const h = renderLandingPage(clientForPage(house, newPage({ label: "Roofers", slug: "roofers",
+      page: { headline: "R", ctaText: "Go", published: true,
+        bullets: ["You keep your own ad account", "Calls tracked, not guessed at"] } })));
+    const { trust, chips, bullets } = rowsOf(h);
+    const keys = bullets.map(norm);
+    for (const t2 of [...trust, ...chips]) {
+      assert.ok(!keys.includes(norm(t2)), `"${t2}" is already a bullet on the same page`);
+    }
+    assert.ok(trust.length > 0 && chips.length > 0, "the de-dup emptied a row instead of trimming it");
+  });
+
+  t("🔴 and how-it-works is not a local service business's either", () => {
+    const house = { id: "h", name: "BoldLine", landingSlug: "boldline", leadToken: "T",
+      campaignSetup: {}, landingPage: { headline: "m" } };
+    const h = renderLandingPage(clientForPage(house, newPage({ label: "Roofers", slug: "roofers",
+      page: { headline: "R", ctaText: "Go", published: true } })));
+    assert.ok(!/free quote/i.test(h), "BoldLine's page still offers a free quote somewhere");
+    assert.match(h, /We build the plan and the page/);
+  });
+
+  t("the de-dup is too strict to drop a merely similar line", () => {
+    // Dropping a line off a live client's page because it RESEMBLED another is worse than
+    // printing one twice, so "Free quotes" and "Free quote, no obligation" both survive.
+    const h = renderLandingPage({ id: "c", name: "S&T", landingSlug: "st", leadToken: "T",
+      campaignSetup: { serviceArea: "Eugene, OR" },
+      landingPage: { headline: "S", ctaText: "Q", published: true, bullets: ["x"] } });
+    assert.match(h, /Free quotes/);
+    assert.match(h, /Free quote, no obligation/);
+  });
+
+  t("🔴 no canned angle assumes the business gives quotes", () => {
+    // The five angles are a fixed creative brief shared by every page. One of them said "Lead
+    // with the specific OFFER or the free quote as the hook", which is a local service
+    // business's assumption reaching every page written from that angle.
+    const angles = readFileSync(new URL("../netlify/lib/landing-variants.mjs", import.meta.url), "utf8");
+    const list = angles.slice(angles.indexOf("export const ANGLES"), angles.indexOf("export const angleFor"));
+    assert.ok(!/free quote/i.test(list), "an angle still tells the writer to lead on a free quote");
+  });
+
   // ── 8. 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT ──────────────────
   t("🔴 BoldLine's own page does not ask to text people", () => {
     // Bryson: "it even includes their text thing which we dont have yet." landing.mjs's own
