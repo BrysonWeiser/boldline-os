@@ -46,7 +46,7 @@ const t = (name, fn) => {
   return r;
 };
 
-const { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET } = await import("../netlify/lib/page-archive-shared.mjs");
+const { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, isArchivePath } = await import("../netlify/lib/page-archive-shared.mjs");
 const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
 
 // A REAL page from the REAL renderer. Neutralising tested against a hand-written sample would
@@ -276,8 +276,14 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
 // against a fake database and a fake bucket, and its real Response object is inspected.
 {
   const { viewArchive } = await import("../netlify/functions/page-archive.mjs");
-  const CID = "11111111-2222-3333-4444-555555555555";
-  const GOOD = `${CID}/2026-09-15-ab12cd.html`;
+  // 🔴 THE FIXTURE IS BUILT BY THE REAL CODE, NOT WRITTEN OUT BY HAND, AND THAT IS THE WHOLE
+  // POINT. The first version of this hard-coded a UUID for the client id. Client ids are
+  // `uid()` — `Math.random().toString(36).slice(2, 9)` — so every real saved page was refused
+  // with "that is not a saved page" while this suite stayed green. The test had confirmed my
+  // assumption instead of the code's behaviour.
+  const uid = () => Math.random().toString(36).slice(2, 9);      // exactly as index.html makes them
+  const CID = uid();
+  const GOOD = archiveEntry({ label: "x", clientId: CID }).path;
   const PAGE = "<!DOCTYPE html><html><body><h1>Stencil &amp; Thread</h1></body></html>";
 
   // Records every call, so "it never even asked storage" is a thing the test can assert
@@ -295,6 +301,17 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
     } };
   };
   const get = (file) => new Request(`https://os.example/.netlify/functions/page-archive?file=${encodeURIComponent(file)}`);
+
+  await t("🔴 every path the saver produces is one the viewer accepts", () => {
+    // The two functions are the two halves of one contract and nothing else was checking that
+    // they agree. `c1` is a seeded client; the rest are the ids `uid()` actually returns,
+    // including the short ones it produces when Math.random() lands on a short decimal.
+    for (const cid of ["c1", "k3m9xz2", "0abc123", "5", "zzzzzzz", uid(), uid(), uid()]) {
+      const path = archiveEntry({ label: "Saved page", clientId: cid }).path;
+      assert.ok(isArchivePath(path), `the saver produced "${path}" and the viewer rejects it`);
+      assert.equal(path.slice(0, path.indexOf("/")), cid, "the client id is not recoverable from the path");
+    }
+  });
 
   await t("🔴 a saved page comes back as real HTML, not as text/plain", async () => {
     const { sb, seen } = fake();
@@ -316,11 +333,14 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
 
   await t("🔴 a path that is not an archive is refused before storage is touched", async () => {
     for (const bad of [
-      "../../secrets.html",                       // traversal
-      `${CID}/2026-09-15-ab12cd.html/../x.html`,  // traversal past a valid prefix
-      "not-a-uuid/2026-09-15-ab12cd.html",
-      `${CID}/2026-09-15-ab12cd.js`,              // some other object in the bucket
-      `${CID}/../other/2026-09-15-ab12cd.html`,
+      "../../secrets.html",                 // traversal
+      `${CID}/../x.html`,                   // traversal past a valid prefix
+      `${GOOD}/../x.html`,                  // and past a wholly valid path
+      "..%2F..%2Fsecrets.html",             // the decoded form is what we are handed
+      `${CID}/a/b.html`,                    // deeper than an archive ever is
+      GOOD.replace(/\.html$/, ".js"),       // some other object in the bucket
+      `.hidden/${CID}.html`,
+      `${CID}/.env.html`,
       "",
     ]) {
       const { sb, seen } = fake();

@@ -20,13 +20,20 @@ export const archivePath = (clientId, id) => `${clientId}/${id}.html`;
 // nothing to re-save.
 export const archiveViewUrl = (path) => `/.netlify/functions/page-archive?file=${encodeURIComponent(String(path || ""))}`;
 
-// Only ever `<client uuid>/<YYYY-MM-DD>-<6 chars>.html`. The viewer is the one route here
-// that carries no session (it opens in a new tab), so the path it is handed is checked for
-// shape first and then for membership of a real client's archive list — a path that passes
-// this but is not on a record is refused, which is also what makes a deleted archive stop
-// serving even if the file itself lingers.
+// 🔴 THIS DOES NOT TRY TO RECOGNISE A CLIENT ID, AND THE FIRST VERSION'S BUG WAS THAT IT DID.
+// It demanded a UUID. Client ids are `uid()` — `Math.random().toString(36).slice(2, 9)`, so
+// `k3m9xz2` — and the seeded ones are `c1`. Every real saved page was refused with "that is
+// not a saved page", and the test passed because its fixture was a UUID I had invented rather
+// than a path the real code produces. The id format is not this function's business and never
+// was: guessing it can only ever be wrong in the direction of locking Bryson out.
+//
+// What this IS for is making the string safe to hand to storage: exactly one `/`, no `.` in
+// the first segment so `..` cannot appear, neither segment able to contain a slash, and an
+// `.html` ending. Authorisation is a separate and much stronger check — the viewer looks the
+// path up on the client record it names and refuses anything not listed there, which is also
+// what makes a deleted archive stop serving even if the file itself lingers.
 export const isArchivePath = (p) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/\d{4}-\d{2}-\d{2}-[a-z0-9]{1,12}\.html$/i.test(String(p || ""));
+  /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\/[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.html$/.test(String(p || ""));
 
 export function archiveEntry({ label, headline, clientId, now = new Date() } = {}) {
   const at = now.toISOString();
