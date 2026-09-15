@@ -3,8 +3,8 @@ name: landing-pages-per-audience
 topic: Ads
 task: give BoldLine's own ads a different landing page per audience, or add a new audience page
 keywords: [landing pages per audience, multiple landing pages, page per niche, car detailers page, roofers page, landingPages, clientForPage, freeSlug, boldlinemedia.com/for, /for/ proxy, lead path relative, /lead, one account many pages]
-status: in progress
-summary: BoldLine's own ads need a page per audience, one for car detailers and a different one for roofers, each with several options to choose from. A record could only ever hold ONE landing page, so an account may now carry `landingPages[]` alongside the one it already had. The pages answer at boldlinemedia.com/for/<name>, proxied to the OS, chosen over a subdomain each so a new audience needs no DNS and no Netlify job. 🔴 The lead form posted to a RELATIVE path, which on a proxied domain would 404 every enquiry while the ads kept spending; it now posts to `/lead`, proven live. FOUNDATION BUILT, the screen to manage them is not.
+status: built
+summary: BoldLine's own ads need a page per audience, one for car detailers and a different one for roofers, each with several options to choose from. A record could only ever hold ONE landing page, so an account may now carry `landingPages[]` alongside the one it already had. The pages answer at boldlinemedia.com/for/<name>, proxied to the OS, chosen over a subdomain each so a new audience needs no DNS and no Netlify job. 🔴 The lead form posted to a RELATIVE path, which on a proxied domain would 404 every enquiry while the ads kept spending; it now posts to `/lead`, proven live. Client detail > Assets > Landing Pages By Audience, on the My Ads account only: add, write, put live, open, copy, rename, delete.
 verified: 2026-09-15
 ---
 
@@ -82,16 +82,57 @@ indexes to -1, which compares as "before" everything**, so both would have passe
 carrying no guard at all — the exact failure they exist to prevent. Both now require each half to
 be present before judging the order, and were proved by deleting the guard.
 
-## 🔴 What is NOT built yet
+## The screen
 
-The screen. There is no way in the OS to create, name, edit or delete an audience page, so nothing
-above is reachable by Bryson yet. Next, in order:
+**Client detail → Assets → Landing Pages By Audience**, on the My Ads account only, directly under
+the existing hand-built page card (which is untouched and remains the main page).
 
-1. A card on the My Ads account listing the pages, with add / rename / delete and each page's
-   public address.
-2. The existing **Page Options** card scoped to the selected page, so each audience gets its own
-   set of candidates to choose between. That is the half he already knows how to use.
-3. Campaign creation pointing an ad at a chosen page.
+Type who the next ad is aimed at, press **Add page**, and it appears with its address. Open it to
+write the page, put it live, preview it, copy the address, rename it or delete it. **Writing never
+publishes** — a page that went live the moment it was written would put unreviewed copy on an
+advertised address.
 
-Anything new that renders a page for looking at must be added to `verify-preview-safety`'s manifest
-in the same change (standing rule).
+## 🔴 THE PAGE SELLS TO THE TRADE, IT DOES NOT SELL THE TRADE
+
+The biggest risk in the whole feature, and it reads fine until you notice who the page is talking
+to. `generate-landing`'s prompt is written for *"a local service business"* selling to consumers, so
+wiring the card to send `niche: "Roofers"` — the obvious thing — would have produced **a page
+advertising roofing to homeowners, on Bryson's own domain, paid for by Bryson's own ads.**
+
+So the generator takes an optional **`audience`** instead, which swaps the entire system prompt for
+one that says the visitor is the OWNER of that trade and the page sells BoldLine's service to them.
+**Absent, nothing in that file changes**, and a test asserts the original prompt is still the one
+used without an audience and that the audience prompt contains no trace of "local service business".
+
+🔴 **The audience prompt forbids inventing proof, and says why.** BoldLine is new with almost no
+track record, so a fabricated case study or "X businesses served" is both a lie and instantly
+checkable. Also skips the local-conditions lookup: an audience page speaks to a trade nationally,
+so there is no service area to look up and the call would be spent on an empty string.
+
+## What the tests pin
+
+- The card sends an **audience** and never a niche (the mutation writes the wrong-direction page).
+- Handlers live **inside** the card, by slicing the component — Deal Prep shipped broken because
+  they landed in a neighbour and every grep still passed (KB `deal-prep-to-client`).
+- The card is mounted **only** on the internal account. 🔴 Proved by finding the nearest
+  `client.internal ? (` before the mount and asserting the else-arm has not opened in between. The
+  first version checked a fixed 2000-character window and failed because the branch was 2354 away,
+  which would have been "fixed" by widening the window until it passed: a test tuned to its answer.
+- Addresses cannot collide, including with the account's own.
+- Deleting warns that ads pointing at the address will break.
+- Writing a page never publishes it.
+
+**Previews:** audience pages render through the SAME `LandingPreview` embed as a client's, handing
+it the account with `landingPage` swapped, so they carry the same real lead token and ride the same
+`about:` guard already in `verify-preview-safety`'s manifest. That row now says so, and says to
+re-read it if anyone ever gives audience pages their own embed.
+
+**Verified in a real browser** at 390/768/1280/1600, which caught a bug no test would have: the
+Delete button was written `backgroundColor:"none"`, which is not a valid colour, so React dropped it
+and the browser's default light button styling showed through on a dark card.
+
+## Still to do
+
+1. The existing **Page Options** card scoped to a page, so each audience gets several candidates to
+   choose between. `landingPages[].variants` already exists for exactly this.
+2. Campaign creation pointing an ad at a chosen page.

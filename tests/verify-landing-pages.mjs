@@ -116,6 +116,96 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     `every one of these must be proxied on the marketing domain or it 404s there: ${paths.join(", ")}`);
 });
 
+// ── 4. 🔴 THE PAGE SELLS TO THE TRADE, IT DOES NOT SELL THE TRADE ───────────
+{
+  const gen = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
+  const ui = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const card = ui.slice(ui.indexOf("function AudiencePagesCard"), ui.indexOf("function PageArchiveCard"));
+
+  t("🔴 the card asks for an AUDIENCE, never a niche", () => {
+    // Sending `niche: "Roofers"` to this generator writes a page advertising ROOFING to
+    // homeowners. On Bryson's own domain, paid for by Bryson's own ads. The whole feature is
+    // wrong in a way that reads fine until you notice who the page is talking to.
+    assert.match(card, /audience:\s*p\.label/, "the card does not send an audience at all");
+    assert.ok(!/niche:/.test(card), "the card sends a niche, which points the page the wrong way");
+  });
+
+  t("the generator only takes the audience route when it is given one", () => {
+    assert.match(gen, /const audience = clip\(body\.audience, 100\);/);
+    assert.match(gen, /const system = audience \? audienceSystem :/,
+      "the two prompts are not selected by the audience being present");
+  });
+
+  t("🔴 an ordinary client page is untouched by this", () => {
+    // The existing prompt must still be the one used with no audience, word for word.
+    assert.match(gen, /You are writing the on-page copy for a single-page ad landing page for a local service business/);
+    const aud = gen.slice(gen.indexOf("const audienceSystem"), gen.indexOf("const system = audience"));
+    assert.ok(!/local service business/.test(aud),
+      "the audience prompt still describes a local service business, so it points the wrong way");
+  });
+
+  t("🔴 the audience page may not invent proof, because there is none to invent", () => {
+    const aud = gen.slice(gen.indexOf("const audienceSystem"), gen.indexOf("const system = audience"));
+    assert.match(aud, /NEVER invent results, numbers, case studies, client names, testimonials/);
+    assert.match(aud, /almost no track record/,
+      "without the reason, this reads as a style note rather than a hard rule");
+    assert.match(aud, /NEVER use a dash/, "the no-dash rule has to be on both prompts, not just one");
+  });
+
+  t("the location lookup is skipped for an audience page", () => {
+    assert.match(gen, /const cond = audience \? \{ block: "" \} :/,
+      "it spends an external lookup on an empty service area");
+  });
+
+  // ── 5. The card itself ────────────────────────────────────────────────────
+  t("the card is mounted, and only on Bryson's own account", () => {
+    const at = ui.indexOf("<AudiencePagesCard client={client} onUpdate={onUpdate}/>");
+    assert.ok(at > 0, "the card is written but never rendered");
+    // 🔴 PROVED, NOT GUESSED AT BY LOOKING A FIXED NUMBER OF CHARACTERS BACK. The first
+    // version of this checked a 2000-character window and failed because the branch was 2354
+    // away, which would have been "fixed" by widening the window until it passed — a test
+    // tuned to its answer. Instead: find the nearest `client.internal ? (` before the mount
+    // and assert the else-arm has not opened in between. If the card ever moves to the other
+    // side of the branch, a client's Assets tab starts offering to write pages that advertise
+    // BoldLine, and this fails.
+    const branch = ui.lastIndexOf("client.internal ? (", at);
+    assert.ok(branch > 0, "there is no internal branch before the mount at all");
+    const between = ui.slice(branch, at);
+    assert.ok(!/\n\s*\) : \(/.test(between),
+      "the else-arm opens before the card, so it renders for real clients too");
+  });
+
+  // 🔴 SCOPE, not just presence. Deal Prep shipped broken because handlers landed in the
+  // neighbouring component and every grep still passed (KB `deal-prep-to-client`).
+  t("🔴 every handler lives INSIDE the card, not in a neighbour", () => {
+    for (const fn of ["const add = ", "const write = async", "const togglePublish", "const rename = ", "const remove = ", "const freeSlug = "]) {
+      assert.ok(card.includes(fn), `${fn.trim()} is not inside AudiencePagesCard`);
+    }
+  });
+
+  t("🔴 two pages cannot be given the same address, in the OS as well as the server", () => {
+    assert.match(card, /if \(client\.landingSlug\) out\.add/,
+      "the account's own address is not counted, so a page can shadow the main page");
+    assert.match(card, /for \(let n=2;n<200;n\+\+\)/, "a clash is not resolved, it just collides");
+  });
+
+  t("deleting a page warns that ads pointing at it will break", () => {
+    assert.match(card, /window\.confirm\(/);
+    assert.match(card, /will stop working/, "it deletes a live address with no warning");
+  });
+
+  t("writing a page never puts it live", () => {
+    // Publishing is its own button. A page that went live the moment it was written would put
+    // unreviewed copy on the advertised address.
+    assert.match(card, /published:\(x\.page&&x\.page\.published\)\|\|false/,
+      "generating a page flips it live");
+  });
+
+  t("the address shown in the OS is the one that actually answers", () => {
+    assert.match(card, /https:\/\/boldlinemedia\.com\/for\/\$\{p\.slug\}/);
+  });
+}
+
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.join("\n  ")
   : `✓ verify-landing-pages: ${pass} checks passed`);
 process.exit(fails.length ? 1 : 0);

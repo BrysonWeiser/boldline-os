@@ -43,6 +43,11 @@ const ok = (name, cond, extra) => {
 // ── Every embed the OS renders, and why each one cannot do harm ──────────────
 // Adding a preview means adding a row here. That is the whole mechanism.
 const MANIFEST = {
+  // Also covers BoldLine's own audience pages (2026-09-15): `AudiencePagesCard` renders them
+  // through this SAME embed, handing it the account with `landingPage` swapped, so it carries
+  // the same real leadToken and rides the same guard. That is a reason to keep using this
+  // component rather than a second preview, and a reason to re-read this row if anyone ever
+  // gives audience pages their own.
   "Landing Page Preview": "carries the real leadToken; guarded by an about: check before the intake fetch",
   "Client Portal": "carries the real portalToken; guarded by BL_PREVIEW blocking every non-GET request",
   "Service Agreement": "inert document, no fetch / form / onclick / external links",
