@@ -158,29 +158,52 @@ Verified by rendering a real audience page: page background `rgb(12,13,17)`, but
 `rgb(200,168,75)`. A real client's page is unchanged, asserted both for a hand-set colour and a
 generated one.
 
-## 🔴 EVERY PAGE IS ITS OWN PAGE, AND THE WRITER'S LAYOUT IS THROWN AWAY
+## 🔴 "It still looks the same": the right lever was one we already had
 
-Bryson, 2026-09-15: *"i like it but it looks exactly like the landing page for stencil & thread ...
-no matter what each landing page should not just be a copy and paste they should be unique."*
+Bryson, twice: *"it looks exactly like the landing page for stencil & thread ... no matter what
+each landing page should not just be a copy and paste they should be unique"*, then *"the page
+itself still looks exactly the same"*, then the question that contained the answer: *"what
+happened to what we made a while ago where we get 3 different versions of the same landing page
+and I can choose one or modify them as i want."*
 
-`designConfig` takes layout, background, motion, benefit style, font, shape and section order from
-`landingPage.design` **when the writer set them**, and otherwise from a seed derived from the
-page's own slug. The writer sets them, and **a model asked the same question returns the same
-answer**, so every audience page came out `split/glowgrid/up/cards/modern/rounded/a`. Identical
-furniture, different words.
+**Two wrong diagnoses before the right one, both worth keeping.**
 
-**`clientForPage` now drops `design` entirely**, handing all seven choices to the slug seed, which
-differs by construction:
+1. **Design tokens.** `designConfig` prefers `landingPage.design` and otherwise seeds off the
+   slug. The single-write path asks the model the same question every time, so every page came
+   back `split/glowgrid/up/cards/modern/rounded/a`. The first fix **stripped `design`** so the
+   seed decided. It worked, and it was the wrong lever.
+2. **The skeleton, which is the honest answer to "looks the same".** Rendering S&T's page beside
+   an audience page shows different tokens and an **identical section order**: hero, chips,
+   why-us, how-it-works, form, footer. Seven style switches do not change the bones. A page from
+   this renderer will always broadly resemble every other one, and no token shuffle fixes that.
 
-| Audience | What it gets |
-|---|---|
-| roofers | centered · dots · alt · cards · modern · soft · c |
-| car-detailers | capture · mesh · up · list · modern · rounded · b |
-| med-spas | capture · glowgrid · alt · list · elegant · soft · c |
+**What actually varies a page is the ANGLE, and that mechanism already existed.**
+`generate-landing`'s `planOptions` writes three options with deliberately different angles AND
+different layouts, taking `seed` and `exclude` so more options explore new ground. That is KB
+`landing-page-options`, built 2026-09-01 — and it was rendered as
+`{!client.internal && <LandingOptionsCard .../>}`, **so Bryson had never once had it on his own
+account.** He was asking where it went; it had never been there.
 
-**Varied, not random.** The seed is the slug, so the same page is the same page on every visit;
-furniture that moved between two visits would be its own bug. Both are asserted. The BRAND stays
-pinned, so the pages differ in structure while staying unmistakably BoldLine.
+🔴 **So the design strip was reverted**: a page built from a CHOSEN option carries the layout he
+picked, and stripping it would silently discard exactly that. Instead:
+
+- **The single write now passes `seed` and `exclude`** (the other audience pages' angles and
+  layouts), the same two arguments the options flow has always sent.
+- **`LandingOptionsCard` is mounted per audience page.** It needed no changes to work: it reads
+  `landingPage` + `landingVariants` and writes them back through `onUpdate`, so it is handed
+  `previewClient(client, p)` — the same shim the preview uses, so what it thinks is live is what
+  is live — and its writes fold into `landingPages[]`.
+- **It takes an `audience` prop**, because `brief()` sent `niche`, and `niche:"Roofers"` writes a
+  page advertising roofing to homeowners. Same word, opposite page. Absent, it behaves exactly as
+  it did for clients.
+
+Mutations caught: the card removed, the audience prop dropped, the seed dropped, the exclusions
+dropped, `niche` sent instead of `audience`, and the design strip reinstated (caught by the
+preview-parity check, from the other side).
+
+**Still true and not yet addressed:** the section skeleton is one template. If the pages still read
+as siblings after choosing distinct angles, that is the thing to change, and it is a renderer
+change rather than a prompt one.
 
 ## 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT
 

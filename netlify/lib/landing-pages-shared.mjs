@@ -88,22 +88,21 @@ export const BOLDLINE_THEME = "dark";
 
 export const clientForPage = (cl, page) => {
   if (!cl || !page) return cl;
-  // 🔴 THE WRITER'S LAYOUT CHOICES ARE DROPPED ON PURPOSE, AND THIS IS THE WHOLE FIX FOR
-  // "they should be unique".
+  // 🔴 THE PAGE'S OWN DESIGN IS KEPT, AND AN EARLIER VERSION OF THIS THREW IT AWAY.
   //
-  // Bryson, 2026-09-15: *"it looks exactly like the landing page for stencil & thread ... no
-  // matter what each landing page should not just be a copy and paste they should be unique."*
-  // `designConfig` takes the layout, background, motion, benefit style, font, shape and section
-  // order from `landingPage.design` when the writer set them, and falls back to a seed derived
-  // from the page's own slug when it did not. The writer sets them, and a model asked the same
-  // question returns the same answer, so EVERY audience page came out split/glowgrid/up/cards/
-  // modern/rounded/a. Identical furniture, different words.
+  // Bryson, 2026-09-15: *"it looks exactly like the landing page for stencil & thread."* Every
+  // audience page was coming out with the same layout, because the single-write path asks the
+  // model the same question every time and a model returns the same answer. The first fix
+  // stripped `design` so the slug seed decided instead.
   //
-  // Dropping `design` hands all seven choices back to the slug seed, which is different for
-  // every page by construction: roofers gets centered/dots/alt/cards/modern/soft/c and car
-  // detailers gets capture/mesh/up/list/modern/rounded/b. The BRAND stays pinned below, so
-  // they vary in structure while still being unmistakably BoldLine.
-  const { design, ...pageCopy } = (page.page || {});
+  // That was the wrong lever and it fought the right one. `generate-landing` ALREADY has a
+  // variety mechanism: `planOptions` writes three options with deliberately different angles
+  // AND different layouts, and takes an `exclude` list so more options explore new ground. A
+  // page built from a chosen option carries that layout on purpose, and stripping it here
+  // would have silently discarded the very thing he picked. So the design stays, the single
+  // write passes a moving seed and the other pages' layouts to exclude, and the options card
+  // is wired up per page.
+  const pageCopy = (page.page || {});
   return { ...cl, landingSlug: page.slug, landingPage: pageCopy,
     brandColor: page.brandColor || BOLDLINE_BRAND,
     brandTheme: page.theme || BOLDLINE_THEME,

@@ -281,39 +281,84 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     // A deepEqual that cannot fail is the same shape of nothing as the assertions it replaced.
     const account = { name: "X", campaignSetup: {}, landingPage: {} };
     const page = newPage({ label: "R", slug: "r", page: { headline: "R", design: { layout: "split" } } });
+    // Drifted by forgetting the consent flag, which is exactly how the preview went wrong.
     const drifted = (cl, pg) => ({ ...cl, landingSlug: pg.slug, landingPage: pg.page,
       brandColor: "#c8a84b", brandTheme: "dark",
-      campaignSetup: { ...(cl.campaignSetup || {}), smsConsent: false },
+      campaignSetup: { ...(cl.campaignSetup || {}) },
       landingVariants: [] });
     assert.notDeepEqual(drifted(account, page), clientForPage(account, page),
-      "keeping the writer's design would have compared equal, so this proves nothing");
+      "a version missing the consent flag compared equal, so this comparison proves nothing");
   });
 
   // ── 7. 🔴 EACH PAGE IS ITS OWN PAGE ────────────────────────────────────────
-  t("🔴 two audience pages do not share a layout, even when the writer picks one for them", () => {
-    // Bryson: "it looks exactly like the landing page for stencil & thread ... no matter what
-    // each landing page should not just be a copy and paste they should be unique."
-    // `designConfig` prefers `landingPage.design`, and a model asked the same question returns
-    // the same answer, so every page came out split/glowgrid/up/cards/modern/rounded/a.
-    // Identical furniture, different words. Dropping `design` hands all seven choices to a
-    // seed derived from the page's own slug.
-    const same = { layout:"split", background:"glowgrid", motion:"up", benefits:"cards",
-      font:"modern", shape:"rounded", order:"a" };
-    const house = { name:"BoldLine", landingSlug:"boldline", landingPage:{ headline:"m" } };
+  //
+  // Bryson: *"it looks exactly like the landing page for stencil & thread ... they should be
+  // unique."* An earlier attempt stripped `design` so a slug seed decided the layout. That was
+  // the wrong lever: `generate-landing` already varies deliberately, and a page built from a
+  // CHOSEN option carries the layout he picked, so stripping it discarded exactly that. The
+  // design is kept; variety comes from asking for it properly.
+  t("a page with no design of its own still differs by audience", () => {
+    const house = { name: "BoldLine", landingSlug: "boldline", landingPage: { headline: "m" } };
     const seen = new Set();
-    for (const slug of ["roofers","car-detailers","med-spas","plumbers","hvac","dentists"]) {
-      const p = newPage({ label: slug, slug, page: { headline: slug, design: same } });
+    for (const slug of ["roofers", "car-detailers", "med-spas", "plumbers", "hvac", "dentists"]) {
+      const p = newPage({ label: slug, slug, page: { headline: slug } });
       seen.add(JSON.stringify(designConfig(clientForPage(house, p))));
     }
     assert.ok(seen.size >= 5, `six audiences produced only ${seen.size} distinct layouts`);
   });
 
+  t("🔴 a layout the page actually carries is respected, not thrown away", () => {
+    // The three-options flow gives each option its own deliberate layout. Discarding it would
+    // mean picking an option and not getting the one you picked.
+    const house = { name: "BoldLine", landingSlug: "boldline", landingPage: {} };
+    const chosen = { layout: "overlay", background: "mesh", motion: "alt", benefits: "numbered",
+      font: "elegant", shape: "sharp", order: "d" };
+    const p = newPage({ label: "Roofers", slug: "roofers", page: { headline: "R", design: chosen } });
+    const got = designConfig(clientForPage(house, p));
+    assert.equal(got.layout, "overlay");
+    assert.equal(got.benefits, "numbered");
+    assert.equal(got.order, "d");
+  });
+
+  t("🔴 the single write asks for variety instead of the same page again", () => {
+    // Without a moving seed the model is asked an identical question every time and returns an
+    // identical answer, which is the whole reason every page looked the same.
+    assert.match(card, /seed:Date\.now\(\)/, "the write sends no seed, so every page is the same question");
+    assert.match(card, /exclude:pages\.filter\(x=>x\.id!==p\.id\)/,
+      "it does not tell the writer what the other pages already look like");
+    assert.match(card, /layout:\(\(x\.page&&x\.page\.design\)\|\|\{\}\)\.layout/,
+      "the exclusions carry no layout, so it can hand back the same one");
+  });
+
   t("the same page is still the same page every time it is served", () => {
-    // Varied, not random. A page whose furniture moved between two visits would be a bug.
-    const house = { name:"BoldLine", landingSlug:"boldline", landingPage:{} };
-    const p = newPage({ label:"Roofers", slug:"roofers", page:{ headline:"R" } });
+    const house = { name: "BoldLine", landingSlug: "boldline", landingPage: {} };
+    const p = newPage({ label: "Roofers", slug: "roofers", page: { headline: "R" } });
     assert.equal(JSON.stringify(designConfig(clientForPage(house, p))),
       JSON.stringify(designConfig(clientForPage(house, p))));
+  });
+
+  // ── 7b. 🔴 THE THREE OPTIONS, ON HIS OWN ACCOUNT AT LAST ───────────────────
+  t("🔴 the three-options card reaches audience pages", () => {
+    // Bryson: *"what happened to what we made a while ago where we get 3 different versions of
+    // the same landing page and I can choose one or modify them as i want"*. It was rendered as
+    // `!client.internal && <LandingOptionsCard/>`, so he had never once had it on his own
+    // account.
+    assert.match(card, /<LandingOptionsCard audience=\{p\.label\}/,
+      "the options card is still absent from audience pages");
+    assert.match(card, /client=\{previewClient\(client,p\)\}/,
+      "it is handed something other than the shim the preview uses, so it can disagree with it");
+  });
+
+  t("🔴 and it writes options FOR the trade, not ABOUT it", () => {
+    const ui = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const opts = ui.slice(ui.indexOf("function LandingOptionsCard"), ui.indexOf("function LandingOptionsCard") + 3000);
+    assert.match(opts, /\.\.\.\(audience\?\{audience\}:\{niche:client\.niche/,
+      "the options card sends a niche even for an audience, which writes the opposite page");
+  });
+
+  t("choosing an option folds back into that page, not the account", () => {
+    assert.match(card, /page:next\.landingPage\|\|x\.page, variants:next\.landingVariants\|\|x\.variants/,
+      "the card's writes do not reach landingPages[], so choosing an option would be lost");
   });
 
   // ── 8. 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT ──────────────────
