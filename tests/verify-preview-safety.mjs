@@ -97,10 +97,17 @@ const MANIFEST = {
     landingPage: { headline: "Shirts", subheadline: "Fast", ctaText: "Get a quote", published: true },
   });
 
-  ok("🔴 a submit from a preview cannot reach the intake",
-    /indexOf\('about:'\)===0/.test(page)
-      && page.indexOf("indexOf('about:')===0") < page.indexOf("functions/lead-intake?token="),
-    "the guard has to sit BEFORE the send, or it is not a guard");
+  // 🔴 The send moved to `/lead` on 2026-09-15 so a page still reaches the intake when it is
+  // served from another domain (KB `landing-pages-per-audience`). Both halves are required to
+  // be present before their order is judged: a missing guard indexes to -1, which compares as
+  // "before" everything and would have passed this on a page carrying no guard whatsoever.
+  {
+    const g = page.indexOf("indexOf('about:')===0");
+    const f = page.indexOf("fetch('/lead?token=");
+    ok("the preview guard and the send are both on the page", g >= 0 && f >= 0, `guard ${g}, send ${f}`);
+    ok("🔴 a submit from a preview cannot reach the intake", g >= 0 && f >= 0 && g < f,
+      "the guard has to sit BEFORE the send, or it is not a guard");
+  }
   ok("🔴 and its own buttons cannot navigate the frame to the OS",
     /querySelectorAll\('a\[href\^="#"\]'\)/.test(page) && /preventDefault\(\)/.test(page),
     "a bare fragment href resolves against the PARENT document inside an iframe srcdoc");
