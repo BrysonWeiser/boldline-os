@@ -5,7 +5,7 @@
 // and have a landing page that fits that ad"*.
 import { readFileSync } from "node:fs";
 import assert from "node:assert";
-import { renderLandingPage } from "../netlify/functions/landing.mjs";
+import { renderLandingPage, landingTheme } from "../netlify/functions/landing.mjs";
 import { pageSlug, freeSlug, findPage, listPages, clientForPage, newPage, publicUrlFor, slugsTaken }
   from "../netlify/lib/landing-pages-shared.mjs";
 
@@ -150,6 +150,10 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     assert.match(aud, /almost no track record/,
       "without the reason, this reads as a style note rather than a hard rule");
     assert.match(aud, /NEVER use a dash/, "the no-dash rule has to be on both prompts, not just one");
+    // The colour is guaranteed in code. A prompt that still ASKS for it reads as though the
+    // model decides, which is how the next person ends up debugging the wrong half.
+    assert.match(aud, /applied in code, so do not set brandColor or theme/,
+      "the prompt implies the writer controls the brand colour, which it does not");
   });
 
   t("the location lookup is skipped for an audience page", () => {
@@ -199,6 +203,49 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     // unreviewed copy on the advertised address.
     assert.match(card, /published:\(x\.page&&x\.page\.published\)\|\|false/,
       "generating a page flips it live");
+  });
+
+  // ── 6. 🔴 BOLDLINE'S OWN BRANDING, NOT NOBODY'S ────────────────────────────
+  t("🔴 an audience page renders in BoldLine's colours, not the shared fallback", () => {
+    // Bryson: "they are matching stencil & threads branding". They carried no brand colour at
+    // all, so `landingTheme` fell back to #4f6bed on a light page — the same fallback Stencil &
+    // Thread's page lands on. His own ads pointed at a page that looked like another company's.
+    const house = { name: "BoldLine Media", internal: true, landingSlug: "boldline",
+      landingPage: { headline: "main" } };
+    const th = landingTheme(clientForPage(house, ACCOUNT.landingPages[0]));
+    assert.equal(th.brand, "#c8a84b", "an audience page is not in BoldLine gold");
+    assert.equal(th.mode, "dark", "an audience page is not on BoldLine's dark ground");
+    assert.notEqual(th.brand, "#4f6bed", "it is back on the fallback that caused this");
+  });
+
+  t("🔴 stamped in code, so it does not depend on the writer complying", () => {
+    // The prompt also asks for gold on dark. A prompt is a request; this is the guarantee.
+    const house = { name: "BoldLine", landingPage: {} };
+    const ignored = { ...ACCOUNT.landingPages[0], page: { headline: "x", brandColor: "#ff0000", theme: "light" } };
+    const th = landingTheme(clientForPage(house, ignored));
+    assert.equal(th.brand, "#c8a84b", "a colour the model invented overrode BoldLine's own brand");
+    assert.equal(th.mode, "dark");
+  });
+
+  t("a page may still carry its own colour if one is ever wanted", () => {
+    const house = { name: "BoldLine", landingPage: {} };
+    const th = landingTheme(clientForPage(house, { ...ACCOUNT.landingPages[0], brandColor: "#112233", theme: "light" }));
+    assert.equal(th.brand, "#112233");
+    assert.equal(th.mode, "light");
+  });
+
+  t("🔴 and a real client's page is untouched by any of it", () => {
+    // `landingTheme`'s own rule is that a client page carries the CLIENT's colours and never
+    // BoldLine's. That stays true; this is the inverse case, not a change to that one.
+    assert.equal(landingTheme({ brandColor: "#4F5BD5", landingPage: { headline: "x" } }).brand, "#4f5bd5");
+    assert.equal(landingTheme({ landingPage: { brandColor: "#0A7B54", headline: "x" } }).brand, "#0a7b54");
+  });
+
+  t("🔴 the OS preview stamps the same brand as the server", () => {
+    // A preview showing indigo-on-white while the live page is gold-on-dark gets wrong the one
+    // thing a preview exists for.
+    assert.match(card, /brandColor:p\.brandColor\|\|"#c8a84b"/, "the preview falls back to the shared indigo");
+    assert.match(card, /brandTheme:p\.theme\|\|"dark"/);
   });
 
   t("the address shown in the OS is the one that actually answers", () => {

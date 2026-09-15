@@ -68,9 +68,29 @@ export const findPage = (cl, slug) => {
 // every guard and every test that already covers the renderer therefore covers these pages too,
 // which is the entire reason it is done this way rather than by teaching the renderer about a
 // second shape.
+// 🔴 BOLDLINE'S OWN BRAND, STAMPED IN CODE, NOT ASKED FOR IN A PROMPT.
+//
+// Bryson, 2026-09-15: *"make sure the landing pages for my ads match my branding right now they
+// are matching stencil & threads branding."* They were not carrying a client's colours — they
+// were carrying NOBODY's. `landingTheme` falls back to `#4f6bed` on a light page when no brand
+// colour is set, which is the same fallback Stencil & Thread's page lands on, so BoldLine's own
+// ads pointed at a page that looked like another company's.
+//
+// `landingTheme`'s own comment says the colour comes from the client's branding and "Never
+// BoldLine's". That is right for a CLIENT page and exactly inverted here: these pages ARE
+// BoldLine's, advertising BoldLine, on BoldLine's domain.
+//
+// Set as top-level `brandColor`/`brandTheme` because those beat whatever the generator wrote,
+// so the look does not depend on a model choosing to follow an instruction. A page may still
+// carry its own if one is ever wanted per audience.
+export const BOLDLINE_BRAND = "#c8a84b";
+export const BOLDLINE_THEME = "dark";
+
 export const clientForPage = (cl, page) => {
   if (!cl || !page) return cl;
   return { ...cl, landingSlug: page.slug, landingPage: { ...(page.page || {}) },
+    brandColor: page.brandColor || BOLDLINE_BRAND,
+    brandTheme: page.theme || BOLDLINE_THEME,
     // Kept so an extra page can carry its own candidates without colliding with the account's.
     landingVariants: Array.isArray(page.variants) ? page.variants : [] };
 };

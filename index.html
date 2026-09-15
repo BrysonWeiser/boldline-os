@@ -7418,7 +7418,12 @@ function AudiencePagesCard({client,onUpdate}) {
                       </div>
                       {written&&(
                         <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:9}}>
-                          <LandingPreview client={{...client, landingSlug:p.slug, landingPage:p.page}}/>
+                          {/* 🔴 THE SAME BRAND STAMP THE SERVER APPLIES. Without it the preview
+                              renders the fallback indigo-on-white while the live page is gold on
+                              dark, so the one thing a preview exists for, showing what is actually
+                              out there, would be the thing it got wrong. */}
+                          <LandingPreview client={{...client, landingSlug:p.slug, landingPage:p.page,
+                            brandColor:p.brandColor||"#c8a84b", brandTheme:p.theme||"dark"}}/>
                         </div>
                       )}
                       <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
