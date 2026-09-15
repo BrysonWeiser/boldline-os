@@ -493,5 +493,7 @@ rendering it. No horizontal scroll, no pill spilling its card; the row wraps 4 r
 
 ## Still to do
 
-1. The existing **Page Options** card scoped to a page, so each audience gets several candidates to
-   choose between. `landingPages[].variants` already exists for exactly this.
+Nothing outstanding on this feature. The **Page Options** card is scoped per audience page
+(`<LandingOptionsCard audience={p.label} .../>` inside `AudiencePagesCard`, writing to that page's
+own `variants`), and campaign creation now points an ad at a chosen page (see above). Next time
+this comes up it will be a new idea, not a leftover.
