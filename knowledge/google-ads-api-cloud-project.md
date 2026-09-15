@@ -151,3 +151,19 @@ After fixing, the re-submit path is **Verify branding → "I have fixed the issu
 **Layout note:** Google renamed this whole area to **Google Auth Platform**. There is no single
 "OAuth consent screen" page any more — branding lives under **Branding**, user type and publishing
 status under **Audience**, and verification under **Verification Center**.
+
+### ✅ Submitted and under review — 2026-09-14, ~10:30pm Phoenix
+
+- **IAM job: already satisfied.** `theboldlinemedia@gmail.com` holds **Owner** on project
+  `boldline-ads-api`. It is the ONLY principal on the project, so every Google warning about the ad
+  account — suspension notices included — lands in that inbox and nowhere else. Worth revisiting if
+  that is not an inbox he reads daily; **Essential Contacts** (IAM & Admin → Essential Contacts) is
+  the right tool for adding a recipient without granting project control.
+- **Brand verification: SUBMITTED**, Verification Center reads *"Your branding is currently under
+  review."* Answer comes by email.
+- 🔴 **Data access verification is NOT required** — *"your app is not requesting any sensitive or
+  restricted scopes."* This is the step that drags Google reviews out for weeks, and BoldLine skips
+  it entirely. **Do not budget time for a scope justification on this project.**
+- Publishing status is therefore **In production**, not Testing: Google does not review branding for
+  an app in Testing, and a Testing app expires its refresh token every 7 days, which would have
+  broken `ads-sync` long ago.
