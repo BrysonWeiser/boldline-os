@@ -526,6 +526,41 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     assert.ok(!/free quote/i.test(list), "an angle still tells the writer to lead on a free quote");
   });
 
+  // ── 7e. 🔴 EVERY CLAIM ON THE PAGE HAS TO BE TRUE ──────────────────────────
+  //
+  // Bryson: *"make sure its also truthful it says no long contracts but there is a 3 month
+  // minimum when you first sign on."* The chip read "No long contract to start" on a page
+  // BoldLine pays for clicks to, while the agreement carries a THREE MONTH MINIMUM. Not a
+  // wording quibble: a prospect reads it, books, and finds out on the call, which costs the
+  // call and the trust.
+  //
+  // These defaults are the only copy on these pages that no human writes and no model writes.
+  // Nobody proof-reads them, so they are the easiest place for an untrue claim to sit for
+  // months.
+  t("🔴 no default claims there is no contract", () => {
+    const all = JSON.stringify(audienceFurniture("Roofers")).toLowerCase();
+    for (const lie of ["no long contract", "no contract", "cancel anytime", "cancel any time",
+                       "no commitment", "no minimum", "quit anytime"]) {
+      assert.ok(!all.includes(lie), `"${lie}" is on the page and the agreement has a three month minimum`);
+    }
+  });
+
+  t("🔴 and the term is stated, matching what the site's own FAQ says", () => {
+    const site = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+    assert.match(site, /three month minimum to start/i,
+      "the site no longer says three months, so this page's claim may have gone stale with it");
+    assert.match(site, /After those first three months we earn it month to month/i);
+    const trust = audienceFurniture("Roofers").trust.join(" ");
+    assert.match(trust, /Three months to start, then month to month/,
+      "the page does not state the term at all, which is how the false version got in");
+  });
+
+  t("no default promises a phone call for every lead", () => {
+    // Most leads arrive as a form. "The calls come to you" promised the wrong thing.
+    const all = JSON.stringify(audienceFurniture("Roofers")).toLowerCase();
+    assert.ok(!all.includes("the calls come to you"));
+  });
+
   // ── 8. 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT ──────────────────
   t("🔴 BoldLine's own page does not ask to text people", () => {
     // Bryson: "it even includes their text thing which we dont have yet." landing.mjs's own

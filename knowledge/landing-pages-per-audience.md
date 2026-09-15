@@ -333,6 +333,37 @@ drifting from the server's, and the server dropping a field the OS still sets.
 shipped Deal Prep broken (KB `deal-prep-to-client`): assert against the component that actually
 holds the code.
 
+## 🔴 EVERY DEFAULT ON THESE PAGES IS A CLAIM, AND ONE OF THEM WAS FALSE
+
+Bryson: *"make sure its also truthful it says no long contracts but there is a 3 month minimum
+when you first sign on."* He is right and it is the most serious thing found in this whole
+sequence. The chip read **"No long contract to start"** on a page BoldLine pays for clicks to,
+while the agreement carries a **three month minimum** — the marketing site's own FAQ is headed
+*"Why is there a three month minimum to start?"*.
+
+Not a wording quibble. A prospect reads it, books a call on that basis, and finds out on the call.
+That costs the call and the trust, and it is the kind of thing that gets an ad account complained
+about.
+
+**Now: "Three months to start, then month to month"**, which is what the site's FAQ says and is
+also the better sell, because it answers the objection instead of dodging it. Checked against the
+source rather than written from memory.
+
+Also fixed: a step read *"Ads go live and the calls come to you"*, promising a phone call when
+most leads arrive as a form.
+
+🔴 **Why this needed a guard and not just a fix.** These defaults are the only copy on these pages
+that **no human writes and no model writes**. Nobody proof-reads them, so an untrue claim can sit
+there for months. `verify-landing-pages` now fails if any default contains *no long contract, no
+contract, cancel anytime, no commitment, no minimum, quit anytime*, **and** fails if the term stops
+being stated at all, and it reads the marketing site's FAQ so the page and the site cannot drift
+apart on what the term actually is.
+
+**Mutation-testing note worth keeping:** the first run of these mutations changed only the server
+mirror, so the **preview-parity check fired first and masked whether the truthfulness checks
+worked at all**. Four mutations, four identical failures, none of them from the assertion under
+test. Mutate BOTH mirrors, or the parity check hides everything behind it.
+
 **Still true and not yet addressed:** the section skeleton is one template. If the pages still read
 as siblings after choosing distinct angles, that is the thing to change, and it is a renderer
 change rather than a prompt one.
