@@ -159,8 +159,18 @@ status under **Audience**, and verification under **Verification Center**.
   account — suspension notices included — lands in that inbox and nowhere else. Worth revisiting if
   that is not an inbox he reads daily; **Essential Contacts** (IAM & Admin → Essential Contacts) is
   the right tool for adding a recipient without granting project control.
-- **Brand verification: SUBMITTED**, Verification Center reads *"Your branding is currently under
-  review."* Answer comes by email.
+- ✅ **Brand verification: APPROVED 2026-09-15, ~3:10pm Phoenix**, under a day after submitting.
+  Google's mail is titled *"[Action Needed] OAuth Verification Request Acknowledgement"* but the
+  body is an approval and the bullets are reminders: **there was nothing to do.** Do not let that
+  subject line send a future session hunting for a task that does not exist.
+- 🔴 **CHANGING THE CONSENT SCREEN COSTS THE VERIFICATION.** Google's own reminder: a new
+  request is needed *"if you make any changes to your OAuth consent screen configuration"*, and it
+  **cannot be inherited**. So the app name (**BoldLine Media**, which must keep matching the home
+  page), the logo, the support email and the three links are now **load-bearing and not to be idly
+  edited**. If one genuinely must change, plan to re-verify rather than discover it.
+- **What it bought:** Google requires brand verification before reviewing ANY request to raise the
+  Google Ads API access level, so that review is now minutes rather than the weeks people wait.
+  Nothing needs raising today, which is exactly why it was worth doing while nothing was urgent.
 - 🔴 **Data access verification is NOT required** — *"your app is not requesting any sensitive or
   restricted scopes."* This is the step that drags Google reviews out for weeks, and BoldLine skips
   it entirely. **Do not budget time for a scope justification on this project.**
