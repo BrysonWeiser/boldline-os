@@ -30,7 +30,21 @@ const FN = readFileSync(join(ROOT, "netlify/functions/page-archive.mjs"), "utf8"
 const code = (src) => src.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)).join("\n");
 const UI = code(S), F = code(FN);
 let n = 0;
-const t = (name, fn) => { fn(); n++; };
+// 🔴 AN ASYNC TEST BODY MUST NOT BE ABLE TO PASS BY DEFAULT. This was `fn(); n++;`, which
+// calls an async body, throws its result away and counts it as a pass — a rejected assertion
+// would surface as an unhandled rejection, or not at all. Every promise is now collected and
+// awaited before the suite can report success, so a test whose `await` is forgotten at the
+// call site still fails the run rather than quietly inflating the count.
+const pending = [];
+const t = (name, fn) => {
+  const r = fn(); n++;
+  if (r && typeof r.then === "function") {
+    const p = r.catch((e) => { e.message = `${name}: ${e.message}`; throw e; });
+    pending.push(p);
+    return p;
+  }
+  return r;
+};
 
 const { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET } = await import("../netlify/lib/page-archive-shared.mjs");
 const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
@@ -217,6 +231,7 @@ t("🔴 the label and URL are escaped into the wrapper", () => {
   const body = UI.slice(i, UI.indexOf("\n  };", i));
   assert.match(body, /replace\(\/\[<>&\]\/g/, "the page title is injected raw");
   assert.match(body, /replace\(\/"\/g, "&quot;"\)/, "the archive URL is injected raw into an attribute");
+  assert.match(body, /viewHref\(a\)/, "the phone view still points at Supabase, which serves the source code");
 });
 
 t("a blocked pop-up says so instead of doing nothing", () => {
@@ -227,9 +242,111 @@ t("a blocked pop-up says so instead of doing nothing", () => {
 t("🔴 a saved page opens in a new tab, never inside the OS", () => {
   // It carries the client's own full-page styling. Dropping that into the OS is how a preview
   // ends up restyling or navigating the app around it.
-  assert.match(UI, /href=\{a\.url\} target="_blank" rel="noopener noreferrer"/,
+  assert.match(UI, /href=\{viewHref\(a\)\} target="_blank" rel="noopener noreferrer"/,
     "the archive is embedded in the OS, where its own styles and layout apply to our app");
 });
+
+// ── 🔴 SUPABASE WILL NOT SERVE HTML, SO WE HAVE TO ─────────────────────────
+// Bryson, 2026-09-15: *"i just saved a copy of the landing page for stencil & thread and i
+// went to view it and it only shows code not the actual visual landing page"*. Supabase
+// Storage returns `text/plain` for a stored `.html` object whatever content type it was
+// uploaded with, on purpose, so its storage cannot be used to host web pages. Every saved
+// page was therefore painted as source code. The saving was never wrong; the delivery was.
+//
+// 🔴 AND THE TEST ABOVE USED TO PIN THE BROKEN VERSION. It asserted `href={a.url}` — the
+// Supabase public URL — as proof the viewer opened in a new tab, which was true and useless.
+// It proved the link's TARGET WINDOW and said nothing about whether the link rendered.
+// A feature can be fully tested and still have never once worked.
+t("🔴 the saved page is served as HTML by our own route, not by Supabase", () => {
+  assert.match(UI, /const viewHref = \(a\) =>/, "the UI has no way to build the viewing address");
+  // Derived from the PATH, so every page saved before this route existed starts rendering
+  // too. Reading a stored `url` would leave those pointing at Supabase forever.
+  assert.match(UI, /a\.path\)\s*\?\s*`\/\.netlify\/functions\/page-archive\?file=\$\{encodeURIComponent\(a\.path\)\}`/,
+    "the address is read off the record instead of derived, so older saves stay broken");
+  assert.doesNotMatch(FN, /getPublicUrl/,
+    "the function still hands out a Supabase public URL, which serves text/plain");
+  assert.match(FN, /content-type": "text\/html; charset=utf-8/, "the viewer does not set an HTML content type");
+  assert.match(FN, /"content-security-policy": "sandbox"/,
+    "the served page is not sandboxed, and it now comes from our own origin");
+  assert.match(FN, /public: false/, "the bucket is still world-readable");
+});
+
+// 🔴 RUN THE ROUTE. Everything above this point is still reading source, which is exactly
+// what failed to notice that saved pages had never rendered. So the viewer is EXECUTED here
+// against a fake database and a fake bucket, and its real Response object is inspected.
+{
+  const { viewArchive } = await import("../netlify/functions/page-archive.mjs");
+  const CID = "11111111-2222-3333-4444-555555555555";
+  const GOOD = `${CID}/2026-09-15-ab12cd.html`;
+  const PAGE = "<!DOCTYPE html><html><body><h1>Stencil &amp; Thread</h1></body></html>";
+
+  // Records every call, so "it never even asked storage" is a thing the test can assert
+  // rather than assume.
+  const fake = ({ archives = [{ path: GOOD }], body = PAGE, dlError = null } = {}) => {
+    const seen = { selected: 0, downloaded: [] };
+    return { seen, sb: {
+      from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => {
+        seen.selected++; return { data: { data: { pageArchives: archives } } };
+      } }) }) }),
+      storage: { from: () => ({ download: async (p) => {
+        seen.downloaded.push(p);
+        return dlError ? { data: null, error: dlError } : { data: { text: async () => body }, error: null };
+      } }) },
+    } };
+  };
+  const get = (file) => new Request(`https://os.example/.netlify/functions/page-archive?file=${encodeURIComponent(file)}`);
+
+  await t("🔴 a saved page comes back as real HTML, not as text/plain", async () => {
+    const { sb, seen } = fake();
+    const res = await viewArchive(get(GOOD), sb);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8",
+      "this is the exact header Supabase would not give us, and the reason the page showed code");
+    assert.equal(await res.text(), PAGE, "the bytes served are not the bytes stored");
+    assert.deepEqual(seen.downloaded, [GOOD]);
+  });
+
+  await t("the served page can run nothing, even from our own origin", async () => {
+    const { sb } = fake();
+    const res = await viewArchive(get(GOOD), sb);
+    assert.equal(res.headers.get("content-security-policy"), "sandbox",
+      "no sandbox: a script that survived the stripper would run same-origin with the OS");
+    assert.equal(res.headers.get("x-robots-tag"), "noindex, nofollow", "a client's saved page is indexable");
+  });
+
+  await t("🔴 a path that is not an archive is refused before storage is touched", async () => {
+    for (const bad of [
+      "../../secrets.html",                       // traversal
+      `${CID}/2026-09-15-ab12cd.html/../x.html`,  // traversal past a valid prefix
+      "not-a-uuid/2026-09-15-ab12cd.html",
+      `${CID}/2026-09-15-ab12cd.js`,              // some other object in the bucket
+      `${CID}/../other/2026-09-15-ab12cd.html`,
+      "",
+    ]) {
+      const { sb, seen } = fake();
+      const res = await viewArchive(get(bad), sb);
+      assert.equal(res.status, 404, `"${bad}" was served`);
+      assert.equal(seen.selected, 0, `"${bad}" reached the database`);
+      assert.equal(seen.downloaded.length, 0, `"${bad}" reached the bucket`);
+    }
+  });
+
+  await t("🔴 a deleted archive stops serving even if the file is still there", async () => {
+    const { sb, seen } = fake({ archives: [{ path: `${CID}/2026-01-01-zzzzzz.html` }] });
+    const res = await viewArchive(get(GOOD), sb);
+    assert.equal(res.status, 404);
+    assert.equal(seen.downloaded.length, 0, "a file nothing points at was still handed out");
+    assert.match(await res.text(), /deleted/);
+  });
+
+  await t("a page whose file has gone says so instead of serving nothing", async () => {
+    const { sb } = fake({ dlError: { message: "not found" } });
+    const res = await viewArchive(get(GOOD), sb);
+    assert.equal(res.status, 404);
+    assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+    assert.match(await res.text(), /could not be opened/);
+  });
+}
 
 t("the card explains why saving is needed at all", () => {
   assert.match(S, /rebuilt fresh every time somebody opens it, so nothing keeps the old version/,
@@ -289,4 +406,5 @@ t("the card explains why saving is needed at all", () => {
   });
 }
 
+await Promise.all(pending);
 console.log(`✓ verify-page-archive: ${n} checks passed`);

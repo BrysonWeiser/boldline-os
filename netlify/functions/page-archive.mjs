@@ -33,14 +33,22 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { renderLandingPage } from "./landing.mjs";
-import { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, archivePath } from "../lib/page-archive-shared.mjs";
+import { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, archivePath, archiveViewUrl, isArchivePath } from "../lib/page-archive-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
 export default async (req) => {
-  if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
+
+  // ── Viewing a saved page ───────────────────────────────────────────────────
+  // 🔴 THIS ROUTE EXISTS BECAUSE SUPABASE REFUSES TO SERVE HTML. A public storage URL for an
+  // `.html` object comes back as `text/plain` whatever content type it was uploaded with, by
+  // design, so every saved page rendered as source code. Nothing about the saving was wrong;
+  // the delivery was. So we serve it and set the content type ourselves.
+  if (req.method === "GET") return viewArchive(req, createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY));
+
+  if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
 
   const authHeader = req.headers.get("authorization") || "";
   const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
@@ -96,13 +104,22 @@ export default async (req) => {
   const entry = archiveEntry({ label: body.label, headline: lp.headline, clientId });
   const safe = neutraliseArchive(html, entry);
 
-  await supabase.storage.createBucket(ARCHIVE_BUCKET, { public: true }).catch(() => {});
+  // 🔴 PRIVATE. It was public only because a public URL used to be how the page was opened,
+  // and that URL never worked — Supabase serves stored HTML as `text/plain`. Now that our own
+  // route serves it with the service key, nothing needs the bucket to be readable by the
+  // world, and a client's landing page with their own copy on it should not be. The
+  // neutralising and the lead-token strip stay exactly as they are; this is one more lock,
+  // not a replacement for them.
+  await supabase.storage.createBucket(ARCHIVE_BUCKET, { public: false }).catch(() => {});
+  await supabase.storage.updateBucket(ARCHIVE_BUCKET, { public: false }).catch(() => {});
   const { error: upErr } = await supabase.storage.from(ARCHIVE_BUCKET)
     .upload(entry.path, new Blob([safe], { type: "text/html" }), { contentType: "text/html", upsert: false });
   if (upErr) return json({ ok: false, error: `Could not save the page: ${upErr.message}` }, 500);
 
-  const { data: pub } = supabase.storage.from(ARCHIVE_BUCKET).getPublicUrl(entry.path);
-  const saved = { ...entry, url: (pub && pub.publicUrl) || "", bytes: safe.length };
+  // The stored URL is OUR viewer, never Supabase's public URL: that one serves `text/plain`
+  // and paints the source code. It is derived from the path, so the UI can rebuild it for
+  // archives saved before this route existed rather than leaving them broken forever.
+  const saved = { ...entry, url: archiveViewUrl(entry.path), bytes: safe.length };
   // Newest first, so the list reads the way anybody expects a history to read.
   const next = { ...client, pageArchives: [saved, ...archives] };
   const { error: wErr } = await supabase.from("clients").update({ data: next }).eq("id", clientId);
@@ -114,3 +131,44 @@ export default async (req) => {
   }
   return json({ ok: true, archive: saved, archives: next.pageArchives });
 };
+
+// Serves one saved page as real HTML.
+//
+// It carries NO session, because it is opened in a new tab where no Authorization header can
+// be sent — exactly as the Supabase public URL it replaces carried none. It is not therefore
+// unguarded:
+//   1. the path must match the archive shape exactly, so nothing else in the bucket and no
+//      traversal out of it can be requested;
+//   2. the path must be listed on the client record it names, so a deleted archive stops
+//      serving even if the file itself lingers;
+//   3. the response is sandboxed with NOTHING allowed — no scripts, no forms, no navigating
+//      the tab away. The page was already neutralised when it was written, so this is the
+//      second lock on a bolted door, and it is what makes serving the file from our own
+//      origin rather than Supabase's no more dangerous than before.
+//
+// 🔴 THE SUPABASE CLIENT IS PASSED IN, NOT BUILT HERE, so the whole route can be RUN in the
+// suite against a fake instead of grepped. The test that used to guard this feature asserted
+// `href={a.url}` and passed for eleven days while opening a saved page showed source code:
+// it proved which window the link opened in and nothing about whether it rendered.
+export async function viewArchive(req, supabase) {
+  const html = (body, status = 200) => new Response(body, { status, headers: {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": "sandbox",
+    "x-content-type-options": "nosniff",
+    "cache-control": "no-store",
+    "x-robots-tag": "noindex, nofollow",
+  } });
+  const oops = (msg) => html(`<!DOCTYPE html><meta charset="utf-8"><body style="margin:0;background:#0B0D10;color:#E5E7EB;font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:40px;text-align:center">${msg}</body>`, 404);
+
+  const file = new URL(req.url).searchParams.get("file") || "";
+  if (!isArchivePath(file)) return oops("That is not a saved page.");
+
+  const clientId = file.slice(0, file.indexOf("/"));
+  const { data: row } = await supabase.from("clients").select("data").eq("id", clientId).maybeSingle();
+  const archives = (row && row.data && Array.isArray(row.data.pageArchives)) ? row.data.pageArchives : [];
+  if (!archives.some((a) => a && a.path === file)) return oops("That saved page has been deleted.");
+
+  const { data: blob, error } = await supabase.storage.from(ARCHIVE_BUCKET).download(file);
+  if (error || !blob) return oops("That saved page could not be opened.");
+  return html(await blob.text());
+}

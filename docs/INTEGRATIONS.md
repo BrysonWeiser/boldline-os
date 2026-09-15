@@ -90,9 +90,9 @@
 
 ## Assets/Landing pages
 
-- **[page-archive](../knowledge/page-archive.md)** &mdash; &#9989; verified &middot; 2026-09-04  
+- **[page-archive](../knowledge/page-archive.md)** &mdash; &#9989; verified &middot; 2026-09-15  
   A landing page is rebuilt from the database on every request, so no copy of it exists and the version that worked is lost the moment the record changes. The OS can now save one, list them, open them and delete them. The saved copy is neutralised at write time (every script, the form, the lead token and every link) because an archive of a live page can otherwise create a real lead. Contract terms v4 adds showcase rights with an explicit promise never to sell lead data. 26 checks, ten mutations caught.  
-  <sub>*task:* save, view or delete a copy of a client's landing page, or use client work as content &nbsp;|&nbsp; *keywords:* page archive, saved page, save landing page, case study, portfolio, showcase rights, contract v4, neutraliseArchive, page-archive.mjs, ARCHIVE_BUCKET, pageArchives, showcaseOptOut, screenshot landing page, no copy of the page, lead token public bucket</sub>
+  <sub>*task:* save, view or delete a copy of a client's landing page, or use client work as content &nbsp;|&nbsp; *keywords:* page archive, saved page shows code, supabase serves html as text/plain, archive viewer route, viewArchive, private page-archives bucket, saved page, save landing page, case study, portfolio, showcase rights, contract v4, neutraliseArchive, page-archive.mjs, ARCHIVE_BUCKET, pageArchives, showcaseOptOut, screenshot landing page, no copy of the page, lead token public bucket</sub>
 
 ## Assets/Media
 

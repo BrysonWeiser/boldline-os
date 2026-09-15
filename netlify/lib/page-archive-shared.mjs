@@ -8,6 +8,26 @@ export const ARCHIVE_BUCKET = "page-archives";
 
 export const archivePath = (clientId, id) => `${clientId}/${id}.html`;
 
+// 🔴 SUPABASE WILL NOT SERVE HTML. A public storage URL for an `.html` object comes back as
+// `text/plain` no matter what content type it was uploaded with — Supabase does this on
+// purpose so its storage cannot be used to host web pages. So the browser paints the source
+// code. Bryson, 2026-09-15: *"i just saved a copy of the landing page for stencil & thread
+// and i went to view it and it only shows code not the actual visual landing page"*.
+//
+// There is no upload option that changes this, so the file is served by our own function
+// instead, which sets `text/html` itself. The URL is derived from the stored PATH rather
+// than saved alongside it, so every archive saved before today starts rendering too, with
+// nothing to re-save.
+export const archiveViewUrl = (path) => `/.netlify/functions/page-archive?file=${encodeURIComponent(String(path || ""))}`;
+
+// Only ever `<client uuid>/<YYYY-MM-DD>-<6 chars>.html`. The viewer is the one route here
+// that carries no session (it opens in a new tab), so the path it is handed is checked for
+// shape first and then for membership of a real client's archive list — a path that passes
+// this but is not on a record is refused, which is also what makes a deleted archive stop
+// serving even if the file itself lingers.
+export const isArchivePath = (p) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/\d{4}-\d{2}-\d{2}-[a-z0-9]{1,12}\.html$/i.test(String(p || ""));
+
 export function archiveEntry({ label, headline, clientId, now = new Date() } = {}) {
   const at = now.toISOString();
   const id = `${at.slice(0, 10)}-${Math.random().toString(36).slice(2, 8)}`;
