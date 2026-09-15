@@ -400,9 +400,84 @@ t("🔴 the saved page is served as HTML by our own route, not by Supabase", () 
     assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
     const out = await res.text();
     assert.match(out, /<html/i, "what came back is not a web page");
+
+    // 🔴 AND IT HAS TO BE VISIBLE, WHICH THE BYTES ALONE NEVER SHOWED. This assertion used to
+    // stop at "HTML came back", and HTML came back the whole time Bryson was looking at a
+    // header over a blank page: the landing page's scroll reveals rest at `opacity:0` behind
+    // a `.js` gate that was hard-coded into the markup, and the script that undoes them is
+    // one of the scripts an archive strips on purpose. Nothing about the response was wrong.
+    // Only a browser could see it, so the served bytes go into one.
+    let chromium = null, exe = "";
+    try {
+      ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
+      exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+    } catch { /* no browser here */ }
+    if (chromium) {
+      const browser = await chromium.launch({ executablePath: exe });
+      const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+      await page.setContent(out, { waitUntil: "load" });
+      await page.waitForTimeout(600);
+      const seen = await page.evaluate(() => {
+        const blank = [...document.querySelectorAll("body *")].filter((e) => {
+          const st = getComputedStyle(e);
+          return e.getBoundingClientRect().height > 2 && st.display !== "none"
+            && st.visibility !== "hidden" && Number(st.opacity) === 0;
+        }).map((e) => `${e.tagName}.${String(e.className).slice(0, 40)}`);
+        return { blank, height: document.documentElement.scrollHeight,
+          text: (document.body.innerText || "").length };
+      });
+      await browser.close();
+      assert.deepEqual(seen.blank, [],
+        `🔴 ${seen.blank.length} parts of the saved page are invisible — this is the header-and-nothing-else page`);
+      // A page that is only the banner and a header is short. Pin a floor so "nothing is
+      // invisible" cannot be satisfied by a page with nothing on it.
+      assert.ok(seen.height > 900, `the saved page is only ${seen.height}px tall`);
+      assert.ok(seen.text > 200, `the saved page has only ${seen.text} characters of visible text`);
+    }
     assert.match(out, new RegExp(CLIENT.landingPage.headline.slice(0, 20).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
       "the client's own headline did not survive the round trip");
     assert.doesNotMatch(out, /<script/i, "a script survived into the served page");
+  });
+
+  // 🔴 THE PAGES ALREADY IN STORAGE. Every archive saved before 2026-09-15 was written with
+  // `js` baked onto its body tag and every script stripped, so it renders as a header over a
+  // blank page. Fixing the renderer does nothing for those: they are files, already written.
+  // Only the strip applied when they are SERVED brings them back, and that is the difference
+  // between Bryson's existing saves working and him re-saving every one. So the fixture here
+  // is deliberately an OLD-STYLE file, built by putting the class back.
+  await t("🔴 a page saved the old way renders in full when it is served", async () => {
+    let chromium = null, exe = "";
+    try {
+      ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
+      exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+    } catch { return; }
+
+    const cid = uid();
+    const entry = archiveEntry({ label: "Saved in September", clientId: cid });
+    const old = neutraliseArchive(renderLandingPage(CLIENT), entry)
+      .replace(/<body class="/i, '<body class="js ');
+    assert.match(old, /<body class="js /, "the fixture is not actually an old-style file");
+
+    const sb = {
+      from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () =>
+        ({ data: { data: { pageArchives: [entry] } } }) }) }) }),
+      storage: { from: () => ({ download: async () => ({ data: { text: async () => old }, error: null }) }) },
+    };
+    const res = await viewArchive(new Request(`https://os.example/x?file=${encodeURIComponent(entry.path)}`), sb);
+    const served = await res.text();
+
+    const browser = await chromium.launch({ executablePath: exe });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    await page.setContent(served, { waitUntil: "load" });
+    await page.waitForTimeout(600);
+    const blank = await page.evaluate(() => [...document.querySelectorAll("body *")]
+      .filter((e) => { const st = getComputedStyle(e);
+        return e.getBoundingClientRect().height > 2 && st.display !== "none"
+          && st.visibility !== "hidden" && Number(st.opacity) === 0; })
+      .map((e) => `${e.tagName}.${String(e.className).slice(0, 40)}`));
+    await browser.close();
+    assert.deepEqual(blank, [],
+      `🔴 ${blank.length} parts still invisible, so every page saved before today stays broken`);
   });
 
   await t("a page whose file has gone says so instead of serving nothing", async () => {

@@ -81,6 +81,46 @@ were rebuilt off the generated path too, so none of them depend on a guessed pre
 **The rule: never hand-write a fixture for a format another function owns.** Generate it with the
 real producer, or the test is a copy of your assumption.
 
+### 🔴 Then it rendered, and showed only the header — a real bug in the LIVE page
+
+Bryson: *"it only shows the header not the whole landing page."*
+
+**`landing.mjs` hard-coded `js` onto the `<body>` tag, server-side.** So `.js .reveal{opacity:0}`
+— the scroll reveal's resting state — matched unconditionally, and the only thing that ever made
+those sections visible again was a script adding `.in`. An archive strips every script on purpose,
+so **every revealed section was invisible forever**. The hero is not a `.reveal`, so a saved copy
+showed the header and nothing else.
+
+🔴 **This was never really an archive bug. The `.js` gate was not a test for JavaScript at all** —
+it was on before a single line ran. **With JavaScript off, a live client landing page rendered the
+same header over a blank page**, on a page BoldLine pays for clicks to, while the motion block's
+own rule 1 said *"a visitor with JavaScript off ... render[s] COMPLETE"* and
+`verify-landing-motion`'s preamble said it pinned exactly that.
+
+**Fixed at the source:** the class now comes only from the head script, which puts it on `<html>`
+before the body is parsed. With JavaScript on, nothing changes and there is no flash. With it off,
+the gate does not match and everything sits at its finished, visible state. `neutraliseArchive`
+strips the class too (a stored file has to stand on its own), and **`viewArchive` strips it when
+serving**, which is what makes every page saved before 2026-09-15 render without re-saving it.
+
+### Why three test layers all missed it
+
+- `verify-landing-motion` claimed to pin the no-JS case and **read the HTML and CSS as text**. You
+  cannot see `opacity: 0` that way. It now launches a browser with `javaScriptEnabled: false` and
+  asserts **no element with real height computes to opacity 0** — and separately that `js` is not
+  in the markup, so the check cannot pass today and stop meaning anything tomorrow.
+- The archive chain test stopped at *"HTML came back"*. HTML came back the whole time he was
+  looking at a blank page. It now **renders the served bytes in a browser**, with a floor on page
+  height and visible text so "nothing is invisible" cannot be satisfied by a page with nothing on
+  it.
+- Nothing covered the files **already in storage**. The fixture for that is now deliberately an
+  old-style archive, built by putting `js` back, and it must render in full after being served.
+  Removing the serve-time strip fails it with *"9 parts still invisible, so every page saved
+  before today stays broken"*.
+
+Mutations caught: `js` hard-coded back onto the body (28 invisible sections), and the serve-time
+strip removed.
+
 ### 🔴 The test pinned the broken version, and the harness could not fail
 
 Two separate defects in the suite, both worth remembering:

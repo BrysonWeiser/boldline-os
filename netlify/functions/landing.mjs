@@ -1093,7 +1093,23 @@ a{color:inherit}
   // phone number or no service area, which is most of them at the start.
   const chipLabels = [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "", "&#10003; Free quote, no obligation", phone ? "Fast response" : ""].filter(Boolean);
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
-  const bodyClass = `js lay-${layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
+  // 🔴 `js` IS NOT IN THIS LIST, AND THAT IS DELIBERATE. It used to be, hard-coded, which
+  // meant the `.js` gate was never actually a test for JavaScript — it was on before a single
+  // line ran. So `.js .reveal{opacity:0}` matched unconditionally and the only thing that ever
+  // made those sections visible again was a script adding `.in`. With JavaScript off, or in
+  // any context where the script does not run, EVERY SECTION BELOW THE HERO STAYED BLANK
+  // FOREVER, on a page we pay for clicks to, while the comment above this block and the test
+  // guarding it both said a no-JS visitor gets a complete page.
+  //
+  // Bryson found it in a saved copy of Stencil & Thread's page, where the scripts are stripped
+  // on purpose: *"it only shows the header not the whole landing page"*. The archive was the
+  // messenger, not the cause.
+  //
+  // The class now comes only from the head script, which puts it on <html> before the body is
+  // parsed, so with JavaScript on nothing changes and there is no flash. With JavaScript off
+  // the gate simply does not match and every element sits at its finished, visible state,
+  // which is what rule 1 of the motion block above has always claimed.
+  const bodyClass = `lay-${layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
 
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
 ${annHTML}

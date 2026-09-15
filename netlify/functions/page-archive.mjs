@@ -33,7 +33,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { renderLandingPage } from "./landing.mjs";
-import { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, archivePath, archiveViewUrl, isArchivePath } from "../lib/page-archive-shared.mjs";
+import { neutraliseArchive, archiveEntry, ARCHIVE_BUCKET, archivePath, archiveViewUrl, isArchivePath, stripJsClass } from "../lib/page-archive-shared.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -170,5 +170,9 @@ export async function viewArchive(req, supabase) {
 
   const { data: blob, error } = await supabase.storage.from(ARCHIVE_BUCKET).download(file);
   if (error || !blob) return oops("That saved page could not be opened.");
-  return html(await blob.text());
+  // Every page saved before 2026-09-15 is in storage with the scroll-reveal class baked into
+  // its body tag and no script left to undo it, so it renders as a header over a blank page.
+  // Stripping it here as well as at write time is what makes those old saves work with
+  // nothing to re-save. It is a no-op on anything saved since.
+  return html(stripJsClass(await blob.text()));
 }
