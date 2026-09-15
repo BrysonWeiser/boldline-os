@@ -7319,6 +7319,17 @@ function AudiencePagesCard({client,onUpdate}) {
     return `${base}-${Date.now().toString(36)}`.slice(0,60);
   };
   const addrFor = (p) => `https://boldlinemedia.com/for/${p.slug}`;
+
+  // 🔴 THE MIRROR OF `clientForPage` IN netlify/lib/landing-pages-shared.mjs. The OS is one
+  // browser file and cannot import it, so it is duplicated here and the duplication is held
+  // honest by a test that runs BOTH and compares the results. Change one, change the other.
+  const previewClient = (cl,pg) => {
+    const { design, ...pageCopy } = (pg.page || {});
+    return { ...cl, landingSlug:pg.slug, landingPage:pageCopy,
+      brandColor:pg.brandColor||"#c8a84b", brandTheme:pg.theme||"dark",
+      campaignSetup:{ ...(cl.campaignSetup||{}), smsConsent:false },
+      landingVariants:Array.isArray(pg.variants)?pg.variants:[] };
+  };
   const save = (next) => onUpdate({...client, landingPages:next});
 
   const add = () => {
@@ -7418,12 +7429,17 @@ function AudiencePagesCard({client,onUpdate}) {
                       </div>
                       {written&&(
                         <div style={{borderRadius:10,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:9}}>
-                          {/* 🔴 THE SAME BRAND STAMP THE SERVER APPLIES. Without it the preview
-                              renders the fallback indigo-on-white while the live page is gold on
-                              dark, so the one thing a preview exists for, showing what is actually
-                              out there, would be the thing it got wrong. */}
-                          <LandingPreview client={{...client, landingSlug:p.slug, landingPage:p.page,
-                            brandColor:p.brandColor||"#c8a84b", brandTheme:p.theme||"dark"}}/>
+                          {/* 🔴 THIS MUST BE EVERY TRANSFORM THE SERVER APPLIES, NOT SOME OF THEM.
+                              It has now been wrong twice for the same reason: the preview built
+                              its own version of the page and drifted from `clientForPage`, field
+                              by field. First it missed the brand, so previews were indigo on white
+                              while the live page was gold on dark. Then it missed `design` and the
+                              consent flag, so every page previewed with identical furniture and a
+                              text-consent box that the live page no longer carries — and a preview
+                              is the ONLY thing Bryson looks at, so the live fix read as no fix.
+                              `verify-landing-pages` now EXECUTES this expression and deep-compares
+                              it against `clientForPage`, so the two cannot part company again. */}
+                          <LandingPreview client={previewClient(client,p)}/>
                         </div>
                       )}
                       <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>

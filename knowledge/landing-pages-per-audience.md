@@ -204,6 +204,34 @@ So BoldLine's own page asked a prospect to agree to messages that cannot be sent
 **Flip `smsConsent` back on for BoldLine only when A2P registration is actually complete**, and
 word it from the filing, not from us.
 
+## 🔴 THE PREVIEW IS THE ONLY THING HE SEES, AND IT WAS BUILT SEPARATELY
+
+Bryson, after both fixes above shipped: *"the landing page still looks the same make sure its
+fixed."* The live page WAS fixed. **The preview was not, so to him nothing had changed.**
+
+`LandingPreview` POSTs the client object to `/.netlify/functions/landing` and **the server renders
+exactly what it is sent**. The router path calls `clientForPage`; the preview path never did. It
+built its own object inline, so it kept the writer's `design` (identical furniture on every page)
+and missed `smsConsent: false` (the text-consent box the live page no longer carries).
+
+🔴 **This had already been wrong once, for the same reason.** The brand fix a few hours earlier
+patched `brandColor`/`brandTheme` into that inline object rather than making the preview use the
+real transform. **Patching it field by field is what allowed the second miss.**
+
+**Now:** one `previewClient(cl, pg)` mirror inside `AudiencePagesCard` (the OS is a single browser
+file and cannot import the shared module), and `verify-landing-pages` **executes that mirror and
+deep-compares it against `clientForPage`** across several page shapes. A field added to either and
+not the other fails, whatever it is. A second assertion proves the comparison can actually fail, by
+running a deliberately drifted version — a `deepEqual` that cannot fail is the same shape of
+nothing as the per-field assertions it replaced.
+
+Mutations caught by that one check: the preview keeping the writer's layout, missing the consent
+flag, drifting back to indigo, **and a change made on the SERVER side** that the OS did not follow.
+
+**The general rule:** when a preview is built by different code from the thing it previews, the
+preview is a second implementation and will drift. Either share the code, or compare the two by
+running them.
+
 ## Still to do
 
 1. The existing **Page Options** card scoped to a page, so each audience gets several candidates to
