@@ -389,8 +389,15 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 .modal-sub{font-size:13.5px;color:var(--muted);margin-bottom:26px}
 .q{margin-bottom:22px}
 .q-label{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:11px}
-.opts{display:flex;flex-wrap:wrap;gap:9px}
-.opts button{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:30px;padding:9px 16px;cursor:pointer;transition:color .2s,border-color .2s,background .2s}
+/* Every answer row on the site (the contact wizard and the recommender modal) is a
+   fixed two-across GRID, not wrapping flex. Wrapping flex sizes each chip to its own
+   text, so a row lands 3-up or 2-up purely on how the machine renders Inter: it looked
+   right in headless Chrome and came out ragged 3-then-1 on Bryson's monitor, which is
+   what he saw. A grid gives equal cells and aligned rows on every machine, and an odd
+   last option spans the full width instead of stranding itself in the left column. */
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.opts button:last-child:nth-child(odd){grid-column:1 / -1}
+.opts button{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--muted);background:transparent;border:1px solid var(--line);border-radius:30px;padding:9px 14px;line-height:1.35;cursor:pointer;transition:color .2s,border-color .2s,background .2s}
 .opts button:hover{color:var(--ink);border-color:var(--gold-line)}
 .opts button.sel{color:#15110A;background:var(--gold);border-color:var(--gold)}
 .modal-submit{margin-top:10px;width:100%;text-align:center;border:none;cursor:pointer;font-family:var(--sans)}
@@ -481,7 +488,7 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 @keyframes wizIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .lead-wiz .q-label{font-size:15px;margin-bottom:14px;color:var(--ink)}
 .lead-wiz .opts{gap:10px}
-.lead-wiz .opts button{font-size:13.5px;padding:11px 18px}
+.lead-wiz .opts button{font-size:13.5px;padding:11px 14px}
 .lead-wiz input{width:100%;padding:12px 14px;font-size:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;color:var(--ink);font-family:inherit;transition:border-color .2s ease;margin-bottom:11px}
 .lead-wiz input:focus{outline:none;border-color:var(--gold-line)}
 .wiz-cta{width:100%;margin-top:4px;border:none;cursor:pointer;font-family:var(--sans)}
