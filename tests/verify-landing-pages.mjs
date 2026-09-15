@@ -361,6 +361,68 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
       "the card's writes do not reach landingPages[], so choosing an option would be lost");
   });
 
+  // ── 7c. 🔴 NOT A LOCAL SERVICE BUSINESS'S FURNITURE ────────────────────────
+  //
+  // Bryson: *"its still sort of using stuff from stencil & threads landing page such as the free
+  // quotes with the checkmark, the very top of the page there is a bar that includes what it
+  // is."* The eyebrow, trust row, chip row and announcement bar are built by the RENDERER from
+  // strings written for a local service business. Two pages carrying all four read as the same
+  // page however different the words between them, and choosing between written options could
+  // never have touched any of it.
+  const HOUSE = { id: "h", internal: true, name: "BoldLine Media", landingSlug: "boldline",
+    leadToken: "T", campaignSetup: { serviceArea: "Phoenix, AZ", mainOffer: "Ads managed end to end" },
+    landingPage: { headline: "main" } };
+  const audHtml = (label) => renderLandingPage(clientForPage(HOUSE,
+    newPage({ label, slug: label.toLowerCase().replace(/ /g, "-"),
+      page: { headline: label, ctaText: "Get my plan", published: true } })));
+
+  t("🔴 no quotes, no service area, no fast-response promise on BoldLine's pages", () => {
+    const h = audHtml("Roofers");
+    for (const phrase of ["Free quotes", "Free quote, no obligation", "Serving ", "Fast response"]) {
+      assert.ok(!h.includes(phrase), `"${phrase}" is still on BoldLine's own page`);
+    }
+  });
+
+  t("🔴 and no bar across the top carrying the account's sales line", () => {
+    // `announce` is set to "" rather than left absent, because absent means "fall back to the
+    // account's main offer", which is exactly the bar he pointed at.
+    const h = audHtml("Roofers");
+    assert.ok(!/class="ann"/.test(h), "the announcement bar is still there");
+    assert.ok(!h.includes("Ads managed end to end"), "the account's main offer is printed on the page");
+  });
+
+  t("the furniture is keyed to the audience, so two pages do not say the same thing", () => {
+    const chips = (h) => [...h.matchAll(/<div class="chip reveal"[^>]*>([^<]*)<\/div>/g)].map((m) => m[1]);
+    const eyebrow = (h) => (h.match(/<div class="eyebrow an">([^<]*)</) || [])[1];
+    assert.equal(eyebrow(audHtml("Roofers")), "For roofers");
+    assert.equal(eyebrow(audHtml("Car Detailers")), "For car detailers");
+    assert.ok(chips(audHtml("Roofers"))[0].includes("roofers"));
+    assert.ok(chips(audHtml("Car Detailers"))[0].includes("car detailers"));
+  });
+
+  t("a page that wrote its own furniture keeps it", () => {
+    const p = newPage({ label: "Roofers", slug: "roofers",
+      page: { headline: "R", ctaText: "Go", published: true,
+        eyebrow: "Storm season", chips: ["Only chip"], trust: ["Only trust"], announce: "My bar" } });
+    const h = renderLandingPage(clientForPage(HOUSE, p));
+    assert.match(h, /Storm season/);
+    assert.match(h, /Only chip/);
+    assert.match(h, /class="ann"><b>My bar/);
+  });
+
+  t("🔴 and a real client's page still gets every bit of it", () => {
+    // The defaults are unchanged when a page says nothing, so nothing about Stencil & Thread's
+    // page moves. This is the assertion that makes the change safe to ship.
+    const cli = { id: "c", name: "Stencil & Thread", landingSlug: "st", leadToken: "T",
+      campaignSetup: { serviceArea: "Eugene, OR", mainOffer: "25+ piece orders" },
+      landingPage: { headline: "S", ctaText: "Q", published: true } };
+    const h = renderLandingPage(cli);
+    assert.match(h, /Free quotes/);
+    assert.match(h, /Free quote, no obligation/);
+    assert.match(h, /Serving Eugene, OR/);
+    assert.match(h, /class="ann"><b>25\+ piece orders/);
+  });
+
   // ── 8. 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT ──────────────────
   t("🔴 BoldLine's own page does not ask to text people", () => {
     // Bryson: "it even includes their text thing which we dont have yet." landing.mjs's own
