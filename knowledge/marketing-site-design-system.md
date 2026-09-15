@@ -68,3 +68,33 @@ anything.
 Verified at 390 / 768 / 1280 / 1600 with the reveal animations forced on: no horizontal scroll at
 any width, note and grid identical width and x-offset on both the Combined panel and the section
 close.
+
+## Answer rows are a GRID, never wrapping flex (2026-09-14)
+
+Bryson, photographing his monitor: *"for the thing at the bottom of the website can you make sure
+they are all uniform and formatted right now its 3 on top then one on the left."*
+
+🔴 **The layout differed between machines on identical CSS.** The five answer rows on the site (the
+contact wizard's two, the recommender modal's three) were `display:flex;flex-wrap:wrap`, which sizes
+each chip to its own text. The four platform chips came within a few pixels of the 440px wizard
+column, so the row broke 4-up in headless Chrome here and ragged **3-then-1** on his monitor,
+purely on how each machine rendered Inter. **A screenshot from one machine would have said it was
+fine.** So would reading the stylesheet.
+
+**Now:** `.opts{display:grid;grid-template-columns:repeat(2,1fr)}` on the shared base class, so all
+five rows fix at two-across with equal cells on every machine, plus
+`.opts button:last-child:nth-child(odd){grid-column:1/-1}` — a fifth option spans the full width
+instead of stranding itself in the left column. Buttons keep `line-height:1.35` and **no
+`white-space:nowrap`**: a label that outgrows its cell should wrap (the grid equalises row heights,
+so it stays uniform) rather than silently spill out of it.
+
+**Pinned by `tests/verify-answer-rows.mjs`**, which measures in a real browser at 390/768/1280/1600:
+within a row every chip is the same width, a full row holds exactly two, a chip alone on a row must
+be an odd last one, no label is clipped, and the page never scrolls sideways. It also **clicks
+through the wizard**, because the five-option budget row — the one that needs the span — is on
+step 2 and is invisible to anything that only looks at step 1. 123 checks; mutations caught:
+reverting to wrapping flex (47 failures), dropping the odd-last span (1), three-across (33), and a
+label too long for its cell (4).
+
+**The rule to carry forward:** when a layout's correctness depends on text fitting, assert the
+geometry, not the CSS. Font metrics are not portable.
