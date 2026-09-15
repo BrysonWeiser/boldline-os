@@ -345,9 +345,28 @@ Not a wording quibble. A prospect reads it, books a call on that basis, and find
 That costs the call and the trust, and it is the kind of thing that gets an ad account complained
 about.
 
-**Now: "Three months to start, then month to month"**, which is what the site's FAQ says and is
-also the better sell, because it answers the objection instead of dodging it. Checked against the
-source rather than written from memory.
+**First fix: "Three months to start, then month to month"**, which is what the site's FAQ says.
+Checked against the source rather than written from memory.
+
+**Then Bryson changed the call:** *"how about we just avoid talking about the contract periods
+instead put a different reason for working with me."* He is right, and it is a sharper read than
+the first fix. The line was true, but it spent the hero's best line answering an objection the
+visitor had not raised yet, and on a cold ad click the first thing you volunteer is the thing you
+look worried about. The term belongs on the call, where it can be explained. **Saying nothing
+about the term is not a claim about it. Claiming there is no contract was**, which is why the
+original guard stays exactly where it is.
+
+**Now: "Your ad account stays in your name."** Chosen because it is the one thing BoldLine does
+that most agencies do not, and because it is a **hard rule of the business rather than a promise
+someone can quietly stop keeping** (CLAUDE.md: *"Each client's ad account stays owned and billed
+by the client; BoldLine only ever holds manager-level access"*). Plenty of agencies hold the
+account and the client discovers it on the way out the door. The site says the same thing in two
+places, and the test reads the site, so the page and the site cannot drift apart on it the way
+they nearly did on the contract term.
+
+Rejected: *"your budget never rises without your say-so"* (true on the site, but nothing in the
+autopilot code enforces it as an invariant, so it is a promise resting on behaviour) and *"we
+never touch your ad spend"* (true, but it names a risk the visitor was not thinking about).
 
 Also fixed: a step read *"Ads go live and the calls come to you"*, promising a phone call when
 most leads arrive as a form.
@@ -355,9 +374,12 @@ most leads arrive as a form.
 🔴 **Why this needed a guard and not just a fix.** These defaults are the only copy on these pages
 that **no human writes and no model writes**. Nobody proof-reads them, so an untrue claim can sit
 there for months. `verify-landing-pages` now fails if any default contains *no long contract, no
-contract, cancel anytime, no commitment, no minimum, quit anytime*, **and** fails if the term stops
-being stated at all, and it reads the marketing site's FAQ so the page and the site cannot drift
-apart on what the term actually is.
+contract, cancel anytime, no commitment, no minimum, quit anytime*. After the change above it
+**also** fails if any default mentions the term at all (*contract, minimum, three months, month to
+month*), fails if the ad-account promise disappears from the trust row, and fails if the marketing
+site stops making that promise. Note the two guards are deliberately **both** kept: the page may
+not deny the term, and it may not debate it either. A half-fix that only deleted the old guard
+would have reopened the door to the exact copy Bryson caught.
 
 **Mutation-testing note worth keeping:** the first run of these mutations changed only the server
 mirror, so the **preview-parity check fired first and masked whether the truthfulness checks

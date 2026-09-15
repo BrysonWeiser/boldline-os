@@ -545,14 +545,45 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     }
   });
 
-  t("🔴 and the term is stated, matching what the site's own FAQ says", () => {
-    const site = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
-    assert.match(site, /three month minimum to start/i,
-      "the site no longer says three months, so this page's claim may have gone stale with it");
-    assert.match(site, /After those first three months we earn it month to month/i);
+  t("🔴 and no default discusses the contract term at all", () => {
+    // Bryson: *"how about we just avoid talking about the contract periods instead put a
+    // different reason for working with me."* The honest version ("Three months to start,
+    // then month to month") was true, but it spent the page's best line answering an
+    // objection the visitor had not raised yet. The term belongs on the call.
+    //
+    // This is NOT a licence to go back to the false version. Saying nothing about the term is
+    // not a claim about it; "no long contract" was, and the guard above still forbids it. So
+    // the two assertions have to coexist: the page may not deny the term, and it may not
+    // debate it either. A half-fix that only deleted the guard would leave the door open to
+    // exactly the copy Bryson caught in the first place.
+    const all = JSON.stringify(audienceFurniture("Roofers")).toLowerCase();
+    for (const term of ["month to month", "month-to-month", "three months", "3 months",
+                        "minimum", "contract"]) {
+      assert.ok(!all.includes(term),
+        `"${term}" puts the contract term back on the page, and it belongs on the call`);
+    }
+  });
+
+  t("🔴 and what replaced it is a claim the business actually keeps", () => {
+    // The slot had to be filled with something TRUE, and the safest kind of true is a claim
+    // that is a hard rule of the business rather than a promise someone can quietly stop
+    // keeping. CLAUDE.md: "Each client's ad account stays owned and billed by the client;
+    // BoldLine only ever holds manager-level access." It is also the real differentiator,
+    // because plenty of agencies hold the account and the client finds that out on the way
+    // out the door.
     const trust = audienceFurniture("Roofers").trust.join(" ");
-    assert.match(trust, /Three months to start, then month to month/,
-      "the page does not state the term at all, which is how the false version got in");
+    assert.match(trust, /ad account stays in your name/i,
+      "the trust row no longer makes the ad-account promise, so this check is pinning nothing");
+    // Read the site, so the page and the site cannot drift apart on it the way they nearly
+    // did on the contract term. If the business ever stops letting clients own the account,
+    // the site changes and this fails, instead of the page quietly lying.
+    // includes(), not match(): a failed assert.match on this file prints the whole 160KB site
+    // into the test output and buries every other failure in the run.
+    const site = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+    assert.ok(site.includes("stay in your name and are billed directly to you"),
+      "the site no longer promises the client owns the ad account, so the page's claim may be stale");
+    assert.ok(site.includes("You always own and pay for your own ad account"),
+      "the site dropped the ad-account ownership line, so the page may be promising what the site does not");
   });
 
   t("no default promises a phone call for every lead", () => {
