@@ -241,11 +241,52 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     assert.equal(landingTheme({ landingPage: { brandColor: "#0A7B54", headline: "x" } }).brand, "#0a7b54");
   });
 
-  t("🔴 the OS preview stamps the same brand as the server", () => {
-    // A preview showing indigo-on-white while the live page is gold-on-dark gets wrong the one
-    // thing a preview exists for.
-    assert.match(card, /brandColor:p\.brandColor\|\|"#c8a84b"/, "the preview falls back to the shared indigo");
-    assert.match(card, /brandTheme:p\.theme\|\|"dark"/);
+  // 🔴 THE PREVIEW AND THE LIVE PAGE ARE BUILT THE SAME WAY, PROVED BY RUNNING BOTH.
+  //
+  // This has been wrong twice for one reason: the OS builds its own version of the page and
+  // drifts from `clientForPage` a field at a time. First it missed the brand, so previews were
+  // indigo-on-white while the live page was gold-on-dark. Then it missed `design` and the
+  // consent flag, so every page previewed with identical furniture and a text-consent box the
+  // live page no longer carries. Bryson only ever sees the preview, so both live fixes read to
+  // him as no fix at all: *"the landing page still looks the same"*.
+  //
+  // Asserting the fields one by one is what allowed the second miss. So the OS's own mirror is
+  // EXECUTED and deep-compared against the real thing. A field added to either and not the
+  // other fails here, whatever it is.
+  t("🔴 the OS preview is built exactly like the live page, field for field", () => {
+    const src = (card.match(/const previewClient = \(cl,pg\) => \{[\s\S]*?\n  \};/) || [])[0];
+    assert.ok(src, "the OS no longer has a preview builder to compare against");
+    const previewClient = new Function(`${src} return previewClient;`)();
+
+    const account = { id: "house", internal: true, name: "BoldLine Media", landingSlug: "boldline",
+      leadToken: "TOK", brandColor: "#123456", brandTheme: "light",
+      campaignSetup: { serviceArea: "US", smsConsentText: "filed wording" },
+      landingPage: { headline: "the main page" } };
+    const cases = [
+      newPage({ label: "Roofers", slug: "roofers",
+        page: { headline: "R", ctaText: "Go", published: true,
+          design: { layout: "split", background: "glowgrid", motion: "up", benefits: "cards",
+            font: "modern", shape: "rounded", order: "a" } } }),
+      newPage({ label: "Detailers", slug: "car-detailers", page: { headline: "D" } }),
+      { ...newPage({ label: "Custom", slug: "custom", page: { headline: "C" } }),
+        brandColor: "#0a0a0a", theme: "light", variants: [{ id: "v1" }] },
+    ];
+    for (const page of cases) {
+      assert.deepEqual(previewClient(account, page), clientForPage(account, page),
+        `the OS preview and the live page disagree for "${page.slug}"`);
+    }
+  });
+
+  t("and that comparison would actually notice a difference", () => {
+    // A deepEqual that cannot fail is the same shape of nothing as the assertions it replaced.
+    const account = { name: "X", campaignSetup: {}, landingPage: {} };
+    const page = newPage({ label: "R", slug: "r", page: { headline: "R", design: { layout: "split" } } });
+    const drifted = (cl, pg) => ({ ...cl, landingSlug: pg.slug, landingPage: pg.page,
+      brandColor: "#c8a84b", brandTheme: "dark",
+      campaignSetup: { ...(cl.campaignSetup || {}), smsConsent: false },
+      landingVariants: [] });
+    assert.notDeepEqual(drifted(account, page), clientForPage(account, page),
+      "keeping the writer's design would have compared equal, so this proves nothing");
   });
 
   // ── 7. 🔴 EACH PAGE IS ITS OWN PAGE ────────────────────────────────────────
