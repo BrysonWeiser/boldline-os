@@ -106,9 +106,18 @@ export const audienceFurniture = (label) => {
     // TRUE. This said "No long contract to start" and the agreement has a THREE MONTH MINIMUM
     // (marketing site FAQ: "Why is there a three month minimum to start?"). Bryson caught it:
     // *"make sure its also truthful it says no long contracts but there is a 3 month minimum
-    // when you first sign on."* Stating the term plainly is also the better sell, because it
-    // answers the objection instead of dodging it and then surprising them on the call.
-    trust: ["\u2713 Free plan, no obligation", "Three months to start, then month to month"],
+    // when you first sign on."*
+    // 🔴 THE CONTRACT TERM IS NOT WHAT THIS SLOT IS FOR (Bryson: *"how about we just
+    // avoid talking about the contract periods instead put a different reason for working with
+    // me"*). Stating it was honest but it spent the page's best line answering an objection
+    // nobody had raised yet; the term belongs on the call. Saying nothing about it is not a
+    // claim. Claiming there is no contract was, which is why the guard below stays.
+    // What replaced it is the one thing BoldLine does that most agencies do not, and it is a
+    // hard rule of the business rather than a promise someone can quietly stop keeping: the
+    // client owns and is billed for their own ad account, BoldLine only ever holds manager
+    // access. The site says the same ("Your Google and Meta accounts stay in your name and are
+    // billed directly to you"), and the test reads the site so the two cannot drift apart.
+    trust: ["\u2713 Free plan, no obligation", "Your ad account stays in your name"],
     chips: [who ? `Built for ${who.toLowerCase()}` : "Built for your trade",
             "Google and Meta, managed end to end"],
     // The renderer's defaults for these two are a local service business's, and both say
