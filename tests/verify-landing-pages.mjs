@@ -5,7 +5,7 @@
 // and have a landing page that fits that ad"*.
 import { readFileSync } from "node:fs";
 import assert from "node:assert";
-import { renderLandingPage, landingTheme } from "../netlify/functions/landing.mjs";
+import { renderLandingPage, landingTheme, designConfig } from "../netlify/functions/landing.mjs";
 import { pageSlug, freeSlug, findPage, listPages, clientForPage, newPage, publicUrlFor, slugsTaken }
   from "../netlify/lib/landing-pages-shared.mjs";
 
@@ -246,6 +246,61 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     // thing a preview exists for.
     assert.match(card, /brandColor:p\.brandColor\|\|"#c8a84b"/, "the preview falls back to the shared indigo");
     assert.match(card, /brandTheme:p\.theme\|\|"dark"/);
+  });
+
+  // ── 7. 🔴 EACH PAGE IS ITS OWN PAGE ────────────────────────────────────────
+  t("🔴 two audience pages do not share a layout, even when the writer picks one for them", () => {
+    // Bryson: "it looks exactly like the landing page for stencil & thread ... no matter what
+    // each landing page should not just be a copy and paste they should be unique."
+    // `designConfig` prefers `landingPage.design`, and a model asked the same question returns
+    // the same answer, so every page came out split/glowgrid/up/cards/modern/rounded/a.
+    // Identical furniture, different words. Dropping `design` hands all seven choices to a
+    // seed derived from the page's own slug.
+    const same = { layout:"split", background:"glowgrid", motion:"up", benefits:"cards",
+      font:"modern", shape:"rounded", order:"a" };
+    const house = { name:"BoldLine", landingSlug:"boldline", landingPage:{ headline:"m" } };
+    const seen = new Set();
+    for (const slug of ["roofers","car-detailers","med-spas","plumbers","hvac","dentists"]) {
+      const p = newPage({ label: slug, slug, page: { headline: slug, design: same } });
+      seen.add(JSON.stringify(designConfig(clientForPage(house, p))));
+    }
+    assert.ok(seen.size >= 5, `six audiences produced only ${seen.size} distinct layouts`);
+  });
+
+  t("the same page is still the same page every time it is served", () => {
+    // Varied, not random. A page whose furniture moved between two visits would be a bug.
+    const house = { name:"BoldLine", landingSlug:"boldline", landingPage:{} };
+    const p = newPage({ label:"Roofers", slug:"roofers", page:{ headline:"R" } });
+    assert.equal(JSON.stringify(designConfig(clientForPage(house, p))),
+      JSON.stringify(designConfig(clientForPage(house, p))));
+  });
+
+  // ── 8. 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT ──────────────────
+  t("🔴 BoldLine's own page does not ask to text people", () => {
+    // Bryson: "it even includes their text thing which we dont have yet." landing.mjs's own
+    // rule is that the consent wording "is not ours to word, it is whatever that business
+    // filed with the carriers". BoldLine has filed nothing and Twilio is still a free trial,
+    // so the page was collecting a consent record under wording never registered, which is
+    // worse than useless the day SMS does arrive.
+    const house = { id:"h", name:"BoldLine Media", landingSlug:"boldline", leadToken:"T",
+      campaignSetup:{ serviceArea:"US" }, landingPage:{ headline:"m" } };
+    const html = renderLandingPage(clientForPage(house, ACCOUNT.landingPages[0]));
+    assert.ok(!/<input type="checkbox" id="lf-sms"/.test(html), "the consent checkbox is still there");
+    assert.ok(!/Msg frequency varies/.test(html), "the carrier wording is still on the page");
+    // The submit script reads that box. With it gone the read must not throw, or the form dies.
+    assert.match(html, /sc&&sc\.checked/, "the script would throw on the missing checkbox");
+  });
+
+  t("🔴 and a real client's page keeps theirs, untouched", () => {
+    // Stencil & Thread filed that wording with the carriers. Removing it would be a
+    // compliance regression on a paying client, so the flag is opt-OUT and undefined means
+    // exactly what it meant before.
+    const cli = { id:"c", name:"Stencil & Thread", landingSlug:"st", leadToken:"T",
+      campaignSetup:{ serviceArea:"Eugene, OR" },
+      landingPage:{ headline:"S", ctaText:"Q", published:true } };
+    const html = renderLandingPage(cli);
+    assert.match(html, /<input type="checkbox" id="lf-sms"/);
+    assert.match(html, /Msg frequency varies/);
   });
 
   t("the address shown in the OS is the one that actually answers", () => {

@@ -650,7 +650,19 @@ a{color:inherit}
   const consentDefault = `Text me updates about my quote and order from ${name || "us"}. Optional, not required to get a quote. Msg frequency varies, msg & data rates may apply. Reply STOP to opt out, HELP for help.`;
   const consentText = String(cs.smsConsentText || "").trim() || consentDefault;
 
-  const consentHTML = `<div class="consbox"><div class="cons cons-main">
+  // 🔴 ONLY WHERE THE BUSINESS CAN ACTUALLY SEND. The rule above is that the wording belongs to
+  // whatever that business filed with the carriers; a business that has filed nothing and
+  // cannot send a message has no wording to show and no consent to collect. Undefined keeps
+  // today's behaviour exactly, so no client page changes; `false` is set deliberately, and is
+  // set for BoldLine's own audience pages because Twilio there is still a free trial.
+  const showConsent = cs.smsConsent !== false;
+  // 🔴 AND THE RECORD GOES WITH THE BOX. The submit script sends `consentDisclosure`, a copy of
+  // the exact words shown, so a lead carries proof of what its person agreed to. With no box on
+  // the page there were no such words, and sending them anyway would file a record saying a
+  // disclosure was made that the visitor never saw. That is the same falseness the note above
+  // rejects, arriving from the other direction.
+
+  const consentHTML = !showConsent ? "" : `<div class="consbox"><div class="cons cons-main">
       <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
       <label for="lf-sms">${esc(consentText)}${policyLine}</label>
     </div>
@@ -892,7 +904,7 @@ a{color:inherit}
     var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
     try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
       payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);
-      payload.consentDisclosure=${JSON.stringify(consentText)};}catch(e){}
+      ${showConsent ? `payload.consentDisclosure=${JSON.stringify(consentText)};` : ""}}catch(e){}
     try{payload.page=location.href.split('#')[0];}catch(e){}
     try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
     if(String(location.href).indexOf('about:')===0){
