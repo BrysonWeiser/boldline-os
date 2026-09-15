@@ -543,5 +543,60 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
     "a second renderer in the OS is how the portal and the contract both drifted");
 }
 
+// ── 🔴 JAVASCRIPT OFF, IN A REAL BROWSER ────────────────────────────────────
+//
+// Rule 1 at the top of this file has always said a visitor with JavaScript off gets a
+// complete page, and this file has always said it PINS that. It did not. Everything above
+// reads the HTML and the CSS as text, which is why it could not see that `js` was hard-coded
+// onto the <body> tag: the `.js` gate was therefore never a test for JavaScript at all, it
+// was on before a line ran, so `.js .reveal{opacity:0}` applied unconditionally and the only
+// thing that ever brought those sections back was a script. With JavaScript off, every
+// section below the hero was invisible forever.
+//
+// Bryson found it in a saved copy of a client's page, where the scripts are stripped on
+// purpose: *"it only shows the header not the whole landing page"*. The one place this was
+// ever going to show up was a real browser with scripting off, so that is what this does.
+{
+  let chromium = null, exe = "";
+  try {
+    ({ chromium } = await import("/opt/node22/lib/node_modules/playwright/index.mjs"));
+    exe = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+  } catch { /* no browser here */ }
+  if (!chromium) {
+    console.log("  (skipped the no-JS render check: no browser in this environment)");
+  } else {
+    const browser = await chromium.launch({ executablePath: exe });
+    // The same full fixture every other check in this file uses, through the same builder,
+    // so this cannot drift into testing a simpler page than the rest of the suite does.
+    const page_html = render();
+    // Anything with real height that computes to opacity 0 is a section the visitor cannot
+    // see. Reading the class list would not catch it; only the computed style does.
+    const blankOnes = async (js) => {
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, javaScriptEnabled: js });
+      const page = await ctx.newPage();
+      await page.setContent(page_html, { waitUntil: "load" });
+      await page.waitForTimeout(js ? 2200 : 400);   // past the reveal transition and its safety net
+      const out = await page.evaluate(() => [...document.querySelectorAll("body *")]
+        .filter((e) => { const s = getComputedStyle(e);
+          return e.getBoundingClientRect().height > 2 && s.display !== "none" && s.visibility !== "hidden" && Number(s.opacity) === 0; })
+        .map((e) => `${e.tagName}.${String(e.className).slice(0, 40)}`));
+      await ctx.close();
+      return out;
+    };
+    const off = await blankOnes(false);
+    ok("🔴 with JavaScript OFF, not one section is left invisible", off.length === 0,
+      `${off.length} invisible: ${off.slice(0, 4).join(", ")} — this is the header-and-nothing-else page`);
+    const on = await blankOnes(true);
+    ok("with JavaScript ON, the reveal still finishes and leaves nothing hidden", on.length === 0,
+      `${on.length} invisible: ${on.slice(0, 4).join(", ")}`);
+    // And the gate itself: the class must come from the script, never from the markup, or
+    // the check above passes today and silently stops meaning anything tomorrow.
+    ok("🔴 the reveal gate is not baked into the markup",
+      !/<body class="[^"]*\bjs\b/.test(page_html),
+      "`js` is hard-coded on the body again, so the .js gate is on with JavaScript off");
+    await browser.close();
+  }
+}
+
 console.log(fail ? `\n✗ landing motion: ${pass} passed, ${fail} FAILED` : `✓ landing motion: ${pass} checks passed`);
 process.exit(fail ? 1 : 0);

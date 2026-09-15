@@ -63,6 +63,22 @@ export function archiveEntry({ label, headline, clientId, now = new Date() } = {
 // 🔴 THE VISUAL RECORD IS UNTOUCHED. Only the plumbing is cut. That is the whole point of
 // archiving the page rather than a screenshot, so anything that changes how it LOOKS would
 // defeat the exercise.
+// Removes the `js` class from the <body> tag, which is what gates the landing page's
+// scroll-reveal resting state (`.js .reveal{opacity:0}`). With the scripts gone there is
+// nothing left to reveal those sections, so the class has to go with them.
+//
+// Applied when an archive is WRITTEN and again when one is SERVED. The second is not
+// belt-and-braces for its own sake: every page saved before 15 September 2026 is already in
+// storage with the class baked in, and re-serving them correctly is the only way those start
+// rendering without Bryson re-saving every one.
+export const stripJsClass = (html) => String(html == null ? "" : html).replace(
+  /(<body\b[^>]*\sclass\s*=\s*)("[^"]*"|'[^']*')/i,
+  (m, lead, quoted) => {
+    const q = quoted[0];
+    const kept = quoted.slice(1, -1).split(/\s+/).filter((c) => c && c !== "js").join(" ");
+    return `${lead}${q}${kept}${q}`;
+  });
+
 export function neutraliseArchive(html, entry = {}) {
   let out = String(html == null ? "" : html);
 
@@ -96,6 +112,16 @@ export function neutraliseArchive(html, entry = {}) {
   // 5. Links out. A saved page is a record, not a working brochure: a booking link still takes
   //    a real booking, and a phone link still rings the client.
   out = out.replace(/<a\b([^>]*?)\shref\s*=\s*("[^"]*"|'[^']*')/gi, "<a$1 data-archived-href=$2");
+
+  // 🔴 6. THE PAGE HAS TO BE VISIBLE WITH EVERY SCRIPT GONE, AND ONCE IT WAS NOT.
+  //    `.js .reveal{opacity:0}` is the landing page's scroll-reveal resting state, and the
+  //    class that unhides it is added by a script — one of the scripts stripped above. The
+  //    `js` class was also hard-coded onto the <body> server-side, so stripping the scripts
+  //    left every revealed section invisible forever. The hero is not a `.reveal`, so a saved
+  //    copy showed the header and nothing else. `landing.mjs` no longer writes that class,
+  //    but this strips it too: a stored archive has to stand on its own, including one saved
+  //    from a future renderer that reintroduces it.
+  out = stripJsClass(out);
 
   const when = entry.at ? new Date(entry.at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }) : "";
   // 🔴 SAY WHAT IT IS, ON THE PAGE. Without this, a saved page is pixel-identical to the live
