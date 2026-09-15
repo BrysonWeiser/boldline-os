@@ -2,10 +2,10 @@
 name: page-archive
 topic: Assets/Landing pages
 task: save, view or delete a copy of a client's landing page, or use client work as content
-keywords: [page archive, saved page, save landing page, case study, portfolio, showcase rights, contract v4, neutraliseArchive, page-archive.mjs, ARCHIVE_BUCKET, pageArchives, showcaseOptOut, screenshot landing page, no copy of the page, lead token public bucket]
+keywords: [page archive, saved page shows code, supabase serves html as text/plain, archive viewer route, viewArchive, private page-archives bucket, saved page, save landing page, case study, portfolio, showcase rights, contract v4, neutraliseArchive, page-archive.mjs, ARCHIVE_BUCKET, pageArchives, showcaseOptOut, screenshot landing page, no copy of the page, lead token public bucket]
 status: built
 summary: A landing page is rebuilt from the database on every request, so no copy of it exists and the version that worked is lost the moment the record changes. The OS can now save one, list them, open them and delete them. The saved copy is neutralised at write time (every script, the form, the lead token and every link) because an archive of a live page can otherwise create a real lead. Contract terms v4 adds showcase rights with an explicit promise never to sell lead data. 26 checks, ten mutations caught.
-verified: 2026-09-04
+verified: 2026-09-15
 ---
 
 ## Why saving the PAGE beats a screenshot
@@ -21,6 +21,55 @@ gone. Not archived, not recoverable.
 
 A screenshot is a low-resolution picture of that. The page is the thing, and an image can be
 made from it later.
+
+## 🔴 SUPABASE WILL NOT SERVE HTML, AND THAT BROKE THE WHOLE FEATURE (2026-09-15)
+
+Bryson: *"i just saved a copy of the landing page for stencil & thread and i went to view it and
+it only shows code not the actual visual landing page so that needs to be fixed."*
+
+**Supabase Storage returns `text/plain` for a stored `.html` object no matter what content type it
+was uploaded with.** It is deliberate, long-standing, and not configurable: Supabase does not want
+its storage used to host web pages. So the browser painted the source. Nothing about the saving,
+the rendering or the neutralising was wrong. **The delivery was, and the feature had therefore
+never once worked** in the eleven days since it shipped. Confirmed against Supabase's own
+discussions ([#7377](https://github.com/supabase/supabase/discussions/7377),
+[#39110](https://github.com/orgs/supabase/discussions/39110),
+[storage#186](https://github.com/supabase/storage/issues/186)).
+
+**The fix: we serve it ourselves.** `GET /.netlify/functions/page-archive?file=<clientId>/<id>.html`
+downloads the object with the service key and sets `text/html; charset=utf-8` itself.
+
+- **The address is derived from the stored `path`, never read from the stored `url`.** Every page
+  saved before today has a Supabase public URL on its record; deriving the address in the UI means
+  those start rendering with nothing to re-save and no migration to run.
+- **The bucket is now PRIVATE.** It was public only because a public URL used to be the delivery
+  mechanism, and that URL never worked. A client's landing page with their own copy on it should
+  not be world-readable. The neutralising and the lead-token strip stay exactly as they were.
+- **The viewer carries no session**, because it opens in a new tab where no `Authorization` header
+  can be sent — exactly as the public URL it replaces carried none. It is guarded three other ways:
+  the path must match the archive shape exactly (no traversal, nothing else in the bucket), the
+  path must be listed on the client record it names (**so a deleted archive stops serving even if
+  the file lingers**), and the response is `Content-Security-Policy: sandbox` with nothing allowed
+  — no scripts, no forms, no navigating the tab away. That last one is what makes serving from our
+  own origin no more dangerous than serving from Supabase's.
+
+### 🔴 The test pinned the broken version, and the harness could not fail
+
+Two separate defects in the suite, both worth remembering:
+
+1. **`assert.match(UI, /href=\{a\.url\}.../)`** was the guard on this. It proved the link's
+   TARGET WINDOW and said nothing about whether it rendered. **A feature can be fully tested and
+   still have never worked.** The viewer is now EXECUTED — `viewArchive(req, supabase)` takes its
+   client as an argument specifically so the route can be run against a fake bucket and its real
+   `Response` inspected: status, `content-type`, bytes, CSP, and that a bad path never reaches the
+   database or the bucket at all.
+2. **`const t = (name, fn) => { fn(); n++; }`** counted an async test as passed the moment it was
+   called, throwing the promise away. Every promise is now collected and awaited before the suite
+   reports success, so a test whose `await` is forgotten at the call site still fails the run.
+   Proved by breaking an executed assertion *and* removing its `await`: exit code 1, no pass line.
+
+Mutations caught: `text/plain` restored, sandbox dropped, path check removed, deleted archives
+served, UI falling back to the Supabase URL, and the forgotten-await case above.
 
 ## Where it is
 

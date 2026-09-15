@@ -7267,6 +7267,15 @@ function PageArchiveCard({client,onUpdate}) {
 
   const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("en-US",{ dateStyle:"medium", timeStyle:"short" }); };
 
+  // 🔴 BUILT FROM THE PATH, NOT READ FROM `a.url`. Every page saved before 2026-09-15 has a
+  // Supabase public URL stored on it, and Supabase serves stored HTML as `text/plain` on
+  // purpose, so opening one painted the source code instead of the page. Deriving the address
+  // here means those older saves start rendering with nothing to re-save and nothing to
+  // migrate; `a.url` is only a fallback for a record with no path at all.
+  const viewHref = (a) => (a && a.path)
+    ? `/.netlify/functions/page-archive?file=${encodeURIComponent(a.path)}`
+    : ((a && a.url) || "");
+
   // 🔴 SEE IT AT THE SIZE PEOPLE ACTUALLY SEE IT, so a screenshot is worth taking.
   //
   // Bryson, 2026-09-04, choosing between a paid screenshot service and a card generator:
@@ -7283,7 +7292,7 @@ function PageArchiveCard({client,onUpdate}) {
   // The frame is sandboxed with nothing allowed. The archive is already dead when it is
   // written, so this is the second lock on a door that is already bolted.
   const wrapperHTML = (a) => {
-    const url = String(a.url || "").replace(/"/g, "&quot;");
+    const url = String(viewHref(a)).replace(/"/g, "&quot;");
     const name = String(a.label || "Saved page").replace(/[<>&]/g, (c) => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[c]));
     return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>" + name + "</title><style>"
       + "*{box-sizing:border-box}body{margin:0;background:#0B0D10;color:#E5E7EB;font:14px -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif}"
@@ -7342,7 +7351,7 @@ function PageArchiveCard({client,onUpdate}) {
                     ends up navigating or restyling the app around it. */}
                 <button onClick={()=>openFramed(a)} title="Opens it at phone size so you can screenshot it the way people see it"
                   style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.gold,background:"none",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"5px 9px",cursor:"pointer"}}>Phone view</button>
-                <a href={a.url} target="_blank" rel="noopener noreferrer"
+                <a href={viewHref(a)} target="_blank" rel="noopener noreferrer"
                   style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.textDim,textDecoration:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"5px 9px"}}>View</a>
                 <button onClick={()=>remove(a)} disabled={busy===a.id}
                   style={{flexShrink:0,fontSize:10.5,fontWeight:700,color:C.red,background:"none",border:`1px solid ${C.red}44`,borderRadius:8,padding:"5px 9px",cursor:busy===a.id?"default":"pointer",opacity:busy===a.id?.6:1}}>
