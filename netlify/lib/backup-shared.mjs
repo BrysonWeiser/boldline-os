@@ -92,8 +92,33 @@ export const countWarnings = (today, previous) => {
   const out = [];
   for (const t of (today && today.tables) || []) {
     if (t.error) {
-      out.push({ table: t.table, level: "red",
-        text: `${t.table} could not be read, so it is NOT in tonight's copy (${t.error})` });
+      // 🔴 A TABLE THAT WAS NEVER CREATED IS NOT THE SAME EVENT AS ONE THAT VANISHED, AND
+      // CALLING BOTH RED IS HOW A NIGHTLY EMAIL BECOMES ONE HE STOPS OPENING.
+      // `health_checks` has never existed in Supabase, so this fired red every single night
+      // about a configuration gap he cannot act on from an alert — the exact noise problem
+      // recorded in KB `lead-check-alert-noise`, in the job built to be trustworthy.
+      //
+      // The two cases look identical in the error text, so they are told apart by HISTORY
+      // instead: a table present in the previous copy and unreadable now really has gone, and
+      // stays red. One that has never once been readable was never made.
+      // Only ONE error means "this table is not in the database": PostgREST's schema-cache
+      // miss. Everything else — a dropped connection, a timeout, a permission refusal — is a
+      // table that exists and could not be reached, and those stay RED however many nights
+      // they run, or a real outage goes quiet on its second morning.
+      const absent = /could not find the table|schema cache|does not exist/i.test(String(t.error));
+      const before = prev.get(t.table);
+      const wasReadable = before && !before.error && typeof before.rows === "number";
+      // Known limitation, stated rather than hidden: a table that IS dropped reads red on the
+      // first morning (it was readable the night before) and settles to a note from the second,
+      // because by then "listed for backup, not in the database" is simply the true description
+      // and the loss has already been reported loudly once.
+      out.push(!absent || wasReadable
+        ? { table: t.table, level: "red",
+            text: wasReadable
+              ? `${t.table} could not be read, so it is NOT in tonight's copy. It WAS there yesterday with ${before.rows} rows, so it has been dropped or renamed (${t.error})`
+              : `${t.table} could not be read, so it is NOT in tonight's copy (${t.error})` }
+        : { table: t.table, level: "note",
+            text: `${t.table} is listed for backup but does not exist in the database yet, so there is nothing to copy (${t.error})` });
       continue;
     }
     const was = prev.get(t.table);
