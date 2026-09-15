@@ -53,6 +53,34 @@ downloads the object with the service key and sets `text/html; charset=utf-8` it
   — no scripts, no forms, no navigating the tab away. That last one is what makes serving from our
   own origin no more dangerous than serving from Supabase's.
 
+### 🔴 And then the fix's own guard locked him out, for the same reason again
+
+Bryson, minutes later: *"i saved it again and opened it and now it just says that is not a saved
+page."*
+
+`isArchivePath` demanded the client id be a **UUID**. **Client ids are `uid()` —
+`Math.random().toString(36).slice(2, 9)`, so `k3m9xz2`** (and the seeded ones are `c1`). Every real
+saved page was refused. **The test passed because its fixture was a UUID I had written out by
+hand**: it confirmed my assumption about the data instead of the code's behaviour. Same shape as
+the defect in the paragraph above, committed one commit later.
+
+**The check no longer tries to recognise a client id at all**, because that was never its job and
+guessing can only ever fail in the direction of locking him out. It makes the string safe to hand
+to storage and nothing more: exactly one `/`, no `.` in the first segment so `..` cannot appear,
+no slash inside either segment, `.html` ending. **Authorisation was always the membership check** —
+the path must be listed on the client record it names — which is strictly stronger and needs no
+guess about formats.
+
+**The assertion that would have caught it, and now does:** run the real producer through the real
+validator. `archiveEntry(...).path` is generated for every id shape the OS actually makes (`c1`,
+seven-char `uid()` values, the one-character value `Math.random()` occasionally yields) and
+`isArchivePath` must accept all of them. Restoring the UUID regex fails it by name:
+*"the saver produced `c1/2026-09-15-ke9uhe.html` and the viewer rejects it"*. Traversal fixtures
+were rebuilt off the generated path too, so none of them depend on a guessed prefix either.
+
+**The rule: never hand-write a fixture for a format another function owns.** Generate it with the
+real producer, or the test is a copy of your assumption.
+
 ### 🔴 The test pinned the broken version, and the harness could not fail
 
 Two separate defects in the suite, both worth remembering:
