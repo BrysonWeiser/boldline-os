@@ -3462,7 +3462,9 @@ const makePortalHTML=(cl,pkg,notice)=>{
 // ─── LANDING PAGE OPTIONS CARD ───────────────────────────────────────────────
 // Bryson, 2026-09-01: several options to choose from, mix piece by piece, or describe a blend
 // in plain English. Three separate actions, and only "Use this one" touches the live page.
-function LandingOptionsCard({client, onUpdate}){
+// `audience` set means these options sell BoldLine's service TO that trade, rather than
+// advertising that trade to the public. Absent, every line below behaves exactly as it did.
+function LandingOptionsCard({client, onUpdate, audience}){
   const [busy,setBusy]=useState("");         // "" | "all" | a variant id | "blend"
   const [err,setErr]=useState("");
   const [sel,setSel]=useState([]);           // ids ticked for a blend
@@ -3473,8 +3475,12 @@ function LandingOptionsCard({client, onUpdate}){
   const live=client.landingPage||{};
   const isLive=!!live.published;
 
-  const brief=()=>({name:client.name,niche:client.niche,campaignSetup:client.campaignSetup,
-    brandVoice:client.brandVoice,mediaLibrary:client.mediaLibrary,website:client.website});
+  // 🔴 AUDIENCE OR NICHE, NEVER BOTH. Sending `niche:"Roofers"` writes a page advertising
+  // roofing to homeowners; `audience:"Roofers"` writes one selling to the roofer. Same word,
+  // opposite page.
+  const brief=()=>({name:client.name,campaignSetup:client.campaignSetup,
+    brandVoice:client.brandVoice,mediaLibrary:client.mediaLibrary,
+    ...(audience?{audience}:{niche:client.niche,website:client.website})});
   const call=async(extra)=>{
     const r=await fetch("/.netlify/functions/generate-landing",{method:"POST",
       headers:{"Content-Type":"application/json"},body:JSON.stringify({...brief(),...extra})});
@@ -7324,8 +7330,7 @@ function AudiencePagesCard({client,onUpdate}) {
   // browser file and cannot import it, so it is duplicated here and the duplication is held
   // honest by a test that runs BOTH and compares the results. Change one, change the other.
   const previewClient = (cl,pg) => {
-    const { design, ...pageCopy } = (pg.page || {});
-    return { ...cl, landingSlug:pg.slug, landingPage:pageCopy,
+    return { ...cl, landingSlug:pg.slug, landingPage:(pg.page||{}),
       brandColor:pg.brandColor||"#c8a84b", brandTheme:pg.theme||"dark",
       campaignSetup:{ ...(cl.campaignSetup||{}), smsConsent:false },
       landingVariants:Array.isArray(pg.variants)?pg.variants:[] };
@@ -7351,7 +7356,13 @@ function AudiencePagesCard({client,onUpdate}) {
     try {
       const r = await fetch("/.netlify/functions/generate-landing",{method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ name:client.name, audience:p.label,
+        // 🔴 A MOVING SEED AND WHAT THE OTHER PAGES ALREADY LOOK LIKE. Without both, the model
+        // is asked the same question every time and returns the same layout, which is exactly
+        // why every audience page came out looking like the last one. Same two arguments the
+        // three-options flow has always passed.
+        body:JSON.stringify({ name:client.name, audience:p.label, seed:Date.now(),
+          exclude:pages.filter(x=>x.id!==p.id).map(x=>({ angle:(x.page&&x.page.angle)||"",
+            layout:((x.page&&x.page.design)||{}).layout||"" })),
           campaignSetup:client.campaignSetup, brandVoice:client.brandVoice, mediaLibrary:client.mediaLibrary })});
       const d = await r.json().catch(()=>({}));
       if(!r.ok||!d.ok) throw new Error(d.error||"That did not work.");
@@ -7442,6 +7453,19 @@ function AudiencePagesCard({client,onUpdate}) {
                           <LandingPreview client={previewClient(client,p)}/>
                         </div>
                       )}
+                      {/* 🔴 THE SAME CARD A CLIENT GETS, POINTED AT ONE AUDIENCE PAGE. It was
+                          rendered as `!client.internal && <LandingOptionsCard/>`, so Bryson has
+                          never once had it on his own account — which is what he was asking
+                          about. It needs no changes to work here: it reads `landingPage` and
+                          `landingVariants` and writes them back through `onUpdate`, so it is
+                          handed the page as if it were the whole account and its writes are
+                          folded into `landingPages[]`. `previewClient` is the same shim the
+                          preview uses, so what it thinks is live is what is actually live. */}
+                      <LandingOptionsCard audience={p.label}
+                        client={previewClient(client,p)}
+                        onUpdate={(next)=>save(pages.map(x=>x.id===p.id
+                          ? {...x, page:next.landingPage||x.page, variants:next.landingVariants||x.variants}
+                          : x))}/>
                       <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
                         <button onClick={()=>write(p)} disabled={busy===p.id}
                           style={{flex:1,minWidth:130,padding:"9px 10px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:busy===p.id?"default":"pointer",opacity:busy===p.id?.6:1}}>
