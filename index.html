@@ -10965,6 +10965,71 @@ function useSavedDraft(client, onUpdate, slot, value, active) {
   return flush.current;
 }
 
+// ── WHICH PAGE THIS AD POINTS AT ─────────────────────────────────────────────
+//
+// Bryson: *"when i make the ads and i want to select the landing page i said to use how do i
+// do that?"* Until now: he did not. The launch cards carried a bare text box pre-filled with
+// the account's ONE page, so using an audience page meant leaving the screen, copying the
+// address, coming back and pasting it. On his own account the box pre-filled with
+// /get-started, so every campaign he built started pointed at the wrong page and stayed that
+// way unless he remembered.
+//
+// 🔴 `live` CHECKS BOTH FLAGS, because the server does. `landing.mjs` serves the real page
+// only when `published` AND `headline` are set, and shows a coming-soon holder otherwise. A
+// picker that called a headline-less page "live" would hand him an address that looks right,
+// reads right in the ad, and lands paid clicks on a placeholder.
+const AUDIENCE_PAGE_BASE = "https://boldlinemedia.com/for";
+const audienceTargets = (cl) => {
+  const pages = Array.isArray((cl||{}).landingPages) ? cl.landingPages : [];
+  return pages.filter(p=>p&&p.slug).map(p=>({
+    id:p.id, label:String(p.label||"Untitled"),
+    url:`${AUDIENCE_PAGE_BASE}/${p.slug}`,
+    live: !!(p.page && p.page.published && p.page.headline),
+  }));
+};
+// Blank is not a match for blank. An empty field is "nothing chosen yet", and treating two
+// nothings as the same page lights up the Main page pill on an account that has no main page.
+const tidyUrl = (u) => String(u||"").trim().replace(/\/+$/,"").toLowerCase();
+const sameUrl = (a,b) => !!tidyUrl(a) && tidyUrl(a) === tidyUrl(b);
+// 🔴 THE GUARD, NOT THE PICKER, IS WHAT ACTUALLY PROTECTS THE MONEY. Greying out a
+// button stops the easy mistake; it does nothing about a pasted address, a page unpublished
+// AFTER the campaign was drafted, or a saved draft reopened weeks later. Both launch cards
+// run this immediately before they spend.
+const deadAudienceTarget = (cl, url) => audienceTargets(cl).find(t=>sameUrl(t.url,url) && !t.live) || null;
+
+function LandingTargetPicker({client, value, defaultUrl, onPick}) {
+  const targets = audienceTargets(client);
+  if (!targets.length) return null;
+  const dead = deadAudienceTarget(client, value);
+  const pill = (on,off) => ({padding:"5px 9px",fontSize:10,fontWeight:700,borderRadius:999,
+    border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,.14)":"rgba(255,255,255,.04)",
+    color:on?C.gold:(off?C.textMuted:C.textDim),cursor:off?"not-allowed":"pointer",opacity:off?.55:1});
+  return (
+    <div style={{marginTop:7}}>
+      <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginBottom:5}}>
+        Or send this ad to one of your audience pages:
+      </div>
+      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+        {defaultUrl&&(
+          <button onClick={()=>onPick(defaultUrl)} style={pill(sameUrl(value,defaultUrl),false)}>Main page</button>
+        )}
+        {targets.map(t=>(
+          <button key={t.id} onClick={()=>{ if(t.live) onPick(t.url); }} disabled={!t.live}
+            title={t.live?t.url:"This page is not live yet, so an ad sent to it would land on a placeholder."}
+            style={pill(sameUrl(value,t.url),!t.live)}>
+            {t.label}{t.live?"":" \u00b7 not live yet"}
+          </button>
+        ))}
+      </div>
+      {dead&&(
+        <div style={{fontSize:9.5,color:C.red,lineHeight:1.5,marginTop:6}}>
+          This ad points at <b>{dead.label}</b>, which is not live yet. Put it live under Landing Pages By Audience first, or the clicks you pay for land on a placeholder.
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const playbooks = usePlaybooks();
   const linked = !!client.googleAdsCustomerId;
@@ -11233,6 +11298,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     const keywords=f.keywordsText.split("\n").map(s=>s.trim()).filter(Boolean);
     if(!(Number(f.dailyBudgetDollars)>0)){ setState("error"); setMsg("Daily budget must be greater than 0."); return; }
     if(!f.landingUrl){ setState("error"); setMsg("A landing page URL is required."); return; }
+    // 🔴 Runs at SPEND TIME, not at pick time: a page can be unpublished after the draft was
+    // written, and this draft auto-saves and gets reopened days later.
+    const deadLP = deadAudienceTarget(client, f.landingUrl);
+    if(deadLP){ setState("error"); setMsg(`"${deadLP.label}" is not live yet, so this ad would send paid clicks to a placeholder. Put it live under Landing Pages By Audience first.`); return; }
     if(useGen){
       if(!chosen.length){ setState("error"); setMsg("Tick at least one ad group to build."); return; }
     }else{
@@ -11322,6 +11391,10 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         <div key={k} style={{marginBottom:9}}>
           <label style={lbl}>{l}</label>
           <input type={t} value={f[k]} onChange={e=>{ if(k==="dailyBudgetDollars") setBudgetTouched(true); set(k,e.target.value); }} style={box}/>
+          {k==="landingUrl"&&(
+            <LandingTargetPicker client={client} value={f.landingUrl} defaultUrl={landingDefault}
+              onPick={u=>set("landingUrl",u)}/>
+          )}
           {k==="dailyBudgetDollars"&&(
             <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
               {"\u2248 $"+monthlyFromDaily(f.dailyBudgetDollars).toLocaleString()+"/mo on Google"}
@@ -11717,6 +11790,10 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   const launch=async()=>{
     if(!(Number(f.dailyBudgetDollars)>0)){ setState("error"); setMsg("Daily budget must be greater than 0."); return; }
     if(!f.landingUrl){ setState("error"); setMsg("A landing page URL is required."); return; }
+    // 🔴 Runs at SPEND TIME, not at pick time: a page can be unpublished after the draft was
+    // written, and this draft auto-saves and gets reopened days later.
+    const deadLP = deadAudienceTarget(client, f.landingUrl);
+    if(deadLP){ setState("error"); setMsg(`"${deadLP.label}" is not live yet, so this ad would send paid clicks to a placeholder. Put it live under Landing Pages By Audience first.`); return; }
     setState("creating"); setMsg("");
     try{
       const d=await metaCall({action:"createCampaign",
@@ -11827,6 +11904,10 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
                     : <>Auto-filled from your newest saved creative{firstImg&&firstImg.category==="ad-creative"?" (Ad Creative Studio)":""}. Save a new one above and this follows it.</>)
                 : <>Meta link ads must have an image, so Build will fail without one. Generate one in the Ad Creative Studio above and press <b style={{color:C.textDim}}>Save to media library</b>, and it lands here automatically.</>}
             </div>
+          )}
+          {k==="landingUrl"&&(
+            <LandingTargetPicker client={client} value={f.landingUrl} defaultUrl={landingDefault}
+              onPick={u=>set("landingUrl",u)}/>
           )}
           {k==="dailyBudgetDollars"&&(
             <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.5,marginTop:3}}>

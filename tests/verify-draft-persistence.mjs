@@ -27,7 +27,12 @@ const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
 const eq = (l, a, b) => ok(l, JSON.stringify(a) === JSON.stringify(b), `expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 
 const os = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const hookSrc = os.slice(os.indexOf("function useSavedDraft("), os.indexOf("function GoogleLaunchCard("));
+// 🔴 ANCHORED TO THE HOOK'S OWN CLOSING BRACE, not to whatever function happens to be
+// declared next. It used to slice up to `function GoogleLaunchCard(`, so the day a helper
+// was added between the two, this suite silently swallowed that helper's JSX and died with
+// a syntax error that pointed at code it had no business reading.
+const hookStart = os.indexOf("function useSavedDraft(");
+const hookSrc = os.slice(hookStart, os.indexOf("\n}\n", hookStart) + 3);
 ok("the hook was extracted", /useEffect\(\(\) => \(\) => flush\.current\(\)/.test(hookSrc), "the unmount flush is the part that is easy to leave out");
 
 // A React small enough to reason about: effects run in order, cleanups are kept, and
