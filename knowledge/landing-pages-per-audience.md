@@ -158,6 +158,52 @@ Verified by rendering a real audience page: page background `rgb(12,13,17)`, but
 `rgb(200,168,75)`. A real client's page is unchanged, asserted both for a hand-set colour and a
 generated one.
 
+## 🔴 EVERY PAGE IS ITS OWN PAGE, AND THE WRITER'S LAYOUT IS THROWN AWAY
+
+Bryson, 2026-09-15: *"i like it but it looks exactly like the landing page for stencil & thread ...
+no matter what each landing page should not just be a copy and paste they should be unique."*
+
+`designConfig` takes layout, background, motion, benefit style, font, shape and section order from
+`landingPage.design` **when the writer set them**, and otherwise from a seed derived from the
+page's own slug. The writer sets them, and **a model asked the same question returns the same
+answer**, so every audience page came out `split/glowgrid/up/cards/modern/rounded/a`. Identical
+furniture, different words.
+
+**`clientForPage` now drops `design` entirely**, handing all seven choices to the slug seed, which
+differs by construction:
+
+| Audience | What it gets |
+|---|---|
+| roofers | centered · dots · alt · cards · modern · soft · c |
+| car-detailers | capture · mesh · up · list · modern · rounded · b |
+| med-spas | capture · glowgrid · alt · list · elegant · soft · c |
+
+**Varied, not random.** The seed is the slug, so the same page is the same page on every visit;
+furniture that moved between two visits would be its own bug. Both are asserted. The BRAND stays
+pinned, so the pages differ in structure while staying unmistakably BoldLine.
+
+## 🔴 NO CONSENT BOX FOR MESSAGES THAT CANNOT BE SENT
+
+*"it even includes their text thing which we dont have yet."* Every landing page rendered the SMS
+consent checkboxes **unconditionally**. `landing.mjs`'s own rule is that *"the consent wording is
+not ours to word. It is whatever that business filed with the carriers."* **BoldLine has filed
+nothing and cannot send a text at all** — Twilio is still on the free trial (KB `call-tracking`).
+So BoldLine's own page asked a prospect to agree to messages that cannot be sent.
+
+- `cs.smsConsent === false` now removes the box. **Undefined keeps today's behaviour exactly**, so
+  no client page changes; it is opt-OUT precisely because removing Stencil & Thread's filed
+  wording would be a compliance regression on a paying client. A mutation that forces the gate off
+  fails by name on their page.
+- 🔴 **The consent RECORD goes with the box.** The submit script sends `consentDisclosure`, a copy
+  of the exact words shown, so a lead carries proof of what its person agreed to. With no box there
+  were no such words, and sending them anyway would file a record saying a disclosure was made that
+  the visitor never saw — the same falseness the original note rejects, arriving from the other
+  direction. The script's read is already guarded (`sc&&sc.checked`) so the missing box cannot
+  throw, and that guard is asserted.
+
+**Flip `smsConsent` back on for BoldLine only when A2P registration is actually complete**, and
+word it from the filing, not from us.
+
 ## Still to do
 
 1. The existing **Page Options** card scoped to a page, so each audience gets several candidates to
