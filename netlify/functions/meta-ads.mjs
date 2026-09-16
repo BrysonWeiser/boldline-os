@@ -252,17 +252,47 @@ async function readPage(pageId) {
 // ── Read: campaigns + last-30-day insights ────────────────────────────────────
 // Meta keeps spend/results in a separate insights edge; we fetch both and merge
 // by campaign id. "leads" is summed from the lead-type actions.
+// 🔴 META RETURNS THE SAME CONVERSION UNDER MORE THAN ONE ACTION TYPE, AND THIS USED TO ADD
+// THEM UP.
+//
+// Found 2026-09-16 by Bryson, looking at Ads Manager: *"on the dashboard its showing 1 website
+// lead for the roofers ad which is what i got in the os"*. The OS had been reporting **2** for
+// that campaign and the gap was blamed on a double-firing form. That form really was broken and
+// the fix was worth making, **but it was not what produced the 2.** One real website lead comes
+// back from Meta as BOTH a granular row (`offsite_conversion.fb_pixel_lead`) and the roll-up row
+// (`lead`), and summing them counts it twice. Ads Manager's own Results column reports ONE
+// number, which is why the dashboard and the OS disagreed.
+//
+// 🔴 WHY THIS WAS EXPENSIVE RATHER THAN UNTIDY. Every Meta lead figure in the OS was inflated:
+// the cost per lead read HALF what it really was, the "platform counted more than the OS" gap
+// warning fired on healthy campaigns and taught him to distrust a warning that is usually real,
+// and a client's report would have claimed leads that did not exist.
+//
+// 🔴 AND SUMMING IS NOT SIMPLY REPLACED BY MAX. A campaign can genuinely have both website leads
+// and on-Facebook instant-form leads, and then the granular rows are different real conversions
+// whose SUM is right. So both readings are computed and the LARGER wins:
+//   - one website lead        -> roll-up 1, granular 1        -> 1
+//   - 2 website + 3 form      -> roll-up 5, granular 5        -> 5
+//   - granular rows only      -> roll-up 0, granular n        -> n
+//   - roll-up only            -> roll-up n, granular 0        -> n
+// It cannot double count in any of them, and it cannot undercount either.
+const LEAD_ROLLUP = "lead";
 const LEAD_ACTIONS = new Set([
-  "lead",
   "onsite_conversion.lead_grouped",
   "offsite_conversion.fb_pixel_lead",
   "leadgen.other",
 ]);
 function leadsFromActions(actions) {
   if (!Array.isArray(actions)) return 0;
-  return actions
-    .filter((a) => LEAD_ACTIONS.has(a.action_type))
-    .reduce((s, a) => s + Number(a.value || 0), 0);
+  let rollup = 0, granular = 0;
+  for (const a of actions) {
+    const t = String((a && a.action_type) || "");
+    const v = Number((a && a.value) || 0);
+    if (!Number.isFinite(v)) continue;
+    if (t === LEAD_ROLLUP) rollup += v;
+    else if (LEAD_ACTIONS.has(t)) granular += v;
+  }
+  return Math.max(rollup, granular);
 }
 
 // Exported so the scheduled ads-sync job can read performance without going back
