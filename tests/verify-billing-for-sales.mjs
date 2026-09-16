@@ -210,5 +210,26 @@ const gapList = (cl) => contractGaps(cl, PKG).map((g) => g.what);
   }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 6. 🔴 THE AD SET IS BUILT TO MATCH THE AGREEMENT
+//
+// The contract says a purchase by someone who did not click is not a Qualified Sale. Meta's
+// DEFAULT is 7-day click plus 1-day view, so without this the platform reports a number the
+// agreement does not recognise — and, worse, optimises toward people who look rather than
+// people who buy, because the attribution setting is the signal delivery learns from.
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const META = readFileSync(new URL("../netlify/functions/meta-ads.mjs", import.meta.url), "utf8");
+  const code = META.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+  const i = code.indexOf("optimization_goal: chaseLeads");
+  const adset = code.slice(i, i + 1800);
+  ok("🔴 the ad set asks for clicks only", /attribution_spec: JSON\.stringify\(\[\{ event_type: "CLICK_THROUGH"/.test(adset),
+    "Meta's default counts a scroll-past as a conversion, which the agreement says is not a sale");
+  ok("🔴 and does not ask for view-throughs", !/VIEW_THROUGH/.test(code),
+    "one of these in the payload puts the default straight back");
+  ok("it is set on the AD SET, where Meta reads it", i > 0 && adset.includes("attribution_spec"),
+    "attribution lives on the ad set; anywhere else is ignored");
+}
+
 if (fails.length) { console.error(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.error("  " + f)); process.exit(1); }
 console.log(`✓ verify-billing-for-sales: ${pass} checks passed`);

@@ -974,6 +974,22 @@ async function createCampaign(p) {
       // No bid_strategy here — it's set at the campaign level (CBO); Meta rejects
       // a duplicate/conflicting bid_strategy on the ad set when campaign budget is on.
       targeting: JSON.stringify(targeting),
+      // 🔴 CLICKS ONLY. Meta's default is 7-day click PLUS 1-day view, which counts a person
+      // who scrolled past the ad, never touched it, and bought later that day. Two reasons
+      // that is wrong here, and only one of them is about money:
+      //
+      //  1. THE AGREEMENT SAYS SO. A results-only client's contract states that a purchase
+      //     by someone who did not click is not a Qualified Sale. Leaving the default on
+      //     would have the platform reporting a number the agreement does not recognise, and
+      //     the first time the client compares it with their own till it reads as padding.
+      //  2. IT IS WHAT META OPTIMISES TOWARD. The attribution setting is not just reporting;
+      //     it is the signal the delivery system learns from. Counting view-throughs teaches
+      //     it to find people who look, which is not the job.
+      //
+      // The honest cost: fewer signals means slower learning, which on a small budget is a
+      // real trade. Taken deliberately — an honest number that is smaller beats a flattering
+      // one that starts an argument in month two.
+      attribution_spec: JSON.stringify([{ event_type: "CLICK_THROUGH", window_days: 7 }]),
       status: "PAUSED",
       start_time: new Date(Date.now() + 3600e3).toISOString(),
     },
