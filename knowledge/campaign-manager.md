@@ -165,3 +165,48 @@ pause it."* Blank otherwise reads as "not set yet" and he would never dare clear
 `tests/verify-campaign-controls.mjs`, 17 checks, seven mutations, all caught. It also covers
 the CRM test button (KB `lead-handoff`), because both landed in the same unit of work: one
 control that writes nothing on purpose, two that move real money.
+
+---
+
+## 🔴 2026-09-15 — a campaign he had just made was missing, and one he had deleted was not
+
+**Bryson:** *"I just launched my meta ads campaign for car detailers but when I open it through
+the campaigns tab it takes me to my ads but it doesn't show the car detailers ad it shows the
+roofers ad that I paused (which is correct) but it also shows the first roofers ad that I just
+deleted."*
+
+Two symptoms, one habit. **Every list read in `meta-ads.mjs` asked Meta for `limit: 100` and then
+used `res.data` — the FIRST PAGE ONLY** — and **trusted Meta's default to leave out deleted
+objects**. Those are precisely the two mistakes that produced the Google ghost campaigns in
+August; the Meta half was never done.
+
+**Fixed:**
+- **`graphPaged()`** follows Meta's cursors through every page (cap 25 pages). Now used by the
+  campaigns edge, the ads edge, the ad-sets edge, the insights edges, **and the activation
+  sweep**.
+- **`isGone()`** drops anything whose `status` or `effective_status` is `DELETED` or `ARCHIVED`,
+  applied to campaigns, ads and ad sets. It is a **blacklist on purpose**: a whitelist of
+  "good" statuses would hide `IN_PROCESS`, `PENDING_REVIEW`, `WITH_ISSUES` and friends, and a
+  campaign spending money while invisible is far worse than one dead row on screen.
+
+🔴 **THE PAGING TRAP, worth remembering:** `paging.cursors.after` **is still present on the
+last page**. A loop that runs until the cursor disappears re-requests the final page forever —
+inside a serverless function that is an outage, not a bug. Only `paging.next` says there is
+another page. The mutation that follows the cursor alone made the test issue **25 requests for a
+2-row account**, which is what the cap is for.
+
+🔴 **`activateCampaign` was the quiet one.** Starting a campaign activates the campaign, then
+every ad set, then every ad. On one page only, a campaign with more ad sets than fit **reads as
+live while some of its ads stay paused** — it spends on part of what he built and silently
+ignores the rest. Nobody reported it because nothing looks wrong.
+
+**`tests/verify-meta-full-list.mjs` (19 checks)** runs the real readers against a fake Graph API
+that pages the way Meta's does, last-page cursor included. It also **walks the whole file** and
+fails if any campaigns/ads/adsets/insights READ is left on `graph()` instead of `graphPaged()` —
+the bug was a habit repeated at every list read, so fixing only the two he noticed would have
+left the same hole everywhere else. **8/8 mutations caught.**
+
+**Not proven, and worth knowing:** Meta documents its list edges as already excluding DELETED and
+ARCHIVED, so a deleted campaign coming back is not what should happen. If one still appears after
+this, the delete never actually went through and that is a different bug — the delete path does
+re-read the account afterwards and does surface errors, so check for a red error on the screen.
