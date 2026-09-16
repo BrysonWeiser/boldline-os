@@ -5130,6 +5130,13 @@ const MEETING_QUESTIONS = [
   // ── Fit, and the one that matters most ──
   { id:"qualifiedLead",ask:"first",  sec:"Fit",          path:"qualifiedLeadDef",
     q:"Describe a bad lead. What makes you roll your eyes?", feeds:"Your billing depends on this" },
+  // 🔴 THE QUESTION THAT DECIDES HOW A SHOP IS BILLED. Bryson, 2026-09-16, after Air Suds: a
+  // client who sells straight from a website has no lead to count, so the fee sits on a SALE
+  // instead — but only if they can actually see which sales came from the ads. Ask it on the
+  // call, because the answer is the difference between "you only pay when you sell" and a
+  // percentage of ad spend, and it cannot be worked out from the outside.
+  { id:"salesTracking",ask:"first",  sec:"Fit",          path:"salesNotes.salesTracking",
+    q:"If people buy straight from your website, can you see exactly which sales came from the ads?", feeds:"Decides if you can bill per sale" },
   { id:"bestCustomer", ask:"first",  sec:"Fit",          path:"salesNotes.bestCustomer",
     q:"And your best ever customer. What did that one look like?", feeds:"Targeting" },
   { id:"speedToLead",  ask:"first",  sec:"Fit",          path:"salesNotes.speedToLead",
@@ -5458,6 +5465,23 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
           {[["Google Ads","google"],["Meta Ads","meta"],["Google + Meta","combined"],["E-commerce","ecom"]].map(([label,key])=>(
             <div key={key} style={{marginBottom:12}}>
               <div style={{fontSize:10,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>{label}</div>
+              {/* 🔴 A NOTE TO HIMSELF, ON THE SCREEN HE READS BEFORE A CALL. Nobody else sees
+                  Deal Prep. A shop's fee is a share of ad spend by default, but it can sit on a
+                  SALE instead when the shop can track purchases, which is a far stronger offer
+                  ("you only pay when you sell") and is deliberately NOT advertised on the public
+                  site — it depends on their tracking, and promising it to a shop that cannot
+                  track means withdrawing it on the call. So it lives here, where he will see it
+                  at the moment he needs it, rather than in a document he has to remember. */}
+              {key==="ecom"&&(
+                <div style={{fontSize:10,color:C.gold,lineHeight:1.55,marginBottom:7,padding:"7px 9px",borderRadius:8,
+                  backgroundColor:C.goldDim,border:`1px solid ${C.gold}33`}}>
+                  <b>Only you see this.</b> A shop pays a share of ad spend by default, but you can bill
+                  <b> per sale</b> instead when they can track purchases properly. Ask them:
+                  &ldquo;can you see exactly which sales came from the ads?&rdquo; If yes, offer it. It is the
+                  stronger pitch and it is not on the website, so it stays yours to give on the call.
+                  Set it after they sign, on their Billing card under <b>Billing for &rarr; Sales</b>.
+                </div>
+              )}
               {(PACKAGES_DB[key]||[]).map(pkg=>{ const rec=pkg.id===recId;
                 // 🔴 THE SAME LIST THE CONTRACT AND THE PORTAL USE. Not a copy written for
                 // this screen: he reads this out on a call, and the client later signs a
