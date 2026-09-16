@@ -82,16 +82,17 @@ const resultWords = (cl) => {
   const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   if (String(c.billingResultKind || "") !== "sale") {
     return { kind:"lead", one:"Qualified Lead", many:"Qualified Leads", per:"per qualified lead",
-      countNoun:"Lead counts", itNoun:"lead",
+      countNoun:"Lead counts", itNoun:"lead", countSource:'campaign tracking data',
       defn:'A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.',
       warranty:'<strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong>' };
   }
   const own = esc(c.billingSaleDefinition || "").trim();
   return { kind:"sale", one:"Qualified Sale", many:"Qualified Sales", per:"per qualified sale",
     countNoun:"Sale counts", itNoun:"sale",
-    defn:'A <strong>&ldquo;Qualified Sale&rdquo;</strong> means a purchase made through Client&rsquo;s website by a customer who reached it as a result of the Campaigns, and which meets the following description: '
+    defn:'A <strong>&ldquo;Qualified Sale&rdquo;</strong> means a purchase made through Client&rsquo;s website which meets the following description: '
       + (own ? '<strong>' + own + '</strong>' : '<strong>[NOT SET]</strong>')
-      + '. A purchase that does not meet that description is not a Qualified Sale and carries no fee. Refunded, cancelled, and chargeback orders are not Qualified Sales, and any fee already charged on one is credited back on the next invoice. Repeat purchases by the same customer within thirty (30) days are counted once.',
+      + '; and which is made by a customer who reached Client&rsquo;s website as a result of the Campaigns and completes that purchase <strong>within thirty (30) days of clicking one of them</strong>. A purchase that does not meet that description is not a Qualified Sale and carries no fee. <strong>Counts are taken from Client&rsquo;s own order records, which govern if they differ from the advertising platforms&rsquo; reporting.</strong> A purchase by a person who was already a customer of the advertised business before the Campaigns began is not a Qualified Sale. A purchase attributed by an advertising platform to a person who did not click an advertisement is not a Qualified Sale. Refunded, cancelled, and chargeback orders are not Qualified Sales, and any fee already charged on one is credited back on the next invoice. Repeat purchases by the same customer within thirty (30) days are counted once.',
+    countSource:'Client&rsquo;s own order records',
     warranty:'<strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend, and no fee is refundable because Client&rsquo;s own margin on a sale was lower than expected.</strong>' };
 };
 const monthsLabel = (n) => {
@@ -350,7 +351,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
       ? '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>'
       : '<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>')
    +(perLeadFee
-      ? '<p>4.4 '+W.countNoun+' are calculated from campaign tracking data. If Client believes a '+W.itNoun+' was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any '+W.itNoun+' it reasonably determines was not a '+W.one+'. Invoices not disputed within that period are deemed accepted. '+W.warranty+'</p>'
+      ? '<p>4.4 '+W.countNoun+' are calculated from '+W.countSource+'. If Client believes a '+W.itNoun+' was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any '+W.itNoun+' it reasonably determines was not a '+W.one+'. Invoices not disputed within that period are deemed accepted. '+W.warranty+'</p>'
       : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
   ) : '';
   // Section numbers after the conditional ones stay fixed by rendering both slots

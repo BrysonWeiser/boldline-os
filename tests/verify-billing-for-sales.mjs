@@ -57,8 +57,35 @@ ok("the key terms quote the fee per sale", /\$25 per qualified sale/.test(sale.r
 ok("🔴 clause 4.2 quotes Bryson's own sentence, word for word", sale.includes(DEFN),
   "the client would sign a definition nobody wrote");
 ok("and ties it to the campaigns rather than to all sales",
-  /reached it as a result of the Campaigns/.test(sale),
+  /reached Client&rsquo;s website as a result of the Campaigns/.test(sale),
   "without this BoldLine is billing for sales it had nothing to do with");
+
+// ── 🔴 THE FOUR THINGS THAT DECIDE THE ARGUMENT, NOT THE PRINCIPLE ────────────
+//
+// Added 2026-09-16 after Bryson asked what else to think about. Every one of these is a
+// sentence somebody would otherwise have to win in month two, from memory, against a client
+// who remembers it differently.
+ok("🔴 the attribution window is stated, not left to argue",
+  /within thirty \(30\) days of clicking one of them/.test(sale),
+  "a click today and a purchase in six weeks is arguable either way, forever");
+ok("🔴 the CLIENT'S own numbers are the source of truth",
+  /Counts are taken from Client&rsquo;s own order records, which govern if they differ/.test(sale),
+  "the platform grades its own homework and the client believes their own till");
+ok("and the disputes clause names the same source",
+  /Sale counts are calculated from Client&rsquo;s own order records/.test(sale),
+  "two clauses in one document naming different numbers is the argument, written down");
+ok("🔴 a view-through is not a sale", /did not click an advertisement is not a Qualified Sale/.test(sale),
+  "Meta counts people who scrolled past and bought later, by default");
+ok("🔴 an existing customer is not a new sale",
+  /already a customer of the advertised business before the Campaigns began is not a Qualified Sale/.test(sale),
+  "BoldLine would be paid for people the client already had");
+
+// The lead agreement keeps its own source and gains none of the store wording.
+ok("a lead client's counts still come from campaign tracking",
+  /Lead counts are calculated from campaign tracking data/.test(lead));
+ok("and a lead client's agreement gained none of this",
+  !/order records|view-through|did not click an advertisement/.test(lead),
+  "the ordinary case was widened while fixing the store one");
 ok("🔴 a refund or chargeback is not a billable sale", /Refunded, cancelled, and chargeback orders are not Qualified Sales/.test(sale),
   "the client pays a fee on money they gave back");
 ok("and a fee already taken on one is credited", /credited back on the next invoice/.test(sale));
@@ -70,7 +97,7 @@ ok("the warranty does not promise a margin", /does not warrant any particular le
 for (const [what, re] of [
   ["the results-only clause", /produce no Qualified Sales in a month/],
   ["the Stripe charging clause", /A month that produces no Qualified Sales produces no charge/],
-  ["the disputes clause", /Sale counts are calculated from campaign tracking data/],
+  ["the disputes clause", /Sale counts are calculated from/],
 ]) {
   ok(`${what} says sales too`, re.test(sale), "one clause still says leads, in the same document");
 }
