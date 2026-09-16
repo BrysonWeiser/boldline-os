@@ -259,7 +259,11 @@ const render = (o) => {
         "paid by you directly to Google and Meta",
         "Unlocks at", "of ad budget", "more than you run today",
         "You qualify", "budget meets the", "needed",
-        "/mo minimum", "per qualified lead, whichever is higher", "one-time build",
+        "/mo minimum", "one-time build",
+        // The fee wording is now shared (RW.per), because a client who sells straight from a
+        // website is billed per qualified SALE and the portal must not tell them otherwise.
+        // Still a dual-copy check: this exact template literal has to exist in both files.
+        "${RW.per}, whichever is higher",
         "uopt-locked", "Ask About Scaling Up",
         "whether the extra spend is worth it in your market",
         "Tell us your monthly ad budget",
