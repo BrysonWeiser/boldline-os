@@ -396,3 +396,26 @@ the combined package's own `minBudget` is already 5000, so the `Math.max` is def
 changes nothing today. The test's own comment says so. The boundary that IS load-bearing,
 `>=` versus `>` at the unlock, was mutated and caught.
 
+---
+
+## 🔴 2026-09-16 — OPEN HOLE: the founding offer has no e-commerce version
+
+Found on the Air Suds deal (KB `airsuds-deal`). `foundingTermsBlock()` says, for a model to
+read out on a call:
+
+> *"There is NO monthly minimum. They pay ONLY the per-qualified-lead fee."*
+
+**An e-commerce client has no lead to count.** That is the whole reason `pricingModel` exists
+and why the `e-*` packages bill `ad_spend_pct` instead. So a founding client who sells straight
+from a website would owe **$0 a month, forever**, while BoldLine runs their account.
+
+Deal Prep already half-knows this: its package rows only show founding pricing when
+`pkg.leadFee` is true, and fall back to the STANDARD price for the `e-*` packages. So the screen
+quietly shows two different offers on one page with nothing explaining why.
+
+**Not yet decided.** The recommendation put to Bryson: founding terms for a store keep the
+waived setup and the absent monthly minimum, and BoldLine takes the ordinary **15% of ad spend**.
+Still risk-reversed in spirit, because the fee only exists while they are spending, and not
+zero. **It needs deciding before any store signs**, and once decided it belongs in
+`foundingTermsBlock()` so the research prompt stops quoting a fee that cannot be charged.
+

@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 183 task-keyed entries under `knowledge/`. They surface automatically via the
+> 184 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**183 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**184 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -162,6 +162,9 @@
 
 ## Clients
 
+- **[airsuds-deal](../knowledge/airsuds-deal.md)** &mdash; &#9989; verified &middot; 2026-09-16  
+  🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine said yes verbally, nothing signed and nothing in the OS. Air Suds makes cleaning products; ads are for the NEW CAR side (Bryson's own recommendation to open it), which is about a week away while logo variations are made. Customers BUY STRAIGHT FROM THE WEBSITE, no forms and no contact, so this is e-commerce and the per-qualified-lead billing Bryson quoted has nothing to count. 🔴 Founding terms as written ("no monthly minimum, pay only per qualified lead") would bill Air Suds $0/month forever while BoldLine runs $1,000/month of ads — this must be settled before the contract. Budget $1,000/mo. Unit economics are the real risk: the known product is $6 to make and sells for $11, so single-bottle sales cannot pay for Google clicks; subscriptions and the 25-bottle minimum can.  
+  <sub>*task:* work on the Air Suds deal, quote Constantine, or decide how to price an e-commerce client &nbsp;|&nbsp; *keywords:* Air Suds, AirSuds, Constantine, car side, aircraft side, car cleaning product, schools, subscription, bottles, e-commerce client, ecommerce pricing, no leads, buys on website, store, g-launch vs e-launch, founding terms ecommerce, ad spend percentage, third client, website down maintenance</sub>
 - **[approval-chase](../knowledge/approval-chase.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   A client sitting on an approval used to produce ONE yellow alert to Bryson on day 3 and nothing ever again, and the client themselves was never contacted by the OS at all. Now the OS emails the client on days 3, 7 and 14, in reminder-flavoured copy that names how long it has been waiting and invites the real objection, then STOPS and raises one red hand-off telling Bryson to phone them. Never chases a client who asked for changes, the demo client, the house account, or anyone with no portal to open. The chase is recorded only after the send succeeds. 65 checks, 18 mutations caught.  
   <sub>*task:* understand or change what happens when a client goes quiet on something sent for their approval &nbsp;|&nbsp; *keywords:* client not responding, silent client, chase client, nudge client, stale approval, unanswered approval, approval reminder, APPROVAL_CHASE_DAYS, chaseDue, chaseable, chasesSent, handedOffAt, alerts-watch, follow up automation, client went quiet, no reply, reminder email, escalation</sub>
