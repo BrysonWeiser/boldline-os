@@ -3,9 +3,9 @@ name: site-coming-soon
 topic: Marketing
 task: the marketing site's temporary "Meta coming soon" state, and the automatic trigger that reverts it
 keywords: [coming soon, wizard lost meta, contact wizard platform options, pickFamily reachability, meta coming soon, site gating, CS:META-SOON, sentinel comments, revert a4b83f0, october 2026 estimate, google only, auto revert trigger, meta approval watch]
-status: verified
-summary: boldlinemedia.com temporarily shows "Coming soon — estimated October 2026" on the Meta Ads, Combined Systems and E-Commerce package tabs (Google is untouched and genuinely open), so Bryson can cold call for Google clients without over-promising. The ENTIRE change is one self-contained commit **`a4b83f0`**, designed to be reverted in one step the moment Meta grants standard access. Reverting is AUTOMATIC by two mechanisms: a standing rule in CLAUDE.md that any session must act on the instant it learns Meta is live, and a weekly Routine (`trig_012hH9VLXchaMj7LUc461Wrb`, Mondays 09:00 Phoenix) that checks and either reverts or asks Bryson directly. Every edit is wrapped in `CS:META-SOON` sentinel comments as a fallback if `git revert` ever conflicts.
-verified: 2026-09-14
+status: closed
+summary: ✅ OVER — the site is NOT in a coming-soon state any more. **Meta granted standard access on 2026-09-14** and the site was flipped the same day (`138d809`); no `CS:META-SOON` sentinel survives and all 12 packages book a call. 🔴 Do not read this entry as a description of the live site, and do not tell Bryson that Meta packages are gated — that mistake was made on 2026-09-16 off this entry's stale summary. History: the Meta Ads, Combined Systems and E-Commerce tabs used to read "Coming soon — estimated October 2026" so Bryson could cold call for Google without over-promising; the whole change lived in one commit (`a4b83f0`) plus sentinel comments, with a CLAUDE.md standing rule and a weekly Routine (`trig_012hH9VLXchaMj7LUc461Wrb`) to revert it. `tests/verify-meta-flip.mjs` now asserts the FLIPPED state and fails if any gating returns.
+verified: 2026-09-16
 ---
 
 # ✅ FLIPPED BACK — 2026-09-14, the hour Meta approved

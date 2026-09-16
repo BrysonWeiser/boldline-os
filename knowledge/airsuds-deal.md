@@ -108,37 +108,41 @@ cannot run Meta on a client's account until Meta grants standard access (KB `met
 Search at the Launch tier is the right build.** What needs to change is the fee basis, not the
 platform or the work.
 
-## Which platform, and the honest tension in the answer
+## Which platform
 
-**Meta is the better channel for this product and BoldLine cannot run it for him.** A $11
-consumer bottle with a subscription is textbook direct-to-consumer: visual, impulse, low
-consideration. That is Meta's home ground. But Meta is still on **Development tier — BoldLine's
-own ad accounts only** (KB `meta-marketing-api`), so it is not on the table for a client today.
-Say this to Bryson rather than quietly recommending Google as though it were first choice.
+🔴 **CORRECTED 2026-09-16. An earlier version of this section said Meta was unavailable and
+recommended Google as the only option. That was wrong: Meta granted standard access on
+2026-09-14** and Bryson had already sent the screenshot. The error came from a stale KB summary,
+which has been fixed in `meta-marketing-api`, `meta-parked-work` and `site-coming-soon`.
 
-**So: Google now, Meta as phase two**, and the phase two date is partly in Bryson's own hands.
-The tier unlock needs real Meta ads running on the house account for 15+ days to generate API
-calls. The audience campaigns he can now build in one press (KB `audience-ad-plan`) are exactly
-that traffic. **His own Meta ads are what unlock Meta for clients.**
+**Meta is the right primary channel and it IS available.** A $11 consumer bottle with a
+subscription is textbook direct-to-consumer: visual, impulse, low consideration, and the whole
+point is showing it to people who were not looking for it. Google catches existing demand, and
+there is not much demand to catch for car cleaning spray — those searches are owned by Amazon
+and the big retailers.
 
-🔴 **And the Google play is probably NOT the one Constantine asked for.** His note says *"target
-more individual consumers than bulk"*. On Google that is the weaker half:
+**Recommended: Meta for the consumer subscription, which is what Constantine asked for.** His
+note says *"target more individual consumers than bulk"*, and on Meta that is the correct call
+rather than the expensive one it would have been on search.
 
-- **Consumer, single bottle:** $5 of margin. No Google click is that cheap. Generic product
-  searches are also owned by Amazon and the big retailers.
-- **Business, bulk (detailers, car washes, dealerships, fleets):** the 25-bottle minimum is ~$275
-  with ~$125 of margin, and these buyers genuinely search ("wholesale car wash chemicals",
-  "bulk car cleaning supplies"). That works at Google prices.
-- **Consumer subscription:** real but thin search volume ("car cleaning subscription"). Worth
-  buying, not worth building the account around.
+**Google is the second campaign, and aimed somewhere different:** the bulk buyers (detailers,
+car washes, dealerships, fleets) who genuinely type "wholesale car wash chemicals" into a search
+box. A 25-bottle order is ~$275 with ~$125 of margin, which pays for a Google click. At $1,000/mo
+of total budget, splitting across both platforms is below `COMBO_MIN_BUDGET` ($5,000) for a
+reason — **pick one to start.** Start on Meta.
 
-So the shape to propose: **Google goes after the bulk and subscription buyers, where intent
-already exists. Meta goes after individual consumers once it is available.** That gives
-Constantine what he asked for, in the right order, rather than spending his first $1,000
-proving that $11 impulse buys do not work on search.
-
-**Google Shopping** is the other half of the Google answer for a physical product, and needs
+**Google Shopping** is the other half of the Google answer for a physical product and needs
 Merchant Center plus a product feed. Their site is being rebuilt now, which is the moment to ask
-for the feed. Note it is only listed in `e-domination` in the catalog, so including it at Launch
-tier is a deliberate choice to make and to say out loud.
+for the feed. It is only listed in `e-domination` in the catalog, so including it lower down the
+ladder is a deliberate choice to make and to say out loud.
+
+**Why each channel suits a different buyer here:**
+
+- **Consumer, single bottle:** $5 of margin. No Google click is that cheap, and generic product
+  searches belong to Amazon. On Meta the same person is reachable cheaply, and the job of the ad
+  is to turn them into a subscriber rather than a one-bottle buyer.
+- **Consumer subscription (Meta):** ~$110/month, ~$50/month of margin, worth a few hundred
+  dollars over six months. This is the campaign to build.
+- **Business, bulk (Google):** the 25-bottle minimum is ~$275 with ~$125 of margin, and these
+  buyers genuinely search. Real, and the right second campaign once there is budget for two.
 
