@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 182 task-keyed entries under `knowledge/`. They surface automatically via the
+> 183 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**182 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**183 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -18,6 +18,9 @@
 - **[ads-sync-stall](../knowledge/ads-sync-stall.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   Bryson asked whether his ad numbers were still updating after a few hours of no movement, and neither he nor the OS could answer. Three causes looked identical on screen: the job ran and nothing changed, the job ran and the platform refused, or the job never ran (Netlify schedules are best effort and a 2.5h gap with zero errors has happened here before). Now the card WARNS past 2.5 hours and carries a **Check now** button backed by `ads-sync-now.mjs`, an owner-authed endpoint that RUNS the scheduled job itself rather than a copy. Also adds `tests/verify-ads-sync-runs.mjs`, which actually EXECUTES `summarize` for the first time: every existing suite read that file as text, so a runtime break in the day's earlier change would have left all of them green while the numbers silently froze. 15 checks, nine mutations caught.  
   <sub>*task:* tell whether the hourly ad numbers are actually updating, force a refresh, and prove the sync still runs &nbsp;|&nbsp; *keywords:* analytics not updating, ads-sync stalled, adSyncStale, ads-sync-now, check now, numbers stopped, updated hours ago, scheduled function skipped, best effort schedule</sub>
+- **[audience-ad-plan](../knowledge/audience-ad-plan.md)** &mdash; &#9989; verified &middot; 2026-09-15  
+  One control per audience instead of a package tier — Test the waters / Standard / Go hard — that writes the ads, points them at that audience's live page, sets the budget and builds the whole campaign PAUSED for approval. On Google the level sets how many ad groups; on Meta it sets how many versions of the ad go in the one ad set, so the split test runs from the first impression instead of a thousand impressions later. Shows how many days until a winner can be called, using autopilot's own click thresholds, and says plainly when a plan is too thin to learn anything. Client detail > Assets > Build Ads For An Audience, on the My Ads account.  
+  <sub>*task:* build a whole campaign for one of BoldLine's own audiences, or change how hard a push level pushes &nbsp;|&nbsp; *keywords:* push level, audience ad plan, test the waters, standard, go hard, split test, ab test, a/b, multiple ad groups, extraAds, AudienceAdPlanCard, adPlan, PUSH_LEVELS, VERDICT_CLICKS, too thin, cost per click, my own ads, package tier for my ads</sub>
 - **[budget-split](../knowledge/budget-split.md)** &mdash; &#9989; verified &middot; 2026-08-14  
   A monthly ad budget is the TOTAL across every platform, so it is now divided by how many platforms are actually running before it fills a daily-budget field. Before this both launch cards independently derived the FULL monthly figure — $200/mo showed $7/day on Google AND $7/day on Meta, which spends $400/mo and burns the budget in half a month. Caught by Bryson 2026-08-14. Fixed with a `platformCount` prop threaded from the Campaigns tab (the same place that decides which cards render, so the split can never disagree with the cards on screen), plus corrected copy on the setup card, which had literally been instructing him to type the total into each campaign. 36 cases.  
   <sub>*task:* how one monthly ad budget becomes the daily budget on each platform &nbsp;|&nbsp; *keywords:* budget split, monthly budget, daily budget, dailyFromMonthly, platformCount, platShare, adPlatformsOf, double spend, Google and Meta both running, burn through budget twice as fast</sub>
