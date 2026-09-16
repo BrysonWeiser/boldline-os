@@ -211,6 +211,44 @@ const gapList = (cl) => contractGaps(cl, PKG).map((g) => g.what);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 5b. 🔴 AN EXISTING CLIENT'S AGREEMENT DID NOT MOVE A SINGLE BYTE
+//
+// Bryson asked whether any of this touched the current packages or pricing. It should not have,
+// and one thing HAD: genericising clause 4.2 so it would read for sales changed "the
+// Per-Qualified-Lead Fee stated above" into "the fee stated above" on EVERY lead agreement,
+// including ones already signed. A contract renders fresh every time it is opened, so a signed
+// agreement would have started showing wording nobody signed — the exact thing the terms
+// versioning exists to prevent (KB `contract-terms-versioning`).
+//
+// Caught by rendering the OLD file against the NEW one, which is the only way to see it: every
+// assertion in this suite passed the whole time, because none of them was looking at the
+// sentence that moved.
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  eq("🔴 a lead agreement still names the per-lead fee exactly",
+    /The Performance Fee for a month is the ([^.]+?) stated above/.exec(lead.replace(/<[^>]+>/g, ""))[1],
+    "Per-Qualified-Lead Fee");
+  eq("and a sale agreement names its own", 
+    /The Performance Fee for a month is the ([^.]+?) stated above/.exec(sale.replace(/<[^>]+>/g, ""))[1],
+    "Per-Qualified-Sale Fee");
+  // The whole-document version of the same guard: every clause of a lead agreement, compared
+  // against the text that shipped before any of this existed.
+  const FROZEN = [
+    "Performance Fee (per qualified lead)",
+    "the Per-Qualified-Lead Fee stated above multiplied by the number of Qualified Leads",
+    "(a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation",
+    "Lead counts are calculated from campaign tracking data",
+    "Agency does not warrant that any lead will become a paying customer",
+    "A month that produces no Qualified Leads produces no charge",
+  ];
+  const plain = lead.replace(/&rsquo;/g, "\u2019").replace(/<[^>]+>/g, "");
+  for (const f of FROZEN) {
+    ok(`🔴 unchanged for existing clients: "${f.slice(0, 44)}…"`, plain.includes(f),
+      "a signed agreement renders fresh every time it is opened, so this is wording nobody signed");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 6. 🔴 THE AD SET IS BUILT TO MATCH THE AGREEMENT
 //
 // The contract says a purchase by someone who did not click is not a Qualified Sale. Meta's

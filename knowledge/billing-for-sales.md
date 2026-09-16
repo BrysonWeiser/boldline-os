@@ -115,3 +115,31 @@ budget, taken deliberately.
 maxes at 7. So the platform can only ever prove a subset, and the count comes from the client's
 records anyway. It can under-count and never over-count, which is the safe direction.
 
+## 🔴 IT LEAKED INTO EVERY LEAD AGREEMENT, AND NOTHING NOTICED
+
+Bryson asked whether any of this touched the current packages or pricing. The packages and prices
+were untouched (`pricing-shared.mjs` has no diff at all, and `PACKAGES_DB` / `PKG_FEATURES` in the
+OS have none either). **But one sentence had moved on every lead agreement**, including signed
+ones.
+
+Genericising clause 4.2 so it would read for sales turned *"the **Per-Qualified-Lead Fee** stated
+above"* into *"the **fee** stated above"*. A contract **renders fresh every time it is opened**,
+so Stencil & Thread's signed agreement would have started showing wording nobody signed — the
+exact thing the terms versioning exists to prevent (KB `contract-terms-versioning`).
+
+Fixed by putting the name in the vocabulary (`feeName`) so each kind carries its own, which
+restores the lead wording byte for byte.
+
+🔴 **How it was found, and the method worth keeping.** Not by a test — **all 57 assertions passed
+the whole time**, because not one of them was looking at the sentence that moved. It was found by
+**rendering the OLD file and the NEW file and diffing the output**, across four packages and four
+client shapes. That comparison is now the standard check for any contract change:
+
+```
+git show <pre-change sha>:netlify/lib/contract-shared.cjs > /tmp/before.cjs
+# render both against the same clients, compare strings
+```
+
+The suite now also freezes six exact phrases of a lead agreement, so the next leak fails instead
+of needing to be noticed.
+
