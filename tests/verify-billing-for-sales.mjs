@@ -322,5 +322,43 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
     "attribution lives on the ad set; anywhere else is ignored");
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 7. 🔴 HE IS TOLD, ON THE SCREEN HE READS BEFORE THE CALL
+//
+// The per-sale basis is deliberately NOT on the public site: it depends on the shop being able
+// to track purchases, which cannot be known before the call, and advertising it means
+// withdrawing it from shops that cannot. So the two things that make it usable are (a) a
+// question on the call that settles it, and (b) a note where he actually looks. Without both,
+// the feature exists and is never offered.
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  // The question, run out of the real list.
+  const qsrc = S.slice(S.indexOf("const MEETING_QUESTIONS = ["), S.indexOf("\n];", S.indexOf("const MEETING_QUESTIONS = [")) + 3);
+  const QS = new Function(qsrc + "\nreturn MEETING_QUESTIONS;")();
+  const q = QS.find((x) => x.id === "salesTracking");
+  ok("🔴 the call asks whether they can track their own sales", !!q,
+    "without it the per-sale offer is never made, and the whole feature sits unused");
+  if (q) {
+    ok("it is asked on the FIRST call, not buried in intake", q.ask === "first",
+      "the answer decides how they are billed, so it cannot wait until after they sign");
+    ok("🔴 and the answer lands somewhere on the client", /^[a-zA-Z]+(\.[a-zA-Z]+)*$/.test(String(q.path || "")),
+      "a question with no path is typed on a call and thrown away");
+    ok("it asks about sales from the ads, not sales in general", /which sales came from the ads/i.test(q.q),
+      "a shop can always see its own orders; the question is whether it can attribute them");
+    ok("and it says what it decides", /per sale/i.test(q.feeds || ""));
+  }
+  // The note, scoped to the Deal Prep screen and to the shop group only.
+  const dp = S.slice(S.indexOf("function DealPrepScreen("), S.indexOf("function LeadScoutScreen("));
+  ok("🔴 the reminder is on the Deal Prep screen", /Only you see this/.test(dp),
+    "it landed in another component, or nowhere");
+  ok("🔴 and only on the E-Commerce group", /\{key==="ecom"&&\(/.test(dp),
+    "a shop-only note shown on every package is noise he will learn to skip");
+  ok("it names where to set it afterwards", /Billing for &rarr; Sales/.test(dp));
+  // 🔴 The public site must NOT carry it. This is the deliberate half of the decision.
+  const SITE = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+  ok("🔴 the per-sale option is still not advertised publicly", !/per qualified sale|per sale/i.test(SITE),
+    "it depends on the shop's tracking, so promising it in public means withdrawing it on the call");
+}
+
 if (fails.length) { console.error(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.error("  " + f)); process.exit(1); }
 console.log(`✓ verify-billing-for-sales: ${pass} checks passed`);

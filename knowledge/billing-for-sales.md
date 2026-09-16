@@ -143,3 +143,25 @@ git show <pre-change sha>:netlify/lib/contract-shared.cjs > /tmp/before.cjs
 The suite now also freezes six exact phrases of a lead agreement, so the next leak fails instead
 of needing to be noticed.
 
+## How the option actually gets OFFERED (2026-09-16)
+
+🔴 **It is deliberately NOT on the public site.** Per-sale only works when the shop can attribute
+purchases, which cannot be known before the call. Advertising it means promising it to shops that
+cannot track and then withdrawing it, which is the promise-then-retract that costs trust. Kept as
+something Bryson gives on the call once he has seen their setup, which is also a stronger moment
+than a line on a pricing page. A test asserts the phrase stays off the marketing site.
+
+Two things make it usable, and without both the feature exists and is never offered:
+
+1. **A question on the first call** — `salesTracking` in `MEETING_QUESTIONS`: *"If people buy
+   straight from your website, can you see exactly which sales came from the ads?"* Deliberately
+   about sales FROM THE ADS, not sales in general: every shop can see its own orders, and the
+   whole question is whether it can attribute them. Asked on the **first** call, not at intake,
+   because the answer decides how they are billed. Lands at `salesNotes.salesTracking`.
+2. **A note on the Deal Prep screen**, on the E-Commerce group only, headed "Only you see this".
+   Nobody but Bryson sees Deal Prep, and it is the screen he reads immediately before a call, so
+   the reminder sits where it is needed rather than in a document he has to remember to open.
+
+Both are pinned, including that the note is scoped to the shop group (a shop-only note on every
+package is noise he learns to skip) and that it names where to set the switch afterwards.
+
