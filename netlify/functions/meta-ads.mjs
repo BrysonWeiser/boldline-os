@@ -111,6 +111,49 @@ async function graph(stage, path, { method = "GET", params = {}, token } = {}) {
   return data;
 }
 
+// ── EVERY page, not just the first one ───────────────────────────────────────
+//
+// 🔴 Bryson, 2026-09-15: he launched a Meta campaign for car detailers, opened the
+// Campaigns screen, and it was not there — while campaigns he had already deleted still
+// were. Every list read in this file asked for `limit: 100` and then used only the first
+// page Meta handed back. An account with more objects than that silently loses the rest,
+// and the rest is where a brand-new campaign sits.
+//
+// 🔴 THE TRAP: `paging.cursors.after` IS STILL THERE ON THE LAST PAGE. Following the
+// cursor until it disappears never terminates — Meta keeps returning the same final page
+// forever. Only `paging.next` says another page exists. Both are required here, plus a hard
+// page cap, because an unbounded loop inside a serverless function is an outage, not a bug.
+const PAGE_LIMIT = "100";
+const MAX_PAGES = 25;          // 2,500 objects; far past anything real, and it terminates
+async function graphPaged(stage, path, { params = {}, limit = PAGE_LIMIT } = {}) {
+  const out = [];
+  let after = "";
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const res = await graph(stage, path, { params: { ...params, limit, ...(after ? { after } : {}) } });
+    const rows = (res && res.data) || [];
+    out.push(...rows);
+    const paging = (res && res.paging) || {};
+    const cursor = (paging.cursors || {}).after;
+    if (!paging.next || !cursor) break;
+    after = cursor;
+  }
+  return out;
+}
+
+// 🔴 WHAT META CONSIDERS GONE, EXCLUDED BY US RATHER THAN BY META'S DEFAULT.
+//
+// Meta's list edges are documented to leave out DELETED and ARCHIVED objects, and the
+// Campaigns screen trusted that. Google's identical assumption is what produced the ghost
+// campaigns of 2026-08-14: rows for things that no longer existed, which could never be
+// acted on because every action failed with "not allowed for removed resources".
+//
+// It is a BLACKLIST, deliberately, not a whitelist of good statuses. A whitelist hides any
+// state nobody thought of — IN_PROCESS, PENDING_REVIEW, WITH_ISSUES — and a campaign that
+// is spending money while invisible is far worse than one dead row.
+const GONE_STATUSES = new Set(["DELETED", "ARCHIVED"]);
+const isGone = (o) => GONE_STATUSES.has(String((o && o.status) || "").toUpperCase())
+                   || GONE_STATUSES.has(String((o && o.effective_status) || "").toUpperCase());
+
 // ── Smoke test: which ad accounts can this token see? ─────────────────────────
 async function listAdAccounts() {
   const data = await graph("test", "me/adaccounts", {
@@ -241,31 +284,24 @@ export async function getAccountHealth(adAccountId) {
 
 export async function getCampaigns(adAccountId) {
   const a = acct(adAccountId);
-  const camps = await graph("campaigns", `${a}/campaigns`, {
-    params: {
-      fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget",
-      limit: "100",
-    },
+  const camps = await graphPaged("campaigns", `${a}/campaigns`, {
+    params: { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget" },
   });
   // One insights call for the whole account, keyed by campaign.
   let insightsById = {};
   try {
-    const ins = await graph("campaigns", `${a}/insights`, {
-      params: {
-        level: "campaign",
-        date_preset: "last_30d",
-        fields: "campaign_id,spend,impressions,clicks,actions",
-        limit: "500",
-      },
+    const ins = await graphPaged("campaigns", `${a}/insights`, {
+      params: { level: "campaign", date_preset: "last_30d", fields: "campaign_id,spend,impressions,clicks,actions" },
+      limit: "500",
     });
-    (ins.data || []).forEach((r) => {
+    ins.forEach((r) => {
       insightsById[r.campaign_id] = r;
     });
   } catch (e) {
     // No insights (e.g. brand-new account with no delivery) is not fatal.
     insightsById = {};
   }
-  return (camps.data || []).map((c) => {
+  return camps.filter((c) => !isGone(c)).map((c) => {
     const i = insightsById[c.id] || {};
     const leads = leadsFromActions(i.actions);
     const spend = Number(i.spend || 0);
@@ -296,29 +332,25 @@ export async function getCampaigns(adAccountId) {
 // reason: Meta keeps delivery numbers on a separate insights edge.
 export async function getAdsForCampaign(adAccountId, campaignId) {
   const a = acct(adAccountId);
-  const ads = await graph("ads", `${campaignId}/ads`, {
+  const ads = await graphPaged("ads", `${campaignId}/ads`, {
     params: {
       fields: "id,name,status,effective_status,adset_id,created_time," +
         "creative{id,object_story_spec,effective_object_story_id}",
-      limit: "100",
     },
   });
 
   let insightsById = {};
   try {
-    const ins = await graph("ads", `${a}/insights`, {
-      params: {
-        level: "ad", date_preset: "last_30d",
-        fields: "ad_id,spend,impressions,clicks,actions",
-        limit: "500",
-      },
+    const ins = await graphPaged("ads", `${a}/insights`, {
+      params: { level: "ad", date_preset: "last_30d", fields: "ad_id,spend,impressions,clicks,actions" },
+      limit: "500",
     });
-    (ins.data || []).forEach((r) => { insightsById[r.ad_id] = r; });
+    ins.forEach((r) => { insightsById[r.ad_id] = r; });
   } catch {
     insightsById = {};   // a brand-new ad with no delivery is not an error
   }
 
-  return (ads.data || []).map((ad) => {
+  return ads.filter((ad) => !isGone(ad)).map((ad) => {
     const i = insightsById[ad.id] || {};
     // The copy lives several levels down and any level can be absent on an ad built
     // outside this system (in Ads Manager by hand, say). Read it defensively: a
@@ -395,8 +427,8 @@ export async function getCampaignDetail(adAccountId, campaignId) {
 
   const [campRes, setsRes, ads] = await Promise.all([
     graph("campaignDetail", cid, { params: { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,created_time,start_time,stop_time" } }),
-    graph("campaignDetail", `${cid}/adsets`, {
-      params: { fields: "id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,billing_event,destination_type,targeting,created_time", limit: "100" },
+    graphPaged("campaignDetail", `${cid}/adsets`, {
+      params: { fields: "id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,billing_event,destination_type,targeting,created_time" },
     }),
     getAdsForCampaign(adAccountId, cid),
   ]);
@@ -405,10 +437,11 @@ export async function getCampaignDetail(adAccountId, campaignId) {
   // error, so a failure here leaves the numbers at zero rather than failing the whole read.
   let bySet = {};
   try {
-    const ins = await graph("campaignDetail", `${a}/insights`, {
-      params: { level: "adset", date_preset: "last_30d", fields: "adset_id,spend,impressions,clicks,actions", limit: "500" },
+    const ins = await graphPaged("campaignDetail", `${a}/insights`, {
+      params: { level: "adset", date_preset: "last_30d", fields: "adset_id,spend,impressions,clicks,actions" },
+      limit: "500",
     });
-    (ins.data || []).forEach((r) => { bySet[r.adset_id] = r; });
+    ins.forEach((r) => { bySet[r.adset_id] = r; });
   } catch { bySet = {}; }
 
   // Targeting is a deep object and most of it is noise on screen. Pull out the parts he
@@ -428,7 +461,7 @@ export async function getCampaignDetail(adAccountId, campaignId) {
     };
   };
 
-  const groups = ((setsRes && setsRes.data) || []).map((set) => {
+  const groups = (setsRes || []).filter((set) => !isGone(set)).map((set) => {
     const i = bySet[set.id] || {};
     return {
       id: String(set.id),
@@ -724,17 +757,16 @@ export async function activateCampaign(campaignId) {
   await graph("activateCampaign", cid, { method: "POST", params: { status: "ACTIVE" } });
 
   // Then every ad set under it, and every ad under those.
-  const sets = await graph("activateCampaign", `${cid}/adsets`, {
-    params: { fields: "id,status", limit: "100" },
-  });
-  const adsetIds = ((sets && sets.data) || []).map((s) => String(s.id)).filter(Boolean);
+  // 🔴 PAGED, because a half-started campaign is worse than one that did not start. On one
+  // page only, every ad set past the first hundred stays paused while the campaign reads as
+  // live, so it spends on some of the ads he built and silently ignores the rest.
+  const sets = await graphPaged("activateCampaign", `${cid}/adsets`, { params: { fields: "id,status" } });
+  const adsetIds = sets.map((s) => String(s.id)).filter(Boolean);
   let adsStarted = 0;
   for (const sid of adsetIds) {
     await graph("activateCampaign", sid, { method: "POST", params: { status: "ACTIVE" } });
-    const ads = await graph("activateCampaign", `${sid}/ads`, {
-      params: { fields: "id,status", limit: "100" },
-    });
-    for (const ad of (ads && ads.data) || []) {
+    const ads = await graphPaged("activateCampaign", `${sid}/ads`, { params: { fields: "id,status" } });
+    for (const ad of ads) {
       if (!ad || !ad.id) continue;
       await graph("activateCampaign", String(ad.id), { method: "POST", params: { status: "ACTIVE" } });
       adsStarted++;
