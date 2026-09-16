@@ -78,13 +78,13 @@ const SPLIT_COOLDOWN_HOURS = 168;    // one split action per ad group per week
 // second creative inside a live ad set changes what the money buys and cannot raise
 // the bill.
 //
-// 🔴 WHY IT IS RESTRICTED TO OWNED ACCOUNTS FOR NOW. Meta has BoldLine on Development
-// tier, which permits API writes to ad accounts BoldLine itself owns and refuses them
-// everywhere else. Running this against a client account today would not just fail, it
-// would fail repeatedly on a schedule and generate a failure alert every two hours. So
-// it is gated to the house account until standard access lands. AT APPROVAL: delete the
-// `cl.internal` condition on the line marked META-TIER-GATE and it covers every client,
-// with no other change. See KB meta-parked-work.
+// 🔴 IT USED TO BE RESTRICTED TO OWNED ACCOUNTS, AND IS NOT ANY MORE. Meta had BoldLine on
+// Development tier, which permits API writes only to ad accounts BoldLine itself owns, so
+// running this against a client account would have failed repeatedly on a schedule and
+// raised a failure alert every two hours. **Meta granted the Marketing API Access Tier on
+// 2026-09-14**, so the gate was deleted on 2026-09-16 and Meta creative testing now covers
+// every client on exactly the same terms as Google. Nothing else about the block changed,
+// which is what writing the gate as one named condition was for.
 //
 // Two differences from Google, both forced by the platform rather than chosen:
 //  1. META NEEDS LONGER TO JUDGE. Its delivery system deliberately front-loads whichever
@@ -524,9 +524,9 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
     // ── 5. META CREATIVE TESTING ────────────────────────────────────────────
     // Same shape as the Google block above, one level down: ads inside an AD SET.
     // Budget is never touched, so the invariant holds.
-    // META-TIER-GATE: `cl.internal` is the Development-tier restriction. Delete it at
-    // standard access and this covers every client unchanged.
-    if (ap.splitTest !== false && mid && cl.internal && actions.length < MAX_ACTIONS_PER_CLIENT) {
+    // The Development-tier restriction (`cl.internal`) sat on this line and was deleted on
+    // 2026-09-16, when Meta granted standard access. Clients get this now, same as Google.
+    if (ap.splitTest !== false && mid && actions.length < MAX_ACTIONS_PER_CLIENT) {
       const liveMeta = stillLive().filter((t) => t.p === "meta");
       for (const t of liveMeta) {
         if (actions.length >= MAX_ACTIONS_PER_CLIENT) break;
