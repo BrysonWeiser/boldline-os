@@ -150,3 +150,36 @@ quoting different offers.
 **The general rule this produced:** when a promise lives only in copy, find every surface that
 states the same fact — the prompt, the screen, the contract, the emails, the site. A promotion
 held in one hardcoded sentence is invisible to all of them.
+
+---
+
+## 2026-09-16 — each package now lists what it includes
+
+**Bryson:** *"in deal prep when it gives me the recommended package ... like how we do in the
+client portal can we also have each package list what it includes that way I can tell the client
+if they ask."*
+
+Every package row on the briefing now carries a **"What's included (n)"** toggle. The
+**recommended one starts open**, because that is the list he is about to read out; tapping
+another closes it, so two lists are never open at once and he cannot read the wrong one.
+
+🔴 **It renders `ALL_FEATURES` + `PKG_FEATURES`, the same lists the client portal and the
+CONTRACT use.** This matters more than the UI: he reads this to a prospect who later signs an
+agreement whose inclusions come from `PKG_FEATURES` in `contract-shared.cjs`. A list written for
+this screen would let him promise something the agreement does not say. `verify-packages` already
+pins OS / portal / contract against each other; `verify-deal-prep-includes` proves Deal Prep is
+ON that list rather than beside it, by building what the screen would show and comparing it,
+package by package, with what the contract promises.
+
+**Testing notes:**
+- 🔴 **Scope is asserted against a SLICE of `DealPrepScreen`**, and the state and the markup are
+  each required to appear exactly once in the whole file. This screen shipped broken once before
+  when an insertion landed in the neighbouring component and every grep assertion still passed
+  (KB `deal-prep-to-client`).
+- 🔴 **A shape-pinned assertion nearly hid a real failure.** The open/closed rule was matched by
+  its exact text, so rewriting it — which is what a regression looks like — failed with "the rule
+  was found: no" and then CRASHED on the null, hiding every behavioural check below. Now it
+  matches loosely, runs whatever rule is there, and judges the behaviour.
+- 42 checks, **8/8 mutations caught**, including the contract quietly promising an extra feature.
+- Checked at 390/768/1280/1600: one column on a phone, three above it, nothing spilling.
+
