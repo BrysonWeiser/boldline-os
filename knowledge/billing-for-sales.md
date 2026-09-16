@@ -84,3 +84,34 @@ declared next" keeps producing this bug** — it also hit `verify-draft-persiste
 before.
 
 Responsive: checked at 390/768/1280/1600, no horizontal scroll, nothing spilling.
+
+## The four sentences added 2026-09-16, and why each one exists
+
+A lead arrives in BoldLine's own system. A sale happens on the client's website, where two
+different numbers exist and disagree on purpose. So a sale agreement has to settle four things a
+lead agreement never had to:
+
+- **A 30-day window from the click.** Without it, a click today and a purchase in six weeks is
+  arguable forever, in both directions.
+- **The CLIENT'S own order records govern**, beating the platform's reporting where they differ.
+  The platform grades its own homework; the client believes their own till. Conceding this costs
+  little when the ads work and removes the whole fight when they nearly work.
+- **A view-through is not a sale.** Meta counts a scroll-past followed by a purchase, by default.
+- **An existing customer is not a sale we won.**
+
+Clause 4.4 now names the **same source** as 4.2. It used to say "campaign tracking data" while
+the definition above it said the client's records, and two clauses naming different numbers in
+one document is the argument, written down.
+
+🔴 **AND THE AD SET IS BUILT TO MATCH.** `createCampaign` sends
+`attribution_spec: [{CLICK_THROUGH, 7}]`, because Meta's default is 7-day click **plus 1-day
+view**. Two reasons, only one about money: the agreement says a non-clicker is not a Qualified
+Sale, so the default would have the platform reporting a number the contract does not recognise;
+and the attribution setting is **the signal Meta's delivery learns from**, so counting
+view-throughs teaches it to find people who look. The honest cost is slower learning on a small
+budget, taken deliberately.
+
+🟡 **Known mismatch, left alone on purpose:** the contract allows 30 days, Meta's click window
+maxes at 7. So the platform can only ever prove a subset, and the count comes from the client's
+records anyway. It can under-count and never over-count, which is the safe direction.
+
