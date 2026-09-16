@@ -428,7 +428,7 @@ export async function getCampaignDetail(adAccountId, campaignId) {
   const [campRes, setsRes, ads] = await Promise.all([
     graph("campaignDetail", cid, { params: { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,created_time,start_time,stop_time" } }),
     graphPaged("campaignDetail", `${cid}/adsets`, {
-      params: { fields: "id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,billing_event,destination_type,targeting,created_time" },
+      params: { fields: "id,name,status,effective_status,daily_budget,lifetime_budget,optimization_goal,billing_event,destination_type,targeting,created_time,attribution_spec" },
     }),
     getAdsForCampaign(adAccountId, cid),
   ]);
@@ -470,6 +470,13 @@ export async function getCampaignDetail(adAccountId, campaignId) {
       dailyBudget: centsToDollars(set.daily_budget),
       lifetimeBudget: centsToDollars(set.lifetime_budget),
       optimizationGoal: set.optimization_goal || "",
+      // 🔴 WHETHER THIS AD SET COUNTS PEOPLE WHO NEVER CLICKED. Meta's default is 7-day click
+      // PLUS 1-day view, and a results-only agreement says a purchase by someone who did not
+      // click is not a Qualified Sale. Campaigns this OS builds are click-only from 2026-09-16,
+      // but anything built before that, or built by hand in Ads Manager, or inherited with a
+      // client, still carries the default. Reported so the OS can say so and offer to fix it,
+      // rather than leaving it to be noticed when a client disputes an invoice.
+      countsViewThrough: (set.attribution_spec || []).some((a) => String(a && a.event_type).toUpperCase() === "VIEW_THROUGH"),
       billingEvent: set.billing_event || "",
       destinationType: set.destination_type || "",
       targeting: readTargeting(set.targeting),
@@ -788,6 +795,30 @@ export async function setStatus(campaignId, status) {
     throw e;
   }
   return graph("setStatus", `${campaignId}`, { method: "POST", params: { status: s } });
+}
+
+// ── Guarded write: count clicks only, on an ad set that is already running ───
+//
+// Bryson, 2026-09-16: *"is there a way we can add that new update for the clicks without having
+// to build a whole new campaign?"* Yes. `attribution_spec` is editable on a live ad set.
+//
+// 🔴 IT IS NOT FREE, AND THE CALLER HAS TO KNOW. Narrowing the window RESETS META'S LEARNING
+// PHASE, because the delivery system loses the conversion signals it had been learning from. On
+// a campaign that started last night that costs nothing. On one that has been running a month it
+// costs real performance, so the OS says so before the button is pressed rather than after.
+//
+// 🔴 SPENDS NOTHING AND ENABLES NOTHING. Attribution is a measurement setting: it does not touch
+// budget, status, targeting or creative, so this cannot start an ad, raise a bill, or widen who
+// sees it. That is why it is safe to offer as one press.
+async function setAttributionClicksOnly(adSetId, { windowDays = 7 } = {}) {
+  const id = String(adSetId || "");
+  if (!id) throw Object.assign(new Error("setAttribution: adSetId required"), { stage: "setAttribution" });
+  const days = [1, 7].includes(Number(windowDays)) ? Number(windowDays) : 7;
+  await graph("setAttribution", id, {
+    method: "POST",
+    params: { attribution_spec: JSON.stringify([{ event_type: "CLICK_THROUGH", window_days: days }]) },
+  });
+  return { adSetId: id, windowDays: days, countsViewThrough: false };
 }
 
 // ── Destructive: delete a campaign ───────────────────────────────────────────
@@ -1202,6 +1233,13 @@ export default async (req) => {
       if (!body.adAccountId || !body.campaignId)
         return json({ ok: false, error: "adAccountId, campaignId required" }, 400);
       return json({ ok: true, action, ...(await getCampaignDetail(body.adAccountId, body.campaignId)) });
+    }
+
+    if (action === "setAttribution") {
+      // One ad set per call. The OS sends them one at a time so a partial failure is visible
+      // rather than hidden inside a loop that reports one result for several writes.
+      const result = await setAttributionClicksOnly(body.adSetId, { windowDays: body.windowDays });
+      return json({ ok: true, action, ...result });
     }
 
     if (action === "deleteCampaign") {

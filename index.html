@@ -13738,6 +13738,33 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
                         {(g.targeting&&(g.targeting.places||[]).length)?<>{g.targeting.places.join(", ")}</>:<>no places recorded</>}
                       </div>
                     )}
+                    {/* 🔴 AN AD SET STILL COUNTING PEOPLE WHO NEVER CLICKED, AND ONE PRESS TO STOP.
+                        Bryson, 2026-09-16: *"is there a way we can add that new update for the
+                        clicks without having to build a whole new campaign?"* Everything the OS
+                        builds from that day is click-only, but anything built before it, by hand
+                        in Ads Manager, or inherited with a client still carries Meta's default of
+                        7-day click PLUS 1-day view. On a results-only agreement that is the
+                        platform reporting a number the contract does not recognise.
+
+                        🔴 THE WARNING IS NOT DECORATION. Narrowing the window RESETS Meta's
+                        learning phase. On a campaign that started last night that costs nothing;
+                        on one running a month it costs real performance, so the cost is stated
+                        before the press, not discovered after. The write itself touches no
+                        budget, status, targeting or creative, which is why it is safe as one tap. */}
+                    {!isG&&g.countsViewThrough&&(
+                      <div style={{marginTop:6,padding:"7px 9px",borderRadius:8,lineHeight:1.6,fontSize:9.5,
+                        color:C.amber,backgroundColor:"rgba(245,158,11,.08)",border:`1px solid ${C.amber}33`}}>
+                        This one still counts people who <b>saw the ad and never clicked it</b>. Newer campaigns
+                        count clicks only.{" "}
+                        <button disabled={pieceBusy===g.id}
+                          onClick={()=>pieceAction(r,g.id,()=>metaCall({action:"setAttribution",adSetId:g.id}),
+                            `Count clicks only on "${g.name}"?\n\nFacebook will stop counting people who saw the ad without clicking, so the numbers get smaller and more honest.\n\nIt also makes Facebook re-learn who to show the ad to, which can unsettle delivery for a few days. Cheap on a new campaign, not free on one that has been running a while.\n\nNothing else changes: no budget, no targeting, nothing switches on or off.`)}
+                          style={{background:"none",border:"none",padding:0,cursor:"pointer",fontWeight:800,fontSize:9.5,
+                            color:C.amber,textDecoration:"underline",opacity:pieceBusy===g.id?.6:1}}>
+                          {pieceBusy===g.id?"…":"switch it to clicks only"}
+                        </button>
+                      </div>
+                    )}
                     {(g.ads||[]).length>1&&<div style={{fontSize:9.5,color:C.gold,marginTop:4}}>Split test running: {(g.ads||[]).length} ads sharing this budget.</div>}
                     {(g.ads||[]).map(a=>{
                       const aLive=["ENABLED","ACTIVE"].includes(String(a.status||"").toUpperCase());

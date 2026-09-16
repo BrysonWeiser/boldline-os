@@ -316,8 +316,14 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   const adset = code.slice(i, i + 1800);
   ok("🔴 the ad set asks for clicks only", /attribution_spec: JSON\.stringify\(\[\{ event_type: "CLICK_THROUGH"/.test(adset),
     "Meta's default counts a scroll-past as a conversion, which the agreement says is not a sale");
-  ok("🔴 and does not ask for view-throughs", !/VIEW_THROUGH/.test(code),
-    "one of these in the payload puts the default straight back");
+  // 🔴 Scoped to the ad set CREATION payload, which is what this guards. A file-wide ban was
+  // wrong and broke the moment the reader learned to DETECT view-throughs on an existing ad set
+  // so the OS could offer to turn them off. Banning the word everywhere bans the fix as well as
+  // the bug.
+  ok("🔴 and does not ask for view-throughs", !/VIEW_THROUGH/.test(adset),
+    "one of these in the creation payload puts Meta's default straight back");
+  ok("🔴 while an EXISTING ad set can still be spotted and fixed", /countsViewThrough/.test(code) && /setAttributionClicksOnly/.test(code),
+    "campaigns built before this, by hand, or inherited with a client keep the default forever");
   ok("it is set on the AD SET, where Meta reads it", i > 0 && adset.includes("attribution_spec"),
     "attribution lives on the ad set; anywhere else is ignored");
 }
@@ -358,6 +364,51 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   const SITE = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
   ok("🔴 the per-sale option is still not advertised publicly", !/per qualified sale|per sale/i.test(SITE),
     "it depends on the shop's tracking, so promising it in public means withdrawing it on the call");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 8. 🔴 FIXING AN AD SET THAT IS ALREADY RUNNING
+//
+// Bryson: *"is there a way we can add that new update for the clicks without having to build a
+// whole new campaign?"* Everything the OS builds from 2026-09-16 is click-only, but his own
+// first campaign, anything built by hand in Ads Manager, and anything inherited with a new
+// client still carries Meta's default of 7-day click PLUS 1-day view.
+// ══════════════════════════════════════════════════════════════════════════════
+{
+  const META = readFileSync(new URL("../netlify/functions/meta-ads.mjs", import.meta.url), "utf8");
+  const code = META.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
+
+  ok("🔴 the reader asks Meta for the attribution it is using", /attribution_spec/.test(code) && /fields: "id,name,status,effective_status,daily_budget[^"]*attribution_spec"/.test(code),
+    "without the field the OS cannot know which ad sets need fixing, so the warning never appears");
+  ok("and reports it per ad set", /countsViewThrough: \(set\.attribution_spec \|\| \[\]\)/.test(code));
+
+  const i = code.indexOf("async function setAttributionClicksOnly");
+  const fn = code.slice(i, i + 900);
+  ok("🔴 the write exists", i > 0);
+  ok("🔴 and writes CLICK_THROUGH only", /event_type: "CLICK_THROUGH"/.test(fn) && !/VIEW_THROUGH/.test(fn),
+    "a fix that leaves the view window on is not a fix");
+  ok("🔴 it touches nothing that spends", !/(daily_budget|status|targeting|bid_amount)/.test(fn),
+    "attribution is a measurement setting; a write that also changed budget or status could not be offered as one tap");
+  ok("the window is validated, not passed through", /\[1, 7\]\.includes/.test(fn),
+    "Meta accepts 1 or 7 and rejects the rest, so an unchecked number fails at the API instead of here");
+  ok("a missing ad set id is refused", /adSetId required/.test(fn));
+  ok("it is reachable over HTTP", /action === "setAttribution"/.test(code));
+
+  // The OS side: the warning only shows when true, and says what it costs.
+  const screen = S.slice(S.indexOf("function CampaignManagerScreen("), S.indexOf("\nfunction ", S.indexOf("function CampaignManagerScreen(") + 40));
+  ok("🔴 the warning is shown only for an ad set that really counts view-throughs",
+    /\{!isG&&g\.countsViewThrough&&\(/.test(S),
+    "a warning on every ad set is a warning he learns to ignore");
+  ok("and only on Meta", /!isG&&g\.countsViewThrough/.test(S),
+    "Google has no such setting, so the row would be nonsense there");
+  ok("🔴 it warns that Meta has to re-learn before the press, not after",
+    /re-learn who to show the ad to/.test(S),
+    "narrowing the window resets the learning phase, which is cheap on a new campaign and not on an old one");
+  ok("and says plainly that nothing else changes", /Nothing else changes: no budget, no targeting/.test(S));
+  ok("the press calls the real action", /metaCall\(\{action:"setAttribution",adSetId:g\.id\}\)/.test(S));
+  ok("🔴 and it re-reads afterwards, so the warning clears itself",
+    /pieceAction\(r,g\.id,\(\)=>metaCall\(\{action:"setAttribution"/.test(S),
+    "pieceAction force-reloads the campaign; without it the amber note sits there after it is fixed");
 }
 
 if (fails.length) { console.error(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.error("  " + f)); process.exit(1); }
