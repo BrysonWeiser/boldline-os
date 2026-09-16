@@ -82,6 +82,16 @@ single order of 25 bottles or more"). The agreement then quotes it word for word
 blocked until it is written. It is a rename rather than a new pricing model, so the rate still
 lives in the same place and nothing else changed.
 
+**His package: Store Launch** (`e-launch`) — the honest name for a shop, $1,000/mo budget puts
+him in the Launch tier, $400 monthly minimum and $800 setup, both waived under founding terms.
+His performance fee is **per qualified sale** instead of the store default of 15% of ad spend,
+which is a choice at the same tier rather than a different package (see `pricing-model`).
+
+🟡 **One thing that does not match:** Store Launch does not list a landing page among its
+inclusions, and Bryson promised Constantine a dedicated page for the subscription offer. Either
+add it to the package (affects every store client and the public site) or treat it as an extra on
+this deal. **Not decided.**
+
 **Still to decide with Constantine:** the fee itself (recommended $25 per new subscriber or bulk
 order, single bottles free) and whether he pushes back on any of it. Bryson's message went out
 inviting exactly that.

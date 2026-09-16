@@ -148,11 +148,27 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // rate to discount, so its performance fee is this percentage, and until now it lived only
   // on the package with no way for a client to be on a different one. Renewal writes
   // `billingSpendPct`; the package number stays the standard rate everything is quoted from.
-  const pctFee   = (pkg && pkg.pricingModel === "ad_spend_pct")
+  // 🔴 BILLING BASIS IS A CHOICE ON A STORE, THE SAME WAY PLATFORM IS A CHOICE, NOT A PRICE.
+  //
+  // A store's standard performance fee is a percentage of ad spend, because most stores cannot
+  // cleanly attribute a sale. A store that CAN can be billed per qualified sale instead, which
+  // is a stronger offer ("you only pay for results") at the same tier, the same monthly minimum
+  // and the same setup. Which one a client gets is a sales decision, not a tier decision.
+  //
+  // 🔴 AND EXACTLY ONE OF THEM RENDERS. Flipping the switch on a percentage package used to
+  // produce a contract that charged 15% of ad spend in clause 4.2 while clause 4.1 promised the
+  // client owed nothing in a month with no Qualified Sales, and 4.4 explained how SALE COUNTS
+  // were tallied for a fee that is not based on counts at all. Three clauses, three different
+  // deals, in one document somebody signs. Two performance fees in one agreement is the single
+  // worst thing this file can produce, so the sale basis SUPPRESSES the percentage rather than
+  // sitting beside it.
+  // Read straight off the client, because `W` is built below and this decides its input.
+  const saleBasis = String((cl && cl.billingResultKind) || "") === "sale";
+  const pctFee   = (!saleBasis && pkg && pkg.pricingModel === "ad_spend_pct")
     ? (cl.billingSpendPct!=null ? Number(cl.billingSpendPct) : (Number(pkg.adSpendPct)||0))
     : 0;
-  const perLeadFee = (pkg && pkg.pricingModel === "per_lead")
-    ? (cl.billingPerLead!=null ? Number(cl.billingPerLead) : (pl||0))
+  const perLeadFee = (pkg && (pkg.pricingModel === "per_lead" || (saleBasis && pkg.pricingModel === "ad_spend_pct")))
+    ? (cl.billingPerLead!=null ? Number(cl.billingPerLead) : (saleBasis ? 0 : (pl||0)))
     : 0;
   // 🔴 WHAT THE CLIENT IS ACTUALLY BILLED FOR, WHEN IT IS NOT A LEAD.
   //

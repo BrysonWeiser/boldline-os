@@ -433,3 +433,31 @@ portal and the contract, and both depend on **purchase tracking with a value** b
 on the client's site. **Decide before any store signs**, then put it in `foundingTermsBlock()`
 so the research prompt stops quoting a fee that cannot be charged.
 
+---
+
+## 2026-09-16 — a store's billing BASIS is a choice, not a tier
+
+Bryson: *"for e-commerce ... falls to a % of the ad spend instead of per sale so how will we make
+that work? will this be a one time thing where we edit it for him specifically or should we make
+a new pricing model"*.
+
+**Neither.** No new package, no new price, no change to the catalog or the public site. A store
+package now bills **either** 15% of ad spend (the default, and the right answer when sales cannot
+be cleanly attributed) **or** per qualified sale — at the **same tier, the same monthly minimum
+and the same setup fee**. Which one a client gets is a sales decision, exactly like the existing
+rule that **platform is a choice, not a price**.
+
+So Air Suds goes on **Store Launch** — the honest package for a shop — with his performance fee
+set to per qualified sale. Nothing about the packages moves.
+
+🔴 **The bug this fixed, which was live and reachable.** Flipping the sales switch on a Store
+package produced a contract that charged **15% of ad spend in clause 4.2**, promised in **4.1**
+that the client owed nothing in a month with no Qualified Sales, and explained in **4.4** how
+sale COUNTS were tallied for a fee that is not based on counts at all. Three clauses, three
+different deals, in one document somebody signs. **Two performance fees in one agreement is the
+worst thing `contract-shared.cjs` can produce**, so the sale basis now SUPPRESSES the percentage
+rather than sitting beside it, and a test pins that exactly one fee row renders.
+
+`contractGaps` follows the basis rather than the package: a store billed per sale is asked for
+the rate and the description, and is NOT sent to fill in a percentage its agreement never uses.
+
