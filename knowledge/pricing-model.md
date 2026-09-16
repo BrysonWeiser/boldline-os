@@ -461,3 +461,26 @@ rather than sitting beside it, and a test pins that exactly one fee row renders.
 `contractGaps` follows the basis rather than the package: a store billed per sale is asked for
 the rate and the description, and is NOT sent to fill in a percentage its agreement never uses.
 
+## 🔴 2026-09-16 — the site sold a landing page Store Launch did not have
+
+The marketing site's **Store Launch** card has said *"Landing page included"* for as long as the
+ecom ladder has existed. `PKG_FEATURES["e-launch"]` did not list one. So the site promised it in
+public and a Store Launch client's **agreement listed no landing page at all**.
+
+**`std_landing` added to `e-launch`** in all three copies (OS, portal, contract). `custom_landing`
+supersedes it, so Store Launch → Store Growth still reads as a gain rather than a loss, and
+`verify-packages` went from 1,140 to 1,152 assertions with no failures.
+
+🔴 **Why nothing caught it, and this is the lesson.** `verify-packages` compares the OS, the
+portal and the contract **with each other**. All three agreed. **They were all wrong together**,
+and the one thing that disagreed was the public website, which nothing was comparing against.
+
+**New suite `tests/verify-site-matches-packages.mjs` (154 checks, 3/3 mutations caught)** closes
+it: every bullet on every package card on the public site must be a feature that package really
+has. Deliberately a small explicit vocabulary rather than clever prose matching, and **an
+unmapped bullet is REPORTED, not skipped** — an unmapped bullet is the exact shape of the bug (a
+promise nothing checks), so silence would rebuild the hole.
+
+**Check this whenever site copy changes**, not only when the catalog does. The two drift in both
+directions.
+

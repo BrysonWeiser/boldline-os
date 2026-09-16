@@ -157,7 +157,12 @@ const PKG_FEATURES = {
   "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
   // One-time build: the good build minus everything ongoing. Keep in step with index.html.
   "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","crm_integration","call_tracking","handover_docs","settle_in"],
-  "e-launch":      ["meta_ads","ad_variations","pixel","monthly_report","monthly_opt"],
+  // 🔴 `std_landing` was MISSING while the marketing site's own Store Launch card already said
+  // "Landing page included". The site sold it, the package did not record it, and a Store Launch
+  // client's agreement therefore listed no landing page at all — a promise made in public and
+  // absent from the document. Added 2026-09-16; `custom_landing` supersedes it, so the Store
+  // Launch → Store Growth upgrade still reads as a gain rather than a loss.
+  "e-launch":      ["meta_ads","ad_variations","std_landing","pixel","monthly_report","monthly_opt"],
   // Meta-only below $10k of ad budget — Google Shopping would split a budget that
   // cannot afford two platforms. Keep in step with index.html.
   "e-growth":      ["meta_ads","ad_variations","custom_landing","pixel","weekly_opt","retargeting","lookalike","split_testing","abandoned_cart","advanced_reporting","monthly_report"],

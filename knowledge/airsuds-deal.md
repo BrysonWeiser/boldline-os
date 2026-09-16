@@ -87,10 +87,11 @@ him in the Launch tier, $400 monthly minimum and $800 setup, both waived under f
 His performance fee is **per qualified sale** instead of the store default of 15% of ad spend,
 which is a choice at the same tier rather than a different package (see `pricing-model`).
 
-🟡 **One thing that does not match:** Store Launch does not list a landing page among its
-inclusions, and Bryson promised Constantine a dedicated page for the subscription offer. Either
-add it to the package (affects every store client and the public site) or treat it as an extra on
-this deal. **Not decided.**
+✅ **Resolved 2026-09-16: Store Launch now includes a landing page.** It turned out not to be a
+product decision at all — the marketing site already advertised one and the package data had
+simply never listed it, so a Store Launch agreement promised no page. Fixed for every store
+client, and a new test compares the public site against the catalog so the two cannot drift again
+(see `pricing-model`).
 
 **Still to decide with Constantine:** the fee itself (recommended $25 per new subscriber or bulk
 order, single bottles free) and whether he pushes back on any of it. Bryson's message went out
