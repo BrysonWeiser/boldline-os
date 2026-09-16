@@ -145,3 +145,40 @@ ladder is a deliberate choice to make and to say out loud.
 - **Business, bulk (Google):** the 25-bottle minimum is ~$275 with ~$125 of margin, and these
   buyers genuinely search. Real, and the right second campaign once there is budget for two.
 
+## 🔴 OPEN QUESTIONS BEFORE ANYTHING IS SIGNED OR LAUNCHED (2026-09-16)
+
+Raised with Bryson after the per-sale billing shipped. None of these is a code problem; they are
+things that decide whether the arrangement works or turns into an argument in month two.
+
+**1. Whose number counts a sale.** The lead flow has an answer (leads land in the OS, Bryson
+reviews and approves them onto an invoice). **Sales have no equivalent** — purchases happen on
+the client's own website. Two candidate sources disagree on purpose: Meta's reporting
+over-claims by design, and the client's own store data is what the client believes.
+**Recommendation: use Constantine's own store numbers.** It costs little if the ads genuinely
+work and it removes the exact argument that burned Brendon ("what counts as a lead"). Agree it on
+a call, not in month two.
+
+**2. The attribution window is NOT in the clause, and should be.** The agreement says a Qualified
+Sale is a purchase by a customer who *"reached it as a result of the Campaigns"* with **no time
+limit stated**. Someone clicking today and subscribing in six weeks is arguable either way.
+Recommendation: state a window (30 days from the click reads as generous and is easy to check).
+
+**3. View-through conversions.** Meta counts "saw the ad, never clicked, bought later" as a
+conversion by default. That will inflate the count and the client will push back the first time
+he compares it with his own data. Agree **click-only**, and set the campaign up that way.
+
+**4. Existing customers re-ordering.** The clause counts repeat purchases once per thirty days but
+does **not** exclude people who were already customers. On a subscription product an existing
+customer re-subscribing is not a new customer BoldLine won. Worth excluding explicitly.
+
+**5. 🔴 The pixel and the purchase event are the critical path, and not only for billing.**
+Without a purchase event carrying a VALUE, Meta cannot optimise toward buyers at all and will
+optimise for landing-page views instead. That is the difference between the campaign working and
+not, quite apart from whether anyone can be invoiced. The site is being rebuilt right now, which
+is the one cheap moment to get it in. **Get a date for the rebuild** — everything else waits on
+it.
+
+**Also confirm he has his own Meta ad account, Facebook page and pixel.** Hard business rule: the
+client owns and pays for the ad account, BoldLine only ever holds manager access. If any of those
+do not exist yet, that is setup work nobody has scheduled.
+
