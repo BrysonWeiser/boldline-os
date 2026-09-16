@@ -5269,6 +5269,17 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
 
   const leadFee=result&&result.nicheLeadFee;
   const recId=result&&result.recommendedPackageId;
+  // 🔴 Which package has its contents open. Bryson, 2026-09-16: *"can we also have each package
+  // list what it includes that way I can tell the client if they ask"* — on a call, with the
+  // prospect waiting, so it has to be one tap and it has to be the RIGHT list.
+  //
+  // `undefined` means "he has not touched this yet", which is not the same as "nothing is
+  // open": the recommended package starts open, because that is the one he is about to read
+  // out. A plain null start would hide the only list he is guaranteed to need.
+  const [openPkg,setOpenPkg]=useState(undefined);
+  // Opening a different prospect's brief resets it, so the package left open on the last call
+  // is not sitting open on the next one.
+  useEffect(()=>{ setOpenPkg(undefined); },[recId]);
   // Default to whatever the briefing recommended, since that is the price he just quoted.
   useEffect(()=>{ if(recId&&!newPkgId) setNewPkgId(recId); },[recId]);
   const back = !isDesktop && (
@@ -5360,8 +5371,16 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
           {[["Google Ads","google"],["Meta Ads","meta"],["Google + Meta","combined"],["E-commerce","ecom"]].map(([label,key])=>(
             <div key={key} style={{marginBottom:12}}>
               <div style={{fontSize:10,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>{label}</div>
-              {(PACKAGES_DB[key]||[]).map(pkg=>{ const rec=pkg.id===recId; return (
-                <div key={pkg.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginBottom:5,border:`1px solid ${rec?C.gold+"66":C.border}`,background:rec?"rgba(200,168,75,0.08)":C.bg3}}>
+              {(PACKAGES_DB[key]||[]).map(pkg=>{ const rec=pkg.id===recId;
+                // 🔴 THE SAME LIST THE CONTRACT AND THE PORTAL USE. Not a copy written for
+                // this screen: he reads this out on a call, and the client later signs a
+                // contract whose inclusions come from `PKG_FEATURES`. A second list here
+                // would let him promise something the agreement does not.
+                const feats=ALL_FEATURES.filter(f=>pkgHasFeature(pkg.id,f.id));
+                const open=openPkg===undefined?rec:openPkg===pkg.id;
+                return (
+                <div key={pkg.id} style={{padding:"9px 11px",borderRadius:9,marginBottom:5,border:`1px solid ${rec?C.gold+"66":C.border}`,background:rec?"rgba(200,168,75,0.08)":C.bg3}}>
+                 <div style={{display:"flex",alignItems:"center",gap:10}}>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
                       <span style={{fontSize:12.5,fontWeight:700,color:C.text}}>{pkg.name}</span>
@@ -5383,6 +5402,27 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
                       <div style={{fontSize:9.5,color:C.textMuted}}>${pkg.setup} setup{pkg.leadFee&&leadFee?` · $${leadFee}/lead`:""}</div>
                     </>)}
                   </div>
+                 </div>
+                 {!!feats.length&&(
+                   <>
+                     <button onClick={()=>setOpenPkg(open?null:pkg.id)}
+                       style={{marginTop:7,padding:0,background:"none",border:"none",cursor:"pointer",
+                         fontSize:10,fontWeight:700,color:rec?C.gold:C.textMuted,letterSpacing:".02em"}}>
+                       {open?"\u25be":"\u25b8"} What&rsquo;s included ({feats.length})
+                     </button>
+                     {open&&(
+                       <div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:"3px 14px"}}>
+                         {feats.map(f=>(
+                           <div key={f.id} style={{flex:"1 1 220px",minWidth:0,fontSize:10.5,color:C.textDim,
+                             lineHeight:1.55,display:"flex",gap:6,alignItems:"flex-start"}}>
+                             <span style={{color:C.gold,fontWeight:700,flexShrink:0}}>&#10003;</span>
+                             <span>{f.label}</span>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </>
+                 )}
                 </div>
               );})}
             </div>
