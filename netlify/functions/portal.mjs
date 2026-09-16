@@ -256,12 +256,20 @@ const reportTextToHTML = (text) => {
 };
 
 const makePortalHTML = (cl, pkg, notice) => {
+  // 🔴 A CLIENT WHO SELLS STRAIGHT FROM A WEBSITE IS NOT BILLED FOR LEADS. Mirrors the
+  // agreement's own wording (see `resultWords` in contract-shared.cjs): if the contract says
+  // Qualified Sales, the portal must not sit there telling them they pay per qualified lead.
+  // Two copies of this portal exist, served and preview, and they change together.
+  const RW = String(cl.billingResultKind || "") === "sale"
+    ? { many: "sales", per: "per qualified sale", one: "qualified sale" }
+    : { many: "qualified leads", per: "per qualified lead", one: "qualified lead" };
+
   // 🔴 A CLIENT WHO FINISHES ON STRIPE HAS TO BE TOLD IT WORKED. Before this they were
   // returned to the OS, an admin login they cannot use, so a completed action read as a
   // failure. Landing back on their own portal is only half the fix; the other half is
   // saying, in words, what just happened.
   const noticeHTML = notice === "card"
-    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Your card is saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Nothing has been charged. You are only billed for qualified leads we deliver, and you will receive an invoice by email each time.</div></div>'
+    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Your card is saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Nothing has been charged. You are only billed for the ' + RW.many + ' we deliver, and you will receive an invoice by email each time.</div></div>'
     : notice === "success"
     ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Payment set up</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Thank you. Your billing is active and a receipt is on its way to your email.</div></div>'
     : notice === "cancel"
@@ -349,7 +357,7 @@ const makePortalHTML = (cl, pkg, notice) => {
         : "";
 
       const feeHTML = `<div class="uopt-fee">${usd(p.price)}<span class="uopt-fee-sub">/mo minimum</span>`
-        + (perLeadNow > 0 ? `<div class="uopt-fee-alt">or ${usd(perLeadNow)} per qualified lead, whichever is higher</div>` : "")
+        + (perLeadNow > 0 ? `<div class="uopt-fee-alt">or ${usd(perLeadNow)} ${RW.per}, whichever is higher</div>` : "")
         + (Number(p.setup) > 0 ? `<div class="uopt-fee-alt">${usd(p.setup)} one-time build</div>` : "")
         + `</div>`;
 
@@ -418,7 +426,7 @@ const makePortalHTML = (cl, pkg, notice) => {
   const billStatus = String(cl.billingStatus || "none");
   const cardOnFile = billStatus === "active" || billStatus === "card_on_file" || !!cl.stripeSubscriptionId;
   const perLeadLine = pl
-    ? "You are billed $" + pl + " per qualified lead. Nothing is charged for anything else."
+    ? "You are billed $" + pl + " " + RW.per + ". Nothing is charged for anything else."
     : "Your agreement sets out what you are billed and when.";
   // 🔴 THE BUTTON IS ALWAYS THERE, AND IT NEVER WAITS ON US. It used to appear only once
   // Bryson had created a Stripe link in the OS and pasted it in; with no link the client

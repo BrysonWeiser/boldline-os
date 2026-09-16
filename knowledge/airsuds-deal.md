@@ -4,7 +4,7 @@ topic: Clients
 task: work on the Air Suds deal, quote Constantine, or decide how to price an e-commerce client
 keywords: [Air Suds, AirSuds, Constantine, car side, aircraft side, car cleaning product, schools, subscription, bottles, e-commerce client, ecommerce pricing, no leads, buys on website, store, g-launch vs e-launch, founding terms ecommerce, ad spend percentage, third client, website down maintenance]
 status: open
-summary: 🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine said yes verbally, nothing signed and nothing in the OS. Air Suds makes cleaning products; ads are for the NEW CAR side (Bryson's own recommendation to open it), which is about a week away while logo variations are made. Customers BUY STRAIGHT FROM THE WEBSITE, no forms and no contact, so this is e-commerce and the per-qualified-lead billing Bryson quoted has nothing to count. 🔴 Founding terms as written ("no monthly minimum, pay only per qualified lead") would bill Air Suds $0/month forever while BoldLine runs $1,000/month of ads. 🔴 AND BRYSON ALREADY TOLD CONSTANTINE "basically free, you only pay for results", so a % of AD SPEND is off the table — the fee has to sit on a RESULT. The fix is to name the result correctly: a sale, or better a new subscriber. Not built: the OS has no billing mode for either. Budget $1,000/mo. Unit economics are the real risk: the known product is $6 to make and sells for $11, so single-bottle sales cannot pay for Google clicks; subscriptions and the 25-bottle minimum can.
+summary: 🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine said yes verbally, nothing signed and nothing in the OS. Air Suds makes cleaning products; ads are for the NEW CAR side (Bryson's own recommendation to open it), which is about a week away while logo variations are made. Customers BUY STRAIGHT FROM THE WEBSITE, no forms and no contact, so this is e-commerce and the per-qualified-lead billing Bryson quoted has nothing to count. 🔴 Founding terms as written ("no monthly minimum, pay only per qualified lead") would bill Air Suds $0/month forever while BoldLine runs $1,000/month of ads. 🔴 AND BRYSON ALREADY TOLD CONSTANTINE "basically free, you only pay for results", so a % of AD SPEND is off the table — the fee has to sit on a RESULT. The fix is to name the result correctly: a sale, or better a new subscriber. BUILT 2026-09-16 (KB `billing-for-sales`): the Billing card now has Billing for → Leads / Sales plus a required sentence saying which purchases count, and the agreement, key terms, Stripe clause and portal all follow it. Budget $1,000/mo. Unit economics are the real risk: the known product is $6 to make and sells for $11, so single-bottle sales cannot pay for Google clicks; subscriptions and the 25-bottle minimum can.
 verified: 2026-09-16
 ---
 
@@ -76,9 +76,15 @@ why the subscription matters more than the fee structure does.
 nothing and cannot prove the sales happened. Their site is being rebuilt right now, which is the
 one moment this is easy to get right. It must be in before launch.
 
-🔴 **NOT BUILT.** `pricingModel` supports `per_lead`, `ad_spend_pct` and `one_time`. Neither
-"per new subscriber" nor "share of tracked revenue" exists in the OS, the portal or the contract.
-This is real work, not a setting.
+✅ **BUILT 2026-09-16** — see KB `billing-for-sales`. Set **Billing for → Sales** on the Billing
+card and write the sentence that says which purchases count ("a new monthly subscription, or a
+single order of 25 bottles or more"). The agreement then quotes it word for word, and the send is
+blocked until it is written. It is a rename rather than a new pricing model, so the rate still
+lives in the same place and nothing else changed.
+
+**Still to decide with Constantine:** the fee itself (recommended $25 per new subscriber or bulk
+order, single bottles free) and whether he pushes back on any of it. Bryson's message went out
+inviting exactly that.
 
 ## 🔴 The bigger risk is the unit economics, not the package
 
@@ -96,17 +102,10 @@ So the ads must sell **the subscription or the bulk minimum, not one bottle**. T
 more individual consumers than bulk"* points the opposite way and is the thing to talk through
 before launch.
 
-**The number still missing: the CAR product's price and cost.** All of the above is the schools
-product. Nothing should be promised on conversion or return until the car side's own margin is
-known.
-
-## Why Google is still right anyway
-
-Every e-commerce package at this budget (`e-launch`, `e-growth`) is **Meta-only**, and BoldLine
-cannot run Meta on a client's account until Meta grants standard access (KB `meta-marketing-api`,
-`meta-parked-work`). So the catalog's own e-commerce answer is not deliverable today. **Google
-Search at the Launch tier is the right build.** What needs to change is the fee basis, not the
-platform or the work.
+**The car side is the SAME numbers.** Bryson, 2026-09-16: *"the car side will cost the same as
+well because its the same product formula and everything just different branding."* So $6 to
+make, $11 to sell, ~45% margin, and the subscription and 25-bottle structures carry over. The
+arithmetic above is the real arithmetic, not an estimate borrowed from the other side.
 
 ## Which platform
 

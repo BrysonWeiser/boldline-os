@@ -416,6 +416,37 @@ const contractTerms = (client, pkg) => {
   };
 };
 
+// ── 🔴 WHAT THE PERFORMANCE FEE IS CHARGED ON ────────────────────────────────
+//
+// A lead for most clients, a SALE for a client who sells straight from a website and takes
+// no enquiries at all. See the long note at the call site in makeContractHTML for why this
+// exists and why it is a rename rather than a third pricing model.
+//
+// 🔴 MIRRORED IN index.html (the OS cannot import this file) AND PINNED BY A TEST that runs
+// both and compares. Change one, change the other.
+//
+// `defn` is the sentence that DEFINES the billable event in the agreement, and for a sale it
+// is the client's own (a subscription sign-up, a bulk order, never a single unit). For a lead
+// it is BoldLine's standing definition and is deliberately not editable, because it is the
+// same promise on every lead-gen agreement.
+const resultWords = (cl) => {
+  const c = cl || {};
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  if (String(c.billingResultKind || "") !== "sale") {
+    return { kind:"lead", one:"Qualified Lead", many:"Qualified Leads", per:"per qualified lead",
+      countNoun:"Lead counts", itNoun:"lead",
+      defn:'A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.',
+      warranty:'<strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong>' };
+  }
+  const own = esc(c.billingSaleDefinition || "").trim();
+  return { kind:"sale", one:"Qualified Sale", many:"Qualified Sales", per:"per qualified sale",
+    countNoun:"Sale counts", itNoun:"sale",
+    defn:'A <strong>&ldquo;Qualified Sale&rdquo;</strong> means a purchase made through Client&rsquo;s website by a customer who reached it as a result of the Campaigns, and which meets the following description: '
+      + (own ? '<strong>' + own + '</strong>' : '<strong>[NOT SET]</strong>')
+      + '. A purchase that does not meet that description is not a Qualified Sale and carries no fee. Refunded, cancelled, and chargeback orders are not Qualified Sales, and any fee already charged on one is credited back on the next invoice. Repeat purchases by the same customer within thirty (30) days are counted once.',
+    warranty:'<strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend, and no fee is refundable because Client&rsquo;s own margin on a sale was lower than expected.</strong>' };
+};
+
 const calcMonthlyBill = (pkg, { qualifiedLeads = 0, perLeadFee = 0, adSpend = 0 } = {}) => {
   if (!pkg) return { floor:0, earned:0, billed:0, atFloor:false, model:"none", basis:"" };
   // A one-time build has no monthly side at all. Returning a zero floor rather than
@@ -2867,7 +2898,18 @@ function contractGaps(cl, pkg) {
     // ever. Checking `billingPerLead != null` would pass a client whose niche has no rate,
     // which is exactly the case that renders a contract with no fee clause.
     const fee = c.billingPerLead != null ? Number(c.billingPerLead) : (PER_LEAD[c.niche] || 0);
-    if (!(fee > 0)) add("No price per qualified lead", "Set it on the Package tab. Without it the agreement has no section about what they pay for results, and everything else still looks finished.");
+    const sale = c.billingResultKind === "sale";
+    if (!(fee > 0)) add(sale ? "No price per qualified sale" : "No price per qualified lead", "Set it on the Package tab. Without it the agreement has no section about what they pay for results, and everything else still looks finished.");
+    // 🔴 A SALE HAS NO STANDARD DEFINITION, AND THE AGREEMENT CANNOT INVENT ONE. The Qualified
+    // Lead wording is BoldLine's and is the same on every lead-gen agreement, so it can never
+    // be missing. What counts as a sale worth paying for is the client's own commercial
+    // question (Air Suds: a subscription or a bulk order, never a single bottle), so the
+    // contract renders the sentence Bryson wrote — and renders "[NOT SET]" in its place if he
+    // did not write one. That is a blank where the billable event should be, in a signed
+    // document, which is the whole class of thing this function exists to stop.
+    if (sale && blank(c.billingSaleDefinition)) {
+      add("No description of which purchases count", "Set it on the Package tab under Billing for → Sales. The agreement quotes your sentence word for word, and without it there is a blank where the thing you get paid for should be.");
+    }
   } else if (pkg.pricingModel === "ad_spend_pct") {
     const pct = c.billingSpendPct != null ? Number(c.billingSpendPct) : (Number(pkg.adSpendPct) || 0);
     if (!(pct > 0)) add("No percentage of ad spend", "Set it on the Package tab. A store has no lead to count, so this percentage IS their performance fee, and without it the agreement has no section about it.");
@@ -2916,6 +2958,10 @@ const makeContractHTML=(cl,pkg)=>{
   const perLeadFee = (pkg && pkg.pricingModel === "per_lead")
     ? (cl.billingPerLead!=null ? Number(cl.billingPerLead) : (pl||0))
     : 0;
+  // 🔴 Mirror of contract-shared.cjs. See the long note there: a client who sells straight
+  // from a website can never produce a lead, so the billable event is a SALE. A rename, not
+  // a third pricing model, so every calculation below is untouched.
+  const W = resultWords(cl);
   const hasPerf  = pctFee > 0 || perLeadFee > 0;
   // 🔴 INTRODUCTORY TERM: performance fee only, no monthly floor. Bryson, 2026-08-26, on
   // his first clients: the minimum is waived for the initial term so the client pays only
@@ -3062,7 +3108,7 @@ const makeContractHTML=(cl,pkg)=>{
    +metaItem("End Date",esc(cl.contractEnd)||"—")
    +metaItem("Optimization Cadence",oneTime?"Two passes during the 30-day settle-in, then none"
        :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
-   +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" per qualified lead"):"")
+   +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" "+W.per):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
    +(hasPerf?metaItem("How the two combine", introOnly
         ? "Nothing to combine. The performance fee is the entire fee."
@@ -3087,10 +3133,10 @@ const makeContractHTML=(cl,pkg)=>{
   const perfSection = hasPerf ? (
     (introOnly ? '<h2>4. Performance Fee</h2>' : '<h2>4. Monthly Minimum and Performance Fee</h2>')
    +(introOnly
-      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no Qualified Leads in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
+      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no '+W.many+' in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
       : '<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>')
    +(perLeadFee ? (
-      '<p>4.2 <strong>Performance Fee (per qualified lead).</strong> The Performance Fee for a month is the Per-Qualified-Lead Fee stated above multiplied by the number of Qualified Leads generated by the Campaigns in that month. A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.</p>'
+      '<p>4.2 <strong>Performance Fee ('+W.per+').</strong> The Performance Fee for a month is the fee stated above multiplied by the number of '+W.many+' generated by the Campaigns in that month. '+W.defn+'</p>'
     ) : (
       '<p>4.2 <strong>Performance Fee (percentage of ad spend).</strong> The Performance Fee for a month is the percentage stated above of Client&rsquo;s total advertising spend across the Campaigns for that month, as reported by the advertising platforms. Advertising spend is paid by Client directly to the platforms and is never held or advanced by Agency; the percentage is a measure of Agency&rsquo;s fee, not a charge for or markup on ad spend.</p>'
     ))
@@ -3098,7 +3144,7 @@ const makeContractHTML=(cl,pkg)=>{
       ? '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>'
       : '<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>')
    +(perLeadFee
-      ? '<p>4.4 Lead counts are calculated from campaign tracking data. If Client believes a lead was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any lead it reasonably determines was not a Qualified Lead. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong></p>'
+      ? '<p>4.4 '+W.countNoun+' are calculated from campaign tracking data. If Client believes a '+W.itNoun+' was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any '+W.itNoun+' it reasonably determines was not a '+W.one+'. Invoices not disputed within that period are deemed accepted. '+W.warranty+'</p>'
       : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
   ) : '';
   // Section numbers after the conditional ones stay fixed by rendering both slots
@@ -3180,7 +3226,7 @@ const makeContractHTML=(cl,pkg)=>{
      : '<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
    +(introOnly
-      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no Qualified Leads produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no '+W.many+' produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
       : '<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
@@ -3297,12 +3343,20 @@ const makeContractHTML=(cl,pkg)=>{
 
 
 const makePortalHTML=(cl,pkg,notice)=>{
+  // 🔴 A CLIENT WHO SELLS STRAIGHT FROM A WEBSITE IS NOT BILLED FOR LEADS. Mirrors the
+  // agreement's own wording (see `resultWords` in contract-shared.cjs): if the contract says
+  // Qualified Sales, the portal must not sit there telling them they pay per qualified lead.
+  // Two copies of this portal exist, served and preview, and they change together.
+  const RW = String(cl.billingResultKind || "") === "sale"
+    ? { many: "sales", per: "per qualified sale", one: "qualified sale" }
+    : { many: "qualified leads", per: "per qualified lead", one: "qualified lead" };
+
   // 🔴 A CLIENT WHO FINISHES ON STRIPE HAS TO BE TOLD IT WORKED. Before this they were
   // returned to the OS, an admin login they cannot use, so a completed action read as a
   // failure. Landing back on their own portal is only half the fix; the other half is
   // saying, in words, what just happened.
   const noticeHTML = notice === "card"
-    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Your card is saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Nothing has been charged. You are only billed for qualified leads we deliver, and you will receive an invoice by email each time.</div></div>'
+    ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Your card is saved</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Nothing has been charged. You are only billed for the ' + RW.many + ' we deliver, and you will receive an invoice by email each time.</div></div>'
     : notice === "success"
     ? '<div class="card" style="border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.07)"><div style="font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px">Payment set up</div><div style="font-size:11.5px;color:#9CA3AF;line-height:1.65">Thank you. Your billing is active and a receipt is on its way to your email.</div></div>'
     : notice === "cancel"
@@ -3387,7 +3441,7 @@ const makePortalHTML=(cl,pkg,notice)=>{
         : "";
 
       const feeHTML = `<div class="uopt-fee">${usd(p.price)}<span class="uopt-fee-sub">/mo minimum</span>`
-        + (perLeadNow > 0 ? `<div class="uopt-fee-alt">or ${usd(perLeadNow)} per qualified lead, whichever is higher</div>` : "")
+        + (perLeadNow > 0 ? `<div class="uopt-fee-alt">or ${usd(perLeadNow)} ${RW.per}, whichever is higher</div>` : "")
         + (Number(p.setup) > 0 ? `<div class="uopt-fee-alt">${usd(p.setup)} one-time build</div>` : "")
         + `</div>`;
 
@@ -3428,7 +3482,7 @@ const makePortalHTML=(cl,pkg,notice)=>{
   // These two mirror portal.mjs; the wording is asserted identical by the suite.
   const _plPrev = cl.billingPerLead != null && String(cl.billingPerLead).trim() !== "" ? Number(cl.billingPerLead) : PER_LEAD[cl.niche];
   const _cardOn = cl.billingStatus === "active" || cl.billingStatus === "card_on_file" || !!cl.stripeSubscriptionId;
-  const _perLeadLine = _plPrev ? "You are billed $" + _plPrev + " per qualified lead. Nothing is charged for anything else."
+  const _perLeadLine = _plPrev ? "You are billed $" + _plPrev + " " + RW.per + ". Nothing is charged for anything else."
     : "Your agreement sets out what you are billed and when.";
   const payCard = '<div class="card"' + (_cardOn ? "" : ' style="border-color:rgba(200,168,75,.4);background:rgba(200,168,75,.05)"')
     + '><div class="lbl"' + (_cardOn ? "" : ' style="color:#C8A84B;font-size:11px"') + '>Payment Method</div>'
@@ -9520,6 +9574,8 @@ function BillingCard({client,pkg,onUpdate}) {
     onUpdate&&onUpdate({...client,billingPerLead:r});
     setEditRate(false); setLeadMsg("");
   };
+  // Typed locally and written on blur, so every keystroke does not save the whole client.
+  const [saleDefn,setSaleDefn]=useState(String(client.billingSaleDefinition||""));
   const chargeLeads=async()=>{
     if(!client.stripeCustomerId){ setLeadMsg(resultsOnly?"Save a card on file first — there is nothing to invoice against.":"Set up recurring billing first — lead fees ride the client's monthly invoice."); return; }
     if(billableCount<=0){ setLeadMsg("No billable leads right now."); return; }
@@ -9671,9 +9727,39 @@ function BillingCard({client,pkg,onUpdate}) {
             <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Lead Billing{resultsOnly?"":" (whichever is higher)"}</span>
             <span style={{fontSize:10,color:C.textMuted}}>{flaggedBillable>0&&<span style={{color:C.amber,fontWeight:700}}>{flaggedBillable} flagged</span>}{flaggedBillable>0&&billedCount>0?" · ":""}{billedCount>0?`${billedCount} billed`:""}</span>
           </div>
+          {/* 🔴 WHAT IS BEING COUNTED. Bryson, 2026-09-16, on a client who sells straight from a
+              website: *"just buy through website no forms or contacting him"*. The agreement's
+              definition of a Qualified Lead is a form, a tracked call or a chat, and not one of
+              those can ever happen on that account — so the contract would have defined the
+              billable event as something impossible. Switching this to Sales renames it
+              everywhere it appears: the agreement, the key terms, and the client's portal. The
+              rate and every calculation are untouched, because a count times a rate is a count
+              times a rate. */}
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center",marginBottom:8}}>
+            <span style={{fontSize:10,color:C.textMuted}}>Billing for</span>
+            {[["lead","Leads"],["sale","Sales"]].map(([k,lbl])=>{
+              const on=(client.billingResultKind==="sale")===(k==="sale");
+              return <button key={k} onClick={()=>onUpdate&&onUpdate({...client,billingResultKind:k})}
+                style={{padding:"4px 9px",fontSize:10,fontWeight:700,borderRadius:999,
+                  border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,.14)":"rgba(255,255,255,.04)",
+                  color:on?C.gold:C.textDim,cursor:"pointer"}}>{lbl}</button>;
+            })}
+          </div>
+          {client.billingResultKind==="sale"&&(
+            <div style={{marginBottom:9}}>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:4}}>
+                Which purchases you get paid for. This sentence goes into the agreement word for word, so write it the way you would say it out loud.
+              </div>
+              <input value={saleDefn} onChange={e=>setSaleDefn(e.target.value)}
+                onBlur={()=>{ const v=saleDefn.trim(); if(v!==String(client.billingSaleDefinition||"")) onUpdate&&onUpdate({...client,billingSaleDefinition:v}); }}
+                placeholder="a new monthly subscription, or a single order of 25 bottles or more"
+                style={{width:"100%",padding:"7px 9px",fontSize:11.5,borderRadius:7,border:`1px solid ${saleDefn.trim()?C.border:C.red}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,boxSizing:"border-box"}}/>
+              {!saleDefn.trim()&&<div style={{fontSize:10,color:C.red,lineHeight:1.5,marginTop:4}}>Needed before the agreement can go out. Without it the contract has a blank where the thing you bill for should be.</div>}
+            </div>
+          )}
           {!editRate
             ? <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>
-                Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/lead</strong>
+                Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/{client.billingResultKind==="sale"?"sale":"lead"}</strong>
                 {client.billingPerLead!=null&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold}}>custom</span>}
                 <button onClick={()=>{setRateInput(String(perLeadRate));setEditRate(true);}} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>edit</button>
                 <button onClick={()=>setShowFeeFinder(v=>!v)} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>{showFeeFinder?"hide":"what should this be?"}</button>

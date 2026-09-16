@@ -63,6 +63,37 @@ const PKG_FEATURES = {
 };
 
 const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
+
+// ── 🔴 WHAT THE PERFORMANCE FEE IS CHARGED ON ────────────────────────────────
+//
+// A lead for most clients, a SALE for a client who sells straight from a website and takes
+// no enquiries at all. See the long note at the call site in makeContractHTML for why this
+// exists and why it is a rename rather than a third pricing model.
+//
+// 🔴 MIRRORED IN index.html (the OS cannot import this file) AND PINNED BY A TEST that runs
+// both and compares. Change one, change the other.
+//
+// `defn` is the sentence that DEFINES the billable event in the agreement, and for a sale it
+// is the client's own (a subscription sign-up, a bulk order, never a single unit). For a lead
+// it is BoldLine's standing definition and is deliberately not editable, because it is the
+// same promise on every lead-gen agreement.
+const resultWords = (cl) => {
+  const c = cl || {};
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  if (String(c.billingResultKind || "") !== "sale") {
+    return { kind:"lead", one:"Qualified Lead", many:"Qualified Leads", per:"per qualified lead",
+      countNoun:"Lead counts", itNoun:"lead",
+      defn:'A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.',
+      warranty:'<strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong>' };
+  }
+  const own = esc(c.billingSaleDefinition || "").trim();
+  return { kind:"sale", one:"Qualified Sale", many:"Qualified Sales", per:"per qualified sale",
+    countNoun:"Sale counts", itNoun:"sale",
+    defn:'A <strong>&ldquo;Qualified Sale&rdquo;</strong> means a purchase made through Client&rsquo;s website by a customer who reached it as a result of the Campaigns, and which meets the following description: '
+      + (own ? '<strong>' + own + '</strong>' : '<strong>[NOT SET]</strong>')
+      + '. A purchase that does not meet that description is not a Qualified Sale and carries no fee. Refunded, cancelled, and chargeback orders are not Qualified Sales, and any fee already charged on one is credited back on the next invoice. Repeat purchases by the same customer within thirty (30) days are counted once.',
+    warranty:'<strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend, and no fee is refundable because Client&rsquo;s own margin on a sale was lower than expected.</strong>' };
+};
 const monthsLabel = (n) => {
   if (n===1)  return "1 month";
   if (n===3)  return "3 months";
@@ -122,6 +153,25 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const perLeadFee = (pkg && pkg.pricingModel === "per_lead")
     ? (cl.billingPerLead!=null ? Number(cl.billingPerLead) : (pl||0))
     : 0;
+  // 🔴 WHAT THE CLIENT IS ACTUALLY BILLED FOR, WHEN IT IS NOT A LEAD.
+  //
+  // Bryson, 2026-09-16, on Air Suds: the customer *"just buy[s] through website no forms or
+  // contacting him"*. The Qualified Lead definition below is a form submission, a tracked
+  // call, or a chat. **Not one of those can ever happen on that account**, so sending this
+  // agreement as-is would have had a client sign a document in which the billable event is
+  // impossible. Bryson had already told the owner "you only pay for results", so the fee has
+  // to sit on a real result — for a shop that is a SALE.
+  //
+  // 🔴 THE MECHANIC IS UNCHANGED, AND THAT IS THE POINT. A count multiplied by a rate, billed
+  // in arrears, floor absorbed. Only the NAME of the thing counted and its DEFINITION differ,
+  // so `billingPerLead` still carries the rate and every existing calculation is untouched.
+  // Adding a third pricing model would have meant a new branch at fifteen call sites, and
+  // fifteen chances to get one wrong.
+  //
+  // The definition is per client, because what counts as a sale worth paying for is the
+  // client's own commercial question (Air Suds: a subscription sign-up or a bulk order, never
+  // a single bottle). It is required before the agreement can be sent — see `contractGaps`.
+  const W = resultWords(cl);
   const hasPerf  = pctFee > 0 || perLeadFee > 0;
   // Results-only: performance fee, no floor. Mirrors index.html — see the note there.
   const introOnly = hasPerf && effMonthly === 0;
@@ -264,7 +314,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +metaItem("End Date",esc(cl.contractEnd)||"—")
    +metaItem("Optimization Cadence",oneTime?"Two passes during the 30-day settle-in, then none"
        :((pkg&&pkg.optimizationFreq)==="weekly"?"Weekly":"Monthly"))
-   +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" per qualified lead"):"")
+   +(perLeadFee?metaItem("Performance Fee",money(perLeadFee)+" "+W.per):"")
    +(pctFee?metaItem("Performance Fee",pctFee+"% of monthly ad spend"):"")
    +(hasPerf?metaItem("How the two combine", introOnly
         ? "Nothing to combine. The performance fee is the entire fee."
@@ -289,10 +339,10 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   const perfSection = hasPerf ? (
     (introOnly ? '<h2>4. Performance Fee</h2>' : '<h2>4. Monthly Minimum and Performance Fee</h2>')
    +(introOnly
-      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no Qualified Leads in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
+      ? '<p>4.1 <strong>How the monthly fee is calculated.</strong> <span class="caps">THERE IS NO MONTHLY MINIMUM DURING THE INITIAL TERM.</span> For each calendar month of the Initial Term, Agency&rsquo;s entire fee is the Performance Fee for that month, calculated as set out below. If the Campaigns produce no '+W.many+' in a month, <strong>Client owes Agency nothing for that month</strong>. From any renewal term onward a Monthly Minimum will apply at the rate quoted by Agency at the time of renewal, and Client is under no obligation to renew.</p>'
       : '<p>4.1 <strong>How the monthly fee is calculated.</strong> For each calendar month, Agency&rsquo;s fee is the <strong>greater of</strong> (a) the Monthly Minimum stated in the Key Commercial Terms, or (b) the Performance Fee for that month. <span class="caps">THE TWO ARE NEVER CHARGED TOGETHER.</span> If the Performance Fee is less than the Monthly Minimum, Client pays the Monthly Minimum and nothing further. If the Performance Fee is greater, Client pays the Performance Fee and the Monthly Minimum is absorbed into it.</p>')
    +(perLeadFee ? (
-      '<p>4.2 <strong>Performance Fee (per qualified lead).</strong> The Performance Fee for a month is the Per-Qualified-Lead Fee stated above multiplied by the number of Qualified Leads generated by the Campaigns in that month. A <strong>&ldquo;Qualified Lead&rdquo;</strong> means a prospective customer who, as a result of the Campaigns, (a) submits a lead form, (b) places a tracked telephone call lasting thirty (30) seconds or longer, or (c) initiates a text or chat conversation. Duplicate submissions from the same person within thirty (30) days, spam, bot traffic, and solicitation inquiries are not Qualified Leads.</p>'
+      '<p>4.2 <strong>Performance Fee ('+W.per+').</strong> The Performance Fee for a month is the fee stated above multiplied by the number of '+W.many+' generated by the Campaigns in that month. '+W.defn+'</p>'
     ) : (
       '<p>4.2 <strong>Performance Fee (percentage of ad spend).</strong> The Performance Fee for a month is the percentage stated above of Client&rsquo;s total advertising spend across the Campaigns for that month, as reported by the advertising platforms. Advertising spend is paid by Client directly to the platforms and is never held or advanced by Agency; the percentage is a measure of Agency&rsquo;s fee, not a charge for or markup on ad spend.</p>'
     ))
@@ -300,7 +350,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
       ? '<p>4.3 <strong>Billing mechanics.</strong> Nothing is billed in advance. After each month closes, Agency calculates the Performance Fee for that month and it is charged on the next invoice. Client is billed in arrears, for results already delivered.</p>'
       : '<p>4.3 <strong>Billing mechanics.</strong> The Monthly Minimum is billed in advance at the start of each billing period. After the month closes, Agency calculates the Performance Fee; if it exceeds the Monthly Minimum already billed, <strong>only the difference</strong> is added to the next invoice. Client will never be invoiced both amounts in full for the same month.</p>')
    +(perLeadFee
-      ? '<p>4.4 Lead counts are calculated from campaign tracking data. If Client believes a lead was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any lead it reasonably determines was not a Qualified Lead. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate lead generation only; Agency does not warrant that any lead will become a paying customer, and no fee is refundable because a lead did not convert.</strong></p>'
+      ? '<p>4.4 '+W.countNoun+' are calculated from campaign tracking data. If Client believes a '+W.itNoun+' was incorrectly counted, Client must notify Agency in writing within ten (10) days of the invoice date; Agency will review in good faith and credit any '+W.itNoun+' it reasonably determines was not a '+W.one+'. Invoices not disputed within that period are deemed accepted. '+W.warranty+'</p>'
       : '<p>4.4 Ad-spend figures are taken from the advertising platforms&rsquo; own reporting, which is the definitive measurement for this purpose. If Client believes a month&rsquo;s figure is wrong, Client must notify Agency in writing within ten (10) days of the invoice date and Agency will review in good faith. Invoices not disputed within that period are deemed accepted. <strong>Performance Fees compensate campaign management only; Agency does not warrant any particular level of sales, revenue, or return on ad spend.</strong></p>')
   ) : '';
   // Section numbers after the conditional ones stay fixed by rendering both slots
@@ -381,7 +431,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
      : '<h2>3. Fees and Payment</h2>'
    +'<p>3.1 <strong>Setup Fee.</strong> Any one-time Setup Fee shown in the Key Commercial Terms is due before campaign build begins and is non-refundable once Agency has commenced work, as it compensates account configuration, research, and build labor actually performed.</p>'
    +(introOnly
-      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no Qualified Leads produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
+      ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no '+W.many+' produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
       : '<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
    +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'

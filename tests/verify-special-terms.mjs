@@ -38,6 +38,11 @@ const browser = new Function([
   decl("PKG_FEATURES = {", "\n};"),
   decl("PER_LEAD ", "};"),
   decl("monthsLabel", "\n};"),
+  // 🔴 THE REAL ONE, NOT A STUB. makeContractHTML now asks resultWords what the client is
+  // billed FOR (a lead, or a sale for a shop that takes no enquiries). A harness that stubbed
+  // it would be more permissive than the page and would pass while the document said the
+  // wrong thing; a harness that omits it throws, which is how this was found.
+  decl("resultWords = (cl)", "\n};"),
   decl("makeContractHTML=", "\n};"),
 ].join("\n") + "\nreturn makeContractHTML;")();
 
