@@ -1007,11 +1007,79 @@ async function createCampaign(p) {
     },
   });
 
+  // 6) 🔴 THE SECOND VERSION OF THE AD, BUILT ON DAY ONE.
+  //
+  // Bryson, 2026-09-15: he wants split testing set up for him rather than assembled by hand.
+  // Autopilot already writes a challenger into a running Meta ad set and pauses the loser —
+  // but only after that ad set has served about a thousand impressions, because until then
+  // there is nothing to challenge. On a campaign built with ONE ad, every one of those first
+  // thousand impressions is spent learning nothing about which message works.
+  //
+  // Starting with two removes that dead stretch entirely. The test is running from the first
+  // impression.
+  //
+  // 🔴 IT CANNOT RAISE THE BILL. Budget lives on the campaign and the ad set, never on an ad,
+  // so a second ad divides the same money instead of adding to it. That is the same invariant
+  // the autopilot challenger relies on, and it is the reason this is safe to do automatically.
+  //
+  // 🔴 SAME IMAGE, DIFFERENT WORDS. Change the picture and the wording at once and a winner
+  // tells you nothing about either. Autopilot holds the image constant for exactly this
+  // reason; so does this.
+  //
+  // PAUSED like everything else here: nothing this function builds may be capable of spending
+  // before he approves it. The activation sweep turns the whole campaign on together.
+  const extraAdIds = [];
+  const extras = Array.isArray(p.extraAds) ? p.extraAds.slice(0, 3) : [];
+  for (let i = 0; i < extras.length; i++) {
+    const v = extras[i] || {};
+    const headline = String(v.headline || "").trim();
+    const body = String(v.primaryText || "").trim();
+    // A blank version is not a test, it is an empty ad Meta would reject. Skip it rather
+    // than failing the whole build: the campaign and its first ad already exist by now.
+    if (!headline || !body) continue;
+    const vLink = {
+      message: body,
+      link: p.landingUrl,
+      name: headline,
+      description: String(v.description || ""),
+      call_to_action: { type: String(v.ctaType || p.ctaType || "LEARN_MORE"), value: { link: p.landingUrl } },
+    };
+    if (imageHash) vLink.image_hash = imageHash;
+    try {
+      const vCreative = await graph("createCampaign", `${a}/adcreatives`, {
+        method: "POST",
+        params: {
+          name: `${name} — Creative ${i + 2}`,
+          object_story_spec: JSON.stringify({ page_id: String(p.pageId), link_data: vLink }),
+        },
+      });
+      const vAd = await graph("createCampaign", `${a}/ads`, {
+        method: "POST",
+        params: {
+          name: `${name} — Ad ${i + 2}`,
+          adset_id: adset.id,
+          creative: JSON.stringify({ creative_id: vCreative.id }),
+          status: "PAUSED",
+        },
+      });
+      extraAdIds.push(vAd.id);
+    } catch (e) {
+      // 🔴 BEST EFFORT, DELIBERATELY. The campaign, its ad set and a complete working ad all
+      // exist by the time this runs. Throwing here would report "launch failed" for a
+      // campaign that is sitting in his account fully built, and he would build it twice.
+      // A campaign with one ad is the old behaviour, not a broken one.
+      console.warn("createCampaign: extra ad", i + 2, "failed, continuing:", e && e.message);
+    }
+  }
+
   return {
     campaignId: camp.id,
     adsetId: adset.id,
     creativeId: creative.id,
     adId: ad.id,
+    adIds: [ad.id, ...extraAdIds],
+    adsCreated: 1 + extraAdIds.length,
+    extraAdsRequested: extras.length,
     status: "PAUSED",
     note: "Created PAUSED — review it, then activate (approval queue / Ads Manager) to start spend.",
   };

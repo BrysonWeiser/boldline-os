@@ -7329,6 +7329,293 @@ function ClientApprovalsCard({client,onUpdate}) {
 //
 // Addresses are boldlinemedia.com/for/<name>, proxied to this app. Nothing here writes the
 // account's MAIN page: that stays exactly where it is, above.
+// ── ONE CONTROL PER AUDIENCE, INSTEAD OF A TIER ──────────────────────────────
+//
+// Bryson, 2026-09-15: *"what if I want to build an ad with multiple ad groups and have it do
+// a/b split testing and the full works ... maybe having it so I can select each package tier
+// like how I do for clients except it's for my own ads."*
+//
+// 🔴 THE TIER IS THE WRONG DIAL AND IT IS WORTH SAYING WHY, because it will come up again. A
+// client's tier is decided BY their ad budget and what it controls is what they PAY — the
+// monthly minimum and how the per-lead fee works. Picking a tier for his own ads is picking a
+// budget with extra steps, and it drags pricing language into a screen that has nothing to
+// sell. What he actually wants to choose is how hard to push one audience, which is a
+// different question with a different answer.
+//
+// 🔴 AND THE TWO PLATFORMS DO NOT GET THE SAME TREATMENT, on purpose. A Google responsive
+// search ad tests its own headlines and descriptions against each other continuously — that
+// IS the split test, run by Google at the asset level. Splitting the generator's 15 headlines
+// across two weaker ads would make it worse, not better, so on Google the lever is how many
+// ad groups (themes) get built. A Meta ad does no such thing: one ad is one fixed piece of
+// copy, so there the lever is how many versions of the copy sit in the ad set. Forcing the
+// two to look the same would have meant shipping something worse on one of them.
+const PUSH_LEVELS = [
+  { id: "toe", label: "Test the waters", googleGroups: 1, metaAds: 2,
+    what: "One angle on Google, two versions of the ad on Meta. The cheapest way to find out whether this audience bites at all." },
+  { id: "standard", label: "Standard", googleGroups: 3, metaAds: 3,
+    what: "Three angles on Google, three versions on Meta. The default: enough to learn which message works without spreading the money thin." },
+  { id: "hard", label: "Go hard", googleGroups: 5, metaAds: 4,
+    what: "Five angles on Google, four versions on Meta. Only worth it when there is enough budget to feed every one of them." },
+];
+const pushLevel = (id) => PUSH_LEVELS.find((l) => l.id === id) || PUSH_LEVELS[1];
+
+// 🔴 THESE TWO NUMBERS ARE NOT GUESSES AND MUST NOT DRIFT. They are the click counts
+// `ads-autopilot` itself requires on each ad before it will call a winner. If they ever stop
+// matching, this screen promises a verdict the system will not give, which is worse than no
+// estimate at all — a test pins them against the real constants.
+const VERDICT_CLICKS = { google: 30, meta: 50 };
+// What a click costs when there is no history to read. Deliberately not optimistic: BoldLine
+// advertises to business owners, and "google ads management" is one of the more expensive
+// things you can bid on. Both are editable on screen, because a real number beats ours.
+const ASSUMED_CPC = { google: 8, meta: 1.5 };
+
+// His own account's real cost per click, when it has spent enough to have one. The daily sync
+// stores 30-day spend and clicks per platform, so this is measured, not modelled.
+const measuredCpc = (cl, platform) => {
+  const p = ((cl || {}).adPerf || {})[platform] || {};
+  const spend = Number(p.spend30d || 0), clicks = Number(p.clicks || 0);
+  // Under ~20 clicks the average is mostly noise, and an anchored-in wrong number is worse
+  // than an honest assumption.
+  if (!(spend > 0) || clicks < 20) return 0;
+  return Math.round((spend / clicks) * 100) / 100;
+};
+
+// 🔴 THE PART HE ASKED FOR WITHOUT ASKING FOR IT: whether this plan can actually learn
+// anything before the money runs out.
+//
+// Every extra ad group and every extra version divides the SAME budget into more buckets, and
+// each bucket needs its own clicks before anything can be judged. Four audiences at five
+// groups each is twenty buckets and a verdict on none of them. This is the arithmetic of that,
+// said out loud, instead of quietly building something that cannot work.
+const adPlan = ({ level, platform, monthlyBudget, cpc }) => {
+  const L = pushLevel(level);
+  const buckets = platform === "google" ? L.googleGroups : L.metaAds;
+  // On Google a bucket is an ad group, and a verdict there means the challenger autopilot
+  // adds later has run against the original: two ads, each needing its own clicks. On Meta
+  // the buckets ARE the ads, so it is one lot of clicks each.
+  const clicksNeeded = platform === "google" ? buckets * 2 * VERDICT_CLICKS.google
+                                             : buckets * VERDICT_CLICKS.meta;
+  const daily = Number(monthlyBudget || 0) / 30.4;
+  const perClick = Number(cpc || 0);
+  const clicksPerDay = perClick > 0 ? daily / perClick : 0;
+  const days = clicksPerDay > 0 ? Math.ceil(clicksNeeded / clicksPerDay) : 0;
+  // No budget or no click price is "cannot say", NOT "instant". Returning 0 days for an empty
+  // form would render as the healthiest possible answer.
+  const verdict = !days ? "unknown" : days <= 21 ? "ok" : days <= 45 ? "tight" : "thin";
+  return { buckets, clicksNeeded, days, verdict,
+    lower: (verdict === "thin" || verdict === "tight") ? lighterLevel(level) : null };
+};
+const lighterLevel = (id) => {
+  const i = PUSH_LEVELS.findIndex((l) => l.id === id);
+  return i > 0 ? PUSH_LEVELS[i - 1] : null;
+};
+
+function AudienceAdPlanCard({client, onUpdate}) {
+  // Only pages that are actually live. A plan aimed at a page showing a coming-soon holder
+  // buys clicks that land on nothing, which is the same money-burning shape the launch
+  // cards' own guard exists to stop.
+  const targets = audienceTargets(client).filter(t=>t.live);
+  const [pageId,setPageId] = useState("");
+  const [level,setLevel] = useState("standard");
+  const [platform,setPlatform] = useState("google");
+  const [monthly,setMonthly] = useState(String(((client.campaignSetup||{}).monthlyBudget)||""));
+  const [cpc,setCpc] = useState("");
+  const [locations,setLocations] = useState(((client.campaignSetup||{}).serviceArea)||"United States");
+  const [state,setState] = useState("idle");     // idle | working | done | error
+  const [step,setStep] = useState("");
+  const [msg,setMsg] = useState("");
+
+  const chosen = targets.find(t=>t.id===pageId) || targets[0] || null;
+  const L = pushLevel(level);
+  // Measured beats assumed, and what he typed beats both.
+  const autoCpc = measuredCpc(client, platform) || ASSUMED_CPC[platform];
+  const cpcUsed = Number(cpc)>0 ? Number(cpc) : autoCpc;
+  const cpcIsReal = !Number(cpc) && !!measuredCpc(client, platform);
+  const plan = adPlan({ level, platform, monthlyBudget:Number(monthly)||0, cpc:cpcUsed });
+
+  const linked = platform==="google" ? !!client.googleAdsCustomerId : !!(client.metaAdAccountId&&client.metaPageId);
+  const usableImgs = (client.mediaLibrary||[]).filter(m=>m.url&&m.category!=="video"&&m.category!=="source");
+  const metaImage = (usableImgs[0]||{}).url||"";
+
+  const box={width:"100%",padding:"8px 10px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,boxSizing:"border-box"};
+  const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,margin:"0 0 4px",display:"block"};
+  const pill=(on)=>({padding:"6px 10px",fontSize:10.5,fontWeight:700,borderRadius:999,
+    border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,.14)":"rgba(255,255,255,.04)",
+    color:on?C.gold:C.textDim,cursor:"pointer"});
+
+  const build = async () => {
+    if(!chosen){ setState("error"); setMsg("Make an audience page live first — this builds ads that point at one."); return; }
+    // 🔴 RE-CHECKED HERE, AT SPEND TIME, not just filtered out of the list above. The list is
+    // built when the card renders; a page can be switched off after that, and this form holds
+    // its selection. Same rule as the launch cards: a page that is not live serves a
+    // coming-soon holder, so every click bought for it is paid for and wasted.
+    const live = audienceTargets(client).find(t=>t.id===chosen.id);
+    if(!live||!live.live){ setState("error"); setMsg(`"${chosen.label}" is not live yet, so these ads would send paid clicks to a placeholder. Put it live under Landing Pages By Audience first.`); return; }
+    if(!(Number(monthly)>0)){ setState("error"); setMsg("Set a monthly ad budget so the daily budget can be worked out."); return; }
+    if(!linked){ setState("error"); setMsg(platform==="google"?"Link your Google Ads account first.":"Link your Meta ad account and Page first."); return; }
+    if(platform==="google" && !locations.trim()){ setState("error"); setMsg("Add at least one place to target — without one Google shows the ads in every country on earth."); return; }
+    if(platform==="meta" && !metaImage){ setState("error"); setMsg("Meta needs a picture. Make one in the Ad Creative Studio and save it to the library first."); return; }
+    const daily = Math.round((Number(monthly)/30.4)*100)/100;
+    const name = `${chosen.label} — ${platform==="google"?"Search":"Meta"} (${L.label})`;
+    setState("working"); setMsg(""); setStep("Writing the ads. This takes a minute or two.");
+    try{
+      const brief = { clientId:client.id, agency:true, name:"BoldLine Media",
+        niche: chosen.label, offer:"Google and Meta ad management plus the landing pages behind them",
+        locations: platform==="google" ? locations : (((client.campaignSetup||{}).serviceArea)||"United States"),
+        avgTicket:((client.campaignSetup||{}).avgTicket)||"",
+        differentiator:((client.brandVoice||{}).differentiator)||"",
+        landingUrl: chosen.url, avoid:((client.campaignSetup||{}).excludedKeywords)||"" };
+
+      if(platform==="google"){
+        const d = await adGenBackground({ action:"google", ...brief });
+        const groups = (d.adGroups||[]).slice(0, L.googleGroups);
+        if(!groups.length) throw new Error("The writer came back with no ad groups. Try again.");
+        setStep(`Building ${groups.length} ad group${groups.length===1?"":"s"} on Google.`);
+        const r = await gadsCall({ action:"createCampaign", customerId:client.googleAdsCustomerId,
+          name, dailyBudgetDollars:daily, landingUrl:chosen.url, clientName:client.name,
+          matchType:"PHRASE",
+          locations: locations.split(/[\n,]/).map(x=>x.trim()).filter(Boolean),
+          negativeKeywords: d.negativeKeywords||[], goal:"leads",
+          hasConversionTracking:!!(client.conversionActions&&Object.keys(client.conversionActions).length),
+          adGroups: groups });
+        const gcid=String(r.campaignResourceName||"").split("/").pop();
+        queue("google", gcid, name, daily);
+        setState("done");
+        setMsg(`Built and paused: ${r.adGroupsCreated||groups.length} ad group${(r.adGroupsCreated||groups.length)===1?"":"s"}, ${r.keywordsCreated||0} keywords, pointed at your ${chosen.label} page. It is in your Alerts — approve it there to go live. Nothing spends until you do.`);
+      }else{
+        const d = await adGenBackground({ action:"meta", ...brief });
+        const vs = (d&&d.variants)||[];
+        if(!vs.length) throw new Error("The writer came back with no ad versions. Try again.");
+        const use = vs.slice(0, L.metaAds);
+        setStep(`Building ${use.length} version${use.length===1?"":"s"} of the ad on Meta.`);
+        const first = use[0];
+        const r = await metaCall({ action:"createCampaign",
+          adAccountId:client.metaAdAccountId, pageId:client.metaPageId,
+          ...(client.metaPixelId?{pixelId:client.metaPixelId}:{}),
+          goal:"leads", landingUrl:chosen.url, name, dailyBudgetDollars:daily,
+          locations: brief.locations, country:"US", ageMin:25, ageMax:65,
+          headline:humanizeAdCopy(first.headline), primaryText:humanizeAdCopy(first.primaryText),
+          description:humanizeAdCopy(first.description||""), ctaType:"LEARN_MORE",
+          imageUrl:metaImage, clientName:client.name,
+          // The rest of the versions ride along and land in the SAME ad set, so the test is
+          // running from the first impression instead of a thousand impressions from now.
+          extraAds: use.slice(1).map(v=>({ headline:humanizeAdCopy(v.headline),
+            primaryText:humanizeAdCopy(v.primaryText), description:humanizeAdCopy(v.description||"") })) });
+        queue("meta", String(r.campaignId||""), name, daily);
+        setState("done");
+        const made = Number(r.adsCreated||1);
+        setMsg(`Built and paused: ${made} version${made===1?"":"s"} of the ad in one audience group, pointed at your ${chosen.label} page.${made<use.length?" One version could not be built and was skipped.":""} It is in your Alerts — approve it there to go live. Nothing spends until you do.`);
+      }
+    }catch(e){ setState("error"); setMsg(e.message||"That did not work. Nothing was built."); }
+    setStep("");
+  };
+
+  // The same paperwork the launch cards file, so an approval shows up in Alerts and the
+  // campaign cannot be forgotten in a paused state nobody remembers creating.
+  const queue = (plat, id, name, daily) => {
+    if(!id||!onUpdate) return;
+    onUpdate({...client, pendingActions:[
+      {id:`launch-${plat[0]}-${id}`, title:`Launch ${plat==="google"?"Google":"Meta"} campaign "${name}"`,
+       detail:`Created PAUSED on your ${plat==="google"?"Google Ads":"Meta"} account at $${daily}/day. Approve to set it live and start spend.`,
+       cat:"launch", ts:Date.now(),
+       exec:{platform:plat, campaignId:String(id), campaignName:name, kind:"enable_campaign"}},
+      ...(client.pendingActions||[])]});
+  };
+
+  if(!targets.length) return (
+    <Card>
+      <Label>Build Ads For An Audience</Label>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginTop:6}}>
+        Make an audience page live first, just above. This builds the whole campaign around one of them.
+      </div>
+    </Card>
+  );
+
+  return (
+    <Card>
+      <Label>Build Ads For An Audience</Label>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginTop:6,marginBottom:12}}>
+        Pick an audience, pick how hard to push, press build. It writes the ads, points them at that
+        audience&rsquo;s page, sets the budget and builds everything paused for you to approve.
+      </div>
+
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>Audience</label>
+        <select value={chosen?chosen.id:""} onChange={e=>setPageId(e.target.value)} style={box}>
+          {targets.map(t=><option key={t.id} value={t.id} style={{background:C.bg2}}>{t.label}</option>)}
+        </select>
+      </div>
+
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>Where the ads run</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {[["google","Google"],["meta","Meta"]].map(([id,name])=>(
+            <button key={id} onClick={()=>setPlatform(id)} style={pill(platform===id)}>{name}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{marginBottom:10}}>
+        <label style={lbl}>How hard to push</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {PUSH_LEVELS.map(x=>(
+            <button key={x.id} onClick={()=>setLevel(x.id)} style={pill(level===x.id)}>{x.label}</button>
+          ))}
+        </div>
+        <div style={{fontSize:9.5,color:C.textMuted,lineHeight:1.55,marginTop:6}}>{L.what}</div>
+      </div>
+
+      <div style={{display:"flex",flexWrap:"wrap",gap:9,marginBottom:10}}>
+        <div style={{flex:"1 1 150px",minWidth:0}}>
+          <label style={lbl}>Monthly ad budget ($)</label>
+          <input type="number" value={monthly} onChange={e=>setMonthly(e.target.value)} style={box}/>
+        </div>
+        <div style={{flex:"1 1 150px",minWidth:0}}>
+          <label style={lbl}>Cost per click ($)</label>
+          <input type="number" value={cpc} onChange={e=>setCpc(e.target.value)} placeholder={String(autoCpc)} style={box}/>
+          <div style={{fontSize:9,color:C.textMuted,lineHeight:1.5,marginTop:3}}>
+            {cpcIsReal?<>Your own average over the last 30 days.</>:<>An estimate, because this account has not had enough clicks to measure one yet. Change it if you know better.</>}
+          </div>
+        </div>
+      </div>
+
+      {platform==="google"&&(
+        <div style={{marginBottom:10}}>
+          <label style={lbl}>Places to target</label>
+          <input type="text" value={locations} onChange={e=>setLocations(e.target.value)} style={box}/>
+        </div>
+      )}
+
+      {/* 🔴 THE HONEST BIT. Says what this plan can and cannot learn on the money given,
+          before it is built, rather than after two months of spend. */}
+      <div style={{padding:"9px 11px",borderRadius:9,marginBottom:11,lineHeight:1.6,fontSize:10.5,
+        border:`1px solid ${plan.verdict==="thin"?"rgba(239,68,68,.4)":plan.verdict==="tight"?"rgba(200,168,75,.4)":C.border}`,
+        backgroundColor:plan.verdict==="thin"?"rgba(239,68,68,.07)":"rgba(255,255,255,.03)",
+        color:plan.verdict==="thin"?C.red:C.textDim}}>
+        {plan.verdict==="unknown"
+          ? <>Put in a monthly budget and this will tell you how long it takes to learn anything.</>
+          : <>
+              This splits your money {plan.buckets} way{plan.buckets===1?"":"s"}. At ${cpcUsed} a click it takes about{" "}
+              <b>{plan.days} days</b> before there is enough traffic to tell which version is winning.
+              {plan.verdict==="ok"&&<> That is a sensible test.</>}
+              {plan.verdict==="tight"&&<> That is on the slow side. {plan.lower?<>Dropping to <b>{plan.lower.label}</b> would get you an answer sooner.</>:null}</>}
+              {plan.verdict==="thin"&&<> <b>That is too thin.</b> You would be paying for months before anything could be judged. {plan.lower?<>Drop to <b>{plan.lower.label}</b>, or raise the budget.</>:<>Raise the budget.</>}</>}
+            </>}
+      </div>
+
+      <button onClick={build} disabled={state==="working"}
+        style={{width:"100%",padding:"10px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",
+          backgroundColor:state==="working"?"rgba(255,255,255,.1)":C.gold,color:state==="working"?C.textMuted:"#14161d",
+          cursor:state==="working"?"default":"pointer"}}>
+        {state==="working"?"Building…":`Build the ${L.label.toLowerCase()} plan`}
+      </button>
+      {step&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>{step}</div>}
+      {msg&&<div style={{fontSize:11,lineHeight:1.65,marginTop:9,wordBreak:"break-word",
+        color:state==="error"?C.red:"#34D399"}}>{msg}</div>}
+    </Card>
+  );
+}
+
 function AudiencePagesCard({client,onUpdate}) {
   const pages = Array.isArray(client.landingPages) ? client.landingPages : [];
   const [name,setName] = useState("");
@@ -8848,6 +9135,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
               {/* Directly under the main page, because that is the thing these are alternatives
                   to. The main page above is hand-built and is not touched by any of this. */}
               <AudiencePagesCard client={client} onUpdate={onUpdate}/>
+              <AudienceAdPlanCard client={client} onUpdate={onUpdate}/>
               </>
             ) : (
             <Card>
