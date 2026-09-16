@@ -117,6 +117,7 @@ const gapsSrc = S.slice(S.indexOf("function contractGaps(cl, pkg)"), S.indexOf("
 ok("contractGaps was extracted", /billingSaleDefinition/.test(gapsSrc), `got ${gapsSrc.length} chars`);
 const contractGaps = new Function("PER_LEAD", `${gapsSrc}\nreturn contractGaps;`)({ "Auto Detailing": 15 });
 const gapList = (cl) => contractGaps(cl, PKG).map((g) => g.what);
+const contractGapsEcom = (cl) => contractGaps(cl, ECOM);
 
 {
   ok("🔴 a shop with no definition cannot send the agreement",
@@ -132,6 +133,58 @@ const gapList = (cl) => contractGaps(cl, PKG).map((g) => g.what);
   ok("the missing-price gap is worded for sales too",
     gapList(saleClient({ billingPerLead: 0, niche: "Nothing" })).some((g) => /per qualified sale/i.test(g)),
     "it would tell him to set a price per lead on an account that has no leads");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 2b. 🔴 A STORE PACKAGE CAN BE BILLED EITHER WAY, AND ONLY ONE FEE EVER RENDERS
+//
+// Bryson: *"for e-commerce ... falls to a % of the ad spend instead of per sale so how will we
+// make that work?"* The answer is that the basis is a CHOICE at the same tier, the same monthly
+// minimum and the same setup — the way platform is already a choice and not a price.
+//
+// 🔴 Before this, flipping the switch on a Store package produced a contract that charged 15% of
+// ad spend in 4.2, promised in 4.1 that nothing was owed in a month with no Qualified Sales, and
+// explained in 4.4 how sale COUNTS were tallied for a fee not based on counts. Three clauses,
+// three different deals, in one document somebody signs.
+// ══════════════════════════════════════════════════════════════════════════════
+const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", price:400, setup:800,
+  pricingModel:"ad_spend_pct", adSpendPct:15, optimizationFreq:"monthly", adSpend:"$500 to $2,500/mo" };
+{
+  const onSales = makeContractHTML(saleClient(), ECOM, "");
+  // Collapse whitespace: stripping tags leaves runs of spaces between the label and the
+  // figure, and a single-space pattern then matches nothing and reports zero fee rows.
+  const plain = onSales.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  ok("🔴 a store billed per sale is charged per sale", /Performance Fee \(per qualified sale\)/.test(plain));
+  ok("🔴 and the percentage does NOT also appear", !/15% of/.test(plain),
+    "two performance fees in one agreement is the worst thing this file can produce");
+  ok("the sale definition is there", onSales.includes(DEFN));
+  // 🔴 Matched on the VALUE, not on the label. "Performance Fee" also appears as the section
+  // heading (followed by "4.1"), so a looser pattern counted the heading as a second fee and
+  // reported a contradiction that was not there. Both possible value shapes are listed, so a
+  // percentage row reappearing beside the per-sale row still fails.
+  const feeRows = plain.match(/Performance Fee (\$[0-9][^A-Z]{0,30}|[0-9]+% of monthly ad spend)/g) || [];
+  eq("🔴 exactly one performance fee row in the key terms", feeRows, ["Performance Fee $25 per qualified sale "]);
+
+  // And the ordinary store is untouched.
+  const ordinary = makeContractHTML({ ...BASE, billingMonthly: 400, billingSetup: 800 }, ECOM, "");
+  const op = ordinary.replace(/<[^>]+>/g, " ");
+  ok("🔴 an ordinary store is still billed 15% of ad spend", /15% of monthly ad spend/.test(op));
+  ok("and its agreement says nothing about sales", !/Qualified Sale/.test(ordinary),
+    "the standard store case was changed while adding the choice");
+  ok("nor about leads", !/Qualified Lead/.test(ordinary));
+}
+{
+  // The send gate follows the basis, not the package.
+  const gaps = (cl) => contractGapsEcom(cl).map((g) => g.what);
+  ok("🔴 a store on sales with no description is blocked",
+    gaps(saleClient({ billingSaleDefinition: "" })).some((g) => /which purchases count/i.test(g)));
+  ok("and a store on sales with no rate is blocked",
+    gaps(saleClient({ billingPerLead: 0 })).some((g) => /per qualified sale/i.test(g)));
+  eq("a store on sales is NOT asked for a percentage",
+    gaps(saleClient()).filter((g) => /percentage of ad spend/i.test(g)), [],
+    "he would be sent to fill in a field his agreement does not use");
+  eq("and a store on the percentage is not asked for a sale description",
+    gaps({ ...BASE, billingMonthly: 400 }).filter((g) => /which purchases count/i.test(g)), []);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
