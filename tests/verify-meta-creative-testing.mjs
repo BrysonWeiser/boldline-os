@@ -91,21 +91,33 @@ ok("the Meta creative-testing block exists", metaBlock.length > 1000, `${metaBlo
     /\["ACTIVE", "PAUSED"\]\.includes\(st\)/.test(meta));
 }
 
-// ── 2. 🔴 THE TIER GATE ─────────────────────────────────────────────────────
+// ── 2. 🔴 THE TIER GATE IS GONE, AND CLIENTS GET THIS NOW ───────────────────
+//
+// This block used to assert the opposite. Meta had BoldLine on Development tier, which
+// refuses API writes to any account BoldLine does not own, so creative testing was gated to
+// the house account with one named condition. **Meta granted standard access on 2026-09-14**
+// and the condition was deleted on 2026-09-16.
+//
+// 🔴 THE ASSERTIONS ARE FLIPPED, NOT DELETED. A gate that quietly comes back is a Meta write
+// rejected every two hours on a schedule for every client, which is exactly what the original
+// gate existed to prevent — and the failure would look like autopilot doing nothing rather
+// than like an error.
 {
-  // Pinned to the GATE CONDITION itself, not to any mention of `cl.internal`. The first
-  // version of this assertion matched `systemFor(!!cl.internal)` inside the prompt call
-  // and therefore passed with the gate deleted — a test that could not fail, guarding the
-  // one thing that would have Meta rejecting writes every two hours forever.
-  ok("Meta creative testing is gated to owned accounts",
-    /if \(ap\.splitTest !== false && mid && cl\.internal &&/.test(metaBlock),
-    "Development tier refuses writes to accounts BoldLine does not own");
-  ok("the gate is findable by name for the day it is removed", /META-TIER-GATE/.test(auto));
-  ok("and the removal instruction is written down", /delete/i.test(auto.slice(auto.indexOf("META-TIER-GATE") - 900, auto.indexOf("META-TIER-GATE") + 300)));
-  // The Google path must NOT have picked up the same restriction by accident.
+  ok("🔴 Meta creative testing is no longer gated to owned accounts",
+    !/if \(ap\.splitTest !== false && mid && cl\.internal &&/.test(metaBlock),
+    "the Development-tier gate is back, so no client gets Meta creative testing");
+  // Pinned to the GATE CONDITION, not to any mention of `cl.internal`: an earlier version of
+  // this check matched `systemFor(!!cl.internal)` inside the prompt call and so passed either
+  // way — a test that could not fail, guarding the one thing that mattered.
+  ok("🔴 and the condition it runs on names no account type",
+    /if \(ap\.splitTest !== false && mid && actions\.length < MAX_ACTIONS_PER_CLIENT\)/.test(metaBlock),
+    "the Meta block's own condition has changed shape and may have picked up a new restriction");
+  ok("the old gate name is gone with it", !/META-TIER-GATE:/.test(auto),
+    "a live gate marker means something is still gated");
+  // The Google path must not have picked up a restriction either.
   const googleBlock = auto.slice(auto.indexOf("if (ap.splitTest !== false && gid"), auto.indexOf("// ── 5. META CREATIVE TESTING"));
   ok("Google split testing is NOT gated to internal accounts", !/&& cl\.internal/.test(googleBlock),
-    "Google has standard access and works for every client");
+    "Google has always had standard access and works for every client");
   // Both honour the same per-client opt-out.
   ok("Meta testing honours the splitTest opt-out", /ap\.splitTest !== false/.test(metaBlock));
 }

@@ -288,13 +288,14 @@ const os = read("../index.html");
     (os.match(/\(audience \|\| client\.niche \|\| ""\)/g) || []).length, 2);
   ok("Google's brief uses it as the offer too", /offer: client\.internal \? "Google and Meta ad management plus the landing pages behind them" : \(audience \|\| cs\.mainOffer \|\| ""\)/.test(os));
 
-  // Things that are house-only ON PURPOSE stay that way. Meta's split testing is blocked
-  // by Meta's own Development tier, not by a choice, and removing that gate would have
-  // Meta rejecting writes on a schedule.
+  // Meta's split testing used to be house-only, because Meta's Development tier refused
+  // writes to any account BoldLine did not own. **Standard access was granted 2026-09-14**
+  // and the gate came out on 2026-09-16, so clients get it on the same terms as Google.
   const ap = read("../netlify/functions/ads-autopilot.mjs");
-  ok("Meta split testing is still tier-gated", /ap\.splitTest !== false && mid && cl\.internal &&/.test(ap),
-    "Development tier only permits writes to owned accounts");
-  ok("and the gate is still labelled for the day it can go", /META-TIER-GATE/.test(ap));
+  ok("🔴 Meta split testing reaches clients", !/ap\.splitTest !== false && mid && cl\.internal &&/.test(ap),
+    "the Development-tier gate is back and no client would get Meta creative testing");
+  ok("and no tier gate marker survives", !/META-TIER-GATE:/.test(ap),
+    "a live gate marker means something is still restricted to the house account");
   // Google has no such restriction, so clients already get creative testing there.
   ok("Google split testing is NOT house-only",
     !/splitTest !== false && gid && accessToken && cl\.internal/.test(ap),
