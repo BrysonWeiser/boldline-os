@@ -165,3 +165,32 @@ Two things make it usable, and without both the feature exists and is never offe
 Both are pinned, including that the note is scoped to the shop group (a shop-only note on every
 package is noise he learns to skip) and that it names where to set the switch afterwards.
 
+## Fixing an ad set that is already running (2026-09-16)
+
+Bryson: *"is there a way we can add that new update for the clicks without having to build a
+whole new campaign?"* Yes. `attribution_spec` is editable on a live ad set.
+
+Everything the OS builds from 2026-09-16 is click-only, but three kinds of ad set still carry
+Meta's default (7-day click **plus** 1-day view): **his own first campaign**, anything **built by
+hand in Ads Manager**, and anything **inherited with a new client**. On a results-only agreement
+that is the platform reporting a number the contract does not recognise.
+
+**How it surfaces:** `getCampaignDetail` now reads `attribution_spec` and reports
+`countsViewThrough` per ad set. In the Campaigns screen, an ad set that counts view-throughs
+carries an amber line and **one press** to fix it. It appears only when true, and only on Meta.
+`pieceAction` re-reads the campaign afterwards, so the warning clears itself.
+
+🔴 **The warning is not decoration: narrowing the window RESETS Meta's learning phase**, because
+delivery loses the signals it was learning from. **Cheap on a campaign that started last night,
+not free on one running a month**, so the cost is stated before the press rather than discovered
+after. The confirmation says so in those words.
+
+🔴 **Why it is safe as one tap:** the write touches `attribution_spec` and nothing else. No
+budget, no status, no targeting, no creative — so it cannot start an ad, raise a bill or widen
+who sees it. A test asserts the payload contains none of those fields.
+
+🔴 **A test lesson worth keeping.** The original guard banned the string `VIEW_THROUGH` from the
+whole file. That broke the moment the reader learned to *detect* view-throughs in order to offer
+the fix: **a file-wide ban on the word bans the cure along with the disease.** Now scoped to the
+ad-set creation payload, with a second assertion that detection and repair still exist.
+
