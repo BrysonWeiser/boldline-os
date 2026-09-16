@@ -413,9 +413,23 @@ Deal Prep already half-knows this: its package rows only show founding pricing w
 `pkg.leadFee` is true, and fall back to the STANDARD price for the `e-*` packages. So the screen
 quietly shows two different offers on one page with nothing explaining why.
 
-**Not yet decided.** The recommendation put to Bryson: founding terms for a store keep the
-waived setup and the absent monthly minimum, and BoldLine takes the ordinary **15% of ad spend**.
-Still risk-reversed in spirit, because the fee only exists while they are spending, and not
-zero. **It needs deciding before any store signs**, and once decided it belongs in
-`foundingTermsBlock()` so the research prompt stops quoting a fee that cannot be charged.
+**Not yet decided**, and the first attempt at an answer was wrong in a way worth recording.
+
+🔴 **"15% of ad spend" does not work as the FOUNDING fee**, even though it is the right standard
+fee for a store. Founding terms are sold as *"you only pay for results"* — Bryson had already
+said exactly that to a store owner — and **a fee charged on money spent is not a fee charged on
+results**. Quoting it would make him go back on his word on the one promise the offer is built
+around.
+
+**The fee has to sit on a RESULT.** For a store that is a **sale**, or better a **new
+subscriber** where there is a subscription, which is the store's true equivalent of a qualified
+lead (a one-off small order is the equivalent of an unqualified one). Paying per sale is *more*
+results-based than paying per lead, not less, so nothing about the founding pitch has to change:
+only the word for the result.
+
+🔴 **Neither billing mode exists.** `pricingModel` is `per_lead | ad_spend_pct | one_time`. A
+per-subscriber fee and a share-of-tracked-revenue fee are both real work across the OS, the
+portal and the contract, and both depend on **purchase tracking with a value** being installed
+on the client's site. **Decide before any store signs**, then put it in `foundingTermsBlock()`
+so the research prompt stops quoting a fee that cannot be charged.
 

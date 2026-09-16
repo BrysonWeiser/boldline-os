@@ -4,7 +4,7 @@ topic: Clients
 task: work on the Air Suds deal, quote Constantine, or decide how to price an e-commerce client
 keywords: [Air Suds, AirSuds, Constantine, car side, aircraft side, car cleaning product, schools, subscription, bottles, e-commerce client, ecommerce pricing, no leads, buys on website, store, g-launch vs e-launch, founding terms ecommerce, ad spend percentage, third client, website down maintenance]
 status: open
-summary: 🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine said yes verbally, nothing signed and nothing in the OS. Air Suds makes cleaning products; ads are for the NEW CAR side (Bryson's own recommendation to open it), which is about a week away while logo variations are made. Customers BUY STRAIGHT FROM THE WEBSITE, no forms and no contact, so this is e-commerce and the per-qualified-lead billing Bryson quoted has nothing to count. 🔴 Founding terms as written ("no monthly minimum, pay only per qualified lead") would bill Air Suds $0/month forever while BoldLine runs $1,000/month of ads — this must be settled before the contract. Budget $1,000/mo. Unit economics are the real risk: the known product is $6 to make and sells for $11, so single-bottle sales cannot pay for Google clicks; subscriptions and the 25-bottle minimum can.
+summary: 🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine said yes verbally, nothing signed and nothing in the OS. Air Suds makes cleaning products; ads are for the NEW CAR side (Bryson's own recommendation to open it), which is about a week away while logo variations are made. Customers BUY STRAIGHT FROM THE WEBSITE, no forms and no contact, so this is e-commerce and the per-qualified-lead billing Bryson quoted has nothing to count. 🔴 Founding terms as written ("no monthly minimum, pay only per qualified lead") would bill Air Suds $0/month forever while BoldLine runs $1,000/month of ads. 🔴 AND BRYSON ALREADY TOLD CONSTANTINE "basically free, you only pay for results", so a % of AD SPEND is off the table — the fee has to sit on a RESULT. The fix is to name the result correctly: a sale, or better a new subscriber. Not built: the OS has no billing mode for either. Budget $1,000/mo. Unit economics are the real risk: the known product is $6 to make and sells for $11, so single-bottle sales cannot pay for Google clicks; subscriptions and the 25-bottle minimum can.
 verified: 2026-09-16
 ---
 
@@ -49,10 +49,36 @@ is NO monthly minimum. They pay ONLY the per-qualified-lead fee."* For a store w
 that is **$0 per month, forever**, while BoldLine runs the account. This is a genuine hole in
 the pricing model, not a detail of this deal — see `pricing-model` for the same note.
 
-**Recommended fix, to settle before the contract:** founding terms for a store keep the waived
-setup and the absent monthly minimum, and BoldLine takes the **e-commerce 15% of ad spend**
-($150/month at his budget). It is still the risk-reversed pitch in spirit, because the fee only
-exists while he is spending, and it is not zero.
+🔴 **AND THE FIX IS CONSTRAINED BY WHAT BRYSON ALREADY PROMISED.** He told Constantine it is
+*"basically free, he only pays for results, he only pays for qualified leads."* So **15% of ad
+spend is off the table** — a fee charged on money spent is not a fee charged on results, and
+quoting it would make him go back on his word. (An earlier version of this entry recommended
+exactly that. It was wrong for this deal.)
+
+**What actually keeps the promise:** the promise was *results*. "Qualified lead" was just the
+word for the result. For a store the result is a **sale**, and paying per sale is MORE
+results-based than paying per lead, not less — a lead can be junk, a sale is money in his till.
+So nothing has to be walked back, the result just has to be named correctly.
+
+**Recommended, in order:**
+1. **A flat fee per new SUBSCRIBER**, if the car side has a subscription. A subscriber is the
+   real qualified customer; a one-bottle buyer is the store's version of an unqualified lead,
+   worth little to either side. It also keeps the monthly "agree what counted" meeting Bryson
+   already runs with Sebastian and promised Brendon.
+2. **A small share of the sales the ads bring in**, if the car side is one-off purchases only.
+   It scales itself across an $11 bottle and a $275 bulk order.
+
+🔴 **Watch the percentage against a 45% margin.** 10% of revenue is 22% of his gross profit, and
+he needs about **2.2x return just to break even on the ad spend alone** before any fee. That is
+why the subscription matters more than the fee structure does.
+
+🔴 **The fee only exists if purchases are TRACKED.** No purchase tracking means BoldLine earns
+nothing and cannot prove the sales happened. Their site is being rebuilt right now, which is the
+one moment this is easy to get right. It must be in before launch.
+
+🔴 **NOT BUILT.** `pricingModel` supports `per_lead`, `ad_spend_pct` and `one_time`. Neither
+"per new subscriber" nor "share of tracked revenue" exists in the OS, the portal or the contract.
+This is real work, not a setting.
 
 ## 🔴 The bigger risk is the unit economics, not the package
 
