@@ -9,6 +9,35 @@ verified: 2026-09-16
 ---
 
 
+## 🔴 AND THE CLIENT-FACING HALF (2026-09-17, same day)
+
+Bryson: *"is there anywhere else on my side or in his client portal that still needs updated"*.
+Yes, and the client-facing half was worse than the OS half, because the client reads it.
+
+- **The portal** had its own private `RW` with three words in it, so seven other lines went on
+  saying "lead": the **nav tab**, the stage descriptions ("generating leads, which are sent
+  straight to you", "improve lead quality and lower your cost per lead"), the **Per Lead** stat,
+  "Your Leads", and the minimum explanation. It now imports `resultWords` from
+  `contract-shared.cjs`, which is exported for exactly this. 🔴 Both copies, served and the OS
+  preview.
+- **The invoice email** billed a per-sale client for "Qualified leads". That is a line item
+  naming something their agreement never mentions, sent to the person paying it. It now takes
+  `resultKind`, passed in by `buildClientCtx` from the client record.
+
+🔴 **NOT renamed, deliberately:** `welcome`, `renewal`, `onboarding_nudge`, `review_request` and
+`lead_milestone` use "leads" as the general thing advertising produces, not as the unit on an
+invoice. A store's campaigns really do generate interest before they generate orders. Renaming
+those chases the word rather than the meaning, and `lead_milestone` counts rows in `leadsLog`,
+which a shop client never has, so it cannot fire for one anyway. The SMS-consent section is about
+the client texting their OWN enquirers and says to leave it blank if they do not.
+
+🔴 **A DUAL-COPY TEST THAT COULD NOT SEE THIS.** `verify-founding-terms` renders both copies of
+the contract and compares them byte for byte, and every fixture was a LEAD client, so a drift on
+the sale side rendered identically in all of them. Mutating the OS copy's `resultWords(cl)` to
+`resultWords({})` survived untouched until a per-sale case was added. Same trap as the logo
+branch in `verify-lead-handoff`: a mutation that does not reach the output looks exactly like a
+guard that works.
+
 ## 🔴 THE RENAME HAD TO REACH EVERY SCREEN (2026-09-17)
 
 Bryson, looking at a client switched to Sales: *"make sure everything has the correct

@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { makeContractHTML } from "../lib/contract-shared.cjs";
+import { makeContractHTML, resultWords } from "../lib/contract-shared.cjs";
 import { withLambda } from "../lib/lambda-adapter.mjs";
 import { stripe, ensureCustomer } from "../lib/stripe-shared.mjs";
 
@@ -265,9 +265,13 @@ const makePortalHTML = (cl, pkg, notice) => {
   // agreement's own wording (see `resultWords` in contract-shared.cjs): if the contract says
   // Qualified Sales, the portal must not sit there telling them they pay per qualified lead.
   // Two copies of this portal exist, served and preview, and they change together.
-  const RW = String(cl.billingResultKind || "") === "sale"
-    ? { many: "sales", per: "per qualified sale", one: "qualified sale" }
-    : { many: "qualified leads", per: "per qualified lead", one: "qualified lead" };
+  // 🔴 THE SAME VOCABULARY THE AGREEMENT USES, imported rather than written out again here.
+  // This was a private copy with three words in it, so every other line in the portal that names
+  // the billable thing, and there are seven, went on saying "lead" to a client billed per sale.
+  const W = resultWords(cl);
+  const RW = { many: W.kind === "sale" ? "sales" : "qualified leads", per: W.per, one: W.one.toLowerCase() };
+  const noun = W.itNoun, nouns = W.itNoun + "s";
+  const Noun = noun.charAt(0).toUpperCase() + noun.slice(1), Nouns = Noun + "s";
 
   // 🔴 A CLIENT WHO FINISHES ON STRIPE HAS TO BE TOLD IT WORKED. Before this they were
   // returned to the OS, an admin login they cannot use, so a completed action read as a
@@ -292,7 +296,7 @@ const makePortalHTML = (cl, pkg, notice) => {
     : PER_LEAD[cl.niche];
   const SC = ["#6366F1","#0891B2","#D97706","#7C3AED","#10B981","#2563EB","#059669","#6B7280"];
   const SL = ["Onboarding","Research","Building","Final Review","Active","Optimizing","Scaling","Paused"];
-  const SD = ["We're gathering your business details, brand assets, and goals to get your account ready for launch.","Our team is researching your market, competitors, and ideal customers to shape your campaign strategy.","Your landing pages, ad creatives, and tracking are being built and connected behind the scenes.","Your campaign is going through final quality checks before it goes live.","Your campaign is live and generating leads, which are sent straight to you.","We're testing and refining your campaign to improve lead quality and lower your cost per lead.","Your campaign is performing well, so we're increasing reach and budget to drive more results.","Your campaign is currently paused. Reach out to your account manager with any questions."];
+  const SD = ["We're gathering your business details, brand assets, and goals to get your account ready for launch.","Our team is researching your market, competitors, and ideal customers to shape your campaign strategy.","Your landing pages, ad creatives, and tracking are being built and connected behind the scenes.","Your campaign is going through final quality checks before it goes live.",`Your campaign is live and generating ${nouns}.`,`We're testing and refining your campaign to improve ${noun} quality and lower your cost per ${noun}.`,"Your campaign is performing well, so we're increasing reach and budget to drive more results.","Your campaign is currently paused. Reach out to your account manager with any questions."];
   const upgOpts = getUpgradeOptions(cl.packageId);
   const inclFeats = ALL_FEATURES.filter((f) => pkgHasFeature(cl.packageId, f.id));
   const exclFeats = ALL_FEATURES.filter((f) => !pkgHasFeature(cl.packageId, f.id) && upgOpts.some((p) => pkgHasFeature(p.id, f.id)));
@@ -335,7 +339,7 @@ const makePortalHTML = (cl, pkg, notice) => {
   const upgSection = upgOpts.length === 0 ? "" :
     '<div class="card" id="upgrade-section"><div class="lbl">Ready to Scale</div>' +
     '<div style="font-size:11.5px;color:#9CA3AF;line-height:1.65;margin-bottom:6px">Your plan is set by your <strong style="color:#F0F2FF">monthly ad budget</strong>, not chosen from a list. Raise the budget and the next tier unlocks, along with everything in it.</div>' +
-    '<div style="font-size:11px;color:#6B7280;line-height:1.65;margin-bottom:12px">Each figure below is a <strong style="color:#9CA3AF">monthly minimum</strong>, not an added fee. You pay that minimum or your per-lead total, <strong style="color:#9CA3AF">whichever is higher, never both</strong>. Ad spend is paid by you directly to Google and Meta and is never part of it.</div>' +
+    '<div style="font-size:11px;color:#6B7280;line-height:1.65;margin-bottom:12px">Each figure below is a <strong style="color:#9CA3AF">monthly minimum</strong>, not an added fee. You pay that minimum or your per-' + noun + ' total, <strong style="color:#9CA3AF">whichever is higher, never both</strong>. Ad spend is paid by you directly to Google and Meta and is never part of it.</div>' +
     (curBudget > 0
       ? '<div style="font-size:11px;color:#6B7280;margin-bottom:12px;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">Your current ad budget: <strong style="color:#C8A84B">' + usd(curBudget) + '/mo</strong></div>'
       : '<div style="font-size:11px;color:#6B7280;margin-bottom:12px;padding:7px 10px;border-radius:8px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">Tell us your monthly ad budget in My Info and we can show you exactly which tiers are open to you.</div>') +
@@ -389,9 +393,23 @@ const makePortalHTML = (cl, pkg, notice) => {
   const leadRows = (Array.isArray(cl.leadsLog) ? cl.leadsLog : []).slice(0, 100);
   const leadDate = (d) => { try { return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }); } catch { return ""; } };
   const qualifiedCount = leadRows.filter((l) => l && l.qualified).length;
+
+  // 🔴 THE EMPTY STATE MUST NOT PROMISE SOMETHING THE OS CANNOT DO. Bryson, 2026-09-17, on a
+  // client whose customers buy through Shopify: *"are we able to track the sales even though it
+  // will go through his shopify when they actually buy"*. No. Leads arrive through OUR form, so
+  // the OS sees every one. A sale happens on the client's own store, which the OS has no
+  // connection to, and the agreement says so in terms: counts are taken from the client's own
+  // order records, and those records govern.
+  //
+  // So a sale client's list is empty and will stay empty until somebody enters a figure.
+  // "Every enquiry your ads bring in will appear here the moment it arrives" would be a
+  // straightforward lie on that page, and the client is the one person who can check it.
+  const blurb = W.kind === "sale"
+    ? "Sales are counted from your own order records, not from ours, because your checkout is on your own store. We agree the count with you before anything is invoiced."
+    : "Every enquiry your ads bring in will appear here, with their contact details, the moment it arrives.";
   const leadsSection = !leadRows.length
-    ? '<div class="card"><div class="lbl">Your Leads</div><div style="font-size:12px;color:#6B7280;line-height:1.6">Every enquiry your ads bring in will appear here, with their contact details, the moment it arrives.</div></div>'
-    : '<div class="card"><div class="lbl">Your Leads</div>'
+    ? `<div class="card"><div class="lbl">Your ${Nouns}</div><div style="font-size:12px;color:#6B7280;line-height:1.6">${blurb}</div></div>`
+    : `<div class="card"><div class="lbl">Your ${Nouns}</div>`
       + '<div style="display:flex;gap:18px;margin-bottom:14px;flex-wrap:wrap">'
       + '<div><div style="font-size:22px;font-weight:800;color:#F9FAFB;line-height:1.2">' + leadRows.length + '</div><div style="font-size:10px;color:#6B7280">Total</div></div>'
       + '<div><div style="font-size:22px;font-weight:800;color:#C8A84B;line-height:1.2">' + qualifiedCount + '</div><div style="font-size:10px;color:#6B7280">Counted as qualified</div></div>'
@@ -556,10 +574,10 @@ const makePortalHTML = (cl, pkg, notice) => {
     // and stacking them made the leads the thing you scroll past. So the overflow got fixed
     // instead — on a phone the buttons share the strip evenly (`flex:1`) rather than sizing
     // to their text, which cannot overflow at any width because it divides what is there.
-    + `<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('approvals',this)">Review${apBadge}</button><button class="nb" onclick="show('leads',this)">Leads</button><button class="nb" onclick="show('reports',this)">Reports</button><button class="nb" onclick="show('account',this)">Account${sigBadge}</button></div>`
+    + `<div class="nav"><button class="nb on" onclick="show('status',this)">Status</button><button class="nb" onclick="show('approvals',this)">Review${apBadge}</button><button class="nb" onclick="show('leads',this)">${Nouns}</button><button class="nb" onclick="show('reports',this)">Reports</button><button class="nb" onclick="show('account',this)">Account${sigBadge}</button></div>`
     + '<div class="main">'
     + noticeHTML + `<div id="t-status">` + sigBanner + `<div class="welcome"><b>Welcome back${firstName ? ", " + firstName : ""}</b><span>Here's where your campaign stands today.</span></div><div class="card"><div class="lbl">Campaign Progress</div><div class="prog-hero"><div class="ring" style="--p:${prog}"><div class="ring-in"><div class="ring-n">${si >= 0 ? si + 1 : "—"}<span>/${STAGES.length}</span></div><div class="ring-l">Stage</div></div></div><div class="prog-info"><div class="prog-stage"><span class="d" style="background:${scol}"></span>${SL[si] || "—"}</div><div class="prog-tag">In Progress</div><div class="stage-cur-desc">${SD[si] || "Your campaign status will appear here."}</div></div></div><div class="tracker" style="--pf:${pf}">${trackerHTML}</div><details class="stage-list"><summary class="stage-toggle">View all steps</summary>${stageRows}</details></div>`
-    + '<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.name) || "—") + '</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.platform) || "—") + "</div></div>" + (pl ? '<div class="stat"><div class="lbl">Per Lead</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$' + pl + "</div></div>" : "") + "</div></div></div>"
+    + '<div class="card"><div class="lbl">Your Campaign</div><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="stat"><div class="lbl">Package</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.name) || "—") + '</div></div><div class="stat"><div class="lbl">Platform</div><div style="font-size:13px;font-weight:700;color:#E5E7EB">' + ((pkg && pkg.platform) || "—") + "</div></div>" + (pl ? '<div class="stat"><div class="lbl">Per ' + Noun + '</div><div style="font-size:13px;font-weight:700;color:#C8A84B">$' + pl + "</div></div>" : "") + "</div></div></div>"
     + '<div id="t-approvals" style="display:none"><div class="welcome"><b>Needs Your Review</b><span>Approve what we\'ve prepared, or ask for changes. Nothing goes live without your OK.</span></div>' + apPanel + "</div>"
     + '<div id="t-leads" style="display:none">' + leadsSection + "</div>"
     + '<div id="t-reports" style="display:none">' + reportSection + "</div>"

@@ -32,6 +32,10 @@ export const buildClientCtx = (cl, extra = {}) => {
     monthly: cl.billingMonthly != null ? cl.billingMonthly : 0,
     setup: cl.billingSetup != null ? cl.billingSetup : 0,
     portalUrl: cl.portalToken ? `${base}/portal?token=${cl.portalToken}` : "",
+    // 🔴 WHAT THIS CLIENT IS BILLED FOR, so the invoice names the same thing their agreement
+    // does. Without it a client billed per Qualified Sale receives an invoice line for
+    // "Qualified leads", which is a charge for something their contract never mentions.
+    resultKind: cl.billingResultKind || "",
     date: fmt(new Date()),
     ...extra,
   };
