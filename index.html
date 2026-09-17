@@ -486,9 +486,19 @@ const feeAsPctOfSpend = (billed, adSpend) => {
 // floor, so a bare price is a misquote. `min` reads as a minimum; `perf` names the half
 // that varies. Used on every card, sheet, portal page and email that quotes a package.
 const pkgMinLabel = (pkg) => `$${Number((pkg && pkg.price) || 0).toLocaleString()}`;
-const pkgPerfLabel = (pkg, perLeadFee) => {
+// 🔴 `resultKind` OVERRIDES THE PACKAGE'S OWN MODEL, and that is the point. A store package
+// bills a percentage of ad spend by default, but a client can be switched to a flat fee per
+// qualified sale (KB `billing-for-sales`), and the agreement then says so. Without this the
+// client's own Package tab quoted "15% of ad spend" beside an agreement that says $25 per sale.
+// Bryson, 2026-09-17: *"make sure everything has the correct terminology"*.
+//
+// Omitted, it behaves exactly as before, so every brochure use of this is untouched.
+const pkgPerfLabel = (pkg, perLeadFee, resultKind) => {
   if (!pkg) return "";
   if (pkg.pricingModel === "one_time") return "no monthly fee";
+  if (String(resultKind || "") === "sale") {
+    return perLeadFee ? `$${perLeadFee} per qualified sale` : "per qualified sale";
+  }
   if (pkg.pricingModel === "ad_spend_pct") return `${pkg.adSpendPct}% of ad spend`;
   return perLeadFee ? `$${perLeadFee} per qualified lead` : "per qualified lead";
 };
@@ -2775,7 +2785,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
           </div>
           <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
             <div style={{fontSize:24,fontWeight:900,color:C.gold,letterSpacing:"-0.02em"}}>${Number((pkg && pkg.price) || 0).toLocaleString()}<span style={{fontSize:11,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
-            <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead)} — whichever is higher</div>
+            <div style={{fontSize:10,color:C.textDim,marginTop:2}}>or {pkgPerfLabel(pkg,perLead,client&&client.billingResultKind)} — whichever is higher</div>
             <div style={{fontSize:10,color:C.textMuted,marginTop:1}}>${Number((pkg && pkg.setup) || 0).toLocaleString()} setup (one-time)</div>
           </div>
         </div>
@@ -4536,12 +4546,18 @@ function ScorecardCard({client}){
   const margin = Number(((client.campaignSetup||{}).grossMarginPct)||0);
 
   const money = (n)=>`$${Number(n).toLocaleString(undefined,{maximumFractionDigits:2})}`;
+  const SW = resultWords(client);
   const rows = [
     ["Spend", spend>0?money(spend):null],
     ["Clicks", clicks>0?String(clicks):null],
+    // 🔴 THE SCORECARD COUNTS WHAT THIS CLIENT IS BILLED FOR. A store client billed per
+    // qualified SALE was shown "Qualified leads" and "Cost per qualified lead" on the same
+    // screen as an agreement that never uses the word. Same vocabulary as the contract, so the
+    // two cannot drift (Bryson, 2026-09-17: *"make sure everything has the correct
+    // terminology"*).
     ["Raw inquiries", String(raw)],
-    ["Qualified leads", String(qual)],
-    ["Cost per qualified lead", (spend>0&&qual>0)?money(spend/qual):null],
+    [`Qualified ${SW.itNoun}s`, String(qual)],
+    [`Cost per qualified ${SW.itNoun}`, (spend>0&&qual>0)?money(spend/qual):null],
     ["Customers won", String(won)],
     ["Customer acquisition cost", (spend>0&&won>0)?money(spend/won):null],
     ["Revenue won", values.length?money(revenue):null],
@@ -9101,7 +9117,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                   {/* A results-only client has no monthly at all, and showing him a minimum
                       he does not pay is the whole complaint. Lead the number he earns from. */}
                   {t.resultsOnly ? (
-                    <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.perLead.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/qualified lead</span></div>
+                    <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.perLead.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/qualified {client.billingResultKind==="sale"?"sale":"lead"}</span></div>
                   ) : (
                     <div style={{fontSize:22,fontWeight:800,color:C.gold}}>${t.monthly.toLocaleString()}<span style={{fontSize:12,fontWeight:400,color:C.textMuted}}>/mo min</span></div>
                   )}
@@ -9607,6 +9623,15 @@ function BillingCard({client,pkg,onUpdate}) {
   const resultsOnly=!oneTime&&!(monthly>0);
   // Both states can bill leads. Only "active" has a recurring invoice to preview.
   const managed=!oneTime&&(status==="active"||status==="card_on_file");
+  // 🔴 ONE VOCABULARY FOR THE WHOLE CARD, AND IT IS THE CONTRACT'S. Bryson, 2026-09-17, looking
+  // at a client switched to Sales: *"make sure everything has the correct terminology"*. The
+  // switch renamed the agreement and the portal, but the card around it still said "lead" in
+  // fifteen places, so the screen where the fee is SET disagreed with the document it prints.
+  //
+  // `resultWords` is the same helper `makeContractHTML` asks, so the card cannot drift from the
+  // agreement: flip the switch and both move together.
+  const W = resultWords(client);
+  const itNoun = W.itNoun, itPlural = W.itNoun + "s";
   const [adjMonthly,setAdjMonthly]=useState(String(monthly));
   const [adjSetup,setAdjSetup]=useState(String(setup));
   const [adjPerLead,setAdjPerLead]=useState("");   // blank keeps whatever is already agreed
@@ -9626,7 +9651,7 @@ function BillingCard({client,pkg,onUpdate}) {
     }else if(!(m>0)&&!(effRate>0)){
       // Zero on BOTH is the only genuinely broken combination: the client would owe nothing,
       // ever, under any circumstances.
-      setMsg("Set a monthly minimum, a per-qualified-lead rate, or both. With neither there is nothing to bill.");
+      setMsg("Set a monthly minimum, a {W.per} rate, or both. With neither there is nothing to bill.");
       return;
     }
     setMsg("");
@@ -9655,8 +9680,8 @@ function BillingCard({client,pkg,onUpdate}) {
     setLeadBusy(true); setLeadMsg("");
     try{
       const d=await callBilling("invoice-leads",{customerId:client.stripeCustomerId,clientName:client.name});
-      if(d.nothingDue){ setLeadMsg("Nothing waiting to be billed. Approve some leads first."); setLeadBusy(false); return; }
-      const note=`Invoiced ${money(d.amount)} for qualified leads delivered${d.paid?" — paid":" — awaiting payment"}.`;
+      if(d.nothingDue){ setLeadMsg("Nothing waiting to be billed. Approve some ${itPlural} first."); setLeadBusy(false); return; }
+      const note=`Invoiced ${money(d.amount)} for qualified ${itPlural} delivered${d.paid?" — paid":" — awaiting payment"}.`;
       onUpdate&&onUpdate({...client,lastLeadInvoiceUrl:d.invoiceUrl||null,lastLeadInvoiceAt:new Date().toISOString(),
         commLog:[{date:fmt(new Date()),note,cat:"billing",ts:Date.now()},...(client.commLog||[])],
         billingLeadPeriod:{...periodState,charged:(periodState.charged||0)+d.amount}});
@@ -9757,7 +9782,7 @@ function BillingCard({client,pkg,onUpdate}) {
   const [saleDefn,setSaleDefn]=useState(String(client.billingSaleDefinition||""));
   const chargeLeads=async()=>{
     if(!client.stripeCustomerId){ setLeadMsg(resultsOnly?"Save a card on file first — there is nothing to invoice against.":"Set up recurring billing first — lead fees ride the client's monthly invoice."); return; }
-    if(billableCount<=0){ setLeadMsg("No billable leads right now."); return; }
+    if(billableCount<=0){ setLeadMsg("No billable ${itPlural} right now."); return; }
     if(!(perLeadRate>0)){ setLeadMsg("Set a per-lead rate above $0 first."); return; }
     setLeadBusy(true); setLeadMsg("");
     try{
@@ -9773,7 +9798,7 @@ function BillingCard({client,pkg,onUpdate}) {
       }
       const billedAt=new Date().toISOString();
       const updatedLog=leadLog.map(l=> (!l.billed&&!l.notBillable) ? {...l,billed:true,billedAt} : l);
-      const leadsWord=`${billableCount} qualified lead${billableCount===1?"":"s"}`;
+      const leadsWord=`${billableCount} qualified ${itNoun}${billableCount===1?"":"s"}`;
       const note = chargeNow<=0
         ? `Approved ${leadsWord} (${money(leadAmount)}) — under the ${money(monthlyFloor)} monthly minimum, nothing extra billed`
         : resultsOnly
@@ -9783,7 +9808,7 @@ function BillingCard({client,pkg,onUpdate}) {
       onUpdate&&onUpdate({...client,leadsLog:updatedLog,commLog:[entry,...(client.commLog||[])],
         billingLeadPeriod:{ period:billPeriod, earned:earnedAfter, charged:periodState.charged }});
       setLeadMsg(chargeNow<=0
-        ? `✓ ${billableCount} lead${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`
+        ? `✓ ${billableCount} ${itNoun}${billableCount===1?"":"s"} approved. ${money(leadAmount)} is under the ${money(monthlyFloor)} minimum, so nothing extra is billed.`
         : resultsOnly
         ? `✓ ${money(chargeNow)} added to this month's invoice. Nothing is charged until the 1st.`
         : `✓ ${money(chargeNow)} added to the next invoice (${money(leadAmount)} earned, ${money(monthlyFloor)} minimum already billed).`);
@@ -9814,7 +9839,7 @@ function BillingCard({client,pkg,onUpdate}) {
         {monthly>0
           ? <><span>{money(monthly)}</span><span style={{color:C.textMuted}}>/mo minimum</span></>
           : <span style={{color:C.green,fontWeight:700}}>No monthly minimum</span>}
-        {perLeadRate>0&&<span> · <strong style={{color:C.text}}>{money(perLeadRate)}</strong><span style={{color:C.textMuted}}>/qualified lead</span></span>}
+        {perLeadRate>0&&<span> · <strong style={{color:C.text}}>{money(perLeadRate)}</strong><span style={{color:C.textMuted}}>/qualified {itNoun}</span></span>}
         {setup>0?<span> · {money(setup)} one-time setup</span>:<span style={{color:C.green,fontWeight:700}}> · setup waived</span>}
         {discounted&&<span style={{marginLeft:6,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"1px 7px"}}>Adjusted</span>}
         <div style={{fontSize:10,color:C.textMuted,marginTop:2}}>{monthly>0?"Whichever is higher, never both. ":"Paid on results only. "}The client pays Google and Meta directly for ad spend.</div>
@@ -9822,8 +9847,8 @@ function BillingCard({client,pkg,onUpdate}) {
 
       {status==="none"&&!adjusting&&<>
         {monthly>0&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Create a secure payment link. The client enters a card or bank account once, then the fee auto-charges every month.{setup>0?" The one-time setup fee is added to the first charge automatically.":" Setup fee is waived — first charge is the monthly minimum only."}</div>}
-        {resultsOnly&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>No monthly minimum, so there is nothing recurring to subscribe to. The client saves a card once and it is never charged on its own. You approve qualified leads, and each approved batch is invoiced to that card straight away.{setup>0?` The ${money(setup)} setup fee is billed separately.`:" Setup fee is waived."}</div>}
-        {oneTime&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>A one-time build. The client pays {money(setup)} once and owes nothing after that, so there is no subscription and no lead billing.</div>}
+        {resultsOnly&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>No monthly minimum, so there is nothing recurring to subscribe to. The client saves a card once and it is never charged on its own. You approve qualified {itPlural}, and each approved batch is invoiced to that card straight away.{setup>0?` The ${money(setup)} setup fee is billed separately.`:" Setup fee is waived."}</div>}
+        {oneTime&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>A one-time build. The client pays {money(setup)} once and owes nothing after that, so there is no subscription and no {itNoun} billing.</div>}
         {/* 🔴 THREE DIFFERENT PRODUCTS, THREE DIFFERENT WAYS TO GET PAID, and picking on
             `monthly>0` alone got two of them wrong. A hand-off has price 0 because there is
             no monthly, not because it is free — it was falling into the results-only branch
@@ -9865,7 +9890,7 @@ function BillingCard({client,pkg,onUpdate}) {
 
       {(status==="awaiting_payment"||status==="awaiting_card")&&<>
         <div style={{fontSize:11,color:C.amber,lineHeight:1.6,marginBottom:8}}>{status==="awaiting_card"
-          ? <>Card link ready. Send it to the client, or open it together on the call. <strong style={{color:C.text}}>Nothing is charged</strong> — it only saves their card so approved leads can be invoiced to it.</>
+          ? <>Card link ready. Send it to the client, or open it together on the call. <strong style={{color:C.text}}>Nothing is charged</strong> — it only saves their card so approved {itPlural} can be invoiced to it.</>
           : "Payment link ready. Send it to the client (or open it together on the call). Billing activates the moment they pay."}</div>
         {link&&<div style={{fontSize:10,color:C.textDim,wordBreak:"break-all",background:"rgba(0,0,0,.25)",border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 9px",marginBottom:8}}>{link}</div>}
         <div style={S.row7}>
@@ -9882,7 +9907,7 @@ function BillingCard({client,pkg,onUpdate}) {
         <div style={{padding:"12px 14px",borderRadius:11,backgroundColor:"rgba(34,211,160,0.06)",border:"1px solid rgba(34,211,160,0.22)"}}>
           <div style={{fontSize:12,color:C.green,fontWeight:700,marginBottom:4}}>Paid in full — {money(client.billingSetup!=null?client.billingSetup:setup)} one-time</div>
           <div style={{fontSize:11,color:C.textDim,lineHeight:1.65}}>
-            Nothing recurring is set up, which is correct for a hand-off. There is no monthly charge, no per-lead billing and no next invoice.
+            Nothing recurring is set up, which is correct for a hand-off. There is no monthly charge, no per-{itNoun} billing and no next invoice.
             {client.lastPaymentAt?" Paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}
           </div>
           <div style={{fontSize:11,color:C.textMuted,lineHeight:1.65,marginTop:7}}>
@@ -9949,7 +9974,11 @@ function BillingCard({client,pkg,onUpdate}) {
               Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/{client.billingResultKind==="sale"?"sale":"lead"}</strong>
               {client.billingPerLead!=null&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold}}>custom</span>}
               <button onClick={()=>{setRateInput(String(perLeadRate));setEditRate(true);}} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>edit</button>
-              <button onClick={()=>setShowFeeFinder(v=>!v)} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>{showFeeFinder?"hide":"what should this be?"}</button>
+              {/* 🔴 OFFERED ONLY ON A LEAD BASIS, AND NOT RENAMED. The finder works from job value and
+                    close rate to price a LEAD. Relabelling it "per sale" would dress lead-to-customer
+                    arithmetic up as something it is not, which is worse than not offering it: a sale is
+                    already the customer, so there is no close rate left to apply. */}
+                {W.kind==="lead"&&<button onClick={()=>setShowFeeFinder(v=>!v)} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>{showFeeFinder?"hide":"what should this be?"}</button>}
             </div>
           : <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
               <span style={{fontSize:12,color:C.textMuted}}>$</span>
@@ -9957,7 +9986,7 @@ function BillingCard({client,pkg,onUpdate}) {
               <button onClick={saveRate} style={{padding:"6px 10px",fontSize:11,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Save</button>
               <button onClick={()=>setEditRate(false)} style={{padding:"6px 9px",fontSize:12,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>×</button>
             </div>}
-        {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-lead rate for {client.niche||"this niche"} — set one above, or tap "what should this be?" to work one out.</div>}
+        {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-{itNoun} rate for {client.niche||"this niche"} — set one above, or tap "what should this be?" to work one out.</div>}
         {/* Same finder as Deal Prep. `onUse` writes the rate straight onto the client so
             the number cannot be mistyped between reading it and saving it. */}
         {showFeeFinder&&(
@@ -9971,7 +10000,7 @@ function BillingCard({client,pkg,onUpdate}) {
       )}
       {managed&&<>
         <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>{status==="card_on_file"
-          ? <>Card on file. <strong style={{color:C.text}}>Nothing charges on its own.</strong> Each approved batch of qualified leads is invoiced to this card straight away.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}</>
+          ? <>Card on file. <strong style={{color:C.text}}>Nothing charges on its own.</strong> Each approved batch of qualified {itPlural} is invoiced to this card straight away.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}</>
           : <>Auto-charging {money(monthly)}/mo.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}{client.billingNextCharge?" Next charge "+new Date(client.billingNextCharge).toLocaleDateString()+".":""}</>}</div>
         <div style={S.row7}>
           <button onClick={openPortal} disabled={!!busy} style={{flex:2,padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer",opacity:busy?.7:1}}>{busy==="portal"?"Opening…":"Manage in Stripe"}</button>
@@ -9981,12 +10010,12 @@ function BillingCard({client,pkg,onUpdate}) {
         {/* Per-qualified-lead billing — review + one-tap approve onto next invoice */}
         <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Lead Billing{resultsOnly?"":" (whichever is higher)"}</span>
+            <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>{W.many} Billing{resultsOnly?"":" (whichever is higher)"}</span>
             <span style={{fontSize:10,color:C.textMuted}}>{flaggedBillable>0&&<span style={{color:C.amber,fontWeight:700}}>{flaggedBillable} flagged</span>}{flaggedBillable>0&&billedCount>0?" · ":""}{billedCount>0?`${billedCount} billed`:""}</span>
           </div>
 
           {unbilledLeads.length===0
-            ? <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>No new leads to bill. Delivered leads show up here to review and add to the next invoice.</div>
+            ? <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>No new {itPlural} to bill. {W.many} show up here to review and add to the next invoice.</div>
             : <>
                 <div style={{fontSize:10,color:C.textMuted,marginBottom:6,lineHeight:1.5}}>Leads we flag as possible junk/spam are marked with a reason — <strong style={{color:C.textDim}}>your call</strong>. Exclude anything junk so the client isn&rsquo;t billed for it, then approve.</div>
                 <div style={{maxHeight:196,overflowY:"auto",marginBottom:8,display:"flex",flexDirection:"column",gap:5}}>
@@ -10023,7 +10052,7 @@ function BillingCard({client,pkg,onUpdate}) {
                     ? <div>{money(earnedAfter)} earned this month is above the {money(monthlyFloor)} minimum — <strong style={{color:C.green}}>{money(chargeNow)}</strong> gets added to the next invoice.</div>
                     : <div>{money(earnedAfter)} earned this month is under the {money(monthlyFloor)} minimum — <strong style={{color:C.text}}>they pay the minimum, nothing extra.</strong></div>}
                 </div>
-                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow<=0?`Approve ${billableCount} lead${billableCount===1?"":"s"} — nothing extra to bill`:resultsOnly?`Approve — invoice ${money(chargeNow)} now`:`Approve — add ${money(chargeNow)} to next invoice`)}</button>
+                <button onClick={chargeLeads} disabled={leadBusy||billableCount<=0||!(perLeadRate>0)} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:(billableCount>0&&perLeadRate>0)?C.green:C.border,color:(billableCount>0&&perLeadRate>0)?"#04110b":C.textMuted,cursor:(leadBusy||billableCount<=0||!(perLeadRate>0))?"default":"pointer",opacity:leadBusy?.7:1}}>{leadBusy?"Saving…":(chargeNow<=0?`Approve ${billableCount} ${itNoun}${billableCount===1?"":"s"} — nothing extra to bill`:resultsOnly?`Approve — invoice ${money(chargeNow)} now`:`Approve — add ${money(chargeNow)} to next invoice`)}</button>
               </>}
           {leadMsg&&<div style={{fontSize:11,color:leadMsg.charAt(0)==="✓"?C.green:C.red,marginTop:8,lineHeight:1.6}}>{leadMsg}</div>}
         </div>
@@ -10040,8 +10069,8 @@ function BillingCard({client,pkg,onUpdate}) {
           </div>
           <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,marginBottom:8}}>
             {parkedThisMonth>0
-              ? <>Goes out automatically on the <strong style={{color:C.textDim}}>1st</strong> and charges the card on file. One invoice, only the leads you approved, no monthly fee.</>
-              : <>Nothing approved yet this month. As you approve qualified leads they add up here, and the invoice goes out automatically on the 1st.</>}
+              ? <>Goes out automatically on the <strong style={{color:C.textDim}}>1st</strong> and charges the card on file. One invoice, only the {itPlural} you approved, no monthly fee.</>
+              : <>Nothing approved yet this month. As you approve qualified {itPlural} they add up here, and the invoice goes out automatically on the 1st.</>}
           </div>
           {client.lastLeadInvoiceAt&&<div style={{fontSize:10,color:C.textMuted,marginBottom:8}}>Last invoiced {fmt(client.lastLeadInvoiceAt)}{client.lastLeadInvoiceUrl?<> · <a href={client.lastLeadInvoiceUrl} target="_blank" rel="noopener" style={{color:C.gold}}>view it</a></>:null}</div>}
           <button onClick={invoiceNow} disabled={leadBusy||parkedThisMonth<=0} style={{width:"100%",padding:"9px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:parkedThisMonth>0?C.textDim:C.textMuted,cursor:(leadBusy||parkedThisMonth<=0)?"default":"pointer"}}>{leadBusy?"Working…":"Invoice Now (don't wait for the 1st)"}</button>
@@ -10058,7 +10087,7 @@ function BillingCard({client,pkg,onUpdate}) {
           {upcomingState==="loading"&&!upcoming&&<div style={{fontSize:11,color:C.textMuted}}>Loading the next invoice…</div>}
           {upcomingState==="error"&&<div style={{fontSize:10,color:C.textMuted,lineHeight:1.5}}>Couldn&rsquo;t load the preview right now — but everything (fee{setup>0?", setup":""}, approved leads, any interest) still bills together on the next invoice.</div>}
           {upcoming&&<>
-            <div style={{fontSize:10,color:C.textMuted,marginBottom:8,lineHeight:1.5}}>One bill — the monthly minimum + approved leads + any late interest, all together{upcoming.chargeDate?`, auto-charging ${fmt(upcoming.chargeDate)}`:""}.</div>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:8,lineHeight:1.5}}>One bill, the monthly minimum + approved {itPlural} + any late interest, all together{upcoming.chargeDate?`, auto-charging ${fmt(upcoming.chargeDate)}`:""}.</div>
             <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:8}}>
               {upcoming.lines.map((ln,i)=>(
                 <div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11}}>
@@ -10545,7 +10574,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
                     pays one of them and it is usually the per-lead one. Showing only the
                     minimum meant the discount on a good month was invisible, which is the
                     same as it not existing when he is trying to close a longer term. */}
-                {basePerLead>0&&<div style={{marginTop:3}}>Per qualified lead: <strong style={{color:C.green}}>${termMonthly(basePerLead,m).toLocaleString()}</strong>{termRate(m)!==0&&<span style={{color:C.textMuted}}> (was ${basePerLead.toLocaleString()})</span>}</div>}
+                {basePerLead>0&&<div style={{marginTop:3}}>Per qualified {client.billingResultKind==="sale"?"sale":"lead"}: <strong style={{color:C.green}}>${termMonthly(basePerLead,m).toLocaleString()}</strong>{termRate(m)!==0&&<span style={{color:C.textMuted}}> (was ${basePerLead.toLocaleString()})</span>}</div>}
                 {basePct>0&&<div style={{marginTop:3}}>Fee on ad spend: <strong style={{color:C.green}}>{termPct(basePct,m)}%</strong>{termRate(m)!==0&&<span style={{color:C.textMuted}}> (was {basePct}%)</span>}</div>}
                 {m===1&&termRate(1)>0&&<div style={{marginTop:3,fontSize:10,color:C.amber}}>Month-to-month includes a flexibility premium on both the minimum and the per-lead rate.</div>}
                 {saved>0&&<div style={{marginTop:3,fontSize:10,color:C.green}}>Saves ${saved.toLocaleString()} on the minimum alone over the term vs. month-to-month, before any per-lead saving.</div>}

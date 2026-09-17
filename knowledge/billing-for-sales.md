@@ -9,6 +9,39 @@ verified: 2026-09-16
 ---
 
 
+## 🔴 THE RENAME HAD TO REACH EVERY SCREEN (2026-09-17)
+
+Bryson, looking at a client switched to Sales: *"make sure everything has the correct
+terminology"*. The switch renamed the agreement and the portal on the day it was built, and left
+the OS around it saying "lead" in fifteen places, **including the summary line directly above the
+switch itself**. A screen that contradicts the document it prints is how someone stops trusting
+either one.
+
+The Billing card now takes its words from **`resultWords`, the same helper `makeContractHTML`
+asks**, so the two cannot drift: flip the switch and both move together. `W.itNoun` is the
+singular, `itPlural` the plural, `W.many` the capitalised plural, `W.per` the fee phrase.
+
+Other screens fixed, each found by rendering a real per-sale client in a browser and scanning the
+**text on screen** (an earlier scan read `document.body.textContent`, which on this page includes
+the Babel source, so it returned code comments as false positives and no real hits):
+
+- **The scorecard** said "Qualified leads" and "Cost per qualified lead".
+- **The overview revenue card** said `$25/qualified lead`.
+- **The package fee label** (`pkgPerfLabel`) quoted the PACKAGE's model, so a store client read
+  "15% of ad spend" beside an agreement saying $25 per sale. It now takes an optional
+  `resultKind` and the sale branch is tested **before** the percentage branch, or the percentage
+  wins and nothing changes.
+- **The Adjust Fees field** asked for a price "per qualified lead".
+- **The renewal preview** likewise.
+
+🔴 **The lead fee finder is HIDDEN on a per-sale client, not renamed.** It works from job value
+and close rate to price a lead. Relabelling it would dress lead-to-customer arithmetic up as
+something it is not: a sale is already the customer, so there is no close rate left to apply.
+
+Left alone on purpose: Google's own conversion action names ("Qualified lead" is Google's
+concept), the founding-offer brochure copy, and the Add Client sheet, where no basis has been
+chosen yet.
+
 ## 🔴 THE SWITCH WAS UNREACHABLE UNTIL 2026-09-17
 
 Bryson, looking at Air Suds' finished agreement: *"the contract didnt update with the way hes
