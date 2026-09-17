@@ -4,7 +4,7 @@ topic: Contracts
 task: set, move or slip a client's contract start date; send an agreement before the work can actually begin
 keywords: [start date, effective date, contract start, contract end, term, committed term, slip, delay, reslotTerm, edit sheet, three months, countdown, renewal]
 status: verified
-summary: The Start Date is the Effective Date and EVERYTHING counts from it — the three month commitment, the billing, the 14-day intake clock and every countdown in the OS. Signing early is fine; set the date to the day the ADS GO LIVE, not the day he signs, or the client pays for time when nothing ran. 🔴 Until 2026-09-16 the EDIT sheet had start and end as two independent boxes, so moving a start date quietly shortened the term. It now SHIFTS the end by the same number of days (preserving a custom term rather than recomputing it), refuses to act on a half-typed date, and shows how long the term comes to with a warning under three months. The contract re-renders fresh every time it is opened, so changing the date after signature rewrites the signed copy — only ever move it with the client's agreement, and forward, never backward.
+summary: The Start Date is the Effective Date and EVERYTHING counts from it — the three month commitment, the billing, the 14-day intake clock and every countdown in the OS. Signing early is fine; set the date to the day the ADS GO LIVE, not the day he signs, or the client pays for time when nothing ran. 🔴 Until 2026-09-16 the EDIT sheet had start and end as two independent boxes, so moving a start date quietly shortened the term. It now SHIFTS the end by the same number of days (preserving a custom term rather than recomputing it), refuses to act on a half-typed date, and shows how long the term comes to with a warning under three months. SIGNED COPY IS A SNAPSHOT: docusign-send base64s the rendered HTML into the envelope at send time, so the DocuSign document NEVER re-renders and changing the date later does NOT alter what was signed. The OS copy re-renders and will silently drift from it. Not sent yet: change freely. Sent, not signed: VOID the envelope and resend, never just edit. Already signed: the PDF is fixed, so move the date by a written email amendment and update the OS to match. Move it forward, never backward.
 verified: 2026-09-16
 ---
 
@@ -32,13 +32,40 @@ week from existing.
 
 ## Moving it afterwards
 
-The contract **renders fresh every time it is opened** (KB `contract-terms-versioning`), so
-changing the start date after signature changes what the signed copy says. That is a feature for
-correcting a slip and a hazard otherwise:
+RED FLAG: THE OS COPY AND THE SIGNED COPY ARE TWO DIFFERENT DOCUMENTS, AND ONLY ONE OF THEM IS
+THE CONTRACT. This was stated the wrong way round to Bryson on 2026-09-16 and corrected the same
+evening, because it changes what he does.
 
-- Only move it **with the client's agreement**, in writing, so the record matches what both
-  sides think they agreed.
-- Move it **forward, never backward**. Backward bills them for time that had not happened yet.
+- The OS copy re-renders every time it is opened (KB `contract-terms-versioning`). Change the
+  start date and the OS copy changes with it. This is the view, and it is what every countdown,
+  renewal warning and scorecard figure in the OS counts from.
+- The DocuSign copy is a SNAPSHOT. `docusign-send.mjs` renders the agreement once, base64s that
+  HTML into the envelope (`documents[0].documentBase64`, `fileExtension: "html"`) and uploads it.
+  DocuSign flattens it to a PDF. It never re-renders, never calls back to the OS, and nothing
+  changed afterwards reaches it. That frozen PDF is the legally operative document.
+
+So editing the start date after signature does NOT rewrite the signed agreement. It makes the two
+copies disagree, silently, with the OS showing the newer one.
+
+What to actually do:
+
+| Where you are | What to do |
+|---|---|
+| Not sent yet | Change the date freely, then send. |
+| Sent, not signed | VOID the envelope in DocuSign and send a fresh one. Editing the OS alone leaves the client signing a stale document. |
+| Already signed | The PDF is fixed and cannot be changed. Email the client one line moving the start date, with everything else unchanged, and get a written yes. That email plus the signed contract IS the amendment. Then update the OS so the countdown matches. |
+
+Either way: move it forward, never backward. Backward bills them for time that had not happened
+yet.
+
+## The open gap: nothing stores the signed copy
+
+`docusign-watch.mjs` records THAT the client signed and WHEN (`contractSigned`,
+`contractSignedAt`). It does not fetch the completed PDF back. So the only copy of what was
+actually agreed lives in the DocuSign account, while the OS shows a live re-render that may have
+drifted from it. Offered to Bryson on 2026-09-16 and not urgent, but it is the fix that makes one
+place hold the real thing: pull the combined document on completion and store it against the
+client record.
 
 ## 🔴 The bug this fixed (2026-09-16)
 
