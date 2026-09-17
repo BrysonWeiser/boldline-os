@@ -385,9 +385,21 @@ export default withFailureAlert("ads-sync", async () => {
       // nothing, because for them the date genuinely did not change and telling them it had
       // would be false. Those are the ones Bryson is told about in amber instead.
       if (live.patch.contractStart) {
+        // 🔴 BOTH DATES COME FROM THE DECISION THAT JUST RAN, NEVER FROM THE RECORD.
+        //
+        // `contractStart` is the day spend was first seen, and `contractEnd` is derived from it.
+        // A first pass fell back to `cl.contractEnd` when the end could not be derived, which is
+        // the OLD ESTIMATE: the client would have been sent a confirmed start of 6 October
+        // beside an end of 1 January, two dates that do not belong to each other, in the one
+        // message whose entire job is to state their term accurately.
+        //
+        // If the end cannot be derived it is left empty and the email omits the row rather than
+        // printing a number that does not follow from the start. An incomplete confirmation is
+        // recoverable; a confidently wrong one is not.
         const sent = await autoSendClientEmail(cl, "start_confirmed", {
           startDate: live.patch.contractStart,
-          endDate: live.patch.contractEnd || cl.contractEnd || "",
+          endDate: live.patch.contractEnd || "",
+          termMonths: Number(cl.contractTermMonths) || 3,
         });
         // Fail-soft on purpose: a bounced email must never cost the recorded go-live, which is
         // the fact the term depends on. The failure is logged and the alert above already told
