@@ -4,7 +4,7 @@ import { findPage, clientForPage } from "../lib/landing-pages-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
-import { CLICK_KEYS, UTM_KEYS } from "../lib/attribution.mjs";
+import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
 
 const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -111,6 +111,37 @@ export function designConfig(cl) {
 // lazy saves nothing. Photos are 70KB to 170KB each after the resizer (KB
 // `landing-image-weight`), so four eager is a rounding error. Beyond four, lazy is right again.
 const GALLERY_EAGER = 4;
+
+// 🔴 THE DEFAULT TAGS ON A STORE LINK, so a sale is attributable even with JavaScript off.
+// Anything the page was actually opened with is added on top at runtime (see the script below),
+// and a tag already present in the client's own URL is never overwritten — if they went to the
+// trouble of writing one, it beats ours.
+function withTags(url, cl) {
+  const base = String(url || "").trim();
+  if (!base) return "";
+  const slug = String((cl && cl.landingSlug) || "").trim();
+  const defaults = { utm_source: "boldline", utm_medium: "paid", utm_campaign: slug || "ads" };
+  const hash = base.indexOf("#");
+  const frag = hash >= 0 ? base.slice(hash) : "";
+  const head = hash >= 0 ? base.slice(0, hash) : base;
+  const q = head.indexOf("?");
+  const path = q >= 0 ? head.slice(0, q) : head;
+  const params = new URLSearchParams(q >= 0 ? head.slice(q + 1) : "");
+  // 🔴 THREE SOURCES, AND THE ORDER BETWEEN THEM IS THE WHOLE POINT. What the client typed
+  // into their own shop link beats everything, because they meant it. What the visitor
+  // actually arrived with beats OUR defaults, because it names the real campaign that paid
+  // for the click. Our defaults are the floor, so a page with JavaScript off still reports
+  // something rather than nothing.
+  //
+  // `filled` is the list of keys WE invented, handed to the script below so it knows which
+  // ones it is allowed to replace. Without it the baked-in `utm_source=boldline` would sit in
+  // the way of the real `utm_source=google` on every single click, and every sale in the
+  // client's shop would be credited to "boldline" instead of to the campaign that produced it.
+  const filled = [];
+  for (const [k, v] of Object.entries(defaults)) if (!params.has(k)) { params.set(k, v); filled.push(k); }
+  const qs = params.toString();
+  return { href: path + (qs ? "?" + qs : "") + frag, filled };
+}
 
 export function renderLandingPage(cl, opts = {}) {
   const HO = opts.handoff || null;
@@ -219,7 +250,10 @@ export function renderLandingPage(cl, opts = {}) {
   const ownTrust = Array.isArray(lp.trust) ? lp.trust.filter(Boolean).map(String).slice(0, 4) : null;
   const ownChips = Array.isArray(lp.chips) ? lp.chips.filter(Boolean).map(String).slice(0, 4) : null;
   const differentiator = bv.differentiator || "";
-  const cta = lp.ctaText || "Get My Free Quote";
+  // A shop's default button asks for the sale. "Get My Free Quote" on a page selling an $11
+  // bottle is the wrong verb and, worse, promises a quote that will never arrive. A ctaText the
+  // client wrote always wins over either default.
+  const cta = lp.ctaText || (String(cl.storeUrl || "").trim() ? "Shop Now" : "Get My Free Quote");
   // 🔴 WHERE A CLIENT'S PHOTOS GO, AND WHICH ONES GET USED. Bryson, 2026-09-02: *"make sure
   // on the see the results page that there is at least 4-6 good images and if there is less
   // to make sure that they are all used [...] make sure the images are put in the right
@@ -239,10 +273,47 @@ export function renderLandingPage(cl, opts = {}) {
   const heroIsUploaded = !!(hero && hero.path && hero.path !== "__web");
   const spareTheHero = allPhotos.length >= 5;
   const photos = (spareTheHero ? allPhotos.filter((m) => !hero || m.path !== hero.path) : allPhotos).slice(0, 6);
-  const steps = (Array.isArray(lp.steps) && lp.steps.length ? lp.steps : ["Tell us what you need", "Get a fast, free quote", "We handle the rest"]).slice(0, 3);
+  // 🔴 EVERY DEFAULT IN THIS RENDERER IS A LOCAL SERVICE BUSINESS'S, and on a shop each one is a
+  // promise nobody is going to keep. "Get a fast, free quote" on a page selling an $11 bottle is
+  // not slightly off, it is describing a different business.
+  const steps = (Array.isArray(lp.steps) && lp.steps.length ? lp.steps
+    : String(cl.storeUrl || "").trim()
+      ? ["Pick what you need", "Check out in a minute", "It arrives, and keeps arriving"]
+      : ["Tell us what you need", "Get a fast, free quote", "We handle the rest"]).slice(0, 3);
+  // ── 🔴 A SHOP'S PAGE SELLS. IT DOES NOT COLLECT ENQUIRIES. ──────────────────
+  //
+  // Bryson, 2026-09-16: *"we will need to do this in the future when we get more e-commerce
+  // brands since most of them use Shopify"* and *"make sure everything is done right so it's
+  // automated as much as possible and the parts that either party has to do is as simple as
+  // possible"*.
+  //
+  // ONE FIELD switches the whole page: `storeUrl`, the address where the visitor can actually
+  // buy. Set it and the buttons go to the shop, the lead form disappears, and the closing copy
+  // stops asking for an enquiry. Nothing else to remember, nothing else to tick.
+  //
+  // 🔴 WHY THE FORM HAS TO GO, not just be ignored. A form on a shop's page collects enquiries
+  // nobody is going to answer, from people who came to buy, and every one of them is a visitor
+  // who did not click through to the store. It is not clutter, it is a leak.
+  //
+  // 🔴 AND WHY THE QUERY STRING IS CARRIED ACROSS, which is the part that decides whether anyone
+  // gets paid. The agreement counts a Qualified Sale from the CLIENT'S OWN ORDER RECORDS, and a
+  // shop can only tie an order to an ad if the tracking parameters reach it. Meta and Google
+  // hang their click ids (`fbclid`, `gclid`) on the ad's URL, which lands on THIS page, not on
+  // the shop. Drop them here and the shop sees an unattributed visitor, the platform cannot
+  // match the purchase, and there is no evidence a sale came from the ads. So every parameter
+  // this page was opened with is appended to the store link, and a default set of UTM tags is
+  // baked into the href so attribution survives even with JavaScript off.
+  const storeUrl = String(cl.storeUrl || "").trim();
   const booking = String(cl.bookingUrl || "").trim();
-  const ctaHref = booking ? esc(booking) : "#lead-form";
-  const ctaAttr = booking ? ' target="_blank" rel="noopener"' : "";
+  const shopping = !!storeUrl;
+  const tagged = shopping ? withTags(storeUrl, cl) : null;
+  const storeHref = tagged ? tagged.href : "";
+  const destination = storeHref || booking;
+  const ctaHref = destination ? esc(destination) : "#lead-form";
+  // 🔴 SAME TAB FOR A PURCHASE. A booking opens in a new tab so the visitor keeps the page they
+  // were reading; a purchase is the end of the journey and a second tab only splits the session,
+  // which some shop analytics then read as two visitors.
+  const ctaAttr = shopping ? ' data-store="1"' : (booking ? ' target="_blank" rel="noopener"' : "");
   const telHref = phone ? `tel:${esc(phone.replace(/[^0-9+]/g, ""))}` : "";
   // 2. 🔴 A PRODUCT PHOTO IS NOT WALLPAPER. The overlay layout stretches the hero image
   //    full-bleed behind the headline under a dark scrim. That is right for a photo of a
@@ -595,7 +666,10 @@ a{color:inherit}
   // not head its own page as a local service. Only the fallback changes, a real niche is
   // still printed as given.
   const eyebrowText = lp.eyebrow != null ? String(lp.eyebrow)
-    : (cl.niche || (national ? "Marketing that brings you customers" : "Trusted local service"));
+    // A shop that posts orders anywhere is not a "Trusted local service", and a visitor who
+    // reads that on a page selling a bottle they want shipped to them has been told the wrong
+    // thing about the business in the first three words on the page.
+    : (cl.niche || (shopping ? "Shop direct" : national ? "Marketing that brings you customers" : "Trusted local service"));
   const eyebrowH = eyebrowText ? `<div class="eyebrow an">${esc(eyebrowText)}</div>` : "";
   const headlineH = `<h1 class="headline an" style="animation-delay:.06s">${esc(lp.headline)}</h1>`;
   const subH = `<p class="subhead an" style="animation-delay:.12s">${esc(lp.subheadline || "")}</p>`;
@@ -622,7 +696,9 @@ a{color:inherit}
   const fresh = (t) => { const k = dedupKey(t); if (!k || said.has(k)) return false; said.add(k); return true; };
   const trustBits = (ownTrust
     ? ownTrust
-    : [area || reach || "", "&#10003; Free quotes", phone ? "Fast response" : ""])
+    : shopping
+      ? [area || reach || "", "&#10003; Ships straight to you", "&#10003; Cancel any time"]
+      : [area || reach || "", "&#10003; Free quotes", phone ? "Fast response" : ""])
     .filter(Boolean)
     .filter(fresh)
     .map((t) => `<span><b>${/&#10003;/.test(t) ? t : esc(t)}</b></span>`).join("");
@@ -746,7 +822,10 @@ a{color:inherit}
   </div>`;
 
   let heroSection;
-  if (useCapture) {
+  // 🔴 THE CAPTURE LAYOUT IS A FORM IN THE HERO. On a shop there is no form, so that layout has
+  // nothing to put there and would render an empty panel beside the headline. It falls back to
+  // the split layout, which is the same page without the hole.
+  if (useCapture && !shopping) {
     const callLine = phone ? `<div class="ctarow an" style="animation-delay:.2s"><a class="cta ghost" href="${telHref}">Call ${esc(phone)}</a></div>` : "";
     heroSection = `<section class="hero"><div class="wrap hero-g has-img"><div>${eyebrowH}${headlineH}${subH}${trustH}${callLine}</div><div class="hero-form reveal">${formCardHTML}</div></div></section>`;
   } else if (useOverlay) {
@@ -856,7 +935,13 @@ a{color:inherit}
 
   // Bottom conversion block: the full form section for most layouts; for the capture
   // layout (form already in the hero) a slim closing CTA that scrolls back to it.
-  const bottomBlock = useCapture
+  // 🔴 A SHOP'S CLOSING BLOCK SENDS THEM TO THE SHOP. The lead-gen version fills the screen with
+  // a form and the words "no pressure, no obligation, we'll get right back to you" — three
+  // promises about a conversation that is not going to happen, on a page whose only job is to
+  // get the visitor to the buy button.
+  const bottomBlock = shopping
+    ? `<section class="formsec"><div class="wrap" style="text-align:center"><h2 class="form-copy-h2" style="font-size:clamp(22px,3vw,30px);font-weight:850;color:${P.headline};margin-bottom:8px">${esc(lp.closingHeadline || "Ready when you are")}</h2><p style="color:${P.muted};margin-bottom:20px">${esc(lp.closingLine || "Takes a minute, and it ships straight to you.")}</p><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></div></section>`
+    : useCapture
     ? `<section class="formsec"><div class="wrap" style="text-align:center"><h2 class="form-copy-h2" style="font-size:clamp(22px,3vw,30px);font-weight:850;color:${P.headline};margin-bottom:8px">Ready to get started?</h2><p style="color:${P.muted};margin-bottom:20px">No pressure and no obligation. Get your free quote today.</p><a class="cta" href="#lead-form">${esc(cta)}</a></div></section>`
     : `<section class="formsec"><div class="wrap"><div class="form-g">
   <div class="form-copy reveal">
@@ -1145,7 +1230,41 @@ a{color:inherit}
     window.addEventListener('scroll',first,{passive:true});
   }catch(e){showAll();}`;
 
-  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}`;
+  // 🔴 CARRY THE AD'S TRACKING ACROSS TO THE SHOP. This is the line the billing rests on.
+  //
+  // Meta and Google hang their click ids (`fbclid`, `gclid`) on the URL of the ad, which lands
+  // on THIS page. The shop never sees them unless they are passed on. Without them the shop
+  // records an unattributed order, the platform cannot match the purchase to the click, and
+  // nobody can show that a sale came from the ads — on an agreement that counts a Qualified
+  // Sale from the client's own order records, that is the difference between getting paid and
+  // not.
+  //
+  // The named tracking parameters the page was opened with are copied onto the store links,
+  // and anything already on the link wins, so the defaults baked into the href are never
+  // clobbered. With JavaScript off the href still carries its UTM tags, so the worst case is a
+  // sale attributed to BoldLine generally rather than to one click.
+  //
+  // 🔴 A NAMED LIST, NOT THE WHOLE QUERY STRING — see STORE_FORWARD_KEYS. Copying everything
+  // would let a stranger append a parameter of their choosing to a link our ads pay for, and
+  // Shopify applies `?discount=CODE` straight off a storefront URL.
+  //
+  // 🔴 NO `//` COMMENTS: this script is delivered verbatim to the client's own domain, where
+  // their developer reads it. Standing rule in CLAUDE.md, enforced by verify-lead-handoff.
+  const storeJS = shopping ? `
+  var SF = ${JSON.stringify(STORE_FORWARD_KEYS)};
+  var SD = ${JSON.stringify(tagged.filled)};
+  var inbound = new URLSearchParams(location.search);
+  Array.prototype.forEach.call(document.querySelectorAll('a[data-store]'), function (a) {
+    try {
+      var u = new URL(a.getAttribute('href'), location.href);
+      SF.forEach(function (k) {
+        var v = inbound.get(k);
+        if (v && (!u.searchParams.has(k) || SD.indexOf(k) >= 0)) u.searchParams.set(k, v);
+      });
+      a.setAttribute('href', u.toString());
+    } catch (e) {}
+  });` : "";
+  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}\n${storeJS}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   const diffChip = fitPhrase(differentiator, 64);
@@ -1154,8 +1273,14 @@ a{color:inherit}
   // phone number or no service area, which is most of them at the start.
   const chipLabels = (ownChips
     ? ownChips.map((c) => esc(c))
-    : [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
-       "&#10003; Free quote, no obligation", phone ? "Fast response" : ""])
+    // 🔴 THE SECOND PLACE THE QUOTE LANGUAGE LIVES. The trust row above was fixed for shops and
+    // the page STILL printed "Free quote, no obligation", from here, because the same promise is
+    // written twice in this renderer. A shop makes no quotes, so both copies have to know.
+    : shopping
+      ? [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
+         "&#10003; Secure checkout", phone ? "Questions? Call us" : ""]
+      : [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
+         "&#10003; Free quote, no obligation", phone ? "Fast response" : ""])
     .filter(Boolean)
     .filter(fresh);
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");

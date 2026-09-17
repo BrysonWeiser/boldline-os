@@ -98,6 +98,9 @@ const realLanding = async (cl) => {
     body: JSON.stringify({
       name: cl.name, niche: cl.niche, campaignSetup: cl.campaignSetup,
       brandVoice: cl.brandVoice, mediaLibrary: cl.mediaLibrary, website: cl.website,
+      // Without this the overnight draft for a shop client comes back asking for a quote, on
+      // a page that has no form, and Bryson has to notice and rewrite it by hand.
+      storeUrl: cl.storeUrl || "",
     }),
   }));
   const d = await res.json().catch(() => ({}));

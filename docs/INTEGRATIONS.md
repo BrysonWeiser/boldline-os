@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 185 task-keyed entries under `knowledge/`. They surface automatically via the
+> 186 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**185 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**186 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -276,6 +276,9 @@
 - **[landing-image-weight](../knowledge/landing-image-weight.md)** &mdash; &#9989; verified &middot; 2026-09-08  
   Sebastian's live landing page showed three broken-image icons with the filenames as visible text. NOTHING WAS BROKEN — the files were public, valid, and served HTTP 200. They were three photos straight off an iPhone 13 Pro, 12 megapixels each, 13MB between them, on one page, on a phone; Safari gave up before they finished and painted the broken icon, which looks exactly like a dead link. Fixed at both ends. (1) `landing.mjs` now serves every stored photo through Supabase's `/storage/v1/render/image/public/` resizer at a sane width, which fixes photos ALREADY uploaded and negotiates WebP off the browser's Accept header: 5.3MB became 72KB, the page went from 13MB to under half a megabyte. (2) The portal shrinks an image in the browser BEFORE upload (max 1600px, JPEG 0.85, PNG kept for logos so transparency survives). Alt text no longer leaks camera filenames. Found and fixed 2026-09-08.  
   <sub>*task:* fix landing page photos that show as broken images, and stop client uploads arriving at full phone resolution &nbsp;|&nbsp; *keywords:* broken images, images not loading, landing page photos, image weight, iphone photos, 12 megapixel, supabase render image, image transformation, resize on upload, blShrink, photoAlt, alt text filename, IMG_6360, page too heavy, slow landing page</sub>
+- **[store-mode](../knowledge/store-mode.md)** &mdash; &#9989; verified &middot; 2026-09-16  
+  ONE FIELD (`cl.storeUrl`) turns a lead-gen landing page into a shop page — buttons go to the client's store with the ad's tracking attached, the enquiry form is removed entirely, and every default (button, steps, trust row, chips, eyebrow, closing block) switches from quoting language to buying language. The AI copy writer is told too, so a shop client's draft never comes back asking for a quote. Tracking forwarding is a NAMED LIST (STORE_FORWARD_KEYS in attribution.mjs), never a pass-through, because Shopify applies `?discount=CODE` straight off a storefront URL. Settable by the client in the portal and by Bryson in the OS edit sheet. Pinned by tests/verify-store-mode.mjs (140 checks) + shop rows in verify-lead-handoff.  
+  <sub>*task:* build or change a landing page for a client who sells online (e-commerce / Shopify) instead of taking enquiries &nbsp;|&nbsp; *keywords:* store mode, storeUrl, shopify, ecommerce, e-commerce, shop link, buy, product page, no form, utm, fbclid, gclid, attribution, air suds, constantine, forwarding, discount code, checkout</sub>
 
 ## Leads
 

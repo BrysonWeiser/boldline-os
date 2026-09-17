@@ -137,11 +137,43 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
   });
 
   t("🔴 an ordinary client page is untouched by this", () => {
-    // The existing prompt must still be the one used with no audience, word for word.
-    assert.match(gen, /You are writing the on-page copy for a single-page ad landing page for a local service business/);
-    const aud = gen.slice(gen.indexOf("const audienceSystem"), gen.indexOf("const system = audience"));
+    // The existing prompt must still be the one used with no audience. "local service business"
+    // is now the FALLBACK side of a shop check rather than a fixed phrase, because a client who
+    // sells online gets a page with no form on it and copy asking them to request a quote is
+    // copy pointed at something that is not there. The important part is unchanged: with no
+    // audience and no shop link, this is still the prompt, and it still says what it said.
+    assert.match(gen, /You are writing the on-page copy for a single-page ad landing page for a \$\{shop \? "business that sells its product online" : "local service business"\}/);
+    assert.match(gen, /want to \$\{shop \? "want to go and buy" : "want to fill out the lead form"\}|\$\{shop \? "want to go and buy" : "want to fill out the lead form"\}/,
+      "the form instruction is unconditional again, on a page that may have no form");
+    const aud = gen.slice(gen.indexOf("const audienceSystem"), gen.indexOf("const shopBlock"));
     assert.ok(!/local service business/.test(aud),
       "the audience prompt still describes a local service business, so it points the wrong way");
+  });
+
+  // 🔴 A SHOP CLIENT'S DRAFT MUST NOT COME BACK ASKING FOR A QUOTE. Air Suds, closed
+  // 2026-09-16, sells a bottle off Shopify. The renderer already strips the form and rewrites
+  // the furniture; if the WRITER is not told, the headline, the button and the three steps all
+  // still ask for an enquiry, and Bryson has to notice and rewrite every one by hand.
+  t("the writer is told when there is no form on the page", () => {
+    assert.match(gen, /const shop = !!clip\(body\.storeUrl, 500\);/);
+    assert.match(gen, /const shopBlock = shop \?/);
+    assert.match(gen, /\$\{dataBlock\}\$\{mediaBlock\}\$\{websiteBlock\}\$\{shopBlock\}/,
+      "the shop instructions are built but never reach the prompt");
+    assert.ok(/THIS BUSINESS SELLS ONLINE, AND THE PAGE HAS NO FORM ON IT/.test(gen));
+    assert.match(gen, /ctaText: clip\(ctaText, 50\) \|\| \(shop \? "Shop Now" : "Get My Free Quote"\)/,
+      "the fallback button still asks for a quote on a page that cannot take one");
+    // The link itself is never handed to the model: a model given a URL writes the URL into
+    // the copy, and the visitor is already on a page whose buttons go there.
+    assert.ok(!/\$\{[^}]*storeUrl[^}]*\}/.test(gen), "the shop address reaches the prompt");
+  });
+
+  // Every caller has to pass it, or the mode is on for the page and off for the words.
+  t("every caller sends the shop link through", () => {
+    assert.match(ui, /storeUrl:client\.storeUrl\|\|""/, "the OS Generate button does not send it");
+    assert.ok((ui.match(/storeUrl:client\.storeUrl\|\|""/g) || []).length >= 2,
+      "the options writer and the single Generate button are two separate calls");
+    const auto = readFileSync(new URL("../netlify/functions/client-autobuild.mjs", import.meta.url), "utf8");
+    assert.match(auto, /storeUrl: cl\.storeUrl \|\| ""/, "the overnight draft does not send it");
   });
 
   t("🔴 the audience page may not invent proof, because there is none to invent", () => {

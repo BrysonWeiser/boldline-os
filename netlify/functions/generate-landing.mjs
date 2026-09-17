@@ -100,6 +100,15 @@ export default async (req) => {
   // "Roofers" as the niche would have produced a page selling roofing to homeowners, under
   // Bryson's own domain, pointed at by his own ads. Absent, nothing about this file changes.
   const audience = clip(body.audience, 100);
+  // 🔴 THE PAGE ASKS FOR THE SALE, NOT FOR AN ENQUIRY. A client with a shop link gets a page
+  // with no form on it at all (see `shopping` in landing.mjs), so copy written around "fill in
+  // the form and we will get back to you" is copy pointed at something that is not on the page.
+  // Bryson closed Air Suds on 2026-09-16 and their customer buys a bottle off Shopify: asking
+  // them to request a quote is not a slightly-off page, it is a page for a different business.
+  //
+  // Only the presence of the link is used. The address itself never reaches the model, because
+  // a model handed a URL will happily write the URL into the copy.
+  const shop = !!clip(body.storeUrl, 500);
   // How many options to write. 1 keeps the original single-page behaviour byte for byte, which
   // matters because the autobuild bot and the existing Generate button both call it that way.
   const count = Math.min(MAX_VARIANTS, Math.max(1, Number(body.count) || 1));
@@ -182,13 +191,26 @@ Fill in the DESIGN directives (layout, font, motion, background, benefits, shape
 
 Call the landing_page_copy tool with your finished copy. Do not write any other text.`;
 
-  const system = audience ? audienceSystem : `You are writing the on-page copy for a single-page ad landing page for a local service business. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and want to fill out the lead form. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
+  const shopBlock = shop ? `
+
+🔴 THIS BUSINESS SELLS ONLINE, AND THE PAGE HAS NO FORM ON IT.
+The visitor buys straight from the client's own shop, and every button on this page takes them
+there. So do not ask for a quote, an enquiry, a callback, an estimate or a consultation, and do
+not say anything about getting back to them. There is nobody to get back to them. Write the page
+to get someone to buy: what the product is, what it does for them, why it is worth the money, and
+what happens after they order (delivery, how long it lasts, whether they can cancel).
+- ctaText is a BUYING button. "Shop Now", "Buy a bottle", "Order yours", "Get the kit". Never "Get My Free Quote".
+- The 3 steps are the BUYING path, not a lead path. Something like ["Pick what you need","Check out in a minute","It turns up at your door"].
+- FAQs are a shopper's questions: what it costs, how fast it ships, whether it works on their thing, what if they do not like it, can they cancel a subscription.
+- Never claim a price, a shipping time, a guarantee or a returns policy that you were not given. If you do not know, write about it generally or leave it out.` : "";
+
+  const system = audience ? audienceSystem : `You are writing the on-page copy for a single-page ad landing page for a ${shop ? "business that sells its product online" : "local service business"}. This page is the destination for paid Google/Meta ad clicks — visitors should immediately understand the offer and ${shop ? "want to go and buy" : "want to fill out the lead form"}. Write in the business's brand tone. Never mention AI, bots, or automation. Never invent specific facts (awards, years in business, exact pricing) that were not provided — stay general if data is missing. NEVER fabricate customer reviews, testimonials, quotes, star ratings, or "X happy customers" numbers — those come only from real data the owner supplies, never from you. Avoid anything listed under "Things to avoid mentioning."
 NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
 Also write 3-4 honest FAQs (faqs) that overcome common objections for this kind of service — pricing approach, timing, what to expect, guarantees ONLY if the business actually offers them. Keep answers to 1-2 sentences, general and truthful. If the client's website logo/main image is attached, use it to judge the real brand colors + theme.
 
 BUSINESS DATA:
-${dataBlock}${mediaBlock}${websiteBlock}
+${dataBlock}${mediaBlock}${websiteBlock}${shopBlock}
 
 Match the page to the client's OWN brand identity — set brandColor and theme (light/dark) from their actual logo, photos and website. If you cannot SEE a brand color in what you were given, leave brandColor empty rather than inventing one. A dark, premium, or bold brand should get a dark page with their accent color; a clean, bright brand should get a light one. Never impose a default bright/white theme on a brand that isn't bright.
 
@@ -253,7 +275,7 @@ Call the landing_page_copy tool with your finished copy. Do not write any other 
       headline: clip(headline, 100),
       subheadline: clip(subheadline, 200),
       bullets: Array.isArray(bullets) ? bullets.slice(0, 5).map((b) => clip(b, 100)) : [],
-      ctaText: clip(ctaText, 50) || "Get My Free Quote",
+      ctaText: clip(ctaText, 50) || (shop ? "Shop Now" : "Get My Free Quote"),
       heroPath: chosen ? chosen.path : "",
       brandColor: brandHex,
       theme: String(theme).toLowerCase() === "dark" ? "dark" : "light",

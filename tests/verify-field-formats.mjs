@@ -144,9 +144,20 @@ const { tidyField, locationNotes, lineNotes } =
     ok(`${name} fixes a link the client types without https`,
       /function blUrl\(el\)\{[^}]*https:\/\//.test(src),
       "the portal lives in two files; changing one and not the other is the standing trap here");
-    ok(`${name} applies it to all three carrier-filed pages`,
-      (src.match(/onblur="blUrl\(this\)"/g) || []).length === 3,
-      "privacy, terms and SMS consent are filed together and are checked together");
+    // 🔴 CHECKED PER FIELD, NOT BY COUNTING. This used to assert there were exactly three
+    // `blUrl` boxes, which quietly meant "no other box on this page may ever ask for a link".
+    // Adding the shop link broke it while all three carrier pages were still correct — the
+    // test was measuring the wrong thing. Naming the fields says what actually matters and
+    // stops passing the day someone drops blUrl off one of them and adds it to another.
+    for (const key of ["campaignSetup.privacyUrl", "campaignSetup.termsUrl", "campaignSetup.smsOptInUrl"]) {
+      ok(`${name} fixes the link on ${key}`,
+        new RegExp(`onblur="blUrl\\(this\\)"[^>]*data-key="${key.replace(".", "\\.")}"`).test(src),
+        "privacy, terms and SMS consent are filed together and are checked together");
+    }
+    // The shop link is the one field where a missing scheme costs money rather than texts:
+    // every paid click goes to it, and a bare `theirshop.com` resolves against our own page.
+    ok(`${name} fixes the shop link the same way`,
+      /onblur="blUrl\(this\)"[^>]*data-key="storeUrl"/.test(src));
   }
   // 🔴 RUN WHAT THE BROWSER RUNS, not what the file says. This used to pull blUrl straight
   // out of the source and eval it, which only worked BECAUSE the template literal was eating
