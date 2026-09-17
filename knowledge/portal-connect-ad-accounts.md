@@ -38,3 +38,30 @@ Set them in Netlify → OS site → Site configuration → Environment variables
 **DUAL COPY:** the live portal is `netlify/functions/portal.mjs` (`makePortalHTML`) and the owner-preview `makePortalHTML` in `index.html` — edit BOTH (see `os-portal-dual-copy`). The preview has no `process.env`, so it always shows the video placeholder.
 
 **Verified:** correct section per package (google/meta/combined), portal My Info 0px overflow at 390px, OS recompiles clean.
+
+## 🔴 2026-09-16 — the portal never asked for the one id that decides what the ads DO
+
+It walked the client through finding their Ad Account ID and their Page ID and let them paste
+both in. It never asked for the **dataset (pixel) id**, and that is the one that matters most:
+
+```js
+goal: client.metaPixelId ? "leads" : "traffic"
+```
+
+**No dataset id on record means the campaign buys CLICKS instead of chasing buyers.** It looks
+like a working campaign right up until the month ends with nothing sold. Until now the only way
+to set it was Bryson typing it into the OS edit sheet, so it was missed whenever he did not think
+to ask.
+
+Added to both copies of the portal, with a step saying where to find it (Events Manager → Data
+sources) and — because the next client is a Shopify store — that Shopify creates it when the
+Facebook &amp; Instagram sales channel is connected, and that **data sharing must be set to
+Maximum** or only the browser half reports and purchases go missing.
+
+🔴 **`metaPixelId` also had to be added to `sanitizeFields`.** A new box in the portal is never
+just a new box: anything the whitelist does not name is dropped **silently**, so the client
+presses Save, sees "✓ Saved", and the value is gone. The test runs the real filter rather than
+reading it, and a mutation that adds the box while leaving the whitelist alone fails.
+
+`tests/verify-portal-pixel.mjs` — 14 checks, **5/5 mutations caught**.
+
