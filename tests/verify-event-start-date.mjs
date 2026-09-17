@@ -221,5 +221,63 @@ for (const v of [1, 2, 3, 4]) {
     /\.catch\(\(e\) => console\.error\("ads-sync: go-live alert failed/.test(SYNC));
 }
 
+// ── 11. 🔴 ESTIMATED OR EXACT, PER CLIENT ───────────────────────────────────
+//
+// Bryson, 2026-09-17: *"make sure that there is an option to put estimated or exact start
+// date"*. An estimate is the honest default because most launches wait on a client handing over
+// an ad account. But a seasonal push or a product drop can have a date both sides have genuinely
+// committed to, and printing that one as "estimated" reads as though it is not binding when it
+// is. The choice decides the contract wording AND whether the OS may move the dates by itself.
+{
+  const firm = { ...CL, startDateFirm: true };
+  const t = text(makeContractHTML(firm, PKG));
+  ok("🔴 an exact date is printed as the date", /Start Date Oct 1, 2026/.test(t),
+    t.slice(t.indexOf("Start Date"), t.indexOf("Start Date") + 70));
+  ok("and is never called an estimate", !/estimated/.test(t) && !/The day the ads go live/.test(t));
+  ok("🔴 and section 2.1 says the parties agreed it",
+    /The Start Date is the date shown in the Key Commercial Terms above, which the parties have agreed/.test(t));
+  ok("it does not promise to confirm a date that is already fixed",
+    !/will confirm the Start Date to Client in writing/.test(t));
+
+  // 🔴 EVERYTHING ELSE v5 BROUGHT STILL APPLIES. Only the Start Date wording changes.
+  ok("the Effective Date is still the signature date",
+    /Effective Date: the date of last signature/.test(t),
+    "the handover clock must start at signing whether or not the launch date is fixed");
+  ok("no minimum accrues before the start either way", /No Monthly Minimum accrues before the Start Date/.test(t));
+  ok("the delay clause still bills from the Start Date", /part month from the Start Date/.test(text(makeContractHTML({ ...firm, contractSigned: true, contractSignedAt: "2026-09-18T00:00:00Z" }, PKG))));
+
+  // 🔴 THE NUMBERING IS THE SAME IN BOTH, so 2.3 never means two different things across two
+  // BoldLine agreements signed the same week.
+  for (const n of ["2.1", "2.2", "2.3", "2.4"]) {
+    ok(`an exact-date v5 has exactly one ${n}`, (t.match(new RegExp(`\\s${n.replace(".", "\\.")}\\s`, "g")) || []).length === 1);
+  }
+  ok("renewal is 2.3 in both", /2\.3 At the end of any term/.test(t));
+  ok("holdover is 2.4 in both", /2\.4 Holdover/.test(t));
+
+  // The OS must not quietly overrule a date the client agreed to.
+  const AT = new Date("2026-10-06T18:00:00Z");
+  const perf = { totals: { spend30d: 12.5 } };
+  ok("🔴 an exact date is not treated as an event", !usesEventStart({ contractTermsVersion: 5, startDateFirm: true }));
+  const d = goLiveDecision({ ...firm, contractTermsVersion: 5 }, perf, AT);
+  ok("🔴 so the OS leaves an exact date alone when the ads start",
+    !d.patch.contractStart && !d.patch.contractEnd,
+    "moving a date both sides agreed to is rewriting a term the client accepted");
+  ok("but still records when the ads actually ran", d.patch.campaignLiveAt === AT.toISOString());
+  ok("and says why nothing moved", /fixed start date/.test(d.note));
+
+  // An estimate is the default, so forgetting the switch gives the safe behaviour.
+  ok("🔴 absent, it is an estimate", usesEventStart({ contractTermsVersion: 5 }),
+    "the default has to be the one that needs no amendment when a launch slips");
+
+  // The control exists and drives the same field.
+  const sheet = UI.slice(UI.indexOf("function EditClientSheet"), UI.indexOf("function EditClientSheet") + 80000);
+  ok("the sheet offers the choice", /set\("startDateFirm",v\)/.test(sheet) && /Exact date/.test(sheet) && /Estimated/.test(sheet));
+  ok("and explains what each one does to the agreement",
+    /the day the ads go live/.test(sheet) && /will not move it when the ads go live/.test(sheet));
+  ok("🔴 and says work starts at signing, not on this date",
+    /Work starts when they sign, not on this date/.test(sheet),
+    "the two dates mean different things and the screen is where that gets confused");
+}
+
 console.log(`verify-event-start-date: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
