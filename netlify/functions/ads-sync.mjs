@@ -37,6 +37,7 @@ import { liveStats, PER_LEAD } from "../lib/report-shared.mjs";
 import { getCampaigns as metaCampaigns, getAccountHealth as metaAccountHealth } from "./meta-ads.mjs";
 import { getAccessToken as gadsToken, getCampaigns as gadsCampaigns } from "./google-ads.mjs";
 import { metaOn, metaDelivering, googleOn, googleDelivering } from "../lib/meta-status.mjs";
+import { goLiveDecision, fmtDate as fmtDay } from "../lib/campaign-live.mjs";
 
 const DAYS_PER_MONTH = 30.4; // matches MyAdsInsights in index.html
 const OVER_BUDGET_GRACE = 1.05; // 5% headroom before "over budget" trips
@@ -352,9 +353,35 @@ export default withFailureAlert("ads-sync", async () => {
       }
     }
 
+    // ── 🔴 THE DAY THE TERM ACTUALLY STARTS ───────────────────────────────────
+    //
+    // Under terms v5 the agreement defines the Start Date as the day the first campaign begins
+    // delivering, so a slip in go-live is no longer something to amend. This is where that day
+    // is recognised, because this job is the one thing that reads spend straight out of Google
+    // and Meta on a schedule. Our own launch button is the wrong signal: a campaign can be
+    // switched on and sit in review delivering nothing, and a campaign can be started by hand
+    // in Ads Manager where our button never ran.
+    //
+    // It writes ONCE per client, and for a client on older terms it records the go-live without
+    // touching their dates, because their signed document names a fixed one.
+    const live = goLiveDecision(cl, adPerf, new Date());
+    if (live.patch) {
+      await dispatchAlert({
+        severity: live.patch.contractStart ? "green" : "yellow",
+        title: `${cl.name}'s ads are delivering`,
+        body: live.note,
+        smsText: `${cl.name}'s ads are live and spending.`.slice(0, 300),
+      }).catch((e) => console.error("ads-sync: go-live alert failed:", e.message));
+    }
+
     await supabase.from("clients")
       .update({
-        data: { ...cl, adPerf, adSyncState: cur, ...(nextPending ? { pendingActions: nextPending } : {}) },
+        data: {
+          ...cl, adPerf, adSyncState: cur,
+          ...(nextPending ? { pendingActions: nextPending } : {}),
+          ...(live.patch || {}),
+          ...(live.note ? { commLog: [{ date: fmtDay(new Date()), note: live.note, cat: "contract", ts: Date.now() }, ...(cl.commLog || [])] } : {}),
+        },
         updated_at: new Date().toISOString(),
       })
       .eq("id", row.id);

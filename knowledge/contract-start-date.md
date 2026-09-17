@@ -58,6 +58,13 @@ What to actually do:
 Either way: move it forward, never backward. Backward bills them for time that had not happened
 yet.
 
+## SUPERSEDED for new clients 2026-09-17: the start date is now an event
+
+From terms v5 the agreement defines the Start Date as the day the first campaign begins
+delivering, so a slipped launch no longer needs an amendment at all and the OS records the day on
+its own. See KB `event-start-date`. Everything below still applies in full to clients on v4 and
+earlier, who have a fixed date in a frozen PDF.
+
 ## CLOSED 2026-09-16: the signed copy is now stored and shown
 
 The gap this section used to describe is fixed. The completed PDF is fetched out of DocuSign into
