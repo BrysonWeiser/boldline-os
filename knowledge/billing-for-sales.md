@@ -27,9 +27,23 @@ separate `salesLog` would be a second source of truth none of them read, which i
 number ends up on a screen and never on a bill. Each row carries `source:"client_records"` so
 nothing later mistakes a recorded sale for an enquiry that came through a form.
 
-🔴 **Two guards, because this bills money.** An empty or zero count is refused, and more than 50
-at once is refused: 3 mistyped as 33 is 33 rows and an invoice ten times too big, approvable in
-one tap from the queue directly below it.
+🔴 **IT ASKS, IT DOES NOT REFUSE.** The first version had a hard ceiling at 50. Bryson, the same
+day: *"instead of not letting me put more than 50 make it so instead when i press record sales if
+its over a certain number have the os tell me and confirm that is correct"*. He is right, and the
+ceiling was the lazy shape: it turns a genuinely big month into a dead end and teaches him to
+work around his own OS, while the thing it was aimed at, **3 mistyped as 33**, sails straight
+under it.
+
+An unusual entry now brings up a question naming the **money**, not the count: *"That is 40 sales
+at $25 each, so $1,000 once you approve them. Is that right?"* A typo is obvious the moment it is
+priced and invisible as a bare number. Asked on an unusual COUNT **or** an unusual BILL
+(`SALES_CONFIRM_COUNT` 20, `SALES_CONFIRM_AMOUNT` $1,000), because either alone misses a case: 40
+sales at $5 is a routine month, 8 at $400 is not. An empty or zero count is still simply refused,
+because there is nothing to confirm.
+
+🔴 **Yes records what was SHOWN, not what is in the box.** It carries the count from the
+confirmation rather than re-reading the input, or editing the field while the question is open
+would record a number he was never asked about. Both paths go through one `recordSales`.
 
 **If it is ever worth automating**, the route is a Shopify custom app with read access to orders,
 matching on the tracking tag the landing page already forwards. Worth it at two or three

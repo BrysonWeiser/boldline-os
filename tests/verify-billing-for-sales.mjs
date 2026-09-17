@@ -535,8 +535,32 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
 
     // 🔴 THIS BILLS MONEY, so a slipped keystroke must not become an invoice.
     ok("🔴 a zero or empty count is refused", /if\(!\(n>0\)\)\{ setSalesMsg/.test(bcard));
-    ok("🔴 and an implausible one is too", /if\(n>50\)\{ setSalesMsg/.test(bcard),
-      "3 mistyped as 33 is 33 rows and an invoice ten times too big, approvable in one tap");
+
+    // 🔴 IT ASKS, IT DOES NOT REFUSE. Bryson, 2026-09-17: *"instead of not letting me put more
+    // than 50 make it so instead when i press record sales if its over a certain number have the
+    // os tell me and confirm that is correct"*. The first version was a ceiling, which is the
+    // lazy shape: it turns a real month into a dead end and teaches him to work around his own
+    // OS, while the thing it guarded against, 3 mistyped as 33, sails straight under it.
+    ok("🔴 an unusual count asks rather than refuses",
+      /setSalesConfirm\(\{n,note:salesNote\.trim\(\),amount:total\}\)/.test(bcard)
+      && !/setSalesMsg\("That is a lot at once/.test(bcard),
+      "a hard ceiling is a dead end on a real month and does not catch the typo it was aimed at");
+    ok("and the question names the MONEY, not just the count",
+      /at \{money\(perLeadRate\)\} each, so/.test(bcard) && /money\(salesConfirm\.amount\)/.test(bcard),
+      "a typo is obvious the moment it is priced and invisible as a bare number");
+    ok("🔴 it asks on an unusual count OR an unusual bill",
+      /if\(n>SALES_CONFIRM_COUNT\|\|total>SALES_CONFIRM_AMOUNT\)/.test(bcard),
+      "either alone misses a case: 40 sales at $5 is routine, 8 at $400 is not");
+    ok("both thresholds are real numbers",
+      /const SALES_CONFIRM_COUNT = \d+;/.test(S) && /const SALES_CONFIRM_AMOUNT = \d+;/.test(S));
+    ok("saying no records nothing", /onClick=\{\(\)=>setSalesConfirm\(null\)\}/.test(bcard));
+    ok("🔴 and saying yes records exactly what was shown",
+      /const c=salesConfirm; setSalesConfirm\(null\); recordSales\(c\.n,c\.note\);/.test(bcard),
+      "re-reading the input box here would record whatever he typed AFTER being asked");
+    ok("🔴 both paths go through one recorder",
+      (bcard.match(/recordSales\(/g) || []).length === 2 && /const recordSales=\(n,note\)=>\{/.test(bcard),
+      "the quick path and the confirmed path both call it; two copies of the write is how a fix "
+      + "lands on only one of them");
     ok("the box only appears for a client billed that way",
       bcard.indexOf('client.billingResultKind==="sale"&&(') < bcard.indexOf("Record the sales you agreed"),
       "a lead client has no use for it and every extra control is a chance to misread the screen");

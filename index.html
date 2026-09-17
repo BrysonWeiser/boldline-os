@@ -9595,6 +9595,12 @@ async function stripeBilling(action,extra){
 // how a completed action reads as a failure.
 const portalReturnUrl = (cl) =>
   cl && cl.portalToken ? `${window.location.origin}/portal?token=${cl.portalToken}` : "";
+// 🔴 WHEN TO STOP AND ASK BEFORE RECORDING SALES. Not a limit: the OS asks and he answers. Two
+// thresholds because either alone misses a real case — 40 sales at $5 is a routine month, and 8
+// at $400 is a bill worth reading twice.
+const SALES_CONFIRM_COUNT = 20;
+const SALES_CONFIRM_AMOUNT = 1000;
+
 function BillingCard({client,pkg,onUpdate}) {
   const [busy,setBusy]=useState("");        // "" | "setup" | "sync" | "portal"
   const [msg,setMsg]=useState("");
@@ -9606,6 +9612,20 @@ function BillingCard({client,pkg,onUpdate}) {
   const [salesCount,setSalesCount]=useState("");
   const [salesNote,setSalesNote]=useState("");
   const [salesMsg,setSalesMsg]=useState("");
+  const [salesConfirm,setSalesConfirm]=useState(null);   // {n, note, amount} awaiting a yes
+  // 🔴 ONE RECORDER, TWO DOORS. The quick path and the confirmed path both come through here, so
+  // a change to what gets written can never apply to only one of them.
+  const recordSales=(n,note)=>{
+    const at=new Date().toISOString();
+    const rows=Array.from({length:n},()=>({
+      name:"Sale from their records", qualified:true, source:"client_records",
+      receivedAt:at, recordedAt:at, ...(note?{notes:note}:{}),
+    }));
+    const entry={date:fmt(new Date()),note:`Recorded ${n} qualified sale${n===1?"":"s"} from ${client.name}'s own order records${note?`: ${note}`:""}.`,cat:"billing",ts:Date.now()};
+    onUpdate&&onUpdate({...client,leadsLog:[...rows,...(client.leadsLog||[])],commLog:[entry,...(client.commLog||[])]});
+    setSalesCount("");setSalesNote("");
+    setSalesMsg(`Added ${n}. Approve them below when you are ready to bill.`);
+  };
   const [editRate,setEditRate]=useState(false);    // inline per-lead rate editor
   const [rateInput,setRateInput]=useState("");
   const [upcoming,setUpcoming]=useState(null);      // bundled next-invoice preview
@@ -10006,23 +10026,37 @@ function BillingCard({client,pkg,onUpdate}) {
               </div>
               <button onClick={()=>{
                 const n=Math.floor(Number(salesCount)||0);
-                // 🔴 A CEILING, BECAUSE THIS BILLS MONEY. A slipped keystroke turning 3 into 33
-                // is 33 rows and an invoice ten times too big, approvable in one tap from the
-                // queue below. Anything genuinely larger is two entries and a moment's thought,
-                // which is the right amount of friction for a number the OS cannot check against
-                // any record of its own.
                 if(!(n>0)){ setSalesMsg("Put in how many sales you agreed."); return; }
-                if(n>50){ setSalesMsg("That is a lot at once. Add them in smaller batches so a typo cannot become an invoice."); return; }
-                const at=new Date().toISOString();
-                const note=salesNote.trim();
-                const rows=Array.from({length:n},()=>({
-                  name:"Sale from their records", qualified:true, source:"client_records",
-                  receivedAt:at, recordedAt:at, ...(note?{notes:note}:{}),
-                }));
-                const entry={date:fmt(new Date()),note:`Recorded ${n} qualified sale${n===1?"":"s"} from ${client.name}'s own order records${note?`: ${note}`:""}.`,cat:"billing",ts:Date.now()};
-                onUpdate&&onUpdate({...client,leadsLog:[...rows,...(client.leadsLog||[])],commLog:[entry,...(client.commLog||[])]});
-                setSalesCount("");setSalesNote("");setSalesMsg(`Added ${n}. Approve them below when you are ready to bill.`);
+                // 🔴 IT ASKS, IT DOES NOT REFUSE. Bryson, 2026-09-17: *"instead of not letting me
+                // put more than 50 make it so instead when i press record sales if its over a
+                // certain number have the os tell me and confirm that is correct"*. He is right,
+                // and the first version was the lazy shape: a ceiling turns a real month into a
+                // dead end and teaches him to work around his own OS, while the thing it was
+                // actually guarding against, 3 mistyped as 33, sails straight under it.
+                //
+                // 🔴 THE MONEY IS WHAT HE CHECKS, NOT THE COUNT. A typo is obvious the moment it
+                // is priced, and invisible as a bare number. So the question names the total.
+                // Asked on an unusual COUNT or an unusual BILL, because either one alone misses
+                // a case: 40 sales at $5 is routine, 8 at $400 is not.
+                const total=n*perLeadRate;
+                if(n>SALES_CONFIRM_COUNT||total>SALES_CONFIRM_AMOUNT){
+                  setSalesMsg("");
+                  setSalesConfirm({n,note:salesNote.trim(),amount:total});
+                  return;
+                }
+                recordSales(n,salesNote.trim());
               }} style={{marginTop:7,width:"100%",padding:"8px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:"pointer"}}>Record these sales</button>
+              {salesConfirm&&(
+                <div style={{marginTop:8,padding:"11px 12px",borderRadius:9,backgroundColor:"rgba(245,158,11,.07)",border:`1px solid ${C.amber}55`}}>
+                  <div style={{fontSize:11.5,color:C.text,lineHeight:1.6,marginBottom:9}}>
+                    That is <b style={{color:C.amber}}>{salesConfirm.n} sale{salesConfirm.n===1?"":"s"}</b> at {money(perLeadRate)} each, so <b style={{color:C.amber}}>{money(salesConfirm.amount)}</b> once you approve them. Is that right?
+                  </div>
+                  <div style={{display:"flex",gap:7}}>
+                    <button onClick={()=>setSalesConfirm(null)} style={{flex:1,padding:"8px",fontSize:11,fontWeight:600,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>No, let me fix it</button>
+                    <button onClick={()=>{ const c=salesConfirm; setSalesConfirm(null); recordSales(c.n,c.note); }} style={{flex:1,padding:"8px",fontSize:11,fontWeight:700,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Yes, record {salesConfirm.n}</button>
+                  </div>
+                </div>
+              )}
               {salesMsg&&<div style={{fontSize:10.5,color:salesMsg.startsWith("Added")?C.green:C.amber,marginTop:6,lineHeight:1.5}}>{salesMsg}</div>}
             </div>
           </div>
