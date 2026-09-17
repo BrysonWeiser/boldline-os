@@ -7367,6 +7367,16 @@ function EmailCenterTab({client,pkg,onUpdate}) {
       leadCount, leadRate: perLeadRate, leadTotal: leadCount*perLeadRate,
       portalUrl: client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"",
       payUrl: payUrl || client.billingCheckoutUrl || "",
+      // 🔴 WHAT THIS CLIENT IS BILLED FOR. The server's own copy of this context has carried
+      // it since the invoice learned the difference, and this copy did not, so every email
+      // PREVIEWED OR SENT BY HAND from this tab spoke to a store client about leads: an
+      // invoice line for "Qualified leads" on an agreement that says sales, and a milestone
+      // congratulating them on leads they never got. The automatic sends were right and the
+      // manual ones were wrong, which is the worst version, because the preview he checks is
+      // the manual one. A test now pins that every key the server builds is built here too.
+      resultKind: client.billingResultKind||"",
+      // So the Results Milestone preview shows a real number instead of a placeholder.
+      milestone: (client.leadsLog||[]).length,
       date: fmt(new Date()),
     };
   };

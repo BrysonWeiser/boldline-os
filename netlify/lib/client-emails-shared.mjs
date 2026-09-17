@@ -23,6 +23,51 @@ const SERIF = "Georgia,'Times New Roman',serif";
 const money = (n) => "$" + Number(n || 0).toLocaleString();
 const firstName = (name) => { const f = String(name || "").trim().split(/\s+/)[0]; return f || "there"; };
 
+// ── 🔴 WHAT THIS CLIENT'S ADVERTISING ACTUALLY PRODUCES ──────────────────────
+//
+// Bryson, 2026-09-17: *"can we make sure that the branded emails match what would be needed
+// for constantine ... ex. the lead milestone doesnt work or make sense because he isnt
+// getting leads its e-commerce"*.
+//
+// An earlier note here argued these templates could go on saying "leads" because they meant
+// interest in general rather than the unit on an invoice. That was wrong twice over:
+//
+//   1. A store client's visitors never become leads AT ALL. They land on the page, click
+//      through to the shop and buy. Nothing is ever handed to the client as an enquiry, so
+//      "the leads start coming in" describes something that will never happen to them, and
+//      "see your leads" points at a screen that will always be empty.
+//   2. The milestone's safeguard had already expired. That note relied on the email being
+//      unable to fire for a shop client because it counts rows in `leadsLog` and a shop
+//      client has none. The sales recorder built the day before writes recorded sales as
+//      rows in `leadsLog`. So the celebration can now fire for a store client, and would
+//      have congratulated Air Suds on "40 leads delivered" for 40 orders.
+//
+// `resultKind` is `billingResultKind`, the same one field the agreement, the invoice, the
+// portal and the OS billing card read, so all five say the same word.
+const emailWords = (c) => String((c || {}).resultKind || "") === "sale"
+  ? {
+      many: "sales",
+      arrive: "the orders start coming in",
+      track: "Track sales",
+      seeAll: "See Your Sales",
+      coming: "keep the sales coming",
+      running: "the sales are coming through",
+      milestoneHead: (n) => `${n} sales from your ads`,
+      milestoneLine: (n, biz) => `quick moment to celebrate: your campaigns have now brought ${b(n + " sales")} to ${b(biz)}. Every one is a real customer who found you through an ad and bought.`,
+      milestoneSee: "We're just getting warmed up. Your campaigns keep running and optimizing. You can see every sale we've recorded anytime in your portal:",
+    }
+  : {
+      many: "leads",
+      arrive: "the leads start coming in",
+      track: "Track leads",
+      seeAll: "See Your Leads",
+      coming: "keep the leads coming",
+      running: "the leads are coming through",
+      milestoneHead: (n) => `${n} leads delivered`,
+      milestoneLine: (n, biz) => `quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(biz)}. Every one is a real potential customer who raised their hand for you.`,
+      milestoneSee: "We're just getting warmed up. Your campaigns keep running and optimizing. You can see every lead anytime in your portal:",
+    };
+
 // ── content helpers (inline-styled fragments) ──────────────────────────────
 const h1   = (t) => `<h1 style="margin:0 0 16px;font-family:${SERIF};font-size:23px;font-weight:700;line-height:1.3;color:${DARK.head}">${t}</h1>`;
 const p    = (t) => `<p style="margin:0 0 15px;font-family:${SANS};font-size:15px;line-height:1.65;color:${DARK.body}">${t}</p>`;
@@ -77,13 +122,13 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
 // ── templates ───────────────────────────────────────────────────────────────
 // Each returns {subject, preheader, bodyHtml}. ctx is all optional w/ fallbacks.
 const T = {
-  welcome: (c) => ({
+  welcome: (c) => { const W = emailWords(c); return {
     subject: `Welcome to BoldLine Media, ${c.businessName || "welcome aboard"}`,
     preheader: "Your account is set up. Here's your client portal and what happens next.",
     bodyHtml:
       h1(`Welcome aboard, ${escapeHTML(firstName(c.contactName))}.`) +
-      p(`We're thrilled to have ${b(escapeHTML(c.businessName || "your business"))} on board. BoldLine plans, builds, and runs your ${escapeHTML(c.packageName ? c.packageName + " " : "")}ad campaigns and the landing pages behind them, so you can focus on running your business while we bring you the leads.`) +
-      p(`Everything lives in your ${gold("client portal")}. Track leads, see performance, upload photos, and message us anytime:`) +
+      p(`We're thrilled to have ${b(escapeHTML(c.businessName || "your business"))} on board. BoldLine plans, builds, and runs your ${escapeHTML(c.packageName ? c.packageName + " " : "")}ad campaigns and the landing pages behind them, so you can focus on running your business while we bring you the ${W.many}.`) +
+      p(`Everything lives in your ${gold("client portal")}. ${W.track}, see performance, upload photos, and message us anytime:`) +
       button("Open Your Client Portal", c.portalUrl || SITE) +
       rule() +
       p(b("What happens next:")) +
@@ -91,10 +136,10 @@ const T = {
         "Open your portal and add a few details about your business.",
         "Grant us access to your ad account (we'll send simple steps).",
         "We build your campaign + landing page and send it for your approval.",
-        "Your ads go live and the leads start coming in.",
+        `Your ads go live and ${W.arrive}.`,
       ]) +
       signoff(),
-  }),
+  }; },
 
   onboarding_access: (c) => ({
     subject: `Quick next step for ${c.businessName || "your campaign"}: ad account access`,
@@ -195,7 +240,11 @@ const T = {
       if (monthly > 0) rows.push([`Your ${money(monthly)} monthly minimum is included in the above, not added`, ""]);
     } else if (monthly > 0) {
       rows.push([`Monthly minimum${c.packageName ? ", " + c.packageName : ""}`, money(monthly)]);
-      if (leads > 0) rows.push([`${leadCount} qualified lead${leadCount === 1 ? "" : "s"} at ${money(leadRate)} counted toward the minimum, not added`, ""]);
+      // 🔴 THE SAME WORD AS THE LINE ABOVE IT. This one was left hardcoded when the invoice
+      // learned the client's own vocabulary, so a store client's invoice named "Qualified
+      // sales" in the billed line and "qualified leads" in the line explaining why they were
+      // not charged twice — one invoice, two names, for one thing their agreement calls a sale.
+      if (leads > 0) rows.push([`${leadCount} ${leadCount === 1 ? unitLower.replace(/s$/, "") : unitLower} at ${money(leadRate)} counted toward the minimum, not added`, ""]);
     }
     const total = setup + feeThisMonth;
     rows.push(["Amount due", money(total), GOLD]);
@@ -268,17 +317,17 @@ const T = {
       signoff(),
   }),
 
-  renewal: (c) => ({
+  renewal: (c) => { const W = emailWords(c); return {
     subject: `Your BoldLine plan renews soon, let's keep the momentum`,
     preheader: "Your term is coming up for renewal. Here's how to keep going.",
     bodyHtml:
       h1("Let's keep the momentum going") +
       p(`Hi ${escapeHTML(firstName(c.contactName))}, your current term with BoldLine is ${b("coming up for renewal" + (c.termEnd ? " on " + escapeHTML(c.termEnd) : "") + ".")}`) +
-      p("We've loved working with " + b(escapeHTML(c.businessName || "you")) + ", and we'd love to keep the leads coming. Renewing is effortless. Nothing changes on your end, your campaigns just keep running without a gap.") +
+      p(`We've loved working with ${b(escapeHTML(c.businessName || "you"))}, and we'd love to ${W.coming}. Renewing is effortless. Nothing changes on your end, your campaigns just keep running without a gap.`) +
       button("Review Your Plan", c.portalUrl || SITE) +
       p("Want to talk results, adjust your plan, or scale up? Just reply and we'll set up a quick call.") +
       signoff(),
-  }),
+  }; },
 
   // 🔴 ONE TEMPLATE, TWO TONES. `reminderDays` turns this from the first ask into a
   // reminder, because sending the identical "something's ready" email for the third time
@@ -321,7 +370,7 @@ const T = {
   }),
 
   // Auto-nudge for a signed client who hasn't finished their intake yet.
-  onboarding_nudge: (c) => ({
+  onboarding_nudge: (c) => { const W = emailWords(c); return {
     subject: `Quick step to launch ${c.businessName || "your campaigns"}`,
     preheader: "One short form stands between you and live campaigns. About 5 minutes.",
     bodyHtml:
@@ -329,27 +378,29 @@ const T = {
       p(`Hi ${escapeHTML(firstName(c.contactName))}, we're ready to start building for ${b(escapeHTML(c.businessName || "your business"))}, and there's just one quick step on your side: finishing your onboarding details in the portal.`) +
       p("It takes about five minutes and tells us exactly who to target and what makes you the obvious choice:") +
       button("Finish Your Onboarding", c.portalUrl || SITE) +
-      small("The sooner this is done, the sooner your ads go live and the leads start coming in. Stuck on anything? Just reply. We're happy to walk you through it.") +
+      small(`The sooner this is done, the sooner your ads go live and ${W.arrive}. Stuck on anything? Just reply. We're happy to walk you through it.`) +
       signoff(),
-  }),
+  }; },
 
-  // Auto-celebration when a client crosses a lead milestone (10/25/50/100…).
-  // 🔴 NOT RENAMED, DELIBERATELY: `welcome`, `renewal`, `onboarding_nudge`, `review_request` and
-  // this one talk about leads as the general thing advertising produces, not as the unit on
-  // anybody's invoice. A store client's campaigns really do generate interest before they
-  // generate orders. Renaming those would be chasing the word rather than the meaning, and this
-  // one in particular counts rows in `leadsLog`, which a shop client never has, so it cannot
-  // fire for one at all. The invoice is the email where the word is a BILL.
+  // Auto-celebration when a client crosses a results milestone (10/25/50/100…).
+  //
+  // 🔴 IT COUNTS WHATEVER THE CLIENT IS ACTUALLY GETTING. The count comes from `leadsLog`,
+  // which now holds recorded sales for a store client as well as delivered leads for a
+  // lead-gen one, so this fires for both and must name the right thing for both. Congratulating
+  // an e-commerce client on "40 leads delivered" for 40 orders would be the OS telling them we
+  // are not paying attention to their business.
   lead_milestone: (c) => {
+    const W = emailWords(c);
     const n = Number(c.milestone || c.leadCount || 0);
+    const biz = escapeHTML(c.businessName || "your business");
     return {
-      subject: `${n} leads and counting for ${c.businessName || "your business"}`,
-      preheader: `You've reached ${n} leads with BoldLine. Here's to the next milestone.`,
+      subject: `${n} ${W.many} and counting for ${c.businessName || "your business"}`,
+      preheader: `You've reached ${n} ${W.many} with BoldLine. Here's to the next milestone.`,
       bodyHtml:
-        h1(`${n} leads delivered`) +
-        p(`Hi ${escapeHTML(firstName(c.contactName))}, quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(escapeHTML(c.businessName || "your business"))}. Every one is a real potential customer who raised their hand for you.`) +
-        p("We're just getting warmed up. Your campaigns keep running and optimizing. You can see every lead anytime in your portal:") +
-        button("See Your Leads", c.portalUrl || SITE) +
+        h1(W.milestoneHead(n)) +
+        p(`Hi ${escapeHTML(firstName(c.contactName))}, ${W.milestoneLine(n, biz)}`) +
+        p(W.milestoneSee) +
+        button(W.seeAll, c.portalUrl || SITE) +
         small("Thanks for trusting us with your growth. Here's to the next milestone."),
     };
   },
@@ -366,17 +417,17 @@ const T = {
   // actually do: two sentences, not a form. Both routes are offered because they do
   // different jobs, the site one becomes a testimonial he controls, the Google one is a
   // public star rating that helps the business get found.
-  review_request: (c) => ({
+  review_request: (c) => { const W = emailWords(c); return {
     subject: `Quick favour, ${c.businessName || "one moment"}?`,
     preheader: "Two minutes, and it genuinely helps us more than you'd think.",
     bodyHtml:
       h1("Would you mind saying how it's going?") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.businessName || "your business"))} has been running with us for a little while now and the leads are coming through, so I wanted to ask a favour while it's fresh.`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.businessName || "your business"))} has been running with us for a little while now and ${W.running}, so I wanted to ask a favour while it's fresh.`) +
       p("Would you write a couple of lines about how it's gone? Honest is better than glowing. It takes about two minutes and it helps the next business owner decide whether this is worth a try.") +
       button("Leave a Review", REVIEW_URL) +
       small("If you'd rather leave it on Google instead, that works just as well, and it helps you get found too. And if anything is not going the way you hoped, reply to this instead and tell me. I would much rather fix it than be reviewed on it.") +
       signoff(),
-  }),
+  }; },
 };
 
 // public catalog for the OS UI
@@ -401,13 +452,16 @@ export const EMAIL_TYPES = [
   // reads "THE TWO ARE NEVER CHARGED TOGETHER". The template itself was fixed on 2026-08-26
   // after it invoiced a client the minimum AND the lead fees; this line was left describing
   // the bug. Bryson caught it 2026-09-04: *"it would be setup + qualified leads"*.
-  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup, then the monthly minimum or qualified leads, whichever is higher)." },
+  { id: "invoice", label: "Invoice", icon: "\u{1F9FE}", auto: null, desc: "Branded invoice with a secure Pay-online button (setup, then the monthly minimum or the qualified leads / sales, whichever is higher)." },
   { id: "receipt", label: "Payment Receipt", icon: "\u{1F4B3}", auto: "when a payment goes through", desc: "Thank-you + confirmation after a successful payment." },
   { id: "past_due", label: "Payment Past-Due", icon: "\u23F0", auto: "when a payment fails", desc: "Polite heads-up that a payment didn't process, with an update link." },
   { id: "renewal", label: "Renewal Reminder", icon: "\u{1F504}", auto: "30 days before the term ends", desc: "Nudge before the term ends \u2014 keep the campaigns running." },
   { id: "thank_you", label: "Thank-You / Offboarding", icon: "\u{1F64F}", auto: null, desc: "Gracious wrap-up when a contract ends and isn't renewed." },
   { id: "onboarding_nudge", label: "Onboarding Nudge", icon: "\u23F3", auto: "day 2 and day 5, until intake is done", desc: "Auto-nudges a new client to finish their intake so campaigns can launch (day 2 + 5)." },
-  { id: "lead_milestone", label: "Lead Milestone", icon: "\u{1F389}", auto: "when they hit 10, 25, 50, 100 leads", desc: "Auto-celebrates a client hitting a lead milestone (10 / 25 / 50 / 100\u2026)." },
+  // 🔴 NOT "LEAD MILESTONE" ANY MORE. It celebrates recorded sales for a store client and
+  // delivered leads for a lead-gen one, and a tab that calls it a lead milestone is a tab
+  // that would stop him looking for it on the one client it matters most for.
+  { id: "lead_milestone", label: "Results Milestone", icon: "\u{1F389}", auto: "when they hit 10, 25, 50, 100 leads or sales", desc: "Auto-celebrates a client hitting a milestone (10 / 25 / 50 / 100\u2026). Says leads or sales to match how that client is billed." },
   { id: "review_request", label: "Review Request", icon: "\u2B50", auto: "once, after a good first stretch", desc: "Asks a happy client for a short review, on the site or on Google. Sends once per client, ever." },
 ];
 

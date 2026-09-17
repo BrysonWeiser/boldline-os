@@ -9,6 +9,56 @@ verified: 2026-09-16
 ---
 
 
+## 🔴 THE EMAILS AND THE REPORT SAY IT TOO (2026-09-17)
+
+Bryson: *"can we make sure that the branded emails match what would be needed for constantine
+... ex. the lead milestone doesnt work or make sense because he isnt getting leads its
+e-commerce"*.
+
+A note in `client-emails-shared.mjs` had argued that `welcome`, `renewal`, `onboarding_nudge`,
+`review_request` and the milestone could keep saying "leads" because they meant interest in
+general rather than the unit on an invoice. **That was wrong twice over.**
+
+1. **A store client's visitors never become leads at all.** They land on the page, click through
+   to the shop and buy. Nothing is ever handed to the client as an enquiry, so *"the leads start
+   coming in"* promises something that will never happen and *"See Your Leads"* points at a
+   screen that stays empty for ever.
+2. **The milestone's safeguard had already expired.** That note relied on the email being unable
+   to fire for a shop client, because it counts rows in `leadsLog` and a shop client has none.
+   The **sales recorder built the day before writes recorded sales as rows in `leadsLog`.** So it
+   could now fire, and would have congratulated Air Suds on *"40 leads delivered"* for 40 orders.
+
+**What changed**
+
+- `emailWords(c)` in `client-emails-shared.mjs`, keyed on the same `resultKind` the invoice
+  already read. The five templates above take their nouns from it. The milestone gets whole
+  sentences, not a swapped noun: a store client reads *"40 sales from your ads … a real customer
+  who found you through an ad and bought"*, not *"40 sales delivered … raised their hand"*.
+- `lead_milestone` is labelled **Results Milestone** in the Emails tab (the id is unchanged, so
+  every sender and flag still matches).
+- 🔴 **The invoice's second line was still hardcoded.** The billed line said "Qualified sales"
+  and the line explaining why they were *not* charged on top said "qualified leads" — one
+  invoice, two names, for one thing the agreement calls a sale.
+- 🔴 **`cl.leads` could never move for a store client.** `client-nurture` counted that webhook
+  counter, which recorded sales never touch, so the milestone could never fire and the review
+  request (gated on the same number) could never fire either. Now `liveStats(cl).leads`, the log,
+  which every other screen already used.
+- 🔴 **The OS Emails tab was passing its own context and had never learned `resultKind`.** The
+  automatic sends were right and everything **previewed or sent by hand** was wrong — the worse
+  half, because the preview is the one he looks at.
+- **The AI performance report** (`buildDataBlock` + both prompts in `report-shared.mjs`) now
+  heads the block *Sales Recorded* and *Cost Per Sale*, and tells the writer the counts come from
+  the client's own order records, that the platforms never see these purchases, and that it must
+  never pass a platform conversion figure off as a sale. Without that a model handed *"Leads
+  Generated"* invents a section of lead-quality commentary, and reaches for the conversion number
+  the platform does report.
+
+**Pinned by** `verify-client-emails` (renders the whole catalogue twice, discovered not listed,
+and fails on a lead word to a sale client or a sale word to a lead client, plus a key-set parity
+check between the two context builders) and the new `verify-report-vocabulary`. **11 mutations,
+all caught**, including the two that matter most: the noun swapped inside a sentence still written
+for lead-gen, and the data block fixed while the OUTPUT FORMAT still says "leads, CPL vs target".
+
 ## 🔴 SALES ARE ENTERED, NOT DETECTED (2026-09-17)
 
 Bryson: *"are we able to track the sales even though it will go through his shopify when they

@@ -251,6 +251,116 @@ const inv = (o) => {
 }
 
 
+// ── 🔴 A STORE CLIENT IS NEVER TOLD ABOUT LEADS ──────────────────────────────
+//
+// Bryson, 2026-09-17: *"can we make sure that the branded emails match what would be needed
+// for constantine ... ex. the lead milestone doesnt work or make sense because he isnt
+// getting leads its e-commerce"*.
+//
+// A store client's visitors never become leads. They click through to the shop and buy, so
+// "the leads start coming in" is a promise of something that will never happen and "See Your
+// Leads" points at a screen that stays empty for ever.
+//
+// 🔴 EVERY TEMPLATE, BOTH DIRECTIONS, DISCOVERED NOT LISTED. A hand-written list of the
+// templates to check is a list that goes stale the moment an eleventh email is added, and the
+// word would be wrong in the one nobody remembered. So this renders the WHOLE catalogue twice
+// and reads the words. The reverse direction matters just as much: a lead-gen client hearing
+// about "sales" would be the same mistake pointed the other way, and it is the direction a
+// careless find-and-replace produces.
+{
+  const ctxFor = (kind) => ({
+    ...BASE, resultKind: kind === "sale" ? "sale" : "",
+    monthly: 700, setup: 500, amount: 700,
+    leadCount: 12, leadRate: 25, leadTotal: 300, milestone: 25,
+    startDate: "Oct 1, 2026", endDate: "Jan 1, 2027", termMonths: 3,
+    approvalTitle: "Your landing page",
+  });
+  const WRONG = { sale: /\b[Ll]eads?\b/, lead: /\b[Ss]ales?\b/ };
+  for (const kind of ["sale", "lead"]) {
+    for (const t of EMAIL_TYPES) {
+      const r = renderClientEmail(t.id, ctxFor(kind));
+      const words = text(r.html) + " " + r.subject;
+      const hit = words.match(WRONG[kind]);
+      ok(`🔴 ${t.id} says nothing about ${kind === "sale" ? "leads" : "sales"} to a per-${kind} client`,
+        !hit, hit ? `…${words.slice(Math.max(0, hit.index - 60), hit.index + 40)}…` : "");
+    }
+  }
+
+  // And the milestone, in full, because it is the one he named. Checked by its words rather
+  // than by "contains sale", so a template that merely swapped the noun into a sentence still
+  // written for lead-gen ("40 sales delivered to you") is not a pass.
+  const sale = renderClientEmail("lead_milestone", { ...ctxFor("sale"), milestone: 40 });
+  const lead = renderClientEmail("lead_milestone", { ...ctxFor("lead"), milestone: 40 });
+  eq("the store milestone subject counts sales", sale.subject, "40 sales and counting for Stencil & Thread");
+  eq("the lead-gen milestone subject counts leads", lead.subject, "40 leads and counting for Stencil & Thread");
+  ok("the store milestone credits the ads, not a delivery", /40 sales from your ads/.test(text(sale.html)), text(sale.html).slice(0, 200));
+  ok("and says the customer BOUGHT", /found you through an ad and bought/.test(text(sale.html)));
+  ok("the lead-gen one still reads exactly as it did", /40 leads delivered/.test(text(lead.html)) && /raised their hand for you/.test(text(lead.html)));
+  ok("the store button points at sales", /See Your Sales/.test(text(sale.html)));
+  ok("the lead-gen button points at leads", /See Your Leads/.test(text(lead.html)));
+
+  // 🔴 THE INVOICE'S TWO LINES MUST AGREE WITH EACH OTHER. The billed line learned the
+  // client's vocabulary; the line explaining why the fees were NOT added on top was left
+  // hardcoded, so one invoice named the same thing twice, two different ways.
+  const inv = text(renderClientEmail("invoice", { ...ctxFor("sale"), monthly: 700, leadCount: 12, leadRate: 25, leadTotal: 300 }).html);
+  ok("🔴 the counted-toward-the-minimum line uses the same word as the line above it",
+    /12 qualified sales at \$25 counted toward the minimum/.test(inv), inv.slice(0, 400));
+  const inv1 = text(renderClientEmail("invoice", { ...ctxFor("sale"), monthly: 700, leadCount: 1, leadRate: 25, leadTotal: 25 }).html);
+  ok("and it reads as one sale, not one sales", /1 qualified sale at \$25/.test(inv1), inv1.slice(0, 400));
+}
+
+
+// ── 🔴 THE MILESTONE HAS TO BE ABLE TO FIRE FOR A STORE CLIENT ───────────────
+//
+// The template being right is half of it. The job that sends it counted `cl.leads`, a counter
+// bumped by the lead webhook, which a store client NEVER TOUCHES: their sales are recorded by
+// hand from their own order records straight into `leadsLog`. So the count stayed 0 for ever,
+// the celebration could never fire, and the review request — gated on the same number — could
+// never fire either. Counted from the log, both work for both kinds of client.
+{
+  const src = readFileSync(join(ROOT, "netlify/functions/client-nurture.mjs"), "utf8");
+  ok("🔴 the milestone counts the log, not the lagging counter",
+    /const leads = liveStats\(cl\)\.leads;/.test(src),
+    "a store client's recorded sales live only in leadsLog, so cl.leads is 0 for ever");
+  ok("and liveStats is actually imported", /import \{[^}]*liveStats[^}]*\} from "\.\.\/lib\/report-shared\.mjs"/.test(src));
+
+  // Proven, not assumed: the same helper the job now uses really does count recorded sales.
+  const { liveStats } = await import("../netlify/lib/report-shared.mjs");
+  const store = { leads: 0, leadsLog: Array.from({ length: 40 }, () => ({ receivedAt: new Date().toISOString(), source: "client_records" })) };
+  eq("🔴 40 recorded sales count as 40", liveStats(store).leads, 40);
+  eq("and a client with no log still falls back to the counter", liveStats({ leads: 7 }).leads, 7);
+}
+
+
+// ── 🔴 BOTH COPIES OF THE EMAIL CONTEXT BUILD THE SAME KEYS ──────────────────
+//
+// There are two: `buildClientCtx` in client-email-auto.mjs (what the automatic senders pass)
+// and `buildCtx` in the OS Emails tab (what a hand-send and every PREVIEW passes). The server
+// copy learned `resultKind` when the invoice learned the difference between a lead and a sale;
+// the OS copy did not. So the automatic emails were right and the ones Bryson previews and
+// sends by hand were wrong, which is the worse half: the preview is the one he looks at.
+//
+// Compared as a SET OF KEYS discovered from the server copy, not a list written here, so the
+// next key added server-side fails this until the OS copy carries it too.
+{
+  const autoSrc = readFileSync(join(ROOT, "netlify/lib/client-email-auto.mjs"), "utf8");
+  const osSrc = readFileSync(join(ROOT, "index.html"), "utf8");
+  const keysIn = (src, from, to) => {
+    const i = src.indexOf(from), j = src.indexOf(to, i);
+    ok(`the ${from} block was found`, i > 0 && j > i);
+    return new Set([...src.slice(i, j).matchAll(/^\s{4,6}([A-Za-z][A-Za-z0-9]*):/gm)].map((m) => m[1]));
+  };
+  const serverKeys = keysIn(autoSrc, "export const buildClientCtx", "\n};");
+  const osKeys = keysIn(osSrc, "  const buildCtx=()=>{", "\n  };");
+  ok("both blocks yielded real keys", serverKeys.size >= 6 && osKeys.size >= 6, `${[...serverKeys]} | ${[...osKeys]}`);
+  for (const k of serverKeys) {
+    ok(`🔴 the OS Emails tab also passes ${k}`, osKeys.has(k),
+      "the automatic send fills this and a hand-send does not, so the same email says two different things");
+  }
+  ok("🔴 and resultKind is one of them", serverKeys.has("resultKind") && osKeys.has("resultKind"),
+    "without it every email a store client receives talks about leads");
+}
+
 // ── 🔴 "AUTOMATIC" MUST NOT BE A LIE ─────────────────────────────────────────
 //
 // Bryson, 2026-08-30, after sending by hand an email that sends itself: *"set in the emails

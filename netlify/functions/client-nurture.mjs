@@ -6,8 +6,8 @@
 //      flows on its own instead of waiting for a manual send.
 //   2. Onboarding nudge  — day 2 and day 5 after Welcome IF the client still
 //      hasn't finished their intake, so a stalled onboarding gets chased.
-//   3. Lead milestone     — a celebratory email when a client crosses
-//      10/25/50/100/… leads. Seeded on first sight so existing clients are never
+//   3. Results milestone  — a celebratory email when a client crosses
+//      10/25/50/100/… leads, or recorded sales for a store client. Seeded on first sight so existing clients are never
 //      spammed about counts they already had; only FUTURE crossings email.
 //   4. Review request     — once, after a client has had a genuinely good month.
 //
@@ -19,7 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { withFailureAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
-import { hasAdActivity } from "../lib/report-shared.mjs";
+import { hasAdActivity, liveStats } from "../lib/report-shared.mjs";
 
 const DAY = 864e5;
 const MILESTONES = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000];
@@ -99,8 +99,18 @@ export default withFailureAlert("client-nurture", async () => {
         }
       }
 
-      // 3. Lead milestone — baseline-seed on first sight, then celebrate crossings.
-      const leads = Number(cl.leads || 0);
+      // 3. Results milestone — baseline-seed on first sight, then celebrate crossings.
+      //
+      // 🔴 COUNTED FROM THE LOG, NOT FROM `cl.leads`. Two reasons, and the second is the one
+      // that made this a live gap rather than a tidy-up:
+      //   • `cl.leads` is a lagging counter bumped by the lead webhook, and `liveStats` already
+      //     treats the log as the truth when the two disagree. Every other screen in the OS
+      //     reads the log, so this was the only place quoting a different number.
+      //   • A STORE CLIENT NEVER TOUCHES THAT COUNTER AT ALL. Their sales are recorded by hand
+      //     from their own order records straight into `leadsLog`, so `cl.leads` stays 0 for
+      //     ever and a client who made 500 sales would never once be told so. The review
+      //     request below is gated on the same number, so it could never fire for them either.
+      const leads = liveStats(cl).leads;
       let crossedMilestone = false;
       if (ea.milestonesSent === undefined) {
         ea.milestonesSent = MILESTONES.filter((m) => leads >= m); // seed, no email
