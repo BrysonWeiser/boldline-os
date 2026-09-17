@@ -125,6 +125,37 @@ const T = {
       signoff(),
   }),
 
+  // 🔴 A PROMISE THE AGREEMENT MAKES, NOW KEPT. From terms v5 clause 2.1 reads: "Agency will
+  // confirm the Start Date to Client in writing once it occurs." That was written on 2026-09-17
+  // and for a day nothing did it, which is worse than not having promised.
+  //
+  // 🔴 IT CONFIRMS, IT DOES NOT ASK FOR A SIGNATURE. Bryson's first instinct was an email the
+  // client signs so the date can change without a new DocuSign envelope. Under v5 there is
+  // nothing to change: the agreement already says the term starts when the ads do, so asking
+  // for a signature would imply the date had not been settled and would quietly undercut the
+  // clause that makes a slipped launch free. It is also the admin the whole change exists to
+  // delete. So this states the dates as settled fact and asks for nothing.
+  //
+  // Sent ONLY when the OS actually moved the dates, which means a client on the estimate. A
+  // client with an agreed exact date, or on older terms, never receives it, because for them
+  // the date genuinely did not change and telling them it did would be wrong.
+  start_confirmed: (c) => ({
+    subject: `Your ads are live, and your dates are confirmed`,
+    preheader: `Your campaigns started running, so your term now has its real dates.`,
+    bodyHtml:
+      h1("Your ads are live") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, your campaigns for ${b(escapeHTML(c.businessName || "your account"))} started running on ${b(escapeHTML(c.startDate || ""))}.`) +
+      p("Your agreement says your term starts the day the ads go live, so that day is now confirmed. Here are your dates:") +
+      detailBox([
+        ["Start date", escapeHTML(c.startDate || "")],
+        ["End date", escapeHTML(c.endDate || "")],
+      ]) +
+      p(`${b("There is nothing to sign.")} Your agreement already works this way, so no paperwork changes and nothing needs re-doing. This message is your written confirmation of the dates.`) +
+      button("See What's Running", c.portalUrl || SITE) +
+      small("The first couple of weeks are mostly the platforms learning who your buyers are, so early numbers move around a lot. That settles down.") +
+      signoff(),
+  }),
+
   invoice: (c) => {
     const setup = Number(c.setup || 0);
     const monthly = Number(c.monthly || 0);
@@ -343,6 +374,7 @@ export const EMAIL_TYPES = [
   { id: "welcome", label: "Welcome + Portal", icon: "\u{1F44B}", auto: "when they sign", desc: "Sent right after they sign \u2014 warm welcome + portal login + what's next." },
   { id: "onboarding_access", label: "Ad Account Access", icon: "\u{1F511}", auto: "a day after the welcome", desc: "Asks the client to grant BoldLine manager access to their ad account." },
   { id: "contract_signed", label: "Contract Signed", icon: "\u2705", auto: "the moment they sign", desc: "Confirmation that their agreement is signed and on file." },
+  { id: "start_confirmed", label: "Start Date Confirmed", icon: "\u{1F680}", auto: "when their ads first start spending", desc: "Confirms the real start and end dates once the campaigns go live. Their agreement promises this in writing. It asks for no signature, because on an estimated start date nothing changes when the launch moves." },
   // 🔴 THE DESCRIPTION HAD TO MATCH WHAT THE INVOICE ACTUALLY BILLS. It said "setup +
   // monthly", which is the OLD model and the exact addition the contract forbids: section 4.1
   // reads "THE TWO ARE NEVER CHARGED TOGETHER". The template itself was fixed on 2026-08-26

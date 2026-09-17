@@ -22,6 +22,7 @@
 //      by hand in Ads Manager where our button never ran.
 
 import { readFileSync } from "node:fs";
+import { renderClientEmail, EMAIL_TYPES } from "../netlify/lib/client-emails-shared.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
@@ -277,6 +278,56 @@ for (const v of [1, 2, 3, 4]) {
   ok("🔴 and says work starts at signing, not on this date",
     /Work starts when they sign, not on this date/.test(sheet),
     "the two dates mean different things and the screen is where that gets confused");
+}
+
+// ── 12. 🔴 THE WRITTEN CONFIRMATION THE AGREEMENT PROMISES ──────────────────
+//
+// Clause 2.1 says "Agency will confirm the Start Date to Client in writing once it occurs". That
+// was written on 2026-09-17 and for a day nothing did it, which is worse than not promising.
+//
+// 🔴 IT CONFIRMS, IT DOES NOT ASK FOR A SIGNATURE. Bryson's first idea was an email the client
+// signs so the date could change without a new DocuSign envelope. Under v5 nothing changes: the
+// agreement already says the term starts when the ads do. Asking for a signature would imply the
+// date had not been settled, undercut the clause that makes a slipped launch free, and re-create
+// the admin the whole change exists to delete.
+{
+  const type = EMAIL_TYPES.find((t) => t.id === "start_confirmed");
+  ok("the email exists and is labelled automatic", !!type && !!type.auto, JSON.stringify(type));
+
+  const { subject, html } = renderClientEmail("start_confirmed", {
+    contactName: "Constantine Diaz", businessName: "Air Suds",
+    startDate: "Oct 6, 2026", endDate: "Jan 6, 2027",
+    portalUrl: "https://boldlinemedia.com/portal?token=x",
+  });
+  const flat = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  ok("it names the real start date", /Oct 6, 2026/.test(flat) && /started running on/.test(flat), flat.slice(0, 200));
+  ok("and the end date", /Jan 6, 2027/.test(flat));
+  ok("🔴 and says plainly there is nothing to sign", /There is nothing to sign/.test(flat),
+    "a client who thinks they owe a signature will chase it, which is the admin this removes");
+  ok("🔴 and never asks for one", !/sign (this|below|here)|signature required|please sign|e-sign/i.test(flat),
+    "one stray ask turns a confirmation into paperwork");
+  ok("it explains why nothing changed", /agreement says your term starts the day the ads go live/.test(flat));
+  ok("it says it IS the written confirmation", /written confirmation of the dates/.test(flat));
+  ok("and sets expectations on a slow first fortnight", /first couple of weeks/.test(flat));
+
+  // Client-facing, so the standing rules apply.
+  const body = html.replace(/<style[\s\S]*?<\/style>/g, "");
+  ok("🔴 no emojis in anything the client receives",
+    (body.match(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu) || []).length === 0);
+  ok("🔴 and no em dashes", !/[\u2014\u2013]/.test(flat + subject),
+    "the tell Bryson named for copy that reads as machine-written");
+  ok("the subject says what happened", /ads are live/.test(subject) && !/[\u2014\u2013]/.test(subject));
+
+  // ── Who gets it, which is the part that could be wrong and expensive ──
+  ok("🔴 it is sent only when the dates actually moved",
+    /if \(live\.patch\.contractStart\) \{\s*\n\s*const sent = await autoSendClientEmail\(cl, "start_confirmed"/.test(SYNC),
+    "a client with an agreed exact date, or on older terms, must never be told their dates changed");
+  ok("it is handed the dates the OS just wrote",
+    /startDate: live\.patch\.contractStart/.test(SYNC) && /endDate: live\.patch\.contractEnd/.test(SYNC));
+  ok("🔴 a failed send never costs the recorded go-live",
+    /if \(sent\.sent\) liveLog = sent\.logEntry;\s*\n\s*else console\.error/.test(SYNC),
+    "the go-live is the fact the term depends on, and a bounced email must not undo it");
+  ok("a successful send is written into the client's history", /\.\.\.\(liveLog \? \[liveLog\] : \[\]\)/.test(SYNC));
 }
 
 console.log(`verify-event-start-date: ${pass} passed, ${fail} failed`);
