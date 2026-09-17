@@ -9841,8 +9841,8 @@ function BillingCard({client,pkg,onUpdate}) {
         {/* 🔴 THE RATE BELONGS HERE, NOT BEHIND ACTIVE BILLING. It is what the client signs,
             so it has to be settable before the contract is generated. */}
         <div style={{marginBottom:8}}>
-          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:3}}>Per Qualified Lead ($)</div>
-          <input value={adjPerLead} onChange={e=>setAdjPerLead(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder={perLeadRate>0?String(perLeadRate):"e.g. 50"} style={{width:"100%",padding:"8px 10px",fontSize:13,fontWeight:700,borderRadius:8,border:`1px solid ${C.gold}55`,backgroundColor:"rgba(200,168,75,.06)",color:C.text}}/>
+          <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:3}}>Per Qualified {client.billingResultKind==="sale"?"Sale":"Lead"} ($)</div>
+          <input value={adjPerLead} onChange={e=>setAdjPerLead(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder={perLeadRate>0?String(perLeadRate):(client.billingResultKind==="sale"?"e.g. 25":"e.g. 50")} style={{width:"100%",padding:"8px 10px",fontSize:13,fontWeight:700,borderRadius:8,border:`1px solid ${C.gold}55`,backgroundColor:"rgba(200,168,75,.06)",color:C.text}}/>
           <div style={{fontSize:10,color:C.textMuted,marginTop:3,lineHeight:1.5}}>This is the number printed in the agreement. Leave blank to keep {perLeadRate>0?money(perLeadRate):"the niche default"}.</div>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:8}}>
@@ -9891,6 +9891,84 @@ function BillingCard({client,pkg,onUpdate}) {
           <button onClick={openPortal} disabled={!!busy} style={{marginTop:10,width:"100%",padding:"9px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>{busy==="portal"?"Opening…":"View receipt in Stripe"}</button>
         </div>
       )}
+      {/* ── 🔴 WHAT THE AGREEMENT SAYS HE PAYS FOR, AND IT IS NOT A BILLING SETTING ──
+          Bryson, 2026-09-17, looking at Air Suds' finished agreement: *"the contract didnt
+          update with the way hes going to be billed. it still says 15% of monthly ad spend"*.
+
+          🔴 THIS WHOLE BLOCK WAS BEHIND `managed`, WHICH MEANS BEHIND STRIPE. So the switch that
+          decides what the CONTRACT says he pays for could not be touched until billing was set
+          up, and billing is set up AFTER he signs. The order was impossible: send the contract,
+          then get the ability to make the contract correct. A store client would have been sent
+          the package default, 15% of ad spend, no matter what had actually been agreed.
+
+          Worse, `contractGaps` sends him here by name ("Set it on the Package tab under Billing
+          for → Sales") and the control was not on the page. An instruction pointing at nothing
+          is how someone concludes the OS is broken rather than that they missed a step.
+
+          These are TERMS, not payment plumbing, so they live outside that gate. The lead
+          approval queue below stays inside it, because approving a lead onto an invoice really
+          does need a customer in Stripe. */}
+      {!oneTime&&(
+        <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${C.border}`}}>
+          <div style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em",marginBottom:7}}>What you bill for</div>
+          <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,marginBottom:8}}>
+            This is what goes into the agreement, so set it before you send. It does not need billing to be set up first.
+          </div>
+        {/* 🔴 WHAT IS BEING COUNTED. Bryson, 2026-09-16, on a client who sells straight from a
+            website: *"just buy through website no forms or contacting him"*. The agreement's
+            definition of a Qualified Lead is a form, a tracked call or a chat, and not one of
+            those can ever happen on that account — so the contract would have defined the
+            billable event as something impossible. Switching this to Sales renames it
+            everywhere it appears: the agreement, the key terms, and the client's portal. The
+            rate and every calculation are untouched, because a count times a rate is a count
+            times a rate. */}
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center",marginBottom:8}}>
+          <span style={{fontSize:10,color:C.textMuted}}>Billing for</span>
+          {[["lead","Leads"],["sale","Sales"]].map(([k,lbl])=>{
+            const on=(client.billingResultKind==="sale")===(k==="sale");
+            return <button key={k} onClick={()=>onUpdate&&onUpdate({...client,billingResultKind:k})}
+              style={{padding:"4px 9px",fontSize:10,fontWeight:700,borderRadius:999,
+                border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,.14)":"rgba(255,255,255,.04)",
+                color:on?C.gold:C.textDim,cursor:"pointer"}}>{lbl}</button>;
+          })}
+        </div>
+        {client.billingResultKind==="sale"&&(
+          <div style={{marginBottom:9}}>
+            <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:4}}>
+              Which purchases you get paid for. This sentence goes into the agreement word for word, so write it the way you would say it out loud.
+            </div>
+            <input value={saleDefn} onChange={e=>setSaleDefn(e.target.value)}
+              onBlur={()=>{ const v=saleDefn.trim(); if(v!==String(client.billingSaleDefinition||"")) onUpdate&&onUpdate({...client,billingSaleDefinition:v}); }}
+              placeholder="a new monthly subscription, or a single order of 25 bottles or more"
+              style={{width:"100%",padding:"7px 9px",fontSize:11.5,borderRadius:7,border:`1px solid ${saleDefn.trim()?C.border:C.red}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,boxSizing:"border-box"}}/>
+            {!saleDefn.trim()&&<div style={{fontSize:10,color:C.red,lineHeight:1.5,marginTop:4}}>Needed before the agreement can go out. Without it the contract has a blank where the thing you bill for should be.</div>}
+          </div>
+        )}
+        {!editRate
+          ? <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>
+              Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/{client.billingResultKind==="sale"?"sale":"lead"}</strong>
+              {client.billingPerLead!=null&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold}}>custom</span>}
+              <button onClick={()=>{setRateInput(String(perLeadRate));setEditRate(true);}} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>edit</button>
+              <button onClick={()=>setShowFeeFinder(v=>!v)} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>{showFeeFinder?"hide":"what should this be?"}</button>
+            </div>
+          : <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
+              <span style={{fontSize:12,color:C.textMuted}}>$</span>
+              <input value={rateInput} onChange={e=>setRateInput(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder="per lead" style={{flex:1,minWidth:0,padding:"6px 8px",fontSize:12,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
+              <button onClick={saveRate} style={{padding:"6px 10px",fontSize:11,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Save</button>
+              <button onClick={()=>setEditRate(false)} style={{padding:"6px 9px",fontSize:12,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>×</button>
+            </div>}
+        {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-lead rate for {client.niche||"this niche"} — set one above, or tap "what should this be?" to work one out.</div>}
+        {/* Same finder as Deal Prep. `onUse` writes the rate straight onto the client so
+            the number cannot be mistyped between reading it and saving it. */}
+        {showFeeFinder&&(
+          <div style={{marginBottom:10,padding:"12px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`}}>
+            <LeadFeeFinder
+              defaults={{niche:client.niche,company:client.name,location:client.targetLocations||client.location,adBudget:client.adBudget,packageId:client.packageId}}
+              onUse={(f)=>{ onUpdate&&onUpdate({...client,billingPerLead:f}); setShowFeeFinder(false); setLeadMsg(`✓ Per-lead rate set to ${money(f)}.`); }}/>
+          </div>
+        )}
+        </div>
+      )}
       {managed&&<>
         <div style={{fontSize:11,color:C.green,lineHeight:1.6,marginBottom:8}}>{status==="card_on_file"
           ? <>Card on file. <strong style={{color:C.text}}>Nothing charges on its own.</strong> Each approved batch of qualified leads is invoiced to this card straight away.{client.lastPaymentAt?" Last paid "+new Date(client.lastPaymentAt).toLocaleDateString()+".":""}</>
@@ -9906,59 +9984,6 @@ function BillingCard({client,pkg,onUpdate}) {
             <span style={{fontSize:11,fontWeight:800,color:C.text,letterSpacing:".02em"}}>Lead Billing{resultsOnly?"":" (whichever is higher)"}</span>
             <span style={{fontSize:10,color:C.textMuted}}>{flaggedBillable>0&&<span style={{color:C.amber,fontWeight:700}}>{flaggedBillable} flagged</span>}{flaggedBillable>0&&billedCount>0?" · ":""}{billedCount>0?`${billedCount} billed`:""}</span>
           </div>
-          {/* 🔴 WHAT IS BEING COUNTED. Bryson, 2026-09-16, on a client who sells straight from a
-              website: *"just buy through website no forms or contacting him"*. The agreement's
-              definition of a Qualified Lead is a form, a tracked call or a chat, and not one of
-              those can ever happen on that account — so the contract would have defined the
-              billable event as something impossible. Switching this to Sales renames it
-              everywhere it appears: the agreement, the key terms, and the client's portal. The
-              rate and every calculation are untouched, because a count times a rate is a count
-              times a rate. */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:10,color:C.textMuted}}>Billing for</span>
-            {[["lead","Leads"],["sale","Sales"]].map(([k,lbl])=>{
-              const on=(client.billingResultKind==="sale")===(k==="sale");
-              return <button key={k} onClick={()=>onUpdate&&onUpdate({...client,billingResultKind:k})}
-                style={{padding:"4px 9px",fontSize:10,fontWeight:700,borderRadius:999,
-                  border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?"rgba(200,168,75,.14)":"rgba(255,255,255,.04)",
-                  color:on?C.gold:C.textDim,cursor:"pointer"}}>{lbl}</button>;
-            })}
-          </div>
-          {client.billingResultKind==="sale"&&(
-            <div style={{marginBottom:9}}>
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.5,marginBottom:4}}>
-                Which purchases you get paid for. This sentence goes into the agreement word for word, so write it the way you would say it out loud.
-              </div>
-              <input value={saleDefn} onChange={e=>setSaleDefn(e.target.value)}
-                onBlur={()=>{ const v=saleDefn.trim(); if(v!==String(client.billingSaleDefinition||"")) onUpdate&&onUpdate({...client,billingSaleDefinition:v}); }}
-                placeholder="a new monthly subscription, or a single order of 25 bottles or more"
-                style={{width:"100%",padding:"7px 9px",fontSize:11.5,borderRadius:7,border:`1px solid ${saleDefn.trim()?C.border:C.red}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,boxSizing:"border-box"}}/>
-              {!saleDefn.trim()&&<div style={{fontSize:10,color:C.red,lineHeight:1.5,marginTop:4}}>Needed before the agreement can go out. Without it the contract has a blank where the thing you bill for should be.</div>}
-            </div>
-          )}
-          {!editRate
-            ? <div style={{fontSize:11,color:C.textDim,marginBottom:8}}>
-                Rate: <strong style={{color:C.text}}>{money(perLeadRate)}/{client.billingResultKind==="sale"?"sale":"lead"}</strong>
-                {client.billingPerLead!=null&&<span style={{marginLeft:5,fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.gold}}>custom</span>}
-                <button onClick={()=>{setRateInput(String(perLeadRate));setEditRate(true);}} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>edit</button>
-                <button onClick={()=>setShowFeeFinder(v=>!v)} style={{marginLeft:8,fontSize:10,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0,textDecoration:"underline"}}>{showFeeFinder?"hide":"what should this be?"}</button>
-              </div>
-            : <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
-                <span style={{fontSize:12,color:C.textMuted}}>$</span>
-                <input value={rateInput} onChange={e=>setRateInput(e.target.value.replace(/[^0-9.]/g,""))} inputMode="decimal" placeholder="per lead" style={{flex:1,minWidth:0,padding:"6px 8px",fontSize:12,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
-                <button onClick={saveRate} style={{padding:"6px 10px",fontSize:11,fontWeight:700,borderRadius:7,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Save</button>
-                <button onClick={()=>setEditRate(false)} style={{padding:"6px 9px",fontSize:12,fontWeight:600,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textMuted,cursor:"pointer"}}>×</button>
-              </div>}
-          {perLeadRate<=0&&!editRate&&<div style={{fontSize:10,color:C.amber,marginBottom:8,lineHeight:1.5}}>No default per-lead rate for {client.niche||"this niche"} — set one above, or tap "what should this be?" to work one out.</div>}
-          {/* Same finder as Deal Prep. `onUse` writes the rate straight onto the client so
-              the number cannot be mistyped between reading it and saving it. */}
-          {showFeeFinder&&(
-            <div style={{marginBottom:10,padding:"12px",borderRadius:11,backgroundColor:"rgba(255,255,255,0.02)",border:`1px solid ${C.border}`}}>
-              <LeadFeeFinder
-                defaults={{niche:client.niche,company:client.name,location:client.targetLocations||client.location,adBudget:client.adBudget,packageId:client.packageId}}
-                onUse={(f)=>{ onUpdate&&onUpdate({...client,billingPerLead:f}); setShowFeeFinder(false); setLeadMsg(`✓ Per-lead rate set to ${money(f)}.`); }}/>
-            </div>
-          )}
 
           {unbilledLeads.length===0
             ? <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>No new leads to bill. Delivered leads show up here to review and add to the next invoice.</div>
