@@ -21,6 +21,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { DS, getAccessToken } from "../lib/docusign-auth.mjs";
+import { combinedDocumentPath } from "../lib/docusign-archive.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -65,8 +66,11 @@ export default async (req) => {
 
   // `combined` is the signed document AND the Certificate of Completion in one file, which
   // is the pair you want together. Asking for the document alone drops the audit trail.
+  // 🔴 THE PATH COMES FROM THE SHARED HELPER because three callers now ask DocuSign for this
+  // same thing (this, the watcher, and the OS viewer). Three hand-built copies of one URL is
+  // exactly the drift that has bitten this project before.
   const url = `${DS.basePath}/restapi/v2.1/accounts/${DS.accountId}`
-    + `/envelopes/${encodeURIComponent(cl.docusignEnvelopeId)}/documents/combined`;
+    + combinedDocumentPath(cl.docusignEnvelopeId);
 
   let res;
   try {

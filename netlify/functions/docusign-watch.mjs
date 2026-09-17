@@ -29,8 +29,9 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, loadAllClients } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
-import { dsGet, isConfigured } from "../lib/docusign-auth.mjs";
+import { dsGet, dsGetBytes, isConfigured } from "../lib/docusign-auth.mjs";
 import { needsCheck, decideFromEnvelope, decideNudge } from "../lib/docusign-status.mjs";
+import { needsArchive, fetchAndStore, combinedDocumentPath, CONTRACT_BUCKET } from "../lib/docusign-archive.mjs";
 
 const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -41,10 +42,10 @@ const noteFor = (decision, nudge, patch) =>
   : nudge ? "Reminder raised: agreement still unsigned."
   : "";
 
-export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, sendEmail, now = () => new Date() }) {
+export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, sendEmail, fetchDocument, storeDocument, now = () => new Date() }) {
   const rows = (await loadClients()) || [];
   const pending = rows.filter((r) => needsCheck(r.data));
-  const summary = { pending: pending.length, checked: 0, signed: 0, declined: 0, voided: 0, nudged: 0, unchanged: 0, errors: 0 };
+  const summary = { pending: pending.length, checked: 0, signed: 0, declined: 0, voided: 0, nudged: 0, unchanged: 0, errors: 0, archived: 0, archiveErrors: 0 };
 
   for (const row of pending) {
     const cl = row.data;
@@ -70,6 +71,21 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
     const patch = { ...(decision.patch || {}), ...((nudge && nudge.patch) || {}) };
     const alertPayload = decision.alert || (nudge && nudge.alert) || null;
 
+    // 🔴 THE COPY IS FETCHED BEFORE THE SAVE, so a client that signs is recorded as signed
+    // AND holding its document in one write rather than two. If the fetch fails the save
+    // still happens with everything else: the signature is the fact that matters, and the
+    // second pass below picks the document up on a later run.
+    let archived = null;
+    if (decision.note === "signed" && fetchDocument && storeDocument) {
+      try {
+        archived = await fetchAndStore({ client: cl, id: row.id, fetchDocument, storeDocument, now });
+      } catch (e) {
+        summary.archiveErrors++;
+        console.error(`docusign-watch: could not store the signed copy for ${cl.name}:`, e.message);
+      }
+    }
+    if (archived) Object.assign(patch, archived);
+
     if (Object.keys(patch).length) {
       const note = noteFor(decision, nudge, patch);
       const next = {
@@ -86,6 +102,9 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
         console.error(`docusign-watch: could not save ${cl.name}:`, e.message);
         continue;
       }
+      // Counted after the save, not after the upload. A stored file the record does not
+      // point at is not a copy anybody can find, and the catch-up pass will redo it.
+      if (archived) summary.archived++;
       if (decision.note === "signed") summary.signed++;
       else if (decision.note === "declined") summary.declined++;
       else if (decision.note === "voided") summary.voided++;
@@ -104,12 +123,41 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
       catch (e) { console.error("docusign-watch: client email failed:", e.message); }
     }
   }
+
+  // ── 🔴 THE CATCH-UP PASS, AND IT IS NOT OPTIONAL ───────────────────────────
+  //
+  // `needsCheck` stops looking at a client the instant `contractSigned` is true, which is
+  // right for the status question and fatal for this one. If the document fetch above failed
+  // on the single run that mattered — an expired token, a rate limit, a network blip — that
+  // client would have no signed copy for the life of their agreement and nothing would ever
+  // try again. So every sweep also looks for signed clients with no stored document and has
+  // another go. It is a no-op the moment they all have one.
+  //
+  // It also covers every client who signed BEFORE this existed, which on the day it shipped
+  // was all of them.
+  if (fetchDocument && storeDocument) {
+    for (const row of rows.filter((r) => needsArchive(r.data))) {
+      const cl = row.data;
+      try {
+        const patch = await fetchAndStore({ client: cl, id: row.id, fetchDocument, storeDocument, now });
+        await saveClient(row.id, { ...cl, ...patch });
+        summary.archived++;
+      } catch (e) {
+        // Quiet on purpose. This retries every fifteen minutes and a client whose envelope
+        // DocuSign will not hand over must not page Bryson ninety-six times a day.
+        summary.archiveErrors++;
+        console.error(`docusign-watch: catch-up copy for ${cl.name} failed:`, e.message);
+      }
+    }
+  }
+
   return summary;
 }
 
 export const summaryLine = (s) =>
   `docusign-watch: ${s.pending} awaiting, ${s.checked} checked, ${s.signed} signed, ` +
-  `${s.declined} declined, ${s.voided} voided, ${s.nudged} nudged, ${s.errors} errors`;
+  `${s.declined} declined, ${s.voided} voided, ${s.nudged} nudged, ${s.errors} errors, ` +
+  `${s.archived} signed copies stored, ${s.archiveErrors} copy failures`;
 
 const handler = async () => {
   // A missing variable should skip quietly. This runs every fifteen minutes and an
@@ -129,6 +177,19 @@ const handler = async () => {
     },
     alert: dispatchAlert,
     sendEmail: autoSendClientEmail,
+    // The completed document, flattened by DocuSign into one PDF with the certificate page.
+    // `dsGetBytes` rather than `dsGet`, because `dsGet` parses JSON and would quietly hand
+    // back an empty object for a PDF body.
+    fetchDocument: (envelopeId) => dsGetBytes(combinedDocumentPath(envelopeId)),
+    storeDocument: async (path, bytes) => {
+      // 🔴 PRIVATE, unlike the photo bucket. A signed agreement carries the client's address,
+      // their fee and their signature, and must never sit at a URL that works for anyone
+      // holding it. Creating a bucket that exists is a no-op, so this is safe on every run.
+      await supabase.storage.createBucket(CONTRACT_BUCKET, { public: false }).catch(() => {});
+      const { error } = await supabase.storage.from(CONTRACT_BUCKET)
+        .upload(path, bytes, { contentType: "application/pdf", upsert: true });
+      if (error) throw new Error(error.message);
+    },
   });
 
   const line = summaryLine(summary);

@@ -2970,6 +2970,28 @@ function contractGaps(cl, pkg) {
   return out;
 }
 
+// 🔴 WHICH DOCUMENT THE SCREEN IS ALLOWED TO CALL "THE AGREEMENT".
+//
+// Bryson, 2026-09-16: *"make it so it only ever shows the correct version"*. The contract
+// below re-renders from the client record every time it is drawn, so it always shows today's
+// terms. The document the client actually signed is a snapshot frozen inside DocuSign at send
+// time. Those are two different things and only the second one is the contract.
+//
+// Three states, and the middle one used to be a lie told confidently:
+//   "signed"  — the signed PDF is stored. Show it, and nothing else.
+//   "pending" — they signed, the copy has not landed yet. SAY SO rather than quietly showing
+//               a re-render that may already disagree with what they put their name to.
+//   "draft"   — nothing signed. The re-render IS the document, because it is what gets sent.
+//
+// 🔴 MIRRORS `contractView` in netlify/lib/docusign-archive.mjs. Two copies of one rule is the
+// standing trap in this file; verify-signed-contract pins them to each other.
+const contractView=(cl)=>{
+  const c=cl||{};
+  if(c.signedContractPath) return "signed";
+  if(c.contractSigned) return "pending";
+  return "draft";
+};
+
 const makeContractHTML=(cl,pkg)=>{
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const money=(n)=>"$"+Number(n||0).toLocaleString();
@@ -3588,13 +3610,23 @@ const makePortalHTML=(cl,pkg,notice)=>{
     +`</div></div></details>`
     +'<details class="acc" id="acc-agreement"><summary><div><div class="at">Your Agreement'+sigDot+'</div><div class="as">Your contract with us, readable and downloadable.</div></div><span class="car">&#9654;</span></summary><div class="abody">'
     +'<div><div class="cwide"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:13px;font-weight:700;color:'+(cl.contractStatus==='active'?'#10B981':cl.contractStatus==='pending'?'#F59E0B':'#EF4444')+';margin-bottom:6px">'+(cl.contractStatus==='active'?'Signed and Active':cl.contractStatus==='pending'?'Pending Signature':'Expired')+'</div><div style="font-size:11px;color:#6B7280;line-height:1.6">Start: '+(cl.contractStart||'not set')+' · End: '+(cl.contractEnd||'not set')+'</div>'+contractAlert+'</div>'
-    // Mirrors the served portal (portal.js): full agreement, readable + printable anytime.
-    +'<div class="card"><div class="lbl">Your Agreement</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">Your full service agreement, available here anytime. Scroll to read it, or save a copy for your records.</div>'
+    // Mirrors the served portal (portal.mjs): full agreement, readable + printable anytime.
+    // 🔴 WHICH OF THE TWO DOCUMENTS THE CLIENT IS LOOKING AT, SAID OUT LOUD. The frame below
+    // RE-RENDERS from the client record, so it moves the moment a date, a fee or a package is
+    // edited. The document they signed is frozen inside DocuSign. Both used to be called
+    // "Your Agreement", so an edit on our side silently changed what the client was shown as
+    // their contract, and they had no way to notice.
+    +(cl.contractSigned&&cl.docusignEnvelopeId
+        ? '<div class="card"><div class="lbl">Your Signed Agreement</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">This is the document you signed, exactly as you signed it, with the signature certificate. It is the one that counts.</div>'
+        : '<div class="card"><div class="lbl">Your Agreement</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">Your full service agreement, available here anytime. Scroll to read it, or save a copy for your records.</div>')
     // Mirrors netlify/functions/portal.mjs: the e-signed original from DocuSign, offered
     // only when there is genuinely one to fetch.
     +(cl.contractSigned&&cl.docusignEnvelopeId
         ? '<a class="btn" style="display:block;text-align:center;text-decoration:none;margin:0 0 10px;box-sizing:border-box" href="/.netlify/functions/contract-pdf?token='+encodeURIComponent(cl.portalToken||'')+'">Download the Signed Copy</a>'
           +'<div style="font-size:10px;color:#6B7280;margin:-4px 0 12px">The e-signed original, including the signature certificate.</div>'
+        : '')
+    +(cl.contractSigned&&cl.docusignEnvelopeId
+        ? '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin:16px 0 6px">Your terms, written out</div><div style="font-size:11px;color:#6B7280;margin-bottom:10px;line-height:1.55">The same agreement set out in full so it is easy to read on a phone. If anything here ever differs from your signed copy above, the signed copy is the one that applies.</div>'
         : '')
     +'<button class="btn" style="margin:0 0 10px" onclick="printContract()">Save or Print a Copy</button><div style="font-size:10px;color:#6B7280;margin:-4px 0 10px">Opens your print window. Choose &ldquo;Save as PDF&rdquo; to keep a copy.</div><div style="border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><iframe id="bl-contract-frame" title="Service Agreement" srcdoc="'+makeContractHTML(cl,pkg).replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" style="width:100%;height:70vh;min-height:520px;border:none;display:block;background:#fff"></iframe></div></div></div></div>'
     +'</div></div></details></div>'
@@ -10116,6 +10148,124 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
   );
 }
 
+// 🔴 SHOWS THE DOCUMENT THAT WAS SIGNED, OR SAYS PLAINLY THAT IT CANNOT.
+//
+// This card used to be one iframe of `makeContractHTML`, labelled "Contract Preview",
+// regardless of whether anything had been signed. That label was true before a signature and
+// false after one: the contract re-renders from the record, so changing a start date, a fee
+// or a package silently rewrote what the screen called the agreement, while the document the
+// client actually signed sat unchanged in DocuSign saying something else.
+//
+// Now there are three states and each one says what it is showing. The re-render is never
+// again presented as the agreement once an agreement exists.
+function SignedContractCard({client,html}){
+  const view=contractView(client);
+  const [link,setLink]=useState({state:"idle",url:"",error:""});  // idle | loading | ready | missing | error
+  const [showTerms,setShowTerms]=useState(false);
+
+  // The link is fetched on demand and expires within the hour, so it is never stored on the
+  // record and never survives the page. Re-opening the tab fetches a fresh one.
+  useEffect(()=>{
+    if(view!=="signed"){ setLink({state:"idle",url:"",error:""}); return; }
+    let alive=true;
+    (async()=>{
+      setLink({state:"loading",url:"",error:""});
+      try{
+        const { data:{ session } }=await supabaseClient.auth.getSession();
+        const token=session&&session.access_token;
+        if(!token){ if(alive) setLink({state:"error",url:"",error:"Session expired. Refresh the page and log in again."}); return; }
+        const r=await fetch("/.netlify/functions/contract-file",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({clientId:client.id})});
+        const d=await r.json().catch(()=>({}));
+        if(!alive) return;
+        if(!r.ok||!d.ok) { setLink({state:"error",url:"",error:d.error||"Could not open the signed copy."}); return; }
+        if(!d.ready) { setLink({state:"missing",url:"",error:""}); return; }
+        setLink({state:"ready",url:d.url,error:""});
+      }catch(e){ if(alive) setLink({state:"error",url:"",error:"Network error. Try again in a moment."}); }
+    })();
+    return ()=>{ alive=false; };
+  },[view,client.id,client.signedContractPath]);
+
+  const head=(title,note,tone)=>(
+    <div style={{padding:"9px 13px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+      <span style={{fontSize:11,fontWeight:700,color:tone||C.textDim}}>{title}</span>
+      <span style={{fontSize:10,color:C.textMuted}}>{note}</span>
+    </div>
+  );
+
+  // ── Nothing signed yet: the re-render IS the document, and saying so is accurate. ──
+  if(view==="draft"){
+    return (
+      <Card style={{padding:0,overflow:"hidden"}}>
+        {head("Contract Preview","This is exactly what gets sent")}
+        <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
+          <iframe srcDoc={html} title="Contract" style={{width:"100%",height:480,border:"none",display:"block",backgroundColor:"#fff",maxWidth:"100%"}} sandbox="allow-same-origin allow-scripts"/>
+        </div>
+      </Card>
+    );
+  }
+
+  const signedOn=client.contractSignedAt?new Date(client.contractSignedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"";
+
+  // ── Signed, and we hold the file. ──
+  return (
+    <>
+      <Card style={{padding:0,overflow:"hidden",borderColor:view==="pending"?"rgba(245,158,11,.35)":C.border}}>
+        {view==="signed"
+          ?head("The Signed Agreement",signedOn?`Signed ${signedOn}`:"","#34D399")
+          :head("Signed Copy Not Here Yet","Checked every 15 minutes",C.amber)}
+
+        {view==="pending"&&(
+          <div style={{padding:"12px 13px",fontSize:11.5,color:C.textDim,lineHeight:1.65}}>
+            {client.name} has signed, but the OS has not fetched the signed document out of DocuSign yet. It usually arrives within fifteen minutes. Until it does, the signed copy lives in your DocuSign account and that is the one that counts.
+          </div>
+        )}
+
+        {view==="signed"&&link.state==="loading"&&(
+          <div style={{padding:"14px 13px",fontSize:11.5,color:C.textMuted}}>Opening the signed copy…</div>
+        )}
+        {view==="signed"&&link.state==="missing"&&(
+          <div style={{padding:"12px 13px",fontSize:11.5,color:C.amber,lineHeight:1.65}}>The record says a signed copy is stored, but the file could not be found. Nothing is lost: the signed original is still in your DocuSign account.</div>
+        )}
+        {view==="signed"&&link.state==="error"&&(
+          <div style={{padding:"12px 13px",fontSize:11.5,color:C.red,lineHeight:1.65}}>{link.error}</div>
+        )}
+        {view==="signed"&&link.state==="ready"&&(
+          <>
+            <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
+              <iframe src={link.url} title="Signed agreement" style={{width:"100%",height:480,border:"none",display:"block",backgroundColor:"#fff",maxWidth:"100%"}}/>
+            </div>
+            <div style={{padding:"9px 13px",borderTop:`1px solid ${C.border}`}}>
+              <a href={link.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none"}}>Open it full size &#8599;</a>
+              <span style={{fontSize:10,color:C.textMuted,marginLeft:10}}>This link stops working after an hour.</span>
+            </div>
+          </>
+        )}
+      </Card>
+
+      {/* 🔴 THE RE-RENDER IS STILL USEFUL AND IS NOW LABELLED FOR WHAT IT IS. It shows today's
+          terms, which is what you want when checking whether a date or a fee has drifted from
+          what was signed. It is folded away and named so it can never be mistaken for the
+          agreement itself. */}
+      <Card style={{padding:0,overflow:"hidden"}}>
+        <button onClick={()=>setShowTerms(v=>!v)} style={{width:"100%",padding:"9px 13px",background:"transparent",border:"none",borderBottom:showTerms?`1px solid ${C.border}`:"none",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+          <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>Today&rsquo;s terms, rebuilt from this record</span>
+          <span style={{fontSize:10,color:C.textMuted}}>{showTerms?"Hide":"Show"}</span>
+        </button>
+        {showTerms&&(
+          <>
+            <div style={{padding:"11px 13px",fontSize:11,color:C.textMuted,lineHeight:1.65,borderBottom:`1px solid ${C.border}`}}>
+              🔴 <b style={{color:C.textDim}}>This is not the signed agreement.</b> It is rebuilt from what this client record says right now, so if you have changed a date, a fee or a package since they signed, this will show the change and the signed document above will not. The signed one is the one that counts.
+            </div>
+            <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
+              <iframe srcDoc={html} title="Current terms" style={{width:"100%",height:480,border:"none",display:"block",backgroundColor:"#fff",maxWidth:"100%"}} sandbox="allow-same-origin allow-scripts"/>
+            </div>
+          </>
+        )}
+      </Card>
+    </>
+  );
+}
+
 function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
   const [copied,setCopied]=useState(false);
   const [showRenewal,setShowRenewal]=useState(false);
@@ -10392,27 +10542,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
         <button onClick={()=>{navigator.clipboard.writeText(`${window.location.origin}/portal?token=${client.portalToken}`);setCopied(true);setTimeout(()=>setCopied(false),2000);}} title="Copies the client's portal link — they can read this contract on their Contract tab. (The DocuSign signing link is emailed to them directly by DocuSign.)" style={{flex:1,padding:"10px",fontSize:12,fontWeight:600,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:copied?"#34D399":C.textDim,cursor:"pointer"}}>{copied?"Link Copied!":"Copy Client Link"}</button>
       </div>
       <BillingCard client={client} pkg={pkg} onUpdate={onUpdate}/>
-      <Card style={{padding:0,overflow:"hidden"}}>
-        <div style={{padding:"9px 13px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:11,fontWeight:700,color:C.textDim}}>Contract Preview</span>
-          <span style={{fontSize:10,color:C.textMuted}}>Scroll to read</span>
-        </div>
-        <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
-          <iframe
-            srcDoc={html}
-            title="Contract"
-            style={{
-              width:"100%",
-              height:480,
-              border:"none",
-              display:"block",
-              backgroundColor:"#fff",
-              maxWidth:"100%",
-            }}
-            sandbox="allow-same-origin allow-scripts"
-          />
-        </div>
-      </Card>
+      <SignedContractCard client={client} html={html}/>
     </div>
   );
 }

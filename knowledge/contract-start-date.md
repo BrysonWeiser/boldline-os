@@ -58,14 +58,16 @@ What to actually do:
 Either way: move it forward, never backward. Backward bills them for time that had not happened
 yet.
 
-## The open gap: nothing stores the signed copy
+## CLOSED 2026-09-16: the signed copy is now stored and shown
 
-`docusign-watch.mjs` records THAT the client signed and WHEN (`contractSigned`,
-`contractSignedAt`). It does not fetch the completed PDF back. So the only copy of what was
-actually agreed lives in the DocuSign account, while the OS shows a live re-render that may have
-drifted from it. Offered to Bryson on 2026-09-16 and not urgent, but it is the fix that makes one
-place hold the real thing: pull the combined document on completion and store it against the
-client record.
+The gap this section used to describe is fixed. The completed PDF is fetched out of DocuSign into
+a private bucket, and the OS and the portal both show THAT document rather than a re-render once
+one exists. A contract signed but not yet fetched says so plainly instead of quietly falling back.
+Full detail in KB `signed-contract-copy`.
+
+What it does NOT change: the signed PDF is still frozen, so everything above about moving a start
+date still applies exactly as written. It just means you can now see, side by side, that today's
+terms and the signed ones have diverged.
 
 ## 🔴 The bug this fixed (2026-09-16)
 

@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 187 task-keyed entries under `knowledge/`. They surface automatically via the
+> 188 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**187 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**188 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -186,6 +186,9 @@
 - **[contract-terms-versioning](../knowledge/contract-terms-versioning.md)** &mdash; &#9989; verified &middot; 2026-09-02  
   New agreements carry a "Client Delay and Abandonment" section (14 days to complete intake, written reminder, 10 day grace, then BoldLine may end it; setup fee non-refundable and the Monthly Minimum stays payable). 🔴 The contract renders FRESH every time it is opened, so terms are VERSIONED: v1 is anything signed before 3 Sep 2026, v2 adds this clause, and a signed agreement never gains a clause it was not signed with. Renewal stamps the current version, which the date inference alone could never do because renewing leaves contractSignedAt on the original date. 15 checks, six mutations.  
   <sub>*task:* add or change a clause in the standard agreement without altering contracts already signed; understand the client delay and abandonment clause; work out which version of the terms a client is on &nbsp;|&nbsp; *keywords:* contract terms version, CONTRACT_TERMS_VERSION, contractTermsVersion, terms v1 v2, abandonment clause, client delay, failed to respond, intake not completed, void the contract, cancellation fee, non-refundable setup fee, retroactive clause, signed contract changed, renewal stamps terms, section numbering</sub>
+- **[signed-contract-copy](../knowledge/signed-contract-copy.md)** &mdash; &#9989; verified &middot; 2026-09-16  
+  There were TWO copies of every agreement and only one was the contract. The OS copy re-renders from the client record on every open, so editing a date or a fee silently changed what the OS, and the CLIENT'S PORTAL, called their agreement. The DocuSign copy is a snapshot frozen at send time and is the legally operative one. Built 2026-09-16 - the watcher now fetches the completed PDF into a PRIVATE `client-contracts` bucket, the OS viewer archives on demand so nobody waits for the sweep, and a catch-up pass retries forever so one failed fetch never means no copy. `contractView` (mirrored in index.html, pinned by a test) gives three states, and the middle one, signed-but-not-fetched, SAYS SO rather than falling back to the re-render. The re-render is now folded away and labelled "Today's terms, rebuilt from this record". 65 checks + 16 mutations.  
+  <sub>*task:* show, store or reason about the agreement a client actually signed; why the OS copy and the DocuSign copy differ &nbsp;|&nbsp; *keywords:* signed contract, docusign, snapshot, re-render, contractView, signedContractPath, client-contracts bucket, contract-file, contract-pdf, combined document, certificate of completion, archive, drift</sub>
 
 ## Deploy
 
