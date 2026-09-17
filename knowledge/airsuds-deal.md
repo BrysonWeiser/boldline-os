@@ -93,9 +93,13 @@ simply never listed it, so a Store Launch agreement promised no page. Fixed for 
 client, and a new test compares the public site against the catalog so the two cannot drift again
 (see `pricing-model`).
 
-**Still to decide with Constantine:** the fee itself (recommended $25 per new subscriber or bulk
-order, single bottles free) and whether he pushes back on any of it. Bryson's message went out
-inviting exactly that.
+✅ **AGREED 2026-09-16 (Wed evening, Phoenix).** Bryson sent the message covering the platform
+switch to Meta, the per-sale fee and the landing page, explicitly inviting pushback. Constantine
+came back **"yes looks great"** with no changes asked for. So: **Meta, not Google. $25 per new
+subscriber or bulk order, single bottles free. A dedicated page for the subscription offer.**
+
+🔴 **STILL NOT A CLIENT.** Agreeing terms in a message is not a signature and not a record in
+the OS. The count stays at one until the contract is signed.
 
 ## 🔴 The bigger risk is the unit economics, not the package
 
