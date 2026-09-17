@@ -24,7 +24,12 @@
 // fixed date in the signed document.
 export const TERMS_EVENT_START = 5;
 
-export const usesEventStart = (cl) => Number((cl || {}).contractTermsVersion || 0) >= TERMS_EVENT_START;
+// 🔴 AND NOT WHEN THE DATE IS A PROMISE RATHER THAN AN ESTIMATE. `startDateFirm` means both
+// sides agreed a specific day, and the agreement prints it as agreed. Moving it because the
+// launch happened to land elsewhere would rewrite a term the client accepted, which is the same
+// wrong as rewriting an older client's fixed date.
+export const usesEventStart = (cl) =>
+  Number((cl || {}).contractTermsVersion || 0) >= TERMS_EVENT_START && !(cl || {}).startDateFirm;
 
 // The date format the contract and the OS both already use, so a stamped date is
 // indistinguishable from one Bryson typed.
@@ -80,6 +85,7 @@ export function goLiveDecision(client, adPerf, now = new Date()) {
     return {
       patch,
       note: `Ads started delivering on ${on}. Their agreement names a fixed start date, so nothing was changed. Move it only by written amendment.`,
+
     };
   }
 

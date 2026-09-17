@@ -243,7 +243,20 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // Delay clause is assembled before that point and reads it. A gate that is out of scope where
   // it is read throws on render, which is at least loud; a gate that silently reads undefined
   // would have shipped the wrong clause.
-  const eventStart = termsVersion >= 5;
+  // 🔴 AND WHETHER THIS PARTICULAR CLIENT'S DATE IS A PROMISE OR AN ESTIMATE.
+  //
+  // Bryson, 2026-09-17: *"make sure that there is an option to put estimated or exact start
+  // date"*. Most launches wait on a client handing over an ad account, so an estimate is the
+  // honest default. But some have a real fixed date somebody has committed to, a seasonal push
+  // or a product drop, and printing "the day the ads go live, estimated 14 November" on one of
+  // those is wrong in the other direction: it reads as though the date is not binding when both
+  // sides have agreed that it is.
+  //
+  // `startDateFirm` is per client and affects ONLY the Start Date. The Effective Date stays the
+  // signature date either way, because that split exists so the handover clock starts when the
+  // client actually has something to hand over, which is true regardless.
+  const firmStart = !!cl.startDateFirm;
+  const eventStart = termsVersion >= 5 && !firmStart;
   const dAb = hasAbandon ? 1 : 0;
 
   const nBase = 3 + (hasPerf?1:0) + (oneTime?1:0);
@@ -263,7 +276,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<p>(b) If Client has not provided them, or does not respond to Agency for fourteen (14) consecutive days, Agency will send a written reminder to the email address on page one. If the outstanding items are still not provided within ten (10) days after that reminder, Agency may end this Agreement immediately by written notice.</p>'
    +(oneTime
      ? '<p>(c) If this Agreement ends under (b), the build fee is earned in full and is not refundable, and any unpaid balance for work already performed remains payable. Agency has reserved build capacity and turned away other work for this engagement, so these amounts reflect that reservation and the work done, not a penalty.</p>'
-     : '<p>(c) If this Agreement ends under (b), the setup fee is earned in full and is not refundable, and the Monthly Minimum remains payable for each month or part month from the '+(eventStart?'Start Date':'Effective Date')+' to the date this Agreement ends. Agency has reserved capacity and turned away other work for the committed term, so these amounts reflect that reservation and the work done, not a penalty.</p>')
+     : '<p>(c) If this Agreement ends under (b), the setup fee is earned in full and is not refundable, and the Monthly Minimum remains payable for each month or part month from the '+(termsVersion>=5?'Start Date':'Effective Date')+' to the date this Agreement ends. Agency has reserved capacity and turned away other work for the committed term, so these amounts reflect that reservation and the work done, not a penalty.</p>')
    +'<p>(d) Nothing in this section obliges Agency to end this Agreement. Agency may instead pause work and extend the term by the length of the delay, on written notice. Time lost to Client delay does not count toward any Agency turnaround commitment.</p>'
    +'<p>(e) This section does not apply where the delay is caused by Agency, or by a platform outage or other event outside Client&rsquo;s reasonable control.</p>'
   );
@@ -459,7 +472,7 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 
   return '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'
    +'<div class="hd"><img src="'+LOGO+'" alt="BoldLine Media"><div><div class="co">BOLDLINE <span>MEDIA</span></div><div class="tag">Paid Advertising Management</div></div></div>'
-   +'<div class="docmeta"><span>Agreement No. BLM-'+agreementNo+'</span><span>Effective Date: '+(eventStart ? (signedOn ? esc(signedOn) : 'the date of last signature') : (esc(cl.contractStart)||'the date of last signature'))+'</span></div>'
+   +'<div class="docmeta"><span>Agreement No. BLM-'+agreementNo+'</span><span>Effective Date: '+(termsVersion>=5 ? (signedOn ? esc(signedOn) : 'the date of last signature') : (esc(cl.contractStart)||'the date of last signature'))+'</span></div>'
    +'<h1>Advertising Services Agreement</h1>'
    +'<p class="sub">This Advertising Services Agreement (the &ldquo;Agreement&rdquo;) is entered into between the parties below and governs the services described herein.</p>'
 
@@ -480,12 +493,14 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
        +'<p>2.1 This Agreement begins on the Start Date and <strong>ends automatically on completion of handover</strong> under Section 4.3. There is no minimum commitment, no renewal, no holdover, and no notice period, because there is no ongoing service to continue.</p>'
        +'<p>2.2 Client may engage Agency again at any time under a separate agreement. Nothing here obliges either party to do so.</p>'
      : '<h2>2. Term, Renewal, and Holdover</h2>'
-   +(eventStart
-     ? '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date on which the first advertising campaign under this Agreement begins delivering, as recorded by the advertising platform. Any date shown in the Key Commercial Terms above is an estimate for planning and does not itself begin the term. Agency will confirm the Start Date to Client in writing once it occurs. The Committed Term runs from the Start Date.</p>'
+   +(termsVersion >= 5
+     ? (eventStart
+       ? '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date on which the first advertising campaign under this Agreement begins delivering, as recorded by the advertising platform. Any date shown in the Key Commercial Terms above is an estimate for planning and does not itself begin the term. Agency will confirm the Start Date to Client in writing once it occurs. The Committed Term runs from the Start Date.</p>'
+       : '<p>2.1 <strong>Start Date.</strong> This Agreement takes effect on the Effective Date. The <strong>Start Date</strong> is the date shown in the Key Commercial Terms above, which the parties have agreed. The Committed Term runs from the Start Date.</p>')
        +'<p>2.2 The Committed Term is as shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment. No Monthly Minimum accrues before the Start Date.</p>'
      : '<p>2.1 This Agreement begins on the Start Date and continues for the Committed Term shown above. <strong>The initial term is a minimum commitment of three (3) months</strong>; Client acknowledges that paid-advertising results require an initial optimization period and the pricing reflects that commitment.</p>')
-   +'<p>'+(eventStart?'2.3':'2.2')+' At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>'
-   +'<p>'+(eventStart?'2.4':'2.3')+' <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
+   +'<p>'+(termsVersion>=5?'2.3':'2.2')+' At the end of any term, the parties may renew for a length of one (1), three (3), six (6), or twelve (12) months. The Monthly Minimum for a renewal depends on the renewal length selected: month-to-month service carries a premium over the standard three-month rate, and longer commitments receive a discounted rate, as quoted by Agency at the time of renewal. The rate for the current term is the Monthly Minimum stated in the Key Commercial Terms.</p>'
+   +'<p>'+(termsVersion>=5?'2.4':'2.3')+' <strong>Holdover.</strong> If the term expires and the parties have neither renewed nor terminated, this Agreement continues on a month-to-month basis at Agency&rsquo;s then-current month-to-month minimum for the same Service Package, until either party terminates under Section '+nTerm+'. This prevents any interruption of live campaigns.</p>'
      )
    +(oneTime
      ? '<h2>3. Fees and Payment</h2>'

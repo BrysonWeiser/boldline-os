@@ -4,7 +4,7 @@ topic: Contracts
 task: set a contract start date, handle a launch that slips, or understand why the term starts when the ads do
 keywords: [start date, effective date, terms v5, event start, campaignLiveAt, goLiveDecision, ads-sync, amendment, slipped launch, go live, spend30d, shiftEnd, reslotTerm]
 status: verified
-summary: From terms v5 the Start Date IS the day the first campaign begins delivering, not a date somebody guessed at signing. A slipped launch is then the agreement working as written, so there is nothing to amend and nothing to re-sign - which matters because this agreement's own amendment clause needs a signed writing from both parties and the email carve-out covers only upgrades and renewals. The Effective Date splits off and becomes the signature date, so the 14-day handover clock starts at signing (where it belongs) while fees start at go-live. `ads-sync` recognises go-live from the PLATFORMS' spend, not our launch button, stamps `campaignLiveAt` once, and moves the dates - but ONLY for v5+ clients, because a v4 client's signed PDF names a fixed date. 77 checks + 15 mutations.
+summary: From terms v5 the Start Date IS the day the first campaign begins delivering, not a date somebody guessed at signing - unless `startDateFirm` is set on that client, which prints an agreed exact date instead and stops the OS moving it. 🔴 EFFECTIVE DATE (signing, when work begins and the handover clock runs) AND START DATE (ads live, when the term and the minimum run) ARE DIFFERENT THINGS from v5. A slipped launch is then the agreement working as written, so there is nothing to amend and nothing to re-sign - which matters because this agreement's own amendment clause needs a signed writing from both parties and the email carve-out covers only upgrades and renewals. The Effective Date splits off and becomes the signature date, so the 14-day handover clock starts at signing (where it belongs) while fees start at go-live. `ads-sync` recognises go-live from the PLATFORMS' spend, not our launch button, stamps `campaignLiveAt` once, and moves the dates - but ONLY for v5+ clients, because a v4 client's signed PDF names a fixed date. 77 checks + 15 mutations.
 verified: 2026-09-17
 ---
 
@@ -38,6 +38,41 @@ Holdover renumber to 2.3 and 2.4 **only under v5**.
 🔴 **Splitting the Effective Date off fixed a real backwardness.** With one field, the clause
 giving the client fourteen days to hand over account access ran from a date *after* the launch
 that access enables. Now it runs from signing.
+
+## Estimated or exact, per client
+
+Bryson, 2026-09-17: *"make sure that there is an option to put estimated or exact start date"*.
+A toggle in the client edit sheet, under the start date, writing `startDateFirm`.
+
+- **Estimated** (default, and the one to leave alone): the agreement says the term starts the day
+  the ads go live, with the date shown as an estimate. A slip needs no amendment, and the OS
+  moves both dates once the ads spend.
+- **Exact date**: the agreement names that day and says the parties agreed it. 🔴 **The OS will
+  NOT move it**, because moving a date the client accepted is rewriting a term they signed. For a
+  seasonal push or a product drop where a real date has been committed to.
+
+🔴 **Only the Start Date wording changes.** Everything else v5 brought applies either way: the
+Effective Date is the signature date, no Monthly Minimum accrues before the Start Date, the delay
+clause bills from the Start Date, and **the numbering is identical**, so 2.3 never means two
+different things across two BoldLine agreements signed the same week.
+
+## 🔴 Two dates, and they are not the same thing
+
+Bryson, 2026-09-17: *"isnt the start date for the contract for us to start working on the ads not
+for the start date of the actual ads?"* Half right, and worth keeping straight:
+
+| | What it is | What hangs off it |
+|---|---|---|
+| **Effective Date** | the signing date | the agreement is in force, work begins, the client's 14-day handover clock runs |
+| **Start Date** | the ads going live (or an agreed date) | the Committed Term, and the Monthly Minimum |
+
+Section 1 never ties the start of WORK to the Start Date, so there is no conflict.
+
+**Why the term runs from the ads rather than from when the build starts:** the Monthly Minimum is
+a floor on the performance fee, and the performance fee only exists once ads run. A month with no
+ads is a month with nothing for the minimum to be a floor of. The build is paid for by the setup
+fee, which the agreement says is earned in full and non-refundable even if the client walks, so
+the build is protected without the term having to cover it.
 
 ## How the date gets recorded
 
