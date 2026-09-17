@@ -197,3 +197,35 @@ it.
 client owns and pays for the ad account, BoldLine only ever holds manager access. If any of those
 do not exist yet, that is setup work nobody has scheduled.
 
+## 2026-09-16 (evening) — IT IS A FRESH SHOPIFY STORE, AND THAT CHANGES THREE THINGS
+
+**Constantine:** *"Yeah, I can get all that done, everything will be set up on a fresh Shopify
+store as well."* Bryson: **about a week until he is ready.**
+
+**1. The tracking worry mostly solves itself.** Shopify's Meta sales channel installs the pixel
+AND the Conversions API and tracks Purchase **with the order value** automatically. One setting
+decides whether the server-side half runs: **data sharing must be set to Maximum** (Enhanced is
+the minimum that enables the Conversions API). That single dropdown is now the whole tracking
+task. Verify it rather than assume it — a store can look connected with the browser pixel only.
+
+🔴 **2. SUBSCRIPTIONS NEED AN APP, AND THE ENTIRE BILLING DEAL RESTS ON THEM.** Shopify does not
+sell recurring products out of the box; it needs a subscription app (Shopify's own free
+**Shopify Subscriptions** app covers a straightforward plan like this one). **BoldLine is paid
+$25 per new subscriber or bulk order.** If the store launches without a subscription option
+there are no subscribers, the ads have nothing to sell but $11 single bottles at $5 of margin,
+and the arrangement both sides just agreed is unbuildable. **This has to be decided while the
+store is being built, not after.**
+
+🔴 **3. THE LANDING PAGE QUESTION CHANGED AND IS NOT DECIDED.** The promise was a dedicated page
+for the subscription offer, which for other clients means a BoldLine-built page on their
+subdomain. A page like that **cannot take payment** — the visitor has to be handed off to
+Shopify to buy. On an $11 impulse product an extra click is expensive, and the purchase event
+fires on Shopify either way. **Recommendation: point the ads at a page inside his Shopify store
+and have BoldLine write and structure it**, which keeps the buy button and the native tracking
+on the same page. It still delivers the landing page the package lists, built where the checkout
+is. **Raise it with Bryson before changing what a client was promised.**
+
+**Also worth setting expectations on:** a brand new store has no reviews, no order history and no
+trust signals, which converts worse than an established one. Paid traffic to a cold store is a
+known slow start.
+
