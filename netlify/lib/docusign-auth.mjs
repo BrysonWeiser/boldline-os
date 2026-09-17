@@ -117,6 +117,31 @@ export async function dsGet(path) {
   return data;
 }
 
+// One authenticated GET that returns RAW BYTES rather than JSON, for the completed PDF.
+//
+// 🔴 A SEPARATE FUNCTION BECAUSE `dsGet` WOULD DESTROY THE FILE. It calls `resp.json()`,
+// which on a PDF body throws, gets swallowed by the `.catch(() => ({}))` and hands back an
+// empty object that reads as a successful empty response. The caller would then store zero
+// bytes as a client's signed agreement.
+//
+// Errors still arrive as JSON, so a failure is decoded from the same bytes and reported the
+// way `dsGet` reports one.
+export async function dsGetBytes(path) {
+  const token = await getAccessToken();
+  const url = `${DS.basePath}/restapi/v2.1/accounts/${DS.accountId}${path}`;
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const buf = new Uint8Array(await resp.arrayBuffer());
+  if (!resp.ok) {
+    let data = {};
+    try { data = JSON.parse(Buffer.from(buf).toString("utf8")); } catch { /* not JSON */ }
+    const e = new Error(`docusign ${resp.status}: ${data.message || data.errorCode || "request failed"}`);
+    e.stage = "read";
+    e.detail = data;
+    throw e;
+  }
+  return buf;
+}
+
 // Whether DocuSign is configured at all. A missing variable should skip the job quietly
 // rather than throw on every scheduled run.
 export const isConfigured = () => !!(DS.ik && DS.userId && DS.accountId && DS.privateKey);

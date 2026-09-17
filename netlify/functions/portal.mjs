@@ -591,13 +591,26 @@ const makePortalHTML = (cl, pkg, notice) => {
     + '<div><div class="cwide"><div class="card"><div class="lbl">Contract Status</div><div style="font-size:13px;font-weight:700;color:' + (cl.contractStatus === "active" ? "#10B981" : cl.contractStatus === "pending" ? "#F59E0B" : "#EF4444") + ';margin-bottom:6px">' + (cl.contractStatus === "active" ? "Signed and Active" : cl.contractStatus === "pending" ? "Pending Signature" : "Expired") + '</div><div style="font-size:11px;color:#6B7280;line-height:1.6">Start: ' + (cl.contractStart || "not set") + " · End: " + (cl.contractEnd || "not set") + "</div>" + contractAlert + "</div>"
     // Full agreement, always readable + downloadable by the client (same document
     // the OS renders — shared template in netlify/lib/contract-shared.cjs).
-    + '<div class="card"><div class="lbl">Your Agreement</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">Your full service agreement, available here anytime. Scroll to read it, or save a copy for your records.</div>'
+    // 🔴 WHICH OF THE TWO DOCUMENTS THE CLIENT IS LOOKING AT, SAID OUT LOUD.
+    //
+    // Bryson, 2026-09-16: *"make it so it only ever shows the correct version"*. The frame
+    // below is BoldLine RE-RENDERING the agreement from the client record, so it moves the
+    // moment a date, a fee or a package is edited. The document they actually signed is
+    // frozen inside DocuSign. Before this, both were called "Your Agreement" with no
+    // distinction, so an edit on our side silently changed what the client was shown as
+    // their contract. That is the worst version of this bug, because they cannot check.
+    + (cl.contractSigned && cl.docusignEnvelopeId
+        ? '<div class="card"><div class="lbl">Your Signed Agreement</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">This is the document you signed, exactly as you signed it, with the signature certificate. It is the one that counts.</div>'
+        : '<div class="card"><div class="lbl">Your Agreement</div><div style="font-size:11px;color:#9CA3AF;margin-bottom:10px;line-height:1.6">Your full service agreement, available here anytime. Scroll to read it, or save a copy for your records.</div>')
     // The e-signed original, straight from DocuSign: the signature mark plus the
     // Certificate of Completion. Shown only when there is genuinely one to fetch, because a
     // button that returns an error is worse than no button.
     + (cl.contractSigned && cl.docusignEnvelopeId
         ? '<a class="btn" style="display:block;text-align:center;text-decoration:none;margin:0 0 10px;box-sizing:border-box" href="/.netlify/functions/contract-pdf?token=' + encodeURIComponent(cl.portalToken || "") + '">Download the Signed Copy</a>'
           + '<div style="font-size:10px;color:#6B7280;margin:-4px 0 12px">The e-signed original, including the signature certificate.</div>'
+        : '')
+    + (cl.contractSigned && cl.docusignEnvelopeId
+        ? '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#4B5563;margin:16px 0 6px">Your terms, written out</div><div style="font-size:11px;color:#6B7280;margin-bottom:10px;line-height:1.55">The same agreement set out in full so it is easy to read on a phone. If anything here ever differs from your signed copy above, the signed copy is the one that applies.</div>'
         : '')
     + '<button class="btn" style="margin:0 0 10px" onclick="printContract()">Save or Print a Copy</button><div style="font-size:10px;color:#6B7280;margin:-4px 0 10px">Opens your print window. Choose &ldquo;Save as PDF&rdquo; to keep a copy.</div><div style="border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.12)"><iframe id="bl-contract-frame" title="Service Agreement" srcdoc="' + makeContractHTML(cl, pkg, "/logo.png").replace(/&/g, "&amp;").replace(/"/g, "&quot;") + '" style="width:100%;height:70vh;min-height:520px;border:none;display:block;background:#fff"></iframe></div></div></div></div>'
     + "</div></div></details></div>"

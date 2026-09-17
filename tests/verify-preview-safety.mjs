@@ -53,6 +53,16 @@ const MANIFEST = {
   "Service Agreement": "inert document, no fetch / form / onclick / external links",
   "Contract": "inert document, no fetch / form / onclick / external links",
   "Email preview": "sandboxed with no allow-scripts, so nothing in it can run",
+  // Added 2026-09-16 with the signed-contract viewer. Same inert document as "Contract"; it
+  // exists separately because it is now labelled as TODAY'S TERMS rather than as the
+  // agreement, and is folded away behind a toggle so it can never be mistaken for the
+  // document the client signed.
+  "Current terms": "inert document, no fetch / form / onclick / external links",
+  // 🔴 THE ONLY EMBED IN THE OS THAT IS NOT `srcDoc`. It loads the stored signed PDF over a
+  // short-lived Supabase signed URL, which is a different origin holding a read-only file. It
+  // cannot reach the OS, and the URL it is given expires within the hour. What makes it safe
+  // is what is NOT there: no allow-forms, no allow-same-origin, no token of ours in the page.
+  "Signed agreement": "a cross-origin, read-only PDF on an expiring signed URL; nothing of ours is in it",
 };
 
 // 🔴 NOT IN THE MANIFEST, AND DELIBERATELY SO: saved landing pages (2026-09-04). They are the
@@ -75,6 +85,18 @@ const MANIFEST = {
     const t = /title="([^"]+)"/.exec(tag);
     embeds.push({ title: t ? t[1] : "(untitled)", tag });
   }
+  // 🔴 AND THE ONES THAT ARE NOT `srcDoc`. The scan above looks only for embeds handed
+  // rendered HTML, which was every embed in the OS until the signed-contract viewer arrived
+  // and pointed an iframe at a URL instead. An embed is an embed: if the OS puts something in
+  // a frame, the question of what stops it doing harm has to be answered for it too.
+  // 🔴 `src={...}` ONLY, which is the OS rendering a frame inside itself. A first pass matched
+  // every `src=` and swept in the saved-page viewer, whose iframe is written into a STRING for
+  // a document that opens in its own tab — already out of scope for the reason set out below
+  // the manifest, and carrying a runtime title this file could never match anyway.
+  for (const m2 of UI.matchAll(/<iframe\b(?![^>]*src[Dd]oc)[^>]*\ssrc=\{[^>]*>/g)) {
+    const t = /title="([^"]+)"/.exec(m2[0]);
+    embeds.push({ title: t ? t[1] : "(untitled)", tag: m2[0] });
+  }
   // The contract embed is built by string concatenation rather than JSX, so it is matched
   // separately; without this the suite would silently cover one fewer preview than it claims.
   for (const t of (UI.match(/srcdoc="'\+[a-zA-Z]+/g) || [])) {
@@ -91,6 +113,52 @@ const MANIFEST = {
   }
   ok("🔴 every untitled embed is rejected", !embeds.some((e) => e.title === "(untitled)"),
     "an embed with no title cannot be reasoned about or matched to the manifest");
+}
+
+// ── 1b. 🔴 THE SIGNED CONTRACT VIEWER ────────────────────────────────────────
+// Added 2026-09-16 so the OS shows the document a client actually signed rather than a
+// re-render of today's terms. Two embeds came with it and each needs its own answer.
+{
+  const card = UI.slice(UI.indexOf("function SignedContractCard"), UI.indexOf("function ContractTabContent"));
+  ok("the signed-contract card exists to be checked", card.length > 500, `${card.length} chars`);
+
+  // 🔴 NOTHING OF OURS IS INSIDE THAT FRAME. It points at a Supabase signed URL, a different
+  // origin serving a read-only file. Giving it allow-same-origin would hand a PDF viewer the
+  // OS's own origin, and allow-forms would let a crafted document post somewhere.
+  ok("🔴 the signed PDF frame is not granted same-origin or forms",
+    !/title="Signed agreement"[^>]*sandbox="[^"]*allow-(same-origin|forms)/.test(card),
+    "a frame on an expiring external URL must not be handed the OS's origin");
+
+  // 🔴 THE LINK IS FETCHED, NEVER STORED. A viewing URL that outlived the page would be a
+  // readable contract sitting in a record, which is the opposite of keeping it private.
+  ok("🔴 the viewing link is never written back to the client record",
+    !/onUpdate\s*&&\s*onUpdate\([^)]*signedContract/.test(card) && !/signedContractUrl/.test(UI),
+    "a stored viewing link is a contract anyone holding the record can read");
+
+  // 🔴 THE RE-RENDER IS NEVER THE HEADLINE ONCE SOMETHING IS SIGNED. This is the actual ask:
+  // the OS must not present today's terms as the agreement.
+  ok("🔴 the re-render is labelled as today's terms, not as the agreement",
+    /Today&rsquo;s terms, rebuilt from this record/.test(card)
+    && /This is not the signed agreement/.test(card),
+    "an unlabelled re-render beside a signed contract is the bug this card was built to end");
+  ok("🔴 and it is folded away rather than shown by default",
+    /const \[showTerms,setShowTerms\]=useState\(false\)/.test(card),
+    "shown open, it reads as the contract again");
+
+  // The three states, and that the middle one speaks up.
+  ok("a signed contract with no stored copy says so plainly",
+    /Signed Copy Not Here Yet/.test(card) && /has not fetched the signed document/.test(card),
+    "silence here means the OS quietly falls back to the re-render");
+  // 🔴 THE RULE EXISTS TWICE, WHICH IS THE STANDING TRAP IN THIS CODEBASE. `contractView` is
+  // in the shared module the server uses and mirrored in the browser bundle, because the OS
+  // is one static file that cannot import it. Whitespace is stripped rather than normalised,
+  // so the two are compared on what they DO and a reformat of either does not fail this.
+  ok("🔴 the rule lives in one place and both copies agree", (() => {
+    const lib = readFileSync(join(ROOT, "netlify/lib/docusign-archive.mjs"), "utf8");
+    const bare = (t) => t.replace(/\s+/g, "");
+    const shape = 'if(c.signedContractPath)return"signed";if(c.contractSigned)return"pending";return"draft";';
+    return bare(lib).includes(shape) && bare(UI).includes(shape);
+  })(), "the OS and the server disagree about which document is the agreement");
 }
 
 // ── 2. The landing page: cannot post, cannot navigate away ───────────────────

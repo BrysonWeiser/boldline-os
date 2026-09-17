@@ -14,6 +14,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { combinedDocumentPath } from "../netlify/lib/docusign-archive.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 let pass = 0, fail = 0;
@@ -76,12 +77,22 @@ const body = src.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("
 }
 
 // ── 5. It asks for the CERTIFICATE too, not just the page ───────────────────
+//
+// 🔴 The path moved into a shared helper on 2026-09-16, when the signed-contract archive made
+// this the THIRD caller asking DocuSign for the same document. So this no longer greps for a
+// literal that is not there any more: it RUNS the helper this file now calls, which is a
+// stronger check than the string ever was, and separately pins that this file calls it.
 {
   ok("🔴 it requests the combined document",
-    /documents\/combined/.test(body),
+    combinedDocumentPath("env-1").endsWith("/documents/combined"),
     "the document alone drops the Certificate of Completion, which is the audit trail and "
     + "the whole reason to prefer this over the OS's own rendering");
-  ok("and the envelope id is url-encoded into the path", /encodeURIComponent\(cl\.docusignEnvelopeId\)/.test(body));
+  ok("and the envelope id is url-encoded into the path",
+    combinedDocumentPath("a b/c") === "/envelopes/a%20b%2Fc/documents/combined",
+    combinedDocumentPath("a b/c"));
+  ok("🔴 and this endpoint is built from that one helper, not its own copy of the path",
+    /combinedDocumentPath\(cl\.docusignEnvelopeId\)/.test(body) && !/documents\/combined/.test(body),
+    "a second hand-built copy of this URL is how the three callers drift apart");
 }
 
 // ── 6. 🔴 THE BUTTON APPEARS ONLY WHEN THERE IS SOMETHING TO FETCH ──────────
