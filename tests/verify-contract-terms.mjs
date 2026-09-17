@@ -70,8 +70,11 @@ ok("nothing at all is safe input",
     /const t = contractTerms\(client, pkg\);/.test(UI)
     && !/\$\{pkg\.price\.toLocaleString\(\)\}<span[^>]*>\/mo min/.test(UI),
     "this is the card in the screenshot");
-  ok("a results-only client leads with the per-lead rate, not a minimum he does not pay",
-    /\/qualified lead/.test(UI) && /t\.resultsOnly \?/.test(UI));
+  // The word is now the client's own, lead or sale (KB `billing-for-sales`), so the rate line is
+  // pinned by its shape rather than by the literal it used to contain.
+  ok("a results-only client leads with the rate, not a minimum he does not pay",
+    /\/qualified \{client\.billingResultKind==="sale"\?"sale":"lead"\}/.test(UI)
+    && /t\.resultsOnly \?/.test(UI));
   ok("a waived setup says so rather than showing a fee",
     /t\.setupWaived \? "Setup waived"/.test(UI));
   ok("and founding terms are named next to the list price they replace",

@@ -411,5 +411,67 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
     "pieceAction force-reloads the campaign; without it the amber note sits there after it is fixed");
 }
 
+// ── 🔴 THE RENAME HAS TO REACH EVERY SCREEN, NOT JUST THE AGREEMENT ──────────
+//
+// Bryson, 2026-09-17, looking at a client switched to Sales: *"make sure everything has the
+// correct terminology"*. The switch renamed the contract and the portal on the day it was built,
+// and left the OS around it saying "lead" in fifteen places, including the summary line directly
+// above the switch itself. A screen that contradicts the document it prints is how someone stops
+// trusting either.
+{
+  // The Billing card takes its words from the SAME helper the contract asks, so the two cannot
+  // drift: flip the switch and both move together.
+  const at = S.indexOf("function BillingCard");
+  const card = S.slice(at, S.indexOf("\nfunction ", at + 20));
+  ok("🔴 the Billing card uses the contract's own vocabulary",
+    /const W = resultWords\(client\);/.test(card)
+    && /const itNoun = W\.itNoun, itPlural = W\.itNoun \+ "s";/.test(card),
+    "a second vocabulary in the OS is a second thing to forget when the switch is flipped");
+
+  const stillHard = [
+    "Approve some leads first.",
+    "No billable leads right now.",
+    "You approve qualified leads, and each approved batch",
+    "Each approved batch of qualified leads is invoiced",
+    "No new leads to bill. Delivered leads show up here",
+  ].filter((d) => card.includes(d));
+  ok("and the lines a per-sale client would read are no longer hardcoded",
+    stillHard.length === 0, stillHard.join(" | "));
+
+  // 🔴 A STORE PACKAGE BILLS A PERCENTAGE BY DEFAULT, and the client's own Package tab quoted
+  // that percentage beside an agreement saying $25 per sale. The client's basis has to override
+  // the package's model, or the two screens disagree about the same deal.
+  const at2 = S.indexOf("const pkgPerfLabel = ");
+  const fn = S.slice(at2, S.indexOf("\n};", at2) + 3);
+  ok("🔴 the package fee label can follow the client, not just the package",
+    /resultKind/.test(fn) && /per qualified sale/.test(fn),
+    "it cannot know what this client actually agreed");
+  ok("🔴 and the sale branch wins over the percentage",
+    fn.indexOf('=== "sale"') > 0 && fn.indexOf('=== "sale"') < fn.indexOf('"ad_spend_pct"'),
+    "the percentage branch returning first leaves a per-sale store client reading as a percentage");
+  // 🔴 EVERY SCREEN THAT NAMES THE BILLABLE THING, not just the one he happened to be looking
+  // at. Found by rendering each client tab in a browser as a per-sale client and scanning the
+  // TEXT ON SCREEN, which is how the scorecard and the overview revenue line turned up after
+  // the Billing card was already fixed.
+  ok("🔴 the scorecard counts this client's own unit",
+    /\[`Qualified \$\{SW\.itNoun\}s`, String\(qual\)\]/.test(S)
+    && /\[`Cost per qualified \$\{SW\.itNoun\}`/.test(S)
+    && /const SW = resultWords\(client\);/.test(S),
+    "a store client was shown Qualified leads and Cost per qualified lead on the same screen as "
+    + "an agreement that never uses the word");
+  ok("🔴 the overview revenue line does too",
+    /\/qualified \{client\.billingResultKind==="sale"\?"sale":"lead"\}<\/span>/.test(S));
+  // 🔴 THE FEE FINDER IS HIDDEN RATHER THAN RENAMED. It works from job value and close rate to
+  // price a LEAD. Relabelling it would dress lead-to-customer arithmetic up as something it is
+  // not: a sale is already the customer, so there is no close rate left to apply.
+  ok("🔴 the lead fee finder is not offered on a per-sale client",
+    /\{W\.kind==="lead"&&<button onClick=\{\(\)=>setShowFeeFinder/.test(S),
+    "renaming it would be worse than hiding it, because the arithmetic underneath is about leads");
+
+  ok("the client's own package card passes it",
+    /pkgPerfLabel\(pkg,perLead,client&&client\.billingResultKind\)/.test(S),
+    "the override exists but the one screen that needs it does not use it");
+}
+
 if (fails.length) { console.error(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.error("  " + f)); process.exit(1); }
 console.log(`✓ verify-billing-for-sales: ${pass} checks passed`);

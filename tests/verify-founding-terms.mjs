@@ -280,7 +280,17 @@ const BASE = {
   ok("🔴 the card no longer calls it a management fee",
     !/management fee/i.test(card),
     "that model was rejected in writing by the first client and replaced on 2026-08-18");
-  ok("it shows the per-lead rate beside the minimum", /qualified lead/.test(card));
+  // 🔴 THE RATE IS SHOWN, IN THIS CLIENT'S OWN WORD. The card used to say "lead" everywhere
+  // regardless, so the screen where the fee is set disagreed with the agreement it prints
+  // (Bryson, 2026-09-17: *"make sure everything has the correct terminology"*). It now takes its
+  // vocabulary from `resultWords`, the same helper the contract asks, so the two cannot drift.
+  ok("it shows the rate beside the minimum", /\/qualified \{itNoun\}/.test(card));
+  ok("🔴 and the card's wording comes from the contract's own vocabulary",
+    /const W = resultWords\(client\);/.test(card) && /const itNoun = W\.itNoun/.test(card),
+    "a second vocabulary in the OS is a second thing to forget when the switch is flipped");
+  ok("🔴 and no client-facing line in it hardcodes lead any more",
+    !/qualified leads? (is|are|show|they|delivered)/.test(card) && !/Approve some leads first/.test(card),
+    "these are the lines a client billed per sale would have read as wrong");
   ok("and says plainly when there is no minimum", /No monthly minimum/.test(card));
 }
 

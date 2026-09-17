@@ -99,8 +99,11 @@ t("🔴 the renewal screen shows both numbers", () => {
   // the string was still in the file and rendered to nobody. Checking that a line EXISTS is
   // not checking that it is shown, which is a mistake this repo has made in three different
   // costumes now.
-  assert.match(S, /\{basePerLead>0&&<div style=\{\{marginTop:3\}\}>Per qualified lead: <strong/,
-    "the per-lead line is gone, or is gated on something other than the client actually having a per-lead rate");
+  // 🔴 The word is now the client's own (lead or sale, KB `billing-for-sales`), so the GATE is
+  // pinned and the word is required to follow the client rather than be a literal.
+  assert.match(S, /\{basePerLead>0&&<div style=\{\{marginTop:3\}\}>Per qualified \{client\.billingResultKind==="sale"\?"sale":"lead"\}: <strong/,
+    "the per-lead line is gone, is gated on something other than the client actually having a rate, "
+    + "or stopped following whether this client is billed per lead or per sale");
   assert.match(S, /termMonthly\(basePerLead,m\)/, "the per-lead figure shown is not the discounted one");
 });
 
