@@ -243,3 +243,10 @@ or subscription page. That is his call and it keeps the promise he made word for
 trust signals, which converts worse than an established one. Paid traffic to a cold store is a
 known slow start.
 
+## The landing page is built (2026-09-16)
+
+Store mode shipped: one field on his record (the page where people buy) turns his landing page
+into a shop page. Buttons go to his Shopify with the ad's tracking attached, no enquiry form,
+buying language instead of quoting language, and the AI writes buying copy rather than quote
+copy. He does not have to do anything except paste the product link into his portal when the
+store exists, and Bryson can paste it for him. Details in KB `store-mode`.

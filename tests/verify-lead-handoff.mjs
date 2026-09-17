@@ -379,14 +379,34 @@ const fakeFetch = (script) => {
     // a nationwide one, and that branch is unreachable for any client with a service area. A
     // mutation putting a globe emoji back on it passed until this row existed.
     ["national", renderLandingPage({ ...clean, campaignSetup: { ...clean.campaignSetup, serviceArea: "Nationwide" } })],
+    // 🔴 A SHOP PAGE IS A WHOLE DIFFERENT SET OF FURNITURE: no form, different trust row,
+    // different chips, different closing block, and three buttons pointing off site. Every
+    // one of those is a place an emoji or a relative link can appear, and none of them is
+    // reached by any row above. Added the day shop mode was built rather than the day
+    // something slipped through it.
+    ...LAYOUTS.map((l) => [`shop / ${l}`,
+      renderLandingPage({ ...clean, storeUrl: "https://stencilandthread.com/shop",
+        landingPage: { ...clean.landingPage, design: { layout: l } } })]),
+    ["shop / hand-off", renderLandingPage({ ...clean, storeUrl: "https://stencilandthread.com/shop" },
+      { handoff: { phone: "(541) 555-0100" } })],
   ];
+
+  // 🔴 ONE NARROW EXEMPTION, AND IT IS THE TRACKING TAG ONLY. A shop page's buttons carry
+  // `utm_source=boldline` on the way to the client's own store. That tag is not a link back to
+  // us and a visitor cannot follow it anywhere: it exists so the client's own order records
+  // name us as the source, which is the evidence the per-sale billing rests on. So the rules
+  // below read the DESTINATION of every link, with the tracking stripped off. Everything a
+  // visitor could actually click, and every word of the page itself, is checked exactly as
+  // strictly as before.
+  const target = (h) => h.replace(/[?#].*$/, "");
+  const deTag = (h) => h.replace(/([?&])(utm_[a-z]+|gclid|wbraid|gbraid|fbclid|ttclid|msclkid)=[^&"#]*/g, "$1");
 
   for (const [label, html] of pages) {
     const hrefs = [...html.matchAll(/href="([^"]*)"/g)].map((m) => m[1]);
 
     ok(`🔴 the ${label} page links nowhere near BoldLine`,
-      !hrefs.some((h) => /boldline|\.netlify\.app|^https?:\/\/os\./i.test(h)),
-      `found: ${hrefs.filter((h) => /boldline|netlify/i.test(h)).join(", ")}`);
+      !hrefs.some((h) => /boldline|\.netlify\.app|^https?:\/\/os\./i.test(target(h))),
+      `found: ${hrefs.filter((h) => /boldline|netlify/i.test(target(h))).join(", ")}`);
 
     // 🔴 Relative links are the quiet version. Live they hit the client's domain; previewed
     // in an iframe srcdoc they resolve against the OS.
@@ -401,7 +421,7 @@ const fakeFetch = (script) => {
       odd.length === 0, `found: ${odd.join(", ")}`);
 
     ok(`the ${label} page never names BoldLine to the client's customer`,
-      !/[Bb]old[Ll]ine/.test(html),
+      !/[Bb]old[Ll]ine/.test(deTag(html)),
       "the visitor is on the client's own domain and has never heard of us");
 
     // 🔴 NO EMOJIS ON ANYTHING A CLIENT'S CUSTOMER SEES. Bryson, 2026-09-01: *"for all landing

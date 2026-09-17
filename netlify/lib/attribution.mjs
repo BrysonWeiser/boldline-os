@@ -33,6 +33,22 @@ export const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign", "utm_term",
 // Everything the browser is allowed to send us about where a visitor came from.
 export const ATTRIBUTION_KEYS = [...CLICK_KEYS, ...UTM_KEYS];
 
+// 🔴 WHAT A SHOP PAGE MAY CARRY ACROSS TO THE CLIENT'S OWN STORE, AND NOTHING ELSE.
+//
+// A shop page sends every click on to the client's store, and it has to take the ad's
+// tracking with it or the order that follows is unattributable — on an agreement that
+// counts a Qualified Sale from the client's own order records, that is the difference
+// between getting paid and not. `fbclid` is Meta's, and it is deliberately here even though
+// it is not one of OUR intake keys: Meta puts it on the ad's URL, it lands on the landing
+// page, and the shop never sees it unless it is passed on.
+//
+// 🔴 IT IS A LIST RATHER THAN A PASS-THROUGH BECAUSE A PASS-THROUGH SPENDS MONEY. Copying
+// the whole query string would let anyone who can write a URL append a parameter of their
+// choosing to a link our ads pay for, and Shopify reads `?discount=CODE` off a storefront
+// URL and applies it. One posted link and a client's margin is gone, out of an ad budget
+// they paid for. Anything not named here is dropped.
+export const STORE_FORWARD_KEYS = [...ATTRIBUTION_KEYS, "fbclid", "ttclid", "msclkid"];
+
 // 🔴 THIS ENDPOINT IS PUBLIC, SO IT ACCEPTS ONLY WHAT IT KNOWS. Anyone can post to the
 // intake URL. Copying arbitrary keys off a request body onto a stored record is how a
 // public form becomes a way to write junk into someone's client record, so the allow list
