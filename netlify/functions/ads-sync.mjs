@@ -38,6 +38,7 @@ import { getCampaigns as metaCampaigns, getAccountHealth as metaAccountHealth } 
 import { getAccessToken as gadsToken, getCampaigns as gadsCampaigns } from "./google-ads.mjs";
 import { metaOn, metaDelivering, googleOn, googleDelivering } from "../lib/meta-status.mjs";
 import { goLiveDecision, fmtDate as fmtDay } from "../lib/campaign-live.mjs";
+import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 
 const DAYS_PER_MONTH = 30.4; // matches MyAdsInsights in index.html
 const OVER_BUDGET_GRACE = 1.05; // 5% headroom before "over budget" trips
@@ -365,6 +366,7 @@ export default withFailureAlert("ads-sync", async () => {
     // It writes ONCE per client, and for a client on older terms it records the go-live without
     // touching their dates, because their signed document names a fixed one.
     const live = goLiveDecision(cl, adPerf, new Date());
+    let liveLog = null;
     if (live.patch) {
       await dispatchAlert({
         severity: live.patch.contractStart ? "green" : "yellow",
@@ -372,6 +374,27 @@ export default withFailureAlert("ads-sync", async () => {
         body: live.note,
         smsText: `${cl.name}'s ads are live and spending.`.slice(0, 300),
       }).catch((e) => console.error("ads-sync: go-live alert failed:", e.message));
+
+      // 🔴 THE WRITTEN CONFIRMATION THE AGREEMENT PROMISES. Terms v5 clause 2.1: "Agency will
+      // confirm the Start Date to Client in writing once it occurs." It states the dates as
+      // settled and asks for nothing, because on an estimated start date nothing changed: the
+      // agreement already said the term begins when the ads do.
+      //
+      // 🔴 ONLY WHEN THE DATES ACTUALLY MOVED. `live.patch.contractStart` is set only for a
+      // client on the estimate. A client with an agreed exact date, or on older terms, gets
+      // nothing, because for them the date genuinely did not change and telling them it had
+      // would be false. Those are the ones Bryson is told about in amber instead.
+      if (live.patch.contractStart) {
+        const sent = await autoSendClientEmail(cl, "start_confirmed", {
+          startDate: live.patch.contractStart,
+          endDate: live.patch.contractEnd || cl.contractEnd || "",
+        });
+        // Fail-soft on purpose: a bounced email must never cost the recorded go-live, which is
+        // the fact the term depends on. The failure is logged and the alert above already told
+        // Bryson the dates, so he can send it by hand from the Emails tab.
+        if (sent.sent) liveLog = sent.logEntry;
+        else console.error(`ads-sync: start-date confirmation to ${cl.name} not sent:`, sent.reason);
+      }
     }
 
     await supabase.from("clients")
@@ -380,7 +403,11 @@ export default withFailureAlert("ads-sync", async () => {
           ...cl, adPerf, adSyncState: cur,
           ...(nextPending ? { pendingActions: nextPending } : {}),
           ...(live.patch || {}),
-          ...(live.note ? { commLog: [{ date: fmtDay(new Date()), note: live.note, cat: "contract", ts: Date.now() }, ...(cl.commLog || [])] } : {}),
+          ...(live.note ? { commLog: [
+            ...(liveLog ? [liveLog] : []),
+            { date: fmtDay(new Date()), note: live.note, cat: "contract", ts: Date.now() },
+            ...(cl.commLog || []),
+          ] } : {}),
         },
         updated_at: new Date().toISOString(),
       })

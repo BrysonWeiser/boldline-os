@@ -14,7 +14,7 @@
 // Rendered and read, never pattern-matched: an email is generated text and the only way to
 // check generated text is to produce it and look at the words (KB `repo-tests`).
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { EMAIL_TYPES, renderClientEmail, emailAutoPatch } from "../netlify/lib/client-emails-shared.mjs";
@@ -263,10 +263,15 @@ const inv = (o) => {
 // is how the duplicate welcome happened in the first place. So the flag is checked against
 // the REAL senders rather than trusted.
 {
-  const senderSrc = ["stripe-webhook", "billing-watch", "client-nurture", "docusign-watch"]
-    .map((f) => readFileSync(join(ROOT, `netlify/functions/${f}.mjs`), "utf8")).join("\n")
-    // docusign-watch names its email in the decision module, not at the call site.
-    + readFileSync(join(ROOT, "netlify/lib/docusign-status.mjs"), "utf8");
+  // 🔴 EVERY SENDER, FOUND RATHER THAN LISTED. This was a hand-written list of four function
+  // names, which is the same drift this suite exists to catch: `ads-sync` became the fifth
+  // sender on 2026-09-17 and the check failed a correct change, because the list had not been
+  // edited. A list of files that must be kept in step with the code is a list that will be
+  // wrong. Reading the whole directory cannot go stale.
+  const dirSrc = (rel) => readdirSync(join(ROOT, rel))
+    .filter((f) => f.endsWith(".mjs"))
+    .map((f) => readFileSync(join(ROOT, rel, f), "utf8")).join("\n");
+  const senderSrc = dirSrc("netlify/functions") + "\n" + dirSrc("netlify/lib");
 
   // Every type a sender actually names, discovered from source rather than listed by hand,
   // so an email that becomes automatic later is caught instead of quietly mislabelled.

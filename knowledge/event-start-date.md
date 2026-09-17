@@ -4,7 +4,7 @@ topic: Contracts
 task: set a contract start date, handle a launch that slips, or understand why the term starts when the ads do
 keywords: [start date, effective date, terms v5, event start, campaignLiveAt, goLiveDecision, ads-sync, amendment, slipped launch, go live, spend30d, shiftEnd, reslotTerm]
 status: verified
-summary: From terms v5 the Start Date IS the day the first campaign begins delivering, not a date somebody guessed at signing - unless `startDateFirm` is set on that client, which prints an agreed exact date instead and stops the OS moving it. 🔴 EFFECTIVE DATE (signing, when work begins and the handover clock runs) AND START DATE (ads live, when the term and the minimum run) ARE DIFFERENT THINGS from v5. A slipped launch is then the agreement working as written, so there is nothing to amend and nothing to re-sign - which matters because this agreement's own amendment clause needs a signed writing from both parties and the email carve-out covers only upgrades and renewals. The Effective Date splits off and becomes the signature date, so the 14-day handover clock starts at signing (where it belongs) while fees start at go-live. `ads-sync` recognises go-live from the PLATFORMS' spend, not our launch button, stamps `campaignLiveAt` once, and moves the dates - but ONLY for v5+ clients, because a v4 client's signed PDF names a fixed date. 77 checks + 15 mutations.
+summary: From terms v5 the Start Date IS the day the first campaign begins delivering, not a date somebody guessed at signing - unless `startDateFirm` is set on that client, which prints an agreed exact date instead and stops the OS moving it. 🔴 EFFECTIVE DATE (signing, when work begins and the handover clock runs) AND START DATE (ads live, when the term and the minimum run) ARE DIFFERENT THINGS from v5. A slipped launch is then the agreement working as written, so there is nothing to amend and nothing to re-sign - which matters because this agreement's own amendment clause needs a signed writing from both parties and the email carve-out covers only upgrades and renewals. The Effective Date splits off and becomes the signature date, so the 14-day handover clock starts at signing (where it belongs) while fees start at go-live. `ads-sync` recognises go-live from the PLATFORMS' spend, not our launch button, stamps `campaignLiveAt` once, and moves the dates - but ONLY for v5+ clients, because a v4 client's signed PDF names a fixed date. 113 checks + 23 mutations. A branded `start_confirmed` email auto-sends the written confirmation clause 2.1 promises, only when the dates moved, and deliberately asks for NO signature.
 verified: 2026-09-17
 ---
 
@@ -93,6 +93,27 @@ platform rather than by us, and matches what the client was told the date would 
   go-live is still recorded and Bryson gets an **amber** alert saying nothing changed and why.
   A v5 client gets a green one.
 - Skips the house account. Skips a launch on the planned day (records it, changes nothing).
+
+## The client's written confirmation
+
+🔴 Clause 2.1 promises "Agency will confirm the Start Date to Client in writing once it occurs",
+and for a day after that was written **nothing did it**, which is worse than not promising.
+
+A branded email, `start_confirmed`, now sends itself from `ads-sync` at the same moment the dates
+are stamped. It names the confirmed start and end dates and says in terms that there is nothing
+to sign.
+
+🔴 **IT CONFIRMS, IT DOES NOT ASK FOR A SIGNATURE.** Bryson's first idea (2026-09-17) was an email
+the client signs, so a date could change without a new DocuSign envelope. Under v5 nothing
+changes: the agreement already says the term starts when the ads do. Asking for a signature would
+imply the date had not been settled, undercut the very clause that makes a slipped launch free,
+and re-create the admin the whole change exists to delete. A test bans any ask for a signature in
+that template.
+
+🔴 **Sent only when the dates actually MOVED**, i.e. only to a client on the estimate. A client
+with an agreed exact date, or on older terms, never receives it, because for them the date did not
+change and saying it had would be false. Those are the ones Bryson hears about in amber instead.
+Fail-soft: a bounced email never costs the recorded go-live, which is the fact the term depends on.
 
 ## What Bryson does when it fires
 
