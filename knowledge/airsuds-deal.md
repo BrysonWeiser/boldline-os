@@ -220,10 +220,24 @@ store is being built, not after.**
 for the subscription offer, which for other clients means a BoldLine-built page on their
 subdomain. A page like that **cannot take payment** — the visitor has to be handed off to
 Shopify to buy. On an $11 impulse product an extra click is expensive, and the purchase event
-fires on Shopify either way. **Recommendation: point the ads at a page inside his Shopify store
+fires on Shopify either way. **Recommendation was to point the ads at a page inside his Shopify store
 and have BoldLine write and structure it**, which keeps the buy button and the native tracking
-on the same page. It still delivers the landing page the package lists, built where the checkout
-is. **Raise it with Bryson before changing what a client was promised.**
+on the same page.
+
+✅ **DECIDED 2026-09-16 — Bryson: *"I still think we build a landing page and then connect it to
+his Shopify."*** So: BoldLine builds the page as usual and its buttons go to the Shopify product
+or subscription page. That is his call and it keeps the promise he made word for word.
+
+🔴 **What has to be right for that to work**, because the handoff is where it breaks:
+1. **The button must carry the campaign tags through to Shopify.** Shopify's order records are
+   the agreed source of truth for counting a Qualified Sale, and it can only attribute an order
+   to the ads if the UTM parameters survive the click from our page into his store.
+2. **Our page is not the conversion page.** The Purchase event fires on Shopify, which is fine
+   and is exactly why the pixel there matters — but it means our page is judged on click-through
+   to the store, not on sales, and nobody should read a low number on it as the ads failing.
+3. **One click, not two.** On an $11 impulse product every extra step costs orders. The CTA
+   should land on the buyable page with the subscription option already selected, not on a
+   homepage.
 
 **Also worth setting expectations on:** a brand new store has no reviews, no order history and no
 trust signals, which converts worse than an established one. Paid traffic to a cold store is a
