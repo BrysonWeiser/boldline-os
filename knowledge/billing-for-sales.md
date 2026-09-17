@@ -9,6 +9,33 @@ verified: 2026-09-16
 ---
 
 
+## 🔴 SALES ARE ENTERED, NOT DETECTED (2026-09-17)
+
+Bryson: *"are we able to track the sales even though it will go through his shopify when they
+actually buy"*. **No.** A lead arrives through BoldLine's own form, so the OS sees every one as it
+happens. A purchase happens on the CLIENT'S OWN STORE, which the OS has no connection to at all.
+
+This is not a gap, it is what the agreement already says: counts are taken from the client's own
+order records, and **those records govern** if they differ from the platforms' reporting. So the
+honest mechanism is the one the contract describes, and the OS now has it: a **Record the sales
+you agreed** box in the Billing card, shown only for a client billed per sale.
+
+🔴 **RECORDED AS ROWS IN `leadsLog`, NOT A PARALLEL LIST.** The fee is per sale and every existing
+piece of machinery prices per ROW: the approval queue, the invoice, the whichever-is-higher
+arithmetic against the monthly minimum, and the pre-invoice reminder in `billing-watch`. A
+separate `salesLog` would be a second source of truth none of them read, which is exactly how a
+number ends up on a screen and never on a bill. Each row carries `source:"client_records"` so
+nothing later mistakes a recorded sale for an enquiry that came through a form.
+
+🔴 **Two guards, because this bills money.** An empty or zero count is refused, and more than 50
+at once is refused: 3 mistyped as 33 is 33 rows and an invoice ten times too big, approvable in
+one tap from the queue directly below it.
+
+**If it is ever worth automating**, the route is a Shopify custom app with read access to orders,
+matching on the tracking tag the landing page already forwards. Worth it at two or three
+e-commerce clients, not at one. Reading purchases from Meta instead is cheaper and wrong: the
+agreement says the client's records govern, and Meta counts purchases by people who never clicked.
+
 ## 🔴 AND THE CLIENT-FACING HALF (2026-09-17, same day)
 
 Bryson: *"is there anywhere else on my side or in his client portal that still needs updated"*.

@@ -9603,6 +9603,9 @@ function BillingCard({client,pkg,onUpdate}) {
   const [leadBusy,setLeadBusy]=useState(false);   // per-lead billing approve in flight
   const [leadMsg,setLeadMsg]=useState("");
   const [showFeeFinder,setShowFeeFinder]=useState(false);
+  const [salesCount,setSalesCount]=useState("");
+  const [salesNote,setSalesNote]=useState("");
+  const [salesMsg,setSalesMsg]=useState("");
   const [editRate,setEditRate]=useState(false);    // inline per-lead rate editor
   const [rateInput,setRateInput]=useState("");
   const [upcoming,setUpcoming]=useState(null);      // bundled next-invoice preview
@@ -9971,6 +9974,57 @@ function BillingCard({client,pkg,onUpdate}) {
               placeholder="a new monthly subscription, or a single order of 25 bottles or more"
               style={{width:"100%",padding:"7px 9px",fontSize:11.5,borderRadius:7,border:`1px solid ${saleDefn.trim()?C.border:C.red}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,boxSizing:"border-box"}}/>
             {!saleDefn.trim()&&<div style={{fontSize:10,color:C.red,lineHeight:1.5,marginTop:4}}>Needed before the agreement can go out. Without it the contract has a blank where the thing you bill for should be.</div>}
+
+            {/* ── 🔴 SALES ARE ENTERED, NOT DETECTED, AND THAT IS NOT A SHORTCUT ──────
+                Bryson, 2026-09-17: *"are we able to track the sales even though it will go
+                through his shopify when they actually buy"*. No. A lead arrives through OUR
+                form, so the OS sees every one as it happens. A purchase happens on the
+                CLIENT'S OWN STORE, which the OS has no connection to at all.
+
+                The agreement already says so and says which side wins: counts are taken from
+                the client's own order records, and those records govern if they differ from the
+                platforms' reporting. So the honest mechanism is the one the contract already
+                describes: agree the number with the client, then record it here.
+
+                🔴 RECORDED AS ROWS IN `leadsLog`, NOT A PARALLEL LIST. The fee is per sale and
+                every existing piece of machinery prices per ROW: the approval queue below, the
+                invoice, the whichever-is-higher arithmetic against the monthly minimum, and the
+                pre-invoice reminder in billing-watch. A separate `salesLog` would be a second
+                source of truth that none of them read, which is exactly how a number ends up on
+                a screen and never on a bill. Each row carries its source, so nothing can later
+                mistake a recorded sale for an enquiry that arrived through a form. */}
+            <div style={{marginTop:11,paddingTop:11,borderTop:`1px solid ${C.border}`}}>
+              <div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:4}}>Record the sales you agreed</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,marginBottom:7}}>
+                Their checkout is on their own store, so the OS cannot see sales by itself. Agree the number with {String(client.name||"them").split(" ")[0]}, then put it in here. It joins the list below to approve and invoice like anything else.
+              </div>
+              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                <input value={salesCount} onChange={e=>{setSalesCount(e.target.value.replace(/[^0-9]/g,""));setSalesMsg("");}} inputMode="numeric" placeholder="How many"
+                  style={{width:88,padding:"7px 9px",fontSize:12,fontWeight:700,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text}}/>
+                <input value={salesNote} onChange={e=>setSalesNote(e.target.value)} placeholder="e.g. 3 subscriptions, 1 bulk order, September"
+                  style={{flex:1,minWidth:0,padding:"7px 9px",fontSize:11.5,borderRadius:7,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,boxSizing:"border-box"}}/>
+              </div>
+              <button onClick={()=>{
+                const n=Math.floor(Number(salesCount)||0);
+                // 🔴 A CEILING, BECAUSE THIS BILLS MONEY. A slipped keystroke turning 3 into 33
+                // is 33 rows and an invoice ten times too big, approvable in one tap from the
+                // queue below. Anything genuinely larger is two entries and a moment's thought,
+                // which is the right amount of friction for a number the OS cannot check against
+                // any record of its own.
+                if(!(n>0)){ setSalesMsg("Put in how many sales you agreed."); return; }
+                if(n>50){ setSalesMsg("That is a lot at once. Add them in smaller batches so a typo cannot become an invoice."); return; }
+                const at=new Date().toISOString();
+                const note=salesNote.trim();
+                const rows=Array.from({length:n},()=>({
+                  name:"Sale from their records", qualified:true, source:"client_records",
+                  receivedAt:at, recordedAt:at, ...(note?{notes:note}:{}),
+                }));
+                const entry={date:fmt(new Date()),note:`Recorded ${n} qualified sale${n===1?"":"s"} from ${client.name}'s own order records${note?`: ${note}`:""}.`,cat:"billing",ts:Date.now()};
+                onUpdate&&onUpdate({...client,leadsLog:[...rows,...(client.leadsLog||[])],commLog:[entry,...(client.commLog||[])]});
+                setSalesCount("");setSalesNote("");setSalesMsg(`Added ${n}. Approve them below when you are ready to bill.`);
+              }} style={{marginTop:7,width:"100%",padding:"8px",fontSize:11,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:"pointer"}}>Record these sales</button>
+              {salesMsg&&<div style={{fontSize:10.5,color:salesMsg.startsWith("Added")?C.green:C.amber,marginTop:6,lineHeight:1.5}}>{salesMsg}</div>}
+            </div>
           </div>
         )}
         {!editRate

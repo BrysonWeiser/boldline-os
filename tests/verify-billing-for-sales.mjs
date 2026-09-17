@@ -506,6 +506,42 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
       /String\(c\.resultKind \|\| ""\) === "sale"/.test(EM));
   }
 
+  // ── 🔴 SALES ARE ENTERED, NOT DETECTED ──────────────────────────────────────
+  // Bryson, 2026-09-17: *"are we able to track the sales even though it will go through his
+  // shopify when they actually buy"*. No. A lead arrives through OUR form so the OS sees every
+  // one; a purchase happens on the client's own store, which the OS cannot see at all. The
+  // agreement already names the mechanism: counts come from the client's own order records, and
+  // those records govern. So the number is agreed and then recorded.
+  {
+    const bat = S.indexOf("function BillingCard");
+    const bcard = S.slice(bat, S.indexOf("\nfunction ", bat + 20));
+    ok("🔴 there is somewhere to record an agreed sale count",
+      /Record the sales you agreed/.test(bcard) && /setSalesCount/.test(bcard),
+      "without it a per-sale client can never be billed at all, because nothing counts for them");
+    ok("and it says why the OS cannot do it by itself",
+      /their own store, so the OS cannot see sales by itself/.test(bcard));
+
+    // 🔴 ROWS IN leadsLog, not a parallel list. The fee is per sale and the queue, the invoice,
+    // the whichever-is-higher arithmetic and the pre-invoice reminder all price per ROW. A
+    // separate list is a second source of truth none of them read.
+    ok("🔴 recorded sales feed the same machinery that bills leads",
+      /leadsLog:\[\.\.\.rows,\.\.\.\(client\.leadsLog\|\|\[\]\)\]/.test(bcard),
+      "a parallel salesLog is how a number reaches a screen and never a bill");
+    ok("and each one records where it came from",
+      /source:"client_records"/.test(bcard) && /name:"Sale from their records"/.test(bcard),
+      "nothing may later mistake a recorded sale for an enquiry that arrived through a form");
+    ok("it is written into the client's history too",
+      /Recorded \$\{n\} qualified sale/.test(bcard));
+
+    // 🔴 THIS BILLS MONEY, so a slipped keystroke must not become an invoice.
+    ok("🔴 a zero or empty count is refused", /if\(!\(n>0\)\)\{ setSalesMsg/.test(bcard));
+    ok("🔴 and an implausible one is too", /if\(n>50\)\{ setSalesMsg/.test(bcard),
+      "3 mistyped as 33 is 33 rows and an invoice ten times too big, approvable in one tap");
+    ok("the box only appears for a client billed that way",
+      bcard.indexOf('client.billingResultKind==="sale"&&(') < bcard.indexOf("Record the sales you agreed"),
+      "a lead client has no use for it and every extra control is a chance to misread the screen");
+  }
+
   ok("the client's own package card passes it",
     /pkgPerfLabel\(pkg,perLead,client&&client\.billingResultKind\)/.test(S),
     "the override exists but the one screen that needs it does not use it");
