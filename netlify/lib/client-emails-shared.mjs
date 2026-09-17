@@ -164,6 +164,14 @@ const T = {
   }),
 
   invoice: (c) => {
+    // 🔴 THE WORD ON AN INVOICE HAS TO MATCH THE AGREEMENT IT BILLS UNDER. A client billed per
+    // Qualified Sale was being invoiced for "Qualified leads", which is a line item naming
+    // something their contract never mentions. `resultKind` rides in on the context the caller
+    // builds from the client record (Bryson, 2026-09-17: *"make sure everything has the correct
+    // terminology"*). Absent, it is a lead, which is every existing client.
+    const sale = String(c.resultKind || "") === "sale";
+    const unitMany = sale ? "Qualified sales" : "Qualified leads";
+    const unitLower = sale ? "qualified sales" : "qualified leads";
     const setup = Number(c.setup || 0);
     const monthly = Number(c.monthly || 0);
     const leadCount = Math.max(0, Math.floor(Number(c.leadCount || 0)));
@@ -181,7 +189,7 @@ const T = {
     const rows = [];
     if (setup > 0) rows.push(["One-time setup", money(setup)]);
     if (usingLeads && leads > 0) {
-      rows.push([`Qualified leads (${leadCount} × ${money(leadRate)})`, money(leads)]);
+      rows.push([`${unitMany} (${leadCount} × ${money(leadRate)})`, money(leads)]);
       // Said out loud, because a client who knows they have a minimum will look for it and
       // wonder where it went.
       if (monthly > 0) rows.push([`Your ${money(monthly)} monthly minimum is included in the above, not added`, ""]);
@@ -197,10 +205,10 @@ const T = {
     if (total <= 0) {
       return {
         subject: `Nothing due this month for ${c.businessName || "your account"}`,
-        preheader: `No qualified leads this period, so there is nothing to pay.`,
+        preheader: `No ${unitLower} this period, so there is nothing to pay.`,
         bodyHtml:
           h1("Nothing to pay this month") +
-          p(`Hi ${escapeHTML(firstName(c.contactName))}, no invoice this time. The campaigns did not produce any qualified leads this period, and you only pay for results, so there is nothing owed.`) +
+          p(`Hi ${escapeHTML(firstName(c.contactName))}, no invoice this time. The campaigns did not produce any ${unitLower} this period, and you only pay for results, so there is nothing owed.`) +
           button("See What's Running", c.portalUrl || SITE) +
           small("Your ad spend is billed separately by Google and Meta directly to you, and is unaffected by this.") +
           signoff(),
@@ -326,6 +334,12 @@ const T = {
   }),
 
   // Auto-celebration when a client crosses a lead milestone (10/25/50/100…).
+  // 🔴 NOT RENAMED, DELIBERATELY: `welcome`, `renewal`, `onboarding_nudge`, `review_request` and
+  // this one talk about leads as the general thing advertising produces, not as the unit on
+  // anybody's invoice. A store client's campaigns really do generate interest before they
+  // generate orders. Renaming those would be chasing the word rather than the meaning, and this
+  // one in particular counts rows in `leadsLog`, which a shop client never has, so it cannot
+  // fire for one at all. The invoice is the email where the word is a BILL.
   lead_milestone: (c) => {
     const n = Number(c.milestone || c.leadCount || 0);
     return {

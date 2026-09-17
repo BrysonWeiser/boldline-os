@@ -317,6 +317,14 @@ const BASE = {
       ["setup waived only", { ...BASE, billingPerLead: 50, billingSetup: 0 }],
       ["minimum waived only", { ...BASE, billingPerLead: 50, billingMonthly: 0 }],
       ["a niche-default client", { ...BASE, niche: "Roofing" }],
+      // 🔴 A PER-SALE CLIENT, because every case above is a lead client and the two copies both
+      // call `resultWords` — so a drift on the SALE side renders identically in all of them and
+      // the comparison passes while the copies disagree. Proved by mutating the OS copy's
+      // `resultWords(cl)` to `resultWords({})`: nothing failed until this row existed. Same trap
+      // as the logo branch in verify-lead-handoff, and the same lesson: a mutation that does not
+      // reach the output is indistinguishable from a guard that works.
+      ["a client billed per sale", { ...BASE, billingPerLead: 25, billingResultKind: "sale",
+        billingSaleDefinition: "a new monthly subscription, or a single order of 25 bottles or more" }],
     ];
     for (const [label, cl] of CASES) {
       // The OS copy has LOGO in scope and the portal takes it as an argument; both are

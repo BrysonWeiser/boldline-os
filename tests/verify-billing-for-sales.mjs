@@ -257,7 +257,12 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   const osPortal = S.slice(pStart, S.indexOf("function LandingOptionsCard(", pStart));
   ok("the OS copy of the portal was found", osPortal.length > 5000, `got ${osPortal.length} chars`);
   const srvPortal = readFileSync(new URL("../netlify/functions/portal.mjs", import.meta.url), "utf8");
-  for (const frag of ["RW.per", "RW.many", 'String(cl.billingResultKind || "") === "sale"']) {
+  // 🔴 The portal stopped carrying a private three-word copy on 2026-09-17 and now asks the same
+  // `resultWords` the agreement asks, so the fragments pinned here are the shared ones. Every
+  // other line in the portal that names the billable thing had gone on saying "lead" to a client
+  // billed per sale, because the small copy only covered three of them.
+  for (const frag of ["RW.per", "RW.many", "const W = resultWords(cl);",
+                      'const noun = W.itNoun, nouns = W.itNoun + "s";']) {
     ok(`🔴 the OS preview carries "${frag}"`, osPortal.includes(frag) && srvPortal.includes(frag),
       "the Live Client View is a second copy of this page and must not drift");
   }
@@ -467,6 +472,39 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   ok("🔴 the lead fee finder is not offered on a per-sale client",
     /\{W\.kind==="lead"&&<button onClick=\{\(\)=>setShowFeeFinder/.test(S),
     "renaming it would be worse than hiding it, because the arithmetic underneath is about leads");
+
+  // 🔴 THE PORTAL MUST NOT PROMISE A COUNT THE OS CANNOT PRODUCE. Bryson, 2026-09-17: *"are we
+  // able to track the sales even though it will go through his shopify when they actually buy"*.
+  // No. Leads arrive through OUR form so the OS sees every one; a sale happens on the client's
+  // own store, which the OS has no connection to, and the agreement says counts come from the
+  // client's own order records. So the empty state cannot say a sale will appear here the moment
+  // it arrives, on the one page the client can check.
+  const PORTAL_SRC = readFileSync(new URL("../netlify/functions/portal.mjs", import.meta.url), "utf8");
+  ok("🔴 a sale client's portal does not promise automatic sale tracking",
+    /counted from your own order records, not from ours/.test(PORTAL_SRC)
+    && /W\.kind === "sale"\s*\n?\s*\? "Sales are counted from your own order records/.test(PORTAL_SRC),
+    "an empty list under a promise that it fills itself is a lie the client is best placed to spot");
+  ok("and a lead client still gets the real promise",
+    /Every enquiry your ads bring in will appear here/.test(PORTAL_SRC));
+
+  // 🔴 THE INVOICE IS THE ONE EMAIL WHERE THE WRONG WORD IS A WRONG BILL. A client billed per
+  // Qualified Sale was being invoiced for "Qualified leads": a line item naming something their
+  // agreement never mentions, sent to the person paying it.
+  {
+    const EM = readFileSync(new URL("../netlify/lib/client-emails-shared.mjs", import.meta.url), "utf8");
+    const AUTO = readFileSync(new URL("../netlify/lib/client-email-auto.mjs", import.meta.url), "utf8");
+    ok("🔴 the invoice names the unit this client is billed for",
+      /const sale = String\(c\.resultKind \|\| ""\) === "sale";/.test(EM)
+      && /rows\.push\(\[`\$\{unitMany\}/.test(EM),
+      "an invoice for Qualified leads under a per-sale agreement is a charge for something the "
+      + "contract does not mention");
+    ok("and the zero-fee version too", /did not produce any \$\{unitLower\}/.test(EM));
+    ok("🔴 and the sender actually passes the client's basis",
+      /resultKind: cl\.billingResultKind \|\| "",/.test(AUTO),
+      "the template can tell the difference but never learns which one this client is");
+    ok("an unset basis is a lead, which is every existing client",
+      /String\(c\.resultKind \|\| ""\) === "sale"/.test(EM));
+  }
 
   ok("the client's own package card passes it",
     /pkgPerfLabel\(pkg,perLead,client&&client\.billingResultKind\)/.test(S),

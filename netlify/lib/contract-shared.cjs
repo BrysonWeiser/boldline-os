@@ -621,4 +621,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 
 
 
-module.exports = { makeContractHTML };
+// 🔴 EXPORTED SO THERE IS ONE VOCABULARY, NOT FOUR. The agreement, the OS, the client portal and
+// the client emails all have to call the billable thing by the same name, because a client reads
+// three of them and Bryson reads the fourth. The portal used to define its own inline copy and
+// the emails had no idea the question existed, which is how a store client billed per Qualified
+// Sale was emailed an invoice for "Qualified leads".
+module.exports = { makeContractHTML, resultWords };
