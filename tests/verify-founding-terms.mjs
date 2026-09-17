@@ -212,8 +212,51 @@ const BASE = {
     .split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)).join("\n");
 
   ok("🔴 the per-lead rate can be set before billing is ever live",
-    /adjPerLead/.test(card) && /Per Qualified Lead/.test(card),
+    /adjPerLead/.test(card) && /Per Qualified \{client\.billingResultKind==="sale"\?"Sale":"Lead"\}/.test(card),
     "it is a contract term, so it must be settable before the contract is generated");
+  // 🔴 AND SO MUST EVERYTHING ELSE THE AGREEMENT PRINTS ABOUT THE FEE. Bryson, 2026-09-17, on
+  // Air Suds' finished contract: *"the contract didnt update with the way hes going to be
+  // billed. it still says 15% of monthly ad spend"*. The Billing for switch, the sentence saying
+  // which purchases count, and the rate were all inside the `managed` branch, which means behind
+  // Stripe, which happens AFTER signing. The order was impossible: send the contract, then get
+  // the ability to make the contract correct. A store client would have been sent the package
+  // default no matter what had been agreed on the call.
+  //
+  // Proven by POSITION rather than by reading a label: anything rendered before `{managed&&<>`
+  // begins cannot be inside it. `contractGaps` sends him here by name, so the control has to
+  // exist when he arrives.
+  {
+    const gate = card.indexOf("{managed&&<>");
+    ok("the Stripe-gated section is still there to be outside of", gate > 0, String(gate));
+    for (const [what, needle] of [
+      ["the Billing for switch", "billingResultKind:k"],
+      ["the sentence saying which purchases count", "billingSaleDefinition:v"],
+      ["the rate editor", "setRateInput(String(perLeadRate))"],
+    ]) {
+      const at = card.indexOf(needle);
+      ok(`🔴 ${what} is reachable before billing is set up`, at > 0 && at < gate,
+        at < 0 ? "not found at all" : `it sits inside the Stripe-gated block (${at} > ${gate})`);
+    }
+    // 🔴 POSITION IS NOT ENOUGH, AND A MUTATION PROVED IT. Putting the section back behind
+    // Stripe by changing its own condition to `managed&&(` left it sitting before the other
+    // gated block, so every check above still passed while the control was invisible again.
+    // The CONDITION the section renders under is the thing that decides whether it is reachable.
+    {
+      const head = card.indexOf(">What you bill for<");
+      ok("the billing-basis section is there to be checked", head > 0, String(head));
+      const gateExpr = card.slice(Math.max(0, head - 400), head);
+      const opens = [...gateExpr.matchAll(/\{([A-Za-z0-9_.!&|="'? ]{1,60})&&\(/g)].map((m) => m[1]);
+      const own = opens.length ? opens[opens.length - 1] : "";
+      ok("🔴 it does not render behind the Stripe gate", !!own && !/managed|status===|stripeCustomerId/.test(own),
+        `it renders under \`${own}\`, which is exactly the ordering bug: the contract cannot be `
+        + "made correct until after it has been signed");
+    }
+
+    // The lead queue genuinely does need a customer in Stripe, so it stays behind the gate.
+    const queue = card.indexOf("unbilledLeads.length===0");
+    ok("but approving leads onto an invoice still waits for Stripe", queue > gate,
+      "nothing can be invoiced to a customer that does not exist yet");
+  }
   ok("and the editor saves it onto the client", /billingPerLead:rate/.test(card));
   ok("opening the editor pre-fills the rate already agreed", /setAdjPerLead\(perLeadRate>0/.test(card));
 

@@ -8,6 +8,34 @@ summary: A client who sells straight from a website can be billed per QUALIFIED 
 verified: 2026-09-16
 ---
 
+
+## 🔴 THE SWITCH WAS UNREACHABLE UNTIL 2026-09-17
+
+Bryson, looking at Air Suds' finished agreement: *"the contract didnt update with the way hes
+going to be billed. it still says 15% of monthly ad spend"*.
+
+The Billing for switch, the sentence saying which purchases count, and the rate were all inside
+the Billing card's `managed` branch, **which means behind Stripe**. Billing is set up AFTER the
+client signs, so the order was impossible: send the contract, then gain the ability to make the
+contract correct. A store client would have been sent the package default, 15% of ad spend, no
+matter what was agreed on the call.
+
+Worse, `contractGaps` sends him there BY NAME ("Set it on the Package tab under Billing for →
+Sales") and the control was not on the page. An instruction pointing at nothing is how someone
+concludes the OS is broken rather than that they missed a step. And nothing warned him, because a
+percentage IS set on the package, so there was no gap to raise: the contract was internally
+coherent and simply described a different deal.
+
+These are TERMS, not payment plumbing, so they now render outside that gate under `!oneTime`. The
+lead approval queue stays inside it, because invoicing a lead really does need a Stripe customer.
+The Adjust Fees panel's field label follows the same rename, so a client billed per sale is never
+asked for a price "per qualified lead".
+
+🔴 **Guarded by the gate CONDITION, not by position.** A first attempt proved the controls sat
+before the Stripe-gated block in the source, and a mutation putting them back behind `managed&&(`
+survived it untouched, because the block still sat earlier in the file. The check now reads the
+condition the section actually renders under.
+
 ## 🔴 Why it exists
 
 Bryson, 2026-09-16, on Air Suds: the customers *"just buy through website no forms or contacting
