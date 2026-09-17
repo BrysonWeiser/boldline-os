@@ -146,10 +146,17 @@ const T = {
       h1("Your ads are live") +
       p(`Hi ${escapeHTML(firstName(c.contactName))}, your campaigns for ${b(escapeHTML(c.businessName || "your account"))} started running on ${b(escapeHTML(c.startDate || ""))}.`) +
       p("Your agreement says your term starts the day the ads go live, so that day is now confirmed. Here are your dates:") +
-      detailBox([
-        ["Start date", escapeHTML(c.startDate || "")],
-        ["End date", escapeHTML(c.endDate || "")],
-      ]) +
+      // 🔴 THE END DATE IS PRINTED ONLY WHEN IT WAS DERIVED FROM THE START WE JUST CONFIRMED.
+      // Falling back to the date stored on the record would mean printing the OLD ESTIMATE next
+      // to the new real start, two dates that do not belong together, in the one message whose
+      // job is to state the term accurately. When it is missing, say the length instead, which
+      // is true without being specific.
+      detailBox(
+        c.endDate
+          ? [["Start date", escapeHTML(c.startDate || "")], ["End date", escapeHTML(c.endDate || "")]]
+          : [["Start date", escapeHTML(c.startDate || "")],
+             ["Term", `${Math.max(1, Math.round(Number(c.termMonths) || 3))} months from that date`]],
+      ) +
       p(`${b("There is nothing to sign.")} Your agreement already works this way, so no paperwork changes and nothing needs re-doing. This message is your written confirmation of the dates.`) +
       button("See What's Running", c.portalUrl || SITE) +
       small("The first couple of weeks are mostly the platforms learning who your buyers are, so early numbers move around a lot. That settles down.") +

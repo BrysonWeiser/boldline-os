@@ -115,6 +115,16 @@ with an agreed exact date, or on older terms, never receives it, because for the
 change and saying it had would be false. Those are the ones Bryson hears about in amber instead.
 Fail-soft: a bounced email never costs the recorded go-live, which is the fact the term depends on.
 
+🔴 **BOTH DATES COME FROM THE DECISION THAT JUST RAN, NEVER FROM THE RECORD.** Bryson caught this
+(2026-09-17: *"make sure when the email does send it takes the real go live and end date from the
+os not just a preset date"*). The start was already real, but the end fell back to
+`cl.contractEnd` — **the old estimate** — so a client could have received a confirmed start of
+6 October beside an end of 1 January, two dates that do not belong to each other, in the one
+message whose entire job is to state their term accurately. The end is now printed only when it
+was derived from the confirmed start; otherwise the row becomes "Term: 3 months from that date",
+taking the length from the client's own record. An incomplete confirmation is recoverable, a
+confidently wrong one is not.
+
 ## What Bryson does when it fires
 
 Nothing legal. Tell the client the confirmed dates, which clause 2.1 promises. The platform's own

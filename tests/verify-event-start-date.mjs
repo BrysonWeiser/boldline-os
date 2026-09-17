@@ -319,11 +319,44 @@ for (const v of [1, 2, 3, 4]) {
   ok("the subject says what happened", /ads are live/.test(subject) && !/[\u2014\u2013]/.test(subject));
 
   // ── Who gets it, which is the part that could be wrong and expensive ──
+  // The gate and the send are pinned together, tolerating the reasoning between them: a comment
+  // is not a behaviour change, but the send escaping the gate is.
   ok("🔴 it is sent only when the dates actually moved",
-    /if \(live\.patch\.contractStart\) \{\s*\n\s*const sent = await autoSendClientEmail\(cl, "start_confirmed"/.test(SYNC),
+    /if \(live\.patch\.contractStart\) \{(?:(?!\n    \})[\s\S])*?autoSendClientEmail\(cl, "start_confirmed"/.test(SYNC),
     "a client with an agreed exact date, or on older terms, must never be told their dates changed");
+  // 🔴 BOTH DATES COME FROM THE DECISION THAT JUST RAN, NEVER FROM THE RECORD. Bryson,
+  // 2026-09-17: *"make sure when the email does send it takes the real go live and end date from
+  // the os not just a preset date"*. He was right to check. The start was already real, but the
+  // end fell back to `cl.contractEnd`, which is the OLD ESTIMATE, so a client could have been
+  // sent a confirmed start of 6 October beside an end of 1 January: two dates that do not belong
+  // to each other, in the one message whose entire job is to state their term accurately.
   ok("it is handed the dates the OS just wrote",
-    /startDate: live\.patch\.contractStart/.test(SYNC) && /endDate: live\.patch\.contractEnd/.test(SYNC));
+    /startDate: live\.patch\.contractStart/.test(SYNC) && /endDate: live\.patch\.contractEnd \|\| ""/.test(SYNC));
+  ok("🔴 and never falls back to the estimate that was just replaced",
+    !/endDate:[^\n]*cl\.contractEnd/.test(SYNC),
+    "printing the old estimated end beside the new real start is a confidently wrong confirmation");
+
+  // The email rather than the caller decides what to do with a missing end date.
+  {
+    const withEnd = renderClientEmail("start_confirmed", { contactName: "C", businessName: "B", startDate: "Oct 6, 2026", endDate: "Jan 6, 2027" }).html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    const noEnd = renderClientEmail("start_confirmed", { contactName: "C", businessName: "B", startDate: "Oct 6, 2026", endDate: "", termMonths: 3 }).html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    ok("a derived end date is shown", /End date Jan 6, 2027/.test(withEnd));
+    ok("🔴 an underivable one is not invented", !/End date/.test(noEnd) && /Term 3 months from that date/.test(noEnd),
+      "an incomplete confirmation is recoverable, a confidently wrong one is not");
+    ok("and the start is still stated either way", /Start date Oct 6, 2026/.test(withEnd) && /Start date Oct 6, 2026/.test(noEnd));
+    ok("a six month client is not told three", /Term 6 months from that date/.test(
+      renderClientEmail("start_confirmed", { contactName: "C", businessName: "B", startDate: "Oct 6, 2026", endDate: "", termMonths: 6 }).html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ")));
+    ok("the term length is passed through from the record", /termMonths: Number\(cl\.contractTermMonths\) \|\| 3/.test(SYNC));
+  }
+
+  // 🔴 AND THE START IS THE DAY SPEND WAS SEEN, not "today" picked up somewhere downstream.
+  {
+    const AT2 = new Date("2026-11-02T03:00:00Z");
+    const d2 = goLiveDecision({ ...CL, contractTermsVersion: 5 }, { totals: { spend30d: 1 } }, AT2);
+    ok("🔴 the confirmed start is the moment the decision was given, not the moment of sending",
+      d2.patch.contractStart === "Nov 2, 2026" && d2.patch.contractEnd === "Feb 2, 2027",
+      JSON.stringify(d2.patch));
+  }
   ok("🔴 a failed send never costs the recorded go-live",
     /if \(sent\.sent\) liveLog = sent\.logEntry;\s*\n\s*else console\.error/.test(SYNC),
     "the go-live is the fact the term depends on, and a bounced email must not undo it");
