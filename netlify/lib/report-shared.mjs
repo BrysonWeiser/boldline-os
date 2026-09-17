@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { humanize } from "./humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { pipelineProgress } from "./pipeline-shared.mjs";
+import { resultWords } from "./contract-shared.cjs";
 
 export const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 
@@ -123,11 +124,22 @@ export const liveStats = (cl) => {
 const anthropic = new Anthropic();
 const titleCase = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const buildDataBlock = (client, pkg) => {
+export const buildDataBlock = (client, pkg) => {
   const perLead = PER_LEAD[client.niche];
   const health = calcHealth(client);
   const live = liveStats(client);
-  const onTarget = live.cpl > 0 && live.cpl <= (perLead || 75);
+  // 🔴 A STORE CLIENT GETS NO LEADS, EVER. Bryson, 2026-09-17, about Air Suds: *"he isnt
+  // getting leads its e-commerce"*. Their customers click through to their own shop and buy,
+  // so a report headed "Leads Generated: 40" describes something that never happened, and the
+  // writer would happily invent lead-quality commentary to fill the section. Same field the
+  // agreement, the invoice, the portal and the branded emails read, so all five agree.
+  const isSale = resultWords(client).kind === "sale";
+  const unit = isSale ? "sale" : "lead";
+  const Unit = isSale ? "Sale" : "Lead";
+  // Their own agreed rate first, because a store client has no niche default and the niche
+  // table is a per-LEAD price list.
+  const target = isSale ? (client.billingPerLead != null ? client.billingPerLead : 0) : perLead;
+  const onTarget = live.cpl > 0 && live.cpl <= (target || 75);
   const daysLeft = daysUntil(client.contractEnd);
   const pipeline = pipelineProgress(client);
   const botsComplete = pipeline.done;
@@ -140,11 +152,12 @@ Niche: ${client.niche}
 Package: ${(pkg && pkg.name)} on ${(pkg && pkg.platform)}
 Campaign Stage: ${client.stage}
 Health Score: ${health.toFixed(1)}/10
-Leads Generated: ${live.leads}${live.leads30 !== live.leads ? ` (${live.leads30} in the last 30 days)` : ""}
-Average CPL: ${live.cpl > 0 ? "$" + live.cpl : "Not yet tracked (needs a lead and some spend in the same 30 days)"}
-Target CPL: ${perLead ? "$" + perLead + " (per-lead rate)" : "—"}
-CPL Status: ${live.cpl > 0 ? (onTarget ? "On target" : "Above target — needs optimization") : live.leads > 0 ? "Leads arriving, cost per lead not measurable yet" : "No leads yet"}
-Ad Budget: ${client.adBudget || "Not set"}
+${isSale ? "Sales Recorded" : "Leads Generated"}: ${live.leads}${live.leads30 !== live.leads ? ` (${live.leads30} in the last 30 days)` : ""}
+Average Cost Per ${Unit}: ${live.cpl > 0 ? "$" + live.cpl : `Not yet tracked (needs a ${unit} and some spend in the same 30 days)`}
+Target Cost Per ${Unit}: ${target ? "$" + target + ` (per-${unit} rate)` : "—"}
+Cost Per ${Unit} Status: ${live.cpl > 0 ? (onTarget ? "On target" : "Above target — needs optimization") : live.leads > 0 ? `${Unit}s arriving, cost per ${unit} not measurable yet` : `No ${unit}s yet`}
+${isSale ? `How these sales are counted: from the client's own order records, recorded by hand. The customer buys on the client's own store, which BoldLine has no connection to, so the advertising platforms never see these purchases. NEVER write that the campaign tracked, reported, or generated a sale, and never quote a conversion figure from the ad platforms as a sale count. This client receives no leads at all and must never be told about any.
+` : ""}Ad Budget: ${client.adBudget || "Not set"}
 Contract: ${client.contractStart} → ${client.contractEnd} (${daysLeft > 0 ? daysLeft + "d remaining" : "expired"})
 Intake Complete: ${client.intakeComplete ? "Yes" : "No"}
 Pipeline Progress: ${botsComplete}/${botsTotal} steps complete${pendingSteps.length ? " (pending: " + pendingSteps.join(", ") + ")" : ""}
@@ -158,10 +171,10 @@ ${(() => {
 })()}
 Internal Notes: ${client.notes || "None"}`;
 
-  return { text, daysLeft };
+  return { text, daysLeft, unit };
 };
 
-const buildClientPrompt = (client, period, data) => ({
+export const buildClientPrompt = (client, period, data) => ({
   system: `You are writing the body of a performance report email that will be sent directly to a BoldLine Media client. Write in professional plain English with no emojis or decorative symbols. Never mention AI or bots.
 NEVER use a dash to join or interrupt a sentence. That means the em dash, the en dash, and a plain hyphen with spaces around it. All three read as machine-written, and the spaced hyphen is the most common tell of all. Write two sentences, or use a comma. Hyphens INSIDE a word are fine and expected: done-for-you, no-obligation, 24-hour.
 
@@ -171,7 +184,7 @@ ${data.text}
 OUTPUT FORMAT:
 Do NOT include a greeting, salutation, subject line, or sign-off — those are added separately by the system. Start directly with the first section. Write each section header on its own line in bold markdown, using exactly these headers in this order:
 - **Campaign Summary** — 2-3 sentences on current status
-- **Performance This Period** — leads, CPL vs target, what's working
+- **Performance This Period** — ${data.unit}s, cost per ${data.unit} vs target, what's working
 - **What We Did** — key actions taken this period
 - **What's Next** — next 30 days plan
 - **Recommendation** — one recommendation for the client
@@ -182,7 +195,7 @@ Keep it concise. Write it as a finished, polished update — no placeholders, no
   user: `Write the body of the ${period} performance report for ${client.name}. Use all the client data provided. Do not include a greeting or sign-off — start directly with the first section header.`,
 });
 
-const buildOwnerPrompt = (client, period, data) => ({
+export const buildOwnerPrompt = (client, period, data) => ({
   // The house account is not a client. Calling it one produces a briefing that
   // talks about "the client" and "the contract" when the account is Bryson's own
   // money, which reads as a template rather than a read on his own advertising.
@@ -196,7 +209,7 @@ ${data.text}
 OUTPUT FORMAT:
 Do NOT include a greeting, salutation, subject line, or sign-off. Start directly with the first section. Write each section header on its own line in bold markdown, using exactly these headers in this order:
 - **Account Snapshot** — one line: stage, health score, contract status
-- **Performance vs Target** — leads, CPL vs target — say plainly if it's good, bad, or borderline
+- **Performance vs Target** — ${data.unit}s, cost per ${data.unit} vs target — say plainly if it's good, bad, or borderline
 - **What Was Done This Period**
 - **Flags** — anything needing Bryson's attention: renewal window, missed targets, incomplete intake, stalled pipeline steps, low lead volume. If nothing needs attention, say so in one line.
 - **What's Next**

@@ -8,6 +8,22 @@ summary: A per-client "Emails" tab lets Bryson preview, edit, and one-click-send
 verified: 2026-08-02
 ---
 
+## 🔴 EVERY TEMPLATE SPEAKS THE CLIENT'S OWN WORD (2026-09-17)
+
+`emailWords(c)` reads `resultKind` (= `billingResultKind`) and supplies the nouns for `welcome`,
+`renewal`, `onboarding_nudge`, `review_request` and the milestone, so a client billed per sale is
+never told about leads and vice versa. The milestone is now labelled **Results Milestone** and
+swaps whole sentences, not just the noun. Full account, and the three bugs found with it (the
+invoice's second line, the milestone counter that could never move for a store client, and the OS
+Emails tab passing a context that had never learned `resultKind`, so every hand-sent and
+**previewed** email was wrong while the automatic ones were right) in KB `billing-for-sales`.
+
+🔴 **Two copies of the email context exist** — `buildClientCtx` in `client-email-auto.mjs` (the
+automatic senders) and `buildCtx` in `EmailCenterTab` (hand-sends and previews). `verify-client-emails`
+now compares them as a **set of keys discovered from the server copy**, so the next key added
+there fails until the OS copy carries it too.
+
+
 **Why (Bryson, 2026-07-30):** wanted everything sent to clients to look professional + clean (not a plain email), **dark-themed** (not bright), sendable **from inside the OS with one click**, with client-specific info **auto-filled**, plus a **preview** and a way to **edit** before sending.
 
 **⛔ STANDING RULE — NO EMOJIS in anything a CLIENT sees (Bryson, 2026-08-03):** emojis read unprofessional. Applies to every client-facing surface — all lifecycle email templates (subjects/preheaders/bodies), the lead auto-reply + follow-ups (lead-intake / lead-followup), the AI-written performance reports (buildClientPrompt says "no emojis or decorative symbols"), the newsletter, and the **client portal** (portal.mjs). Removed the 🎉 (milestone), the ✓ from "You're all set", and the portal's 🔗/💳/🔧/⚙/💬/📎/🎉/📸. **Functional monochrome UI glyphs are NOT emojis and stay:** ✓ (Approve button / "Approved" badge / feature ticks), ✕ (delete), ▶ ▾ ▴ → etc. **Left alone (internal-only, only Bryson sees):** the `EMAIL_TYPES` tab icons (👋🔑… in the OS Emails tab) and owner-alert severity emojis (🔴⚠️✅ in dispatchAlert / billing-watch / getAlerts). When authoring any NEW client-facing copy, keep it emoji-free by default.

@@ -68,7 +68,10 @@ const ago = (days) => new Date(Date.now() - days * 864e5).toISOString();
 {
   ok("the server health score uses the live figures", /const live = liveStats\(cl\);/.test(SHARED_CODE));
   ok("and no longer reads the stored cpl", !/cl\.cpl/.test(SHARED_CODE));
-  ok("the client report prompt computes it", /Average CPL: \$\{live\.cpl > 0/.test(SHARED));
+  // The label now carries the client's own word ("Average Cost Per Sale" for a store client),
+  // so this pins the part that matters: the figure is computed live, not read from a stored
+  // field that nothing has updated.
+  ok("the client report prompt computes it", /Average Cost Per \$\{Unit\}: \$\{live\.cpl > 0/.test(SHARED));
   ok("and no longer reads the stored one", !/client\.cpl/.test(SHARED_CODE));
   ok("the owner rollup counts live leads", /liveStats\(c\)\.leads/.test(SHARED_CODE));
   ok("and compares live cost per lead", /lv\.leads > 0 && lv\.cpl > target/.test(SHARED_CODE));
