@@ -1250,6 +1250,36 @@ const addMonths = (date, n) => {
   return d;
 };
 
+// 🔴 MOVING A CONTRACT'S START DATE HAS TO MOVE ITS END DATE WITH IT.
+//
+// Bryson, 2026-09-16, about sending Constantine the agreement before his store exists:
+// *"can I set it for a week from now as the start date and then go into edit in his client tab
+// and change the start date and have it automatically update the end date?"*. It did not. The
+// Add Client screen moved them together; the EDIT sheet had two independent boxes, so pushing
+// a start date back a week and saving quietly handed the client a term a week SHORT of what
+// they signed for, and every countdown in the OS, the renewal warning and the scorecard's
+// runway all took the wrong number without a word.
+//
+// The end date is SHIFTED BY THE SAME NUMBER OF DAYS the start moved, rather than recomputed
+// from the term. That preserves a term somebody set by hand for a reason, which recomputing
+// would silently overwrite. Only when there is no readable end date to shift does it fall back
+// to the committed term.
+//
+// Returns null when it should not touch the end date at all: a half-typed date, or one with no
+// year in it yet, which would otherwise land the end date in 2001 while he was still typing.
+const reslotTerm = (prevStart, nextStart, prevEnd, termMonths) => {
+  if (!/\b\d{4}\b/.test(String(nextStart || ""))) return null;
+  const ns = new Date(nextStart);
+  if (isNaN(ns)) return null;
+  const ps = new Date(prevStart), pe = new Date(prevEnd);
+  if (!isNaN(ps) && !isNaN(pe)) {
+    const span = Math.round((pe - ps) / 864e5);
+    if (span > 0) return fmt(addDays(ns, span));
+  }
+  const m = Number(termMonths) || 3;
+  return fmt(addMonths(ns, m));
+};
+
 // Friendly duration label for display
 const monthsLabel = (n) => {
   if (n===1)  return "1 month";
@@ -15442,6 +15472,12 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
   const [saved,setSaved] = useState(false);
   const [deleteConfirm,setDeleteConfirm] = useState(false);
   const set = (k,v) => setForm(p=>({...p,[k]:v}));
+  // The start date drags the end date along, so the committed term stays the length the client
+  // signed for. See reslotTerm above for why it shifts rather than recomputes.
+  const setStart = (val) => setForm(p=>{
+    const end = reslotTerm(p.contractStart, val, p.contractEnd, p.contractTermMonths);
+    return { ...p, contractStart: val, ...(end ? { contractEnd: end } : {}) };
+  });
   // Nested setter for campaignSetup / brandVoice. Those fields existed only on the
   // CLIENT PORTAL, which the house account does not have, so on his own account there
   // was no way to set them at all. Market Research told him to "add one in Edit" and
@@ -15877,11 +15913,23 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
               </div>
               <div style={{marginTop:10}}>
                 <label style={fieldLabelStyle}>Contract Start Date</label>
-                <input value={form.contractStart||""} onChange={e=>set("contractStart",e.target.value)} placeholder="e.g. Jun 11, 2025" style={inp}/>
+                <input value={form.contractStart||""} onChange={e=>setStart(e.target.value)} placeholder="e.g. Jun 11, 2025" style={inp}/>
+                <div style={{fontSize:10,color:C.textMuted,lineHeight:1.55,marginTop:5}}>
+                  Moving this moves the end date with it, so the term stays the same length. This is the date everything counts from: the agreement, the billing, and the countdown on this screen.
+                </div>
               </div>
               <div style={{marginTop:10}}>
                 <label style={fieldLabelStyle}>Contract End Date</label>
                 <input value={form.contractEnd||""} onChange={e=>set("contractEnd",e.target.value)} placeholder="e.g. Sep 11, 2025" style={inp}/>
+                {(()=>{
+                  const a=new Date(form.contractStart||""), b=new Date(form.contractEnd||"");
+                  if(isNaN(a)||isNaN(b)) return null;
+                  const d=Math.round((b-a)/864e5);
+                  return <div style={{fontSize:10,color:d<28?C.amber:C.textMuted,lineHeight:1.55,marginTop:5}}>
+                    {d<=0 ? "The end date is on or before the start date." : `That is ${d} days, about ${Math.round(d/30.4)} month${Math.round(d/30.4)===1?"":"s"}.`}
+                    {d>0&&d<84 ? " Shorter than the three month commitment in the agreement." : ""}
+                  </div>;
+                })()}
               </div>
             </Card>
           </>
