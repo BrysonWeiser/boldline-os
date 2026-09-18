@@ -9,6 +9,53 @@ verified: 2026-09-16
 ---
 
 
+## 🔴 EVERY TAB OF HIS, FOUND BY DRIVING THE OS (2026-09-18)
+
+Bryson, with screenshots: *"make sure the over view is correct as well in the os for him"* and
+*"make sure these tabs are good as well"*.
+
+**How it was found, and the only way it could be:** the OS was driven headlessly as a per-sale
+client, every tab clicked, and the TEXT ON SCREEN read for the word "lead" (scoped to the scroll
+panel, so the sidebar's own global "Leads" screen does not drown the result). Grep is useless
+here, "lead" has hundreds of hits in `index.html`. The reverse direction was run too: a lead-gen
+client scanned for "sale".
+
+**What was wrong, tab by tab**
+
+- **Overview** — tiles read `LEADS 0` and `AVG CPL` for a client whose rows are recorded sales.
+- **Health score** — rows "Leads coming in" and "CPL on target", and 🔴 the target came from
+  `PER_LEAD[niche]`, **a per-LEAD price list with no row for a shop**, so a $25 sale was judged
+  against a $50 lead.
+- **Leads tab** — named Leads, headed Leads, "Delete lead", and an empty state promising sales
+  "will show up here automatically". 🔴 **A sale never arrives on its own**; it is typed in from
+  the client's order records. The store empty state now says where they come from and points at
+  the Contract tab. Swapping the noun would have had him waiting for something never coming.
+- **Pipeline** — reported **"Lead capture and auto-reply are live"** as DONE for a client with no
+  form anywhere, and listed a "Lead Quality Analyst". Not wording: a step reported complete that
+  was never possible. Renamed in `botsFor` (which is given a client; `buildBots` only gets a
+  package) and in **both** copies of `BOT_NAMES` (`index.html` + `pipeline-shared.mjs`), because
+  the report quotes the pending step names.
+- **Assets** — the lead webhook told him to point a form at it, on an account with no form.
+- **Reports** — 🔴 **a SECOND report prompt** lives here, behind the Generate button, separate
+  from the scheduled one in `report-shared.mjs`. Same fix, same counting note.
+- **Contract** — still says "Leads / Sales", and that is correct: it is the switch that decides.
+
+🔴 **`isSaleClient(cl)` writes the rule out instead of calling `resultWords`** because
+`verify-house-pipeline` pulls `deriveBotStatuses` out of `index.html` and evaluates it alone, so a
+call to `resultWords` there is a ReferenceError in the tests. A test pins the two expressions
+against each other on five clients so they cannot drift.
+
+**Also added: the one question he is not going to ask.** *"im not going to ask him where his
+product is made instead put that as a question for e-commerce brands in the os that they can fill
+out if they want"*. `brandVoice.madeIn`: an optional intake question in `MEETING_QUESTIONS`, and a
+box in the client's own portal under the card that asks where people buy, so only a client selling
+a product ever sees it. It is fed to the landing-page writer, told to say it plainly and never
+extend it, and **omitted entirely when blank** so an empty "Not specified" cannot invite an
+invention. Both copies of the portal form carry it (the OS holds a preview copy).
+
+**10 mutations, all caught.** Verified in a browser at 390/768/1280/1600, both client kinds, every
+tab clean.
+
 ## 🔴 THE EMAILS AND THE REPORT SAY IT TOO (2026-09-17)
 
 Bryson: *"can we make sure that the branded emails match what would be needed for constantine

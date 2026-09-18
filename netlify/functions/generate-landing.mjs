@@ -157,7 +157,8 @@ Average job/ticket value: ${clip(cs.avgTicket, 100) || "Not specified"}
 Service area: ${clip(cs.targetLocations, 200) || clip(cs.serviceArea, 200) || "Not specified"}
 Brand tone: ${clip(bv.tone, 50) || "Professional"}
 Top competitors: ${clip(bv.competitors, 300) || "Not specified"}
-What makes them different: ${clip(bv.differentiator, 300) || "Not specified"}
+What makes them different: ${clip(bv.differentiator, 300) || "Not specified"}${bv.madeIn ? `
+Where the product is made (the client volunteered this, so it may be used as a trust line; say it plainly and NEVER invent or extend it): ${clip(bv.madeIn, 120)}` : ""}
 Things to avoid mentioning: ${clip(cs.excludedKeywords, 300) || "None"}`;
 
   const mediaBlock = media.length

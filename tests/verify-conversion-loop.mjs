@@ -275,7 +275,10 @@ const CLIENT = {
   // happens rather than guessed at later.
   ok("grading stamps the time it happened", /if \(patch\.status === "won" && !out\.wonAt\) out\.wonAt = now;/.test(UI_CODE));
   ok("a won lead is marked qualified too", /if \(patch\.status === "won" && !out\.qualified\)/.test(UI_CODE));
-  ok("a lead with no click says so on the row", /No ad click on this lead/.test(UI));
+  // The row names whichever the client is billed on, so this pins the sentence rather than the
+  // noun: a store client's row reads "No ad click on this sale, so Google cannot count it".
+  ok("a lead with no click says so on the row",
+    /No ad click on this \$\{isSale\?"sale":"lead"\}, so Google cannot count it/.test(UI));
 
   ok("the scorecard exists", /function ScorecardCard/.test(UI_CODE));
   // Same rule as the cost-per-lead fix: a zero is a claim, an empty field is the truth.
