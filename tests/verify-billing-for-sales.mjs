@@ -20,13 +20,16 @@
 // and a blank where the billable event belongs is exactly what `contractGaps` exists to stop.
 
 import { readFileSync } from "node:fs";
-import { makeContractHTML } from "../netlify/lib/contract-shared.cjs";
+import { makeContractHTML, resultWords } from "../netlify/lib/contract-shared.cjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
 const eq = (l, a, b) => ok(l, JSON.stringify(a) === JSON.stringify(b), `expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 
 const S = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+const PIPE   = readFileSync(new URL("../netlify/lib/pipeline-shared.mjs", import.meta.url), "utf8");
+const PORTAL = readFileSync(new URL("../netlify/functions/portal.mjs", import.meta.url), "utf8");
+const LAND   = readFileSync(new URL("../netlify/functions/generate-landing.mjs", import.meta.url), "utf8");
 const SRV = readFileSync(new URL("../netlify/lib/contract-shared.cjs", import.meta.url), "utf8");
 
 const PKG = { id: "m-launch", name: "Launch System", platform: "Meta Ads", price: 400, setup: 750,
@@ -569,6 +572,165 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   ok("the client's own package card passes it",
     /pkgPerfLabel\(pkg,perLead,client&&client\.billingResultKind\)/.test(S),
     "the override exists but the one screen that needs it does not use it");
+}
+
+
+// ── 🔴 AND EVERY TAB OF HIS, NOT JUST THE ONE HE WAS LOOKING AT ──────────────
+//
+// Bryson, 2026-09-17, sending a screenshot of Air Suds' Overview and then the tab strip:
+// *"make sure the over view is correct as well in the os for him"* / *"make sure these tabs are
+// good as well"*. Found by DRIVING the OS in a browser as a per-sale client and reading the
+// words on every tab, which is the only way this gets found: the tiles, the tab name, the health
+// rows, the pipeline steps and the report prompt are five different files' worth of hardcoded
+// nouns, and grep for "lead" returns nine hundred hits.
+//
+// After the sweep the only tab that still says "lead" is the Contract tab, which says it on the
+// **Billing for: Leads / Sales** switch itself. That one is correct: it is the control that
+// decides the word everything else uses.
+{
+  ok("🔴 the tab strip itself follows the client",
+    /\["leads",resultWords\(client\)\.kind==="sale"\?"Sales":"Leads"\]/.test(S),
+    "a tab called Leads on a shop account is on every screen of theirs");
+
+  // The Overview tiles. These read the lead LOG, which for a store client holds the sales
+  // recorded from their own order records, so the label is the only thing that was ever wrong.
+  ok("🔴 the overview counts sales for a store client",
+    /\{l:sale\?"Sales":"Leads",v:st\.leadsTotal\}/.test(S));
+  ok("🔴 and names the cost per sale",
+    /\{l:sale\?"Avg cost per sale":"Avg CPL",v:st\.cpl!=null/.test(S));
+
+  // The health score rows, and the target they are judged against.
+  ok("🔴 the health rows do too",
+    /resultWords\(client\)\.kind==="sale"\?"Sales coming in":"Leads coming in"/.test(S)
+    && /resultWords\(client\)\.kind==="sale"\?"Cost per sale on target":"CPL on target"/.test(S));
+  ok("🔴 and a store client is judged against their OWN rate, not the per-lead niche table",
+    /const t=resultWords\(client\)\.kind==="sale"\?\(client\.billingPerLead!=null\?client\.billingPerLead:0\):\(PER_LEAD\[client\.niche\]\|\|50\)/.test(S),
+    "the niche table prices LEADS and has no row for a shop, so this would tick a $25 sale "
+    + "against a $50 lead and call it on target");
+
+  // The tab's own contents.
+  {
+    const at = S.indexOf("function LeadsTabContent");
+    const tab = S.slice(at, S.indexOf("\nfunction ", at + 20));
+    ok("the tab knows which it is holding", /const RW = resultWords\(client\);/.test(tab) && /const isSale = RW\.kind === "sale";/.test(tab));
+    ok("its heading follows", /\{isSale\?"Sales":"Leads"\} \(\{leads\.length\}\)/.test(tab));
+    // 🔴 THE EMPTY STATE CANNOT JUST SWAP THE NOUN. A lead arrives here on its own; a sale is
+    // typed in from the client's order records, because the purchase happens on their store and
+    // the OS has no connection to it. "Sales will show up here automatically" would have him
+    // waiting for something that is never coming.
+    ok("🔴 the store empty state says where sales actually come from",
+      /Sales are counted from \{client\.name\}'s own order records/.test(tab)
+      && /Record them on the Contract tab, under Billing/.test(tab));
+    ok("🔴 and never promises they arrive on their own",
+      !/Sales from \{client\.name\}'s landing page/.test(tab) && !/sales.{0,40}will show up here automatically/i.test(tab));
+    ok("the lead-gen empty state is untouched",
+      /Leads from \{client\.name\}'s landing page and tracking number will show up here automatically/.test(tab));
+    ok("and the row controls follow too", /Delete \{isSale\?"sale":"lead"\}/.test(tab));
+  }
+
+  // The live performance card's caption, which divides spend by whichever it counted.
+  ok("🔴 the performance card names what it divided by",
+    /leadLabel: resultWords\(client\)\.kind==="sale"\?"Sales":"Leads"/.test(S)
+    && /cplSub: resultWords\(client\)\.kind==="sale"\?"spend ÷ sales":"spend ÷ leads"/.test(S));
+}
+
+
+// ── 🔴 THE PIPELINE DESCRIBES WORK A SHOP ACCOUNT CANNOT HAVE ────────────────
+//
+// Two of the twenty steps are lead-gen only: the quality analyst scores leads, and the
+// automation engineer answers enquiries nobody sends, because a store client's customer clicks
+// through and buys. The Pipeline tab was reporting "Lead capture and auto-reply are live" as
+// DONE for a client with no form anywhere. That is not a wording slip, it is a step reported
+// complete that was never possible.
+{
+  ok("🔴 the quality analyst is renamed for a store client",
+    /const botName = \(id, cl\) => \(id === "leads" && isSaleClient\(cl\)\)\s*\n?\s*\? "Sale Quality Analyst"/.test(S),
+    "a report listing 'Lead Quality Analyst' among a shop's pending steps describes impossible work");
+  ok("and the pipeline summary uses the renamer rather than the raw map",
+    /name: botName\(id, client\)/.test(S));
+  ok("🔴 the automation step stops claiming auto-reply is live",
+    /saleClient \? "Click tracking runs through to their store" : "Lead capture and auto-reply are live"/.test(S));
+  ok("and the quality step counts sales", /`Scoring \$\{leads\} \$\{saleClient \? "sale" : "lead"\}/.test(S));
+  ok("the step list itself is renamed where it is given a client",
+    /name:"Sale Quality Analyst"/.test(S) && /There is no enquiry form and no auto-reply on a shop account/.test(S));
+
+  // 🔴 BOTH COPIES. The server has its own BOT_NAMES and its own pipelineProgress, and the
+  // report quotes the pending step names, so a rename in one place only is a report that
+  // disagrees with the screen it describes.
+  ok("🔴 the server copy renames it too",
+    /export const botName = \(id, cl\) => \(id === "leads" && isSaleClient\(cl\)\)/.test(PIPE)
+    && /name: botName\(id, client\)/.test(PIPE));
+
+  // 🔴 `isSaleClient` writes the rule out instead of calling resultWords, because the pipeline
+  // suite pulls these helpers out of index.html and runs them alone. Pinned so the two cannot
+  // drift into disagreeing about the same client.
+  const isSale = new Function("return " + (S.match(/const isSaleClient = \(cl\) => [^;]+;/) || [""])[0].replace(/^const isSaleClient = /, "").replace(/;$/, ""))();
+  for (const cl of [{ billingResultKind: "sale" }, { billingResultKind: "lead" }, {}, null, { billingResultKind: "" }]) {
+    ok(`🔴 isSaleClient agrees with resultWords for ${JSON.stringify(cl)}`,
+      isSale(cl) === (resultWords(cl).kind === "sale"));
+  }
+}
+
+
+// ── 🔴 THE REPORT THE OS ITSELF GENERATES ────────────────────────────────────
+//
+// There are two report prompts: the scheduled one in report-shared.mjs and this one, behind the
+// Generate button on the Reports tab. Both are read to the same client. A data block headed
+// "Leads Generated" makes the writer invent lead-quality commentary for a business with no
+// leads, and hands it the platform's conversion figure to quote as a sale nobody counted.
+{
+  ok("🔴 the OS report names sales for a store client",
+    /\$\{isSale\?"Sales Recorded":"Leads Generated"\}: \$\{st\.leadsTotal\}/.test(S)
+    && /Average Cost Per \$\{Unit\}/.test(S));
+  ok("🔴 and tells the writer where the count came from",
+    /from the client's own order records, recorded by hand/.test(S)
+    && /never quote a conversion figure from the ad platforms as a sale count/.test(S));
+  ok("🔴 and the OUTPUT FORMAT asks for the same thing",
+    /2\. Performance This Period \(\$\{unit\}s, cost per \$\{unit\} vs target, what's working\)/.test(S),
+    "a data block naming sales under an instruction saying 'leads, CPL vs target' loses to the "
+    + "instruction, which is the more specific of the two");
+  ok("the on-screen data tiles agree with the prompt",
+    /\{l:isSale\?"Sales":"Leads", v:st\.leadsTotal/.test(S)
+    && /\{l:isSale\?"Cost\/sale":"CPL"/.test(S));
+}
+
+
+// ── 🔴 THE ONE QUESTION HE IS NOT GOING TO ASK ───────────────────────────────
+//
+// Bryson, 2026-09-17: *"im not going to ask him where his product is made instead put that as a
+// question for e-commerce brands in the os that they can fill out if they want"*. Where a thing
+// is made is one of the strongest lines on a page selling it, so it is worth a box. It is worth
+// nothing as a question he has to put to a client who may not want to answer it. So it lives in
+// the list, the client can type it themselves, and blank means we never mention it.
+{
+  const q = (S.match(/\{ id:"madeIn",[\s\S]{0,400}?\},/) || [""])[0];
+  ok("🔴 the question exists and is asked at intake, not on the sales call", /ask:"intake"/.test(q), q.slice(0, 120));
+  ok("and it lands where the copy writers already read", /path:"brandVoice\.madeIn"/.test(q));
+  ok("🔴 and it says out loud that it is optional", /[Oo]ptional/.test(q), q);
+
+  // 🔴 BOTH COPIES OF THE PORTAL FORM. The OS carries a preview copy of the client's onboarding
+  // form, and a box added to one and not the other is a box that appears in the preview and not
+  // in the thing the client actually fills in, or the reverse.
+  for (const [where, src] of [["the client's portal", PORTAL], ["the OS preview of it", S]]) {
+    ok(`🔴 ${where} offers the box`, /data-key="brandVoice\.madeIn"/.test(src));
+    ok(`and ${where} says it is optional and may be left blank`,
+      /Where it is made \(optional\)/.test(src) && /Leave it blank and we simply will not mention it/.test(src));
+  }
+  // It sits under the card that asks where people buy, so it is only in front of a client who
+  // sells a product in the first place.
+  ok("🔴 it is asked beside the shop link, not of every client",
+    PORTAL.indexOf("If People Buy Straight From Your Website") < PORTAL.indexOf('data-key="brandVoice.madeIn"')
+    && PORTAL.indexOf('data-key="brandVoice.madeIn"') < PORTAL.indexOf('<div class="lbl">Your Website</div>'));
+
+  // 🔴 A QUESTION NOTHING READS IS A QUESTION NOT WORTH ASKING.
+  ok("🔴 and the landing page writer is actually given the answer",
+    /Where the product is made/.test(LAND) && /\$\{bv\.madeIn \?/.test(LAND),
+    "a field nobody reads is a box that wastes the one bit of goodwill a client spends on it");
+  ok("and is told not to embroider it",
+    /NEVER invent or extend it/.test(LAND));
+  ok("🔴 and it is omitted entirely when blank",
+    /\$\{bv\.madeIn \? `[\s\S]{0,260}?` : ""\}/.test(LAND),
+    "an empty 'Where the product is made: Not specified' invites the writer to fill the gap");
 }
 
 if (fails.length) { console.error(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.error("  " + f)); process.exit(1); }

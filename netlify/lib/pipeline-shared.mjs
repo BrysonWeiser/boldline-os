@@ -31,6 +31,15 @@ export const BOT_NAMES = {
   scaling: "Scaling Specialist", success: "Client Success",
 };
 
+// 🔴 A SHOP HAS NO LEADS TO SCORE. The OS carries the same rename (see the note beside its copy):
+// for a client billed per sale this step scores the quality of their SALES, and a report that
+// lists "Lead Quality Analyst" among the pending steps for a store client is describing work
+// that account can never have. Keyed on the same one field the agreement and the invoice read.
+export const isSaleClient = (cl) => String((cl || {}).billingResultKind || "") === "sale";
+export const botName = (id, cl) => (id === "leads" && isSaleClient(cl))
+  ? "Sale Quality Analyst" : (BOT_NAMES[id] || id);
+
+
 // ─── COPY BELOW MUST MATCH index.html EXACTLY ────────────────────────────────
 const MANUAL_BOTS = ["research", "avatar", "funnel", "scaling", "success"];
 
@@ -118,7 +127,7 @@ export function pipelineProgress(client) {
   const derived = deriveBotStatuses(client);
   const steps = BOT_IDS.map((id) => {
     const e = effectiveBotStatus(client, id, derived);
-    return { id, name: BOT_NAMES[id] || id, status: e.status, why: e.why, auto: !!e.auto };
+    return { id, name: botName(id, client), status: e.status, why: e.why, auto: !!e.auto };
   });
   const done = steps.filter((s) => s.status === "done");
   return {

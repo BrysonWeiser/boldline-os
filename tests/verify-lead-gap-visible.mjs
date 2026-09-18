@@ -85,7 +85,11 @@ ok("the tile takes its caption from the view", /view\.cplSub/.test(code));
 ok("🔴 which says whose count it divided by when they disagree",
   /cplSub: leadGap \? "spend ÷ what "\+plat\+" counted" : "spend ÷ leads"/.test(code),
   "'spend ÷ leads' on a figure divided by Meta's inflated count is the misleading part");
-ok("the combined view keeps the plain caption", /cpl: st\.cpl, cplSub: "spend ÷ leads"/.test(code));
+// A store client's rows are recorded sales, so the combined caption names whichever it divided
+// by. The point of this check is unchanged: the account-level figure is captioned plainly,
+// because at account level there is no second count to disagree with it.
+ok("the combined view keeps the plain caption",
+  /cpl: st\.cpl, cplSub: resultWords\(client\)\.kind==="sale"\?"spend ÷ sales":"spend ÷ leads"/.test(code));
 ok("and an unmeasurable cost per lead still says why", /needs a lead and some spend/.test(code));
 
 // The arithmetic itself is unchanged and still the platform's, which is the honest thing to

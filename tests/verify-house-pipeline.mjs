@@ -51,6 +51,9 @@ const src = [
   // leadCount helper (added 2026-09-08, when a stored count kept showing two deleted leads),
   // so the extraction has to bring it along or deriveBotStatuses throws.
   slice(/^const leadCount = /m, /\n/) + "\n",
+  // 🔴 And the same trap once more (2026-09-18): a store client has no enquiries, so two of the
+  // steps now describe different work for one, and deriveBotStatuses asks `isSaleClient` which.
+  slice(/^const isSaleClient = /m, /\n/) + "\n",
   slice(/^const adPlatformsOf = /m, /\n};\n/) + "\n};\n",
   slice(/^const platformLabel = /m, /\n};\n/) + "\n};\n",
   slice(/^const BOT_IDS = \[/m, /\n\];\n/) + "\n];\n",
@@ -346,8 +349,11 @@ const client = (over = {}) => ({
 {
   ok("the OS report prompt no longer reads the dead field",
     !/Average CPL: \$\{client\.cpl/.test(UI));
-  ok("it computes cost per lead instead", /Average CPL: \$\{st\.cpl!=null\?/.test(UI));
-  ok("and counts leads from the log", /Leads Generated: \$\{st\.leadsTotal\}/.test(UI));
+  // The two labels now carry the client's own word ("Sales Recorded" / "Average Cost Per Sale"
+  // for a store client), so these pin the part that matters: both figures are computed live
+  // from the log and the spend snapshot rather than read off a field nothing writes.
+  ok("it computes cost per lead instead", /Average Cost Per \$\{Unit\}: \$\{st\.cpl!=null\?/.test(UI));
+  ok("and counts leads from the log", /: \$\{st\.leadsTotal\}\$\{st\.leads30!==st\.leadsTotal/.test(UI));
   ok("and hands the writer the real ad numbers", /Live Ad Data: \$\{st\.hasSnapshot\?/.test(UI));
   // The comment above this line has claimed since before it was true that a report can
   // never quote a different number from the screen. Now it holds.
