@@ -8,6 +8,28 @@ summary: The founder quote on the marketing site is the one personal moment on t
 verified: 2026-09-20
 ---
 
+## 🔴 THE MARKETING SITE SHIPS ITS COMMENTS (2026-09-20)
+
+Found while confirming the founding-offer change had reached the live site. `marketing-site/index.html`
+is served raw, so **every HTML, CSS and JS comment in it is readable in View Source on
+boldlinemedia.com**. An explanation comment written beside the founder quote put two things in
+public: the previous pitch quoted word for word, and Bryson's own private note that he thought it
+was weak.
+
+**Rule from here: reasoning about copy goes in this KB, not in a comment on a public page.** What
+belongs beside the code is the one constraint a rewrite can break, stated without quoting anyone.
+
+🔴 **Three older ones predate this and are still live.** Flagged to Bryson rather than changed on
+my own, because two of them are his words:
+
+| Line | What it exposes |
+|---|---|
+| The Deal Prep recommender script | Says out loud that the one-time build *"is NOT named here on purpose"* with his reason attached, which tells a reader there is an unadvertised product and why |
+| The founding banner block | Explains the offer comes down by itself when a client signs |
+| Two style comments | Harmless, just design notes |
+
+The OS (`index.html`) has the same property but is behind a login, so it is not the same exposure.
+
 ## 🔴 THE FOUNDER QUOTE (2026-09-20)
 
 Bryson: *"right now it's a very weak quote. I want to put a quote in there that will be another
