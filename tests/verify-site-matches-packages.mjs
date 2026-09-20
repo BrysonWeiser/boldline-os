@@ -118,5 +118,58 @@ ok("and every mapped feature is a real feature",
   CLAIMS.every(([, f]) => ALL_FEATURES.some((x) => x.id === f)),
   "a typo in a feature id makes its check impossible to satisfy");
 
+
+// ── 🔴 THE FOUNDER QUOTE IS A PROMISE, SO IT MUST MATCH THE PRICING ──────────
+//
+// Same failure this suite exists for, in prose rather than a bullet: a line on the site that
+// says more than the product does. Bryson, 2026-09-20, replacing a quote about keeping the team
+// small: *"companies don't care who runs their ads personally they usually just want the most
+// efficient way to guarantee their money makes them more money"*. Right, so the quote is now
+// about the money.
+//
+// 🔴 AND THAT IS EXACTLY WHY IT NEEDS A GUARD. "I only make more when your ads do" is true on
+// every plan, because the upside really is entirely performance. "I only get paid when your ads
+// work" would be FALSE for any client on a monthly minimum, and the pricing block two screens up
+// would contradict it on the same page. A quote is easy to reword warmly and a warmer version of
+// this one is a lie.
+{
+  const quote = (SITE.match(/<blockquote>([\s\S]*?)<\/blockquote>/) || [])[1] || "";
+  ok("the founder quote was found", quote.length > 40, JSON.stringify(quote.slice(0, 60)));
+
+  // The site promises the minimum OR the performance fee, whichever is higher. So a quote may
+  // say the UPSIDE depends on results. It may not say the whole fee does.
+  const overclaims = [
+    /only (get |getting |)paid when/i,
+    // Both directions of the same claim: what THEY pay, and what HE gets. A guard that only
+    // catches "you don't pay unless" misses "I don't get paid unless", which promises the
+    // identical thing from the other side of the table.
+    /(don'?t|never|not) (get |getting |)paid( a cent| a dime| anything|)( at all|) (unless|until|when|if)/i,
+    /don'?t pay (me |us |)(a cent |a dime |anything |)(unless|until)/i,
+    /no results,? no (fee|charge|pay)/i,
+    // 🔴 THE OBJECT IN THE MIDDLE IS THE WHOLE POINT. A first draft of this guard read
+    // /you only pay (for|when|if)/ and a mutation of "you only pay ME when your ads work"
+    // sailed straight through it, which is the exact warm reword this is here to stop.
+    /only pays? (me |us |anything |a cent |a dime |)?(when|if|for|unless)/i,
+    /work(s)? for free/i,
+  ].filter((re) => re.test(quote));
+  ok("🔴 the quote does not promise results-only pricing",
+    overclaims.length === 0,
+    "the pricing section on this same page says the minimum or the performance fee, whichever "
+    + "is higher, so this reads as a contradiction and a client will quote it back: "
+    + overclaims.map(String).join(", "));
+  ok("and the pricing section it has to agree with is still there",
+    /whichever of those is higher/.test(SITE) && /Never both added together/.test(SITE));
+
+  // 🔴 IT IS THE ONE PERSONAL MOMENT ON THE PAGE, SO IT MUST NOT REPEAT THE PAGE. The old quote
+  // opened on keeping the roster small, which the fit section already says in its own words.
+  ok("🔴 the quote does not restate what another section already says",
+    !/roster/i.test(quote) && !/junior/i.test(quote),
+    "the fit section already says the roster is kept focused, so spending the founder's voice "
+    + "on it says nothing new");
+  ok("and it is not about ad account ownership either",
+    !/\bad account\b/i.test(quote) && !/keep the keys/i.test(quote),
+    "that is the section directly above it");
+}
+
 if (fails.length) { console.error(`✕ ${fails.length} failed, ${pass} passed`); fails.forEach((f) => console.error("  " + f)); process.exit(1); }
 console.log(`✓ verify-site-matches-packages: ${pass} checks passed`);
