@@ -8,6 +8,51 @@ summary: The setup fee ($1,500 to $4,900) is waived for BoldLine's first three c
 verified: 2026-08-28
 ---
 
+## 🔴 WIDENED FROM 3 TO 5 (2026-09-20)
+
+Bryson: *"I want to change the founding client offer from first 3 to first 5"*.
+
+**Nothing on the site changed visibly.** One client is signed, so the banner was already showing
+and still is. What changed is the wording (first five) and the fact that Deal Prep will now quote
+founding terms for two more deals than before.
+
+**The number now lives in ONE place: `FOUNDING_CLIENT_COUNT` in `netlify/lib/founding.mjs`.**
+Everything else reads it or is checked against it. Before this change the figure was ALSO typed
+out by hand in four places, two of which were the sales prompt, so widening the offer meant
+finding them all.
+
+| Where | How it gets the number now |
+|---|---|
+| OS mirror in `index.html` | Its own constant, **pinned equal to the lib's by a test** |
+| Deal Prep sales prompt | Reads the constant (was `first 3 clients`, twice) |
+| Marketing site banners (home + get-started) | Still English prose, but the **expected word is derived from the constant** in `verify-founding-offer`, so the site cannot advertise a different count from the one the code grants |
+| "Offer is spent" alert | Reads the constant |
+
+**Four holes this turned up, all found by mutation, all closed:**
+
+1. 🔴 **The OS mirror could sit at 3 while the server said 5 and every test passed.** Deal Prep
+   would quote founding terms and then show "0 of 3 places left" beside the quote.
+2. 🔴 **The sales prompt quotes the figure TWICE.** Re-hardcoding one of them left the other
+   reading from the constant, so the old check (`block.includes(String(COUNT))`) still passed
+   while the model was told "the first 3 clients" in the sentence that leads the pitch. Now no
+   other count may appear at all.
+3. 🔴 **A banner saying both numbers passed.** The check found the right phrase and never looked
+   for a second one.
+4. 🔴 **The "founding offer is spent" alert could only ever fire ONCE in the lifetime of the
+   business.** It deduped on a bare flag, which was fine while the limit was fixed. Spend the
+   offer at three, widen to five, and the day the fifth signs his pitch changes in total silence,
+   which is the exact thing the alert exists to prevent. It now stores
+   `foundingOfferSpentAt: <the limit it fired at>`, so **raising the limit re-arms it** and
+   lowering it does not double fire. The old boolean is read as "alerted at 3" so nobody gets a
+   duplicate for a limit they were already told about.
+
+**Raising the limit re-opens the offer, on purpose.** `foundingOfferActive` compares a live signed
+count against the constant, so going 3 to 5 with three already signed would turn the banner back
+on. Not relevant today at one signed client, but it is the behaviour to expect.
+
+**9 mutations, all caught.** 108 suites, 0 failures.
+
+
 ## 🔴 SIGNED MEANS IN THE OS, AND NOTHING MOVES BEFORE THAT (Bryson, 2026-09-14)
 
 *"until they are in the os still act as if we only have one that means dont change the banners
