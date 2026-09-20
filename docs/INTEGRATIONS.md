@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 189 task-keyed entries under `knowledge/`. They surface automatically via the
+> 190 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**189 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**190 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -369,6 +369,9 @@
 - **[pkg-card-selection](../knowledge/pkg-card-selection.md)** &mdash; &#9989; verified &middot; 2026-07-03  
   Tapping/clicking a package card is a single selection (.sel via delegated JS). The featured "Most Popular" ring is a DEFAULT that steps aside (via :has rules) whenever another card is selected or hovered — its pill badge stays. Never two rings at once.  
   <sub>*task:* change how package cards highlight, select, or show the Most Popular state &nbsp;|&nbsp; *keywords:* pkg, .sel, most popular, tag, sticky hover, :has, featured ring, tap selection</sub>
+- **[site-copy-voice](../knowledge/site-copy-voice.md)** &mdash; &#9989; verified &middot; 2026-09-20  
+  The founder quote on the marketing site is the one personal moment on the page, so it must say something no other section says and must never promise more than the pricing block delivers. Replaced 2026-09-20: the old one repeated the fit section (small roster) and made claims any agency could make. The new one puts the performance fee in Bryson's own voice, worded so it is exactly true on every plan. A test reads the blockquote and fails on a results-only promise in either direction, or a drift back onto the roster or ad account ownership.  
+  <sub>*task:* change the founder quote or any headline claim on the marketing site &nbsp;|&nbsp; *keywords:* founder quote, blockquote, marketing site copy, website quote, why choose us, overclaim, results only pricing, performance fee promise, site voice, boldlinemedia.com copy</sub>
 - **[site-favicon](../knowledge/site-favicon.md)** &mdash; &#9989; verified &middot; 2026-07-29  
   The brand logo (logo.png) is a gold monogram on a TRANSPARENT background, so it washed out on Google's white search card + light browser tabs. Fix (2026-07-29): the gold monogram on a black background is served as the favicon via TWO files at the marketing-site root — icon.png (512×512, rounded near-black #0D0D0D square, for apple-touch + high-res) and favicon.ico (multi-size 16/32/48/64, solid black square, the universal crawler/browser fallback). All marketing pages + blog pages declare `<link rel="icon" href="/favicon.ico" sizes="any">` then `<link rel="icon" type="image/png" href="/icon.png">` + `<link rel="apple-touch-icon" href="/icon.png">`. The in-page nav still uses the transparent logo.png (correct on the dark header). GOTCHA: Google re-crawls favicons slowly (days–weeks) so the search result stays stale long after the site is fixed — that's not a bug.  
   <sub>*task:* the site favicon / search-result icon — black background so the gold logo shows, and why Google is slow to update it &nbsp;|&nbsp; *keywords:* favicon, icon.png, favicon.ico, logo background, black background, google search icon, apple-touch-icon, browser tab icon, search result logo, boldlinemedia favicon</sub>
