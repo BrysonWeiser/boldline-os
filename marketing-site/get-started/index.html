@@ -219,12 +219,9 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
     <div class="reveal"><span class="eyebrow">Google &amp; Meta Ads · Done For You</span></div>
     <h1 class="reveal d1">More customers.<br><em>Without the guesswork.</em></h1>
     <p class="sub reveal d2">BoldLine plans, builds, and runs your <span class="hl">Google and Meta ad campaigns</span>, plus the landing pages and instant lead follow-up behind them, so you get a steady flow of real leads while you focus on running your business.</p>
-    <!-- The ask, and it is deliberately small. This page is where PAID SOCIAL traffic lands:
-         people who were scrolling ninety seconds ago and did not come looking for us. 88 of
-         them read the old version, which asked for a 30-minute phone call four different
-         ways, and not one got in touch. A free automated audit costs them ten seconds and
-         costs us nothing, and it still gets their website and their email. The call is still
-         here for anyone ready for it, one line down. -->
+    <!-- The ask is deliberately small, and the call is still one line down for anyone ready
+         for it. Reasoning in KB `ads-page-conversion`, not here: this file is served to the
+         public with its comments intact, and that reasoning quotes real campaign numbers. -->
     <form class="reveal d3" id="leakForm" style="max-width:430px;margin:26px auto 0;display:flex;flex-direction:column;gap:10px;text-align:left">
       <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
       <input id="lk-website" type="text" placeholder="Your website (e.g. yourbusiness.com)" autocomplete="url" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
@@ -242,7 +239,7 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
     <!-- CS:FOUNDING:END get-started -->
 <script>
 /* 🔴 THE FOUNDING BANNER IS HIDDEN UNTIL THE SERVER CONFIRMS THE OFFER IS STILL OPEN.
-   Bryson, 2026-09-07: the offer must come down by itself the moment the third client signs,
+   The offer must come down by itself the moment the last founding place is taken,
    without waiting for anyone to remember to edit this file and redeploy.
    KB `content-visibility-no-js` says never gate content on JS, and it still holds for the
    page's substance: the hero, packages, FAQ and reviews are all in the HTML and readable with
@@ -408,7 +405,8 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
           /* The conversion is reported HERE, after Netlify has taken the post, and only when
              the honeypot is empty. Netlify accepts a honeypot hit with a 200 and then throws
              it away, so a bot would otherwise be reported to Meta as a lead that never
-             reaches the OS. Same rule the audit form was given on 2026-09-05. */
+             reaches the OS. The audit form on this page follows the
+             same rule. */
           try { if(!data['bot-field'] && window.blConversion) blConversion('form'); } catch(e){}
           form.style.display='none'; ok.style.display='block'; ok.scrollIntoView({behavior:'smooth',block:'center'}); })
         .catch(function(){ btn.disabled=false; btn.textContent='Send & Get a Call Back'; alert('Something went wrong. Please try again, or book a call above.'); });
@@ -488,17 +486,10 @@ window.BL_TRACK = {
   });
 
   // 🔴 THE BACKUP FORM REPORTS ITS OWN CONVERSION, in the success branch of its AJAX post
-  // further up this page. There used to be a second listener here that fired on the submit
-  // EVENT, under a comment claiming "Netlify posts it normally, so fire just before it
-  // leaves". That comment was simply false: the form is intercepted with preventDefault and
-  // posted by fetch. So every submit told Meta a lead had happened before anything had been
-  // saved, and a honeypot hit, a refused post or a dropped connection all counted as leads
-  // that never reached the OS.
-  //
-  // Found 2026-09-09 from Meta reporting TWO leads on the house campaign against ONE in the
-  // OS. The identical bug had already been found and fixed on the audit form on 2026-09-05;
-  // this copy was left behind, which is what a second implementation of one thing always
-  // costs. A lead we did not save is not a lead.
+  // further up this page, and nothing here may report one on the submit event: this form is
+  // intercepted with preventDefault, so a submit is not a save. Full reasoning and the two
+  // incidents behind this rule are in KB `lead-double-count`, deliberately NOT here, because
+  // this file is served to the public with its comments intact.
 })();
 </script>
 
@@ -521,18 +512,11 @@ window.BL_TRACK = {
     if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
     if(!DIGITS10(phone)){m.textContent='Please add a phone number we can reach you on.';return;}
     b.disabled=true;var old=b.textContent;b.textContent='Sending...';m.textContent='';
-    // 🔴 blConversion, NOT a raw fbq call. The page already has one tracker that reports a
-    // lead to GA4, to Google Ads AND to Meta, and dedupes so a double-tap is not two leads.
-    // The first version of this audit form fired fbq('track','Lead') by hand, which told
-    // Meta and told GA4 and Google Ads nothing. Caught 2026-08-28 when Bryson asked whether
-    // lead tracking still worked on the page. A second implementation of one thing is how
-    // half of it silently stops happening.
-    // 🔴 THE CONVERSION IS REPORTED ONLY AFTER THE LEAD IS ACTUALLY SAVED, and the order
-    // used to be the other way round. Bryson, 2026-09-05, on his own campaign: Meta counted
-    // TWO leads while exactly ONE existed in the OS. Firing first means a failed or refused
-    // save still tells Facebook a lead happened, so Meta counts a person we never received:
-    // the cost per lead reads better than it is, and the missing one is invisible because
-    // nothing anywhere recorded it. A lead we did not save is not a lead.
+    // 🔴 TWO RULES, BOTH LOAD-BEARING. Use blConversion, never a raw fbq call: one tracker
+    // reports to GA4, Google Ads and Meta together and dedupes. And report ONLY after the
+    // lead is actually saved, never before, because a refused or dropped save would otherwise
+    // still be counted. Reasoning and the incidents behind both are in KB `lead-double-count`,
+    // kept there because this file is served to the public with its comments intact.
     fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,name:name,phone:phone,source:'get-started',attribution:(window.blOrigin?window.blOrigin():null)})})
       .then(function(r){
         if(!r.ok) throw new Error('save refused');
