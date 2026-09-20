@@ -8,27 +8,42 @@ summary: The founder quote on the marketing site is the one personal moment on t
 verified: 2026-09-20
 ---
 
-## 🔴 THE MARKETING SITE SHIPS ITS COMMENTS (2026-09-20)
+## 🔴 THE MARKETING SITE SHIPS ITS COMMENTS, AND IS NOW POLICED (2026-09-20)
 
-Found while confirming the founding-offer change had reached the live site. `marketing-site/index.html`
-is served raw, so **every HTML, CSS and JS comment in it is readable in View Source on
-boldlinemedia.com**. An explanation comment written beside the founder quote put two things in
-public: the previous pitch quoted word for word, and Bryson's own private note that he thought it
-was weak.
+Found while confirming the founding-offer change had reached the live site: a grep of
+boldlinemedia.com for the OLD founder quote still matched. `marketing-site/` is served raw
+(`publish = "."`, no build step, no minifier), so **every HTML, CSS and JS comment in it is
+readable in View Source**, and indexed along with the page.
 
-**Rule from here: reasoning about copy goes in this KB, not in a comment on a public page.** What
-belongs beside the code is the one constraint a rewrite can break, stated without quoting anyone.
+Bryson said to clean it. Pulling the thread found worse than the one first flagged:
 
-🔴 **Three older ones predate this and are still live.** Flagged to Bryson rather than changed on
-my own, because two of them are his words:
-
-| Line | What it exposes |
+| What was shipping | Why it mattered |
 |---|---|
-| The Deal Prep recommender script | Says out loud that the one-time build *"is NOT named here on purpose"* with his reason attached, which tells a reader there is an unadvertised product and why |
-| The founding banner block | Explains the offer comes down by itself when a client signs |
-| Two style comments | Harmless, just design notes |
+| The comment beside the new founder quote | Reproduced the **previous pitch word for word**, plus his private note that he thought it was weak |
+| The plan recommender | Said the one-time build *"is NOT named here on purpose"* with his reason attached, which tells a reader there is an **unlisted offer** and hands them the reason to ask for it |
+| The ads landing page | **Documented its own past lead-tracking failures, with dates**, on the page paid social traffic lands on |
+| A comment beside the hero form | Quoted **real campaign numbers** from a previous version of that page |
+| Six more | His name, his Calendly question order, and a note that there is no Google Business Profile yet |
 
-The OS (`index.html`) has the same property but is behind a login, so it is not the same exposure.
+None of it was visible on the page. All of it was one keystroke away. All of it is now gone, and
+**each cleaned comment points at the KB entry that holds the reasoning**, so the next person
+editing that code can still find out why.
+
+🔴 **`tests/verify-public-source.mjs` enforces this from here.** It extracts the comments (HTML,
+CSS and JS shapes) from both served pages and fails on two crisp markers: **a person's name** in a
+comment, and **a date** in a comment, which in this repo is always an incident note. It also pins
+the three specific leaks by name, and checks that every KB entry a comment points at actually
+exists, because a pointer to a file nobody wrote is worse than no pointer. The comment reader is
+proved to work before anything is asserted with it. **6 mutations: five caught, and the one that
+survives is a URL in visible copy, which must NOT trip it.**
+
+**The rule, for next time.** Technical notes about how the code works are welcome and several are
+load-bearing. What may not ship is the REASONING: who asked for something and in what words, what
+was tried and failed, what is deliberately not advertised, and what a campaign produced. That goes
+in `knowledge/`, which is what it is for.
+
+The OS (`index.html` at the root) is deliberately exempt: it is behind a login, and its comments
+are the durable record of why it works the way it does.
 
 ## 🔴 THE FOUNDER QUOTE (2026-09-20)
 
