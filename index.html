@@ -944,18 +944,18 @@ const PER_LEAD  = { Roofing:75, "Med Spa":35, "Auto Detailing":15 };
 //
 // Why it exists at all: on 2026-09-07 the Deal Prep briefing for Scottsdale Roofing told
 // Bryson to quote "$750 setup, then $400/mo minimum". Both are right in the price list and
-// both are wrong for anyone he would sign today, because the first three clients get the
+// both are wrong for anyone he would sign today, because the founding clients get the
 // setup waived and pay NO monthly minimum, only per qualified lead in arrears.
 //
 // 🔴 The prompt was fixed first, and that was not enough: the package list rendered directly
 // UNDER the briefing still showed "$400/mo min · $750 setup", so the screen still contradicted
 // the words above it. A price shown next to a recommendation IS the quote, whatever the prose
 // says. Anything that prints a price to Bryson before a client record exists has to know.
-const FOUNDING_CLIENT_COUNT = 3;
+const FOUNDING_CLIENT_COUNT = 5;
 // 🔴 MIRRORS netlify/lib/founding.mjs. Computed from the CLIENTS, never a constant somebody
 // has to remember to flip (Bryson, 2026-09-07: *"once I land a third client... that triggers
 // the copy and website banner to take down the offer"*). Monotonic on purpose: once three have
-// signed the offer is spent forever, even if one later churns, because "we gave the first three
+// signed the offer is spent forever, even if one later churns, because "we gave our first clients
 // a free build" is a statement about history.
 const foundingCountsFor = (c) => c && !c.internal && !c.demo && (!!c.contractSigned || c.contractStatus==="active");
 const foundingSignedCount = (clients) => (clients||[]).filter(foundingCountsFor).length;
@@ -5421,7 +5421,7 @@ function clientFromMeeting(answers, brief, packageId) {
 
 function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient}){
   // Live, not a constant: the price shown next to a recommendation must be the price he would
-  // actually quote today, and that stops being the founding price the moment the third signs.
+  // actually quote today, and that stops being the founding price the moment the last place goes.
   const foundingOpen = foundingOfferOpen(clients);
   const slotsLeft = foundingSlotsLeft(clients);
   const [form,setForm]=useState({companyName:"",niche:"",website:"",location:"",notes:""});

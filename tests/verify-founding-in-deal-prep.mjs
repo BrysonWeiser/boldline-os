@@ -2,7 +2,7 @@
 //
 // 2026-09-07: the briefing it produced for Scottsdale Roofing told him to quote "$750
 // one-time setup, then $400/mo minimum or $75 per qualified lead". Both halves are wrong for
-// anyone he would sign today. The setup fee is WAIVED for the first three clients, and
+// anyone he would sign today. The setup fee is WAIVED for the founding clients, and
 // founding clients pay for RESULTS ONLY with no monthly minimum at all.
 //
 // "You owe $400 whether it works or not" and "you owe nothing unless I deliver" are not a
@@ -51,6 +51,14 @@ ok("the standing pricing sentence warns the model it is overridden",
     /pays their ad spend directly/.test(block) && /never holds or fronts/.test(block));
   ok("it names the real client count rather than a vague 'a few'",
     block.includes(String(FOUNDING_CLIENT_COUNT)));
+  // 🔴 AND NAMES NO OTHER COUNT. Found by mutation 2026-09-20: the prompt quotes the figure
+  // TWICE, so re-hardcoding one of them back to the old number left the other reading from the
+  // constant, the block still contained "5", and this check passed while the model was being
+  // told "the first 3 clients" in the very sentence that leads the pitch.
+  const wrongCounts = [...block.matchAll(/first (\d+) clients/g)]
+    .map((m) => m[1]).filter((n) => n !== String(FOUNDING_CLIENT_COUNT));
+  ok(`🔴 and quotes no other count than ${FOUNDING_CLIENT_COUNT}`, wrongCounts.length === 0,
+    `the prompt tells a prospect the offer covers the first ${wrongCounts.join("/")} clients`);
   // 🔴 Scarcity has to stay honest. An invented deadline is the one thing that would make
   // this offer feel like a tactic, and Bryson's standing rule is that nothing may read as
   // manufactured. The offer's real limit is a count, so the model is told to say the count.
@@ -59,9 +67,62 @@ ok("the standing pricing sentence warns the model it is overridden",
     "a made-up deadline turns an honest offer into a sales trick");
 
   // The site and the prompt are the same promise made to the same people.
+  // 🔴 DERIVED FROM THE CONSTANT, NOT TYPED. Bryson widened the offer from 3 to 5 on
+  // 2026-09-20. A test that spells the number out by hand has to be edited before the change
+  // can land, which means it would just as happily have passed a site promising three places
+  // while the code granted five. The count is the source; the banner is checked against it.
+  const WORD = ["zero","one","two","three","four","five","six","seven","eight","nine","ten"][FOUNDING_CLIENT_COUNT] || String(FOUNDING_CLIENT_COUNT);
   ok("the marketing site still carries the matching founding banner",
-    /Founding client offer/i.test(SITE) && /first three clients it is free/i.test(SITE),
+    /Founding client offer/i.test(SITE) && new RegExp(`first ${WORD} clients it is free`, "i").test(SITE),
     "if the site and the call disagree about the offer, the prospect believes neither");
+}
+
+// ── 🔴 THE "OFFER IS SPENT" ALERT HAS TO SURVIVE THE LIMIT MOVING ───────────
+//
+// The alert exists so the pitch never changes under him in silence. It used to dedupe on a bare
+// "already alerted" flag, which was fine while the limit was a fixed 3. Bryson widening it to 5
+// on 2026-09-20 proved it is not fixed, and a bare flag means the alert can only ever fire ONCE
+// in the lifetime of the business: spend the offer at three, widen it to five, and the day the
+// fifth signs he finds out from a prospect asking for a free build he no longer offers.
+{
+  const AW = readFileSync(join(ROOT, "netlify/functions/alerts-watch.mjs"), "utf8");
+  ok("🔴 the alert remembers the LIMIT it fired at, not just that it fired",
+    /foundingOfferSpentAt/.test(AW),
+    "a boolean flag lets the alert fire once, ever, however many times the offer is reopened");
+  ok("and it writes that limit when it fires",
+    /foundingOfferSpentAt: FOUNDING_CLIENT_COUNT/.test(AW));
+  ok("and the old boolean is still honoured so nobody gets a duplicate",
+    /foundingOfferSpentAlerted \? 3 : 0/.test(AW),
+    "an account that already alerted at the old limit of 3 must not be told again about 3");
+
+  // Run the real rule rather than trusting the source read above.
+  const armed = (hd, signed, N) => {
+    const alertedFor = Number(hd.foundingOfferSpentAt || 0) || (hd.foundingOfferSpentAlerted ? 3 : 0);
+    return signed >= N && !(alertedFor >= N);
+  };
+  ok("a fresh account alerts when the last place goes", armed({}, 5, 5));
+  ok("🔴 an account that alerted at 3 alerts again once the offer is widened and refilled",
+    armed({ foundingOfferSpentAlerted: "2026-01-01" }, 5, 5));
+  ok("but not before the new limit is actually reached",
+    !armed({ foundingOfferSpentAlerted: "2026-01-01" }, 4, 5));
+  ok("and never twice for the same limit", !armed({ foundingOfferSpentAt: 5 }, 6, 5));
+}
+
+// ── 🔴 THE TWO COPIES OF THE LIMIT MUST BE THE SAME NUMBER ──────────────────
+//
+// The count lives twice: `netlify/lib/founding.mjs`, which the marketing site's banner endpoint
+// and the sales prompt read, and a mirror in `index.html`, because the OS is one file served to
+// a browser and cannot import it. Found by mutation 2026-09-20: leaving the OS mirror at 3 while
+// the server said 5 passed every test. That is not cosmetic. Deal Prep would quote founding
+// terms to a fourth prospect and then show "0 of 3 places left" beside the quote, or refuse to
+// show founding pricing for a deal the website is still publicly advertising.
+{
+  const osCount = (OSCODE.match(/const FOUNDING_CLIENT_COUNT = (\d+);/) || [])[1];
+  ok("the OS carries its own copy of the limit", !!osCount, "the mirror was not found at all");
+  ok(`🔴 and it is the same number the server enforces (${FOUNDING_CLIENT_COUNT})`,
+    Number(osCount) === FOUNDING_CLIENT_COUNT,
+    `the OS says ${osCount} and netlify/lib/founding.mjs says ${FOUNDING_CLIENT_COUNT}, so the `
+    + "screen and the website disagree about how many free builds are left");
 }
 
 // ── 🔴 THE SCREEN HAS TO AGREE WITH THE BRIEFING ─────────────────────────────
@@ -104,14 +165,19 @@ ok("the standard package prices are still there for when the offer ends",
 // $4,900 and he would find out when a prospect asked for it.
 {
   const signed = (n) => Array.from({ length: n }, () => ({ contractSigned: true }));
-  ok("open at zero, one and two signed clients",
-    [0, 1, 2].every((n) => foundingOfferActive(signed(n))));
-  ok("🔴 SPENT the moment the third signs", foundingOfferActive(signed(3)) === false);
+  // 🔴 EXPRESSED AGAINST THE CONSTANT so widening the offer does not need this rewritten, and
+  // so the BOUNDARY is still tested wherever it sits: open at every count below it, spent at
+  // it, and spent above it.
+  const N = FOUNDING_CLIENT_COUNT;
+  ok("open at every count below the limit",
+    Array.from({ length: N }, (_, i) => i).every((n) => foundingOfferActive(signed(n))),
+    `one of 0..${N - 1} signed clients reads as spent`);
+  ok("🔴 SPENT the moment the last place goes", foundingOfferActive(signed(N)) === false);
   ok("🔴 and it never re-opens if a client later churns",
-    foundingOfferActive(signed(4)) === false,
-    "we gave the first three a free build is a statement about history, not about headcount");
+    foundingOfferActive(signed(N + 1)) === false,
+    "we gave our first clients a free build is a statement about history, not about headcount");
   ok("places left counts down and stops at zero",
-    foundingSlotsLeft(signed(1)) === 2 && foundingSlotsLeft(signed(5)) === 0);
+    foundingSlotsLeft(signed(1)) === N - 1 && foundingSlotsLeft(signed(N + 2)) === 0);
   ok("a client signed on paper counts, not just DocuSign",
     isFoundingClient({ contractStatus: "active" }) === true,
     "Stencil & Thread signed an emailed PDF; a DocuSign-only test would have missed the first client");

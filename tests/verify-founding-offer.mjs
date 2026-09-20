@@ -15,6 +15,7 @@
 // stays honest.
 
 import { readFileSync } from "node:fs";
+import { FOUNDING_CLIENT_COUNT } from "../netlify/lib/founding.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -44,9 +45,24 @@ if (onHome || onAds) {
     const block = (src.match(/CS:FOUNDING:START[\s\S]*?CS:FOUNDING:END/) || [""])[0];
     ok(`${where} states what the build normally costs`, /\$1,500 to \$4,900/.test(block),
       "the site never mentions a setup fee anywhere else, so 'waived' means nothing on its own");
-    ok(`${where} says it is free for the first three`, /first three clients it is free/i.test(block));
+    // 🔴 THE NUMBER ON THE SITE IS DERIVED FROM THE ONE THE CODE ENFORCES, NOT TYPED HERE.
+    // Bryson widened the offer from 3 to 5 on 2026-09-20. The constant, the sales prompt and
+    // two banners all carried the figure, and a test that spelled "three" out by hand would
+    // have needed editing to let the change through, which is the opposite of a guard: it
+    // would happily have passed a site advertising three places while the code granted five.
+    // Now the count is the source and the copy is checked against it, in both directions.
+    const WORD = ["zero","one","two","three","four","five","six","seven","eight","nine","ten"][FOUNDING_CLIENT_COUNT] || String(FOUNDING_CLIENT_COUNT);
+    ok(`${where} says it is free for the first ${WORD}`,
+      new RegExp(`first ${WORD} clients it is free`, "i").test(block),
+      `the code grants ${FOUNDING_CLIENT_COUNT} founding places and this page advertises a different number`);
+    // 🔴 AND NO OTHER NUMBER MAY APPEAR IN THAT SENTENCE. Without this the check above passes
+    // on a banner that says both, which is how a half-done edit survives.
+    const otherCounts = ["one","two","three","four","five","six","seven","eight","nine","ten"]
+      .filter((w) => w !== WORD)
+      .filter((w) => new RegExp(`first ${w} clients`, "i").test(block));
+    ok(`🔴 ${where} advertises no other count`, otherCounts.length === 0, otherCounts.join(", "));
     // 🔴 A number of remaining spots decays into a lie the moment a client signs and nobody
-    // edits the page. "Our first three clients" stays true throughout.
+    // edits the page. "Our first five clients" stays true throughout.
     ok(`🔴 ${where} makes no countdown claim that will rot`,
       !/\b(spots?|places?|slots?)\s+(left|remaining)\b/i.test(block) && !/only \d+ (spot|place|slot)/i.test(block),
       "a stale 'two spots left' is a live honesty problem nobody notices for months");
@@ -59,7 +75,9 @@ if (onHome || onAds) {
     "BoldLine never holds or fronts ad spend, and 'free' is the moment someone assumes it does");
 
   ok("there is a written way to take it down", /CS:FOUNDING:START home/.test(doc) && /To remove/.test(doc));
-  ok("and the doc says when", /third client signs/i.test(doc));
+  // The runbook says WHEN it comes down. Pinned loosely on purpose: it is prose, and what
+  // matters is that it names the trigger at all, not which word it uses for the number.
+  ok("and the doc says when", /client signs/i.test(doc));
 }
 
 console.log(`verify-founding-offer: ${pass} passed, ${fail} failed`);

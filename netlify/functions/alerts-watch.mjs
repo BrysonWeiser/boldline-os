@@ -126,14 +126,26 @@ export default withFailureAlert("alerts-watch", async () => {
   // because a thing that changes silently is a thing he finds out about from a prospect: he
   // needs to know his pitch just changed, and that the free build is no longer his to offer.
   //
-  // Once, ever, on the transition. Stored on the house/internal record so it is not attached
-  // to any one client, and never re-fires if a client later churns (the offer is spent on
-  // history, not on the current headcount).
+  // Once per limit, on the transition. Stored on the house/internal record so it is not
+  // attached to any one client, and never re-fires if a client later churns (the offer is spent
+  // on history, not on the current headcount).
+  //
+  // 🔴 KEYED TO THE LIMIT IT FIRED AT, NOT A BARE FLAG. Bryson widened the offer from 3 to 5 on
+  // 2026-09-20, which proved the limit is a thing he changes. A plain "already alerted" flag
+  // would mean the alert fires once in the lifetime of the business: spend the offer at three,
+  // widen it to five, and the day the fifth signs the pitch changes under him in total silence,
+  // which is the exact failure this alert exists to prevent. `foundingOfferSpentAt` remembers
+  // the count it was spent at, so raising the limit re-arms it and lowering it does not double
+  // fire. The old boolean is still honoured so an account that already alerted at the old limit
+  // does not get a duplicate for the same one.
   {
     const all = (rows || []).map((r) => r.data).filter(Boolean);
     const signed = countFoundingClients(all);
     const houseRow = (rows || []).find((r) => r.data && r.data.internal);
-    const flagged = !!(houseRow && houseRow.data && houseRow.data.foundingOfferSpentAlerted);
+    const hd = (houseRow && houseRow.data) || {};
+    const alertedFor = Number(hd.foundingOfferSpentAt || 0)
+      || (hd.foundingOfferSpentAlerted ? 3 : 0);   // legacy flag predates the limit being movable
+    const flagged = alertedFor >= FOUNDING_CLIENT_COUNT;
     if (signed >= FOUNDING_CLIENT_COUNT && !flagged && houseRow) {
       await dispatchAlert({
         title: "Founding offer is now spent",
@@ -142,7 +154,7 @@ export default withFailureAlert("alerts-watch", async () => {
       });
       alerted++;
       await supabase.from("clients")
-        .update({ data: { ...houseRow.data, foundingOfferSpentAlerted: new Date().toISOString() }, updated_at: new Date().toISOString() })
+        .update({ data: { ...houseRow.data, foundingOfferSpentAlerted: new Date().toISOString(), foundingOfferSpentAt: FOUNDING_CLIENT_COUNT }, updated_at: new Date().toISOString() })
         .eq("id", houseRow.id);
     }
   }
