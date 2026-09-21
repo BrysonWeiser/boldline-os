@@ -8,6 +8,61 @@ summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN 
 verified: 2026-08-31
 ---
 
+## 🔴 THE CLOSE-OUT MESSAGE AND THE 30 SEPTEMBER LINE (2026-09-21, Mon)
+
+🔴 **HIS LAST REPLY WAS 8 SEPTEMBER, NOT the day he signed.** Bryson corrected this while the
+close-out message was being written, and it mattered: the draft said *"I haven't been able to
+reach you since you signed"*, which is false, and telling a client something untrue about their
+own behaviour hands them a reason to argue instead of answer. So the gap is **13 days as of Mon
+21 Sep**, not three weeks, and the shape is "went quiet a fortnight ago" rather than "signed and
+vanished". Calls go unanswered and his voicemail is full.
+
+Shaun (asked on the Saturday) had not replied by Monday morning either, and that was NOT read as a
+signal: Saturday to Monday is one business morning with a Sunday in it.
+
+**Two facts that shape everything here, both verified against the code rather than remembered:**
+
+1. 🔴 **He is on terms v1, so there is NO Client Delay and Abandonment clause.** He signed
+   2026-08-30 and that clause arrives at the 3 Sep cutoff (`TERMS_V2_FROM`). So there is **no
+   fee for stalling and no fast route out over silence**. Do not threaten one.
+2. 🔴 **The route that DOES exist is 7(c): Agency may terminate early on THIRTY DAYS' written
+   notice**, refunding prepaid fees, with no early-termination fee owed by the client. He is a
+   founding client on waived setup and no monthly minimum and has paid nothing, so nobody owes
+   anybody. **30 September is therefore the day NOTICE GOES OUT, not the day it ends.** Any
+   message saying the agreement is void on the 30th would contradict what he signed.
+
+**The decision (Bryson):** send one close-out message, then stop chasing. If nothing by
+**30 September**, assume the timing is not right and send notice.
+
+The message leads with *"I'm not chasing you for money"*, because the commonest reason someone
+avoids a message is thinking they owe something, and closes on *"I'd rather know than guess"*,
+which gives an easy answer that is not embarrassing. No anger anywhere: he may be worth having
+later, and this is now the written record.
+
+**Naming the date beats a vague "it's been a while":** it is checkable, so it reads as a record
+rather than a complaint, and it is harder to wave off.
+
+**Sent as a TEXT, not an email** (Bryson's call). Calls go unanswered and his voicemail is full,
+so the text thread is the only channel known to land. The message as sent:
+
+> Hey Sebastian, your campaign and landing page have been built and sitting ready since the start
+> of September. They're paused waiting on your approval.
+>
+> Last I heard from you was the 8th, so it's been a couple of weeks. Just so it's off the table,
+> this isn't about money. You're on founding terms so there's no monthly fee and you haven't been
+> charged anything.
+>
+> If I don't hear from you by the 30th I'll take it that the timing isn't right and start closing
+> out the agreement. Costs you nothing either way.
+>
+> If you do still want it running it's one tap. Reply here and I'll walk you through it, or tell
+> me a time and I'll call. I'd rather know than guess.
+
+**Cost of the stall: no revenue.** Founding terms mean no monthly minimum, and there are no leads,
+so nothing is accruing. What is being lost is the case-study window and Bryson's attention, which
+is the argument for putting the attention on Air Suds and the four open founding places instead.
+
+
 ## 🔴 WHO IS WHO. Read this before writing to either of them.
 
 Bryson had to correct this on 2026-09-02: *"Remember Sebastian is the client with the portal

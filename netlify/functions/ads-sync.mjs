@@ -37,6 +37,7 @@ import { liveStats, PER_LEAD } from "../lib/report-shared.mjs";
 import { getCampaigns as metaCampaigns, getAccountHealth as metaAccountHealth } from "./meta-ads.mjs";
 import { getAccessToken as gadsToken, getCampaigns as gadsCampaigns } from "./google-ads.mjs";
 import { metaOn, metaDelivering, googleOn, googleDelivering } from "../lib/meta-status.mjs";
+import { foldFirstSpend } from "../lib/campaign-runtime.mjs";
 import { goLiveDecision, fmtDate as fmtDay } from "../lib/campaign-live.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 
@@ -132,6 +133,7 @@ const trimCampaign = (c, spendKey) => ({
   id: c.id,
   name: c.name,
   status: c.status,
+  ...(c.startDate ? { startDate: c.startDate } : {}),
   ...(c.effectiveStatus ? { effectiveStatus: c.effectiveStatus } : {}),
   ...(c.campaignResourceName ? { campaignResourceName: c.campaignResourceName } : {}),
   dailyBudget: Number(c.dailyBudget || 0),
@@ -250,9 +252,24 @@ export default withFailureAlert("ads-sync", async () => {
     const pacing = Math.max(projectedMonthly, spend30d);
     const over = monthly > 0 && pacing > monthly * OVER_BUDGET_GRACE;
 
+    // ── 🔴 WHEN EACH CAMPAIGN ACTUALLY STARTED ────────────────────────────────
+    //
+    // Bryson, 2026-09-21, wanting the start and the run length on his own ads and on clients'.
+    // The platforms' own start dates are when a campaign was ALLOWED to start, and everything
+    // the OS builds is created paused, so that date makes a two-day-old campaign look weeks
+    // old. This job is the only thing that reads real spend on a schedule, so it is where the
+    // crossover from "not spending" to "spending" is caught. Merged onto what we already knew:
+    // a stamp is never overwritten and a paused campaign keeps the date it earned.
+    const runtime = foldFirstSpend(
+      (cl.adPerf || {}).runtime,
+      [...(google.list || []).map((c) => ({ ...c, platform: "google" })),
+       ...(meta.list || []).map((c) => ({ ...c, platform: "meta" }))],
+      new Date().toISOString(),
+    );
+
     const adPerf = {
       syncedAt: new Date().toISOString(),
-      google, meta,
+      google, meta, runtime,
       totals: {
         liveCampaigns: google.live + meta.live,
         liveDailyBudget: liveDaily,

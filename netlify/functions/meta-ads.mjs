@@ -315,7 +315,10 @@ export async function getAccountHealth(adAccountId) {
 export async function getCampaigns(adAccountId) {
   const a = acct(adAccountId);
   const camps = await graphPaged("campaigns", `${a}/campaigns`, {
-    params: { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget" },
+    // 🔴 `start_time` IS WHEN IT WAS SCHEDULED TO START, NOT WHEN IT RAN. Carried as a second
+    // fact beside the day spend was first observed, never as the campaign's age. See
+    // `netlify/lib/campaign-runtime.mjs`.
+    params: { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,start_time" },
   });
   // One insights call for the whole account, keyed by campaign.
   let insightsById = {};
@@ -339,6 +342,7 @@ export async function getCampaigns(adAccountId) {
       id: c.id,
       name: c.name,
       status: c.status,
+      startDate: c.start_time || null,
       effectiveStatus: c.effective_status,
       objective: c.objective,
       dailyBudget: centsToDollars(c.daily_budget), // campaign-level (CBO) budget
