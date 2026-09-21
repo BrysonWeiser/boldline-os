@@ -10,9 +10,15 @@ verified: 2026-08-31
 
 ## 🔴 THE CLOSE-OUT MESSAGE AND THE 30 SEPTEMBER LINE (2026-09-21, Mon)
 
-Three weeks after signing, Sebastian has not replied to a text, an email or a call, his voicemail
-is full, and Shaun (asked on the Saturday) had not replied either by Monday morning. Shaun's
-silence was NOT read as a signal: Saturday to Monday is one business morning with a Sunday in it.
+🔴 **HIS LAST REPLY WAS 8 SEPTEMBER, NOT the day he signed.** Bryson corrected this while the
+close-out message was being written, and it mattered: the draft said *"I haven't been able to
+reach you since you signed"*, which is false, and telling a client something untrue about their
+own behaviour hands them a reason to argue instead of answer. So the gap is **13 days as of Mon
+21 Sep**, not three weeks, and the shape is "went quiet a fortnight ago" rather than "signed and
+vanished". Calls go unanswered and his voicemail is full.
+
+Shaun (asked on the Saturday) had not replied by Monday morning either, and that was NOT read as a
+signal: Saturday to Monday is one business morning with a Sunday in it.
 
 **Two facts that shape everything here, both verified against the code rather than remembered:**
 
@@ -33,14 +39,18 @@ avoids a message is thinking they owe something, and closes on *"I'd rather know
 which gives an easy answer that is not embarrassing. No anger anywhere: he may be worth having
 later, and this is now the written record.
 
+**Naming the date beats a vague "it's been a while":** it is checkable, so it reads as a record
+rather than a complaint, and it is harder to wave off.
+
 **Sent as a TEXT, not an email** (Bryson's call). Calls go unanswered and his voicemail is full,
 so the text thread is the only channel known to land. The message as sent:
 
 > Hey Sebastian, your campaign and landing page have been built and sitting ready since the start
 > of September. They're paused waiting on your approval.
 >
-> I haven't been able to reach you since you signed. Just so it's off the table, this isn't about
-> money. You're on founding terms so there's no monthly fee and you haven't been charged anything.
+> Last I heard from you was the 8th, so it's been a couple of weeks. Just so it's off the table,
+> this isn't about money. You're on founding terms so there's no monthly fee and you haven't been
+> charged anything.
 >
 > If I don't hear from you by the 30th I'll take it that the timing isn't right and start closing
 > out the agreement. Costs you nothing either way.
