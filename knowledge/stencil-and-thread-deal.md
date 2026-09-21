@@ -33,6 +33,21 @@ avoids a message is thinking they owe something, and closes on *"I'd rather know
 which gives an easy answer that is not embarrassing. No anger anywhere: he may be worth having
 later, and this is now the written record.
 
+**Sent as a TEXT, not an email** (Bryson's call). Calls go unanswered and his voicemail is full,
+so the text thread is the only channel known to land. The message as sent:
+
+> Hey Sebastian, your campaign and landing page have been built and sitting ready since the start
+> of September. They're paused waiting on your approval.
+>
+> I haven't been able to reach you since you signed. Just so it's off the table, this isn't about
+> money. You're on founding terms so there's no monthly fee and you haven't been charged anything.
+>
+> If I don't hear from you by the 30th I'll take it that the timing isn't right and start closing
+> out the agreement. Costs you nothing either way.
+>
+> If you do still want it running it's one tap. Reply here and I'll walk you through it, or tell
+> me a time and I'll call. I'd rather know than guess.
+
 **Cost of the stall: no revenue.** Founding terms mean no monthly minimum, and there are no leads,
 so nothing is accruing. What is being lost is the case-study window and Bryson's attention, which
 is the argument for putting the attention on Air Suds and the four open founding places instead.
