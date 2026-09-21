@@ -8,6 +8,36 @@ summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN 
 verified: 2026-08-31
 ---
 
+## 🔴 THE CLOSE-OUT MESSAGE AND THE 30 SEPTEMBER LINE (2026-09-21, Mon)
+
+Three weeks after signing, Sebastian has not replied to a text, an email or a call, his voicemail
+is full, and Shaun (asked on the Saturday) had not replied either by Monday morning. Shaun's
+silence was NOT read as a signal: Saturday to Monday is one business morning with a Sunday in it.
+
+**Two facts that shape everything here, both verified against the code rather than remembered:**
+
+1. 🔴 **He is on terms v1, so there is NO Client Delay and Abandonment clause.** He signed
+   2026-08-30 and that clause arrives at the 3 Sep cutoff (`TERMS_V2_FROM`). So there is **no
+   fee for stalling and no fast route out over silence**. Do not threaten one.
+2. 🔴 **The route that DOES exist is 7(c): Agency may terminate early on THIRTY DAYS' written
+   notice**, refunding prepaid fees, with no early-termination fee owed by the client. He is a
+   founding client on waived setup and no monthly minimum and has paid nothing, so nobody owes
+   anybody. **30 September is therefore the day NOTICE GOES OUT, not the day it ends.** Any
+   message saying the agreement is void on the 30th would contradict what he signed.
+
+**The decision (Bryson):** send one close-out message, then stop chasing. If nothing by
+**30 September**, assume the timing is not right and send notice.
+
+The message leads with *"I'm not chasing you for money"*, because the commonest reason someone
+avoids a message is thinking they owe something, and closes on *"I'd rather know than guess"*,
+which gives an easy answer that is not embarrassing. No anger anywhere: he may be worth having
+later, and this is now the written record.
+
+**Cost of the stall: no revenue.** Founding terms mean no monthly minimum, and there are no leads,
+so nothing is accruing. What is being lost is the case-study window and Bryson's attention, which
+is the argument for putting the attention on Air Suds and the four open founding places instead.
+
+
 ## 🔴 WHO IS WHO. Read this before writing to either of them.
 
 Bryson had to correct this on 2026-09-02: *"Remember Sebastian is the client with the portal
