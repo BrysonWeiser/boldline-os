@@ -2175,7 +2175,53 @@ const adPerfStats = (cl) => {
       ...((g.list||[]).map(c=>({...c, platform:"google"}))),
       ...((m.list||[]).map(c=>({...c, platform:"meta"}))),
     ].sort((a,b)=>(Number(b.live)-Number(a.live))||(Number(b.spend||0)-Number(a.spend||0))),
+    // When each campaign was first seen spending, written by the ad sync. Empty on an account
+    // the sync has never reached, which the labels handle as "has not spent yet".
+    runtime: perf.runtime || {},
   };
+};
+
+// ─── HOW LONG THE ADS HAVE BEEN RUNNING ───────────────────────────────────────
+// 🔴 MIRRORS netlify/lib/campaign-runtime.mjs, which carries the full reasoning and is the
+// definition. A test evaluates both and fails if they ever disagree.
+//
+// The short version, because it is the thing that makes this feature honest: the platforms'
+// own start dates say when a campaign was ALLOWED to start, and everything the OS builds is
+// created paused, so that date makes a two-day-old campaign look weeks old. The date shown is
+// the day the ad sync first saw it SPENDING, and an age is only ever printed when the sync
+// watched it cross over from not spending to spending. Anything already running when we
+// started watching says when we first saw it, and never claims a number of days.
+const RUN_DAY = 864e5;
+// Mirrors `campKey` in netlify/lib/campaign-runtime.mjs, which writes the map. Not to be
+// confused with the card's focus key, which is hyphen separated and means something else.
+const runKey = (platform, id) => `${platform}:${id}`;
+const runDays = (sinceIso, now=Date.now()) => {
+  const t=new Date(sinceIso).getTime(); if(!isFinite(t)||now<t) return null;
+  return Math.floor((now-t)/RUN_DAY)+1;
+};
+const runFmtDay = (d) => { const t=new Date(d).getTime(); if(!isFinite(t)) return "";
+  return new Date(t).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}); };
+const runLabel = (entry, now=Date.now()) => {
+  const e=entry||{};
+  if(e.since){
+    if(e.exact){ const d=runDays(e.since,now);
+      return {text:`Running ${d} day${d===1?"":"s"}, since ${runFmtDay(e.since)}`,exact:true,days:d}; }
+    const sched = e.scheduled ? `, set to start ${runFmtDay(e.scheduled)}` : "";
+    return {text:`Running, first seen spending ${runFmtDay(e.since)}${sched}`,exact:false,days:null};
+  }
+  if(e.scheduled){ const t=new Date(e.scheduled).getTime();
+    if(isFinite(t)&&t>now) return {text:`Set to start ${runFmtDay(e.scheduled)}`,exact:false,days:null};
+    return {text:`Has not spent yet, was set to start ${runFmtDay(e.scheduled)}`,exact:false,days:null}; }
+  return {text:"Has not spent yet",exact:false,days:null};
+};
+// The account's answer. An EXACT stamp always beats an inexact one however much older the
+// inexact one looks, because a run length must never be derived from a date we only noticed.
+const accountRun = (map, now=Date.now()) => {
+  const all=Object.values(map&&typeof map==="object"?map:{}).filter(e=>e&&e.since);
+  if(!all.length) return {text:"No campaign has spent yet",exact:false,days:null,since:null};
+  const ex=all.filter(e=>e.exact), pool=ex.length?ex:all;
+  const first=pool.reduce((a,b)=>(new Date(a.since)<=new Date(b.since)?a:b));
+  return {...runLabel({...first,scheduled:null},now),since:first.since};
 };
 
 const houseHealthFactors = (cl) => {
@@ -8717,6 +8763,24 @@ function LiveAdPerformanceCard({client,onUpdate}) {
         </span>
         {sel&&<button onClick={()=>setFocus(null)} style={{fontSize:10.5,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"4px 9px",cursor:"pointer",flexShrink:0}}>Show all</button>}
       </div>
+      {/* 🔴 HOW LONG IT HAS BEEN RUNNING, AND SINCE WHEN. Bryson, 2026-09-21, for his own ads
+          AND clients'. It follows the focus: the account's own answer when showing everything,
+          that one campaign's when one is selected. A day count appears ONLY when the ad sync
+          watched the campaign go from not spending to spending. Anything already running when
+          we started watching says when we first saw it and gives no age, because the
+          platforms' start dates are when a campaign was ALLOWED to start and every campaign
+          the OS builds is created paused. See `runLabel` above. */}
+      {(()=>{
+        const r = sel ? runLabel((st.runtime||{})[runKey(sel.platform,sel.id)]) : accountRun(st.runtime||{});
+        if(!r||!r.text) return null;
+        return (
+          <div style={{fontSize:10.5,color:r.exact?C.textDim:C.textMuted,marginBottom:9,lineHeight:1.5}}>
+            {r.text}
+            {!r.exact&&r.days===null&&(st.runtime&&Object.keys(st.runtime).length>0)&&
+              <span style={{color:C.textMuted}}> (it was already running when the OS started watching, so the exact start is not known)</span>}
+          </div>
+        );
+      })()}
       {!st.hasSnapshot
         ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{(client.googleAdsCustomerId||client.metaAdAccountId)
             ? `No numbers pulled in yet. ${client.internal?"Your":"This"} ad account is connected and this fills in within six hours of a campaign starting to serve.`
@@ -8803,6 +8867,13 @@ function LiveAdPerformanceCard({client,onUpdate}) {
                             gets the reason. The old code had only two branches, so this state
                             had to borrow one of them, and it borrowed the wrong one. */}
                         {dstate&&<div style={{fontSize:10,color:dstate.fault?C.amber:C.textMuted,marginTop:5,lineHeight:1.55}}>{dstate.note}</div>}
+                        {/* 🔴 `key` IS THE FOCUS KEY AND USES A HYPHEN; THE RUNTIME MAP USES A COLON.
+                            Reusing `key` here silently looked up nothing, so every row read "Has
+                            not spent yet" including ones that had been running for weeks. Caught
+                            in a browser, not by a test, because both halves were individually
+                            right. `runKey` is the one used by the library that writes the map. */}
+                        {(()=>{ const r=runLabel((st.runtime||{})[runKey(c.platform,c.id)]);
+                          return r&&r.text ? <div style={{fontSize:10,color:C.textMuted,marginTop:4,lineHeight:1.5}}>{r.text}</div> : null; })()}
                       </button>
                     );
                   })}

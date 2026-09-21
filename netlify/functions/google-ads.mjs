@@ -150,7 +150,11 @@ async function listAccessibleCustomers(accessToken) {
 // Exported (with getAccessToken above) so the scheduled ads-sync job can read
 // performance directly instead of re-entering this function over HTTP.
 export async function getCampaigns(accessToken, customerId) {
-  const query = `SELECT campaign.id, campaign.name, campaign.status,
+  // 🔴 `campaign.start_date` IS WHEN IT WAS ALLOWED TO START, NOT WHEN IT RAN. Every campaign
+  // the OS builds is created paused and switched on later, so this date is routinely earlier
+  // than the truth. It is carried as a SECOND fact beside the day spend was first observed,
+  // never as the campaign's age. See `netlify/lib/campaign-runtime.mjs`.
+  const query = `SELECT campaign.id, campaign.name, campaign.status, campaign.start_date,
       campaign.resource_name, campaign_budget.resource_name,
       campaign_budget.amount_micros, metrics.impressions, metrics.clicks,
       metrics.cost_micros, metrics.conversions
@@ -172,6 +176,7 @@ export async function getCampaigns(accessToken, customerId) {
     id: r.campaign && r.campaign.id,
     name: r.campaign && r.campaign.name,
     status: r.campaign && r.campaign.status,
+    startDate: (r.campaign && r.campaign.startDate) || null,
     campaignResourceName: r.campaign && r.campaign.resourceName,
     budgetResourceName: r.campaignBudget && r.campaignBudget.resourceName,
     dailyBudget: microsToDollars(r.campaignBudget && r.campaignBudget.amountMicros),
