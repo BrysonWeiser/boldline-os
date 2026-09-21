@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 191 task-keyed entries under `knowledge/`. They surface automatically via the
+> 192 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**191 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**192 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -126,6 +126,12 @@
 - **[newsletter-emails](../knowledge/newsletter-emails.md)** &mdash; &#9989; verified &middot; 2026-08-05  
   Weekly newsletter mirrored on the blog system (Bryson, 2026-07-25). One AI-drafted "quick tip + read the full post" companion email per blog post, scheduled ~2h after the post publishes (Mon ~10am AZ), reviewed/edited/rescheduled in the OS Website tab (NewsletterManagementCard, below the blog manager) alongside subscribers + analytics (total, new-this-month, unsubscribed, 6-month bar). SENDING IS LIVE as of 2026-08-05 — verified end-to-end (a real Send-Now hit 100% delivered from BoldLine Media <hello@boldlinemedia.com>). Broadcasts target a Resend SEGMENT via RESEND_SEGMENT_ID (Resend renamed Audiences→Segments in 2026; audience_id is gone), gated by NEWSLETTER_SENDING_ENABLED=1, and require a FULL-ACCESS Resend key. Needs a one-time SQL migration (docs/sql/newsletter-schema.sql).  
   <sub>*task:* the weekly newsletter — one companion email per blog post, reviewed/scheduled in the OS, plus subscribers + analytics; how it generates, sends (dormant), and where the UI lives &nbsp;|&nbsp; *keywords:* newsletter, newsletter_emails, newsletter-admin, newsletter-autopublish, newsletter-write-background, newsletter-shared, companion email, NewsletterManagementCard, broadcast, resend broadcast, NEWSLETTER_SENDING_ENABLED, subscribers, email analytics</sub>
+
+## Business
+
+- **[hiring-and-outreach-plan](../knowledge/hiring-and-outreach-plan.md)** &mdash; &#9989; verified &middot; 2026-09-21  
+  Bryson asked (2026-09-21) when he needs to start hiring and for what. Answer, agreed: hire against HOURS, not client count, and not until revenue would survive 90 days with no new sale (roughly 8-10 paying clients, ~$10k/mo). First hire is an APPOINTMENT SETTER on cold calls only, not an account manager, because the OS already absorbs servicing and his cap is conversations. Then a part-time coordinator around 12-15 clients, then maybe a media buyer at 25-30, and deliberately NOT a developer. The hiring how-to is written out below. It also produced his idea for a COLD OUTREACH section in the OS, which is parked with a recommended build order and two things flagged as must-not-build.  
+  <sub>*task:* decide when to hire, what role to hire first, how to actually hire a setter, or plan the cold outreach section of the OS &nbsp;|&nbsp; *keywords:* hiring, first hire, appointment setter, cold caller, when to hire, account manager, media buyer, VA, contractor, 1099, cold outreach, cold calling, cold email, cold DM, outreach section, dialer, call workflow, follow up cadence, deliverability</sub>
 
 ## Business rules
 
