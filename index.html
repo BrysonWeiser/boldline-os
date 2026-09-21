@@ -6756,7 +6756,402 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   );
 }
 
-function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,onLeadScout,hasMyAccount,isDesktop}) {
+// ═══════════════════════════════════════════════════════════════════════════════
+// COLD OUTREACH — working the list, not building it
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Bryson, 2026-09-21: *"what if we build a cold outreach section in the os and it is completely
+// tailored to doing cold outreach (cold calls, cold dms, cold emails, etc.)"*, then *"build
+// everything but what you flagged we shouldnt do"*.
+//
+// Lead Scout already FINDS prospects and ranks them. This is the other half. A card list with a
+// status dropdown is not a workflow: nobody makes sixty dials a day off one, because every call
+// starts with a decision about who to call, and deciding is what kills momentum. So this screen is
+// one prospect, the script beside it, one tap, next prospect.
+//
+// 🔴 TWO THINGS ARE DELIBERATELY ABSENT, and their absence is the feature:
+//   • Nothing here sends a cold email. Complaints poison the sending domain, and that is the same
+//     domain client invoices go out on.
+//   • Nothing here sends a DM. Instagram and LinkedIn ban accounts for automated messaging.
+// The Messages tab WRITES both and logs that they were sent. The sending is done by hand, in his
+// own apps. `tests/verify-outreach.mjs` fails if a sender is ever wired in.
+//
+// 🔴 MIRRORS `netlify/lib/outreach.mjs`, which is the definition of every rule here. A test
+// evaluates both copies and fails if the outcomes, the cadence or the counters ever disagree.
+const OUT_OUTCOMES = [
+  { id:"no_answer",      label:"No answer",        channels:["call"],                        reached:false, nextDays:2 },
+  { id:"voicemail",      label:"Left a voicemail", channels:["call"],                        reached:false, nextDays:3 },
+  { id:"gatekeeper",     label:"Gatekeeper",       channels:["call"],                        reached:true,  nextDays:2 },
+  { id:"bad_number",     label:"Wrong/bad number", channels:["call"],                        reached:false, ends:true },
+  { id:"no_reply",       label:"No reply",         channels:["email","dm","text"],           reached:false, nextDays:3 },
+  { id:"replied",        label:"They replied",     channels:["email","dm","text"],           reached:true,  nextDays:2 },
+  { id:"callback",       label:"Call back later",  channels:["call","email","dm","text"],    reached:true,  needsWhen:true },
+  { id:"not_interested", label:"Not interested",   channels:["call","email","dm","text"],    reached:true,  ends:true },
+  { id:"booked",         label:"Booked a meeting", channels:["call","email","dm","text"],    reached:true,  needsWhen:true, books:true, ends:true },
+  { id:"do_not_contact", label:"Do not contact",   channels:["call","email","dm","text"],    reached:true,  ends:true, blocks:true },
+];
+const OUT_CHANNELS = [{id:"call",label:"Call"},{id:"email",label:"Email"},{id:"dm",label:"DM"},{id:"text",label:"Text"}];
+const outOutcome = (id) => OUT_OUTCOMES.find(o=>o.id===id)||null;
+const outFor = (ch) => OUT_OUTCOMES.filter(o=>o.channels.includes(ch));
+const outRollup = (touches) => {
+  const list=(touches||[]).filter(Boolean);
+  const attempts=list.length;
+  const reached=list.filter(t=>{const o=outOutcome(t.outcome);return o&&o.reached;}).length;
+  const booked=list.filter(t=>{const o=outOutcome(t.outcome);return o&&o.books;});
+  const showed=booked.filter(t=>t.showed===true).length;
+  const noShowed=booked.filter(t=>t.showed===false).length;
+  return { attempts, conversations:reached, booked:booked.length, showed, noShowed,
+    pendingShow:booked.filter(t=>t.showed==null&&t.meeting_at&&new Date(t.meeting_at).getTime()<=Date.now()).length,
+    convRate:attempts>0?reached/attempts:null,
+    bookRate:reached>0?booked.length/reached:null,
+    showRate:(showed+noShowed)>0?showed/(showed+noShowed):null };
+};
+
+function OutreachScreen({onBack,isDesktop,onDealPrep}){
+  const [tab,setTab]=useState("work");            // work | messages | numbers
+  const [channel,setChannel]=useState("call");
+  const [queue,setQueue]=useState([]);
+  const [waiting,setWaiting]=useState(0);
+  const [nextAt,setNextAt]=useState(null);
+  const [i,setI]=useState(0);
+  const [loading,setLoading]=useState(true);
+  const [msg,setMsg]=useState("");
+  const [script,setScript]=useState("");
+  const [scriptOpen,setScriptOpen]=useState(false);
+  const [scriptSaved,setScriptSaved]=useState("");
+  const [note,setNote]=useState("");
+  const [when,setWhen]=useState("");
+  const [pending,setPending]=useState(null);       // an outcome waiting on a time or a confirmation
+  const [busy,setBusy]=useState(false);
+  const [lastDone,setLastDone]=useState(null);     // for undo
+  const [touches,setTouches]=useState([]);
+  const [drafts,setDrafts]=useState(null);
+  const [drafting,setDrafting]=useState(false);
+  const [copied,setCopied]=useState("");
+
+  // Each screen carries its own, because this is one file and there is no module scope to share
+  // one from. Found by driving the screen: without it every call failed with "authToken is not
+  // defined" in the error strip, and the tests were green because they never ran the component.
+  const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
+  const api=async(qs,opts)=>{ const token=await authToken(); if(!token) throw new Error("Session expired — refresh the page.");
+    const r=await fetch("/.netlify/functions/outreach?"+qs,{...(opts||{}),headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json",...((opts&&opts.headers)||{})}});
+    const d=await r.json().catch(()=>({})); if(!r.ok||d.ok===false) throw new Error(d.error||"Request failed"); return d; };
+
+  // A missing table is the one failure with an exact fix, so it gets an exact message.
+  const setupMsg=(t)=>/outreach_touches|outreach_settings|relation|does not exist|schema cache|could not find|column/i.test(String(t||""))
+    ? "Setup needed — the outreach tables aren't in Supabase yet. Open Supabase → SQL Editor → New query, paste docs/sql/outreach-schema.sql, press Run, then reload this page."
+    : "";
+
+  const loadQueue=async()=>{ setLoading(true); setMsg("");
+    try{ const d=await api("action=queue&limit=200"); setQueue(d.queue||[]); setWaiting(d.waiting||0); setNextAt(d.nextAt||null); setI(0); }
+    catch(e){ setMsg(setupMsg(e.message)||e.message); }
+    setLoading(false); };
+  const loadTouches=async()=>{ try{ const d=await api("action=touches&days=30"); setTouches(d.touches||[]); }catch(e){ if(!msg) setMsg(setupMsg(e.message)||e.message); } };
+  useEffect(()=>{ loadQueue(); loadTouches();
+    (async()=>{ try{ const d=await api("action=settings"); setScript(d.script||""); setScriptSaved(d.script||""); }catch(e){} })(); },[]);
+
+  const cur = queue[i] || null;
+  const d   = (cur&&cur.data)||{};
+  const phones = Array.isArray(d.phones)?d.phones:[];
+  const emails = Array.isArray(d.emails)?d.emails:[];
+
+  const saveScript=async()=>{ try{ await api("action=settings",{method:"POST",body:JSON.stringify({script})}); setScriptSaved(script); }catch(e){ setMsg(setupMsg(e.message)||e.message); } };
+
+  // 🔴 ONE TAP LOGS AND ADVANCES. Anything that needs more (a time, a confirmation) opens a small
+  // panel first rather than logging something half-specified.
+  const choose=(o)=>{
+    if(o.blocks||o.needsWhen){ setPending(o); setWhen(""); return; }
+    commit(o,null);
+  };
+  const commit=async(o,whenVal)=>{
+    if(!cur||busy) return;
+    setBusy(true); setMsg("");
+    try{
+      await api("action=touch&id="+encodeURIComponent(cur.id),{method:"POST",
+        body:JSON.stringify({channel,outcome:o.id,note:note.trim()||undefined,when:whenVal||undefined})});
+      setLastDone({id:cur.id,name:cur.name,label:o.label});
+      setPending(null); setNote(""); setWhen(""); setDrafts(null);
+      // Advance rather than reload: reloading the queue mid-session would reshuffle under him.
+      setQueue(q=>q.filter((_,k)=>k!==i));
+      setI(k=>Math.min(k,Math.max(0,queue.length-2)));
+      loadTouches();
+    }catch(e){ setMsg(setupMsg(e.message)||e.message); }
+    setBusy(false);
+  };
+  const undo=async()=>{
+    if(!lastDone) return;
+    setBusy(true);
+    try{ await api("action=undo&id="+encodeURIComponent(lastDone.id),{method:"POST"}); setLastDone(null); await loadQueue(); await loadTouches(); }
+    catch(e){ setMsg(e.message); }
+    setBusy(false);
+  };
+
+  const draft=async()=>{
+    if(!cur) return;
+    setDrafting(true); setDrafts(null); setMsg("");
+    try{
+      const token=await authToken();
+      const r=await fetch("/.netlify/functions/outreach-draft",{method:"POST",
+        headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+        body:JSON.stringify({channel:channel==="call"?"email":channel,prospect:cur})});
+      const dd=await r.json().catch(()=>({}));
+      if(!r.ok||dd.ok===false) throw new Error(dd.error||"Could not write the drafts.");
+      setDrafts(dd.drafts||[]);
+    }catch(e){ setMsg(e.message); }
+    setDrafting(false);
+  };
+  const copy=(text,which)=>{ try{ navigator.clipboard.writeText(text); setCopied(which); setTimeout(()=>setCopied(""),1500); }catch(e){} };
+
+  const stats = outRollup(touches);
+  const pct=(v)=>v==null?"—":`${Math.round(v*100)}%`;
+  const back = !isDesktop && (<button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>);
+  const chip=(on)=>({padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:999,cursor:"pointer",
+    border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim});
+  const tile=(label,value,sub,color)=>(
+    <div key={label} style={{flex:"1 1 110px",minWidth:0,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:11,padding:"10px 12px"}}>
+      <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:4}}>{label}</div>
+      <div style={{fontSize:20,fontWeight:800,color:color||C.text,lineHeight:1}}>{value}</div>
+      {sub&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:4,lineHeight:1.4}}>{sub}</div>}
+    </div>
+  );
+
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        {back}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Outreach</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Work the list Lead Scout built. One at a time, no deciding in between.</div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        <button onClick={()=>setTab("work")} style={chip(tab==="work")}>Work the list{queue.length?` (${queue.length})`:""}</button>
+        {/* 🔴 ARRIVING FROM CALL MODE MUST NOT LAND ON A CHANNEL THIS TAB DOES NOT OFFER. The
+            channel is shared with Work mode, where "call" is the default, and the Messages tab
+            hides Call. Without this the button read "Write 3 texts" with no text chip selected,
+            while the draft it asked for was an email. Caught in a browser. */}
+        <button onClick={()=>{setTab("messages"); if(channel==="call"){setChannel("email");setDrafts(null);}}} style={chip(tab==="messages")}>Messages</button>
+        <button onClick={()=>setTab("numbers")} style={chip(tab==="numbers")}>Numbers</button>
+      </div>
+
+      {msg&&<div style={{maxWidth:760,marginBottom:14,padding:"11px 13px",borderRadius:11,border:`1px solid ${C.amber}55`,background:C.amber+"12",color:C.amber,fontSize:12,lineHeight:1.6}}>{msg}</div>}
+
+      {tab==="work"&&(
+        <div style={{maxWidth:760}}>
+          {/* The script, collapsed by default so it is not in the way after the first week,
+              and stored on the server so a setter reads the same words. */}
+          <div style={{marginBottom:12}}>
+            <button onClick={()=>setScriptOpen(v=>!v)} style={{width:"100%",textAlign:"left",font:"inherit",cursor:"pointer",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:11,padding:"10px 12px",color:C.textDim,fontSize:12,fontWeight:700}}>
+              {scriptOpen?"▾":"▸"} Your script{script.trim()?"":" (empty — write it from the calls that actually worked)"}
+            </button>
+            {scriptOpen&&(
+              <div style={{marginTop:8}}>
+                <textarea value={script} onChange={e=>setScript(e.target.value)} rows={8} placeholder={"Hi, is this the owner?\n\nGreat. I'll be quick, this is a cold call so you can tell me to get lost.\n..."}
+                  style={{width:"100%",boxSizing:"border-box",padding:"11px 12px",fontSize:13,lineHeight:1.6,borderRadius:11,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
+                <button onClick={saveScript} disabled={script===scriptSaved} style={{marginTop:8,padding:"8px 14px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",background:script===scriptSaved?"rgba(255,255,255,.06)":C.gold,color:script===scriptSaved?C.textMuted:"#0a0800",cursor:script===scriptSaved?"default":"pointer"}}>{script===scriptSaved?"Saved":"Save script"}</button>
+              </div>
+            )}
+          </div>
+
+          <div style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap"}}>
+            {OUT_CHANNELS.map(c=><button key={c.id} onClick={()=>{setChannel(c.id);setPending(null);setDrafts(null);}} style={chip(channel===c.id)}>{c.label}</button>)}
+          </div>
+
+          {loading&&<div style={{fontSize:12.5,color:C.textMuted}}>Loading your list…</div>}
+
+          {!loading&&!cur&&(
+            <Card>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:6}}>Nothing due right now.</div>
+              <div style={{fontSize:12,color:C.textMuted,lineHeight:1.65}}>
+                {waiting>0
+                  ? <>{waiting} {waiting===1?"prospect is":"prospects are"} waiting on a follow up{nextAt?<>, the next on {fmt(nextAt)}</>:null}. That is the cadence working, not an empty list.</>
+                  : <>Your call list is empty or everyone on it has been worked through. Run a search in Lead Scout to add more.</>}
+              </div>
+            </Card>
+          )}
+
+          {!loading&&cur&&(
+            <Card>
+              <div style={{display:"flex",alignItems:"baseline",gap:9,flexWrap:"wrap",marginBottom:3}}>
+                <div style={{fontSize:17,fontWeight:800,color:C.text,minWidth:0}}>{cur.name}</div>
+                {cur.score>0&&<span style={{fontSize:10,fontWeight:800,color:C.gold,border:`1px solid ${C.gold}44`,background:C.goldDim,borderRadius:6,padding:"2px 7px"}}>{cur.score}</span>}
+                <span style={{marginLeft:"auto",fontSize:10.5,color:C.textMuted}}>{i+1} of {queue.length}</span>
+              </div>
+              <div style={{fontSize:11.5,color:C.textMuted,marginBottom:10}}>
+                {[cur.niche,cur.area].filter(Boolean).join(" · ")}
+                {Number(cur.step||0)>0&&<> · attempt {Number(cur.step)+1}</>}
+                {d.ownerName&&<> · {d.ownerName}</>}
+              </div>
+
+              {/* Tap to dial or mail straight from the phone. */}
+              <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:11}}>
+                {phones.slice(0,3).map((p,k)=>(
+                  <a key={k} href={`tel:${String(p.number||p).replace(/[^0-9+]/g,"")}`} style={{fontSize:12.5,fontWeight:700,color:C.gold,textDecoration:"none",border:`1px solid ${C.gold}44`,background:C.goldDim,borderRadius:9,padding:"7px 11px"}}>
+                    📞 {p.number||p}{p.whose?` · ${p.whose}`:""}
+                  </a>
+                ))}
+                {emails.slice(0,2).map((e,k)=>(
+                  <a key={k} href={`mailto:${e.address||e}`} style={{fontSize:12,color:C.textDim,textDecoration:"none",border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 11px"}}>✉ {e.address||e}</a>
+                ))}
+                {(d.website||cur.domain)&&<a href={/^https?:/.test(d.website||"")?d.website:`https://${cur.domain||d.website}`} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:C.textDim,textDecoration:"none",border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 11px"}}>↗ site</a>}
+              </div>
+
+              {script.trim()&&channel==="call"&&(
+                <div style={{whiteSpace:"pre-wrap",fontSize:13,lineHeight:1.7,color:C.textDim,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:11,padding:"12px 13px",marginBottom:11}}>{script}</div>
+              )}
+
+              <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Anything worth remembering (optional)"
+                style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:12.5,borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:11}}/>
+
+              {/* 🔴 THE OUTCOME BUTTONS ARE THE WHOLE POINT. Big, few, and they advance on their
+                  own, because the gap between calls is where momentum dies. */}
+              {!pending&&(
+                <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                  {outFor(channel).map(o=>(
+                    <button key={o.id} onClick={()=>choose(o)} disabled={busy}
+                      style={{padding:"10px 13px",fontSize:12.5,fontWeight:800,borderRadius:10,cursor:busy?"default":"pointer",
+                        border:`1px solid ${o.books?C.green+"66":o.blocks?C.red+"55":C.border}`,
+                        background:o.books?C.green+"18":o.blocks?"transparent":"rgba(255,255,255,.04)",
+                        color:o.books?C.green:o.blocks?C.red:C.textDim,opacity:busy?.6:1}}>{o.label}</button>
+                  ))}
+                </div>
+              )}
+
+              {/* A time, or a confirmation. Never logged half-specified. */}
+              {pending&&(
+                <div style={{border:`1px solid ${pending.blocks?C.red+"55":C.gold+"55"}`,background:pending.blocks?C.red+"0e":C.goldDim,borderRadius:11,padding:"12px 13px"}}>
+                  <div style={{fontSize:13,fontWeight:800,color:pending.blocks?C.red:C.gold,marginBottom:7}}>{pending.label}</div>
+                  {pending.blocks
+                    ? <div style={{fontSize:12,color:C.textDim,lineHeight:1.65,marginBottom:10}}>
+                        This is permanent. {cur.name} comes off the list for good and can never be surfaced again, on any channel, by you or by anyone you hire. That is the right thing to do when somebody asks, and it cannot be undone from this screen.
+                      </div>
+                    : <div style={{marginBottom:10}}>
+                        <div style={{fontSize:12,color:C.textMuted,marginBottom:6,lineHeight:1.55}}>{pending.books?"When is the meeting?":"When did they ask you to come back?"} A time they gave you always beats the follow up schedule.</div>
+                        <input type="datetime-local" value={when} onChange={e=>setWhen(e.target.value)}
+                          style={{padding:"9px 11px",fontSize:13,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit"}}/>
+                      </div>}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <button onClick={()=>{setPending(null);setWhen("");}} style={{padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}>Cancel</button>
+                    <button onClick={()=>commit(pending,when||null)} disabled={busy||(pending.needsWhen&&!when&&pending.books)}
+                      style={{padding:"9px 15px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",
+                        background:pending.blocks?C.red:C.gold,color:pending.blocks?"#fff":"#0a0800",
+                        cursor:(busy||(pending.needsWhen&&!when&&pending.books))?"default":"pointer",opacity:(busy||(pending.needsWhen&&!when&&pending.books))?.55:1}}>
+                      {pending.blocks?"Yes, never contact them again":pending.books?"Save the meeting":"Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div style={{display:"flex",gap:10,alignItems:"center",marginTop:11,flexWrap:"wrap"}}>
+                <button onClick={()=>setI(k=>Math.min(k+1,queue.length-1))} disabled={i>=queue.length-1} style={{fontSize:11.5,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:i>=queue.length-1?"default":"pointer",padding:0}}>Skip for now →</button>
+                {onDealPrep&&<button onClick={()=>onDealPrep(cur)} style={{fontSize:11.5,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:"pointer",padding:0}}>Open in Deal Prep</button>}
+                {lastDone&&<button onClick={undo} disabled={busy} style={{marginLeft:"auto",fontSize:11.5,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0}}>Undo {lastDone.label} on {lastDone.name}</button>}
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab==="messages"&&(
+        <div style={{maxWidth:760}}>
+          {/* 🔴 THE OS WRITES IT. YOU SEND IT. Said out loud on the screen, because the absence of
+              a Send button is a deliberate decision and looks like a missing feature otherwise. */}
+          <Card style={{marginBottom:12}}>
+            <div style={{fontSize:12.5,color:C.textDim,lineHeight:1.7}}>
+              These get written here and sent by you, from your own email or Instagram. That is on purpose. Bulk cold email from your own address gets you marked as spam, and the same address sends your clients their invoices. Automated DMs get Instagram accounts banned. Press <b style={{color:C.text}}>Copy</b>, send it yourself, then log it here so it counts.
+            </div>
+          </Card>
+
+          {!cur&&<Card><div style={{fontSize:12.5,color:C.textMuted,lineHeight:1.65}}>Nothing in the queue to write to. Add prospects in Lead Scout.</div></Card>}
+
+          {cur&&(
+            <Card>
+              <div style={{fontSize:16,fontWeight:800,color:C.text,marginBottom:3}}>{cur.name}</div>
+              <div style={{fontSize:11.5,color:C.textMuted,marginBottom:11}}>{[cur.niche,cur.area].filter(Boolean).join(" · ")}</div>
+              <div style={{display:"flex",gap:7,marginBottom:11,flexWrap:"wrap"}}>
+                {OUT_CHANNELS.filter(c=>c.id!=="call").map(c=><button key={c.id} onClick={()=>{setChannel(c.id);setDrafts(null);}} style={chip(channel===c.id)}>{c.label}</button>)}
+              </div>
+              <button onClick={draft} disabled={drafting} style={{padding:"10px 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gold,color:"#0a0800",cursor:drafting?"default":"pointer",opacity:drafting?.6:1}}>
+                {drafting?"Writing…":`Write 3 ${channel==="email"?"emails":channel==="dm"?"DMs":"texts"}`}
+              </button>
+              {drafts&&drafts.map((dr,k)=>(
+                <div key={k} style={{marginTop:11,padding:"12px 13px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
+                  <div style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,marginBottom:6}}>{dr.angle}</div>
+                  {dr.subject&&<div style={{fontSize:12.5,fontWeight:700,color:C.text,marginBottom:6}}>{dr.subject}</div>}
+                  <div style={{whiteSpace:"pre-wrap",fontSize:13,lineHeight:1.7,color:C.textDim}}>{dr.body}</div>
+                  <button onClick={()=>copy((dr.subject?dr.subject+"\n\n":"")+dr.body,`d${k}`)} style={{marginTop:9,padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",color:copied===`d${k}`?C.green:C.textDim,cursor:"pointer"}}>{copied===`d${k}`?"Copied":"Copy"}</button>
+                </div>
+              ))}
+              {drafts&&(
+                <div style={{marginTop:12,paddingTop:11,borderTop:`1px solid ${C.border2}`}}>
+                  <div style={{fontSize:11.5,color:C.textMuted,marginBottom:8,lineHeight:1.55}}>Sent one? Log it so the follow up gets scheduled and it counts in your numbers.</div>
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                    {outFor(channel).map(o=>(
+                      <button key={o.id} onClick={()=>choose(o)} disabled={busy} style={{padding:"9px 12px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${o.blocks?C.red+"55":C.border}`,background:"rgba(255,255,255,.04)",color:o.blocks?C.red:C.textDim,cursor:"pointer"}}>{o.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+        </div>
+      )}
+
+      {tab==="numbers"&&(
+        <div style={{maxWidth:760}}>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
+            {tile("Attempts",stats.attempts,"last 30 days")}
+            {tile("Conversations",stats.conversations,stats.convRate!=null?`${pct(stats.convRate)} of attempts`:"a human, including a gatekeeper")}
+            {tile("Meetings booked",stats.booked,stats.bookRate!=null?`${pct(stats.bookRate)} of conversations`:null,C.gold)}
+            {tile("Showed up",stats.showed,stats.showRate!=null?`${pct(stats.showRate)} of the ones judged`:"nothing judged yet",C.green)}
+          </div>
+          {/* 🔴 A BOOKING IS A PROMISE AND A SHOW IS THE RESULT, so the ones nobody has judged are
+              named rather than quietly counted either way. This is the number a setter gets paid
+              on, so it has to be answered by a person. */}
+          {stats.pendingShow>0&&(
+            <Card style={{marginBottom:12}}>
+              <Label>Did they turn up?</Label>
+              <div style={{fontSize:12,color:C.textMuted,lineHeight:1.65,marginTop:4,marginBottom:10}}>
+                {stats.pendingShow} {stats.pendingShow===1?"meeting has":"meetings have"} been and gone with no answer either way. Until you say, {stats.pendingShow===1?"it counts":"they count"} as neither.
+              </div>
+              {touches.filter(t=>{const o=outOutcome(t.outcome);return o&&o.books&&t.showed==null&&t.meeting_at&&new Date(t.meeting_at).getTime()<=Date.now();}).slice(0,8).map(t=>(
+                <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderTop:`1px solid ${C.border2}`,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:0,fontSize:12,color:C.textDim}}>{fmt(t.meeting_at)}</div>
+                  <button onClick={async()=>{ try{ await api("action=showed&id="+encodeURIComponent(t.id),{method:"POST",body:JSON.stringify({showed:true})}); loadTouches(); }catch(e){ setMsg(e.message); } }}
+                    style={{padding:"6px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.green}55`,background:C.green+"14",color:C.green,cursor:"pointer"}}>Showed</button>
+                  <button onClick={async()=>{ try{ await api("action=showed&id="+encodeURIComponent(t.id),{method:"POST",body:JSON.stringify({showed:false})}); loadTouches(); }catch(e){ setMsg(e.message); } }}
+                    style={{padding:"6px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,background:"transparent",color:C.textMuted,cursor:"pointer"}}>No show</button>
+                </div>
+              ))}
+            </Card>
+          )}
+          <Card>
+            <Label>By channel</Label>
+            <div style={{marginTop:8}}>
+              {OUT_CHANNELS.map(c=>{
+                const s=outRollup(touches.filter(t=>t.channel===c.id));
+                return (
+                  <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:`1px solid ${C.border2}`,flexWrap:"wrap"}}>
+                    <div style={{width:58,fontSize:12,fontWeight:700,color:C.textDim}}>{c.label}</div>
+                    <div style={{flex:1,minWidth:0,fontSize:11.5,color:C.textMuted}}>
+                      {s.attempts===0?"nothing yet":`${s.attempts} ${s.attempts===1?"attempt":"attempts"} · ${s.conversations} spoke · ${s.booked} booked · ${s.showed} showed`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:10}}>
+              A low conversations number against a lot of attempts usually means the list. A lot of conversations and few bookings usually means the script.
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,onLeadScout,onOutreach,hasMyAccount,isDesktop}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -6834,6 +7229,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
         return (
           <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:16}}>
             {entry("📍","Lead Scout","Find + rank businesses worth cold calling",onLeadScout)}
+            {entry("☎️","Outreach","Work the list. Calls, DMs and emails, one at a time",onOutreach)}
             {entry("🎯","Deal Prep","Research a prospect + get your pitch before a call",onDealPrep)}
           </div>
         );
@@ -17340,7 +17736,7 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // 🔴 The comment above SideNav claimed "same destinations as BottomNav" while the two had
 // drifted apart, which is exactly how a missing entry survives a read of the code. Parity is
 // now asserted in tests/verify-nav-parity.mjs rather than described in a comment.
-function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onRevenue, onCampaigns, onContent }) {
+function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onOutreach, onRevenue, onCampaigns, onContent }) {
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:13,width:"100%",padding:"14px 14px",borderRadius:13,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left",marginBottom:9}}>
       <span style={{width:38,height:38,borderRadius:10,background:"rgba(200,168,75,0.10)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
@@ -17363,6 +17759,7 @@ function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onRe
         {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
         {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
         {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
+        {row(sv(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>),"Outreach","Work the list, one at a time",onOutreach)}
         {row(sv(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>),"Revenue","What you actually invoiced, by month",onRevenue)}
       </div>
     </div>
@@ -17690,7 +18087,7 @@ function useIsDesktop(bp=1024){
 // not: the bar holds five, the sheet holds the rest, and My Ads went missing from the sheet
 // for exactly as long as that sentence made the split look accounted for. Parity is asserted
 // in tests/verify-nav-parity.mjs now, because a comment cannot fail.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onOutreach,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -17730,6 +18127,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
         <button onClick={onCampaigns} style={item(screen==="campaigns")}>{bar(screen==="campaigns")}{svg(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>,col("campaigns"))}Campaigns</button>
         <button onClick={onContent} style={item(screen==="content")}>{bar(screen==="content")}{svg(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>,col("content"))}Content</button>
         <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
+        <button onClick={onOutreach} style={item(screen==="outreach")}>{bar(screen==="outreach")}{svg(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>,col("outreach"))}Outreach</button>
         <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
         <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
       </div>
@@ -18183,12 +18581,15 @@ function App({onLogout}) {
           backed up, already live-refreshed. `save` is null when there is no house account
           yet, and every consumer disables its own editing rather than throwing. */}
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
+        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} onOutreach={()=>setScreen("outreach")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients} onCreateClient={addClient}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
+        {/* Lead Scout finds them, Outreach works them. Two screens because they are two jobs:
+            one is a search you run occasionally, the other is a thing you sit down and do. */}
+        {screen==="outreach"&&<OutreachScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>{setFocusCampaign(null);setScreen("home");}} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient} focusKey={focusCampaign}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
@@ -18200,7 +18601,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
       {/* Sits OUTSIDE .os-content on purpose: that element animates its opacity, which
           makes it a permanent stacking context and would trap this behind the screen
           (the same trap that hid the bot chat bar). A refused save has to be seen. */}
