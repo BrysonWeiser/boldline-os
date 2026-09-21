@@ -45,6 +45,12 @@ export const BACKUP_TABLES = [
   { table: "blog_settings" },
   { table: "newsletter_emails" },
   { table: "scout_prospects", order: "created_at" },     // the durable call list
+  // 🔴 THE OUTREACH LOG IS NOT RECREATABLE. Prospects can be found again by re-running a search;
+  // every attempt ever made, and every "do not contact" somebody asked for, exists nowhere else.
+  // Losing the block list is the one that matters: it would mean calling people who asked not to
+  // be called, with no way to know you were doing it.
+  { table: "outreach_touches",  order: "created_at" },   // every attempt, and which meetings showed
+  { table: "outreach_settings", order: "updated_at" },   // the call script
   { table: "push_subscriptions" },
   { table: "scout_runs", order: "created_at", cap: 200 },   // one row per search, mostly noise after a week
   { table: "login_events", order: "created_at", cap: 500 },  // sign-in history

@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 191 task-keyed entries under `knowledge/`. They surface automatically via the
+> 193 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**191 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**193 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -126,6 +126,12 @@
 - **[newsletter-emails](../knowledge/newsletter-emails.md)** &mdash; &#9989; verified &middot; 2026-08-05  
   Weekly newsletter mirrored on the blog system (Bryson, 2026-07-25). One AI-drafted "quick tip + read the full post" companion email per blog post, scheduled ~2h after the post publishes (Mon ~10am AZ), reviewed/edited/rescheduled in the OS Website tab (NewsletterManagementCard, below the blog manager) alongside subscribers + analytics (total, new-this-month, unsubscribed, 6-month bar). SENDING IS LIVE as of 2026-08-05 — verified end-to-end (a real Send-Now hit 100% delivered from BoldLine Media <hello@boldlinemedia.com>). Broadcasts target a Resend SEGMENT via RESEND_SEGMENT_ID (Resend renamed Audiences→Segments in 2026; audience_id is gone), gated by NEWSLETTER_SENDING_ENABLED=1, and require a FULL-ACCESS Resend key. Needs a one-time SQL migration (docs/sql/newsletter-schema.sql).  
   <sub>*task:* the weekly newsletter — one companion email per blog post, reviewed/scheduled in the OS, plus subscribers + analytics; how it generates, sends (dormant), and where the UI lives &nbsp;|&nbsp; *keywords:* newsletter, newsletter_emails, newsletter-admin, newsletter-autopublish, newsletter-write-background, newsletter-shared, companion email, NewsletterManagementCard, broadcast, resend broadcast, NEWSLETTER_SENDING_ENABLED, subscribers, email analytics</sub>
+
+## Business
+
+- **[hiring-and-outreach-plan](../knowledge/hiring-and-outreach-plan.md)** &mdash; &#9989; verified &middot; 2026-09-21  
+  Bryson asked (2026-09-21) when he needs to start hiring and for what. Answer, agreed: hire against HOURS, not client count, and not until revenue would survive 90 days with no new sale (roughly 8-10 paying clients, ~$10k/mo). First hire is an APPOINTMENT SETTER on cold calls only, not an account manager, because the OS already absorbs servicing and his cap is conversations. Then a part-time coordinator around 12-15 clients, then maybe a media buyer at 25-30, and deliberately NOT a developer. The hiring how-to is written out below. It also produced his idea for a COLD OUTREACH section in the OS, which is parked with a recommended build order and two things flagged as must-not-build.  
+  <sub>*task:* decide when to hire, what role to hire first, how to actually hire a setter, or plan the cold outreach section of the OS &nbsp;|&nbsp; *keywords:* hiring, first hire, appointment setter, cold caller, when to hire, account manager, media buyer, VA, contractor, 1099, cold outreach, cold calling, cold email, cold DM, outreach section, dialer, call workflow, follow up cadence, deliverability</sub>
 
 ## Business rules
 
@@ -486,6 +492,9 @@
 - **[client-email-center](../knowledge/client-email-center.md)** &mdash; &#9989; verified &middot; 2026-08-02  
   A per-client "Emails" tab lets Bryson preview, edit, and one-click-send 8 polished DARK-THEME lifecycle emails with the client's details auto-filled — welcome+portal, ad-account access, contract-signed, invoice, receipt, past-due, renewal, thank-you/offboarding. Templates + branding live server-side (client-emails-shared.mjs); client-email.mjs (owner-JWT) renders/sends via the existing Resend sender (report-shared.sendEmail), so they send today with no new config. Built 2026-07-30. 2026-08-02: invoice email's Pay button now resolves a REAL Stripe hosted-invoice URL (pay page + scan-to-pay QR) via new stripe-billing `invoice-link` action, falling back to the Checkout link then the portal; welcome+portal and thank-you/offboarding confirmed fully working (thank-you is prompted by the getAlerts `email_thankyou` alert when a contract ends).  
   <sub>*task:* send branded, professional client emails (welcome, invoice, renewal, thank-you, etc.) from within the OS with one click &nbsp;|&nbsp; *keywords:* client emails, email center, EmailCenterTab, client-email, client-emails-shared, welcome email, invoice email, receipt, past due, renewal, thank you, onboarding, ad account access, branded email, dark theme email, lifecycle emails, EMAIL_TYPES</sub>
+- **[cold-outreach](../knowledge/cold-outreach.md)** &mdash; &#9989; verified &middot; 2026-09-21  
+  A new Outreach screen that WORKS the list Lead Scout builds. One prospect at a time with the script beside it, big outcome buttons that log and advance on their own, an automatic follow-up cadence, and counters that separate meetings BOOKED from meetings that SHOWED UP. 🔴 Nothing sends. Cold email and DMs are WRITTEN here and sent by hand, because bulk cold email poisons the domain that sends client invoices and automated DMs get Instagram accounts banned; a test fails if a sender is ever wired in. 🔴 "Do not contact" is enforced in three places, not remembered. Built 2026-09-21. Needs a one-time Supabase migration. 145 checks, 13 mutations caught.  
+  <sub>*task:* work the cold list — calls, DMs and emails — log attempts, schedule follow-ups, or read the outreach numbers &nbsp;|&nbsp; *keywords:* cold outreach, outreach screen, cold calling, dialer, call workflow, outcome buttons, cadence, follow up, do not contact, blocked, appointment setter, outreach_touches, outreach_settings, dues queue, meetings showed, cold email deliverability, automated DMs, outreach draft</sub>
 - **[content-studio](../knowledge/content-studio.md)** &mdash; &#9989; verified &middot; 2026-08-13  
   `ContentStudioScreen` (nav item "Content") + `netlify/functions/content-studio.mjs` generate 6 video ideas at a time — short-form (Reels/TikTok/Shorts) or long-form (YouTube/podcast) — each with the literal opening hook, 3-5 beats, audience (business vs personal) and shoot effort; then write a full block-by-block script with timings, camera direction, caption, hashtags, on-screen text and shoot notes. Six content pillars. Saved ideas + scripts persist on the My Ads house-account record (`contentIdeas`) — no new Supabase table, no migration, syncs across devices. Hard guardrail: the model may NEVER invent client results, testimonials or case studies, because BoldLine has no clients yet. Built 2026-08-13. 27-case Playwright suite, all passing.  
   <sub>*task:* generate video ideas and shootable scripts for BoldLine's channels and Bryson's personal brand &nbsp;|&nbsp; *keywords:* content studio, video ideas, video scripts, short form, reels, tiktok, shorts, youtube, podcast, personal brand, content pillars, contentIdeas, content-studio.mjs, no fake results</sub>
