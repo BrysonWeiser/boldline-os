@@ -150,11 +150,16 @@ async function listAccessibleCustomers(accessToken) {
 // Exported (with getAccessToken above) so the scheduled ads-sync job can read
 // performance directly instead of re-entering this function over HTTP.
 export async function getCampaigns(accessToken, customerId) {
-  // 🔴 `campaign.start_date` IS WHEN IT WAS ALLOWED TO START, NOT WHEN IT RAN. Every campaign
-  // the OS builds is created paused and switched on later, so this date is routinely earlier
-  // than the truth. It is carried as a SECOND fact beside the day spend was first observed,
-  // never as the campaign's age. See `netlify/lib/campaign-runtime.mjs`.
-  const query = `SELECT campaign.id, campaign.name, campaign.status, campaign.start_date,
+  // 🔴 DO NOT ADD `campaign.start_date` HERE. It was added on 2026-09-21 to carry the
+  // configured start date alongside the observed one, and this API version rejects the whole
+  // query with UNRECOGNIZED_FIELD. That does not degrade one field, it fails the ENTIRE read,
+  // so every Google number in the OS went stale within the hour and the card started showing
+  // "These numbers are stale" on a live account. Bryson caught it on his own ads the same
+  // evening. The scheduled date was only ever a fallback; the date that matters is the day
+  // spend was first seen, which this job observes and does not need the platform's help with.
+  // If it is ever wanted, verify the field against the pinned API version FIRST, and make the
+  // read fall back to a query without it rather than losing the numbers.
+  const query = `SELECT campaign.id, campaign.name, campaign.status,
       campaign.resource_name, campaign_budget.resource_name,
       campaign_budget.amount_micros, metrics.impressions, metrics.clicks,
       metrics.cost_micros, metrics.conversions
@@ -176,7 +181,6 @@ export async function getCampaigns(accessToken, customerId) {
     id: r.campaign && r.campaign.id,
     name: r.campaign && r.campaign.name,
     status: r.campaign && r.campaign.status,
-    startDate: (r.campaign && r.campaign.startDate) || null,
     campaignResourceName: r.campaign && r.campaign.resourceName,
     budgetResourceName: r.campaignBudget && r.campaignBudget.resourceName,
     dailyBudget: microsToDollars(r.campaignBudget && r.campaignBudget.amountMicros),

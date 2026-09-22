@@ -217,7 +217,14 @@ const NOW = new Date("2026-09-21T12:00:00Z").getTime();
   const G = readFileSync(join(ROOT, "netlify/functions/google-ads.mjs"), "utf8");
   const M = readFileSync(join(ROOT, "netlify/functions/meta-ads.mjs"), "utf8");
   const S = readFileSync(join(ROOT, "netlify/functions/ads-sync.mjs"), "utf8");
-  ok("Google asks for the configured start", /campaign\.start_date/.test(G) && /startDate: \(r\.campaign && r\.campaign\.startDate\)/.test(G));
+  // 🔴 GOOGLE MUST *NOT* ASK FOR IT. Selecting `campaign.start_date` made this API version
+  // reject the ENTIRE query with UNRECOGNIZED_FIELD, so it did not lose one field, it lost every
+  // Google number in the OS, on a live account, within the hour. This check is inverted on
+  // purpose: the observed first-spend date is the one that matters and needs no help from the
+  // platform, so the safe state is not asking. Meta's `start_time` is fine and still requested.
+  ok("🔴 Google does NOT ask for the configured start, which fails the whole query",
+    !/campaign\.start_date/.test(G.replace(/\/\/[^\n]*/g, "")),
+    "one unrecognised field does not degrade, it fails the read and every Google figure goes stale");
   ok("Meta asks for it too", /start_time/.test(M) && /startDate: c\.start_time/.test(M));
   ok("🔴 the sync carries it through the trim, or it is dropped before anyone sees it",
     /\.\.\.\(c\.startDate \? \{ startDate: c\.startDate \} : \{\}\)/.test(S));
