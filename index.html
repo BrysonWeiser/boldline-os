@@ -6163,10 +6163,12 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     const t=state==="yes"?"running":state==="likely"?"likely (tag found)":state==="no"?"not running":"unconfirmed";
     return <span style={{fontSize:10,fontWeight:700,color:c,border:`1px solid ${c}44`,background:c+"14",borderRadius:7,padding:"3px 7px",whiteSpace:"nowrap"}}>{label}: {t}</span>;
   };
-  const ScoreBadge=({score})=>{ const t=scoutTier(score); return (
+  // 🔴 A COMPANY TYPED IN BY HAND HAS NO RESEARCH SCORE and carries a 0, so running it through
+  // `scoutTier` would label a referral "SKIP" in red. It gets its own badge instead.
+  const ScoreBadge=({score,manual})=>{ const t=manual?{label:"Added by you",color:C.gold}:scoutTier(score); return (
     <div style={{flexShrink:0,textAlign:"center",minWidth:52}}>
       <div style={{width:44,height:44,borderRadius:"50%",border:`2px solid ${t.color}`,background:t.color+"18",
-        display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:900,color:t.color,margin:"0 auto"}}>{score}</div>
+        display:"flex",alignItems:"center",justifyContent:"center",fontSize:manual?18:16,fontWeight:900,color:t.color,margin:"0 auto"}}>{manual?"+":score}</div>
       <div style={{fontSize:8.5,fontWeight:800,color:t.color,textTransform:"uppercase",letterSpacing:".04em",marginTop:3}}>{t.label}</div>
     </div>
   );};
@@ -6177,7 +6179,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     return (
       <div style={{...card,padding:"13px 14px",marginBottom:10}}>
         <div style={{display:"flex",alignItems:"flex-start",gap:12}}>
-          <ScoreBadge score={p.score}/>
+          <ScoreBadge score={p.score} manual={outIsManual(p)}/>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:14.5,fontWeight:800,color:C.text,lineHeight:1.25}}>{d.name||p.name}</div>
             <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>
@@ -6791,6 +6793,11 @@ const OUT_OUTCOMES = [
   { id:"do_not_contact", label:"Do not contact",   channels:["call","email","dm","text"],    reached:true,  ends:true, blocks:true },
 ];
 const OUT_CHANNELS = [{id:"call",label:"Call"},{id:"email",label:"Email"},{id:"dm",label:"DM"},{id:"text",label:"Text"}];
+// 🔴 A HAND-TYPED PROSPECT CARRIES A SCORE OF 0 ON PURPOSE, because the scout's score is the result
+// of real research and inventing one here would make both numbers meaningless. So every screen that
+// shows a score has to ask this first and say "added by you" instead. Mirrors `isManual` in
+// netlify/lib/outreach.mjs, where it also decides queue order.
+const outIsManual = (p) => !!(p && p.data && p.data.source === "manual");
 const outOutcome = (id) => OUT_OUTCOMES.find(o=>o.id===id)||null;
 const outFor = (ch) => OUT_OUTCOMES.filter(o=>o.channels.includes(ch));
 const outRollup = (touches) => {
@@ -6828,6 +6835,11 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [drafts,setDrafts]=useState(null);
   const [drafting,setDrafting]=useState(false);
   const [copied,setCopied]=useState("");
+  const [addOpen,setAddOpen]=useState(false);
+  const [addForm,setAddForm]=useState({name:"",phone:"",email:"",website:"",city:"",niche:"",ownerName:"",notes:""});
+  const [adding,setAdding]=useState(false);
+  const [addMsg,setAddMsg]=useState("");
+  const [addErr,setAddErr]=useState("");
 
   // Each screen carries its own, because this is one file and there is no module scope to share
   // one from. Found by driving the screen: without it every call failed with "authToken is not
@@ -6902,6 +6914,24 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   };
   const copy=(text,which)=>{ try{ navigator.clipboard.writeText(text); setCopied(which); setTimeout(()=>setCopied(""),1500); }catch(e){} };
 
+  // Add one company by hand. The server decides what is valid and what is a duplicate; this only
+  // shows the answer, because two copies of those rules is two different answers.
+  const addCompany=async()=>{
+    if(adding) return;
+    setAdding(true); setAddErr(""); setAddMsg("");
+    try{
+      const d=await api("action=add",{method:"POST",body:JSON.stringify(addForm)});
+      // 🔴 THE FORM STAYS OPEN AND EMPTIES ITSELF. Referrals arrive in threes, and closing it
+      // would take the confirmation down with it, so the one thing he wants to see would be the
+      // thing that vanishes.
+      setAddForm({name:"",phone:"",email:"",website:"",city:"",niche:"",ownerName:"",notes:""});
+      setAddMsg(d.duplicate?d.message:`${(d.prospect&&d.prospect.name)||"Added"} is on your list, at the top. Add another, or close this to start calling.`);
+      if(!d.duplicate) await loadQueue();
+    }catch(e){ setAddErr(setupMsg(e.message)||e.message); }
+    setAdding(false);
+  };
+  const addField=(k)=>(e)=>setAddForm(f=>({...f,[k]:e.target.value}));
+
   const stats = outRollup(touches);
   const pct=(v)=>v==null?"—":`${Math.round(v*100)}%`;
   const back = !isDesktop && (<button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>);
@@ -6921,7 +6951,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
         {back}
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Outreach</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Work the list Lead Scout built. One at a time, no deciding in between.</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Work the list, one at a time, with no deciding in between.</div>
         </div>
       </div>
 
@@ -6939,6 +6969,50 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
 
       {tab==="work"&&(
         <div style={{maxWidth:760}}>
+          {/* 🔴 THE OTHER DOOR INTO THE LIST. Everything else here comes from a Lead Scout search,
+              which means a referral or a name off the side of a van had nowhere to go and never got
+              called. Collapsed by default because the queue is what this screen is for. */}
+          <div style={{marginBottom:12}}>
+            <button onClick={()=>{setAddOpen(v=>!v);setAddErr("");setAddMsg("");}}
+              style={{width:"100%",textAlign:"left",font:"inherit",cursor:"pointer",background:C.bg3,border:`1px solid ${addOpen?C.gold+"66":C.border}`,borderRadius:11,padding:"10px 12px",color:addOpen?C.gold:C.textDim,fontSize:12,fontWeight:700}}>
+              {addOpen?"▾":"▸"} Add a company by hand
+            </button>
+            {addOpen&&(
+              <div style={{marginTop:8,padding:"13px 13px 14px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:11}}>
+                  For a referral, or a business you already know you want to call. The name and one way to reach them is all it needs. Everything else helps the OS write better messages later.
+                </div>
+                <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+                  {[["name","Company name *","e.g. Summit Roofing"],
+                    ["phone","Phone","e.g. (602) 555-0123"],
+                    ["email","Email","e.g. info@summitroofing.com"],
+                    ["website","Website","e.g. summitroofing.com"],
+                    ["city","Town or city","e.g. Phoenix, AZ"],
+                    ["niche","Industry","e.g. Roofing"],
+                    ["ownerName","Owner's name","e.g. Dave Mills"]].map(([k,label,ph])=>(
+                    <div key={k} style={{flex:k==="name"?"1 1 100%":"1 1 210px",minWidth:0}}>
+                      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:5}}>{label}</div>
+                      <input value={addForm[k]} onChange={addField(k)} placeholder={ph}
+                        style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:13,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit"}}/>
+                    </div>))}
+                  <div style={{flex:"1 1 100%",minWidth:0}}>
+                    <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:5}}>Anything worth remembering</div>
+                    <textarea value={addForm.notes} onChange={addField("notes")} rows={2} placeholder="e.g. referred by Shaun, said to call after the 15th"
+                      style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:13,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
+                  </div>
+                </div>
+                {addErr&&<div style={{marginTop:10,fontSize:12,color:C.red,lineHeight:1.6}}>{addErr}</div>}
+                {addMsg&&<div style={{marginTop:10,fontSize:12,color:C.gold,lineHeight:1.6}}>{addMsg}</div>}
+                <button onClick={addCompany} disabled={adding||!addForm.name.trim()}
+                  style={{marginTop:11,padding:"10px 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",
+                    background:(adding||!addForm.name.trim())?"rgba(255,255,255,.06)":C.gold,
+                    color:(adding||!addForm.name.trim())?C.textMuted:"#0a0800",cursor:(adding||!addForm.name.trim())?"default":"pointer"}}>
+                  {adding?"Adding…":"Add to my list"}
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* The script, collapsed by default so it is not in the way after the first week,
               and stored on the server so a setter reads the same words. */}
           <div style={{marginBottom:12}}>
@@ -6966,7 +7040,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
               <div style={{fontSize:12,color:C.textMuted,lineHeight:1.65}}>
                 {waiting>0
                   ? <>{waiting} {waiting===1?"prospect is":"prospects are"} waiting on a follow up{nextAt?<>, the next on {fmt(nextAt)}</>:null}. That is the cadence working, not an empty list.</>
-                  : <>Your call list is empty or everyone on it has been worked through. Run a search in Lead Scout to add more.</>}
+                  : <>Your call list is empty or everyone on it has been worked through. Run a search in Lead Scout to fill it, or add one company by hand with the button above.</>}
               </div>
             </Card>
           )}
@@ -6975,7 +7049,11 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
             <Card>
               <div style={{display:"flex",alignItems:"baseline",gap:9,flexWrap:"wrap",marginBottom:3}}>
                 <div style={{fontSize:17,fontWeight:800,color:C.text,minWidth:0}}>{cur.name}</div>
-                {cur.score>0&&<span style={{fontSize:10,fontWeight:800,color:C.gold,border:`1px solid ${C.gold}44`,background:C.goldDim,borderRadius:6,padding:"2px 7px"}}>{cur.score}</span>}
+                {/* 🔴 A HAND-ADDED ROW HAS NO RESEARCH SCORE, so it says where it came from instead
+                    of showing the 0 it carries. Showing the number would read as "worth nothing". */}
+                {outIsManual(cur)
+                  ? <span style={{fontSize:10,fontWeight:800,color:C.gold,border:`1px solid ${C.gold}44`,background:C.goldDim,borderRadius:6,padding:"2px 7px"}}>Added by you</span>
+                  : cur.score>0&&<span style={{fontSize:10,fontWeight:800,color:C.gold,border:`1px solid ${C.gold}44`,background:C.goldDim,borderRadius:6,padding:"2px 7px"}}>{cur.score}</span>}
                 <span style={{marginLeft:"auto",fontSize:10.5,color:C.textMuted}}>{i+1} of {queue.length}</span>
               </div>
               <div style={{fontSize:11.5,color:C.textMuted,marginBottom:10}}>

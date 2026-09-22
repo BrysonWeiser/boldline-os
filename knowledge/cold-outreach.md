@@ -2,10 +2,10 @@
 name: cold-outreach
 topic: OS app
 task: work the cold list — calls, DMs and emails — log attempts, schedule follow-ups, or read the outreach numbers
-keywords: [cold outreach, outreach screen, cold calling, dialer, call workflow, outcome buttons, cadence, follow up, do not contact, blocked, appointment setter, outreach_touches, outreach_settings, dues queue, meetings showed, cold email deliverability, automated DMs, outreach draft]
+keywords: [add a company by hand, manual prospect, add prospect, referral, buildManualProspect, manualAddVerdict, added by you, cold outreach, outreach screen, cold calling, dialer, call workflow, outcome buttons, cadence, follow up, do not contact, blocked, appointment setter, outreach_touches, outreach_settings, dues queue, meetings showed, cold email deliverability, automated DMs, outreach draft]
 status: verified
-summary: A new Outreach screen that WORKS the list Lead Scout builds. One prospect at a time with the script beside it, big outcome buttons that log and advance on their own, an automatic follow-up cadence, and counters that separate meetings BOOKED from meetings that SHOWED UP. 🔴 Nothing sends. Cold email and DMs are WRITTEN here and sent by hand, because bulk cold email poisons the domain that sends client invoices and automated DMs get Instagram accounts banned; a test fails if a sender is ever wired in. 🔴 "Do not contact" is enforced in three places, not remembered. Built 2026-09-21. Needs a one-time Supabase migration. 145 checks, 13 mutations caught.
-verified: 2026-09-21
+summary: A new Outreach screen that WORKS the list Lead Scout builds, plus (2026-09-22) an "Add a company by hand" form for referrals, which reuses the scout's own dedupe key, refuses to re-add anybody who asked not to be contacted, and is shown as "Added by you" rather than the score 0 it carries. One prospect at a time with the script beside it, big outcome buttons that log and advance on their own, an automatic follow-up cadence, and counters that separate meetings BOOKED from meetings that SHOWED UP. 🔴 Nothing sends. Cold email and DMs are WRITTEN here and sent by hand, because bulk cold email poisons the domain that sends client invoices and automated DMs get Instagram accounts banned; a test fails if a sender is ever wired in. 🔴 "Do not contact" is enforced in three places, not remembered. Built 2026-09-21. Needs a one-time Supabase migration. 145 checks, 13 mutations caught.
+verified: 2026-09-22
 ---
 
 ## Why it exists
@@ -77,6 +77,40 @@ needs setting up.
 an exact instruction rather than a Postgres error. The new tables are in the nightly backup, caught
 by `verify-backup` during the build: prospects can be found again by re-running a search, but **every
 attempt ever made and every do-not-contact request exists nowhere else.**
+
+## Adding one company by hand (2026-09-22)
+
+Bryson asked how companies get into the queue, and the honest answer was "only by running a whole
+Lead Scout search". So a referral, or a business he already knows he wants to call, had **nowhere to
+go**. Work tab → **"Add a company by hand"**, collapsed by default. Name, plus at least one of phone
+/ email / website. City, industry, owner and a note are optional and only make the drafts better.
+
+**No migration.** It writes the columns `scout_prospects` already has, so nothing to run in Supabase.
+
+### The three things that make it safe rather than merely convenient
+
+| Rule | Why |
+|---|---|
+| **🔴 It uses the SCOUT'S dedupe key, not one of its own** (`dedupeKeyFor`) | A second key means one company in the list twice, once found and once typed, and the copy gets called by somebody who does not know the first already said no. The website is checked as a second duplicate test, exactly as the scout does, and the unique index catches a race the lookup misses |
+| **🔴 A blocked company can never be typed back in** | `manualAddVerdict` answers `blocked` → 409 with the reason. Typing a name is not a new decision that overrides the one *they* made. It is a **function, not three `if`s in the endpoint**, so the test runs it instead of reading it — a source-grep version of this test survived the mutation that set `existing = null` |
+| **🔴 A typed row carries score 0 and is never shown as one** | The scout's score is the product of real research; inventing one would make both numbers meaningless. `scoutTier(0)` is **"Skip", in red** — exactly the wrong word for a referral he chose himself. Both screens ask `isManual` first and show **"Added by you"** instead |
+
+### Ordering: typed beats scored, a promise beats both
+
+A hand-added row with score 0 would sort below thirty scraped businesses and never get called, so
+`dueQueue` puts a typed row **first among the untouched** — typing a name in is a stronger signal
+than any computed score. A callback he promised still outranks it, which is the branch above it.
+
+### What the browser caught that the tests did not (again)
+
+Closing the form on success took the confirmation down with it, so the one thing he wants to see was
+the thing that vanished. It now **stays open and empties itself**, because referrals arrive in
+threes. Driven at 390/768/1280/1600: fills, posts, no sideways scroll, no console errors.
+
+**197 checks; 23 mutations, 20 caught, two were bad mutations of mine (a regex that did not match
+the text I inserted), and one is a genuine no-op** — deleting the blank-name guard changes nothing
+because the dedupe-key guard refuses an empty name anyway. A survivor that provably cannot change
+behaviour is not a missing test.
 
 ## 🔴 Two bugs the green tests did not catch
 

@@ -22,7 +22,9 @@ import { dirname, join } from "node:path";
 import {
   OUTCOMES, CHANNELS, CADENCE_DAYS, MAX_STEPS,
   outcomeById, outcomesFor, nextDueAt, applyTouch, isBlocked, dueQueue, rollup, rollupByChannel,
+  buildManualProspect, manualAddVerdict, isManual, cleanPhone, prettyPhone, cleanEmail, MANUAL_SOURCE,
 } from "../netlify/lib/outreach.mjs";
+import { dedupeKeyFor } from "../netlify/lib/scout-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UI = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -259,6 +261,135 @@ const DAY = 864e5;
     "a prompt is guidance; this is the guarantee");
   ok("and forbids inventing a client roster BoldLine does not have",
     /never imply a roster, case studies or testimonials that do not exist/.test(DRAFT));
+}
+
+
+// ── 10. Adding one company by hand ───────────────────────────────────────────
+//
+// Bryson, 2026-09-22: *"yes add it"*, after being told the only way in was a whole Lead Scout search.
+//
+// 🔴 THE TWO THINGS THAT MAKE THIS SAFE RATHER THAN CONVENIENT are tested hardest: a typed row must
+// land under the SAME dedupe key the scout would have used, and typing the name of somebody who
+// asked not to be contacted must be refused rather than quietly obeyed.
+{
+  const good = { name: "Summit Roofing", city: "Phoenix, AZ", phone: "602-555-0123" };
+
+  // The floor: a name, and one way to reach them.
+  ok("a company with a name and a phone builds a row", !!buildManualProspect(good).row);
+  ok("🔴 a name with no phone, email or website is refused",
+    /phone number, an email or a website/.test(buildManualProspect({ name: "Summit Roofing" }).error || ""),
+    "a row that cannot be actioned reaches the top of the queue and is skipped every morning");
+  ok("an email alone is enough", !!buildManualProspect({ name: "A Co", email: "hi@aco.com" }).row);
+  ok("a website alone is enough", !!buildManualProspect({ name: "A Co", website: "aco.com" }).row);
+  ok("a blank name is refused", !!buildManualProspect({ phone: "6025550123" }).error);
+  ok("whitespace is not a name", !!buildManualProspect({ name: "   ", phone: "6025550123" }).error);
+
+  // Typos are caught rather than stored, because an unreachable row is worse than no row.
+  ok("a short phone number is a typo, not a number", !!buildManualProspect({ name: "A Co", phone: "5550123" }).error);
+  ok("a nonsense email is refused", !!buildManualProspect({ name: "A Co", email: "dave at aco" }).error);
+  eq("ten digits survive punctuation", cleanPhone("(602) 555-0123"), "6025550123");
+  eq("and are shown back readably", prettyPhone("6025550123"), "(602) 555-0123");
+  eq("a leading 1 is not mistaken for an area code", prettyPhone("16025550123"), "(602) 555-0123");
+  eq("letters are not a phone number", cleanPhone("call me"), "");
+  eq("an email is lowercased", cleanEmail("  Dave@ACo.COM "), "dave@aco.com");
+
+  // 🔴 THE DEDUPE KEY IS THE WHOLE DUPLICATE GUARANTEE, and it is the scout's, not a second one.
+  const built = buildManualProspect({ name: "The Summit Roofing Co., LLC", city: "Phoenix, AZ", phone: "6025550123" });
+  eq("🔴 a typed row uses the SAME dedupe key the scout would have written",
+    built.dedupeKey, dedupeKeyFor({ name: "Summit Roofing", city: "Phoenix AZ" }));
+  ok("so a company found last week cannot be typed in again as a second copy",
+    built.dedupeKey === buildManualProspect({ name: "summit roofing", city: "phoenix, az", phone: "6025550123" }).dedupeKey);
+
+  // The row has to be the shape every other part of the screen already reads.
+  const row = built.row;
+  eq("it is new", row.status, "new");
+  eq("it belongs to no search", row.run_id, null);
+  eq("the website is normalised", buildManualProspect({ name: "A Co", website: "https://WWW.ACo.com/about" }).row.domain, "aco.com");
+  ok("the phone lands where the card looks for it", row.data.phones[0].number === "(602) 555-0123");
+  ok("an email lands where the card looks for it",
+    buildManualProspect({ name: "A Co", email: "hi@aco.com" }).row.data.emails[0].address === "hi@aco.com");
+  eq("and it is marked as typed rather than found", row.data.source, MANUAL_SOURCE);
+  ok("which `isManual` reads", isManual(row) && !isManual({ data: { source: "scout" } }) && !isManual(null));
+
+  // 🔴 SCORE 0 IS DELIBERATE, SO ORDERING HAS TO CARRY IT.
+  eq("🔴 a typed row carries no invented research score", row.score, 0);
+  const scouted = { id: "s", name: "Scouted", score: 92, step: 0, data: {} };
+  const typed   = { id: "m", name: "Typed",   score: 0,  step: 0, data: { source: MANUAL_SOURCE } };
+  eq("🔴 so the company he typed in comes before a 92-scoring one a search found",
+    dueQueue([scouted, typed])[0].id, "m",
+    "with score alone it sorts below thirty scraped businesses and never gets called");
+  const promised = { id: "p", name: "Promised", score: 10, step: 1, next_due_at: new Date(Date.now() - 6e4).toISOString(), data: {} };
+  eq("but a callback he promised still comes first", dueQueue([typed, promised])[0].id, "p");
+  ok("a typed row is due immediately", dueQueue([typed]).length === 1);
+  eq("and a blocked one can never be queued, typed or not",
+    dueQueue([{ ...typed, blocked_at: new Date().toISOString() }]).length, 0);
+
+  // ── What happens when the name is already on the list ─────────────────────
+  //
+  // 🔴 RUN, DO NOT READ. This is the point where a do-not-contact request either holds or quietly
+  // stops holding, so it is a function the test executes.
+  const blockedRow = { id: "b", name: "Weston Roofing", blocked_at: new Date().toISOString() };
+  const liveRow    = { id: "l", name: "Weston Roofing", blocked_at: null };
+  eq("🔴 a company that asked not to be contacted cannot be typed back in",
+    manualAddVerdict(blockedRow).verdict, "blocked",
+    "otherwise typing a name hands a blocked company straight back to the top of the queue");
+  eq("and the refusal is a 409, not a pretend success", manualAddVerdict(blockedRow).status, 409);
+  ok("and it says why, by name", /asked not to be contacted/.test(manualAddVerdict(blockedRow).message));
+  eq("a company already on the list is reported, not duplicated", manualAddVerdict(liveRow).verdict, "duplicate");
+  eq("a name nobody has is inserted", manualAddVerdict(null).verdict, "insert");
+  eq("and an undefined lookup is not mistaken for a free name check", manualAddVerdict(undefined).verdict, "insert");
+
+  // ── The endpoint ──────────────────────────────────────────────────────────
+  ok("the endpoint exposes the add action", /if \(action === "add"\)/.test(FN));
+  ok("and only by POST", /action === "add"[\s\S]{0,240}POST required/.test(FN));
+  ok("🔴 it hands the row it found straight to that verdict, deciding nothing itself",
+    /const existing = \(clash \|\| \[\]\)\[0\] \|\| null;\s*const verdict = manualAddVerdict\(existing\);/.test(FN),
+    "an endpoint that re-decides this is an endpoint where the block can be lost in an edit");
+  ok("and returns the verdict's own status and words",
+    /verdict\.verdict === "blocked"[\s\S]{0,160}verdict\.message \}, verdict\.status/.test(FN));
+  ok("it checks the website as a second duplicate test, like the scout does",
+    /dedupe_key\.eq\.\$\{built\.dedupeKey\},domain\.eq\.\$\{domain\}/.test(FN));
+  ok("an existing company is reported as already there, not inserted twice",
+    /duplicate: true, id: existing\.id/.test(FN));
+  ok("🔴 and a race that beats the check is caught by the unique index, not by hope",
+    /duplicate key\|23505/.test(FN),
+    "two taps in the same second must not create a second copy");
+  ok("the row itself is built by the shared rules, never re-decided in the endpoint",
+    /buildManualProspect\(body\)/.test(FN) && !/dedupe_key: /.test(FN));
+
+  // ── The screen ────────────────────────────────────────────────────────────
+  ok("the screen offers the button", /Add a company by hand/.test(UI));
+  ok("it asks for a company name", /Company name \*/.test(UI));
+  ok("and posts to the add action", /api\("action=add",\{method:"POST"/.test(UI));
+  ok("it reloads the queue so the new company is actually there", /if\(!d\.duplicate\) await loadQueue\(\);/.test(UI));
+  ok("🔴 and the form stays open and empties itself rather than closing",
+    /setAddForm\(\{name:"",phone:"",email:"",website:"",city:"",niche:"",ownerName:"",notes:""\}\);\s*setAddMsg\(/.test(UI)
+    && !/setAddOpen\(false\); await loadQueue/.test(UI),
+    "referrals arrive in threes, and closing it takes the confirmation down with it");
+  // 🔴 Narrow on purpose: it looks for the LIB'S OWN SENTENCES appearing in the screen, not for
+  // words like "valid", so ordinary help text can never trip it. A guard that fires on innocent
+  // copy gets deleted, and then it guards nothing.
+  const SCREEN = UI.split("function OutreachScreen")[1].split("\nfunction ")[0] || "";
+  ok("🔴 the screen never re-decides what is valid — the server answers, once",
+    !/doesn't look right|there is no way to reach them|too long/.test(SCREEN),
+    "two copies of the validation rules is two different answers to the same question");
+  ok("and it shows whatever the server said rather than its own guess",
+    /catch\(e\)\{ setAddErr\(setupMsg\(e\.message\)\|\|e\.message\); \}/.test(SCREEN));
+  ok("🔴 a typed company is never shown a score of 0 as though it were a verdict",
+    /outIsManual\(cur\)[\s\S]{0,240}Added by you/.test(UI),
+    "a referral labelled 0 reads as worthless");
+  ok("🔴 and Lead Scout's own badge does not label it SKIP in red",
+    /const ScoreBadge=\(\{score,manual\}\)=>\{ const t=manual\?\{label:"Added by you"/.test(UI)
+    && /<ScoreBadge score=\{p\.score\} manual=\{outIsManual\(p\)\}\/>/.test(UI),
+    "scoutTier(0) is 'Skip', which is exactly the wrong word for a company he chose");
+  ok("the empty list points at both doors, not just Lead Scout",
+    /add one company by hand with the button above/.test(UI));
+  ok("the two copies of `isManual` agree on what marks a typed row",
+    /data\.source === "manual"/.test(UI) && MANUAL_SOURCE === "manual");
+
+  // 🔴 The new door must not become a sending door.
+  ok("🔴 adding a company sends nothing to anybody",
+    !/action === "add"[\s\S]{0,2000}(sendMail|sgMail|resend|transporter|twilio)/i.test(FN));
 }
 
 console.log(`verify-outreach: ${pass} passed, ${fail} failed`);

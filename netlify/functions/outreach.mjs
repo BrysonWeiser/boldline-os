@@ -9,7 +9,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked } from "../lib/outreach.mjs";
+import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict } from "../lib/outreach.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -104,6 +104,55 @@ export default async (req) => {
     const { error: updErr } = await supabase.from("scout_prospects").update(applied.patch).eq("id", id);
     if (updErr) return json({ ok: false, error: updErr.message }, 500);
     return json({ ok: true, patch: applied.patch, step: applied.step, dueAt: applied.dueAt });
+  }
+
+  // ── Add one company by hand ────────────────────────────────────────────────
+  //
+  // The other door into the list, for a referral or a name off a van. Everything about the row it
+  // writes is decided in `buildManualProspect`; this part is only the three database questions.
+  //
+  // 🔴 A HAND ADD MUST NEVER BRING BACK SOMEBODY WHO ASKED NOT TO BE CONTACTED. That is the whole
+  // reason this checks before it inserts: without it, typing the name of a company that once said
+  // "take me off your list" would hand them straight back to the top of the queue, and the guards
+  // on the working screen would never see it because the block lives on a row this would sit beside.
+  // Refusing is the only correct answer, and it says why.
+  if (action === "add") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+
+    const built = buildManualProspect(body);
+    if (built.error) return json({ ok: false, error: built.error }, 400);
+
+    // Same name and town, or the same website: the two ways the scout itself calls something a
+    // duplicate. Checked together so a company found last week cannot be typed in again today.
+    const domain = built.row.domain;
+    const orFilter = domain ? `dedupe_key.eq.${built.dedupeKey},domain.eq.${domain}` : `dedupe_key.eq.${built.dedupeKey}`;
+    const { data: clash, error: clashErr } = await supabase
+      .from("scout_prospects").select("id, name, status, blocked_at").or(orFilter).limit(1);
+    if (clashErr) return json({ ok: false, error: clashErr.message }, 500);
+
+    // 🔴 THE DECISION IS NOT MADE HERE. `manualAddVerdict` owns it, so a test can run it rather
+    // than read it, and so the blocked case cannot be lost by an edit to this endpoint.
+    const existing = (clash || [])[0] || null;
+    const verdict = manualAddVerdict(existing);
+    if (verdict.verdict === "blocked") {
+      return json({ ok: false, blocked: true, error: verdict.message }, verdict.status);
+    }
+    if (verdict.verdict === "duplicate") {
+      return json({ ok: true, duplicate: true, id: existing.id, name: existing.name, message: verdict.message });
+    }
+
+    const { data: inserted, error: insErr } = await supabase
+      .from("scout_prospects").insert(built.row).select(PROSPECT_COLS).limit(1);
+    if (insErr) {
+      // The unique index on dedupe_key is the real guarantee; two taps in the same second land here
+      // rather than creating a second copy.
+      if (/duplicate key|23505/i.test(insErr.message || "")) {
+        return json({ ok: true, duplicate: true, name: built.row.name, message: `${built.row.name} is already on your list.` });
+      }
+      return json({ ok: false, error: insErr.message }, 500);
+    }
+    return json({ ok: true, prospect: (inserted || [])[0] || null });
   }
 
   // ── Did they turn up? ──────────────────────────────────────────────────────
