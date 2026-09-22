@@ -2,7 +2,7 @@
 name: cold-call-phone-number
 topic: Sales
 task: which phone number to cold call from, and how to keep it from being labelled Spam Likely
-keywords: [Quo, OpenPhone renamed to Quo, spam likely, scam likely, caller id, phone number for cold calling, personal number, auto dialer, dialer, OpenPhone, Google Voice, burner number, free caller registry, Hiya, First Orion, TNS, call reputation, flagged number, local presence, area code rotation, DNC, do not call, B2B calling, tel link]
+keywords: [602-584-0523, 6025840523, cold call number, Quo, OpenPhone renamed to Quo, spam likely, scam likely, caller id, phone number for cold calling, personal number, auto dialer, dialer, OpenPhone, Google Voice, burner number, free caller registry, Hiya, First Orion, TNS, call reputation, flagged number, local presence, area code rotation, DNC, do not call, B2B calling, tel link]
 status: verified
 summary: Bryson asked (2026-09-21, the night before his first cold-calling day) whether using his personal number instead of an auto dialer risks a spam label. The premise is backwards - a dialer on a fresh VoIP number gets flagged FASTER than an aged mobile. But the conclusion still holds for a different and better reason: a flagged personal cell is nearly impossible to undo and it is the number his bank, his family and his clients use. ✅ DONE 2026-09-22: a Quo number, registered at freecallerregistry.com with 1,000 calls/month declared and the personal cell deliberately left off. So: a SEPARATE cheap business number he can burn and replace, and habits that matter more than the number (leave voicemails, moderate daily volume, never rotate area codes). 🔴 Gotcha specific to the OS: tapping a number in Outreach uses a `tel:` link, which on iPhone always opens the native dialer and therefore his PERSONAL number, whatever app he installs.
 verified: 2026-09-22
@@ -88,13 +88,14 @@ a menu label he then cannot find is worse than saying which screen to look on.
 
 | | |
 |---|---|
+| **THE COLD-CALL NUMBER** | **(602) 584-0523** — this is what prospects see. Do not confuse it with (602) 784-4228, the published business line on Google/Yelp/Bing, which is a DIFFERENT number and stays off the calling list |
 | **Provider** | **Quo** (formerly OpenPhone), signed up 2026-09-22 |
 | **Login** | `brysonaweiser@gmail.com` — his personal gmail, on purpose, so one login can hold future businesses. See KB `account-email-map` |
 | **Registered at** | `freecallerregistry.com`, 2026-09-22, which submits to Hiya, First Orion and TNS at once |
 | **Registry account email** | `theboldlinemedia@gmail.com` — the BUSINESS gmail, deliberately different from the Quo login, because the two systems never check each other and this record belongs with Yelp/GBP/Bing |
 | **Business details filed** | BoldLine Media LLC · 3101 N Central Ave Ste 183 #7182, Phoenix AZ 85012 · Bryson Weiser |
 | **Business contact number given** | **(602) 784-4228** — the number already published as BoldLine's on Google, Yelp and Bing, so the records corroborate each other |
-| **Numbers registered** | **The Quo number only.** His personal cell was deliberately NOT registered: it has no spam problem to fix, and putting it on record as a bulk-outbound number is the exact thing the separate number was bought to avoid |
+| **Numbers registered** | **(602) 584-0523 only.** His personal cell was deliberately NOT registered: it has no spam problem to fix, and putting it on record as a bulk-outbound number is the exact thing the separate number was bought to avoid |
 | **Declared volume** | **1,000 outbound calls a month.** Honest for a solo caller in two windows a day. 🔴 Deliberately not inflated (10,000 puts you in the call-centre bucket and invites scrutiny) and deliberately not lowballed (declaring 200 then doing 1,200 is a sudden pattern change, which is what the scoring watches for) |
 
 ### What is NOT done yet
