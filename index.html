@@ -13451,6 +13451,23 @@ function GoalPicker({value,onChange,ready,missing}){
       {value==="leads"&&!ready&&(
         <div style={{fontSize:10,color:"#F59E0B",marginTop:5,lineHeight:1.55}}>{missing}</div>
       )}
+      {/* 🔴 THE SAME MISTAKE HAS NOW BEEN MADE TWICE, SO THE SCREEN SAYS IT OUT LOUD.
+          Two of Bryson's own campaigns have run on Visits and produced ZERO leads between
+          them: 6,997 views and 171 clicks for $87, then 1,820 views and 19 clicks for $37.
+          Nothing was broken either time. The campaign asked Meta for the cheapest possible
+          page visits and Meta delivered exactly that, which is what a healthy click rate at a
+          low cost per click with nothing at the end always means.
+
+          The picker already explained the difference in a one-line blurb underneath. He read
+          it and picked Visits anyway, twice, which is the evidence that a neutral description
+          of two options is not a warning. This is the warning. It only appears on the choice
+          that has actually cost money, it names what will happen rather than scolding, and it
+          does NOT block: buying visits is a legitimate thing to want, just rarely this. */}
+      {value==="traffic"&&(
+        <div style={{fontSize:10.5,color:"#F59E0B",marginTop:7,lineHeight:1.6,padding:"8px 10px",borderRadius:9,border:"1px solid rgba(245,158,11,.35)",background:"rgba(245,158,11,.08)"}}>
+          <b>This buys clicks, not leads.</b> The platform will find the cheapest possible visits, and cheap visits are cheap because those people were not going to fill anything in. Two campaigns on this setting have produced no leads at all. Pick Leads unless you specifically want traffic for its own sake.
+        </div>
+      )}
     </div>
   );
 }
