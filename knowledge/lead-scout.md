@@ -2,9 +2,9 @@
 name: lead-scout
 topic: OS app
 task: find businesses to cold call — AI prospect scraper by niche + area, scored on whether they're worth contacting, feeding into Deal Prep
-keywords: [niche dropdown unreadable, white category labels, optgroup, NicheSelect, niche picker, dark theme dropdown, lead scout, lead scraper, prospect scraper, find leads, find businesses, cold call list, prospecting, niche dropdown, search areas, dedupe, duplicates, owner name, owner phone, business phone, contact section, employees, running ads, meta ad library, fit score, call first, waste of time, score breakdown, why it scored, affordability, can they afford, budget capacity, revenue per employee, score cap, google places, places api, GOOGLE_PLACES_API_KEY, apollo, apollo.io, APOLLO_API_KEY, data providers, verified data, scout_runs, scout_prospects, scout-shared, scout-scoring, scout-providers, lead-scout-background, LeadScoutScreen, emit_prospects, web_search]
+keywords: [delete doesnt work, delete prospect, remove from call list, not a fit, dedupeKey, new-0, invented id, niche dropdown unreadable, white category labels, optgroup, NicheSelect, niche picker, dark theme dropdown, lead scout, lead scraper, prospect scraper, find leads, find businesses, cold call list, prospecting, niche dropdown, search areas, dedupe, duplicates, owner name, owner phone, business phone, contact section, employees, running ads, meta ad library, fit score, call first, waste of time, score breakdown, why it scored, affordability, can they afford, budget capacity, revenue per employee, score cap, google places, places api, GOOGLE_PLACES_API_KEY, apollo, apollo.io, APOLLO_API_KEY, data providers, verified data, scout_runs, scout_prospects, scout-shared, scout-scoring, scout-providers, lead-scout-background, LeadScoutScreen, emit_prospects, web_search]
 status: verified
-summary: Owner-side "Lead Scout" (BUILT 2026-08-11) — pick a niche from a ~430-entry dropdown (incl. deep e-commerce sub-niches) + one or more areas, and a background function finds real businesses and returns a full Contact block (every phone + email, tagged whose/what/source), owner name, employees, website, whether they're running Google/Meta ads, reviews, plus a 0-100 "should I call them" score that is the SUM of six visible factors with a written reason each. Affordability is computed in code from headcount/revenue and HARD-CAPS the score, so businesses that cannot pay BoldLine physically cannot rank high. Real-data providers are pluggable and optional: GOOGLE_PLACES_API_KEY (verified phone/address/rating) and APOLLO_API_KEY (owner name, title, direct contact, headcount, revenue). Results land in a permanent de-duplicated call list with per-prospect status, rich CSV export, and a one-click hand-off into Deal Prep. Needs a one-time Supabase migration (docs/sql/lead-scout-schema.sql). 🔴 2026-09-22: the niche dropdown is no longer a native `<select>` — its category headings were white on white because the OS paints `<optgroup>` labels itself, a bug Bryson reported twice. It now shares the searchable `NicheSelect` the client sheet already used, and a test bans grouped native dropdowns anywhere in the app.
+summary: Owner-side "Lead Scout" (BUILT 2026-08-11) — pick a niche from a ~430-entry dropdown (incl. deep e-commerce sub-niches) + one or more areas, and a background function finds real businesses and returns a full Contact block (every phone + email, tagged whose/what/source), owner name, employees, website, whether they're running Google/Meta ads, reviews, plus a 0-100 "should I call them" score that is the SUM of six visible factors with a written reason each. Affordability is computed in code from headcount/revenue and HARD-CAPS the score, so businesses that cannot pay BoldLine physically cannot rank high. Real-data providers are pluggable and optional: GOOGLE_PLACES_API_KEY (verified phone/address/rating) and APOLLO_API_KEY (owner name, title, direct contact, headcount, revenue). Results land in a permanent de-duplicated call list with per-prospect status, rich CSV export, and a one-click hand-off into Deal Prep. Needs a one-time Supabase migration (docs/sql/lead-scout-schema.sql). 🔴 2026-09-22: the niche dropdown is no longer a native `<select>` — its category headings were white on white because the OS paints `<optgroup>` labels itself, a bug Bryson reported twice. It now shares the searchable `NicheSelect` the client sheet already used, and a test bans grouped native dropdowns anywhere in the app. 🔴 2026-09-22 also: Delete and the status dropdown did nothing on a SEARCH RESULT because those cards carried invented ids like `new-0`; results now carry their dedupe key, the endpoint accepts it, and a prospect marked "Not a fit" finally stops appearing in the Outreach calling queue.
 verified: 2026-09-22
 ---
 
@@ -40,6 +40,49 @@ panel), search narrows the list, picking an online brand makes the area optional
 makes it required again, no sideways scroll, no console errors. **13 of 14 mutations caught**; the one
 survivor is the heading's sticky positioning, which is cosmetic. Two earlier "survivors" were bad
 mutations of mine that hit an earlier element in the file and never touched the picker.
+
+## 🔴 2026-09-22 — "when i press delete it doesnt delete them"
+
+Bryson, weeding a fresh search the night before his first calling day: *"in lead scout i search some
+businesses and before i save them to my call list i want to delete the bad ones but when i press
+delete it doesnt delete them."* **Two things were wrong, and one of them was a mental model the
+screen had earned.**
+
+### 1. There is no saving step, and the screen never said so
+
+`lead-scout-background` writes every batch to `scout_prospects` **as it lands**, on purpose, so a run
+that hits the 15-minute ceiling keeps what it found. So the results he was reviewing were already on
+his call list and already in the Outreach calling queue. The results view now says exactly that.
+
+### 2. The results cards carried INVENTED ids
+
+They were rendered straight from the run output with `id: "new-" + i`. So Delete sent `id=new-0` at a
+**uuid column**, which is an ERROR rather than a harmless miss, and the message surfaced somewhere he
+was not looking. From where he sat, the button did nothing. 🔴 **The status dropdown on those same
+cards was broken identically and silently** — nobody had noticed, because a dropdown that snaps back
+looks like a mis-tap.
+
+**Fix:** the run result carries each prospect's `dedupeKey`, and `lead-scout` takes `?key=` as well
+as `?id=` on both `delete` and `status`. A `UUID_RE` guard now refuses a non-uuid id in a sentence
+instead of letting Postgres answer. The screen's `addr(p)` picks a real id, else the key, else says
+the row has not finished saving rather than firing a request that cannot work.
+
+🔴 **The card also has to leave the list it is actually in.** The old handler only filtered `list`,
+while the results view renders `runResult`, so even a working delete would have left the card on
+screen. **Mutation-testing caught this and a first version of the test did not**: deleting the single
+`dropFromRun(p)` call reproduced his exact complaint while the test still passed, because it only
+checked the helper was DEFINED.
+
+### The other half: a rejected prospect was still being called
+
+Marking somebody **"Not a fit"** left them in the Outreach queue at step 0 with nothing due, so they
+came back the next morning. `dueQueue` now skips `QUEUE_SKIP_STATUS = ["dead", "client"]`, filtered in
+SQL as well as in code. 🔴 **This is NOT the do-not-contact guard and must never merge with it**: a
+status is a dropdown somebody can change back, `blocked_at` is a legal instruction that cannot be, so
+they are separate checks and a test fails if a status is ever allowed to imply a block.
+
+**26 + 208 checks; 17 mutations, all caught. Driven in a browser at 390 and 1280**: the confirm
+appears, the right card disappears, the other stays, and the request carries the real dedupe key.
 
 **What it is (Bryson's ask, 2026-08-11):** a prospect scraper inside the OS that works with Deal Prep.
 Choose a niche from a large dropdown (e-commerce broken out in detail), choose the area(s) to work,

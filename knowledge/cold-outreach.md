@@ -112,6 +112,16 @@ the text I inserted), and one is a genuine no-op** — deleting the blank-name g
 because the dedupe-key guard refuses an empty name anyway. A survivor that provably cannot change
 behaviour is not a missing test.
 
+## A rejected prospect no longer gets called (2026-09-22)
+
+`dueQueue` skips `QUEUE_SKIP_STATUS = ["dead", "client"]`, filtered in SQL as well as in code. Before
+this, marking somebody **"Not a fit"** in Lead Scout left them in the queue at step 0 with nothing
+due, so they came up again the next morning and weeding the list achieved nothing.
+
+🔴 **Separate from the do-not-contact guard, permanently.** A status is a dropdown somebody can change
+back; `blocked_at` is a legal instruction that cannot be. A test fails if a status is ever allowed to
+imply a block, because then changing the status would un-imply it.
+
 ## 🔴 Two bugs the green tests did not catch
 
 Found by driving the screen in a browser, which is now the habit:

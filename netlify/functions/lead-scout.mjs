@@ -19,6 +19,11 @@ const json = (body, status = 200) =>
 
 const STATUSES = ["new", "contacted", "meeting", "client", "dead"];
 
+// A row id is a Postgres uuid. Anything else is a screen-invented id, and sending one at a uuid
+// column is an ERROR rather than a harmless miss — which is exactly how "Delete does nothing"
+// happened. Checked here so the answer is a clear sentence instead of a database message.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default async (req) => {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
 
@@ -108,15 +113,29 @@ export default async (req) => {
       patch.status = body.status;
     }
     if (body.notes !== undefined) patch.notes = String(body.notes || "").slice(0, 2000);
-    const { error } = await supabase.from("scout_prospects").update(patch).eq("id", id);
+    // Same two doors as delete, for the same reason: the results screen has keys, not ids.
+    const key = url.searchParams.get("key") || "";
+    if (!id && !key) return json({ ok: false, error: "id or key required" }, 400);
+    if (id && !UUID_RE.test(id)) return json({ ok: false, error: "that id is not a saved prospect" }, 400);
+    const q = supabase.from("scout_prospects").update(patch);
+    const { error } = id ? await q.eq("id", id) : await q.eq("dedupe_key", key);
     if (error) return json({ ok: false, error: error.message }, 500);
     return json({ ok: true });
   }
 
+  // Delete by row id, OR by dedupe key. 🔴 THE KEY IS NOT A CONVENIENCE: the results screen
+  // renders straight from the run's own output and has no row ids, so before this it sent an
+  // invented "new-0" and the delete matched nothing. A uuid column also REJECTS such a value
+  // rather than ignoring it, so the failure was a 500 the screen showed somewhere he was not
+  // looking, which reads as "the button does nothing".
   if (action === "delete") {
     if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
-    if (!id) return json({ ok: false, error: "id required" }, 400);
-    const { error } = await supabase.from("scout_prospects").delete().eq("id", id);
+    const key = url.searchParams.get("key") || "";
+    if (!id && !key) return json({ ok: false, error: "id or key required" }, 400);
+    // Never let a synthetic screen id reach a uuid column.
+    if (id && !UUID_RE.test(id)) return json({ ok: false, error: "that id is not a saved prospect" }, 400);
+    const q = supabase.from("scout_prospects").delete();
+    const { error } = id ? await q.eq("id", id) : await q.eq("dedupe_key", key);
     if (error) return json({ ok: false, error: error.message }, 500);
     return json({ ok: true });
   }

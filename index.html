@@ -6080,15 +6080,31 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     },4000);
   };
 
+  // 🔴 A CARD ON THE RESULTS SCREEN HAS NO ROW ID. Results are rendered straight from the run,
+  // which used to hand each card an invented id like "new-0", so Delete and the status dropdown
+  // both addressed a row that does not exist and silently did nothing. Every card now says how it
+  // can be addressed — a real id if it came from the saved list, the dedupe key if it came from a
+  // run — and both screens drop the card from whichever list they are showing.
+  const addr=(p)=>p&&p.id&&!/^new-/.test(String(p.id)) ? "id="+encodeURIComponent(p.id)
+    : (p&&p.data&&p.data.dedupeKey) ? "key="+encodeURIComponent(p.data.dedupeKey) : "";
+  const dropFromRun=(p)=>{
+    const k=p&&p.data&&p.data.dedupeKey; if(!k) return;
+    setRunResult(r=>r?{...r,prospects:(r.prospects||[]).filter(x=>x.dedupeKey!==k)}:r);
+  };
+
   const setStatus=async(p,status)=>{
+    const a=addr(p); if(!a){ setMsg("That prospect has not finished saving yet — reload My call list."); return; }
     setList(l=>l.map(x=>x.id===p.id?{...x,status}:x));
-    try{ await api("action=status&id="+encodeURIComponent(p.id),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); }
+    setRunResult(r=>r&&p.data&&p.data.dedupeKey?{...r,prospects:(r.prospects||[]).map(x=>x.dedupeKey===p.data.dedupeKey?{...x,status}:x)}:r);
+    try{ await api("action=status&"+a,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})}); }
     catch(e){ setMsg(String(e.message||e)); }
   };
   const removeProspect=async(p)=>{
-    if(!window.confirm(`Remove ${p.name} from your list? It can be found again by a future search.`)) return;
+    const a=addr(p); if(!a){ setMsg("That prospect has not finished saving yet — reload My call list."); return; }
+    if(!window.confirm(`Delete ${p.name}? They come off your call list for good. A future search could find them again.`)) return;
     setList(l=>l.filter(x=>x.id!==p.id));
-    try{ await api("action=delete&id="+encodeURIComponent(p.id),{method:"POST"}); }catch(e){ setMsg(String(e.message||e)); }
+    dropFromRun(p);
+    try{ await api("action=delete&"+a,{method:"POST"}); }catch(e){ setMsg(String(e.message||e)); }
   };
   const toDealPrep=(d,fallbackNiche)=>{
     if(!onDealPrep) return;
@@ -6517,8 +6533,16 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                   {runResult.providerNotes.map((n,i)=><div key={i} style={{fontSize:11.5,color:/fail|threw|credit|paid plan/i.test(n)?C.amber:C.textDim,lineHeight:1.55,marginBottom:3}}>{n}</div>)}
                 </div>)}
               {runResult.engine&&<div style={{fontSize:10.5,color:C.textMuted,marginBottom:10}}>Research engine: {runResult.engine}</div>}
+              {/* Bryson, 2026-09-22: *"before i save them to my call list i want to delete the bad
+                  ones"*. There is no saving step — every batch is written as it is found, so these
+                  are already on the list and already in the Outreach queue. Saying so is the fix
+                  for the wrong mental model; making Delete work was the fix for the bug. */}
+              {!!newProspects.length&&(
+                <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginBottom:10}}>
+                  These are already on your call list and in Outreach. Delete the ones you do not want, or set a bad fit to <b style={{color:C.text}}>Not a fit</b>, which keeps them out of your calling queue and stops a future search finding them again.
+                </div>)}
               {newProspects.map((d,i)=>(
-                <ProspectCard key={d.name+i} p={{id:"new-"+i,name:d.name,niche:d.niche||(selected&&selected.label),score:d.score,status:"new",data:d}}/>
+                <ProspectCard key={(d.dedupeKey||d.name)+i} p={{id:"",name:d.name,niche:d.niche||(selected&&selected.label),score:d.score,status:d.status||"new",data:d}}/>
               ))}
               {!newProspects.length&&(
                 <div style={{...card,fontSize:12.5,color:C.textDim,lineHeight:1.6}}>
