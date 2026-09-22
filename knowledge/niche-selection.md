@@ -2,9 +2,9 @@
 name: niche-selection
 topic: Sales
 task: choose which niche to cold call and sell ads to, and judge whether a new one is worth it
-keywords: [niche, which niche, what industry, cold call niche, saturated niches, med spa, avoid med spas, commercial cleaning, janitorial, artificial turf, pool remodel, audiology, hearing aids, epoxy floors, ABA therapy, foundation repair, commercial landscaping, niche test, job value, pick one niche]
+keywords: [pool construction, pool builder, pool remodel, niche locked, which niche, what industry, cold call niche, saturated niches, med spa, avoid med spas, commercial cleaning, janitorial, artificial turf, pool remodel, audiology, hearing aids, epoxy floors, ABA therapy, foundation repair, commercial landscaping, niche test, job value, pick one niche]
 status: verified
-summary: Bryson, 2026-09-22, the night before his first calling day - "i dont think med spas would be the right one what are some other niches that you know wouldnt be heavily cold called." He is right and the instinct is good. The farmed list is med spa, PI law, roofing, HVAC, dental implants, chiro, solar, real estate agents. The recommended alternatives split three ways: B2B commercial services (the unfarmed twin of every residential trade), high-ticket trades that are not the famous four, and medical-adjacent that is not aesthetics. Top picks for Phoenix: commercial cleaning, artificial turf, pool remodelling, audiology, epoxy floors, ABA therapy. 🔴 The bigger rule is PICK ONE AND STAY ON IT for 100 calls - five niches is five scripts and no compounding.
+summary: ✅ LOCKED 2026-09-22: POOL CONSTRUCTION, selling the REMODEL side (closes in weeks, inside the 3-month minimum) and selling BOOKED CONSULTATIONS rather than closed jobs. Do not reopen the choice until 100 calls are done. Original discussion: Bryson, 2026-09-22, the night before his first calling day - "i dont think med spas would be the right one what are some other niches that you know wouldnt be heavily cold called." He is right and the instinct is good. The farmed list is med spa, PI law, roofing, HVAC, dental implants, chiro, solar, real estate agents. The recommended alternatives split three ways: B2B commercial services (the unfarmed twin of every residential trade), high-ticket trades that are not the famous four, and medical-adjacent that is not aesthetics. Top picks for Phoenix: commercial cleaning, artificial turf, pool remodelling, audiology, epoxy floors, ABA therapy. 🔴 The bigger rule is PICK ONE AND STAY ON IT for 100 calls - five niches is five scripts and no compounding.
 verified: 2026-09-22
 ---
 
@@ -60,7 +60,39 @@ what beats it, and the research and the report template get reused.
 is running ads, that is two signals at once, low competition AND an untapped need. Read it carefully
 though, because it can also mean ads do not work for that category.
 
+## ✅ LOCKED: POOL CONSTRUCTION (2026-09-22)
+
+He considered five in about two hours (med spa, commercial cleaning, pool, artificial turf, then
+"home remodeling or landscaping") with zero calls made, was told plainly that **the niche barely
+matters at zero calls and the hopping was costing him the only thing that would answer the
+question**, agreed, and locked **pool construction**.
+
+**Do not reopen this.** If a future session is asked "is X a better niche", the answer is: not until
+100 calls are done and there is real data to compare against.
+
+### Why it is defensible
+
+Jobs run **$50-120k** in Phoenix. The trade had a huge 2020-21 and a hard correction after, so the
+pain is real rather than manufactured. Owners are field-based and answer their own phones. It is in
+Lead Scout under **Home Services & Trades > Pool Construction**.
+
+### 🔴 The two things that make it work, and they are not optional
+
+1. **SELL THE REMODEL SIDE, NOT NEW BUILDS.** Almost every Phoenix pool builder also resurfaces and
+   renovates. That work is $10-25k, decides in WEEKS not months, and people book it in autumn so the
+   pool is ready by summer. New construction signed in October does not close until February, which
+   is **after the three-month minimum is up** — so a new-build-only client spends real money, sees
+   consultations and no closed jobs, and leaves. The remodel work produces a win inside the contract.
+2. **SELL BOOKED CONSULTATIONS, NOT CLOSED JOBS.** It is the honest number, it moves in weeks, and it
+   is the part BoldLine actually controls. Raise it before the prospect does.
+
+### The month is awkward, and that is handled
+
+New pool contracts sign January to April, so autumn is when their cash is tightest. If a prospect
+only wants new builds, pitch a **January launch**: book now, spend nothing until the new year. That
+removes the cash objection entirely and sounds like someone who knows the trade.
+
 ## Status
 
-Advice given 2026-09-22. **He has not yet said which one he picked** — update this entry when he
-does, with the niche and what the first 100 calls actually produced.
+Niche locked 2026-09-22. **Update this entry with what the first 100 calls actually produced** —
+dials, conversations, meetings booked, meetings that showed.
