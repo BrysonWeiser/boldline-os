@@ -2,7 +2,7 @@
 name: cold-call-phone-number
 topic: Sales
 task: which phone number to cold call from, and how to keep it from being labelled Spam Likely
-keywords: [spam likely, scam likely, caller id, phone number for cold calling, personal number, auto dialer, dialer, OpenPhone, Google Voice, burner number, free caller registry, Hiya, First Orion, TNS, call reputation, flagged number, local presence, area code rotation, DNC, do not call, B2B calling, tel link]
+keywords: [Quo, OpenPhone renamed to Quo, spam likely, scam likely, caller id, phone number for cold calling, personal number, auto dialer, dialer, OpenPhone, Google Voice, burner number, free caller registry, Hiya, First Orion, TNS, call reputation, flagged number, local presence, area code rotation, DNC, do not call, B2B calling, tel link]
 status: verified
 summary: Bryson asked (2026-09-21, the night before his first cold-calling day) whether using his personal number instead of an auto dialer risks a spam label. The premise is backwards - a dialer on a fresh VoIP number gets flagged FASTER than an aged mobile. But the conclusion still holds for a different and better reason: a flagged personal cell is nearly impossible to undo and it is the number his bank, his family and his clients use. So: a SEPARATE cheap business number he can burn and replace, registered free at freecallerregistry.com, and habits that matter more than the number (leave voicemails, moderate daily volume, never rotate area codes). 🔴 Gotcha specific to the OS: tapping a number in Outreach uses a `tel:` link, which on iPhone always opens the native dialer and therefore his PERSONAL number, whatever app he installs.
 verified: 2026-09-21
@@ -40,7 +40,7 @@ business number is replaceable in ten minutes. His personal number is not replac
 
 ## What he should do
 
-1. **A separate business number.** Recommended: **OpenPhone** (~$15-19/mo, free trial, real app on
+1. **A separate business number.** Recommended: **Quo** (formerly **OpenPhone** — renamed, confirmed by Bryson 2026-09-22; ~$15-19/mo, free trial, real app on
    his phone, and it becomes a shared number the day he hires a setter, with call recording for
    coaching). Free alternative: **Google Voice**, which works today at zero cost but has no branded
    caller ID and no spam-label monitoring.
@@ -75,6 +75,14 @@ largely outside it, which is what he is doing. The risk sits in calling **cell n
 a database** rather than a business's published main line, and in a few stricter state laws. So:
 **call the published main line.** And "take me off your list" is honoured instantly, which the OS
 already enforces in three places rather than trusting anyone to remember (KB `cold-outreach`).
+
+## 🔴 The app is called Quo now, not OpenPhone
+
+Bryson, 2026-09-22, mid-signup: *"just so you know the app has been renamed to Quo."* Same product,
+same account. **So every menu path written from memory of "OpenPhone" is suspect**, and any
+click-by-click for it should be given as the SHAPE of where a setting lives (voicemail is a
+per-NUMBER setting, not an account one) rather than invented wording, then confirmed by him. Guessing
+a menu label he then cannot find is worse than saying which screen to look on.
 
 ## Status
 
