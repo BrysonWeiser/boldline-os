@@ -238,4 +238,39 @@ t("the automatic client builds start on clicks too", () => {
     "client-autobuild names no goal, so its campaigns are back on manual CPC with nobody adjusting the bids");
 });
 
+// ── 🔴 THE WARNING ON THE CHOICE THAT HAS ACTUALLY COST MONEY ────────────────
+//
+// Two of Bryson's own campaigns ran on Visits and produced zero leads between them: 6,997 views
+// and 171 clicks for $87, then 1,820 views and 19 clicks for $37. Nothing was broken either
+// time. The campaign asked for the cheapest page visits and got them, which is exactly what a
+// healthy click rate at a low cost per click with nothing at the end means.
+//
+// The picker already carried a neutral one-line description of both options. He read it and
+// picked Visits anyway, twice. 🔴 DESCRIBING two options is not the same as WARNING about one,
+// and that is why this exists rather than a comment.
+t("🔴 picking Visits warns that it buys clicks, not leads", () => {
+  const i = S.indexOf("function GoalPicker(");
+  const picker = S.slice(i, S.indexOf("\nconst monthlyBudgetNum", i));
+  assert.ok(i > 0 && picker.length > 200, "the picker was not found");
+  assert.ok(/value==="traffic"&&\(/.test(picker) && /This buys clicks, not leads/.test(picker),
+    "two campaigns have run on this setting for no leads and the neutral blurb did not stop it");
+  assert.ok(/those people were not going to fill anything in/.test(picker),
+    "naming the mechanism is what makes it a warning rather than a scold");
+});
+
+t("🔴 and Leads is not warned about, because it is the right answer", () => {
+  const i = S.indexOf("function GoalPicker(");
+  const picker = S.slice(i, S.indexOf("\nconst monthlyBudgetNum", i));
+  assert.ok(!/value==="leads"&&[^!]{0,80}buys clicks/.test(picker), "a warning on every option is a warning on none");
+  assert.ok(/value==="leads"&&!ready&&/.test(picker), "the missing-tracking notice was lost");
+});
+
+t("🔴 and the warning informs rather than blocks", () => {
+  const i = S.indexOf("function GoalPicker(");
+  const picker = S.slice(i, S.indexOf("\nconst monthlyBudgetNum", i));
+  assert.ok(!/disabled/.test(picker.slice(picker.indexOf('value==="traffic"'))),
+    "buying visits is a legitimate thing to want, just rarely; the screen informs, it does not "
+    + "take the decision away");
+});
+
 console.log(`✓ verify-campaign-goals: ${n} checks passed`);
