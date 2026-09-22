@@ -12,6 +12,8 @@
 // screen all have to agree about what "a conversation" is and who is due today. Three copies of
 // that arithmetic is three different numbers on three screens.
 
+import { dedupeKeyFor, normDomain } from "./scout-shared.mjs";
+
 const DAY = 864e5;
 
 // ── What happened on an attempt ───────────────────────────────────────────────
@@ -113,6 +115,127 @@ export const applyTouch = (prospect, touch, at = Date.now()) => {
 // remember not to call that one" is not a control.
 export const isBlocked = (p) => !!(p && p.blocked_at);
 
+// ── Adding a company by hand ──────────────────────────────────────────────────
+//
+// Lead Scout finds businesses. This is the other door in: a referral, a name off the side of a van,
+// somebody who said "call me next quarter". Without it the only way to work one specific company is
+// to run a whole search and hope it turns up, which nobody does, so the referral never gets called.
+//
+// 🔴 A TYPED ROW MUST BE INDISTINGUISHABLE FROM A FOUND ONE ONCE IT LANDS, because the queue, the
+// cadence, the counters and the do-not-contact guard all read the same columns. So this builds the
+// SAME row shape the scout writes and, above all, the SAME dedupe key: a key computed any other way
+// would let one company sit in the list twice, once found and once typed, and the second copy gets
+// called by somebody who has no idea the first already said no.
+export const MANUAL_SOURCE = "manual";
+export const isManual = (p) => !!(p && p.data && p.data.source === MANUAL_SOURCE);
+
+// A phone number is stored as digits and shown back in a readable shape. Anything under ten digits
+// is a typo rather than a number, and saying so beats saving a row that can never be dialled.
+export const cleanPhone = (s) => {
+  const raw = String(s || "").trim();
+  if (!raw) return "";
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (digits.length < 10 || digits.length > 15) return "";
+  return (/^\+/.test(raw) && digits.length > 10 ? "+" : "") + digits;
+};
+
+export const prettyPhone = (s) => {
+  const v = cleanPhone(s);
+  if (!v) return "";
+  const d = v.replace(/[^0-9]/g, "");
+  if (d.length === 10) return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length === 11 && d[0] === "1") return `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}`;
+  return v;
+};
+
+export const cleanEmail = (s) => {
+  const v = String(s || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? v : "";
+};
+
+// Returns { row, dedupeKey } to insert, or { error } in words worth reading on a phone.
+//
+// 🔴 AT LEAST ONE WAY TO REACH THEM IS REQUIRED. A name with nothing attached is a row that reaches
+// the top of the queue, cannot be actioned, and gets skipped every morning forever.
+export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
+  const name = String(input.name || "").trim().replace(/\s+/g, " ");
+  if (!name) return { error: "Add the company name." };
+  if (name.length > 120) return { error: "That company name is too long." };
+
+  const rawPhone = String(input.phone || "").trim();
+  const phone = cleanPhone(rawPhone);
+  if (rawPhone && !phone) return { error: "That phone number doesn't look right. Use the full number including the area code." };
+
+  const rawEmail = String(input.email || "").trim();
+  const email = cleanEmail(rawEmail);
+  if (rawEmail && !email) return { error: "That email address doesn't look right." };
+
+  const website = normDomain(input.website);
+  if (String(input.website || "").trim() && !website) return { error: "That website doesn't look right. Something like example.com." };
+
+  if (!phone && !email && !website) {
+    return { error: "Add a phone number, an email or a website, otherwise there is no way to reach them." };
+  }
+
+  const city  = String(input.city  || "").trim().replace(/\s+/g, " ");
+  const niche = String(input.niche || "").trim().replace(/\s+/g, " ");
+  const owner = String(input.ownerName || "").trim().replace(/\s+/g, " ");
+  const notes = String(input.notes || "").trim().slice(0, 2000);
+
+  const dedupeKey = dedupeKeyFor({ name, city });
+  if (!dedupeKey) return { error: "Add the company name." };
+
+  const iso = new Date(nowMs(at)).toISOString();
+  return {
+    dedupeKey,
+    row: {
+      run_id: null,                       // no search found it, and the column is deliberately loose
+      dedupe_key: dedupeKey,
+      name,
+      domain: website || null,
+      niche: niche || null,
+      area: city || null,
+      // 🔴 SCORE STAYS 0 AND THAT IS NOT A JUDGEMENT. The scout's score is the product of real
+      // research; inventing one here would put a made-up number beside a researched one and make
+      // both meaningless. Ordering handles it instead: see `dueQueue`, where a typed row goes first
+      // BECAUSE it was typed. Anything showing a score must check `isManual` and say so.
+      score: 0,
+      tier: null,
+      status: "new",
+      notes: notes || null,
+      data: {
+        source: MANUAL_SOURCE,
+        name,
+        city: city || "",
+        website: website || "",
+        ownerName: owner || "",
+        phones: phone ? [{ number: prettyPhone(phone), whose: owner ? "owner" : "main", kind: "main" }] : [],
+        emails: email ? [{ address: email, whose: owner ? "owner" : "main" }] : [],
+        addedAt: iso,
+      },
+      updated_at: iso,
+    },
+  };
+};
+
+// What to do about a company he just typed in, given whatever is already on the list under that
+// name or website. A function rather than three `if`s in the endpoint, because it is the point
+// where a do-not-contact request either holds or does not, and that has to be testable by running
+// it rather than by reading it.
+//
+// 🔴 BLOCKED OUTRANKS EVERYTHING. Somebody who asked to be taken off the list stays off it, and
+// typing their name in by hand is not a new decision that overrides the one they made.
+export const manualAddVerdict = (existing) => {
+  if (existing && isBlocked(existing)) {
+    return { verdict: "blocked", status: 409,
+      message: `${existing.name} asked not to be contacted, so they cannot be added back.` };
+  }
+  if (existing) {
+    return { verdict: "duplicate", status: 200, message: `${existing.name} is already on your list.` };
+  }
+  return { verdict: "insert", status: 200, message: "" };
+};
+
 // Everything due on or before `now`, best prospect first. Blocked rows can never appear.
 export const dueQueue = (prospects, now = Date.now()) => {
   const n = nowMs(now);
@@ -130,6 +253,12 @@ export const dueQueue = (prospects, now = Date.now()) => {
       if (aw && !bw) return -1;
       if (bw && !aw) return 1;
       if (aw && bw && aw !== bw) return new Date(aw) - new Date(bw);
+      // 🔴 A COMPANY HE TYPED IN HIMSELF COMES BEFORE ONE A SEARCH FOUND. Typing a name in is a
+      // stronger signal than any score, and a hand-added row carries a score of 0 on purpose, so
+      // without this the referral he just entered sorts below thirty scraped businesses and never
+      // gets called. It sits below a promised callback, which is what the branch above protects.
+      const am = isManual(a) ? 1 : 0, bm = isManual(b) ? 1 : 0;
+      if (am !== bm) return bm - am;
       return Number(b.score || 0) - Number(a.score || 0);
     });
 };
