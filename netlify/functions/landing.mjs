@@ -804,15 +804,17 @@ a{color:inherit}
       <input type="hidden" name="form-name" value="leads">
       <p style="display:none"><label>Do not fill this in: <input name="company-website"></label></p>
       <input class="inp" name="name" placeholder="Your name" required>
-      <input class="inp" name="phone" placeholder="Phone number" required>
-      <input class="inp" name="email" type="email" placeholder="Email (optional)">
+      <input class="inp" name="phone" placeholder="Phone number">
+      <input class="inp" name="email" type="email" placeholder="Email address">
+      <div class="fine" style="margin:-2px 0 4px">Phone or email, whichever you prefer.</div>
       ${consentHTML}
       <button class="cta" type="submit" style="width:100%;justify-content:center">${esc(cta)}</button>
       <div class="fine">Your info stays private. No spam, ever.</div>
     </form>` : `<form id="lf">
       <input class="inp" id="lf-name" placeholder="Your name" required>
-      <input class="inp" id="lf-phone" placeholder="Phone number" required>
-      <input class="inp" id="lf-email" type="email" placeholder="Email (optional)">
+      <input class="inp" id="lf-phone" placeholder="Phone number">
+      <input class="inp" id="lf-email" type="email" placeholder="Email address">
+      <div class="fine" style="margin:-2px 0 4px">Phone or email, whichever you prefer.</div>
       ${consentHTML}
       <div class="err" id="lf-err">Something went wrong, please try again.</div>
       <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">${esc(cta)}</button>
@@ -999,6 +1001,40 @@ a{color:inherit}
   }
   try{clickIds();}catch(e){}`;
 
+  // ── 🔴 META'S PIXEL, WITHOUT WHICH A META CAMPAIGN IS BUYING BLIND ─────────────
+  //
+  // Found 2026-09-22 on Bryson's own car-detailer ad, which had spent real money for zero
+  // leads. Every generated page carried Google's tag and NOTHING for Meta. Two consequences,
+  // and the second is the expensive one:
+  //   1. Meta cannot COUNT a lead on the page, so the campaign reports zero whatever happens.
+  //   2. Meta cannot OPTIMISE. With no conversion signal it has no idea who converts, so it
+  //      buys the cheapest clicks it can find rather than the people who fill the form in.
+  // That is not a reporting nicety. It is the difference between a campaign that learns and
+  // one that spends.
+  //
+  // 🔴 IT MUST NEVER LOAD IN A PREVIEW, and this is the standing rule about previews rather
+  // than a nicety too. The OS renders this same page into an iframe so Bryson can look at it.
+  // A pixel that initialises there sends a real PageView to a real Meta account from a page
+  // nobody visited, which pollutes the data the campaign optimises on and can feed an
+  // audience. An `iframe srcdoc` has an `about:` URL, which is the same test the submit
+  // handler below already uses, so the guard is one this file has already proven.
+  //
+  // Digits only: a pasted id routinely arrives with stray spaces or quotes around it, and a
+  // malformed id in this snippet is a script error that takes the rest of the page's scripts
+  // down with it.
+  const metaPixelId = String((cl && cl.metaPixelId) || "").replace(/[^0-9]/g, "");
+  const metaPixelTag = metaPixelId ? `<script>
+(function(){if(String(location.href).indexOf('about:')===0)return;
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
+</script>` : "";
+
+  // Reported in the SAME place as the Google conversion, which is inside the success branch
+  // after the lead is actually saved. Firing on submit instead would tell Meta a lead happened
+  // every time a bot tripped the honeypot or a request was refused, which is the exact bug that
+  // once had Meta reporting two leads against one real one.
+  const metaLead = metaPixelId ? `try{if(typeof fbq==='function'){fbq('track','Lead');}}catch(e){}` : "";
+
   // Fires the FORM SUBMISSION conversion, which is deliberately a secondary one in Google
   // (see ../lib/gads-conversions.mjs). It tells us the page works. It is not what the
   // account bids on, because a form fill and a real customer are not the same thing.
@@ -1028,13 +1064,27 @@ a{color:inherit}
   //
   // (No backticks anywhere in the string below, comments included: it is a template literal
   // and one would terminate it and take the whole renderer down. That already happened once.)
+  // ── 🔴 A PHONE NUMBER IS NOT WORTH A LOST LEAD ────────────────────────────────
+  //
+  // Both fields used to be "phone required, email optional". On cold traffic from an ad, from
+  // somebody who had never heard of the business ninety seconds earlier, a required phone
+  // number is the heaviest thing on the page: it is the field people close the tab over,
+  // because handing a stranger your number feels like agreeing to be rung.
+  //
+  // So neither is required on its own, and ONE OF THE TWO is. A lead with no way to reach them
+  // is not a lead, it is a row, and it would still be counted and still be billed. The rule is
+  // enforced in the submit handler rather than with `required` on a field, because "required"
+  // on both would demand both, and HTML has no way to say "either of these".
   const managedFormJS = `${clickJS}
   var lf=document.getElementById('lf');
   if(lf){lf.addEventListener('submit',function(e){
     e.preventDefault();
     var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
+    var ph=document.getElementById('lf-phone').value.trim(),em=document.getElementById('lf-email').value.trim();
+    if(!ph&&!em){err.textContent='Please add a phone number or an email so we can reach you.';err.style.display='block';return;}
+    err.textContent=${JSON.stringify("Something went wrong, please try again.")};
     err.style.display='none';btn.disabled=true;btn.classList.add('sending');btn.textContent='Sending…';
-    var payload={name:document.getElementById('lf-name').value,phone:document.getElementById('lf-phone').value,email:document.getElementById('lf-email').value,source:'landing_page'};
+    var payload={name:document.getElementById('lf-name').value,phone:ph,email:em,source:'landing_page'};
     try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
       payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);
       ${showConsent ? `payload.consentDisclosure=${JSON.stringify(consentText)};` : ""}}catch(e){}
@@ -1048,7 +1098,7 @@ a{color:inherit}
     fetch('/lead?token=${encodeURIComponent(cl.leadToken || "")}',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)
-    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';${formConversion}})
+    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';${formConversion}${metaLead}})
     .catch(function(){err.style.display='block';btn.disabled=false;btn.classList.remove('sending');btn.textContent=${JSON.stringify(cta)};});
   });}`;
 
@@ -1311,6 +1361,7 @@ ${middle}
 ${bottomBlock}
 ${convId ? `<script async src="https://www.googletagmanager.com/gtag/js?id=${esc(convId)}"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(convId)});</script>` : ""}
+${metaPixelTag}
 <footer class="foot"><div class="wrap">${esc(name)}${area ? ` · Serving ${esc(area)}` : reach ? ` · ${esc(reach)}` : ""}${phone ? ` · <a href="${telHref}">${esc(phone)}</a>` : ""}</div></footer>
 <nav class="mcta">${phone ? `<a class="call" href="${telHref}">Call</a>` : ""}<a class="quote" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a></nav>
 <script>
