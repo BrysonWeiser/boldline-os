@@ -2,10 +2,10 @@
 name: stencil-and-thread-deal
 topic: Business rules
 task: pick up the Stencil and Thread deal, prep the call, or set up their campaign
-keywords: [stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Sebastian, Sebastian the client, who is the client, who approves, portal owner, Shaun Smith, Shaun the developer, website guy, web person, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
+keywords: [30 september, notice, termination notice, early termination, 7(c), close out, when to message shaun, stencil and thread, stencilandthread.com, first client, screen printing, custom apparel, Eugene Oregon, Lane County, 805screenprints, contact@stencilandthread.com, close rate, qualified lead, first deal, prospect, Sebastian, Sebastian the client, who is the client, who approves, portal owner, Shaun Smith, Shaun the developer, website guy, web person, referral, referrals, partnership, finder's fee, referral fee, subcontract, in house, developer partner]
 status: signed
 summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN IS THE CLIENT (owns the business, holds the portal, is the ONLY person who approves anything). SHAUN SMITH IS SEBASTIAN'S WEBSITE GUY, not the client, and has no portal. Screen printer in Eugene, Oregon selling custom apparel to businesses and organizations. ~$1,000 average order, ~50% margin, closes 7-8 of every 10 leads, wants $500-750/mo of ad spend on Google Search only. Shaun is separately BoldLine's first partnership conversation, settled 2026-08-31 as a no-money two-way referral swap with dev work kept in house.
-verified: 2026-08-31
+verified: 2026-09-22
 ---
 
 ## 🔴 THE CLOSE-OUT MESSAGE AND THE 30 SEPTEMBER LINE (2026-09-21, Mon)
@@ -62,6 +62,53 @@ so the text thread is the only channel known to land. The message as sent:
 so nothing is accruing. What is being lost is the case-study window and Bryson's attention, which
 is the argument for putting the attention on Air Suds and the four open founding places instead.
 
+
+## 🔴 2026-09-22 — HOW THE 30TH ACTUALLY PLAYS OUT, and two traps caught before it
+
+Bryson asked *"when should I message Shaun again and what should I do with Sebastian"*. Answer:
+**nothing to either of them before the 30th.** The close-out text already carries the deadline;
+any further chase turns a clean line into nagging and weakens it.
+
+### 🔴 Trap 1: notice sent ON the 30th would break his own written deadline
+
+The text said *"If I don't hear from you by the 30th"*. So the 30th is still Sebastian's day.
+Sending notice at 9am on the 30th contradicts, in writing, a promise to his first client.
+**So: draft on Wednesday 30 September, SEND on Thursday 1 October.** Eugene is Pacific time, the
+same clock as Phoenix until November, so Thursday morning is past the 30th for both.
+
+### 🔴 Trap 2: a text does not count as notice
+
+Verified against the agreement text, not remembered: *"Notices may be given by email to the
+addresses on page one and are effective on the business day received."* So the formal notice
+must be an **EMAIL to the client address on page one of HIS signed agreement** (check which
+address that is; do not assume contact@stencilandthread.com). Then one short text saying an email
+is on the way, since text is the only channel known to reach him.
+
+The notice: under the Agency early-termination provision, thirty days' written notice; effective
+date stated as a real date, thirty days after the business day received (sent Thu 1 Oct →
+effective **Sat 31 Oct**, checked); nothing owed either way and no fee; warm, no recap of
+unanswered calls, door left open until the effective date.
+
+### Shaun: ask once means once
+
+Shaun was asked on Saturday 19 September. **Do not ask him again.** A second ask puts him in the
+middle of his own client relationship and teaches Sebastian he can go round Bryson. His silence
+across a weekend and a Monday is not a signal about anything.
+
+**The next message Bryson sends Shaun should GIVE him something, not ask.** The partnership is a
+two-way referral swap (settled 2026-08-31), and Bryson is now cold calling pool builders all day,
+a trade full of weak websites that the Outreach card itself flags. **The first time a pool builder
+says "our site is a mess", that is Shaun's referral**, and it is the best way to keep the
+relationship alive whatever happens with Sebastian. If Shaun gets in touch first, answer warmly,
+and if Sebastian comes up keep it to one gracious line: no terms, no money, no complaint.
+
+### The reminder was wrong about the day
+
+`trig_017YQGW1qd2Y2mkitLLf6ae8` said *"Tuesday 30 September"*. **30 September 2026 is a
+WEDNESDAY.** Exactly the error class the Arizona-time rule exists for. Its advice was also stale
+(written 7 Sept, before the close-out text, the 8 Sept last-reply date, or the notice route).
+Rewritten 2026-09-22: still fires 9am Phoenix Wed 30 Sept (16:00 UTC, converted back and
+confirmed), now re-checks whether he replied, drafts the email notice, and says send Thursday.
 
 ## 🔴 WHO IS WHO. Read this before writing to either of them.
 
