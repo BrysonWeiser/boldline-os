@@ -9,7 +9,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict } from "../lib/outreach.mjs";
+import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict, QUEUE_SKIP_STATUS } from "../lib/outreach.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -38,7 +38,12 @@ export default async (req) => {
   if (action === "queue") {
     const limit = Math.max(1, Math.min(400, Number(url.searchParams.get("limit") || 200)));
     const niche = url.searchParams.get("niche") || "";
-    let q = supabase.from("scout_prospects").select(PROSPECT_COLS).is("blocked_at", null).limit(limit * 2);
+    let q = supabase.from("scout_prospects").select(PROSPECT_COLS)
+      .is("blocked_at", null)
+      // A prospect marked "Not a fit" or already won is not somebody to cold call. Filtered here
+      // AND in `dueQueue`, the same belt-and-braces as the blocked check above.
+      .not("status", "in", `(${QUEUE_SKIP_STATUS.join(",")})`)
+      .limit(limit * 2);
     if (niche) q = q.eq("niche", niche);
     const { data, error } = await q;
     if (error) return json({ ok: false, error: error.message }, 500);

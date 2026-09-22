@@ -23,6 +23,7 @@ import {
   OUTCOMES, CHANNELS, CADENCE_DAYS, MAX_STEPS,
   outcomeById, outcomesFor, nextDueAt, applyTouch, isBlocked, dueQueue, rollup, rollupByChannel,
   buildManualProspect, manualAddVerdict, isManual, cleanPhone, prettyPhone, cleanEmail, MANUAL_SOURCE,
+  isQueueable, QUEUE_SKIP_STATUS,
 } from "../netlify/lib/outreach.mjs";
 import { dedupeKeyFor } from "../netlify/lib/scout-shared.mjs";
 
@@ -390,6 +391,47 @@ const DAY = 864e5;
   // 🔴 The new door must not become a sending door.
   ok("🔴 adding a company sends nothing to anybody",
     !/action === "add"[\s\S]{0,2000}(sendMail|sgMail|resend|transporter|twilio)/i.test(FN));
+}
+
+
+// ── 11. A prospect you rejected must stop being offered ──────────────────────
+//
+// Bryson, 2026-09-22, weeding a fresh search: *"i want to delete the bad ones but when i press
+// delete it doesnt delete them."* Fixing Delete is only half of it. Marking somebody **"Not a
+// fit"** in Lead Scout left them sitting in the calling queue at step 0 with nothing due, so they
+// came back the next morning anyway and the weeding was pointless either way.
+//
+// 🔴 THIS IS NOT THE DO-NOT-CONTACT GUARD AND MUST NEVER BE CONFUSED WITH IT. A status is a
+// dropdown somebody can change back; `blocked_at` is a legal instruction that cannot be. Both
+// checks exist, separately, and the blocked one is still the one with teeth.
+{
+  const at = (status) => ({ id: status, name: status, status, step: 0, score: 50, data: {} });
+  eq("a new prospect is callable", dueQueue([at("new")]).length, 1);
+  eq("so is one already contacted", dueQueue([at("contacted")]).length, 1);
+  eq('🔴 one marked "Not a fit" is not', dueQueue([at("dead")]).length, 0,
+    "weeding the list has to actually take them off the calling queue");
+  eq("🔴 nor is a client you already won", dueQueue([at("client")]).length, 0,
+    "cold calling an existing client is the worst call you can make");
+  ok("both are named in one place", QUEUE_SKIP_STATUS.includes("dead") && QUEUE_SKIP_STATUS.includes("client"));
+  ok("`isQueueable` answers the same question on its own",
+    isQueueable(at("new")) && !isQueueable(at("dead")) && !isQueueable(at("client")) && !isQueueable(null));
+
+  // 🔴 THE TWO GUARDS ARE INDEPENDENT. A status must never be able to stand in for a block, and
+  // undoing a status must never quietly undo a block.
+  ok("🔴 a blocked prospect stays out whatever their status says",
+    dueQueue([{ ...at("new"), blocked_at: new Date().toISOString() }]).length === 0
+    && dueQueue([{ ...at("contacted"), blocked_at: new Date().toISOString() }]).length === 0,
+    "a sales stage is a dropdown; a do-not-contact request is not");
+  ok("and `isBlocked` still only reads the block",
+    isBlocked({ blocked_at: "2026-01-01" }) && !isBlocked({ status: "dead" }),
+    "if a status could imply a block, changing the status could un-imply it");
+
+  // And filtered in SQL as well, the same belt and braces the blocked check already had.
+  ok("the queue query drops them before they are ever read",
+    /\.not\("status", "in", `\(\$\{QUEUE_SKIP_STATUS\.join\(","\)\}\)`\)/.test(FN),
+    "one filter is a filter; two that fail independently is a guarantee");
+  ok("and it is the shared list, not a second copy of the same two words",
+    /QUEUE_SKIP_STATUS \} from "\.\.\/lib\/outreach\.mjs"/.test(FN));
 }
 
 console.log(`verify-outreach: ${pass} passed, ${fail} failed`);

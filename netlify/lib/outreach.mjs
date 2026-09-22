@@ -237,10 +237,19 @@ export const manualAddVerdict = (existing) => {
 };
 
 // Everything due on or before `now`, best prospect first. Blocked rows can never appear.
+// 🔴 A SALES STAGE THAT MEANS "DO NOT CALL THIS ONE" HAS TO ACTUALLY STOP THE CALL. Marking a
+// prospect "Not a fit" in Lead Scout, or "Won" once they are a client, left them sitting in the
+// calling queue at step 0 with nothing due, so they came up again the next morning. Weeding the
+// list did nothing, which is the same complaint as a Delete button that does not delete.
+// This is NOT the do-not-contact guard and does not replace it: a status is a dropdown somebody
+// can change back, `blocked_at` is not, which is why they are separate checks.
+export const QUEUE_SKIP_STATUS = ["dead", "client"];
+export const isQueueable = (p) => !!p && !isBlocked(p) && !QUEUE_SKIP_STATUS.includes(String((p && p.status) || ""));
+
 export const dueQueue = (prospects, now = Date.now()) => {
   const n = nowMs(now);
   return (Array.isArray(prospects) ? prospects : [])
-    .filter((p) => p && !isBlocked(p))
+    .filter((p) => p && !isBlocked(p) && isQueueable(p))
     .filter((p) => {
       if (!p.next_due_at) return Number(p.step || 0) === 0;   // never touched: due immediately
       return new Date(p.next_due_at).getTime() <= n;

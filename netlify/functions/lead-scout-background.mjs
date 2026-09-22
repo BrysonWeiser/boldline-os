@@ -491,7 +491,12 @@ const doRun = async (supabase, id, input) => {
   prospects.sort((a, b) => b.data.score - a.data.score);
 
   return {
-    prospects: prospects.map((p) => p.data),
+    // 🔴 THE DEDUPE KEY TRAVELS WITH EACH RESULT, and dropping it was a real bug. The results
+    // screen renders these straight from the run, so without a way back to the saved row it
+    // invented ids like "new-0" — and then Delete and the status dropdown both silently did
+    // nothing, because no row has that id. These rows ARE already saved: every batch is written
+    // to `scout_prospects` as it lands. The key is how the screen addresses them.
+    prospects: prospects.map((p) => ({ ...p.data, dedupeKey: p.key })),
     stats: { ...stats, kept: prospects.length },
     coverageNote, providers: prov, providerNotes,
     errors: errors.slice(0, 3),
