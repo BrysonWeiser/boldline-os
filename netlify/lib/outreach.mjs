@@ -218,6 +218,178 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
   };
 };
 
+// ── Who is likely to pick up each number ─────────────────────────────────────
+//
+// Bryson, 2026-09-22, an hour before his first calls: *"can you make it so itll label the phone
+// numbers it shows such as a business owner or if its likely to be a gatekeeper etc"*. On a screen
+// built for speed, three numbers with no guidance is three decisions per prospect, and the whole
+// point of the queue is that there are none.
+//
+// 🔴 EVERY LABEL IS A LIKELIHOOD AND SAYS SO. The scout tags `whose` and `kind` from research, not
+// from certainty, so a chip reading "Owner" would be an assertion this data cannot support — and
+// the expensive version of that mistake already happened once on this project, when an audit told a
+// roofing company it had no contact form. So: "Likely the owner", and where there is no signal at
+// all the honest answer is "Unknown", never a guess dressed as a fact.
+//
+// 🔴 HEADCOUNT IS THE STRONGEST SIGNAL AND IT IS NOT ON THE PHONE. At a three-person pool builder
+// the "main line" IS the owner's phone. At a forty-person one it is a receptionist whose job is to
+// stop this call. The same `kind: "main"` therefore means opposite things, so the size of the
+// business decides.
+export const PHONE_ROLES = {
+  owner_mobile: { id: "owner_mobile", label: "Likely owner's mobile", tone: "best",
+    hint: "Best shot on the list. A mobile is answered by a person, not a desk." },
+  owner_line:   { id: "owner_line",   label: "Likely the owner",       tone: "best",
+    hint: "Research says this one reaches the owner directly." },
+  mobile:       { id: "mobile",       label: "Mobile",                 tone: "good",
+    hint: "Whoever owns this answers it themselves. Worth trying before the main line." },
+  direct:       { id: "direct",       label: "Direct line",            tone: "good",
+    hint: "A desk line that skips whoever answers the main number." },
+  small_main:   { id: "small_main",   label: "Main line, small shop",  tone: "good",
+    hint: "At this size the main line usually IS the owner. Expect him to answer it himself." },
+  main:         { id: "main",         label: "Main line",              tone: "plain",
+    hint: "Expect to be screened. Ask who does their estimates rather than for the owner." },
+  toll_free:    { id: "toll_free",    label: "Toll-free line",         tone: "plain",
+    hint: "Usually routes to whoever is on duty. Least likely to reach a decision maker." },
+  unknown:      { id: "unknown",      label: "Unknown",                tone: "plain",
+    hint: "No idea who picks this up. Still worth a try." },
+};
+
+// Best bet first, so the first chip on the card is the one to ring.
+const ROLE_RANK = ["owner_mobile", "owner_line", "mobile", "direct", "small_main", "main", "toll_free", "unknown"];
+
+// Headcount from whatever the scout managed to learn. Free text like "2-6 (estimate)" is common, so
+// the numbers are read out of it and the LARGEST is taken: claiming "small shop" is a claim, and it
+// should only be made when even the top of the range is small.
+export const headcount = (prospect) => {
+  const d = (prospect && prospect.data) || prospect || {};
+  const n = Math.max(0, Math.round(Number(d.employeesEstimate) || 0));
+  if (n > 0) return n;
+  const nums = String(d.employees || "").match(/\d+/g);
+  if (!nums || !nums.length) return null;
+  return Math.max(...nums.map(Number));
+};
+
+export const SMALL_SHOP_MAX = 10;
+
+export const phoneRole = (phone, prospect) => {
+  const p = phone || {};
+  const kind = String(p.kind || "unknown");
+  const whose = String(p.whose || "unknown");
+  const isMobile = kind === "mobile";
+  // A label the researcher wrote can override a generic kind: "front desk" is a gatekeeper however
+  // the row was tagged.
+  const desk = /reception|front desk|switchboard|answering service/i.test(String(p.label || ""));
+
+  if (whose === "owner" && isMobile) return PHONE_ROLES.owner_mobile;
+  if (whose === "owner" && !desk)    return PHONE_ROLES.owner_line;
+  if (isMobile)                      return PHONE_ROLES.mobile;
+  if (kind === "direct" && !desk)    return PHONE_ROLES.direct;
+  if (kind === "toll_free")          return PHONE_ROLES.toll_free;
+  if (kind === "main" || kind === "secondary" || desk) {
+    const n = headcount(prospect);
+    return (n !== null && n > 0 && n <= SMALL_SHOP_MAX && !desk) ? PHONE_ROLES.small_main : PHONE_ROLES.main;
+  }
+  return PHONE_ROLES.unknown;
+};
+
+// Every number on a prospect, labelled and ordered best-bet first. A stable sort, so two numbers
+// with the same role keep the order the research put them in.
+export const rankPhones = (prospect) => {
+  const list = (prospect && prospect.data && Array.isArray(prospect.data.phones)) ? prospect.data.phones : [];
+  return list
+    .map((p, i) => ({ ...p, i, role: phoneRole(p, prospect) }))
+    .sort((a, b) => (ROLE_RANK.indexOf(a.role.id) - ROLE_RANK.indexOf(b.role.id)) || (a.i - b.i))
+    .map(({ i, ...rest }) => rest);
+};
+
+// ── What to hit THIS company with ────────────────────────────────────────────
+//
+// Bryson, 2026-09-22: *"can you add in something that could be a pain point i can hit that is for
+// each specific company that is listed"*. A script is the same words for everyone; this is the one
+// sentence that is only true about the business whose number is on the screen.
+//
+// 🔴 NEVER ASSERT A NEGATIVE FROM MISSING EVIDENCE. This is the rule this project learned the
+// expensive way, when an audit told a roofing company it had no contact form and one was sitting on
+// their homepage. The scout's ad fields are deliberately four-valued — "yes", "likely", "no",
+// "unknown" — and "no" is only returned when the model ACTIVELY SEARCHED and saw nothing. So a
+// claim is only ever built from "yes"/"no", never from "unknown", and anything unconfirmed becomes
+// a QUESTION TO ASK rather than a statement to be wrong about. On a cold call that is stronger
+// anyway: a question he cannot be caught out on opens the conversation, a wrong claim ends it.
+//
+// Every point carries the words to say AND the question that follows, because naming a problem
+// without the next move is half a feature.
+const yearsTrading = (prospect, now = Date.now()) => {
+  const d = (prospect && prospect.data) || prospect || {};
+  const t = String(d.yearsInBusiness || "");
+  const yr = /(?:since|est\.?|founded)\D{0,4}(\d{4})/i.exec(t);
+  if (yr) return Math.max(0, new Date(nowMs(now)).getUTCFullYear() - Number(yr[1]));
+  const n = /(\d+)\s*(?:\+)?\s*year/i.exec(t);
+  return n ? Number(n[1]) : null;
+};
+
+const WEAK_SITE = ["none", "poor", "dated"];
+
+export const painPoints = (prospect, { now = Date.now() } = {}) => {
+  const d = (prospect && prospect.data) || {};
+  const out = [];
+  const g = String(d.googleAds || "unknown");
+  const site = String(d.websiteQuality || "unknown");
+  const rating = Number(d.rating) || 0;
+  const reviews = Math.max(0, Math.round(Number(d.reviewCount) || 0));
+  const years = yearsTrading(prospect, now);
+  const weakSite = WEAK_SITE.includes(site);
+  const advertising = g === "yes";
+
+  // Strongest first. Someone set this up and walked away, which means budget once existed.
+  if (g === "likely") out.push({ id: "tag_no_campaign", strength: 1,
+    line: "Their site has ad tracking on it but no paid results are showing, so somebody set this up and it stopped.",
+    ask: "Were you running Google ads at some point? What happened with it?" });
+
+  if (g === "no") out.push({ id: "not_advertising", strength: 2,
+    line: "Nobody is bidding on their service in their own city, so every job they get is one that found them first.",
+    ask: "Right now is it all word of mouth and repeat, or are you running anything paid?" });
+
+  if (advertising && weakSite) out.push({ id: "paying_for_weak_page", strength: 1,
+    line: "They are paying for clicks that land on a page built to describe the company rather than to book the job.",
+    ask: "When someone clicks one of your ads, where do they land and what do you want them to do there?" });
+  else if (weakSite) out.push({ id: "weak_site", strength: 3,
+    line: "Their site will not convert somebody who is ready to buy today.",
+    ask: "When someone lands on your site ready to go, what are they supposed to do next?" });
+
+  if (rating >= 4.5 && reviews >= 25) out.push({ id: "reputation_unused", strength: 2,
+    line: `${rating} stars from ${reviews} reviews, and almost nobody outside their existing customers ever sees that.`,
+    ask: "You are clearly good at the work. How do people who have never heard of you find that out?" });
+  else if (reviews > 0 && reviews < 10) out.push({ id: "few_reviews", strength: 4,
+    line: `Only ${reviews} review${reviews === 1 ? "" : "s"}, which is not enough to win a big decision against somebody showing two hundred.`,
+    ask: "How much of your work comes from people comparing you against two or three others?" });
+
+  if (years !== null && years <= 3) out.push({ id: "young", strength: 3,
+    line: `About ${years} year${years === 1 ? "" : "s"} in, so there is no decade of referrals to coast on yet.`,
+    ask: "Where is the work coming from while you are still building the name up?" });
+
+  // The scout researched this specifically ("the marketing gaps BoldLine could fix"), so anything
+  // it found beats anything derived here, but it goes last because it has no question attached.
+  for (const gap of (Array.isArray(d.gaps) ? d.gaps : []).slice(0, 2)) {
+    if (gap) out.push({ id: "gap", strength: 5, line: String(gap), ask: "" });
+  }
+
+  return out.sort((a, b) => a.strength - b.strength).slice(0, 3);
+};
+
+// The one line to open with. The scout writes a per-company hook ("grounded in something real you
+// found"), which beats anything computed; falling back to the strongest pain point keeps the card
+// from ever being blank.
+export const bestHook = (prospect) => {
+  const d = (prospect && prospect.data) || {};
+  const h = String(d.bestHook || "").trim();
+  if (h) return { text: h, from: "research" };
+  const p = painPoints(prospect)[0];
+  // `fromId` so the card can avoid printing the same sentence twice: a derived hook IS the first
+  // point's question, and on a phone the repeat reads as a bug. Caught by looking at the render,
+  // not by a test.
+  return p ? { text: p.ask || p.line, from: "derived", fromId: p.id } : null;
+};
+
 // What to do about a company he just typed in, given whatever is already on the list under that
 // name or website. A function rather than three `if`s in the endpoint, because it is the point
 // where a do-not-contact request either holds or does not, and that has to be testable by running

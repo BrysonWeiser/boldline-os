@@ -6810,6 +6810,84 @@ const OUT_OUTCOMES = [
   { id:"do_not_contact", label:"Do not contact",   channels:["call","email","dm","text"],    reached:true,  ends:true, blocks:true },
 ];
 const OUT_CHANNELS = [{id:"call",label:"Call"},{id:"email",label:"Email"},{id:"dm",label:"DM"},{id:"text",label:"Text"}];
+// 🔴 WHO IS LIKELY TO PICK UP EACH NUMBER. Mirrors `phoneRole`/`rankPhones` in
+// netlify/lib/outreach.mjs, with a parity test, because a chip that disagrees with the rule is
+// worse than no chip. Every label is a LIKELIHOOD and says so: the scout tags these from research,
+// not from certainty, so "Owner" would be an assertion the data cannot support.
+const OUT_PHONE_ROLES = {
+  owner_mobile:{id:"owner_mobile",label:"Likely owner's mobile",tone:"best",hint:"Best shot on the list. A mobile is answered by a person, not a desk."},
+  owner_line:  {id:"owner_line",  label:"Likely the owner",     tone:"best",hint:"Research says this one reaches the owner directly."},
+  mobile:      {id:"mobile",      label:"Mobile",               tone:"good",hint:"Whoever owns this answers it themselves. Worth trying before the main line."},
+  direct:      {id:"direct",      label:"Direct line",          tone:"good",hint:"A desk line that skips whoever answers the main number."},
+  small_main:  {id:"small_main",  label:"Main line, small shop",tone:"good",hint:"At this size the main line usually IS the owner. Expect him to answer it himself."},
+  main:        {id:"main",        label:"Main line",            tone:"plain",hint:"Expect to be screened. Ask who does their estimates rather than for the owner."},
+  toll_free:   {id:"toll_free",   label:"Toll-free line",       tone:"plain",hint:"Usually routes to whoever is on duty. Least likely to reach a decision maker."},
+  unknown:     {id:"unknown",     label:"Unknown",              tone:"plain",hint:"No idea who picks this up. Still worth a try."},
+};
+const OUT_ROLE_RANK=["owner_mobile","owner_line","mobile","direct","small_main","main","toll_free","unknown"];
+
+// 🔴 WHAT TO HIT THIS ONE COMPANY WITH. Mirrors `painPoints`/`bestHook` in outreach.mjs, parity
+// tested. A claim is only ever built from a CONFIRMED signal: the scout's ad fields are four-valued
+// and "no" is returned only when it actively searched and saw nothing, so "unknown" produces
+// silence rather than a guess. Anything unconfirmed becomes a QUESTION to ask, which on a cold call
+// is stronger anyway — he cannot be caught out on a question.
+const OUT_WEAK_SITE=["none","poor","dated"];
+const outYearsTrading=(prospect)=>{ const d=(prospect&&prospect.data)||prospect||{};
+  const t=String(d.yearsInBusiness||"");
+  const yr=/(?:since|est\.?|founded)\D{0,4}(\d{4})/i.exec(t);
+  if(yr) return Math.max(0,new Date().getUTCFullYear()-Number(yr[1]));
+  const n=/(\d+)\s*(?:\+)?\s*year/i.exec(t); return n?Number(n[1]):null; };
+const outPainPoints=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const out=[];
+  const g=String(d.googleAds||"unknown"), site=String(d.websiteQuality||"unknown");
+  const rating=Number(d.rating)||0, reviews=Math.max(0,Math.round(Number(d.reviewCount)||0));
+  const years=outYearsTrading(prospect), weakSite=OUT_WEAK_SITE.includes(site), advertising=g==="yes";
+  if(g==="likely") out.push({id:"tag_no_campaign",strength:1,
+    line:"Their site has ad tracking on it but no paid results are showing, so somebody set this up and it stopped.",
+    ask:"Were you running Google ads at some point? What happened with it?"});
+  if(g==="no") out.push({id:"not_advertising",strength:2,
+    line:"Nobody is bidding on their service in their own city, so every job they get is one that found them first.",
+    ask:"Right now is it all word of mouth and repeat, or are you running anything paid?"});
+  if(advertising&&weakSite) out.push({id:"paying_for_weak_page",strength:1,
+    line:"They are paying for clicks that land on a page built to describe the company rather than to book the job.",
+    ask:"When someone clicks one of your ads, where do they land and what do you want them to do there?"});
+  else if(weakSite) out.push({id:"weak_site",strength:3,
+    line:"Their site will not convert somebody who is ready to buy today.",
+    ask:"When someone lands on your site ready to go, what are they supposed to do next?"});
+  if(rating>=4.5&&reviews>=25) out.push({id:"reputation_unused",strength:2,
+    line:`${rating} stars from ${reviews} reviews, and almost nobody outside their existing customers ever sees that.`,
+    ask:"You are clearly good at the work. How do people who have never heard of you find that out?"});
+  else if(reviews>0&&reviews<10) out.push({id:"few_reviews",strength:4,
+    line:`Only ${reviews} review${reviews===1?"":"s"}, which is not enough to win a big decision against somebody showing two hundred.`,
+    ask:"How much of your work comes from people comparing you against two or three others?"});
+  if(years!==null&&years<=3) out.push({id:"young",strength:3,
+    line:`About ${years} year${years===1?"":"s"} in, so there is no decade of referrals to coast on yet.`,
+    ask:"Where is the work coming from while you are still building the name up?"});
+  for(const gap of (Array.isArray(d.gaps)?d.gaps:[]).slice(0,2)) if(gap) out.push({id:"gap",strength:5,line:String(gap),ask:""});
+  return out.sort((a,b)=>a.strength-b.strength).slice(0,3); };
+const outBestHook=(prospect)=>{ const d=(prospect&&prospect.data)||{};
+  const h=String(d.bestHook||"").trim(); if(h) return {text:h,from:"research"};
+  const p=outPainPoints(prospect)[0]; return p?{text:p.ask||p.line,from:"derived",fromId:p.id}:null; };
+const OUT_SMALL_SHOP_MAX=10;
+const outHeadcount=(prospect)=>{ const d=(prospect&&prospect.data)||prospect||{};
+  const n=Math.max(0,Math.round(Number(d.employeesEstimate)||0)); if(n>0) return n;
+  const nums=String(d.employees||"").match(/\d+/g); if(!nums||!nums.length) return null;
+  return Math.max(...nums.map(Number)); };
+const outPhoneRole=(phone,prospect)=>{ const p=phone||{};
+  const kind=String(p.kind||"unknown"), whose=String(p.whose||"unknown"), isMobile=kind==="mobile";
+  const desk=/reception|front desk|switchboard|answering service/i.test(String(p.label||""));
+  if(whose==="owner"&&isMobile) return OUT_PHONE_ROLES.owner_mobile;
+  if(whose==="owner"&&!desk)    return OUT_PHONE_ROLES.owner_line;
+  if(isMobile)                  return OUT_PHONE_ROLES.mobile;
+  if(kind==="direct"&&!desk)    return OUT_PHONE_ROLES.direct;
+  if(kind==="toll_free")        return OUT_PHONE_ROLES.toll_free;
+  if(kind==="main"||kind==="secondary"||desk){ const n=outHeadcount(prospect);
+    return (n!==null&&n>0&&n<=OUT_SMALL_SHOP_MAX&&!desk)?OUT_PHONE_ROLES.small_main:OUT_PHONE_ROLES.main; }
+  return OUT_PHONE_ROLES.unknown; };
+const outRankPhones=(prospect)=>{
+  const list=(prospect&&prospect.data&&Array.isArray(prospect.data.phones))?prospect.data.phones:[];
+  return list.map((p,i)=>({...p,i,role:outPhoneRole(p,prospect)}))
+    .sort((a,b)=>(OUT_ROLE_RANK.indexOf(a.role.id)-OUT_ROLE_RANK.indexOf(b.role.id))||(a.i-b.i)); };
+
 // 🔴 A HAND-TYPED PROSPECT CARRIES A SCORE OF 0 ON PURPOSE, because the scout's score is the result
 // of real research and inventing one here would make both numbers meaningless. So every screen that
 // shows a score has to ask this first and say "added by you" instead. Mirrors `isManual` in
@@ -6882,6 +6960,9 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const cur = queue[i] || null;
   const d   = (cur&&cur.data)||{};
   const phones = Array.isArray(d.phones)?d.phones:[];
+  const ranked = outRankPhones(cur);
+  const pains  = outPainPoints(cur);
+  const hook   = outBestHook(cur);
   const emails = Array.isArray(d.emails)?d.emails:[];
 
   const saveScript=async()=>{ try{ await api("action=settings",{method:"POST",body:JSON.stringify({script})}); setScriptSaved(script); }catch(e){ setMsg(setupMsg(e.message)||e.message); } };
@@ -7079,18 +7160,51 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                 {d.ownerName&&<> · {d.ownerName}</>}
               </div>
 
-              {/* Tap to dial or mail straight from the phone. */}
-              <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:11}}>
-                {phones.slice(0,3).map((p,k)=>(
-                  <a key={k} href={`tel:${String(p.number||p).replace(/[^0-9+]/g,"")}`} style={{fontSize:12.5,fontWeight:700,color:C.gold,textDecoration:"none",border:`1px solid ${C.gold}44`,background:C.goldDim,borderRadius:9,padding:"7px 11px"}}>
-                    📞 {p.number||p}{p.whose?` · ${p.whose}`:""}
-                  </a>
-                ))}
+              {/* Tap to dial or mail straight from the phone. 🔴 BEST BET FIRST AND LABELLED: three
+                  bare numbers is three decisions per prospect, and the point of this screen is that
+                  there are none. Every label is hedged because the research is a likelihood, not a
+                  fact. */}
+              <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:ranked.length?7:11}}>
+                {ranked.slice(0,4).map((p,k)=>{
+                  const c = p.role.tone==="best"?C.green : p.role.tone==="good"?C.gold : C.textDim;
+                  return (
+                    <a key={k} href={`tel:${String(p.number||p).replace(/[^0-9+]/g,"")}`} title={p.role.hint}
+                      style={{display:"flex",flexDirection:"column",gap:2,minWidth:0,textDecoration:"none",
+                        border:`1px solid ${c}44`,background:c+"12",borderRadius:9,padding:"7px 11px"}}>
+                      <span style={{fontSize:12.5,fontWeight:700,color:c}}>📞 {p.number}</span>
+                      <span style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".04em",color:c,opacity:.8}}>{p.role.label}</span>
+                    </a>
+                  );
+                })}
                 {emails.slice(0,2).map((e,k)=>(
                   <a key={k} href={`mailto:${e.address||e}`} style={{fontSize:12,color:C.textDim,textDecoration:"none",border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 11px"}}>✉ {e.address||e}</a>
                 ))}
                 {(d.website||cur.domain)&&<a href={/^https?:/.test(d.website||"")?d.website:`https://${cur.domain||d.website}`} target="_blank" rel="noopener noreferrer" style={{fontSize:12,color:C.textDim,textDecoration:"none",border:`1px solid ${C.border}`,borderRadius:9,padding:"7px 11px"}}>↗ site</a>}
               </div>
+              {/* A tooltip is useless on a phone, so the advice for the BEST number is shown outright. */}
+              {!!ranked.length&&(
+                <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55,marginBottom:11}}>
+                  <b style={{color:C.textDim}}>{ranked[0].number}</b> — {ranked[0].role.hint}
+                  {outHeadcount(cur)!==null&&<> · about {outHeadcount(cur)} staff</>}
+                </div>)}
+
+              {/* 🔴 THE ONE THING THAT IS ONLY TRUE ABOUT THIS COMPANY. The script is the same words
+                  for everybody; this is what makes the call land. Nothing here is built from a
+                  missing signal, so a blank block means we genuinely do not know, which is the
+                  honest answer and not a bug. */}
+              {(hook||pains.length)&&channel==="call"&&(
+                <div style={{border:`1px solid ${C.gold}33`,background:C.goldDim,borderRadius:11,padding:"11px 12px",marginBottom:11}}>
+                  <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:7}}>What to hit them with</div>
+                  {hook&&<div style={{fontSize:13,lineHeight:1.6,color:C.text,fontWeight:600,marginBottom:pains.length?9:0}}>&ldquo;{hook.text}&rdquo;</div>}
+                  {pains.map((p,k)=>(
+                    <div key={k} style={{marginTop:k?8:0,paddingTop:k?8:0,borderTop:k?`1px solid ${C.border}`:"none"}}>
+                      <div style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>{p.line}</div>
+                      {/* Not when the hook above already IS this question, which it is whenever the
+                          hook was derived rather than researched. */}
+                      {p.ask&&!(hook&&hook.fromId===p.id)&&<div style={{fontSize:11.5,color:C.gold,lineHeight:1.55,marginTop:3}}>Ask: {p.ask}</div>}
+                    </div>
+                  ))}
+                </div>)}
 
               {script.trim()&&channel==="call"&&(
                 <div style={{whiteSpace:"pre-wrap",fontSize:13,lineHeight:1.7,color:C.textDim,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:11,padding:"12px 13px",marginBottom:11}}>{script}</div>

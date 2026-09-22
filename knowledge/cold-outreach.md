@@ -122,6 +122,61 @@ due, so they came up again the next morning and weeding the list achieved nothin
 back; `blocked_at` is a legal instruction that cannot be. A test fails if a status is ever allowed to
 imply a block, because then changing the status would un-imply it.
 
+## The card now tells him WHO picks up and WHAT to say (2026-09-22)
+
+Two asks an hour before his first calls: *"can you make it so itll label the phone numbers it shows
+such as a business owner or if its likely to be a gatekeeper etc"* and *"can you add in something
+that could be a pain point i can hit that is for each specific company"*.
+
+### Which number to ring
+
+`phoneRole` / `rankPhones` label every number and put the **best bet first**, so the top chip is the
+one to dial. Ladder: owner's mobile → owner's line → any mobile → direct line → main line at a small
+shop → main line → toll-free → unknown.
+
+🔴 **HEADCOUNT DECIDES, NOT THE PHONE.** At a three-person pool builder the "main line" IS the
+owner's phone; at a forty-person one it is a receptionist paid to stop this call. Same `kind:"main"`,
+opposite meaning. A range like "2-6" is read at its **top**, because "small shop" is a claim and it
+only gets made when even the top of the range is small. A researcher's own label ("front desk") beats
+a generic tag.
+
+🔴 **EVERY LABEL IS HEDGED.** "Likely the owner", never "Owner". The scout researched this, it did
+not verify it. Each role also carries the move, not just the name: the gatekeeper hint says to ask
+who does their estimates rather than asking for the owner.
+
+### What to hit them with
+
+`painPoints` returns at most three, strongest first, each with **the question that follows it**.
+Ranked: ad tag but no live ads (budget existed and somebody walked away) → nobody bidding at all →
+paying for clicks onto a weak page → weak page → good reviews nobody outside sees → barely any
+reviews → too young to coast on referrals → the scout's own researched `gaps`.
+
+🔴 **NEVER ASSERT A NEGATIVE FROM MISSING EVIDENCE.** The scout's ad fields are four-valued on
+purpose and `"no"` comes back only when it actively searched and saw nothing, so `"unknown"` produces
+**silence**, not a claim. A company we know nothing about shows a blank block, which is the honest
+answer and not a bug. Everything unconfirmed becomes a question instead, which is stronger on a cold
+call anyway: he cannot be caught out on a question.
+
+`bestHook` prefers the scout's own per-company opening line and falls back to the strongest pain
+point's question.
+
+### What the browser caught that the tests did not
+
+**The derived hook and the first point's "Ask:" were the same sentence, printed twice.** Only visible
+by looking at the rendered card. `bestHook` now returns `fromId` so the card drops the repeat.
+
+**Two bad assertions of my own, both worth remembering:** `document.body.textContent` includes the
+page's own `<script>` source, so counting a phrase counted the CODE as well as the render (use
+`innerText` of the mounted app), and `innerText` applies `text-transform`, so uppercase chip labels
+come back shouted and need a case-insensitive match.
+
+**Parity is now by EXECUTION, not by grep.** Two earlier attempts compared the screen's SOURCE
+against the rules' OUTPUT, which cannot work when the screen builds copy from template literals with
+pluralisation in them; a fuzzy version then let a fully rewritten line through. The screen's own copy
+of the rules is pulled out with `new Function` and RUN, and the two are compared answer for answer.
+
+**293 checks; 29 mutations, all caught.** Driven at 390/768/1280/1600.
+
 ## 🔴 Two bugs the green tests did not catch
 
 Found by driving the screen in a browser, which is now the habit:

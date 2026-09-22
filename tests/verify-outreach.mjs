@@ -24,6 +24,8 @@ import {
   outcomeById, outcomesFor, nextDueAt, applyTouch, isBlocked, dueQueue, rollup, rollupByChannel,
   buildManualProspect, manualAddVerdict, isManual, cleanPhone, prettyPhone, cleanEmail, MANUAL_SOURCE,
   isQueueable, QUEUE_SKIP_STATUS,
+  PHONE_ROLES, phoneRole, rankPhones, headcount, SMALL_SHOP_MAX,
+  painPoints, bestHook,
 } from "../netlify/lib/outreach.mjs";
 import { dedupeKeyFor } from "../netlify/lib/scout-shared.mjs";
 
@@ -432,6 +434,272 @@ const DAY = 864e5;
     "one filter is a filter; two that fail independently is a guarantee");
   ok("and it is the shared list, not a second copy of the same two words",
     /QUEUE_SKIP_STATUS \} from "\.\.\/lib\/outreach\.mjs"/.test(FN));
+}
+
+
+// ── 12. Which number is likely to reach a human who can say yes ──────────────
+//
+// Bryson, 2026-09-22, an hour before his first calls: *"can you make it so itll label the phone
+// numbers it shows such as a business owner or if its likely to be a gatekeeper etc"*.
+//
+// 🔴 EVERY LABEL IS A LIKELIHOOD AND SAYS SO. The scout tags `whose` and `kind` from research, not
+// certainty. A chip reading "Owner" would be an assertion this data cannot support, and the
+// expensive version of that mistake has already happened once here (the audit that told a roofing
+// company it had no contact form). So the words are hedged, and no signal means "Unknown".
+{
+  const co = (employees, phones) => ({ data: { employees, phones } });
+  const ph = (kind, whose, label) => ({ number: "(480) 555-0100", kind, whose, label });
+
+  // The ladder, best to worst.
+  eq("an owner's mobile is the best number on the card",
+    phoneRole(ph("mobile", "owner"), co("4")).id, "owner_mobile");
+  eq("an owner's landline is next", phoneRole(ph("direct", "owner"), co("4")).id, "owner_line");
+  eq("any mobile beats a desk", phoneRole(ph("mobile", "business"), co("40")).id, "mobile");
+  eq("a direct line skips whoever answers the main one", phoneRole(ph("direct", "business"), co("40")).id, "direct");
+  eq("a toll-free number is the worst bet", phoneRole(ph("toll_free", "business"), co("4")).id, "toll_free");
+  eq("and nothing known is honestly nothing known", phoneRole(ph("unknown", "unknown"), co("")).id, "unknown");
+  ok("a missing phone object does not throw", !!phoneRole(null, null).id);
+
+  // 🔴 THE SAME `kind: "main"` MEANS OPPOSITE THINGS AT DIFFERENT SIZES. This is the whole reason
+  // headcount is read at all: at a three-person pool builder the main line IS the owner's phone.
+  eq("🔴 a main line at a small shop is probably the owner himself",
+    phoneRole(ph("main", "business"), co("2-6 (estimate)")).id, "small_main");
+  eq("🔴 the same main line at a big one is a gatekeeper",
+    phoneRole(ph("main", "business"), co("35-50")).id, "main",
+    "labelling both the same makes the label worthless");
+  eq("and with no headcount at all it does not guess small",
+    phoneRole(ph("main", "business"), co("")).id, "main",
+    "claiming 'small shop' is a claim; it needs evidence");
+
+  // A researcher's own words beat a generic tag.
+  eq("🔴 a number labelled reception is a gatekeeper whatever its kind says",
+    phoneRole(ph("main", "business", "front desk"), co("3")).id, "main",
+    "the label is the more specific evidence and it wins");
+  eq("even when the row claims it reaches the owner",
+    phoneRole(ph("direct", "owner", "reception desk"), co("3")).id, "main");
+
+  // Headcount parsing, executed against the shapes the scout really writes.
+  eq("a plain estimate is read", headcount({ data: { employeesEstimate: 12 } }), 12);
+  eq("🔴 a range is read at its TOP, because 'small shop' is a claim", headcount({ data: { employees: "2-6 (estimate)" } }), 6);
+  eq("free text with one number still works", headcount({ data: { employees: "about 8 staff" } }), 8);
+  eq("unknown stays unknown rather than becoming zero", headcount({ data: { employees: "unknown" } }), null);
+  eq("and a zero estimate is not a headcount", headcount({ data: { employeesEstimate: 0 } }), null);
+  eq("the boundary is inclusive", phoneRole(ph("main", "business"), co(String(SMALL_SHOP_MAX))).id, "small_main");
+  eq("and one over it is not", phoneRole(ph("main", "business"), co(String(SMALL_SHOP_MAX + 1))).id, "main");
+
+  // ── Ordering: the first chip must be the one to ring ──────────────────────
+  const prospect = { data: { employees: "2-6", phones: [
+    { number: "main", kind: "main", whose: "business" },
+    { number: "tollfree", kind: "toll_free", whose: "business" },
+    { number: "ownercell", kind: "mobile", whose: "owner" },
+  ] } };
+  const order = rankPhones(prospect).map((p) => p.number);
+  eq("🔴 best bet first, so the top chip is the one to dial", order[0], "ownercell");
+  eq("and the worst is last", order[2], "tollfree");
+  eq("nothing is dropped", order.length, 3);
+  ok("every number comes back labelled", rankPhones(prospect).every((p) => p.role && p.role.label && p.role.hint));
+  eq("a prospect with no phones is an empty list, not a crash", rankPhones({ data: {} }).length, 0);
+  eq("and neither is a missing prospect", rankPhones(null).length, 0);
+  // Two numbers of the same role keep the order the research put them in.
+  const tie = { data: { employees: "40", phones: [
+    { number: "first", kind: "main", whose: "business" },
+    { number: "second", kind: "main", whose: "business" }] } };
+  eq("ties keep their original order", rankPhones(tie).map((p) => p.number).join(","), "first,second");
+
+  // 🔴 NOT ONE LABEL CLAIMS CERTAINTY where the data cannot support it.
+  ok("🔴 the owner labels are hedged, never flat assertions",
+    /^Likely /.test(PHONE_ROLES.owner_mobile.label) && /^Likely /.test(PHONE_ROLES.owner_line.label),
+    "the scout researched this, it did not verify it, and a flat 'Owner' would be a claim");
+  ok("every role carries advice, not just a name",
+    Object.values(PHONE_ROLES).every((r) => r.hint && r.hint.length > 20));
+  ok("and the gatekeeper one says what to do about it",
+    /who does their estimates/.test(PHONE_ROLES.main.hint),
+    "naming the problem without the move is half a feature");
+
+  // ── The screen ────────────────────────────────────────────────────────────
+  ok("the card renders the ranked list, not the raw one", /ranked\.slice\(0,4\)\.map/.test(UI));
+  ok("🔴 and no longer prints the raw research tag as a label",
+    !/\$\{p\.whose\}/.test(UI) && !/p\.whose\?` · /.test(UI),
+    "'business' is a database value, not something to show a man about to dial");
+  ok("each chip shows its label", /\{p\.role\.label\}/.test(UI));
+  ok("🔴 and the advice for the best number is shown outright, not only on hover",
+    /\{ranked\[0\]\.role\.hint\}/.test(UI),
+    "he is on a phone, where there is no hover, which is where this whole feature is used");
+  ok("the headcount is shown too, since it is what decided the label",
+    /about \{outHeadcount\(cur\)\} staff/.test(UI));
+  ok("the two copies of the rules agree on the small-shop line",
+    /const OUT_SMALL_SHOP_MAX=10;/.test(UI) && SMALL_SHOP_MAX === 10);
+  ok("and on the ladder", /const OUT_ROLE_RANK=\["owner_mobile","owner_line","mobile","direct","small_main","main","toll_free","unknown"\];/.test(UI));
+  for (const id of Object.keys(PHONE_ROLES)) {
+    ok(`the screen carries the same words for ${id}`, UI.includes(PHONE_ROLES[id].label) && UI.includes(PHONE_ROLES[id].hint),
+      "two copies that drift are two different answers to 'who picks this up'");
+  }
+}
+
+
+// ── 13. The one thing that is only true about THIS company ───────────────────
+//
+// Bryson, 2026-09-22: *"can you add in something that could be a pain point i can hit that is for
+// each specific company that is listed"*.
+//
+// 🔴 THE WHOLE SUITE BELOW EXISTS TO STOP ONE MISTAKE: asserting a negative from missing evidence.
+// That is what told a roofing company it had no contact form when one sat on their homepage, and
+// here it would be worse, because he would say it out loud to the owner. The scout's ad fields are
+// four-valued on purpose and "no" comes back ONLY when it actively searched and saw nothing.
+{
+  const co = (data) => ({ data });
+  const ids = (p) => painPoints(p).map((x) => x.id);
+
+  // 🔴 THE CENTRAL RULE, TESTED FIRST.
+  eq("🔴 a company we know nothing about produces NO claims at all",
+    painPoints(co({ googleAds: "unknown", websiteQuality: "unknown" })).length, 0,
+    "silence is the honest answer; an invented pain point gets said out loud to an owner");
+  ok("🔴 'unknown' ads never become 'they are not advertising'",
+    !ids(co({ googleAds: "unknown" })).includes("not_advertising"),
+    "unknown means nobody checked, which is not the same as no");
+  ok("🔴 an unknown website never becomes a bad website",
+    !ids(co({ websiteQuality: "unknown" })).includes("weak_site"));
+  eq("an empty prospect does not throw", painPoints(null).length, 0);
+  eq("nor does one with no data", painPoints({}).length, 0);
+
+  // Each signal, and only from a confirmed value.
+  ok("a confirmed 'no' does become a talking point", ids(co({ googleAds: "no" })).includes("not_advertising"));
+  ok("🔴 a tag with no live ads is the strongest one there is",
+    ids(co({ googleAds: "likely" }))[0] === "tag_no_campaign",
+    "it means budget existed and somebody walked away, which is a conversation rather than a pitch");
+  ok("paying for clicks onto a weak page beats a weak page alone",
+    ids(co({ googleAds: "yes", websiteQuality: "poor" })).includes("paying_for_weak_page")
+    && !ids(co({ googleAds: "yes", websiteQuality: "poor" })).includes("weak_site"),
+    "the two would otherwise both fire and say nearly the same thing twice");
+  ok("a dated site counts as weak", ids(co({ websiteQuality: "dated" })).includes("weak_site"));
+  ok("a strong one does not", !ids(co({ websiteQuality: "strong" })).includes("weak_site"));
+  ok("good reviews nobody sees is a point", ids(co({ rating: "4.8", reviewCount: 62 })).includes("reputation_unused"));
+  ok("and so is having almost none", ids(co({ rating: "4.9", reviewCount: 4 })).includes("few_reviews"));
+  ok("but zero reviews is not, because zero may just mean we did not find them",
+    !ids(co({ reviewCount: 0 })).includes("few_reviews"),
+    "absence of a number is not evidence of an absence of reviews");
+  ok("a young company is a point", ids(co({ yearsInBusiness: "since 2024" })).includes("young"));
+  ok("an established one is not", !ids(co({ yearsInBusiness: "since 2004" })).includes("young"));
+  eq("years are read from a founding year", painPoints(co({ yearsInBusiness: "since 2024" })).length >= 1, true);
+  ok("and from a plain count", ids(co({ yearsInBusiness: "~2 years" })).includes("young"));
+  ok("unreadable years produce nothing rather than a guess", !ids(co({ yearsInBusiness: "unknown" })).includes("young"));
+
+  // The scout's own research beats anything derived, and is used when present.
+  ok("a researched gap is offered", ids(co({ gaps: ["No page for pool remodels"] })).includes("gap"));
+  ok("but at most two of them", painPoints(co({ gaps: ["a", "b", "c", "d"] })).filter((p) => p.id === "gap").length <= 2);
+
+  // Ordering and size, so the card stays readable.
+  ok("at most three points are ever shown",
+    painPoints(co({ googleAds: "likely", websiteQuality: "poor", rating: "4.9", reviewCount: 80,
+      yearsInBusiness: "since 2024", gaps: ["x", "y"] })).length === 3,
+    "a wall of bullet points is not something anybody reads mid-dial");
+  // 🔴 A CASE WHERE THE SORT ACTUALLY MATTERS. The first version of this test used two points that
+  // were already pushed in the right order, so deleting the sort entirely changed nothing and the
+  // mutation survived. `weak_site` is PUSHED before `reputation_unused` and ranks BELOW it, so this
+  // pair can only come out right if the ranking really runs.
+  eq("🔴 the strongest point is first even when it was found last",
+    painPoints(co({ websiteQuality: "poor", rating: "4.8", reviewCount: 62 }))[0].id, "reputation_unused",
+    "he reads the first line and dials; if it is not the best one the feature is decoration");
+  eq("and the weaker one still comes after it",
+    painPoints(co({ websiteQuality: "poor", rating: "4.8", reviewCount: 62 }))[1].id, "weak_site");
+  eq("the tag signal outranks everything", painPoints(co({ googleAds: "likely", websiteQuality: "poor", rating: "4.8", reviewCount: 62 }))[0].id, "tag_no_campaign");
+  ok("every derived point carries the question that follows it",
+    painPoints(co({ googleAds: "no", websiteQuality: "poor", rating: "4.8", reviewCount: 40 }))
+      .every((p) => p.id === "gap" || (p.ask && p.ask.length > 15)),
+    "naming a problem without the next move is half a feature");
+
+  // ── The opening line ──────────────────────────────────────────────────────
+  eq("🔴 the scout's own researched hook wins when there is one",
+    bestHook(co({ bestHook: "You are the only builder in Gilbert not running ads", googleAds: "no" })).from, "research",
+    "it was written from something real about this business; nothing computed beats that");
+  eq("and falls back to the strongest pain point rather than going blank",
+    bestHook(co({ googleAds: "likely" })).from, "derived");
+  eq("a company we know nothing about gets no hook at all, rather than a made-up one",
+    bestHook(co({})), null);
+  // 🔴 CAUGHT BY LOOKING AT THE RENDERED CARD, not by any test: a derived hook IS the first point's
+  // question, so the card printed the same sentence twice, once at the top and once under the
+  // point. It now says which point it came from so the card can drop the repeat.
+  eq("a derived hook names the point it came from", bestHook(co({ googleAds: "likely" })).fromId, "tag_no_campaign");
+  eq("a researched one does not, because it did not come from one", bestHook(co({ bestHook: "x" })).fromId, undefined);
+  ok("🔴 and the card uses that to avoid printing the same sentence twice",
+    /\{p\.ask&&!\(hook&&hook\.fromId===p\.id\)&&/.test(UI),
+    "on a phone the repeat reads as a bug");
+
+  // ── The screen ────────────────────────────────────────────────────────────
+  ok("the card shows the block", /What to hit them with/.test(UI));
+  ok("with the hook in quotes", /\{hook\.text\}/.test(UI));
+  ok("and each point with its question", /Ask: \{p\.ask\}/.test(UI));
+  ok("🔴 an empty block simply does not render, rather than showing a heading over nothing",
+    /\{\(hook\|\|pains\.length\)&&channel==="call"&&\(/.test(UI));
+  ok("the two copies agree on what counts as a weak site",
+    /const OUT_WEAK_SITE=\["none","poor","dated"\];/.test(UI));
+  // 🔴 PARITY BY EXECUTION, NOT BY GREP. Two earlier attempts at this compared the screen's SOURCE
+  // against the rules' OUTPUT, which cannot work: the screen builds its copy from template
+  // literals with pluralisation in them, so the rendered sentence never appears in the file as a
+  // literal string. A fuzzy version of that check then let a whole rewritten line through. So the
+  // screen's own copy of the rules is pulled out and RUN, and the two are compared answer for
+  // answer. Same approach the niche-picker suite uses on SCOUT_NICHES.
+  {
+    const from = UI.indexOf("const OUT_PHONE_ROLES = {");
+    const to = UI.indexOf("const outRankPhones=", from);
+    const end = UI.indexOf("\n\n", to);
+    ok("the screen's copy of the rules was found", from > 0 && to > from && end > to);
+    const src = UI.slice(from, end);
+    const ui = new Function(`${src}
+      return { painPoints: outPainPoints, bestHook: outBestHook, phoneRole: outPhoneRole,
+               rankPhones: outRankPhones, headcount: outHeadcount };`)();
+
+    const probes = [
+      { googleAds: "no" }, { googleAds: "likely" }, { googleAds: "yes" }, { googleAds: "unknown" },
+      { websiteQuality: "poor" }, { websiteQuality: "dated" }, { websiteQuality: "strong" },
+      { googleAds: "yes", websiteQuality: "poor" }, { googleAds: "no", websiteQuality: "none" },
+      { rating: "4.8", reviewCount: 62 }, { rating: "5", reviewCount: 1 }, { rating: "5", reviewCount: 3 },
+      { rating: "4.2", reviewCount: 200 }, { reviewCount: 0 },
+      { yearsInBusiness: "since 2024" }, { yearsInBusiness: "~2 years" }, { yearsInBusiness: "since 2004" },
+      { yearsInBusiness: "unknown" }, { gaps: ["No page for pool remodels", "No call tracking"] },
+      { googleAds: "likely", websiteQuality: "poor", rating: "4.9", reviewCount: 80, yearsInBusiness: "since 2024" },
+      {},
+    ];
+    let same = 0; const drift = [];
+    for (const probe of probes) {
+      const a = JSON.stringify(painPoints(co(probe)));
+      const b = JSON.stringify(ui.painPoints(co(probe)));
+      if (a === b) same++; else drift.push(`${JSON.stringify(probe)}\n          server: ${a}\n          screen: ${b}`);
+      const ha = JSON.stringify(bestHook(co(probe))), hb = JSON.stringify(ui.bestHook(co(probe)));
+      if (ha !== hb) drift.push(`hook ${JSON.stringify(probe)}: ${ha} vs ${hb}`);
+    }
+    ok("every probe was compared", same > 0 && probes.length > 15);
+    ok("🔴 the screen and the rules produce the SAME pain points, word for word",
+      drift.length === 0, drift.join("\n        "));
+
+    // The same for the phone labels, since they carry copy too.
+    const phoneProbes = [
+      [{ kind: "mobile", whose: "owner" }, { employees: "3" }],
+      [{ kind: "main", whose: "business" }, { employees: "2-6" }],
+      [{ kind: "main", whose: "business" }, { employees: "35-50" }],
+      [{ kind: "main", whose: "business", label: "front desk" }, { employees: "3" }],
+      [{ kind: "toll_free", whose: "business" }, { employees: "" }],
+      [{ kind: "direct", whose: "business" }, { employees: "40" }],
+      [{ kind: "unknown", whose: "unknown" }, { employees: "" }],
+    ];
+    const pDrift = [];
+    for (const [phone, data] of phoneProbes) {
+      const a = JSON.stringify(phoneRole(phone, co(data)));
+      const b = JSON.stringify(ui.phoneRole(phone, co(data)));
+      if (a !== b) pDrift.push(`${JSON.stringify(phone)}: ${a} vs ${b}`);
+      if (headcount(co(data)) !== ui.headcount(co(data))) pDrift.push(`headcount ${JSON.stringify(data)}`);
+    }
+    ok("🔴 and the same phone labels, word for word", pDrift.length === 0, pDrift.join("\n        "));
+
+    // And the ordering, which is the part a reader acts on first.
+    const multi = { data: { employees: "2-6", phones: [
+      { number: "main", kind: "main", whose: "business" },
+      { number: "tollfree", kind: "toll_free", whose: "business" },
+      { number: "ownercell", kind: "mobile", whose: "owner" }] } };
+    eq("🔴 and put the numbers in the same order",
+      ui.rankPhones(multi).map((x) => x.number).join(","),
+      rankPhones(multi).map((x) => x.number).join(","));
+  }
 }
 
 console.log(`verify-outreach: ${pass} passed, ${fail} failed`);
