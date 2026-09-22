@@ -2,11 +2,44 @@
 name: lead-scout
 topic: OS app
 task: find businesses to cold call — AI prospect scraper by niche + area, scored on whether they're worth contacting, feeding into Deal Prep
-keywords: [lead scout, lead scraper, prospect scraper, find leads, find businesses, cold call list, prospecting, niche dropdown, search areas, dedupe, duplicates, owner name, owner phone, business phone, contact section, employees, running ads, meta ad library, fit score, call first, waste of time, score breakdown, why it scored, affordability, can they afford, budget capacity, revenue per employee, score cap, google places, places api, GOOGLE_PLACES_API_KEY, apollo, apollo.io, APOLLO_API_KEY, data providers, verified data, scout_runs, scout_prospects, scout-shared, scout-scoring, scout-providers, lead-scout-background, LeadScoutScreen, emit_prospects, web_search]
+keywords: [niche dropdown unreadable, white category labels, optgroup, NicheSelect, niche picker, dark theme dropdown, lead scout, lead scraper, prospect scraper, find leads, find businesses, cold call list, prospecting, niche dropdown, search areas, dedupe, duplicates, owner name, owner phone, business phone, contact section, employees, running ads, meta ad library, fit score, call first, waste of time, score breakdown, why it scored, affordability, can they afford, budget capacity, revenue per employee, score cap, google places, places api, GOOGLE_PLACES_API_KEY, apollo, apollo.io, APOLLO_API_KEY, data providers, verified data, scout_runs, scout_prospects, scout-shared, scout-scoring, scout-providers, lead-scout-background, LeadScoutScreen, emit_prospects, web_search]
 status: verified
-summary: Owner-side "Lead Scout" (BUILT 2026-08-11) — pick a niche from a ~430-entry dropdown (incl. deep e-commerce sub-niches) + one or more areas, and a background function finds real businesses and returns a full Contact block (every phone + email, tagged whose/what/source), owner name, employees, website, whether they're running Google/Meta ads, reviews, plus a 0-100 "should I call them" score that is the SUM of six visible factors with a written reason each. Affordability is computed in code from headcount/revenue and HARD-CAPS the score, so businesses that cannot pay BoldLine physically cannot rank high. Real-data providers are pluggable and optional: GOOGLE_PLACES_API_KEY (verified phone/address/rating) and APOLLO_API_KEY (owner name, title, direct contact, headcount, revenue). Results land in a permanent de-duplicated call list with per-prospect status, rich CSV export, and a one-click hand-off into Deal Prep. Needs a one-time Supabase migration (docs/sql/lead-scout-schema.sql).
-verified: 2026-08-11
+summary: Owner-side "Lead Scout" (BUILT 2026-08-11) — pick a niche from a ~430-entry dropdown (incl. deep e-commerce sub-niches) + one or more areas, and a background function finds real businesses and returns a full Contact block (every phone + email, tagged whose/what/source), owner name, employees, website, whether they're running Google/Meta ads, reviews, plus a 0-100 "should I call them" score that is the SUM of six visible factors with a written reason each. Affordability is computed in code from headcount/revenue and HARD-CAPS the score, so businesses that cannot pay BoldLine physically cannot rank high. Real-data providers are pluggable and optional: GOOGLE_PLACES_API_KEY (verified phone/address/rating) and APOLLO_API_KEY (owner name, title, direct contact, headcount, revenue). Results land in a permanent de-duplicated call list with per-prospect status, rich CSV export, and a one-click hand-off into Deal Prep. Needs a one-time Supabase migration (docs/sql/lead-scout-schema.sql). 🔴 2026-09-22: the niche dropdown is no longer a native `<select>` — its category headings were white on white because the OS paints `<optgroup>` labels itself, a bug Bryson reported twice. It now shares the searchable `NicheSelect` the client sheet already used, and a test bans grouped native dropdowns anywhere in the app.
+verified: 2026-09-22
 ---
+
+## 🔴 2026-09-22 — the same white-on-white dropdown bug, reported a second time
+
+Bryson: *"in the lead scout when i go to the niche drop down the category labels are all white so i
+cant read them."* **He had already reported this on 2026-08-26 on the client sheet**, in almost the
+same words. That fix built `NicheSelect`, a list the OS draws itself. **Lead Scout was never
+switched over**, so its native `<select>` carried the identical bug for a month.
+
+**There is no CSS fix and it is worth knowing why.** A native `<select>` hands its open popup to the
+operating system, which paints `<optgroup>` headings in its OWN colours and ignores ours. On a dark
+theme they come out white on white. The popup is not ours to style, so the only fix is not to use one.
+
+`NicheSelect` now takes an optional `source` in the `{g,n,k}` shape `SCOUT_NICHES` already uses, and
+hands back `(niche, {group, kind})`. One picker, two lists, no drift. Lead Scout stores a single
+`{label, group, kind}` object instead of a `"3.7"` index into the old dropdown, and the separate
+"Custom niche…" option at the bottom of 430 entries is gone: typing anything unknown offers
+**+ Use "…"** as the first thing you see rather than the last.
+
+🔴 **The kind is the part that would break silently.** `isEcom` decides whether an area is even
+required, because an online brand sells nationwide. Losing `kind` in the picker throws no error, it
+just forces every e-commerce brand to name a city it does not sell in. Tested both ways, in a browser.
+
+**`tests/verify-niche-picker.mjs` is the class guard (26 checks).** It bans the grouped native
+dropdown ANYWHERE in the OS, so a third instance of this bug cannot ship. The detector matches the
+MARKUP (`<optgroup ... label=`) and never the word, so the comments explaining all this do not trip
+it. It also pins that every group whose heading says E-Commerce is marked `ecom` and nothing else is —
+"at least one group is ecom" passed while a real one was relabelled.
+
+**Verified in a browser at 390/768/1280/1600**: headings measured at **8.43:1 contrast** (gold on the
+panel), search narrows the list, picking an online brand makes the area optional and picking a trade
+makes it required again, no sideways scroll, no console errors. **13 of 14 mutations caught**; the one
+survivor is the heading's sticky positioning, which is cosmetic. Two earlier "survivors" were bad
+mutations of mine that hit an earlier element in the file and never touched the picker.
 
 **What it is (Bryson's ask, 2026-08-11):** a prospect scraper inside the OS that works with Deal Prep.
 Choose a niche from a large dropdown (e-commerce broken out in detail), choose the area(s) to work,
