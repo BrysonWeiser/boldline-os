@@ -2,10 +2,10 @@
 name: account-email-map
 topic: Business rules
 task: know which email/login owns which external account before signing in or setting one up
-keywords: [account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login, docusign-login, which email for docusign, docusign production admin, go live form email]
+keywords: [openphone, business phone login, account-map, login, brysonaweiser, theboldlinemedia, lleatherboy, which-email, mercury, stripe-login, mcc-login, docusign-login, which email for docusign, docusign production admin, go live form email]
 status: stale-able
-summary: Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login (by design — one login, many future orgs), old/aged Facebook account. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.
-verified: 2026-08-24
+summary: Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login, Bing Places, Apple Business Connect, DocuSign PRODUCTION, Namecheap, and OpenPhone (2026-09-21) — all by design: one login, many future orgs, and the login is never public. 🔴 That concentration is now large enough to be its own risk: two-factor and recovery details on that Google account protect the bank, the domain, the signing account and the business phone at once. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.
+verified: 2026-09-21
 ---
 
 **The two emails:**
@@ -31,12 +31,21 @@ verified: 2026-08-24
 | DocuSign — **PRODUCTION** account | **brysonaweiser@gmail.com** (confirmed 2026-08-24) | 🔴 **THE TWO DOCUSIGN ACCOUNTS ARE ON DIFFERENT EMAILS.** theboldlinemedia@gmail.com does NOT sign in at www.docusign.net at all. This matters because the go-live verification form demands the PRODUCTION admin email and production Account ID, and warns that a demo value gets the envelope declined — which is one of the ways the July 2026 attempt died. See `docusign-integration`. |
 | Cloudflare (DNS for boldlinemedia.com) | **login not yet recorded** | 🔴 Discovered 2026-08-24 by DNS lookup: the domain's nameservers are **leia/drake.ns.cloudflare.com**, so CLOUDFLARE runs the records, not Namecheap's own DNS. Namecheap is only the registrar. `domain-dns-wix` predates this move and still describes the Wix/Namecheap record setup. |
 | Email on boldlinemedia.com | ✅ **`bryson@boldlinemedia.com`** since 2026-08-24 | Confirmed by DNS: zero MX records. Free **Cloudflare Email Routing**, forwarding into brysonaweiser@gmail.com. Receive-only. Forced by DocuSign, which refuses gmail on the go-live form. Confirmed working: all five DNS records live, and a test send logged as Forwarded. See `docusign-integration`. |
+| OpenPhone (business phone number for cold calling) | **brysonaweiser@gmail.com** (DECISION 2026-09-21, Bryson chose it) | Same deliberate logic as Mercury / Bing Places / Apple Business Connect: **one personal login can hold multiple workspaces as future businesses launch**, and the login is never public. 🔴 **The login email is NOT the business identity** — the WORKSPACE must be named BoldLine Media and any business-verification step uses the LLC name + the Articles address (3101 N Central Ave Ste 183 #7182, Phoenix AZ 85012), because those are checked against state/IRS records and the login email is not. A setter gets invited into the workspace later; they never need this login. |
 | Namecheap (domain registrar — boldlinemedia.com) | **brysonaweiser@gmail.com** (2026-07-27) | Domain transferred here off Wix so Resend can verify the domain for email sending. Namecheap transfer-authorization/approval emails go to THIS inbox; the Wix release/auth-code email went to theboldlinemedia@gmail.com. Auto-renew ON, free WHOIS privacy. See domain-dns-wix. |
 
 **Rules learned the hard way:**
 - `lleatherboy@gmail.com` is NOT one of Bryson's logins anywhere (a mistaken Meta invite went there 2026-07-07).
 - One legal entity = one bank account, always — future LLCs get their own accounts/orgs under the same Mercury login, never shared funds.
 - When any new external account is created, add it here immediately.
+- 🔴 **THE PERSONAL LOGIN IS NOW A SINGLE POINT OF FAILURE, and that is the cost of the pattern.**
+  Mercury (the bank), the domain registrar, the PRODUCTION DocuSign account, Search Console and the
+  business phone all sit behind `brysonaweiser@gmail.com`. The one-login-many-orgs choice is still
+  right, but it means **two-factor and up-to-date recovery details on that Google account are not
+  optional** — losing it takes out the bank, the domain and the phone in the same afternoon.
+- **A login email is never a business identity.** Anything that VERIFIES the business (carrier
+  registration, Meta, DocuSign go-live) is checked against state and IRS records, so it takes the
+  LLC name and the Articles address regardless of which gmail is signed in.
 
 **Apollo.io** (Lead Scout owner/decision-maker enrichment) — signed up 2026-08-11 with **Sign in with
 Google** on the BUSINESS gmail (theboldlinemedia). No separate password; log in via Google SSO. API key
