@@ -92,7 +92,25 @@ New pool contracts sign January to April, so autumn is when their cash is tighte
 only wants new builds, pitch a **January launch**: book now, spend nothing until the new year. That
 removes the cash objection entirely and sounds like someone who knows the trade.
 
+## No BoldLine ads for the rest of September (his call, 2026-09-22)
+
+He decided not to run his own ads for the rest of the month. **Sound call and not a retreat:** his
+own time on the phone costs nothing, Meta is still gated (KB `meta-marketing-api`), and a search
+campaign with no case study converts worse than one with one. Cold calling first also PRODUCES the
+case study that makes the ads work later.
+
+**The advice that was on the table when he stopped, for when he restarts:** target the niche he is
+already calling, on **niche + service** terms (`pool builder marketing agency`, `google ads for pool
+companies`, `how to get more pool leads`) plus competitor brand names — NEVER generic "marketing
+agency" or "google ads management", which run $20-40 a click, are bid up by agencies with six-figure
+budgets, and bring other agencies, students and job hunters. At $25/day that is ~25 junk clicks a
+month; the niche terms at ~$12 give ~60 clicks, 3-6 leads and one or two clients. The landing page
+would live at `boldlinemedia.com/for/pool-builders` (KB `landing-pages-per-audience`).
+
+🔴 **Not running ads means NOTHING should be spending.** The car-detailer Meta campaign was still
+live and producing zero leads when this was decided.
+
 ## Status
 
-Niche locked 2026-09-22. **Update this entry with what the first 100 calls actually produced** —
+Niche locked 2026-09-22. Own ads paused for the rest of September 2026. **Update this entry with what the first 100 calls actually produced** —
 dials, conversations, meetings booked, meetings that showed.
