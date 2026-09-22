@@ -5,7 +5,7 @@ task: work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-l
 keywords: [springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches]
 status: open
 summary: 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
-verified: 2026-09-11
+verified: 2026-09-22
 ---
 
 ## Who and where it stands
@@ -65,3 +65,37 @@ refuses to send an incomplete agreement and says what is missing (KB `contract-g
 **Deal Prep**, and the answers typed there build the client record and feed the contract in one
 button, so nothing is typed twice (KB `deal-prep-to-client`). His qualified-lead definition is the
 one thing to settle on that call, and the reasoning is above.
+
+## 2026-09-22 (Tue) — the questions went into one email, so the agreement can go out
+
+Bryson asked for *"an email with all the questions I will need Brendon to answer so I can send him
+the contract"*. Still **not a client**: nothing signed, nothing counted.
+
+Built from the OS's own Deal Prep intake list, trimmed to what the agreement actually needs plus the
+qualified-lead inputs. 14 numbered questions in four groups: the agreement (legal name WITH the
+LLC/PLLC suffix, signer name and title, email, address, phone), what counts as a qualified lead
+(service area, new patients only, insurance, cases he does not want, "describe a bad lead"), inputs
+for a fair per-lead price (value of a new patient over their course of care, close rate out of ten,
+current and spare monthly capacity), and his Google Ads account number.
+
+🔴 **Why the Google Ads question is in there although the agreement does not need it:** that one
+missing number is what stalled Sebastian for weeks after signing (see `stencil-and-thread-deal`).
+Asking before signing turns it into a two-minute reply instead of a chase.
+
+🔴 **The email asks for the agreement email address AND says official notices go there.** Learned
+from the Sebastian close-out: the agreement says notices are given by email to the page-one
+address, so it has to be one he actually reads.
+
+🔴 **THERE IS NO STANDARD PER-LEAD RATE FOR CHIROPRACTIC.** `PER_LEAD` only knows Roofing, Med Spa
+and Auto Detailing. So until Bryson sets Brendon's rate by hand, `contractGaps` will refuse to send
+the agreement (correctly: without it the fee clause does not render at all). The Per-Lead Fee Finder
+in Deal Prep uses exactly questions 11 and 12.
+
+🔴 **LEFT OUT OF THE EMAIL ON PURPOSE: whether a no-show counts.** It is his biggest worry, but
+putting it to him as a checkbox invites "only count people who show up", which would bill BoldLine
+on his front desk's follow-up, something BoldLine does not control. Bryson should decide his own
+answer and give a reason, then write the definition down after month one and hold it (see above).
+Recommended position: a real person, in his area, asking about something he treats, who is not a
+salesperson, a duplicate or an existing patient, counts. The monthly call reviews edge cases
+against that written standard rather than re-deciding it.
+
