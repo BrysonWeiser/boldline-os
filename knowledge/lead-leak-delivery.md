@@ -119,7 +119,9 @@ happens. It is the single best opening line available, and it needs no tooling a
 It told them they had no contact form. They have one at the bottom of their homepage. `inspectSite`
 reads raw HTML and `PAGESPEED_API_KEY` was still unset, so the check never actually *looked* at the
 page. The guards written on 2026-09-04 (never assert a negative) are in the code; this report went
-out before the key existed to make the reading reliable.
+out before the key existed to make the reading reliable. **The key is now set in Netlify (2026-09-21),
+so reports from here on should carry a real rendered screenshot** — see KB `site-vision`, and check
+`auditLooked` on the first lead after that date rather than assuming it worked.
 
 **The recovery, and it is the right move generally: correct it yourself, first, out loud.** Opening
 with *"one line in that report was wrong and I'd rather tell you than have you find it"* turns the
