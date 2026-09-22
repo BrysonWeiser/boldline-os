@@ -24,9 +24,20 @@ The best idea on the list and not close.
   businesses answer in hours or never.
 - **It is sellable.** "We answer your leads in thirty seconds, including at 2am" is a real reason to
   pick BoldLine, and nobody at this level does it.
-- **Most of it already exists.** The OS texts a new lead within seconds (KB `client-text-back`). What
-  is missing is the CONVERSATION after that: replying to the reply, answering the obvious questions,
-  booking the call. Today it sends one message and waits for a human.
+- 🔴 **NOTHING HAS EVER BEEN TEXTED TO ANYBODY, and an earlier version of this entry said otherwise.**
+  Bryson corrected it on 2026-09-22. The CODE is written and wired: `lead-intake` calls `sendSMS` the
+  moment a lead arrives. But `sendSMS` returns immediately unless `SMS_ENABLED=1`, which has been
+  deliberately off since 2026-07-25 because the trial account's texts just fail. Describing the code
+  as though it were the behaviour is exactly the mistake that makes a build look smaller than it is,
+  or larger. **Reality: zero texts sent, ever.**
+
+- **Which splits this into THREE steps, not one, and the first is free:**
+  1. **Turn it on.** Twilio paid, A2P cleared, then `SMS_ENABLED=1` in Netlify. A lead arrives, they
+     get a text within seconds. 🔴 **No build at all**, one env var. He can prove the reply rate on
+     his own number before anybody writes code.
+  2. **Missed-call text-back.** Somebody rings, nobody answers, they get a text. A real but small build.
+  3. **The conversation AI.** It answers the reply, handles the obvious questions, books the call. The
+     big one, and the only part that needs the guardrail below.
 
 **Build missed-call text-back FIRST.** Somebody rings a client's business, nobody picks up, they get a
 text within seconds. Simpler than a full conversation and the highest return version for home services.
@@ -73,6 +84,8 @@ problem, buy Opus Clip or CapCut and spend the saved months on the text AI.
 
 1. **Now:** work the outreach list. Start the Twilio upgrade and the A2P registration in parallel,
    because it is paperwork and waiting rather than work.
-2. **When that clears, or at four or five clients:** missed-call text-back, then the conversation AI.
-3. **Whenever:** the content calendar, publishing excluded.
-4. **Not unless something changes:** the website AI and the video editor.
+2. **The moment it clears:** flip `SMS_ENABLED=1` and watch what the plain auto-reply does. That is
+   step one and it is free.
+3. **Then, or at four or five clients:** missed-call text-back, then the conversation AI.
+4. **Whenever:** the content calendar, publishing excluded.
+5. **Not unless something changes:** the website AI and the video editor.
