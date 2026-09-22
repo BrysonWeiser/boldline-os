@@ -784,5 +784,89 @@ const fakeFetch = (script) => {
   }
 }
 
+
+// ── 🔴 META HAS TO BE ABLE TO SEE THE PAGE, AND NEVER SEE A PREVIEW ──────────
+//
+// Found 2026-09-22 on Bryson's own car-detailer ad, which had spent real money for zero leads.
+// Every generated page carried Google's tag and NOTHING for Meta. Two consequences, and the
+// second is the expensive one: Meta cannot COUNT a lead there, so the campaign reports zero
+// whatever happens, and Meta cannot OPTIMISE, so with no conversion signal it buys the cheapest
+// clicks it can find instead of the people who fill the form in. He sells Meta ads, so this was
+// a gap in the product and not only in his own campaign.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const base = {
+    name: "Desert Auto Spa", landingSlug: "desert", leadToken: "TOK",
+    campaignSetup: { serviceArea: "Gilbert, AZ" },
+    landingPage: { headline: "Booked out every week", subheadline: "x", bullets: ["a"], ctaText: "Get a quote" },
+  };
+  const withPixel = renderLandingPage({ ...base, metaPixelId: "  1234567890  " });
+  const without = renderLandingPage(base);
+
+  ok("🔴 a client with a pixel id gets the pixel", /connect\.facebook\.net/.test(withPixel) && /fbq\('init'/.test(withPixel));
+  ok("and it is initialised with their own id", /fbq\('init',"1234567890"\)/.test(withPixel),
+    "a pasted id arrives with stray spaces routinely, and a malformed one is a script error that "
+    + "takes the rest of the page's scripts down with it");
+  ok("a client without one gets no pixel and no broken snippet",
+    !/connect\.facebook\.net/.test(without) && !/fbq\(/.test(without));
+
+  // 🔴 THE PREVIEW GUARD. The OS renders this same page into an iframe so Bryson can look at it.
+  // A pixel that initialises there sends a REAL PageView to a REAL Meta account from a page
+  // nobody visited, which pollutes the data the campaign optimises on and can feed an audience.
+  // An `iframe srcdoc` has an `about:` URL, the same test the submit handler already uses.
+  ok("🔴 the pixel refuses to initialise in a preview",
+    /\(function\(\)\{if\(String\(location\.href\)\.indexOf\('about:'\)===0\)return;/.test(withPixel),
+    "a preview must never change anything real, and a PageView on a live pixel is something real");
+  ok("and the guard comes BEFORE the loader, not after it",
+    withPixel.indexOf("indexOf('about:')===0)return") < withPixel.indexOf("connect.facebook.net"),
+    "guarding after the script tag is inserted guards nothing");
+
+  // The Lead event rides with the Google conversion, inside the success branch.
+  ok("🔴 the Lead event fires only after the lead is actually saved",
+    /if\(!r\.ok\)throw 0;[^}]*fbq\('track','Lead'\)/.test(withPixel),
+    "firing on submit tells Meta a lead happened every time a bot trips the honeypot or a "
+    + "request is refused, which is the bug that once had Meta reporting two against one real");
+  ok("and it is wrapped so a blocked pixel cannot break the thank-you",
+    /try\{if\(typeof fbq==='function'\)\{fbq\('track','Lead'\);\}\}catch\(e\)\{\}/.test(withPixel));
+}
+
+
+// ── 🔴 A PHONE NUMBER IS NOT WORTH A LOST LEAD ──────────────────────────────
+//
+// Both fields were "phone required, email optional". On cold traffic from an ad, from somebody
+// who had never heard of the business ninety seconds ago, a required phone number is the
+// heaviest thing on the page. So neither is required alone and ONE OF THE TWO is: a lead with
+// no way to reach them is not a lead, it is a row, and it would still be counted and billed.
+{
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const cl = {
+    name: "Desert Auto Spa", landingSlug: "desert", leadToken: "TOK",
+    campaignSetup: { serviceArea: "Gilbert, AZ" },
+    landingPage: { headline: "h", subheadline: "s", bullets: ["a"], ctaText: "Get a quote" },
+  };
+  for (const [label, html] of [["managed", renderLandingPage(cl)],
+                               ["hand-off", renderLandingPage(cl, { handoff: { phone: "(480) 555-0100" } })]]) {
+    ok(`🔴 the ${label} page no longer demands a phone number`,
+      !/placeholder="Phone number" required/.test(html), "this is the field people close the tab over");
+    ok(`and the ${label} page stops calling email optional`,
+      !/placeholder="Email \(optional\)"/.test(html),
+      "with phone no longer required, 'optional' on the only other field reads as 'skip both'");
+    ok(`and the ${label} page says either will do`, /Phone or email, whichever you prefer/.test(html));
+    ok(`the ${label} page still requires a name`, /placeholder="Your name" required/.test(html));
+  }
+  // 🔴 ENFORCED, not merely unlabelled. HTML cannot express "either of these", so the rule lives
+  // in the submit handler, and without it both fields being optional means both can be empty.
+  const managed = renderLandingPage(cl);
+  ok("🔴 an empty phone AND an empty email is refused before anything is sent",
+    /if\(!ph&&!em\)\{err\.textContent='Please add a phone number or an email so we can reach you\.';err\.style\.display='block';return;\}/.test(managed),
+    "a lead with no way to reach them would still be counted, and still be billed");
+  ok("and the refusal happens before the button is disabled",
+    managed.indexOf("if(!ph&&!em)") < managed.indexOf("btn.disabled=true"),
+    "disabling the button first leaves them stuck on a dead form");
+  ok("and the error text is put back, so the next real failure still reads correctly",
+    /err\.textContent="Something went wrong, please try again\.";/.test(managed),
+    "leaving the validation message in place would report a network failure as a missing phone");
+}
+
 console.log(`verify-lead-handoff: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
