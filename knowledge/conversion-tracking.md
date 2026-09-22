@@ -8,6 +8,59 @@ summary: BoldLine's ad landing page (`/get-started`) now reports two lead events
 verified: 2026-08-13
 ---
 
+## 🔴 EVERY GENERATED PAGE WAS INVISIBLE TO META (found 2026-09-22)
+
+Bryson asked why his own car-detailer ad had spent money for zero leads. The campaign was fine.
+**Every landing page the OS generates carried Google's tag and NOTHING for Meta.** His hand-built
+`/get-started` page has the pixel; the generated `/for/car-detailers` page had only gtag.
+
+Two consequences, and the second is the expensive one:
+
+1. **Meta cannot COUNT a lead there**, so the campaign reports zero whatever actually happens.
+2. 🔴 **Meta cannot OPTIMISE.** With no conversion signal it has no idea who converts, so it buys
+   the cheapest clicks it can find rather than the people who fill the form in. That is the
+   difference between a campaign that learns and one that only spends.
+
+He SELLS Meta ads, so this was a gap in the product, not only in his own campaign.
+
+**Fixed:** `landing.mjs` renders the pixel whenever the client record carries `metaPixelId`, and
+fires `Lead` in the SAME place as the Google conversion, inside the success branch after the lead
+is actually saved. Firing on submit is the bug that once had Meta reporting two leads against one.
+
+🔴 **THE PIXEL REFUSES TO INITIALISE IN A PREVIEW.** The OS renders the same page into an iframe so
+Bryson can look at it. A pixel that initialises there sends a **real PageView to a real Meta
+account from a page nobody visited**, polluting the data the campaign optimises on and potentially
+feeding an audience. An `iframe srcdoc` has an `about:` URL, the same test the submit handler
+already used. The guard runs BEFORE the loader is inserted; after it would guard nothing, and a
+test pins the order because the obvious mutation of moving it looks harmless.
+
+The id is stripped to digits: a pasted id routinely arrives with stray spaces, and a malformed one
+is a script error that takes the rest of the page's scripts down with it.
+
+## 🔴 A PHONE NUMBER IS NOT WORTH A LOST LEAD (2026-09-22)
+
+Every generated form was "phone REQUIRED, email optional". On cold traffic from an ad, from
+somebody who had never heard of the business ninety seconds earlier, a required phone number is the
+heaviest thing on the page: it is the field people close the tab over.
+
+Now **neither is required alone and one of the two is.** A lead with no way to reach them is not a
+lead, it is a row, and it would still be counted and still be billed. HTML cannot express "either
+of these", so the rule lives in the submit handler, refuses BEFORE the button is disabled (which
+would strand them on a dead form), and puts the generic error text back afterwards so the next real
+network failure does not report itself as a missing phone number.
+
+## 🔴 NEVER ADD `campaign.start_date` TO THE GOOGLE QUERY (added 2026-09-21, removed 2026-09-22)
+
+It was added to carry a campaign's configured start date. This API version rejects the request with
+`UNRECOGNIZED_FIELD`, and **an unrecognised field does not degrade one field, it fails the ENTIRE
+read**, so every Google figure in the OS went stale within the hour on a live account. Bryson caught
+it on his own ads the same evening, from the "These numbers are stale" strip.
+
+The date that matters is the day spend was first OBSERVED, which `ads-sync` works out for itself
+(KB `campaign-runtime`). If the configured date is ever wanted again: verify the field against the
+pinned API version FIRST, and make the read fall back to a query without it rather than losing the
+numbers. `verify-campaign-runtime` now asserts the field is ABSENT, inverted on purpose.
+
 **Why (Bryson, 2026-08-13, about to take his first campaign live):** *"what counts as a lead because all the buttons right now go to my calendly."* The honest audit: **nothing counted.** `/get-started` carried GA4 (`G-MG7T0687RT`) and Microsoft Clarity — analytics only. **No `AW-` Google Ads conversion tag, no Meta Pixel, and nothing firing on a Calendly booking.** A prospect could click the ad, book a call, and the ad platform would record the visit as a failure. Calendly's own email was the only signal, and the OS can't read Calendly either (its reader needs a PAID plan; he is on free — KB `os-calendar`).
 
 **THE DANGEROUS INTERACTION, caught by the same question.** `ads-autopilot` pauses any campaign with **zero conversions** after it spends `max($150, 25% of budget)`. With no tracking, conversions are permanently zero — so at $7/day it would have **paused a perfectly working campaign around day 21**, and the pause would have looked like a bug in the bot rather than a hole in the tracking. **Fixed with a gate:** if the ENTIRE account has never recorded a conversion in the window, autopilot cannot distinguish "the ads aren't working" from "tracking was never set up" — those need opposite responses — so it **refuses to pause for zero conversions** and instead sends one cooldown-limited yellow alert saying tracking looks unconfigured. Once a single conversion exists anywhere in the account, the rule protects normally again.
