@@ -94,10 +94,17 @@ removes the cash objection entirely and sounds like someone who knows the trade.
 
 ## No BoldLine ads for the rest of September (his call, 2026-09-22)
 
-He decided not to run his own ads for the rest of the month. **Sound call and not a retreat:** his
-own time on the phone costs nothing, Meta is still gated (KB `meta-marketing-api`), and a search
-campaign with no case study converts worse than one with one. Cold calling first also PRODUCES the
-case study that makes the ads work later.
+He decided not to run his own ads for the rest of the month. 🔴 **THE REASON IS CASH, IN HIS OWN
+WORDS: *"i cant afford an ad budget right now."*** Record it that way rather than as a strategy
+choice, because the two need different handling: a strategy call gets re-argued, a budget constraint
+gets respected and worked around.
+
+It also happens to be the right move regardless. His own time on the phone costs nothing, Meta is
+still gated (KB `meta-marketing-api`), and a search campaign with no case study converts worse than
+a competitor's with one. Cold calling first PRODUCES the case study that makes the ads work later.
+
+🔴 **So do not pitch him an ad spend again until he says the money is there.** Suggest things that
+cost time instead.
 
 **The advice that was on the table when he stopped, for when he restarts:** target the niche he is
 already calling, on **niche + service** terms (`pool builder marketing agency`, `google ads for pool
@@ -107,8 +114,13 @@ budgets, and bring other agencies, students and job hunters. At $25/day that is 
 month; the niche terms at ~$12 give ~60 clicks, 3-6 leads and one or two clients. The landing page
 would live at `boldlinemedia.com/for/pool-builders` (KB `landing-pages-per-audience`).
 
-🔴 **Not running ads means NOTHING should be spending.** The car-detailer Meta campaign was still
-live and producing zero leads when this was decided.
+🔴 **Not running ads means NOTHING should be spending, and at least one thing was.** The
+car-detailer Meta campaign was still live and producing ZERO leads when this was decided. On a
+no-budget month that is the first money to stop.
+
+**What is still costing him something, so nobody is surprised by a charge:** Quo (~$15-19/mo once
+the trial ends), and the Anthropic API behind each Lead Scout search (a few cents to about a dollar
+per run). Both are small and both are worth it; neither is an ad budget.
 
 ## Status
 
