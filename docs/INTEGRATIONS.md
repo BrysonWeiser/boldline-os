@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 193 task-keyed entries under `knowledge/`. They surface automatically via the
+> 194 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**193 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**194 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -129,6 +129,9 @@
 
 ## Business
 
+- **[build-ideas-roadmap](../knowledge/build-ideas-roadmap.md)** &mdash; &#9989; verified &middot; 2026-09-22  
+  Bryson listed four ideas on 2026-09-22 and asked which to start and when. Verdict, agreed: the CALL BACK / TEXT AI is the clear winner and the only one worth real build time, but it is blocked on Twilio paperwork rather than code, so the action now is to start that registration, not to build. The social page is worth HALF (a content calendar, no publishing, because Instagram publishing needs another Meta app review). The website AI is MOSTLY BUILT already and expanding it would compete with Shaun, his only partner. The AI video editor is the one to drop: months of hard work to lose to a $20/mo tool. 🔴 And the framing that matters more than the ranking: none of the four gets him client number two, so all of them come after the outreach section is actually being used.  
+  <sub>*task:* decide what to build next for the agency, or revisit one of Bryson's parked product ideas &nbsp;|&nbsp; *keywords:* roadmap, what to build next, build ideas, ai video editor, social media management, content calendar, call back ai, text back ai, missed call text back, speed to lead, website design ai, buy vs build, priorities</sub>
 - **[hiring-and-outreach-plan](../knowledge/hiring-and-outreach-plan.md)** &mdash; &#9989; verified &middot; 2026-09-21  
   Bryson asked (2026-09-21) when he needs to start hiring and for what. Answer, agreed: hire against HOURS, not client count, and not until revenue would survive 90 days with no new sale (roughly 8-10 paying clients, ~$10k/mo). First hire is an APPOINTMENT SETTER on cold calls only, not an account manager, because the OS already absorbs servicing and his cap is conversations. Then a part-time coordinator around 12-15 clients, then maybe a media buyer at 25-30, and deliberately NOT a developer. The hiring how-to is written out below. It also produced his idea for a COLD OUTREACH section in the OS, which is parked with a recommended build order and two things flagged as must-not-build.  
   <sub>*task:* decide when to hire, what role to hire first, how to actually hire a setter, or plan the cold outreach section of the OS &nbsp;|&nbsp; *keywords:* hiring, first hire, appointment setter, cold caller, when to hire, account manager, media buyer, VA, contractor, 1099, cold outreach, cold calling, cold email, cold DM, outreach section, dialer, call workflow, follow up cadence, deliverability</sub>
