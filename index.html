@@ -5974,8 +5974,7 @@ const SCOUT_STATUSES = [
 
 function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const [tab,setTab]=useState("search"); // search | list
-  const [nicheKey,setNicheKey]=useState("");
-  const [customNiche,setCustomNiche]=useState("");
+  const [niche,setNiche]=useState(null);   // {label,group,kind} — see NicheSelect
   const [areas,setAreas]=useState([]);
   const [areaInput,setAreaInput]=useState("");
   const [count,setCount]=useState(12);
@@ -5998,9 +5997,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const tickRef=useRef(null);
   useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); if(tickRef.current) clearInterval(tickRef.current); },[]);
 
-  const selected = (()=>{ if(nicheKey==="custom") return {label:customNiche.trim(),group:"Custom",kind:"service"};
-    const [gi,ii]=String(nicheKey).split("."); const g=SCOUT_NICHES[Number(gi)];
-    if(!g) return null; const label=g.n[Number(ii)]; if(!label) return null; return {label,group:g.g,kind:g.k}; })();
+  const selected = niche && niche.label ? niche : null;
   const isEcom = !!(selected&&selected.kind==="ecom");
 
   const authToken=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); return session&&session.access_token; };
@@ -6390,19 +6387,15 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
             <div style={S.col12}>
               <div>
                 <div style={lbl}>Industry / niche *</div>
-                <select value={nicheKey} onChange={e=>setNicheKey(e.target.value)}
-                  style={{...inp,cursor:"pointer",appearance:"none"}}>
-                  <option value="">Choose a niche…</option>
-                  {SCOUT_NICHES.map((g,gi)=>(
-                    <optgroup key={gi} label={g.g}>
-                      {g.n.map((n,ii)=><option key={ii} value={`${gi}.${ii}`}>{n}</option>)}
-                    </optgroup>
-                  ))}
-                  <optgroup label="Other"><option value="custom">Custom niche…</option></optgroup>
-                </select>
-                {nicheKey==="custom"&&(
-                  <input value={customNiche} onChange={e=>setCustomNiche(e.target.value)} placeholder="Type the niche, e.g. Mobile IV Hydration"
-                    style={{...inp,marginTop:8}}/>)}
+                {/* 🔴 NOT A NATIVE <select>. Bryson reported the identical bug on the client sheet
+                    (2026-08-26) and again here (2026-09-22): a native dropdown hands its popup to
+                    the operating system, which paints <optgroup> headings in ITS colours and
+                    ignores ours, so on a dark theme the category names came out white on white.
+                    There is no CSS fix — the popup is not ours to style. This list is drawn by us,
+                    which also gives it a search box and puts "type your own" one keystroke away
+                    instead of at the bottom of 430 entries where nobody scrolls. */}
+                <NicheSelect value={selected?selected.label:""} source={SCOUT_NICHES}
+                  onChange={(n,meta)=>setNiche(n?{label:n,group:meta.group,kind:meta.kind}:null)}/>
                 {isEcom&&(
                   <div style={{fontSize:11,color:C.textDim,marginTop:7,lineHeight:1.5}}>
                     E-commerce brands sell online, so the area filter is optional — leave it empty to search nationwide, or add areas to find brands based near you.
@@ -16092,7 +16085,12 @@ function ARIABuilderTab({ariaSystem}) {
 // Anything typed that matches nothing is simply KEPT as the value: a niche we never thought
 // of is a real business, not an error, and the previous design made that the hardest path
 // through the control rather than the easiest.
-function NicheSelect({value,onChange}){
+// The default list, reshaped to the same {g,n,k} rows Lead Scout's own list already uses, so
+// there is ONE picker rather than two that drift apart.
+const NICHE_SOURCE_DEFAULT = Object.entries(NICHE_GROUPS).map(([g,n])=>({g,n,k:"service"}));
+
+function NicheSelect({value,onChange,source}){
+  const src = source || NICHE_SOURCE_DEFAULT;
   const [open,setOpen]   = useState(false);
   const [q,setQ]         = useState("");
   const [hi,setHi]       = useState(0);          // highlighted row, for the arrow keys
@@ -16112,21 +16110,23 @@ function NicheSelect({value,onChange}){
   // Grouped while browsing, flat once you start typing: the headings are useful for
   // finding your way around 200 entries and pure noise once six results are left.
   const groups = useMemo(()=>{
-    if(!needle) return Object.entries(NICHE_GROUPS);
+    if(!needle) return src.map(x=>[x.g,x.n,x.k]);
     const out=[];
-    for(const [g,arr] of Object.entries(NICHE_GROUPS)){
-      const hit = arr.filter(n=>n.toLowerCase().includes(needle));
-      if(hit.length) out.push([g,hit]);
+    for(const x of src){
+      const hit = x.n.filter(n=>n.toLowerCase().includes(needle));
+      if(hit.length) out.push([x.g,hit,x.k]);
     }
     return out;
-  },[needle]);
-  const flat = useMemo(()=>groups.flatMap(([,arr])=>arr),[groups]);
+  },[needle,src]);
+  // Flat rows carry their group and kind, because Lead Scout needs to know whether the niche
+  // sells online before it decides an area is even required.
+  const flat = useMemo(()=>groups.flatMap(([g,arr,k])=>arr.map(n=>({n,g,k}))),[groups]);
   // An exact match must not offer to "add" what is already on the list.
-  const exact = flat.some(n=>n.toLowerCase()===needle);
+  const exact = flat.some(r=>r.n.toLowerCase()===needle);
   const canAdd = !!needle && !exact;
-  const rows = canAdd ? [...flat, q.trim()] : flat;
+  const rows = canAdd ? [...flat, {n:q.trim(),g:"Custom",k:"service"}] : flat;
 
-  const pick = (n)=>{ onChange(n); setQ(""); setOpen(false); };
+  const pick = (r)=>{ onChange(r.n,{group:r.g||"Custom",kind:r.k||"service"}); setQ(""); setOpen(false); };
   const onKey = (e)=>{
     if(e.key==="ArrowDown"){ e.preventDefault(); setOpen(true); setHi(h=>Math.min(h+1,rows.length-1)); }
     else if(e.key==="ArrowUp"){ e.preventDefault(); setHi(h=>Math.max(h-1,0)); }
@@ -16135,7 +16135,7 @@ function NicheSelect({value,onChange}){
       // Enter on a typed niche that matches nothing keeps what was typed. That is the
       // whole point: the operator knows their client's trade better than this list does.
       if(rows[hi]) pick(rows[hi]);
-      else if(needle) pick(q.trim());
+      else if(needle) pick({n:q.trim(),g:"Custom",k:"service"});
     }
     else if(e.key==="Escape"){ setOpen(false); }
   };
@@ -16167,7 +16167,7 @@ function NicheSelect({value,onChange}){
           {rows.length===0&&!canAdd&&(
             <div style={{padding:"12px 11px",fontSize:12,color:C.textMuted}}>Nothing matches. Keep typing to add it as a new niche.</div>
           )}
-          {groups.map(([g,arr])=>(
+          {groups.map(([g,arr,k])=>(
             <div key={g}>
               {/* The heading that was unreadable. Ours now, so it is gold on the panel
                   background rather than whatever the operating system felt like. */}
@@ -16179,14 +16179,14 @@ function NicheSelect({value,onChange}){
                 idx++;
                 const me = idx;
                 return (
-                  <div key={n} onMouseDown={(e)=>{e.preventDefault();pick(n);}} onMouseEnter={()=>setHi(me)}
+                  <div key={n} onMouseDown={(e)=>{e.preventDefault();pick({n,g,k});}} onMouseEnter={()=>setHi(me)}
                     style={rowStyle(hi===me)}>{n}</div>
                 );
               })}
             </div>
           ))}
           {canAdd&&(
-            <div onMouseDown={(e)=>{e.preventDefault();pick(q.trim());}} onMouseEnter={()=>setHi(rows.length-1)}
+            <div onMouseDown={(e)=>{e.preventDefault();pick({n:q.trim(),g:"Custom",k:"service"});}} onMouseEnter={()=>setHi(rows.length-1)}
               style={{...rowStyle(hi===rows.length-1),borderTop:`1px solid ${C.border}`,fontWeight:700}}>
               + Use &ldquo;{q.trim()}&rdquo;
             </div>
