@@ -99,3 +99,14 @@ Recommended position: a real person, in his area, asking about something he trea
 salesperson, a duplicate or an existing patient, counts. The monthly call reviews edge cases
 against that written standard rather than re-deciding it.
 
+**✅ SENT by Bryson, Tuesday 22 September 2026, late afternoon Phoenix.** Still not a client; the
+agreement itself has not gone out. Waiting on his answers.
+
+**When the answers come back:** type them into Deal Prep (the intake feeds the client record and the
+contract in one button, KB `deal-prep-to-client`), set his per-lead price with the fee finder, choose
+the package, and set the **start date to the day the ads go live, not the signing day** (KB
+`contract-start-date`). The OS will not let the agreement send until all of that is present.
+
+**If he goes quiet:** one friendly nudge on **Friday 25 September**, then a phone call the following
+week. Not a daily chase, and do not route it through anybody else.
+
