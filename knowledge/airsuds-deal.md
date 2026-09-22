@@ -8,6 +8,27 @@ summary: 🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine sa
 verified: 2026-09-16
 ---
 
+## 2026-09-22 (Mon night) — CONTRACT SENT, AND THE REASON CHANGED
+
+Bryson sent the contract. Constantine replied that he is **waiting for his logos and branding to
+be done before signing**.
+
+🔴 **STILL NOT A CLIENT. The count is still one.** Nothing about the banner, the founding offer,
+pricing or any number quoted back to him changes.
+
+🔴 **THE REASON HAS NOW MOVED ONCE, AND NEITHER VERSION CAME WITH A DATE.** On 2026-09-17 it was
+*"i'll sign it when I get the products finished up"*. On 2026-09-22 it is the branding. That is
+not a no, and for an e-commerce launch it is a fair thing to want. But two open-ended reasons in
+five days with no date either time is the shape of a deal that drifts, and it is the shape
+Sebastian's went.
+
+**The answer to give him, which is the same one that worked last week and is still true:**
+branding is a reason not to LAUNCH, not a reason not to SIGN. Under terms v5 his clock starts the
+day the ads actually go live, so signing while the logos are finished costs him nothing and lets
+the build start in the background. Ask for a rough date on the branding; that is the thing still
+missing.
+
+
 ## 🔴 NOT A CLIENT YET
 
 Constantine, the owner, said yes on a call. **Nothing is signed and nothing is in the OS**, so

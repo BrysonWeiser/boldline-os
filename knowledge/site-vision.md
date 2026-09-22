@@ -4,8 +4,8 @@ topic: Forms/Leads
 task: have the audit LOOK at a prospect's page as a browser renders it, not just read its HTML, and get real speed numbers
 keywords: [screenshot, visual audit, PageSpeed Insights, PAGESPEED_API_KEY, lookAtSite, site-vision, lighthouse, LCP, page speed, JS rendered, sees the page, vision, image to Claude]
 status: verified
-summary: The Lead-Leak audit read only the first HTML response, which is a skeleton on any site builder, and that is how it told a real prospect they had no contact form. `netlify/lib/site-vision.mjs` now asks Google PageSpeed Insights to load the page in a real Chrome on a phone, and hands the resulting SCREENSHOT to Claude as an image plus Lighthouse's own measurements as plain-English facts. So the report can say "the main content takes 4.2 seconds to appear on a phone" instead of guessing the page seems heavy, and the model can describe what it can actually SEE. 🔴 Needs a free `PAGESPEED_API_KEY`: keyless requests are rate limited to an immediate 429 from any shared address, which is what a Netlify function is. Entirely fail-soft, and every outcome carries a plain-words note that is logged and written onto the lead, so a visual check that did not run can never be silent. 15 checks, nine mutations caught.
-verified: 2026-09-04
+summary: The Lead-Leak audit read only the first HTML response, which is a skeleton on any site builder, and that is how it told a real prospect they had no contact form. `netlify/lib/site-vision.mjs` now asks Google PageSpeed Insights to load the page in a real Chrome on a phone, and hands the resulting SCREENSHOT to Claude as an image plus Lighthouse's own measurements as plain-English facts. So the report can say "the main content takes 4.2 seconds to appear on a phone" instead of guessing the page seems heavy, and the model can describe what it can actually SEE. The free `PAGESPEED_API_KEY` is now set in Netlify (2026-09-21) and restricted to the PageSpeed Insights API with no application restriction, because a Netlify function has no fixed address or referrer; keyless requests are rate limited to an immediate 429 from any shared address, so the key is what makes the look possible at all. 🔴 The first real audit is still the proof the response parses. Entirely fail-soft, and every outcome carries a plain-words note that is logged and written onto the lead, so a visual check that did not run can never be silent. 15 checks, nine mutations caught.
+verified: 2026-09-21
 ---
 
 **Why (Bryson, 2026-09-04):** *"Is there a way we can also have the ai visually look at the site too not just the code that way we hit every possible angle"*, asked right after he caught the audit claiming a roofing company had no contact form when one sat at the bottom of their homepage.
@@ -42,11 +42,28 @@ A visual check that quietly does nothing is worse than not having one, because t
 
 Everything fails soft: a report without the picture is the report we sent yesterday, which is far better than no report at all.
 
-## Still outstanding (Bryson's, on a computer)
-**`PAGESPEED_API_KEY`** on the OS Netlify site. It is free (25,000 checks a day) from Google Cloud, PageSpeed Insights API. Without it the visual half is skipped and says so. **Keyless does not work**: verified from a sandbox, three attempts, immediate 429 every time, which is exactly what a Netlify function's shared address will get.
+## The key is LIVE (Bryson set it 2026-09-21 Phoenix, night)
+**`PAGESPEED_API_KEY`** is now set on the OS Netlify site (`boldlinemedia`) and a clear-cache deploy
+has run, so the visual half of the audit is switched on for the first time. Free, 25,000 checks a day,
+from Google Cloud, PageSpeed Insights API. **Keyless does not work**: verified from a sandbox, three
+attempts, immediate 429 every time, which is exactly what a Netlify function's shared address gets.
 
-## Not verified yet
-The exact PageSpeed response shape could not be tested live from here, because every keyless request was rate limited. The parsing is written defensively against both documented screenshot locations and refuses anything it does not recognise, and the `note` on the lead is there precisely so the first real run is the proof rather than a guess.
+**How the key was created, because the restrictions matter and a replacement has to match:**
+- Named **`BoldLine OS - PageSpeed`** so it is obvious later which key does what.
+- **API restriction: YES, PageSpeed Insights API only.** It shares a Google Cloud project with the
+  Google Ads setup, so an unrestricted key that leaked could be pointed at anything else in that project.
+- **Application restriction: NONE, on purpose.** Netlify functions run from constantly changing
+  addresses, so an IP restriction would pass today and silently break later, and there is no website
+  referrer to check on a server-to-server call. The API restriction is what carries the safety here.
+
+## Still not verified against a real response
+The exact PageSpeed response shape could not be tested from here, because every keyless request was
+rate limited. The parsing is written defensively against both documented screenshot locations and
+refuses anything it does not recognise, and the `note` on the lead is there precisely so **the first
+real run is the proof rather than a guess**. 🔴 **So the next Lead-Leak Check is the test**: read
+`auditLooked` on that lead. "nobody looked at the page" means the key is not reaching the function;
+a note about an unrecognised shape means the parsing needs a real sample. Do not assume it works
+because the key exists.
 
 ## Files
 - `netlify/lib/site-vision.mjs` (new).

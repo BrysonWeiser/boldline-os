@@ -66,6 +66,11 @@ the counters and the screen must agree about what a conversation is.
   that have passed with no verdict are named as pending rather than counted either way. Rates are
   `null`, never `0`, so "we have not called anybody" cannot read as "nobody ever answers".
 
+## ✅ LIVE as of 2026-09-22
+
+Bryson ran the migration the night it shipped, so the Outreach section is working and no longer
+needs setting up.
+
 ## Setup
 
 🔴 **One-time Supabase migration: `docs/sql/outreach-schema.sql`.** Until it is run the screen shows
