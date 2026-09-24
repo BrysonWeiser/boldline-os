@@ -8,6 +8,12 @@ summary: 🔴 NOT A CLIENT YET AND MUST NOT BE COUNTED AS ONE — Constantine sa
 verified: 2026-09-16
 ---
 
+## 2026-09-23 — his deal stays on $25 per subscriber or bulk order
+
+Bryson floated charging e-commerce clients **15% of each sale** instead of a flat rate. Advice:
+fine for FUTURE stores, **not for Air Suds**, whose agreement is already sent on terms he said yes
+to. Full reasoning and the four definitions it would need in KB `billing-for-sales`.
+
 ## 2026-09-22 (Mon night) — CONTRACT SENT, AND THE REASON CHANGED
 
 Bryson sent the contract. Constantine replied that he is **waiting for his logos and branding to

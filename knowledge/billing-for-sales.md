@@ -2,12 +2,67 @@
 name: billing-for-sales
 topic: Pricing
 task: bill a client who sells straight from a website, or change what the performance fee is charged on
-keywords: [billing for sales, per qualified sale, qualified sale, billingResultKind, billingSaleDefinition, resultWords, e-commerce billing, store client, no lead form, buys on website, Air Suds, contract qualified lead definition, results only shop, sale definition, contractGaps sale]
+keywords: [percentage of sale, 15% of sale, revenue share, percent of each sale, billing for sales, per qualified sale, qualified sale, billingResultKind, billingSaleDefinition, resultWords, e-commerce billing, store client, no lead form, buys on website, Air Suds, contract qualified lead definition, results only shop, sale definition, contractGaps sale]
 status: verified
 summary: A client who sells straight from a website can be billed per QUALIFIED SALE instead of per qualified lead. Set it on the Billing card (Billing for → Leads / Sales) plus a one-sentence description of which purchases count, which the agreement then quotes word for word. 🔴 It is a RENAME, not a third pricing model — the mechanic is a count times a rate either way, so `billingPerLead` still carries the rate and no calculation changed. The contract, the key terms, the Stripe clause and the client portal all follow the same word. A sale has no standard definition, so the description is required and `contractGaps` blocks the send without it. Built 2026-09-16 for Air Suds. 39 checks, 8 mutations caught.
 verified: 2026-09-16
 ---
 
+
+## 💡 PROPOSED 2026-09-23 (Wed night): charge a PERCENTAGE of each sale instead of a flat amount
+
+Bryson: *"for the e-commerce pricing instead of having the option for a set price per sale it's 15%
+of the sale. What do you think of that idea and how would we make it work"*. **NOT BUILT. Advice
+given, waiting on his go.**
+
+**Verdict given: good for FUTURE stores, better than a flat rate, but do NOT switch Air Suds.**
+
+Why it is better: a flat amount per sale is wrong in both directions at once, too much on a small
+order and too little on a big one. A percentage scales with the order, still reads as "you only pay
+for results", and pays BoldLine more exactly when the ads find bigger customers.
+
+🔴 **Why not Air Suds:** his agreement is ALREADY SENT (22 Sept) on terms he answered "yes looks
+great" to: **$25 per new subscriber or bulk order, single bottles free**. Changing it means voiding
+and resending to a client already delaying twice. And on his products it is not obviously better:
+
+| Order | $25 flat (agreed) | 15% of sale |
+|---|---|---|
+| Single $11 bottle | $0 (free) | $1.65, and it breaks the "singles free" promise |
+| New subscriber, ~$110 first month | $25 | $16.50, LESS, unless renewals also count |
+| 25-bottle bulk order, ~$275 | $25 | $41.25 |
+
+### 🔴 The four things that decide whether it works, all of which must be in the contract
+
+1. **It needs the VALUE of every sale, not just a count.** Today sales are typed in from the
+   client's own order records. With a flat rate that is a count; with a percentage the client is
+   now reporting the size of BoldLine's invoice. Recommended: read-only access to their store's
+   orders (or a monthly order export) written into the agreement, with the client's records still
+   governing. Shopify's Meta channel already reports purchase value, which helps decide WHICH orders
+   came from the ads.
+2. **"15% of WHAT."** Product subtotal after discounts. Not shipping, not sales tax. Refunds and
+   chargebacks subtracted. Unwritten, every invoice is an argument.
+3. **Which sales came from the ads.** Needs a stated rule (the store's own attribution to the ad
+   links, or a dedicated code). Same idea as the qualified-lead definition, applied to orders.
+4. 🔴 **Repeat orders and subscriptions — the biggest money question.** First order only is simple
+   but badly undersells a subscription business. Recommended: every order from a customer the ads
+   brought in, for the length of the agreement. Decide it before quoting, never after.
+
+### Two cautions
+
+- **Low-margin stores.** 15% of REVENUE can be a large share of PROFIT (Air Suds: a third of the
+  $5 margin on an $11 bottle, before any ad cost). Make the percentage adjustable per client with
+  15% as the default, and look at their margin before quoting it.
+- 🔴 **"15%" would then mean two different things.** The standard store packages already charge
+  **15% of AD SPEND** (`e-launch`, `e-growth`; 12% on `e-domination`). A prospect who has heard
+  both will mix them up. Keep the names unmistakable everywhere they appear.
+
+### What the build would be (when he says go)
+
+Billing card: under Billing for → Sales, a choice between a flat amount and a percentage, with the
+percentage box. The sales recorder takes each sale's amount. The invoice charges the percentage of
+recorded sale value and lists the orders. The agreement's fee clause states the percentage, the
+four definitions above, and the order-access line. `contractGaps` refuses to send without them.
+Portal, emails and reports say "X% of each sale". Existing flat-rate clients untouched.
 
 ## 🔴 EVERY TAB OF HIS, FOUND BY DRIVING THE OS (2026-09-18)
 
