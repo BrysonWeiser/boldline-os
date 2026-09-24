@@ -2,7 +2,7 @@
 name: cold-call-phone-number
 topic: Sales
 task: which phone number to cold call from, and how to keep it from being labelled Spam Likely
-keywords: [602-584-0523, 6025840523, cold call number, Quo, OpenPhone renamed to Quo, spam likely, scam likely, caller id, phone number for cold calling, personal number, auto dialer, dialer, OpenPhone, Google Voice, burner number, free caller registry, Hiya, First Orion, TNS, call reputation, flagged number, local presence, area code rotation, DNC, do not call, B2B calling, tel link]
+keywords: [register with US carriers, carrier registration, A2P, 10DLC, trust center, cant text, texting blocked, 602-584-0523, 6025840523, cold call number, Quo, OpenPhone renamed to Quo, spam likely, scam likely, caller id, phone number for cold calling, personal number, auto dialer, dialer, OpenPhone, Google Voice, burner number, free caller registry, Hiya, First Orion, TNS, call reputation, flagged number, local presence, area code rotation, DNC, do not call, B2B calling, tel link]
 status: verified
 summary: Bryson asked (2026-09-21, the night before his first cold-calling day) whether using his personal number instead of an auto dialer risks a spam label. The premise is backwards - a dialer on a fresh VoIP number gets flagged FASTER than an aged mobile. But the conclusion still holds for a different and better reason: a flagged personal cell is nearly impossible to undo and it is the number his bank, his family and his clients use. ✅ DONE 2026-09-22: a Quo number, registered at freecallerregistry.com with 1,000 calls/month declared and the personal cell deliberately left off. So: a SEPARATE cheap business number he can burn and replace, and habits that matter more than the number (leave voicemails, moderate daily volume, never rotate area codes). 🔴 Gotcha specific to the OS: tapping a number in Outreach uses a `tel:` link, which on iPhone always opens the native dialer and therefore his PERSONAL number, whatever app he installs.
 verified: 2026-09-22
@@ -109,3 +109,42 @@ a menu label he then cannot find is worse than saying which screen to look on.
 
 🔴 **This is NOT the texting registration.** A2P 10DLC is a separate thing, per business, and is only
 needed when the text-back goes live (KB `client-text-back`, `call-tracking`).
+
+## 🔴 2026-09-24 (Thu) — Quo will not TEXT until the number is registered with US carriers
+
+Bryson booked a meeting on a cold call, went to text the confirmation, and Quo refused: *"it says i
+need to register with US carriers"*. That is **A2P 10DLC**: every business texting US numbers from a
+local number must be registered through The Campaign Registry. **Calling still works; only texting
+is blocked, and it stays blocked until approval.** The freecallerregistry.com registration done on
+the 22nd is a DIFFERENT thing (spam labels on calls) and does not cover texting.
+
+**How, per Quo's own help centre (checked 2026-09-24, not remembered):** in the Quo **web or desktop
+app** (a computer job): **Settings → Trust center → Register now**. About 10-15 minutes. Approval is
+usually 24-48 hours but has sat pending up to ~20 days. Fees: **$19.50 one-time**, about **$1.50/mo**
+for a business with an EIN, **$15** to resubmit if rejected.
+
+🔴 **Register as a BUSINESS (LLC with an EIN), not a sole proprietor.** BoldLine Media LLC has an EIN
+(it is how Meta found the business during verification). The top rejection reasons, all avoidable:
+- Legal name without the suffix. Use **BoldLine Media LLC** exactly.
+- Address missing the suite. Use **3101 N Central Ave, Ste 183 #7182, Phoenix, AZ 85012** exactly,
+  matching the Articles.
+- EIN not matching the IRS letter (CP-575). Copy it from the letter.
+- 🔴 **Website forms collecting a phone number with no texting-consent wording.** boldlinemedia.com had
+  THREE such fields and none carried it, and the privacy page never mentioned texts. **Fixed the same
+  day**: consent line under every phone field, a "Text messages" section in the privacy policy
+  (STOP/HELP, frequency, rates, and the "we never share your number or consent for marketing"
+  sentence reviewers look for), Quo listed as a provider. Guarded by
+  `tests/verify-site-sms-consent.mjs`, which finds every phone field itself rather than trusting a list.
+
+**What to write for how people agree to be texted:** the honest answer for his use is VERBAL consent
+on a call (ask *"mind if I text you the details?"* and only text people who say yes), plus the
+website form wording. 🔴 **Never text a cold prospect who has not said yes.** The registration
+describes exactly how consent is collected; texting a list outside that is what gets a number
+suspended.
+
+**Until approved:** confirm meetings by **email or a calendar invite**, which is also better than a
+text anyway because it lands on their calendar with reminders built in. Or call.
+
+🔴 **Twilio needs its OWN registration later.** Registrations are per provider. Quo covers Bryson
+texting from Quo; the OS text-back runs on Twilio and is a separate filing (KB `client-text-back`).
+
