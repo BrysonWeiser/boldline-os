@@ -158,3 +158,9 @@ Guidance given for the later steps: messaging purpose = customer care / conversa
 marketing; sample messages name BoldLine Media and end "Reply STOP to opt out"; opt-in described
 as verbal consent on a call plus the website form's consent line. Update with approval date.
 
+**2026-09-24 — submitted, IN REVIEW.** While waiting, a prospect who was promised a text got it
+from **(602) 784-4228** (his cell, which is also the published business line). Fine as a one-off:
+one person who asked for it, person to person from a real mobile. The text opens with his name and
+BoldLine, since that number is not the one that called them. 🔴 **Not the habit:** once approved,
+every prospect text goes from Quo so all the threads live in one place.
+
