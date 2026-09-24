@@ -148,3 +148,11 @@ text anyway because it lands on their calendar with reminders built in. Or call.
 🔴 **Twilio needs its OWN registration later.** Registrations are per provider. Quo covers Bryson
 texting from Quo; the OS text-back runs on Twilio and is a separate filing (KB `client-text-back`).
 
+**2026-09-24 — Quo carrier registration IN PROGRESS** (Trust center → Local numbers registration, 7
+steps). Step 3 as filed: LLC, privately held, website boldlinemedia.com, USA and Canada, 1 employee,
+100 calls/day. Industry was set to **Media**; advised **Professional services** instead if offered,
+since the Articles describe a marketing agency and the reviewer compares industry to the website.
+Guidance given for the later steps: messaging purpose = customer care / conversational, NOT
+marketing; sample messages name BoldLine Media and end "Reply STOP to opt out"; opt-in described
+as verbal consent on a call plus the website form's consent line. Update with approval date.
+
