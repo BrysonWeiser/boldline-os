@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 196 task-keyed entries under `knowledge/`. They surface automatically via the
+> 197 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**196 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**197 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -378,6 +378,9 @@
 - **[pkg-card-selection](../knowledge/pkg-card-selection.md)** &mdash; &#9989; verified &middot; 2026-07-03  
   Tapping/clicking a package card is a single selection (.sel via delegated JS). The featured "Most Popular" ring is a DEFAULT that steps aside (via :has rules) whenever another card is selected or hovered — its pill badge stays. Never two rings at once.  
   <sub>*task:* change how package cards highlight, select, or show the Most Popular state &nbsp;|&nbsp; *keywords:* pkg, .sel, most popular, tag, sticky hover, :has, featured ring, tap selection</sub>
+- **[privacy-policy](../knowledge/privacy-policy.md)** &mdash; &#9989; verified &middot; 2026-09-24  
+  Until 2026-09-24 the policy said "We do not run third-party advertising or cross-site tracking" and "only the minimal cookies needed", while every page loaded Google Analytics (G-MG7T0687RT) and Microsoft Clarity and /get-started loaded the Meta Pixel and a Google Ads conversion tag (AW-18269689296). Meta's terms require the pixel to be disclosed. Rewritten from the actual scripts, with a new "Analytics and advertising tools" section, honest cookie and sharing language, and working opt-outs. 🔴 `tests/verify-privacy-disclosure.mjs` DISCOVERS the trackers from the pages and fails if one is not explained, if a "Get Started page only" or "we don't send your email" claim stops being true in code, or if the old false sentences return. Adding a tag to the site now means updating this policy or the build fails.  
+  <sub>*task:* change the marketing site's privacy policy, or add/remove any analytics, pixel or tracking tag on boldlinemedia.com &nbsp;|&nbsp; *keywords:* privacy policy, privacy.html, tracking disclosure, meta pixel disclosure, google analytics, microsoft clarity, google ads conversion tag, cookies, opt out, gaoptout, my ad center, ad preferences, activity from other businesses, third-party advertising, cross-site tracking, attribution.js, verify-privacy-disclosure</sub>
 - **[site-copy-voice](../knowledge/site-copy-voice.md)** &mdash; &#9989; verified &middot; 2026-09-20  
   The founder quote on the marketing site is the one personal moment on the page, so it must say something no other section says and must never promise more than the pricing block delivers. Replaced 2026-09-20: the old one repeated the fit section (small roster) and made claims any agency could make. The new one puts the performance fee in Bryson's own voice, worded so it is exactly true on every plan. A test reads the blockquote and fails on a results-only promise in either direction, or a drift back onto the roster or ad account ownership.  
   <sub>*task:* change the founder quote or any headline claim on the marketing site &nbsp;|&nbsp; *keywords:* founder quote, blockquote, marketing site copy, website quote, why choose us, overclaim, results only pricing, performance fee promise, site voice, boldlinemedia.com copy</sub>
