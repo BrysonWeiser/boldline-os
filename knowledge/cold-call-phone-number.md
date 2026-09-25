@@ -148,3 +148,19 @@ text anyway because it lands on their calendar with reminders built in. Or call.
 🔴 **Twilio needs its OWN registration later.** Registrations are per provider. Quo covers Bryson
 texting from Quo; the OS text-back runs on Twilio and is a separate filing (KB `client-text-back`).
 
+**2026-09-24 — Quo carrier registration IN PROGRESS** (Trust center → Local numbers registration, 7
+steps). Step 3 as filed: LLC, privately held, website boldlinemedia.com, USA and Canada, 1 employee,
+100 calls/day. Industry **Media**, and that is correct: Quo's list has NO "Professional services"
+(it offers Agriculture ... Legal, Manufacturing, Media, Not for profit, Online, ... Technology,
+Telecommunications, Transportation, Travel), and advertising sits under Media. Confirmed from his
+screen recording of the dropdown.
+Guidance given for the later steps: messaging purpose = customer care / conversational, NOT
+marketing; sample messages name BoldLine Media and end "Reply STOP to opt out"; opt-in described
+as verbal consent on a call plus the website form's consent line. Update with approval date.
+
+**2026-09-24 — submitted, IN REVIEW.** While waiting, a prospect who was promised a text got it
+from **(602) 784-4228** (his cell, which is also the published business line). Fine as a one-off:
+one person who asked for it, person to person from a real mobile. The text opens with his name and
+BoldLine, since that number is not the one that called them. 🔴 **Not the habit:** once approved,
+every prospect text goes from Quo so all the threads live in one place.
+
