@@ -24,7 +24,8 @@ not kept in the repo: rebuild from this description if needed.
 - Headline: **Pay for / real leads. / Not tire kickers.**
 - Line: I run your **Google, Facebook and Instagram ads** and build the **page they land on**.
 - Niche strip: Remodeling · Detailing · Pools · Cleaning
-- Empty band in the middle **on purpose, for a poll sticker** ("Own a service business? Yes / No")
+- Poll question printed on the image (added v3): **"Own a service business and have room for more jobs?"**, with an empty band under it **on purpose, for Instagram's Yes/No poll sticker**. No fake poll is drawn, because a drawn button that does nothing breaks his rule.
+  🔴 **Why that question:** it screens out the two people he cannot help (not an owner; an owner already turning work away) and costs one tap. Money qualifiers (budget, job value) are deliberately left for the DM, because a price question in a story poll makes the people who would say yes skip it.
 - CTA: **DM me "LEADS"** + "I'll tell you straight whether ads would pay off for you."
 
 ## The decisions, and why
