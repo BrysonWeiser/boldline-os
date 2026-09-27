@@ -4,7 +4,7 @@ topic: Contracts
 task: explain or change what happens when a client pays late; pause or resume a client over an unpaid invoice; understand why a client's ads or landing page went offline
 keywords: [late payment, past due, payment failed, late fee, $50 late fee, pause for non-payment, billingPause, billingLate, suspend services, landing page offline, 503 unavailable, resume after payment, three days, ten days, terminate for cause, void contract, interest, 1.5% interest, terms v6, termsVersionOf, docusignSentAt, contract version stamp, Agreement 3.4]
 status: verified
-summary: BUILT 2026-09-27 as contract terms v6. Bryson asked for 3 days grace, a week of interest, then the contract "automatically voided" with everything "stopped and deleted". Agreed instead, after pushback - day 3 a flat $50 fee (once per invoice) and a PAUSE (live campaigns paused, landing page offline with a neutral 503), NOTHING deleted, paying switches back on exactly what was paused; day 10 Bryson MAY end it for cause and everything owed becomes due, never automatic; no interest. 🔴 Only clients on v6+ terms get this; v1-v5 keep 10 days + 1.5%/mo interest and no pause. 🔴 Fixed a latent bug on the way - nothing stamped the terms version at SEND time, so any version bump silently rewrote contracts already out for signature (Air Suds was one). Now stamped on send, and unstamped records are dated by the earlier of sent/signed. 33 checks, 16 mutations, all caught.
+summary: BUILT 2026-09-27 as contract terms v6. Bryson asked for 3 days grace, a week of interest, then the contract "automatically voided" with everything "stopped and deleted". Agreed instead, after pushback - day 3 a flat $150 fee (once per invoice; $50 for the first five hours, raised by Bryson the same morning) and a PAUSE (live campaigns paused, landing page offline with a neutral 503), NOTHING deleted, paying switches back on exactly what was paused; day 10 Bryson MAY end it for cause and everything owed becomes due, never automatic; no interest. 🔴 Only clients on v6+ terms get this; v1-v5 keep 10 days + 1.5%/mo interest and no pause. 🔴 Fixed a latent bug on the way - nothing stamped the terms version at SEND time, so any version bump silently rewrote contracts already out for signature (Air Suds was one). Now stamped on send, and unstamped records are dated by the earlier of sent/signed. 33 checks, 16 mutations, all caught.
 verified: 2026-09-27
 ---
 
@@ -89,3 +89,17 @@ byte-identical, the clause wording, the rules by day, pause/resume against fake 
 watch and webhook wiring, the offline page, and the client email. 16 mutations, all caught (the one
 first survivor, interest-free-by-missing-field, is now pinned). Two older tests pinned the version
 NUMBER (5) and were rewritten to assert the rule instead.
+
+## 2026-09-27, 8:15am Phoenix: the fee is $150, not $50
+
+Bryson: *"Change the late fee to $150."* Changed in the contract (both copies), the rule
+(`LATE_FEE`), the client email and the OS alerts. A test now pins the contract's printed figure to
+the constant, so the promise and the charge cannot drift apart.
+
+🔴 **Risk told to him, his call:** the clause survives on being a genuine cost of chasing and
+restoring, not a penalty. $150 against a $400 monthly minimum is 37% of the bill, which is the size a
+judge starts calling a penalty. The "or the maximum permitted by law if less" wording is the backstop.
+If a client ever disputes it, waiving it is cheaper than defending it.
+
+Shipped five hours after v6 went live. Any contract sent in that window would say $50 while the
+system charges $150; he was asked to say if he sent one.

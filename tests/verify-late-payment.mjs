@@ -4,7 +4,7 @@
 // Bryson, 2026-09-27: *"when a payment is late let's cut the time down from 10 days to 3 days
 // without interest accumulating and then from there have one week of accumulated interest before
 // the contract is automatically voided and all ads landing pages etc are stopped and deleted."*
-// After pushback he agreed (*"Do that"*) to: day 3, a $50 fee and a PAUSE; day 10, he MAY end it.
+// After pushback he agreed (*"Do that"*) to: day 3, a $50 fee (raised to $150 the same morning) and a PAUSE; day 10, he MAY end it.
 //
 // What this suite exists to stop, in order of how badly each would hurt:
 //  1. A client who signed the OLD terms getting the new rules applied to them. Their ads paused on
@@ -102,10 +102,10 @@ await t("🔴 sending for signature STAMPS the version that was sent", () => {
 });
 
 // ── 2. What the contract says ────────────────────────────────────────────────────────────
-await t("the v6 clause says three days, a $50 fee once, a pause, and ten days", () => {
+await t("the v6 clause says three days, a $150 fee once, a pause, and ten days", () => {
   const s = late(server(NEW, PKG, ""));
   assert.match(s, /unpaid three \(3\) days after its due date, Agency may pause the Services/);
-  assert.match(s, /late fee of fifty dollars \(\$50\), or the maximum permitted by law if less, applies once/);
+  assert.match(s, /late fee of one hundred fifty dollars \(\$150\), or the maximum permitted by law if less, applies once/);
   assert.match(s, /unpaid ten \(10\) days after its due date, Agency may terminate this Agreement for cause/);
 });
 await t("🔴 it promises in words that nothing is deleted", () => {
@@ -150,7 +150,9 @@ await t("v6: day 2 nothing, day 3 fee and pause, day 10 Bryson may end it", () =
   assert.deepEqual(LP.lateStage(p, 3), { fee: true, pause: true, canEnd: false });
   assert.deepEqual(LP.lateStage(p, 9), { fee: true, pause: true, canEnd: false });
   assert.deepEqual(LP.lateStage(p, 10), { fee: true, pause: true, canEnd: true });
-  assert.equal(p.lateFee, 50);
+  assert.equal(p.lateFee, 150);
+  // The contract, the rule and the Stripe charge must name the same figure.
+  assert.match(late(server(NEW, PKG, "")), new RegExp(`\\(\\$${p.lateFee}\\)`));
 });
 await t("🔴 old terms NEVER pause and never charge the fee, however late", () => {
   for (const cl of [AIR_SUDS, SIGNED_V5, SEBASTIAN]) {
@@ -226,7 +228,7 @@ await t("the watch reads the client's own terms, not a global rule", () => {
   assert.match(WATCH, /const interest = interestFor\(policy, overdue, daysLate\);/);
   assert.doesNotMatch(WATCH, /daysLate > GRACE_DAYS \?/, "the old hard-coded interest rule is back, charging v6 clients interest");
 });
-await t("🔴 the $50 fee is added ONCE per overdue invoice", () => {
+await t("🔴 the late fee is added ONCE per overdue invoice", () => {
   assert.match(WATCH, /if \(stage\.fee && !next\.lateFeeItemId\)/);
   assert.match(WATCH, /lateFeeItemId: sameInv \? \(prev\.lateFeeItemId \|\| null\) : null/);
 });
@@ -260,10 +262,10 @@ await t("that page says nothing about money and tells search engines it is tempo
 
 // ── 7. What the client is told ───────────────────────────────────────────────────────────
 await t("🔴 the failed-payment email warns a v6 client BEFORE anything pauses", () => {
-  const { html } = renderClientEmail("past_due", { contactName: "Pat", amount: 700, pauseAfter: 3, lateFee: 50 });
+  const { html } = renderClientEmail("past_due", { contactName: "Pat", amount: 700, pauseAfter: 3, lateFee: 150 });
   const x = text(html);
   assert.match(x, /still unpaid 3 days after it was due, your ads and landing page pause/);
-  assert.match(x, /\$50 late fee/);
+  assert.match(x, /\$150 late fee/);
   assert.match(x, /Nothing gets deleted/);
   assert.doesNotMatch(x, /keep running for now/);
 });
