@@ -318,8 +318,8 @@ errors card showed `Your credit balance is too low to access the Anthropic API` 
 is the symptom when the balance runs out part way, not zero prospects. Fix is the same: top up the
 Anthropic API account (console, Billing), which is a separate bill from his Claude subscription. Told
 him to add a small amount and set a monthly spend limit rather than auto-reload, because cash is tight
-this month (KB `niche-selection`). Which email owns the Anthropic console login is NOT yet recorded in
-KB `account-email-map`; record it when he says.
+this month (KB `niche-selection`). He topped up the same morning. Anthropic console login is **brysonaweiser@gmail.com** (KB
+`account-email-map`).
 
 **GOTCHA — every AI research batch failed instantly and it looked like "found nothing" (hit live
 2026-08-11).** Symptom: a run returned in seconds with "Everything found was either a duplicate or

@@ -109,6 +109,7 @@
     "apple": 4,
     "connect": 10,
     "namecheap": 1,
+    "anthropic": 5,
     "design": 6,
     "many": 6,
     "future": 5,
@@ -3102,7 +3103,6 @@
     "push_files": 1,
     "files": 4,
     "api.anthropic.com": 1,
-    "anthropic": 4,
     "git-relay": 1,
     "relay": 1,
     "proxy": 3,
@@ -6131,7 +6131,7 @@
         "go live form email"
       ],
       "status": "stale-able",
-      "summary": "Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login, Bing Places, Apple Business Connect, DocuSign PRODUCTION, Namecheap, and OpenPhone (2026-09-21) — all by design: one login, many future orgs, and the login is never public. 🔴 That concentration is now large enough to be its own risk: two-factor and recovery details on that Google account protect the bank, the domain, the signing account and the business phone at once. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.",
+      "summary": "Master map of which email owns which external account. Business gmail (theboldlinemedia) = Google Ads MCC + Stripe + Netlify forms notifications + Meta business-contact email. Personal gmail (brysonaweiser) = Search Console, Mercury login, Bing Places, Apple Business Connect, DocuSign PRODUCTION, Namecheap, OpenPhone/Quo (2026-09-21) and the Anthropic Console (2026-09-27) — all by design: one login, many future orgs, and the login is never public. 🔴 That concentration is now large enough to be its own risk: two-factor and recovery details on that Google account protect the bank, the domain, the signing account and the business phone at once. lleatherboy@gmail.com is NOT a login anywhere. Update this entry whenever a new account is created.",
       "verified": "2026-09-21",
       "terms": {
         "2026": 1.5,
@@ -6187,6 +6187,7 @@
         "apple": 1.5,
         "connect": 1.5,
         "namecheap": 1.5,
+        "anthropic": 1.5,
         "design": 1.5,
         "many": 1.5,
         "future": 1.5,
