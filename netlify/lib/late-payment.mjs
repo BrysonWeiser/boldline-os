@@ -3,7 +3,7 @@
 // Bryson, 2026-09-27: *"when a payment is late let's cut the time down from 10 days to 3 days
 // without interest accumulating and then from there have one week of accumulated interest before
 // the contract is automatically voided and all ads landing pages etc are stopped and deleted."*
-// Agreed after pushback (KB `late-payment-policy`): three days, then a flat $50 fee plus a PAUSE
+// Agreed after pushback (KB `late-payment-policy`): three days, then a flat $150 fee plus a PAUSE
 // that deletes nothing, then at ten days Bryson MAY end the contract for cause. Never automatic.
 //
 // 🔴 THE CLIENT'S OWN CONTRACT DECIDES, NEVER TODAY'S. Terms are versioned and a signed agreement
@@ -18,7 +18,9 @@
 import { termsVersionOf } from "./contract-shared.cjs";
 
 export const PAUSE_TERMS_FROM = 6;   // the first terms version with the pause-and-fee clause
-export const LATE_FEE = 50;         // dollars, once per overdue invoice (Agreement 3.4(b))
+// $150. Was $50 for the first five hours of v6; Bryson raised it the same morning (2026-09-27).
+// A test pins the contract's printed figure to this constant, so the two cannot drift.
+export const LATE_FEE = 150;        // dollars, once per overdue invoice (Agreement 3.4(b))
 export const PAUSE_AFTER_DAYS = 3;  // Agreement 3.4(a)
 export const END_AFTER_DAYS = 10;   // Agreement 3.4(c): Bryson MAY end it. Nothing ends it for him.
 export const LEGACY_GRACE_DAYS = 10;

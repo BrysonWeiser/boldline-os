@@ -4,7 +4,7 @@
 //   1. Syncs each billed client's subscription + oldest unpaid invoice from
 //      Stripe (webhook-independent truth) and stores days-late on the client.
 //   2. Applies the late-payment terms THIS CLIENT SIGNED (late-payment.mjs decides which):
-//      • terms v6+: 3 days past due → ONE $50 late fee (pending invoice item) and a PAUSE:
+//      • terms v6+: 3 days past due → ONE $150 late fee (pending invoice item) and a PAUSE:
 //        their live campaigns are paused and their landing page goes offline. Nothing is ever
 //        deleted, and exactly what was paused is recorded so paying switches back on that and
 //        only that. 10 days past due → Bryson is told he MAY end the contract. Never automatic.
