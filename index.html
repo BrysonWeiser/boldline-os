@@ -5979,6 +5979,9 @@ function LinkRequestRow({customerId}) {
 // need-to-know facts, and scores each one 0-100 on "should I call them". Results
 // land in a permanent, de-duplicated call list you can work through and push
 // straight into Deal Prep.
+// Anthropic's "out of money" error, however it arrives: the plain message, or wrapped in the JSON a
+// failed call returns. Matched on the words, not the shape, because the shape is theirs to change.
+const scoutCreditError = (e)=>/credit balance is too low|insufficient[^a-z]{0,3}(api )?credit/i.test(String(e||""));
 const SCOUT_NICHES = [
   { g:"Home Services & Trades", k:"service", n:["Roofing","HVAC / Heating & Air","Plumbing","Electrical","Garage Door","Pest Control","Landscaping / Lawn Care","Hardscaping & Pavers","Tree Service","Fencing","Deck & Patio Builders","Painting (Residential)","Painting (Commercial)","Flooring","Windows & Doors","Siding","Gutters","Concrete & Paving","Epoxy / Garage Floor Coating","Pressure Washing","Window Cleaning","House Cleaning / Maid Service","Carpet & Upholstery Cleaning","Water Damage Restoration","Mold Remediation","Fire & Smoke Restoration","Foundation Repair","Insulation","Solar Installation","Pool Construction","Pool Service & Repair","Septic Services","Well Drilling","Chimney Sweep","Locksmith","Handyman","Appliance Repair","Junk Removal","Dumpster Rental","Moving Company","Self Storage","Home Remodeling (General)","Kitchen Remodeling","Bathroom Remodeling","Custom Home Builder","General Contractor","Smart Home / AV Install","Security & Alarm Install"] },
   { g:"Legal", k:"service", n:["Personal Injury Law","Car Accident Law","Truck Accident Law","Workers Compensation Law","Medical Malpractice Law","Mass Tort / Class Action","Criminal Defense","DUI Defense","Family Law / Divorce","Estate Planning & Probate","Bankruptcy Law","Immigration Law","Employment Law","Business & Corporate Law","Real Estate Law","Intellectual Property / Patent Law","Social Security Disability","Elder Law"] },
@@ -6572,12 +6575,32 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               {runResult.coverageNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginBottom:12}}>{runResult.coverageNote}</div>}
               {/* Surface research failures. These used to be collected and silently
                   dropped, so a broken research step looked like "found nothing new". */}
-              {!!(runResult.errors&&runResult.errors.length)&&(
-                <div style={{...card,marginBottom:12,border:`1px solid ${C.red}44`,background:"rgba(248,113,113,0.06)"}}>
-                  <div style={{fontSize:11,fontWeight:800,color:C.red,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6}}>Research errors</div>
-                  {runResult.errors.map((e,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.55,marginBottom:4,wordBreak:"break-word"}}>{e}</div>)}
-                  <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Send this text to Claude — it names the exact cause.</div>
-                </div>)}
+              {/* 🔴 OUT OF CREDITS GETS STEPS, NOT A WALL OF JSON (Bryson, 2026-09-27: "add step by step
+                  instructions in the red alert and make it smaller"). It is the most common failure by far
+                  (twice now) and the fix is his to do, so the box says what to click. Every OTHER error still
+                  shows its raw text, because that is what diagnoses the ones nobody has seen yet. */}
+              {(()=>{
+                const errs=runResult.errors||[];
+                const credit=errs.some(scoutCreditError), other=errs.filter(e=>!scoutCreditError(e));
+                return <>
+                  {credit&&(
+                    <div style={{...card,marginBottom:12,padding:"10px 12px",border:`1px solid ${C.red}44`,background:"rgba(248,113,113,0.06)"}}>
+                      <div style={{fontSize:11.5,fontWeight:800,color:C.red,marginBottom:4}}>Out of AI credits. This search stopped early, and what it found is saved.</div>
+                      <ol style={{margin:0,paddingLeft:18,fontSize:11.5,color:C.textDim,lineHeight:1.6}}>
+                        <li>On a computer, open <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" style={{color:C.gold,fontWeight:700}}>console.anthropic.com</a> and sign in with your personal Gmail.</li>
+                        <li>Click <b style={{color:C.text}}>Billing</b>, then <b style={{color:C.text}}>Buy credits</b>.</li>
+                        <li>Add $10 to $20. Leave auto-reload off.</li>
+                        <li>Run this search again. Businesses already on your list are skipped.</li>
+                      </ol>
+                    </div>)}
+                  {!!other.length&&(
+                    <div style={{...card,marginBottom:12,border:`1px solid ${C.red}44`,background:"rgba(248,113,113,0.06)"}}>
+                      <div style={{fontSize:11,fontWeight:800,color:C.red,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6}}>Research errors</div>
+                      {other.map((e,i)=><div key={i} style={{fontSize:11.5,color:C.textDim,lineHeight:1.55,marginBottom:4,wordBreak:"break-word"}}>{e}</div>)}
+                      <div style={{fontSize:10.5,color:C.textMuted,marginTop:6}}>Send this text to Claude — it names the exact cause.</div>
+                    </div>)}
+                </>;
+              })()}
               {!!(runResult.providerNotes&&runResult.providerNotes.length)&&(
                 <div style={{...card,marginBottom:12,border:`1px solid ${C.border}`}}>
                   <div style={{fontSize:10,fontWeight:800,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em",marginBottom:6}}>Data providers</div>
