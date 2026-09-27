@@ -312,6 +312,15 @@ companies landed on the first run after). **Check the balance before debugging a
 model/parameter theory below was wrong, though the ladder it produced is still worth keeping as
 defence.
 
+**2026-09-27 — credits ran dry AGAIN, mid-run this time.** An Auto Detailing search across 5 Arizona
+cities (Gilbert, Phoenix, Tucson, Chandler, Mesa) at count 20 saved 12 prospects, then the red Research
+errors card showed `Your credit balance is too low to access the Anthropic API` twice. So a partial run
+is the symptom when the balance runs out part way, not zero prospects. Fix is the same: top up the
+Anthropic API account (console, Billing), which is a separate bill from his Claude subscription. Told
+him to add a small amount and set a monthly spend limit rather than auto-reload, because cash is tight
+this month (KB `niche-selection`). Which email owns the Anthropic console login is NOT yet recorded in
+KB `account-email-map`; record it when he says.
+
 **GOTCHA — every AI research batch failed instantly and it looked like "found nothing" (hit live
 2026-08-11).** Symptom: a run returned in seconds with "Everything found was either a duplicate or
 outside your areas" while the stats said 20 found / 0 duplicates / 1 out of area — i.e. 19 should have
