@@ -321,6 +321,16 @@ him to add a small amount and set a monthly spend limit rather than auto-reload,
 this month (KB `niche-selection`). He topped up the same morning. Anthropic console login is **brysonaweiser@gmail.com** (KB
 `account-email-map`).
 
+**2026-09-27 — the out-of-credits error now shows STEPS, not JSON.** Bryson: *"add step by step
+instructions in the red alert and make it smaller"*. `scoutCreditError(e)` (index.html, beside
+`SCOUT_NICHES`) matches the words "credit balance is too low" however they arrive, and those errors
+render as ONE compact box: out of AI credits, what it found is saved, then 1) console.anthropic.com
+signed in with his personal Gmail, 2) Billing, Buy credits, 3) $10 to $20 with auto-reload off,
+4) run it again. Every OTHER error still prints raw in the old Research errors box, because raw text is
+what diagnoses the failures nobody has seen yet. 🔴 The login email is deliberately NOT printed:
+index.html is served to anyone who requests it. Guard `tests/verify-scout-credit-alert.mjs` (7 checks,
+runs the helper against the exact text from his screen). Driven in a browser at 390 and 1280.
+
 **GOTCHA — every AI research batch failed instantly and it looked like "found nothing" (hit live
 2026-08-11).** Symptom: a run returned in seconds with "Everything found was either a duplicate or
 outside your areas" while the stats said 20 found / 0 duplicates / 1 out of area — i.e. 19 should have
