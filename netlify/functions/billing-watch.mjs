@@ -3,10 +3,14 @@
 // Automates the payment terms of the client Agreement (§3.4):
 //   1. Syncs each billed client's subscription + oldest unpaid invoice from
 //      Stripe (webhook-independent truth) and stores days-late on the client.
-//   2. After 10 days past due, accrues late interest at 1.5%/month (pro-rated
-//      daily) on the overdue amount, maintained as ONE pending Stripe invoice
-//      item per overdue invoice — Stripe automatically adds pending items to
-//      the client's next monthly invoice, exactly as the Agreement authorizes.
+//   2. Applies the late-payment terms THIS CLIENT SIGNED (late-payment.mjs decides which):
+//      • terms v6+: 3 days past due → ONE $50 late fee (pending invoice item) and a PAUSE:
+//        their live campaigns are paused and their landing page goes offline. Nothing is ever
+//        deleted, and exactly what was paused is recorded so paying switches back on that and
+//        only that. 10 days past due → Bryson is told he MAY end the contract. Never automatic.
+//      • terms v1-v5: after 10 days past due, late interest at 1.5%/month (pro-rated daily) as
+//        ONE pending Stripe invoice item per overdue invoice, which Stripe adds to the client's
+//        next monthly invoice, exactly as those Agreements authorize. No pause, no fee.
 //   3. Emails the owner on state changes: payment newly late, interest started
 //      accruing, and payment recovered. The OS alert system (getAlerts) reads
 //      the stored billingLate data for the in-app red/yellow alerts.
@@ -26,11 +30,13 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, sendSMS } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { latePolicyFor, interestFor, lateStage, isBillingPaused } from "../lib/late-payment.mjs";
+import { pauseClientAds, resumeClientAds } from "../lib/billing-pause.mjs";
 
 const SK = process.env.STRIPE_SECRET_KEY;
-const MONTHLY_RATE = 0.015; // 1.5%/mo per Agreement §3.4
-// Interest starts after day 10 past due (Agreement §3.4). BILLING_GRACE_DAYS
-// exists ONLY so test mode can shorten the wait (set 0, test, then REMOVE it).
+// Interest starts after day 10 past due on v1-v5 agreements (Agreement §3.4). BILLING_GRACE_DAYS
+// exists ONLY so test mode can shorten that wait (set 0, test, then REMOVE it). It does not
+// touch the v6 three-day pause, which is a contract term and not a tuning knob.
 const GRACE_DAYS = process.env.BILLING_GRACE_DAYS != null ? Number(process.env.BILLING_GRACE_DAYS) : 10;
 
 async function stripe(path, { method = "POST", body } = {}) {
@@ -83,6 +89,8 @@ export default withFailureAlert("billing-watch", async () => {
     if (!cl.stripeCustomerId || !["active", "card_on_file", "past_due", "awaiting_payment"].includes(cl.billingStatus || "")) continue;
     checked++;
     const prevStatus = cl.billingStatus;
+    const policy = latePolicyFor(cl, { legacyGrace: GRACE_DAYS });
+    const patch = {};
     try {
       // Oldest unpaid (open) invoice = the overdue anchor.
       const inv = await stripe(`invoices?customer=${encodeURIComponent(cl.stripeCustomerId)}&status=open&limit=10`, { method: "GET" });
@@ -95,10 +103,51 @@ export default withFailureAlert("billing-watch", async () => {
         const dueTs = (oldest.due_date || oldest.created) * 1000;
         const daysLate = Math.max(0, Math.floor((Date.now() - dueTs) / 864e5));
         const overdue = (oldest.amount_remaining != null ? oldest.amount_remaining : oldest.amount_due) / 100;
-        // Interest accrues after the grace period, pro-rated daily at 1.5%/mo.
-        const interest = daysLate > GRACE_DAYS ? Math.round(overdue * MONTHLY_RATE * ((daysLate - GRACE_DAYS) / 30) * 100) / 100 : 0;
+        // Interest only on the old terms (1.5%/mo after their grace). Zero under v6.
+        const interest = interestFor(policy, overdue, daysLate);
+        const stage = lateStage(policy, daysLate);
+        const sameInv = prev.invoiceId === oldest.id;
 
-        next = { days: daysLate, amountDue: overdue, interest, invoiceId: oldest.id, itemId: prev.invoiceId === oldest.id ? prev.itemId : null };
+        next = { days: daysLate, amountDue: overdue, interest, invoiceId: oldest.id, itemId: sameInv ? prev.itemId : null,
+          policy: policy.kind, termsVersion: policy.version, pauseAfter: policy.pauseAfter, endAfter: policy.endAfter,
+          lateFee: sameInv ? (prev.lateFee || 0) : 0, lateFeeItemId: sameInv ? (prev.lateFeeItemId || null) : null,
+          canEnd: stage.canEnd };
+
+        // ── v6: ONE flat late fee per overdue invoice, on day three ──
+        // Once, never daily: the clause says "applies once to each amount". Recorded against the
+        // invoice id so a second overdue invoice can carry its own, and a re-run cannot add two.
+        if (stage.fee && !next.lateFeeItemId) {
+          const item = await stripe("invoiceitems", { body: { customer: cl.stripeCustomerId, amount: Math.round(policy.lateFee * 100), currency: "usd",
+            description: `Late fee on ${money(overdue)} unpaid ${daysLate} days (Agreement section 3.4(b))` } });
+          next.lateFeeItemId = item.id;
+          next.lateFee = policy.lateFee;
+        }
+
+        // ── v6: PAUSE on day three. Campaigns paused, landing page offline, nothing deleted ──
+        if (stage.pause && !isBillingPaused(cl) && !cl.internal) {
+          const r = await pauseClientAds(cl);
+          patch.billingPause = { at: new Date().toISOString(), invoiceId: oldest.id, paused: r.paused, failed: r.failed };
+          await dispatchAlert({
+            title: `${cl.name}: paused for non-payment (${daysLate} days late)`,
+            body: `${cl.name} has ${money(overdue)} unpaid, ${daysLate} days past due. Under their contract their service is now paused: `
+              + `${r.paused.length} campaign${r.paused.length !== 1 ? "s" : ""} paused and their landing page taken offline. Nothing was deleted. `
+              + `A ${money(policy.lateFee)} late fee rides their next invoice. The moment they pay, it all switches back on by itself.`
+              + (r.failed.length ? `\n\nCould NOT pause: ${r.failed.map((f) => f.name || f.p).join(", ")} (${r.failed[0].error}). Pause those by hand so their money stops spending on a page that is offline.` : ""),
+            severity: "red",
+            smsText: `BoldLine: ${cl.name} paused for non-payment (${money(overdue)}, ${daysLate}d late).${r.failed.length ? ` ${r.failed.length} campaign(s) need pausing by hand.` : ""}`,
+          });
+        }
+
+        // ── v6: day ten. Tell Bryson he MAY end it. Nothing here ends it ──
+        if (stage.canEnd && !prev.canEnd) {
+          await dispatchAlert({
+            title: `${cl.name}: ${daysLate} days unpaid, you can end the contract`,
+            body: `${cl.name} still owes ${money(overdue)}, now ${daysLate} days past due. Their contract lets you end it for non-payment, and everything they owe becomes due. `
+              + `Nothing happens unless you do it: open ${cl.name} in the OS, Contract tab, Early termination. If you would rather give them more time, do nothing and they stay paused.`,
+            severity: "red",
+            smsText: `BoldLine: ${cl.name} is ${daysLate} days unpaid. You can now end the contract (Contract tab). Nothing happens unless you do.`,
+          });
+        }
 
         // Maintain ONE pending invoice item carrying the accrued interest; it is
         // swept into the client's next invoice by Stripe automatically (§3.4).
@@ -120,7 +169,9 @@ export default withFailureAlert("billing-watch", async () => {
         if (!prev.days && daysLate > 0) {
           await ownerEmail(`⚠️ ${cl.name}: payment failed — ${money(overdue)} overdue`,
             [`<strong>${cl.name}</strong> has an unpaid invoice of <strong>${money(overdue)}</strong>, now ${daysLate} day(s) past due.`,
-             `Stripe retries automatically. Interest (1.5%/mo) starts after day ${GRACE_DAYS}, and services may be suspended per the Agreement.`]);
+             policy.kind === "pause"
+               ? `Stripe retries automatically, and they have been emailed. If it is still unpaid on day ${policy.pauseAfter}, their campaigns pause, their landing page goes offline and a ${money(policy.lateFee)} late fee is added, all automatically. Paying switches it back on.`
+               : `Stripe retries automatically. Interest (1.5%/mo) starts after day ${GRACE_DAYS}, and services may be suspended per the Agreement (their contract predates the three-day pause, so nothing pauses automatically).`]);
           try { await sendSMS({ to: process.env.OWNER_PHONE, body: `BoldLine ALERT — ${cl.name}: payment failed, ${money(overdue)} overdue (${daysLate}d late).` }); }
           catch (e) { console.error("billing-watch: SMS failed:", e.message); }
         } else if ((prev.interest || 0) === 0 && interest > 0) {
@@ -130,7 +181,18 @@ export default withFailureAlert("billing-watch", async () => {
         }
         if (cl.billingStatus !== "past_due") cl.billingStatus = "past_due";
       } else {
-        // Nothing unpaid. If they WERE late, report the recovery and clear state.
+        // Nothing unpaid. Lift a late-payment pause the webhook has not already lifted, switching
+        // back on exactly the campaigns the pause recorded and nothing else.
+        if (isBillingPaused(cl)) {
+          const r = await resumeClientAds(cl, cl.billingPause);
+          patch.billingPause = { ...cl.billingPause, resumedAt: new Date().toISOString(), resumed: r.resumed.length, resumeFailed: r.failed };
+          if (r.failed.length) await dispatchAlert({
+            title: `${cl.name}: paid, but some campaigns did not switch back on`,
+            body: `${cl.name} is paid up and their landing page is back, but these could not be switched back on: ${r.failed.map((f) => f.name || f.p).join(", ")}. Turn them on by hand.`,
+            severity: "red", smsText: `BoldLine: ${cl.name} paid, ${r.failed.length} campaign(s) need switching back on by hand.`,
+          });
+        }
+        // If they WERE late, report the recovery and clear state.
         if (prev.days > 0) {
           await ownerEmail(`✅ ${cl.name}: payment recovered`,
             [`<strong>${cl.name}</strong> has no unpaid invoices anymore${prev.interest ? ` (accrued late interest of ${money(prev.interest)} rides their next invoice)` : ""}. Billing is back to normal.`]);
@@ -146,7 +208,6 @@ export default withFailureAlert("billing-watch", async () => {
       // Auto-charge is review-gated (Bryson, 2026-08-02): a week before the
       // invoice auto-charges, nudge the owner to review that cycle's leads so the
       // good ones ride the same bundled bill. Once per cycle, active clients only.
-      const patch = {};
       try {
         const subs = await stripe(`subscriptions?customer=${encodeURIComponent(cl.stripeCustomerId)}&limit=1&status=active`, { method: "GET" });
         const sub = subs.data && subs.data[0];

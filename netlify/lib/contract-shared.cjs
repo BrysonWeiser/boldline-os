@@ -124,6 +124,39 @@ const monthsLabel = (n) => {
 //  • TERM_RATE  → the percentages, as decimals (0.10 = +10%, -0.10 = -10%). Change
 //    any of them any time. Keys are the term lengths in months.
 
+// ── 🔴 WHICH VERSION OF THE TERMS A CLIENT IS ON, as ONE function ──────────────────────
+// Lifted out of makeContractHTML on 2026-09-27 so billing-watch can ask the same question the
+// contract answers. Enforcing a late-payment rule the client never signed would be the same
+// wrong as printing one, so both read this and nothing else. Mirrored in
+// netlify/lib/contract-shared.cjs and index.html; verify-late-payment runs both.
+//
+// 🔴 A CONTRACT IS FROZEN WHEN IT IS SENT, NOT WHEN IT IS SIGNED. DocuSign carries the document
+// as it read on the day it went out. Before v6 nothing stamped the version at send time, so
+// every unstamped record simply received the newest terms, and bumping the version would have
+// silently rewritten a contract already sitting in a client's inbox (Air Suds, that day). So an
+// unstamped record is dated by the EARLIER of when it was sent and when it was signed, and
+// anything sent or signed before v6 existed stays exactly where it rendered the day before.
+// Sending now stamps `contractTermsVersion`, so this inference only ever covers the past.
+const TERMS_V2_FROM = Date.UTC(2026, 8, 3);         // 3 Sep 2026
+const TERMS_V6_FROM = Date.UTC(2026, 8, 27, 10, 0); // 27 Sep 2026, 3am Phoenix
+// 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. It was once written as a
+// literal 2, and adding v3 the next day left every new client silently on v2: the clause was
+// in the file, gated correctly, and reached nobody. A default naming a specific version goes
+// stale the moment a version is added, which is exactly when nobody is looking at it.
+const TERMS_CURRENT = 6;
+function termsVersionOf(cl) {
+  cl = cl || {};
+  const v = cl.contractTermsVersion;
+  if (v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) return Number(v);
+  const at = [cl.docusignSentAt, cl.contractSigned ? cl.contractSignedAt : null]
+    .map((d) => (d ? new Date(d).getTime() : NaN)).filter((t) => Number.isFinite(t));
+  if (!at.length) return TERMS_CURRENT;
+  const first = Math.min.apply(null, at);
+  if (first < TERMS_V2_FROM) return cl.contractSigned ? 1 : 5;
+  if (first < TERMS_V6_FROM) return 5;
+  return TERMS_CURRENT;
+}
+
 const makeContractHTML=(cl,pkg,LOGO)=>{
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const money=(n)=>"$"+Number(n||0).toLocaleString();
@@ -224,17 +257,13 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
   // signature date. Without the stamp, a client who signed under v1 would stay on v1 for
   // ever, which is not what "not Sebastian until he renews" means. ContractTabContent
   // writes `contractTermsVersion` on renewal.
-  const TERMS_V2_FROM = Date.UTC(2026, 8, 3);   // 3 Sep 2026
   // 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. This was written as
   // a literal 2 when versioning was introduced, and adding v3 the next day left every new
   // client silently on v2: the clause was in the file, gated correctly, and reached nobody.
   // Nothing failed, nothing looked wrong, and an unsigned contract simply did not contain
   // the term Bryson had asked for. A default that names a specific version goes stale the
   // moment a version is added, which is exactly when nobody is looking at it.
-  const TERMS_CURRENT = 5;
-  const termsVersion = Number.isFinite(Number(cl.contractTermsVersion))
-    ? Number(cl.contractTermsVersion)
-    : ((cl.contractSigned && cl.contractSignedAt && new Date(cl.contractSignedAt).getTime() < TERMS_V2_FROM) ? 1 : TERMS_CURRENT);
+  const termsVersion = termsVersionOf(cl);
   const hasAbandon = termsVersion >= 2;
   // v3 — early cancellation costs the remaining term rather than one month.
   const hasFullTermExit = termsVersion >= 3;
@@ -514,7 +543,19 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
       ? '<p>3.2 <strong>How and when Client is charged.</strong> <span class="caps">THERE IS NO RECURRING SUBSCRIPTION AND NO CHARGE IS TAKEN IN ADVANCE.</span> After each month closes, Agency calculates the Performance Fee for that month and charges it by automatic payment (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe), using the payment method Client places on file. A month that produces no '+W.many+' produces no charge. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>'
       : '<p>3.2 <strong>Monthly Minimum.</strong> The Monthly Minimum is billed monthly in advance by automatic charge (credit card or ACH bank debit) through Agency&rsquo;s payment processor (Stripe). Client authorizes recurring charges for the duration of this Agreement, including any holdover period. All amounts are in U.S. dollars; Client is responsible for any currency-conversion, bank, or international transaction fees charged by Client&rsquo;s own institutions.</p>')
    +'<p>3.3 <strong>Taxes.</strong> Fees are exclusive of all taxes. Client is responsible for any sales, use, VAT, GST, withholding, or similar taxes arising from the Services in Client&rsquo;s jurisdiction, excluding taxes on Agency&rsquo;s income. International payments must be made without deduction; if withholding is legally required, Client will gross up so Agency receives the full invoiced amount.</p>'
-   +'<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
+   // 🔴 v6: THREE DAYS, A FLAT FEE, A PAUSE THAT NEVER DELETES, AND AN ENDING THAT IS A CHOICE.
+   // Bryson, 2026-09-27. He asked for three days then a week of interest then the contract
+   // "automatically voided" with everything "stopped and deleted". Three corrections, all agreed:
+   // VOIDING treats the contract as if it never existed, which releases a non-paying client from
+   // everything they owe, so it TERMINATES for cause and the money stays due. DELETING destroys
+   // assets the client owns (the ad accounts are theirs, Section on ownership) and throws away the
+   // one lever that gets a bill paid, so it PAUSES. And a week of 1.5% interest on a few hundred
+   // dollars is pocket change nobody notices, so it is a flat fee, framed as the real cost of
+   // chasing and restoring rather than a penalty. Ending stays Bryson's decision, never automatic,
+   // because cards fail for boring reasons and a good client should not be fired by a bank glitch.
+   +(termsVersion >= 6
+     ? '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails, it is retried automatically, and Client will update its payment method promptly. (a) <strong>Pause after three days.</strong> If an amount remains unpaid three (3) days after its due date, Agency may pause the Services until it is paid in full, including pausing the campaigns Agency manages in Client&rsquo;s ad accounts and taking offline the landing pages Agency hosts. A pause stops work and deletes nothing: Agency will not delete Client&rsquo;s ad accounts, campaigns, ads, or landing pages because of late payment, and will resume the paused Services promptly once the overdue amount is paid. A pause does not extend the term or reduce fees owed. (b) <strong>Late fee.</strong> A late fee of fifty dollars ($50), or the maximum permitted by law if less, applies once to each amount that remains unpaid three (3) days after its due date. It reflects the cost of chasing the payment and of pausing and restoring the account, and is not a penalty. No interest accrues on late amounts. (c) <strong>Ending the Agreement after ten days.</strong> If an amount remains unpaid ten (10) days after its due date, Agency may terminate this Agreement for cause by written notice under Section '+nTerm+' without any further cure period, and all amounts owed under that Section become immediately due. Ending the Agreement is Agency&rsquo;s choice and is never automatic. (d) Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late fees, reasonable collection costs, and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>'
+     : '<p>3.4 <strong>Late and Failed Payments.</strong> If a scheduled charge fails and is not cured within ten (10) days of notice, Agency may suspend the Services (including pausing campaigns) until payment is made; suspension does not extend the term or reduce fees owed. Amounts more than ten (10) days past due accrue interest at the lesser of 1.5% per month or the maximum rate permitted by law, plus reasonable collection costs. Client agrees to raise any billing dispute directly with Agency before initiating a card chargeback; a chargeback of amounts properly owed is a material breach. Client agrees that late-payment interest and any early-termination amounts owed under this Agreement may be added to Client&rsquo;s next scheduled invoice and collected by the authorized automatic payment method.</p>')
    +'<p>3.5 <strong>No refunds for partial months.</strong> Except as expressly stated in this Agreement, fees for a billing period that has begun are earned when billed and are non-refundable.</p>'
      )
    +handoffSection
@@ -626,4 +667,4 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 // three of them and Bryson reads the fourth. The portal used to define its own inline copy and
 // the emails had no idea the question existed, which is how a store client billed per Qualified
 // Sale was emailed an invoice for "Qualified leads".
-module.exports = { makeContractHTML, resultWords };
+module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT };

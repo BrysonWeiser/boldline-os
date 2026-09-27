@@ -24,6 +24,9 @@
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { latePolicyFor, isBillingPaused } from "../lib/late-payment.mjs";
+import { resumeClientAds } from "../lib/billing-pause.mjs";
+import { dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 const WHSEC = process.env.STRIPE_WEBHOOK_SECRET;
@@ -172,13 +175,33 @@ export default async (req) => {
         if (r.sent) { emailAuto.receiptInvoiceId = obj.id; emailLog = r.logEntry; }
       } else if (event.type === "invoice.payment_failed" && emailAuto.pastDueInvoiceId !== obj.id) {
         const failedAmt = ((obj.amount_remaining != null ? obj.amount_remaining : obj.amount_due) || 0) / 100;
-        const r = await autoSendClientEmail(cl, "past_due", { amount: failedAmt, payUrl: obj.hosted_invoice_url || "" });
+        const pol = latePolicyFor(cl);
+        const r = await autoSendClientEmail(cl, "past_due", { amount: failedAmt, payUrl: obj.hosted_invoice_url || "",
+          ...(pol.kind === "pause" ? { pauseAfter: pol.pauseAfter, lateFee: pol.lateFee } : {}) });
         if (r.sent) { emailAuto.pastDueInvoiceId = obj.id; emailLog = r.logEntry; }
       }
     } catch (e) { console.error("stripe-webhook auto-email failed:", e.message); }
 
+    // ── Switch a late-payment pause back off the moment the invoice behind it is paid ──
+    // billing-watch runs once a day, and "pay and it's back on" should not mean tomorrow.
+    // Only the invoice that CAUSED the pause lifts it here; if another is still unpaid the daily
+    // watch sees it, and it never re-enables anything it did not pause itself.
+    let pauseUpdate = null;
+    if (event.type === "invoice.paid" && isBillingPaused(cl) && cl.billingPause.invoiceId === obj.id) {
+      try {
+        const r = await resumeClientAds(cl, cl.billingPause);
+        pauseUpdate = { billingPause: { ...cl.billingPause, resumedAt: new Date().toISOString(), resumed: r.resumed.length, resumeFailed: r.failed } };
+        await dispatchAlert({
+          title: `${cl.name || "A client"} paid: service switched back on`,
+          body: `${cl.name || "A client"} paid the overdue invoice. Their landing page is back up and ${r.resumed.length} campaign${r.resumed.length !== 1 ? "s were" : " was"} switched back on.${r.failed.length ? ` Could NOT switch on: ${r.failed.map((f) => f.name || f.p).join(", ")}. Turn those on by hand.` : ""}`,
+          severity: r.failed.length ? "red" : "green",
+          smsText: `BoldLine: ${cl.name || "A client"} paid. Service back on${r.failed.length ? `, but ${r.failed.length} campaign(s) need switching on by hand` : ""}.`,
+        });
+      } catch (e) { console.error("stripe-webhook: resume after payment failed:", e.message); }
+    }
+
     const next = {
-      ...cl, ...patch, emailAuto,
+      ...cl, ...patch, emailAuto, ...(pauseUpdate || {}),
       ...(emailLog ? { commLog: [emailLog, ...(cl.commLog || [])] } : {}),
     };
     await supabase.from("clients").update({ data: next, updated_at: new Date().toISOString() }).eq("id", clientId);

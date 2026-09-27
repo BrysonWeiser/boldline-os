@@ -3,6 +3,7 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { findPage, clientForPage } from "../lib/landing-pages-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
+import { isBillingPaused } from "../lib/late-payment.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
 import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
 
@@ -17,6 +18,13 @@ const notFoundPage = () => html(
 
 const comingSoonPage = (name) => html(
   `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)}</title><style>body{margin:0;font-family:-apple-system,sans-serif;background:#F9FAFB;color:#111827;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px}div{max-width:360px}h1{font-size:20px;margin-bottom:8px}p{font-size:14px;color:#6B7280;line-height:1.6}</style></head><body><div><h1>${esc(name)}</h1><p>This page is being finished up. Check back shortly.</p></div></body></html>`,
+);
+
+// Deliberately says nothing about why. The visitor is the client's customer, and "unpaid bill"
+// on their own page would embarrass the client in front of the people they are trying to win.
+const unavailablePage = (name) => new Response(
+  `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(name)}</title><style>body{margin:0;font-family:-apple-system,sans-serif;background:#F9FAFB;color:#111827;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:20px}div{max-width:360px}h1{font-size:20px;margin-bottom:8px}p{font-size:14px;color:#6B7280;line-height:1.6}</style></head><body><div><h1>${esc(name)}</h1><p>This page is temporarily unavailable. Please check back soon.</p></div></body></html>`,
+  { status: 503, headers: { "content-type": "text/html; charset=utf-8", "retry-after": "86400" } },
 );
 
 // Colour theme from the CLIENT's OWN branding — accent + light/dark. Never BoldLine's.
@@ -1441,6 +1449,13 @@ export default async (req) => {
   // so every layout, guard and test that covers the main page covers these unchanged.
   const cl = extraPage ? clientForPage(data.data, extraPage) : data.data;
   const lp = cl.landingPage || {};
+  // 🔴 PAUSED FOR NON-PAYMENT (Agreement 3.4(a), terms v6+). Offline, never deleted: the page and
+  // its published flag are untouched, so paying brings back exactly what was there. Read from the
+  // ACCOUNT, not the per-page copy, so every page the account holds goes down and comes back
+  // together. Checked before the preview key on purpose: a paused account shows nothing to
+  // anyone, including a link sent for approval. A 503 says "temporarily", which is true, and
+  // search engines treat it that way.
+  if (isBillingPaused(data.data)) return unavailablePage(cl.name);
   // 🔴 THE PREVIEW KEY, AND THE ONE THING IT MAY DO.
   //
   // Sending an unpublished page for approval used to be impossible without publishing it,
