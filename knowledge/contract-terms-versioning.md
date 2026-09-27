@@ -154,3 +154,13 @@ The number is pinned **once, behaviourally**: a renewed client must get byte-ide
 to a brand-new one.
 
 **Lesson for the next clause: assert the RULE, never the sentence.**
+
+---
+
+## v6, 2026-09-27: late payments (and the version is now stamped at SEND)
+
+Section 3.4 under v6: 3 days then a $50 fee and a pause (nothing deleted), 10 days then Agency MAY terminate for cause, no interest. See KB `late-payment-policy`.
+
+🔴 **The resolver moved** out of `makeContractHTML` into `termsVersionOf(cl)` (both copies; exported from the cjs) so billing-watch can share it. 🔴 **A contract is frozen when SENT**: sending now stamps `contractTermsVersion`, and an unstamped record is dated by the earlier of `docusignSentAt` / `contractSignedAt`. Before this, every version bump silently re-rendered contracts already out for signature.
+
+**Adding the next clause** now also means: add its cutoff to `termsVersionOf` (so unstamped records sent before it keep the old version), bump `TERMS_CURRENT` in both copies and `CONTRACT_TERMS_VERSION`.

@@ -118,9 +118,13 @@ for (const v of [1, 2, 3, 4]) {
 
 // ── 5. The version was actually bumped in every place that names one ─────────
 {
-  ok("🔴 the renderer's current version is 5", /const TERMS_CURRENT = 5;/.test(CJS));
-  ok("and the OS copy agrees", /const TERMS_CURRENT = 5;/.test(UI));
-  ok("🔴 and the renewal stamp was bumped with it", /const CONTRACT_TERMS_VERSION = 5;/.test(UI),
+  // Asserts the RULE, not the number: v6 (the late-payment pause) proved that pinning "5" here
+  // just teaches the next person to edit the test. v5 must be included, and all three agree.
+  const cur = (src, re) => { const m = re.exec(src); return m ? Number(m[1]) : NaN; };
+  const cjsCur = cur(CJS, /const TERMS_CURRENT = (\d+);/);
+  ok("🔴 the renderer's current version includes the event start date", cjsCur >= 5, `got ${cjsCur}`);
+  ok("and the OS copy agrees", cur(UI, /const TERMS_CURRENT = (\d+);/) === cjsCur);
+  ok("🔴 and the renewal stamp was bumped with it", cur(UI, /const CONTRACT_TERMS_VERSION = (\d+);/) === cjsCur,
     "a renewal that stamps an older version writes the client back onto terms they are not signing");
   ok("the gate matches the module the sync reads", TERMS_EVENT_START === 5);
 }

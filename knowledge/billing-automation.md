@@ -110,3 +110,7 @@ updated 0` with NO error line — the prior `No such customer … test mode key`
 client is gone, confirming GOTCHA 3 is resolved and real clients are covered again. (Leftover
 test-mode Stripe objects — test customer, $100 invoice, ~$0.05 interest item, $600 ETF invoice —
 remain in Stripe TEST mode only; sandboxed, harmless, optional to clear.)
+
+## 2026-09-27: late-payment rules now depend on the contract version
+
+Clients on terms **v6+** get a 3-day pause, a $50 fee and a day-10 option to end it; v1-v5 keep the 10-day grace and 1.5%/mo interest described above. Full detail in KB `late-payment-policy`.

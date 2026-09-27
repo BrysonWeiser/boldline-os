@@ -49,6 +49,9 @@ const DEPS = [
   // it would be more permissive than the page and would pass while the document said the
   // wrong thing; a harness that omits it throws, which is how this was found.
   decl("resultWords = (cl)", "\n};"),
+  // The terms-version resolver lives beside makeContractHTML since v6, so billing-watch can
+  // share it. Lifted for real, never stubbed: a stub would decide the version on its own.
+  decl("TERMS_V2_FROM", "return TERMS_CURRENT;\n}"),
   decl("makeContractHTML=", "\n};"),
 ].join("\n");
 

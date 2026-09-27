@@ -44,6 +44,9 @@ const browser = new Function([
   // it would be more permissive than the page and would pass while the document said the
   // wrong thing; a harness that omits it throws, which is how this was found.
   decl("resultWords = (cl)", "\n};"),
+  // The terms-version resolver lives beside makeContractHTML since v6, so billing-watch can
+  // share it. Lifted for real, never stubbed: a stub would decide the version on its own.
+  decl("TERMS_V2_FROM", "return TERMS_CURRENT;\n}"),
   decl("makeContractHTML=", "\n};"),
 ].join("\n") + "\nreturn makeContractHTML;")();
 
@@ -228,7 +231,12 @@ t("🔴 the newest version is not written as a stale literal", () => {
   // Nothing failed and nothing looked wrong.
   const src = readFileSync(join(ROOT, "netlify/lib/contract-shared.cjs"), "utf8");
   assert.match(src, /const TERMS_CURRENT = \d+;/, "there is no single place naming the newest version");
-  assert.match(src, /: TERMS_CURRENT\);/, "the default version is a literal again, so the next clause will reach nobody");
+  // Since v6 the default lives in termsVersionOf, and BOTH of its "newest terms" exits must
+  // read the constant: a record with no dates at all, and one dated after the newest cutoff.
+  const fn = src.slice(src.indexOf("function termsVersionOf"), src.indexOf("\n}\n", src.indexOf("function termsVersionOf")));
+  assert.ok(fn.length > 50, "termsVersionOf is gone");
+  assert.equal((fn.match(/return TERMS_CURRENT;/g) || []).length, 2, "the default version is a literal again, so the next clause will reach nobody");
+  assert.doesNotMatch(fn, /if \(!at\.length\) return \d/, "an undated record defaults to a literal again");
 });
 
 t("🔴 renewing an old client gives them EXACTLY the new-client contract", () => {

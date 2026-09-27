@@ -313,7 +313,13 @@ const T = {
       h1("A quick heads-up on your payment") +
       p(`Hi ${escapeHTML(firstName(c.contactName))}, your most recent payment${Number(c.amount) > 0 ? ` of ${b(money(c.amount))}` : ""} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
       button("Update Payment Method", c.payUrl || c.portalUrl || SITE) +
-      small("Your campaigns keep running for now. We just wanted to catch this early so nothing gets interrupted. If you think this is a mistake, reply and we'll sort it out.") +
+      // 🔴 Under terms v6 the pause after three days is in their contract, so the first email
+      // they get about a failed payment says so in plain words. Finding out from a dead ad is
+      // the version that loses a client. Older agreements have no pause clause, so they keep
+      // the old reassurance, which is still true for them.
+      (Number(c.pauseAfter) > 0
+        ? small(`If it's still unpaid ${Number(c.pauseAfter)} days after it was due, your ads and landing page pause until it's sorted and a ${money(c.lateFee || 50)} late fee is added. Nothing gets deleted, and everything switches back on once it's paid. If you think this is a mistake, reply and we'll sort it out.`)
+        : small("Your campaigns keep running for now. We just wanted to catch this early so nothing gets interrupted. If you think this is a mistake, reply and we'll sort it out.")) +
       signoff(),
   }),
 
