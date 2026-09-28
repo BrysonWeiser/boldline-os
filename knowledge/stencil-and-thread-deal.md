@@ -8,6 +8,40 @@ summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN 
 verified: 2026-09-22
 ---
 
+## 🔴 2026-09-28 — HE REPLIED, SO THE PLAN CHANGED
+
+**Friday 25 Sept, before the 30th deadline, Sebastian texted back:** *"Hey Bryson I'm sorry man, I
+am not trying to go ghost on you here. Last time we talked, business was going great and then out of
+nowhere life just kicked my ass. Ive been up and down California and Oregon, dealing with family,
+business, and some of my friends needing things from me and I'm running on overload right now."*
+Bryson replied the same day with sympathy, then asked whether ads are still something he wants and
+said all that is left is to add his payment info in the portal and approve the ad. **No answer by
+Monday 28 Sept, 9:40am Phoenix.**
+
+**Why the Thursday notice was called off:** the close-out text said *"If I don't hear from you by
+the 30th"*. He was heard from, with a real reason. Sending a formal termination email days after a
+client shares a family crisis would read as cold and would break the spirit of Bryson's own line.
+Three quiet days over a weekend from someone travelling on overload is not a signal.
+
+**But no open-ended waiting either** (the failure the old reminder guarded against: extend twice
+and there is no clock at all). So ONE last, reason-based extension with a date and an easy answer:
+
+- **Nothing today or Wednesday.** His Friday question is still open and a second ask this soon is
+  nagging.
+- **Thursday 1 October, send a hold-or-close TEXT** (drafted in reminder
+  `trig_017YQGW1qd2Y2mkitLLf6ae8`): hold until things calm down, or close for now and pick it back up
+  any time; reply "hold" or "close"; silent by **Wednesday 7 October** means close it out "so it's
+  not hanging over you". A one-word answer he can give from his phone mid-trip, and closing is
+  framed as a kindness, which it is.
+- **Thursday 8 October, if silent or "close":** the formal EMAIL notice (requirements in the 22 Sept
+  section below; sent 8 Oct means effective **Sat 7 Nov**). Reminder `trig_01M4tmfRUaYNAy8GPJ6wnxKC`.
+  **No further extension.**
+- **If "hold":** agree a real check-in date and write it here. Holding costs nothing on founding
+  terms, but it needs a date, not "whenever".
+
+Weekdays and UTC conversions checked with `TZ=America/Phoenix date` (both reminders 16:00 UTC =
+9:00am Phoenix). Client count stays ONE either way (CLAUDE.md), and he still counts as signed.
+
 ## 🔴 THE CLOSE-OUT MESSAGE AND THE 30 SEPTEMBER LINE (2026-09-21, Mon)
 
 🔴 **HIS LAST REPLY WAS 8 SEPTEMBER, NOT the day he signed.** Bryson corrected this while the
