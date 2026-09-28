@@ -211,3 +211,27 @@ you can hit** list of plain lines. Built by `outFacts` in index.html, beside `ou
 Tests: `verify-outreach` now runs `outFacts` itself (14 new checks, 307 total) and pins that no
 script, opener or "Ask:" line comes back onto the card. Driven in a browser at 390/768/1280/1600: all
 facts present, no script text, no overflow, no console errors.
+
+## 2026-09-28 — notes were being lost; now they save themselves and stay with the company
+
+Bryson: *"make sure if i add notes for a business in the outreach tab ... they are actively saving
+and not being deleted the moment i move to the next business."* **They were not.** Found by reading
+the code, then proven fixed in a browser:
+
+1. The notes box only travelled with an **outcome button**. **Skip for now** saved nothing, AND the
+   text stayed in the box, so it got attached to the NEXT company's outcome. Wrong company, silently.
+2. A note that did save went into that call's log entry and was **never shown again** on the card, so
+   to him it was gone.
+
+**Now:** notes are the company's own (`scout_prospects.notes`, the same field a hand-added company's
+referral note already used), via `outreach?action=note&id=` (POST). Saved 0.7s after he stops
+typing, on blur, the instant another company comes on screen (saves the old one FIRST, then loads
+the new one's), on leaving the screen, and on tab hide/close (`keepalive`). A "✓ Saved" / "Saving…"
+label sits on the box, and a failed save turns it red with the reason. Outcomes no longer clear the
+box or copy the note into the call log. Notes typed with calls before this change still show under
+**From earlier calls** (from the last 30 days of touches).
+
+Tests: 9 new checks in `verify-outreach` (325 total), 3 mutations caught. Driven at
+390/768/1280/1600: autosave fires, Skip saves the full text for the RIGHT company, the next company
+shows only its own notes, an outcome saves the note on that company and keeps it out of the call log,
+earlier call notes appear, no overflow, no console errors.
