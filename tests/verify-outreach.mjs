@@ -621,16 +621,18 @@ const DAY = 864e5;
   // point. It now says which point it came from so the card can drop the repeat.
   eq("a derived hook names the point it came from", bestHook(co({ googleAds: "likely" })).fromId, "tag_no_campaign");
   eq("a researched one does not, because it did not come from one", bestHook(co({ bestHook: "x" })).fromId, undefined);
-  ok("🔴 and the card uses that to avoid printing the same sentence twice",
-    /\{p\.ask&&!\(hook&&hook\.fromId===p\.id\)&&/.test(UI),
-    "on a phone the repeat reads as a bug");
-
-  // ── The screen ────────────────────────────────────────────────────────────
-  ok("the card shows the block", /What to hit them with/.test(UI));
-  ok("with the hook in quotes", /\{hook\.text\}/.test(UI));
-  ok("and each point with its question", /Ask: \{p\.ask\}/.test(UI));
-  ok("🔴 an empty block simply does not render, rather than showing a heading over nothing",
-    /\{\(hook\|\|pains\.length\)&&channel==="call"&&\(/.test(UI));
+  // ── The screen: FACTS, NOT A SCRIPT (Bryson, 2026-09-28) ─────────────────
+  // He asked for bullet-point information about the company instead of lines to read. The hook and
+  // the "Ask:" questions are still computed (the rules above and their parity stay), the card just
+  // no longer prints them. Pinned both ways so a script cannot quietly come back onto the card.
+  ok("the card shows the facts block", /Know before you dial/.test(UI));
+  ok("with a pain point section of plain lines", /Pain points you can hit/.test(UI) && /\{pains\.map\(\(p,k\)=><li key=\{k\}>\{p\.line\}<\/li>\)\}/.test(UI));
+  ok("🔴 no quoted opener and no scripted questions on the card",
+    !/\{hook\.text\}/.test(UI) && !/Ask: \{p\.ask\}/.test(UI), "he asked for information, not lines to read");
+  ok("🔴 and the saved call script is no longer printed or edited on the card",
+    !/Your script\{/.test(UI) && !/\{script\}<\/div>/.test(UI) && !/Save script/.test(UI));
+  ok("an empty block simply does not render, rather than showing a heading over nothing",
+    /\{\(facts\.length\|\|pains\.length\)&&\(/.test(UI));
   ok("the two copies agree on what counts as a weak site",
     /const OUT_WEAK_SITE=\["none","poor","dated"\];/.test(UI));
   // 🔴 PARITY BY EXECUTION, NOT BY GREP. Two earlier attempts at this compared the screen's SOURCE
@@ -647,7 +649,7 @@ const DAY = 864e5;
     const src = UI.slice(from, end);
     const ui = new Function(`${src}
       return { painPoints: outPainPoints, bestHook: outBestHook, phoneRole: outPhoneRole,
-               rankPhones: outRankPhones, headcount: outHeadcount };`)();
+               rankPhones: outRankPhones, headcount: outHeadcount, facts: outFacts };`)();
 
     const probes = [
       { googleAds: "no" }, { googleAds: "likely" }, { googleAds: "yes" }, { googleAds: "unknown" },
@@ -671,6 +673,31 @@ const DAY = 864e5;
     ok("every probe was compared", same > 0 && probes.length > 15);
     ok("🔴 the screen and the rules produce the SAME pain points, word for word",
       drift.length === 0, drift.join("\n        "));
+
+    // ── The facts block, RUN rather than grepped ──
+    {
+      const f = (data) => Object.fromEntries(ui.facts(co(data)).map((x) => [x.label, x.value]));
+      const rich = f({ googleAds: "yes", metaAds: "no", rating: "4.9", reviewCount: 137, reviewSource: "Google",
+        yearsInBusiness: "since 2015", employees: "2-6", ownerName: "Dave Ruiz", ownerTitle: "Owner",
+        websiteQuality: "dated", services: ["Ceramic coating", "Paint correction"] });
+      eq("ads running are said plainly", rich["Google ads"], "Running ads right now");
+      eq("🔴 'no' is only said as a checked no", rich["Facebook / Instagram ads"], "None found (checked)");
+      eq("reviews read as a sentence", rich.Reviews, "4.9 stars from 137 Google reviews");
+      ok("years in business carries the count", /^since 2015 \(about \d+ years\)$/.test(rich["In business"]), rich["In business"]);
+      eq("size from the headcount", rich.Size, "about 6 staff");
+      eq("the owner with their title", rich.Owner, "Dave Ruiz (Owner)");
+      eq("website quality in a word", rich.Website, "Dated");
+      eq("services listed", rich.Services, "Ceramic coating, Paint correction");
+      const bare = f({});
+      eq("🔴 unknown ads are SAID to be unknown, never left out (a missing line reads as 'no')",
+        bare["Google ads"], "Couldn't confirm either way");
+      ok("🔴 and nothing else is invented for a company we know nothing about",
+        Object.keys(bare).length === 2, JSON.stringify(bare));
+      ok("🔴 no review count means no review line, never '0 reviews'", !("Reviews" in f({ reviewCount: 0 })));
+      eq("'likely' ads get their own honest wording", f({ googleAds: "likely" })["Google ads"], "Ad tracking on their site, but no live ads seen");
+      ok("an unknown website says nothing rather than guessing", !("Website" in f({ websiteQuality: "unknown" })));
+      eq("a count already in years is not doubled up", f({ yearsInBusiness: "8 years" })["In business"], "8 years");
+    }
 
     // The same for the phone labels, since they carry copy too.
     const phoneProbes = [

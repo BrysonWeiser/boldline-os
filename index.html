@@ -6941,6 +6941,31 @@ const outPainPoints=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const o
 const outBestHook=(prospect)=>{ const d=(prospect&&prospect.data)||{};
   const h=String(d.bestHook||"").trim(); if(h) return {text:h,from:"research"};
   const p=outPainPoints(prospect)[0]; return p?{text:p.ask||p.line,from:"derived",fromId:p.id}:null; };
+// 🔴 FACTS, NOT A SCRIPT (Bryson, 2026-09-28: "instead of giving me a script to go off of just give me
+// information in bullet points about the company such as if they are running any ads, pain points i
+// can hit, reviews, years in business"). He talks better from facts than from lines.
+// Same rule as the pain points: a fact is only stated when the research actually found it. "unknown"
+// ads are SAID to be unknown rather than left out, because "are they advertising" is the first thing
+// he wants to know and a missing line reads as "no". A missing review count is left out, never "0".
+const OUT_ADS_FACT={yes:"Running ads right now",likely:"Ad tracking on their site, but no live ads seen",no:"None found (checked)",unknown:"Couldn't confirm either way"};
+const OUT_SITE_FACT={none:"No website found",poor:"Poor",dated:"Dated",decent:"Decent",strong:"Strong"};
+const outFacts=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const out=[];
+  const ads=(v)=>{ const k=["yes","likely","no"].includes(String(v))?String(v):"unknown"; return {value:OUT_ADS_FACT[k],dim:k==="unknown"}; };
+  out.push({label:"Google ads",...ads(d.googleAds)});
+  out.push({label:"Facebook / Instagram ads",...ads(d.metaAds)});
+  const rating=Number(d.rating)||0, reviews=Math.max(0,Math.round(Number(d.reviewCount)||0));
+  if(rating>0&&reviews>0) out.push({label:"Reviews",value:`${rating} stars from ${reviews}${d.reviewSource?" "+d.reviewSource:""} review${reviews===1?"":"s"}`});
+  else if(reviews>0) out.push({label:"Reviews",value:`${reviews} review${reviews===1?"":"s"}`});
+  const yrsRaw=String(d.yearsInBusiness||"").trim(), yrs=outYearsTrading(prospect);
+  if(yrsRaw) out.push({label:"In business",value:yrsRaw+(yrs!==null&&!/year/i.test(yrsRaw)?` (about ${yrs} year${yrs===1?"":"s"})`:"")});
+  const staff=outHeadcount(prospect), emp=String(d.employees||"").trim();
+  const size=[staff!==null?`about ${staff} staff`:(emp?emp+" staff":""), d.revenueEstimate?`revenue ${d.revenueEstimate}`:""].filter(Boolean).join(", ");
+  if(size) out.push({label:"Size",value:size});
+  if(d.ownerName) out.push({label:"Owner",value:String(d.ownerName)+(d.ownerTitle?` (${d.ownerTitle})`:"")});
+  if(OUT_SITE_FACT[d.websiteQuality]) out.push({label:"Website",value:OUT_SITE_FACT[d.websiteQuality]});
+  const svc=(Array.isArray(d.services)?d.services:[]).filter(Boolean).slice(0,5);
+  if(svc.length) out.push({label:"Services",value:svc.join(", ")});
+  return out; };
 const OUT_SMALL_SHOP_MAX=10;
 const outHeadcount=(prospect)=>{ const d=(prospect&&prospect.data)||prospect||{};
   const n=Math.max(0,Math.round(Number(d.employeesEstimate)||0)); if(n>0) return n;
@@ -6992,9 +7017,6 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [i,setI]=useState(0);
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState("");
-  const [script,setScript]=useState("");
-  const [scriptOpen,setScriptOpen]=useState(false);
-  const [scriptSaved,setScriptSaved]=useState("");
   const [note,setNote]=useState("");
   const [when,setWhen]=useState("");
   const [pending,setPending]=useState(null);       // an outcome waiting on a time or a confirmation
@@ -7028,18 +7050,17 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
     catch(e){ setMsg(setupMsg(e.message)||e.message); }
     setLoading(false); };
   const loadTouches=async()=>{ try{ const d=await api("action=touches&days=30"); setTouches(d.touches||[]); }catch(e){ if(!msg) setMsg(setupMsg(e.message)||e.message); } };
-  useEffect(()=>{ loadQueue(); loadTouches();
-    (async()=>{ try{ const d=await api("action=settings"); setScript(d.script||""); setScriptSaved(d.script||""); }catch(e){} })(); },[]);
+  // The saved call script is no longer shown (facts replaced it, 2026-09-28). It stays stored on the
+  // server untouched, so nothing he wrote is lost if it ever comes back.
+  useEffect(()=>{ loadQueue(); loadTouches(); },[]);
 
   const cur = queue[i] || null;
   const d   = (cur&&cur.data)||{};
   const phones = Array.isArray(d.phones)?d.phones:[];
   const ranked = outRankPhones(cur);
   const pains  = outPainPoints(cur);
-  const hook   = outBestHook(cur);
+  const facts  = outFacts(cur);
   const emails = Array.isArray(d.emails)?d.emails:[];
-
-  const saveScript=async()=>{ try{ await api("action=settings",{method:"POST",body:JSON.stringify({script})}); setScriptSaved(script); }catch(e){ setMsg(setupMsg(e.message)||e.message); } };
 
   // 🔴 ONE TAP LOGS AND ADVANCES. Anything that needs more (a time, a confirmation) opens a small
   // panel first rather than logging something half-specified.
@@ -7185,21 +7206,6 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
             )}
           </div>
 
-          {/* The script, collapsed by default so it is not in the way after the first week,
-              and stored on the server so a setter reads the same words. */}
-          <div style={{marginBottom:12}}>
-            <button onClick={()=>setScriptOpen(v=>!v)} style={{width:"100%",textAlign:"left",font:"inherit",cursor:"pointer",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:11,padding:"10px 12px",color:C.textDim,fontSize:12,fontWeight:700}}>
-              {scriptOpen?"▾":"▸"} Your script{script.trim()?"":" (empty — write it from the calls that actually worked)"}
-            </button>
-            {scriptOpen&&(
-              <div style={{marginTop:8}}>
-                <textarea value={script} onChange={e=>setScript(e.target.value)} rows={8} placeholder={"Hi, is this the owner?\n\nGreat. I'll be quick, this is a cold call so you can tell me to get lost.\n..."}
-                  style={{width:"100%",boxSizing:"border-box",padding:"11px 12px",fontSize:13,lineHeight:1.6,borderRadius:11,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
-                <button onClick={saveScript} disabled={script===scriptSaved} style={{marginTop:8,padding:"8px 14px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",background:script===scriptSaved?"rgba(255,255,255,.06)":C.gold,color:script===scriptSaved?C.textMuted:"#0a0800",cursor:script===scriptSaved?"default":"pointer"}}>{script===scriptSaved?"Saved":"Save script"}</button>
-              </div>
-            )}
-          </div>
-
           <div style={{display:"flex",gap:7,marginBottom:12,flexWrap:"wrap"}}>
             {OUT_CHANNELS.map(c=><button key={c.id} onClick={()=>{setChannel(c.id);setPending(null);setDrafts(null);}} style={chip(channel===c.id)}>{c.label}</button>)}
           </div>
@@ -7262,27 +7268,23 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                   {outHeadcount(cur)!==null&&<> · about {outHeadcount(cur)} staff</>}
                 </div>)}
 
-              {/* 🔴 THE ONE THING THAT IS ONLY TRUE ABOUT THIS COMPANY. The script is the same words
-                  for everybody; this is what makes the call land. Nothing here is built from a
-                  missing signal, so a blank block means we genuinely do not know, which is the
-                  honest answer and not a bug. */}
-              {(hook||pains.length)&&channel==="call"&&(
-                <div style={{border:`1px solid ${C.gold}33`,background:C.goldDim,borderRadius:11,padding:"11px 12px",marginBottom:11}}>
-                  <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:7}}>What to hit them with</div>
-                  {hook&&<div style={{fontSize:13,lineHeight:1.6,color:C.text,fontWeight:600,marginBottom:pains.length?9:0}}>&ldquo;{hook.text}&rdquo;</div>}
-                  {pains.map((p,k)=>(
-                    <div key={k} style={{marginTop:k?8:0,paddingTop:k?8:0,borderTop:k?`1px solid ${C.border}`:"none"}}>
-                      <div style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>{p.line}</div>
-                      {/* Not when the hook above already IS this question, which it is whenever the
-                          hook was derived rather than researched. */}
-                      {p.ask&&!(hook&&hook.fromId===p.id)&&<div style={{fontSize:11.5,color:C.gold,lineHeight:1.55,marginTop:3}}>Ask: {p.ask}</div>}
-                    </div>
-                  ))}
+              {/* 🔴 FACTS, NOT A SCRIPT. What he wants in his head before he dials, as bullets he can take
+                  in at a glance: are they advertising, reviews, how long they have been going, size, and
+                  the pain points that are only true of THIS company. Shown on every channel, because an
+                  email or a DM needs the same facts. */}
+              {(facts.length||pains.length)&&(
+                <div style={{border:`1px solid ${C.gold}33`,background:C.goldDim,borderRadius:11,padding:"11px 13px",marginBottom:11}}>
+                  <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,marginBottom:6}}>Know before you dial</div>
+                  <ul style={{margin:0,paddingLeft:17,fontSize:12.5,lineHeight:1.65,color:C.textDim}}>
+                    {facts.map((f,k)=><li key={k} style={{color:f.dim?C.textMuted:C.textDim}}><b style={{color:C.text,fontWeight:700}}>{f.label}:</b> {f.value}</li>)}
+                  </ul>
+                  {!!pains.length&&<>
+                    <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,margin:"10px 0 6px"}}>Pain points you can hit</div>
+                    <ul style={{margin:0,paddingLeft:17,fontSize:12.5,lineHeight:1.65,color:C.text}}>
+                      {pains.map((p,k)=><li key={k}>{p.line}</li>)}
+                    </ul>
+                  </>}
                 </div>)}
-
-              {script.trim()&&channel==="call"&&(
-                <div style={{whiteSpace:"pre-wrap",fontSize:13,lineHeight:1.7,color:C.textDim,background:C.bg3,border:`1px solid ${C.border}`,borderRadius:11,padding:"12px 13px",marginBottom:11}}>{script}</div>
-              )}
 
               <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Anything worth remembering (optional)"
                 style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:12.5,borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:11}}/>
@@ -7425,7 +7427,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
               })}
             </div>
             <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:10}}>
-              A low conversations number against a lot of attempts usually means the list. A lot of conversations and few bookings usually means the script.
+              A low conversations number against a lot of attempts usually means the list. A lot of conversations and few bookings usually means the pitch.
             </div>
           </Card>
         </div>
