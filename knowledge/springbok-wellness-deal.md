@@ -110,3 +110,38 @@ the package, and set the **start date to the day the ads go live, not the signin
 **If he goes quiet:** one friendly nudge on **Friday 25 September**, then a phone call the following
 week. Not a daily chase, and do not route it through anybody else.
 
+## 2026-09-28 (Mon, 3:11pm Phoenix) — Brendon answered the questions
+
+Reply from **drbgibb@springbokwellness.com** to theboldlinemedia@gmail.com. Only questions 11 to 14 were
+visible in the screenshots Bryson sent; **questions 1 to 10 (legal name, signer, address, phone,
+qualified-lead definition) still need to be read** before anything is typed into Deal Prep.
+
+| Question | His answer |
+|---|---|
+| 11. Value of a new patient over the whole course of care | **$800** |
+| 12. Out of ten who reach out, how many become patients | **6** |
+| 13. New patients a month now, and spare capacity | **About 5 a month now, can take 20 more** |
+| 14. Google Ads account | **None active** — so one has to be created on a call, owned and billed by HIM (hard rule) |
+
+🔴 **Legal name check:** his email signature says **"Springbok Chiropractic, LLC"**, not Springbok Wellness.
+The agreement must carry the exact registered name he gave in question 1, suffix included; if Q1 says
+Wellness while the signature says Chiropractic, ask which is the registered LLC before sending.
+
+**The price, by the Fee Finder's own rule** (KB `per-lead-fee-finder`): a lead is worth $800 x 60% =
+**$480**; the fee is 2 to 5% of that, **$10 to $24**. Recommended **$20 per qualified lead** (4%, easy to
+say, easy to defend: "you keep $460 of every $480 lead").
+
+**The month, honestly:** filling 20 spare slots at 6 in 10 needs about 33 leads a month. At a Launch-tier
+budget most months will produce fewer than 20 leads, so $20 x leads will usually sit UNDER the $400
+monthly minimum and he pays the minimum. Say that plainly rather than letting the per-lead number imply
+a smaller bill. Even at the minimum it is cheap against the value: 5 extra patients is $4,000.
+
+🔴 **Not asked in the email and needed for the package:** his **monthly ad budget** (paid by him to Google,
+hard floor $500/mo, which sets the tier). One short question back to him.
+
+Also noticed: his emails carry a HIPAA confidentiality footer. Keep the landing page form to contact
+details and a plain "what can we help with", no medical history questions, and no retargeting on
+health conditions (Google restricts it anyway).
+
+Still NOT a client (CLAUDE.md): nothing changes on the site, the offer or the count until the signed
+agreement is on the record.
