@@ -6906,6 +6906,9 @@ const OUT_ROLE_RANK=["owner_mobile","owner_line","mobile","direct","small_main",
 // silence rather than a guess. Anything unconfirmed becomes a QUESTION to ask, which on a cold call
 // is stronger anyway — he cannot be caught out on a question.
 const OUT_WEAK_SITE=["none","poor","dated"];
+const OUT_MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const outLastSeenMonth=(iso)=>{ const t=Date.parse(String(iso||"")); if(!Number.isFinite(t)) return "";
+  const dt=new Date(t); return `${OUT_MONTHS[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`; };
 const outYearsTrading=(prospect)=>{ const d=(prospect&&prospect.data)||prospect||{};
   const t=String(d.yearsInBusiness||"");
   const yr=/(?:since|est\.?|founded)\D{0,4}(\d{4})/i.exec(t);
@@ -6918,8 +6921,12 @@ const outPainPoints=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const o
   if(g==="likely") out.push({id:"tag_no_campaign",strength:1,
     line:"Their site has ad tracking on it but no paid results are showing, so somebody set this up and it stopped.",
     ask:"Were you running Google ads at some point? What happened with it?"});
-  if(g==="no") out.push({id:"not_advertising",strength:2,
-    line:"Nobody is bidding on their service in their own city, so every job they get is one that found them first.",
+  const stopped=g==="no"?outLastSeenMonth(d.googleAdsLastSeen):"";
+  if(stopped) out.push({id:"stopped_ads",strength:1,
+    line:`They ran Google ads until ${stopped} and stopped, so either it did not pay off or nobody was running it properly.`,
+    ask:"You ran Google ads for a while. What made you stop?"});
+  else if(g==="no") out.push({id:"not_advertising",strength:2,
+    line:"They are not running Google ads, so every job they get is one that found them first.",
     ask:"Right now is it all word of mouth and repeat, or are you running anything paid?"});
   if(advertising&&weakSite) out.push({id:"paying_for_weak_page",strength:1,
     line:"They are paying for clicks that land on a page built to describe the company rather than to book the job.",
@@ -6949,9 +6956,27 @@ const outBestHook=(prospect)=>{ const d=(prospect&&prospect.data)||{};
 // he wants to know and a missing line reads as "no". A missing review count is left out, never "0".
 const OUT_ADS_FACT={yes:"Running ads right now",likely:"Ad tracking on their site, but no live ads seen",no:"None found (checked)",unknown:"Couldn't confirm either way"};
 const OUT_SITE_FACT={none:"No website found",poor:"Poor",dated:"Dated",decent:"Decent",strong:"Strong"};
+// Google has answered within the last week, so another check would spend a free search for nothing.
+const outNeedsGoogleCheck=(prospect)=>{ const d=(prospect&&prospect.data)||{};
+  const at=Date.parse(String(d.googleAdsCheckedAt||"")); return !(Number.isFinite(at)&&Date.now()-at<7*864e5); };
+// Meta's own ad search, by business name, active ads, US. Mirrors adLibraryUrl in scout-providers.
+const outMetaAdsUrl=(prospect)=>{ const d=(prospect&&prospect.data)||{};
+  return d.adLibraryUrl||`https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&q=${encodeURIComponent(String((prospect&&prospect.name)||d.name||"").trim())}&search_type=keyword_unordered`; };
+// The reasons Google's record can fail to answer, said as what to do about it.
+const outGoogleCheckMsg=(note)=>{ const n=String(note||"");
+  if(/not connected|SERPAPI_API_KEY/i.test(n)) return "Google's ad record isn't connected yet. It needs the SerpApi key added in Netlify.";
+  if(/run out of searches|limit/i.test(n)) return "This month's free Google checks are used up. They reset at the start of next month.";
+  if(/no website/i.test(n)) return "No website on file for this company, so there is nothing to look up.";
+  return "Google's ad record didn't answer this time. Try again in a minute. ("+n.slice(0,120)+")"; };
 const outFacts=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const out=[];
   const ads=(v)=>{ const k=["yes","likely","no"].includes(String(v))?String(v):"unknown"; return {value:OUT_ADS_FACT[k],dim:k==="unknown"}; };
-  out.push({label:"Google ads",...ads(d.googleAds)});
+  // Google's own ad record, when it has been checked, says more than the four words above can:
+  // WHEN they last ran an ad. "Checked" is only ever written after a real answer from that record.
+  const gSeen=Date.parse(String(d.googleAdsLastSeen||"")), gDays=Number.isFinite(gSeen)?Math.max(0,Math.floor((Date.now()-gSeen)/864e5)):null;
+  const gChecked=!!d.googleAdsCheckedAt;
+  if(gChecked&&d.googleAds==="yes") out.push({label:"Google ads",value:`Running now${gDays!==null?` (last ad seen ${gDays===0?"today":gDays===1?"yesterday":gDays+" days ago"})`:""}`});
+  else if(gChecked&&d.googleAds==="no") out.push({label:"Google ads",value:gDays!==null?`Not running now. Last ad seen ${outLastSeenMonth(d.googleAdsLastSeen)}`:"None in Google's ad records"});
+  else out.push({label:"Google ads",...ads(d.googleAds)});
   out.push({label:"Facebook / Instagram ads",...ads(d.metaAds)});
   const rating=Number(d.rating)||0, reviews=Math.max(0,Math.round(Number(d.reviewCount)||0));
   if(rating>0&&reviews>0) out.push({label:"Reviews",value:`${rating} stars from ${reviews}${d.reviewSource?" "+d.reviewSource:""} review${reviews===1?"":"s"}`});
@@ -7031,6 +7056,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [adding,setAdding]=useState(false);
   const [addMsg,setAddMsg]=useState("");
   const [addErr,setAddErr]=useState("");
+  const [adCheck,setAdCheck]=useState({id:null,busy:false,msg:""});
 
   // Each screen carries its own, because this is one file and there is no module scope to share
   // one from. Found by driving the screen: without it every call failed with "authToken is not
@@ -7060,6 +7086,22 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const ranked = outRankPhones(cur);
   const pains  = outPainPoints(cur);
   const facts  = outFacts(cur);
+  // One company at a time, on a tap: Google's ad record costs one of the free plan's monthly checks.
+  const checkGoogleAds=async()=>{
+    if(!cur||adCheck.busy) return;
+    const id=cur.id; setAdCheck({id,busy:true,msg:""});
+    try{
+      const token=await authToken(); if(!token) throw new Error("Session expired — refresh the page.");
+      const r=await fetch("/.netlify/functions/lead-scout?action=recheck-ads&id="+encodeURIComponent(id),{method:"POST",headers:{"Authorization":"Bearer "+token}});
+      const dd=await r.json().catch(()=>({}));
+      if(!r.ok||dd.ok===false) throw new Error(dd.error||"The check did not run.");
+      const got=dd.prospect;
+      if(got&&got.data) setQueue(q=>q.map(x=>x.id===id?{...x,data:got.data}:x));
+      const rec=got&&got.googleRecord;
+      // Say why when Google could not answer, in words, rather than leaving the line unchanged.
+      setAdCheck({id,busy:false,msg:rec&&rec.state==="unknown"?outGoogleCheckMsg(rec.note):""});
+    }catch(e){ setAdCheck({id,busy:false,msg:e.message}); }
+  };
   const emails = Array.isArray(d.emails)?d.emails:[];
 
   // 🔴 ONE TAP LOGS AND ADVANCES. Anything that needs more (a time, a confirmation) opens a small
@@ -7278,6 +7320,20 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                   <ul style={{margin:0,paddingLeft:17,fontSize:12.5,lineHeight:1.65,color:C.textDim}}>
                     {facts.map((f,k)=><li key={k} style={{color:f.dim?C.textMuted:C.textDim}}><b style={{color:C.text,fontWeight:700}}>{f.label}:</b> {f.value}</li>)}
                   </ul>
+                  {/* 🔴 THE TWO REAL ANSWERS (2026-09-28). Google: one tap looks this company up in Google's own
+                      ad record (one of 250 free checks a month, so it is a tap, never automatic). Meta: its API
+                      hides ordinary business ads in the US, so the honest route is Meta's own ad search page,
+                      one tap away. Neither is shown once Google has answered recently. */}
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:8}}>
+                    {outNeedsGoogleCheck(cur)&&(
+                      <button onClick={checkGoogleAds} disabled={adCheck.busy}
+                        style={{padding:"6px 10px",fontSize:11.5,fontWeight:800,borderRadius:8,border:`1px solid ${C.gold}66`,background:"transparent",color:C.gold,cursor:adCheck.busy?"default":"pointer",opacity:adCheck.busy?.6:1}}>
+                        {adCheck.busy?"Checking Google…":"Check Google ads"}
+                      </button>)}
+                    <a href={outMetaAdsUrl(cur)} target="_blank" rel="noopener noreferrer"
+                      style={{padding:"6px 10px",fontSize:11.5,fontWeight:800,borderRadius:8,border:`1px solid ${C.border}`,color:C.textDim,textDecoration:"none"}}>Check Meta ads ↗</a>
+                  </div>
+                  {adCheck.msg&&adCheck.id===cur.id&&<div style={{fontSize:11,color:C.textMuted,marginTop:6,lineHeight:1.5}}>{adCheck.msg}</div>}
                   {!!pains.length&&<>
                     <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.gold,margin:"10px 0 6px"}}>Pain points you can hit</div>
                     <ul style={{margin:0,paddingLeft:17,fontSize:12.5,lineHeight:1.65,color:C.text}}>

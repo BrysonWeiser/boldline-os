@@ -328,6 +328,15 @@ const yearsTrading = (prospect, now = Date.now()) => {
 };
 
 const WEAK_SITE = ["none", "poor", "dated"];
+// "June 2026" from an ISO date, in UTC and from a fixed list, so the server and the screen print the
+// same words whatever the machine's locale or timezone.
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+export const lastSeenMonth = (iso) => {
+  const t = Date.parse(String(iso || ""));
+  if (!Number.isFinite(t)) return "";
+  const dt = new Date(t);
+  return `${MONTHS[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`;
+};
 
 export const painPoints = (prospect, { now = Date.now() } = {}) => {
   const d = (prospect && prospect.data) || {};
@@ -345,8 +354,15 @@ export const painPoints = (prospect, { now = Date.now() } = {}) => {
     line: "Their site has ad tracking on it but no paid results are showing, so somebody set this up and it stopped.",
     ask: "Were you running Google ads at some point? What happened with it?" });
 
-  if (g === "no") out.push({ id: "not_advertising", strength: 2,
-    line: "Nobody is bidding on their service in their own city, so every job they get is one that found them first.",
+  // 🔴 THEY RAN GOOGLE ADS AND STOPPED. Only ever from Google's own ad record (googleAdsLastSeen is
+  // written by nothing else), so it is a fact about them, not a guess. It is the best opening there
+  // is: budget existed, and something made them walk away from it.
+  const stopped = g === "no" ? lastSeenMonth(d.googleAdsLastSeen) : "";
+  if (stopped) out.push({ id: "stopped_ads", strength: 1,
+    line: `They ran Google ads until ${stopped} and stopped, so either it did not pay off or nobody was running it properly.`,
+    ask: "You ran Google ads for a while. What made you stop?" });
+  else if (g === "no") out.push({ id: "not_advertising", strength: 2,
+    line: "They are not running Google ads, so every job they get is one that found them first.",
     ask: "Right now is it all word of mouth and repeat, or are you running anything paid?" });
 
   if (advertising && weakSite) out.push({ id: "paying_for_weak_page", strength: 1,

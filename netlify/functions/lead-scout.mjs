@@ -12,7 +12,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { providerStatus, inspectAdTech, adLibraryUrl } from "../lib/scout-providers.mjs";
+import { providerStatus, inspectAdTech, adLibraryUrl, googleAdsRecord, combineAdsState } from "../lib/scout-providers.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -153,32 +153,48 @@ export default async (req) => {
 
     const rows = data || [];
     let updated = 0, found = 0;
+    // 🔴 GOOGLE'S AD RECORD ONLY FOR ONE PROSPECT AT A TIME. Each lookup spends one of the free
+    // plan's 250 monthly searches, and a bulk re-check of 300 rows would spend the whole month in
+    // one tap. The bulk path stays on the free website-tag read; the Outreach card's button checks
+    // the one company in front of him.
+    const useRecord = !!id;
+    let single = null;
     // Small concurrency so a list of 300 doesn't open 300 sockets at once.
     const queue = rows.slice();
     const worker = async () => {
       while (queue.length) {
         const row = queue.shift();
         const d = row.data || {};
-        const tech = await inspectAdTech(d.websiteRaw || d.website).catch(() => null);
-        if (!tech) continue;
-        const keep = (ai, tag) => (ai === "yes" || ai === "no" ? ai : (tag === "likely" ? "likely" : ai || "unknown"));
+        const site = d.websiteRaw || d.website || row.domain || "";
+        const [tech, rec] = await Promise.all([
+          inspectAdTech(site).catch(() => null),
+          useRecord ? googleAdsRecord(site).catch((e) => ({ state: "unknown", lastShown: "", adCount: 0, note: `Google ad record check failed: ${e && e.message}` })) : Promise.resolve(null),
+        ]);
+        if (!tech && !rec) continue;
+        // 🔴 A stored Google answer is only replaced by a NEW Google answer. An earlier "no" from the
+        // AI research is weaker than a tag, so it is not carried forward as if it were the record.
+        const prevRec = d.googleAdsCheckedAt ? { state: d.googleAds, lastShown: d.googleAdsLastSeen || "" } : null;
+        const recUse = rec && rec.state !== "unknown" ? rec : prevRec;
         const next = {
           ...d,
-          googleAds: keep(d.googleAds, tech.googleAds),
-          metaAds: keep(d.metaAds, tech.metaAds),
-          adTechNote: tech.note || "",
+          googleAds: combineAdsState(d.googleAdsCheckedAt ? "unknown" : d.googleAds, tech && tech.googleAds, recUse),
+          metaAds: combineAdsState(d.metaAds, tech && tech.metaAds, null),
+          ...(rec ? { googleAdsNote: rec.note } : {}),
+          ...(rec && rec.state !== "unknown" ? { googleAdsLastSeen: rec.lastShown || "", googleAdsCheckedAt: new Date().toISOString() } : {}),
+          adTechNote: (tech && tech.note) || d.adTechNote || "",
           adLibraryUrl: d.adLibraryUrl || adLibraryUrl(row.name),
           adsEvidence: [String(d.adsEvidence || "").replace(/\s*·?\s*Site tags:.*$/, "").trim(),
-            (tech.reachable && tech.evidence.length) ? `Site tags: ${tech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
+            (tech && tech.reachable && tech.evidence.length) ? `Site tags: ${tech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
         };
         if (next.googleAds === "likely" || next.metaAds === "likely") found++;
         const { error: upErr } = await supabase.from("scout_prospects")
           .update({ data: next, updated_at: new Date().toISOString() }).eq("id", row.id);
         if (!upErr) updated++;
+        if (useRecord) single = { data: next, googleRecord: rec };
       }
     };
     await Promise.all(Array.from({ length: Math.min(6, rows.length) }, worker));
-    return json({ ok: true, checked: rows.length, updated, found });
+    return json({ ok: true, checked: rows.length, updated, found, ...(single ? { prospect: single } : {}) });
   }
 
   if (action === "delete-run") {

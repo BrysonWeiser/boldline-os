@@ -608,6 +608,17 @@ const DAY = 864e5;
       .every((p) => p.id === "gap" || (p.ask && p.ask.length > 15)),
     "naming a problem without the next move is half a feature");
 
+  // ── They ran Google ads and stopped (from Google's own ad record) ──────────
+  eq("🔴 a stop in Google's record is the top pain point",
+    painPoints(co({ googleAds: "no", googleAdsLastSeen: "2026-06-30T00:00:00.000Z", rating: "4.9", reviewCount: 80 }))[0].id, "stopped_ads");
+  ok("and it names the month, in words, whatever the server's timezone",
+    /until June 2026 and stopped/.test(painPoints(co({ googleAds: "no", googleAdsLastSeen: "2026-06-30T23:59:00.000Z" }))[0].line));
+  ok("it replaces 'not advertising' rather than repeating it",
+    !painPoints(co({ googleAds: "no", googleAdsLastSeen: "2026-06-30T00:00:00.000Z" })).some((p) => p.id === "not_advertising"));
+  eq("a bad date falls back to plain 'not advertising'", painPoints(co({ googleAds: "no", googleAdsLastSeen: "x" }))[0].id, "not_advertising");
+  ok("🔴 'not advertising' no longer claims nobody else is bidding in their city (it was never checked)",
+    !painPoints(co({ googleAds: "no" }))[0].line.includes("Nobody is bidding"));
+
   // ── The opening line ──────────────────────────────────────────────────────
   eq("🔴 the scout's own researched hook wins when there is one",
     bestHook(co({ bestHook: "You are the only builder in Gilbert not running ads", googleAds: "no" })).from, "research",
@@ -660,6 +671,8 @@ const DAY = 864e5;
       { yearsInBusiness: "since 2024" }, { yearsInBusiness: "~2 years" }, { yearsInBusiness: "since 2004" },
       { yearsInBusiness: "unknown" }, { gaps: ["No page for pool remodels", "No call tracking"] },
       { googleAds: "likely", websiteQuality: "poor", rating: "4.9", reviewCount: 80, yearsInBusiness: "since 2024" },
+      { googleAds: "no", googleAdsLastSeen: "2026-06-30T00:00:00.000Z" }, { googleAds: "no", googleAdsLastSeen: "nonsense" },
+      { googleAds: "no", googleAdsLastSeen: "2025-12-31T23:30:00.000Z", websiteQuality: "poor" },
       {},
     ];
     let same = 0; const drift = [];
@@ -697,6 +710,13 @@ const DAY = 864e5;
       eq("'likely' ads get their own honest wording", f({ googleAds: "likely" })["Google ads"], "Ad tracking on their site, but no live ads seen");
       ok("an unknown website says nothing rather than guessing", !("Website" in f({ websiteQuality: "unknown" })));
       eq("a count already in years is not doubled up", f({ yearsInBusiness: "8 years" })["In business"], "8 years");
+      // Google's own ad record, once checked, says WHEN.
+      const day = (n) => new Date(Date.now() - n * 864e5).toISOString();
+      eq("🔴 a checked yes says how recently", f({ googleAds: "yes", googleAdsCheckedAt: day(0), googleAdsLastSeen: day(3) })["Google ads"], "Running now (last ad seen 3 days ago)");
+      ok("🔴 a checked stop says when they stopped",
+        /^Not running now\. Last ad seen [A-Z][a-z]+ \d{4}$/.test(f({ googleAds: "no", googleAdsCheckedAt: day(0), googleAdsLastSeen: day(90) })["Google ads"]));
+      eq("a checked never-advertised says so from the record", f({ googleAds: "no", googleAdsCheckedAt: day(0) })["Google ads"], "None in Google's ad records");
+      eq("an unchecked AI 'no' keeps the old wording", f({ googleAds: "no" })["Google ads"], "None found (checked)");
     }
 
     // The same for the phone labels, since they carry copy too.

@@ -23,6 +23,9 @@ const env = (k) => (process.env[k] || "").trim();
 export const providerStatus = () => ({
   places: !!env("GOOGLE_PLACES_API_KEY"),
   apollo: !!env("APOLLO_API_KEY"),
+  // Google's public ad record (Ads Transparency Center), read through SerpApi. Free plan: 250 checks
+  // a month. See googleAdsRecord below.
+  googleAdsRecord: !!env("SERPAPI_API_KEY"),
 });
 
 // Every outbound call is time-boxed; a slow provider must never eat the 15-minute
@@ -218,6 +221,17 @@ const SIGNALS = [
   { platform: "meta",   re: /fbq\s*\(\s*['"]init['"]/i,           note: "Meta Pixel init call" },
   { platform: "meta",   re: /facebook\.com\/tr\?id=/i,            note: "Meta Pixel noscript beacon" },
 ];
+// What an ad tag looks like INSIDE a Tag Manager container, which is compiled JSON, not page HTML.
+// "__awct" is Google Ads conversion tracking and "__sp" is Google Ads remarketing, by their GTM names.
+// A Meta Pixel sits in a Custom HTML tag, so its code appears with escaped quotes.
+const GTM_SIGNALS = [
+  { platform: "google", re: /"function":"__awct"/,                  note: "Google Ads conversion tag" },
+  { platform: "google", re: /"function":"__sp"/,                    note: "Google Ads remarketing tag" },
+  { platform: "google", re: /AW-\d{6,}/,                            note: "Google Ads account id" },
+  { platform: "meta",   re: /fbevents\.js/i,                        note: "Meta Pixel" },
+  { platform: "meta",   re: /fbq\s*\(\s*\\?["']init/i,             note: "Meta Pixel" },
+  { platform: "meta",   re: /facebook\.com\/tr\?id=/i,              note: "Meta Pixel" },
+];
 const OTHER = [
   { re: /googletagmanager\.com\/gtm\.js/i, note: "Google Tag Manager (tags may be injected at runtime, so platform tags can be hidden)" },
   { re: /gtag\/js\?id=G-/i,               note: "GA4 analytics" },
@@ -267,7 +281,28 @@ export const inspectAdTech = async (website) => {
   const meta = hits.filter((h) => h.platform === "meta").map((h) => h.note);
   const other = OTHER.filter((o) => o.re.test(html)).map((o) => o.note);
 
-  const gtmOnly = !google.length && !meta.length && other.some((o) => /Tag Manager/.test(o));
+  // 🔴 LOOK INSIDE TAG MANAGER (2026-09-28). Most small-business sites load their ad tags through
+  // Google Tag Manager, so the homepage source shows only the container and the ad tags inside it
+  // were invisible. That is why nearly every prospect came back "couldn't confirm". The container
+  // is a public script anyone's browser downloads, so reading it is reading the same public page.
+  let gtmRead = false;
+  if (!google.length || !meta.length) {
+    const ids = [...new Set((html.match(/GTM-[A-Z0-9]{4,10}/g) || []))].slice(0, 2);
+    for (const gid of ids) {
+      const c = await get(`https://www.googletagmanager.com/gtm.js?id=${gid}`);
+      if (!c.ok) continue;
+      gtmRead = true;
+      for (const sig of GTM_SIGNALS) {
+        if (!sig.re.test(c.html)) continue;
+        const note = `${sig.note} (inside Tag Manager ${gid})`;
+        if (sig.platform === "google" && !google.length) google.push(note);
+        if (sig.platform === "meta" && !meta.length) meta.push(note);
+      }
+    }
+  }
+  if (gtmRead && (google.length || meta.length)) hits.push({ note: "tag manager" });
+
+  const gtmOnly = !google.length && !meta.length && other.some((o) => /Tag Manager/.test(o)) && !gtmRead;
   return {
     reachable: true,
     // "likely", never "yes" — a tag proves the plumbing, not a live campaign today.
@@ -281,8 +316,65 @@ export const inspectAdTech = async (website) => {
       ? `Read their homepage: ${[...google, ...meta].join("; ")}`
       : gtmOnly
         ? "Read their homepage: only Google Tag Manager, which hides whatever it loads — ad tags can't be confirmed either way from the source."
-        : "Read their homepage: no advertising tags in the page source (they may still advertise — tags are often injected at runtime).",
+        : gtmRead
+          ? "Read their homepage and their Tag Manager: no advertising tags in either."
+          : "Read their homepage: no advertising tags in the page source (they may still advertise — tags are often injected at runtime).",
   };
+};
+
+// ─── Google's public ad record (Ads Transparency Center, via SerpApi) ────────
+// Bryson, 2026-09-28: *"so far its always said for google and meta ads that it cant confirm either
+// way so at this point it is essentially useless to me"*. Website tags can only ever say "set up to
+// advertise". Google publishes every ad an advertiser runs, with the day it was last shown, and that
+// record answers the actual question: are they running Google ads, and if not, did they used to.
+//
+// Searched by the business's WEBSITE, not its name: two businesses share a name far more often than
+// a domain, and the record matches ads by the site they send people to.
+//
+// 🔴 THE STATES, and why "no" is allowed here when the tag scan never allows it: this is Google's own
+// list, not an absence of evidence. "yes" = an ad shown within RECENT_DAYS. "no" = nothing, or only
+// older ads (then `lastShown` is kept, because "they ran ads and stopped" is the best pain point
+// there is). Anything that goes wrong (no key, out of searches, a timeout) is "unknown" WITH the
+// reason, never a silent "no".
+export const GOOGLE_RECENT_DAYS = 14;   // the record lags a few days; two weeks still means "running"
+export const GOOGLE_US_REGION = "2840";
+const NO_RESULTS = /hasn'?t returned any results|no results/i;
+export const googleAdsRecord = async (website, { apiKey = env("SERPAPI_API_KEY"), now = Date.now(), fetchImpl = fetchJSON } = {}) => {
+  const domain = host(website || "");
+  if (!domain) return { state: "unknown", lastShown: "", adCount: 0, note: "no website to look up in Google's ad record" };
+  if (!apiKey) return { state: "unknown", lastShown: "", adCount: 0, note: "Google ad record not connected (SERPAPI_API_KEY is not set)" };
+  const url = `https://serpapi.com/search.json?engine=google_ads_transparency_center&text=${encodeURIComponent(domain)}`
+    + `&region=${GOOGLE_US_REGION}&num=40&api_key=${encodeURIComponent(apiKey)}`;
+  const r = await fetchImpl(url, {}, 20000);
+  const err = (r && r.ok && r.body && r.body.error) || (r && !r.ok && r.error) || "";
+  if (err && NO_RESULTS.test(String(err)))
+    return { state: "no", lastShown: "", adCount: 0, note: `No ads in Google's ad record for ${domain}` };
+  if (!r || !r.ok || err) return { state: "unknown", lastShown: "", adCount: 0, note: `Google ad record check failed: ${String(err || "no response").slice(0, 160)}` };
+  // Ads that point at a DIFFERENT site are somebody else's, even if the text search surfaced them.
+  const mine = (r.body.ad_creatives || []).filter((a) => !a.target_domain || host(a.target_domain) === domain);
+  if (!mine.length) return { state: "no", lastShown: "", adCount: 0, note: `No ads in Google's ad record for ${domain}` };
+  const last = Math.max(...mine.map((a) => Number(a.last_shown) || 0));
+  const lastIso = last ? new Date(last * 1000).toISOString() : "";
+  const days = last ? Math.floor((now - last * 1000) / 864e5) : null;
+  const recent = days !== null && days <= GOOGLE_RECENT_DAYS;
+  return {
+    state: recent ? "yes" : "no",
+    lastShown: lastIso,
+    adCount: mine.length,
+    note: recent
+      ? `${mine.length} ad${mine.length === 1 ? "" : "s"} in Google's ad record, last shown ${days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}`
+      : `Ran Google ads before, last shown ${lastIso.slice(0, 10)}; nothing since`,
+  };
+};
+
+// The one rule for combining every signal about Google ads. Google's own record beats the model's
+// research, which beats a website tag. Used by the scout run AND the one-prospect re-check, so the
+// two can never disagree about what a prospect's status is.
+export const combineAdsState = (ai, tag, record) => {
+  const rec = record && record.state;
+  if (rec === "yes" || rec === "no") return rec;
+  if (ai === "yes" || ai === "no") return ai;
+  return ai === "likely" || tag === "likely" ? "likely" : "unknown";
 };
 
 // A deep link into the Ad Library web UI, which DOES show commercial ads — one click
@@ -313,11 +405,17 @@ export const enrichFromProviders = async (cand) => {
 
   // Ad-tech detection needs no API key — it is just their public homepage — so it
   // runs on every prospect regardless of which providers are configured.
-  const [org, person, adTech] = await Promise.all([
+  const [org, person, adTech, gRecord] = await Promise.all([
     apolloOrganization(domain, out.notes).catch((e) => { out.notes.push(`Apollo org threw: ${e && e.message}`); return null; }),
     apolloDecisionMaker({ domain, companyName: cand.name }, out.notes).catch((e) => { out.notes.push(`Apollo people threw: ${e && e.message}`); return null; }),
     inspectAdTech(cand.website).catch(() => null),
+    env("SERPAPI_API_KEY") && domain ? googleAdsRecord(cand.website).catch(() => null) : Promise.resolve(null),
   ]);
+  if (gRecord) {
+    out.verified.googleAdsRecord = gRecord;
+    if (gRecord.state !== "unknown") out.sources.push("Google ad record");
+    else out.notes.push(gRecord.note);
+  }
   if (adTech) {
     out.verified.adTech = adTech;
     if (adTech.reachable && adTech.evidence.length) out.sources.push("site tags");

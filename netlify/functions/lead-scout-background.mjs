@@ -25,7 +25,7 @@ import {
   normName, normDomain, dedupeKeyFor, areaMatches, tierFor, getNicheLeadFee, PACKAGES,
 } from "../lib/scout-shared.mjs";
 import { assessAffordability, buildScore } from "../lib/scout-scoring.mjs";
-import { providerStatus, placesSearch, enrichFromProviders } from "../lib/scout-providers.mjs";
+import { providerStatus, placesSearch, enrichFromProviders, combineAdsState } from "../lib/scout-providers.mjs";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-opus-5";
@@ -227,7 +227,11 @@ const sanitize = (p, ctx) => {
     reviewCount: Math.max(0, Math.round(Number(pick(verified.reviewCount, p.review_count)) || 0)),
     reviewSource: rating ? (verified.rating ? "Google" : clean(p.review_source)) : "",
 
-    googleAds: adsState(p.google_ads, verified.adTech && verified.adTech.googleAds),
+    // Google's own ad record, when it answered, beats both the model and the website tags.
+    googleAds: combineAdsState(adsState(p.google_ads), verified.adTech && verified.adTech.googleAds, verified.googleAdsRecord),
+    googleAdsLastSeen: (verified.googleAdsRecord && verified.googleAdsRecord.lastShown) || "",
+    googleAdsNote: (verified.googleAdsRecord && verified.googleAdsRecord.note) || "",
+    googleAdsCheckedAt: verified.googleAdsRecord && verified.googleAdsRecord.state !== "unknown" ? new Date().toISOString() : "",
     metaAds: adsState(p.meta_ads, verified.adTech && verified.adTech.metaAds),
     adsEvidence: [clean(p.ads_evidence), (verified.adTech && verified.adTech.reachable && verified.adTech.evidence.length) ? `Site tags: ${verified.adTech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
     adLibraryUrl: verified.adLibraryUrl || "",
@@ -422,6 +426,8 @@ const doRun = async (supabase, id, input) => {
       v.adTech && v.adTech.reachable && v.adTech.evidence.length
         ? `AD TECH on their website: ${v.adTech.evidence.join("; ")} (a tag means they are SET UP to advertise = "likely", not proof of a live campaign)`
         : v.adTech && !v.adTech.reachable ? `website could not be fetched (${v.adTech.note}) — no ad-tech read` : "",
+      v.googleAdsRecord && v.googleAdsRecord.state !== "unknown"
+        ? `GOOGLE'S OWN AD RECORD: ${v.googleAdsRecord.note} (this is authoritative: google_ads must be "${v.googleAdsRecord.state}")` : "",
       (c.provider.phones || []).filter((p) => p.whose === "owner").map((p) => `owner ${p.kind} ${p.number}`).join(", "),
       (c.provider.emails || []).map((e) => `${e.whose} email ${e.address}`).join(", "),
     ].filter(Boolean);
