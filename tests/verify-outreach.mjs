@@ -749,5 +749,27 @@ const DAY = 864e5;
   }
 }
 
+// ── Notes save themselves and stay with their company (Bryson, 2026-09-28) ──────────────────
+// "make sure if i add notes for a business ... they are actively saving and not being deleted the
+// moment i move to the next business". They were not: the note only travelled with an outcome
+// button, Skip dropped it and carried the text onto the NEXT company, and a saved note never came
+// back. Driven in a browser at four widths (type, pause, skip, outcome) before this shipped.
+{
+  ok("🔴 the server has a save-note action that writes to the company's own notes",
+    /if \(action === "note"\)[\s\S]{0,900}from\("scout_prospects"\)\s*\.update\(\{ notes: note\.trim\(\) \? note : null \}\)\.eq\("id", id\)/.test(FN));
+  ok("🔴 and a save that matched no company says so instead of reporting success",
+    /if \(!upd \|\| !upd\.length\) return json\(\{ ok: false, error: "That company is no longer on the list/.test(FN));
+  ok("it saves a moment after he stops typing", /n\.timer=setTimeout\(\(\)=>\{ n\.timer=null; if\(n\.dirty\)\{ n\.dirty=false; saveNote\(n\.id,n\.text\); \} \},700\);/.test(UI));
+  ok("🔴 moving to another company saves the last one FIRST, then loads the new one's own notes",
+    /if\(n\.id===nextId\) return;\s*\n\s*flushNote\(\);\s*\n\s*n\.id=nextId; n\.text=\(cur&&cur\.notes\)\|\|"";/.test(UI),
+    "without this the text either vanishes on Skip or follows him onto the next company");
+  ok("leaving the screen or hiding the tab saves too", /window\.addEventListener\("pagehide",h\)/.test(UI) && /removeEventListener\("visibilitychange",vis\); h\(\);/.test(UI));
+  ok("🔴 logging an outcome no longer wipes the box", !/setPending\(null\); setNote\(""\);/.test(UI));
+  ok("🔴 and the note is not also stuffed into the call log", /body:JSON\.stringify\(\{channel,outcome:o\.id,when:whenVal\|\|undefined\}\)/.test(UI));
+  ok("a failed save is shown in red, never silent", /setNoteState\("Not saved: "\+e\.message\)/.test(UI) && /\/\^Not saved\/\.test\(noteState\)\?C\.red/.test(UI));
+  ok("notes typed with a call before this change are still shown on that company",
+    /const pastNotes=cur\?touches\.filter\(t=>t\.prospect_id===cur\.id&&t\.note\):\[\];/.test(UI) && /From earlier calls/.test(UI));
+}
+
 console.log(`verify-outreach: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

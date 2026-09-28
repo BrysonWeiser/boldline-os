@@ -14,6 +14,7 @@ import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
+const NOTE_MAX = 5000;
 const PROSPECT_COLS = "id, name, domain, niche, area, score, tier, status, data, notes, step, last_touch_at, next_due_at, meeting_at, blocked_at, created_at";
 
 export default async (req) => {
@@ -109,6 +110,27 @@ export default async (req) => {
     const { error: updErr } = await supabase.from("scout_prospects").update(applied.patch).eq("id", id);
     if (updErr) return json({ ok: false, error: updErr.message }, 500);
     return json({ ok: true, patch: applied.patch, step: applied.step, dueAt: applied.dueAt });
+  }
+
+  // ── The company's own notes, saved as he types ─────────────────────────────
+  //
+  // Bryson, 2026-09-28: *"make sure if i add notes for a business in the outreach tab ... they are
+  // actively saving and not being deleted the moment i move to the next business"*. They were not:
+  // the box only travelled with an outcome button, so "Skip for now" dropped it AND carried the text
+  // onto the NEXT company, and a saved note was never shown again. Notes now live on the company
+  // itself (the same `notes` field a hand-added company's referral note already uses), one running
+  // notepad per company, written on every pause in typing and whenever he moves on.
+  if (action === "note") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    if (!id) return json({ ok: false, error: "id required" }, 400);
+    let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    const note = String(body.note == null ? "" : body.note).slice(0, NOTE_MAX);
+    const { data: upd, error: noteErr } = await supabase.from("scout_prospects")
+      .update({ notes: note.trim() ? note : null }).eq("id", id).select("id");
+    if (noteErr) return json({ ok: false, error: noteErr.message }, 500);
+    // A save that matched no row is a lost note, and must say so rather than report success.
+    if (!upd || !upd.length) return json({ ok: false, error: "That company is no longer on the list, so the note was not saved." }, 404);
+    return json({ ok: true, notes: note.trim() ? note : null });
   }
 
   // ── Add one company by hand ────────────────────────────────────────────────

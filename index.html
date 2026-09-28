@@ -7042,7 +7042,9 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [i,setI]=useState(0);
   const [loading,setLoading]=useState(true);
   const [msg,setMsg]=useState("");
-  const [note,setNote]=useState("");
+  const [note,setNote]=useState("");              // the notes box for the company ON SCREEN
+  const [noteState,setNoteState]=useState("");    // "" | "saving" | "saved" | an error sentence
+  const noteRef=useRef({id:null,text:"",dirty:false,timer:null});
   const [when,setWhen]=useState("");
   const [pending,setPending]=useState(null);       // an outcome waiting on a time or a confirmation
   const [busy,setBusy]=useState(false);
@@ -7086,6 +7088,48 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const ranked = outRankPhones(cur);
   const pains  = outPainPoints(cur);
   const facts  = outFacts(cur);
+
+  // 🔴 NOTES BELONG TO THE COMPANY AND SAVE THEMSELVES (Bryson, 2026-09-28: "make sure ... they are
+  // actively saving and not being deleted the moment i move to the next business"). They were not:
+  // the box only travelled with an outcome button, so Skip dropped the note AND carried the text onto
+  // the NEXT company, and a saved note never came back. Now: saved 0.7s after he stops typing, saved
+  // again the instant he moves to another company, leaves the screen or hides the tab, and each
+  // company opens with its own notes. A failed save says so in red, because a note that silently did
+  // not save is exactly the bug being fixed.
+  const saveNote=async(id,text,opts)=>{
+    if(!id) return;
+    try{
+      const token=await authToken(); if(!token) throw new Error("session expired. Copy the note, refresh, and paste it back.");
+      const r=await fetch("/.netlify/functions/outreach?action=note&id="+encodeURIComponent(id),{method:"POST",keepalive:!!(opts&&opts.keepalive),
+        headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},body:JSON.stringify({note:text})});
+      const dd=await r.json().catch(()=>({}));
+      if(!r.ok||dd.ok===false) throw new Error(dd.error||"the server did not confirm it");
+      setQueue(q=>q.map(x=>x.id===id?{...x,notes:dd.notes}:x));
+      if(noteRef.current.id===id&&noteRef.current.text===text) setNoteState("saved");
+    }catch(e){
+      if(noteRef.current.id===id){ if(noteRef.current.text===text) noteRef.current.dirty=true; setNoteState("Not saved: "+e.message); }
+    }
+  };
+  const flushNote=(opts)=>{ const n=noteRef.current;
+    if(n.timer){ clearTimeout(n.timer); n.timer=null; }
+    if(n.dirty&&n.id){ n.dirty=false; return saveNote(n.id,n.text,opts); } };
+  const onNoteChange=(text)=>{ const n=noteRef.current;
+    setNote(text); setNoteState("saving"); n.text=text; n.dirty=true;
+    if(n.timer) clearTimeout(n.timer);
+    n.timer=setTimeout(()=>{ n.timer=null; if(n.dirty){ n.dirty=false; saveNote(n.id,n.text); } },700); };
+  // A different company on screen: save the last one's note FIRST, then show this one's.
+  useEffect(()=>{ const n=noteRef.current, nextId=cur?cur.id:null;
+    if(n.id===nextId) return;
+    flushNote();
+    n.id=nextId; n.text=(cur&&cur.notes)||""; n.dirty=false;
+    setNote(n.text); setNoteState(""); },[cur?cur.id:null]);
+  // Leaving the screen, closing the tab or switching apps must not lose the last few keystrokes.
+  useEffect(()=>{ const h=()=>flushNote({keepalive:true});
+    const vis=()=>{ if(document.visibilityState==="hidden") h(); };
+    window.addEventListener("pagehide",h); document.addEventListener("visibilitychange",vis);
+    return ()=>{ window.removeEventListener("pagehide",h); document.removeEventListener("visibilitychange",vis); h(); }; },[]);
+  // Notes typed with a call outcome before 2026-09-28 live on those calls; show them rather than lose them.
+  const pastNotes=cur?touches.filter(t=>t.prospect_id===cur.id&&t.note):[];
   // One company at a time, on a tap: Google's ad record costs one of the free plan's monthly checks.
   const checkGoogleAds=async()=>{
     if(!cur||adCheck.busy) return;
@@ -7115,9 +7159,11 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
     setBusy(true); setMsg("");
     try{
       await api("action=touch&id="+encodeURIComponent(cur.id),{method:"POST",
-        body:JSON.stringify({channel,outcome:o.id,note:note.trim()||undefined,when:whenVal||undefined})});
+        body:JSON.stringify({channel,outcome:o.id,when:whenVal||undefined})});
       setLastDone({id:cur.id,name:cur.name,label:o.label});
-      setPending(null); setNote(""); setWhen(""); setDrafts(null);
+      // The notes box is NOT cleared here: it belongs to this company, is already saved, and the
+      // switch to the next company saves anything still pending before loading theirs.
+      setPending(null); setWhen(""); setDrafts(null);
       // Advance rather than reload: reloading the queue mid-session would reshuffle under him.
       setQueue(q=>q.filter((_,k)=>k!==i));
       setI(k=>Math.min(k,Math.max(0,queue.length-2)));
@@ -7342,8 +7388,21 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                   </>}
                 </div>)}
 
-              <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Anything worth remembering (optional)"
-                style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:12.5,borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:11}}/>
+              <div style={{marginBottom:11}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:5}}>
+                  <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted}}>Your notes on {cur.name}</span>
+                  <span style={{marginLeft:"auto",fontSize:10.5,fontWeight:700,color:/^Not saved/.test(noteState)?C.red:noteState==="saved"?C.green:C.textMuted}}>
+                    {noteState==="saving"?"Saving…":noteState==="saved"?"✓ Saved":noteState}
+                  </span>
+                </div>
+                <textarea value={note} onChange={e=>onNoteChange(e.target.value)} onBlur={()=>flushNote()} rows={3} placeholder="Notes on this company. They save as you type and stay with this company."
+                  style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:12.5,borderRadius:10,border:`1px solid ${/^Not saved/.test(noteState)?C.red+"88":C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
+                {!!pastNotes.length&&(
+                  <div style={{marginTop:6,fontSize:11.5,color:C.textDim,lineHeight:1.55}}>
+                    <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:3}}>From earlier calls</div>
+                    {pastNotes.slice(0,5).map((t,k)=><div key={k}><span style={{color:C.textMuted}}>{new Date(t.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}:</span> {t.note}</div>)}
+                  </div>)}
+              </div>
 
               {/* 🔴 THE OUTCOME BUTTONS ARE THE WHOLE POINT. Big, few, and they advance on their
                   own, because the gap between calls is where momentum dies. */}
