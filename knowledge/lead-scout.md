@@ -321,6 +321,37 @@ him to add a small amount and set a monthly spend limit rather than auto-reload,
 this month (KB `niche-selection`). He topped up the same morning. Anthropic console login is **brysonaweiser@gmail.com** (KB
 `account-email-map`).
 
+**2026-09-28 — REAL ANSWERS ON "ARE THEY RUNNING ADS".** Bryson: *"so far its always said for google
+and meta ads that it cant confirm either way so at this point it is essentially useless to me"*. Root
+cause: the only signals were the AI (web search cannot see ads) and a homepage tag scan (most small
+sites load their tags through Google Tag Manager, so the source shows only the container). Three fixes:
+
+1. **Google's own ad record** (Ads Transparency Center) via **SerpApi**, env var **`SERPAPI_API_KEY`**
+   (free plan 250 checks/month, $25/mo for 1,000). `googleAdsRecord(website)` in scout-providers looks
+   the business up by its WEBSITE (not name), region 2840 (US). **yes** = an ad shown within 14 days
+   (the record lags a few days). **no** = nothing, or only older ads, and then `googleAdsLastSeen` is
+   kept, which drives a new top pain point **stopped_ads** ("They ran Google ads until June 2026 and
+   stopped"). Ads pointing at a different domain are not theirs. 🔴 Every failure (no key, out of
+   searches, timeout) is **unknown with the reason**, never a silent "no". `combineAdsState`: record >
+   AI > tag. Runs automatically per prospect in new scout runs when the key is set.
+2. **Tag Manager peek**: `inspectAdTech` now fetches the public `gtm.js?id=GTM-...` container and looks
+   for `"function":"__awct"` (Google Ads conversion), `"__sp"` (remarketing), `AW-` ids and the Meta
+   Pixel. Still only ever "likely"/"unknown", never "no".
+3. **Outreach card**: a **Check Google ads** button (one company, one search, hidden for 7 days after a
+   real answer) through `lead-scout?action=recheck-ads&id=`, which returns the updated company so the
+   card changes at once. 🔴 The paid lookup runs ONLY for a single id; the bulk re-check stays on the
+   free tag read, or one tap would spend the whole month. A failed lookup never overwrites an earlier
+   real answer. Plus a **Check Meta ads ↗** link (Meta's own Ad Library search) since Meta's API hides
+   ordinary US business ads.
+
+Also: the "not advertising" pain line no longer says "Nobody is bidding on their service in their own
+city" (never checked); it now says they are not running Google ads. Changed in both copies.
+Tests: new `verify-ad-detection` (21 checks, 11 mutations all caught, incl. a timezone mutation on the
+month name); `verify-outreach` 316. Driven in a browser at 390/768/1280/1600: button, Meta link, the
+line updating to "Not running now. Last ad seen June 2026", the stopped pain point, button hiding.
+**Needs the SerpApi key in Netlify** (10pm reminder `trig_01TWq4ZVdRcbHK6SCRCt8WK6`). Until then the
+button explains that the key is missing rather than doing nothing.
+
 **2026-09-27 — the out-of-credits error now shows STEPS, not JSON.** Bryson: *"add step by step
 instructions in the red alert and make it smaller"*. `scoutCreditError(e)` (index.html, beside
 `SCOUT_NICHES`) matches the words "credit balance is too low" however they arrive, and those errors
