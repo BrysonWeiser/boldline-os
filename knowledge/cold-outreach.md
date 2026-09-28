@@ -186,3 +186,28 @@ Found by driving the screen in a browser, which is now the habit:
    because the tests never ran the component.
 2. **Arriving at Messages from Call mode** left the channel on "call", which that tab hides. The
    button read "Write 3 texts" with no chip selected, and the draft it asked for was an email.
+
+## 2026-09-28 — the call card shows FACTS, not a script
+
+Bryson: *"instead of giving me a script to go off of just give me information in bullet points about
+the company such as if they are running any ads, pain points i can hit, reviews, years in business,
+etc."* The card now has one **Know before you dial** block of label: value bullets (Google ads,
+Facebook / Instagram ads, Reviews, In business, Size, Owner, Website, Services) and a **Pain points
+you can hit** list of plain lines. Built by `outFacts` in index.html, beside `outPainPoints`.
+
+- 🔴 **Unknown ads are SAID to be unknown** ("Couldn't confirm either way"), never left out: "are they
+  advertising" is the first thing he wants, and a missing line reads as "no". "None found (checked)"
+  only for the scout's four-valued "no", which it returns only after actively searching.
+- Nothing else is invented: no review line without a count, no website line for "unknown".
+- Gone from the card: the quoted opener, the "Ask:" questions and the saved call script (display AND
+  editor). The rules that compute the hook and questions are untouched and still parity-tested, and
+  the saved script stays stored on the server, so nothing he wrote is lost if it comes back.
+- The block now shows on every channel, not just calls, since an email needs the same facts.
+- 🔴 **Gotcha while building:** removing the script editor by slicing to the next `</div>` matched
+  a more-indented inner `</div>` as a substring and left two stray lines, which broke compilation of
+  the whole OS. `verify-app-boots` caught it before anything shipped. Slice on exact indentation, and
+  always run that suite after deleting JSX.
+
+Tests: `verify-outreach` now runs `outFacts` itself (14 new checks, 307 total) and pins that no
+script, opener or "Ask:" line comes back onto the card. Driven in a browser at 390/768/1280/1600: all
+facts present, no script text, no overflow, no console errors.
