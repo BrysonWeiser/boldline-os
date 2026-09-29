@@ -17469,10 +17469,41 @@ function makeDemoClient() {
   };
 }
 
-function AddClientSheet({onSave,onClose}) {
+// ── 🔴 A CLIENT PREPARED BY CLAUDE, SAVED BY BRYSON ─────────────────────────────────────────
+// Bryson, 2026-09-28: *"Can you add him into the os yourself with all the details we have that way I
+// don't have to manually do it"*. Claude has no key to the database, on purpose (the keys live only
+// in Netlify), so it cannot write a client. What it CAN do is hand him a link that opens this sheet
+// already filled in: `#addclient=` + base64url JSON. Nothing is saved until he presses Add Client, so
+// the link is a draft, never a write, and he checks every field first.
+//
+// Only a fixed list of fields is accepted and each is coerced, so a hand-built or tampered link can
+// only ever PRE-FILL a form he then reads. The hash is cleared as soon as it is read, so a reload or a
+// back button does not reopen it.
+const PREFILL_TEXT=["name","contactName","contactTitle","email","businessAddress","businessPhone","niche","notes","qualifiedLeadDef","adBudget"];
+const PREFILL_NUM=["billingMonthly","billingSetup","billingPerLead","contractTermMonths"];
+function parseClientPrefill(hash){
+  const m=/(?:^|[#&])addclient=([A-Za-z0-9_\-]+)/.exec(String(hash||""));
+  if(!m) return null;
+  let raw;
+  try{ const b=m[1].replace(/-/g,"+").replace(/_/g,"/"); raw=JSON.parse(decodeURIComponent(escape(atob(b+"===".slice((b.length+3)%4))))); }catch(e){ return null; }
+  if(!raw||typeof raw!=="object"||Array.isArray(raw)) return null;
+  const out={};
+  for(const k of PREFILL_TEXT) if(typeof raw[k]==="string"&&raw[k].trim()) out[k]=raw[k].trim().slice(0,2000);
+  for(const k of PREFILL_NUM) if(raw[k]!==undefined&&raw[k]!==null&&raw[k]!==""&&Number.isFinite(Number(raw[k]))&&Number(raw[k])>=0) out[k]=Number(raw[k]);
+  if(typeof raw.packageId==="string"&&findPkg(raw.packageId)) out.packageId=raw.packageId;
+  if(typeof raw.contractStart==="string"&&!isNaN(Date.parse(raw.contractStart))) out.contractStart=raw.contractStart;
+  if(typeof raw.startDateFirm==="boolean") out.startDateFirm=raw.startDateFirm;
+  if(Array.isArray(raw.platforms)) out.platforms=raw.platforms.filter(x=>x==="google"||x==="meta");
+  return Object.keys(out).length?out:null;
+}
+function AddClientSheet({onSave,onClose,initial}) {
   const [step,setStep]     = useState(1);
-  const [termMonths,setTermM] = useState(3);
-  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",businessPhone:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",contractStart:fmt(today),contractEnd:fmt(addMonths(today,3)),contractTermMonths:3});
+  const pre=initial||null;
+  const preTerm=pre&&pre.contractTermMonths>0?pre.contractTermMonths:3;
+  const preStart=pre&&pre.contractStart?new Date(pre.contractStart):today;
+  const [termMonths,setTermM] = useState(preTerm);
+  const [form,setForm]     = useState({name:"",contactName:"",email:"",businessAddress:"",businessPhone:"",niche:"",packageId:"",stage:"onboarding",platforms:[],adBudget:"",notes:"",
+    ...(pre||{}),contractStart:fmt(preStart),contractEnd:fmt(addMonths(preStart,preTerm)),contractTermMonths:preTerm});
   const [pkgCat,setPkgCat] = useState("google");
   const [saved,setSaved]   = useState(false);
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
@@ -17511,6 +17542,20 @@ function AddClientSheet({onSave,onClose}) {
         <div style={{height:3,backgroundColor:"rgba(255,255,255,.06)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",backgroundColor:"#1D4ED8",width:step===1?"50%":"100%",transition:"width .3s",borderRadius:2}}/></div>
       </div>
       <div style={{flex:1,overflowY:"auto",padding:"13px 14px",display:"flex",flexDirection:"column",gap:12}}>
+        {pre&&step===1&&(
+          <Card style={{backgroundColor:`${C.gold}0c`,borderColor:`${C.gold}44`}}>
+            <div style={{fontSize:12,fontWeight:800,color:C.gold,marginBottom:4}}>Filled in for you. Check it, then press Add Client.</div>
+            <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>Nothing is saved until you do. These come along too, and can be changed later on the Package tab:
+              <ul style={{margin:"4px 0 0",paddingLeft:17}}>
+                {pre.billingMonthly!=null&&<li>Monthly minimum: <b style={{color:C.text}}>{pre.billingMonthly===0?"none (waived)":"$"+pre.billingMonthly}</b></li>}
+                {pre.billingSetup!=null&&<li>Setup fee: <b style={{color:C.text}}>{pre.billingSetup===0?"waived":"$"+pre.billingSetup}</b></li>}
+                {pre.billingPerLead!=null&&<li>Price per qualified lead: <b style={{color:C.text}}>${pre.billingPerLead}</b></li>}
+                {pre.adBudget&&<li>Their ad budget: <b style={{color:C.text}}>{pre.adBudget}</b></li>}
+                {pre.qualifiedLeadDef&&<li>What counts as a lead: <b style={{color:C.text}}>{pre.qualifiedLeadDef}</b></li>}
+                {pre.contractStart&&<li>Start date: <b style={{color:C.text}}>{fmt(pre.contractStart)}</b>{pre.startDateFirm===false?" (estimated: the day the ads go live)":""}</li>}
+              </ul>
+            </div>
+          </Card>)}
         {step===1&&<>
           <Card>
             <Label>Client Information</Label>
@@ -18599,6 +18644,14 @@ function App({onLogout}) {
   const [activeClient,setActiveClient] = useState(null);
   const [showARIA,setShowARIA]         = useState(false);
   const [showAdd,setShowAdd]           = useState(false);
+  const [addPrefill,setAddPrefill]     = useState(null);
+  // A link Claude prepared (see parseClientPrefill): open Add Client already filled in, then clear the
+  // hash so a reload does not reopen it. Nothing is written until Bryson presses Add Client.
+  useEffect(()=>{ try{
+    const p=parseClientPrefill(window.location.hash);
+    if(/addclient=/.test(window.location.hash)) history.replaceState(null,"",window.location.pathname+window.location.search);
+    if(p){ setAddPrefill(p); setShowAdd(true); }
+  }catch(e){} },[]);
   const [showNotif,setShowNotif]       = useState(false);
   const [showMore,setShowMore]         = useState(false);
   const [leads,setLeads]               = useState([]);
@@ -19080,7 +19133,7 @@ function App({onLogout}) {
         }}
       />}
       {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)} onDelete={deleteClient} onUpdate={updateClient}/>}
-      {showAdd&&<AddClientSheet onSave={addClient} onClose={()=>setShowAdd(false)}/>}
+      {showAdd&&<AddClientSheet initial={addPrefill} onSave={addClient} onClose={()=>{ setShowAdd(false); setAddPrefill(null); }}/>}
     </div>
     </PlaybookCtx.Provider>
   );

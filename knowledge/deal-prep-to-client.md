@@ -140,3 +140,24 @@ earlier, so the guard silently started reading unrelated code and reported the t
 broken. Fixed on both sides: this code uses `([key,label])`, and the pattern is now anchored on
 `k==="portal"`. The test's own comment already said a pattern that can match somebody else's code
 is not a test. It was one line too loose.
+
+## 2026-09-28 — a client CLAUDE prepares and Bryson saves: the `#addclient=` link
+
+Bryson: *"Can you add him into the os yourself with all the details we have that way I don't have to
+manually do it"*. Claude has no database key in its workspace (keys live only in Netlify), so it
+cannot write a client. Instead: `https://boldlinemedia.netlify.app/#addclient=<base64url JSON>` opens
+**Add Client already filled in**, with a gold "Filled in for you" box listing the fields the form has
+no box for (monthly minimum, setup fee, per-lead price, ad budget, lead definition, start date).
+
+- 🔴 **Nothing saves until he presses Add Client.** The link is a draft. A test fails if the effect
+  that reads it ever calls the save.
+- 🔴 **Only a fixed list of fields** (`PREFILL_TEXT`, `PREFILL_NUM`, packageId if it exists,
+  contractStart if a real date, startDateFirm, platforms google/meta). A link cannot set
+  contractSigned, a status, a token, an id or billing state.
+- The hash is cleared as soon as it is read, so a reload cannot add the client twice. The end date is
+  always computed from start + term, never taken from the link.
+- **To make one:** JSON of the fields, base64url-encode, append after `#addclient=`. Worked example:
+  Springbok, 2026-09-28 (see KB `springbok-wellness-deal`).
+- Tests: `verify-client-prefill` (9 checks). Driven in a browser at 390 and 1280: sheet opens filled,
+  hash cleared, nothing saved before the click, the saved record carries $0 monthly, $0 setup, $25 per
+  lead, Oct 19 2026 to Jan 19 2027 estimated, the lead definition, unsigned.
