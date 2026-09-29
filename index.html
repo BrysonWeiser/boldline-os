@@ -7031,6 +7031,19 @@ const outRankPhones=(prospect)=>{
 // netlify/lib/outreach.mjs, where it also decides queue order.
 const outIsManual = (p) => !!(p && p.data && p.data.source === "manual");
 const outOutcome = (id) => OUT_OUTCOMES.find(o=>o.id===id)||null;
+// ── 🔴 WHAT HAPPENED LAST TIME, on the card (Bryson, 2026-09-28: "where it shows the attempts to call
+// it shows what was put before whether it was not interested call back later etc"). The card said
+// "attempt 3" and nothing about attempts 1 and 2, so he rang a company blind to the fact that it had
+// asked for a call back on Thursday. One line per logged touch, newest first, in the words of the
+// button he pressed.
+const outDay=(iso)=>{ const t=new Date(iso); return isNaN(t)?"":t.toLocaleDateString(undefined,{month:"short",day:"numeric"}); };
+const outHistoryLine=(t)=>{ const o=outOutcome(t&&t.outcome), ch=OUT_CHANNELS.find(c=>c.id===(t&&t.channel));
+  return { when:outDay(t&&t.created_at), channel:ch?ch.label:"", what:o?o.label:String((t&&t.outcome)||""),
+    tone:o&&o.blocks?"bad":o&&o.books?"good":o&&o.ends?"end":"plain",
+    meeting:t&&t.meeting_at?new Date(t.meeting_at).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"}):"",
+    note:String((t&&t.note)||"").trim() }; };
+const outHistory=(touches,id)=>(touches||[]).filter(t=>t&&t.prospect_id===id)
+  .slice().sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
 const outFor = (ch) => OUT_OUTCOMES.filter(o=>o.channels.includes(ch));
 const outRollup = (touches) => {
   const list=(touches||[]).filter(Boolean);
@@ -7073,6 +7086,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [addErr,setAddErr]=useState("");
   const [adCheck,setAdCheck]=useState({id:null,busy:false,msg:""});
   const [igEdit,setIgEdit]=useState({id:null,text:"",busy:false,msg:""});
+  const [histById,setHistById]=useState({});     // full history per company, fetched when it comes on screen
 
   // Each screen carries its own, because this is one file and there is no module scope to share
   // one from. Found by driving the screen: without it every call failed with "authToken is not
@@ -7157,8 +7171,12 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
     const vis=()=>{ if(document.visibilityState==="hidden") h(); };
     window.addEventListener("pagehide",h); document.addEventListener("visibilitychange",vis);
     return ()=>{ window.removeEventListener("pagehide",h); document.removeEventListener("visibilitychange",vis); h(); }; },[]);
-  // Notes typed with a call outcome before 2026-09-28 live on those calls; show them rather than lose them.
-  const pastNotes=cur?touches.filter(t=>t.prospect_id===cur.id&&t.note):[];
+  // Every logged touch for the company on screen. The 30-day list covers most of it instantly; the
+  // company's own full history (older than 30 days too) is fetched once when it comes on screen.
+  const history=cur?outHistory(histById[cur.id]||touches,cur.id):[];
+  useEffect(()=>{ const id=cur?cur.id:null; if(!id||histById[id]) return;
+    (async()=>{ try{ const d=await api("action=touches&id="+encodeURIComponent(id)); setHistById(h=>({...h,[id]:d.touches||[]})); }catch(e){} })();
+  },[cur?cur.id:null]);
   // One company at a time, on a tap: Google's ad record costs one of the free plan's monthly checks.
   const checkGoogleAds=async()=>{
     if(!cur||adCheck.busy) return;
@@ -7196,14 +7214,14 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       // Advance rather than reload: reloading the queue mid-session would reshuffle under him.
       setQueue(q=>q.filter((_,k)=>k!==i));
       setI(k=>Math.min(k,Math.max(0,queue.length-2)));
-      loadTouches();
+      loadTouches(); setHistById(h=>{ const n={...h}; delete n[cur.id]; return n; });
     }catch(e){ setMsg(setupMsg(e.message)||e.message); }
     setBusy(false);
   };
   const undo=async()=>{
     if(!lastDone) return;
     setBusy(true);
-    try{ await api("action=undo&id="+encodeURIComponent(lastDone.id),{method:"POST"}); setLastDone(null); await loadQueue(); await loadTouches(); }
+    try{ await api("action=undo&id="+encodeURIComponent(lastDone.id),{method:"POST"}); setHistById(h=>{ const n={...h}; delete n[lastDone.id]; return n; }); setLastDone(null); await loadQueue(); await loadTouches(); }
     catch(e){ setMsg(e.message); }
     setBusy(false);
   };
@@ -7358,6 +7376,23 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                 {Number(cur.step||0)>0&&<> · attempt {Number(cur.step)+1}</>}
                 {d.ownerName&&<> · {d.ownerName}</>}
               </div>
+              {/* What happened before, right under the attempt count. */}
+              {!!history.length&&(
+                <div style={{marginBottom:10,padding:"8px 11px",borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3}}>
+                  <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>
+                    History · {history.length} {history.length===1?"try":"tries"}
+                  </div>
+                  {history.slice(0,6).map((t,k)=>{ const h=outHistoryLine(t);
+                    const col=h.tone==="bad"?C.red:h.tone==="good"?C.green:h.tone==="end"?C.amber:C.text;
+                    return (
+                      <div key={k} style={{fontSize:12,lineHeight:1.55,color:C.textDim,padding:"2px 0"}}>
+                        <span style={{color:C.textMuted}}>{h.when}{h.channel?` · ${h.channel}`:""}:</span>{" "}
+                        <b style={{color:col,fontWeight:700}}>{h.what}</b>
+                        {h.meeting&&<span style={{color:C.textMuted}}> · meeting {h.meeting}</span>}
+                        {h.note&&<span> · {h.note}</span>}
+                      </div>); })}
+                  {history.length>6&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:2}}>+ {history.length-6} older</div>}
+                </div>)}
 
               {/* Tap to dial or mail straight from the phone. 🔴 BEST BET FIRST AND LABELLED: three
                   bare numbers is three decisions per prospect, and the point of this screen is that
@@ -7428,11 +7463,6 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                 </div>
                 <textarea value={note} onChange={e=>onNoteChange(e.target.value)} onBlur={()=>flushNote()} rows={3} placeholder="Notes on this company. They save as you type and stay with this company."
                   style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:12.5,borderRadius:10,border:`1px solid ${/^Not saved/.test(noteState)?C.red+"88":C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
-                {!!pastNotes.length&&(
-                  <div style={{marginTop:6,fontSize:11.5,color:C.textDim,lineHeight:1.55}}>
-                    <div style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:3}}>From earlier calls</div>
-                    {pastNotes.slice(0,5).map((t,k)=><div key={k}><span style={{color:C.textMuted}}>{new Date(t.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}:</span> {t.note}</div>)}
-                  </div>)}
               </div>
 
               {/* 🔴 THE OUTCOME BUTTONS ARE THE WHOLE POINT. Big, few, and they advance on their

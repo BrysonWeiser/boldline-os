@@ -767,8 +767,43 @@ const DAY = 864e5;
   ok("🔴 logging an outcome no longer wipes the box", !/setPending\(null\); setNote\(""\);/.test(UI));
   ok("🔴 and the note is not also stuffed into the call log", /body:JSON\.stringify\(\{channel,outcome:o\.id,when:whenVal\|\|undefined\}\)/.test(UI));
   ok("a failed save is shown in red, never silent", /setNoteState\("Not saved: "\+e\.message\)/.test(UI) && /\/\^Not saved\/\.test\(noteState\)\?C\.red/.test(UI));
-  ok("notes typed with a call before this change are still shown on that company",
-    /const pastNotes=cur\?touches\.filter\(t=>t\.prospect_id===cur\.id&&t\.note\):\[\];/.test(UI) && /From earlier calls/.test(UI));
+  ok("notes typed with a call before this change are still shown on that company (in the history, beside the outcome)",
+    /\{h\.note&&<span> · \{h\.note\}<\/span>\}/.test(UI));
+}
+
+// ── What happened on earlier tries, on the card ─────────────────────────────────────────────
+// Bryson, 2026-09-28: "where it shows the attempts to call it shows what was put before whether it
+// was not interested call back later etc". RUN, not grepped.
+{
+  const a = UI.indexOf("const OUT_OUTCOMES = ["), a2 = UI.indexOf("const outOutcome = ", a), b = UI.indexOf("const outFor = ", a2);
+  const c0 = UI.indexOf("const OUT_CHANNELS"), c1 = UI.indexOf("];", c0) + 2;
+  ok("the history helpers are present", a > 0 && a2 > a && b > a2 && c0 > 0);
+  const H = new Function(UI.slice(c0, c1) + "\n" + UI.slice(a, UI.indexOf("];", a) + 2) + "\n" + UI.slice(a2, b) +
+    "return { outHistoryLine, outHistory, OUT_OUTCOMES };")();
+  const lbl = (id) => H.OUT_OUTCOMES.find((o) => o.id === id).label;
+  const T = [
+    { prospect_id: "p1", channel: "call", outcome: "no_answer", created_at: "2026-09-21T17:00:00Z" },
+    { prospect_id: "p1", channel: "call", outcome: "callback", created_at: "2026-09-24T17:00:00Z", note: "try after 3" },
+    { prospect_id: "p2", channel: "call", outcome: "not_interested", created_at: "2026-09-25T17:00:00Z" },
+    { prospect_id: "p1", channel: "call", outcome: "not_interested", created_at: "2026-09-26T17:00:00Z" },
+  ];
+  const hist = H.outHistory(T, "p1");
+  ok("only that company's tries, newest first", hist.length === 3 && hist[0].outcome === "not_interested" && hist[2].outcome === "no_answer");
+  const lines = hist.map(H.outHistoryLine);
+  ok("🔴 each try says what he pressed, in the button's own words",
+    lines[0].what === lbl("not_interested") && lines[1].what === lbl("callback") && lines[2].what === lbl("no_answer"),
+    JSON.stringify(lines.map((l) => l.what)));
+  ok("with the day, the channel and the note typed with it",
+    /Sep/.test(lines[1].when) && lines[1].channel.length > 0 && lines[1].note === "try after 3");
+  ok("a stop outcome reads red, a booking green", H.outHistoryLine({ outcome: "do_not_contact" }).tone === "bad" &&
+    H.outHistoryLine({ outcome: "booked", meeting_at: "2026-10-01T17:00:00Z" }).tone === "good");
+  ok("an outcome the screen no longer knows still shows, never a blank line", H.outHistoryLine({ outcome: "legacy_x" }).what === "legacy_x");
+  ok("the block sits right under the attempt count", UI.indexOf("History · {history.length}") > UI.indexOf("attempt {Number(cur.step)+1}") &&
+    UI.indexOf("History · {history.length}") - UI.indexOf("attempt {Number(cur.step)+1}") < 800);
+  ok("🔴 it reads the company's WHOLE history, not just the last 30 days", /api\("action=touches&id="\+encodeURIComponent\(id\)\)/.test(UI));
+  ok("🔴 and forgets it after a new try or an undo, so the fresh one shows",
+    /loadTouches\(\); setHistById\(h=>\{ const n=\{\.\.\.h\}; delete n\[cur\.id\]; return n; \}\);/.test(UI) &&
+    /delete n\[lastDone\.id\]/.test(UI));
 }
 
 console.log(`verify-outreach: ${pass} passed, ${fail} failed`);
