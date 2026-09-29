@@ -103,3 +103,12 @@ If a client ever disputes it, waiving it is cheaper than defending it.
 
 Shipped five hours after v6 went live. Any contract sent in that window would say $50 while the
 system charges $150; he was asked to say if he sent one.
+
+## 2026-09-28 — a VOIDED envelope no longer pins the old terms
+
+Found while preparing Springbok's agreement: it was sent 14 Sep and voided the same day, so its
+`docusignSentAt` (before the v6 cutoff) made `termsVersionOf` return **5**, and the re-send would have
+stamped 5 too, putting him on the old late-payment terms for ever. Now a record whose
+`docusignStatus` is `voided` or `declined` and that is NOT signed ignores its send date. A live envelope
+still pins (Air Suds), and a signed record is never treated as dead. Both copies; +1 check in
+`verify-late-payment` (34), mutation caught.
