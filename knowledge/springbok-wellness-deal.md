@@ -227,3 +227,34 @@ month it is only $200 to $375); revisit at renewal with real numbers. Special Te
 lead definition, the monthly review call, and a Changes clause: service area, services and definition
 change by mutual agreement in writing, where email, text or a client-portal approval from the contact
 details on file counts, effective going forward only, ad targeting follows the area.
+
+## 2026-09-29 (Tue, 12:49pm Phoenix) — "ready to sign", but wants a lead to mean a SHOW
+
+Brendon replied to the DocuSign email: ready to sign, one change. Add to the definition "a lead that
+presents at the clinic for an appointment", because his past ads got responses but no shows, and once
+someone shows they convert almost 100%. Also wants to discuss upgrading his WEBSITE.
+
+This is the no-show question this entry deliberately kept out of the intake email (see 2026-09-22).
+Recommendation given to Bryson:
+- 🟢 **Accept pay-per-show.** It is literally the pitch ("only pay for real results") and removes his
+  one objection.
+- 🔴 **But not at $25.** $25 was priced per ENQUIRY. Per SHOW, same fee-finder rule (up to 5% of what
+  a result is worth, and a show is ~an $800 patient) gives **$40 per show**. At his own 6 in 10 that
+  is about the same money for him ($25 / 0.6 is ~$42 per patient); he just stops paying for no-shows.
+- Conditions written into Special Terms: new patient, came through BoldLine's ads/page/number, attends
+  within **30 days** of first contact; existing patients, duplicates, solicitors, outside 10 miles
+  excluded; he confirms **yes/no per lead monthly, no health info**; no answer within **14 days** of
+  being asked = that month bills as qualified leads; a lead his office does not try to contact within
+  **2 business days** counts (the no-show risk BoldLine does not control is his front desk); Changes
+  clause kept and now also covers the fee.
+- Paper: the Changes clause covers area/services/definition, not clearly PRICE, so **void the sent
+  envelope in DocuSign and resend** with the new price and Special Terms (the OS cannot void; voided
+  unsigned envelopes are ignored by `termsVersionOf`, so he stays on v6).
+- HIPAA: telling BoldLine who attended is patient information. Keep it to yes/no on leads BoldLine
+  already holds; if his office asks for a BAA, say yes.
+- OS gap: billing treats every delivered lead as billable with an Exclude toggle, so per-show means
+  unticking every no-show at review. Offered (not built) a "showed up" tick in his portal, billing only
+  ticked leads, before ads go live (~19 Oct).
+- Website: separate job, separate conversation after signing; do not fold into this agreement. The
+  founding waiver covers the setup fee (the landing page build), not a website redesign.
+Still NOT a client until signed in the OS.
