@@ -207,3 +207,16 @@ $400 minimum" advice above, which is now wrong; do not repeat it to him.
   and **no Meta Pixel** on his page (the renderer only adds one if `metaPixelId` is set, so leave it
   empty). A Business Associate Agreement only becomes relevant if BoldLine starts holding health details.
 - Google Ads account: after signing, on a call, owned and billed by him.
+
+## 2026-09-28 — he was no longer in the OS; a pre-filled Add Client link was made
+
+Bryson reported the old record is gone, so "use the existing record" above no longer applies. Claude
+built a pre-filled link (KB `deal-prep-to-client`, `#addclient=`) carrying: Springbok Chiropractic, LLC ·
+Brendon Gibb, Clinical Director · drbgibb@springbokwellness.com · (480) 558-0474 · 1400 N Gilbert Rd,
+Suite M, Gilbert, AZ 85234 · Chiropractic · g-launch (Google) · $500/mo budget · monthly $0, setup $0,
+**$25 per qualified lead** · start **Mon 19 Oct 2026, ESTIMATED** (3 months) · lead definition · notes.
+His contract renders on **terms v6**, "None during the Initial Term", setup Waived, $25.
+🔴 The landing page will show the CLIENT NAME, which is now the legal "Springbok Chiropractic, LLC";
+his public brand is **Springbok Wellness**, so set the page's brand text to that when the page is built.
+Special Terms (lead definition + monthly review call, and optionally a softer late fee) are still to
+add on the Contract tab before sending.
