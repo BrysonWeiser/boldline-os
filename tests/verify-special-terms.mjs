@@ -233,6 +233,12 @@ t("drafted clauses are de-dashed like every other written surface", () => {
   t("🔴 an empty draft with no reason is an ERROR, never a silent blank card", () => {
     assert.match(FN, /if \(!clauses\.length && !problems\.length\) \{[\s\S]{0,400}return json\(\{ ok: false,/);
   });
+  t("🔴 thinking is OFF for drafting, so it cannot eat the whole budget before writing", () => {
+    // Sonnet 5 thinks by default and thinking counts against max_tokens; a long lead definition hit
+    // the cap with nothing written and he was wrongly told to split it.
+    assert.match(FN, /max_tokens: 8000, thinking: \{ type: "disabled" \}/);
+    assert.doesNotMatch(FN, /Split it into two shorter notes/, "a long paragraph is not his problem to solve");
+  });
   t("the raw input is coerced BEFORE anything else reads it", () => {
     assert.match(FN, /const out = humanizeDeep\(\{ clauses: toClauses\(raw\.clauses\), problems: coerceList\(raw\.problems\) \}/);
   });
