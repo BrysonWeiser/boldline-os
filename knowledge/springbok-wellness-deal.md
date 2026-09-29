@@ -145,3 +145,27 @@ health conditions (Google restricts it anyway).
 
 Still NOT a client (CLAUDE.md): nothing changes on the site, the offer or the count until the signed
 agreement is on the record.
+
+## 2026-09-28 (Mon, ~6:56pm Phoenix) — he answered the rest by text
+
+| | His answer |
+|---|---|
+| Legal name | **Springbok Chiropractic, LLC** (confirmed "that is the correct legal name") |
+| Address | **1400 North Gilbert Road, Suite M, Gilbert, AZ 85234**. 🔴 His text says "covered Arizona", which is voice dictation of "Gilbert" (85234 is Gilbert); "suite m" may also be dictation. Confirm both before the agreement goes out. |
+| Owner / title | Owner, yes. Title: **Clinical Director** |
+| Ad budget | **$500 a month** to start, "see how you do". Exactly the hard floor, so **Launch tier, $400 monthly minimum** |
+| Area | **10 mile radius** around the clinic |
+| Qualified lead | Agreed to Bryson's wording, and added **"that can afford care"** |
+| Services to advertise first | **TMJ, low back, hips, neck** |
+
+🔴 **"Can afford care" should NOT go into the written definition.** Nobody can tell from a form or a
+call whether someone can afford care, so it would make every lead disputable after the fact, which
+is exactly the monthly renegotiation the written standard exists to stop. Recommended reply: agree
+with the spirit, keep the definition to what can be checked, and handle "clearly only wants free
+care" as an edge case on the monthly call.
+
+**The month at $500:** one lead is worth him $480; recommended fee **$20 per qualified lead**. At
+$500 of ad spend, leads will almost certainly sit under 20 a month, so he pays the **$400 minimum**.
+Say so plainly. Contract-ready once the address is confirmed: package, $20 rate, legal name,
+address, email (drbgibb@springbokwellness.com), start date = the day the ads go live, marked
+ESTIMATED (no Google Ads account yet; one is created on a call, owned and billed by him).
