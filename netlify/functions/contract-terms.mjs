@@ -55,6 +55,25 @@ export const flagRisky = (clauses) => {
   return hits;
 };
 
+// 🔴 A LIST CAN COME BACK AS TEXT. Bryson, 2026-09-28, pasting a qualified-lead definition for
+// Springbok: the card said "Nothing could be written from that. See below." and below was EMPTY. Both
+// lists were blank and no reason was given, which is what happens when the model hands an array back
+// as a JSON-encoded STRING (a known tool-use habit with longer, nested answers): Array.isArray says no,
+// and everything it wrote was thrown away in silence. Accept either shape, and a single object too.
+export const coerceList = (v) => {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (!t) return [];
+    try { const p = JSON.parse(t); return Array.isArray(p) ? p : (p && typeof p === "object" ? [p] : [t]); } catch { return [t]; }
+  }
+  return v && typeof v === "object" ? [v] : [];
+};
+// Clauses must be {heading, text}; a bare string is a clause with no heading rather than nothing.
+export const toClauses = (v) => coerceList(v).map((c) => (typeof c === "string" ? { heading: "", text: c } : c))
+  .map((c) => ({ heading: String((c && c.heading) || "").trim().slice(0, 80), text: String((c && c.text) || "").trim().slice(0, 1200) }))
+  .filter((c) => c.text);
+
 export const SYSTEM = `You draft ADDITIONAL contract clauses for BoldLine Media, a US advertising agency in Arizona. Their standard service agreement already exists and you never see it, never rewrite it, and never restate it.
 
 WHAT YOU PRODUCE
@@ -145,7 +164,7 @@ export default async (req) => {
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const resp = await anthropic.messages.create({
-      model: MODEL, max_tokens: 2000, system: SYSTEM,
+      model: MODEL, max_tokens: 4000, system: SYSTEM,
       tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name },
       messages: [{ role: "user", content:
         `${ctx ? `WHAT IS ALREADY IN THE AGREEMENT, so you do not repeat it:\n${ctx}\n\n` : ""}WHAT WAS AGREED, in Bryson's words:\n${note}` }],
@@ -155,11 +174,18 @@ export default async (req) => {
 
     // Dashes stripped on the way out, same as every other written surface. A contract is
     // read by the client, so the voice rule applies to it too.
-    const out = humanizeDeep(use.input || {}, { join: ". " });
-    const clauses = (Array.isArray(out.clauses) ? out.clauses : [])
-      .map((c) => ({ heading: String((c && c.heading) || "").trim().slice(0, 80), text: String((c && c.text) || "").trim().slice(0, 1200) }))
-      .filter((c) => c.text);
-    const problems = (Array.isArray(out.problems) ? out.problems : []).map((p) => String(p || "").trim()).filter(Boolean);
+    const raw = use.input || {};
+    const out = humanizeDeep({ clauses: toClauses(raw.clauses), problems: coerceList(raw.problems) }, { join: ". " });
+    const clauses = toClauses(out.clauses);
+    const problems = coerceList(out.problems).map((p) => String(p || "").trim()).filter(Boolean);
+    // 🔴 NEVER EMPTY-HANDED AND SILENT. If nothing usable came back and no reason either, that is a
+    // failed draft, and it says so, rather than a card reading "see below" over nothing.
+    if (!clauses.length && !problems.length) {
+      console.error("contract-terms: empty draft", resp.stop_reason, JSON.stringify(raw).slice(0, 600));
+      return json({ ok: false, error: resp.stop_reason === "max_tokens"
+        ? "That was too long to write up in one go. Split it into two shorter notes and do them one at a time."
+        : "The write-up came back empty. Press Write it up again; if it happens twice, split the note into two shorter ones." }, 502);
+    }
     return json({ ok: true, clauses, problems, risky: flagRisky(clauses) });
   } catch (e) {
     const m = String((e && e.message) || e);
