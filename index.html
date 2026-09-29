@@ -6180,7 +6180,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const recheckAds=async()=>{
     setRecheck("working"); setMsg("");
     try{ const r=await api("action=recheck-ads",{method:"POST"});
-      setMsg(`Ad check done — ${r.checked} sites read, ${r.found} showing advertising tags.`);
+      setMsg(`Done. ${r.checked} websites read: ${r.found} showing advertising tags, ${r.instagram||0} with an Instagram.`);
       await loadList(); }
     catch(e){ setMsg("Ad re-check failed: "+((e&&e.message)||e)); }
     setRecheck("");
@@ -6665,8 +6665,8 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               <span style={{fontSize:10.5,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em"}}>Min score</span>
               {[0,42,62,80].map(v=><button key={v} onClick={()=>setLf(f=>({...f,minScore:v}))} style={chipBtn(lf.minScore===v)}>{v===0?"Any":v+"+"}</button>)}
               <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-                <button onClick={recheckAds} disabled={recheck==="working"} title="Re-reads every saved prospect's website for Google/Meta ad tracking tags. Free — no AI, no credits."
-                  style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:recheck==="working"?C.textMuted:C.textDim,cursor:recheck==="working"?"default":"pointer"}}>{recheck==="working"?"Checking…":"Re-check ads"}</button>
+                <button onClick={recheckAds} disabled={recheck==="working"} title="Re-reads every saved prospect's website for ad tracking tags and their Instagram link. Free, no AI, no credits."
+                  style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:recheck==="working"?C.textMuted:C.textDim,cursor:recheck==="working"?"default":"pointer"}}>{recheck==="working"?"Checking…":"Re-check ads + Instagram"}</button>
                 <button onClick={loadList} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Refresh</button>
                 <button onClick={exportCSV} disabled={!list.length} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:list.length?C.textDim:C.textMuted,cursor:list.length?"pointer":"default"}}>Export CSV</button>
               </div>
@@ -6960,6 +6960,15 @@ const outBestHook=(prospect)=>{ const d=(prospect&&prospect.data)||{};
 // he wants to know and a missing line reads as "no". A missing review count is left out, never "0".
 const OUT_ADS_FACT={yes:"Running ads right now",likely:"Ad tracking on their site, but no live ads seen",no:"None found (checked)",unknown:"Couldn't confirm either way"};
 const OUT_SITE_FACT={none:"No website found",poor:"Poor",dated:"Dated",decent:"Decent",strong:"Strong"};
+// ── Instagram, for DM mode (2026-09-28). Mirrors netlify/lib/instagram.mjs for the one thing the
+// screen needs: whether a company has a handle, and where it opens. The handle itself is cleaned on
+// the server; the screen never decides what a valid handle is.
+const outIg=(prospect)=>String(((prospect&&prospect.data)||{}).instagram||"").replace(/^@+/,"");
+const outIgUrl=(h)=>h?`https://www.instagram.com/${encodeURIComponent(h)}/`:"";
+// When their website never linked it, a search that usually finds it in one tap.
+const outIgSearch=(prospect)=>{ const d=(prospect&&prospect.data)||{};
+  const q=`site:instagram.com "${String((prospect&&prospect.name)||"").trim()}" ${[d.city,d.state].filter(Boolean).join(" ")}`.trim();
+  return "https://www.google.com/search?q="+encodeURIComponent(q); };
 // Google has answered within the last week, so another check would spend a free search for nothing.
 const outNeedsGoogleCheck=(prospect)=>{ const d=(prospect&&prospect.data)||{};
   const at=Date.parse(String(d.googleAdsCheckedAt||"")); return !(Number.isFinite(at)&&Date.now()-at<7*864e5); };
@@ -7063,6 +7072,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [addMsg,setAddMsg]=useState("");
   const [addErr,setAddErr]=useState("");
   const [adCheck,setAdCheck]=useState({id:null,busy:false,msg:""});
+  const [igEdit,setIgEdit]=useState({id:null,text:"",busy:false,msg:""});
 
   // Each screen carries its own, because this is one file and there is no module scope to share
   // one from. Found by driving the screen: without it every call failed with "authToken is not
@@ -7092,6 +7102,21 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const ranked = outRankPhones(cur);
   const pains  = outPainPoints(cur);
   const facts  = outFacts(cur);
+  const ig     = outIg(cur);
+  const withIg = queue.filter(p=>outIg(p)).length;
+  // The next company that has an Instagram, wrapping round, so DM mode never lands on one it cannot use.
+  const nextWithIg=()=>{ if(!queue.length) return;
+    for(let k=1;k<=queue.length;k++){ const j=(i+k)%queue.length; if(outIg(queue[j])){ setI(j); setDrafts(null); return; } } };
+  const saveIg=async()=>{
+    if(!cur||igEdit.busy) return;
+    const id=cur.id, text=igEdit.id===id?igEdit.text:"";
+    setIgEdit({id,text,busy:true,msg:""});
+    try{
+      const d=await api("action=instagram&id="+encodeURIComponent(id),{method:"POST",body:JSON.stringify({handle:text})});
+      setQueue(q=>q.map(x=>x.id===id?{...x,data:d.data}:x));
+      setIgEdit({id:null,text:"",busy:false,msg:""});
+    }catch(e){ setIgEdit({id,text,busy:false,msg:e.message}); }
+  };
 
   // 🔴 NOTES BELONG TO THE COMPANY AND SAVE THEMSELVES (Bryson, 2026-09-28: "make sure ... they are
   // actively saving and not being deleted the moment i move to the next business"). They were not:
@@ -7190,7 +7215,9 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       const token=await authToken();
       const r=await fetch("/.netlify/functions/outreach-draft",{method:"POST",
         headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
-        body:JSON.stringify({channel:channel==="call"?"email":channel,prospect:cur})});
+        body:JSON.stringify({channel:channel==="call"?"email":channel,prospect:cur,
+          // How many times he already rang them, so a DM can honestly say "tried calling you".
+          callsTried:touches.filter(t=>t.prospect_id===cur.id&&t.channel==="call").length})});
       const dd=await r.json().catch(()=>({}));
       if(!r.ok||dd.ok===false) throw new Error(dd.error||"Could not write the drafts.");
       setDrafts(dd.drafts||[]);
@@ -7476,9 +7503,41 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
               <div style={{display:"flex",gap:7,marginBottom:11,flexWrap:"wrap"}}>
                 {OUT_CHANNELS.filter(c=>c.id!=="call").map(c=><button key={c.id} onClick={()=>{setChannel(c.id);setDrafts(null);}} style={chip(channel===c.id)}>{c.label}</button>)}
               </div>
-              <button onClick={draft} disabled={drafting} style={{padding:"10px 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gold,color:"#0a0800",cursor:drafting?"default":"pointer",opacity:drafting?.6:1}}>
-                {drafting?"Writing…":`Write 3 ${channel==="email"?"emails":channel==="dm"?"DMs":"texts"}`}
-              </button>
+              {/* 🔴 DM MODE: where to send it, and a way through only the companies that can take one.
+                  Sending stays manual (see outreach-draft.mjs): Copy, Open their Instagram, paste. */}
+              {channel==="dm"&&(
+                <div style={{marginBottom:12,padding:"10px 12px",borderRadius:11,border:`1px solid ${ig?C.gold+"44":C.border}`,background:ig?C.goldDim:C.bg3}}>
+                  {ig
+                    ? <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        <a href={outIgUrl(ig)} target="_blank" rel="noopener noreferrer"
+                          style={{padding:"8px 12px",fontSize:12.5,fontWeight:800,borderRadius:9,background:C.gold,color:"#0a0800",textDecoration:"none"}}>Open @{ig} in Instagram ↗</a>
+                        <button onClick={()=>setIgEdit({id:cur.id,text:ig,busy:false,msg:""})} style={{fontSize:11,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:"pointer",padding:0}}>Wrong account?</button>
+                      </div>
+                    : <div style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>
+                        No Instagram on file for {cur.name}.{" "}
+                        <a href={outIgSearch(cur)} target="_blank" rel="noopener noreferrer" style={{color:C.gold,fontWeight:700}}>Find it ↗</a>
+                        {!!withIg&&<> or <button onClick={nextWithIg} style={{font:"inherit",fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0}}>skip to one that has it →</button></>}
+                      </div>}
+                  {(!ig||igEdit.id===cur.id)&&(
+                    <div style={{display:"flex",gap:7,marginTop:8}}>
+                      <input value={igEdit.id===cur.id?igEdit.text:""} onChange={e=>setIgEdit({id:cur.id,text:e.target.value,busy:false,msg:""})}
+                        onKeyDown={e=>{if(e.key==="Enter")saveIg();}} placeholder="Paste their profile link or @handle"
+                        style={{flex:1,minWidth:0,padding:"8px 10px",fontSize:12.5,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit"}}/>
+                      <button onClick={saveIg} disabled={igEdit.busy} style={{padding:"8px 12px",fontSize:12,fontWeight:800,borderRadius:9,border:"none",background:C.gold,color:"#0a0800",cursor:"pointer",opacity:igEdit.busy?.6:1}}>{igEdit.busy?"Saving…":"Save"}</button>
+                    </div>)}
+                  {igEdit.msg&&igEdit.id===cur.id&&<div style={{fontSize:11,color:C.red,marginTop:6}}>{igEdit.msg}</div>}
+                  <div style={{fontSize:10.5,color:C.textMuted,marginTop:8,lineHeight:1.5}}>
+                    {withIg} of {queue.length} on your list have an Instagram. If you spot a recent post you like, add a line about it before you send. That is what gets replies.
+                  </div>
+                </div>)}
+              <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+                <button onClick={draft} disabled={drafting||(channel==="dm"&&!ig)} title={channel==="dm"&&!ig?"Add their Instagram first":undefined} style={{padding:"10px 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gold,color:"#0a0800",cursor:drafting?"default":"pointer",opacity:(drafting||(channel==="dm"&&!ig))?.5:1}}>
+                  {drafting?"Writing…":`Write 3 ${channel==="email"?"emails":channel==="dm"?"DMs":"texts"}`}
+                </button>
+                {channel==="dm"
+                  ? <button onClick={nextWithIg} disabled={!withIg} style={{fontSize:11.5,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:withIg?"pointer":"default",padding:0}}>Next with Instagram →</button>
+                  : <button onClick={()=>{setI(k=>(k+1)%Math.max(1,queue.length));setDrafts(null);}} style={{fontSize:11.5,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:"pointer",padding:0}}>Skip →</button>}
+              </div>
               {drafts&&drafts.map((dr,k)=>(
                 <div key={k} style={{marginTop:11,padding:"12px 13px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
                   <div style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.gold,marginBottom:6}}>{dr.angle}</div>

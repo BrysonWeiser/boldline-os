@@ -75,22 +75,37 @@ NEVER:
 - No "I hope this finds you well", no "just circling back", no "quick question" as the opener, no flattery the writer cannot back up.
 - Do not promise a specific result, a number of leads, or a price.`;
 
-const buildPrompt = (p, channel) => {
+// 🔴 THE FIELDS THE SCOUT ACTUALLY WRITES (fixed 2026-09-28). This used to read `reviews`,
+// `runningAds`, `summary` and `scoreFactors`, none of which any prospect has, so the writer was handed
+// a name and an industry and nothing else, and every DM came out generic. Exported for its test.
+export const researchLines = (p, extra = {}) => {
   const d = (p && p.data) || {};
   const L = [];
-  const add = (k, v) => { if (v && String(v).trim()) L.push(`${k}: ${clip(v, 300)}`); };
+  const add = (k, v) => { if (v !== undefined && v !== null && String(v).trim()) L.push(`${k}: ${clip(v, 300)}`); };
+  const ads = (v) => ({ yes: "running ads now", likely: "ad tracking on their site but no live ads seen", no: "not running ads (checked)" })[String(v)] || "";
   add("Business", p && p.name);
   add("Owner", d.ownerName || d.owner);
   add("Industry", p && p.niche);
-  add("Area", p && p.area);
-  add("Website", d.website || p.domain);
-  add("Employees", d.employees || d.headcount);
-  add("Reviews", d.reviews || d.rating);
-  add("Already running ads", d.runningAds != null ? String(d.runningAds) : (d.ads || ""));
-  add("What our research says about them", d.summary || d.reason || d.why);
-  add("Why they scored well", Array.isArray(d.scoreFactors)
-    ? d.scoreFactors.map((f) => (f && (f.reason || f.label)) || "").filter(Boolean).join("; ")
-    : "");
+  add("Area", (p && p.area) || [d.city, d.state].filter(Boolean).join(", "));
+  add("Website", d.website || (p && p.domain));
+  add("Instagram", d.instagram ? "@" + d.instagram : "");
+  add("Staff", d.employees);
+  add("In business", d.yearsInBusiness);
+  if (Number(d.reviewCount) > 0) add("Reviews", `${d.rating ? d.rating + " stars from " : ""}${d.reviewCount} reviews`);
+  add("Google ads", d.googleAds === "no" && d.googleAdsLastSeen ? `ran Google ads until ${String(d.googleAdsLastSeen).slice(0, 7)} and stopped` : ads(d.googleAds));
+  add("Facebook and Instagram ads", ads(d.metaAds));
+  add("Website quality", ["none", "poor", "dated", "decent", "strong"].includes(d.websiteQuality) ? d.websiteQuality : "");
+  add("Services", Array.isArray(d.services) ? d.services.slice(0, 5).join(", ") : "");
+  add("Marketing gaps our research found", Array.isArray(d.gaps) ? d.gaps.slice(0, 3).join("; ") : "");
+  add("Research verdict", d.verdict);
+  add("Bryson's own notes on them", p && p.notes);
+  const calls = Math.max(0, Math.round(Number(extra.callsTried) || 0));
+  if (calls > 0) L.push(`Contact so far: Bryson has already called them ${calls} time${calls === 1 ? "" : "s"} without reaching the owner. It is fine for ONE of the three to mention trying to call.`);
+  return L;
+};
+
+const buildPrompt = (p, channel, extra = {}) => {
+  const L = researchLines(p, extra);
   return `Write three ${channel === "email" ? "cold emails" : channel === "dm" ? "cold DMs" : "cold texts"} to this business.
 
 ${L.join("\n") || "No research available, so keep it general and do not invent specifics."}
@@ -122,24 +137,31 @@ export default async (req) => {
     try {
       const msg = await client.messages.create({
         model,
-        max_tokens: 1600,
+        // Sonnet 5 thinks by default and thinking counts against max_tokens (the Special Terms lesson,
+        // same night): off for a three line message, and room to write. Opus 4.8 does not think unless asked.
+        max_tokens: 6000, ...(model === "claude-sonnet-5" ? { thinking: { type: "disabled" } } : {}),
         system: buildSystem(channel),
         tools: [TOOL],
         tool_choice: { type: "tool", name: TOOL.name },
-        messages: [{ role: "user", content: buildPrompt(prospect, channel) }],
+        messages: [{ role: "user", content: buildPrompt(prospect, channel, { callsTried: body.callsTried }) }],
       });
       const use = (msg.content || []).find((b) => b.type === "tool_use");
       if (!use) throw new Error("The writer replied without using the tool.");
       // 🔴 THE DASH RULE IS ENFORCED, NOT ASKED FOR. The prompt bans it and `humanizeDeep` strips
       // it from every string anyway, because a prompt is guidance and this is a guarantee.
-      const data = humanizeDeep(use.input);
+      let input = use.input;
+      if (typeof input === "string") { try { input = JSON.parse(input); } catch { input = {}; } }
+      let list = input && input.drafts;
+      if (typeof list === "string") { try { list = JSON.parse(list); } catch { list = []; } }
+      const data = humanizeDeep({ drafts: Array.isArray(list) ? list : [] });
       const drafts = (data.drafts || []).filter((d) => d && d.body).slice(0, 3);
       if (!drafts.length) throw new Error("The writer came back with nothing usable.");
       return json({ ok: true, channel, drafts, model });
     } catch (e) {
       lastErr = e;
       const m = String((e && e.message) || e);
-      if (!/model|not_found|overloaded|capacity|529|404/i.test(m)) break;
+      // Only a billing problem stops here; anything else is worth one try on the second model.
+      if (/credit|balance|quota|insufficient/i.test(m)) break;
     }
   }
   return json({ ok: false, error: (lastErr && lastErr.message) || "Could not write the drafts." }, 500);

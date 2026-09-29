@@ -7,6 +7,7 @@
 // back, who is blocked and how the counters are computed are all pure functions there, so the
 // screen and the server cannot disagree about who is due today.
 
+import { normInstagram } from "../lib/instagram.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict, QUEUE_SKIP_STATUS } from "../lib/outreach.mjs";
@@ -131,6 +132,27 @@ export default async (req) => {
     // A save that matched no row is a lost note, and must say so rather than report success.
     if (!upd || !upd.length) return json({ ok: false, error: "That company is no longer on the list, so the note was not saved." }, 404);
     return json({ ok: true, notes: note.trim() ? note : null });
+  }
+
+  // ── Their Instagram, typed in by Bryson ────────────────────────────────────
+  // For the businesses whose website never linked it. Cleaned to a bare handle here, so a pasted
+  // profile URL, an @name, or a link with tracking on the end all store the same way. An empty value
+  // clears it. Stored inside `data`, beside the handle the website scan finds, so both read the same.
+  if (action === "instagram") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    if (!id) return json({ ok: false, error: "id required" }, 400);
+    let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    const raw = String(body.handle == null ? "" : body.handle).trim();
+    const handle = normInstagram(raw);
+    if (raw && !handle) return json({ ok: false, error: "That does not look like an Instagram handle. Paste their profile link or type @theirname." }, 400);
+    const { data: rows, error: readErr } = await supabase.from("scout_prospects").select("id, data").eq("id", id).limit(1);
+    if (readErr) return json({ ok: false, error: readErr.message }, 500);
+    const row = (rows || [])[0];
+    if (!row) return json({ ok: false, error: "That company is no longer on the list." }, 404);
+    const data = { ...(row.data || {}), instagram: handle, instagramSource: handle ? "you" : "" };
+    const { error: upErr } = await supabase.from("scout_prospects").update({ data }).eq("id", id);
+    if (upErr) return json({ ok: false, error: upErr.message }, 500);
+    return json({ ok: true, instagram: handle, data });
   }
 
   // ── Add one company by hand ────────────────────────────────────────────────

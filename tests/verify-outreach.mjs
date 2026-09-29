@@ -260,7 +260,7 @@ const DAY = 864e5;
 {
   ok("the draft writer bans the dash in the prompt", /NEVER use a dash to join or interrupt/.test(DRAFT));
   ok("🔴 and strips it whether or not the model complied",
-    /humanizeDeep\(use\.input\)/.test(DRAFT),
+    /const data = humanizeDeep\(\{ drafts: Array\.isArray\(list\) \? list : \[\] \}\);[\s\S]{0,80}const drafts = \(data\.drafts/.test(DRAFT),
     "a prompt is guidance; this is the guarantee");
   ok("and forbids inventing a client roster BoldLine does not have",
     /never imply a roster, case studies or testimonials that do not exist/.test(DRAFT));
