@@ -169,3 +169,7 @@ $500 of ad spend, leads will almost certainly sit under 20 a month, so he pays t
 Say so plainly. Contract-ready once the address is confirmed: package, $20 rate, legal name,
 address, email (drbgibb@springbokwellness.com), start date = the day the ads go live, marked
 ESTIMATED (no Google Ads account yet; one is created on a call, owned and billed by him).
+
+**Address CONFIRMED 2026-09-28** from his own website, Yelp and Yellow Pages: **1400 N Gilbert Rd, Suite M,
+Gilbert, AZ 85234**, clinic phone (480) 558-0474. "covered" was dictation of "Gilbert"; Suite M is right.
+No need to ask him again.
