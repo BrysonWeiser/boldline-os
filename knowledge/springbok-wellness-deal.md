@@ -173,3 +173,20 @@ ESTIMATED (no Google Ads account yet; one is created on a call, owned and billed
 **Address CONFIRMED 2026-09-28** from his own website, Yelp and Yellow Pages: **1400 N Gilbert Rd, Suite M,
 Gilbert, AZ 85234**, clinic phone (480) 558-0474. "covered" was dictation of "Gilbert"; Suite M is right.
 No need to ask him again.
+
+## 2026-09-28 — FOUNDING CLIENT: setup fee AND monthly minimum both WAIVED (Bryson)
+
+*"Also remember that he is one of the founding clients and the minimum fee and the setup fee are
+waived."* So Brendon is on **results-only** terms like Sebastian: no setup fee, **no $400 minimum**, he
+pays ONLY the per-lead fee (plus his own $500/mo to Google). This REPLACES the "he really pays the
+$400 minimum" advice above, which is now wrong; do not repeat it to him.
+
+- In the OS: Package tab → Billing → **Adjust Fees**: Monthly Fee **0**, Setup Fee **0** ("Waive Setup
+  Fee"), per-lead price set. With a $0 monthly the contract switches itself to the no-subscription
+  wording (`introOnly`), and billing saves a card and charges each approved batch of leads (KB
+  `results-only-billing`).
+- 🔴 **Recommended rate raised to $25** (from $20). With no minimum, the per-lead fee is the ONLY money
+  BoldLine makes, so it should sit at the top of the fee finder's 2 to 5% band ($24), rounded. "You keep
+  $455 of every $480 lead." At a $500 budget expect roughly 8 to 15 leads, so about $200 to $375/mo.
+- Founding places: the site's founding banner counts only SIGNED clients (`isFoundingClient`), so
+  nothing changes on the site until he signs (CLAUDE.md).
