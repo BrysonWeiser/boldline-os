@@ -261,3 +261,17 @@ OS could send from his Instagram. Told him plainly, and built the version that w
 - Limit told to him: the OS cannot see their recent posts (Instagram hides them), so he adds a line
   about a post himself when he spots one. That is what gets replies.
 Tests: `verify-instagram-dm` (21 checks, 4 mutations caught). Driven at 390/768/1280/1600.
+
+## 2026-09-29 — the card shows what happened on every earlier try
+Bryson: *"where it shows the attempts to call it shows what was put before whether it was not
+interested call back later etc"*. The header said "attempt 4" and nothing else, so he dialled blind
+to a "call back Thursday" he had logged himself.
+- A **History · N tries** box now sits directly under the attempt line: one row per logged touch,
+  newest first, `Sep 26 · Call: Call back later · <note>`, in the exact words of the button he
+  pressed. Red = Do not contact, green = Booked, amber = other ending outcomes. Meeting time shown
+  when there is one. Six rows, then "+ N older".
+- It shows instantly from the 30-day touch list, then fetches the company's WHOLE history
+  (`outreach?action=touches&id=`, up to 200) once when the company comes on screen, so tries older
+  than 30 days appear too. That cache is dropped after a new outcome or an undo.
+- Replaced the old "From earlier calls" notes box (notes now appear on their own row).
+- Tests: `verify-outreach` runs `outHistory`/`outHistoryLine` (334 checks). Driven at 390/768/1280/1600.
