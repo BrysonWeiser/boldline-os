@@ -92,8 +92,19 @@ await t("a blank or null stamp is ignored rather than read as version 0", () => 
   assert.equal(serverVersion({ ...NEW, contractTermsVersion: null }), TERMS_CURRENT);
   assert.equal(serverVersion({ ...NEW, contractTermsVersion: "" }), TERMS_CURRENT);
 });
+await t("🔴 a VOIDED or declined envelope does not pin the old terms (Springbok, sent 14 Sep, voided)", () => {
+  for (const st of ["voided", "declined"]) {
+    const cl = { ...base, docusignSentAt: "2026-09-14T20:00:00Z", docusignStatus: st, contractStatus: "pending" };
+    assert.equal(serverVersion(cl), TERMS_CURRENT, st);
+    assert.equal(browserVersion(cl), TERMS_CURRENT, st);
+  }
+  // A live envelope still pins, and a signed record is never "dead".
+  assert.equal(serverVersion({ ...AIR_SUDS, docusignStatus: "sent" }), 5);
+  assert.equal(serverVersion({ ...SIGNED_V5, docusignStatus: "voided", docusignSentAt: "2026-09-19T00:00:00Z" }), 5);
+});
 await t("🔴 the OS copy of the resolver answers identically on every shape", () => {
-  for (const cl of [NEW, AIR_SUDS, SIGNED_V5, SEBASTIAN, SENT_TODAY, SIGNED_LATER, {}, { contractTermsVersion: 2 }])
+  for (const cl of [NEW, AIR_SUDS, SIGNED_V5, SEBASTIAN, SENT_TODAY, SIGNED_LATER, {}, { contractTermsVersion: 2 },
+    { ...AIR_SUDS, docusignStatus: "voided" }, { ...SIGNED_V5, docusignStatus: "declined" }])
     assert.equal(browserVersion(cl), serverVersion(cl), JSON.stringify(cl));
 });
 await t("🔴 sending for signature STAMPS the version that was sent", () => {

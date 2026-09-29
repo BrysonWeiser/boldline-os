@@ -190,3 +190,20 @@ $400 minimum" advice above, which is now wrong; do not repeat it to him.
   $455 of every $480 lead." At a $500 budget expect roughly 8 to 15 leads, so about $200 to $375/mo.
 - Founding places: the site's founding banner counts only SIGNED clients (`isFoundingClient`), so
   nothing changes on the site until he signs (CLAUDE.md).
+
+## 2026-09-28 — before-sending checklist (Bryson asked "is there anything else we need")
+
+- 🔴 **Use the EXISTING client record** from 14 Sep. Do not create a second one; a duplicate splits his
+  history and the voided envelope's record would linger.
+- The voided 14 Sep envelope would have pinned him to terms v5; fixed the same evening (KB
+  `late-payment-policy`), so the resend carries the current terms.
+- 🔴 **The qualified-lead definition is NOT in the standard contract** (it is generic). His biggest worry
+  is exactly that, so it goes in **Special Terms** in plain words: a real person, within 10 miles of the
+  clinic, asking about something he treats, not a salesperson, duplicate or existing patient; plus the
+  monthly review call before each invoice. Not "can afford care".
+- Late fee on v6 is $150 per late invoice. On a results-only invoice of ~$250 that is heavy, and he is
+  a friend: Bryson's call whether to soften it in Special Terms.
+- HIPAA: he is a covered entity. Keep the landing page form to contact details, no symptom questions,
+  and **no Meta Pixel** on his page (the renderer only adds one if `metaPixelId` is set, so leave it
+  empty). A Business Associate Agreement only becomes relevant if BoldLine starts holding health details.
+- Google Ads account: after signing, on a call, owned and billed by him.

@@ -148,7 +148,11 @@ function termsVersionOf(cl) {
   cl = cl || {};
   const v = cl.contractTermsVersion;
   if (v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))) return Number(v);
-  const at = [cl.docusignSentAt, cl.contractSigned ? cl.contractSignedAt : null]
+  // 🔴 A VOIDED OR DECLINED ENVELOPE FROZE NOTHING. Nobody signed it, so its send date says nothing
+  // about which terms the next envelope carries. Without this, Springbok (sent 14 Sep, voided the same
+  // day, resent 28 Sep) would have been re-sent the old terms for ever.
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  const at = [dead ? null : cl.docusignSentAt, cl.contractSigned ? cl.contractSignedAt : null]
     .map((d) => (d ? new Date(d).getTime() : NaN)).filter((t) => Number.isFinite(t));
   if (!at.length) return TERMS_CURRENT;
   const first = Math.min.apply(null, at);
