@@ -116,3 +116,16 @@ threw everything away. Fixed in `contract-terms.mjs`:
 - `max_tokens` 2000 → 4000 so a long definition is not cut off mid-answer.
 - The card only says "see below" when there is a reason below.
 Tests: +5 in `verify-special-terms` (21), mutation caught.
+
+### Same evening: the real cause was THINKING eating the token budget
+
+After the fix above, Bryson got "too long, split it" on one paragraph. The draft had stopped at
+`max_tokens`: **claude-sonnet-5 runs adaptive thinking when `thinking` is omitted, and thinking tokens
+count against `max_tokens`**, so it deliberated through all 4,000 and wrote nothing. Now
+`thinking: { type: "disabled" }` (valid on Sonnet 5, and compatible with the forced tool call) and
+`max_tokens: 8000`. The "split it" message is gone: a long paragraph is not his problem to solve.
+
+🔴 **Same trap, not yet fixed, in other Sonnet 5 calls with no `thinking` set and small budgets:**
+`lead-fee.mjs` (1500), `outreach-draft.mjs` (1600), `handover-pack.mjs` (3000), `content-studio`,
+`ad-gen-shared` (meta/creatives 3000, shorten 2000). They fall back to claude-opus-4-8 when the first
+model fails, which may be masking it. Check each for `stop_reason: "max_tokens"` before trusting it.

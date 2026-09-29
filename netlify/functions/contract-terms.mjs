@@ -164,7 +164,12 @@ export default async (req) => {
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
     const resp = await anthropic.messages.create({
-      model: MODEL, max_tokens: 4000, system: SYSTEM,
+      // 🔴 THINKING OFF, AND ROOM TO WRITE (2026-09-28). claude-sonnet-5 runs adaptive thinking when
+      // `thinking` is omitted, and thinking tokens count against max_tokens. On a contract clause it
+      // reasoned through the whole 4,000 and stopped at max_tokens before writing a single clause, so
+      // Bryson was told his paragraph was too long when it was not. Rewriting agreed terms into plain
+      // clauses needs no deliberation; disabled is valid on Sonnet 5 and keeps the forced tool call.
+      model: MODEL, max_tokens: 8000, thinking: { type: "disabled" }, system: SYSTEM,
       tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name },
       messages: [{ role: "user", content:
         `${ctx ? `WHAT IS ALREADY IN THE AGREEMENT, so you do not repeat it:\n${ctx}\n\n` : ""}WHAT WAS AGREED, in Bryson's words:\n${note}` }],
@@ -183,7 +188,7 @@ export default async (req) => {
     if (!clauses.length && !problems.length) {
       console.error("contract-terms: empty draft", resp.stop_reason, JSON.stringify(raw).slice(0, 600));
       return json({ ok: false, error: resp.stop_reason === "max_tokens"
-        ? "That was too long to write up in one go. Split it into two shorter notes and do them one at a time."
+        ? "The write-up ran out of room. Press Write it up again; if it happens twice, tell Claude."
         : "The write-up came back empty. Press Write it up again; if it happens twice, split the note into two shorter ones." }, 502);
     }
     return json({ ok: true, clauses, problems, risky: flagRisky(clauses) });
