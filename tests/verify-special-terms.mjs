@@ -230,21 +230,90 @@ t("drafted clauses are de-dashed like every other written surface", () => {
     assert.deepEqual(CT.toClauses("Plain words"), [{ heading: "", text: "Plain words" }]);
     assert.deepEqual(CT.toClauses(undefined), []);
   });
-  t("🔴 an empty draft with no reason is an ERROR, never a silent blank card", () => {
-    assert.match(FN, /if \(!clauses\.length && !problems\.length\) \{[\s\S]{0,400}return json\(\{ ok: false,/);
-  });
-  t("🔴 thinking is OFF for drafting, so it cannot eat the whole budget before writing", () => {
-    // Sonnet 5 thinks by default and thinking counts against max_tokens; a long lead definition hit
-    // the cap with nothing written and he was wrongly told to split it.
-    assert.match(FN, /max_tokens: 8000, thinking: \{ type: "disabled" \}/);
-    assert.doesNotMatch(FN, /Split it into two shorter notes/, "a long paragraph is not his problem to solve");
-  });
-  t("the raw input is coerced BEFORE anything else reads it", () => {
-    assert.match(FN, /const out = humanizeDeep\(\{ clauses: toClauses\(raw\.clauses\), problems: coerceList\(raw\.problems\) \}/);
-  });
   t("the card only says 'see below' when there is something below", () => {
     assert.match(S, /setMsg\(\(d\.problems\|\|\[\]\)\.length\?"Nothing could be written from that\. The reason is below\.":"Nothing came back\. Press Write it up again\."\)/);
     assert.doesNotMatch(S, /Nothing could be written from that\. See below\./);
+  });
+}
+
+// ── 🔴 THE REAL HANDLER, against a fake AI, in every shape that has broken it ───────────────
+// Three rounds of "it still says the same thing" on 2026-09-28 were spent guessing. So the actual
+// endpoint is RUN here, with fetch stubbed: Supabase answers as a logged-in owner, and the AI answers
+// in scripted shapes. What is checked is what he would see.
+{
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "test"; process.env.ANTHROPIC_API_KEY = "test";
+  const CT = await import("../netlify/functions/contract-terms.mjs");
+  const realFetch = globalThis.fetch;
+  const run = async (answers) => {
+    const sent = [];
+    globalThis.fetch = async (url, init) => {
+      const u = String((url && url.url) || url);
+      const j = (o, st = 200) => new Response(JSON.stringify(o), { status: st, headers: { "content-type": "application/json" } });
+      if (/\/auth\/v1\/user/.test(u)) return j({ id: "u1", email: "o@x.com", aud: "authenticated" });
+      if (/\/rest\/v1\//.test(u)) return j(null);
+      if (/api\.anthropic\.com\/v1\/messages/.test(u)) {
+        const body = JSON.parse(init.body); sent.push(body);
+        const a = answers[sent.length - 1];
+        if (a instanceof Error) return j({ type: "error", error: { type: "invalid_request_error", message: a.message } }, 400);
+        return j({ id: "m", type: "message", role: "assistant", model: body.model, stop_reason: a.stop || "tool_use",
+          stop_sequence: null, usage: { input_tokens: 10, output_tokens: a.out || 50 }, content: a.content });
+      }
+      return j({}, 404);
+    };
+    try {
+      const res = await CT.default(new Request("https://x/.netlify/functions/contract-terms", { method: "POST",
+        headers: { authorization: "Bearer jwt", "content-type": "application/json" },
+        body: JSON.stringify({ note: "A qualified lead is a real person within 10 miles...", clientId: "c1", clientName: "Springbok Chiropractic, LLC" }) }));
+      return { status: res.status, body: await res.json(), sent };
+    } finally { globalThis.fetch = realFetch; }
+  };
+  const tool = (input) => ({ content: [{ type: "tool_use", id: "t", name: "special_terms", input }] });
+  const GOOD = [{ heading: "Qualified Lead", text: "A lead counts when the person is real and within 10 miles." }];
+
+  let r = await run([tool({ clauses: GOOD, problems: [] })]);
+  t("a normal answer is drafted", () => { assert.equal(r.body.ok, true, JSON.stringify(r.body)); assert.equal(r.body.clauses.length, 1); });
+  t("🔴 the first model is asked with thinking OFF and room to write", () => {
+    assert.equal(r.sent[0].model, "claude-sonnet-5");
+    assert.deepEqual(r.sent[0].thinking, { type: "disabled" });
+    assert.ok(r.sent[0].max_tokens >= 8000);
+  });
+
+  r = await run([tool({ clauses: JSON.stringify(GOOD), problems: "[]" })]);
+  t("🔴 lists sent back as text are read", () => assert.equal((r.body.clauses || []).length, 1, JSON.stringify(r.body)));
+
+  r = await run([tool(JSON.stringify({ clauses: GOOD }))]);
+  t("🔴 the whole input sent back as text is read", () => assert.equal((r.body.clauses || []).length, 1, JSON.stringify(r.body)));
+
+  r = await run([tool({ special_terms: { clauses: [{ title: "Qualified Lead", body: "Counts when real." }] } })]);
+  t("an answer wrapped one level down, with synonym field names, is read", () => assert.equal(((r.body.clauses || [])[0] || {}).text, "Counts when real."));
+
+  r = await run([{ stop: "max_tokens", out: 8000, ...tool({}) }, tool({ clauses: GOOD, problems: [] })]);
+  t("🔴 when the first model runs out of room, the SECOND model writes it", () => {
+    assert.equal(r.body.ok, true, JSON.stringify(r.body));
+    assert.equal(r.body.model, "claude-opus-4-8");
+    assert.equal(r.sent[1].thinking, undefined, "Opus 4.8 gets no thinking field");
+  });
+
+  r = await run([new Error("overloaded"), tool({ clauses: GOOD, problems: [] })]);
+  t("an error on the first model also falls through to the second", () => assert.equal(r.body.ok, true, JSON.stringify(r.body)));
+
+  r = await run([{ stop: "max_tokens", out: 8000, ...tool({}) }, { stop: "end_turn", content: [{ type: "text", text: "I cannot." }] }]);
+  t("🔴 when both fail, it says so AND shows what came back", () => {
+    assert.equal(r.body.ok, false);
+    assert.match(r.body.error, /send Claude a screenshot/);
+    assert.match(r.body.debug, /claude-sonnet-5: stop=max_tokens out=8000/);
+    assert.match(r.body.debug, /claude-opus-4-8: stop=end_turn .*no tool call; text="I cannot\."/);
+    assert.doesNotMatch(r.body.error, /split/i, "a long paragraph is not his problem to solve");
+  });
+
+  r = await run([tool({ clauses: [], problems: ["The late fee change is not specific enough."] })]);
+  t("a real reason for writing nothing is returned as a reason, not an error", () => {
+    assert.equal(r.body.ok, true);
+    assert.equal(r.body.problems.length, 1);
+  });
+  t("the card shows the details line only when drafting fails", () => {
+    assert.match(S, /setDiag\(d\.debug\|\|\(r\.ok\?"":`HTTP \$\{r\.status\}`\)\)/);
+    assert.match(S, /Details for Claude: \{diag\}/);
   });
 }
 
