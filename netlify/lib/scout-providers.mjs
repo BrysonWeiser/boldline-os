@@ -19,6 +19,8 @@
 // Every field carries its own `source`, so the UI can show Bryson which facts are
 // verified and which are the model's research.
 
+import { extractInstagram } from "./instagram.mjs";
+
 const env = (k) => (process.env[k] || "").trim();
 export const providerStatus = () => ({
   places: !!env("GOOGLE_PLACES_API_KEY"),
@@ -305,6 +307,8 @@ export const inspectAdTech = async (website) => {
   const gtmOnly = !google.length && !meta.length && other.some((o) => /Tag Manager/.test(o)) && !gtmRead;
   return {
     reachable: true,
+    // Their Instagram, from the link on their own site. Free, and the only source a tool may use.
+    instagram: extractInstagram(html),
     // "likely", never "yes" — a tag proves the plumbing, not a live campaign today.
     googleAds: google.length ? "likely" : "unknown",
     metaAds: meta.length ? "likely" : "unknown",

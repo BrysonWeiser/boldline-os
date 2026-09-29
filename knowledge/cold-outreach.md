@@ -235,3 +235,29 @@ Tests: 9 new checks in `verify-outreach` (325 total), 3 mutations caught. Driven
 390/768/1280/1600: autosave fires, Skip saves the full text for the RIGHT company, the next company
 shows only its own notes, an outcome saves the note on that company and keeps it out of the call log,
 earlier call notes appear, no overflow, no console errors.
+
+## 2026-09-28 — Instagram DM mode
+
+Bryson asked for a section that "searches Instagram" for his niches and gives him a DM, and whether the
+OS could send from his Instagram. Told him plainly, and built the version that works:
+- **No sending from the OS, ever.** Instagram's messaging API cannot START a conversation (it only
+  replies to people who messaged first), it needs another Meta app review, and automated DMs get
+  accounts banned. A test fails if any code calls a Graph/Instagram send endpoint.
+- **No Instagram search.** Instagram gives tools none and blocks scrapers. Handles come from the
+  business's OWN WEBSITE instead: `extractInstagram` (`netlify/lib/instagram.mjs`) reads the profile
+  link during the free homepage scan (`inspectAdTech` returns `instagram`), skipping links to posts,
+  reels and Instagram's own pages. The Lead Scout button is now **"Re-check ads + Instagram"** and
+  backfills the whole existing list for free, never overwriting a handle he typed.
+- **Messages tab, DM channel:** "Open @handle in Instagram ↗" (opens the app on a phone), "Wrong
+  account?", a box to paste a profile link or @handle (`outreach?action=instagram`, cleaned on the
+  server by `normInstagram`), a **Find it ↗** Google search (`site:instagram.com "name" city`), **Next
+  with Instagram →** that skips companies without one, and a count of how many have one. "Write 3 DMs"
+  is disabled until there is a handle.
+- 🔴 **The DM writer had been reading fields no prospect has** (`reviews`, `runningAds`, `summary`,
+  `scoreFactors`), so every draft was built from a name and an industry. `researchLines` now feeds it
+  reviews, ad status (incl. "ran Google ads until X and stopped"), years, services, gaps, verdict, his
+  own notes, the handle, and `callsTried` (real call touches) so ONE draft may say "tried calling".
+  Also thinking off + max_tokens 6000 on Sonnet 5, and falls to Opus 4.8 on any failure but billing.
+- Limit told to him: the OS cannot see their recent posts (Instagram hides them), so he adds a line
+  about a post himself when he spots one. That is what gets replies.
+Tests: `verify-instagram-dm` (21 checks, 4 mutations caught). Driven at 390/768/1280/1600.

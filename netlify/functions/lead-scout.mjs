@@ -152,7 +152,7 @@ export default async (req) => {
     if (error) return json({ ok: false, error: error.message }, 500);
 
     const rows = data || [];
-    let updated = 0, found = 0;
+    let updated = 0, found = 0, withIg = 0;
     // 🔴 GOOGLE'S AD RECORD ONLY FOR ONE PROSPECT AT A TIME. Each lookup spends one of the free
     // plan's 250 monthly searches, and a bulk re-check of 300 rows would spend the whole month in
     // one tap. The bulk path stays on the free website-tag read; the Outreach card's button checks
@@ -183,10 +183,15 @@ export default async (req) => {
           ...(rec && rec.state !== "unknown" ? { googleAdsLastSeen: rec.lastShown || "", googleAdsCheckedAt: new Date().toISOString() } : {}),
           adTechNote: (tech && tech.note) || d.adTechNote || "",
           adLibraryUrl: d.adLibraryUrl || adLibraryUrl(row.name),
+          // Fills in their Instagram from their website on the free bulk re-check too, so the whole
+          // existing list gets handles without spending a single research credit. Never overwrites one
+          // Bryson typed in himself.
+          instagram: d.instagram || (tech && tech.instagram) || "",
           adsEvidence: [String(d.adsEvidence || "").replace(/\s*·?\s*Site tags:.*$/, "").trim(),
             (tech && tech.reachable && tech.evidence.length) ? `Site tags: ${tech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
         };
         if (next.googleAds === "likely" || next.metaAds === "likely") found++;
+        if (next.instagram) withIg++;
         const { error: upErr } = await supabase.from("scout_prospects")
           .update({ data: next, updated_at: new Date().toISOString() }).eq("id", row.id);
         if (!upErr) updated++;
@@ -194,7 +199,7 @@ export default async (req) => {
       }
     };
     await Promise.all(Array.from({ length: Math.min(6, rows.length) }, worker));
-    return json({ ok: true, checked: rows.length, updated, found, ...(single ? { prospect: single } : {}) });
+    return json({ ok: true, checked: rows.length, updated, found, instagram: withIg, ...(single ? { prospect: single } : {}) });
   }
 
   if (action === "delete-run") {
