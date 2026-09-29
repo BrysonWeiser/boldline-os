@@ -129,3 +129,19 @@ count against `max_tokens`**, so it deliberated through all 4,000 and wrote noth
 `lead-fee.mjs` (1500), `outreach-draft.mjs` (1600), `handover-pack.mjs` (3000), `content-studio`,
 `ad-gen-shared` (meta/creatives 3000, shorten 2000). They fall back to claude-opus-4-8 when the first
 model fails, which may be masking it. Check each for `stop_reason: "max_tokens"` before trusting it.
+
+### Third round the same night: stop guessing, make it fail-safe and self-explaining
+
+Still failing after thinking was disabled, and the cause could not be seen from here (no API key in
+the workspace). So instead of a fourth guess:
+- **Two models, in order**: claude-sonnet-5 (thinking disabled) then **claude-opus-4-8** (no thinking
+  field), the same fallback every other drafting function already had.
+- **`readDraft`** reads the tool input as an object, as a JSON string, wrapped one level down, with
+  `terms`/`items` for clauses and `title`/`name`, `body`/`clause`/`content` as field synonyms.
+- **When both fail, the card shows "Details for Claude:"** with each model's stop reason, output
+  tokens and the first 220 characters of what it returned. The next screenshot names the cause.
+- 🔴 **The endpoint itself is now RUN in the test** (`verify-special-terms`, 29 checks) with fetch
+  stubbed for Supabase and the Messages API: normal answer, stringified lists, stringified input,
+  wrapped input, first model out of room then second succeeds, first model errors, both fail with
+  details, a real "problems" reason. Three mutations caught (no fallback, thinking back on, string
+  input not parsed).

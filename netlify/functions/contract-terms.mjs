@@ -31,7 +31,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { humanizeDeep, NO_DASH_RULE } from "../lib/humanize.mjs";
 
-const MODEL = "claude-sonnet-5";
+// 🔴 TWO MODELS, TRIED IN ORDER (2026-09-28). Every other drafting function in the OS already falls
+// back like this; this one did not, so one bad answer from the first model was the end of the road.
+const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
 // 🔴 Topics where a clause Bryson did not think hard about can cost him the business.
 // These are NOT blocked: he is entitled to negotiate any of them, and a tool that refuses
@@ -69,10 +71,27 @@ export const coerceList = (v) => {
   }
   return v && typeof v === "object" ? [v] : [];
 };
-// Clauses must be {heading, text}; a bare string is a clause with no heading rather than nothing.
+// Clauses must be {heading, text}; a bare string is a clause with no heading rather than nothing, and
+// the obvious synonyms a model reaches for (title/name, body/clause/content) are read as the same thing.
+const pick = (o, keys) => { for (const k of keys) if (o && typeof o[k] === "string" && o[k].trim()) return o[k]; return ""; };
 export const toClauses = (v) => coerceList(v).map((c) => (typeof c === "string" ? { heading: "", text: c } : c))
-  .map((c) => ({ heading: String((c && c.heading) || "").trim().slice(0, 80), text: String((c && c.text) || "").trim().slice(0, 1200) }))
+  .map((c) => ({ heading: pick(c, ["heading", "title", "name"]).trim().slice(0, 80),
+    text: pick(c, ["text", "body", "clause", "content", "description"]).trim().slice(0, 1200) }))
   .filter((c) => c.text);
+
+// The whole tool input, whatever shape it arrived in: an object, the object as a JSON string, or the
+// answer wrapped one level down under some other key.
+export const readDraft = (input) => {
+  let raw = input;
+  if (typeof raw === "string") { try { raw = JSON.parse(raw); } catch { raw = { clauses: raw }; } }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) raw = { clauses: raw };
+  if (!("clauses" in raw) && !("problems" in raw)) {
+    const inner = Object.values(raw).find((x) => x && typeof x === "object" && !Array.isArray(x) && ("clauses" in x || "problems" in x));
+    if (inner) raw = inner;
+  }
+  const src = raw.clauses !== undefined ? raw.clauses : (raw.terms !== undefined ? raw.terms : raw.items);
+  return { clauses: toClauses(src), problems: coerceList(raw.problems).map((p) => String(p || "").trim()).filter(Boolean) };
+};
 
 export const SYSTEM = `You draft ADDITIONAL contract clauses for BoldLine Media, a US advertising agency in Arizona. Their standard service agreement already exists and you never see it, never rewrite it, and never restate it.
 
@@ -161,40 +180,43 @@ export default async (req) => {
     body.termMonths ? `Committed term already in the agreement: ${Number(body.termMonths)} months` : "",
   ].filter(Boolean).join("\n");
 
-  try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const resp = await anthropic.messages.create({
-      // 🔴 THINKING OFF, AND ROOM TO WRITE (2026-09-28). claude-sonnet-5 runs adaptive thinking when
-      // `thinking` is omitted, and thinking tokens count against max_tokens. On a contract clause it
-      // reasoned through the whole 4,000 and stopped at max_tokens before writing a single clause, so
-      // Bryson was told his paragraph was too long when it was not. Rewriting agreed terms into plain
-      // clauses needs no deliberation; disabled is valid on Sonnet 5 and keeps the forced tool call.
-      model: MODEL, max_tokens: 8000, thinking: { type: "disabled" }, system: SYSTEM,
-      tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name },
-      messages: [{ role: "user", content:
-        `${ctx ? `WHAT IS ALREADY IN THE AGREEMENT, so you do not repeat it:\n${ctx}\n\n` : ""}WHAT WAS AGREED, in Bryson's words:\n${note}` }],
-    });
-    const use = (resp.content || []).find((c) => c.type === "tool_use");
-    if (!use) return json({ ok: false, error: "Nothing came back. Try again." }, 502);
-
-    // Dashes stripped on the way out, same as every other written surface. A contract is
-    // read by the client, so the voice rule applies to it too.
-    const raw = use.input || {};
-    const out = humanizeDeep({ clauses: toClauses(raw.clauses), problems: coerceList(raw.problems) }, { join: ". " });
-    const clauses = toClauses(out.clauses);
-    const problems = coerceList(out.problems).map((p) => String(p || "").trim()).filter(Boolean);
-    // 🔴 NEVER EMPTY-HANDED AND SILENT. If nothing usable came back and no reason either, that is a
-    // failed draft, and it says so, rather than a card reading "see below" over nothing.
-    if (!clauses.length && !problems.length) {
-      console.error("contract-terms: empty draft", resp.stop_reason, JSON.stringify(raw).slice(0, 600));
-      return json({ ok: false, error: resp.stop_reason === "max_tokens"
-        ? "The write-up ran out of room. Press Write it up again; if it happens twice, tell Claude."
-        : "The write-up came back empty. Press Write it up again; if it happens twice, split the note into two shorter ones." }, 502);
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const userContent = `${ctx ? `WHAT IS ALREADY IN THE AGREEMENT, so you do not repeat it:\n${ctx}\n\n` : ""}WHAT WAS AGREED, in Bryson's words:\n${note}\n\nCall the special_terms tool once with the clauses.`;
+  // 🔴 WHAT EACH ATTEMPT ACTUALLY RETURNED, kept so a failure can SAY what happened. Three rounds of
+  // "it still says the same thing" were spent guessing at a cause nobody could see; the next failure
+  // hands back the stop reason, the token count and the start of the raw answer.
+  const attempts = [];
+  for (const model of MODELS) {
+    try {
+      const resp = await anthropic.messages.create({
+        // 🔴 THINKING OFF, AND ROOM TO WRITE. claude-sonnet-5 thinks by default and thinking counts
+        // against max_tokens: on a contract clause it reasoned through the whole budget and wrote
+        // nothing. Rewriting agreed terms into clauses needs no deliberation. Opus 4.8 does not think
+        // unless asked, so it gets no thinking field at all.
+        model, max_tokens: 8000, ...(model === "claude-sonnet-5" ? { thinking: { type: "disabled" } } : {}),
+        system: SYSTEM, tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name },
+        messages: [{ role: "user", content: userContent }],
+      });
+      const use = (resp.content || []).find((c) => c.type === "tool_use");
+      const rawIn = use ? use.input : null;
+      // Dashes stripped on the way out, same as every other written surface. A contract is read by the
+      // client, so the voice rule applies to it too.
+      const read = readDraft(rawIn);
+      const out = humanizeDeep(read, { join: ". " });
+      const clauses = toClauses(out.clauses);
+      const problems = coerceList(out.problems).map((p) => String(p || "").trim()).filter(Boolean);
+      if (clauses.length || problems.length) return json({ ok: true, clauses, problems, risky: flagRisky(clauses), model });
+      attempts.push(`${model}: stop=${resp.stop_reason} out=${(resp.usage && resp.usage.output_tokens) || "?"} `
+        + `${use ? `input=${JSON.stringify(rawIn).slice(0, 220)}` : `no tool call; text=${JSON.stringify((resp.content || []).filter((c) => c.type === "text").map((c) => c.text).join(" ")).slice(0, 220)}`}`);
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      console.error(`contract-terms: ${model} threw:`, m);
+      if (/credit|balance|quota|insufficient/i.test(m)) return json({ ok: false, error: "The Anthropic account is out of credits." }, 500);
+      attempts.push(`${model}: error ${m.slice(0, 220)}`);
     }
-    return json({ ok: true, clauses, problems, risky: flagRisky(clauses) });
-  } catch (e) {
-    const m = String((e && e.message) || e);
-    console.error("contract-terms failed:", m);
-    return json({ ok: false, error: /credit|balance|quota|insufficient/i.test(m) ? "The Anthropic account is out of credits." : "Could not draft that. Try again." }, 500);
   }
+  // 🔴 NEVER EMPTY-HANDED AND SILENT. Both models failed: say so, and show exactly what came back.
+  console.error("contract-terms: no usable draft", attempts);
+  return json({ ok: false, error: "Could not write that up. Press Write it up once more; if it fails again, send Claude a screenshot of this box.",
+    debug: attempts.join("\n") }, 502);
 };

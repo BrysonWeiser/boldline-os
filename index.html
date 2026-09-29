@@ -11170,6 +11170,7 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
   const [draft,setDraft] = useState(null);      // {clauses, problems, risky}
   const [state,setState] = useState("idle");    // idle | working | error
   const [msg,setMsg] = useState("");
+  const [diag,setDiag] = useState("");          // what the server says came back, when drafting fails
   const [open,setOpen] = useState(saved.length>0);
 
   // 🔴 A SIGNED AGREEMENT IS FROZEN, and the card says so rather than disappearing. The OS
@@ -11179,7 +11180,7 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
   const locked = !!client.contractSigned;
 
   const draftIt = async () => {
-    setState("working"); setMsg(""); setDraft(null);
+    setState("working"); setMsg(""); setDiag(""); setDraft(null);
     try{
       const { data:{ session } } = await supabaseClient.auth.getSession();
       const tok = session && session.access_token;
@@ -11189,7 +11190,7 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
         body:JSON.stringify({note,clientId:client.id,clientName:client.name,packageName:pkg&&pkg.name,
           monthly:client.billingMonthly,setup:client.billingSetup,termMonths:client.contractTermMonths})});
       const d = await r.json().catch(()=>({}));
-      if(!r.ok||!d.ok) throw new Error(d.error||`Could not draft that (${r.status})`);
+      if(!r.ok||!d.ok){ setDiag(d.debug||(r.ok?"":`HTTP ${r.status}`)); throw new Error(d.error||`Could not draft that (${r.status})`); }
       setDraft(d); setState("idle");
       if(!(d.clauses||[]).length) setMsg((d.problems||[]).length?"Nothing could be written from that. The reason is below.":"Nothing came back. Press Write it up again.");
     }catch(e){ setState("error"); setMsg(e.message||"Could not draft that."); }
@@ -11235,6 +11236,8 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
             placeholder={"e.g. first month is half price, and they get a free logo refresh in month two\ne.g. 60 days notice to cancel instead of 30"}/>
           <button onClick={draftIt} disabled={state==="working"||!note.trim()} style={{width:"100%",padding:"8px",fontSize:11.5,fontWeight:700,borderRadius:8,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:(state==="working"||!note.trim())?"default":"pointer",opacity:(state==="working"||!note.trim())?.6:1}}>{state==="working"?"Writing…":"Write it up"}</button>
           {msg&&<div style={{fontSize:10.5,color:state==="error"?C.red:C.textMuted,marginTop:7,lineHeight:1.55}}>{msg}</div>}
+          {/* Only on failure: exactly what came back, so the next screenshot names the cause. */}
+          {diag&&<div style={{fontSize:9.5,color:C.textMuted,marginTop:5,lineHeight:1.45,whiteSpace:"pre-wrap",wordBreak:"break-word",fontFamily:"ui-monospace,monospace",opacity:.85}}>Details for Claude: {diag}</div>}
 
           {draft&&(
             <div style={{marginTop:10,padding:"10px 11px",borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
