@@ -220,3 +220,10 @@ His contract renders on **terms v6**, "None during the Initial Term", setup Waiv
 his public brand is **Springbok Wellness**, so set the page's brand text to that when the page is built.
 Special Terms (lead definition + monthly review call, and optionally a softer late fee) are still to
 add on the Contract tab before sending.
+
+**2026-09-28, decided: $25 per qualified lead, kept for the 3-month term** (Bryson: "I'll keep it at $25").
+Reasoning given: roughly $110 all-in per new patient against $800 value; do not go lower (at 8 to 15 leads a
+month it is only $200 to $375); revisit at renewal with real numbers. Special Terms text includes the
+lead definition, the monthly review call, and a Changes clause: service area, services and definition
+change by mutual agreement in writing, where email, text or a client-portal approval from the contact
+details on file counts, effective going forward only, ad targeting follows the area.
