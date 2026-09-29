@@ -11191,7 +11191,7 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
       const d = await r.json().catch(()=>({}));
       if(!r.ok||!d.ok) throw new Error(d.error||`Could not draft that (${r.status})`);
       setDraft(d); setState("idle");
-      if(!(d.clauses||[]).length) setMsg("Nothing could be written from that. See below.");
+      if(!(d.clauses||[]).length) setMsg((d.problems||[]).length?"Nothing could be written from that. The reason is below.":"Nothing came back. Press Write it up again.");
     }catch(e){ setState("error"); setMsg(e.message||"Could not draft that."); }
   };
 

@@ -211,4 +211,35 @@ t("drafted clauses are de-dashed like every other written surface", () => {
   assert.match(FN, /humanizeDeep/, "contract clauses skip the no-dash rule the rest of the copy follows");
 });
 
+// ── 🔴 A draft is never thrown away because of its SHAPE (Bryson, 2026-09-28) ──────────────
+// Springbok's qualified-lead definition came back as "Nothing could be written from that. See below."
+// over an empty box: both lists blank, no reason. An array returned as a JSON STRING was silently
+// discarded. Every shape the model can hand back must now come through, and an empty result must
+// fail out loud.
+{
+  const CT = await import("../netlify/functions/contract-terms.mjs");
+  const FN = readFileSync(join(ROOT, "netlify/functions/contract-terms.mjs"), "utf8");
+  t("🔴 a list sent back as TEXT is read, not dropped", () => {
+    assert.deepEqual(CT.toClauses('[{"heading":"Qualified Lead","text":"A lead counts when..."}]'),
+      [{ heading: "Qualified Lead", text: "A lead counts when..." }]);
+    assert.deepEqual(CT.coerceList('["too vague"]'), ["too vague"]);
+  });
+  t("a real array, a single clause, and a bare sentence all come through", () => {
+    assert.equal(CT.toClauses([{ heading: "A", text: "x" }]).length, 1);
+    assert.equal(CT.toClauses({ heading: "A", text: "x" }).length, 1);
+    assert.deepEqual(CT.toClauses("Plain words"), [{ heading: "", text: "Plain words" }]);
+    assert.deepEqual(CT.toClauses(undefined), []);
+  });
+  t("🔴 an empty draft with no reason is an ERROR, never a silent blank card", () => {
+    assert.match(FN, /if \(!clauses\.length && !problems\.length\) \{[\s\S]{0,400}return json\(\{ ok: false,/);
+  });
+  t("the raw input is coerced BEFORE anything else reads it", () => {
+    assert.match(FN, /const out = humanizeDeep\(\{ clauses: toClauses\(raw\.clauses\), problems: coerceList\(raw\.problems\) \}/);
+  });
+  t("the card only says 'see below' when there is something below", () => {
+    assert.match(S, /setMsg\(\(d\.problems\|\|\[\]\)\.length\?"Nothing could be written from that\. The reason is below\.":"Nothing came back\. Press Write it up again\."\)/);
+    assert.doesNotMatch(S, /Nothing could be written from that\. See below\./);
+  });
+}
+
 console.log(`✓ verify-special-terms: ${n} checks passed`);

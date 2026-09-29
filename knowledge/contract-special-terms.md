@@ -102,3 +102,17 @@ section.
 🔴 **Two mutations first failed on the DRIFT check rather than on their own assertion**,
 because only the server copy was mutated. Re-run against both copies they failed correctly.
 Mutating one copy of a two-copy thing only ever proves the drift check works.
+
+## 2026-09-28 — a draft came back blank with no reason (Springbok's lead definition)
+
+Bryson pasted a four-part qualified-lead definition plus the monthly review call. The card said
+"Nothing could be written from that. See below." and below was EMPTY: zero clauses AND zero problems.
+Most likely cause (could not be reproduced without the live key): the model returned the arrays as
+JSON-encoded STRINGS, a known tool-use habit on longer nested answers, and `Array.isArray` silently
+threw everything away. Fixed in `contract-terms.mjs`:
+- `coerceList` / `toClauses` accept an array, a JSON string of one, a single object, or a bare sentence.
+- An empty draft with no reason is now an **error with an instruction** (press again, or split the
+  note; "too long" if the model hit `max_tokens`), and the raw input is logged for next time.
+- `max_tokens` 2000 → 4000 so a long definition is not cut off mid-answer.
+- The card only says "see below" when there is a reason below.
+Tests: +5 in `verify-special-terms` (21), mutation caught.
