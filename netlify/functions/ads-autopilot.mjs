@@ -30,7 +30,7 @@
 //      ADS_AUTOPILOT=off  -> global kill switch, checked first, every run.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, handoffIsFinished } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery, handoffIsFinished } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import {
   getCampaigns as metaCampaigns, setStatus as metaSetStatus, setBudget as metaSetBudget,
@@ -224,7 +224,7 @@ export default withFailureAlert("ads-autopilot", async () => {
   }
 
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
+  const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "ads-autopilot", step: "clients load" });
   if (error) {
     console.error("ads-autopilot: clients load failed:", error.message);
     return new Response("db error", { status: 200 });

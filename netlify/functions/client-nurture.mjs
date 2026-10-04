@@ -16,7 +16,7 @@
 // Fail-soft per client. No new env vars.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery } from "../lib/report-shared.mjs";
 import { withFailureAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { hasAdActivity, liveStats } from "../lib/report-shared.mjs";
@@ -37,7 +37,7 @@ export default withFailureAlert("client-nurture", async () => {
     return new Response("missing config", { status: 200 });
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
+  const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "client-nurture", step: "clients load" });
   if (error) { console.error("client-nurture: clients load failed:", error.message); return new Response("db error", { status: 200 }); }
 
   let checked = 0, sent = 0;

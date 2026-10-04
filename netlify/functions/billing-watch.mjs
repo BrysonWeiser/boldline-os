@@ -27,7 +27,7 @@
 // SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY, REPORTS_FROM_EMAIL, OWNER_EMAIL.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail, sendSMS } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery, sendEmail, sendSMS } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { latePolicyFor, interestFor, lateStage, isBillingPaused } from "../lib/late-payment.mjs";
@@ -76,7 +76,7 @@ export default withFailureAlert("billing-watch", async () => {
     return new Response("missing config", { status: 200 });
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
+  const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "billing-watch", step: "clients load" });
   if (error) { console.error("billing-watch: clients load failed:", error.message); return new Response("db error", { status: 200 }); }
 
   let checked = 0, updated = 0;

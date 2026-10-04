@@ -31,7 +31,7 @@
 // account is skipped entirely (no read, no write).
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import { liveStats, PER_LEAD } from "../lib/report-shared.mjs";
 import { getCampaigns as metaCampaigns, getAccountHealth as metaAccountHealth } from "./meta-ads.mjs";
@@ -182,7 +182,7 @@ export default withFailureAlert("ads-sync", async () => {
     return new Response("missing config", { status: 200 });
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
+  const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "ads-sync", step: "clients load" });
   if (error) {
     console.error("ads-sync: clients load failed:", error.message);
     return new Response("db error", { status: 200 });

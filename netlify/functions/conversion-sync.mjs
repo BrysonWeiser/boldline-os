@@ -22,7 +22,7 @@
 // sent" is how a button and a job start disagreeing about what Google has been told.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery } from "../lib/report-shared.mjs";
 import { getAccessToken as gadsToken, sendConversions } from "./google-ads.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 
@@ -45,7 +45,7 @@ export default withFailureAlert("conversion-sync", async () => {
     return new Response("missing config", { status: 200 });
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
+  const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "conversion-sync", step: "clients load" });
   if (error) {
     console.error("conversion-sync: clients load failed:", error.message);
     return new Response("db error", { status: 200 });
