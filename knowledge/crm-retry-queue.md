@@ -106,3 +106,19 @@ Three things make it work, and each is its own way to get it wrong:
 - 🔴 **Once per lead, never once per sweep** (`crm.stuckAlerted`). The ladder runs over a day and this job wakes every 15 minutes, so without the stamp one stuck lead would send about a hundred identical alerts.
 
 One older check had to be re-aimed: *"a deliberate skip does not burn an attempt"* asserted `changed === false` as a stand-in for "nothing happened", which stopped being the same thing once a stuck lead legitimately gets stamped. It now pins the try count, which is what the case was always about.
+
+## 2026-10-04 — a single Supabase blip paged Bryson; every scheduled job now retries first
+Sun 4 Oct, 1:15pm Phoenix: push "crm-retry failed to run ... client read failed: Internal server
+error". Supabase had an open "Intermittent latency" API Gateway incident on its status page; the
+database answered fine when checked at 1:31pm and only ONE alert arrived, so the next 15-minute sweep
+worked. Nothing was lost: retry state lives on each lead, so a missed sweep only delays a forward by
+15 minutes.
+- Cause: crm-retry read the client list raw, without `loadAllClients` / `retryQuery`
+  (report-shared.mjs), the 3-attempt retry written for this exact blip on 2026-08-27 and 2026-09-12.
+- Same gap found in ads-autopilot, ads-sync, alerts-watch, billing-watch, client-nurture,
+  conversion-sync and lead-followup. Those did not page; they silently skipped the run (billing-watch
+  is daily, so one blip = a missed day of late fees/pauses). All now retry.
+- New `tests/verify-scheduled-db-retry.mjs` discovers EVERY job scheduled in netlify.toml and fails if
+  any reads the whole clients table raw (it found lead-followup, which a hand grep missed), and runs
+  the retry: one blip passes silently, a real outage still throws and alerts.
+- If this alert repeats every 15 minutes, it is a real outage: check status.supabase.com first.

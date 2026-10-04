@@ -15,7 +15,7 @@
 // happens five minutes after the blip rather than an hour later.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, loadAllClients } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { sweepClientLeads } from "../lib/crm-retry.mjs";
 import { crmTarget } from "../lib/crm-forward.mjs";
@@ -30,8 +30,9 @@ export default withFailureAlert("crm-retry", async () => {
     return new Response("skipped", { status: 200 });
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
-  if (error) throw new Error(`client read failed: ${error.message}`);
+  // 🔴 2026-10-04: one "Internal server error" from Supabase on this read paged Bryson at 1:15pm on
+  // a Sunday, and the very next sweep worked. Same blip, same fix as the other jobs: retry first.
+  const rows = await loadAllClients(supabase, "crm-retry");
 
   const now = Date.now();
   const summary = { clients: 0, sent: 0, failed: 0, gaveUp: 0 };

@@ -19,7 +19,7 @@
 // campaign spend is live (see KB major-issue-alerts).
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, calcHealth, PER_LEAD, daysUntil, liveStats, hasAdActivity } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery, calcHealth, PER_LEAD, daysUntil, liveStats, hasAdActivity } from "../lib/report-shared.mjs";
 import { countFoundingClients, FOUNDING_CLIENT_COUNT } from "../lib/founding.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import { leadMirrorState, STALE_HOURS } from "../lib/heartbeats.mjs";
@@ -113,7 +113,7 @@ export default withFailureAlert("alerts-watch", async () => {
     return new Response("missing config", { status: 200 });
   }
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data: rows, error } = await supabase.from("clients").select("id, data");
+  const { data: rows, error } = await retryQuery(() => supabase.from("clients").select("id, data"), { job: "alerts-watch", step: "clients load" });
   if (error) { console.error("alerts-watch: clients load failed:", error.message); return new Response("db error", { status: 200 }); }
 
   let checked = 0, alerted = 0;

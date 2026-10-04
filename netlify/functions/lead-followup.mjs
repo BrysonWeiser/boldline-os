@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail, sendSMS, leadEmailHTML, handoffIsFinished } from "../lib/report-shared.mjs";
+import { SUPABASE_URL, retryQuery, sendEmail, sendSMS, leadEmailHTML, handoffIsFinished } from "../lib/report-shared.mjs";
 
 const DAY = 864e5;
 
@@ -99,7 +99,7 @@ const processClient = async (supabaseAdmin, row) => {
 
 export default async (req) => {
   const supabaseAdmin = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data, error } = await supabaseAdmin.from("clients").select("id, data");
+  const { data, error } = await retryQuery(() => supabaseAdmin.from("clients").select("id, data"), { job: "lead-followup", step: "clients load" });
   if (error) {
     console.error("Failed to load clients for lead follow-up:", error);
     return new Response("error loading clients", { status: 500 });
