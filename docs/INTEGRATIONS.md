@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 199 task-keyed entries under `knowledge/`. They surface automatically via the
+> 200 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**199 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**200 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -726,6 +726,9 @@
 - **[sales-call-playbook](../knowledge/sales-call-playbook.md)** &mdash; &#9989; verified &middot; 2026-09-14  
   Bryson asked for one standard question list and a repeatable meeting flow for every prospect. Built as "The Close Sheet" (artifact https://claude.ai/code/artifact/11a36113-b5f6-4a25-a426-343925b71b53) and derived BACKWARDS from `launch-checklist.mjs` and the portal's own `data-key` fields, so the questions map to fields the OS actually uses rather than to a generic template. 🔴 THE KEY DECISION IS TWO LISTS, NOT ONE: a first call only asks what sets the price and decides fit, because everything else is friction that costs the deal; the other twenty fields are an intake job after signing, and most of them the client types into their own portal. Includes the five numbers that set the price, the arithmetic that justifies a per-lead fee, six walk-away signals, and Brendon's specific call.  
   <sub>*task:* run a sales call or a client intake call, or decide what to ask a prospect &nbsp;|&nbsp; *keywords:* sales call, discovery call, questions to ask a client, intake questions, client onboarding questions, meeting flow, call script, qualify a prospect, walk away signals, disqualify, per lead pricing, what is a lead worth, close rate, average job value, qualified lead definition, capacity, speed to lead, brendon, springbok, close sheet</sub>
+- **[service-add-ons](../knowledge/service-add-ons.md)** &mdash; &#9989; verified &middot; 2026-10-05  
+  2026-10-05 a long-running car detailer told Bryson on a cold call that his agency charges $500/mo to run ads, plus extra for managing his Google Business Profile and his website. Recommendation given: do NOT become a menu agency (pay-for-results is the differentiator and the counter-pitch to a flat $500/mo); add only add-ons that produce leads and that the OS can mostly automate. Order: (1) Google Business Profile care, (2) review-request texts after a job, (3) website care for sites BoldLine built. Skip SEO retainers and social media management. Nothing built; offer them by hand first, build only once 2 or 3 clients pay for one.  
+  <sub>*task:* decide whether to add services beyond ads and landing pages (Google Business Profile, website care, reviews, SEO, social), or price them against competitors &nbsp;|&nbsp; *keywords:* add-on, add-ons, upsell, google business profile, GBP, google maps, map pack, website management, website care, hosting, maintenance, review requests, reviews automation, SEO retainer, social media management, competitor pricing, what other agencies charge, car detailer, $500 a month</sub>
 
 ## Supabase
 
