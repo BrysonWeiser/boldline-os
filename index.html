@@ -239,6 +239,7 @@ const ALL_FEATURES = [
   { id:"monthly_opt",     label:"Monthly Optimization",             category:"Both" },
   { id:"competitor_research",label:"Competitor Research",           category:"Both" },
   { id:"crm_integration", label:"Leads sent straight to your CRM", category:"Both" },
+  { id:"review_requests", label:"Automatic Google Review Requests", category:"Both" },
   { id:"advanced_targeting",label:"Advanced Audience Targeting",    category:"Both" },
   { id:"retargeting",     label:"Retargeting Campaigns",            category:"Both" },
   { id:"lookalike",       label:"Lookalike Audience Targeting",     category:"Meta" },
@@ -268,18 +269,18 @@ const ALL_FEATURES = [
 ];
 
 const PKG_FEATURES = {
-  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt"],
-  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report"],
-  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt"],
-  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
-  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
+  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt","review_requests"],
+  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report","review_requests"],
+  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms","review_requests"],
+  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt","review_requests"],
+  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report","review_requests"],
+  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms","review_requests"],
   // No c-launch: combined starts at COMBO_MIN_BUDGET, which is above the Launch tier.
-  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
+  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report","review_requests"],
   // Top of the lead-gen ladder. Built as the UNION of g-acquisition, m-acquisition and
   // c-growth — nothing invented — so both Acquisition tiers finally have somewhere to
   // upgrade to without giving up their scaling roadmap, priority comms or full funnel.
-  "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
+  "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report","review_requests"],
   // The GOOD build (custom page, call tracking, real research) minus everything
   // ongoing. No optimization cadence and no reporting, because there is nobody running
   // it after the settle-in — promising a monthly report would be selling a ghost.
@@ -2793,7 +2794,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
     { label:"Tracking and Tech", ids:["lead_form","pixel","call_tracking"] },
     { label:"Optimization",      ids:["monthly_opt","weekly_opt","competitor_research","advanced_targeting"] },
     { label:"Audiences",         ids:["retargeting","lookalike","abandoned_cart","cross_retargeting"] },
-    { label:"CRM and Automation",ids:["crm_integration"] },
+    { label:"CRM and Automation",ids:["crm_integration","review_requests"] },
     { label:"Reporting",         ids:["monthly_report","advanced_reporting","unified_reporting"] },
     { label:"Strategy and Scale",ids:["full_funnel","ugc_consulting","crm_input","scaling_roadmap","strategy_calls","priority_comms","slack_access"] },
   ];
@@ -2893,7 +2894,7 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
       <Card>
         <Label>Included Features — {client.name}</Label>
         {featureGroups.map(group=>{
-          const included = group.ids.filter(fid=>pkgHasFeature(client.packageId,fid));
+          const included = group.ids.filter(fid=>contractFeatureIds(client).includes(fid));
           if (included.length===0) return null;
           return (
             <div key={group.label} style={{marginBottom:14}}>
@@ -2986,7 +2987,8 @@ function PackageTabContent({client,pkg,onUpgradeRequest,onManualUpgrade}) {
 //   v1 — everything signed before 3 September 2026.
 //   v2 — adds "Client Delay and Abandonment".
 //   v3 — early cancellation costs the remaining Committed Term, not one month.
-const CONTRACT_TERMS_VERSION = 6;
+//   v7 — automatic Google review requests (1.4), and declined features left out.
+const CONTRACT_TERMS_VERSION = 7;
 
 // ── 🔴 WHAT IS MISSING FROM THIS AGREEMENT, BEFORE IT CAN BE SENT ─────────────
 // Bryson, 2026-09-15: *"if there is a contract that is missing information such as missing
@@ -3098,11 +3100,12 @@ const contractView=(cl)=>{
 // Sending now stamps `contractTermsVersion`, so this inference only ever covers the past.
 const TERMS_V2_FROM = Date.UTC(2026, 8, 3);         // 3 Sep 2026
 const TERMS_V6_FROM = Date.UTC(2026, 8, 27, 10, 0); // 27 Sep 2026, 3am Phoenix
+const TERMS_V7_FROM = Date.UTC(2026, 9, 5, 20, 0);  // 5 Oct 2026, 1pm Phoenix: review requests
 // 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. It was once written as a
 // literal 2, and adding v3 the next day left every new client silently on v2: the clause was
 // in the file, gated correctly, and reached nobody. A default naming a specific version goes
 // stale the moment a version is added, which is exactly when nobody is looking at it.
-const TERMS_CURRENT = 6;
+const TERMS_CURRENT = 7;
 function termsVersionOf(cl) {
   cl = cl || {};
   const v = cl.contractTermsVersion;
@@ -3117,14 +3120,39 @@ function termsVersionOf(cl) {
   const first = Math.min.apply(null, at);
   if (first < TERMS_V2_FROM) return cl.contractSigned ? 1 : 5;
   if (first < TERMS_V6_FROM) return 5;
+  if (first < TERMS_V7_FROM) return 6;
   return TERMS_CURRENT;
 }
+
+// 🔴 v7 (5 Oct 2026): AUTOMATIC GOOGLE REVIEW REQUESTS, AND FEATURES A CLIENT DECLINED.
+// Bryson, 2026-10-05: "is there a safeguard incase a client doesnt want it so its not added into
+// the contract". Two rules decide what an agreement lists, here and nowhere else:
+//  1. A feature added to a package after a contract went out is not in that contract. The
+//     agreement renders fresh every time it is opened, so without this gate adding review
+//     requests to the packages would have quietly added a line to agreements already signed.
+//  2. A feature the client declined (`declinedFeatures`) is left out. The list is FROZEN when the
+//     agreement is sent (`contractOmits`), for the same reason: flipping the switch after signing
+//     must not rewrite what they signed. A voided or declined envelope froze nothing.
+const FEATURE_FROM_VERSION = { review_requests: 7 };
+function omittedFeaturesOf(cl) {
+  cl = cl || {};
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  const frozen = (cl.contractSigned || (cl.docusignSentAt && !dead)) && Array.isArray(cl.contractOmits);
+  const list = frozen ? cl.contractOmits : (Array.isArray(cl.declinedFeatures) ? cl.declinedFeatures : []);
+  return list.map(String);
+}
+function contractFeatureIds(cl) {
+  cl = cl || {};
+  const v = termsVersionOf(cl), off = omittedFeaturesOf(cl);
+  return (PKG_FEATURES[cl.packageId] || []).filter((fid) => v >= (FEATURE_FROM_VERSION[fid] || 0) && off.indexOf(fid) < 0);
+}
+
 
 const makeContractHTML=(cl,pkg)=>{
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const money=(n)=>"$"+Number(n||0).toLocaleString();
   const pl=PER_LEAD[cl.niche];
-  const feats=(PKG_FEATURES[cl.packageId]||[]).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
+  const feats=contractFeatureIds(cl).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
   const effMonthly = cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0);
   const stdMonthly = (pkg&&pkg.price) || effMonthly;      // the Standard (3-month) Rate
@@ -3469,6 +3497,9 @@ const makeContractHTML=(cl,pkg)=>{
    +'<ul>'+feats+'</ul>'
    +'<p>1.2 The Services are limited to the Service Package selected. Work outside that scope (including additional platforms, campaigns, pages, or service tiers) requires a written package upgrade or separate agreement, at Agency&rsquo;s then-current rates. Agency may use subcontractors and automated tooling to perform the Services, and remains responsible for the Services performed.</p>'
    +'<p>1.3 Agency will determine campaign structure, targeting, bidding, and creative in its professional judgment, subject to Client&rsquo;s approval rights over ad copy and landing-page content that names Client or makes claims about Client&rsquo;s products or services. No advertising spend will be initiated or increased without Client&rsquo;s sign-off on the associated budget.</p>'
+   +(contractFeatureIds(cl).indexOf("review_requests")>=0
+     ? '<p>1.4 <strong>Review requests.</strong> When Client provides the names and email addresses of its customers, Agency will email each one under Client&rsquo;s business name asking for a Google review, with no more than one reminder. Every customer receives the same request, with no screening for satisfied customers and no incentive offered. Client confirms it has the right to email the customers it provides. Agency includes an unsubscribe link in every email and honors every opt-out. <strong>Client may switch review requests off at any time</strong> by telling Agency in writing, including by email or text, and doing so changes no fee.</p>'
+     : '')
 
    +(oneTime
      ? '<h2>2. Term</h2>'
@@ -3652,7 +3683,8 @@ const makePortalHTML=(cl,pkg,notice)=>{
   const SL=["Onboarding","Research","Building","Final Review","Active","Optimizing","Scaling","Paused"];
   const SD=["We're gathering your business details, brand assets, and goals to get your account ready for launch.","Our team is researching your market, competitors, and ideal customers to shape your campaign strategy.","Your landing pages, ad creatives, and tracking are being built and connected behind the scenes.","Your campaign is going through final quality checks before it goes live.","Your campaign is live and generating ${nouns}.","We're testing and refining your campaign to improve ${noun} quality and lower your cost per ${noun}.","Your campaign is performing well, so we're increasing reach and budget to drive more results.","Your campaign is currently paused. Reach out to your account manager with any questions."];
   const upgOpts=getUpgradeOptions(cl.packageId);
-  const inclFeats=ALL_FEATURES.filter(f=>pkgHasFeature(cl.packageId,f.id));
+  const inclIds=contractFeatureIds(cl);
+  const inclFeats=ALL_FEATURES.filter(f=>inclIds.includes(f.id));
   const exclFeats=ALL_FEATURES.filter(f=>!pkgHasFeature(cl.packageId,f.id)&&upgOpts.some(p=>pkgHasFeature(p.id,f.id)));
   const dL=daysUntil(cl.contractEnd);
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -8602,6 +8634,15 @@ function ReviewRequestsCard({client,onUpdate}) {
   const [skipped,setSkipped]=useState([]);
   const [preview,setPreview]=useState(null);
   const savedLink=revUrlNorm(client.googleReviewUrl);
+  // 🔴 THE CLIENT CAN SAY NO (Bryson, 2026-10-05: "is there a safeguard incase a client doesnt want
+  // it so its not added into the contract"). Ticking this leaves review requests out of an agreement
+  // not yet sent, and stops every send. After sending, the agreement is frozen as sent, and its own
+  // clause 1.4 lets them switch it off any time, so the switch here is all that is needed.
+  const declined=(client.declinedFeatures||[]).includes("review_requests");
+  const inAgreement=contractFeatureIds(client).includes("review_requests");
+  const agreementOut=!!(client.contractSigned||client.docusignSentAt);
+  const setDeclined=(v)=>{ const cur=(client.declinedFeatures||[]).filter(x=>x!=="review_requests");
+    onUpdate&&onUpdate({...client,declinedFeatures:v?[...cur,"review_requests"]:cur}); setMsg(""); };
   const call=async(qs,opts)=>{
     const { data:{ session } }=await supabaseClient.auth.getSession();
     const token=session&&session.access_token;
@@ -8622,6 +8663,7 @@ function ReviewRequestsCard({client,onUpdate}) {
     setLink(n); setMsg("✓ Saved.");
   };
   const queue=async()=>{
+    if(declined){ setMsg("They said no to review requests. Untick the box above first."); return; }
     if(!savedLink){ setMsg("Save their Google review link first."); return; }
     if(!paste.trim()){ setMsg("Paste at least one customer."); return; }
     setBusy(true); setMsg(""); setSkipped([]);
@@ -8652,6 +8694,12 @@ function ReviewRequestsCard({client,onUpdate}) {
       <div style={card}>
         <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>Google review requests</div>
         <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:12}}>Paste {client.name}'s recent customers and each one gets a short email asking for a Google review, with one reminder three days later. Everyone gets the same email (Google bans asking only happy customers). Anyone can unsubscribe in one tap.</div>
+        <label style={{display:"flex",alignItems:"flex-start",gap:9,fontSize:12,color:C.text,lineHeight:1.5,marginBottom:12,cursor:"pointer"}}>
+          <input type="checkbox" checked={declined} onChange={e=>setDeclined(e.target.checked)} style={{marginTop:2,flexShrink:0}}/>
+          <span>{client.name} doesn't want review requests</span>
+        </label>
+        {declined&&<div style={{fontSize:11.5,color:C.red,background:"rgba(239,68,68,.07)",border:"1px solid rgba(239,68,68,.28)",borderRadius:9,padding:"8px 10px",lineHeight:1.55,marginBottom:12}}>Turned off. Nothing will be sent to their customers. {agreementOut?"Their agreement already went out, so it still mentions review requests, but it says they can switch them off any time, so this is all you need to do.":"It will also be left out of their agreement."}</div>}
+        {!declined&&!inAgreement&&<div style={{fontSize:11.5,color:C.amber,background:"rgba(217,119,6,.08)",border:"1px solid rgba(217,119,6,.28)",borderRadius:9,padding:"8px 10px",lineHeight:1.55,marginBottom:12}}>Not part of their agreement (it was sent before review requests were added, or their package doesn't include them). Get their OK in writing before sending. A text is fine.</div>}
         {revIsHealth(client)&&<div style={{fontSize:11.5,color:C.amber,background:"rgba(217,119,6,.08)",border:"1px solid rgba(217,119,6,.28)",borderRadius:9,padding:"8px 10px",lineHeight:1.55,marginBottom:12}}>Health business: a patient's email address is protected health information. Don't send until you and {client.name} have signed a privacy agreement (called a BAA).</div>}
         {stats&&stats.total>0&&<div style={{fontSize:12,color:C.textDim,marginBottom:12}}><b style={{color:C.text}}>{stats.sent+stats.reminded}</b> emailed · <b style={{color:C.text}}>{stats.queued}</b> waiting · <b style={{color:C.text}}>{stats.optedOut}</b> unsubscribed{stats.failed?<> · <b style={{color:C.red}}>{stats.failed} failed</b></>:null}</div>}
         <div style={lbl}>Their Google review link</div>
@@ -8672,7 +8720,7 @@ function ReviewRequestsCard({client,onUpdate}) {
       <div style={card}>
         <div style={lbl}>Customers to ask</div>
         <textarea value={paste} onChange={e=>setPaste(e.target.value)} rows={5} placeholder={"One per line, like:\nJane Smith, jane@gmail.com\nmike@yahoo.com"} style={{...inp,resize:"vertical",marginBottom:10}}/>
-        <button onClick={queue} disabled={busy||!savedLink} style={{...btn(true,busy||!savedLink),width:"100%"}}>{busy?"Queuing…":"Queue review requests"}</button>
+        <button onClick={queue} disabled={busy||!savedLink||declined} style={{...btn(true,busy||!savedLink||declined),width:"100%"}}>{busy?"Queuing…":"Queue review requests"}</button>
         {!savedLink&&<div style={{fontSize:11,color:C.textMuted,marginTop:6}}>Save their Google review link above first.</div>}
         <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:8}}>Emails go out between 10am and 6pm Arizona time, at most 40 a day across all clients, so a long list takes a few days. Nobody is asked twice within 90 days.</div>
         {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:8,lineHeight:1.5}}>{msg}</div>}
@@ -11675,7 +11723,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       // 🔴 STAMP THE VERSION THAT WAS SENT. The envelope freezes the document as it read today, and
       // the OS renders it fresh every time, so without this a later terms change would silently
       // rewrite what the OS says they signed. `html` came from termsVersionOf(client), so this matches.
-      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString(),contractTermsVersion:termsVersionOf(client)});
+      onUpdate&&onUpdate({...client,contractStatus:"pending",docusignEnvelopeId:d.envelopeId,docusignSentAt:new Date().toISOString(),contractTermsVersion:termsVersionOf(client),contractOmits:(Array.isArray(client.declinedFeatures)?client.declinedFeatures:[]).slice()});
     }catch(e){ setDsState("error"); setDsMsg("Network error — try again."); }
   };
   const downloadPDF=()=>{

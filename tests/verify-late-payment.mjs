@@ -48,7 +48,7 @@ const lifted = new Function([
   decl("PER_LEAD ", "};"),
   decl("monthsLabel", "\n};"),
   decl("resultWords = (cl)", "\n};"),
-  decl("TERMS_V2_FROM", "return TERMS_CURRENT;\n}"),
+  decl("TERMS_V2_FROM", "&& off.indexOf(fid) < 0);\n}"),
   decl("makeContractHTML=", "\n};"),
 ].join("\n") + "\nreturn { makeContractHTML, termsVersionOf };")();
 const browser = lifted.makeContractHTML, browserVersion = lifted.termsVersionOf;
@@ -108,7 +108,7 @@ await t("🔴 the OS copy of the resolver answers identically on every shape", (
     assert.equal(browserVersion(cl), serverVersion(cl), JSON.stringify(cl));
 });
 await t("🔴 sending for signature STAMPS the version that was sent", () => {
-  assert.match(S, /docusignSentAt:new Date\(\)\.toISOString\(\),contractTermsVersion:termsVersionOf\(client\)\}\)/,
+  assert.match(S, /docusignSentAt:new Date\(\)\.toISOString\(\),contractTermsVersion:termsVersionOf\(client\),contractOmits:/,
     "without the stamp, the next terms change silently rewrites what the OS says they signed");
 });
 

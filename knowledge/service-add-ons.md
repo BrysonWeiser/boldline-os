@@ -104,3 +104,33 @@ their web person adds the records once, then mail shows e.g. reviews@theirbusine
 only has a gmail/yahoo address: (2) is impossible, stays on (1). Offered to build a "send from their own
 address" button (Resend domains API: add domain, show the records, check verified, then use it).
 Not built yet.
+
+## ✅ 2026-10-05 — ON EVERY ADS PACKAGE, IN THE AGREEMENT (terms v7), AND THE CLIENT CAN SAY NO
+
+Bryson: "yes add that" + "is there a safeguard incase a client doesnt want it so its not added into the
+contract". Decided in the reply before: included (not separately priced) on all 8 lead-gen packages
+(g-*, m-*, c-*); NOT on shop packages (e-*, no "jobs") or the one-off hand-off build (no ongoing).
+- Feature `review_requests` "Automatic Google Review Requests" added to ALL_FEATURES + PKG_FEATURES in
+  all three copies (index.html, contract-shared.cjs, portal.mjs); website cards got the bullet
+  "Automatic Google review requests" (8 cards, mapped in verify-site-matches-packages); Deal Prep picks
+  it up automatically from PKG_FEATURES.
+- 🔴 **Why it is in the contract at all:** the codebase rule (verify-site-matches-packages) is that the
+  site may only advertise what the agreement lists. So it is a listed deliverable, with clause **1.4**:
+  same request to every customer, no incentive, client confirms it may email the customers it gives,
+  unsubscribe honored, and **client may switch it off any time by email or text, no fee change**.
+- 🔴 **Terms v7** (TERMS_CURRENT 7, TERMS_V7_FROM 5 Oct 2026 20:00 UTC, CONTRACT_TERMS_VERSION 7). Without
+  it, adding the feature would have added a line to agreements already SIGNED (they re-render fresh).
+  `FEATURE_FROM_VERSION = { review_requests: 7 }`; Sebastian (v1) and Springbok's 28 Sep envelope (v6)
+  are unchanged.
+- **The safeguard:** Reviews tab checkbox "<client> doesn't want review requests" sets
+  `declinedFeatures: ["review_requests"]`. Before the agreement goes out, it leaves the line AND clause
+  1.4 out. Sending freezes the choice (`contractOmits`), so flipping it later never rewrites what they
+  were sent (a voided envelope froze nothing). Either way it blocks queueing (screen + server) and stops
+  anything already queued, reminders included. Clients whose agreement predates v7 see an amber note:
+  get their OK in writing (a text) before sending.
+- One function decides the list: `contractFeatureIds(cl)` (+ `omittedFeaturesOf`), in contract-shared
+  and mirrored in index.html; used by the contract, the client portal's "included" list, the OS
+  Included Features card and the OS portal preview. Parity tested on 5 cases.
+- Tests: verify-review-requests now 91 checks (4 new mutations caught: no version gate, not frozen at
+  send, sender ignores "no", OS copy drifts). Four contract test harnesses widened their lifted slice.
+  Driven at 390/768/1280/1600 (tab checkbox + site cards).

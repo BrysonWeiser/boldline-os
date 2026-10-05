@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { makeContractHTML, resultWords } from "../lib/contract-shared.cjs";
+import { makeContractHTML, resultWords, contractFeatureIds } from "../lib/contract-shared.cjs";
 import { withLambda } from "../lib/lambda-adapter.mjs";
 import { stripe, ensureCustomer } from "../lib/stripe-shared.mjs";
 
@@ -118,6 +118,7 @@ const ALL_FEATURES = [
   { id:"monthly_opt",     label:"Monthly Optimization",             category:"Both" },
   { id:"competitor_research",label:"Competitor Research",           category:"Both" },
   { id:"crm_integration", label:"Leads sent straight to your CRM", category:"Both" },
+  { id:"review_requests", label:"Automatic Google Review Requests", category:"Both" },
   { id:"advanced_targeting",label:"Advanced Audience Targeting",    category:"Both" },
   { id:"retargeting",     label:"Retargeting Campaigns",            category:"Both" },
   { id:"lookalike",       label:"Lookalike Audience Targeting",     category:"Meta" },
@@ -147,14 +148,14 @@ const ALL_FEATURES = [
 ];
 
 const PKG_FEATURES = {
-  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt"],
-  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report"],
-  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt"],
-  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
-  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
-  "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
+  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt","review_requests"],
+  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report","review_requests"],
+  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms","review_requests"],
+  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt","review_requests"],
+  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report","review_requests"],
+  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms","review_requests"],
+  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report","review_requests"],
+  "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report","review_requests"],
   // One-time build: the good build minus everything ongoing. Keep in step with index.html.
   "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","crm_integration","call_tracking","handover_docs","settle_in"],
   // 🔴 `std_landing` was MISSING while the marketing site's own Store Launch card already said
@@ -298,7 +299,9 @@ const makePortalHTML = (cl, pkg, notice) => {
   const SL = ["Onboarding","Research","Building","Final Review","Active","Optimizing","Scaling","Paused"];
   const SD = ["We're gathering your business details, brand assets, and goals to get your account ready for launch.","Our team is researching your market, competitors, and ideal customers to shape your campaign strategy.","Your landing pages, ad creatives, and tracking are being built and connected behind the scenes.","Your campaign is going through final quality checks before it goes live.",`Your campaign is live and generating ${nouns}.`,`We're testing and refining your campaign to improve ${noun} quality and lower your cost per ${noun}.`,"Your campaign is performing well, so we're increasing reach and budget to drive more results.","Your campaign is currently paused. Reach out to your account manager with any questions."];
   const upgOpts = getUpgradeOptions(cl.packageId);
-  const inclFeats = ALL_FEATURES.filter((f) => pkgHasFeature(cl.packageId, f.id));
+  // What THEIR agreement lists: features added after it was sent, or that they declined, are not theirs.
+  const inclIds = contractFeatureIds(cl);
+  const inclFeats = ALL_FEATURES.filter((f) => inclIds.includes(f.id));
   const exclFeats = ALL_FEATURES.filter((f) => !pkgHasFeature(cl.packageId, f.id) && upgOpts.some((p) => pkgHasFeature(p.id, f.id)));
   const dL = daysUntil(cl.contractEnd);
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");

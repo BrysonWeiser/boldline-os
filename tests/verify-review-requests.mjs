@@ -259,6 +259,58 @@ ok("the sender is scheduled", /\[functions\."review-requests-run"\]\s*\n\s*sched
 ok("the Reviews tab exists, and not on the house account", /\["reviews","Reviews"\]/.test(UI) && /k==="log"\|\|k==="reviews"/.test(UI));
 ok("🔴 the screen only queues: no send path in the card", (() => { const a = UI.indexOf("function ReviewRequestsCard"); const b = UI.indexOf("\n}\n", a); const c = UI.slice(a, b); return a > 0 && !/api\.resend|action=send/.test(c) && /action=add/.test(c); })());
 
+
+// ── 10. In the packages and the agreement, and the client can say no ────────────────────────
+// Bryson, 2026-10-05: "add that" (one line on the packages) and "is there a safeguard incase a
+// client doesnt want it so its not added into the contract".
+{
+  const { createRequire } = await import("node:module");
+  const C = createRequire(import.meta.url)("../netlify/lib/contract-shared.cjs");
+  const SITE = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+  const PKG = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, leadFee: true, pricingModel: "per_lead", tier: "launch" };
+  const base = { name: "Acme Pools LLC", email: "a@acme.com", packageId: "g-launch", niche: "Pool Construction", billingPerLead: 50, contactName: "Al" };
+  const html = (cl) => C.makeContractHTML(cl, PKG, "");
+  const listed = (cl) => /Automatic Google Review Requests/.test(html(cl));
+  const clause = (cl) => /1\.4 <strong>Review requests\.<\/strong>/.test(html(cl));
+  const now = new Date().toISOString();
+
+  ok("a new agreement lists it, with the clause that lets them switch it off", listed(base) && clause(base) && /switch review requests off at any time/.test(html(base)));
+  ok("🔴 an agreement SIGNED before it existed does not gain the line (Sebastian, signed 30 Aug)",
+    !listed({ ...base, contractSigned: true, contractSignedAt: "2026-08-30T20:00:00Z" }) && !clause({ ...base, contractSigned: true, contractSignedAt: "2026-08-30T20:00:00Z" }));
+  ok("🔴 nor one already SENT before it existed (Springbok, sent 28 Sep)", !listed({ ...base, docusignSentAt: "2026-09-28T23:00:00Z" }));
+  ok("🔴 a client who said no before it went out: no line, no clause", !listed({ ...base, declinedFeatures: ["review_requests"] }) && !clause({ ...base, declinedFeatures: ["review_requests"] }));
+  ok("🔴 saying no AFTER it went out does not rewrite what they were sent",
+    listed({ ...base, docusignSentAt: now, contractTermsVersion: 7, contractOmits: [], declinedFeatures: ["review_requests"] }));
+  ok("and saying yes after it went out without it does not add it either",
+    !listed({ ...base, docusignSentAt: now, contractTermsVersion: 7, contractOmits: ["review_requests"], declinedFeatures: [] }));
+  ok("a voided envelope froze nothing: the live choice applies to the next one",
+    !listed({ ...base, docusignSentAt: now, docusignStatus: "voided", contractTermsVersion: 7, contractOmits: [], declinedFeatures: ["review_requests"] }));
+  ok("shops and the one-off hand-off build do not get it", !C.contractFeatureIds({ packageId: "e-growth" }).includes("review_requests") && !C.contractFeatureIds({ packageId: "h-handoff" }).includes("review_requests"));
+  ok("every ads package does", ["g-launch", "g-growth", "g-acquisition", "m-launch", "m-growth", "m-acquisition", "c-growth", "c-acquisition"].every((id) => C.contractFeatureIds({ packageId: id }).includes("review_requests")));
+  ok("the newest terms are version 7", C.TERMS_CURRENT === 7 && C.termsVersionOf({}) === 7);
+
+  // The OS's own copy must decide exactly the same.
+  const blk = (a, b) => UI.slice(UI.indexOf(a), UI.indexOf(b, UI.indexOf(a)) + b.length);
+  const os = new Function(blk("const PKG_FEATURES = {", "\n};") + "\n" + blk("const TERMS_V2_FROM", "&& off.indexOf(fid) < 0);\n}") + "\nreturn { contractFeatureIds };")();
+  const cases = [base, { ...base, declinedFeatures: ["review_requests"] }, { ...base, contractSigned: true, contractSignedAt: "2026-08-30T20:00:00Z" },
+    { ...base, docusignSentAt: now, contractTermsVersion: 7, contractOmits: [], declinedFeatures: ["review_requests"] }, { packageId: "e-growth" }];
+  ok("🔴 the OS and the client portal's agreement agree on every case", cases.every((c) => JSON.stringify(os.contractFeatureIds(c)) === JSON.stringify(C.contractFeatureIds(c))));
+  ok("sending freezes the client's choice onto the record", /contractTermsVersion:termsVersionOf\(client\),contractOmits:\(Array\.isArray\(client\.declinedFeatures\)/.test(UI));
+  ok("the client portal lists what THEIR agreement says", /const inclIds = contractFeatureIds\(cl\);/.test(readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8")));
+
+  // The switch, end to end.
+  const declinedClient = { ...CLIENT, declinedFeatures: ["review_requests"] };
+  const r = await (await handle(post("action=add", { text: "a@x.com" }), { supabase: fakeSupabase(declinedClient), now: NOON })).json();
+  ok("🔴 the server refuses to queue for a client who said no", !r.ok && /said no/.test(r.error));
+  const p = R.planReviewSends([row({}), row({ status: "sent", sent_at: new Date(NOON - 4 * DAY).toISOString() })], { clientsById: { c1: declinedClient }, now: NOON });
+  ok("🔴 and anything already queued is stopped, reminders included", p.sends.length === 0 && p.stops.length === 2 && p.stops.every((x) => x.reason === "declined"));
+  ok("the Reviews tab has the switch, and it disables the button", /doesn't want review requests/.test(UI) && /disabled=\{busy\|\|!savedLink\|\|declined\}/.test(UI));
+
+  // The site: one line on every ads package, none on the shop packages.
+  const cardsWith = (SITE.match(/<li>Automatic Google review requests<\/li>/g) || []).length;
+  ok("the website shows it on all 8 ads packages and not on the 3 shop ones", cardsWith === 8);
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-review-requests: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

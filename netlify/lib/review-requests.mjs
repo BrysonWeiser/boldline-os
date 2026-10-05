@@ -60,6 +60,9 @@ export const senderName = (client) => {
   return raw.replace(/,?\s+(LLC|L\.L\.C\.|Inc\.?|PLLC|LLP|Corp\.?|Co\.)$/i, "").trim() || "Our team";
 };
 
+// The client said no (Reviews tab switch, KB `service-add-ons`). Nothing is queued or sent for them.
+export const reviewsDeclined = (client) => Array.isArray(client && client.declinedFeatures) && client.declinedFeatures.includes("review_requests");
+
 // Health businesses: a patient's email in a vendor's hands is protected health information.
 export const isHealthBusiness = (client) =>
   /chiro|dental|dentist|orthodon|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|audiolog|\baba\b|counsel|psych|doctor|physician|pharm|hospice|home health/i
@@ -137,6 +140,8 @@ export const planReviewSends = (rows, { clientsById = {}, history = [], optedOut
     }
     if (pairOut) { stops.push({ row: r, reason: "opted_out" }); continue; }
     if (!client) { stops.push({ row: r, reason: "client_gone" }); continue; }
+    // 🔴 They said no after rows were queued: stop them all, first emails and reminders alike.
+    if (reviewsDeclined(client)) { stops.push({ row: r, reason: "declined" }); continue; }
     let kind = null;
     if (r.status === "queued") kind = "first";
     else if (r.status === "sent" && r.sent_at && now - new Date(r.sent_at).getTime() >= REMIND_AFTER_DAYS * DAY) kind = "reminder";
