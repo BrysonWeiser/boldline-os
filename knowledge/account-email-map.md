@@ -61,7 +61,7 @@ the trial expiry is a future to-do. See `lead-scout`.
 
 
 ## 2026-10-05 — bryson@boldlinemedia.com: forward to the BUSINESS gmail, and send from it
-✅ **Part 1 (receive) DONE 2026-10-05, tested by Bryson:** bryson@ now forwards to **theboldlinemedia@gmail.com**. In Cloudflare the destination list shows only theboldlinemedia@gmail.com (Verified); the old personal-gmail destination is no longer listed. Part 2 (send-as via Resend SMTP) not yet confirmed.
+✅ **Part 1 (receive) DONE 2026-10-05, tested by Bryson:** bryson@ now forwards to **theboldlinemedia@gmail.com**. In Cloudflare the destination list shows only theboldlinemedia@gmail.com (Verified); the old personal-gmail destination is no longer listed. ✅ **Part 2 (send-as) DONE 2026-10-05:** Gmail "Send mail as" bryson@ verified, via smtp.resend.com:587, username `resend`. 🔴 Gotcha: Gmail PRE-FILLS the SMTP box with `route3.mx.cloudflare.net` and username `bryson` (it guesses from the MX records). Cloudflare Email Routing is receive-only, so that guess cannot send; overwrite both.
 Bryson asked to (1) forward bryson@ to **theboldlinemedia@gmail.com** instead of his personal gmail, and
 (2) send as bryson@. Steps given:
 - **Receive:** Cloudflare (login is the personal gmail) → boldlinemedia.com → Email → Email Routing →
