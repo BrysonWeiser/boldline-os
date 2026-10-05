@@ -85,8 +85,9 @@ behind the name (visible only if the customer taps it) is BoldLine's verified se
 (REPORTS_FROM_EMAIL, hello@boldlinemedia.com). That is how the big review tools (Podium, Birdeye,
 NiceJob) work too. The footer says "Sent by <brand>", BoldLine is never named.
 **Upgrade, not built:** send from the client's OWN domain (e.g. hello@springbokwellness.com). Needs the
-client's web person to add ~3 DNS records once, and Resend's free plan covers only one domain, so it
-means a paid Resend plan (about $20/mo, believed; check before quoting). Build when a paying client
+client's web person to add ~3 DNS records once. **Resend pricing, checked 2026-10-05:** Free = 3 domains,
+100 emails/day, 3,000/mo (boldlinemedia.com uses one, so TWO client domains fit free); Pro = $20/mo,
+10 domains, 50,000/mo, no daily cap. Build when a paying client
 wants it; bake the cost into the add-on price.
 
 **Brendon:** raise it only AFTER he signs (the pay-per-show terms are still open; don't stack asks on
@@ -94,3 +95,12 @@ an unsigned deal). Recommended offer: free for the first 3 months as a founding 
 study. A BAA must be signed first (patient emails are PHI). Draft text given to Bryson.
 🔴 **For the GBP build later:** review REPLIES for health clients must never confirm the reviewer is a
 patient (HIPAA). Generic thanks only. Same for any review content the OS drafts.
+
+**2026-10-05, Bryson asked "in general, how do we get it to show the business's email":** explained
+that writing their address in the From line without their domain's permission is spoofing (DMARC sends
+it to spam or rejects it), so their domain must authorize us via DNS records. Three cases: (1) default,
+business name + our address, replies to them, works for everyone; (2) business has its own domain:
+their web person adds the records once, then mail shows e.g. reviews@theirbusiness.com; (3) business
+only has a gmail/yahoo address: (2) is impossible, stays on (1). Offered to build a "send from their own
+address" button (Resend domains API: add domain, show the records, check verified, then use it).
+Not built yet.
