@@ -3,7 +3,7 @@ name: service-add-ons
 topic: Sales
 task: decide whether to add services beyond ads and landing pages (Google Business Profile, website care, reviews, SEO, social), or price them against competitors
 keywords: [add-on, add-ons, upsell, google business profile, GBP, google maps, map pack, website management, website care, hosting, maintenance, review requests, reviews automation, SEO retainer, social media management, competitor pricing, what other agencies charge, car detailer, $500 a month]
-status: review requests BUILT 2026-10-05 (needs one SQL run); GBP care and websites not built
+status: review requests LIVE 2026-10-05 (table created); GBP care and websites not built
 summary: 2026-10-05 a long-running car detailer told Bryson on a cold call that his agency charges $500/mo to run ads, plus extra for managing his Google Business Profile and his website. Recommendation given: do NOT become a menu agency (pay-for-results is the differentiator and the counter-pitch to a flat $500/mo); add only add-ons that produce leads and that the OS can mostly automate. Order: (1) Google Business Profile care, (2) review-request texts after a job, (3) website care for sites BoldLine built. Skip SEO retainers and social media management. Nothing built; offer them by hand first, build only once 2 or 3 clients pay for one.
 verified: 2026-10-05
 ---
@@ -70,7 +70,7 @@ Bryson: "yea lets do that". Client record → new **Reviews** tab (hidden on the
   client record: the browser writes the whole client record back and could roll "sent" back to
   "queued" (double email) or undo an unsubscribe (legal problem). Rows are claimed with a conditional
   update before sending, and every send carries a Resend Idempotency-Key. Added to the nightly backup.
-- 🔴 **NEEDS ONE SQL RUN BY BRYSON** before it works; until then the tab says "one-time setup" and the
+- ✅ **SQL RUN by Bryson 2026-10-05** (confirmed: the table answers through the public API, 200 with no rows visible, as RLS intends). Before that, until then the tab says "one-time setup" and the
   sender skips quietly (no alert spam). The backup email will list the table as "does not exist yet".
 - Health clients (Springbok) show an amber BAA warning: patient emails are protected health info.
 - Not built (by design): a portal page for clients to add customers themselves. Bryson pastes for now;
