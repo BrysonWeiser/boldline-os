@@ -78,3 +78,12 @@ Bryson asked to (1) forward bryson@ to **theboldlinemedia@gmail.com** instead of
   sends client emails from at risk), and it shares Resend's daily limit with the OS.
 - Side effect to know: DocuSign's login is bryson@, so its emails and password resets will then land in
   the business gmail.
+
+**Sender photo (2026-10-05):** emails from bryson@ showed a plain "B" avatar. Fix given: create a free
+Google Account ON bryson@boldlinemedia.com ("Use your existing email" at signup, no Gmail inbox; the
+code arrives via the forward in the business gmail) and set its profile photo to
+`brand/linkedin/linkedin-logo.png` (square, full-bleed, survives the circle crop). Shows to Gmail
+recipients only, within hours to a day. The everywhere version is BIMI, which needs DMARC at
+quarantine/reject (ours is p=none) plus a paid VMC/CMC certificate (hundreds a year): not worth it now.
+🔴 Once created, that Google Account is ANOTHER LOGIN: add it to the table above (login = bryson@,
+which now forwards to the business gmail).
