@@ -76,3 +76,21 @@ Bryson: "yea lets do that". Client record → new **Reviews** tab (hidden on the
 - Not built (by design): a portal page for clients to add customers themselves. Bryson pastes for now;
   build the portal entry once a client is paying for this.
 - Tests: `verify-review-requests` (74 checks, 8 mutations caught); driven at 390/768/1280/1600.
+
+## 2026-10-05 — "what email is it sent from? from me it would look like a scam"
+
+Answer given: NOT from Bryson. Inbox shows the BUSINESS NAME as the sender ("Springbok Wellness"),
+subject "Thanks for choosing Springbok Wellness", replies go to the business's own email. The address
+behind the name (visible only if the customer taps it) is BoldLine's verified sending address
+(REPORTS_FROM_EMAIL, hello@boldlinemedia.com). That is how the big review tools (Podium, Birdeye,
+NiceJob) work too. The footer says "Sent by <brand>", BoldLine is never named.
+**Upgrade, not built:** send from the client's OWN domain (e.g. hello@springbokwellness.com). Needs the
+client's web person to add ~3 DNS records once, and Resend's free plan covers only one domain, so it
+means a paid Resend plan (about $20/mo, believed; check before quoting). Build when a paying client
+wants it; bake the cost into the add-on price.
+
+**Brendon:** raise it only AFTER he signs (the pay-per-show terms are still open; don't stack asks on
+an unsigned deal). Recommended offer: free for the first 3 months as a founding client, for a case
+study. A BAA must be signed first (patient emails are PHI). Draft text given to Bryson.
+🔴 **For the GBP build later:** review REPLIES for health clients must never confirm the reviewer is a
+patient (HIPAA). Generic thanks only. Same for any review content the OS drafts.
