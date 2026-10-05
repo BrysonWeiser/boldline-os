@@ -610,3 +610,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-10-05 | `b8c8e20` | `rollback/20261005T201322Z` | `70b2ce2` | Knowledge base only: Springbok follow-up drafted. KB: `springbok-wellness-deal`. |
 | 2026-10-05 | `bca65cf` | `rollback/20261005T202132Z` | `dc47ec9` | Knowledge base only: Springbok follow-up sent with review offer. KB: `springbok-wellness-deal`. |
 | 2026-10-05 | `eb0b90c` | `rollback/20261005T202420Z` | `3d3e753` | **Website shows review requests beyond the package cards:** a 6th step in the homepage system flow and a full-width card on /get-started. Checked at four widths. Full suite **122 / 0**. KB: `service-add-ons`. |
+| 2026-10-05 | `202095d` | `rollback/20261005T203128Z` | `1284454` | **/get-started: emoji icons replaced** with gold line SVGs (5 cards). New `verify-site-no-emoji` checks every site page. Checked at four widths. Full suite **123 / 0**. KB: `service-add-ons`. |
