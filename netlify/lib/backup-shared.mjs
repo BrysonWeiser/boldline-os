@@ -50,6 +50,7 @@ export const BACKUP_TABLES = [
   // Losing the block list is the one that matters: it would mean calling people who asked not to
   // be called, with no way to know you were doing it.
   { table: "outreach_touches",  order: "created_at" },   // every attempt, and which meetings showed
+  { table: "review_requests",   order: "created_at" },   // who was asked for a review, and who unsubscribed (the opt-outs are a legal record)
   { table: "outreach_settings", order: "updated_at" },   // the call script
   { table: "push_subscriptions" },
   { table: "scout_runs", order: "created_at", cap: 200 },   // one row per search, mostly noise after a week
