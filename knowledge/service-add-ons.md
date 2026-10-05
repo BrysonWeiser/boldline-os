@@ -134,3 +134,10 @@ contract". Decided in the reply before: included (not separately priced) on all 
 - Tests: verify-review-requests now 91 checks (4 new mutations caught: no version gate, not frozen at
   send, sender ignores "no", OS copy drifts). Four contract test harnesses widened their lifted slice.
   Driven at 390/768/1280/1600 (tab checkbox + site cards).
+
+**2026-10-05, Bryson: "make sure ... the service we just added is displayed on the website as well".**
+Package-card bullets were already live (8 cards, confirmed on boldlinemedia.com). Also added: a 6th step
+"More 5-star reviews" in the homepage "What we actually build for you" flow (between Leads and
+Reporting), and a full-width 5th card "More 5-star reviews, automatically" on /get-started (the ad
+landing page), full width so the 2-column grid has no orphan. Checked at 390/768/1280/1600.
+Noticed, NOT changed: /get-started's other four cards use emoji icons, against the no-emoji rule.

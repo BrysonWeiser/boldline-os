@@ -100,7 +100,7 @@ section{padding:46px 0}
 .divider{width:46px;height:1px;background:var(--gold-line);margin:0 auto}
 
 /* value cards */
-.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}.card-wide{grid-column:1/-1}
 .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 26px;overflow:hidden;transition:transform .3s cubic-bezier(.2,.7,.2,1),border-color .3s,box-shadow .3s}
 .card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-line),transparent)}
 .card:hover{transform:translateY(-4px);border-color:var(--gold-line);box-shadow:0 26px 50px -30px rgba(0,0,0,.9)}
@@ -280,6 +280,7 @@ html.js-anim .reveal.d3.in{transition-delay:.24s}
       <div class="card reveal d1"><div class="ico">📄</div><h3>A landing page like this one</h3><p>Every campaign gets a custom page built for one job: turning the click into a lead. Fast, focused, and matched to the ad.</p><span class="tag">You're on one right now</span></div>
       <div class="card reveal"><div class="ico">⚡</div><h3>Every lead reaches you instantly</h3><p>The moment someone calls your tracked number or fills a form, it hits your phone and inbox automatically. No lead ever slips through.</p></div>
       <div class="card reveal d1"><div class="ico">📊</div><h3>Reporting in plain English</h3><p>You always know what's working and exactly where your money goes, on a set cadence, in language that actually makes sense.</p></div>
+      <div class="card reveal card-wide"><div class="ico">★</div><h3>More 5-star reviews, automatically</h3><p>After every job, your customers get a short email asking for a Google review, plus one reminder. Your rating keeps climbing without you chasing anyone.</p></div>
     </div>
   </section>
 
