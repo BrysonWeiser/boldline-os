@@ -600,3 +600,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-10-05 | `3be8013` | `rollback/20261005T181804Z` | `9e40ab1` | Knowledge base only: Gmail send-as bryson@ via Resend SMTP verified. KB: `account-email-map`. |
 | 2026-10-05 | `f89a9ac` | `rollback/20261005T182143Z` | `94e923b` | Knowledge base only: how to show the logo as the bryson@ sender photo. KB: `account-email-map`. |
 | 2026-10-05 | `c8e90af` | `rollback/20261005T182621Z` | `f1d7666` | Knowledge base only: Google Account on bryson@ created for the sender photo. KB: `account-email-map`. |
+| 2026-10-05 | `b2db41b` | `rollback/20261005T184518Z` | `b5bf8cb` | Knowledge base only: competitor pricing intel and add-on service recommendation. KB: `service-add-ons`. |
