@@ -88,6 +88,12 @@
 [functions."crm-retry"]
   schedule = "*/15 * * * *"
 
+# Sends the review-request emails (KB `service-add-ons`). Every 15 minutes, but it only sends
+# between 10am and 6pm Phoenix and under a daily cap that leaves Resend's free allowance for
+# client emails. Rows are claimed before sending, so overlapping runs cannot double-send.
+[functions."review-requests-run"]
+  schedule = "*/15 * * * *"
+
 # Closes the loop on e-signatures. Every 15 minutes it asks DocuSign where each outstanding
 # envelope got to, flips a client to active the moment they sign, and alerts Bryson. Polling
 # rather than DocuSign Connect: Connect is not on the eSignature Standard plan, and polling

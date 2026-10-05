@@ -8571,6 +8571,133 @@ function ClientApprovalsCard({client,onUpdate}) {
   );
 }
 
+// ─── Review requests: ask a client's customers for a Google review ───────────
+// Bryson, 2026-10-05: "yea lets do that" (KB `service-add-ons`). He pastes the client's recent
+// customers; the server queues them and the scheduled sender emails each one, then one reminder
+// three days later. 🔴 THIS SCREEN NEVER SENDS. It only queues, so the daily cap, the send window
+// and the claim-before-send rule live in one place on the server. Rules: netlify/lib/review-requests.mjs.
+//
+// Mirrors `normReviewUrl` there (a test runs both on the same inputs): only a Google link may sit
+// behind the button in a customer's inbox.
+const revUrlNorm=(raw)=>{ let s=String(raw||"").trim(); if(!s) return "";
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(s)) s="https://"+s.replace(/^\/+/,"");
+  let u; try{ u=new URL(s); }catch(e){ return ""; }
+  if(u.protocol!=="https:") return "";
+  const h=u.hostname.toLowerCase();
+  if(![/^g\.page$/,/^(www\.)?google\.[a-z.]{2,6}$/,/^(search|maps|business)\.google\.com$/,/^maps\.app\.goo\.gl$/,/^goo\.gl$/].some(re=>re.test(h))) return "";
+  if(u.pathname==="/"&&!u.search) return "";
+  return u.toString(); };
+const revIsHealth=(c)=>/chiro|dental|dentist|orthodon|med ?spa|medical|clinic|therap|physio|wellness|dermatolog|optom|audiolog|\baba\b|counsel|psych|doctor|physician|pharm|hospice|home health/i.test(`${(c&&c.niche)||""} ${(c&&c.name)||""}`);
+const REV_STATUS={queued:["Waiting to send",C.gold],sending:["Sending",C.gold],sent:["Sent, reminder due",C.green],reminding:["Sending reminder",C.green],
+  reminded:["Sent + reminded",C.green],stopped:["Stopped",C.textMuted],failed:["Failed",C.red],opted_out:["Unsubscribed",C.red]};
+function ReviewRequestsCard({client,onUpdate}) {
+  const [link,setLink]=useState(client.googleReviewUrl||"");
+  const [sender,setSender]=useState(client.reviewSenderName||"");
+  const [paste,setPaste]=useState("");
+  const [rows,setRows]=useState(null);
+  const [stats,setStats]=useState(null);
+  const [setup,setSetup]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState("");
+  const [skipped,setSkipped]=useState([]);
+  const [preview,setPreview]=useState(null);
+  const savedLink=revUrlNorm(client.googleReviewUrl);
+  const call=async(qs,opts)=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const token=session&&session.access_token;
+    if(!token) throw new Error("Session expired. Refresh and log in again.");
+    const r=await fetch("/.netlify/functions/review-requests?client="+encodeURIComponent(client.id)+"&"+qs,{...(opts||{}),headers:{"Content-Type":"application/json","Authorization":"Bearer "+token}});
+    const d=await r.json().catch(()=>({}));
+    if(d&&d.needsSetup){ setSetup(d.error||"setup"); throw new Error("Setup needed"); }
+    if(!r.ok||!d.ok) throw new Error((d&&d.error)||"That didn't work. Try again.");
+    return d;
+  };
+  const load=async()=>{ try{ const d=await call("action=list"); setRows(d.requests||[]); setStats(d.stats||null); setSetup(""); }catch(e){ if(!/Setup needed/.test(e.message)) setMsg(e.message); setRows([]); } };
+  useEffect(()=>{ load(); },[client.id]);
+
+  const saveSettings=()=>{
+    const n=revUrlNorm(link);
+    if(link.trim()&&!n){ setMsg("That isn't a Google review link. It should start with g.page/r/ or google.com."); return; }
+    onUpdate&&onUpdate({...client,googleReviewUrl:n,reviewSenderName:sender.trim()});
+    setLink(n); setMsg("✓ Saved.");
+  };
+  const queue=async()=>{
+    if(!savedLink){ setMsg("Save their Google review link first."); return; }
+    if(!paste.trim()){ setMsg("Paste at least one customer."); return; }
+    setBusy(true); setMsg(""); setSkipped([]);
+    try{
+      const d=await call("action=add",{method:"POST",body:JSON.stringify({text:paste})});
+      setSkipped(d.skipped||[]);
+      setMsg(d.added?`✓ ${d.added} queued. They go out within 15 minutes, between 10am and 6pm Arizona time.`:"Nothing new to send.");
+      if(d.added) setPaste("");
+      await load();
+    }catch(e){ if(!/Setup needed/.test(e.message)) setMsg(e.message); }
+    setBusy(false);
+  };
+  const stop=async(id)=>{ try{ await call("action=stop&id="+encodeURIComponent(id),{method:"POST",body:"{}"}); await load(); }catch(e){ setMsg(e.message); } };
+  const showPreview=async()=>{ try{ const d=await call("action=preview"); setPreview(d); }catch(e){ setMsg(e.message); } };
+  const pill=(r)=>{ const m=r.opted_out_at?REV_STATUS.opted_out:(REV_STATUS[r.status]||[r.status,C.textMuted]);
+    return <span style={{fontSize:9,fontWeight:800,textTransform:"uppercase",letterSpacing:".04em",color:m[1],backgroundColor:m[1]+"1a",border:`1px solid ${m[1]}44`,borderRadius:6,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{m[0]}</span>; };
+  const lbl={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:6};
+  const btn=(primary,dis)=>({padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
+
+  if(setup) return (
+    <div style={{...card,marginTop:12}}>
+      <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:6}}>Review requests: one-time setup</div>
+      <div style={{fontSize:12,color:C.textDim,lineHeight:1.65}}>This needs one table added to the database before it can save anyone. Ask Claude for the steps. It takes about two minutes and you only do it once.</div>
+    </div>);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:12}}>
+      <div style={card}>
+        <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:4}}>Google review requests</div>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:12}}>Paste {client.name}'s recent customers and each one gets a short email asking for a Google review, with one reminder three days later. Everyone gets the same email (Google bans asking only happy customers). Anyone can unsubscribe in one tap.</div>
+        {revIsHealth(client)&&<div style={{fontSize:11.5,color:C.amber,background:"rgba(217,119,6,.08)",border:"1px solid rgba(217,119,6,.28)",borderRadius:9,padding:"8px 10px",lineHeight:1.55,marginBottom:12}}>Health business: a patient's email address is protected health information. Don't send until you and {client.name} have signed a privacy agreement (called a BAA).</div>}
+        {stats&&stats.total>0&&<div style={{fontSize:12,color:C.textDim,marginBottom:12}}><b style={{color:C.text}}>{stats.sent+stats.reminded}</b> emailed · <b style={{color:C.text}}>{stats.queued}</b> waiting · <b style={{color:C.text}}>{stats.optedOut}</b> unsubscribed{stats.failed?<> · <b style={{color:C.red}}>{stats.failed} failed</b></>:null}</div>}
+        <div style={lbl}>Their Google review link</div>
+        <input value={link} onChange={e=>setLink(e.target.value)} placeholder="g.page/r/.../review" style={{...inp,marginBottom:4}}/>
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginBottom:10}}>Logged in as a manager of their profile, search the business on Google, click Ask for reviews, and copy the link.</div>
+        <div style={lbl}>Name customers see</div>
+        <input value={sender} onChange={e=>setSender(e.target.value)} placeholder={client.name} style={{...inp,marginBottom:10}}/>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={saveSettings} style={btn(false,false)}>Save</button>
+          {savedLink&&<button onClick={showPreview} style={btn(false,false)}>Preview the email</button>}
+        </div>
+        {preview&&preview.first&&(
+          <div style={{marginTop:12,padding:"10px 12px",borderRadius:10,background:C.bg3,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,color:C.textMuted,marginBottom:4}}>Subject: <b style={{color:C.text}}>{preview.first.subject}</b></div>
+            <div style={{fontSize:12,color:C.textDim,whiteSpace:"pre-wrap",lineHeight:1.6,wordBreak:"break-word"}}>{preview.first.text}</div>
+          </div>)}
+      </div>
+      <div style={card}>
+        <div style={lbl}>Customers to ask</div>
+        <textarea value={paste} onChange={e=>setPaste(e.target.value)} rows={5} placeholder={"One per line, like:\nJane Smith, jane@gmail.com\nmike@yahoo.com"} style={{...inp,resize:"vertical",marginBottom:10}}/>
+        <button onClick={queue} disabled={busy||!savedLink} style={{...btn(true,busy||!savedLink),width:"100%"}}>{busy?"Queuing…":"Queue review requests"}</button>
+        {!savedLink&&<div style={{fontSize:11,color:C.textMuted,marginTop:6}}>Save their Google review link above first.</div>}
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:8}}>Emails go out between 10am and 6pm Arizona time, at most 40 a day across all clients, so a long list takes a few days. Nobody is asked twice within 90 days.</div>
+        {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:8,lineHeight:1.5}}>{msg}</div>}
+        {skipped.length>0&&<div style={{fontSize:11,color:C.textDim,marginTop:6,lineHeight:1.6}}>Skipped {skipped.length}: {skipped.slice(0,8).map(x=>`${x.email} (${x.reason})`).join(", ")}{skipped.length>8?` and ${skipped.length-8} more`:""}</div>}
+      </div>
+      {rows&&rows.length>0&&(
+        <div style={card}>
+          <div style={lbl}>Who's been asked</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {rows.slice(0,100).map(r=>(
+              <div key={r.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:9,background:C.bg3,border:`1px solid ${C.border}`,minWidth:0}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12.5,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name||r.email}</div>
+                  <div style={{fontSize:10.5,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name?r.email+" · ":""}{r.sent_at?"emailed "+new Date(r.sent_at).toLocaleDateString(undefined,{month:"short",day:"numeric"}):"added "+new Date(r.created_at).toLocaleDateString(undefined,{month:"short",day:"numeric"})}{r.last_error&&r.status!=="sent"&&r.status!=="reminded"?" · "+r.last_error:""}</div>
+                </div>
+                {pill(r)}
+                {(r.status==="queued"||r.status==="sent")&&!r.opted_out_at&&<button onClick={()=>stop(r.id)} title={r.status==="sent"?"Don't send the reminder":"Don't send"} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:7,color:C.textMuted,cursor:"pointer",fontSize:10.5,padding:"3px 8px",flexShrink:0}}>Stop</button>}
+              </div>))}
+            {rows.length>100&&<div style={{fontSize:10.5,color:C.textMuted}}>+ {rows.length-100} older</div>}
+          </div>
+        </div>)}
+    </div>
+  );
+}
+
 // ─── Send a test lead to the client's own system ─────────────────────────────
 // Bryson, 2026-09-03: *"can you build a button to automatically send a test from the os
 // right now too"*.
@@ -9861,8 +9988,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   // here, not enquiries, and a tab called "Leads" on a shop account is the first thing he sees
   // on every screen of theirs. Same one field the agreement, the invoice, the portal and the
   // branded emails read (Bryson, 2026-09-17: *"make sure these tabs are good as well"*).
-  const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log")))
+  const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["reviews","Reviews"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
+                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log"||k==="reviews")))
                    // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:
                    // *"there isn't an assets tab can you add it"*. There was, and it holds exactly
                    // what he was looking for: the media library, the landing page with its Publish
@@ -10336,6 +10463,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         )}
 
         {tab==="leads"&&<LeadsTabContent client={client} onUpdate={onUpdate}/>}
+
+        {tab==="reviews"&&!client.internal&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
 
         {tab==="portal"&&(
           <div style={S.col11}>
