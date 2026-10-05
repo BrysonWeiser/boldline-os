@@ -33,3 +33,19 @@ run by itself (the end goal: bots do the work, Bryson calls and closes).
 three clients are paying for it. Do not build a menu for clients that do not exist yet. The
 niche lock (pool remodels, 100 calls, KB `niche-selection`) is unaffected; these are add-ons to the
 same offer, not a new direction.
+
+## 2026-10-05 — how hard each is, and the build order recommended
+
+Bryson asked how hard the three are to build and automate, and whether to do it alongside calling.
+Answer: the BUILD is Claude's time, not his; his cost is setup clicks. So yes in parallel, but calls
+stay first (add-ons sell to nobody without clients).
+
+| | Difficulty | The real blocker |
+|---|---|---|
+| **Review requests by EMAIL** | Small (a session or two) | None: Resend already sends from boldlinemedia.com. |
+| Review requests by TEXT | Small code, slow setup | Texting is OFF (`SMS_ENABLED`, Twilio trial) and A2P is per CLIENT business (KB `client-text-back`). Email first, text later. |
+| **Google Business Profile care** | Medium | Google must approve API access (form + wait, weeks, like Meta). Requirement is a verified profile ~60 days old: BoldLine's own was verified 2026-08-08/09, so eligible about 8 Oct. Until approved, the OS DRAFTS weekly posts and review replies and Bryson pastes them (~5 min per client per week). |
+| Website care / full websites | Large | Landing-page hosting + custom domains already exist; multi-page sites do not. Hold until a client (Brendon) actually pays for a site. |
+
+🔴 **Correction to "ask happy customers":** Google's policy bans REVIEW GATING (asking only satisfied
+customers, or screening first). Every customer gets the same request. Any build must not filter.
