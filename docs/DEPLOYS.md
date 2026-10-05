@@ -597,3 +597,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-10-05 | `e6ca2bd` | `rollback/20261005T175620Z` | `3d106f7` | Knowledge base only: Sebastian silent past his weekend deadline; notice email Mon 5 Oct, effective Wed 4 Nov; reminder moved to 4 Nov. KB: `stencil-and-thread-deal`. |
 | 2026-10-05 | `2e7e2f8` | `rollback/20261005T180237Z` | `8456f16` | Knowledge base only: steps to forward bryson@ to the business gmail and send as it via Resend SMTP. KB: `account-email-map`. |
 | 2026-10-05 | `98af7bd` | `rollback/20261005T181031Z` | `5ad1a7e` | Knowledge base only: bryson@ forwarding moved to the business gmail, tested. KB: `account-email-map`. |
+| 2026-10-05 | `3be8013` | `rollback/20261005T181804Z` | `9e40ab1` | Knowledge base only: Gmail send-as bryson@ via Resend SMTP verified. KB: `account-email-map`. |
