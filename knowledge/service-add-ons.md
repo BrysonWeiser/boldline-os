@@ -140,4 +140,6 @@ Package-card bullets were already live (8 cards, confirmed on boldlinemedia.com)
 "More 5-star reviews" in the homepage "What we actually build for you" flow (between Leads and
 Reporting), and a full-width 5th card "More 5-star reviews, automatically" on /get-started (the ad
 landing page), full width so the 2-column grid has no orphan. Checked at 390/768/1280/1600.
-Noticed, NOT changed: /get-started's other four cards use emoji icons, against the no-emoji rule.
+/get-started's other four cards used emoji icons (against the no-emoji rule); Bryson saw a before/after and said
+"update it": all five are now gold line SVG icons matching the homepage. New `tests/verify-site-no-emoji.mjs` reads
+every marketing-site page (proven to fail on the old page).
