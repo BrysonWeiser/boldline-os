@@ -8,6 +8,24 @@ summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN 
 verified: 2026-09-22
 ---
 
+## 🔴 2026-10-05 (Mon, ~10:55am Phoenix) — HIS OWN WEEKEND DEADLINE PASSED: NOTICE GOES OUT TODAY
+
+Instead of the planned Thursday hold-or-close text, Bryson texted on **Saturday 3 Oct, 12:36am**:
+*"If I don't hear from you over the weekend confirming you want to start the ads and that you've added
+your card on file for invoices then I will take it that now is not a good time for ads. I will begin
+closing the agreement and we can revisit ads in the future."* Delivered. **No reply by Monday morning.**
+
+That written deadline replaces the 7 Oct one, so the plan is to send the formal **EMAIL notice
+TODAY**, Monday 5 Oct (a business day; Eugene is on Pacific Daylight Time, the same clock as Phoenix
+until 1 Nov). Agency early termination on thirty days' notice, received Mon 5 Oct = **effective Wed
+4 Nov 2026** (checked with `date -d`). Nothing is owed either way: no ads ever ran, no card, setup
+waived, so no prepaid fees to refund and no fee. Send it to the client email on page one of his
+signed agreement (believed to be contact@stencilandthread.com, but check the signed copy), then
+send a one-line text saying an email is on the way. Door open until 4 Nov.
+Reminder `trig_01M4tmfRUaYNAy8GPJ6wnxKC` was **repurposed** from "Thu 8 Oct notice day" to **Wed 4 Nov
+9:00am Phoenix (16:00 UTC, converted back and checked)**: confirm the email went out, then mark the
+client ended in the OS, or finish setup if he came back. The founding count does not drop.
+
 ## 🔴 2026-09-28 — HE REPLIED, SO THE PLAN CHANGED
 
 **Friday 25 Sept, before the 30th deadline, Sebastian texted back:** *"Hey Bryson I'm sorry man, I
