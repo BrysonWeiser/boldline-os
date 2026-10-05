@@ -265,3 +265,10 @@ went out from his PERSONAL gmail in the DocuSign thread; no answer from Brendon 
 Phoenix. A short same-thread nudge was drafted: does $40 per show work, open to adjusting the window
 or follow-up time, offer a quick call, agreement resent the same day he says go. Review requests and
 the BAA deliberately NOT mentioned until he signs.
+**✅ SENT Mon 5 Oct 2026 (afternoon Phoenix), as a NEW email** (subject "Springbok agreement, plus one new
+addition"): short recap of the pay-per-show terms ($40 per show, 30-day window, monthly yes/no, contact
+within a business day) + the review-request offer (included, switch off any time, privacy agreement /
+BAA before any patient emails). Bryson asked to include reviews, overriding the "wait until signed" advice.
+Next: when he says go, VOID the 28 Sep envelope in DocuSign, set per-lead $40 + Special Terms (pay-per-show
+text from 29 Sep entry), and resend (it will be terms v7 and list review requests; tick "doesn't want
+review requests" first if he declines). If silent by Thu 8 Oct, a phone call (he is a friend).
