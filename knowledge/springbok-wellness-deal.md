@@ -258,3 +258,10 @@ Recommendation given to Bryson:
 - Website: separate job, separate conversation after signing; do not fold into this agreement. The
   founding waiver covers the setup fee (the landing page build), not a website redesign.
 Still NOT a client until signed in the OS.
+
+## 2026-10-05 (Mon) — no reply yet to the pay-per-show proposal; follow-up drafted
+Bryson's reply proposing $40 per show (30-day window, yes/no monthly, 2-business-day follow-up rule)
+went out from his PERSONAL gmail in the DocuSign thread; no answer from Brendon by Monday afternoon
+Phoenix. A short same-thread nudge was drafted: does $40 per show work, open to adjusting the window
+or follow-up time, offer a quick call, agreement resent the same day he says go. Review requests and
+the BAA deliberately NOT mentioned until he signs.
