@@ -58,3 +58,22 @@ gmail. The Places API key ended up in the auto-created project **"My First Proje
 Key is restricted to Places API (New), stored only in Netlify env `GOOGLE_PLACES_API_KEY` on the OS
 site. On the free trial ($300 / 90 days from 2026-08-11) — **not** activated to full pay-as-you-go, so
 the trial expiry is a future to-do. See `lead-scout`.
+
+
+## 2026-10-05 — bryson@boldlinemedia.com: forward to the BUSINESS gmail, and send from it (recommended, not yet done)
+Bryson asked to (1) forward bryson@ to **theboldlinemedia@gmail.com** instead of his personal gmail, and
+(2) send as bryson@. Steps given:
+- **Receive:** Cloudflare (login is the personal gmail) → boldlinemedia.com → Email → Email Routing →
+  Destination addresses → add theboldlinemedia@gmail.com (🔴 this one DOES need the verify link, unlike
+  the first, which auto-verified because it matched the Cloudflare login) → Routing rules → edit the
+  bryson@ rule → new destination. Do this FIRST: the Gmail send-as code in step 2 is mailed to bryson@.
+- **Send, free, recommended:** Gmail "Send mail as" through **Resend's SMTP** (smtp.resend.com, port 587,
+  TLS, username `resend`, password = a NEW Resend API key with Sending access only, named "Gmail
+  send-as"; typed into Gmail, never into chat or the repo). Resend already has boldlinemedia.com verified
+  with DKIM at `resend._domainkey`, so mail passes DMARC as boldlinemedia.com. Rejected: sending through
+  Gmail's own server (signs as gmail.com, fails DMARC alignment for boldlinemedia.com, shows "via
+  gmail.com", spam risk). Google Workspace (~$7/mo, a real mailbox) is the upgrade if he ever wants a
+  separate inbox. Caveat: one-to-one email only, never bulk cold email (that would put the domain the OS
+  sends client emails from at risk), and it shares Resend's daily limit with the OS.
+- Side effect to know: DocuSign's login is bryson@, so its emails and password resets will then land in
+  the business gmail.
