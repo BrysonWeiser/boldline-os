@@ -30,7 +30,7 @@ export async function runReviewSends({ loadClients, loadOpen, loadHistory, loadO
   for (const { row, to } of plan.resets) await update(row.id, { status: to, claimed_at: null }, row.status);
   for (const { row, reason } of plan.stops) await update(row.id, reason === "opted_out"
     ? { status: "opted_out", opted_out_at: row.opted_out_at || new Date(now).toISOString() }
-    : { status: "stopped", stopped_at: new Date(now).toISOString(), last_error: "client no longer in the OS" }, row.status);
+    : { status: "stopped", stopped_at: new Date(now).toISOString(), last_error: reason === "declined" ? "the client turned review requests off" : "client no longer in the OS" }, row.status);
 
   if (!inSendWindow(now)) return { ...out, skipped: "outside the send window" };
   const from = (client) => fromAddress(client, reportsFrom);

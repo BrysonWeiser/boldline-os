@@ -7,7 +7,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { normReviewUrl, parseCustomers, addVerdicts, renderReviewEmail, reviewStats, isMissingTable, newToken, normEmail } from "../lib/review-requests.mjs";
+import { reviewsDeclined, normReviewUrl, parseCustomers, addVerdicts, renderReviewEmail, reviewStats, isMissingTable, newToken, normEmail } from "../lib/review-requests.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -55,6 +55,8 @@ export const handle = async (req, { supabase, now = Date.now() }) => {
   if (action === "add") {
     const { client, error } = await loadClient();
     if (error) return json({ ok: false, error }, 400);
+    // 🔴 They said no. The screen hides the button too; this is the check that cannot be skipped.
+    if (reviewsDeclined(client)) return json({ ok: false, error: "This client said no to review requests. Turn them back on in the Reviews tab first." }, 400);
     // 🔴 No link, no queue. A queued email with nowhere to send people is a promise we cannot keep.
     if (!normReviewUrl(client.googleReviewUrl)) return json({ ok: false, error: "Add their Google review link first, then save." }, 400);
     const parsed = Array.isArray(body.customers)

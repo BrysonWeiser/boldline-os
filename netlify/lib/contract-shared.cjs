@@ -19,6 +19,7 @@ const ALL_FEATURES = [
   { id:"monthly_opt",     label:"Monthly Optimization",             category:"Both" },
   { id:"competitor_research",label:"Competitor Research",           category:"Both" },
   { id:"crm_integration", label:"Leads sent straight to your CRM", category:"Both" },
+  { id:"review_requests", label:"Automatic Google Review Requests", category:"Both" },
   { id:"advanced_targeting",label:"Advanced Audience Targeting",    category:"Both" },
   { id:"retargeting",     label:"Retargeting Campaigns",            category:"Both" },
   { id:"lookalike",       label:"Lookalike Audience Targeting",     category:"Meta" },
@@ -48,14 +49,14 @@ const ALL_FEATURES = [
 ];
 
 const PKG_FEATURES = {
-  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt"],
-  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report"],
-  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt"],
-  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report"],
-  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms"],
-  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report"],
-  "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report"],
+  "g-launch":      ["search_ads","keyword_research","ad_variations","std_landing","lead_form","crm_integration","monthly_report","monthly_opt","review_requests"],
+  "g-growth":      ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","advanced_reporting","monthly_report","review_requests"],
+  "g-acquisition": ["search_ads","keyword_research","ad_variations","custom_landing","lead_form","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","split_testing","multi_campaign","advanced_reporting","monthly_report","scaling_roadmap","priority_comms","review_requests"],
+  "m-launch":      ["meta_ads","ad_variations","std_landing","lead_form","crm_integration","pixel","monthly_report","monthly_opt","review_requests"],
+  "m-growth":      ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","advanced_reporting","monthly_report","review_requests"],
+  "m-acquisition": ["meta_ads","ad_variations","custom_landing","lead_form","crm_integration","pixel","weekly_opt","retargeting","lookalike","split_testing","multi_campaign","full_funnel","advanced_reporting","monthly_report","scaling_roadmap","priority_comms","review_requests"],
+  "c-growth":      ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","retargeting","cross_retargeting","lookalike","advanced_targeting","split_testing","multi_campaign","unified_reporting","advanced_reporting","monthly_report","review_requests"],
+  "c-acquisition": ["search_ads","meta_ads","keyword_research","ad_variations","custom_landing","lead_form","pixel","call_tracking","weekly_opt","competitor_research","crm_integration","advanced_targeting","retargeting","cross_retargeting","lookalike","split_testing","multi_campaign","full_funnel","scaling_roadmap","priority_comms","unified_reporting","advanced_reporting","monthly_report","review_requests"],
   "h-handoff":     ["search_ads","keyword_research","competitor_research","ad_variations","custom_landing","lead_form","crm_integration","call_tracking","handover_docs","settle_in"],
   // 🔴 `std_landing` was MISSING while the marketing site's own Store Launch card already said
   // "Landing page included". The site sold it, the package did not record it, and a Store Launch
@@ -139,11 +140,12 @@ const monthsLabel = (n) => {
 // Sending now stamps `contractTermsVersion`, so this inference only ever covers the past.
 const TERMS_V2_FROM = Date.UTC(2026, 8, 3);         // 3 Sep 2026
 const TERMS_V6_FROM = Date.UTC(2026, 8, 27, 10, 0); // 27 Sep 2026, 3am Phoenix
+const TERMS_V7_FROM = Date.UTC(2026, 9, 5, 20, 0);  // 5 Oct 2026, 1pm Phoenix: review requests
 // 🔴 THE NEWEST VERSION, AND IT MUST BE BUMPED WITH EVERY NEW CLAUSE. It was once written as a
 // literal 2, and adding v3 the next day left every new client silently on v2: the clause was
 // in the file, gated correctly, and reached nobody. A default naming a specific version goes
 // stale the moment a version is added, which is exactly when nobody is looking at it.
-const TERMS_CURRENT = 6;
+const TERMS_CURRENT = 7;
 function termsVersionOf(cl) {
   cl = cl || {};
   const v = cl.contractTermsVersion;
@@ -158,14 +160,39 @@ function termsVersionOf(cl) {
   const first = Math.min.apply(null, at);
   if (first < TERMS_V2_FROM) return cl.contractSigned ? 1 : 5;
   if (first < TERMS_V6_FROM) return 5;
+  if (first < TERMS_V7_FROM) return 6;
   return TERMS_CURRENT;
 }
+
+// 🔴 v7 (5 Oct 2026): AUTOMATIC GOOGLE REVIEW REQUESTS, AND FEATURES A CLIENT DECLINED.
+// Bryson, 2026-10-05: "is there a safeguard incase a client doesnt want it so its not added into
+// the contract". Two rules decide what an agreement lists, here and nowhere else:
+//  1. A feature added to a package after a contract went out is not in that contract. The
+//     agreement renders fresh every time it is opened, so without this gate adding review
+//     requests to the packages would have quietly added a line to agreements already signed.
+//  2. A feature the client declined (`declinedFeatures`) is left out. The list is FROZEN when the
+//     agreement is sent (`contractOmits`), for the same reason: flipping the switch after signing
+//     must not rewrite what they signed. A voided or declined envelope froze nothing.
+const FEATURE_FROM_VERSION = { review_requests: 7 };
+function omittedFeaturesOf(cl) {
+  cl = cl || {};
+  const dead = !cl.contractSigned && /^(voided|declined)$/i.test(String(cl.docusignStatus || ""));
+  const frozen = (cl.contractSigned || (cl.docusignSentAt && !dead)) && Array.isArray(cl.contractOmits);
+  const list = frozen ? cl.contractOmits : (Array.isArray(cl.declinedFeatures) ? cl.declinedFeatures : []);
+  return list.map(String);
+}
+function contractFeatureIds(cl) {
+  cl = cl || {};
+  const v = termsVersionOf(cl), off = omittedFeaturesOf(cl);
+  return (PKG_FEATURES[cl.packageId] || []).filter((fid) => v >= (FEATURE_FROM_VERSION[fid] || 0) && off.indexOf(fid) < 0);
+}
+
 
 const makeContractHTML=(cl,pkg,LOGO)=>{
   const esc=(s)=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const money=(n)=>"$"+Number(n||0).toLocaleString();
   const pl=PER_LEAD[cl.niche];
-  const feats=(PKG_FEATURES[cl.packageId]||[]).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
+  const feats=contractFeatureIds(cl).map(fid=>{const f=ALL_FEATURES.find(x=>x.id===fid);return f?'<li>'+f.label+'</li>':''}).join('');
   // Effective monthly = the agreed rate (term-priced at renewal) when set, else the standard package rate.
   const effMonthly = cl.billingMonthly!=null ? Number(cl.billingMonthly) : ((pkg&&pkg.price)||0);
   const stdMonthly = (pkg&&pkg.price) || effMonthly;      // the Standard (3-month) Rate
@@ -520,6 +547,9 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
    +'<ul>'+feats+'</ul>'
    +'<p>1.2 The Services are limited to the Service Package selected. Work outside that scope (including additional platforms, campaigns, pages, or service tiers) requires a written package upgrade or separate agreement, at Agency&rsquo;s then-current rates. Agency may use subcontractors and automated tooling to perform the Services, and remains responsible for the Services performed.</p>'
    +'<p>1.3 Agency will determine campaign structure, targeting, bidding, and creative in its professional judgment, subject to Client&rsquo;s approval rights over ad copy and landing-page content that names Client or makes claims about Client&rsquo;s products or services. No advertising spend will be initiated or increased without Client&rsquo;s sign-off on the associated budget.</p>'
+   +(contractFeatureIds(cl).indexOf("review_requests")>=0
+     ? '<p>1.4 <strong>Review requests.</strong> When Client provides the names and email addresses of its customers, Agency will email each one under Client&rsquo;s business name asking for a Google review, with no more than one reminder. Every customer receives the same request, with no screening for satisfied customers and no incentive offered. Client confirms it has the right to email the customers it provides. Agency includes an unsubscribe link in every email and honors every opt-out. <strong>Client may switch review requests off at any time</strong> by telling Agency in writing, including by email or text, and doing so changes no fee.</p>'
+     : '')
 
    +(oneTime
      ? '<h2>2. Term</h2>'
@@ -671,4 +701,4 @@ const makeContractHTML=(cl,pkg,LOGO)=>{
 // three of them and Bryson reads the fourth. The portal used to define its own inline copy and
 // the emails had no idea the question existed, which is how a store client billed per Qualified
 // Sale was emailed an invoice for "Qualified leads".
-module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT };
+module.exports = { makeContractHTML, resultWords, termsVersionOf, TERMS_CURRENT, contractFeatureIds, omittedFeaturesOf };

@@ -65,6 +65,7 @@ const CLAIMS = [
   [/scaling roadmap/i, "scaling_roadmap"],
   [/priority (support|communication)/i, "priority_comms"],
   [/conversion tracking|lead form/i, "lead_form"],
+  [/review requests?/i, "review_requests"],
   [/crm/i, "crm_integration"],
   [/audience (building|targeting)/i, "advanced_targeting"],
 ];
