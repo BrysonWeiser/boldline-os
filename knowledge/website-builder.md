@@ -80,5 +80,5 @@ half when finished)"*. Not built yet; it lands with step 2 because it needs the 
   checkbox).
 - Price editable per client (default $1,500); payment plan per client: in full, or 50/50 (deposit now,
   balance when finished). Stripe invoice with a pay link, metadata `kind: website`, `stage: deposit|final`.
-- Proposed (awaiting his answer): "Put it live" stays locked until the final payment arrives; the $99/mo
-  care plan starts at launch.
+- ✅ DECIDED (Bryson, 2026-10-06): the second half is due BEFORE it goes live. "Put it live" stays locked
+  until the final payment arrives. The $99/mo care plan starts at launch.

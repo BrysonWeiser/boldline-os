@@ -47,3 +47,15 @@ used where it fits the business. Step 1's designs borrowed the references' layou
 motion was polite. Next pass: scroll-driven scenes (pinned sections you scroll INTO, like Jesko's window),
 smooth inertial scrolling, mask/clip reveals, motion-blur type, horizontal scroll galleries, page wipes,
 and an industry-aware 3D scene per client where it earns its place. Fast-first guardrails unchanged.
+
+🔴 **NO SIGNATURE MOVE TWICE (Bryson, 2026-10-06: "make sure we aren't only ever using the same animation like
+how it went through the window").** Build a LIBRARY of scroll scenes, reveals, transitions and 3D scenes and
+mix them per client, so no two sites share the same headline effect. The window fly-through is one option
+among many, never the default.
+
+**Tools question (same day):** he saw "UI UX Pro Max" on TikTok. Verified: a real, very popular community
+skill (github.com/nextlevelbuilder/ui-ux-pro-max-skill) that loads design GUIDELINES and data (UI styles,
+palettes, font pairings, UX rules). Useful for taste and consistency; it is not an animation library.
+The real gains for motion are libraries the sites themselves load: GSAP with ScrollTrigger and SplitText
+(free since 2025), Lenis smooth scrolling, Three.js for 3D; plus Spline for designing custom 3D scenes.
+Recommended: add the skill to the repo only after reading it (third-party instructions run in every session).
