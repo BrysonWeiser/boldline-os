@@ -163,7 +163,7 @@ const { MEETING_QUESTIONS, setPath, clientFromMeeting } = new Function(
   // The UI must not let him get that far.
   ok("🔴 the button needs a package as well as an answer", /disabled=\{!answered\|\|!newPkgId\}/.test(S),
     "creating a client with no package is what crashed their own Package tab");
-  ok("and the picker defaults to what the briefing recommended", /if\(recId&&!newPkgId\) setNewPkgId\(recId\)/.test(S),
+  ok("and the picker defaults to what the briefing recommended", /if\(recId&&!newPkgId\) setNewPkgId\((result&&result\.recommendWebsite==="only"\?WEB_PKG_ID:)?recId\)/.test(S),
     "he has just quoted them from that recommendation; making him re-pick it is friction for nothing");
   ok("the picker is on screen", S.includes("Package you quoted them"));
   ok("and it says why the button is off", S.includes("Choose the package you quoted them."));

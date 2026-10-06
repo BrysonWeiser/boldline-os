@@ -529,7 +529,23 @@ const HOUSE_PKG = {
   customLandingPage: true, retargeting: true, splitTesting: true,
   crmIntegration: true, multiCampaign: true,
 };
-const findPkg  = (id) => (id === HOUSE_PKG_ID ? HOUSE_PKG : ALL_PKGS.find(p => p.id === id));
+// ─── WEBSITE-ONLY CLIENTS ─────────────────────────────────────────────────────
+// Bryson, 2026-10-06: websites are sold to anyone, so a business can be a client without buying
+// ads. Every screen reads a client's package, so a website-only client gets a package of its own
+// rather than an empty one (an empty package once crashed the Package tab, see clientFromMeeting).
+// Like the house package it is NOT in PACKAGES_DB: it must never appear on the marketing site, in
+// the ads catalog checks, or as an "upgrade". Its pricing lives in the website deal (Website tab),
+// and `isWebsiteOnly` is what every ads screen checks before it speaks. KB `website-builder`.
+const WEB_PKG_ID = "w-site";
+PKG_FEATURES[WEB_PKG_ID] = [];
+const WEB_PKG = {
+  id: WEB_PKG_ID, name: "Website Only", platform: "Website", price: 0, setup: 0, leadFee: false, tag: "",
+  adSpend: "No ads", pricingModel: "website", tier: "website", minBudget: 0, maxBudget: null,
+  optimizationFreq: "none", callTracking: false, weeklyOptimization: false, customLandingPage: false,
+  retargeting: false, splitTesting: false, crmIntegration: false, multiCampaign: false,
+};
+const isWebsiteOnly = (cl) => !!cl && cl.packageId === WEB_PKG_ID;
+const findPkg  = (id) => (id === HOUSE_PKG_ID ? HOUSE_PKG : id === WEB_PKG_ID ? WEB_PKG : ALL_PKGS.find(p => p.id === id));
 const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(featureId);
 
 // Upgrade ladders are FAMILY-SCOPED. The old string-matching on `platform` leaked
@@ -1343,7 +1359,8 @@ const termRateLabel = (months) => {
 const isSaleClient = (cl) => String((cl || {}).billingResultKind || "") === "sale";
 
 const buildBots = (pkg) => {
-  if (!pkg) return [];
+  // A website-only client has no campaign to build, so no ads bots.
+  if (!pkg || pkg.pricingModel === "website") return [];
   return [
     { id:"intake",    step:1,  name:"Client Intake",        icon:"📋", locked:true,  description:`Processes the client brief for ${pkg.name} (${pkg.platform}). Converts all info into a structured brief. Scope locked to ${pkg.name}.` },
     { id:"ceo",       step:2,  name:"CEO Director",         icon:"🎯", locked:true,  description:`Reads the Client Brief and builds the full project plan. Assigns tasks in correct pipeline order. Only assigns work within ${pkg.name} scope.` },
@@ -1654,7 +1671,18 @@ const handoffDates = (cl) => {
   };
 };
 
+const websiteOnlyAlerts = (cl) => {
+  const a = [...(cl.alerts||[])];
+  const d = (cl.websiteDeal)||{}, ag = d.agreement;
+  if (!ag || ag.status==="voided" || ag.status==="declined") a.push({type:"web_agreement",msg:"Website client: set the price and send the website agreement (Website tab).",severity:"blue"});
+  const care = d.careSub;
+  if (care && care.status==="past_due") a.push({type:"web_care_late",msg:"Website care plan payment failed. Stripe is retrying. The site may be taken offline once it is 15 days overdue.",severity:"red"});
+  return a;
+};
 const getAlerts = (cl) => {
+  // A website-only client has no ads contract, intake, budget or lead billing, so none of the ads
+  // alerts below apply (a default contract end date would otherwise cry "renewal needed").
+  if (isWebsiteOnly(cl)) return websiteOnlyAlerts(cl);
   const a = [...(cl.alerts||[])];
   if (!cl.intakeComplete) a.push({type:"intake",msg:"Intake form not yet complete.",severity:"yellow"});
   if (cl.upgradeRequest)  a.push({type:"upgrade",msg:`Upgrade requested: ${cl.upgradeRequest}`,severity:"blue"});
@@ -5548,6 +5576,8 @@ function clientFromMeeting(answers, brief, packageId) {
     if (v) setPath(cl, q.path, v);
   }
   cl.salesNotes.capturedAt = new Date().toISOString();
+  // A website-only client has no ads contract, so no ads contract dates (renewal alerts would follow).
+  if (pkg && pkg.pricingModel === "website") Object.assign(cl, { contractStart: "", contractEnd: "", contractTermMonths: 0 });
   return cl;
 }
 // ───────────────────────────────────────────────────────────── DEALPREP-QUESTIONS-END
@@ -5577,6 +5607,42 @@ function WebsiteUpsell({client,onOpen,onUpdate}){
       <div style={{display:"flex",gap:6}}>
         <button onClick={onOpen} style={{padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Set it up</button>
         <button onClick={()=>onUpdate&&onUpdate({...client,websiteUpsellHiddenAt:new Date().toISOString()})} style={{padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}>Not now</button>
+      </div>
+    </div>);
+}
+
+// The Overview of a website-only client: the website at a glance, and the cross-sell the other way
+// (website to ads). Turning on ads switches their package, after which the ads screens and the ads
+// agreement appear as for any client; the website deal carries on untouched.
+function WebsiteOnlyOverview({client,onUpdate,onOpen}){
+  const w=client.website||{}, d=wdDeal(client), t=wdTerms(client);
+  const leads30=(client.leadsLog||[]).filter(l=>l&&l.receivedAt&&(Date.now()-new Date(l.receivedAt).getTime())<=30*864e5).length;
+  const status=d.launchedAt&&w.published?"Live":wdSigned(client)?(w.content?"Built, not live":"Signed, not built"):d.agreement&&WD_LIVE.includes(d.agreement.status)?"Agreement sent":"Agreement not sent";
+  const [pick,setPick]=useState("");
+  const tiles=[["Website",status],["Design",(SITE_THEME_LIST.find(x=>x[0]===(w.theme||"aurora"))||[])[1]||"—"],["Build",`${wdMoney(t.price)}${t.plan==="half"?" (half and half)":""}`],["Care plan",t.care>0?`${wdMoney(t.care)}/mo`:"Waived"],["Website enquiries (30 days)",String(leads30)],["Niche",client.niche||"—"]];
+  const adsPkgs=ALL_PKGS.filter(p=>p.pricingModel!=="one_time");
+  return (
+    <div style={S.col11}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {tiles.map(([l,v])=>(<div key={l} style={{...card,padding:"11px 12px"}}><div style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted}}>{l}</div><div style={{fontSize:14,fontWeight:800,color:C.text,marginTop:3}}>{v}</div></div>))}
+      </div>
+      <button onClick={()=>onOpen("website")} style={{padding:"11px 14px",fontSize:12.5,fontWeight:700,borderRadius:10,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Open their website</button>
+      <div style={{...card,border:`1px solid ${C.gold}44`}}>
+        <div style={{fontSize:12.5,fontWeight:800,color:C.text}}>Offer {client.name} ads</div>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55,margin:"3px 0 10px"}}>Their website turns visits into calls. Ads are how the right people find it. If they say yes, pick the package here: they become an ads client too, with the ads agreement on their Contract tab, and their website deal carries on as it is.</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <select value={pick} onChange={e=>setPick(e.target.value)} style={{...inp,flex:"1 1 220px",width:"auto"}}>
+            <option value="">Choose an ads package…</option>
+            {adsPkgs.map(p=><option key={p.id} value={p.id}>{p.name} ({p.platform}) from ${p.price}/mo</option>)}
+          </select>
+          <button disabled={!pick} onClick={()=>{
+            const pk=findPkg(pick); if(!pk) return;
+            if(!window.confirm(`Make ${client.name} an ads client on ${pk.name} (${pk.platform})?\n\nTheir Campaign, Contract and ads tabs will appear. Nothing is sent or charged until you send the ads agreement.`)) return;
+            const botStatuses=Object.fromEntries(buildBots(pk).map(b=>[b.id,"waiting"])); botStatuses.intake="active";
+            onUpdate&&onUpdate({...client,packageId:pk.id,botStatuses,contractStart:fmt(today),contractEnd:fmt(addMonths(today,3)),contractTermMonths:3,intakeComplete:false,
+              commLog:[{date:fmt(today),note:`Added ads: ${pk.name} (${pk.platform}). Was a website-only client.`,cat:"package",ts:Date.now()},...(client.commLog||[])]});
+          }} style={{padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",color:pick?C.text:C.textMuted,cursor:pick?"pointer":"default"}}>Add ads</button>
+        </div>
       </div>
     </div>);
 }
@@ -5737,7 +5803,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   // is not sitting open on the next one.
   useEffect(()=>{ setOpenPkg(undefined); },[recId]);
   // Default to whatever the briefing recommended, since that is the price he just quoted.
-  useEffect(()=>{ if(recId&&!newPkgId) setNewPkgId(recId); },[recId]);
+  useEffect(()=>{ if(recId&&!newPkgId) setNewPkgId(result&&result.recommendWebsite==="only"?WEB_PKG_ID:recId); },[recId]);
   const back = !isDesktop && (
     <button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>
   );
@@ -5960,6 +6026,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
                 <select value={newPkgId} onChange={e=>setNewPkgId(e.target.value)}
                   style={{width:"100%",padding:"10px 11px",fontSize:12.5,borderRadius:9,border:`1px solid ${newPkgId?C.border:C.gold+"66"}`,background:C.bg3,color:C.text,fontFamily:"inherit"}}>
                   <option value="">Choose one…</option>
+                  <option value={WEB_PKG_ID}>Website only (no ads){result&&result.recommendWebsite==="only"?" (recommended)":""} — {wdMoney(WEBSITE_OFFER.build)} build + {wdMoney(WEBSITE_OFFER.care)}/mo</option>
                   {ALL_PKGS.slice().sort((x,y)=>x.price-y.price).map(pk=>(
                     <option key={pk.id} value={pk.id}>{pk.name}{pk.id===recId?" (recommended)":""} — ${Number(pk.price||0).toLocaleString()}/mo</option>
                   ))}
@@ -10360,7 +10427,7 @@ function LiveAdPerformanceCard({client,onUpdate}) {
 }
 
 function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
-  const [tab,setTab]         = useState(client._initialTab||"overview");
+  const [tab,setTab]         = useState(client._initialTab||(isWebsiteOnly(client)?"website":"overview"));
   const [openBot,setOpenBot] = useState(null);
   const [showEdit,setShowEdit] = useState(false);
   const [genLanding,setGenLanding] = useState({busy:false,error:null});
@@ -10443,6 +10510,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   // branded emails read (Bryson, 2026-09-17: *"make sure these tabs are good as well"*).
   const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["reviews","Reviews"],["website","Website"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
                    .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log"||k==="reviews")))
+                   // A website-only client has no campaign, ads contract, package, reports or ads emails.
+                   .filter(([k])=>!(isWebsiteOnly(client)&&["campaign","pipeline","reviews","package","research","contract","emails","reports"].includes(k)))
                    // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:
                    // *"there isn't an assets tab can you add it"*. There was, and it holds exactly
                    // what he was looking for: the media library, the landing page with its Publish
@@ -10658,7 +10727,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
       </div>
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"22px 28px 60px":"13px 13px 60px",width:"100%",maxWidth:isDesktop?1000:"none",margin:isDesktop?"0 auto":undefined}}>
-        {tab==="overview"&&(
+        {tab==="overview"&&isWebsiteOnly(client)&&<WebsiteOnlyOverview client={client} onUpdate={onUpdate} onOpen={setTab}/>}
+        {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
             <LaunchChecklistCard client={client}/>
             <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
@@ -18205,7 +18275,9 @@ function AddClientSheet({onSave,onClose,initial}) {
     if(!canSave)return;
     const pkg=findPkg(form.packageId);const bots=buildBots(pkg);
     const botStatuses=Object.fromEntries(bots.map(b=>[b.id,"waiting"]));botStatuses["intake"]="active";
-    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses,campaignSetup:{serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:""},brandVoice:{tone:"",competitors:"",differentiator:""},businessPhone:form.businessPhone||"",callTrackingNumber:"",callTrackingNumberSid:"",mediaLibrary:[],landingSlug:makeSlug(form.name),landingPage:{headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null}});
+    // A website-only client has no ads contract, so no ads contract dates (they would raise renewal alerts).
+    const web=pkg&&pkg.pricingModel==="website";
+    onSave({...form,id:uid(),portalToken:crypto.randomUUID(),leadToken:crypto.randomUUID(),intakeComplete:false,contractSigned:false,contractStatus:"pending",healthScore:null,leads:0,cpl:0,alerts:[],commLog:[],leadsLog:[],upgradeRequest:null,botStatuses,campaignSetup:{serviceArea:"",mainOffer:"",avgTicket:"",targetLocations:"",excludedKeywords:"",leadDestination:"",crmSystem:""},brandVoice:{tone:"",competitors:"",differentiator:""},businessPhone:form.businessPhone||"",callTrackingNumber:"",callTrackingNumberSid:"",mediaLibrary:[],landingSlug:makeSlug(form.name),landingPage:{headline:"",subheadline:"",bullets:[],ctaText:"",published:false,generatedAt:null},...(web?{contractStart:"",contractEnd:"",contractTermMonths:0,platforms:[]}:{})});
     setSaved(true);setTimeout(()=>{ setSaved(false);onClose(); },1200);
   };
   return (
@@ -18243,17 +18315,18 @@ function AddClientSheet({onSave,onClose,initial}) {
           </Card>
           <Card style={{backgroundColor:`${C.gold}08`,borderColor:`${C.gold}33`}}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}><div style={{fontSize:10,fontWeight:700,color:C.gold,textTransform:"uppercase",letterSpacing:".07em"}}>Package</div><span style={{fontSize:9,padding:"2px 7px",borderRadius:20,backgroundColor:`${C.gold}18`,border:`1px solid ${C.gold}33`,color:C.gold,fontWeight:700}}>Only you can set this</span></div>
-            <div style={{display:"flex",gap:2,backgroundColor:"rgba(255,255,255,.04)",borderRadius:8,padding:3,marginBottom:10}}>{[["google","Google"],["meta","Meta"],["combined","Combined"],["ecom","E-Commerce"]].map(([key,label])=><button key={key} onClick={()=>setPkgCat(key)} style={{flex:1,padding:"4px 0",fontSize:10,fontWeight:700,borderRadius:6,border:"none",cursor:"pointer",backgroundColor:pkgCat===key?`${C.gold}33`:"transparent",color:pkgCat===key?C.gold:C.textMuted}}>{label}</button>)}</div>
-            {PACKAGES_DB[pkgCat].map(pkg=>(
+            <div style={{display:"flex",gap:2,backgroundColor:"rgba(255,255,255,.04)",borderRadius:8,padding:3,marginBottom:10}}>{[["google","Google"],["meta","Meta"],["combined","Combined"],["ecom","E-Commerce"],["website","Website only"]].map(([key,label])=><button key={key} onClick={()=>setPkgCat(key)} style={{flex:1,padding:"4px 0",fontSize:10,fontWeight:700,borderRadius:6,border:"none",cursor:"pointer",backgroundColor:pkgCat===key?`${C.gold}33`:"transparent",color:pkgCat===key?C.gold:C.textMuted}}>{label}</button>)}</div>
+            {pkgCat==="website"&&<div style={{fontSize:11,color:C.textDim,lineHeight:1.55,marginBottom:8}}>For a business that wants a website and no ads. You set the price and send the website agreement on their Website tab. You can add ads later from their Overview.</div>}
+            {(pkgCat==="website"?[WEB_PKG]:PACKAGES_DB[pkgCat]).map(pkg=>(
               <button key={pkg.id} onClick={()=>set("packageId",pkg.id)} style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1px solid ${form.packageId===pkg.id?C.gold:C.border}`,backgroundColor:form.packageId===pkg.id?`${C.gold}10`:"rgba(255,255,255,.02)",cursor:"pointer",textAlign:"left",marginBottom:5}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div style={S.f1min}>{pkg.tag&&<span style={{fontSize:9,fontWeight:700,padding:"1px 5px",backgroundColor:C.gold,color:"#0a0800",borderRadius:3,marginRight:5}}>{pkg.tag}</span>}<span style={{fontSize:12,fontWeight:700,color:C.text}}>{pkg.name}</span><div style={{fontSize:10,color:C.textMuted,marginTop:1}}>{pkg.platform}</div></div>
-                  <div style={{textAlign:"right",flexShrink:0}}><span style={{fontSize:14,fontWeight:800,color:C.gold}}>${pkg.price}</span><span style={{fontSize:10,color:C.textMuted}}>/mo min</span></div>
+                  <div style={{textAlign:"right",flexShrink:0}}>{pkg.pricingModel==="website"?<><span style={{fontSize:14,fontWeight:800,color:C.gold}}>{wdMoney(WEBSITE_OFFER.build)}</span><span style={{fontSize:10,color:C.textMuted}}> + {wdMoney(WEBSITE_OFFER.care)}/mo</span></>:<><span style={{fontSize:14,fontWeight:800,color:C.gold}}>${pkg.price}</span><span style={{fontSize:10,color:C.textMuted}}>/mo min</span></>}</div>
                 </div>
               </button>
             ))}
           </Card>
-          {selPkg&&<Card style={{backgroundColor:"rgba(16,185,129,.05)",borderColor:"rgba(16,185,129,.2)"}}>
+          {selPkg&&selPkg.pricingModel!=="website"&&<Card style={{backgroundColor:"rgba(16,185,129,.05)",borderColor:"rgba(16,185,129,.2)"}}>
             <Label>Bot Pipeline for This Package</Label>
             <div style={{fontSize:11,color:C.textDim,lineHeight:1.7,marginBottom:7}}>{buildBots(selPkg).length} bots created, scoped to {selPkg.name}. Cannot build beyond what's included.</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:4}}>{buildBots(selPkg).slice(0,4).map(b=><span key={b.id} style={{fontSize:10,padding:"2px 7px",borderRadius:20,backgroundColor:"rgba(16,185,129,.1)",border:"1px solid rgba(16,185,129,.2)",color:"#34D399"}}>{b.name}</span>)}<span style={{fontSize:10,color:C.textMuted}}>+{Math.max(0,buildBots(selPkg).length-4)} more</span></div>
@@ -18321,7 +18394,7 @@ function AddClientSheet({onSave,onClose,initial}) {
       <div className="os-sheet-actions" style={{padding:"11px 14px 16px",borderTop:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:8,backgroundColor:C.bg2,boxShadow:"0 -8px 20px -12px rgba(0,0,0,.9)"}}>
         {step===1?<>
           <button onClick={onClose} style={{flex:1,padding:10,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>Cancel</button>
-          <button onClick={()=>setStep(2)} disabled={!form.name||!form.email||!form.packageId} style={{flex:2,padding:10,fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:(!form.name||!form.email||!form.packageId)?"rgba(255,255,255,.05)":"#1D4ED8",color:(!form.name||!form.email||!form.packageId)?C.textMuted:"#fff",cursor:"pointer"}}>Next →</button>
+          <button onClick={()=>{ if(selPkg&&selPkg.pricingModel==="website"){ handleSave(); return; } setStep(2); }} disabled={!form.name||!form.email||!form.packageId} style={{flex:2,padding:10,fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:(!form.name||!form.email||!form.packageId)?"rgba(255,255,255,.05)":"#1D4ED8",color:(!form.name||!form.email||!form.packageId)?C.textMuted:"#fff",cursor:"pointer"}}>{selPkg&&selPkg.pricingModel==="website"?(saved?"Added ✓":"Add Client"):"Next →"}</button>
         </>:<>
           <button onClick={()=>setStep(1)} style={{flex:1,padding:10,fontSize:13,fontWeight:600,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textMuted,cursor:"pointer"}}>← Back</button>
           <button onClick={handleSave} disabled={!canSave} style={{flex:2,padding:10,fontSize:13,fontWeight:700,borderRadius:10,border:"none",backgroundColor:saved?"#059669":canSave?"#1D4ED8":"rgba(255,255,255,.05)",color:saved||canSave?"#fff":C.textMuted,cursor:"pointer",transition:"background .2s"}}>{saved?"✓ Client Added":"Add Client"}</button>
