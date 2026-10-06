@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 200 task-keyed entries under `knowledge/`. They surface automatically via the
+> 201 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**200 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**201 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -759,4 +759,7 @@
 - **[preview-safety](../knowledge/preview-safety.md)** &mdash; &#9989; verified &middot; 2026-09-01  
   Anything the OS renders so Bryson can look at it must be incapable of writing to a client's record, sending to a real person, spending money, or navigating the OS away from itself. Two live bugs of this shape were found in one sitting, one of which recorded a client decision the client never made. Enforced by a manifest test that fails when a new preview is added without a guard.  
   <sub>*task:* add or change any preview, demo, test send or dry run in the OS &nbsp;|&nbsp; *keywords:* preview, iframe, srcdoc, srcDoc, sandbox, allow-forms, allow-scripts, allow-same-origin, BL_PREVIEW, about:srcdoc, phantom lead, fake approval, preview fires for real, dry run, demo mode, test send, landing preview, portal preview, contract preview, email preview, verify-preview-safety</sub>
+- **[website-design-bar](../knowledge/website-design-bar.md)** &mdash; &#9989; verified &middot; 2026-10-06  
+  Bryson, 2026-10-06, before the website builder was started - every site we build (clients and BoldLine's own) must be the most modern, best-looking site possible, micro animations and 3D included, "thinking outside the box". Agreed with guardrails - motion and 3D are layered on AFTER the page is fast and readable, and drop out on slow phones and for reduce-motion, because a slow small-business site loses both Google ranking and the call. Several distinct looks rather than one template, the client's own photos over effects, and all existing copy/safety rules still apply.  
+  <sub>*task:* design or build any website (a client site from the website builder, or BoldLine's own), or decide how much animation, 3D or effects to use &nbsp;|&nbsp; *keywords:* website design, modern website, micro animations, 3d graphics, webgl, three.js, motion, scroll animation, premium design, website builder, client website, design quality, page speed, core web vitals, reduce motion, website themes</sub>
 

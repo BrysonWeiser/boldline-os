@@ -90,6 +90,15 @@ automated.
   typography not emoji. **(3) No internal `//` comments in the shipped page**, because the
   submit script is delivered verbatim to the client's own domain where their developer reads
   it. Details in KB `preview-safety` + `sms-consent`.
+- **WEBSITES WE BUILD MUST LOOK LIKE THE BEST ON THE INTERNET, AND STILL LOAD INSTANTLY (Bryson,
+  2026-10-06: "I want it to be the most up to date modern website ... micro animations 3d graphics etc
+  basically thinking outside the box").** Applies to every client site the OS builds AND BoldLine's own.
+  Premium, current design with real motion (micro-interactions, scroll choreography, tasteful 3D/WebGL
+  accents), never a generic template look. The guardrails that keep that from backfiring: fast on a
+  phone (heavy effects load after the page is usable and drop out on slow devices and for
+  "reduce motion"), mobile-first, real client photos over effects, and every existing rule still holds
+  (no emojis, no em dashes, no links back to BoldLine, previews never change anything real). Details in
+  KB `website-design-bar`.
 - **Never say "local businesses" — he serves businesses nationally/remotely (standing).**
   Applies to all public copy. See KB `linkedin-brand-presence`.
 - **ARIZONA TIME IS THE ONLY CLOCK — check it, never assume it (Bryson, 2026-08-31: "do you
