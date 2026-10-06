@@ -17507,7 +17507,7 @@
       ],
       "status": "built",
       "summary": "Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.",
-      "verified": "2026-08-25",
+      "verified": "2026-10-06",
       "terms": {
         "which crm": 3,
         "crm": 3,

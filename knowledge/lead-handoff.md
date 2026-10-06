@@ -5,8 +5,23 @@ task: send a client's leads on to their own CRM, or serve their landing page on 
 keywords: [which crm, crm name, crmSystem, what crm does he use, crm product not named, primary domain, domain alias, add domain alias, os.boldlinemedia.com, OWN_EXACT, OS_HOSTS, lets encrypt, certificate error, pending dns verification, subdomain-owner-verification, cloudflare grey cloud, which netlify site, two netlify sites, os site vs marketing site, domain alias, add a domain, netlify dashboard, landing page edits live, does it update, cache, no cache, coming soon placeholder, unpublished landing page, publish, point the domain, dns propagation, crm webhook, crm forward, lead handoff, forward lead, crmWebhook, crmWebhookSecret, landingDomain, custom domain landing page, subdomain, edge function, client-domain, Shaun Smith, speed to lead, display URL, x-boldline-signature, store before forward, forward once]
 status: built
 summary: Two things needed before a client's campaign can go live. Their leads now land in the OS first (so the ad click is captured) and are forwarded on to their own CRM second, so their existing follow-up automation still fires. And their landing page can be served on their own subdomain, because Google shows the address the ad points to and a client's ad must not display BoldLine's domain.
-verified: 2026-08-25
+verified: 2026-10-06
 ---
+
+## 🔴 2026-10-06: EVERY ENQUIRY ON A CLIENT'S OWN DOMAIN WAS BEING REFUSED (fixed, deploy cc5f56b)
+Found while building website domains. The landing page (and the website) post the form to the RELATIVE
+`/lead`, not a `/.netlify/` path as this entry used to say. On a client's own subdomain the edge function
+treated that POST as a page request and rewrote it to the landing function, whose POST branch is the OS's
+owner-only preview, so it answered **401 "Not authenticated"**. The visitor saw "something went wrong" and
+nothing was stored anywhere. Proven live: `POST https://quote.stencilandthread.com/lead?token=x` answered
+`Not authenticated` while the same request to os.boldlinemedia.com answered `Invalid token` (lead intake).
+Broken since the domain went live (edge function ~2026-09-03). Leads through the `/lp/<slug>` address on our
+own domain were never affected.
+- Fix (`client-domain.mjs` `routeFor`): only GET/HEAD are ever page views; `/lead` and `/site-hit` always pass
+  through to their netlify.toml routes; the edge function passes `request.method`. Pinned in
+  verify-lead-handoff using the path read from the page itself (3 checks fail on the old rule).
+- **Ask Bryson / Sebastian:** were any ads pointing at quote.stencilandthread.com, and since when? Any form
+  enquiries in that window were lost; Google Ads click data would show the clicks.
 
 ## Where both came from
 
