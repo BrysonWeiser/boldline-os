@@ -3,6 +3,7 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { findPage, clientForPage } from "../lib/landing-pages-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
+import { serveWebsiteOnDomain } from "./site.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
 import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
@@ -1442,6 +1443,15 @@ export default async (req) => {
       const hit = findPage(row && row.data, slug);
       if (hit) { data = row; extraPage = hit; break; }
     }
+  }
+  // 🔴 No landing page claims this address, so it may be a client's WEBSITE on their own domain (KB
+  // website-builder, step 3). Only reached when the landing lookup found nothing, so a landing page costs
+  // exactly what it did before, and a landing page always wins an address both might claim.
+  if (!data && !slug && host) {
+    try {
+      const site = await serveWebsiteOnDomain(supabaseAdmin, host, url.searchParams.get("path") || "/", url);
+      if (site) return site;
+    } catch (e) { console.error("Website on domain failed:", e.message); }
   }
   if (!data) return notFoundPage();
 

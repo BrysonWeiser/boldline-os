@@ -17,6 +17,7 @@ import { renderClientEmail, EMAIL_TYPES } from "./client-emails-shared.mjs";
 import { sendEmail } from "./report-shared.mjs";
 import { PACKAGES } from "./pricing-shared.mjs";
 import { termsOf } from "./website-deal.mjs";
+import { liveDomain } from "./site-domain.mjs";
 
 const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" });
 const labelFor = (type) => (EMAIL_TYPES.find((t) => t.id === type) || {}).label || type;
@@ -44,7 +45,8 @@ export const buildClientCtx = (cl, extra = {}) => {
     resultKind: isWebsiteOnly(cl) ? "enquiry" : (cl.billingResultKind || ""),
     websiteOnly: isWebsiteOnly(cl),
     // The website emails: their live address, the private preview, and the deal's terms.
-    siteUrl: cl.landingSlug ? `${base}/site/${encodeURIComponent(cl.landingSlug)}/` : "",
+    // Their own address once it is proven to work (KB website-builder, step 3), ours until then.
+    siteUrl: liveDomain(cl) ? `https://${liveDomain(cl)}/` : cl.landingSlug ? `${base}/site/${encodeURIComponent(cl.landingSlug)}/` : "",
     previewUrl: cl.landingSlug && cl.website && cl.website.previewKey ? `${base}/site/${encodeURIComponent(cl.landingSlug)}/?preview=${encodeURIComponent(cl.website.previewKey)}` : "",
     plan: termsOf(cl).plan,
     care: termsOf(cl).care,

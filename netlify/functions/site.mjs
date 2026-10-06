@@ -13,6 +13,7 @@ import { isBillingPaused } from "../lib/late-payment.mjs";
 import { renderSite, pageById, THEME_IDS, siteReady, brandName, pageByPath, pagesFor } from "../lib/site-render.mjs";
 import { supabaseStore, loadIndex, loadPost, publishedPosts, isPublished, setHeld, removePost, applyEdit } from "../lib/site-blog.mjs";
 import { publishLock } from "../lib/website-deal.mjs";
+import { cleanDomain, altHost, liveDomain, domainRequest, sitemapXML, robotsTXT } from "../lib/site-domain.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -116,12 +117,30 @@ export default async (req) => {
   if (error) { console.error("site lookup failed:", error.message); return plain("Something went wrong", "Please try again in a moment.", 500); }
   if (!data || !data.data) return plain("Page not found", "This page doesn't exist.", 404);
   const cl = { ...data.data, id: data.id };
+  // Our own address. Once their own address is live, search engines are pointed at that one instead.
+  const own = liveDomain(cl);
+  return renderPublic(supabase, cl, where, url, { base: siteBase(url.host, where.slug), hitUrl: `https://${url.host}/site-hit`, canonicalBase: own ? `https://${own}` : "" });
+};
+
+// 🔴 The one place a public page is decided and drawn, whichever address it was asked for on, so the
+// payment gate, the preview key, the held-article rule and the visitor count are the same on both.
+async function renderPublic(supabase, cl, where, url, { base, hitUrl, canonicalBase = "", robotsOnly = false }) {
+  const slug = String(cl.landingSlug || where.slug || "");
+  // `x-site` lets the address check prove a domain really reaches THIS client's site.
+  const tag = { "x-site": slug };
   if (isBillingPaused(cl)) return plain(brandName(cl), "This website is temporarily unavailable.", 503);
   // 🔴 Live only once it is fully paid (the second half is due BEFORE launch). Enforced here, not just by
   // greying out "Put it live", because the published flag is written by the browser. Preview links still
   // work, so the client can see and approve the finished site before paying the balance.
   const view = gateView(viewFor(cl.website, url.searchParams), cl);
-  if (!view.show || !siteReady(cl)) return plain(brandName(cl), "Our new website is almost ready. Check back soon.", 200);
+  if (!view.show || !siteReady(cl)) return withHeaders(plain(brandName(cl), "Our new website is almost ready. Check back soon.", 200), tag);
+  // The address list for search engines: only for the public site, never a preview.
+  if (where.seg === "sitemap.xml" && !where.post) {
+    if (view.previewing) return plain("Page not found", "This page doesn't exist.", 404);
+    let posts = [];
+    if (pagesFor(cl).some((p) => p.id === "blog")) { try { posts = publishedPosts(await loadIndex(supabaseStore(supabase), cl.id)); } catch { posts = []; } }
+    return new Response(sitemapXML(canonicalBase || base, pagesFor(cl), posts), { status: 200, headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600", ...tag } });
+  }
   const query = view.previewing ? `?preview=${encodeURIComponent(url.searchParams.get("preview"))}${view.theme ? `&theme=${view.theme}` : ""}` : "";
   // The five core pages, an extra page the client paid for, or the blog. Anything else is a 404.
   const pg = where.seg ? pageByPath(cl, where.seg) : pagesFor(cl)[0];
@@ -138,7 +157,47 @@ export default async (req) => {
     } catch (e) { console.error("site blog read failed:", e.message); posts = []; }
   }
   // Count the visit only on the live public site (never a preview link).
-  const track = !view.previewing && cl.website.published ? { url: `https://${url.host}/site-hit`, slug: where.slug } : null;
-  return html(renderSite(cl, pg.id, { base: siteBase(url.host, where.slug), theme: view.theme, query, posts, post, track, noindex: !!view.previewing || !cl.website.published }),
-    200, view.previewing ? { "cache-control": "no-store" } : {});
-};
+  const track = !view.previewing && cl.website.published ? { url: hitUrl, slug } : null;
+  return html(renderSite(cl, pg.id, { base, canonicalBase, theme: view.theme, query, posts, post, track, noindex: !!view.previewing || !cl.website.published }),
+    200, { ...(view.previewing ? { "cache-control": "no-store" } : {}), ...tag });
+}
+
+const withHeaders = (res, extra) => { for (const [k, v] of Object.entries(extra)) res.headers.set(k, v); return res; };
+
+// ── A client's website on THEIR address (KB website-builder, step 3) ───────────────────────────
+// Called by the landing function when an address that no landing page claims arrives (the edge function
+// sends every unknown address there). Returns null when no website claims it either, so the landing
+// function keeps its own "not found". `path` is the page they asked for on that address.
+export async function serveWebsiteOnDomain(supabase, host, path, url) {
+  const h = cleanDomain(host);
+  if (!h) return null;
+  // The address as set, or its www twin (which then sends visitors to the one that was set).
+  let row = null, canonical = h;
+  for (const cand of [h, altHost(h)]) {
+    const { data, error } = await supabase.from("clients").select("id, data").ilike("data->websiteDeal->domain->>host", cand).maybeSingle();
+    if (error) { console.error("site domain lookup failed:", error.message); return plain("Something went wrong", "Please try again in a moment.", 500); }
+    if (data && data.data) { row = data; canonical = cand; break; }
+  }
+  if (!row) return null;
+  const cl = { ...row.data, id: row.id };
+  const slug = String(cl.landingSlug || "");
+  const req = domainRequest(path);
+  // One address for search engines: "acmepools.com" sends to "www.acmepools.com" (or the other way round,
+  // whichever was set), keeping the page and any preview link.
+  if (canonical !== h) {
+    const to = new URL(`https://${canonical}${req.kind === "page" ? req.rest : "/" + String(path || "").replace(/^\/+/, "")}`);
+    for (const k of ["preview", "theme"]) { const v = url.searchParams.get(k); if (v) to.searchParams.set(k, v); }
+    return new Response(null, { status: 301, headers: { location: to.toString(), "x-site": slug, "cache-control": "public, max-age=3600" } });
+  }
+  const base = `https://${h}`;
+  if (req.kind === "robots") {
+    const view = gateView(viewFor(cl.website, new URLSearchParams()), cl);
+    const ok = view.show && siteReady(cl) && !isBillingPaused(cl);
+    return new Response(ok ? robotsTXT(base) : "User-agent: *\nDisallow: /\n", { status: 200, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600", "x-site": slug } });
+  }
+  const where = req.kind === "sitemap" ? { slug, seg: "sitemap.xml", post: "" } : req.kind === "page" ? parsePath(`/site/${encodeURIComponent(slug)}${req.rest === "/" ? "/" : req.rest}`) : null;
+  if (!where || where.bad) return withHeaders(plain("Page not found", "This page doesn't exist.", 404), { "x-site": slug });
+  // The visitor count posts to the same address (the edge function lets /site-hit through), so the page
+  // never names anyone else's domain.
+  return renderPublic(supabase, cl, where, url, { base, hitUrl: `${base}/site-hit` });
+}

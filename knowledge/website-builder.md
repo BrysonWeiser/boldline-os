@@ -2,7 +2,7 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+keywords: [own domain, custom domain, web address, domain-set, domain-check, site-domain, NETLIFY_API_TOKEN, domain alias, sitemap.xml, robots.txt, x-site, serveWebsiteOnDomain, website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
 status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons + portal Website tab with visitor numbers + client blog editing + website emails live 2026-10-06; step 3 (own domain) not built (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
@@ -163,6 +163,40 @@ edit it if they want (just like how i have for my blogs)"*. The 4-a-month limit 
 - OS Blog card: Read > **Edit** > Save (`site` action `blog-save`); shows "edited by the client".
 - Tests: verify-website-addons (84) + verify-website-portal (49); 8 mutations caught.
 
+## 🔴 Step 3: the client's own web address (BUILT 2026-10-06)
+Bryson: *"yea start on the web address"*. A client's site can now run on THEIR address (www.acmepools.com).
+- **How it routes:** the existing client-domain edge function sends every unknown address to the landing
+  function (now with `?path=`). Landing looks up a landing page first; only if none claims the address does
+  it call `serveWebsiteOnDomain` (site.mjs). 🔴 A landing page always wins an address. One shared
+  `renderPublic` draws the page on either address, so payment gate, preview key, held articles and the
+  visitor count are identical. Links, canonical and the visitor beacon all use their address (`/site-hit`
+  passes the edge); nothing on the page names us. The bare/www twin 301s to the address that was set.
+- **Stored** on `websiteDeal.domain = {host, setAt, live, liveAt, check{dns,https,note,at}, alias}`
+  (server-owned). 🔴 `live` is only set by `checkDomain`, which fetched `https://<host>/` and saw
+  `x-site: <slug>` (every public site response carries it), AND the site is published and paid. Emails,
+  portal and OS links switch to their address only when live (`liveDomain`/`publicSiteUrl`, OS mirror
+  `wdLiveDomain`). On our /site/<slug>/ address the canonical then points at theirs (no redirect, so our
+  address keeps working as a fallback if their domain ever lapses).
+- **Search engines:** `/sitemap.xml` (pages + published articles) and `/robots.txt` on their address
+  (robots says Disallow until the site is out and paid); sitemap also at /site/<slug>/sitemap.xml.
+- **OS: "Their web address" card** on the Website tab (shows once the website agreement is signed): type
+  the address > `domain-set` (refuses our own addresses, and any address another client's website OR
+  landing page uses: `addressTaken`) > a records table + **Copy instructions for them** (plain message for
+  their web person: records, keep MX, Cloudflare grey cloud) > **Check it now** (`domain-check`) > Remove.
+  Launch also checks the address so the "you're live" email can already carry it.
+- **DNS:** bare `A @ 75.2.60.5` + `CNAME www boldlinemedia.netlify.app`; a subdomain gets one CNAME
+  (`dnsRecords`, mirrored in the OS as `siteDnsRecords`, parity tested).
+- **Netlify:** each address must be a domain alias on the OS site. Optional env var **`NETLIFY_API_TOKEN`**
+  (a Netlify personal access token) lets `domain-set` add the alias itself via the API (`addNetlifyAlias`:
+  🔴 reads the list and only ever APPENDS; never writes if the read fails). Without it the card shows the one
+  manual Netlify step (Domain management > Add domain alias, both forms) = a 10pm-reminder job per client.
+  Not set as of 2026-10-06; Bryson to decide.
+- **Domain ownership (recommendation given to Bryson 2026-10-06):** the client buys and owns the domain in
+  their own name (about $12 to $20 a year); BoldLine does the DNS and hosts the site (hosting is already in
+  the care plan). Same principle as ad accounts: if BoldLine held the domain, leaving would mean a domain
+  held hostage and their site/email dying if our card lapsed.
+- Tests: tests/verify-site-domain.mjs (84 checks, 15 mutations caught); OS card driven at 390/768/1280/1600.
+
 ## 🔴 Ad clients get nothing about websites unless they are buying one (2026-10-06)
 Bryson: *"make sure that regular ad clients wont get anything regarding website stuff unless of course they
 are paying for it"*. Audited every client-facing website touchpoint. Already true: website emails only fire on
@@ -284,9 +318,7 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- 🔴 **Step 3, their domain (recommended next, 2026-10-06: the one gap left before a website can be sold; a
-  client will not accept a boldlinemedia.netlify.app/site/... address):** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
-  job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
+- ✅ Step 3 own domain + sitemap/robots BUILT 2026-10-06 (see above). Still open from the old plan: send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
 - Rebuilding BoldLine's own site with this engine to the same bar.
 

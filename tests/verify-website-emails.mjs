@@ -112,7 +112,7 @@ ok("sending the welcome or the live email by hand records it, so the automatic o
 
 const FN = src("netlify/functions/website-deal.mjs");
 const launch = FN.slice(FN.indexOf('case "launch":'), FN.indexOf('case "sync":'));
-ok("🔴 going live publishes the site in the same write, BEFORE the you're-live email goes", launch.indexOf("published: true") > 0 && launch.indexOf("published: true") < launch.indexOf('autoSendClientEmail(cl, "website_live"'));
+ok("🔴 going live publishes the site in the same write, BEFORE the you're-live email goes", launch.indexOf("published: true") > 0 && launch.indexOf("published: true") < launch.indexOf('"website_live"'));
 ok("🔴 you're-live is sent the first time only", /const first = !deal\.launchedAt && !\(cl\.emailAuto \|\| \{\}\)\.websiteLive;/.test(launch) && /if \(first\)/.test(launch));
 const invc = FN.slice(FN.indexOf('case "invoice":'), FN.indexOf('case "send-review":'));
 ok("🔴 the second-half invoice goes with the preview email, and only once the site is built", /stage === "final" && built \? await autoSendClientEmail\(cl, "website_review"/.test(invc) && /const built = !!\(cl\.website && cl\.website\.content && cl\.website\.previewKey && cl\.landingSlug\)/.test(invc));

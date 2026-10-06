@@ -99,7 +99,7 @@ ok("🔴 the beacon itself skips the OS preview, preview links and automated bro
 ok("it sends plain text, so the browser asks no permission and the page can never break", /new Blob\(\[b\],\{type:'text\/plain'\}\)/.test(tracked) && /catch\(e\)\{\}\}\)\(\);/.test(tracked));
 ok("🔴 an address that is not https is never used for the beacon", !/sendBeacon/.test(renderSite(cl, "home", { base: "https://a.b/site/acme", track: { url: "http://evil.example/x", slug: "acme" } })));
 const SITEFN = src("netlify/functions/site.mjs");
-ok("🔴 the server only turns tracking on for the published public site, never a preview link", /const track = !view\.previewing && cl\.website\.published \? \{ url: `https:\/\/\$\{url\.host\}\/site-hit`, slug: where\.slug \} : null;/.test(SITEFN));
+ok("🔴 the server only turns tracking on for the published public site, never a preview link", /const track = !view\.previewing && cl\.website\.published \? \{ url: hitUrl, slug \} : null;/.test(SITEFN) && /hitUrl: `https:\/\/\$\{url\.host\}\/site-hit`/.test(SITEFN));
 const HIT = src("netlify/functions/site-hit.mjs");
 ok("the counter always answers quietly and skips bots and bad slugs", /return done\(\);/.test(HIT) && /BOT_UA\.test\(ua\)/.test(HIT) && /\^\[a-z0-9-\]\{1,80\}\$/.test(HIT));
 const { default: hit } = await import("../netlify/functions/site-hit.mjs");

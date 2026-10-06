@@ -8514,7 +8514,7 @@ function EmailCenterTab({client,pkg,onUpdate}) {
       resultKind: isWebsiteOnly(client)?"enquiry":(client.billingResultKind||""),
       websiteOnly: isWebsiteOnly(client),
       // The website emails (KB website-builder): their live address, the private preview, the deal's terms.
-      siteUrl: client.landingSlug?`${window.location.origin}/site/${encodeURIComponent(client.landingSlug)}/`:"",
+      siteUrl: wdLiveDomain(client)?`https://${wdLiveDomain(client)}/`:client.landingSlug?`${window.location.origin}/site/${encodeURIComponent(client.landingSlug)}/`:"",
       previewUrl: client.landingSlug&&client.website&&client.website.previewKey?`${window.location.origin}/site/${encodeURIComponent(client.landingSlug)}/?preview=${encodeURIComponent(client.website.previewKey)}`:"",
       plan: wdTerms(client).plan,
       care: wdTerms(client).care,
@@ -8918,6 +8918,14 @@ const wdNorm=(t0)=>{ const t=t0||{}; return {price:wdNum(t.price,WD_DEFAULTS.pri
 const wdR2=(n)=>Math.round(n*100)/100;
 const wdBuildTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.price+t.extraPages*t.extraPagePrice+(t.blog?t.blogSetup:0)); };
 const wdMonthlyTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.care+(t.blog?t.blogMonthly:0)); };
+// Their own web address (KB website-builder, step 3). Server-owned on websiteDeal.domain; `live` only once
+// a check fetched their site over https on it. The DNS advice mirrors netlify/lib/site-domain.mjs (a test pins it).
+const wdLiveDomain=(cl)=>{ const d=((cl&&cl.websiteDeal)||{}).domain; return d&&d.live&&d.host?d.host:""; };
+const SITE_DNS_TARGET="boldlinemedia.netlify.app", SITE_DNS_IP="75.2.60.5";
+const siteDnsRecords=(h)=>{ const l=String(h||"").split("."); const apex=(x)=>x.split(".").length===2;
+  if(h.startsWith("www.")&&apex(h.slice(4))) return [{type:"CNAME",name:"www",value:SITE_DNS_TARGET},{type:"A",name:"@",value:SITE_DNS_IP}];
+  if(apex(h)) return [{type:"A",name:"@",value:SITE_DNS_IP},{type:"CNAME",name:"www",value:SITE_DNS_TARGET}];
+  return [{type:"CNAME",name:l.slice(0,-2).join("."),value:SITE_DNS_TARGET}]; };
 const wdTerms=(cl)=>{ const d=wdDeal(cl); return wdNorm(wdAgreementLive(cl)&&d.agreement.terms?d.agreement.terms:d); };
 const wdAmounts=(t)=>{ const pc=Math.round(wdBuildTotal(t)*100); if(t.plan==="half"){ const fc=Math.ceil(pc/2); return {firstStage:"deposit",first:fc/100,final:(pc-fc)/100,stages:["deposit","final"]}; } return {firstStage:"full",first:pc/100,final:0,stages:["full"]}; };
 const wdPaid=(d,stage)=>!!(d.invoices[stage]&&d.invoices[stage].paidAt);
@@ -8945,6 +8953,62 @@ const wdFmt=(iso)=>{ try{ return new Date(iso).toLocaleDateString("en-US",{month
 
 // The deal card on the Website tab: price and plan, the agreement, the payments. Every button here goes
 // through the website-deal function; nothing on this card writes the client record itself.
+// Their own web address: set it, give their web person the records, check it, and see when it's live.
+function SiteDomainCard({client,onUpdate}){
+  const d=((client.websiteDeal)||{}).domain||null;
+  const [val,setVal]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState("");
+  if(!wdExempt(client)&&!wdSigned(client)) return null;
+  const call=async(action,extra={},label)=>{
+    setBusy(action); setMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const r=await fetch("/.netlify/functions/website-deal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action,clientId:client.id,...extra})});
+      const out=await r.json().catch(()=>({}));
+      if(!r.ok||!out.ok) throw new Error(out.error||"That didn't work. Try again.");
+      if(out.deal!==undefined) onUpdate&&onUpdate({...client,websiteDeal:out.deal});
+      setMsg(typeof label==="function"?label(out):label||""); setBusy(""); return out;
+    }catch(e){ setMsg(e.message); setBusy(""); return null; }
+  };
+  const lbl={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:6};
+  const btn=(primary,dis)=>({padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
+  const recs=d?siteDnsRecords(d.host):[];
+  const first=String(client.contactName||"").trim().split(/\s+/)[0]||"there";
+  const forThem=d?`Hi ${first}, to put your new website on ${d.host}, please add these records where your domain is managed (GoDaddy, Namecheap, Squarespace, Cloudflare or similar):\n\n${recs.map(r=>`Type ${r.type}, Name ${r.name}, Value ${r.value}`).join("\n")}\n\nIf there are already A or CNAME records for those names, replace them. Please don't change any MX records, those run your email. If you use Cloudflare, set these to DNS only (the grey cloud). It can take a few hours to take effect. Let me know once it's done and I'll take it from there.`:"";
+  const alt=d?(d.host.startsWith("www.")?d.host.slice(4):d.host.split(".").length===2?"www."+d.host:""):"";
+  return (
+    <div style={card}>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:8}}>
+        <div style={{fontSize:15,fontWeight:800,color:C.text,marginRight:"auto"}}>Their web address</div>
+        {d&&<span style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"3px 9px",borderRadius:7,color:d.live?C.green:C.gold,border:`1px solid ${d.live?C.green:C.gold}55`}}>{d.live?"Live":"Not live yet"}</span>}
+      </div>
+      {!d&&(<>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>The address they already own, like acmepools.com. If they don't have one yet, they buy it in their own name (about $12 to $20 a year at Namecheap, Cloudflare or GoDaddy) so it stays theirs. Until this is set, the site lives on our address.</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <input value={val} onChange={e=>setVal(e.target.value)} placeholder="acmepools.com" style={{flex:"1 1 220px",minWidth:0,padding:"10px 12px",borderRadius:9,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontSize:13}}/>
+          <button disabled={!!busy||!val.trim()} onClick={()=>call("domain-set",{domain:val},o=>o.alias&&o.alias.ok?"✓ Saved and added to Netlify. Now send them the records below.":"✓ Saved. Now send them the records below.")} style={btn(true,!!busy||!val.trim())}>{busy==="domain-set"?"Saving…":"Use this address"}</button>
+        </div>
+      </>)}
+      {d&&(<>
+        <div style={{fontSize:16,fontWeight:800,color:C.text,wordBreak:"break-all"}}>{d.live?<a href={`https://${d.host}/`} target="_blank" rel="noopener noreferrer" style={{color:C.gold}}>{d.host}</a>:d.host}</div>
+        {d.check&&d.check.note&&<div style={{fontSize:11.5,color:d.live?C.green:C.textMuted,marginTop:4,lineHeight:1.55}}>{d.check.note} <span style={{opacity:.7}}>(checked {wdFmt(d.check.at)})</span></div>}
+        {!d.live&&(<>
+          <div style={{...lbl,marginTop:12}}>Records for whoever manages their domain</div>
+          <div style={{display:"grid",gridTemplateColumns:"auto auto 1fr",gap:"6px 14px",fontSize:12,color:C.text,background:C.bg3,borderRadius:9,padding:"10px 12px"}}>
+            <span style={{color:C.textMuted}}>Type</span><span style={{color:C.textMuted}}>Name</span><span style={{color:C.textMuted}}>Value</span>
+            {recs.map((r,i)=>[<b key={i+"t"}>{r.type}</b>,<span key={i+"n"}>{r.name}</span>,<span key={i+"v"} style={{wordBreak:"break-all"}}>{r.value}</span>])}
+          </div>
+          {d.alias&&d.alias.manual&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>One Netlify step (it's on tonight's 10pm list): open the OS site in Netlify, Domain management, Add domain alias, and add <b>{d.host}</b>{alt?<> and <b>{alt}</b></>:null}.</div>}
+          {d.alias&&!d.alias.ok&&!d.alias.manual&&d.alias.note&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>{d.alias.note} Add it in Netlify by hand: Domain management, Add domain alias.</div>}
+        </>)}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+          {!d.live&&<button onClick={async()=>{ try{ await navigator.clipboard.writeText(forThem); setMsg("✓ Copied. Send it to them or their web person."); }catch(e){ setMsg(forThem); } }} style={btn(true,false)}>Copy instructions for them</button>}
+          <button disabled={!!busy} onClick={()=>call("domain-check",{},o=>o.live?"✓ Live on their address.":o.note)} style={btn(false,!!busy)}>{busy==="domain-check"?"Checking…":"Check it now"}</button>
+          <button disabled={!!busy} onClick={()=>{ if(window.confirm(`Stop using ${d.host} for this website? The site goes back to our address.`)) call("domain-remove",{},"✓ Removed. The site is on our address again."); }} style={btn(false,!!busy)}>Remove</button>
+        </div>
+      </>)}
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{msg}</div>}
+    </div>);
+}
 function WebsiteDealCard({client,onUpdate}){
   const d=wdDeal(client), t=wdTerms(client), m=wdAmounts(t), a=d.agreement, live=wdAgreementLive(client);
   const termsForm=(x)=>{ const n=wdNorm(x); return {price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts)}; };
@@ -9088,7 +9152,7 @@ function WebsiteTab({client,onUpdate}){
   const [edit,setEdit]=useState(null);
   const theme=w.theme||"aurora";
   const slug=client.landingSlug||"";
-  const live=slug?`${window.location.origin}/site/${slug}/`:"";
+  const live=wdLiveDomain(client)?`https://${wdLiveDomain(client)}/`:slug?`${window.location.origin}/site/${slug}/`:"";
   const save=(patch)=>onUpdate&&onUpdate({...client,website:{...w,...patch}});
   useEffect(()=>{ const h=(e)=>{ const d=e&&e.data; if(d&&d.blSitePage&&siteTabsFor(client).some(t=>t[0]===d.blSitePage)) setPage(d.blSitePage); };
     window.addEventListener("message",h); return ()=>window.removeEventListener("message",h); },[client]);
@@ -9187,6 +9251,7 @@ function WebsiteTab({client,onUpdate}){
         {!ownPhotos&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.55}}>Using background photos for now. Ask {client.name} for real photos of their work and their team. They can upload them in their portal under Assets, and they'll replace these automatically.</div>}
         {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5}}>{msg}</div>}
       </div>
+      <SiteDomainCard client={client} onUpdate={onUpdate}/>
 
       <div style={card}>
         <div style={lbl}>Pick a design</div>
