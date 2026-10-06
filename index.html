@@ -8603,6 +8603,191 @@ function ClientApprovalsCard({client,onUpdate}) {
   );
 }
 
+// ─── Websites: build, preview, edit and publish a client's 5-page site ────────
+// Bryson, 2026-10-06: sell OS-built websites ($1,500 + $99/mo), "the most up to date modern website",
+// three designs and the CLIENT picks. Rendering is server-side (netlify/lib/site-render.mjs) and this
+// screen asks for the exact page by POST, the same way the landing preview works. KB `website-builder`.
+//
+// 🔴 PREVIEW SAFETY: the frame is sandboxed WITHOUT allow-same-origin, the page's own form refuses to
+// send from an about: document, and every link inside it only posts a message asking this screen to
+// switch tabs. Listed in tests/verify-preview-safety.mjs as "Website preview".
+const SITE_PAGE_TABS=[["home","Home"],["services","Services"],["about","About"],["reviews","Reviews"],["contact","Contact"]];
+const SITE_THEME_LIST=[["cinematic","Cinematic","Light and airy, huge type, a glass orb that follows the cursor."],["aurora","Aurora","Dark and bold, glowing color, numbered cards, a moving strip."],["editorial","Editorial","Warm and refined, elegant serif headlines, photo-led."]];
+// Hand-typed edits go through the same no-dash rule as everything else a visitor reads.
+const siteDeDash=(v)=>typeof v==="string"?humanizeAdCopy(v):Array.isArray(v)?v.map(siteDeDash):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,siteDeDash(x)])):v;
+const siteKey=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,"0")).join("");
+function SiteFrame({client,page,theme,height,scale,title}){
+  const [html,setHtml]=useState("");
+  const [err,setErr]=useState("");
+  const key=JSON.stringify([client.website,client.mediaLibrary,client.name,client.businessPhone,client.businessAddress,client.niche,page,theme]);
+  useEffect(()=>{ let gone=false; setErr("");
+    (async()=>{ try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const r=await fetch("/.netlify/functions/site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action:"preview",client,page,theme})});
+      const t=await r.text(); if(gone) return;
+      if(!r.ok){ let m="Preview failed."; try{ m=JSON.parse(t).error||m; }catch(e){} setErr(m); return; }
+      setHtml(t);
+    }catch(e){ if(!gone) setErr("Preview failed: "+e.message); } })();
+    return ()=>{ gone=true; };
+  },[key]);
+  if(err) return <div style={{padding:16,fontSize:12,color:C.amber}}>{err}</div>;
+  const k=scale||1;
+  return (
+    <div style={{width:"100%",height:height*k,overflow:"hidden",position:"relative",background:C.bg3,borderRadius:10}}>
+      {html?<iframe title="Website preview" srcDoc={html} sandbox="allow-scripts" style={{width:(100/k)+"%",height:height,border:"none",display:"block",transform:"scale("+k+")",transformOrigin:"top left",pointerEvents:scale&&scale<1?"none":"auto"}}/>
+        :<div style={{padding:16,fontSize:12,color:C.textMuted}}>Loading preview…</div>}
+    </div>);
+}
+function WebsiteTab({client,onUpdate}){
+  const w=client.website||{};
+  const content=w.content||null;
+  const [busy,setBusy]=useState(false);
+  const [msg,setMsg]=useState("");
+  const [page,setPage]=useState("home");
+  const [device,setDevice]=useState("desktop");
+  const [edit,setEdit]=useState(null);
+  const theme=w.theme||"aurora";
+  const slug=client.landingSlug||"";
+  const live=slug?`${window.location.origin}/site/${slug}/`:"";
+  const save=(patch)=>onUpdate&&onUpdate({...client,website:{...w,...patch}});
+  useEffect(()=>{ const h=(e)=>{ const d=e&&e.data; if(d&&d.blSitePage&&SITE_PAGE_TABS.some(t=>t[0]===d.blSitePage)) setPage(d.blSitePage); };
+    window.addEventListener("message",h); return ()=>window.removeEventListener("message",h); },[]);
+  const authed=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); const t=session&&session.access_token; if(!t) throw new Error("Session expired. Refresh and log in again."); return t; };
+  const build=async()=>{
+    if(content&&!window.confirm("Rewrite all the website text? Any edits you made to the words will be replaced. Design, photos and reviews stay.")) return;
+    setBusy(true); setMsg("Writing the website. This takes about a minute…");
+    try{
+      const token=await authed();
+      const r=await fetch("/.netlify/functions/site-build-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({clientId:client.id})});
+      if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||"Could not start."); }
+      const started=Date.now();
+      await new Promise(res=>setTimeout(res,6000));
+      while(Date.now()-started<300000){
+        const p=await fetch("/.netlify/functions/site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action:"poll",clientId:client.id})});
+        const d=await p.json().catch(()=>({})); const job=d&&d.job;
+        if(job&&job.status==="done"&&job.content){
+          save({content:job.content,stock:(w.stock&&w.stock.length)?w.stock:(job.stock||[]),theme:w.theme||"aurora",previewKey:w.previewKey||siteKey(),builtAt:new Date().toISOString()});
+          setMsg("✓ Website written. Have a look, then send the client the three designs to pick from."); setBusy(false); return;
+        }
+        if(job&&job.status==="error") throw new Error(job.error||"The build failed.");
+        await new Promise(res=>setTimeout(res,4000));
+      }
+      throw new Error("That took too long. Try again in a minute.");
+    }catch(e){ setMsg(e.message); }
+    setBusy(false);
+  };
+  const lbl={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:6};
+  const btn=(primary,dis)=>({padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
+  const previewLink=(t)=>live&&w.previewKey?`${live}?preview=${w.previewKey}&theme=${t}`:"";
+  const designText=()=>`Here are three designs for your new website. Have a look and tell me which one you like best:\n\n${SITE_THEME_LIST.map(([id,label])=>`${label}: ${previewLink(id)}`).join("\n")}`;
+  const copyDesigns=async()=>{ try{ await navigator.clipboard.writeText(designText()); setMsg("✓ Copied. Paste it into a text or email to the client."); }catch(e){ setMsg("Couldn't copy. Select the links below instead."); } };
+  const ownPhotos=(client.mediaLibrary||[]).filter(m=>m&&m.category==="photo").length;
+
+  if(!content) return (
+    <div style={{...card,marginTop:12}}>
+      <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:6}}>Website</div>
+      <div style={{fontSize:12,color:C.textMuted,lineHeight:1.65,marginBottom:14}}>Build {client.name} a 5-page website (Home, Services, About, Reviews, Contact) from what's already on their record. It writes the words, picks background photos, and gives you three designs for the client to choose from. Nothing goes live until you say so.</div>
+      {!client.niche&&<div style={{fontSize:11.5,color:C.amber,marginBottom:10}}>Add what they do (their niche) on the client record first, so the words fit.</div>}
+      <button onClick={build} disabled={busy} style={{...btn(true,busy),width:"100%"}}>{busy?"Writing…":"Build the website"}</button>
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5}}>{msg}</div>}
+    </div>);
+
+  const svc=(content.services||[]);
+  const E=edit||{};
+  const startEdit=()=>setEdit({brandName:w.brandName||"",brandColor:w.brandColor||"",headline:(content.hero||{}).headline||"",lineA:(content.hero||{}).lineA||"",lineB:(content.hero||{}).lineB||"",sub:(content.hero||{}).sub||"",button:(content.cta||{}).button||"",story:((content.about||{}).story||[]).join("\n\n"),services:svc.map(x=>({...x})),hours:w.hours||"",publicEmail:w.publicEmail||"",googleListingUrl:w.googleListingUrl||"",reviews:(w.reviews||[]).map(x=>({...x}))});
+  const saveEdit=()=>{
+    const c={...content,hero:{...(content.hero||{}),headline:E.headline,lineA:E.lineA,lineB:E.lineB,sub:E.sub},cta:{...(content.cta||{}),button:E.button},about:{...(content.about||{}),story:String(E.story||"").split(/\n\s*\n/).map(x=>x.trim()).filter(Boolean)},services:(E.services||[]).filter(x=>x&&x.name&&x.name.trim())};
+    const color=/^#[0-9a-f]{6}$/i.test(String(E.brandColor||"").trim())?E.brandColor.trim():"";
+    const g=String(E.googleListingUrl||"").trim();
+    save({content:siteDeDash(c),brandName:E.brandName.trim(),brandColor:color,hours:E.hours.trim(),publicEmail:E.publicEmail.trim(),googleListingUrl:/^https:\/\//.test(g)?g:"",reviews:(E.reviews||[]).filter(r=>r&&r.name&&r.text).map(r=>({name:r.name.trim(),text:r.text.trim(),stars:Math.max(1,Math.min(5,Number(r.stars)||5))}))});
+    setEdit(null); setMsg("✓ Saved.");
+  };
+  const F=(k,ph,area)=>area
+    ?<textarea value={E[k]||""} onChange={e=>setEdit({...E,[k]:e.target.value})} placeholder={ph} rows={5} style={{...inp,marginBottom:10,resize:"vertical"}}/>
+    :<input value={E[k]||""} onChange={e=>setEdit({...E,[k]:e.target.value})} placeholder={ph} style={{...inp,marginBottom:10}}/>;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:12}}>
+      <div style={card}>
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:8}}>
+          <div style={{fontSize:15,fontWeight:800,color:C.text,marginRight:"auto"}}>Website</div>
+          <span style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"3px 9px",borderRadius:7,color:w.published?C.green:C.gold,border:`1px solid ${w.published?C.green:C.gold}55`,background:(w.published?C.green:C.gold)+"14"}}>{w.published?"Live":"Draft, not live"}</span>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={()=>save({published:!w.published})} style={btn(!w.published,false)}>{w.published?"Take it offline":"Put it live"}</button>
+          {w.published&&live&&<a href={live} target="_blank" rel="noopener noreferrer" style={{...btn(false,false),textDecoration:"none",display:"inline-block"}}>Open the live site</a>}
+          <button onClick={edit?()=>setEdit(null):startEdit} style={btn(false,false)}>{edit?"Cancel editing":"Edit the words"}</button>
+          <button onClick={build} disabled={busy} style={btn(false,busy)}>{busy?"Writing…":"Rewrite the words"}</button>
+        </div>
+        {w.published&&live&&<div style={{fontSize:11,color:C.textMuted,marginTop:8,wordBreak:"break-all"}}>{live}</div>}
+        {!ownPhotos&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.55}}>Using background photos for now. Ask {client.name} for real photos of their work and their team. They can upload them in their portal under Assets, and they'll replace these automatically.</div>}
+        {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5}}>{msg}</div>}
+      </div>
+
+      <div style={card}>
+        <div style={lbl}>Pick a design</div>
+        <div style={{fontSize:11.5,color:C.textMuted,marginBottom:12,lineHeight:1.55}}>Let the client choose: copy the three preview links and text them over. Previews work even while the site isn't live.</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+          {SITE_THEME_LIST.map(([id,label,blurb])=>(
+            <div key={id} style={{border:`1px solid ${theme===id?C.gold:C.border}`,borderRadius:12,padding:8,background:C.bg3}}>
+              <SiteFrame client={client} page="home" theme={id} height={720} scale={0.3} title="Website preview"/>
+              <div style={{fontSize:13,fontWeight:800,color:C.text,marginTop:8}}>{label}{theme===id&&<span style={{color:C.gold,fontSize:10.5,marginLeft:6}}>CHOSEN</span>}</div>
+              <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,margin:"2px 0 8px"}}>{blurb}</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {theme!==id&&<button onClick={()=>save({theme:id})} style={btn(false,false)}>Use this one</button>}
+                {previewLink(id)&&<a href={previewLink(id)} target="_blank" rel="noopener noreferrer" style={{...btn(false,false),textDecoration:"none"}}>Open</a>}
+              </div>
+            </div>))}
+        </div>
+        {w.previewKey&&live&&<button onClick={copyDesigns} style={{...btn(true,false),width:"100%",marginTop:10}}>Copy the 3 designs to send the client</button>}
+      </div>
+
+      {edit&&(
+        <div style={card}>
+          <div style={lbl}>Business name on the site</div>{F("brandName",client.name)}
+          <div style={lbl}>Brand color (like #2F6FED, optional)</div>{F("brandColor","#2F6FED")}
+          <div style={lbl}>Main headline</div>{F("headline","")}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}><div><div style={lbl}>Cinematic line 1</div>{F("lineA","")}</div><div><div style={lbl}>Cinematic line 2</div>{F("lineB","")}</div></div>
+          <div style={lbl}>Line under the headline</div>{F("sub","",true)}
+          <div style={lbl}>Button text</div>{F("button","Get in touch")}
+          <div style={lbl}>About story (blank line between paragraphs)</div>{F("story","",true)}
+          <div style={lbl}>Services</div>
+          {(E.services||[]).map((x,i)=>(
+            <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 2fr auto",gap:6,marginBottom:6}}>
+              <input value={x.name||""} onChange={e=>{const a=[...E.services];a[i]={...a[i],name:e.target.value};setEdit({...E,services:a});}} placeholder="Service" style={inp}/>
+              <input value={x.blurb||""} onChange={e=>{const a=[...E.services];a[i]={...a[i],blurb:e.target.value};setEdit({...E,services:a});}} placeholder="One sentence" style={inp}/>
+              <button onClick={()=>setEdit({...E,services:E.services.filter((_,j)=>j!==i)})} style={btn(false,false)}>✕</button>
+            </div>))}
+          <button onClick={()=>setEdit({...E,services:[...(E.services||[]),{name:"",blurb:"",detail:""}]})} style={{...btn(false,false),marginBottom:12}}>+ Add a service</button>
+          <div style={lbl}>Hours (optional)</div>{F("hours","Mon to Fri, 8am to 6pm")}
+          <div style={lbl}>Email shown on the site (optional)</div>{F("publicEmail","hello@theirbusiness.com")}
+          <div style={lbl}>Their Google listing link, for "Read our reviews" (optional)</div>{F("googleListingUrl","https://maps.app.goo.gl/...")}
+          <div style={lbl}>Real reviews only, copied word for word</div>
+          {(E.reviews||[]).map((x,i)=>(
+            <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 3fr 70px auto",gap:6,marginBottom:6}}>
+              <input value={x.name||""} onChange={e=>{const a=[...E.reviews];a[i]={...a[i],name:e.target.value};setEdit({...E,reviews:a});}} placeholder="Name" style={inp}/>
+              <input value={x.text||""} onChange={e=>{const a=[...E.reviews];a[i]={...a[i],text:e.target.value};setEdit({...E,reviews:a});}} placeholder="What they wrote" style={inp}/>
+              <input value={x.stars||5} onChange={e=>{const a=[...E.reviews];a[i]={...a[i],stars:e.target.value};setEdit({...E,reviews:a});}} placeholder="5" style={inp}/>
+              <button onClick={()=>setEdit({...E,reviews:E.reviews.filter((_,j)=>j!==i)})} style={btn(false,false)}>✕</button>
+            </div>))}
+          <button onClick={()=>setEdit({...E,reviews:[...(E.reviews||[]),{name:"",text:"",stars:5}]})} style={{...btn(false,false),marginBottom:12}}>+ Add a review</button>
+          <button onClick={saveEdit} style={{...btn(true,false),width:"100%"}}>Save changes</button>
+        </div>)}
+
+      <div style={card}>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
+          {SITE_PAGE_TABS.map(([id,label])=><button key={id} onClick={()=>setPage(id)} style={{...btn(page===id,false),padding:"7px 11px"}}>{label}</button>)}
+          <span style={{marginLeft:"auto",display:"flex",gap:6}}>
+            {[["desktop","Desktop"],["phone","Phone"]].map(([d,l])=><button key={d} onClick={()=>setDevice(d)} style={{...btn(device===d,false),padding:"7px 11px"}}>{l}</button>)}
+          </span>
+        </div>
+        <div style={{maxWidth:device==="phone"?400:"100%",margin:"0 auto"}}>
+          <SiteFrame client={client} page={page} theme={theme} height={device==="phone"?760:820} title="Website preview"/>
+        </div>
+      </div>
+    </div>);
+}
+
 // ─── Review requests: ask a client's customers for a Google review ───────────
 // Bryson, 2026-10-05: "yea lets do that" (KB `service-add-ons`). He pastes the client's recent
 // customers; the server queues them and the scheduled sender emails each one, then one reminder
@@ -10036,7 +10221,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   // here, not enquiries, and a tab called "Leads" on a shop account is the first thing he sees
   // on every screen of theirs. Same one field the agreement, the invoice, the portal and the
   // branded emails read (Bryson, 2026-09-17: *"make sure these tabs are good as well"*).
-  const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["reviews","Reviews"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
+  const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["reviews","Reviews"],["website","Website"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
                    .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log"||k==="reviews")))
                    // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:
                    // *"there isn't an assets tab can you add it"*. There was, and it holds exactly
@@ -10513,6 +10698,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="leads"&&<LeadsTabContent client={client} onUpdate={onUpdate}/>}
 
         {tab==="reviews"&&!client.internal&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
+        {tab==="website"&&<WebsiteTab client={client} onUpdate={onUpdate}/>}
 
         {tab==="portal"&&(
           <div style={S.col11}>

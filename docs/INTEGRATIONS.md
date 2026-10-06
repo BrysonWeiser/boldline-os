@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 201 task-keyed entries under `knowledge/`. They surface automatically via the
+> 202 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**201 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**202 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -633,6 +633,9 @@
 - **[visual-editor](../knowledge/visual-editor.md)** &mdash; &#9989; verified &middot; 2026-07-29  
   The blog and newsletter editors used to show the raw HTML of body_html in a textarea, which Bryson couldn't read. Both now use a shared VisualEditor (index.html, just above the BLOG MANAGEMENT section) — a contentEditable WYSIWYG that renders the content formatted and lets you edit the words in place, with a one-tap "Edit raw HTML ▶" toggle kept for power edits. For a full-document email, splitDoc peels off the <body> wrapper before editing and re-stitches prefix+editedInner+suffix on save so the email's <head>/styles/<body> attributes are never lost; blog posts are HTML fragments and edit directly. Built 2026-07-29.  
   <sub>*task:* edit blog posts and newsletter emails as readable content instead of raw HTML &nbsp;|&nbsp; *keywords:* visual editor, WYSIWYG, contentEditable, splitDoc, blog editor, newsletter editor, body_html, edit raw HTML, readable, review content, BlogManagementCard, NewsletterManagementCard</sub>
+- **[website-builder](../knowledge/website-builder.md)** &mdash; &#9989; verified &middot; 2026-10-06  
+  Step 1 of the website service, built 2026-10-06. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Served at /site/<landingSlug>/ once "Put it live" is pressed; drafts only via the site's own preview key. Motion and a WebGL accent are layered on after the page is usable and drop out for reduce-motion, Data Saver and small-memory phones. 49 checks, 9 mutations caught; driven at four widths.  
+  <sub>*task:* build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer &nbsp;|&nbsp; *keywords:* website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview</sub>
 
 ## OS/App
 

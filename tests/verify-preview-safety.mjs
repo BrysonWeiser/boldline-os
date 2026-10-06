@@ -63,6 +63,10 @@ const MANIFEST = {
   // cannot reach the OS, and the URL it is given expires within the hour. What makes it safe
   // is what is NOT there: no allow-forms, no allow-same-origin, no token of ours in the page.
   "Signed agreement": "a cross-origin, read-only PDF on an expiring signed URL; nothing of ours is in it",
+  // Added 2026-10-06 with the website builder. Carries the client's REAL leadToken in its contact
+  // form, so three locks: no allow-same-origin on the frame, an about: check before the form's
+  // fetch, and every link intercepted in the preview (it only asks the OS to switch tabs).
+  "Website preview": "sandbox allow-scripts only; form refuses to send from about:; links intercepted to postMessage",
 };
 
 // 🔴 NOT IN THE MANIFEST, AND DELIBERATELY SO: saved landing pages (2026-09-04). They are the
@@ -113,6 +117,20 @@ const MANIFEST = {
   }
   ok("🔴 every untitled embed is rejected", !embeds.some((e) => e.title === "(untitled)"),
     "an embed with no title cannot be reasoned about or matched to the manifest");
+}
+
+// ── 1a. 🔴 THE WEBSITE PREVIEW (2026-10-06) ─────────────────────────────────
+{
+  const SITE = readFileSync(join(ROOT, "netlify/lib/site-render.mjs"), "utf8");
+  const tag = (UI.match(/<iframe title="Website preview"[^>]*>/) || [""])[0];
+  ok("🔴 the website preview frame is sandboxed to scripts only (no same-origin, no forms, no top navigation)",
+    /sandbox="allow-scripts"/.test(tag) && !/allow-(same-origin|forms|top-navigation|popups)/.test(tag), tag);
+  const form = SITE.slice(SITE.indexOf("function formScript"), SITE.indexOf("// ── Page pieces"));
+  ok("🔴 the website's form checks for a preview BEFORE it sends", form.indexOf("if(PREVIEW){done();return;}") > 0
+    && form.indexOf("if(PREVIEW){done();return;}") < form.indexOf("fetch('/lead"), "a preview must never create a real lead");
+  ok("🔴 in a preview every link is intercepted and only asks the OS to switch tabs",
+    /if\(PREVIEW\)\{e\.preventDefault\(\);if\(pg&&window\.parent\)/.test(SITE));
+  ok("PREVIEW is the about: test the landing page already proves", /var PREVIEW=String\(location\.href\)\.indexOf\('about:'\)===0;/.test(SITE));
 }
 
 // ── 1b. 🔴 THE SIGNED CONTRACT VIEWER ────────────────────────────────────────
