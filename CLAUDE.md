@@ -131,7 +131,7 @@ automated.
   When a task needs a click in Netlify (an env var, a domain alias, a certificate, a manual
   redeploy), do NOT just explain it in the reply: **add it to that evening's 10pm Phoenix
   reminder** so every Netlify job lands in one trip. Use `send_later` / `update_trigger`
-  (the standing one is `trig_01A9zh7TN7urCq7p52XbCucd`; if it has already fired, make a new
+  (latest: `trig_013a6kGuxKHZTkrEaMAB1z7m`, Tue 2026-10-06 22:00 Phoenix; if it has already fired, make a new
   one). 🔴 Convert Phoenix to UTC and convert BACK to confirm, per the Arizona time rule.
   Tell it to RE-CHECK live state before resending, so the 10pm message reports what is true
   then rather than repeating what was true earlier. Still explain it in the reply too, in case
