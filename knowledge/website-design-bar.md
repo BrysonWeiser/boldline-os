@@ -59,3 +59,20 @@ palettes, font pairings, UX rules). Useful for taste and consistency; it is not 
 The real gains for motion are libraries the sites themselves load: GSAP with ScrollTrigger and SplitText
 (free since 2025), Lenis smooth scrolling, Three.js for 3D; plus Spline for designing custom 3D scenes.
 Recommended: add the skill to the repo only after reading it (third-party instructions run in every session).
+
+## ✅ 2026-10-06 INSTALLED: two design skills in .claude/skills (every session gets them)
+- **ui-ux-pro-max** (third party, MIT, commit 477bcb2): read first. Scripts only search its own CSV data
+  (stdlib only, no network, no env vars). ONLY the core skill was copied; the repo's other bundled skills
+  call outside image APIs and read .env files, so they were left out. Path fixed to $CLAUDE_PROJECT_DIR.
+  Use: `python3 "$CLAUDE_PROJECT_DIR/.claude/skills/ui-ux-pro-max/scripts/search.py" "<industry> <keywords>"
+  --design-system` per client for palette/type/pattern ideas; its motion.csv has GSAP presets.
+- **frontend-design** (Anthropic, Apache 2.0, commit 683bc88): instructions only. 🔴 It names the tells of
+  AI-generated design, and step 1's designs have several: Aurora = near-black + one acid-green accent, mono
+  data labels, numbered [01] cards on content that is not a sequence, ALL-CAPS eyebrows, "→" in buttons;
+  Editorial = warm cream + high-contrast serif + one italic accent word. The motion/3D upgrade should also
+  fix these. Where it says "use motion sparingly", Bryson's brief wins: motion stays rich, but orchestrated
+  (one strong moment per section), not scattered fade-ups.
+- `/.claude/*` now 404s on the public site (publish = "." serves the whole repo).
+- Nothing else worth installing now: GSAP (+ScrollTrigger, SplitText, free since the Webflow deal), Lenis
+  and Three.js are loaded BY the websites, not installed by Bryson. Optional later: Spline (custom 3D),
+  Context7 (live library docs) if library APIs ever trip us up.

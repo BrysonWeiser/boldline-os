@@ -265,6 +265,13 @@
 
 # Internal knowledge base lives in the repo (for cross-session persistence) but must
 # never be served publicly by the OS site. Force a 404 on it before the SPA catch-all.
+# Claude Code's skills and settings live in the repo too (.claude/), and must never be served either.
+[[redirects]]
+  from = "/.claude/*"
+  to = "/index.html"
+  status = 404
+  force = true
+
 [[redirects]]
   from = "/knowledge/*"
   to = "/index.html"
