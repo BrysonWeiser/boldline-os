@@ -487,6 +487,8 @@ const T = {
           half ? "When you're happy with it, you pay the second half and we put it live." : "When you're happy with it, we put it live.",
           ...(care ? ["From launch day, your care plan keeps it online, secure and up to date."] : []),
         ]) +
+        // 🔴 We look after their web address too, so the one thing we need from them is said up front.
+        p(`One small thing from you: if the business already has a web address, we'll ask for access to the account it's registered with, so we can put your new site on it and look after it from then on. It stays in your name. No address yet? We'll help you pick one and buy it in your name.`) +
         p(`Your ${gold("client portal")} has a Website tab where you can follow along, ask for a change, and see how many people visit once it's live.`) +
         button("Open Your Portal", c.portalUrl) +
         signoff(),

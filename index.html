@@ -8956,15 +8956,25 @@ const wdFmt=(iso)=>{ try{ return new Date(iso).toLocaleDateString("en-US",{month
 // Their own web address: set it, give their web person the records, check it, and see when it's live.
 function SiteDomainCard({client,onUpdate}){
   const d=((client.websiteDeal)||{}).domain||null;
-  const [val,setVal]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState(""); const [nf,setNf]=useState(null);
-  const shown=wdExempt(client)||wdSigned(client);
+  const [val,setVal]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState(""); const [nf,setNf]=useState(null); const [me,setMe]=useState("");
+  // On EVERY website client (Bryson, 2026-10-06: "i want to make sure for website clients that it will be under
+  // them"); usable once they sign, since the address is part of what they are paying for.
+  const shown=wdExempt(client)||wdAgreementLive(client)||isWebsiteOnly(client);
+  const usable=wdExempt(client)||wdSigned(client);
+  // Who the client invites to their domain account: whoever is signed in to the OS.
+  useEffect(()=>{ let gone=false; supabaseClient.auth.getSession().then(({data})=>{ if(!gone) setMe(((data&&data.session&&data.session.user)||{}).email||""); }).catch(()=>{}); return ()=>{ gone=true; }; },[]);
   // Read-only: is the Netlify key working? Shown before the first address is set, so he can see it.
-  useEffect(()=>{ if(!shown||d) return; let gone=false; (async()=>{ try{
+  useEffect(()=>{ if(!usable||d) return; let gone=false; (async()=>{ try{
     const { data:{ session } }=await supabaseClient.auth.getSession();
     const r=await fetch("/.netlify/functions/website-deal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action:"netlify-status",clientId:client.id})});
     const o=await r.json().catch(()=>({})); if(!gone&&o&&o.ok) setNf(o);
-  }catch(e){} })(); return ()=>{ gone=true; }; },[client.id,shown,!!d]);
+  }catch(e){} })(); return ()=>{ gone=true; }; },[client.id,usable,!!d]);
   if(!shown) return null;
+  if(!usable) return (
+    <div style={card}>
+      <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:6}}>Their web address</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>Set up here once they sign the website agreement. We run their address for them: they give us access to their domain account once, and we do the rest.</div>
+    </div>);
   const call=async(action,extra={},label)=>{
     setBusy(action); setMsg("");
     try{
@@ -8980,6 +8990,12 @@ function SiteDomainCard({client,onUpdate}){
   const btn=(primary,dis)=>({padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
   const recs=d?siteDnsRecords(d.host):[];
   const first=String(client.contactName||"").trim().split(/\s+/)[0]||"there";
+  // 🔴 WE ARE THEIR WEB PEOPLE (Bryson, 2026-10-06: "why would we have to work with their web guy if we are
+  // their web guy"). The default ask is ACCESS to their domain account, once, so BoldLine does every change
+  // after that. The domain stays registered in their name: if we held it, leaving us would mean a business
+  // address held hostage. Sending the records to someone else is kept only as a fallback.
+  const apexOf=(h)=>{ const l=String(h||"").split("."); return l.slice(-2).join("."); };
+  const askAccess=d?`Hi ${first}, to get your new website running on ${d.host}, we just need access to the account where your domain is managed. That way we handle everything on our side and you never have to touch it.\n\nLog in to the company you bought ${apexOf(d.host)} from (GoDaddy, Namecheap, Squarespace, Cloudflare or similar). Find the option called Delegate access, Share access, Members or Users. It's usually under your account settings. Invite ${me||"us"}, and if it asks what they can do, pick the option that allows managing DNS.\n\nThe domain stays in your name and you stay the owner. We only use the access to point it at your new website and keep it running. If you get stuck, reply and we'll do it together on a quick call.`:"";
   const forThem=d?`Hi ${first}, to put your new website on ${d.host}, please add these records where your domain is managed (GoDaddy, Namecheap, Squarespace, Cloudflare or similar):\n\n${recs.map(r=>`Type ${r.type}, Name ${r.name}, Value ${r.value}`).join("\n")}\n\nIf there are already A or CNAME records for those names, replace them. Please don't change any MX records, those run your email. If you use Cloudflare, set these to DNS only (the grey cloud). It can take a few hours to take effect. Let me know once it's done and I'll take it from there.`:"";
   const alt=d?(d.host.startsWith("www.")?d.host.slice(4):d.host.split(".").length===2?"www."+d.host:""):"";
   return (
@@ -8989,10 +9005,10 @@ function SiteDomainCard({client,onUpdate}){
         {d&&<span style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"3px 9px",borderRadius:7,color:d.live?C.green:C.gold,border:`1px solid ${d.live?C.green:C.gold}55`}}>{d.live?"Live":"Not live yet"}</span>}
       </div>
       {!d&&(<>
-        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>The address they already own, like acmepools.com. If they don't have one yet, they buy it in their own name (about $12 to $20 a year at Namecheap, Cloudflare or GoDaddy) so it stays theirs. Until this is set, the site lives on our address.</div>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>We run their address for them. Type the one they own, like acmepools.com. No address yet? They buy one in their own name (about $12 to $20 a year at Namecheap, Cloudflare or GoDaddy) so it stays theirs, then give us access. Until this is set, the site lives on our address.</div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           <input value={val} onChange={e=>setVal(e.target.value)} placeholder="acmepools.com" style={{flex:"1 1 220px",minWidth:0,padding:"10px 12px",borderRadius:9,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontSize:13}}/>
-          <button disabled={!!busy||!val.trim()} onClick={()=>call("domain-set",{domain:val},o=>o.alias&&o.alias.ok?"✓ Saved and added to Netlify. Now send them the records below.":"✓ Saved. Now send them the records below.")} style={btn(true,!!busy||!val.trim())}>{busy==="domain-set"?"Saving…":"Use this address"}</button>
+          <button disabled={!!busy||!val.trim()} onClick={()=>call("domain-set",{domain:val},o=>o.alias&&o.alias.ok?"✓ Saved and added to Netlify. Next, ask them for access to their domain account (step 1 below).":"✓ Saved. Next, ask them for access to their domain account (step 1 below).")} style={btn(true,!!busy||!val.trim())}>{busy==="domain-set"?"Saving…":"Use this address"}</button>
         </div>
         {nf&&<div style={{fontSize:11,color:nf.connected?C.green:nf.set?C.amber:C.textMuted,marginTop:8,lineHeight:1.5}}>{nf.connected?"✓ ":""}{nf.note}</div>}
       </>)}
@@ -9000,7 +9016,11 @@ function SiteDomainCard({client,onUpdate}){
         <div style={{fontSize:16,fontWeight:800,color:C.text,wordBreak:"break-all"}}>{d.live?<a href={`https://${d.host}/`} target="_blank" rel="noopener noreferrer" style={{color:C.gold}}>{d.host}</a>:d.host}</div>
         {d.check&&d.check.note&&<div style={{fontSize:11.5,color:d.live?C.green:C.textMuted,marginTop:4,lineHeight:1.55}}>{d.check.note} <span style={{opacity:.7}}>(checked {wdFmt(d.check.at)})</span></div>}
         {!d.live&&(<>
-          <div style={{...lbl,marginTop:12}}>Records for whoever manages their domain</div>
+          <div style={{...lbl,marginTop:12}}>1. Get access to their domain account</div>
+          <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:6}}>Send them this. They invite you once, the domain stays in their name, and every change after that is yours to make.</div>
+          <button onClick={async()=>{ try{ await navigator.clipboard.writeText(askAccess); setMsg("✓ Copied. Text or email it to them."); }catch(e){ setMsg(askAccess); } }} style={btn(true,false)}>Copy the access request</button>
+          <div style={{...lbl,marginTop:14}}>2. Once they invite you, add these in their domain account</div>
+          <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:6}}>Log in, open the DNS settings for {apexOf(d.host)}, and add these (replace any A or CNAME records with the same name). Leave MX records alone, they run their email. On Cloudflare, set them to DNS only (grey cloud).</div>
           <div style={{display:"grid",gridTemplateColumns:"auto auto 1fr",gap:"6px 14px",fontSize:12,color:C.text,background:C.bg3,borderRadius:9,padding:"10px 12px"}}>
             <span style={{color:C.textMuted}}>Type</span><span style={{color:C.textMuted}}>Name</span><span style={{color:C.textMuted}}>Value</span>
             {recs.map((r,i)=>[<b key={i+"t"}>{r.type}</b>,<span key={i+"n"}>{r.name}</span>,<span key={i+"v"} style={{wordBreak:"break-all"}}>{r.value}</span>])}
@@ -9008,9 +9028,10 @@ function SiteDomainCard({client,onUpdate}){
           {d.alias&&d.alias.manual&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>One Netlify step (it's on tonight's 10pm list): open the OS site in Netlify, Domain management, Add domain alias, and add <b>{d.host}</b>{alt?<> and <b>{alt}</b></>:null}.</div>}
           {d.alias&&!d.alias.ok&&!d.alias.manual&&d.alias.note&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>{d.alias.note} Add it in Netlify by hand: Domain management, Add domain alias.</div>}
         </>)}
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
-          {!d.live&&<button onClick={async()=>{ try{ await navigator.clipboard.writeText(forThem); setMsg("✓ Copied. Send it to them or their web person."); }catch(e){ setMsg(forThem); } }} style={btn(true,false)}>Copy instructions for them</button>}
-          <button disabled={!!busy} onClick={()=>call("domain-check",{},o=>o.live?"✓ Live on their address.":o.note)} style={btn(false,!!busy)}>{busy==="domain-check"?"Checking…":"Check it now"}</button>
+        {!d.live&&<div style={{...lbl,marginTop:14}}>3. Check it (it can take a few hours after step 2)</div>}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:d.live?10:0}}>
+          <button disabled={!!busy} onClick={()=>call("domain-check",{},o=>o.live?"✓ Live on their address.":o.note)} style={btn(!d.live,!!busy)}>{busy==="domain-check"?"Checking…":"Check it now"}</button>
+          {!d.live&&<button onClick={async()=>{ try{ await navigator.clipboard.writeText(forThem); setMsg("✓ Copied. Only for when someone else must make the change."); }catch(e){ setMsg(forThem); } }} style={btn(false,false)}>Can't get access? Copy the records for them</button>}
           <button disabled={!!busy} onClick={()=>{ if(window.confirm(`Stop using ${d.host} for this website? The site goes back to our address.`)) call("domain-remove",{},"✓ Removed. The site is on our address again."); }} style={btn(false,!!busy)}>Remove</button>
         </div>
       </>)}
