@@ -759,6 +759,7 @@ const handler = async (event) => {
         const text = clip(String(body.websiteRequest.text || "").trim(), 1000);
         if (!text) return { statusCode: 400, body: JSON.stringify({ ok: false, error: "Tell us what you would like changed first." }) };
         const cur = data.data || {};
+        if (!hasWebsite(cur)) return { statusCode: 403, body: JSON.stringify({ ok: false, error: "Your plan does not include a website." }) };
         if ((cur.websiteRequests || []).filter((r) => r && r.status !== "done").length >= 10)
           return { statusCode: 429, body: JSON.stringify({ ok: false, error: "You have 10 requests with us already. We will work through those first." }) };
         const at = new Date();

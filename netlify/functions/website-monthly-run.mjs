@@ -15,7 +15,7 @@ import { withFailureAlert } from "../lib/alerts-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { summarize } from "../lib/site-stats.mjs";
 import { supabaseStore, loadIndex } from "../lib/site-blog.mjs";
-import { termsOf, exempt } from "../lib/website-deal.mjs";
+import { termsOf, exempt, isSigned } from "../lib/website-deal.mjs";
 
 const DAY = 864e5;
 const MIN_LIVE_DAYS = 14;
@@ -39,6 +39,8 @@ export function monthlyEligible(cl, now = Date.now()) {
   const c = cl || {};
   const d = c.websiteDeal || {};
   if (c.internal || exempt(c) || !c.email) return false;
+  // 🔴 Only a client who bought the website. Belt and braces: going live already needs it paid in full.
+  if (!isSigned(c)) return false;
   if (!(c.website && c.website.published) || !d.launchedAt) return false;
   if (now - Date.parse(d.launchedAt) < MIN_LIVE_DAYS * DAY) return false;
   return (c.emailAuto || {}).websiteMonthly !== lastMonth(now).key;

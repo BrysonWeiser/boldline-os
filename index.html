@@ -547,12 +547,13 @@ const WEB_PKG = {
 const isWebsiteOnly = (cl) => !!cl && cl.packageId === WEB_PKG_ID;
 // Which emails the Emails tab offers for a client: a website-only client sees the website ones plus the
 // few shared ones that are written for them (milestone, review ask, goodbye), never the ads onboarding or
-// ad invoices; an ads client sees the website ones only once they have a website deal or a site.
+// ad invoices; an ads client sees the website ones only once a website agreement is out or signed (Bryson:
+// regular ad clients get nothing about websites "unless of course they are paying for it").
 const WEB_EMAIL_IDS=["website_welcome","website_payment","website_review","website_live","website_past_due","blog_scheduled","website_monthly"];
 const emailTypeFits=(id,cl)=>{
   const web=WEB_EMAIL_IDS.includes(id);
   if(isWebsiteOnly(cl)) return web||["lead_milestone","review_request","thank_you"].includes(id);
-  return !web||!!((cl&&cl.websiteDeal&&cl.websiteDeal.agreement)||(cl&&cl.website&&cl.website.content));
+  return !web||wdAgreementLive(cl);
 };
 const findPkg  = (id) => (id === HOUSE_PKG_ID ? HOUSE_PKG : id === WEB_PKG_ID ? WEB_PKG : ALL_PKGS.find(p => p.id === id));
 const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(featureId);

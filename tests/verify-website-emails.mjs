@@ -158,14 +158,51 @@ ok("🔴 a website-only client is asked for a review once, six weeks after going
 // ── 6. The OS Emails tab offers the right set ─────────────────────────────────────────
 {
   const blk = UI.slice(UI.indexOf("const WEB_EMAIL_IDS="), UI.indexOf("\n};", UI.indexOf("const emailTypeFits=")) + 3);
-  const fits = new Function("WEB_PKG_ID", "isWebsiteOnly", `${blk}; return emailTypeFits;`)("w-site", (cl) => !!cl && cl.packageId === "w-site");
+  const live = (cl) => !!(cl && cl.websiteDeal && cl.websiteDeal.agreement && ["sent", "delivered", "completed"].includes(cl.websiteDeal.agreement.status));
+  const fits = new Function("WEB_PKG_ID", "isWebsiteOnly", "wdAgreementLive", `${blk}; return emailTypeFits;`)("w-site", (cl) => !!cl && cl.packageId === "w-site", live);
   const ids = EMAIL_TYPES.map((t) => t.id);
   const shown = (cl) => ids.filter((id) => fits(id, cl));
   same("the OS list of website emails matches the server's", JSON.parse(UI.match(/const WEB_EMAIL_IDS=(\[[^\]]*\])/)[1]).sort().join(), WEB.slice().sort().join());
   ok("🔴 a website-only client is never offered the ads onboarding or an ads invoice", !["welcome", "onboarding_access", "onboarding_nudge", "invoice", "start_confirmed", "renewal", "receipt", "past_due"].some((id) => shown({ packageId: "w-site" }).includes(id)));
   ok("a website-only client is offered every website email", WEB.every((id) => shown({ packageId: "w-site" }).includes(id)));
   ok("an ads client with no website is not offered website emails", !shown({ packageId: "g-launch" }).some((id) => WEB.includes(id)) && shown({ packageId: "g-launch" }).includes("invoice"));
-  ok("an ads client with a website deal gets both", shown({ packageId: "g-launch", websiteDeal: { agreement: { status: "sent" } } }).includes("website_live") && shown({ packageId: "g-launch", websiteDeal: { agreement: {} } }).includes("invoice"));
+  ok("an ads client with a website deal gets both", shown({ packageId: "g-launch", websiteDeal: { agreement: { status: "sent" } } }).includes("website_live") && shown({ packageId: "g-launch", websiteDeal: { agreement: { status: "completed" } } }).includes("invoice"));
+  ok("🔴 an ads client whose website deal fell through, or who only has a draft site, is not offered website emails",
+    !shown({ packageId: "g-launch", websiteDeal: { agreement: { status: "declined" } } }).some((id) => WEB.includes(id))
+    && !shown({ packageId: "g-launch", website: { content: { hero: {} } } }).some((id) => WEB.includes(id)));
+  same("the OS knows which agreement states count as live, same as the server", (UI.match(/const WD_LIVE=(\[[^\]]*\])/) || [])[1], '["sent","delivered","completed"]');
+}
+
+// ── 7. 🔴 Regular ad clients get nothing about websites unless they are paying for one ─────────
+// Bryson, 2026-10-06: "make sure that regular ad clients wont get anything regarding website stuff unless
+// of course they are paying for it".
+{
+  const { hasWebsite } = await import("../netlify/lib/portal-website.mjs");
+  const { _internal } = await import("../netlify/functions/portal.mjs");
+  const adsCl = { id: "a1", name: "Ads Co", packageId: "g-launch", portalToken: "tok", email: "x@y.z" };
+  ok("🔴 a regular ad client has no Website tab", !hasWebsite(adsCl) && !/show\('website'/.test(_internal.makePortalHTML(adsCl, _internal.findPkg("g-launch"), null)));
+  ok("🔴 not even when a site draft sits on their record", !hasWebsite({ ...adsCl, website: { content: { hero: {} }, previewKey: "K" } }));
+  ok("🔴 nor when a website deal fell through", !hasWebsite({ ...adsCl, websiteDeal: { agreement: { status: "declined" } } }) && !hasWebsite({ ...adsCl, websiteDeal: { agreement: { status: "voided" } } }));
+  ok("an ad client who is buying a website gets the tab", hasWebsite({ ...adsCl, websiteDeal: { agreement: { status: "sent" } } }) && hasWebsite({ ...adsCl, websiteDeal: { agreement: { status: "completed" } } }));
+  const PS = src("netlify/functions/portal.mjs");
+  const req = PS.slice(PS.indexOf("if (body.websiteRequest"), PS.indexOf("// Approval decision from the portal"));
+  ok("🔴 the portal refuses a website change request from a client with no website", /if \(!hasWebsite\(cur\)\) return \{ statusCode: 403/.test(req) && req.indexOf("!hasWebsite(cur)") < req.indexOf(".update("));
+  ok("🔴 the blog actions need the blog in their deal", /if \(!termsOf\(cur\)\.blog\) return \{ statusCode: 403/.test(PS));
+  ok("🔴 the preview email needs a SIGNED website agreement", rev.indexOf("if (!isSigned(cl)) return json") > 0 && rev.indexOf("if (!isSigned(cl)) return json") < rev.indexOf("autoSendClientEmail("));
+  ok("🔴 the monthly summary needs a signed website deal", !monthlyEligible({ ...liveCl, websiteDeal: { ...liveCl.websiteDeal, agreement: { status: "declined", terms: T } } }, NOW));
+  ok("🔴 an ad client with no website deal is never sent the monthly summary", !monthlyEligible({ ...adsCl, website: { published: true }, websiteDeal: { launchedAt: "2026-09-01T00:00:00Z" } }, NOW));
+  // Every website event is tagged by the website code itself, so ordinary ads money never sends a website email.
+  ok("🔴 an ordinary ads payment never sends a website email", applyWebsiteEvent(adsCl, ev("invoice.paid", { clientId: "a1" })) === null && applyWebsiteEvent(adsCl, ev("invoice.payment_failed", {})) === null);
+  // None of the ads emails talk about websites.
+  for (const id of EMAIL_TYPES.map((t) => t.id).filter((id) => !WEB.includes(id))) {
+    const r = renderClientEmail(id, buildClientCtx(adsCl, { amount: 100, monthly: 400, leadCount: 3, leadRate: 50, leadTotal: 150, milestone: 10 }));
+    ok(`🔴 the ads email ${id} says nothing about us building them a website`, !/new website|your website is|website build|care plan|blog article/i.test(text(r.html) + r.subject));
+  }
+  const NW = src("netlify/functions/client-nurture.mjs");
+  ok("🔴 the website review ask is for website-only clients", /!ea\.reviewAsked && !crossedMilestone && isWebsiteOnly\(cl\)/.test(NW));
+  const { blogActive } = await import("../netlify/lib/site-blog.mjs");
+  ok("🔴 blog articles are only written for a client paying for the blog", !blogActive(adsCl) && !blogActive({ ...adsCl, website: { published: true, blogOn: true } })
+    && !blogActive({ ...adsCl, websiteDeal: { agreement: { status: "completed", terms: { ...T, blog: false } }, launchedAt: "2026-09-01T00:00:00Z" } }));
 }
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));

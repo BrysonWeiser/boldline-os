@@ -23,7 +23,7 @@ import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
-  publishLock, amountsOf, exempt, buildTotal, monthlyTotal,
+  publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned,
 } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -130,6 +130,7 @@ export default async (req) => {
       }
       case "send-review": {
         if (exempt(cl)) return json({ ok: false, error: "BoldLine's own site has nobody to send it to." }, 400);
+        if (!isSigned(cl)) return json({ ok: false, error: "They haven't signed the website agreement, so there's nothing to send them yet." }, 409);
         if (!(cl.website && cl.website.content && cl.website.previewKey && cl.landingSlug)) return json({ ok: false, error: "Build the site first, so there is something to look at." }, 409);
         if (deal.launchedAt) return json({ ok: false, error: "The site is already live." }, 409);
         const fin = (deal.invoices || {}).final;
