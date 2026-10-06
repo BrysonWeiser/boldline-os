@@ -238,6 +238,17 @@ const fakeFetch = (script) => {
   ok("function routes are never rewritten", isReservedPath("/.netlify/functions/lead-intake"));
   eq("even on a client domain", routeFor("quote.stencilandthread.com", "/.netlify/functions/lead-intake").kind, "pass");
   ok("and neither are well-known routes, which certificates need", isReservedPath("/.well-known/acme-challenge/x"));
+  // 🔴 FOUND LIVE 2026-10-06: the form actually posts to the RELATIVE `/lead`, and on a client's domain
+  // the edge sent that POST to the landing renderer, which answered 401. Every enquiry on a client's own
+  // subdomain was refused. Pinned on the path the page REALLY uses, read from the page itself.
+  const formPath = (LANDING.match(/fetch\('(\/[a-z-]+)\?token=/) || [])[1];
+  eq("the landing form posts to /lead (read from the page)", formPath, "/lead");
+  eq("🔴 a lead posted on a client's domain goes to lead intake, not the page", routeFor("quote.stencilandthread.com", formPath, "", "POST").kind, "pass");
+  eq("🔴 whatever path it uses: no POST on a client domain is ever a page view", routeFor("quote.stencilandthread.com", "/anything", "", "POST").kind, "pass");
+  eq("the visitor counter's beacon passes too", routeFor("quote.stencilandthread.com", "/site-hit", "", "POST").kind, "pass");
+  eq("viewing the page still shows the page", routeFor("quote.stencilandthread.com", "/", "", "GET").kind, "landing");
+  ok("🔴 the edge function hands the request method to the rule", /routeFor\([\s\S]*request\.method,?\s*\)/.test(EDGE_CODE));
+  ok("the website form posts to the same /lead path", /fetch\('\/lead\?token=/.test(readFileSync(join(ROOT, "netlify/lib/site-render.mjs"), "utf8")));
 
   // A crafted Host header must not reach the database as a wildcard.
   eq("a wildcard in the host is discarded", normalizeHost("quote.%.com"), "");
