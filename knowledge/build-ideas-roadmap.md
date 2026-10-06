@@ -89,3 +89,6 @@ problem, buy Opus Clip or CapCut and spend the saved months on the text AI.
 3. **Then, or at four or five clients:** missed-call text-back, then the conversation AI.
 4. **Whenever:** the content calendar, publishing excluded.
 5. **Not unless something changes:** the website AI and the video editor.
+
+
+> ⚠️ **2026-10-06:** websites are now a product (Bryson decided; templated, OS-built, $1,500 + $99/mo). See KB `service-add-ons`.
