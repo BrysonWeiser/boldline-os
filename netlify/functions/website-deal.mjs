@@ -18,9 +18,10 @@ import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { DS, getAccessToken, isConfigured } from "../lib/docusign-auth.mjs";
 import { sendEnvelope, ensureAnchor } from "./docusign-send.mjs";
 import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
+import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
-  publishLock, amountsOf, exempt,
+  publishLock, amountsOf, exempt, buildTotal, monthlyTotal,
 } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -64,7 +65,14 @@ export default async (req) => {
         const price = Number(body.price), care = Number(body.care);
         if (!Number.isFinite(price) || price < 0 || price > 100000) return json({ ok: false, error: "Enter a build price between $0 and $100,000." }, 400);
         if (!Number.isFinite(care) || care < 0 || care > 5000) return json({ ok: false, error: "Enter a care plan price between $0 and $5,000 a month." }, 400);
-        const next = await save({ price: Math.round(price * 100) / 100, care: Math.round(care * 100) / 100, plan: body.plan === "half" ? "half" : "full" });
+        const extraPages = Math.floor(Number(body.extraPages || 0)), extraPagePrice = Number(body.extraPagePrice ?? WEBSITE_OFFER.extraPage);
+        const blogSetup = Number(body.blogSetup ?? WEBSITE_OFFER.blogSetup), blogMonthly = Number(body.blogMonthly ?? WEBSITE_OFFER.blogMonthly), blogPosts = Math.floor(Number(body.blogPosts ?? WEBSITE_OFFER.blogPostsPerMonth));
+        if (!(extraPages >= 0 && extraPages <= 20)) return json({ ok: false, error: "Extra pages must be between 0 and 20." }, 400);
+        if (![extraPagePrice, blogSetup, blogMonthly].every((n) => Number.isFinite(n) && n >= 0 && n <= 20000)) return json({ ok: false, error: "Add-on prices must be between $0 and $20,000." }, 400);
+        if (!(blogPosts >= 1 && blogPosts <= 8)) return json({ ok: false, error: "Blog articles must be between 1 and 8 a month." }, 400);
+        const r = (n) => Math.round(n * 100) / 100;
+        const next = await save({ price: r(price), care: r(care), plan: body.plan === "half" ? "half" : "full",
+          extraPages, extraPagePrice: r(extraPagePrice), blog: body.blog === true, blogSetup: r(blogSetup), blogMonthly: r(blogMonthly), blogPosts });
         return json({ ok: true, deal: next });
       }
       case "preview":
@@ -80,7 +88,7 @@ export default async (req) => {
         const html = ensureAnchor(websiteAgreementHTML(cl, terms), name);
         const r = await sendEnvelope(await getAccessToken(), { subject: `Please sign: your website agreement with BoldLine Media`, documentHtml: html, recipientEmail: email, recipientName: name, documentName: "BoldLine Media Website Agreement" });
         const next = await save({ agreement: { status: "sent", envelopeId: r.envelopeId, sentAt: new Date().toISOString(), sentTo: email, terms } },
-          `Website agreement sent to ${email} for signature (${terms.plan === "half" ? "half now, half before launch" : "paid up front"}, build $${terms.price}, care $${terms.care}/mo).`);
+          `Website agreement sent to ${email} for signature (${terms.plan === "half" ? "half now, half before launch" : "paid up front"}, build $${buildTotal(terms)}${terms.extraPages ? ` incl. ${terms.extraPages} extra page(s)` : ""}${terms.blog ? " incl. blog" : ""}, monthly $${monthlyTotal(terms)}).`);
         return json({ ok: true, deal: next });
       }
       case "void": {
@@ -115,9 +123,9 @@ export default async (req) => {
         if (lock) return json({ ok: false, error: lock }, 409);
         if (exempt(cl)) { const next = await save({ launchedAt: deal.launchedAt || new Date().toISOString() }); return json({ ok: true, deal: next }); }
         const r = await startCarePlan(cl, api);
-        const care = termsOf(cl).care;
+        const care = monthlyTotal(termsOf(cl));
         const next = await save({ launchedAt: deal.launchedAt || new Date().toISOString(), ...(r ? { customerId: r.customerId, careSub: r.careSub } : {}) },
-          deal.launchedAt ? "" : `Website put live.${r ? ` Care plan started at $${care}/mo (${r.careSub.collection === "card" ? "card on file" : "invoiced monthly"}).` : ""}`);
+          deal.launchedAt ? "" : `Website put live.${r ? ` Monthly plan started at $${care}/mo (${r.careSub.collection === "card" ? "card on file" : "invoiced monthly"}).` : ""}`);
         return json({ ok: true, deal: next });
       }
       case "sync": {

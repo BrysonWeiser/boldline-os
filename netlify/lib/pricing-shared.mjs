@@ -118,13 +118,17 @@ DO NOT invent a deadline or a countdown. If asked how many places are left, the 
 // The website service (KB `website-builder`). One price list for the OS defaults, the website
 // agreement, Deal Prep and the marketing site, so a quote can never disagree with the contract.
 // Bryson, 2026-10-06: $1,500 build + $99/mo care, sold to anyone, cross-sold both ways with ads.
-export const WEBSITE_OFFER = { build: 1500, care: 99, pages: 5, carePlanEdits: 2, revisionRounds: 2 };
+export const WEBSITE_OFFER = { build: 1500, care: 99, pages: 5, carePlanEdits: 2, revisionRounds: 2,
+  // Add-ons (Bryson, 2026-10-06: "if a client wants to add extra pages such as a blog page ... charge an
+  // extra for blog page creation and then ai blog post creations"). Defaults; each is editable per client.
+  extraPage: 200, blogSetup: 300, blogMonthly: 149, blogPostsPerMonth: 4 };
 
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
 - A ${WEBSITE_OFFER.pages}-page website (Home, Services, About, Reviews, Contact) with modern motion and design, three designs for them to choose from, a contact form that sends them every enquiry, and ${WEBSITE_OFFER.revisionRounds} rounds of changes before launch.
 - $${WEBSITE_OFFER.build.toLocaleString("en-US")} to build. They can pay it all up front, or half now and half before it goes live. Nothing is built until they sign and pay, and it does not go live until it is paid in full.
 - Then $${WEBSITE_OFFER.care}/mo care plan from launch: hosting, security, and up to ${WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain.
+- Add-ons: extra pages beyond the five at $${WEBSITE_OFFER.extraPage} each (for example service areas, a gallery, pricing), and a blog: $${WEBSITE_OFFER.blogSetup} to add it, then $${WEBSITE_OFFER.blogMonthly}/mo for about ${WEBSITE_OFFER.blogPostsPerMonth} new articles a month written for them. Mention the blog when they care about showing up on Google over time.
 - It is a separate agreement from the ads. Ending one does not end the other.
 WHEN TO PITCH IT. Pitch a website when their current site is missing, broken, slow, outdated, not mobile friendly, or plainly not built to turn a visitor into a call. Say what you actually saw. Pitch it ALONE (no ads) only if they plainly cannot fund $${MIN_AD_BUDGET}/mo of ad spend but their site is the bigger problem. Do NOT pitch it when their site is genuinely good: say so, because recommending something they do not need costs Bryson the trust he needs for the ads.
 `;

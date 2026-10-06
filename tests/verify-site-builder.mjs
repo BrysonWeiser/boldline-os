@@ -137,7 +137,8 @@ const pv = renderSite(FULL, "home", { base: BASE, query: "?preview=k1&theme=edit
 ok("every internal link carries the preview key and design", hrefs(pv).filter((u) => u.startsWith(BASE)).every((u) => /\?preview=k1&theme=editorial(#|$)/.test(u)));
 
 // ── 7. Serving ──────────────────────────────────────────────────────────────────────────────
-ok("addresses parse", JSON.stringify(parsePath("/site/springbok/")) === '{"slug":"springbok","page":"home"}' && parsePath("/site/springbok/about").page === "about" && parsePath("/site/springbok/nope").page === null);
+ok("addresses parse", parsePath("/site/springbok/").slug === "springbok" && parsePath("/site/springbok/").page === "home" && parsePath("/site/springbok/about").page === "about" && parsePath("/site/springbok/nope").page === null
+  && parsePath("/site/springbok/nope").seg === "nope" && parsePath("/site/springbok/blog/how-to/").post === "how-to" && parsePath("/site/springbok/about/x").bad === true);
 const q = (s) => new URLSearchParams(s);
 ok("🔴 an unpublished site shows to nobody without the preview key", viewFor({ published: false, previewKey: "K" }, q("")).show === false && viewFor({ published: false, previewKey: "K" }, q("preview=wrong")).show === false);
 ok("🔴 an empty stored key never matches an empty preview", viewFor({ published: false, previewKey: "" }, q("preview=")).show === false);
