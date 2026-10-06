@@ -5552,6 +5552,59 @@ function clientFromMeeting(answers, brief, packageId) {
 }
 // ───────────────────────────────────────────────────────────── DEALPREP-QUESTIONS-END
 
+// The website offer on a Deal Prep brief, with the briefing's verdict on whether to pitch it.
+// Bryson, 2026-10-06: websites are sold to anyone and cross-sold both ways with ads. The prices
+// come from WEBSITE_OFFER, the same numbers the website agreement defaults to.
+// The cross-sell, ads to website (Bryson, 2026-10-06: "someone needs ads but their website isn't good
+// then we upsell with the website"). Shown once they are a signed ads client with no website deal
+// started; "Not now" hides it for 60 days. The other direction (website to ads) is the second half of
+// the Deal Prep note, because a website-only client starts there.
+const showWebsiteUpsell=(cl,now=Date.now())=>{
+  if(!cl||cl.internal||!cl.contractSigned||!cl.packageId) return false;
+  if(cl.websiteDeal&&cl.websiteDeal.agreement) return false;
+  if(cl.website&&cl.website.content) return false;
+  const hid=Date.parse(cl.websiteUpsellHiddenAt||"");
+  return !(hid&&now-hid<60*864e5);
+};
+function WebsiteUpsell({client,onOpen,onUpdate}){
+  if(!showWebsiteUpsell(client)) return null;
+  return (
+    <div style={{...card,display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",border:`1px solid ${C.gold}44`}}>
+      <div style={{flex:"1 1 260px",minWidth:0}}>
+        <div style={{fontSize:12.5,fontWeight:800,color:C.text}}>Offer {client.name} a website</div>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55,marginTop:3}}>${WEBSITE_OFFER.build.toLocaleString("en-US")} to build, then ${WEBSITE_OFFER.care}/mo. People check a business's own site before they call, so a weak one costs them leads the ads already paid for.</div>
+      </div>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={onOpen} style={{padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>Set it up</button>
+        <button onClick={()=>onUpdate&&onUpdate({...client,websiteUpsellHiddenAt:new Date().toISOString()})} style={{padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}>Not now</button>
+      </div>
+    </div>);
+}
+
+function DealPrepWebsite({verdict}){
+  const v=verdict==="yes"||verdict==="only"||verdict==="no"?verdict:null;
+  const badge=v==="yes"?"Pitch it too":v==="only"?"Pitch this instead of ads":v==="no"?"Their site looks fine":"";
+  const hot=v==="yes"||v==="only";
+  const m=(n)=>`$${Number(n).toLocaleString("en-US")}`;
+  return (
+    <div style={{...card,marginTop:14,border:`1px solid ${hot?C.gold+"66":C.border}`,background:hot?"rgba(200,168,75,0.06)":undefined}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+        <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold}}>Website</div>
+        {badge&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",padding:"2px 6px",borderRadius:5,...(hot?{color:"#1a1400",background:C.gradB}:{color:C.textMuted,border:`1px solid ${C.border}`})}}>{hot?"★ ":""}{badge}</span>}
+        <div style={{marginLeft:"auto",textAlign:"right"}}>
+          <div style={{fontSize:13,fontWeight:800,color:hot?C.gold:C.text}}>{m(WEBSITE_OFFER.build)}<span style={{fontSize:9,fontWeight:600,color:C.textMuted}}> to build</span></div>
+          <div style={{fontSize:9.5,color:C.textMuted}}>then {m(WEBSITE_OFFER.care)}/mo care from launch</div>
+        </div>
+      </div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>
+        {WEBSITE_OFFER.pages} pages (Home, Services, About, Reviews, Contact), three designs for them to pick from, a contact form that sends them every enquiry, {WEBSITE_OFFER.revisionRounds} rounds of changes before launch. They can pay it all up front, or half now and half before it goes live. Care covers hosting, security and up to {WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain. It's its own agreement, separate from the ads.
+      </div>
+      <div style={{fontSize:10.5,color:C.gold,lineHeight:1.55,marginTop:8,padding:"7px 9px",borderRadius:8,backgroundColor:C.goldDim,border:`1px solid ${C.gold}33`}}>
+        <b>Only you see this.</b> Running ads? &ldquo;Your ads send people to your website, so a site that doesn't turn visits into calls wastes the ad money.&rdquo; Came for the website? &ldquo;Once it's live, ads are how the right people find it.&rdquo; After you add them, set the price on their Website tab and send the agreement from there.
+      </div>
+    </div>);
+}
+
 function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient}){
   // Live, not a constant: the price shown next to a recommendation must be the price he would
   // actually quote today, and that stops being the founding price the moment the last place goes.
@@ -5770,6 +5823,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
             <button onClick={()=>{setState("form");setResult(null);setMsg("");}} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>+ New prospect</button>
           </div>
           <div style={{...card}}>{briefMdToNodes(result.brief)}</div>
+          <DealPrepWebsite verdict={result.recommendWebsite}/>
           <div style={{fontSize:11,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.gold,margin:"22px 0 10px"}}>Packages {leadFee?`· $${leadFee}/lead for this niche`:""}</div>
           {[["Google Ads","google"],["Meta Ads","meta"],["Google + Meta","combined"],["E-commerce","ecom"]].map(([label,key])=>(
             <div key={key} style={{marginBottom:12}}>
@@ -8615,7 +8669,9 @@ const SITE_PAGE_TABS=[["home","Home"],["services","Services"],["about","About"],
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
 const SERVER_OWNED_KEYS=["websiteDeal"];
-const WD_DEFAULTS={price:1500,plan:"full",care:99};
+// Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
+const WEBSITE_OFFER={build:1500,care:99,pages:5,carePlanEdits:2,revisionRounds:2};
+const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
 const wdNum=(v,d)=>{ const n=Number(v); return Number.isFinite(n)&&n>=0?Math.round(n*100)/100:d; };
 const wdMoney=(n)=>`$${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}`;
 const wdDeal=(cl)=>{ const d=(cl&&cl.websiteDeal)||{}; return {...d,price:wdNum(d.price,WD_DEFAULTS.price),plan:d.plan==="half"?"half":"full",care:wdNum(d.care,WD_DEFAULTS.care),agreement:d.agreement||null,invoices:d.invoices||{}}; };
@@ -10605,6 +10661,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="overview"&&(
           <div style={S.col11}>
             <LaunchChecklistCard client={client}/>
+            <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {(client.internal
                 ? (()=>{ const st=adPerfStats(client); return [

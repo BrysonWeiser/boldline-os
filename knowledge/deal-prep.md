@@ -183,3 +183,7 @@ package by package, with what the contract promises.
 - 42 checks, **8/8 mutations caught**, including the contract quietly promising an extra feature.
 - Checked at 390/768/1280/1600: one column on a phone, three above it, nothing spilling.
 
+## 2026-10-06: websites
+Briefs now carry a website verdict (`WEBSITE: yes|only|no` > `result.recommendWebsite`) and a **Website**
+section, and the screen shows the website offer under every brief. Prices from `WEBSITE_OFFER`. KB
+`website-builder` (step 2b).

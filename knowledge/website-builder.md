@@ -3,7 +3,7 @@ name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
 keywords: [website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) live 2026-10-06; step 2b (Deal Prep, marketing site, cross-sell) and step 3 (package/contract/billing) and 3 (custom domain) not built
+status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) live 2026-10-06; website-only clients and step 3 (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
@@ -62,6 +62,29 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
   agreement preview" (sandbox=""). Browser-driven at 390/1280 in three states.
 - Not yet: a stored copy of the signed website PDF (DocuSign keeps it; the ads archive pattern could be
   reused), a portal view of the website deal, and the static-files export promised on exit.
+
+## Step 2b: selling it (BUILT 2026-10-06)
+- **One price list:** `WEBSITE_OFFER` in netlify/lib/pricing-shared.mjs ({build 1500, care 99, pages 5,
+  carePlanEdits 2, revisionRounds 2}). The agreement defaults, the OS (mirror `WEBSITE_OFFER` in
+  index.html), Deal Prep and the marketing site all read it; tests pin every copy to it.
+- **Deal Prep:** the research prompt gets `websitePromptBlock()` (prices, payment rules, WHEN to pitch,
+  and "do NOT pitch it when their site is genuinely good") and must output a second header line
+  `WEBSITE: yes|only|no` (parsed by `parseWebsiteLine`, stored as `result.recommendWebsite`) plus a
+  **Website** section. Under every brief, `DealPrepWebsite` shows the offer with a badge (Pitch it too /
+  Pitch this instead of ads / Their site looks fine) and an only-you-see-this talk track both ways.
+  Older briefs (no verdict) just show the offer.
+- **Cross-sell, ads to website:** `WebsiteUpsell` on the client Overview for a SIGNED ads client with no
+  website deal and no built site; "Set it up" opens the Website tab; "Not now" hides it 60 days
+  (`websiteUpsellHiddenAt`, browser-owned). Website to ads lives in the Deal Prep talk track.
+- **Marketing site:** new `#websites` section on the homepage between Services and "Every Engagement":
+  what's included, the both-ways pitch, $1,500 / $99/mo, Book a Call. 🔴 NOT a tab of `.pkg` cards and
+  its button is `.wo-cta`, not `.pkg-cta`: verify-site-matches-packages maps every .pkg card to an ads
+  package, and verify-meta-flip counts `.pkg-cta` per panel (a `.pkg-cta` here was counted into the
+  e-commerce panel and failed it). /get-started (BoldLine's own ad landing page) is left single-goal.
+- 🔴 **Not built: website-only clients.** Every client record assumes an ads package (contract tab,
+  billing card, alerts, launch checklist, pipeline bots all read it, and Deal Prep's "make this a
+  client" requires a package). A website-only client needs its own client type so those screens stand
+  down; that is the next unit of work, deliberately not bolted on here.
 
 ## 🔴 The motion system (animation upgrade, 2026-10-06)
 Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it
@@ -144,8 +167,7 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- **Step 2b, selling it:** Deal Prep quoting websites, the marketing site, and the cross-sell both ways
-  (KB `service-add-ons`). (2a, the agreement + payments + locks, is built: see above.)
+- **Website-only clients** (a client type with no ads package, see Step 2b). Steps 2a and 2b are built.
 - **Step 3, their domain:** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
