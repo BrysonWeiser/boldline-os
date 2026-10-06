@@ -52,9 +52,9 @@ ok("paid in full up front unlocks both", L.buildLock(C.fullPaid) === null && L.p
 ok("a $0 build unlocks on signature alone (he can set any price)", L.buildLock(C.freeSigned) === null && L.publishLock(C.freeSigned) === null);
 ok("BoldLine's own site has nothing to sign or pay", L.buildLock(C.house) === null && L.publishLock(C.house) === null);
 ok("🔴 once the agreement is out, the terms it was sent with bind, not whatever is typed later",
-  JSON.stringify(L.termsOf(C.tampered)) === JSON.stringify({ price: 1500, plan: "half", care: 99 }) && L.publishLock(C.tampered) !== null);
+  L.termsOf(C.tampered).price === 1500 && L.termsOf(C.tampered).plan === "half" && L.termsOf(C.tampered).care === 99 && L.publishLock(C.tampered) !== null);
 ok("a voided agreement frees the terms to change", L.termsOf(C.voided).price === 1200 && !!L.buildLock(C.voided));
-ok("defaults: $1,500, paid up front, $99 a month care", JSON.stringify(L.termsOf(C.fresh)) === JSON.stringify({ price: 1500, plan: "full", care: 99 }));
+ok("defaults: $1,500, paid up front, $99 a month care, no extra pages, no blog", (({ price, plan, care, extraPages, blog }) => price === 1500 && plan === "full" && care === 99 && extraPages === 0 && blog === false)(L.termsOf(C.fresh)));
 const odd = L.amountsOf({ price: 1499.99, plan: "half" });
 ok("🔴 half and half never loses a cent (the deposit takes the odd one)", odd.first === 750 && odd.final === 749.99 && Math.round((odd.first + odd.final) * 100) === 149999);
 ok("every state has a plain next step", Object.values(C).every((c) => typeof L.nextStep(c) === "string" && L.nextStep(c).length > 10));

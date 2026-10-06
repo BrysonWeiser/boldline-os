@@ -56,16 +56,32 @@ const LIVE_AGREEMENT = ["sent", "delivered", "completed"];
 export const agreementLive = (cl) => { const a = dealOf(cl).agreement; return !!(a && LIVE_AGREEMENT.includes(a.status)); };
 export const isSigned = (cl) => { const a = dealOf(cl).agreement; return !!(a && a.status === "completed"); };
 
+// Every term, with defaults. Agreements sent before add-ons existed carry none of the add-on fields,
+// which read as "no extra pages, no blog", exactly what they were signed with.
+const int = (v, d, max) => Math.max(0, Math.min(max, Math.floor(num(v, d))));
+export const normTerms = (t0) => {
+  const t = t0 || {};
+  return {
+    price: num(t.price, DEAL_DEFAULTS.price), plan: t.plan === "half" ? "half" : "full", care: num(t.care, DEAL_DEFAULTS.care),
+    extraPages: int(t.extraPages, 0, 20), extraPagePrice: num(t.extraPagePrice, WEBSITE_OFFER.extraPage),
+    blog: t.blog === true, blogSetup: num(t.blogSetup, WEBSITE_OFFER.blogSetup), blogMonthly: num(t.blogMonthly, WEBSITE_OFFER.blogMonthly),
+    blogPosts: Math.max(1, int(t.blogPosts, WEBSITE_OFFER.blogPostsPerMonth, 8)),
+  };
+};
+const r2 = (n) => Math.round(n * 100) / 100;
+// One-time: the website, its extra pages and the blog setup. Monthly: care plus the blog.
+export const buildTotal = (t0) => { const t = normTerms(t0); return r2(t.price + t.extraPages * t.extraPagePrice + (t.blog ? t.blogSetup : 0)); };
+export const monthlyTotal = (t0) => { const t = normTerms(t0); return r2(t.care + (t.blog ? t.blogMonthly : 0)); };
+
 // The terms that bind: the ones frozen into the agreement once it went out, else the ones being set.
 export const termsOf = (cl) => {
   const d = dealOf(cl);
-  const t = agreementLive(cl) && d.agreement.terms ? d.agreement.terms : d;
-  return { price: num(t.price, DEAL_DEFAULTS.price), plan: t.plan === "half" ? "half" : "full", care: num(t.care, DEAL_DEFAULTS.care) };
+  return normTerms(agreementLive(cl) && d.agreement.terms ? d.agreement.terms : d);
 };
 
 // Money, in cents so an odd price never loses a cent: the deposit takes the odd one.
 export const amountsOf = (terms) => {
-  const priceC = Math.round(num(terms.price, 0) * 100);
+  const priceC = Math.round(buildTotal(terms) * 100);
   if (terms.plan === "half") {
     const firstC = Math.ceil(priceC / 2);
     return { firstStage: "deposit", first: firstC / 100, final: (priceC - firstC) / 100, stages: ["deposit", "final"] };
@@ -108,7 +124,7 @@ export function nextStep(cl) {
   if (a.status !== "completed") return "Agreement sent. As soon as they sign, the first invoice goes to them by itself.";
   if (!firstPaid(cl)) return d.invoices[m.firstStage] ? `Invoice for ${money(m.first)} sent. The build unlocks the moment it's paid.` : "Signed. Send the first invoice.";
   if (!fullyPaid(cl)) return d.invoices.final ? `Final invoice for ${money(m.final)} sent. Going live unlocks the moment it's paid.` : "Build the site. When it's finished, send the final invoice.";
-  if (!d.launchedAt) return t.care > 0 ? `Paid in full. Putting it live starts the ${money(t.care)} a month care plan.` : "Paid in full. Put it live whenever it's ready.";
+  if (!d.launchedAt) return monthlyTotal(t) > 0 ? `Paid in full. Putting it live starts the ${money(monthlyTotal(t))} a month plan.` : "Paid in full. Put it live whenever it's ready.";
   return "Live.";
 }
 
@@ -117,8 +133,10 @@ export function nextStep(cl) {
 // same as the advertising agreement. `/BL_SIGN_HERE/` is where DocuSign puts the signature box.
 export function websiteAgreementHTML(cl, terms = termsOf(cl), { now = new Date() } = {}) {
   const c = cl || {};
-  const t = { price: num(terms.price, DEAL_DEFAULTS.price), plan: terms.plan === "half" ? "half" : "full", care: num(terms.care, DEAL_DEFAULTS.care) };
+  const t = normTerms(terms);
   const m = amountsOf(t);
+  const total = buildTotal(t), monthly = monthlyTotal(t);
+  const parts = [`${money(t.price)} website`].concat(t.extraPages ? [`${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} at ${money(t.extraPagePrice)} each`] : [], t.blog ? [`${money(t.blogSetup)} blog setup`] : []);
   const biz = esc(c.name || "Client");
   const signer = esc(c.contactName || c.name || "Authorized Signatory");
   const email = esc(c.email || "");
@@ -127,10 +145,13 @@ export function websiteAgreementHTML(cl, terms = termsOf(cl), { now = new Date()
   const no = `BLW-${String(c.id || "").replace(/[^a-z0-9]/gi, "").slice(0, 6).toUpperCase() || "000000"}`;
   const pay = t.plan === "half"
     ? `<p>The Build Fee is paid in two parts: <strong>${money(m.first)}</strong> when this Agreement is signed, and <strong>${money(m.final)}</strong> when the Website is finished and before it goes live. Work starts when the first payment is received. <strong>The Website will not be published until the second payment is received.</strong></p>`
-    : `<p>The Build Fee of <strong>${money(t.price)}</strong> is paid in full when this Agreement is signed. Work starts when it is received.</p>`;
+    : `<p>The Build Fee of <strong>${money(total)}</strong> is paid in full when this Agreement is signed. Work starts when it is received.</p>`;
   const care = t.care > 0
     ? `<p>The Care Plan costs <strong>${money(t.care)} per month</strong>. It starts on the day the Website goes live and is billed monthly in advance.</p>`
     : `<p>The Care Plan fee is waived. BoldLine will host and look after the Website at no monthly charge.</p>`;
+  const blog = t.blog ? `<h2>7a. The blog</h2>
+<p>BoldLine will add a blog to the Website and publish about <strong>${t.blogPosts} new article${t.blogPosts > 1 ? "s" : ""} a month</strong> on it, written for Client&rsquo;s customers from what Client tells BoldLine about the business. The Blog Plan costs <strong>${money(t.blogMonthly)} per month</strong>, starts on the day the Website goes live, and is billed with the Care Plan.</p>
+<p>Each article is available for Client to read before or after it is published, and BoldLine will change or remove any article Client asks it to. Articles will not state facts about Client&rsquo;s business that Client has not given BoldLine, and will not promise results. Client may cancel the Blog Plan at any time with thirty (30) days&rsquo; written notice; articles already published stay on the Website. The blog needs the Care Plan, so ending the Care Plan ends the Blog Plan too.</p>` : "";
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Website Agreement</title><style>
 body{font-family:Georgia,serif;color:#1a1a1a;max-width:760px;margin:0 auto;padding:36px 28px;font-size:13px;line-height:1.7}
 h1{font-size:22px;text-align:center;margin:0 0 4px}h2{font-size:14px;margin:22px 0 6px}.sub{text-align:center;color:#666;font-size:11px;margin-bottom:22px}
@@ -144,14 +165,15 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}td{borde
 <div><div class="pl">Client</div><strong>${biz}</strong><br>${signer}${email ? `<br>${email}` : ""}${addr ? `<br>${addr}` : ""}<br>(&ldquo;Client&rdquo;)</div></div>
 
 <h2>Key terms</h2><table>
-<tr><td>Build Fee</td><td>${money(t.price)}</td></tr>
-<tr><td>Payment</td><td>${t.plan === "half" ? `${money(m.first)} on signing, ${money(m.final)} before the Website goes live` : `${money(t.price)} on signing`}</td></tr>
+<tr><td>Build Fee</td><td>${money(total)}${parts.length > 1 ? ` (${parts.join(", ")})` : ""}</td></tr>
+<tr><td>Payment</td><td>${t.plan === "half" ? `${money(m.first)} on signing, ${money(m.final)} before the Website goes live` : `${money(total)} on signing`}</td></tr>
 <tr><td>Care Plan</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "Waived"}</td></tr>
-<tr><td>Included</td><td>A website of up to five pages (Home, Services, About, Reviews, Contact), a contact form that sends enquiries to Client, mobile friendly design, two rounds of changes before launch</td></tr>
+${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for about ${t.blogPosts} article${t.blogPosts > 1 ? "s" : ""} a month, starting the day the Website goes live</td></tr>
+` : ""}<tr><td>Included</td><td>A website of five pages (Home, Services, About, Reviews, Contact)${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}, a contact form that sends enquiries to Client, mobile friendly design, two rounds of changes before launch</td></tr>
 </table>
 
 <h2>1. What BoldLine builds</h2>
-<p>BoldLine will design, write and build a website for Client of up to five pages: Home, Services, About, Reviews and Contact (the &ldquo;Website&rdquo;). Client chooses one of the designs BoldLine offers. The Website works on phones, tablets and computers, and its contact form sends enquiries to Client.</p>
+<p>BoldLine will design, write and build a website for Client with five pages: Home, Services, About, Reviews and Contact${t.extraPages ? `, plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} on subjects Client and BoldLine agree in writing (email is fine)` : ""}${t.blog ? ", and a blog (section 7a)" : ""} (the &ldquo;Website&rdquo;). Client chooses one of the designs BoldLine offers. The Website works on phones, tablets and computers, and its contact form sends enquiries to Client.</p>
 <p>BoldLine writes the words from what Client tells it about the business. Client reviews them before launch and is responsible for confirming they are accurate. BoldLine will not state facts about Client&rsquo;s business that Client has not given it.</p>
 
 <h2>2. What Client provides</h2>
@@ -174,6 +196,8 @@ ${pay}
 <h2>7. The Care Plan</h2>
 ${care}
 <p>The Care Plan covers hosting, security updates, keeping the Website online, and up to two small content changes per month (for example text, photos, hours or prices). Larger changes are quoted separately. Client may cancel the Care Plan at any time with thirty (30) days&rsquo; written notice. If a Care Plan invoice is unpaid fifteen (15) days after its due date, BoldLine may take the Website offline until it is paid.</p>
+
+${blog}
 
 <h2>8. Who owns what</h2>
 <p>Once the Build Fee is paid in full, Client owns the words written for the Website, and always owns its own name, logo, photos, content and domain. BoldLine keeps ownership of its design templates, code and tools, and grants Client a license to use them as part of the Website. If the Care Plan ends, and once everything owed has been paid, BoldLine will on request provide a copy of the Website&rsquo;s pages and images as standard web files, which Client may host anywhere and keep using.</p>
@@ -308,16 +332,24 @@ export async function createWebsiteInvoice(cl, stage, api) {
 // (from ads billing or the portal), otherwise Stripe emails a monthly invoice.
 export async function startCarePlan(cl, api) {
   const t = termsOf(cl);
-  if (!(t.care > 0)) return null;
+  if (!(monthlyTotal(t) > 0)) return null;
   const d = dealOf(cl);
   if (d.careSub && d.careSub.subscriptionId && d.careSub.status !== "canceled") return { careSub: d.careSub, customerId: d.customerId };
   const customerId = await api.ensureCustomer(d.customerId || cl.stripeCustomerId, { email: cl.email, name: cl.name, clientId: cl.id });
   const pm = await api.resolvePaymentMethod(customerId, null);
   const meta = { clientId: cl.id, kind: "website", stage: "care" };
-  const product = await api.stripe("products", { body: { name: `Website care plan, ${cl.name || "client"}`, metadata: meta } });
+  const items = [];
+  if (t.care > 0) {
+    const product = await api.stripe("products", { body: { name: `Website care plan, ${cl.name || "client"}`, metadata: meta } });
+    items.push({ price_data: { currency: "usd", product: product.id, unit_amount: dollarsToCents(t.care), recurring: { interval: "month" } } });
+  }
+  if (t.blog && t.blogMonthly > 0) {
+    const product = await api.stripe("products", { body: { name: `Website blog plan, ${cl.name || "client"}`, metadata: meta } });
+    items.push({ price_data: { currency: "usd", product: product.id, unit_amount: dollarsToCents(t.blogMonthly), recurring: { interval: "month" } } });
+  }
   const sub = await api.stripe("subscriptions", { body: {
     customer: customerId, metadata: meta,
-    items: [{ price_data: { currency: "usd", product: product.id, unit_amount: dollarsToCents(t.care), recurring: { interval: "month" } } }],
+    items,
     ...(pm ? { collection_method: "charge_automatically", default_payment_method: pm } : { collection_method: "send_invoice", days_until_due: 7 }),
   } });
   return { customerId, careSub: { subscriptionId: sub.id, status: sub.status === "active" ? "active" : (sub.status || "incomplete"), startedAt: new Date().toISOString(), collection: pm ? "card" : "invoice" } };

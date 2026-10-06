@@ -198,6 +198,11 @@
 
 # Every 15 min: publishes scheduled drafts at their exact time + keeps >=1
 # scheduled post in the review pipeline. Nearly every run is a cheap no-op.
+# Client blog articles (KB `website-builder`): finds clients owed an article and starts the writer.
+# 16:05 UTC = 9:05am Phoenix (no daylight saving).
+[functions."site-blog-run"]
+  schedule = "5 16 * * *"
+
 [functions."blog-autopublish"]
   schedule = "*/15 * * * *"
 
@@ -237,7 +242,17 @@
   to = "/.netlify/functions/lead-intake"
   status = 200
 
-# Client websites (KB `website-builder`). Before /lp and the SPA catch-all.
+# Client websites (KB `website-builder`). Before /lp and the SPA catch-all. Blog articles first.
+[[redirects]]
+  from = "/site/:slug/blog/:post/"
+  to = "/.netlify/functions/site?slug=:slug&page=blog&post=:post"
+  status = 200
+
+[[redirects]]
+  from = "/site/:slug/blog/:post"
+  to = "/.netlify/functions/site?slug=:slug&page=blog&post=:post"
+  status = 200
+
 [[redirects]]
   from = "/site/:slug/:page/"
   to = "/.netlify/functions/site?slug=:slug&page=:page"

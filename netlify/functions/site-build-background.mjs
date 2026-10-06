@@ -14,7 +14,8 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { brandName } from "../lib/site-render.mjs";
-import { buildLock } from "../lib/website-deal.mjs";
+import { buildLock, termsOf, exempt } from "../lib/website-deal.mjs";
+import { slugify, RESERVED_SLUGS } from "../lib/site-render.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const MODEL = "claude-opus-5-5";
@@ -77,6 +78,24 @@ ${health ? "This is a health business. Don't promise cures or results, don't dia
 Fill in every field.`;
 }
 
+// An extra page (add-on): one page written from a title and a one-line brief Bryson types.
+export const PAGE_SCHEMA = obj({
+  headline: str("The page headline, 3 to 8 words."),
+  intro: str("One or two sentences under the headline, under 220 characters."),
+  sections: arr(obj({ heading: str("2 to 6 words."), text: str("Two to four sentences.") }, "A section of the page."), "3 to 6 sections."),
+}, "An extra website page.");
+
+export function pagePrompt(cl, title, brief) {
+  return `${buildPrompt(cl).replace("Write the copy for a small business website. It has five pages: Home, Services, About, Reviews and Contact.", `Write ONE extra page for this business's website. The page is called "${String(title).slice(0, 60)}". What it is for: ${String(brief || title).slice(0, 400)}.`)}`;
+}
+
+// How many extra pages this client may have: the number in their signed website deal.
+export const extraPageRoom = (cl, slug) => {
+  if (exempt(cl)) return true;
+  const have = (((cl.website || {}).extraPages) || []).filter((p) => p && p.slug && p.slug !== slug && p.content).length;
+  return have < termsOf(cl).extraPages;
+};
+
 async function writeJob(supabase, clientId, job) {
   const { data: row } = await supabase.from("clients").select("data").eq("id", clientId).maybeSingle();
   const next = { ...((row && row.data) || {}), siteJob: job };
@@ -84,12 +103,12 @@ async function writeJob(supabase, clientId, job) {
   if (error) console.error("site-build-background: could not store job:", error.message);
 }
 
-export async function writeCopy(cl, client = new Anthropic()) {
+export async function writeCopy(cl, client = new Anthropic(), { schema = SITE_SCHEMA, prompt = buildPrompt(cl) } = {}) {
   const req = {
     model: MODEL,
     max_tokens: 16000,
-    output_config: { effort: "medium", format: { type: "json_schema", schema: SITE_SCHEMA } },
-    messages: [{ role: "user", content: buildPrompt(cl) }],
+    output_config: { effort: "medium", format: { type: "json_schema", schema } },
+    messages: [{ role: "user", content: prompt }],
   };
   let res;
   try {
@@ -142,6 +161,22 @@ export default async (req) => {
   if (lock) return json({ ok: false, error: lock }, 409);
 
   const id = `site-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  // One extra page rather than the whole site.
+  if (body.extraPage) {
+    const title = String(body.extraPage.title || "").trim().slice(0, 60);
+    const slug = slugify(body.extraPage.slug || title);
+    if (!title || !slug || RESERVED_SLUGS.includes(slug)) return json({ ok: false, error: "Give the page a name that isn't one of the five main pages." }, 400);
+    // 🔴 Only as many extra pages as the client paid for.
+    if (!extraPageRoom({ ...row.data, id: clientId }, slug)) return json({ ok: false, error: `Their agreement includes ${termsOf(row.data).extraPages} extra page(s), and they're all written. Add more to the deal first.` }, 409);
+    await writeJob(supabase, clientId, { id, kind: "page", status: "running", startedAt: new Date().toISOString(), page: null, error: null });
+    try {
+      const content = await writeCopy(row.data, new Anthropic(), { schema: PAGE_SCHEMA, prompt: pagePrompt(row.data, title, body.extraPage.brief) });
+      await writeJob(supabase, clientId, { id, kind: "page", status: "done", finishedAt: new Date().toISOString(), page: { slug, title, brief: String(body.extraPage.brief || "").slice(0, 400), content }, error: null });
+    } catch (e) {
+      await writeJob(supabase, clientId, { id, kind: "page", status: "error", finishedAt: new Date().toISOString(), page: null, error: String((e && e.message) || e).slice(0, 240) });
+    }
+    return json({ ok: true, id }, 202);
+  }
   await writeJob(supabase, clientId, { id, status: "running", startedAt: new Date().toISOString(), content: null, stock: null, error: null });
   try {
     const [content, stock] = await Promise.all([writeCopy(row.data), stockPhotos(row.data.niche)]);

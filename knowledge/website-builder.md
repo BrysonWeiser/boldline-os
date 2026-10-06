@@ -2,8 +2,8 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients live 2026-10-06; extra pages/blog, portal view and step 3 (package/contract/billing) and 3 (custom domain) not built
+keywords: [extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons live 2026-10-06; portal view and step 3 (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
@@ -92,6 +92,34 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
   the brief said `WEBSITE: only`), with NO ads contract dates. Server jobs already skip them because
   they never get `contractSigned`/`contractStatus: active` (that is the ads agreement).
 
+## Add-ons: extra pages and the blog (BUILT 2026-10-06)
+Bryson: *"what if a client wants to add extra pages such as a blog page? We should charge an extra for blog
+page creation and then ai blog post creations"*. Recommended defaults (in `WEBSITE_OFFER`, all editable per
+client on the deal card): **extra page $200 each**, **blog $300 setup + $149/mo for ~4 articles a month**.
+- **Deal terms** gain `extraPages, extraPagePrice, blog, blogSetup, blogMonthly, blogPosts` (`normTerms`,
+  mirrored as `wdNorm`). `buildTotal` = website + pages + blog setup (half-and-half splits the WHOLE
+  total); `monthlyTotal` = care + blog. Agreements sent before add-ons read as none. The agreement shows
+  the breakdown, a Blog Plan key term and section 7a (client can change/remove/cancel articles; no
+  invented facts; no promises; blog needs the care plan). The care subscription gets a second line.
+- **Extra pages:** OS "Extra pages · n of N" card: name + one-line brief > "Write this page" >
+  site-build-background `{extraPage}` (PAGE_SCHEMA: headline, intro, 3 to 6 sections) > job kind "page" >
+  saved to `website.extraPages[{slug,title,brief,content}]`. 🔴 `extraPageRoom` refuses past the paid
+  count (server, before any work) and the OS hides the form when full. Slugs can't reuse a main page
+  (`RESERVED_SLUGS`). Rendered at `/site/<slug>/<page-slug>/`; nav shows them while the top bar has 7
+  links or fewer (else menu + footer only), and a top bar of 6+ links folds into the menu below 1180px.
+- **Blog:** articles live in a PRIVATE storage bucket `site-blog/<clientId>/index.json` + `posts/<slug>.json`
+  (no table to create; never on the client record, which the OS loads everywhere). `isPublished` = past
+  `publishAt` and not held, used by the public site, the OS preview and the portal alike. Daily
+  `site-blog-run` (16:05 UTC = 9:05am Phoenix) picks clients where `blogActive` (bought blog, signed, paid
+  in full, launched, plan not cancelled) and `nextDue` (spaced 30/N days, never over N in a Phoenix
+  calendar month) and starts `site-blog-write-background` with an internal key (sha256 of the
+  service-role key, no new env var). The writer (claude-opus-5-5, json_schema POST_SCHEMA, humanizeDeep,
+  no invented facts, health rule, avoids repeat topics) saves it with `publishAt` 48h out and alerts
+  Bryson. OS Blog card: Read / Hold / Release / Delete (asks) / "Write one now". Routes:
+  `/site/<slug>/blog/` and `/site/<slug>/blog/<post>/` (redirects before `/:page/`); a held or future
+  article is a 404 publicly; BlogPosting JSON-LD.
+- Tests: tests/verify-website-addons.mjs (67 checks, 14 mutations caught). Browser-driven.
+
 ## 🔴 The motion system (animation upgrade, 2026-10-06)
 Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it
 went through the window"*, *"don't use to much motion but also don't use to little basically using it at the
@@ -173,7 +201,7 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- Extra pages + blog add-on, and the client portal's website view (in progress 2026-10-06).
+- The client portal's website view with visitor analytics (in progress 2026-10-06).
 - **Step 3, their domain:** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).

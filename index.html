@@ -8733,11 +8733,125 @@ function ClientApprovalsCard({client,onUpdate}) {
 // send from an about: document, and every link inside it only posts a message asking this screen to
 // switch tabs. Listed in tests/verify-preview-safety.mjs as "Website preview".
 const SITE_PAGE_TABS=[["home","Home"],["services","Services"],["about","About"],["reviews","Reviews"],["contact","Contact"]];
+// The preview tabs for this client: the five, plus extra pages that have been written, plus the blog.
+// Ids match netlify/lib/site-render.mjs `pagesFor` ("x-<slug>", "blog").
+const siteTabsFor=(cl)=>SITE_PAGE_TABS.concat(((cl.website&&cl.website.extraPages)||[]).filter(p=>p&&p.slug&&p.content).map(p=>["x-"+p.slug,p.title]),wdTerms(cl).blog||(cl.internal&&cl.website&&cl.website.blogOn)?[["blog","Blog"]]:[]);
+const siteSlug=(s)=>String(s||"").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,48);
+const SITE_RESERVED=["","home","services","about","reviews","contact","blog","site"];
+
+// Extra pages (add-on): as many as their deal includes. Each is written by the builder from a title and
+// a one-line brief, then edited or removed here. KB website-builder.
+function ExtraPagesCard({client,onUpdate}){
+  const w=client.website||{}, pages=(w.extraPages||[]).filter(p=>p&&p.slug&&p.content);
+  const room=client.internal?99:wdTerms(client).extraPages;
+  const [title,setTitle]=useState(""); const [brief,setBrief]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState("");
+  if(!room&&!pages.length) return null;
+  const write=async(t,b,slug)=>{
+    setBusy(slug||"new"); setMsg("Writing the page. About a minute…");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession(); const token=(session&&session.access_token)||"";
+      const r=await fetch("/.netlify/functions/site-build-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({clientId:client.id,extraPage:{title:t,brief:b,slug}})});
+      if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||"Could not start."); }
+      const started=Date.now(); await new Promise(res=>setTimeout(res,6000));
+      while(Date.now()-started<300000){
+        const p=await fetch("/.netlify/functions/site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action:"poll",clientId:client.id})});
+        const d=await p.json().catch(()=>({})); const job=d&&d.job;
+        if(job&&job.kind==="page"&&job.status==="done"&&job.page){
+          const others=(w.extraPages||[]).filter(x=>x&&x.slug!==job.page.slug);
+          onUpdate&&onUpdate({...client,website:{...w,extraPages:[...others,{...job.page,content:siteDeDash(job.page.content),writtenAt:new Date().toISOString()}]}});
+          setTitle(""); setBrief(""); setMsg("✓ Page written. It's in the preview tabs below."); setBusy(""); return;
+        }
+        if(job&&job.kind==="page"&&job.status==="error") throw new Error(job.error||"The page failed.");
+        await new Promise(res=>setTimeout(res,4000));
+      }
+      throw new Error("That took too long. Try again in a minute.");
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  const remove=(slug)=>{ if(!window.confirm("Remove this page from the website?")) return; onUpdate&&onUpdate({...client,website:{...w,extraPages:(w.extraPages||[]).filter(x=>x&&x.slug!==slug)}}); };
+  const newSlug=siteSlug(title), clash=!newSlug||SITE_RESERVED.includes(newSlug)||pages.some(p=>p.slug===newSlug);
+  const full=pages.length>=room;
+  const bstyle=(primary,dis)=>({padding:"9px 13px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
+  return (
+    <div style={card}>
+      <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:6}}>Extra pages · {pages.length} of {client.internal?"any":room}</div>
+      {pages.map(p=>(
+        <div key={p.slug} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderTop:`1px solid ${C.border}`,flexWrap:"wrap"}}>
+          <div style={{flex:"1 1 200px",minWidth:0}}><div style={{fontSize:12.5,fontWeight:700,color:C.text}}>{p.title}</div><div style={{fontSize:11,color:C.textMuted}}>/{p.slug}/ · {p.brief||""}</div></div>
+          <button disabled={!!busy} onClick={()=>{ if(window.confirm("Rewrite this page? The words on it will be replaced.")) write(p.title,p.brief,p.slug); }} style={bstyle(false,!!busy)}>{busy===p.slug?"Writing…":"Rewrite"}</button>
+          <button disabled={!!busy} onClick={()=>remove(p.slug)} style={bstyle(false,!!busy)}>Remove</button>
+        </div>))}
+      {!full&&(<div style={{marginTop:8}}>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Page name, e.g. Service Areas" style={{...inp,marginBottom:8}}/>
+        <input value={brief} onChange={e=>setBrief(e.target.value)} placeholder="What it's for, in a sentence, e.g. the cities they cover and how far they travel" style={{...inp,marginBottom:8}}/>
+        <button disabled={!!busy||clash||!brief.trim()} onClick={()=>write(title.trim(),brief.trim())} style={bstyle(true,!!busy||clash||!brief.trim())}>{busy==="new"?"Writing…":"Write this page"}</button>
+        {title&&clash&&<div style={{fontSize:11,color:C.amber,marginTop:6}}>Pick a different name: that one is taken or is one of the main pages.</div>}
+      </div>)}
+      {full&&!client.internal&&<div style={{fontSize:11.5,color:C.textMuted,marginTop:8}}>All {room} extra page{room>1?"s":""} they paid for are written. To add more, change their deal first.</div>}
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:8,lineHeight:1.5}}>{msg}</div>}
+    </div>);
+}
+
+// The blog (add-on): articles written for them each month, published two days after writing unless held.
+function BlogCard({client}){
+  const on=wdTerms(client).blog||(client.internal&&client.website&&client.website.blogOn);
+  const [posts,setPosts]=useState(null); const [open,setOpen]=useState(null); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState("");
+  const call=async(action,extra={})=>{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const r=await fetch("/.netlify/functions/site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action,clientId:client.id,...extra})});
+    const d=await r.json().catch(()=>({})); if(!r.ok||!d.ok) throw new Error(d.error||"That didn't work."); return d;
+  };
+  const load=async()=>{ try{ const d=await call("blog-list"); setPosts((d.posts||[]).sort((a,b)=>Date.parse(b.publishAt)-Date.parse(a.publishAt))); }catch(e){ setPosts([]); setMsg(e.message); } };
+  useEffect(()=>{ if(on) load(); /* eslint-disable-next-line */ },[client.id,on]);
+  if(!on) return null;
+  const now=Date.now();
+  const bstyle=(primary,dis)=>({padding:"7px 11px",fontSize:11.5,fontWeight:700,borderRadius:8,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
+  const writeNow=async()=>{
+    setBusy("write"); setMsg("");
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession();
+      const r=await fetch("/.netlify/functions/site-blog-write-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({clientId:client.id})});
+      if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||"Couldn't start."); }
+      setMsg("✓ Writing it now. You'll get an alert when it's ready (about a minute), then it shows here.");
+    }catch(e){ setMsg(e.message); }
+    setBusy("");
+  };
+  return (
+    <div style={card}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+        <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted}}>Blog</div>
+        <span style={{fontSize:11,color:C.textDim}}>{wdTerms(client).blogPosts} articles a month · each goes live 2 days after it's written</span>
+        <button disabled={!!busy} onClick={writeNow} style={{...bstyle(false,!!busy),marginLeft:"auto"}}>{busy==="write"?"Starting…":"Write one now"}</button>
+      </div>
+      {posts===null&&<div style={{fontSize:11.5,color:C.textMuted}}>Loading…</div>}
+      {posts&&!posts.length&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55}}>No articles yet. The first one is written automatically once the site is live and paid, or press "Write one now".</div>}
+      {(posts||[]).map(p=>{
+        const live=!p.held&&Date.parse(p.publishAt)<=now;
+        const state=p.held?"Held, not published":live?`Published ${wdFmt(p.publishAt)}`:`Goes live ${wdFmt(p.publishAt)}`;
+        return (
+          <div key={p.slug} style={{padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 220px",minWidth:0}}><div style={{fontSize:12.5,fontWeight:700,color:C.text}}>{p.title}</div><div style={{fontSize:11,color:p.held?C.amber:live?C.green:C.textMuted}}>{state}</div></div>
+              <button onClick={async()=>{ if(open&&open.slug===p.slug){ setOpen(null); return; } try{ const d=await call("blog-post",{slug:p.slug}); setOpen(d.post); }catch(e){ setMsg(e.message); } }} style={bstyle(false,false)}>{open&&open.slug===p.slug?"Close":"Read"}</button>
+              <button disabled={!!busy} onClick={async()=>{ setBusy(p.slug); try{ const d=await call("blog-hold",{slug:p.slug,held:!p.held}); setPosts((d.posts||[]).sort((a,b)=>Date.parse(b.publishAt)-Date.parse(a.publishAt))); }catch(e){ setMsg(e.message); } setBusy(""); }} style={bstyle(false,!!busy)}>{p.held?"Release":"Hold"}</button>
+              <button disabled={!!busy} onClick={async()=>{ if(!window.confirm("Delete this article? It comes off their website.")) return; setBusy(p.slug); try{ const d=await call("blog-delete",{slug:p.slug}); setPosts(d.posts||[]); }catch(e){ setMsg(e.message); } setBusy(""); }} style={bstyle(false,!!busy)}>Delete</button>
+            </div>
+            {open&&open.slug===p.slug&&(
+              <div style={{marginTop:8,padding:"10px 12px",borderRadius:9,background:C.bg3,fontSize:12.5,color:C.textDim,lineHeight:1.65}}>
+                {(open.blocks||[]).map((b,i)=>b.kind==="h2"?<div key={i} style={{fontWeight:800,color:C.text,margin:"10px 0 4px"}}>{b.text}</div>:<p key={i} style={{margin:"0 0 8px"}}>{b.text}</p>)}
+              </div>)}
+          </div>);
+      })}
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:8,lineHeight:1.5}}>{msg}</div>}
+    </div>);
+}
+
+
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
 const SERVER_OWNED_KEYS=["websiteDeal"];
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
-const WEBSITE_OFFER={build:1500,care:99,pages:5,carePlanEdits:2,revisionRounds:2};
+const WEBSITE_OFFER={build:1500,care:99,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:149,blogPostsPerMonth:4};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
 const wdNum=(v,d)=>{ const n=Number(v); return Number.isFinite(n)&&n>=0?Math.round(n*100)/100:d; };
 const wdMoney=(n)=>`$${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}`;
@@ -8745,8 +8859,16 @@ const wdDeal=(cl)=>{ const d=(cl&&cl.websiteDeal)||{}; return {...d,price:wdNum(
 const WD_LIVE=["sent","delivered","completed"];
 const wdAgreementLive=(cl)=>{ const a=wdDeal(cl).agreement; return !!(a&&WD_LIVE.includes(a.status)); };
 const wdSigned=(cl)=>{ const a=wdDeal(cl).agreement; return !!(a&&a.status==="completed"); };
-const wdTerms=(cl)=>{ const d=wdDeal(cl); const t=wdAgreementLive(cl)&&d.agreement.terms?d.agreement.terms:d; return {price:wdNum(t.price,WD_DEFAULTS.price),plan:t.plan==="half"?"half":"full",care:wdNum(t.care,WD_DEFAULTS.care)}; };
-const wdAmounts=(t)=>{ const pc=Math.round(wdNum(t.price,0)*100); if(t.plan==="half"){ const fc=Math.ceil(pc/2); return {firstStage:"deposit",first:fc/100,final:(pc-fc)/100,stages:["deposit","final"]}; } return {firstStage:"full",first:pc/100,final:0,stages:["full"]}; };
+const wdInt=(v,d,max)=>Math.max(0,Math.min(max,Math.floor(wdNum(v,d))));
+const wdNorm=(t0)=>{ const t=t0||{}; return {price:wdNum(t.price,WD_DEFAULTS.price),plan:t.plan==="half"?"half":"full",care:wdNum(t.care,WD_DEFAULTS.care),
+  extraPages:wdInt(t.extraPages,0,20),extraPagePrice:wdNum(t.extraPagePrice,WEBSITE_OFFER.extraPage),
+  blog:t.blog===true,blogSetup:wdNum(t.blogSetup,WEBSITE_OFFER.blogSetup),blogMonthly:wdNum(t.blogMonthly,WEBSITE_OFFER.blogMonthly),
+  blogPosts:Math.max(1,wdInt(t.blogPosts,WEBSITE_OFFER.blogPostsPerMonth,8))}; };
+const wdR2=(n)=>Math.round(n*100)/100;
+const wdBuildTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.price+t.extraPages*t.extraPagePrice+(t.blog?t.blogSetup:0)); };
+const wdMonthlyTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.care+(t.blog?t.blogMonthly:0)); };
+const wdTerms=(cl)=>{ const d=wdDeal(cl); return wdNorm(wdAgreementLive(cl)&&d.agreement.terms?d.agreement.terms:d); };
+const wdAmounts=(t)=>{ const pc=Math.round(wdBuildTotal(t)*100); if(t.plan==="half"){ const fc=Math.ceil(pc/2); return {firstStage:"deposit",first:fc/100,final:(pc-fc)/100,stages:["deposit","final"]}; } return {firstStage:"full",first:pc/100,final:0,stages:["full"]}; };
 const wdPaid=(d,stage)=>!!(d.invoices[stage]&&d.invoices[stage].paidAt);
 const wdStagePaid=(cl,stage)=>{ const m=wdAmounts(wdTerms(cl)); const due=stage==="final"?m.final:m.first; return !(due>0)||wdPaid(wdDeal(cl),stage); };
 const wdExempt=(cl)=>!!(cl&&cl.internal);
@@ -8774,11 +8896,12 @@ const wdFmt=(iso)=>{ try{ return new Date(iso).toLocaleDateString("en-US",{month
 // through the website-deal function; nothing on this card writes the client record itself.
 function WebsiteDealCard({client,onUpdate}){
   const d=wdDeal(client), t=wdTerms(client), m=wdAmounts(t), a=d.agreement, live=wdAgreementLive(client);
-  const [form,setForm]=useState({price:String(d.price),plan:d.plan,care:String(d.care)});
+  const termsForm=(x)=>{ const n=wdNorm(x); return {price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts)}; };
+  const [form,setForm]=useState(termsForm(d));
   const [busy,setBusy]=useState("");
   const [msg,setMsg]=useState("");
   const [preview,setPreview]=useState("");
-  useEffect(()=>{ setForm({price:String(d.price),plan:d.plan,care:String(d.care)}); },[client.id,d.price,d.plan,d.care]);
+  useEffect(()=>{ setForm(termsForm(d)); },[client.id,JSON.stringify(wdNorm(d))]);
   const call=async(action,extra={},label)=>{
     setBusy(action); setMsg("");
     try{
@@ -8827,7 +8950,7 @@ function WebsiteDealCard({client,onUpdate}){
     <div style={card}>
       <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
         <div style={lbl}>Website deal</div>
-        <div style={{marginLeft:"auto",fontSize:11.5,color:C.textDim}}>{wdMoney(t.price)} build · {t.plan==="half"?"half now, half before launch":"paid up front"} · {t.care>0?`${wdMoney(t.care)}/mo care`:"care waived"}</div>
+        <div style={{marginLeft:"auto",fontSize:11.5,color:C.textDim}}>{wdMoney(wdBuildTotal(t))} build{t.extraPages?` (+${t.extraPages} page${t.extraPages>1?"s":""})`:""}{t.blog?" + blog":""} · {t.plan==="half"?"half now, half before launch":"paid up front"} · {wdMonthlyTotal(t)>0?`${wdMoney(wdMonthlyTotal(t))}/mo`:"no monthly"}</div>
       </div>
       {!live&&(
         <div style={{marginTop:8}}>
@@ -8836,14 +8959,22 @@ function WebsiteDealCard({client,onUpdate}){
             <label style={{fontSize:11,color:C.textMuted}}>Build price ($)<input inputMode="decimal" value={form.price} onChange={e=>setForm({...form,price:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>How they pay<select value={form.plan} onChange={e=>setForm({...form,plan:e.target.value})} style={{...inp,marginTop:4}}><option value="full">All up front</option><option value="half">Half now, half before launch</option></select></label>
             <label style={{fontSize:11,color:C.textMuted}}>Care plan ($ a month)<input inputMode="decimal" value={form.care} onChange={e=>setForm({...form,care:e.target.value})} style={{...inp,marginTop:4}}/></label>
+            <label style={{fontSize:11,color:C.textMuted}}>Extra pages (beyond the 5)<input inputMode="numeric" value={form.extraPages} onChange={e=>setForm({...form,extraPages:e.target.value})} style={{...inp,marginTop:4}}/></label>
+            <label style={{fontSize:11,color:C.textMuted}}>Price per extra page ($)<input inputMode="decimal" value={form.extraPagePrice} onChange={e=>setForm({...form,extraPagePrice:e.target.value})} style={{...inp,marginTop:4}}/></label>
           </div>
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,margin:"2px 0 8px",cursor:"pointer"}}><input type="checkbox" checked={!!form.blog} onChange={e=>setForm({...form,blog:e.target.checked})}/>Add a blog (we write and publish articles for them every month)</label>
+          {form.blog&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+            <label style={{fontSize:11,color:C.textMuted}}>Blog setup ($ once)<input inputMode="decimal" value={form.blogSetup} onChange={e=>setForm({...form,blogSetup:e.target.value})} style={{...inp,marginTop:4}}/></label>
+            <label style={{fontSize:11,color:C.textMuted}}>Blog plan ($ a month)<input inputMode="decimal" value={form.blogMonthly} onChange={e=>setForm({...form,blogMonthly:e.target.value})} style={{...inp,marginTop:4}}/></label>
+            <label style={{fontSize:11,color:C.textMuted}}>Articles a month<input inputMode="numeric" value={form.blogPosts} onChange={e=>setForm({...form,blogPosts:e.target.value})} style={{...inp,marginTop:4}}/></label>
+          </div>}
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <button disabled={!!busy} onClick={()=>call("set-terms",{price:Number(form.price),plan:form.plan,care:Number(form.care)},"✓ Saved.")} style={btn(false,!!busy)}>{busy==="set-terms"?"Saving…":"Save price"}</button>
+            <button disabled={!!busy} onClick={()=>call("set-terms",{price:Number(form.price),plan:form.plan,care:Number(form.care),extraPages:Number(form.extraPages||0),extraPagePrice:Number(form.extraPagePrice),blog:!!form.blog,blogSetup:Number(form.blogSetup),blogMonthly:Number(form.blogMonthly),blogPosts:Number(form.blogPosts)},"✓ Saved.")} style={btn(false,!!busy)}>{busy==="set-terms"?"Saving…":"Save price"}</button>
             <button disabled={!!busy} onClick={async()=>{ const out=await call("preview"); if(out) setPreview(out.html); }} style={btn(false,!!busy)}>Read the agreement</button>
             <button disabled={!!busy||!client.email} onClick={async()=>{
-              const dirty=String(form.price)!==String(d.price)||form.plan!==d.plan||String(form.care)!==String(d.care);
+              const dirty=JSON.stringify(form)!==JSON.stringify(termsForm(d));
               if(dirty){ setMsg("Save the price first, so the agreement says what you mean."); return; }
-              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\nBuild: ${wdMoney(t.price)} (${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"})\nCare plan: ${t.care>0?wdMoney(t.care)+" a month from launch":"waived"}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
+              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\nBuild: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\nCare plan: ${t.care>0?wdMoney(t.care)+" a month from launch":"waived"}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
               call("send",{},"✓ Sent. You'll get an alert the moment they sign.");
             }} style={btn(true,!!busy||!client.email)}>{busy==="send"?"Sending…":"Send the agreement"}</button>
           </div>
@@ -8908,8 +9039,8 @@ function WebsiteTab({client,onUpdate}){
   const slug=client.landingSlug||"";
   const live=slug?`${window.location.origin}/site/${slug}/`:"";
   const save=(patch)=>onUpdate&&onUpdate({...client,website:{...w,...patch}});
-  useEffect(()=>{ const h=(e)=>{ const d=e&&e.data; if(d&&d.blSitePage&&SITE_PAGE_TABS.some(t=>t[0]===d.blSitePage)) setPage(d.blSitePage); };
-    window.addEventListener("message",h); return ()=>window.removeEventListener("message",h); },[]);
+  useEffect(()=>{ const h=(e)=>{ const d=e&&e.data; if(d&&d.blSitePage&&siteTabsFor(client).some(t=>t[0]===d.blSitePage)) setPage(d.blSitePage); };
+    window.addEventListener("message",h); return ()=>window.removeEventListener("message",h); },[client]);
   const authed=async()=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); const t=session&&session.access_token; if(!t) throw new Error("Session expired. Refresh and log in again."); return t; };
   const buildLock=wdBuildLock(client), publishLock=wdPublishLock(client);
   const build=async()=>{
@@ -8969,12 +9100,12 @@ function WebsiteTab({client,onUpdate}){
     ?<textarea value={E[k]||""} onChange={e=>setEdit({...E,[k]:e.target.value})} placeholder={ph} rows={5} style={{...inp,marginBottom:10,resize:"vertical"}}/>
     :<input value={E[k]||""} onChange={e=>setEdit({...E,[k]:e.target.value})} placeholder={ph} style={{...inp,marginBottom:10}}/>;
 
-  const deal=wdDeal(client), careMo=wdTerms(client).care;
+  const deal=wdDeal(client), careMo=wdMonthlyTotal(wdTerms(client));
   const goLive=async()=>{
     if(w.published){ save({published:false}); setMsg("✓ Taken offline."); return; }
     if(publishLock){ setMsg(publishLock); return; }
     const startsCare=!wdExempt(client)&&!deal.launchedAt&&careMo>0;
-    if(startsCare&&!window.confirm(`Put the site live?\n\nThis also starts their ${wdMoney(careMo)} a month care plan, as their agreement says.`)) return;
+    if(startsCare&&!window.confirm(`Put the site live?\n\nThis also starts their ${wdMoney(careMo)} a month plan, as their agreement says.`)) return;
     setBusy(true); setMsg("");
     try{
       const { data:{ session } }=await supabaseClient.auth.getSession();
@@ -9061,9 +9192,12 @@ function WebsiteTab({client,onUpdate}){
           <button onClick={saveEdit} style={{...btn(true,false),width:"100%"}}>Save changes</button>
         </div>)}
 
+      <ExtraPagesCard client={client} onUpdate={onUpdate}/>
+      <BlogCard client={client}/>
+
       <div style={card}>
         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10,alignItems:"center"}}>
-          {SITE_PAGE_TABS.map(([id,label])=><button key={id} onClick={()=>setPage(id)} style={{...btn(page===id,false),padding:"7px 11px"}}>{label}</button>)}
+          {siteTabsFor(client).map(([id,label])=><button key={id} onClick={()=>setPage(id)} style={{...btn(page===id,false),padding:"7px 11px"}}>{label}</button>)}
           <span style={{marginLeft:"auto",display:"flex",gap:6}}>
             {[["desktop","Desktop"],["phone","Phone"]].map(([d,l])=><button key={d} onClick={()=>setDevice(d)} style={{...btn(device===d,false),padding:"7px 11px"}}>{l}</button>)}
           </span>

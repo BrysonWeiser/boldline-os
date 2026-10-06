@@ -38,6 +38,8 @@
 //  5. NO INVENTED PROOF. Reviews are only ever real ones he typed in, or a link to Google. No
 //     fabricated testimonials, counts, ratings or years in business.
 
+import { termsOf } from "./website-deal.mjs";
+
 export const SITE_PAGES = [
   { id: "home", label: "Home", path: "" },
   { id: "services", label: "Services", path: "services" },
@@ -46,6 +48,19 @@ export const SITE_PAGES = [
   { id: "contact", label: "Contact", path: "contact" },
 ];
 export const pageById = (id) => SITE_PAGES.find((p) => p.id === id) || null;
+
+// Pages beyond the five: extra pages the client paid for (each written by the builder) and the blog.
+// Ids carry their own path ("x-service-areas", "blog") so a link never needs the page list to resolve.
+// Bryson, 2026-10-06: *"what if a client wants to add extra pages such as a blog page?"* KB `website-builder`.
+export const RESERVED_SLUGS = ["", "home", "services", "about", "reviews", "contact", "blog", "site"];
+export const slugify = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
+export const blogOn = (cl) => !!(cl && (termsOf(cl).blog || (cl.internal && cl.website && cl.website.blogOn)));
+export const extraPagesOf = (cl) => (((cl && cl.website && cl.website.extraPages) || []))
+  .filter((p) => p && p.slug && !RESERVED_SLUGS.includes(p.slug) && p.title && p.content && p.content.headline)
+  .map((p) => ({ id: `x-${p.slug}`, label: clean(p.title, 40), path: p.slug, extra: p }));
+export const pagesFor = (cl) => SITE_PAGES.concat(extraPagesOf(cl), blogOn(cl) ? [{ id: "blog", label: "Blog", path: "blog" }] : []);
+export const pageInSite = (cl, id) => pagesFor(cl).find((p) => p.id === id) || null;
+export const pageByPath = (cl, seg) => pagesFor(cl).find((p) => p.path === String(seg || "")) || null;
 
 export const SITE_THEMES = {
   cinematic: { label: "Cinematic", blurb: "Light and airy, huge type, a glass orb that reacts to the cursor." },
@@ -262,6 +277,8 @@ ${theme === "editorial" ? ".btn{border-radius:2px;letter-spacing:.02em}" : ""}
 .mnav.open a:nth-of-type(2){transition-delay:.04s}.mnav.open a:nth-of-type(3){transition-delay:.08s}.mnav.open a:nth-of-type(4){transition-delay:.12s}.mnav.open a:nth-of-type(5){transition-delay:.16s}.mnav.open a:nth-of-type(6){transition-delay:.2s}
 .mnav .close{position:absolute;top:18px;right:20px}
 @media(max-width:880px){.nav,.hd .btn{display:none}.burger{display:block}}
+.nav a,.brand{white-space:nowrap}
+@media(max-width:1180px){.hd.many .nav,.hd.many .btn{display:none}.hd.many .burger{display:block}}
 /* hero */
 .hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;overflow:hidden;isolation:isolate}
 .hero .fx{position:absolute;inset:0;z-index:-1}
@@ -641,7 +658,9 @@ fetch('/lead?token=${token}',{method:'POST',headers:{'Content-Type':'application
 // Button text that rolls up to a copy of itself on hover. The copy is CSS-only and silent to
 // screen readers.
 const bt = (t) => `<span class="bt"><span data-t="${esc(t)}">${esc(t)}</span></span>`;
-const href = (base, id) => { const p = pageById(id); return `${base}/${p && p.path ? p.path + "/" : ""}`; };
+const pathOf = (id) => { const p = pageById(id); if (p) return p.path; if (id === "blog") return "blog"; if (/^x-[a-z0-9-]+$/.test(String(id))) return String(id).slice(2); return ""; };
+const href = (base, id) => { const path = pathOf(id); return `${base}/${path ? path + "/" : ""}`; };
+const postHref = (base, slug) => `${base}/blog/${encodeURIComponent(slug)}/`;
 const linkTo = (base, id, inner, cls = "", extra = "") => `<a href="${esc(href(base, id))}" data-page="${id}"${cls ? ` class="${cls}"` : ""}${extra}>${inner}</a>`;
 
 function lines(text, theme) {
@@ -656,27 +675,30 @@ function lines(text, theme) {
   return theme === "editorial" ? inner.replace(/(\s|<span>)([^\s<]+)<\/span><\/span>$/, (m, pre, last) => `${pre}<span class="mk">${last}</span></span></span>`) : inner;
 }
 
-function header(cl, base, pageId, C) {
+function header(cl, base, pageId, C, pages = SITE_PAGES) {
   const logo = logoOf(cl);
+  // The top bar stays readable: extra pages join it only while it holds seven links or fewer; past that
+  // they live in the menu and the footer, which always list every page.
+  const top = pages.length <= 7 ? pages : pages.filter((p) => !p.extra);
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
-  return `<header class="hd"><div class="wrap">
+  return `<header class="hd${top.length > 5 ? " many" : ""}"><div class="wrap">
 ${linkTo(base, "home", `${logo ? `<img src="${esc(logo)}" alt="" width="34" height="34">` : ""}<span>${esc(C.name)}</span>`, "brand")}
-<nav class="nav" aria-label="Main">${SITE_PAGES.map((p) => linkTo(base, p.id, esc(p.label), "", p.id === pageId ? ' aria-current="page"' : "")).join("")}</nav>
+<nav class="nav" aria-label="Main">${top.map((p) => linkTo(base, p.id, esc(p.label), "", p.id === pageId ? ' aria-current="page"' : "")).join("")}</nav>
 ${linkTo(base, "contact", bt(C.cta.button), "btn")}
 <button class="burger" aria-label="Open menu"><span></span><span></span></button>
 </div></header>
 <div class="mnav" role="dialog" aria-label="Menu"><button class="burger close" aria-label="Close menu"><span style="transform:translateY(3px) rotate(45deg)"></span><span style="transform:translateY(-3px) rotate(-45deg)"></span></button>
-${SITE_PAGES.map((p) => linkTo(base, p.id, esc(p.label))).join("")}
+${pages.map((p) => linkTo(base, p.id, esc(p.label))).join("")}
 ${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}</div>`;
 }
 
-function footer(cl, base, C) {
+function footer(cl, base, C, pages = SITE_PAGES) {
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
   const email = String((cl && cl.website && cl.website.publicEmail) || "").trim();
   const addr = String((cl && cl.businessAddress) || "").trim();
   return `<footer class="ft"><div class="wrap">
 <div><div class="big disp">${esc(C.name)}</div>${C.area ? `<p style="color:var(--mute)">Serving ${esc(C.area)}</p>` : ""}</div>
-<div><h4>Pages</h4>${SITE_PAGES.map((p) => linkTo(base, p.id, esc(p.label))).join("")}</div>
+<div><h4>Pages</h4>${pages.map((p) => linkTo(base, p.id, esc(p.label))).join("")}</div>
 <div><h4>Contact</h4>${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : ""}${addr ? `<p>${esc(addr)}</p>` : ""}</div>
 <div class="fine">&copy; ${new Date().getFullYear()} ${esc(C.name)}. All rights reserved.</div>
 </div></footer>
@@ -829,6 +851,38 @@ ${isHealth(cl) ? "" : `<label>How can we help?<textarea name="msg" rows="4"></te
 ${map ? `<div style="margin-top:30px">${map}</div>` : ""}</div></div></section>`;
 }
 
+// An extra page: written by the builder from a one-line brief (site-build-background `extraPage`).
+function extraBody(theme, C, base, photos, page) {
+  const c = page.extra.content || {};
+  const sections = (Array.isArray(c.sections) ? c.sections : []).slice(0, 8).map((x) => ({ h: clean(x && x.heading, 90), t: clean(x && x.text, 900) })).filter((x) => x.h && x.t);
+  return `${pageHero(theme, clean(c.headline, 90) || page.label, clean(c.intro, 260), page.label)}
+${sections.map((x, i) => `<section class="sec"${i ? ' style="padding-top:0"' : ""}><div class="wrap split">${i % 2 && photos[i % photos.length] ? photoBlock(photos[i % photos.length], "4/3") : ""}<div><h2 class="disp rv" style="font-size:clamp(28px,3.6vw,48px)">${esc(x.h)}</h2><p class="rv d1" style="margin-top:16px;font-size:18px;color:var(--mute)">${esc(x.t)}</p></div>${!(i % 2) && photos[i % Math.max(1, photos.length)] ? photoBlock(photos[i % photos.length], "4/3") : ""}</div></section>`).join("")}
+${ctaBand(C, base)}`;
+}
+
+const fmtDate = (iso) => { try { return new Date(iso).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/Phoenix" }); } catch { return ""; } };
+
+// The blog list. Posts come from the server (site-blog.mjs), already filtered to the published ones.
+function blogBody(theme, C, base, posts) {
+  const list = (posts || []).slice(0, 60);
+  return `${pageHero(theme, "News and tips", `From the team at ${C.name}.`, "Blog")}
+<section class="sec" style="padding-top:10px"><div class="wrap">${list.length ? `<div class="grid g3">${list.map((p, i) =>
+    `<a class="card rv d${i % 3}" href="${esc(postHref(base, p.slug))}" data-page="blog"><span class="num">${esc(fmtDate(p.publishAt))}</span><h3>${esc(clean(p.title, 120))}</h3><p>${esc(clean(p.excerpt, 220))}</p></a>`).join("")}</div>`
+    : `<p class="rv" style="color:var(--mute);font-size:18px">The first articles are on their way.</p>`}</div></section>
+${ctaBand(C, base)}`;
+}
+
+// One article. Headings and paragraphs only: the writer returns blocks, never HTML.
+function postBody(theme, C, base, post) {
+  const blocks = (Array.isArray(post.blocks) ? post.blocks : []).slice(0, 60);
+  return `${pageHero(theme, clean(post.title, 120), "", fmtDate(post.publishAt))}
+<section class="sec" style="padding-top:10px"><div class="wrap" style="max-width:760px">${blocks.map((b) => b && b.kind === "h2"
+    ? `<h2 class="disp rv" style="font-size:clamp(24px,3vw,36px);margin:36px 0 12px">${esc(clean(b.text, 140))}</h2>`
+    : `<p class="rv" style="font-size:18px;line-height:1.75;margin-bottom:18px">${esc(clean(b && b.text, 1600))}</p>`).join("")}
+<div class="rv" style="margin-top:34px">${linkTo(base, "blog", bt("More articles"), "btn ghost")}</div></div></section>
+${ctaBand(C, base)}`;
+}
+
 // Structured data so Google understands who the business is.
 function jsonLd(cl, C, base) {
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
@@ -843,7 +897,10 @@ function jsonLd(cl, C, base) {
 // opts.base: absolute origin + path of the site root, no trailing slash. Required.
 export function renderSite(cl, pageId = "home", opts = {}) {
   const theme = themeOf(cl, opts.theme);
-  const page = pageById(pageId) ? pageId : "home";
+  const pages = pagesFor(cl);
+  const pg = pages.find((p) => p.id === pageId) || pages[0];
+  const page = pg.id;
+  const post = page === "blog" && opts.post && opts.post.slug ? opts.post : null;
   const base = String(opts.base || "").replace(/\/+$/, "");
   if (!/^https:\/\//.test(base)) throw new Error("renderSite needs an absolute https base");
   const M = motionRecipe(cl, theme);
@@ -854,11 +911,13 @@ export function renderSite(cl, pageId = "home", opts = {}) {
     : page === "about" ? aboutBody(theme, C, base, photos, M)
     : page === "reviews" ? reviewsBody(theme, cl, C, base)
     : page === "contact" ? contactBody(theme, cl, C, base)
+    : page === "blog" ? (post ? postBody(theme, C, base, post) : blogBody(theme, C, base, opts.posts))
+    : pg.extra ? extraBody(theme, C, base, photos, pg)
     : homeBody(theme, cl, C, base, photos, M);
-  const label = pageById(page).label;
-  const title = page === "home" ? (C.seo.title || `${C.name}${C.niche ? " | " + C.niche : ""}`) : `${label} | ${C.name}`;
-  const desc = C.seo.description || C.hero.sub;
-  const canonical = href(base, page);
+  const label = pg.label;
+  const title = page === "home" ? (C.seo.title || `${C.name}${C.niche ? " | " + C.niche : ""}`) : post ? `${clean(post.title, 70)} | ${C.name}` : `${label} | ${C.name}`;
+  const desc = post ? clean(post.excerpt, 160) || C.hero.sub : pg.extra ? clean(pg.extra.content.intro, 160) || C.hero.sub : C.seo.description || C.hero.sub;
+  const canonical = post ? postHref(base, post.slug) : href(base, page);
   const ogImg = photos[0] ? `<meta property="og:image" content="${esc(photos[0].url)}">` : "";
   const hasGl = !!P.gl && /<canvas/.test(body);
   const out = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -866,11 +925,11 @@ export function renderSite(cl, pageId = "home", opts = {}) {
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${esc(canonical)}">${ogImg}
 <meta name="theme-color" content="${P.bg}">${opts.noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS[theme]}">
-<style>${css(theme, P)}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script></head>
+<style>${css(theme, P)}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
 <body data-theme="${theme}" data-page="${page}" data-in="${M.entrance}" data-rv="${M.reveal}" data-tx="${M.transition}">
-${header(cl, base, page, C)}
+${header(cl, base, page, C, pages)}
 <main>${body}</main>
-${footer(cl, base, C)}
+${footer(cl, base, C, pages)}
 <script>${motionScript(cl, M)}</script>${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}
 </body></html>`;
   // A preview link has to stay a preview link as you click around, or Services lands on "coming soon".
