@@ -133,6 +133,20 @@ export function addressTaken(rows, clientId, host) {
 // ── Netlify (optional) ────────────────────────────────────────────────────────────────────────
 // With a NETLIFY_API_TOKEN set, adding a client's address to this Netlify site happens from the OS,
 // so Bryson never opens Netlify for a new client. Without it, the OS tells him the one Netlify step.
+// Read-only: is the Netlify key there and still working? Used by the OS card (so Bryson can see it is
+// connected before his first website client) and by the daily check (a key that expires or is revoked
+// would otherwise only show up the day a client's address fails to add).
+export async function netlifyStatus({ fetchFn, token, siteId }) {
+  if (!token) return { connected: false, set: false, note: "Not connected. Each new client address needs one step in Netlify." };
+  try {
+    const r = await fetchFn(`https://api.netlify.com/api/v1/sites/${encodeURIComponent(siteId || NETLIFY_TARGET)}`, { headers: { authorization: `Bearer ${token}` } });
+    if (!r.ok) return { connected: false, set: true, note: r.status === 401 || r.status === 403 ? "The Netlify key was refused. It may have expired or been deleted. Make a new one and replace NETLIFY_API_TOKEN." : `Netlify answered ${r.status}.` };
+    const site = await r.json();
+    return { connected: true, set: true, site: site.custom_domain || site.name || "", aliases: Array.isArray(site.domain_aliases) ? site.domain_aliases.length : 0,
+      note: "Connected to Netlify. Client addresses are added for you." };
+  } catch (e) { return { connected: false, set: true, note: `Couldn't reach Netlify (${e.message}).` }; }
+}
+
 // 🔴 ONLY EVER ADDS. The alias list is read first and written back whole with the new names appended,
 // so an existing client's address (quote.stencilandthread.com) can never be dropped by this. If the read
 // fails nothing is written.

@@ -15,6 +15,7 @@
 //   domain-set    { domain }           their own web address (acmepools.com); added to Netlify if a token is set
 //   domain-check                       does the address reach their site over https yet? (sets it live)
 //   domain-remove                      stop using their own address (Netlify is left alone)
+//   netlify-status                     read-only: is the Netlify key set and working?
 //   sync                               re-read open invoices and the care plan from Stripe
 
 import { createClient } from "@supabase/supabase-js";
@@ -25,7 +26,7 @@ import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shar
 import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { promises as dnsp } from "node:dns";
-import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken } from "../lib/site-domain.mjs";
+import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken, netlifyStatus } from "../lib/site-domain.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
   publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned,
@@ -182,6 +183,8 @@ export default async (req) => {
           first ? `Website now live on ${d.host}.` : "");
         return json({ ok: true, deal: next, live, note, records: dnsRecords(d.host) });
       }
+      case "netlify-status":
+        return json({ ok: true, ...(await netlifyStatus(netlify())) });
       case "domain-remove": {
         if (!deal.domain) return json({ ok: true, deal });
         const was = deal.domain.host;

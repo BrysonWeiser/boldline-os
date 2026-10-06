@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { cleanDomain, altHost, isApex, dnsRecords, domainRequest, sitemapXML, robotsTXT, checkDomain, addNetlifyAlias,
-  liveDomain, publicSiteUrl, addressTaken, NETLIFY_TARGET, NETLIFY_APEX_IP } from "../netlify/lib/site-domain.mjs";
+  liveDomain, publicSiteUrl, addressTaken, netlifyStatus, NETLIFY_TARGET, NETLIFY_APEX_IP } from "../netlify/lib/site-domain.mjs";
 import { serveWebsiteOnDomain } from "../netlify/functions/site.mjs";
 import { renderSite, SITE_PAGES } from "../netlify/lib/site-render.mjs";
 import { routeFor } from "../netlify/lib/client-domain.mjs";
@@ -85,6 +85,22 @@ const dns = (cn, a) => async (h, type) => { const v = type === "CNAME" ? cn : a;
   const r3 = await addNetlifyAlias(["acme.com"], { fetchFn: async () => { throw new Error("should not call"); }, token: "" });
   ok("with no token it does nothing and says to add it by hand", r3.manual === true && !r3.ok);
   ok("🔴 our own addresses are filtered out even if asked", (await addNetlifyAlias(["os.boldlinemedia.com"], { fetchFn: fake({ domain_aliases: [] }), token: "t" })).added.length === 0);
+}
+
+// The connection check is read-only and says plainly what is wrong.
+{
+  const seen = [];
+  const f = (status, body) => async (url, o = {}) => { seen.push(o.method || "GET"); return { ok: status === 200, status, json: async () => body }; };
+  const okS = await netlifyStatus({ fetchFn: f(200, { custom_domain: "os.boldlinemedia.com", domain_aliases: ["a", "b"] }), token: "t" });
+  ok("a working key reads as connected", okS.connected === true && okS.aliases === 2 && /Connected to Netlify/.test(okS.note));
+  const bad = await netlifyStatus({ fetchFn: f(401, {}), token: "t" });
+  ok("🔴 an expired or deleted key says so and what to do", bad.connected === false && bad.set === true && /expired or been deleted/.test(bad.note));
+  const none = await netlifyStatus({ fetchFn: async () => { throw new Error("should not call"); }, token: "" });
+  ok("no key: not connected, nothing called", none.connected === false && none.set === false);
+  ok("🔴 the status check only ever reads", seen.every((m) => m === "GET"));
+  const DC = src("netlify/functions/daily-check.mjs");
+  ok("🔴 the daily check alerts if the key stops working, and skips when none is set", /add\("The Netlify key for client web addresses works", ns\.set \? ns\.connected : null/.test(DC));
+  ok("the OS card shows whether Netlify is connected", /action:"netlify-status"/.test(UI) && /\{nf&&<div/.test(UI));
 }
 
 // ── 6. Serving the site on their address ───────────────────────────────────────────────
@@ -171,7 +187,7 @@ ok("putting the site live checks their address, before the you're-live email", l
 ok("🔴 the Netlify token is read from the environment, never written anywhere", /process\.env\.NETLIFY_API_TOKEN/.test(FN) && !/NETLIFY_API_TOKEN\s*[:=]\s*["'`][^"'`]/.test(FN));
 ok("the OS card asks before removing an address", /window\.confirm\(`Stop using \$\{d\.host\}/.test(UI));
 ok("🔴 the instructions he sends their web person carry no dashes or emojis", (() => { const i = UI.indexOf("const forThem=d?"); const m = i > 0 ? UI.slice(i, UI.indexOf(':"";', i)) : ""; return !!m && !/[\u2014\u2013]/.test(m) && !/\p{Extended_Pictographic}/u.test(m) && /MX records/.test(m) && /grey cloud/.test(m); })());
-ok("the OS card shows only once they signed for a website", /if\(!wdExempt\(client\)&&!wdSigned\(client\)\) return null;/.test(UI));
+ok("the OS card shows only once they signed for a website", /const shown=wdExempt\(client\)\|\|wdSigned\(client\);/.test(UI) && /if\(!shown\) return null;/.test(UI));
 ok("the sitemap also works on our address", /where\.seg === "sitemap\.xml" && !where\.post/.test(src("netlify/functions/site.mjs")));
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));

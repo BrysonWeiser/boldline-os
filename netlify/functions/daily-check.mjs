@@ -294,6 +294,14 @@ export default withFailureAlert("daily-check", async () => {
       r.status === 0 ? `no response: ${r.error}` : `returned ${r.status}, which means the function itself failed to start`);
   }
 
+  // The Netlify key the OS uses to add client web addresses (KB website-builder, step 3). Read-only.
+  // Skipped (not failed) when no key is set: then each address is added by hand and nothing can break.
+  try {
+    const { netlifyStatus } = await import("../lib/site-domain.mjs");
+    const ns = await netlifyStatus({ fetchFn: fetch, token: process.env.NETLIFY_API_TOKEN || "", siteId: process.env.SITE_ID || "" });
+    add("The Netlify key for client web addresses works", ns.set ? ns.connected : null, ns.connected ? "" : ns.note);
+  } catch (e) { add("The Netlify key for client web addresses works", false, e.message); }
+
   const sum = summarize(checks);
 
   // ── 7. Say something, but only when it is worth saying ────────────────────

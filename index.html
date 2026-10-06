@@ -8956,8 +8956,15 @@ const wdFmt=(iso)=>{ try{ return new Date(iso).toLocaleDateString("en-US",{month
 // Their own web address: set it, give their web person the records, check it, and see when it's live.
 function SiteDomainCard({client,onUpdate}){
   const d=((client.websiteDeal)||{}).domain||null;
-  const [val,setVal]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState("");
-  if(!wdExempt(client)&&!wdSigned(client)) return null;
+  const [val,setVal]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState(""); const [nf,setNf]=useState(null);
+  const shown=wdExempt(client)||wdSigned(client);
+  // Read-only: is the Netlify key working? Shown before the first address is set, so he can see it.
+  useEffect(()=>{ if(!shown||d) return; let gone=false; (async()=>{ try{
+    const { data:{ session } }=await supabaseClient.auth.getSession();
+    const r=await fetch("/.netlify/functions/website-deal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action:"netlify-status",clientId:client.id})});
+    const o=await r.json().catch(()=>({})); if(!gone&&o&&o.ok) setNf(o);
+  }catch(e){} })(); return ()=>{ gone=true; }; },[client.id,shown,!!d]);
+  if(!shown) return null;
   const call=async(action,extra={},label)=>{
     setBusy(action); setMsg("");
     try{
@@ -8987,6 +8994,7 @@ function SiteDomainCard({client,onUpdate}){
           <input value={val} onChange={e=>setVal(e.target.value)} placeholder="acmepools.com" style={{flex:"1 1 220px",minWidth:0,padding:"10px 12px",borderRadius:9,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontSize:13}}/>
           <button disabled={!!busy||!val.trim()} onClick={()=>call("domain-set",{domain:val},o=>o.alias&&o.alias.ok?"✓ Saved and added to Netlify. Now send them the records below.":"✓ Saved. Now send them the records below.")} style={btn(true,!!busy||!val.trim())}>{busy==="domain-set"?"Saving…":"Use this address"}</button>
         </div>
+        {nf&&<div style={{fontSize:11,color:nf.connected?C.green:nf.set?C.amber:C.textMuted,marginTop:8,lineHeight:1.5}}>{nf.connected?"✓ ":""}{nf.note}</div>}
       </>)}
       {d&&(<>
         <div style={{fontSize:16,fontWeight:800,color:C.text,wordBreak:"break-all"}}>{d.live?<a href={`https://${d.host}/`} target="_blank" rel="noopener noreferrer" style={{color:C.gold}}>{d.host}</a>:d.host}</div>
