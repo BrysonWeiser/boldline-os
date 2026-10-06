@@ -197,7 +197,7 @@ ok("🔴 the terms can't change once the agreement is out", FN.indexOf('case "se
 ok("🔴 cancelling only records 'voided' after DocuSign confirms it", FN.indexOf("if (!resp.ok)") > 0 && FN.indexOf("if (!resp.ok)") < FN.indexOf('status: "voided", voidedAt'));
 ok("🔴 'launch' refuses until it is paid in full", /case "launch": \{\s*const lock = publishLock\(cl\);\s*if \(lock\) return json/.test(FN));
 ok("🔴 a fresh invoice cancels the old one so nobody pays twice", FN.indexOf("/void`") > 0 && FN.indexOf("/void`") < FN.indexOf("await createWebsiteInvoice("));
-ok("every write re-reads the client first (a webhook may have landed meanwhile)", /const save = async \(next, note\) => \{\s*const \{ data: fresh \}/.test(FN));
+ok("every write re-reads the client first (a webhook may have landed meanwhile)", /const save = async \(next, note, sent = null, flag = null, top = null\) => \{\s*const \{ data: fresh \}/.test(FN));
 ok("the agreement goes out through the same proven DocuSign code, with its own name", /sendEnvelope\(await getAccessToken\(\), \{[^}]*documentName: "BoldLine Media Website Agreement"/.test(FN) && /ensureAnchor\(websiteAgreementHTML/.test(FN));
 
 // ── 9. Selling it (step 2b): one price list everywhere ─────────────────────────────────────

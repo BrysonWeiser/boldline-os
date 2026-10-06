@@ -8,6 +8,13 @@ summary: A per-client "Emails" tab lets Bryson preview, edit, and one-click-send
 verified: 2026-08-02
 ---
 
+## 2026-10-06: website clients have their own seven emails, and a third word
+Website welcome, payment received, ready to review, it's live, payment failed, blog article ready and the
+monthly website summary, all automatic, all with the website footer. A website-only client (`packageId
+"w-site"`) is `resultKind:"enquiry"`, so the shared milestone and review ask speak about their website,
+never leads or campaigns. The Emails tab only offers each client the emails that fit them. Full table of
+triggers and dedupe flags in KB `website-builder` ("The website emails").
+
 ## 🔴 EVERY TEMPLATE SPEAKS THE CLIENT'S OWN WORD (2026-09-17)
 
 `emailWords(c)` reads `resultKind` (= `billingResultKind`) and supplies the nouns for `welcome`,

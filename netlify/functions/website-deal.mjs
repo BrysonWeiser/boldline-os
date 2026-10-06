@@ -11,6 +11,7 @@
 //   void                               cancel an unsigned agreement in DocuSign so the terms can change
 //   invoice   { stage }                send a build invoice (full | deposit | final)
 //   launch                             start the care plan; refused until everything is paid
+//   send-review                        email the client the private preview link to look over
 //   sync                               re-read open invoices and the care plan from Stripe
 
 import { createClient } from "@supabase/supabase-js";
@@ -19,6 +20,7 @@ import { DS, getAccessToken, isConfigured } from "../lib/docusign-auth.mjs";
 import { sendEnvelope, ensureAnchor } from "./docusign-send.mjs";
 import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
 import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
+import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
   publishLock, amountsOf, exempt, buildTotal, monthlyTotal,
@@ -48,11 +50,15 @@ export default async (req) => {
   const deal = (cl.websiteDeal) || {};
 
   // Re-read just before writing, so a webhook that landed while DocuSign or Stripe was answering is kept.
-  const save = async (next, note) => {
+  // `sent` is an email that went out with this action: its log line is kept and its flag recorded.
+  // `top(base)` returns other top-level fields to set from the fresh copy (launch publishes the site).
+  const save = async (next, note, sent = null, flag = null, top = null) => {
     const { data: fresh } = await supabase.from("clients").select("data").eq("id", clientId).maybeSingle();
     const base = (fresh && fresh.data) || cl;
     const merged = { ...(base.websiteDeal || {}), ...next };
-    const data = { ...base, websiteDeal: merged, ...(note ? { commLog: [{ date: fmt(Date.now()), note, cat: "website", ts: Date.now() }, ...(base.commLog || [])] } : {}) };
+    const logs = [...(sent && sent.sent ? [sent.logEntry] : []), ...(note ? [{ date: fmt(Date.now()), note, cat: "website", ts: Date.now() }] : [])];
+    const data = { ...base, websiteDeal: merged, ...(logs.length ? { commLog: [...logs, ...(base.commLog || [])] } : {}),
+      ...(sent && sent.sent && flag ? { emailAuto: { ...(base.emailAuto || {}), ...flag } } : {}), ...(top ? top(base) : {}) };
     const { error } = await supabase.from("clients").update({ data, updated_at: new Date().toISOString() }).eq("id", clientId);
     if (error) throw new Error(error.message);
     return merged;
@@ -114,9 +120,24 @@ export default async (req) => {
           try { await stripe(`invoices/${encodeURIComponent(existing.id)}/void`, {}); } catch (e) { console.error("website-deal: could not void old invoice:", e.message); }
         }
         const r = await createWebsiteInvoice(cl, stage, api);
+        // The second half is asked for once the site is built, so it goes with the preview link: they
+        // see what they are paying for in the same email.
+        const built = !!(cl.website && cl.website.content && cl.website.previewKey && cl.landingSlug);
+        const sent = stage === "final" && built ? await autoSendClientEmail(cl, "website_review", { payUrl: r.invoice.url, amount: r.invoice.amount }) : null;
         const next = await save({ customerId: r.customerId, invoices: { ...(deal.invoices || {}), [stage]: r.invoice } },
-          `Website invoice sent: $${r.invoice.amount} (${stage === "final" ? "final payment" : stage === "deposit" ? "first half" : "paid in full"}).`);
-        return json({ ok: true, deal: next, url: r.invoice.url, emailed: r.invoice.emailed });
+          `Website invoice sent: $${r.invoice.amount} (${stage === "final" ? "final payment" : stage === "deposit" ? "first half" : "paid in full"}).`, sent);
+        return json({ ok: true, deal: next, url: r.invoice.url, emailed: r.invoice.emailed, reviewEmailed: !!(sent && sent.sent) });
+      }
+      case "send-review": {
+        if (exempt(cl)) return json({ ok: false, error: "BoldLine's own site has nobody to send it to." }, 400);
+        if (!(cl.website && cl.website.content && cl.website.previewKey && cl.landingSlug)) return json({ ok: false, error: "Build the site first, so there is something to look at." }, 409);
+        if (deal.launchedAt) return json({ ok: false, error: "The site is already live." }, 409);
+        const fin = (deal.invoices || {}).final;
+        const open = fin && fin.status === "open" && !fin.paidAt && fin.url ? { payUrl: fin.url, amount: fin.amount } : {};
+        const sent = await autoSendClientEmail(cl, "website_review", open);
+        if (!sent.sent) return json({ ok: false, error: `The email didn't send: ${sent.reason}` }, 502);
+        const next = await save({ reviewSentAt: new Date().toISOString() }, "", sent);
+        return json({ ok: true, deal: next });
       }
       case "launch": {
         const lock = publishLock(cl);
@@ -124,8 +145,14 @@ export default async (req) => {
         if (exempt(cl)) { const next = await save({ launchedAt: deal.launchedAt || new Date().toISOString() }); return json({ ok: true, deal: next }); }
         const r = await startCarePlan(cl, api);
         const care = monthlyTotal(termsOf(cl));
-        const next = await save({ launchedAt: deal.launchedAt || new Date().toISOString(), ...(r ? { customerId: r.customerId, careSub: r.careSub } : {}) },
-          deal.launchedAt ? "" : `Website put live.${r ? ` Monthly plan started at $${care}/mo (${r.careSub.collection === "card" ? "card on file" : "invoiced monthly"}).` : ""}`);
+        const first = !deal.launchedAt && !(cl.emailAuto || {}).websiteLive;
+        let next = await save({ launchedAt: deal.launchedAt || new Date().toISOString(), ...(r ? { customerId: r.customerId, careSub: r.careSub } : {}) },
+          deal.launchedAt ? "" : `Website put live.${r ? ` Monthly plan started at $${care}/mo (${r.careSub.collection === "card" ? "card on file" : "invoiced monthly"}).` : ""}`, null, null,
+          // 🔴 Published here, server-side, not left to the OS's follow-up save, and BEFORE the "you're
+          // live" email below: the link in it must work the moment they tap it.
+          (b) => ({ website: { ...(b.website || {}), published: true } }));
+        // "You're live", the first time only (pressing Go live again re-publishes, it is not news).
+        if (first) { const sent = await autoSendClientEmail(cl, "website_live", { care }); if (sent.sent) next = await save({}, "", sent, { websiteLive: true }); }
         return json({ ok: true, deal: next });
       }
       case "sync": {

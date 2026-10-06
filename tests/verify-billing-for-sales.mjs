@@ -503,7 +503,8 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
       + "contract does not mention");
     ok("and the zero-fee version too", /did not produce any \$\{unitLower\}/.test(EM));
     ok("🔴 and the sender actually passes the client's basis",
-      /resultKind: cl\.billingResultKind \|\| "",/.test(AUTO),
+      // (A website-only client is "enquiry" instead: they have no ads, so neither leads nor sales.)
+      /resultKind: isWebsiteOnly\(cl\) \? "enquiry" : \(cl\.billingResultKind \|\| ""\),/.test(AUTO),
       "the template can tell the difference but never learns which one this client is");
     ok("an unset basis is a lead, which is every existing client",
       /String\(c\.resultKind \|\| ""\) === "sale"/.test(EM));

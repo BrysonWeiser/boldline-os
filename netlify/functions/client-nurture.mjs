@@ -18,7 +18,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, retryQuery } from "../lib/report-shared.mjs";
 import { withFailureAlert } from "../lib/alerts-shared.mjs";
-import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { autoSendClientEmail, isWebsiteOnly } from "../lib/client-email-auto.mjs";
 import { hasAdActivity, liveStats } from "../lib/report-shared.mjs";
 
 const DAY = 864e5;
@@ -143,6 +143,19 @@ export default withFailureAlert("client-nurture", async () => {
           && hasAdActivity(cl)
           && leads >= REVIEW_MIN_LEADS
           && contractAgeDays != null && contractAgeDays >= REVIEW_MIN_DAYS) {
+        const r = await autoSendClientEmail(cl, "review_request");
+        if (r.sent) { ea.reviewAsked = true; ea.reviewAskedAt = new Date().toISOString(); logs.push(r.logEntry); changed = true; }
+      }
+      // 🔴 4b. THE SAME ASK FOR A WEBSITE-ONLY CLIENT (2026-10-06). The rule above can never fire for
+      // them: they have no ads, no `welcome` and no ads contract. Their good stretch is the site having
+      // been live for the same six weeks with the care plan in good standing. The email reads in website
+      // terms for them (`resultKind: "enquiry"`), never about campaigns.
+      const w = cl.websiteDeal || {};
+      const liveDays = daysSince(w.launchedAt);
+      if (!ea.reviewAsked && !crossedMilestone && isWebsiteOnly(cl)
+          && cl.website && cl.website.published
+          && liveDays != null && liveDays >= REVIEW_MIN_DAYS
+          && !(w.careSub && w.careSub.status === "past_due")) {
         const r = await autoSendClientEmail(cl, "review_request");
         if (r.sent) { ea.reviewAsked = true; ea.reviewAskedAt = new Date().toISOString(); logs.push(r.logEntry); changed = true; }
       }

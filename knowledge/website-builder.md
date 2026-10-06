@@ -2,8 +2,8 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons + portal Website tab with visitor numbers live 2026-10-06; step 3 (own domain) not built (package/contract/billing) and 3 (custom domain) not built
+keywords: [website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons + portal Website tab with visitor numbers + client blog editing + website emails live 2026-10-06; step 3 (own domain) not built (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
@@ -143,7 +143,50 @@ Bryson: *"add a way for the client to view the analytics and other details (in t
 - 🔴 **Needs ONE Supabase step from Bryson: run docs/sql/site-visits-schema.sql in the SQL Editor.**
   Until then the beacon fails quietly and the portal says visitor numbers will show soon. (Supabase,
   not Netlify, so it does not go in the 10pm reminder.)
-- Tests: tests/verify-website-portal.mjs (38 checks, 10 mutations caught).
+- Tests: tests/verify-website-portal.mjs (49 checks, 10 mutations caught).
+
+## Client blog editing (BUILT 2026-10-06)
+Bryson: *"make sure the client has a way to see when they go out and what is written that way they can
+edit it if they want (just like how i have for my blogs)"*. The 4-a-month limit stays as is.
+- Portal Website tab lists EVERY article (scheduled, held and published, newest first, up to 24) with
+  "Goes out <weekday, date>" / "Published <date>" / "On hold, not published", "edited by you", a live link
+  only once it is out, and **Read and edit** (title, headings, paragraphs in place) + **Hold it / Release it**
+  (hold asks first). POSTs `blogGet`, `blogEdit`, `blogHold` to the portal with the portal token; 🔴 refused
+  unless the deal includes the blog, and only ever the token holder's own articles (`data.id`, never a
+  client id from the body; `loadPost` slugifies so a slug can't reach another folder). Each change is
+  logged on the record and alerts Bryson.
+- `site-blog.mjs` `cleanEdit` / `applyEdit(store, id, slug, edit, who)`: 🔴 an edit keeps `publishAt` and
+  `held` (editing never releases or reschedules), drops empty blocks, unknown block kinds become paragraphs,
+  dashes stripped (humanizeDeep), excerpt follows the new first paragraph, stamps `editedAt` / `editedBy`
+  ("client" | "boldline") on the article and the index.
+- OS Blog card: Read > **Edit** > Save (`site` action `blog-save`); shows "edited by the client".
+- Tests: verify-website-addons (84) + verify-website-portal (49); 8 mutations caught.
+
+## 🔴 The website emails (BUILT 2026-10-06)
+Bryson: *"make sure the website only clients get the automated emails just like ad clients do and make
+sure they are tailored to the website clients"*. Seven new types in `client-emails-shared.mjs` (all in the
+Emails tab, labelled automatic, website footer "Websites built and looked after for you"):
+| Email | Sent when | By |
+|---|---|---|
+| website_welcome | website agreement signed (with the first invoice's pay link) | docusign-watch, after the save; flag `emailAuto.websiteWelcome` |
+| website_payment | each website payment (deposit/full: building starts; final: goes live next; care: monthly receipt) | stripe-webhook website branch, after the save; dedupe `emailAuto.websiteSent` (`type:invoiceId`, last 40) |
+| website_past_due | a website payment fails (care version states the 15-day offline clause) | same |
+| website_review | the second-half invoice is sent (only once built), or Bryson presses **Email them the preview** on the deal card (`send-review`) | website-deal |
+| website_live | first launch only; the launch write now sets `website.published` server-side BEFORE the email | website-deal; flag `websiteLive` |
+| blog_scheduled | each article written: title + the day it goes out + "read or edit it in your portal" | site-blog-write-background |
+| website_monthly | 1st of the month 16:10 UTC (9:10am Phoenix), Arizona calendar month just ended: visitors, page views, website enquiries, top source, articles; website-only clients get a one-line Google Ads ask | new `website-monthly-run`; once a month (`emailAuto.websiteMonthly = "YYYY-MM"`); skipped if live < 14 days, no visits, or the visits table can't be read |
+- 🔴 **Gap found and fixed:** a website-only client's form enquiries land in `leadsLog`, so the ads Results
+  Milestone would have told them "BoldLine has now delivered 10 leads ... your campaigns keep running".
+  `buildClientCtx` (and the OS `buildCtx` mirror) now sets `resultKind:"enquiry"` for `packageId "w-site"`;
+  `emailWords` has an enquiry variant ("10 enquiries from your website") and the review ask opens with the
+  website, and every email to them carries the website footer.
+- Website-only clients also get the review ask once, 45 days after going live, care plan not past due
+  (client-nurture step 4b). They never get the ads welcome / access / nudges / renewal: those need
+  `contractSigned`, which website deals never set.
+- OS Emails tab filters by client: website-only sees the website emails + milestone, review ask, thank-you;
+  an ads client sees website emails only once they have a website deal or a site.
+- Tests: tests/verify-website-emails.mjs (118 checks, 14 mutations caught) + verify-client-emails (auto
+  labels checked against the real senders).
 
 ## 🔴 The motion system (animation upgrade, 2026-10-06)
 Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it

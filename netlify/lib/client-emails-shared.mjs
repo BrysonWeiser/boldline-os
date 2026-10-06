@@ -20,6 +20,9 @@ const REVIEW_URL = `${SITE}#reviews`;
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
 const SERIF = "Georgia,'Times New Roman',serif";
 
+// The footer every website email carries, and every email to a website-only client: the default one
+// says "Google & Meta ads, managed for you", which is not what they bought.
+const WEB_FOOTER = "BoldLine Media. Websites built and looked after for you.";
 const money = (n) => "$" + Number(n || 0).toLocaleString();
 const firstName = (name) => { const f = String(name || "").trim().split(/\s+/)[0]; return f || "there"; };
 
@@ -44,7 +47,27 @@ const firstName = (name) => { const f = String(name || "").trim().split(/\s+/)[0
 //
 // `resultKind` is `billingResultKind`, the same one field the agreement, the invoice, the
 // portal and the OS billing card read, so all five say the same word.
-const emailWords = (c) => String((c || {}).resultKind || "") === "sale"
+//
+// 🔴 A THIRD KIND: A WEBSITE-ONLY CLIENT (Bryson, 2026-10-06: "make sure the website only clients get
+// the automated emails just like ad clients do and make sure they are tailored to the website
+// clients"). Their enquiries come from their own website's form, so they land in `leadsLog` like
+// anyone's, and the milestone would have told them "BoldLine has now delivered 10 leads ... your
+// campaigns keep running" about campaigns they do not have. `buildClientCtx` sets `resultKind:
+// "enquiry"` for them, and every sentence below is written for a business with a website and no ads.
+const emailWords = (c) => String((c || {}).resultKind || "") === "enquiry"
+  ? {
+      many: "enquiries",
+      arrive: "the enquiries start coming in",
+      track: "See your enquiries",
+      seeAll: "See Your Enquiries",
+      coming: "keep the enquiries coming",
+      running: "your website has been out there working for you",
+      reviewOpen: (biz) => `${biz}'s new website has been live for a little while now, so I wanted to ask a favour while it's fresh.`,
+      milestoneHead: (n) => `${n} enquiries from your website`,
+      milestoneLine: (n, biz) => `quick moment to celebrate: the new website has now brought ${b(n + " enquiries")} to ${b(biz)}. Every one is a real person who found you online and got in touch.`,
+      milestoneSee: "You can see every one of them, and how many people visit the site, anytime in your portal:",
+    }
+  : String((c || {}).resultKind || "") === "sale"
   ? {
       many: "sales",
       arrive: "the orders start coming in",
@@ -52,6 +75,7 @@ const emailWords = (c) => String((c || {}).resultKind || "") === "sale"
       seeAll: "See Your Sales",
       coming: "keep the sales coming",
       running: "the sales are coming through",
+      reviewOpen: (biz) => `${biz} has been running with us for a little while now and the sales are coming through, so I wanted to ask a favour while it's fresh.`,
       milestoneHead: (n) => `${n} sales from your ads`,
       milestoneLine: (n, biz) => `quick moment to celebrate: your campaigns have now brought ${b(n + " sales")} to ${b(biz)}. Every one is a real customer who found you through an ad and bought.`,
       milestoneSee: "We're just getting warmed up. Your campaigns keep running and optimizing. You can see every sale we've recorded anytime in your portal:",
@@ -63,6 +87,7 @@ const emailWords = (c) => String((c || {}).resultKind || "") === "sale"
       seeAll: "See Your Leads",
       coming: "keep the leads coming",
       running: "the leads are coming through",
+      reviewOpen: (biz) => `${biz} has been running with us for a little while now and the leads are coming through, so I wanted to ask a favour while it's fresh.`,
       milestoneHead: (n) => `${n} leads delivered`,
       milestoneLine: (n, biz) => `quick moment to celebrate: BoldLine has now delivered ${b(n + " leads")} to ${b(biz)}. Every one is a real potential customer who raised their hand for you.`,
       milestoneSee: "We're just getting warmed up. Your campaigns keep running and optimizing. You can see every lead anytime in your portal:",
@@ -428,12 +453,161 @@ const T = {
     preheader: "Two minutes, and it genuinely helps us more than you'd think.",
     bodyHtml:
       h1("Would you mind saying how it's going?") +
-      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.businessName || "your business"))} has been running with us for a little while now and ${W.running}, so I wanted to ask a favour while it's fresh.`) +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${W.reviewOpen(b(escapeHTML(c.businessName || "your business")))}`) +
       p("Would you write a couple of lines about how it's gone? Honest is better than glowing. It takes about two minutes and it helps the next business owner decide whether this is worth a try.") +
       button("Leave a Review", REVIEW_URL) +
       small("If you'd rather leave it on Google instead, that works just as well, and it helps you get found too. And if anything is not going the way you hoped, reply to this instead and tell me. I would much rather fix it than be reviewed on it.") +
       signoff(),
   }; },
+
+  // ── 🔴 THE WEBSITE EMAILS (Bryson, 2026-10-06) ─────────────────────────────────────────
+  // "make sure the website only clients get the automated emails just like ad clients do and make
+  // sure they are tailored to the website clients". Each one is the website twin of an ads email:
+  // signing, paying, seeing it before it's live, going live, a payment that bounced, a blog article
+  // they can still change, and a monthly look at how the site is doing. None of them mention ads,
+  // campaigns or leads, because a website-only client has none of those. Every one carries the
+  // website footer. KB `website-builder`.
+  website_welcome: (c) => {
+    const half = c.plan === "half";
+    const care = Number(c.care) > 0;
+    return {
+      footerNote: WEB_FOOTER,
+      subject: `Your website agreement is signed, here's what happens next`,
+      preheader: "Thanks for signing. Here's how the build goes from here.",
+      bodyHtml:
+        h1(`Welcome aboard, ${escapeHTML(firstName(c.contactName))}`) +
+        p(`Thanks for signing. The website agreement for ${b(escapeHTML(c.businessName || "your business"))} is on file and we're ready to start.`) +
+        (c.payUrl && Number(c.amount) > 0
+          ? p(`To get started, we just need the ${half ? "first half of the build" : "build payment"}, ${b(money(c.amount))}. Stripe has emailed you the invoice too. You can pay by card or bank transfer:`) + button("Pay the Invoice", c.payUrl)
+          : "") +
+        p("Here's how it goes from here:") +
+        steps([
+          "You pay the first invoice. We start building the moment it lands.",
+          "We send you a private link to your new site. Nobody else can see it yet, and you can ask for changes.",
+          half ? "When you're happy with it, you pay the second half and we put it live." : "When you're happy with it, we put it live.",
+          ...(care ? ["From launch day, your care plan keeps it online, secure and up to date."] : []),
+        ]) +
+        p(`Your ${gold("client portal")} has a Website tab where you can follow along, ask for a change, and see how many people visit once it's live.`) +
+        button("Open Your Portal", c.portalUrl) +
+        signoff(),
+    };
+  },
+
+  website_payment: (c) => {
+    const amount = Number(c.amount || 0);
+    const lines = Array.isArray(c.lines) ? c.lines.filter((l) => l && l.description) : [];
+    const rows = lines.length
+      ? [...lines.map((l) => [l.description, money(Number(l.amount) || 0)]), ["Total paid", money(amount), "#22D3A0"]]
+      : [["Amount paid", money(amount), "#22D3A0"]];
+    if (c.date) rows.push(["Date", c.date]);
+    const biz = b(escapeHTML(c.businessName || "your business"));
+    const first = escapeHTML(firstName(c.contactName));
+    const head = c.stage === "final"
+      ? { subject: "Paid in full, your website goes live next", pre: "Thanks, the build is paid off.", h: "Paid in full, thank you",
+          body: p(`Thanks ${first}. We've received your final payment of ${b(money(amount))}, so the build for ${biz} is paid off.`) + p("We'll put your site live and email you the moment it's up.") }
+      : c.stage === "care"
+      ? { subject: "Payment received for your website care plan", pre: `We received your payment of ${money(amount)}. Thank you!`, h: "Payment received, thank you",
+          body: p(`Thanks ${first}. We've received this month's payment of ${b(money(amount))} for ${biz}'s website. Here's your receipt:`) }
+      : { subject: "Payment received, we're starting your website", pre: "Thanks! Building starts now.", h: "Payment received. We're on it.",
+          body: p(`Thanks ${first}. We've received your payment of ${b(money(amount))} for ${biz}'s new website, and building starts now.`) + p("Next you'll get a private link to look it over. Nothing goes public until you've seen it and you're happy with it.") };
+    return {
+      footerNote: WEB_FOOTER,
+      subject: head.subject,
+      preheader: head.pre,
+      bodyHtml:
+        h1(head.h) + head.body + detailBox(rows) +
+        (c.stage === "care" ? p("That covers hosting, security updates, keeping the site online and a couple of small changes each month. Want something updated? Ask in your portal.") : "") +
+        (c.invoiceUrl ? button("View Your Invoice", c.invoiceUrl) + small("Your full invoice, with a downloadable PDF, is on the secure Stripe page.") : button("Open Your Portal", c.portalUrl)) +
+        signoff(),
+    };
+  },
+
+  website_review: (c) => ({
+    footerNote: WEB_FOOTER,
+    subject: `Your new website is ready for you to look at`,
+    preheader: "It's private for now. Have a look and tell us what you think.",
+    bodyHtml:
+      h1("Your website is ready to look at") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, the first version of ${b(escapeHTML(c.businessName || "your business"))}'s new website is done. It's private for now, so only people with this link can see it.`) +
+      button("See Your Website", c.previewUrl || c.portalUrl) +
+      p("Have a look on your phone and on a computer. If a word or a photo is off, tell us in your portal or just reply to this email and we'll fix it.") +
+      (c.payUrl && Number(c.amount) > 0
+        ? p(`When you're happy with it, the last step is the second half of the build, ${b(money(c.amount))}. Once that's in, we put it live.`) + button("Pay the Second Half", c.payUrl)
+        : p("When you're happy with it, tell us and we'll put it live.")) +
+      signoff(),
+  }),
+
+  website_live: (c) => ({
+    footerNote: WEB_FOOTER,
+    subject: `${c.businessName || "Your business"} is live`,
+    preheader: "Your new website is up and anyone can find it now.",
+    bodyHtml:
+      h1("You're live") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, ${b(escapeHTML(c.businessName || "your business"))}'s new website is up, and anyone can find it now.`) +
+      button("Visit Your Website", c.siteUrl || c.portalUrl) +
+      p("Two things worth doing this week:") +
+      steps([
+        "Put the link everywhere people already find you: your social profiles and your email signature.",
+        "Add it to your Google Business Profile, so people who search for you land on it.",
+      ]) +
+      (Number(c.care) > 0 ? p(`Your monthly plan starts today at ${b(money(c.care) + " a month")}. It keeps the site online, secure and up to date${c.blog ? ", writes your blog articles" : ""} and covers a couple of small changes each month.`) : "") +
+      (c.blog ? p("Your first blog article is on its way. We'll email you each time one is written, two days before it goes out, so you can read it first.") : "") +
+      p(`In your ${gold("client portal")} you can see how many people visit, where they came from, and ask for a change whenever you need one.`) +
+      button("Open Your Portal", c.portalUrl) +
+      signoff(),
+  }),
+
+  website_past_due: (c) => {
+    const care = c.stage === "care";
+    return {
+      footerNote: WEB_FOOTER,
+      subject: `Action needed: your website payment didn't go through`,
+      preheader: "Your latest payment didn't process. A quick update fixes it.",
+      bodyHtml:
+        h1("A quick heads-up on your payment") +
+        p(`Hi ${escapeHTML(firstName(c.contactName))}, your ${care ? "monthly website payment" : "website payment"}${Number(c.amount) > 0 ? ` of ${b(money(c.amount))}` : ""} didn't go through. It's usually just an expired card or a bank hold, and it takes a minute to fix.`) +
+        button("Update Payment", c.payUrl || c.portalUrl) +
+        (care
+          ? small("Your site stays up for now. If it's still unpaid 15 days after it was due, your agreement lets us take the site offline until it's sorted. Nothing gets deleted, and it comes straight back once it's paid. If you think this is a mistake, just reply.")
+          : small("We'll carry on as soon as it's through. If you think this is a mistake, just reply and we'll sort it out.")) +
+        signoff(),
+    };
+  },
+
+  blog_scheduled: (c) => ({
+    footerNote: WEB_FOOTER,
+    subject: `Your next blog article goes out ${c.goesOut || "soon"}`,
+    preheader: "Have a read first. Change anything you like, or hold it back.",
+    bodyHtml:
+      h1("Your next blog article is ready") +
+      p(`Hi ${escapeHTML(firstName(c.contactName))}, we've written a new article for ${b(escapeHTML(c.businessName || "your business"))}'s blog.`) +
+      detailBox([["Title", c.postTitle || "Your new article"], ["Goes out", c.goesOut || "In two days"]]) +
+      p("Have a read in your portal. You can change anything in it, or hold it back if it isn't right. If you're happy with it, there's nothing to do. It goes out on its own.") +
+      button("Read the Article", c.portalUrl) +
+      signoff(),
+  }),
+
+  website_monthly: (c) => {
+    const n = (k) => Number(c[k] || 0);
+    const rows = [["Visitors", n("visitors").toLocaleString()], ["Pages viewed", n("views").toLocaleString()], ["Enquiries from the site", String(n("enquiries")), n("enquiries") ? "#22D3A0" : undefined]];
+    if (c.topSource) rows.push(["Most visitors came from", c.topSource]);
+    if (c.articles != null && c.blog) rows.push(["New blog articles", String(n("articles"))]);
+    return {
+      footerNote: WEB_FOOTER,
+      subject: `How your website did in ${c.month || "the last month"}`,
+      preheader: `${n("visitors").toLocaleString()} visitors and ${n("enquiries")} ${n("enquiries") === 1 ? "enquiry" : "enquiries"} last month.`,
+      bodyHtml:
+        h1(`Your website in ${escapeHTML(c.month || "the last month")}`) +
+        p(`Hi ${escapeHTML(firstName(c.contactName))}, here's a quick look at how ${b(escapeHTML(c.businessName || "your business"))}'s website did last month.`) +
+        detailBox(rows) +
+        (n("enquiries") > 0
+          ? p(`That's ${b(n("enquiries") + (n("enquiries") === 1 ? " person" : " people"))} who found you online and got in touch.`)
+          : p("No enquiries through the site this month. That's normal early on, while search engines get to know a new site.")) +
+        (c.websiteOnly ? small("Want more people finding it? Reply and ask about Google Ads. We can send people searching for what you do straight to it.") : "") +
+        button("See the Details", c.portalUrl) +
+        signoff(),
+    };
+  },
 };
 
 // public catalog for the OS UI
@@ -468,6 +642,14 @@ export const EMAIL_TYPES = [
   // delivered leads for a lead-gen one, and a tab that calls it a lead milestone is a tab
   // that would stop him looking for it on the one client it matters most for.
   { id: "lead_milestone", label: "Results Milestone", icon: "\u{1F389}", auto: "when they hit 10, 25, 50, 100 leads or sales", desc: "Auto-celebrates a client hitting a milestone (10 / 25 / 50 / 100\u2026). Says leads or sales to match how that client is billed." },
+  // The website emails (2026-10-06). Same rule: `auto` is checked against the real senders.
+  { id: "website_welcome", label: "Website: Welcome", icon: "\u{1F310}", auto: "when they sign the website agreement", desc: "Thanks them for signing, links the first invoice, and walks through build, preview and launch." },
+  { id: "website_payment", label: "Website: Payment Received", icon: "\u{1F4B3}", auto: "when a website payment goes through", desc: "Receipt for the build payments and the monthly care plan, worded for where the build is." },
+  { id: "website_review", label: "Website: Ready to Review", icon: "\u{1F440}", auto: "with the second-half invoice, or when you press Send preview", desc: "Sends the private preview link so they can look before it goes live, with the balance to pay if there is one." },
+  { id: "website_live", label: "Website: It's Live", icon: "\u{1F680}", auto: "when you put the site live", desc: "Tells them the site is up, with the link and two easy things to do this week." },
+  { id: "website_past_due", label: "Website: Payment Failed", icon: "\u23F0", auto: "when a website payment fails", desc: "Polite heads-up with an update link. For the care plan it explains the 15-day rule in their agreement." },
+  { id: "blog_scheduled", label: "Website: Blog Article Ready", icon: "\u270D\uFE0F", auto: "each time an article is written", desc: "Tells them a new article is written and when it goes out, so they can read, edit or hold it in their portal." },
+  { id: "website_monthly", label: "Website: Monthly Summary", icon: "\u{1F4C8}", auto: "on the 1st of each month, once the site is live", desc: "Visitors, enquiries, where people came from and new articles, for last month." },
   { id: "review_request", label: "Review Request", icon: "\u2B50", auto: "once, after a good first stretch", desc: "Asks a happy client for a short review, on the site or on Google. Sends once per client, ever." },
 ];
 
@@ -501,6 +683,9 @@ export const EMAIL_AUTO_FLAGS = {
   // Keyed to the term it belongs to, exactly as billing-watch does it, so next term's
   // reminder still goes out.
   renewal: (client) => (client && client.contractEnd ? { renewalForEnd: client.contractEnd } : null),
+  // The website ones the watchers check before sending: a hand-sent welcome or "you're live" counts too.
+  website_welcome: () => ({ websiteWelcome: true }),
+  website_live: () => ({ websiteLive: true }),
 };
 
 // The patch to merge into `client.emailAuto` after sending `type` by hand, or null when
@@ -527,6 +712,6 @@ export function emailAutoRecorded(type, client) {
 export function renderClientEmail(type, ctx = {}) {
   const tpl = T[type];
   if (!tpl) throw new Error(`Unknown email type: ${type}`);
-  const { subject, preheader, bodyHtml } = tpl(ctx);
-  return { subject, html: emailShell({ preheader, bodyHtml }) };
+  const { subject, preheader, bodyHtml, footerNote } = tpl(ctx);
+  return { subject, html: emailShell({ preheader, bodyHtml, footerNote: footerNote || (ctx.resultKind === "enquiry" ? WEB_FOOTER : undefined) }) };
 }
