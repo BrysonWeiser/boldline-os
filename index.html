@@ -10771,6 +10771,11 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   // branded emails read (Bryson, 2026-09-17: *"make sure these tabs are good as well"*).
   const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["reviews","Reviews"],["website","Website"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
                    .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log"||k==="reviews")))
+                   // The website builder is for CLIENTS. BoldLine's own site is the marketing site, run from
+                   // the Website page in the left menu, so on My Ads the tab only offered to build a second
+                   // one (Bryson, 2026-10-06: "why is there an option to build myself a website when we
+                   // already have one?"). Shown again only if one was ever built here on purpose.
+                   .filter(([k])=>!(client.internal&&k==="website"&&!(client.website&&typeof client.website==="object"&&client.website.content)))
                    // A website-only client has no campaign, ads contract, package, reports or ads emails.
                    .filter(([k])=>!(isWebsiteOnly(client)&&["campaign","pipeline","reviews","package","research","contract","emails","reports"].includes(k)))
                    // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:

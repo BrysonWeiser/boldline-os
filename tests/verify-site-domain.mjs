@@ -192,6 +192,8 @@ ok("the sitemap also works on our address", /where\.seg === "sitemap\.xml" && !w
 
 ok("the address card also shows before the site is built (DNS takes hours, the build a minute)", (UI.match(/<SiteDomainCard client=\{client\} onUpdate=\{onUpdate\}\/>/g) || []).length === 2);
 
+ok("🔴 My Ads (the house account) has no Website tab unless a site was built there on purpose", /client\.internal&&k==="website"&&!\(client\.website&&typeof client\.website==="object"&&client\.website\.content\)/.test(UI));
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-site-domain: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
