@@ -316,8 +316,11 @@ const render = (o) => {
   // pricing reads his leads daily and his written report weekly. The fifth only fits because
   // the CSS changed with it (see the flex rule asserted below), so the two are pinned
   // together. Pinned by name so a sixth has to be a decision, not a drift.
-  same("the real portal has exactly the five tabs", real,
-    ["account", "approvals", "leads", "reports", "status"]);
+  // 🔴 SIX SINCE 2026-10-06, AND ONLY FOR A CLIENT WITH A WEBSITE: the Website tab (KB website-builder)
+  // appears when they have a website deal or a built site; everyone else still sees the five. Six fits a
+  // 360px phone only because of the flex rule asserted below, which divides the strip evenly.
+  same("the real portal has the five tabs, plus Website for a client with a website", real,
+    ["account", "approvals", "leads", "reports", "status", "website"]);
 
   // 🔴 THE THING THAT MAKES FIVE SAFE, not the count itself. Without this rule the buttons
   // size to their text and overflow a 360px phone, which is how Contract went off-screen at

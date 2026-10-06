@@ -136,6 +136,8 @@ export default async (req) => {
       } else posts = publishedPosts(await loadIndex(store, cl.id));
     } catch (e) { console.error("site blog read failed:", e.message); posts = []; }
   }
-  return html(renderSite(cl, pg.id, { base: siteBase(url.host, where.slug), theme: view.theme, query, posts, post, noindex: !!view.previewing || !cl.website.published }),
+  // Count the visit only on the live public site (never a preview link).
+  const track = !view.previewing && cl.website.published ? { url: `https://${url.host}/site-hit`, slug: where.slug } : null;
+  return html(renderSite(cl, pg.id, { base: siteBase(url.host, where.slug), theme: view.theme, query, posts, post, track, noindex: !!view.previewing || !cl.website.published }),
     200, view.previewing ? { "cache-control": "no-store" } : {});
 };

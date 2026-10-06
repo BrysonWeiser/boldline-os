@@ -239,7 +239,7 @@ const dbBlock = UI.slice(UI.indexOf("const PACKAGES_DB = {"), UI.indexOf("const 
 ok("🔴 the website-only package is NOT in the ads catalog (never on the site, never an upgrade)", !/w-site/.test(dbBlock) && /const WEB_PKG_ID = "w-site";/.test(UI));
 ok("every screen can find it", /id === WEB_PKG_ID \? WEB_PKG :/.test(UI) && /PKG_FEATURES\[WEB_PKG_ID\] = \[\];/.test(UI));
 ok("no ads bots for a website-only client", /if \(!pkg \|\| pkg\.pricingModel === "website"\) return \[\];/.test(UI));
-const woA = new Function(`${UI.slice(UI.indexOf("const websiteOnlyAlerts ="), UI.indexOf("const getAlerts ="))}; return websiteOnlyAlerts;`)();
+const woA = new Function(`${UI.slice(UI.indexOf("const webRequestAlerts ="), UI.indexOf("const getAlerts ="))}; return websiteOnlyAlerts;`)();
 ok("🔴 a website-only client never gets ads alerts (intake, contract renewal, billing)", /if \(isWebsiteOnly\(cl\)\) return websiteOnlyAlerts\(cl\);/.test(UI)
   && UI.indexOf("if (isWebsiteOnly(cl)) return websiteOnlyAlerts(cl);") < UI.indexOf('a.push({type:"intake"'));
 ok("it is reminded to send the website agreement, and told when care payments fail", woA({}).some((x) => x.type === "web_agreement") && woA({ websiteDeal: { agreement: { status: "completed" }, careSub: { status: "past_due" } } }).map((x) => x.type).join() === "web_care_late");

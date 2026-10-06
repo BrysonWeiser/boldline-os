@@ -56,6 +56,7 @@ export const BACKUP_TABLES = [
   { table: "scout_runs", order: "created_at", cap: 200 },   // one row per search, mostly noise after a week
   { table: "login_events", order: "created_at", cap: 500 },  // sign-in history
   { table: "health_checks", order: "ran_at", cap: 500 },     // the daily check's own results
+  { table: "site_visits", order: "at", cap: 20000 },        // client website page views (portal numbers); capped, it only grows
 ];
 
 // Storage buckets hold FILES, not rows, and copying every image every night would be five

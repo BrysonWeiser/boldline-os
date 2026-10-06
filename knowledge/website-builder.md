@@ -2,8 +2,8 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons live 2026-10-06; portal view and step 3 (package/contract/billing) and 3 (custom domain) not built
+keywords: [portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons + portal Website tab with visitor numbers live 2026-10-06; step 3 (own domain) not built (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
@@ -120,6 +120,31 @@ client on the deal card): **extra page $200 each**, **blog $300 setup + $149/mo 
   article is a 404 publicly; BlogPosting JSON-LD.
 - Tests: tests/verify-website-addons.mjs (67 checks, 14 mutations caught). Browser-driven.
 
+## The client portal's Website tab + visitor numbers (BUILT 2026-10-06)
+Bryson: *"add a way for the client to view the analytics and other details (in the client portal)"*.
+- `netlify/lib/portal-website.mjs` `websitePortalHTML(cl, {siteUrl, stats, posts})`: status in plain
+  words (`websiteStatus`: none/sign/pay/build/review/launch/live), a link (live site, or the preview link
+  while they review before paying the balance), Payments (each stage paid or "Pay now" to Stripe's own
+  https invoice page; monthly plan status), Visitors last 30 days (only once live: visitors, page views,
+  website enquiries, daily bars, where they came from, top pages, phone/tablet/computer; says "soon" rather
+  than zeros if the numbers are not readable), the blog's latest articles, and "Ask for a change"
+  (counts the care plan's 2 small changes a month).
+- portal.mjs: a WEBSITE-ONLY client's portal is Website | Enquiries | Account (Status hidden, ad-account
+  connections dropped, help chat kept); an ads client with a website gets a 6th tab (fits 360px via the
+  flex rule; verify-portal-upgrades now pins six). Change requests POST `{websiteRequest:{text}}`, stored
+  in `cl.websiteRequests` (cap 10 open), logged, Bryson alerted; OS shows them on the Website tab
+  ("Mark done", which the client then sees) and as a yellow alert. The OS portal PREVIEW only names the tab
+  (the numbers live server side).
+- Visitor counting: live public pages only (site.mjs passes `track` when published and not a preview)
+  send a text/plain beacon to `/site-hit` (skips about:, ?preview=, webdriver). `site-hit.mjs` always
+  answers 204, skips bots, stores `site_visits` rows {client_id, at, path, source, device, visitor} where
+  visitor is a DAILY-rotating hash (no cookie, no IP stored). `site-stats.mjs` `summarize` (30 days,
+  Internal clicks are page views but not arrivals). In the nightly backup (capped 20,000).
+- 🔴 **Needs ONE Supabase step from Bryson: run docs/sql/site-visits-schema.sql in the SQL Editor.**
+  Until then the beacon fails quietly and the portal says visitor numbers will show soon. (Supabase,
+  not Netlify, so it does not go in the 10pm reminder.)
+- Tests: tests/verify-website-portal.mjs (38 checks, 10 mutations caught).
+
 ## 🔴 The motion system (animation upgrade, 2026-10-06)
 Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it
 went through the window"*, *"don't use to much motion but also don't use to little basically using it at the
@@ -201,7 +226,7 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- The client portal's website view with visitor analytics (in progress 2026-10-06).
+- A welcome email with the portal link for website-only clients (today: copy it from Client View).
 - **Step 3, their domain:** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
