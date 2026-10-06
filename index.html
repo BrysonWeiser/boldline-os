@@ -8612,7 +8612,7 @@ function ClientApprovalsCard({client,onUpdate}) {
 // send from an about: document, and every link inside it only posts a message asking this screen to
 // switch tabs. Listed in tests/verify-preview-safety.mjs as "Website preview".
 const SITE_PAGE_TABS=[["home","Home"],["services","Services"],["about","About"],["reviews","Reviews"],["contact","Contact"]];
-const SITE_THEME_LIST=[["cinematic","Cinematic","Light and airy, huge type, a glass orb that follows the cursor."],["aurora","Aurora","Dark and bold, glowing color, numbered cards, a moving strip."],["editorial","Editorial","Warm and refined, elegant serif headlines, photo-led."]];
+const SITE_THEME_LIST=[["cinematic","Cinematic","Light and airy, huge type, a glass orb that reacts to the cursor."],["aurora","Aurora","Dark and bold, with a moving 3D backdrop matched to the trade."],["editorial","Editorial","Bright and refined, elegant serif headlines, photo-led."]];
 // Hand-typed edits go through the same no-dash rule as everything else a visitor reads.
 const siteDeDash=(v)=>typeof v==="string"?humanizeAdCopy(v):Array.isArray(v)?v.map(siteDeDash):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,siteDeDash(x)])):v;
 const siteKey=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,"0")).join("");
@@ -8740,6 +8740,11 @@ function WebsiteTab({client,onUpdate}){
             </div>))}
         </div>
         {w.previewKey&&live&&<button onClick={copyDesigns} style={{...btn(true,false),width:"100%",marginTop:10}}>Copy the 3 designs to send the client</button>}
+        {/* Each client gets its own mix of animations (KB website-builder). This re-rolls the mix; the words and photos stay. */}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginTop:10,flexWrap:"wrap"}}>
+          <button onClick={()=>save({motionSeed:Math.random().toString(36).slice(2,10)})} style={btn(false,false)}>Try different animations</button>
+          <span style={{fontSize:11,color:C.textMuted}}>Every client gets their own mix of motion. This picks a new mix for all three designs; words and photos stay the same.</span>
+        </div>
       </div>
 
       {edit&&(

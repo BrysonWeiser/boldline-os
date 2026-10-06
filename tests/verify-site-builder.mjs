@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { renderSite, siteContent, THEME_IDS, SITE_PAGES, brandName, siteReady } from "../netlify/lib/site-render.mjs";
+import { renderSite, siteContent, THEME_IDS, SITE_PAGES, brandName, siteReady, motionRecipe, glSceneFor, MOTION, LENIS, glShader } from "../netlify/lib/site-render.mjs";
 import { parsePath, viewFor, siteBase } from "../netlify/functions/site.mjs";
 import { SITE_SCHEMA, buildPrompt, writeCopy, stockPhotos } from "../netlify/functions/site-build-background.mjs";
 
@@ -75,12 +75,54 @@ ok("either a phone or an email is enough, neither alone is forced", /if\(!ph&&!e
 
 // ── 4. Fast first ───────────────────────────────────────────────────────────────────────────
 const home = renderSite(FULL, "home", { base: BASE, theme: "aurora" });
-ok("🔴 content is visible with no script: hidden-until-revealed only applies under html.js", /html\.js \.rv\{opacity:0/.test(home) && !/^\.rv\{opacity:0/m.test(home));
+// Every rule that hides content until it animates in must be gated on a class the script adds.
+const hidingRules = (h) => [...(h.match(/<style>([\s\S]*?)<\/style>/) || ["", ""])[1].replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+  .filter((m) => /\.(rv|hl|ln|ch|w|pcopy|sk|ph)\b/.test(m[1]) && /opacity:0[;}]|opacity:0$|translateY\(1\d\d%\)|clip-path:inset\((100%|-20% 100%)/.test(m[2]))
+  .map((m) => m[1].trim());
+const ungated = all.flatMap((x) => hidingRules(x.html).flatMap((sel) => sel.split(",").filter((one) => !/^html\.(mo|js)\b/.test(one.trim()))));
+ok("🔴 content is visible with no script: every hide-until-revealed rule sits under html.mo or html.js", ungated.length === 0, [...new Set(ungated)].slice(0, 3).join(" | "));
+ok("🔴 every hidden state has a 'shown' rule specific enough to beat it (this once left a whole hero invisible)",
+  /html\.mo body \.rv\.in\{opacity:1/.test(home) && /html\.mo body \.hl\.in \.ln>span/.test(home) && hidingRules(home).length >= 6);
+ok("🔴 the page itself is never hidden waiting for a script", all.every((x) => !/body\{opacity:0|body\.ready/.test(x.html)));
+ok("🔴 if the motion script throws, it takes its classes back off so everything shows", /catch\(err\)\{h\.classList\.remove\('js','mo'\)/.test(home));
+ok("🔴 'reduce motion' never gets the motion class at all", /if\(!rm\)h\.classList\.add\('mo'\)/.test(home));
+ok("headline lines keep a space between them when they sit inline (no script)", /better\.<\/span><\/span> <span class="ln">/.test(renderSite(FULL, "home", { base: BASE, theme: "aurora" })));
 ok("🔴 'reduce motion' switches the motion off", /@media \(prefers-reduced-motion:reduce\)/.test(home));
 ok("🔴 the 3D piece waits for idle and skips reduce-motion, Data Saver and small-memory phones",
   /requestIdleCallback/.test(home) && /prefers-reduced-motion: reduce/.test(home) && /saveData/.test(home) && /deviceMemory<4/.test(home));
 ok("the 3D piece pauses when it is off screen or the tab is hidden", /IntersectionObserver/.test(home) && /document\.hidden/.test(home));
 ok("the Editorial design ships no 3D at all", !/getContext\('webgl'/.test(renderSite(FULL, "home", { base: BASE, theme: "editorial" })));
+ok("🔴 the 3D stops itself on a device too slow to keep up", /slow>60\)\{dead=true/.test(home));
+ok("🔴 smooth scrolling loads one pinned file, checked by its integrity hash, only for a mouse, never for Data Saver",
+  home.includes(LENIS.src) && /^sha384-[A-Za-z0-9+/=]{64}$/.test(LENIS.sri) && home.includes(`s.integrity='${LENIS.sri}'`) && /@\d+\.\d+\.\d+\//.test(LENIS.src)
+  && /if\(fine&&!rm\)\{[\s\S]*if\(!lite\)\{var ld=/.test(home));
+
+// ── 4b. Motion: varied per client, at the right amount ──────────────────────────────────────
+const recipes = Array.from({ length: 300 }, (_, i) => ({ id: `client-${i}` }));
+for (const k of ["entrance", "scene", "reveal", "transition", "marquee"]) {
+  const seen = new Set(recipes.flatMap((cl) => THEME_IDS.map((t) => motionRecipe(cl, t)[k])));
+  ok(`every ${k} option actually gets used across clients`, MOTION[k].every((o) => seen.has(o)), [...seen].join(","));
+}
+ok("🔴 the three designs one client sees never share the big scroll moment or the headline entrance",
+  recipes.every((cl) => new Set(THEME_IDS.map((t) => motionRecipe(cl, t).scene)).size === 3 && new Set(THEME_IDS.map((t) => motionRecipe(cl, t).entrance)).size === 3));
+ok("the same client always gets the same mix (it doesn't change on every page load)", JSON.stringify(motionRecipe(FULL, "aurora")) === JSON.stringify(motionRecipe({ ...FULL }, "aurora")));
+const sig = (cl) => THEME_IDS.map((t) => { const r = motionRecipe(cl, t); return [r.entrance, r.scene, r.reveal, r.transition, r.marquee].join("/"); }).join("|");
+ok("'Try different animations' re-rolls the mix", sig(FULL) !== sig({ ...FULL, website: { ...FULL.website, motionSeed: "x9" } }));
+ok("two clients on the same design usually look different", new Set(recipes.slice(0, 40).map((cl) => sig(cl))).size >= 30);
+const sceneHome = (scene, th) => { for (let i = 0; i < 400; i++) { const cl = { ...FULL, website: { ...FULL.website, motionSeed: `s${i}` } }; if (motionRecipe(cl, th).scene === scene) return renderSite(cl, "home", { base: BASE, theme: th }); } return ""; };
+for (const scene of MOTION.scene) for (const th of THEME_IDS) {
+  const h = sceneHome(scene, th);
+  ok(`🔴 the ${scene} scene (${th}) still shows every service and the story as plain content`, h && ["Back pain", "Neck pain", "TMJ"].every((n) => shown(h).includes(n)) && shown(h).includes("One."));
+}
+ok("the scroll scenes only pin and stretch under the motion class", /html\.mo \.portal\{height:300svh\}/.test(sceneHome("portal", "aurora")) && !/^\.portal\{height/m.test(sceneHome("portal", "aurora")));
+ok("the rail only turns sideways on a wide screen with enough cards", /innerWidth>=900&&r\.querySelectorAll\('\.rc'\)\.length>=3/.test(home));
+ok("🔴 the right amount: the home page has exactly one big scroll moment", MOTION.scene.every((sc) => { const h = sceneHome(sc, "cinematic"); return (h.match(/class="portal"|class="sec rail"|class="stk"/g) || []).length === 1; }));
+ok("no AI tells: no all-caps labels, no [01] numbering, no monospace font", all.every((x) => !/text-transform:uppercase/.test(x.html) && !/\[\d\d\]/.test(shown(x.html)) && !/JetBrains|monospace/.test(x.html)));
+ok("button labels roll on hover, and the copy is silent to screen readers", /content:attr\(data-t\) \/ ""/.test(home) && /<span class="bt"><span data-t="Book a visit">Book a visit<\/span><\/span>/.test(home));
+ok("3D backdrops match the trade", glSceneFor({ niche: "Pool Construction" }) === "water" && glSceneFor({ niche: "Auto Detailing" }) === "chrome" && glSceneFor({ niche: "Chiropractic" }) === "silk"
+  && glSceneFor({ niche: "Med Spa" }) === "silk" && glSceneFor({ niche: "Roofing" }) === "topo" && glSceneFor({ niche: "Bookkeeping" }) === "liquid");
+ok("each trade's backdrop is a real, separate shader", new Set(["water", "chrome", "silk", "topo", "liquid"].map((k) => glShader(k, false))).size === 5 && /calm/.test(glShader("water", true)));
+ok("the shaders avoid reversed smoothstep edges (undefined on some phones' graphics chips)", ["water", "chrome", "silk", "topo", "liquid"].every((k) => ![...glShader(k, true).matchAll(/smoothstep\(([-\d.]+),([-\d.]+),/g)].some((m) => +m[1] > +m[2])));
 
 // ── 5. Search and sharing ───────────────────────────────────────────────────────────────────
 ok("each page has its own title, description and canonical address", /<title>Services \| Springbok Wellness<\/title>/.test(renderSite(FULL, "services", { base: BASE }))
@@ -142,6 +184,7 @@ ok("🔴 nothing goes live until he presses 'Put it live'", /save\(\{published:!
 ok("the client gets three preview links to choose from, built on the site's own preview key", /previewLink\(id\)/.test(tab) && /previewKey:w\.previewKey\|\|siteKey\(\)/.test(tab));
 ok("🔴 rewriting the words asks first, because it replaces his edits", /window\.confirm\("Rewrite all the website text\?/.test(tab));
 ok("hand edits go through the no-dash rule too", /save\(\{content:siteDeDash\(c\)/.test(tab));
+ok("the 'Try different animations' button stores a new motion seed and nothing else", /save\(\{motionSeed:Math\.random\(\)\.toString\(36\)\.slice\(2,10\)\}\)/.test(tab));
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-site-builder: ${pass} passed, ${fails.length} failed`);

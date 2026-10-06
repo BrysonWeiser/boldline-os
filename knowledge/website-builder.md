@@ -2,9 +2,9 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built (builder + OS tab + serving); steps 2 (package/contract/billing) and 3 (custom domain) not built
-summary: Step 1 of the website service, built 2026-10-06. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Served at /site/<landingSlug>/ once "Put it live" is pressed; drafts only via the site's own preview key. Motion and a WebGL accent are layered on after the page is usable and drop out for reduce-motion, Data Saver and small-memory phones. 49 checks, 9 mutations caught; driven at four widths.
+keywords: [motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+status: step 1 built (builder + OS tab + serving) + animation upgrade (per-client motion mix, trade-matched 3D) live 2026-10-06; steps 2 (package/contract/billing) and 3 (custom domain) not built
+summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
 
@@ -22,20 +22,59 @@ Client record > **Website** tab (between Reviews and Assets).
 Amber note while there are no client photos: ask them to upload in their portal under Assets; their
 `photo` uploads replace the background photos automatically (own photos are used first).
 
+## 🔴 The motion system (animation upgrade, 2026-10-06)
+Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it
+went through the window"*, *"don't use to much motion but also don't use to little basically using it at the
+right times"*. `motionRecipe(cl, theme)` in site-render picks, seeded from the client id (or
+`website.motionSeed`), one of each:
+| Slot | Options | Notes |
+|---|---|---|
+| entrance (hero headline) | rise, chars (letter by letter), focus (blur to sharp), wipe | |
+| scene (THE one big home scroll moment) | **portal** (photo window behind the business name in huge type, you scroll INTO it, the Jesko move), **rail** (services pinned and scrolled sideways, 900px+ and 3+ cards only), **stack** (service cards stack and dim as you scroll) | one per home page, never two |
+| reveal (sections) | rise, clip (photos wipe up), soft (fade + slight scale) | no blur on reveals (costly on phones) |
+| transition (between pages) | veil (fade), curtain (accent panel sweeps up) | arrival only after an internal click |
+| marquee | drift (CSS), velocity (speeds up and skews with scroll) | |
+| fill / cursor | word-by-word story light (home or About), cursor ring (mouse only) | |
+The three designs for one client never share a scene or an entrance (one shuffle per client, indexed by
+design), so the 3 preview links always show 3 different experiences. OS button **"Try different
+animations"** (Pick a design card) stores a new `website.motionSeed` = a new mix for all three; words,
+photos and the chosen design stay.
+Also everywhere (quiet, "right times"): button labels roll up on hover, magnetic buttons, gentle tilt on
+cards/photos (mouse only), steps draw a line as you pass them, Services page has a photo that follows the
+pointer down the list (mouse only), smooth scrolling (Lenis 1.3.26 from jsdelivr, pinned by sha384
+integrity, mouse + not Data Saver only).
+**3D backdrop matched to the trade** (`glSceneFor`, plain WebGL1, no library): water caustics (pools,
+plumbing, cleaning), liquid chrome (auto, detailing, metal), silk (chiro, wellness, med/day spa, salons,
+dental), contour lines (roofing, landscaping, construction, real estate, trades), liquid light (anything
+else). Aurora shows it full screen (darkened behind the headline); Cinematic shows it through the glass orb
+(muted outside the orb); Editorial has none. Stops itself if a device can't keep up (more than half of the
+first 120 frames slow). Shader rule: never a reversed `smoothstep(a,b,x)` with a>b (undefined on some GPUs).
+**AI tells removed** (frontend-design skill review): no all-caps eyebrows, no `[01]` numbering on things that
+aren't a sequence, no monospace, no italic accent word. Aurora default accent amber `#E8A15B` (was acid
+green), fonts Bricolage Grotesque + Geist; Editorial is paper white + Fraunces + Instrument Sans with a
+drawn underline under the last headline word.
+🔴 **Gotchas found while building, keep them:** (1) CSS specificity: hidden states carry
+`body[data-in]`/`body[data-rv]`, so "shown" rules must be `html.mo body .rv.in` etc., or the hero stays
+invisible (it did, once). (2) Headline lines must be joined with a space, or without the script
+"better.Feel" runs together. (3) `.btn` needs `white-space:nowrap` or phone pill buttons wrap.
+
 ## The three designs (from his two references, jeskojets.com and inthebrandlab.com)
 | | Look | Motion / 3D |
 |---|---|---|
-| **Cinematic** | light, Archivo Expanded at huge sizes, two-part hero (line A top left, line B bottom right) | WebGL **glass orb** with fresnel + specular that tilts toward the pointer over a liquid sky gradient (brand tinted) |
-| **Aurora** | dark, Inter 800, eyebrow pill, centered hero, numbered `[01]` cards, marquee strip | WebGL liquid aurora in the brand color |
-| **Editorial** | warm cream, Fraunces serif with an italic accent line, photo-led hero | no WebGL (deliberate); parallax photo, drawn rules |
-All: staggered blur-in headline, scroll reveals, story paragraph that lights up word by word (Jesko),
-magnetic buttons and 3D tilt cards (fine pointers only), header that hides on scroll down, floating
-pill CTA (Book + Call), page fade transitions, marquee. Brand color = website.brandColor, else the
-landing page's, else the design's default.
+| **Cinematic** | light, Archivo Expanded at huge sizes, two-part hero (line A top left, line B bottom right) | WebGL **glass orb** that tilts toward the pointer, showing the trade's 3D backdrop inside it |
+| **Aurora** | dark, Bricolage Grotesque, eyebrow pill, centered hero, marquee strip | the trade's 3D backdrop full screen |
+| **Editorial** | paper white, Fraunces serif, drawn underline, photo-led hero | no WebGL (deliberate); tilt on the hero photo |
+Motion per client: see the table above. Header hides on scroll down, floating pill CTA (Book + Call).
+Brand color = website.brandColor, else the landing page's, else the design's default.
 
 ## Rules enforced by tests/verify-site-builder.mjs (and verify-preview-safety "Website preview")
-- 🔴 Fast first: content visible without script (hidden states only under `html.js`); WebGL waits for
-  idle, skips reduce-motion / saveData / deviceMemory<4 / no WebGL, pauses offscreen and in hidden tabs.
+- 🔴 Fast first: content visible without script (every hide-until-revealed rule is parsed out of the CSS and
+  must sit under `html.mo`/`html.js`; the page body is never hidden); the script removes its classes if it
+  throws; reduce-motion never gets `mo`; every scroll scene has a plain layout and still shows every service.
+  WebGL waits for idle, skips reduce-motion / saveData / deviceMemory<4 / no WebGL, pauses offscreen and
+  in hidden tabs, and stops on slow devices. Lenis only with its integrity hash.
+- 🔴 Variety: every option of every slot is used across 300 fake clients; one client's 3 designs never share a
+  scene or entrance; exactly one big scroll moment per home page.
 - 🔴 Every href absolute (built from an https `base`), tel:, mailto:, or Google. Nothing relative,
   nothing to boldlinemedia.com or the OS. Preview links keep `?preview=&theme=` on every internal link.
 - 🔴 Preview frame: `sandbox="allow-scripts"` only; the form checks `about:` BEFORE fetch; in a preview
