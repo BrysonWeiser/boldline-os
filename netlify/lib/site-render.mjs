@@ -893,6 +893,19 @@ function jsonLd(cl, C, base) {
   return JSON.stringify(o).replace(/</g, "\\u003c");
 }
 
+// One page view, for the portal's visitor numbers (site-hit.mjs). Only on the live public site: never in
+// a preview (about:), never on a ?preview= link, never for an automated browser. Sent as plain text so
+// the browser needs no permission check, and it can never break the page.
+function hitScript(track, base) {
+  const url = /^https:\/\//.test(String(track.url || "")) ? String(track.url) : "";
+  if (!url) return "";
+  const basePath = (() => { try { return new URL(base).pathname.replace(/\/$/, ""); } catch { return ""; } })();
+  return `(function(){try{var h=String(location.href);if(h.indexOf('about:')===0||/[?&]preview=/.test(location.search)||navigator.webdriver)return;
+var p=location.pathname;if(p.indexOf(${JSON.stringify(basePath)})===0)p=p.slice(${basePath.length})||'/';
+var b=JSON.stringify({s:${JSON.stringify(String(track.slug || ""))},p:p,r:document.referrer||'',a:/[?&](gclid|gbraid|wbraid)=/.test(location.search)?1:0});
+if(navigator.sendBeacon){navigator.sendBeacon(${JSON.stringify(url)},new Blob([b],{type:'text/plain'}));}else{fetch(${JSON.stringify(url)},{method:'POST',body:b,keepalive:true,mode:'no-cors'});}}catch(e){}})();`;
+}
+
 // ── The page ──────────────────────────────────────────────────────────────────────────────
 // opts.base: absolute origin + path of the site root, no trailing slash. Required.
 export function renderSite(cl, pageId = "home", opts = {}) {
@@ -930,7 +943,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
 ${header(cl, base, page, C, pages)}
 <main>${body}</main>
 ${footer(cl, base, C, pages)}
-<script>${motionScript(cl, M)}</script>${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}
+<script>${motionScript(cl, M)}</script>${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}${opts.track ? `<script>${hitScript(opts.track, base)}</script>` : ""}
 </body></html>`;
   // A preview link has to stay a preview link as you click around, or Services lands on "coming soon".
   const q = String(opts.query || "");
