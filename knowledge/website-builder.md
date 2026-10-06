@@ -192,9 +192,11 @@ Bryson: *"yea start on the web address"*. A client's site can now run on THEIR a
   manual Netlify step (Domain management > Add domain alias, both forms) = a 10pm-reminder job per client.
   ✅ **Set by Bryson 2026-10-06** on the OS site (no-expiry personal access token, redeployed). The card shows
   "Connected to Netlify" before the first address is set (`netlify-status`, read-only `netlifyStatus`), and
-  daily-check alerts red if the key is refused (expired/deleted); skipped if unset. Where to see it: sidebar
-  **My Ads** (BoldLine's house account) > **Website** tab > "Their web address" card (the card shows before a
-  site is built too, since 2026-10-06, so the house account shows it).
+  daily-check alerts red if the key is refused (expired/deleted); skipped if unset. The card shows before a site is
+  built too. 🔴 The Website tab is now HIDDEN on My Ads (the house account) unless a site was built there:
+  BoldLine's own site is the marketing site (sidebar Website page), and the tab confused Bryson by offering
+  to build a second one. So the connection line is seen on a signed website client's record; the daily check
+  is the ongoing guard. Verified connected by Bryson's screenshot 2026-10-06.
 - **Domain ownership (recommendation given to Bryson 2026-10-06):** the client buys and owns the domain in
   their own name (about $12 to $20 a year); BoldLine does the DNS and hosts the site (hosting is already in
   the care plan). Same principle as ad accounts: if BoldLine held the domain, leaving would mean a domain
