@@ -3,7 +3,7 @@ name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
 keywords: [website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) live 2026-10-06; website-only clients and step 3 (package/contract/billing) and 3 (custom domain) not built
+status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients live 2026-10-06; extra pages/blog, portal view and step 3 (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
@@ -81,10 +81,16 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
   its button is `.wo-cta`, not `.pkg-cta`: verify-site-matches-packages maps every .pkg card to an ads
   package, and verify-meta-flip counts `.pkg-cta` per panel (a `.pkg-cta` here was counted into the
   e-commerce panel and failed it). /get-started (BoldLine's own ad landing page) is left single-goal.
-- 🔴 **Not built: website-only clients.** Every client record assumes an ads package (contract tab,
-  billing card, alerts, launch checklist, pipeline bots all read it, and Deal Prep's "make this a
-  client" requires a package). A website-only client needs its own client type so those screens stand
-  down; that is the next unit of work, deliberately not bolted on here.
+- ✅ **Website-only clients (BUILT 2026-10-06).** Package `w-site` ("Website Only", `pricingModel:
+  "website"`), defined beside the house package and NOT in PACKAGES_DB (never on the site, in the ads
+  catalog checks, or an upgrade target). `isWebsiteOnly(cl)` is the switch: getAlerts returns
+  `websiteOnlyAlerts` only (no intake / renewal / billing alerts), the ads tabs (campaign, pipeline,
+  reviews, package, competitors, contract, emails, reports) are hidden, the client opens on its Website
+  tab, the Overview is `WebsiteOnlyOverview` (status tiles + "Offer them ads": pick a package, confirm,
+  packageId switches, ads tabs appear, website deal untouched), `buildBots` returns none. Created from
+  Add Client (new "Website only" tab, saves in one step) or Deal Prep (option at the top, default when
+  the brief said `WEBSITE: only`), with NO ads contract dates. Server jobs already skip them because
+  they never get `contractSigned`/`contractStatus: active` (that is the ads agreement).
 
 ## 🔴 The motion system (animation upgrade, 2026-10-06)
 Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it
@@ -167,7 +173,7 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- **Website-only clients** (a client type with no ads package, see Step 2b). Steps 2a and 2b are built.
+- Extra pages + blog add-on, and the client portal's website view (in progress 2026-10-06).
 - **Step 3, their domain:** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).

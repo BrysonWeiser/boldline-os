@@ -234,6 +234,24 @@ ok("not once a website deal or a site exists", showUp({ ...signedAds, websiteDea
 ok("'Not now' hides it for 60 days, then it comes back", showUp({ ...signedAds, websiteUpsellHiddenAt: new Date(Date.now() - 5 * 864e5).toISOString() }) === false
   && showUp({ ...signedAds, websiteUpsellHiddenAt: new Date(Date.now() - 61 * 864e5).toISOString() }) === true);
 
+// ── 10. Website-only clients ───────────────────────────────────────────────────────────────
+const dbBlock = UI.slice(UI.indexOf("const PACKAGES_DB = {"), UI.indexOf("const ALL_PKGS ="));
+ok("🔴 the website-only package is NOT in the ads catalog (never on the site, never an upgrade)", !/w-site/.test(dbBlock) && /const WEB_PKG_ID = "w-site";/.test(UI));
+ok("every screen can find it", /id === WEB_PKG_ID \? WEB_PKG :/.test(UI) && /PKG_FEATURES\[WEB_PKG_ID\] = \[\];/.test(UI));
+ok("no ads bots for a website-only client", /if \(!pkg \|\| pkg\.pricingModel === "website"\) return \[\];/.test(UI));
+const woA = new Function(`${UI.slice(UI.indexOf("const websiteOnlyAlerts ="), UI.indexOf("const getAlerts ="))}; return websiteOnlyAlerts;`)();
+ok("🔴 a website-only client never gets ads alerts (intake, contract renewal, billing)", /if \(isWebsiteOnly\(cl\)\) return websiteOnlyAlerts\(cl\);/.test(UI)
+  && UI.indexOf("if (isWebsiteOnly(cl)) return websiteOnlyAlerts(cl);") < UI.indexOf('a.push({type:"intake"'));
+ok("it is reminded to send the website agreement, and told when care payments fail", woA({}).some((x) => x.type === "web_agreement") && woA({ websiteDeal: { agreement: { status: "completed" }, careSub: { status: "past_due" } } }).map((x) => x.type).join() === "web_care_late");
+ok("🔴 the ads tabs are hidden for a website-only client, and it opens on its Website tab",
+  /isWebsiteOnly\(client\)&&\["campaign","pipeline","reviews","package","research","contract","emails","reports"\]\.includes\(k\)/.test(UI) && /useState\(client\._initialTab\|\|\(isWebsiteOnly\(client\)\?"website":"overview"\)\)/.test(UI));
+ok("its Overview is the website, not the ads launch checklist", /tab==="overview"&&isWebsiteOnly\(client\)&&<WebsiteOnlyOverview/.test(UI) && /tab==="overview"&&!isWebsiteOnly\(client\)&&\(/.test(UI));
+ok("🔴 a website-only client is created with no ads contract dates (both ways in)", /\.\.\.\(web\?\{contractStart:"",contractEnd:"",contractTermMonths:0,platforms:\[\]\}:\{\}\)\}\);/.test(UI)
+  && /if \(pkg && pkg\.pricingModel === "website"\) Object\.assign\(cl, \{ contractStart: "", contractEnd: "", contractTermMonths: 0 \}\);/.test(UI));
+ok("Add Client and Deal Prep both offer 'Website only'", /\["website","Website only"\]/.test(UI) && /<option value=\{WEB_PKG_ID\}>Website only/.test(UI));
+const WOO = UI.slice(UI.indexOf("function WebsiteOnlyOverview("), UI.indexOf("function DealPrepWebsite("));
+ok("🔴 adding ads asks first and only changes the package (nothing is sent or charged)", /window\.confirm\(`Make \$\{client\.name\} an ads client/.test(WOO) && !/fetch\(/.test(WOO) && !/websiteDeal/.test(WOO.slice(WOO.indexOf("onUpdate&&onUpdate("))));
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-website-deal: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
