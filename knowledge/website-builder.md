@@ -140,9 +140,10 @@ Bryson: *"add a way for the client to view the analytics and other details (in t
   answers 204, skips bots, stores `site_visits` rows {client_id, at, path, source, device, visitor} where
   visitor is a DAILY-rotating hash (no cookie, no IP stored). `site-stats.mjs` `summarize` (30 days,
   Internal clicks are page views but not arrivals). In the nightly backup (capped 20,000).
-- 🔴 **Needs ONE Supabase step from Bryson: run docs/sql/site-visits-schema.sql in the SQL Editor.**
-  Until then the beacon fails quietly and the portal says visitor numbers will show soon. (Supabase,
-  not Netlify, so it does not go in the 10pm reminder.)
+- ✅ **Supabase table created by Bryson 2026-10-06** (docs/sql/site-visits-schema.sql run in the SQL
+  Editor). Verified the same day: the REST API answers 200 with `[]` for `site_visits` to the public key
+  (table exists, RLS keeps it private) vs 404 for a made-up table. Visits count from now on; the portal
+  shows numbers once a live site has had a visitor, and the monthly summary email starts 1 Nov 2026.
 - Tests: tests/verify-website-portal.mjs (49 checks, 10 mutations caught).
 
 ## Client blog editing (BUILT 2026-10-06)
