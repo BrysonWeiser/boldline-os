@@ -46,7 +46,7 @@ const signingBlock = (name) =>
   + `<div style="font-size:11px;color:#666;margin-top:4px">${escapeHtml(name)}</div></div>`;
 
 // Make sure the document carries the signature anchor exactly once.
-function ensureAnchor(html, name) {
+export function ensureAnchor(html, name) {
   if (html.includes(SIGN_ANCHOR)) return html;
   if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, signingBlock(name) + "</body>");
   return html + signingBlock(name);
@@ -64,12 +64,13 @@ function testAgreementHTML(name) {
 }
 
 // ── Envelope send ────────────────────────────────────────────────────────────
-async function sendEnvelope(accessToken, { subject, documentHtml, recipientEmail, recipientName }) {
+// Exported so the website agreement (functions/website-deal.mjs) sends through the same proven code.
+export async function sendEnvelope(accessToken, { subject, documentHtml, recipientEmail, recipientName, documentName = "BoldLine Media Service Agreement" }) {
   const envelope = {
     emailSubject: subject,
     documents: [{
       documentBase64: Buffer.from(documentHtml).toString("base64"),
-      name: "BoldLine Media Service Agreement",
+      name: documentName,
       fileExtension: "html",
       documentId: "1",
     }],

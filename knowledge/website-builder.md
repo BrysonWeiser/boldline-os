@@ -2,8 +2,8 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
-status: step 1 built (builder + OS tab + serving) + animation upgrade (per-client motion mix, trade-matched 3D) live 2026-10-06; steps 2 (package/contract/billing) and 3 (custom domain) not built
+keywords: [website deal, websiteDeal, website agreement, WA-1, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) live 2026-10-06; step 2b (Deal Prep, marketing site, cross-sell) and step 3 (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
 ---
@@ -21,6 +21,47 @@ Client record > **Website** tab (between Reviews and Assets).
 5. Big preview with page tabs and Desktop/Phone; clicking a link inside the preview switches the tab.
 Amber note while there are no client photos: ask them to upload in their portal under Assets; their
 `photo` uploads replace the background photos automatically (own photos are used first).
+
+## 🔴 Step 2a: the website deal (BUILT 2026-10-06): signed and paid before building, paid in full before live
+Bryson: build only *"after a client signs the agreement and pays"*, price his to change, *"pay half now half
+when finished"*, second half BEFORE going live, $99/mo care from launch.
+**What he does** (Website tab, new top card "Website deal"): set Build price (default $1,500), How they pay
+(All up front / Half now, half before launch), Care plan $/mo (default $99, 0 = waived) > Save price >
+"Read the agreement" (sandboxed preview) > "Send the agreement" (DocuSign). Then nothing until the site
+is built: when they sign, the watcher sends the first invoice BY ITSELF (Stripe emails it) and alerts him;
+when it's paid, the Build button unlocks (alert). Half plan: once built and approved, "Send the final
+invoice"; when paid, "Put it live" unlocks. Putting it live starts the care plan (asks first). Card on
+file (ads billing or portal) = charged monthly automatically, otherwise Stripe emails a monthly invoice.
+"Cancel it to change the price" voids an unsigned envelope in DocuSign (only recorded once DocuSign
+confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pays twice).
+**How it works:**
+- `netlify/lib/website-deal.mjs`: terms, amounts (half: deposit takes the odd cent), `buildLock`,
+  `publishLock`, `nextStep`, the agreement HTML (`WA-1`, no dashes, client owns domain + gets a static
+  copy on exit, 2 revision rounds, 14-day first version / 60-day refund right, 60-day silence closes it,
+  care cancel 30 days, offline at 15 days overdue, liability = 12 months fees, AZ law + AAA), the DocuSign
+  decision, the Stripe event decision, `createWebsiteInvoice` (Stripe invoice: send_invoice, 7 days,
+  card + ACH, `pending_invoice_items_behavior: exclude` so parked lead fees are never swept in, metadata
+  `kind: website, stage: full|deposit|final`) and `startCarePlan` (subscription, metadata kind website,
+  stage care). DRAFT FOR ATTORNEY REVIEW like the ads agreement.
+- `netlify/functions/website-deal.mjs` (owner): set-terms / preview / send / void / invoice / launch / sync.
+  Every write re-reads the client first and writes only `websiteDeal` (+ a commLog line).
+- 🔴 `cl.websiteDeal` is SERVER-OWNED: index.html `SERVER_OWNED_KEYS` makes every OS save re-read the
+  DB copy of it (and write nothing if that read fails), so a stale screen can never write "unpaid" back.
+- 🔴 Locks enforced server side: site-build-background returns 409 while `buildLock`; site.mjs `gateView`
+  hides a "published" site from the public until `publishLock` clears (preview links still work, so the
+  client can approve before paying the balance). House account (`internal`) is exempt.
+- stripe-webhook: website money (`kind: website` on the invoice, or on the subscription via
+  `subscription_details`/`parent.subscription_details`) is handled BEFORE the ads patch and touches only
+  `websiteDeal` (never billingStatus, never a late-payment pause). No new Stripe events needed.
+- docusign-watch: a second pass for website envelopes; on "completed" saves the signature AND the first
+  invoice in one write; Stripe failure = yellow alert "send it from their Website tab". A per-run `latest`
+  map keeps passes from overwriting each other's saves (the input rows are never mutated).
+- `$0` build price = unlocks on signature alone. Website deals do NOT count as founding clients
+  (`contractSigned` is untouched).
+- Tests: tests/verify-website-deal.mjs (98 checks, 15 mutations caught), preview-safety row "Website
+  agreement preview" (sandbox=""). Browser-driven at 390/1280 in three states.
+- Not yet: a stored copy of the signed website PDF (DocuSign keeps it; the ads archive pattern could be
+  reused), a portal view of the website deal, and the static-files export promised on exit.
 
 ## 🔴 The motion system (animation upgrade, 2026-10-06)
 Bryson: *"unique, luxury, and immersive"*, *"make sure we aren't only ever using the same animation like how it
@@ -103,15 +144,14 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- **Step 2, selling it:** a Website package ($1,500 build + $99/mo, 2 edits a month), its own
-  agreement section (client owns the domain, gets a copy if they leave), billing, Deal Prep and the
-  marketing site. The cross-sell both ways (KB `service-add-ons`).
+- **Step 2b, selling it:** Deal Prep quoting websites, the marketing site, and the cross-sell both ways
+  (KB `service-add-ons`). (2a, the agreement + payments + locks, is built: see above.)
 - **Step 3, their domain:** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
 - Rebuilding BoldLine's own site with this engine to the same bar.
 
-## 🔴 2026-10-06 REQUIREMENT: no website is built until the client has SIGNED and PAID (Bryson)
+## 🔴 2026-10-06 REQUIREMENT: no website is built until the client has SIGNED and PAID (Bryson). ✅ BUILT 2026-10-06, see "Step 2a" above.
 *"make sure that the option to build a website is only available after a client signs the agreement and
 pays (I also want to be able to modify the payment as I want and then allow the option for pay half now
 half when finished)"*. Not built yet; it lands with step 2 because it needs the website agreement:

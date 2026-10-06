@@ -32,6 +32,8 @@ import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { dsGet, dsGetBytes, isConfigured } from "../lib/docusign-auth.mjs";
 import { needsCheck, decideFromEnvelope, decideNudge } from "../lib/docusign-status.mjs";
 import { needsArchive, fetchAndStore, combinedDocumentPath, CONTRACT_BUCKET } from "../lib/docusign-archive.mjs";
+import { needsWebsiteCheck, decideWebsiteEnvelope, createWebsiteInvoice, amountsOf, termsOf } from "../lib/website-deal.mjs";
+import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
 
 const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -42,10 +44,13 @@ const noteFor = (decision, nudge, patch) =>
   : nudge ? "Reminder raised: agreement still unsigned."
   : "";
 
-export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, sendEmail, fetchDocument, storeDocument, now = () => new Date() }) {
+export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, sendEmail, fetchDocument, storeDocument, createFirstInvoice, now = () => new Date() }) {
   const rows = (await loadClients()) || [];
   const pending = rows.filter((r) => needsCheck(r.data));
-  const summary = { pending: pending.length, checked: 0, signed: 0, declined: 0, voided: 0, nudged: 0, unchanged: 0, errors: 0, archived: 0, archiveErrors: 0 };
+  // What each client looks like after this run's saves. The input rows are never mutated (callers reuse
+  // them), but a later pass must build on an earlier pass's save rather than write over it.
+  const latest = new Map();
+  const summary = { pending: pending.length, checked: 0, signed: 0, declined: 0, voided: 0, nudged: 0, unchanged: 0, errors: 0, archived: 0, archiveErrors: 0, websiteSigned: 0 };
 
   for (const row of pending) {
     const cl = row.data;
@@ -94,6 +99,7 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
       };
       try {
         await saveClient(row.id, next);
+        latest.set(row.id, next); // later passes in this run must build on what was just saved, not overwrite it
       } catch (e) {
         // 🔴 IF THE SAVE FAILED, DO NOT ALERT. Telling Bryson a contract is active when the
         // record still says pending is worse than telling him nothing: he would act on it,
@@ -124,6 +130,35 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
     }
   }
 
+  // ── Website agreements (their own envelopes, KB `website-builder`) ───────────
+  // Same rules as above: a failed lookup changes nothing, nothing is alerted unless the save
+  // landed. On a signature the first invoice goes out by itself, so Bryson's only job was
+  // pressing "Send agreement"; if Stripe refuses, the alert says to send it from the Website tab.
+  for (const row of rows.filter((r) => needsWebsiteCheck(r.data))) {
+    const cl = latest.get(row.id) || row.data;
+    let envelope;
+    try { envelope = await fetchEnvelope(cl.websiteDeal.agreement.envelopeId); summary.checked++; }
+    catch (e) { summary.errors++; console.error(`docusign-watch: website envelope for ${cl.name}:`, e.message); continue; }
+    const decision = decideWebsiteEnvelope(cl, envelope, now());
+    if (!decision.deal) continue;
+    let deal = decision.deal;
+    let alertPayload = decision.alert;
+    if (decision.signed && createFirstInvoice) {
+      try {
+        const r = await createFirstInvoice({ ...cl, websiteDeal: deal });
+        deal = { ...deal, customerId: r.customerId, invoices: { ...(deal.invoices || {}), [amountsOf(termsOf({ websiteDeal: deal })).firstStage]: r.invoice } };
+      } catch (e) {
+        console.error(`docusign-watch: first website invoice for ${cl.name} failed:`, e.message);
+        alertPayload = { ...alertPayload, severity: "yellow", body: `${cl.name || "The client"} signed the website agreement, but the first invoice could not be sent automatically (${e.message}). Send it from their Website tab.` };
+      }
+    }
+    const next = { ...cl, websiteDeal: deal };
+    try { await saveClient(row.id, next); latest.set(row.id, next); }
+    catch (e) { summary.errors++; console.error(`docusign-watch: could not save website deal for ${cl.name}:`, e.message); continue; }
+    if (decision.signed) summary.websiteSigned++;
+    if (alertPayload) { try { await alert(alertPayload); } catch (e) { console.error("docusign-watch: alert failed:", e.message); } }
+  }
+
   // ── 🔴 THE CATCH-UP PASS, AND IT IS NOT OPTIONAL ───────────────────────────
   //
   // `needsCheck` stops looking at a client the instant `contractSigned` is true, which is
@@ -137,7 +172,7 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
   // was all of them.
   if (fetchDocument && storeDocument) {
     for (const row of rows.filter((r) => needsArchive(r.data))) {
-      const cl = row.data;
+      const cl = latest.get(row.id) || row.data;
       try {
         const patch = await fetchAndStore({ client: cl, id: row.id, fetchDocument, storeDocument, now });
         await saveClient(row.id, { ...cl, ...patch });
@@ -157,7 +192,7 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
 export const summaryLine = (s) =>
   `docusign-watch: ${s.pending} awaiting, ${s.checked} checked, ${s.signed} signed, ` +
   `${s.declined} declined, ${s.voided} voided, ${s.nudged} nudged, ${s.errors} errors, ` +
-  `${s.archived} signed copies stored, ${s.archiveErrors} copy failures`;
+  `${s.archived} signed copies stored, ${s.archiveErrors} copy failures, ${s.websiteSigned || 0} website agreements signed`;
 
 const handler = async () => {
   // A missing variable should skip quietly. This runs every fifteen minutes and an
@@ -177,6 +212,7 @@ const handler = async () => {
     },
     alert: dispatchAlert,
     sendEmail: autoSendClientEmail,
+    createFirstInvoice: (cl) => createWebsiteInvoice(cl, amountsOf(termsOf(cl)).firstStage, { stripe, ensureCustomer, resolvePaymentMethod }),
     // The completed document, flattened by DocuSign into one PDF with the certificate page.
     // `dsGetBytes` rather than `dsGet`, because `dsGet` parses JSON and would quietly hand
     // back an empty object for a PDF body.

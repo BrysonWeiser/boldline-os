@@ -11,6 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { renderSite, pageById, THEME_IDS, siteReady, brandName } from "../lib/site-render.mjs";
+import { publishLock } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -43,6 +44,8 @@ export function viewFor(website, query) {
   const t = String(query.get("theme") || "");
   return { show: true, previewing, theme: previewing && THEME_IDS.includes(t) ? t : undefined };
 }
+
+export const gateView = (view, cl) => (view.show && !view.previewing && publishLock(cl) ? { show: false } : view);
 
 async function owner(req, supabase) {
   const authHeader = req.headers.get("authorization") || "";
@@ -90,7 +93,10 @@ export default async (req) => {
   if (!data || !data.data) return plain("Page not found", "This page doesn't exist.", 404);
   const cl = { ...data.data, id: data.id };
   if (isBillingPaused(cl)) return plain(brandName(cl), "This website is temporarily unavailable.", 503);
-  const view = viewFor(cl.website, url.searchParams);
+  // 🔴 Live only once it is fully paid (the second half is due BEFORE launch). Enforced here, not just by
+  // greying out "Put it live", because the published flag is written by the browser. Preview links still
+  // work, so the client can see and approve the finished site before paying the balance.
+  const view = gateView(viewFor(cl.website, url.searchParams), cl);
   if (!view.show || !siteReady(cl)) return plain(brandName(cl), "Our new website is almost ready. Check back soon.", 200);
   const query = view.previewing ? `?preview=${encodeURIComponent(url.searchParams.get("preview"))}${view.theme ? `&theme=${view.theme}` : ""}` : "";
   return html(renderSite(cl, where.page, { base: siteBase(url.host, where.slug), theme: view.theme, query, noindex: !!view.previewing || !cl.website.published }),
