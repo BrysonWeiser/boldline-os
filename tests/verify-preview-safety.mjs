@@ -67,6 +67,7 @@ const MANIFEST = {
   // form, so three locks: no allow-same-origin on the frame, an about: check before the form's
   // fetch, and every link intercepted in the preview (it only asks the OS to switch tabs).
   "Website preview": "sandbox allow-scripts only; form refuses to send from about:; links intercepted to postMessage",
+  "Website agreement preview": "sandbox=\"\" (no scripts, no forms, no navigation); a static document with nothing to click",
 };
 
 // 🔴 NOT IN THE MANIFEST, AND DELIBERATELY SO: saved landing pages (2026-09-04). They are the
@@ -131,6 +132,10 @@ const MANIFEST = {
   ok("🔴 in a preview every link is intercepted and only asks the OS to switch tabs",
     /if\(PREVIEW\)\{e\.preventDefault\(\);if\(pg&&window\.parent\)/.test(SITE));
   ok("PREVIEW is the about: test the landing page already proves", /var PREVIEW=String\(location\.href\)\.indexOf\('about:'\)===0;/.test(SITE));
+}
+{
+  const tag = (UI.match(/<iframe title="Website agreement preview"[^>]*>/) || [""])[0];
+  ok("🔴 the website agreement preview runs nothing at all (empty sandbox)", /sandbox=""/.test(tag) && !/allow-/.test(tag), tag);
 }
 
 // ── 1b. 🔴 THE SIGNED CONTRACT VIEWER ────────────────────────────────────────

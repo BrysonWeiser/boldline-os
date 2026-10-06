@@ -180,7 +180,13 @@ await t("photos", async () => {
 // ── 9. The OS tab ───────────────────────────────────────────────────────────────────────────
 const tab = UI.slice(UI.indexOf("function WebsiteTab("), UI.indexOf("// ─── Review requests:"));
 ok("the Website tab exists and is wired in", /\["website","Website"\]/.test(UI) && /tab==="website"&&<WebsiteTab/.test(UI));
-ok("🔴 nothing goes live until he presses 'Put it live'", /save\(\{published:!w\.published\}\)/.test(tab) && !/published:true/.test(tab));
+{
+  const goLive = tab.slice(tab.indexOf("const goLive="), tab.indexOf("return (", tab.indexOf("const goLive=")));
+  ok("🔴 nothing goes live until he presses 'Put it live', and only after the server agreed (paid in full, care plan started)",
+    (tab.match(/published:true/g) || []).length === 1 && goLive.includes("published:true")
+    && goLive.indexOf("if(publishLock)") < goLive.indexOf('action:"launch"') && goLive.indexOf('action:"launch"') < goLive.indexOf("published:true")
+    && goLive.indexOf("if(!r.ok||!out.ok) throw") < goLive.indexOf("published:true"));
+}
 ok("the client gets three preview links to choose from, built on the site's own preview key", /previewLink\(id\)/.test(tab) && /previewKey:w\.previewKey\|\|siteKey\(\)/.test(tab));
 ok("🔴 rewriting the words asks first, because it replaces his edits", /window\.confirm\("Rewrite all the website text\?/.test(tab));
 ok("hand edits go through the no-dash rule too", /save\(\{content:siteDeDash\(c\)/.test(tab));

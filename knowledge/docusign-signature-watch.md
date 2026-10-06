@@ -139,3 +139,7 @@ refused rather than passed through, since **a zero-byte 200 is a real DocuSign f
 `private, no-store`, because the token is in the URL. The portal button appears only when both
 conditions hold, so an early client who signed an emailed PDF never sees an option that
 errors.
+
+## 2026-10-06: website agreements
+docusign-watch also polls website agreement envelopes (`cl.websiteDeal.agreement.envelopeId`). On signing it
+saves the signature and sends the first website invoice in one write. KB `website-builder` (step 2a).

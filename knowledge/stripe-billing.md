@@ -101,3 +101,8 @@ values `awaiting_card` / `card_on_file`, and `charge-leads` gained an `arrears` 
 raises and charges a standalone invoice per approved batch. Full write-up, including the
 `pending_invoice_items_behavior` trap and the hand-off client who had no checkout button at
 all, in KB **`results-only-billing`**.
+
+## 2026-10-06: website money is routed separately
+Invoices and subscriptions tagged `metadata.kind = "website"` (website build payments and the website care
+plan) are handled by a branch at the top of stripe-webhook.mjs that only updates `cl.websiteDeal` and never
+touches `billingStatus`, receipts or late-payment pauses. KB `website-builder` (step 2a).

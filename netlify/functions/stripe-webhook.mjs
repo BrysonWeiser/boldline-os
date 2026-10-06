@@ -27,6 +27,7 @@ import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { latePolicyFor, isBillingPaused } from "../lib/late-payment.mjs";
 import { resumeClientAds } from "../lib/billing-pause.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
+import { websiteKind, applyWebsiteEvent } from "../lib/website-deal.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
 const WHSEC = process.env.STRIPE_WEBHOOK_SECRET;
@@ -60,6 +61,9 @@ function clientIdFrom(obj) {
   if (obj.metadata && obj.metadata.clientId) return obj.metadata.clientId;
   if (obj.subscription_details && obj.subscription_details.metadata && obj.subscription_details.metadata.clientId)
     return obj.subscription_details.metadata.clientId;
+  // Newer Stripe API versions move subscription metadata under `parent` on an invoice.
+  if (obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.metadata && obj.parent.subscription_details.metadata.clientId)
+    return obj.parent.subscription_details.metadata.clientId;
   if (obj.client_reference_id) return obj.client_reference_id;
   return null;
 }
@@ -86,6 +90,27 @@ export default async (req) => {
 
   const obj = event.data && event.data.object;
   const clientId = clientIdFrom(obj);
+
+  // 🔴 WEBSITE MONEY NEVER TOUCHES THE ADS BILLING STATUS. A website deposit is an `invoice.paid` too,
+  // and without this branch it would mark a client's ads billing "active" (or a website-only client as an
+  // ads customer) and could lift a late-payment pause the ads invoice never paid. Website invoices and the
+  // care plan carry `kind: "website"`; they update `websiteDeal` and nothing else. KB `website-builder`.
+  if (websiteKind(obj)) {
+    if (!clientId) return json({ ok: true, note: "website event with no clientId" });
+    try {
+      const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+      const { data: row, error: readErr } = await supabase.from("clients").select("data").eq("id", clientId).single();
+      if (readErr || !row) return json({ ok: true, note: "client not found", clientId });
+      const r = applyWebsiteEvent(row.data || {}, event);
+      if (!r) return json({ ok: true, ignored: event.type });
+      const { error } = await supabase.from("clients").update({ data: { ...(row.data || {}), websiteDeal: r.deal }, updated_at: new Date().toISOString() }).eq("id", clientId);
+      if (error) throw new Error(error.message);
+      if (r.alert) { try { await dispatchAlert(r.alert); } catch (e) { console.error("stripe-webhook: website alert failed:", e.message); } }
+      return json({ ok: true, applied: event.type, website: true, clientId });
+    } catch (e) {
+      return json({ ok: false, error: e.message }, 500);
+    }
+  }
 
   // Build the patch for this event.
   let patch = null;

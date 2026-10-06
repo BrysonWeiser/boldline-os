@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { brandName } from "../lib/site-render.mjs";
+import { buildLock } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const MODEL = "claude-opus-5-5";
@@ -135,6 +136,10 @@ export default async (req) => {
   if (!clientId) return json({ ok: false, error: "clientId required" }, 400);
   const { data: row } = await supabase.from("clients").select("data").eq("id", clientId).maybeSingle();
   if (!row || !row.data) return json({ ok: false, error: "Client not found" }, 404);
+  // 🔴 No website is written until the client has signed and paid (Bryson, 2026-10-06). Checked here, on
+  // the server, so a stale or tampered button in the OS cannot start a build. KB `website-builder`.
+  const lock = buildLock({ ...row.data, id: clientId });
+  if (lock) return json({ ok: false, error: lock }, 409);
 
   const id = `site-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await writeJob(supabase, clientId, { id, status: "running", startedAt: new Date().toISOString(), content: null, stock: null, error: null });
