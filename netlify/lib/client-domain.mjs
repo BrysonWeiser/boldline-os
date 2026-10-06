@@ -69,13 +69,24 @@ export function isOwnHost(host, extra = "") {
 // the functions themselves have to keep working on a client domain: the landing page posts
 // its form to a relative /.netlify/functions/ path, so rewriting those would break the very
 // lead capture this exists to preserve.
+//
+// 🔴 `/lead` AND `/site-hit` TOO, FOUND 2026-10-06. The landing page and the website both post their
+// form to the RELATIVE path `/lead` (netlify.toml turns it into lead-intake), not to a `/.netlify/`
+// path as the note above assumed. On a client's own domain this function rewrote that POST to the
+// landing function, which reads any POST as the OS's owner-only preview and answered 401 "Not
+// authenticated". So every enquiry from a landing page on a client's own subdomain was refused while
+// the visitor saw "something went wrong", and nothing anywhere recorded it.
+const PASS_PATHS = ["/lead", "/site-hit"];
 export const isReservedPath = (pathname) => {
   const p = String(pathname || "/");
-  return p.startsWith("/.netlify/") || p.startsWith("/.well-known/");
+  return p.startsWith("/.netlify/") || p.startsWith("/.well-known/") || PASS_PATHS.includes(p.replace(/\/+$/, "") || "/");
 };
 
 // The one decision, in one place, so the edge function and the tests cannot disagree.
-export function routeFor(host, pathname, extra = "") {
+// `method`: only a page being LOOKED AT (GET or HEAD) is ever a landing page. Anything that sends
+// something (a form, a beacon) goes where the site's own routes send it, never into the page renderer.
+export function routeFor(host, pathname, extra = "", method = "GET") {
+  if (!/^(GET|HEAD)$/i.test(String(method || "GET"))) return { kind: "pass" };
   if (isReservedPath(pathname)) return { kind: "pass" };
   if (isOwnHost(host, extra)) return { kind: "pass" };
   return { kind: "landing", host: normalizeHost(host) };

@@ -20,6 +20,7 @@ export default async (request, context) => {
       url.pathname,
       // Escape hatch: a new hostname for the OS can be added in Netlify without a deploy.
       (typeof Netlify !== "undefined" && Netlify.env && Netlify.env.get("OS_HOSTS")) || "",
+      request.method,
     );
     if (route.kind !== "landing") return;   // undefined = carry on as normal
 
