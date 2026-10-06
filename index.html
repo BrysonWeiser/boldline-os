@@ -8922,10 +8922,11 @@ const wdMonthlyTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.care+(t.blog?t.bl
 // a check fetched their site over https on it. The DNS advice mirrors netlify/lib/site-domain.mjs (a test pins it).
 const wdLiveDomain=(cl)=>{ const d=((cl&&cl.websiteDeal)||{}).domain; return d&&d.live&&d.host?d.host:""; };
 const SITE_DNS_TARGET="boldlinemedia.netlify.app", SITE_DNS_IP="75.2.60.5";
-const siteDnsRecords=(h)=>{ const l=String(h||"").split("."); const apex=(x)=>x.split(".").length===2;
-  if(h.startsWith("www.")&&apex(h.slice(4))) return [{type:"CNAME",name:"www",value:SITE_DNS_TARGET},{type:"A",name:"@",value:SITE_DNS_IP}];
-  if(apex(h)) return [{type:"A",name:"@",value:SITE_DNS_IP},{type:"CNAME",name:"www",value:SITE_DNS_TARGET}];
-  return [{type:"CNAME",name:l.slice(0,-2).join("."),value:SITE_DNS_TARGET}]; };
+// `target` is the client-websites site once it exists (the server says which, via netlify-status).
+const siteDnsRecords=(h,target=SITE_DNS_TARGET)=>{ const l=String(h||"").split("."); const apex=(x)=>x.split(".").length===2;
+  if(h.startsWith("www.")&&apex(h.slice(4))) return [{type:"CNAME",name:"www",value:target},{type:"A",name:"@",value:SITE_DNS_IP}];
+  if(apex(h)) return [{type:"A",name:"@",value:SITE_DNS_IP},{type:"CNAME",name:"www",value:target}];
+  return [{type:"CNAME",name:l.slice(0,-2).join("."),value:target}]; };
 const wdTerms=(cl)=>{ const d=wdDeal(cl); return wdNorm(wdAgreementLive(cl)&&d.agreement.terms?d.agreement.terms:d); };
 const wdAmounts=(t)=>{ const pc=Math.round(wdBuildTotal(t)*100); if(t.plan==="half"){ const fc=Math.ceil(pc/2); return {firstStage:"deposit",first:fc/100,final:(pc-fc)/100,stages:["deposit","final"]}; } return {firstStage:"full",first:pc/100,final:0,stages:["full"]}; };
 const wdPaid=(d,stage)=>!!(d.invoices[stage]&&d.invoices[stage].paidAt);
@@ -8964,11 +8965,11 @@ function SiteDomainCard({client,onUpdate}){
   // Who the client invites to their domain account: whoever is signed in to the OS.
   useEffect(()=>{ let gone=false; supabaseClient.auth.getSession().then(({data})=>{ if(!gone) setMe(((data&&data.session&&data.session.user)||{}).email||""); }).catch(()=>{}); return ()=>{ gone=true; }; },[]);
   // Read-only: is the Netlify key working? Shown before the first address is set, so he can see it.
-  useEffect(()=>{ if(!usable||d) return; let gone=false; (async()=>{ try{
+  useEffect(()=>{ if(!usable) return; let gone=false; (async()=>{ try{
     const { data:{ session } }=await supabaseClient.auth.getSession();
     const r=await fetch("/.netlify/functions/website-deal",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action:"netlify-status",clientId:client.id})});
     const o=await r.json().catch(()=>({})); if(!gone&&o&&o.ok) setNf(o);
-  }catch(e){} })(); return ()=>{ gone=true; }; },[client.id,usable,!!d]);
+  }catch(e){} })(); return ()=>{ gone=true; }; },[client.id,usable]);
   if(!shown) return null;
   if(!usable) return (
     <div style={card}>
@@ -8988,7 +8989,7 @@ function SiteDomainCard({client,onUpdate}){
   };
   const lbl={fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:6};
   const btn=(primary,dis)=>({padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:primary?"none":`1px solid ${C.border}`,backgroundColor:primary?C.gold:"transparent",color:primary?"#0a0800":C.textDim,cursor:dis?"default":"pointer",opacity:dis?.6:1});
-  const recs=d?siteDnsRecords(d.host):[];
+  const recs=d?siteDnsRecords(d.host,(nf&&nf.target)||SITE_DNS_TARGET):[];
   const first=String(client.contactName||"").trim().split(/\s+/)[0]||"there";
   // 🔴 WE ARE THEIR WEB PEOPLE (Bryson, 2026-10-06: "why would we have to work with their web guy if we are
   // their web guy"). The default ask is ACCESS to their domain account, once, so BoldLine does every change
@@ -9025,7 +9026,7 @@ function SiteDomainCard({client,onUpdate}){
             <span style={{color:C.textMuted}}>Type</span><span style={{color:C.textMuted}}>Name</span><span style={{color:C.textMuted}}>Value</span>
             {recs.map((r,i)=>[<b key={i+"t"}>{r.type}</b>,<span key={i+"n"}>{r.name}</span>,<span key={i+"v"} style={{wordBreak:"break-all"}}>{r.value}</span>])}
           </div>
-          {d.alias&&d.alias.manual&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>One Netlify step (it's on tonight's 10pm list): open the OS site in Netlify, Domain management, Add domain alias, and add <b>{d.host}</b>{alt?<> and <b>{alt}</b></>:null}.</div>}
+          {d.alias&&d.alias.manual&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>One Netlify step (it's on tonight's 10pm list): open the {nf&&nf.separate?"client websites":"OS"} site in Netlify, Domain management, Add domain alias, and add <b>{d.host}</b>{alt?<> and <b>{alt}</b></>:null}.</div>}
           {d.alias&&!d.alias.ok&&!d.alias.manual&&d.alias.note&&<div style={{fontSize:11.5,color:C.amber,marginTop:10,lineHeight:1.6}}>{d.alias.note} Add it in Netlify by hand: Domain management, Add domain alias.</div>}
         </>)}
         {!d.live&&<div style={{...lbl,marginTop:14}}>3. Check it (it can take a few hours after step 2)</div>}

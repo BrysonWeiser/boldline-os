@@ -17,6 +17,13 @@ import { isOwnHost, normalizeHost } from "./client-domain.mjs";
 // Where client DNS points. The OS site's own Netlify address (a CNAME target) and Netlify's load balancer
 // for a bare domain, which cannot hold a CNAME. Both are Netlify's published values for external DNS.
 export const NETLIFY_TARGET = "boldlinemedia.netlify.app";
+// 🔴 Client websites have their OWN Netlify site (sites/), so nothing done to the OS can take one down
+// (Bryson, 2026-10-06). `SITES_NETLIFY_SITE` on the OS site names it ("<name>.netlify.app"): new client
+// addresses are added THERE and their DNS points THERE. Unset, everything stays on the OS site as before.
+export const sitesTarget = (env = process.env) => {
+  const v = String((env && env.SITES_NETLIFY_SITE) || "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return /^[a-z0-9-]+\.netlify\.app$/.test(v) ? v : NETLIFY_TARGET;
+};
 export const NETLIFY_APEX_IP = "75.2.60.5";
 
 // Whatever Bryson pastes ("https://www.AcmePools.com/contact", "acmepools.com ") becomes a bare
@@ -56,16 +63,16 @@ export function publicSiteUrl(cl, ownBase) {
 
 // The DNS records to add, in plain terms, for whoever manages the domain. `www` and the bare domain are
 // both set up so either one a customer types works.
-export function dnsRecords(host) {
+export function dnsRecords(host, target = NETLIFY_TARGET) {
   const h = cleanDomain(host);
   if (!h) return [];
   if (h.startsWith("www.") && isApex(h.slice(4))) {
-    return [{ type: "CNAME", name: "www", value: NETLIFY_TARGET }, { type: "A", name: "@", value: NETLIFY_APEX_IP }];
+    return [{ type: "CNAME", name: "www", value: target }, { type: "A", name: "@", value: NETLIFY_APEX_IP }];
   }
   if (isApex(h)) {
-    return [{ type: "A", name: "@", value: NETLIFY_APEX_IP }, { type: "CNAME", name: "www", value: NETLIFY_TARGET }];
+    return [{ type: "A", name: "@", value: NETLIFY_APEX_IP }, { type: "CNAME", name: "www", value: target }];
   }
-  return [{ type: "CNAME", name: h.split(".").slice(0, -2).join("."), value: NETLIFY_TARGET }];
+  return [{ type: "CNAME", name: h.split(".").slice(0, -2).join("."), value: target }];
 }
 
 // What a request on a client's address is asking for: a page (mapped onto the /site/<slug>/ shape the
@@ -92,14 +99,14 @@ export const robotsTXT = (base) => `User-agent: *\nAllow: /\n\nSitemap: ${String
 // 🔴 Is the address really serving THIS client's site, over https? The only thing that may set `live`.
 // `fetchFn` and `resolve` are passed in so this is testable; `resolve(host, type)` returns an array or
 // throws. The https fetch is the proof; DNS is only read to say WHAT is wrong in plain words.
-export async function checkDomain(host, slug, { fetchFn, resolve } = {}) {
+export async function checkDomain(host, slug, { fetchFn, resolve, target = NETLIFY_TARGET } = {}) {
   const h = cleanDomain(host);
   if (!h) return { live: false, note: "That isn't a web address we can use." };
   let dns = "none";
   try {
     const cn = await resolve(h, "CNAME").catch(() => []);
     const a = await resolve(h, "A").catch(() => []);
-    if ((cn || []).some((c) => String(c).replace(/\.$/, "").toLowerCase() === NETLIFY_TARGET)) dns = "ok";
+    if ((cn || []).some((c) => String(c).replace(/\.$/, "").toLowerCase() === target)) dns = "ok";
     else if ((a || []).includes(NETLIFY_APEX_IP)) dns = "ok";
     else if ((cn || []).length || (a || []).length) dns = "elsewhere";
   } catch { dns = "unknown"; }
@@ -137,12 +144,12 @@ export function addressTaken(rows, clientId, host) {
 // connected before his first website client) and by the daily check (a key that expires or is revoked
 // would otherwise only show up the day a client's address fails to add).
 export async function netlifyStatus({ fetchFn, token, siteId }) {
-  if (!token) return { connected: false, set: false, note: "Not connected. Each new client address needs one step in Netlify." };
+  if (!token) return { connected: false, set: false, target: siteId || NETLIFY_TARGET, note: "Not connected. Each new client address needs one step in Netlify." };
   try {
     const r = await fetchFn(`https://api.netlify.com/api/v1/sites/${encodeURIComponent(siteId || NETLIFY_TARGET)}`, { headers: { authorization: `Bearer ${token}` } });
     if (!r.ok) return { connected: false, set: true, note: r.status === 401 || r.status === 403 ? "The Netlify key was refused. It may have expired or been deleted. Make a new one and replace NETLIFY_API_TOKEN." : `Netlify answered ${r.status}.` };
     const site = await r.json();
-    return { connected: true, set: true, site: site.custom_domain || site.name || "", aliases: Array.isArray(site.domain_aliases) ? site.domain_aliases.length : 0,
+    return { connected: true, set: true, target: siteId || NETLIFY_TARGET, separate: !!siteId && siteId !== NETLIFY_TARGET, site: site.custom_domain || site.name || "", aliases: Array.isArray(site.domain_aliases) ? site.domain_aliases.length : 0,
       note: "Connected to Netlify. Client addresses are added for you." };
   } catch (e) { return { connected: false, set: true, note: `Couldn't reach Netlify (${e.message}).` }; }
 }

@@ -302,6 +302,14 @@ export default withFailureAlert("daily-check", async () => {
     add("The Netlify key for client web addresses works", ns.set ? ns.connected : null, ns.connected ? "" : ns.note);
   } catch (e) { add("The Netlify key for client web addresses works", false, e.message); }
 
+  // The client-websites site (KB website-builder): skipped until it exists, then it must answer.
+  try {
+    const { sitesTarget, NETLIFY_TARGET } = await import("../lib/site-domain.mjs");
+    const target = sitesTarget();
+    if (target === NETLIFY_TARGET) add("The client websites site answers", null, "not set up yet (SITES_NETLIFY_SITE), so client websites still run from the OS");
+    else { const h = await get(`https://${target}/__health`); add("The client websites site answers", h.ok, h.ok ? "" : `returned ${h.status} ${h.error || ""}. Live client websites may be down.`); }
+  } catch (e) { add("The client websites site answers", false, e.message); }
+
   const sum = summarize(checks);
 
   // ── 7. Say something, but only when it is worth saying ────────────────────

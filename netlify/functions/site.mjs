@@ -8,7 +8,7 @@
 // KB `website-builder`.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { renderSite, pageById, THEME_IDS, siteReady, brandName, pageByPath, pagesFor } from "../lib/site-render.mjs";
 import { supabaseStore, loadIndex, loadPost, publishedPosts, isPublished, setHeld, removePost, applyEdit } from "../lib/site-blog.mjs";

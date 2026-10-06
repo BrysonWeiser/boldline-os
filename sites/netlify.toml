@@ -1,0 +1,14 @@
+# The client-websites site (see README.md). Only read when the Netlify site's Base directory is `sites`.
+# 🔴 Deliberately NOT the OS's netlify.toml: that one schedules the OS's jobs, and a second copy of those
+# running here would send every email twice.
+[build]
+  publish = "public"
+  functions = "functions"
+  # The functions import the shared website code from ../netlify/lib, whose packages live at the repo root.
+  command = "npm ci --prefix .. --omit=dev --no-audit --no-fund && node check.mjs"
+  # Skip the deploy entirely when nothing these functions use has changed, so an OS-only change never
+  # touches the live client websites.
+  ignore = "node ignore.mjs"
+
+[functions]
+  node_bundler = "esbuild"

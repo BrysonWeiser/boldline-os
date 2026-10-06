@@ -4,7 +4,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { pipelineProgress } from "./pipeline-shared.mjs";
 import { resultWords } from "./contract-shared.cjs";
 
-export const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
+import { SUPABASE_URL } from "./supabase-url.mjs";
+export { SUPABASE_URL };
 
 export const PACKAGES_DB = {
   google: [
