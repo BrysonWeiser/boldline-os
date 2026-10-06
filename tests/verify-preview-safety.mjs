@@ -79,6 +79,11 @@ const MANIFEST = {
 // tests/verify-page-archive.mjs. If an archive is ever shown in an iframe instead, it belongs
 // in the manifest above.
 
+// 🔴 ALSO NOT IN THE MANIFEST: the marketing site's TEST COPY (2026-10-06), Netlify's branch address
+// for the dev branch, where Bryson looks at a site change before it goes live. It is a whole separate
+// address, not an OS embed, so it has its own guard (every POST, beacon and form is stopped on any
+// "name--site.netlify.app" address) and its own suite, tests/verify-site-test-copy.mjs, which RUNS it.
+
 // ── 1. 🔴 NO UNREVIEWED PREVIEWS ─────────────────────────────────────────────
 {
   // Pull the title off every iframe that is handed rendered HTML.
