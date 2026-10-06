@@ -284,8 +284,8 @@ Brand color = website.brandColor, else the landing page's, else the design's def
   No new env vars, no table.
 
 ## Not built yet (the plan)
-- A welcome email with the portal link for website-only clients (today: copy it from Client View).
-- **Step 3, their domain:** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
+- 🔴 **Step 3, their domain (recommended next, 2026-10-06: the one gap left before a website can be sold; a
+  client will not accept a boldlinemedia.netlify.app/site/... address):** serve on the client's own domain (Netlify domain alias = a 10pm-reminder
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
 - Rebuilding BoldLine's own site with this engine to the same bar.
