@@ -28,7 +28,9 @@
 //   care      { subscriptionId, status, startedAt, lastPaidAt, collection }
 //   launchedAt
 
-export const DEAL_DEFAULTS = { price: 1500, plan: "full", care: 99 };
+import { WEBSITE_OFFER } from "./pricing-shared.mjs";
+
+export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
 export const AGREEMENT_VERSION = "WA-1";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 

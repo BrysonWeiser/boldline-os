@@ -200,6 +200,40 @@ ok("🔴 a fresh invoice cancels the old one so nobody pays twice", FN.indexOf("
 ok("every write re-reads the client first (a webhook may have landed meanwhile)", /const save = async \(next, note\) => \{\s*const \{ data: fresh \}/.test(FN));
 ok("the agreement goes out through the same proven DocuSign code, with its own name", /sendEnvelope\(await getAccessToken\(\), \{[^}]*documentName: "BoldLine Media Website Agreement"/.test(FN) && /ensureAnchor\(websiteAgreementHTML/.test(FN));
 
+// ── 9. Selling it (step 2b): one price list everywhere ─────────────────────────────────────
+const { WEBSITE_OFFER, websitePromptBlock } = await import("../netlify/lib/pricing-shared.mjs");
+const { parseWebsiteLine } = await import("../netlify/functions/deal-research-background.mjs");
+ok("🔴 the agreement defaults come from the one website price list", L.DEAL_DEFAULTS.price === WEBSITE_OFFER.build && L.DEAL_DEFAULTS.care === WEBSITE_OFFER.care);
+const uiOffer = (UI.match(/const WEBSITE_OFFER=(\{[^}]+\});/) || [])[1];
+ok("🔴 the OS quotes the same website prices as the server", !!uiOffer && JSON.stringify(new Function(`return ${uiOffer}`)()) === JSON.stringify(WEBSITE_OFFER), uiOffer);
+const SITE = src("marketing-site/index.html");
+const wsec = SITE.slice(SITE.indexOf('<section id="websites">'), SITE.indexOf("</section>", SITE.indexOf('<section id="websites">')));
+const usd = (n) => `$${n.toLocaleString("en-US")}`;
+ok("🔴 the marketing site quotes the same build price and care plan", wsec.includes(`<b>${usd(WEBSITE_OFFER.build)}</b>`) && wsec.includes(`<b>${usd(WEBSITE_OFFER.care)}/mo</b>`));
+ok("the website offer books a call like every other service", /href="https:\/\/calendly\.com\/theboldlinemedia\/30min"/.test(wsec));
+ok("it is not dressed as an ads package (those cards are matched to the ads catalog)", !/class="pkg"/.test(wsec));
+ok("🔴 no dashes, no emojis, never 'local businesses' on the site section", !/[—–]/.test(wsec.replace(/<!--[\s\S]*?-->/g, "")) && !/\p{Extended_Pictographic}/u.test(wsec) && !/local business/i.test(wsec));
+ok("it says half now and half before launch, and that the care plan starts at launch", /half now and half before it goes live/.test(wsec) && /From launch/.test(wsec));
+const WP = websitePromptBlock();
+ok("🔴 Deal Prep is told the real website prices and the payment rules", WP.includes(usd(WEBSITE_OFFER.build)) && WP.includes(`$${WEBSITE_OFFER.care}/mo`) && /half now and half before it goes live/.test(WP) && /does not go live until it is paid in full/.test(WP));
+ok("🔴 Deal Prep is told NOT to pitch a website to someone whose site is good", /Do NOT pitch it when their site is genuinely good/.test(WP));
+ok("the website instructions have no dashes (a model mirrors the style it is given)", !/[—–]/.test(WP));
+const DR = src("netlify/functions/deal-research-background.mjs");
+ok("Deal Prep asks for the website verdict and a Website section", DR.includes("${websitePromptBlock()}") && /Second line, alone: WEBSITE: <yes \| only \| no>/.test(DR) && /\*\*Website\*\*/.test(DR));
+ok("the verdict is read and removed from the brief", JSON.stringify(parseWebsiteLine("WEBSITE: only\n\n**Company Snapshot**")) === JSON.stringify({ brief: "**Company Snapshot**", recommendWebsite: "only" })
+  && parseWebsiteLine("**Company Snapshot**").recommendWebsite === null && parseWebsiteLine("WEBSITE: maybe\n**X**").recommendWebsite === null);
+ok("the verdict is stored with the brief", /recommendWebsite: parsed\.recommendWebsite/.test(DR));
+const DPW = UI.slice(UI.indexOf("function DealPrepWebsite("), UI.indexOf("function DealPrepScreen("));
+ok("Deal Prep shows the website offer under every brief, priced from the shared list", /<DealPrepWebsite verdict=\{result\.recommendWebsite\}\/>/.test(UI) && /WEBSITE_OFFER\.build/.test(DPW) && /WEBSITE_OFFER\.care/.test(DPW));
+const upsellSrc = UI.slice(UI.indexOf("const showWebsiteUpsell="), UI.indexOf("function WebsiteUpsell("));
+const showUp = new Function(`${upsellSrc}; return showWebsiteUpsell;`)();
+const signedAds = { name: "X", packageId: "g-launch", contractSigned: true };
+ok("🔴 a signed ads client with no website gets the website offer on their Overview", showUp(signedAds) === true && /<WebsiteUpsell client=\{client\}/.test(UI));
+ok("🔴 not before they've signed (a meeting is not a client), not for the house account", showUp({ ...signedAds, contractSigned: false }) === false && showUp({ ...signedAds, internal: true }) === false);
+ok("not once a website deal or a site exists", showUp({ ...signedAds, websiteDeal: { agreement: { status: "sent" } } }) === false && showUp({ ...signedAds, website: { content: {} } }) === false);
+ok("'Not now' hides it for 60 days, then it comes back", showUp({ ...signedAds, websiteUpsellHiddenAt: new Date(Date.now() - 5 * 864e5).toISOString() }) === false
+  && showUp({ ...signedAds, websiteUpsellHiddenAt: new Date(Date.now() - 61 * 864e5).toISOString() }) === true);
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-website-deal: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
