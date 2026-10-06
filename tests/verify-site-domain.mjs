@@ -190,6 +190,8 @@ ok("🔴 the instructions he sends their web person carry no dashes or emojis", 
 ok("the OS card shows only once they signed for a website", /const shown=wdExempt\(client\)\|\|wdSigned\(client\);/.test(UI) && /if\(!shown\) return null;/.test(UI));
 ok("the sitemap also works on our address", /where\.seg === "sitemap\.xml" && !where\.post/.test(src("netlify/functions/site.mjs")));
 
+ok("the address card also shows before the site is built (DNS takes hours, the build a minute)", (UI.match(/<SiteDomainCard client=\{client\} onUpdate=\{onUpdate\}\/>/g) || []).length === 2);
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-site-domain: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

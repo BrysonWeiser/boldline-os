@@ -9207,7 +9207,9 @@ function WebsiteTab({client,onUpdate}){
       <button onClick={build} disabled={busy||!!buildLock} style={{...btn(true,busy||!!buildLock),width:"100%"}}>{busy?"Writing…":buildLock?"Locked until signed and paid":"Build the website"}</button>
       {buildLock&&<div style={{fontSize:11.5,color:C.textMuted,marginTop:8,lineHeight:1.5}}>{buildLock}</div>}
       {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5}}>{msg}</div>}
-    </div></div>);
+    </div>
+    {/* The address can be set up while the site is being built: DNS takes hours, the build a minute. */}
+    <SiteDomainCard client={client} onUpdate={onUpdate}/></div>);
 
   const svc=(content.services||[]);
   const E=edit||{};
