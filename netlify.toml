@@ -203,6 +203,11 @@
 [functions."site-blog-run"]
   schedule = "5 16 * * *"
 
+# Each live website's monthly summary email: the 1st of the month, 16:10 UTC = 9:10am Phoenix (no daylight
+# saving), for the Arizona calendar month just ended. KB `website-builder`.
+[functions."website-monthly-run"]
+  schedule = "10 16 1 * *"
+
 [functions."blog-autopublish"]
   schedule = "*/15 * * * *"
 

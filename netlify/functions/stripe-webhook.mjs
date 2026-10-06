@@ -106,6 +106,23 @@ export default async (req) => {
       const { error } = await supabase.from("clients").update({ data: { ...(row.data || {}), websiteDeal: r.deal }, updated_at: new Date().toISOString() }).eq("id", clientId);
       if (error) throw new Error(error.message);
       if (r.alert) { try { await dispatchAlert(r.alert); } catch (e) { console.error("stripe-webhook: website alert failed:", e.message); } }
+      // The client's website email (receipt or failed payment), after the deal is saved so a send can
+      // never stand in for a record that did not land. Keyed by Stripe invoice, so a retry never repeats it.
+      // Fail-soft: an email problem must not turn a recorded payment into a 500 that Stripe retries.
+      if (r.email) {
+        try {
+          const cur = { ...(row.data || {}), websiteDeal: r.deal };
+          const ea = { ...(cur.emailAuto || {}) };
+          const key = `${r.email}:${r.emailKey}`;
+          if (!(ea.websiteSent || []).includes(key)) {
+            const sent = await autoSendClientEmail(cur, r.email, r.emailExtra || {});
+            if (sent.sent) {
+              ea.websiteSent = [key, ...(ea.websiteSent || [])].slice(0, 40);
+              await supabase.from("clients").update({ data: { ...cur, emailAuto: ea, commLog: [sent.logEntry, ...(cur.commLog || [])] }, updated_at: new Date().toISOString() }).eq("id", clientId);
+            }
+          }
+        } catch (e) { console.error("stripe-webhook: website email failed:", e.message); }
+      }
       return json({ ok: true, applied: event.type, website: true, clientId });
     } catch (e) {
       return json({ ok: false, error: e.message }, 500);

@@ -243,6 +243,8 @@ export function decideWebsiteEnvelope(cl, envelope, now = new Date()) {
   const withA = (patch) => ({ ...d, agreement: { ...a, ...patch } });
   if (status === "completed") return {
     deal: withA({ status: "completed", signedAt: at }), signed: true,
+    // The client's own welcome, sent by the watcher once this is saved (KB `website-builder`).
+    email: "website_welcome",
     alert: { severity: "green", title: `${name} signed the website agreement`, body: `${name} signed the website agreement. The first invoice is being sent to them now, and the build unlocks the moment it's paid.`, smsText: `${name} signed the website agreement.` },
   };
   if (status === "declined" || status === "voided") return {
@@ -267,6 +269,9 @@ export const websiteKind = (obj) => {
 };
 
 // Pure: a Stripe event in, the new deal and anything worth telling Bryson out.
+// What a receipt lists, and what a failed payment still owes, read off the Stripe invoice.
+const invLines = (obj) => (((obj || {}).lines || {}).data || []).map((l) => ({ description: String(l.description || "Charge"), amount: (l.amount || 0) / 100 }));
+const dueOf = (obj) => (((obj || {}).amount_remaining != null ? obj.amount_remaining : (obj || {}).amount_due) || 0) / 100;
 export function applyWebsiteEvent(cl, event, now = new Date()) {
   const obj = (event && event.data && event.data.object) || {};
   const k = websiteKind(obj);
@@ -281,17 +286,22 @@ export function applyWebsiteEvent(cl, event, now = new Date()) {
       const amount = typeof obj.amount_paid === "number" ? obj.amount_paid / 100 : inv.amount;
       const deal = { ...d, invoices: { ...(d.invoices || {}), [k.stage]: { ...inv, id: inv.id || obj.id, status: "paid", paidAt: iso, amount } } };
       const what = k.stage === "final" ? "the final website payment. The site can go live" : "the website payment. You can build the site now";
-      return { deal, alert: { severity: "green", title: `${name} paid ${money(amount)} for their website`, body: `${name} paid ${what}.`, smsText: `${name} paid ${money(amount)} for their website.` } };
+      // 🔴 The client's receipt, worded for where the build is. `emailKey` is the Stripe invoice, so a
+      // retried webhook never sends it twice.
+      return { deal, email: "website_payment", emailKey: obj.id || `${k.stage}-paid`, emailExtra: { stage: k.stage, amount, invoiceUrl: obj.hosted_invoice_url || "", lines: invLines(obj) }, alert: { severity: "green", title: `${name} paid ${money(amount)} for their website`, body: `${name} paid ${what}.`, smsText: `${name} paid ${money(amount)} for their website.` } };
     }
     if (event.type === "invoice.payment_failed") {
       return { deal: { ...d, invoices: { ...(d.invoices || {}), [k.stage]: { ...inv, status: "failed" } } },
+        email: "website_past_due", emailKey: `failed-${obj.id || k.stage}`, emailExtra: { stage: k.stage, amount: dueOf(obj), payUrl: obj.hosted_invoice_url || inv.url || "" },
         alert: { severity: "yellow", title: `${name}'s website payment failed`, body: `A website payment from ${name} did not go through. Stripe will ask them to try again; a call usually sorts it faster.`, smsText: `${name}'s website payment failed.` } };
     }
     return { deal: d, alert: null };
   }
   const care = d.careSub || {};
-  if (event.type === "invoice.paid") return { deal: { ...d, careSub: { ...care, status: "active", lastPaidAt: iso } }, alert: null };
+  if (event.type === "invoice.paid") return { deal: { ...d, careSub: { ...care, status: "active", lastPaidAt: iso } }, alert: null,
+    ...((obj.amount_paid || 0) > 0 ? { email: "website_payment", emailKey: obj.id || `care-${iso.slice(0, 7)}`, emailExtra: { stage: "care", amount: obj.amount_paid / 100, invoiceUrl: obj.hosted_invoice_url || "", lines: invLines(obj) } } : {}) };
   if (event.type === "invoice.payment_failed") return { deal: { ...d, careSub: { ...care, status: "past_due" } },
+    email: "website_past_due", emailKey: `failed-${obj.id || iso.slice(0, 10)}`, emailExtra: { stage: "care", amount: dueOf(obj), payUrl: obj.hosted_invoice_url || "" },
     alert: { severity: "yellow", title: `${name}'s website care payment failed`, body: `The monthly website care payment from ${name} did not go through. Stripe will retry. Under the agreement the site may be taken offline once it is 15 days overdue.`, smsText: `${name}'s care plan payment failed.` } };
   if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
     const map = { active: "active", trialing: "active", past_due: "past_due", unpaid: "past_due", canceled: "canceled", incomplete_expired: "canceled" };

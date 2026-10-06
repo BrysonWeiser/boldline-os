@@ -16,10 +16,13 @@
 import { renderClientEmail, EMAIL_TYPES } from "./client-emails-shared.mjs";
 import { sendEmail } from "./report-shared.mjs";
 import { PACKAGES } from "./pricing-shared.mjs";
+import { termsOf } from "./website-deal.mjs";
 
-const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" });
 const labelFor = (type) => (EMAIL_TYPES.find((t) => t.id === type) || {}).label || type;
 const pkgName = (id) => { const p = PACKAGES.find((x) => x.id === id); return p ? p.name : ""; };
+// A website-only client (the "w-site" package). Same test the portal and the OS use.
+export const isWebsiteOnly = (cl) => !!cl && cl.packageId === "w-site";
 
 // Build the template context from a client's stored data (the server-side twin of
 // EmailCenterTab.buildCtx). Portal link uses Netlify's injected site URL.
@@ -35,7 +38,17 @@ export const buildClientCtx = (cl, extra = {}) => {
     // 🔴 WHAT THIS CLIENT IS BILLED FOR, so the invoice names the same thing their agreement
     // does. Without it a client billed per Qualified Sale receives an invoice line for
     // "Qualified leads", which is a charge for something their contract never mentions.
-    resultKind: cl.billingResultKind || "",
+    // 🔴 A WEBSITE-ONLY CLIENT HAS NO ADS, so nothing may call their enquiries leads or mention
+    // campaigns. "enquiry" switches every shared email (the milestone, the review ask) to the
+    // website wording and the website footer. KB `website-builder`.
+    resultKind: isWebsiteOnly(cl) ? "enquiry" : (cl.billingResultKind || ""),
+    websiteOnly: isWebsiteOnly(cl),
+    // The website emails: their live address, the private preview, and the deal's terms.
+    siteUrl: cl.landingSlug ? `${base}/site/${encodeURIComponent(cl.landingSlug)}/` : "",
+    previewUrl: cl.landingSlug && cl.website && cl.website.previewKey ? `${base}/site/${encodeURIComponent(cl.landingSlug)}/?preview=${encodeURIComponent(cl.website.previewKey)}` : "",
+    plan: termsOf(cl).plan,
+    care: termsOf(cl).care,
+    blog: !!termsOf(cl).blog,
     date: fmt(new Date()),
     ...extra,
   };

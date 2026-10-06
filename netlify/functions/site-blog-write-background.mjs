@@ -3,7 +3,7 @@
 // A `-background` function, because a good 700-word article takes longer than a normal function may run.
 // Started two ways: by the daily site-blog-run job (with the internal key) when an article is due, or by
 // Bryson's "Write one now" in the OS (with his session). The article is published REVIEW_HOURS after it
-// is written, so he gets an alert and has two days to read it or hold it.
+// is written, so he gets an alert, the client gets an email, and both have two days to read, edit or hold it.
 //
 // POST { clientId }   headers: Authorization: Bearer <owner jwt>  OR  x-site-blog-key: <internal key>
 
@@ -12,6 +12,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
+import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { blogActive, nextDue, loadIndex, savePost, uniqueSlug, writePost, supabaseStore, internalKey, REVIEW_HOURS } from "../lib/site-blog.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -52,7 +53,20 @@ export default async (req) => {
       body: `A new blog article for ${cl.name} goes live ${when(publishAt)}. Read it on their Website tab and hold it if anything is off. It publishes by itself otherwise (${REVIEW_HOURS} hours after writing).`,
       smsText: `New article for ${cl.name} goes live ${when(publishAt)}. Check it in the Website tab.`,
     }).catch(() => {});
-    return json({ ok: true, slug: post.slug, publishAt });
+    // 🔴 The client hears about it too, with the day it goes out, so they can read it, change it or hold
+    // it from their portal first (Bryson, 2026-10-06: "make sure the client has a way to see when they go
+    // out and what is written"). Fail-soft: the article is written either way. The log line is added to
+    // a fresh copy of the record so nothing written meanwhile is lost.
+    let emailed = false;
+    try {
+      const r = await autoSendClientEmail(cl, "blog_scheduled", { postTitle: post.title, goesOut: when(publishAt) });
+      if (r.sent) {
+        emailed = true;
+        const { data: fresh } = await supabase.from("clients").select("data").eq("id", clientId).maybeSingle();
+        if (fresh && fresh.data) await supabase.from("clients").update({ data: { ...fresh.data, commLog: [r.logEntry, ...(fresh.data.commLog || [])] }, updated_at: new Date().toISOString() }).eq("id", clientId);
+      }
+    } catch (e) { console.error("site-blog-write: client email failed:", e.message); }
+    return json({ ok: true, slug: post.slug, publishAt, emailed });
   } catch (e) {
     console.error("site-blog-write failed:", cl.name, e.message);
     await dispatchAlert({ severity: "yellow", title: `Couldn't write ${cl.name}'s blog article`, body: `The article writer failed: ${String(e.message).slice(0, 200)}. It will try again tomorrow, or press "Write one now" on their Website tab.`, smsText: `Blog article for ${cl.name} failed. Will retry.` }).catch(() => {});

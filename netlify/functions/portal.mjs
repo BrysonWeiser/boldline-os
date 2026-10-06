@@ -4,7 +4,7 @@ import { withLambda } from "../lib/lambda-adapter.mjs";
 import { stripe, ensureCustomer } from "../lib/stripe-shared.mjs";
 import { websitePortalHTML, WEBSITE_PORTAL_JS, hasWebsite } from "../lib/portal-website.mjs";
 import { summarize } from "../lib/site-stats.mjs";
-import { supabaseStore, loadIndex, publishedPosts } from "../lib/site-blog.mjs";
+import { supabaseStore, loadIndex, loadPost, setHeld, applyEdit } from "../lib/site-blog.mjs";
 import { termsOf } from "../lib/website-deal.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
 
@@ -723,6 +723,36 @@ const handler = async (event) => {
       }
       if (!data) return { statusCode: 404, body: JSON.stringify({ ok: false, error: "Invalid token" }) };
 
+      // The client's blog: read an article, edit it, hold or release it (Website tab, KB website-builder).
+      // Only for a client who bought the blog, and only their own articles (the store is keyed by their id).
+      if (body.blogGet || body.blogEdit || body.blogHold) {
+        const cur = data.data || {};
+        if (!termsOf(cur).blog) return { statusCode: 403, body: JSON.stringify({ ok: false, error: "Your plan does not include a blog." }) };
+        const store = supabaseStore(supabaseAdmin);
+        try {
+          if (body.blogGet) {
+            const post = await loadPost(store, data.id, String(body.blogGet.slug || ""));
+            if (!post) return { statusCode: 404, body: JSON.stringify({ ok: false, error: "That article is not there any more." }) };
+            return { statusCode: 200, body: JSON.stringify({ ok: true, post: { slug: post.slug, title: post.title, blocks: post.blocks, publishAt: post.publishAt, held: !!post.held } }) };
+          }
+          const at = new Date();
+          const stamp = at.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" });
+          let note;
+          if (body.blogEdit) {
+            const { post } = await applyEdit(store, data.id, String(body.blogEdit.slug || ""), body.blogEdit, "client");
+            note = `Client edited their blog article "${post.title}" in the portal.`;
+          } else {
+            await setHeld(store, data.id, String(body.blogHold.slug || ""), !!body.blogHold.held);
+            note = `Client ${body.blogHold.held ? "held" : "released"} a blog article in the portal.`;
+          }
+          await supabaseAdmin.from("clients").update({ data: { ...cur, commLog: [{ date: stamp, note, cat: "website", ts: at.getTime() }, ...(cur.commLog || [])] }, updated_at: at.toISOString() }).eq("id", data.id);
+          try { await dispatchAlert({ severity: "blue", title: `${cur.name || "A client"} changed their blog`, body: note, smsText: note.slice(0, 140) }); } catch {}
+          return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+        } catch (e) {
+          return { statusCode: 400, body: JSON.stringify({ ok: false, error: String(e.message || e).slice(0, 200) }) };
+        }
+      }
+
       // A website change request (Website tab, KB website-builder). Stored on the record, logged, and
       // Bryson is alerted. Capped so a stuck finger cannot pile up hundreds.
       if (body.websiteRequest && typeof body.websiteRequest === "object") {
@@ -969,7 +999,8 @@ const handler = async (event) => {
         } catch (e) { console.error("portal: visits read failed:", e.message); }
       }
       if (termsOf(cl).blog && clientId) {
-        try { site.posts = publishedPosts(await loadIndex(supabaseStore(supabaseAdmin), clientId)); } catch { site.posts = []; }
+        // The full list, scheduled and held included: the client sees what is coming and when.
+        try { site.posts = await loadIndex(supabaseStore(supabaseAdmin), clientId); } catch { site.posts = []; }
       }
     }
     return { statusCode: 200, headers: { "Content-Type": "text/html" }, body: makePortalHTML(cl, pkg, (event.queryStringParameters || {}).billing, site) };

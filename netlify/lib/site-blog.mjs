@@ -74,7 +74,7 @@ export const loadPost = async (store, clientId, slug) => store.read(postPath(cli
 export async function savePost(store, clientId, post) {
   await store.write(postPath(clientId, post.slug), post);
   const index = (await loadIndex(store, clientId)).filter((p) => p.slug !== post.slug);
-  index.push({ slug: post.slug, title: post.title, excerpt: post.excerpt, publishAt: post.publishAt, held: !!post.held, writtenAt: post.writtenAt });
+  index.push({ slug: post.slug, title: post.title, excerpt: post.excerpt, publishAt: post.publishAt, held: !!post.held, writtenAt: post.writtenAt, ...(post.editedAt ? { editedAt: post.editedAt, editedBy: post.editedBy } : {}) });
   await store.write(idx(clientId), index);
   return index;
 }
@@ -92,6 +92,30 @@ export async function removePost(store, clientId, slug) {
   const index = (await loadIndex(store, clientId)).filter((p) => p.slug !== slug);
   await store.write(idx(clientId), index);
   return index;
+}
+
+// ── Editing (the client from their portal, Bryson from the OS) ─────────────────────────────
+// Bryson, 2026-10-06: the client needs "a way to see when they go out and what is written that way they
+// can edit it if they want (just like how i have for my blogs)". An edit keeps the article's date and hold
+// state; it only replaces the words. Dashes are taken out like everywhere else a visitor reads.
+export function cleanEdit(edit) {
+  const e = edit || {};
+  const title = String(e.title || "").replace(/\s+/g, " ").trim().slice(0, 140);
+  const blocks = (Array.isArray(e.blocks) ? e.blocks : []).slice(0, 60)
+    .map((b) => ({ kind: b && b.kind === "h2" ? "h2" : "p", text: String((b && b.text) || "").replace(/\s+/g, " ").trim().slice(0, b && b.kind === "h2" ? 140 : 2000) }))
+    .filter((b) => b.text);
+  if (!title) throw new Error("The article needs a title.");
+  if (!blocks.some((b) => b.kind === "p")) throw new Error("The article needs at least one paragraph.");
+  const firstP = (blocks.find((b) => b.kind === "p") || {}).text || "";
+  const excerpt = String(e.excerpt || "").trim().slice(0, 240) || (firstP.length > 200 ? firstP.slice(0, 197).replace(/\s+\S*$/, "") + "..." : firstP);
+  return humanizeDeep({ title, excerpt, blocks }, { join: ", " });
+}
+export async function applyEdit(store, clientId, slug, edit, who = "client") {
+  const post = await loadPost(store, clientId, slug);
+  if (!post) throw new Error("No such article.");
+  const clean = cleanEdit(edit);
+  const next = { ...post, ...clean, editedAt: new Date().toISOString(), editedBy: who };
+  return { post: next, index: await savePost(store, clientId, next) };
 }
 
 // ── Writing ──────────────────────────────────────────────────────────────────────────────

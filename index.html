@@ -545,6 +545,15 @@ const WEB_PKG = {
   retargeting: false, splitTesting: false, crmIntegration: false, multiCampaign: false,
 };
 const isWebsiteOnly = (cl) => !!cl && cl.packageId === WEB_PKG_ID;
+// Which emails the Emails tab offers for a client: a website-only client sees the website ones plus the
+// few shared ones that are written for them (milestone, review ask, goodbye), never the ads onboarding or
+// ad invoices; an ads client sees the website ones only once they have a website deal or a site.
+const WEB_EMAIL_IDS=["website_welcome","website_payment","website_review","website_live","website_past_due","blog_scheduled","website_monthly"];
+const emailTypeFits=(id,cl)=>{
+  const web=WEB_EMAIL_IDS.includes(id);
+  if(isWebsiteOnly(cl)) return web||["lead_milestone","review_request","thank_you"].includes(id);
+  return !web||!!((cl&&cl.websiteDeal&&cl.websiteDeal.agreement)||(cl&&cl.website&&cl.website.content));
+};
 const findPkg  = (id) => (id === HOUSE_PKG_ID ? HOUSE_PKG : id === WEB_PKG_ID ? WEB_PKG : ALL_PKGS.find(p => p.id === id));
 const pkgHasFeature = (pkgId, featureId) => (PKG_FEATURES[pkgId]||[]).includes(featureId);
 
@@ -8501,7 +8510,14 @@ function EmailCenterTab({client,pkg,onUpdate}) {
       // congratulating them on leads they never got. The automatic sends were right and the
       // manual ones were wrong, which is the worst version, because the preview he checks is
       // the manual one. A test now pins that every key the server builds is built here too.
-      resultKind: client.billingResultKind||"",
+      resultKind: isWebsiteOnly(client)?"enquiry":(client.billingResultKind||""),
+      websiteOnly: isWebsiteOnly(client),
+      // The website emails (KB website-builder): their live address, the private preview, the deal's terms.
+      siteUrl: client.landingSlug?`${window.location.origin}/site/${encodeURIComponent(client.landingSlug)}/`:"",
+      previewUrl: client.landingSlug&&client.website&&client.website.previewKey?`${window.location.origin}/site/${encodeURIComponent(client.landingSlug)}/?preview=${encodeURIComponent(client.website.previewKey)}`:"",
+      plan: wdTerms(client).plan,
+      care: wdTerms(client).care,
+      blog: !!wdTerms(client).blog,
       // So the Results Milestone preview shows a real number instead of a placeholder.
       milestone: (client.leadsLog||[]).length,
       date: fmt(new Date()),
@@ -8588,7 +8604,7 @@ function EmailCenterTab({client,pkg,onUpdate}) {
         <div style={{fontSize:11,color:C.textMuted}}>Loading…</div>
       ):(
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {types.map(t=>(
+          {types.filter(t=>emailTypeFits(t.id,client)).map(t=>(
             <div key={t.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:11,backgroundColor:C.bg3,border:`1px solid ${C.border}`}}>
               <div style={{fontSize:20,flexShrink:0}}>{t.icon}</div>
               <div style={{flex:1,minWidth:0}}>
@@ -8817,7 +8833,7 @@ function WebsiteRequestsCard({client,onUpdate}){
 // The blog (add-on): articles written for them each month, published two days after writing unless held.
 function BlogCard({client}){
   const on=wdTerms(client).blog||(client.internal&&client.website&&client.website.blogOn);
-  const [posts,setPosts]=useState(null); const [open,setOpen]=useState(null); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState("");
+  const [posts,setPosts]=useState(null); const [open,setOpen]=useState(null); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState(""); const [draft,setDraft]=useState(null);
   const call=async(action,extra={})=>{
     const { data:{ session } }=await supabaseClient.auth.getSession();
     const r=await fetch("/.netlify/functions/site",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+((session&&session.access_token)||"")},body:JSON.stringify({action,clientId:client.id,...extra})});
@@ -8849,7 +8865,7 @@ function BlogCard({client}){
       {posts&&!posts.length&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55}}>No articles yet. The first one is written automatically once the site is live and paid, or press "Write one now".</div>}
       {(posts||[]).map(p=>{
         const live=!p.held&&Date.parse(p.publishAt)<=now;
-        const state=p.held?"Held, not published":live?`Published ${wdFmt(p.publishAt)}`:`Goes live ${wdFmt(p.publishAt)}`;
+        const state=(p.held?"Held, not published":live?`Published ${wdFmt(p.publishAt)}`:`Goes live ${wdFmt(p.publishAt)}`)+(p.editedBy==="client"?" · edited by the client":"");
         return (
           <div key={p.slug} style={{padding:"8px 0",borderTop:`1px solid ${C.border}`}}>
             <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -8858,9 +8874,21 @@ function BlogCard({client}){
               <button disabled={!!busy} onClick={async()=>{ setBusy(p.slug); try{ const d=await call("blog-hold",{slug:p.slug,held:!p.held}); setPosts((d.posts||[]).sort((a,b)=>Date.parse(b.publishAt)-Date.parse(a.publishAt))); }catch(e){ setMsg(e.message); } setBusy(""); }} style={bstyle(false,!!busy)}>{p.held?"Release":"Hold"}</button>
               <button disabled={!!busy} onClick={async()=>{ if(!window.confirm("Delete this article? It comes off their website.")) return; setBusy(p.slug); try{ const d=await call("blog-delete",{slug:p.slug}); setPosts(d.posts||[]); }catch(e){ setMsg(e.message); } setBusy(""); }} style={bstyle(false,!!busy)}>Delete</button>
             </div>
-            {open&&open.slug===p.slug&&(
+            {open&&open.slug===p.slug&&!(draft&&draft.slug===p.slug)&&(
               <div style={{marginTop:8,padding:"10px 12px",borderRadius:9,background:C.bg3,fontSize:12.5,color:C.textDim,lineHeight:1.65}}>
                 {(open.blocks||[]).map((b,i)=>b.kind==="h2"?<div key={i} style={{fontWeight:800,color:C.text,margin:"10px 0 4px"}}>{b.text}</div>:<p key={i} style={{margin:"0 0 8px"}}>{b.text}</p>)}
+                <button onClick={()=>setDraft({slug:open.slug,title:open.title,blocks:(open.blocks||[]).map(b=>({...b}))})} style={{...bstyle(false,false),marginTop:6}}>Edit</button>
+              </div>)}
+            {draft&&draft.slug===p.slug&&(
+              <div style={{marginTop:8,padding:"10px 12px",borderRadius:9,background:C.bg3}}>
+                <input value={draft.title} onChange={e=>setDraft({...draft,title:e.target.value})} style={{...inp,marginBottom:8,fontWeight:700}}/>
+                {draft.blocks.map((b,i)=>b.kind==="h2"
+                  ?<input key={i} value={b.text} onChange={e=>{ const bl=draft.blocks.slice(); bl[i]={...b,text:e.target.value}; setDraft({...draft,blocks:bl}); }} style={{...inp,marginBottom:6,fontWeight:700}}/>
+                  :<textarea key={i} value={b.text} rows={4} onChange={e=>{ const bl=draft.blocks.slice(); bl[i]={...b,text:e.target.value}; setDraft({...draft,blocks:bl}); }} style={{...inp,marginBottom:6,resize:"vertical"}}/>)}
+                <div style={{display:"flex",gap:6}}>
+                  <button disabled={!!busy} onClick={async()=>{ setBusy("save"); try{ const d=await call("blog-save",{slug:draft.slug,title:draft.title,blocks:draft.blocks}); setPosts((d.posts||[]).sort((a,b)=>Date.parse(b.publishAt)-Date.parse(a.publishAt))); setOpen(d.post); setDraft(null); setMsg("✓ Saved."); }catch(e){ setMsg(e.message); } setBusy(""); }} style={bstyle(true,!!busy)}>{busy==="save"?"Saving…":"Save"}</button>
+                  <button onClick={()=>setDraft(null)} style={bstyle(false,false)}>Cancel</button>
+                </div>
               </div>)}
           </div>);
       })}
@@ -8962,7 +8990,7 @@ function WebsiteDealCard({client,onUpdate}){
     if(!(amount>0)||(i&&i.paidAt)||!wdSigned(client)) return null;
     return (<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}>
       {i&&i.url&&<button onClick={async()=>{ try{ await navigator.clipboard.writeText(i.url); setMsg("✓ Payment link copied. Text it to them if they can't find the email."); }catch(e){ setMsg(i.url); } }} style={btn(false,false)}>Copy pay link</button>}
-      {ready&&<button disabled={!!busy} onClick={()=>{ if(i&&i.id&&!window.confirm("Send a fresh invoice? The old one is cancelled so they can't pay twice.")) return; call("invoice",{stage},"✓ Invoice sent. Stripe emailed it to them."); }} style={btn(!i,!!busy)}>{busy==="invoice"?"Sending…":i?"Send it again":stage==="final"?"Send the final invoice":"Send the invoice"}</button>}
+      {ready&&<button disabled={!!busy} onClick={()=>{ if(i&&i.id&&!window.confirm("Send a fresh invoice? The old one is cancelled so they can't pay twice.")) return; call("invoice",{stage},stage==="final"?"✓ Invoice sent, with an email showing them the preview first.":"✓ Invoice sent. Stripe emailed it to them."); }} style={btn(!i,!!busy)}>{busy==="invoice"?"Sending…":i?"Send it again":stage==="final"?"Send the final invoice":"Send the invoice"}</button>}
     </div>);
   };
   const built=!!(client.website&&client.website.content);
@@ -9010,7 +9038,7 @@ function WebsiteDealCard({client,onUpdate}){
             <button disabled={!!busy} onClick={()=>{ if(window.confirm("Cancel this agreement so you can change the price? The link they were sent will stop working.")) call("void",{},"✓ Cancelled. Change the price and send a new one."); }} style={btn(false,!!busy)}>{busy==="void"?"Cancelling…":"Cancel it to change the price"}</button>
           </div>}
           {step(wdFirstPaid(client),m.final?"First half":"Payment",<>{invLine(m.firstStage,m.first)}{invButtons(m.firstStage,m.first,true)}</>)}
-          {step(built,"Build",built?"Built.":wdFirstPaid(client)?"Unlocked. Build it below.":"Unlocks when the payment is in.")}
+          {step(built,"Build",built?<>{d.reviewSentAt?`Built. Preview link emailed to them ${wdFmt(d.reviewSentAt)}.`:"Built."}{!d.launchedAt&&wdFirstPaid(client)&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:6}}><button disabled={!!busy||!client.email} onClick={()=>{ if(window.confirm(`Email ${client.email} the private preview link so they can look it over?${inv("final")&&!inv("final").paidAt&&inv("final").url?" It includes the link to pay the second half.":""}`)) call("send-review",{},"✓ Sent. They have the private link to look it over."); }} style={btn(false,!!busy||!client.email)}>{busy==="send-review"?"Sending…":d.reviewSentAt?"Send the preview again":"Email them the preview"}</button></div>}</>:wdFirstPaid(client)?"Unlocked. Build it below.":"Unlocks when the payment is in.")}
           {m.final>0&&step(wdStagePaid(client,"final"),"Second half",<>{invLine("final",m.final)}{invButtons("final",m.final,built&&wdFirstPaid(client))}{!built&&wdFirstPaid(client)&&!inv("final")&&<div style={{marginTop:4}}>Send it once the site is finished and they're happy with it.</div>}</>)}
           {step(!!d.launchedAt,"Live",d.launchedAt?`Went live ${wdFmt(d.launchedAt)}.${careOn?` Care plan ${d.careSub.status==="active"?"active":d.careSub.status||"started"} (${d.careSub.collection==="card"?"card on file":"invoiced monthly"}).`:""}`:wdFullyPaid(client)?"Paid in full. Put it live below.":"Unlocks when it's paid in full.")}
         </div>)}

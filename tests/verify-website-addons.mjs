@@ -175,6 +175,35 @@ ok("Bryson can read, hold, release and delete every article", /call\("blog-post"
 ok("🔴 deleting an article asks first", /window\.confirm\("Delete this article\?/.test(BC));
 ok("set-terms sends every add-on field", /extraPages:Number\(form\.extraPages\|\|0\),extraPagePrice:Number\(form\.extraPagePrice\),blog:!!form\.blog,blogSetup:Number\(form\.blogSetup\),blogMonthly:Number\(form\.blogMonthly\),blogPosts:Number\(form\.blogPosts\)/.test(UI));
 
+// ── 12. Editing an article (the client in their portal, Bryson in the OS) ─────────────────
+await t("edit", async () => {
+  const m = new Map(); const store = { read: async (p) => (m.has(p) ? JSON.parse(m.get(p)) : null), write: async (p, o) => { m.set(p, JSON.stringify(o)); } };
+  await B.savePost(store, "c1", { slug: "a", title: "Old", excerpt: "old", publishAt: "2026-10-09T16:00:00Z", held: true, writtenAt: "2026-10-07T16:00:00Z", blocks: [{ kind: "p", text: "old" }] });
+  const { post } = await B.applyEdit(store, "c1", "a", { title: "  New   title ", blocks: [{ kind: "h2", text: "Why" }, { kind: "p", text: "Fast — and clean." }, { kind: "p", text: "   " }, { kind: "script", text: "x" }] }, "client");
+  ok("🔴 an edit keeps the article's date (it does not jump the queue or go out early)", post.publishAt === "2026-10-09T16:00:00Z");
+  ok("🔴 an edit keeps a hold (editing never releases an article)", post.held === true && (await B.loadIndex(store, "c1"))[0].held === true);
+  ok("an edit replaces the words, tidies spacing and drops empty blocks", post.title === "New title" && post.blocks.length === 3 && post.blocks[0].kind === "h2");
+  ok("an unknown block kind becomes a paragraph, never raw markup", post.blocks[2].kind === "p");
+  ok("🔴 dashes are taken out of a client's edit like everywhere a visitor reads", !/[—–]/.test(JSON.stringify(post)));
+  ok("the edit is recorded with who made it, on the article and the list", post.editedBy === "client" && !!post.editedAt && (await B.loadIndex(store, "c1"))[0].editedBy === "client");
+  ok("the summary follows the new first paragraph", /^Fast/.test(post.excerpt));
+  let threw = ""; try { await B.applyEdit(store, "c1", "a", { title: "", blocks: [{ kind: "p", text: "x" }] }); } catch (e) { threw = e.message; }
+  ok("an article cannot be saved without a title", /title/.test(threw));
+  threw = ""; try { await B.applyEdit(store, "c1", "a", { title: "T", blocks: [{ kind: "h2", text: "only a heading" }] }); } catch (e) { threw = e.message; }
+  ok("an article cannot be saved without a paragraph", /paragraph/.test(threw));
+  threw = ""; try { await B.applyEdit(store, "c1", "nope", { title: "T", blocks: [{ kind: "p", text: "x" }] }); } catch (e) { threw = e.message; }
+  ok("editing an article that is not there fails instead of creating one", /No such/.test(threw) && !m.has("c1/posts/nope.json"));
+  ok("🔴 a slug cannot reach another client's articles", (await B.loadPost(store, "c1", "../../c2/posts/a")) === null);
+});
+const PF = src("netlify/functions/portal.mjs");
+const PB = PF.slice(PF.indexOf("if (body.blogGet || body.blogEdit || body.blogHold)"), PF.indexOf("if (body.websiteRequest"));
+ok("🔴 the portal refuses blog changes from a client without the blog, before touching anything", PB.indexOf("if (!termsOf(cur).blog) return") > 0 && PB.indexOf("if (!termsOf(cur).blog) return") < PB.indexOf("supabaseStore("));
+ok("🔴 the portal only ever reads and edits the token holder's own articles", /loadPost\(store, data\.id,/.test(PB) && /applyEdit\(store, data\.id,/.test(PB) && /setHeld\(store, data\.id,/.test(PB) && !/body\.clientId/.test(PB));
+ok("a client's change is logged and Bryson is told", /commLog:/.test(PB) && /dispatchAlert\(/.test(PB));
+ok("the portal shows the client every article, coming up and held too", /site\.posts = await loadIndex\(/.test(PF));
+ok("Bryson can edit an article from the OS", /call\("blog-save",\{slug:draft\.slug,title:draft\.title,blocks:draft\.blocks\}\)/.test(BC) && /"blog-save"\]\.includes\(body\.action\)/.test(S) && /applyEdit\(store, id, String\(body\.slug \|\| ""\), body, "boldline"\)/.test(S));
+ok("the OS shows when the client has edited an article", /p\.editedBy==="client"\?" · edited by the client"/.test(BC));
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-website-addons: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

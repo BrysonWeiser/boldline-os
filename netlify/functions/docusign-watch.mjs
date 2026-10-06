@@ -157,6 +157,18 @@ export async function runWatch({ loadClients, fetchEnvelope, saveClient, alert, 
     catch (e) { summary.errors++; console.error(`docusign-watch: could not save website deal for ${cl.name}:`, e.message); continue; }
     if (decision.signed) summary.websiteSigned++;
     if (alertPayload) { try { await alert(alertPayload); } catch (e) { console.error("docusign-watch: alert failed:", e.message); } }
+    // The client's welcome, with the first invoice's pay link, once the signature is safely saved. A
+    // signature is only reported once, and the flag stops a hand-sent one from going out twice.
+    if (decision.email && sendEmail && !(next.emailAuto || {}).websiteWelcome) {
+      try {
+        const first = (deal.invoices || {})[amountsOf(termsOf({ websiteDeal: deal })).firstStage] || {};
+        const r = await sendEmail(next, decision.email, { payUrl: first.url || "", amount: first.amount || 0 });
+        if (r && r.sent) {
+          const after = { ...next, emailAuto: { ...(next.emailAuto || {}), websiteWelcome: true }, commLog: [r.logEntry, ...(next.commLog || [])] };
+          await saveClient(row.id, after); latest.set(row.id, after);
+        }
+      } catch (e) { console.error("docusign-watch: website welcome failed:", e.message); }
+    }
   }
 
   // ── 🔴 THE CATCH-UP PASS, AND IT IS NOT OPTIONAL ───────────────────────────

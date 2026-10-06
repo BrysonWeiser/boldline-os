@@ -54,6 +54,24 @@ ok("when the numbers are not ready yet it says so instead of showing zeros", /Vi
 ok("before signing there is no payments card", !/Payments/.test(websitePortalHTML({ ...base, websiteDeal: { agreement: ag("sent") } }, { siteUrl: SITE })));
 ok("the request script posts to the portal like every other portal action", /fetch\('\/\.netlify\/functions\/portal\?token='\+encodeURIComponent\(TOKEN\)/.test(WEBSITE_PORTAL_JS) && /websiteRequest:\{text:t\}/.test(WEBSITE_PORTAL_JS));
 
+const fut = new Date(Date.now() + 2 * 86400e3).toISOString();
+const BL = websitePortalHTML(live, { siteUrl: SITE, stats, posts: [
+  { slug: "soon", title: "Coming up", publishAt: fut },
+  { slug: "held", title: "Held one", publishAt: "2026-10-01T00:00:00Z", held: true },
+  { slug: "tip", title: "A tip", publishAt: "2026-10-01T00:00:00Z", editedBy: "client" }] });
+ok("🔴 the client sees an article before it goes out, with the day it goes out", /Coming up/.test(BL) && /Goes out [A-Z][a-z]+day, /.test(BL));
+ok("🔴 an article that has not gone out has no live link (it would be a dead page)", !BL.includes(`${SITE}blog/soon/`) && !BL.includes(`${SITE}blog/held/`));
+ok("a held article says so plainly and offers to release it", /On hold, not published/.test(BL) && /blBlogHold\('held',false,this\)/.test(BL) && /blBlogHold\('soon',true,this\)/.test(BL));
+ok("every article can be opened, read and edited", (BL.match(/blBlogOpen\('/g) || []).length === 3);
+ok("the client's own edits are marked", /edited by you/.test(BL));
+ok("🔴 no dashes, no emojis on the blog card", !/[—–]/.test(text(BL)) && !/\p{Extended_Pictographic}/u.test(text(BL)));
+let parsed = true; try { new Function("var TOKEN='t';" + WEBSITE_PORTAL_JS); } catch (e) { parsed = String(e.message); }
+ok("🔴 the portal script parses (one broken quote kills every button on the page)", parsed === true, parsed);
+ok("the editor sends only the article's own fields, through the portal's token", /blPost\(\{blogEdit:\{slug:slug,title:t,blocks:blocks\}\}\)/.test(WEBSITE_PORTAL_JS) && /blPost\(\{blogGet:\{slug:slug\}\}\)/.test(WEBSITE_PORTAL_JS));
+ok("🔴 the article's words are escaped before they go into the editor", /value="'\+blEsc\(p\.title\)\+'"/.test(WEBSITE_PORTAL_JS) && /'\+blEsc\(b\.text\)\+'<\/textarea>/.test(WEBSITE_PORTAL_JS));
+ok("🔴 the Save button quotes the article name, so pressing it actually saves", WEBSITE_PORTAL_JS.includes(`onclick="blBlogSave(\\''+slug+'\\',this)"`));
+ok("holding an article asks first", /confirm\('Hold this article\?/.test(WEBSITE_PORTAL_JS));
+
 // ── 2. Counting visits, privately ──────────────────────────────────────────────────────────
 ok("sources read in plain terms", sourceOf("https://www.google.com/", "x.app", false) === "Search" && sourceOf("", "x.app", false) === "Direct" && sourceOf("https://l.facebook.com/x", "x.app", false) === "Social"
   && sourceOf("https://x.app/site/acme/", "x.app", false) === "Internal" && sourceOf("https://www.google.com/", "x.app", true) === "Google Ads" && sourceOf("https://news.example/", "x.app", false) === "Other sites");

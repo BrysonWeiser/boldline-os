@@ -11,7 +11,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { renderSite, pageById, THEME_IDS, siteReady, brandName, pageByPath, pagesFor } from "../lib/site-render.mjs";
-import { supabaseStore, loadIndex, loadPost, publishedPosts, isPublished, setHeld, removePost } from "../lib/site-blog.mjs";
+import { supabaseStore, loadIndex, loadPost, publishedPosts, isPublished, setHeld, removePost, applyEdit } from "../lib/site-blog.mjs";
 import { publishLock } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) =>
@@ -77,7 +77,7 @@ export default async (req) => {
       return json({ ok: true, job: (row && row.data && row.data.siteJob) || null });
     }
     // Blog articles, for the OS: the full list (scheduled and held too), one article, hold, delete.
-    if (["blog-list", "blog-post", "blog-hold", "blog-delete"].includes(body.action)) {
+    if (["blog-list", "blog-post", "blog-hold", "blog-delete", "blog-save"].includes(body.action)) {
       const id = String(body.clientId || "");
       if (!id) return json({ ok: false, error: "clientId required" }, 400);
       const store = supabaseStore(supabase);
@@ -85,6 +85,7 @@ export default async (req) => {
         if (body.action === "blog-list") return json({ ok: true, posts: await loadIndex(store, id) });
         if (body.action === "blog-post") return json({ ok: true, post: await loadPost(store, id, String(body.slug || "")) });
         if (body.action === "blog-hold") return json({ ok: true, posts: await setHeld(store, id, String(body.slug || ""), !!body.held) });
+        if (body.action === "blog-save") { const r = await applyEdit(store, id, String(body.slug || ""), body, "boldline"); return json({ ok: true, post: r.post, posts: r.index }); }
         return json({ ok: true, posts: await removePost(store, id, String(body.slug || "")) });
       } catch (e) { return json({ ok: false, error: String(e.message || e) }, 400); }
     }
