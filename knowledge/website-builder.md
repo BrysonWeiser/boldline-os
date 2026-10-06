@@ -163,6 +163,20 @@ edit it if they want (just like how i have for my blogs)"*. The 4-a-month limit 
 - OS Blog card: Read > **Edit** > Save (`site` action `blog-save`); shows "edited by the client".
 - Tests: verify-website-addons (84) + verify-website-portal (49); 8 mutations caught.
 
+## 🔴 Ad clients get nothing about websites unless they are buying one (2026-10-06)
+Bryson: *"make sure that regular ad clients wont get anything regarding website stuff unless of course they
+are paying for it"*. Audited every client-facing website touchpoint. Already true: website emails only fire on
+website-tagged Stripe money, the website envelope, launch, an active blog, or a launched site; no ads email
+mentions a website; blog articles need `blogActive`. Tightened the same day:
+- Portal Website tab (`hasWebsite`): a website agreement out or signed, or the website-only package. A draft
+  site on an ads client's record no longer shows it.
+- Portal change requests refused (403) without a website; blog actions already needed the blog.
+- "Email them the preview" needs a SIGNED website agreement; the monthly summary needs one too.
+- OS Emails tab offers website emails to an ads client only while a website agreement is out or signed.
+- Pinned in verify-website-emails section 7 (5 mutations caught). Note: the portal's "Your Website" and
+  "If People Buy Straight From Your Website" Account cards are about the client's OWN existing site (ads
+  tracking), not our website product, so they stay.
+
 ## 🔴 The website emails (BUILT 2026-10-06)
 Bryson: *"make sure the website only clients get the automated emails just like ad clients do and make
 sure they are tailored to the website clients"*. Seven new types in `client-emails-shared.mjs` (all in the

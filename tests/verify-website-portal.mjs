@@ -32,7 +32,7 @@ ok("every stage has its own plain status", [
   st({ agreement: ag("completed"), invoices: { deposit: paid, final: paid } }, { content: {} }).key === "launch",
   st({ agreement: ag("completed"), invoices: { deposit: paid, final: paid }, launchedAt: "x" }, { content: {}, published: true }).key === "live",
 ].every(Boolean));
-ok("only clients with a website get the tab", hasWebsite({ ...base }) && hasWebsite({ ...base, packageId: "g-launch", website: { content: {} } }) && !hasWebsite({ id: "x", packageId: "g-launch" }) && !hasWebsite({ ...base, internal: true }));
+ok("🔴 only clients buying a website get the tab (an ads client with just a draft site does not)", hasWebsite({ ...base }) && !hasWebsite({ ...base, packageId: "g-launch", website: { content: {} } }) && hasWebsite({ ...base, packageId: "g-launch", websiteDeal: { agreement: ag("sent") } }) && !hasWebsite({ id: "x", packageId: "g-launch" }) && !hasWebsite({ ...base, internal: true }));
 
 const live = { ...base, website: { content: {}, published: true, previewKey: "K" }, websiteDeal: { agreement: ag("completed"), invoices: { deposit: paid, final: paid }, launchedAt: "2026-10-02T00:00:00Z", careSub: { status: "active" } },
   leadsLog: [{ source: "website", receivedAt: new Date().toISOString() }, { source: "landing", receivedAt: new Date().toISOString() }, { source: "website", receivedAt: "2020-01-01T00:00:00Z" }],

@@ -18,7 +18,11 @@ const httpsOnly = (u) => (/^https:\/\//.test(String(u || "")) ? String(u) : "");
 export const CARE_EDITS_PER_MONTH = 2;
 
 // Show the tab at all? A client with a website deal, a website being built, or a website-only client.
-export const hasWebsite = (cl) => !!(cl && !exempt(cl) && (agreementLive(cl) || (cl.website && cl.website.content) || cl.packageId === "w-site"));
+// 🔴 ONLY A CLIENT WHO IS BUYING A WEBSITE (Bryson, 2026-10-06: "make sure that regular ad clients wont get
+// anything regarding website stuff unless of course they are paying for it"). A website agreement out or
+// signed, or the website-only package. A site draft sitting on an ads client's record (built as a demo, or
+// a deal that fell through) is NOT a reason to show them a Website tab.
+export const hasWebsite = (cl) => !!(cl && !exempt(cl) && (agreementLive(cl) || cl.packageId === "w-site"));
 
 // Where it stands, in one line for the client.
 export function websiteStatus(cl) {
