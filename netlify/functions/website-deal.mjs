@@ -12,6 +12,9 @@
 //   invoice   { stage }                send a build invoice (full | deposit | final)
 //   launch                             start the care plan; refused until everything is paid
 //   send-review                        email the client the private preview link to look over
+//   domain-set    { domain }           their own web address (acmepools.com); added to Netlify if a token is set
+//   domain-check                       does the address reach their site over https yet? (sets it live)
+//   domain-remove                      stop using their own address (Netlify is left alone)
 //   sync                               re-read open invoices and the care plan from Stripe
 
 import { createClient } from "@supabase/supabase-js";
@@ -21,6 +24,8 @@ import { sendEnvelope, ensureAnchor } from "./docusign-send.mjs";
 import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shared.mjs";
 import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { promises as dnsp } from "node:dns";
+import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken } from "../lib/site-domain.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
   publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned,
@@ -29,6 +34,9 @@ import {
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" });
 const api = { stripe, ensureCustomer, resolvePaymentMethod };
+// For the address check: DNS from Node, and the real https fetch.
+const resolveDns = (h, type) => (type === "CNAME" ? dnsp.resolveCname(h) : dnsp.resolve4(h));
+const netlify = () => ({ fetchFn: fetch, token: process.env.NETLIFY_API_TOKEN || "", siteId: process.env.SITE_ID || "" });
 
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -140,6 +148,46 @@ export default async (req) => {
         const next = await save({ reviewSentAt: new Date().toISOString() }, "", sent);
         return json({ ok: true, deal: next });
       }
+      case "domain-set": {
+        const host = cleanDomain(body.domain);
+        if (!host) return json({ ok: false, error: "That doesn't look like a web address we can use. Type it like acmepools.com or www.acmepools.com." }, 400);
+        // 🔴 Only for a client buying a website (or BoldLine's own), the same rule as everything else here.
+        if (!exempt(cl) && !isSigned(cl)) return json({ ok: false, error: "They haven't signed the website agreement yet." }, 409);
+        // 🔴 One address, one owner. Another client's website OR landing page on the same address would make
+        // the lookup ambiguous, and a landing page always wins it, so their website would silently vanish.
+        const { data: all, error: ae2 } = await supabase.from("clients").select("id, data");
+        if (ae2) return json({ ok: false, error: ae2.message }, 500);
+        const taken = addressTaken(all, clientId, host);
+        if (taken) return json({ ok: false, error: `${(taken.data && taken.data.name) || "Another client"} already uses that address.` }, 409);
+        const mine = String(((cl.campaignSetup || {}).landingDomain) || "").toLowerCase();
+        if (mine && [host, altHost(host)].includes(mine)) return json({ ok: false, error: "Their ad landing page already uses that address. Use a different one for the website." }, 409);
+        // Both forms (with and without www) go to Netlify, so either one a customer types works.
+        let alias;
+        try { alias = await addNetlifyAlias([host, ...(isApex(host) || (host.startsWith("www.") && isApex(host.slice(4))) ? [altHost(host)] : [])], netlify()); }
+        catch (e) { alias = { ok: false, note: `Netlify didn't answer (${e.message}).` }; }
+        const next = await save({ domain: { host, setAt: new Date().toISOString(), live: false, alias: { ok: !!alias.ok, manual: !!alias.manual, note: alias.note || "" } } },
+          `Website address set to ${host}.`);
+        return json({ ok: true, deal: next, records: dnsRecords(host), alias });
+      }
+      case "domain-check": {
+        const d = deal.domain;
+        if (!d || !d.host) return json({ ok: false, error: "Set their web address first." }, 409);
+        const r = await checkDomain(d.host, cl.landingSlug, { fetchFn: fetch, resolve: resolveDns });
+        // 🔴 Live only when the address really served THEIR site AND the site is out (published, paid).
+        const out = !!(cl.website && cl.website.published) && !publishLock(cl);
+        const live = r.live && out;
+        const note = r.live && !out ? "The address is set up and reaches the site. It goes live on this address when you put the site live." : r.note;
+        const first = live && !d.live;
+        const next = await save({ domain: { ...d, live, ...(first ? { liveAt: new Date().toISOString() } : {}), check: { dns: r.dns, https: r.https, note, at: r.checkedAt } } },
+          first ? `Website now live on ${d.host}.` : "");
+        return json({ ok: true, deal: next, live, note, records: dnsRecords(d.host) });
+      }
+      case "domain-remove": {
+        if (!deal.domain) return json({ ok: true, deal });
+        const was = deal.domain.host;
+        const next = await save({ domain: null }, `Stopped using ${was} for the website.`);
+        return json({ ok: true, deal: next });
+      }
       case "launch": {
         const lock = publishLock(cl);
         if (lock) return json({ ok: false, error: lock }, 409);
@@ -153,7 +201,18 @@ export default async (req) => {
           // live" email below: the link in it must work the moment they tap it.
           (b) => ({ website: { ...(b.website || {}), published: true } }));
         // "You're live", the first time only (pressing Go live again re-publishes, it is not news).
-        if (first) { const sent = await autoSendClientEmail(cl, "website_live", { care }); if (sent.sent) next = await save({}, "", sent, { websiteLive: true }); }
+        // Their own address, if one is set, is checked now that the site is out, so the "you're live" email
+        // can already carry it. Best effort: a slow DNS never holds up the launch.
+        const dm = next.domain;
+        if (dm && dm.host && !dm.live) {
+          try {
+            const r = await checkDomain(dm.host, cl.landingSlug, { fetchFn: fetch, resolve: resolveDns });
+            if (r.live) next = await save({ domain: { ...dm, live: true, liveAt: new Date().toISOString(), check: { dns: r.dns, https: r.https, note: r.note, at: r.checkedAt } } }, `Website now live on ${dm.host}.`);
+          } catch (e) { console.error("website-deal: domain check at launch failed:", e.message); }
+        }
+        // Sent from the record as it is now, so a just-proven address of theirs is the link in it.
+        const now = { ...cl, websiteDeal: next };
+        if (first) { const sent = await autoSendClientEmail(now, "website_live", { care }); if (sent.sent) next = await save({}, "", sent, { websiteLive: true }); }
         return json({ ok: true, deal: next });
       }
       case "sync": {

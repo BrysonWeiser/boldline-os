@@ -6,6 +6,7 @@ import { websitePortalHTML, WEBSITE_PORTAL_JS, hasWebsite } from "../lib/portal-
 import { summarize } from "../lib/site-stats.mjs";
 import { supabaseStore, loadIndex, loadPost, setHeld, applyEdit } from "../lib/site-blog.mjs";
 import { termsOf } from "../lib/website-deal.mjs";
+import { publicSiteUrl } from "../lib/site-domain.mjs";
 import { dispatchAlert } from "../lib/alerts-shared.mjs";
 
 const SUPABASE_URL = "https://ahcrpxuwdyrxlethpdns.supabase.co";
@@ -990,7 +991,8 @@ const handler = async (event) => {
     let site = null;
     if (hasWebsite(cl)) {
       const host = (event.headers && (event.headers.host || event.headers.Host)) || "boldlinemedia.netlify.app";
-      site = { siteUrl: cl.landingSlug ? `https://${host}/site/${encodeURIComponent(cl.landingSlug)}/` : "", stats: null, posts: [] };
+      // Their own address once it works, ours until then.
+      site = { siteUrl: publicSiteUrl(cl, `https://${host}`), stats: null, posts: [] };
       const clientId = cl.id || (data.id);
       if (cl.website && cl.website.published && clientId) {
         try {

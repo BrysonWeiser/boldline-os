@@ -930,7 +930,10 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   const label = pg.label;
   const title = page === "home" ? (C.seo.title || `${C.name}${C.niche ? " | " + C.niche : ""}`) : post ? `${clean(post.title, 70)} | ${C.name}` : `${label} | ${C.name}`;
   const desc = post ? clean(post.excerpt, 160) || C.hero.sub : pg.extra ? clean(pg.extra.content.intro, 160) || C.hero.sub : C.seo.description || C.hero.sub;
-  const canonical = post ? postHref(base, post.slug) : href(base, page);
+  // The address search engines should credit: the client's own domain once it is live, even when this
+  // copy is being served at our /site/<slug>/ address (KB website-builder, step 3).
+  const cbase = /^https:\/\//.test(String(opts.canonicalBase || "")) ? String(opts.canonicalBase).replace(/\/+$/, "") : base;
+  const canonical = post ? postHref(cbase, post.slug) : href(cbase, page);
   const ogImg = photos[0] ? `<meta property="og:image" content="${esc(photos[0].url)}">` : "";
   const hasGl = !!P.gl && /<canvas/.test(body);
   const out = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">

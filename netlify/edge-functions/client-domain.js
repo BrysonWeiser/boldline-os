@@ -29,6 +29,9 @@ export default async (request, context) => {
     const target = new URL(url);
     target.pathname = "/.netlify/functions/landing";
     target.searchParams.set("host", route.host);
+    // The page they asked for on that address. A landing page ignores it; a client's WEBSITE (served by
+    // the same function when no landing page claims the address) needs it to know which page to draw.
+    target.searchParams.set("path", url.pathname);
     return context.rewrite(target);
   } catch (e) {
     // Never take the OS down over a routing nicety.
