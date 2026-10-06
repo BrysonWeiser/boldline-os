@@ -31,7 +31,9 @@
 import { WEBSITE_OFFER } from "./pricing-shared.mjs";
 
 export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
-export const AGREEMENT_VERSION = "WA-1";
+// WA-2 (2026-10-06): section 6 spells out that BoldLine manages the client's domain settings through access the
+// client gives it, that the domain stays the client's, and what BoldLine may and may not do with that access.
+export const AGREEMENT_VERSION = "WA-2";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -191,7 +193,9 @@ ${pay}
 <p>If Client does not respond to BoldLine for sixty (60) days in a row while the Website is being built, BoldLine may close the project by written notice. Payments already made are not refunded, and nothing further is owed for the build.</p>
 
 <h2>6. Going live and the domain</h2>
-<p>When the Website is finished, paid for in full and approved by Client, BoldLine will publish it on Client&rsquo;s domain name. Client owns its domain name and keeps it registered in its own name, at its own cost. If Client does not have one, BoldLine will help Client register one in Client&rsquo;s name. Client will give BoldLine the access needed to connect the domain.</p>
+<p>When the Website is finished, paid for in full and approved by Client, BoldLine will publish it on Client&rsquo;s domain name. Client owns its domain name and keeps it registered in its own name, at its own cost. If Client does not have one, BoldLine will help Client register one in Client&rsquo;s name.</p>
+<p>BoldLine manages the domain&rsquo;s settings for Client, so Client does not need anyone else to look after the Website. To do this, Client will give BoldLine access to the account where the domain is registered, limited to managing its settings where the provider allows it, for as long as BoldLine hosts the Website. BoldLine will use that access only to connect the domain to the Website and keep it working. Without Client&rsquo;s written approval (email is fine), BoldLine will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on. Keeping the domain renewed and paid for remains Client&rsquo;s responsibility.</p>
+<p>The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses. While BoldLine hosts the Website, removing that access or changing those settings may stop the Website working on the domain, which will not be a breach by BoldLine. When BoldLine stops hosting the Website, it will stop using the access, and on request will tell Client exactly which settings it made so they can be pointed wherever Client chooses. This does not depend on any amount being owed.</p>
 
 <h2>7. The Care Plan</h2>
 ${care}

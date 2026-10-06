@@ -92,6 +92,10 @@ ok("🔴 exactly one signature anchor", (aH.match(/\/BL_SIGN_HERE\//g) || []).le
 ok("half plan: both amounts, and it says it won't be published until the second half is paid", /\$750/.test(aH) && /will not be published until the second payment/.test(aH));
 ok("full plan: the whole price up front, and a waived care plan says so", /\$2,400/.test(aF) && /paid in full when this Agreement is signed/.test(aF) && /Care Plan fee is waived/.test(aF));
 ok("the care plan starts on launch day", /starts on the day the Website goes live/.test(aH));
+ok("🔴 WA-2: BoldLine manages the domain through access the client gives, and may not transfer it, cancel it or touch their email settings", /Client will give BoldLine access to the account where the domain is registered/.test(aH) && /will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on/.test(aH));
+ok("🔴 WA-2: the domain stays theirs, they can remove our access any time, and the hand-back never depends on money owed", /The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses/.test(aH) && /This does not depend on any amount being owed/.test(aH));
+ok("WA-2: renewing the domain stays the client's job", /Keeping the domain renewed and paid for remains Client&rsquo;s responsibility/.test(aH));
+ok("the agreement is version WA-2", L.AGREEMENT_VERSION === "WA-2");
 ok("🔴 the client keeps its domain and gets a copy of the site if it leaves", /Client owns its domain name/.test(aH) && /standard web files/.test(aH));
 ok("no promises about rankings or results", /does not guarantee any particular search ranking/.test(aH));
 ok("names are escaped, never run", !/<b>Evil<\/b>/.test(aH) && /&lt;b&gt;Evil/.test(aH));
