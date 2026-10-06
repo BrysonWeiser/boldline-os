@@ -187,12 +187,23 @@ ok("putting the site live checks their address, before the you're-live email", l
 ok("🔴 the Netlify token is read from the environment, never written anywhere", /process\.env\.NETLIFY_API_TOKEN/.test(FN) && !/NETLIFY_API_TOKEN\s*[:=]\s*["'`][^"'`]/.test(FN));
 ok("the OS card asks before removing an address", /window\.confirm\(`Stop using \$\{d\.host\}/.test(UI));
 ok("🔴 the instructions he sends their web person carry no dashes or emojis", (() => { const i = UI.indexOf("const forThem=d?"); const m = i > 0 ? UI.slice(i, UI.indexOf(':"";', i)) : ""; return !!m && !/[\u2014\u2013]/.test(m) && !/\p{Extended_Pictographic}/u.test(m) && /MX records/.test(m) && /grey cloud/.test(m); })());
-ok("the OS card shows only once they signed for a website", /const shown=wdExempt\(client\)\|\|wdSigned\(client\);/.test(UI) && /if\(!shown\) return null;/.test(UI));
+ok("the OS card is hidden for clients with no website", /if\(!shown\) return null;/.test(UI));
 ok("the sitemap also works on our address", /where\.seg === "sitemap\.xml" && !where\.post/.test(src("netlify/functions/site.mjs")));
 
 ok("the address card also shows before the site is built (DNS takes hours, the build a minute)", (UI.match(/<SiteDomainCard client=\{client\} onUpdate=\{onUpdate\}\/>/g) || []).length === 2);
 
 ok("🔴 My Ads (the house account) has no Website tab unless a site was built there on purpose", /client\.internal&&k==="website"&&!\(client\.website&&typeof client\.website==="object"&&client\.website\.content\)/.test(UI));
+
+// 🔴 We are their web people: the default ask is access to their domain account, not instructions for someone else.
+{
+  const i = UI.indexOf("const askAccess=d?"); const m = i > 0 ? UI.slice(i, UI.indexOf(':"";', i)) : "";
+  ok("🔴 the access request asks to be invited to their domain account, by the signed-in email", /Delegate access, Share access, Members or Users/.test(m) && /Invite \$\{me\|\|"us"\}/.test(m) && /managing DNS/.test(m));
+  ok("🔴 and promises the domain stays theirs", /The domain stays in your name and you stay the owner/.test(m));
+  ok("🔴 no dashes or emojis in it", !!m && !/[\u2014\u2013]/.test(m) && !/\p{Extended_Pictographic}/u.test(m));
+  ok("the access request is step 1 and the main button; sending records elsewhere is only a fallback",
+    UI.indexOf("1. Get access to their domain account") > 0 && UI.indexOf("1. Get access to their domain account") < UI.indexOf("Can't get access? Copy the records for them"));
+  ok("🔴 the card is on every website client, usable once they sign", /const shown=wdExempt\(client\)\|\|wdAgreementLive\(client\)\|\|isWebsiteOnly\(client\);/.test(UI) && /const usable=wdExempt\(client\)\|\|wdSigned\(client\);/.test(UI) && /Set up here once they sign the website agreement/.test(UI));
+}
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-site-domain: ${pass} passed, ${fails.length} failed`);

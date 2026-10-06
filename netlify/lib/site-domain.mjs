@@ -113,8 +113,8 @@ export async function checkDomain(host, slug, { fetchFn, resolve } = {}) {
   }
   const live = served;
   const note = live ? "Working. The website is live on this address."
-    : dns === "none" ? "Nothing is pointed at us yet. Add the records below where the domain is managed. It can take up to a few hours to take effect."
-    : dns === "elsewhere" ? "The address still points somewhere else. Change the records below to the values shown."
+    : dns === "none" ? "Nothing is pointed at us yet. Add the two records in step 2 in their domain account. It can take a few hours to take effect."
+    : dns === "elsewhere" ? "The address still points somewhere else, probably their old website. Change the records in step 2 to the values shown."
     : https === "cert" ? "The address points at us. The security certificate is still being issued, which usually takes a few minutes and can take up to a day."
     : "The address points at us, but the site isn't answering on it yet. Give it a few minutes and check again.";
   return { live, dns, https, note, checkedAt: new Date().toISOString() };
