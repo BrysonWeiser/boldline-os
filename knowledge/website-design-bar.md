@@ -76,3 +76,15 @@ Recommended: add the skill to the repo only after reading it (third-party instru
 - Nothing else worth installing now: GSAP (+ScrollTrigger, SplitText, free since the Webflow deal), Lenis
   and Three.js are loaded BY the websites, not installed by Bryson. Optional later: Spline (custom 3D),
   Context7 (live library docs) if library APIs ever trip us up.
+
+## 🔴 2026-10-06 "THE RIGHT AMOUNT" (Bryson): *"don't use to much motion but also don't use to little basically using it at the right times"*
+How that is applied (and built, KB `website-builder` "The motion system"):
+- Each page gets ONE arrival (the headline entrance) and at most two scroll moments; the home page has
+  exactly one big scene (portal, rail or stack). Everything else is quiet: short reveals, hover details.
+- Motion answers something the visitor does (scrolls, points, clicks). Only the strip and the 3D backdrop
+  move on their own, and both stop when off screen.
+- Mixed per client from a library so no two sites share a signature move; the jet-window move ("portal")
+  is one of three scenes, never the default.
+- Tools actually used: our own small scroll engine (sticky sections + a progress value, no heavy library),
+  Lenis for smooth scrolling, plain WebGL shaders for 3D. GSAP/Three.js were considered and not needed:
+  they would add ~100KB+ to every client page for effects we get in a few KB.
