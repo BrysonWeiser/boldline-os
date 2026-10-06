@@ -375,6 +375,9 @@ goal (full automation; Bryson's only manual jobs are cold call, close, and check
 The cost of taking website work is not the money, it is that it bolts a second, lower-margin,
 un-automatable services business onto the first one. **If this comes up again, the answer is no.**
 
+> ⚠️ **SUPERSEDED 2026-10-06:** Bryson decided to sell templated, OS-built websites ($1,500 + $99/mo,
+> to anyone). See KB `service-add-ons`.
+
 **The relationship was flipped.** Shaun is worth far more as a source of clients *to* BoldLine
 than as somewhere to send work. He already talks daily to owners who have a website and no
 traffic, which is precisely BoldLine's customer. Bryson would only ever refer people who have
