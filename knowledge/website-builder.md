@@ -2,7 +2,7 @@
 name: website-builder
 topic: OS app
 task: build, preview, edit, publish or debug a client website made by the OS (the website service), or change its designs, pages, motion, 3D or copy writer
-keywords: [delegate access, domain access, web guy, access request, netlify-status, netlifyStatus, own domain, custom domain, web address, domain-set, domain-check, site-domain, NETLIFY_API_TOKEN, domain alias, sitemap.xml, robots.txt, x-site, serveWebsiteOnDomain, website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, WA-2, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
+keywords: [sites site, separate netlify site, SITES_NETLIFY_SITE, lead-relay, lead-queue, lead-queue-sweep, site-uptime, uptime, __health, ignore.mjs, delegate access, domain access, web guy, access request, netlify-status, netlifyStatus, own domain, custom domain, web address, domain-set, domain-check, site-domain, NETLIFY_API_TOKEN, domain alias, sitemap.xml, robots.txt, x-site, serveWebsiteOnDomain, website emails, website_welcome, website_payment, website_review, website_live, website_past_due, blog_scheduled, website_monthly, website-monthly-run, enquiry wording, client blog editing, blogEdit, applyEdit, blog-save, portal website tab, site_visits, site-hit, visitor analytics, change request, websiteRequests, portal-website, extra pages, blog add-on, client blog, site-blog, blog articles, site-blog-run, site-blog-write-background, held article, website deal, websiteDeal, website agreement, WA-1, WA-2, build lock, publish lock, deposit, final payment, care plan, website-deal.mjs, SERVER_OWNED_KEYS, motion recipe, motionRecipe, motionSeed, try different animations, portal scene, rail scene, stack scene, lenis, smooth scroll, water caustics, liquid chrome, silk, topo, glSceneFor, website builder, client website, site-render, renderSite, site.mjs, site-build-background, siteJob, website tab, cinematic, aurora, editorial, webgl, glass orb, shader, word fill, marquee, preview key, /site/slug, five pages, home services about reviews contact, pexels background photos, website service, $1500, website preview]
 status: step 1 built + animation upgrade + step 2a (website agreement, payments, build/live locks) + step 2b (Deal Prep, marketing site, cross-sell) + website-only clients + extra pages/blog add-ons + portal Website tab with visitor numbers + client blog editing + website emails live 2026-10-06; step 3 (own domain) not built (package/contract/billing) and 3 (custom domain) not built
 summary: Step 1 of the website service, built 2026-10-06, plus the same-day animation upgrade. The OS writes a client's 5-page site (Home, Services, About, Reviews, Contact) with Claude, picks Pexels background photos until the client sends real ones, and renders it in one of three designs (Cinematic, Aurora, Editorial) the client picks from preview links. Every client gets its own MIX of motion (headline entrance, one big scroll scene, reveal style, page transition, strip) from a library, and a 3D backdrop matched to their trade (water, chrome, silk, contour lines, liquid light); the three designs one client sees never share a scene. Served at /site/<landingSlug>/ once "Put it live" is pressed. All motion is layered on after the page is usable and drops out for reduce-motion, Data Saver, slow and small-memory phones. 83 checks, 12 mutations caught; driven at four widths.
 verified: 2026-10-06
@@ -221,6 +221,34 @@ Bryson: *"yea start on the web address"*. A client's site can now run on THEIR a
   the care plan). Same principle as ad accounts: if BoldLine held the domain, leaving would mean a domain
   held hostage and their site/email dying if our card lapsed.
 - Tests: tests/verify-site-domain.mjs (84 checks, 15 mutations caught); OS card driven at 390/768/1280/1600.
+
+## 🔴 Client websites have their own home (BUILT 2026-10-06, needs Bryson's Netlify setup to switch on)
+Bryson: *"yes lets seperate them and then if you can think of any safeties we should add"*. Client websites
+on their own addresses move to a SECOND Netlify site built from `sites/` (Base directory `sites`), so an OS
+update, outage or bad deploy cannot take a client's live website down.
+- `sites/netlify.toml`: own functions (`website` on `/*`, `site-hit`, `lead`), esbuild, installs the root
+  packages, `check.mjs` refuses to deploy with missing files, and 🔴 schedules NOTHING (the OS's jobs must
+  never run twice). 🔴 `ignore.mjs` skips the deploy unless a file the functions actually import changed
+  (`deps.mjs` walks the imports: 18 files; NOT report-shared, NOT the OS app). `SUPABASE_URL` moved to its own
+  `supabase-url.mjs` (report-shared re-exports it) so OS report changes never redeploy client sites.
+- `website` = `serveWebsiteOnDomain` by Host (same renderer/gates as the OS); `/__health` for checks; its own
+  netlify.app address is a 404. Pre-domain `/site/<slug>/` addresses and all previews stay on the OS.
+- OS side: `SITES_NETLIFY_SITE` env on the OS (`<name>.netlify.app`) = `sitesTarget()`; new client addresses
+  are added to that site via the API and their CNAME points there (`dnsRecords(host, target)`, `checkDomain`
+  target, OS card reads `nf.target`). Unset = everything stays on the OS as before (safe default).
+- 🔴 **Safety 1, no lost enquiries:** on the websites site `/lead` is `relayLead` (lead-relay.mjs): passes to the
+  OS lead intake; if the OS doesn't answer or 5xx, the enquiry is written to private bucket `lead-queue/queue/`
+  and the visitor still sees thanks (503 "try again" only if even that write fails). OS `lead-queue-sweep`
+  (every 10 min) delivers each through the REAL lead intake handler; 4xx = set aside + yellow alert; 3 failed
+  tries = set aside + red alert containing the enquiry. Note: a queued lead's receivedAt is its delivery time.
+- 🔴 **Safety 2, hourly uptime:** OS `site-uptime` (:20 every hour) fetches every live client address and needs
+  THEIR `x-site`; red alert after 2 misses in a row (lapsed domain, changed DNS, broken certificate, hosting),
+  green when back; state on `websiteDeal.domain.uptime`. Also pings the websites site's `/__health`; the daily
+  check adds "The client websites site answers".
+- Rollback for the websites site alone: Netlify > that site > Deploys > pick the last good one > Publish deploy.
+- Tests: tests/verify-sites-split.mjs (54 checks, 10 mutations caught; runs ignore.mjs against real commits).
+- Setup steps given to Bryson 2026-10-06 (new Netlify site from the repo with Base directory `sites`,
+  `SUPABASE_SERVICE_ROLE_KEY` on it, `SITES_NETLIFY_SITE` on the OS, redeploy OS).
 
 ## 🔴 Ad clients get nothing about websites unless they are buying one (2026-10-06)
 Bryson: *"make sure that regular ad clients wont get anything regarding website stuff unless of course they

@@ -26,7 +26,7 @@ import { stripe, ensureCustomer, resolvePaymentMethod } from "../lib/stripe-shar
 import { WEBSITE_OFFER } from "../lib/pricing-shared.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
 import { promises as dnsp } from "node:dns";
-import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken, netlifyStatus } from "../lib/site-domain.mjs";
+import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken, netlifyStatus, sitesTarget } from "../lib/site-domain.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
   publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned,
@@ -37,7 +37,8 @@ const fmt = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day
 const api = { stripe, ensureCustomer, resolvePaymentMethod };
 // For the address check: DNS from Node, and the real https fetch.
 const resolveDns = (h, type) => (type === "CNAME" ? dnsp.resolveCname(h) : dnsp.resolve4(h));
-const netlify = () => ({ fetchFn: fetch, token: process.env.NETLIFY_API_TOKEN || "", siteId: process.env.SITE_ID || "" });
+// Client addresses go on the client-websites site when it exists (SITES_NETLIFY_SITE), else this one.
+const netlify = () => ({ fetchFn: fetch, token: process.env.NETLIFY_API_TOKEN || "", siteId: sitesTarget() !== "boldlinemedia.netlify.app" ? sitesTarget() : (process.env.SITE_ID || "") });
 
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -168,12 +169,12 @@ export default async (req) => {
         catch (e) { alias = { ok: false, note: `Netlify didn't answer (${e.message}).` }; }
         const next = await save({ domain: { host, setAt: new Date().toISOString(), live: false, alias: { ok: !!alias.ok, manual: !!alias.manual, note: alias.note || "" } } },
           `Website address set to ${host}.`);
-        return json({ ok: true, deal: next, records: dnsRecords(host), alias });
+        return json({ ok: true, deal: next, records: dnsRecords(host, sitesTarget()), alias });
       }
       case "domain-check": {
         const d = deal.domain;
         if (!d || !d.host) return json({ ok: false, error: "Set their web address first." }, 409);
-        const r = await checkDomain(d.host, cl.landingSlug, { fetchFn: fetch, resolve: resolveDns });
+        const r = await checkDomain(d.host, cl.landingSlug, { fetchFn: fetch, resolve: resolveDns, target: sitesTarget() });
         // 🔴 Live only when the address really served THEIR site AND the site is out (published, paid).
         const out = !!(cl.website && cl.website.published) && !publishLock(cl);
         const live = r.live && out;
@@ -181,10 +182,10 @@ export default async (req) => {
         const first = live && !d.live;
         const next = await save({ domain: { ...d, live, ...(first ? { liveAt: new Date().toISOString() } : {}), check: { dns: r.dns, https: r.https, note, at: r.checkedAt } } },
           first ? `Website now live on ${d.host}.` : "");
-        return json({ ok: true, deal: next, live, note, records: dnsRecords(d.host) });
+        return json({ ok: true, deal: next, live, note, records: dnsRecords(d.host, sitesTarget()) });
       }
       case "netlify-status":
-        return json({ ok: true, ...(await netlifyStatus(netlify())) });
+        return json({ ok: true, ...(await netlifyStatus(netlify())), target: sitesTarget(), separate: sitesTarget() !== "boldlinemedia.netlify.app" });
       case "domain-remove": {
         if (!deal.domain) return json({ ok: true, deal });
         const was = deal.domain.host;
@@ -209,7 +210,7 @@ export default async (req) => {
         const dm = next.domain;
         if (dm && dm.host && !dm.live) {
           try {
-            const r = await checkDomain(dm.host, cl.landingSlug, { fetchFn: fetch, resolve: resolveDns });
+            const r = await checkDomain(dm.host, cl.landingSlug, { fetchFn: fetch, resolve: resolveDns, target: sitesTarget() });
             if (r.live) next = await save({ domain: { ...dm, live: true, liveAt: new Date().toISOString(), check: { dns: r.dns, https: r.https, note: r.note, at: r.checkedAt } } }, `Website now live on ${dm.host}.`);
           } catch (e) { console.error("website-deal: domain check at launch failed:", e.message); }
         }

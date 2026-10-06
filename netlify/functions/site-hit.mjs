@@ -3,7 +3,7 @@
 // The page sends { s: siteSlug, p: path, r: referrer, a: 1 if it came from an ad click } as text.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "../lib/report-shared.mjs";
+import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { BOT_UA, sourceOf, deviceOf, visitorHash } from "../lib/site-stats.mjs";
 
 const done = () => new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "cache-control": "no-store" } });
