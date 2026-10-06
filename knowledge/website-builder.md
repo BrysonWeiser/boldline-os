@@ -344,6 +344,12 @@ Brand color = website.brandColor, else the landing page's, else the design's def
 
 ## Not built yet (the plan)
 - ✅ Step 3 own domain + sitemap/robots BUILT 2026-10-06 (see above). Still open from the old plan: send review emails from their domain (Resend free plan: 3 domains).
+- **Hosting (Bryson asked 2026-10-06 "how hard would it be for us to get servers"):** advised NOT to run our
+  own servers. Netlify already IS our hosting (fast worldwide, free security certificates, backups, nobody has
+  to keep a machine patched at 2am), and "BoldLine hosts your site" is already true and sold in the care plan.
+  Real risk to fix later (around 3+ live client sites): every client site shares ONE Netlify site with the OS,
+  so an OS outage or bad deploy takes client sites down too. Plan: move client websites to their own Netlify
+  site. Also check Netlify's per-site limit on domain aliases before ~20 client addresses.
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
 - Rebuilding BoldLine's own site with this engine to the same bar.
 
