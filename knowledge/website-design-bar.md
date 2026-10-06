@@ -37,3 +37,13 @@ it to be the most up to date modern website meaning it looks the best this can i
 1. Two or three sites whose look he loves (links or screenshots), to calibrate taste.
 2. Will clients supply photos; what to do when they have none.
 3. Whether clients pick from a few looks (recommended) or he picks for them.
+
+## 🔴 2026-10-06 CLARIFICATION (Bryson, after seeing step 1): it's the MOTION, not the layout
+*"the main reason I sent the first website was the layout but mainly the animations. It made it feels unique,
+luxury, and immersive but those were just examples of what I was talking about with thinking outside of the
+box and then 3d stuff as well when applicable."*
+So jeskojets.com is the bar for FEEL (immersive, cinematic, luxury, unique), not a layout to copy, and 3D is
+used where it fits the business. Step 1's designs borrowed the references' layouts too literally and their
+motion was polite. Next pass: scroll-driven scenes (pinned sections you scroll INTO, like Jesko's window),
+smooth inertial scrolling, mask/clip reveals, motion-blur type, horizontal scroll galleries, page wipes,
+and an industry-aware 3D scene per client where it earns its place. Fast-first guardrails unchanged.

@@ -71,3 +71,14 @@ landing page's, else the design's default.
   job), sitemap.xml/robots, and send review emails from their domain (Resend free plan: 3 domains).
 - A portal page where the client picks the design themselves (today: preview links + Bryson clicks).
 - Rebuilding BoldLine's own site with this engine to the same bar.
+
+## 🔴 2026-10-06 REQUIREMENT: no website is built until the client has SIGNED and PAID (Bryson)
+*"make sure that the option to build a website is only available after a client signs the agreement and
+pays (I also want to be able to modify the payment as I want and then allow the option for pay half now
+half when finished)"*. Not built yet; it lands with step 2 because it needs the website agreement:
+- Build button locked until: website agreement signed AND first payment received (Stripe webhook, not a
+  checkbox).
+- Price editable per client (default $1,500); payment plan per client: in full, or 50/50 (deposit now,
+  balance when finished). Stripe invoice with a pay link, metadata `kind: website`, `stage: deposit|final`.
+- Proposed (awaiting his answer): "Put it live" stays locked until the final payment arrives; the $99/mo
+  care plan starts at launch.
