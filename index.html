@@ -7021,6 +7021,77 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   );
 }
 
+// ─── POWER HOUR (Bryson, 2026-10-07: "I want to open it and be like wow ... it's motivating it's like out
+// of a movie"). A layer ON TOP of Outreach: session timer and counters, today's calls against a goal from
+// the real logged touches, the prospect's local time (he calls nationally), a timer for the current call,
+// number-key outcomes, a calm "meeting secured" card on a REAL booking (confetti was tried and dropped as childish), objections, and a recap. Nothing underneath changes:
+// every outcome still goes through choose()/commit(), so the cadence, the do-not-contact block and undo are
+// exactly what they were. Concept and decisions: KB os-redesign.
+const PH_GOAL=40;
+const PH_STATE_TZ=(()=>{ const m={}, set=(tz,list)=>list.split(" ").forEach(s=>m[s]=tz);
+  set("America/Phoenix","AZ"); set("America/Los_Angeles","CA NV OR WA"); set("America/Boise","ID");
+  set("America/Denver","CO MT NM UT WY"); set("America/Chicago","AL AR IA IL KS LA MN MO MS ND NE OK SD TN TX WI");
+  set("America/New_York","CT DC DE FL GA IN KY MA MD ME MI NC NH NJ NY OH PA RI SC VA VT WV");
+  set("Pacific/Honolulu","HI"); set("America/Anchorage","AK"); return m; })();
+const phTzOf=(prospect)=>{ const d=(prospect&&prospect.data)||{};
+  const st=String(d.state||(String((prospect&&prospect.area)||"").match(/,\s*([A-Z]{2})\b/)||[])[1]||"").toUpperCase();
+  return PH_STATE_TZ[st]||null; };
+const phNowIn=(tz)=>{ try{ return new Date(new Date().toLocaleString("en-US",{timeZone:tz})); }catch(e){ return new Date(); } };
+const phHm=(d)=>((d.getHours()%12)||12)+":"+String(d.getMinutes()).padStart(2,"0")+(d.getHours()<12?" AM":" PM");
+// When an owner is likeliest to pick up: early morning and end of day. A guide, never a rule.
+const phWindow=(d)=>{ const h=d.getHours()+d.getMinutes()/60, wd=d.getDay();
+  if(wd===0) return {tone:"closed",label:"Sunday"};
+  if(h>=7.5&&h<9.5) return {tone:"prime",label:"Prime: owners pick up"};
+  if(h>=9.5&&h<16) return {tone:"open",label:"Open"};
+  if(h>=16&&h<18) return {tone:"prime",label:"Prime: end of day"};
+  if(h>=18&&h<19.5) return {tone:"late",label:"Wrapping up"};
+  return {tone:"closed",label:"Closed"}; };
+const phClock=(s)=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+const phIsTodayPhx=(iso)=>{ try{ const f=(t)=>new Date(t).toLocaleDateString("en-US",{timeZone:"America/Phoenix"}); return f(iso)===f(Date.now()); }catch(e){ return false; } };
+const PH_OBJECTIONS=()=>{ const from=Math.min(...PACKAGES_DB.google.map(p=>p.price));
+  return [
+    ["\"We already have a guy for marketing.\"","Totally fair. Is he tying every call back to the ad that caused it? If not, you're paying for a guess. Worth ten minutes to compare?"],
+    ["\"We get enough work from word of mouth.\"","That's the best kind. The goal isn't to replace it, it's to fill the slow weeks so you're not waiting on referrals."],
+    ["\"How much does it cost?\"",`Plans start at $${from} a month or a fee per qualified lead, whichever is higher, never both. Your ad budget goes straight to Google on your own card.`],
+    ["\"Just send me some info.\"","Happy to. What's the best email? I'll send a sample page built for a business like yours, then follow up later this week."],
+    ["\"Tried ads before, didn't work.\"","Most people say that. Usually nobody tracked which ads made the phone ring. That's the first thing we fix, and I only earn more when you get more calls."],
+  ]; };
+const PH_CSS=`
+@keyframes phLockIn{0%{opacity:0;transform:translateX(26px) scale(.985);filter:blur(3px)}100%{opacity:1;transform:none;filter:none}}
+@keyframes phScan{0%{top:0;opacity:1}100%{top:100%;opacity:0}}
+@keyframes phTag{0%{opacity:0;transform:translateY(4px)}15%,70%{opacity:1;transform:none}100%{opacity:0}}
+@keyframes phSpin{to{transform:rotate(360deg)}}
+@keyframes phPulse{50%{opacity:.4}}
+@keyframes phFade{from{opacity:0}}
+@keyframes phOpen{0%{opacity:0;clip-path:inset(49% 0 49% 0 round 16px)}40%{opacity:1}100%{clip-path:inset(0 0 0 0 round 16px)}}
+@keyframes phSheen{to{transform:translateX(100%)}}
+@keyframes phDraw{to{stroke-dashoffset:0}}
+@keyframes phBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.ph-in{animation:phLockIn .5s cubic-bezier(.2,.7,.1,1)}
+.ph-scan{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#F3D88E,transparent);box-shadow:0 0 18px #C8A84B;pointer-events:none;animation:phScan .9s cubic-bezier(.2,.7,.1,1) forwards;z-index:2}
+.ph-tag{position:absolute;top:14px;right:16px;font-size:10px;font-weight:800;letter-spacing:.24em;color:#22D3A0;pointer-events:none;animation:phTag 1.4s ease forwards}
+.ph-ring{animation:phSpin 8s linear infinite}.ph-ring2{animation:phSpin 5s linear infinite reverse}
+.ph-live{animation:phPulse 1.8s ease-in-out infinite}
+.ph-win-back{position:fixed;inset:0;z-index:119;background:radial-gradient(ellipse at 50% 45%,rgba(200,168,75,.10),rgba(3,4,8,.62) 70%);animation:phFade .35s ease}
+.ph-win{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:120;width:min(460px,calc(100vw - 32px));border-radius:16px;border:1px solid rgba(200,168,75,.55);background:linear-gradient(180deg,rgba(20,18,12,.97),rgba(9,10,15,.98));box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03) inset,0 0 60px rgba(200,168,75,.16);overflow:hidden;animation:phOpen .5s cubic-bezier(.2,.8,.1,1)}
+.ph-win::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(243,216,142,.16) 50%,transparent 65%);transform:translateX(-100%);animation:phSheen 1.1s .45s ease forwards;pointer-events:none}
+.ph-win-ring{stroke-dasharray:126;stroke-dashoffset:126;animation:phDraw .6s .25s ease forwards}
+.ph-win-tick{stroke-dasharray:30;stroke-dashoffset:30;animation:phDraw .35s .75s ease forwards}
+.ph-win-bar{height:2px;background:linear-gradient(90deg,#C8A84B,#F3D88E);transform-origin:left;animation:phBar 7s linear forwards}
+.ph-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;margin-right:7px;border-radius:5px;border:1px solid rgba(255,255,255,.16);font-size:10px;font-weight:700;opacity:.75}
+@media (prefers-reduced-motion:reduce){.ph-in,.ph-scan,.ph-tag,.ph-ring,.ph-ring2,.ph-live,.ph-win,.ph-win-back,.ph-win::after,.ph-win-ring,.ph-win-tick{animation:none!important}.ph-win-ring,.ph-win-tick{stroke-dashoffset:0}.ph-scan,.ph-tag{display:none}}
+@media (hover:none){.ph-kbd{display:none}}
+`;
+// Their local time, whether it is a good moment to ring, and how long this call has run.
+function PHTimeChips({cur,callSecs}){
+  const tz=phTzOf(cur), dt=tz?phNowIn(tz):null, w=dt?phWindow(dt):null;
+  const col=w?(w.tone==="prime"?C.goldLight:w.tone==="open"?C.green:w.tone==="late"?C.amber:C.textDim):C.textDim;
+  return (<div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:10,fontSize:11.5}}>
+    {dt&&<span style={{padding:"3px 9px",borderRadius:999,border:`1px solid ${col}44`,background:col+"12",color:col,fontWeight:700}}>{phHm(dt)} their time · {w.label}</span>}
+    <span style={{padding:"3px 9px",borderRadius:999,border:`1px solid ${C.border}`,color:C.textDim,fontVariantNumeric:"tabular-nums"}}>On this call <b style={{color:C.text}}>{phClock(callSecs)}</b></span>
+  </div>);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // COLD OUTREACH — working the list, not building it
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -7255,6 +7326,13 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [adCheck,setAdCheck]=useState({id:null,busy:false,msg:""});
   const [igEdit,setIgEdit]=useState({id:null,text:"",busy:false,msg:""});
   const [histById,setHistById]=useState({});     // full history per company, fetched when it comes on screen
+  // Power Hour session: counted from the outcomes logged on THIS screen since it opened.
+  const [ph,setPh]=useState({running:false,secs:0,calls:0,talks:0,booked:0,log:[]});
+  const [callSecs,setCallSecs]=useState(0);
+  const [win,setWin]=useState(null);
+  const [objOpen,setObjOpen]=useState(false);
+  const [recap,setRecap]=useState(false);
+  const [,setTick]=useState(0);
 
   // Each screen carries its own, because this is one file and there is no module scope to share
   // one from. Found by driving the screen: without it every call failed with "authToken is not
@@ -7345,6 +7423,38 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   useEffect(()=>{ const id=cur?cur.id:null; if(!id||histById[id]) return;
     (async()=>{ try{ const d=await api("action=touches&id="+encodeURIComponent(id)); setHistById(h=>({...h,[id]:d.touches||[]})); }catch(e){} })();
   },[cur?cur.id:null]);
+  // Power Hour clocks. The session clock only runs once he starts (or logs the first call); the call
+  // clock restarts for every company that comes on screen.
+  useEffect(()=>{ const t=setInterval(()=>{ setTick(x=>x+1);
+    setPh(p=>p.running?{...p,secs:p.secs+1}:p); setCallSecs(c=>c+1); },1000); return ()=>clearInterval(t); },[]);
+  useEffect(()=>{ if(!win) return; const t=setTimeout(()=>setWin(null),7000); return ()=>clearTimeout(t); },[win]);
+  const cardRef=useRef(null);
+  useEffect(()=>{ setCallSecs(0);
+    const el=cardRef.current; if(el&&el.getBoundingClientRect().top<0){ try{ el.scrollIntoView({block:"start",behavior:"smooth"}); }catch(e){} } },[cur?cur.id:null]);
+  // A key that needs a time brings the time box to him, focused, so Enter finishes the log.
+  const pendRef=useRef(null);
+  useEffect(()=>{ if(!pending||!pendRef.current) return; const el=pendRef.current;
+    try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){}
+    const inp=el.querySelector("input"); if(inp) setTimeout(()=>inp.focus(),60); },[pending]);
+  // Number keys log outcomes, in the order the buttons show. Never while typing (notes, add form, a time),
+  // and a confirmation panel only listens for Escape, so nothing permanent can happen by a stray key.
+  useEffect(()=>{
+    const onKey=(e)=>{
+      if(tab!=="work"||e.metaKey||e.ctrlKey||e.altKey) return;
+      const el=e.target, typing=el&&(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)||el.isContentEditable);
+      if(win&&(e.key==="Escape"||e.key==="Enter")&&!typing){ e.preventDefault(); setWin(null); return; }
+      if(win&&/^[0-9]$/.test(e.key)) setWin(null);
+      if(e.key==="Escape"){ if(pending){ setPending(null); setWhen(""); } setObjOpen(false); setRecap(false); return; }
+      if(typing||recap) return;
+      if(e.key==="o"||e.key==="O"){ setObjOpen(v=>!v); return; }
+      if(!cur||pending||busy) return;
+      const list=outFor(channel), n=parseInt(e.key,10);
+      if(n>=1&&n<=list.length){ e.preventDefault(); choose(list[n-1]); return; }
+      if(e.key==="ArrowRight"||e.key==="s"||e.key==="S"){ setI(k=>Math.min(k+1,queue.length-1)); return; }
+      if(e.key===" "){ e.preventDefault(); setPh(p=>({...p,running:!p.running})); }
+    };
+    window.addEventListener("keydown",onKey); return ()=>window.removeEventListener("keydown",onKey);
+  });
   // One company at a time, on a tap: Google's ad record costs one of the free plan's monthly checks.
   const checkGoogleAds=async()=>{
     if(!cur||adCheck.busy) return;
@@ -7376,6 +7486,9 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       await api("action=touch&id="+encodeURIComponent(cur.id),{method:"POST",
         body:JSON.stringify({channel,outcome:o.id,when:whenVal||undefined})});
       setLastDone({id:cur.id,name:cur.name,label:o.label});
+      setPh(p=>({...p,running:true,calls:p.calls+1,talks:p.talks+(o.reached?1:0),booked:p.booked+(o.books?1:0),
+        log:[{name:cur.name,label:o.label,books:!!o.books,bad:!!(o.blocks||o.id==="not_interested"),at:Date.now()},...p.log].slice(0,40)}));
+      if(o.books) setWin({p:cur,when:whenVal||null,n:ph.booked+1,calls:ph.calls+1,at:Date.now()});
       // The notes box is NOT cleared here: it belongs to this company, is already saved, and the
       // switch to the next company saves anything still pending before loading theirs.
       setPending(null); setWhen(""); setDrafts(null);
@@ -7449,7 +7562,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
         {back}
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Outreach</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Work the list, one at a time, with no deciding in between.</div>
+          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Work the list, one at a time, with no deciding in between. Number keys log each call.</div>
         </div>
       </div>
 
@@ -7465,8 +7578,44 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
 
       {msg&&<div style={{maxWidth:760,marginBottom:14,padding:"11px 13px",borderRadius:11,border:`1px solid ${C.amber}55`,background:C.amber+"12",color:C.amber,fontSize:12,lineHeight:1.6}}>{msg}</div>}
 
+      <style>{PH_CSS}</style>
+      {tab==="work"&&(()=>{
+        const todayCalls=touches.filter(t=>t&&phIsTodayPhx(t.created_at)).length;
+        const pct=Math.min(1,todayCalls/PH_GOAL), R=26, CIRC=2*Math.PI*R;
+        const pace=ph.secs>=60&&ph.calls?Math.round(ph.calls/(ph.secs/3600)):null;
+        const stat=(label,v,col)=>(<div key={label} style={{minWidth:74,padding:"7px 11px",borderRadius:11,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)"}}>
+          <div style={{fontSize:20,fontWeight:800,lineHeight:1.1,color:col||C.text,fontVariantNumeric:"tabular-nums"}}>{v}</div>
+          <div style={{fontSize:10,color:C.textDim,marginTop:1}}>{label}</div></div>);
+        return (
+        <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap",margin:"0 0 14px",padding:"12px 14px",borderRadius:14,
+          border:`1px solid ${C.borderAccent}`,background:"linear-gradient(135deg,rgba(200,168,75,.08),rgba(12,13,24,.6) 55%)",maxWidth:isDesktop?1180:undefined}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{position:"relative",width:62,height:62,flexShrink:0}} title={`${todayCalls} of ${PH_GOAL} calls today`}>
+              <svg width="62" height="62" viewBox="0 0 62 62" style={{transform:"rotate(-90deg)"}}>
+                <circle cx="31" cy="31" r={R} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="6"/>
+                <circle cx="31" cy="31" r={R} fill="none" stroke={C.gold} strokeWidth="6" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={CIRC*(1-pct)} style={{transition:"stroke-dashoffset .8s cubic-bezier(.2,.7,.1,1)",filter:"drop-shadow(0 0 6px rgba(200,168,75,.5))"}}/>
+              </svg>
+              <div style={{position:"absolute",inset:0,display:"grid",placeItems:"center",fontSize:15,fontWeight:800,color:C.text,fontVariantNumeric:"tabular-nums"}}>{todayCalls}</div>
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:800,letterSpacing:".22em",color:C.gold}}>POWER HOUR</div>
+              <div style={{fontSize:13,color:C.textDim,marginTop:2}}>{todayCalls>=PH_GOAL?<b style={{color:C.green}}>Today's goal hit. Anything now is a bonus.</b>:<><b style={{color:C.text}}>{todayCalls}</b> of {PH_GOAL} calls today</>}</div>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 6px 6px 13px",borderRadius:11,border:`1px solid ${C.border}`,background:"rgba(0,0,0,.25)"}}>
+            {ph.running&&<span className="ph-live" style={{width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:`0 0 10px ${C.green}`}}/>}
+            <span style={{fontSize:20,fontWeight:700,fontVariantNumeric:"tabular-nums",color:C.text,minWidth:58}}>{phClock(ph.secs)}</span>
+            <button onClick={()=>setPh(p=>({...p,running:!p.running}))} style={{padding:"7px 12px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:"pointer",background:ph.running?C.green+"22":C.goldDim,color:ph.running?C.green:C.goldLight}}>{ph.running?"PAUSE":ph.secs?"RESUME":"START"}</button>
+            <button onClick={()=>{setPh(p=>({...p,running:false}));setRecap(true);}} disabled={!ph.calls&&!ph.secs} style={{padding:"7px 11px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:(!ph.calls&&!ph.secs)?"default":"pointer",background:"rgba(255,255,255,.05)",color:C.textDim,opacity:(!ph.calls&&!ph.secs)?.5:1}}>END</button>
+          </div>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+            {stat("Calls",ph.calls)}{stat("Talked",ph.talks)}{stat("Booked",ph.booked,C.green)}{stat("Calls an hour",pace==null?"–":pace,C.goldLight)}
+          </div>
+          <button onClick={()=>setObjOpen(true)} style={{marginLeft:isDesktop?"auto":0,padding:"8px 12px",fontSize:12,fontWeight:700,borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}><span className="ph-kbd">O</span>Objections</button>
+        </div>); })()}
       {tab==="work"&&(
-        <div style={{maxWidth:760}}>
+        <div style={isDesktop?{display:"grid",gridTemplateColumns:"minmax(0,1fr) 300px",gap:18,alignItems:"start",maxWidth:1180}:{}}>
+        <div style={{maxWidth:820,minWidth:0}}>
           {/* 🔴 THE OTHER DOOR INTO THE LIST. Everything else here comes from a Lead Scout search,
               which means a referral or a name off the side of a van had nowhere to go and never got
               called. Collapsed by default because the queue is what this screen is for. */}
@@ -7529,9 +7678,16 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
           )}
 
           {!loading&&cur&&(
-            <Card>
-              <div style={{display:"flex",alignItems:"baseline",gap:9,flexWrap:"wrap",marginBottom:3}}>
-                <div style={{fontSize:17,fontWeight:800,color:C.text,minWidth:0}}>{cur.name}</div>
+            <Card style={{position:"relative",overflow:"hidden",borderColor:C.borderAccent}}>
+              <div key={cur.id} ref={cardRef} className="ph-in">
+              <div className="ph-scan"/><div className="ph-tag">TARGET ACQUIRED</div>
+              <div style={{display:"flex",alignItems:"center",gap:13,flexWrap:"wrap",marginBottom:3}}>
+                <div style={{position:"relative",width:52,height:52,flexShrink:0,display:"grid",placeItems:"center"}} aria-hidden="true">
+                  <svg className="ph-ring" width="52" height="52" viewBox="0 0 52 52" style={{position:"absolute",inset:0}}><circle cx="26" cy="26" r="24" fill="none" stroke={C.gold} strokeWidth="1.4" strokeDasharray="11 5"/></svg>
+                  <svg className="ph-ring2" width="52" height="52" viewBox="0 0 52 52" style={{position:"absolute",inset:0}}><circle cx="26" cy="26" r="20.5" fill="none" stroke={C.blue} strokeOpacity=".55" strokeWidth="1" strokeDasharray="2 4"/></svg>
+                  <span style={{width:34,height:34,borderRadius:"50%",display:"grid",placeItems:"center",fontSize:13,fontWeight:800,color:C.goldLight,background:"radial-gradient(circle at 35% 30%,rgba(200,168,75,.35),rgba(79,142,247,.12))"}}>{String(cur.name||"?").split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase()}</span>
+                </div>
+                <div style={{fontSize:isDesktop?22:18,fontWeight:800,color:C.text,minWidth:0,letterSpacing:"-0.01em"}}>{cur.name}</div>
                 {/* 🔴 A HAND-ADDED ROW HAS NO RESEARCH SCORE, so it says where it came from instead
                     of showing the 0 it carries. Showing the number would read as "worth nothing". */}
                 {outIsManual(cur)
@@ -7544,6 +7700,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                 {Number(cur.step||0)>0&&<> · attempt {Number(cur.step)+1}</>}
                 {d.ownerName&&<> · {d.ownerName}</>}
               </div>
+              <PHTimeChips cur={cur} callSecs={callSecs}/>
               {/* What happened before, right under the attempt count. */}
               {!!history.length&&(
                 <div style={{marginBottom:10,padding:"8px 11px",borderRadius:10,border:`1px solid ${C.border}`,background:C.bg3}}>
@@ -7637,19 +7794,20 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                   own, because the gap between calls is where momentum dies. */}
               {!pending&&(
                 <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                  {outFor(channel).map(o=>(
+                  {outFor(channel).map((o,k)=>(
                     <button key={o.id} onClick={()=>choose(o)} disabled={busy}
                       style={{padding:"10px 13px",fontSize:12.5,fontWeight:800,borderRadius:10,cursor:busy?"default":"pointer",
-                        border:`1px solid ${o.books?C.green+"66":o.blocks?C.red+"55":C.border}`,
-                        background:o.books?C.green+"18":o.blocks?"transparent":"rgba(255,255,255,.04)",
-                        color:o.books?C.green:o.blocks?C.red:C.textDim,opacity:busy?.6:1}}>{o.label}</button>
+                        border:`1px solid ${o.books?C.gold+"88":o.blocks?C.red+"55":C.border}`,
+                        background:o.books?"linear-gradient(135deg,rgba(232,201,106,.22),rgba(200,168,75,.08))":o.blocks?"transparent":"rgba(255,255,255,.04)",
+                        boxShadow:o.books?"0 0 24px -8px rgba(200,168,75,.6)":"none",
+                        color:o.books?C.goldLight:o.blocks?C.red:C.textDim,opacity:busy?.6:1}}><span className="ph-kbd">{k+1}</span>{o.label}</button>
                   ))}
                 </div>
               )}
 
               {/* A time, or a confirmation. Never logged half-specified. */}
               {pending&&(
-                <div style={{border:`1px solid ${pending.blocks?C.red+"55":C.gold+"55"}`,background:pending.blocks?C.red+"0e":C.goldDim,borderRadius:11,padding:"12px 13px"}}>
+                <div ref={pendRef} style={{border:`1px solid ${pending.blocks?C.red+"55":C.gold+"55"}`,background:pending.blocks?C.red+"0e":C.goldDim,borderRadius:11,padding:"12px 13px"}}>
                   <div style={{fontSize:13,fontWeight:800,color:pending.blocks?C.red:C.gold,marginBottom:7}}>{pending.label}</div>
                   {pending.blocks
                     ? <div style={{fontSize:12,color:C.textDim,lineHeight:1.65,marginBottom:10}}>
@@ -7658,6 +7816,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                     : <div style={{marginBottom:10}}>
                         <div style={{fontSize:12,color:C.textMuted,marginBottom:6,lineHeight:1.55}}>{pending.books?"When is the meeting?":"When did they ask you to come back?"} A time they gave you always beats the follow up schedule.</div>
                         <input type="datetime-local" value={when} onChange={e=>setWhen(e.target.value)}
+                          onKeyDown={e=>{ if(e.key==="Enter"&&when&&!busy){ e.preventDefault(); commit(pending,when); } }}
                           style={{padding:"9px 11px",fontSize:13,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,fontFamily:"inherit"}}/>
                       </div>}
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -7677,8 +7836,32 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                 {onDealPrep&&<button onClick={()=>onDealPrep(cur)} style={{fontSize:11.5,fontWeight:700,color:C.textMuted,background:"none",border:"none",cursor:"pointer",padding:0}}>Open in Deal Prep</button>}
                 {lastDone&&<button onClick={undo} disabled={busy} style={{marginLeft:"auto",fontSize:11.5,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0}}>Undo {lastDone.label} on {lastDone.name}</button>}
               </div>
+              </div>
             </Card>
           )}
+        </div>
+        {/* Up next + tonight's log, beside the card on a computer and under it on a phone. */}
+        <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:isDesktop?0:14,minWidth:0}}>
+          <Card>
+            <div style={{display:"flex",alignItems:"baseline",marginBottom:9}}><Label>Up next</Label><span style={{marginLeft:"auto",fontSize:10.5,color:C.textMuted}}>{Math.max(0,queue.length-i-1)} after this</span></div>
+            {queue.slice(i+1,i+5).map((p)=>(
+              <button key={p.id} onClick={()=>setI(queue.indexOf(p))} style={{display:"flex",alignItems:"center",gap:10,width:"100%",textAlign:"left",padding:"8px 9px",marginBottom:6,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)",cursor:"pointer",font:"inherit"}}>
+                <span style={{width:28,height:28,flexShrink:0,borderRadius:8,display:"grid",placeItems:"center",fontSize:12,fontWeight:800,color:C.textDim,background:"rgba(255,255,255,.05)"}}>{String(p.name||"?")[0]}</span>
+                <span style={{minWidth:0}}><span style={{display:"block",fontSize:12.5,fontWeight:700,color:C.text,...S.ovh}}>{p.name}</span><span style={{display:"block",fontSize:11,color:C.textMuted,...S.ovh}}>{[p.niche,p.area].filter(Boolean).join(" · ")}</span></span>
+              </button>))}
+            {queue.length<=i+1&&<div style={{fontSize:11.5,color:C.textMuted}}>Nobody after this one.</div>}
+          </Card>
+          <Card>
+            <Label>This session</Label>
+            <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:5}}>
+              {!ph.log.length&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55}}>Every call you log shows up here. Number keys log them: 1 is the first button.</div>}
+              {ph.log.slice(0,10).map((l,k)=>(<div key={k} style={{fontSize:11.5,color:C.textDim,display:"flex",gap:7,minWidth:0}}>
+                <span style={{color:C.textMuted,fontVariantNumeric:"tabular-nums"}}>{phHm(new Date(l.at)).replace(/ [AP]M$/,"")}</span>
+                <b style={{color:l.books?C.goldLight:l.bad?C.red:C.text,fontWeight:700,whiteSpace:"nowrap"}}>{l.label}</b>
+                <span style={{...S.ovh,minWidth:0}}>{l.name}</span></div>))}
+            </div>
+          </Card>
+        </div>
         </div>
       )}
 
@@ -7808,6 +7991,60 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
           </Card>
         </div>
       )}
+      {win&&<>
+        <div className="ph-win-back" onClick={()=>setWin(null)}/>
+        <div key={win.at} className="ph-win" role="status">
+          <div style={{padding:"22px 24px 18px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+              <svg width="44" height="44" viewBox="0 0 44 44" style={{flexShrink:0}}>
+                <circle cx="22" cy="22" r="20" fill="none" stroke="rgba(200,168,75,.18)" strokeWidth="1.5"/>
+                <circle className="ph-win-ring" cx="22" cy="22" r="20" fill="none" stroke={C.goldLight} strokeWidth="1.5" strokeLinecap="round" transform="rotate(-90 22 22)"/>
+                <path className="ph-win-tick" d="M14 22.5l5.5 5.5L30.5 17" fill="none" stroke={C.goldLight} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <div>
+                <div style={{fontSize:10.5,fontWeight:800,letterSpacing:".26em",color:C.gold}}>MEETING SECURED</div>
+                <div style={{fontSize:12,color:C.textMuted,marginTop:3}}>{win.n===1?"First one today. Nice work.":`That's ${win.n} today. You're on a roll.`}</div>
+              </div>
+            </div>
+            <div style={{fontSize:21,fontWeight:800,color:C.text,lineHeight:1.25}}>{win.p.name}</div>
+            {win.when&&<div style={{fontSize:14,fontWeight:700,color:C.goldLight,marginTop:5,fontVariantNumeric:"tabular-nums"}}>{(()=>{ const d=new Date(win.when); return isNaN(d)?"":d.toLocaleString("en-US",{weekday:"long",month:"short",day:"numeric"})+" · "+d.toLocaleString("en-US",{hour:"numeric",minute:"2-digit"}); })()}</div>}
+            <div style={{fontSize:12,color:C.textDim,marginTop:10}}>{win.n} booked from {win.calls} {win.calls===1?"call":"calls"} this session.</div>
+            <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}>
+              {onDealPrep&&<button onClick={()=>{ const p=win.p; setWin(null); onDealPrep(p); }} style={{padding:"10px 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gold,color:"#111",cursor:"pointer"}}>Prep this deal</button>}
+              <button onClick={()=>setWin(null)} style={{padding:"10px 16px",fontSize:12.5,fontWeight:700,borderRadius:10,border:`1px solid ${C.border}`,background:"transparent",color:C.text,cursor:"pointer"}}>Next call <span className="ph-kbd" style={{marginLeft:6,marginRight:0}}>Enter</span></button>
+            </div>
+          </div>
+          <div className="ph-win-bar"/>
+        </div>
+      </>}
+      {objOpen&&(
+        <div onClick={()=>setObjOpen(false)} style={{position:"fixed",inset:0,zIndex:110,background:"rgba(3,4,8,.45)"}}>
+          <div onClick={e=>e.stopPropagation()} role="dialog" aria-label="Objections" style={{position:"absolute",top:0,right:0,bottom:0,width:"min(420px,100%)",background:"rgba(10,11,18,.98)",borderLeft:`1px solid ${C.borderAccent}`,padding:"22px 20px",overflowY:"auto",boxShadow:"-30px 0 60px -30px #000"}}>
+            <div style={{display:"flex",alignItems:"center",marginBottom:4}}><div style={{fontSize:19,fontWeight:800,color:C.text}}>Objections</div>
+              <button onClick={()=>setObjOpen(false)} aria-label="Close" style={{marginLeft:"auto",width:32,height:32,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer",fontSize:16}}>×</button></div>
+            <div style={{fontSize:12,color:C.textMuted,marginBottom:14}}>What they say, and a short way back in. Press O to open or close.</div>
+            {PH_OBJECTIONS().map(([q,a],k)=>(<div key={k} style={{padding:"12px 13px",borderRadius:11,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.02)",marginBottom:9}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.goldLight,marginBottom:5}}>{q}</div><div style={{fontSize:13,color:C.text,lineHeight:1.6}}>{a}</div></div>))}
+          </div>
+        </div>)}
+      {recap&&(
+        <div onClick={()=>setRecap(false)} style={{position:"fixed",inset:0,zIndex:115,background:"rgba(3,4,8,.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={e=>e.stopPropagation()} role="dialog" aria-label="Session recap" style={{width:"min(560px,100%)",borderRadius:20,border:`1px solid ${C.gold}`,background:"radial-gradient(circle at 50% 0%,rgba(200,168,75,.18),rgba(10,11,18,.98) 60%)",padding:"24px 22px",boxShadow:"0 0 120px -20px rgba(200,168,75,.4)"}}>
+            <div style={{fontSize:10.5,fontWeight:800,letterSpacing:".22em",color:C.gold}}>SESSION COMPLETE</div>
+            <div style={{fontSize:26,fontWeight:800,color:C.text,margin:"4px 0 16px"}}>Power Hour recap</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:9,marginBottom:16}}>
+              {[["Calls",ph.calls,C.text],["Talked",ph.talks,C.text],["Booked",ph.booked,C.green],["Time",phClock(ph.secs),C.goldLight]].map(([l,v,c])=>(
+                <div key={l} style={{padding:"11px 12px",borderRadius:12,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.03)"}}><div style={{fontSize:24,fontWeight:800,color:c,fontVariantNumeric:"tabular-nums"}}>{v}</div><div style={{fontSize:11,color:C.textDim}}>{l}</div></div>))}
+            </div>
+            <div style={{fontSize:13.5,color:C.text,lineHeight:1.6,padding:"12px 14px",borderLeft:`3px solid ${C.gold}`,background:"linear-gradient(90deg,rgba(200,168,75,.08),transparent)",borderRadius:"0 10px 10px 0",marginBottom:16}}>
+              {ph.booked?`You booked ${ph.booked} ${ph.booked===1?"meeting":"meetings"} from ${ph.calls} ${ph.calls===1?"call":"calls"}. That's the job. Deal Prep is one tap away for each one.`:ph.calls?`${ph.calls} ${ph.calls===1?"call":"calls"} and ${ph.talks} real ${ph.talks===1?"conversation":"conversations"}. The meetings come from the reps. Same time tomorrow?`:"No calls logged this session yet."}
+            </div>
+            <div style={{display:"flex",gap:9,flexWrap:"wrap"}}>
+              <button onClick={()=>{setPh({running:true,secs:0,calls:0,talks:0,booked:0,log:[]});setRecap(false);}} style={{padding:"11px 16px",fontSize:12,fontWeight:800,letterSpacing:".08em",borderRadius:11,border:"none",background:C.gold,color:"#0a0800",cursor:"pointer"}}>RUN ANOTHER HOUR</button>
+              <button onClick={()=>setRecap(false)} style={{padding:"11px 16px",fontSize:12,fontWeight:800,letterSpacing:".08em",borderRadius:11,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}>KEEP CALLING</button>
+            </div>
+          </div>
+        </div>)}
     </div>
   );
 }
