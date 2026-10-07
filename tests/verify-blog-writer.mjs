@@ -89,6 +89,40 @@ ok("the draft query includes the article body", /select\("id, slug, title, categ
   void sb;
 }
 
+// Hand-written content: two wording fixes and new posts as scheduled drafts
+{
+  const { BLOG_EDITS, BLOG_SEED } = await import("../netlify/lib/blog-seed.mjs");
+  const seedSrc = readFileSync(join(ROOT, "netlify/lib/blog-seed.mjs"), "utf8");
+  for (const p of BLOG_SEED) {
+    const text = p.body_html.replace(/<[^>]+>/g, " ") + " " + p.title + " " + p.excerpt;
+    ok(`${p.slug}: a complete article`, B.htmlProblems(p.body_html).length === 0, B.htmlProblems(p.body_html).join(","));
+    ok(`🔴 ${p.slug}: no dashes, parentheses or "isn't X, it's Y"`, !/[\u2014\u2013]| - |[()]/.test(text) && !/isn't [^.]{0,40}, it's/i.test(text));
+    ok(`🔴 ${p.slug}: no "local businesses", no invented clients`, !/local business|our clients|every client|one client/i.test(text));
+  }
+  ok("the posts cover websites, a trade and tracking", ["Websites", "Trades", "Google Ads"].every((c) => BLOG_SEED.some((p) => p.category === c)));
+  ok("the pool post is honest that the business is made up", /doesn't exist\. We made it up/.test(seedSrc));
+  ok("the two wording fixes remove the false claim and the AI tell", BLOG_EDITS.some((e) => /every new client/.test(e.find) && !/client/.test(e.replace)) && BLOG_EDITS.some((e) => /isn't "which platform", it's/.test(e.find)));
+  // run applyBlogContent against a fake database
+  const rows = [{ id: "e1", slug: BLOG_EDITS[0].slug, status: "published", body_html: "<p>" + BLOG_EDITS[0].find + " more</p>" }, { id: "x", slug: BLOG_SEED[1].slug, status: "deleted", body_html: "" }];
+  const writes = [];
+  const table = () => { const st = { f: {} }; const q = {
+    select() { return q; }, eq(k, v) { st.f[k] = v; return q; }, neq() { return q; }, in(k, v) { st.in = v; return q; }, order() { return q; },
+    maybeSingle() { return Promise.resolve({ data: rows.find((r) => r.slug === st.f.slug && (!st.f.status || r.status === st.f.status)) || null, error: null }); },
+    then(res) { return Promise.resolve({ data: st.in ? rows.filter((r) => st.in.includes(r.slug)) : rows, error: null }).then(res); },
+    update(v) { return { eq(k, id) { writes.push({ update: v, id }); const r = rows.find((x) => x.id === id); Object.assign(r, v); return Promise.resolve({ error: null }); } }; },
+    insert(v) { writes.push({ insert: v }); rows.push({ id: "n" + rows.length, ...v }); return Promise.resolve({ error: null }); },
+  }; return q; };
+  const out = await B.applyBlogContent({ from: table }, Date.UTC(2026, 9, 7, 18));
+  ok("🔴 the wording fix is applied to the live post", out.edited.includes(BLOG_EDITS[0].slug) && rows[0].body_html.includes(BLOG_EDITS[0].replace) && !rows[0].body_html.includes(BLOG_EDITS[0].find));
+  const ins = writes.filter((w) => w.insert);
+  ok("🔴 new posts go in as drafts, never published straight away", ins.length > 0 && ins.every((w) => w.insert.status === "draft"));
+  ok("🔴 a post Bryson deleted is never put back", !ins.some((w) => w.insert.slug === BLOG_SEED[1].slug));
+  ok("one per week, each on its own Monday", new Set(ins.map((w) => w.insert.published_at)).size === ins.length && ins.every((w) => new Date(w.insert.published_at).getUTCDay() === 1 && new Date(w.insert.published_at).getUTCHours() === 15));
+  const again = await B.applyBlogContent({ from: table }, Date.UTC(2026, 9, 7, 18, 15));
+  ok("running again changes nothing", again.edited.length === 0 && again.scheduled.length === 0);
+  ok("the publisher runs it every pass, and a failure never stops publishing", /const c = await applyBlogContent\(supabase, now\);/.test(auto) && /content step failed/.test(auto));
+}
+
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-blog-writer: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

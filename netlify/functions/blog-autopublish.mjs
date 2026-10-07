@@ -23,7 +23,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, GOLD, escapeHTML } from "../lib/report-shared.mjs";
-import { createScheduledPost, azMostRecent, htmlProblems, regeneratePost, repairOneBrokenPost } from "../lib/blog-shared.mjs";
+import { createScheduledPost, azMostRecent, htmlProblems, regeneratePost, repairOneBrokenPost, applyBlogContent } from "../lib/blog-shared.mjs";
 import { pingPostPublished } from "../lib/indexnow-shared.mjs";
 
 const SITE_URL = "https://boldlinemedia.com";
@@ -161,6 +161,16 @@ export default async (req) => {
         try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `Blog post repaired: ${fixed.title}`, html: noticeEmailHTML("A broken blog post was repaired", msg), text: msg }); } catch (err) { console.error(err); }
       }
     } catch (e) { console.error("blog-autopublish: repair failed:", e && e.message); }
+
+    // 1c. Hand-written content: wording fixes on live posts, new posts as scheduled drafts (blog-seed.mjs).
+    try {
+      const c = await applyBlogContent(supabase, now);
+      if (c.edited.length) console.log("blog-autopublish: wording fixed on", c.edited.join(", "));
+      if (c.scheduled.length) {
+        const msg = `New hand-written posts are scheduled, one per Monday at 8am Arizona time. Read or edit them in the Website tab of BoldLine OS before they go out:\n\n${c.scheduled.map((x) => `${fmtWhen(x.when)}: ${x.title}`).join("\n")}`;
+        try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `${c.scheduled.length} new blog posts scheduled`, html: noticeEmailHTML("New blog posts scheduled", msg), text: msg }); } catch (err) { console.error(err); }
+      }
+    } catch (e) { console.error("blog-autopublish: content step failed:", e && e.message); }
 
     // 2. Once per cycle, write next Monday's post and schedule it for review.
     if (needsPost) {

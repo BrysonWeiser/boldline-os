@@ -3,7 +3,7 @@ name: blog-redesign-2026-10
 topic: Marketing site
 task: change the blog's look, its cover pictures, the weekly AI writer, or fix/rewrite broken or weak blog posts
 keywords: [blog redesign, blog covers, blog-cover.mjs, coverSVG, site-chrome.mjs, bx-card, art-body, broken blog posts, empty h2, blog writer, generateBlogPost, postProblems, htmlProblems, repairOneBrokenPost, blog lanes, BLOG_FACTS, blog-autopublish, newsletter dash, author bio local]
-status: writer fix + self-repair LIVE 2026-10-07; redesign on the test copy waiting for Bryson's "go"; content audit pending his decisions
+status: writer fix, self-repair and redesign LIVE 2026-10-07 (Bryson approved the test copy); 2 wording fixes + 4 hand-written posts shipped as scheduled drafts
 summary: Bryson, 2026-10-07 - the blog "seems outdated and not worth anyones time". Found 6 LIVE posts broken (two paragraphs then ~65 empty h2s): the writer forced a tool call on claude-opus-4-8 and published whatever came back. Writer now claude-opus-5-5 with structured JSON output, a shape check + one retry, an HTML check, rotating topic lanes (ads / websites / a trade / lead follow-up) and updated facts; blog-autopublish never publishes a broken draft and repairs one broken PUBLISHED post per run (same topic, same date and address, email to Bryson). Redesign: blog pages now use the site's own stylesheet, header, footer and scripts (generated site-chrome.mjs), drawn cover art per post, featured post, topic filters, contents sidebar, author box, topic-matched offer, related posts.
 verified: 2026-10-07
 ---
@@ -43,3 +43,15 @@ verified: 2026-10-07
   readable body, author box, offer by topic (website posts: Book a website call + See the designs; else Free Lead-Leak Check + Book a
   Call), Keep reading (same topic first). Empty `<h2>`s are dropped at render time too.
 - Local preview recipe: scratchpad `blog/serve.mjs` answers Supabase from the live posts (`posts.json` scraped from the site).
+
+## 2026-10-07 later: Bryson said "go and yes to both"
+- Redesign merged live.
+- `netlify/lib/blog-seed.mjs`: `BLOG_EDITS` (exact find/replace on live posts, idempotent): the "a question we get from almost every
+  new client" opener (pause-ads-on-weekends) and the "isn't 'which platform', it's 'which behavior'" heading (google-ads-vs-meta-ads).
+  `BLOG_SEED`: four hand-written posts (what-a-1500-website-gets-you, how-we-built-a-pool-company-website,
+  how-car-detailers-get-more-booked-jobs-from-google, how-we-trace-every-call-back-to-the-ad), inserted by `applyBlogContent` as
+  SCHEDULED DRAFTS on the next open Monday 8am Phoenix slots (one per week, so the weekly writer skips those weeks), Bryson emailed
+  once with the dates. Never re-inserted if the slug exists in any state (deleting one in the OS is final).
+- To add more hand-written posts later: append to `BLOG_SEED` (HTML body, voice rules), deploy; the next autopublish run schedules it.
+- 🔴 Gotcha: the redesign drops empty `<h2>`s at render, so a broken post no longer SHOWS empty headings; check broken posts by word
+  count (< 450), not by counting `<h2></h2>`.
