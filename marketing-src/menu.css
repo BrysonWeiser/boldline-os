@@ -1,0 +1,22 @@
+/* The grouped phone menu. Shared by site.css and blog.css (privacy, terms, 404 and the blog), via
+   scripts/build-marketing-site.mjs, so every page's menu looks the same. */
+.nav-mobile{display:none;width:100%;max-width:1000px;flex-direction:column;gap:12px;margin-top:8px;padding:12px;background:#0B0D14;border:1px solid var(--line);border-radius:16px;pointer-events:auto;box-shadow:0 30px 60px -20px rgba(0,0,0,.85)}
+.nav-mobile.open{display:flex;animation:navDown .3s ease both;max-height:calc(100vh - 90px);max-height:calc(100dvh - 90px);overflow-y:auto;overscroll-behavior:contain}
+.nav-mobile a{text-decoration:none;-webkit-tap-highlight-color:transparent}
+/* The two things we sell, as big boxes. */
+.nm-main{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nm-big{display:flex;flex-direction:column;gap:4px;padding:16px 14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));transition:border-color .2s ease,background .2s ease}
+.nm-big b{font-size:17px;font-weight:650;color:var(--ink)}
+.nm-big span{font-size:12.5px;line-height:1.35;color:var(--muted)}
+.nm-big:hover,.nm-big.current{border-color:var(--gold-line)}
+.nm-big.current b{color:var(--gold)}
+/* Everything else, two to a row. */
+.nm-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;padding:4px 2px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.nm-grid a{font-size:15px;font-weight:600;color:var(--ink);padding:12px 12px;border-radius:9px;transition:background .2s ease,color .2s ease}
+.nm-grid a:hover,.nm-grid a.current{background:rgba(255,255,255,.05);color:var(--gold)}
+/* The two actions. */
+.nm-ctas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.nm-ctas a{display:flex;align-items:center;justify-content:center;text-align:center;min-height:46px;padding:10px 12px;border-radius:12px;font-size:14px;font-weight:650;line-height:1.2}
+.nm-ctas .hdr-cta{margin:0;background:var(--gold);color:#0B0D14;border:1px solid var(--gold);text-transform:none;letter-spacing:0}
+.nm-check{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft)}
+@media (max-width:340px){.nm-main,.nm-ctas{grid-template-columns:1fr}}

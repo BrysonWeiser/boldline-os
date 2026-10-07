@@ -158,6 +158,22 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   })());
 }
 
+// The phone menu is grouped (Bryson, 2026-10-07: too many things under the menu, but all of them easy to reach). Every
+// page's menu, the hand-written ones included, must still reach every destination, in the same grouped shape.
+{
+  const WANT = ["/ads/", "/websites/", "/pricing/", "/how-it-works/", "/industries/", "/about/", "/blog/", "/contact/", "/free-check/", "calendly.com/"];
+  const files = [...SITE_PAGES, "privacy.html", "terms.html", "404.html", "netlify/lib/blog-render.mjs"];
+  for (const f of files) {
+    const src = readFileSync(join(MK, f), "utf8");
+    const menu = (src.match(/<div class="nav-mobile">([\s\S]*?)\n  <\/div>\n<\/header>/) || [])[1] || "";
+    const missing = WANT.filter((w) => !menu.includes(w));
+    ok(`🔴 ${f}: the phone menu still reaches every page`, missing.length === 0, missing.join(", ") || "no menu found");
+    ok(`${f}: the phone menu is the grouped one`, (menu.match(/class="nm-big[" ]/g) || []).length === 2 && menu.includes('class="nm-grid"') && menu.includes('class="nm-ctas"'));
+  }
+  const blogCss = readFileSync(join(MK, "blog.css"), "utf8");
+  ok("the blog, privacy, terms and 404 pages carry the same menu styles", blogCss.includes(".nm-main{") && !/\.nav-mobile a:not\(\.hdr-cta\)/.test(blogCss));
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-marketing-pages: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

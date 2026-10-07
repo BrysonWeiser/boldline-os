@@ -33,7 +33,28 @@ const promote = (html) => {
 
 // ── The pages ───────────────────────────────────────────────────────────────────────────
 const NAV = [["ads", "/ads/", "Ads"], ["websites", "/websites/", "Websites"], ["pricing", "/pricing/", "Pricing"], ["how", "/how-it-works/", "How it works"], ["about", "/about/", "About"], ["blog", "/blog/", "Blog"]];
-const MOBILE_EXTRA = [["industries", "/industries/", "Who we work with"], ["check", "/free-check/", "Free Lead-Leak Check"], ["contact", "/contact/", "Contact"]];
+// The phone menu, grouped rather than one long list (Bryson, 2026-10-07: "there are to many things under the hamburger
+// menu but at the same time I want all of those things easily accessible"). Every page is still one tap away: the two
+// things we sell as big boxes, everything else in a two-column grid, and the two actions as buttons at the bottom.
+const MENU_MAIN = [["ads", "/ads/", "Ads", "Google and Meta ads, run for you"], ["websites", "/websites/", "Websites", "Built to turn visits into calls"]];
+const MENU_MORE = [["pricing", "/pricing/", "Pricing"], ["how", "/how-it-works/", "How it works"], ["industries", "/industries/", "Industries"], ["about", "/about/", "About"], ["blog", "/blog/", "Blog"], ["contact", "/contact/", "Contact"]];
+const here = (k, id, cls = "") => {
+  const c = [cls, k === id ? "current" : ""].filter(Boolean).join(" ");
+  return `${c ? ` class="${c}"` : ""}${k === id ? ' aria-current="page"' : ""}`;
+};
+export const mobileMenu = (id = "") => `  <div class="nav-mobile">
+    <div class="nm-main">
+${MENU_MAIN.map(([k, h, l, sub]) => `      <a${here(k, id, "nm-big")} href="${h}"><b>${l}</b><span>${sub}</span></a>`).join("\n")}
+    </div>
+    <div class="nm-grid">
+${MENU_MORE.map(([k, h, l]) => `      <a${here(k, id)} href="${h}">${l}</a>`).join("\n")}
+    </div>
+    <div class="nm-ctas">
+      ${book("hdr-cta")}
+      <a${here("check", id, "nm-check")} href="/free-check/">Free Lead-Leak Check</a>
+    </div>
+  </div>
+</header>`;
 
 const icons = [...part("showcase.html").matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
 
@@ -387,11 +408,7 @@ ${NAV.map(([k, h, l]) => `      <a href="${h}"${k === id ? ' class="current" ari
       <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
     </div>
   </div>
-  <div class="nav-mobile">
-${[...NAV, ...MOBILE_EXTRA].map(([k, h, l]) => `    <a href="${h}"${k === id ? ' class="current" aria-current="page"' : ""}>${l}</a>`).join("\n")}
-    ${book("hdr-cta")}
-  </div>
-</header>
+${mobileMenu(id)}
 `;
 
 const footer = () => `<footer class="x-foot"><div class="wrap-x">
@@ -444,7 +461,7 @@ ${p.homeRedirects ? HOME_REDIRECTS : ""}
 </div>
 <div id="progress" aria-hidden="true"></div>
 
-${header(p.id)}
+${header(p.nav || p.id)}
 <main id="main">
 ${p.body}
 ${p.newsletter ? part("newsletter.html") : ""}</main>
@@ -526,10 +543,24 @@ export const LANDING_FILES = LANDING_DEMOS.map((l) => landingPath(l.slug));
 
 // test-copy.js is the same guard for the hand-written pages (privacy, terms, 404, the blog), loaded as the
 // first script in their <head> so it runs before anything that could send.
-const outputs = { "site.css": part("base.css") + part("new.css"), "site.js": part("site.js"), "test-copy.js": part("test-copy-guard.js") };
+const outputs = { "site.css": part("base.css") + part("menu.css") + part("new.css"), "site.js": part("site.js"), "test-copy.js": part("test-copy-guard.js") };
 for (const sm of SAMPLES) for (const p of SAMPLE_PAGES) outputs[samplePath(sm.slug, p)] = samplePage(sm, p);
 for (const l of LANDING_DEMOS) outputs[landingPath(l.slug)] = landingSample(l);
 for (const p of PAGES) outputs[p.file] = render(p);
+// The hand-written pages (privacy, terms, 404, the blog) carry their own copy of the header. Their phone menu is
+// rewritten from the same source, so they can't drift back to the old long list.
+const MENU_BLOCK = /  <div class="nav-mobile">[\s\S]*?\n  <\/div>\n<\/header>/;
+{
+  const MENU_CSS = /\/\* phone-menu:start[^*]*\*\/\n[\s\S]*?\/\* phone-menu:end \*\/\n/;
+  const css = readFileSync(join(OUT, "blog.css"), "utf8");
+  if (!MENU_CSS.test(css)) throw new Error("blog.css: no phone-menu markers to update");
+  outputs["blog.css"] = css.replace(MENU_CSS, (m) => m.slice(0, m.indexOf("*/\n") + 3) + part("menu.css") + "/* phone-menu:end */\n");
+}
+for (const [file, id] of [["privacy.html", ""], ["terms.html", ""], ["404.html", ""], ["netlify/lib/blog-render.mjs", "blog"]]) {
+  const src = readFileSync(join(OUT, file), "utf8");
+  if (!MENU_BLOCK.test(src)) throw new Error(`${file}: no phone menu block to update`);
+  outputs[file] = src.replace(MENU_BLOCK, () => mobileMenu(id));
+}
 
 // Run directly it writes (or with --check, compares); imported (by the tests) it only hands back what it
 // would write, so a test can prove the committed pages are what the pieces produce.

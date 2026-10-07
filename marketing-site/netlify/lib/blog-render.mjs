@@ -43,15 +43,22 @@ export const headerHTML = () => `<header>
     </div>
   </div>
   <div class="nav-mobile">
-    <a href="/ads/">Ads</a>
-    <a href="/websites/">Websites</a>
-    <a href="/pricing/">Pricing</a>
-    <a href="/how-it-works/">How it works</a>
-    <a href="/about/">About</a>
-    <a href="/blog/" class="current">Blog</a>
-    <a href="/free-check/">Free Lead-Leak Check</a>
-    <a href="/contact/">Contact</a>
-    <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+    <div class="nm-main">
+      <a class="nm-big" href="/ads/"><b>Ads</b><span>Google and Meta ads, run for you</span></a>
+      <a class="nm-big" href="/websites/"><b>Websites</b><span>Built to turn visits into calls</span></a>
+    </div>
+    <div class="nm-grid">
+      <a href="/pricing/">Pricing</a>
+      <a href="/how-it-works/">How it works</a>
+      <a href="/industries/">Industries</a>
+      <a href="/about/">About</a>
+      <a class="current" aria-current="page" href="/blog/">Blog</a>
+      <a href="/contact/">Contact</a>
+    </div>
+    <div class="nm-ctas">
+      <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+      <a class="nm-check" href="/free-check/">Free Lead-Leak Check</a>
+    </div>
   </div>
 </header>
 <script>(function(){var h=document.querySelector('header');if(!h)return;h.classList.add('nav-in');var s=function(){h.classList.toggle('scrolled',window.scrollY>12)};s();window.addEventListener('scroll',s,{passive:true});var t=h.querySelector('.nav-toggle'),m=h.querySelector('.nav-mobile');if(t&&m){t.addEventListener('click',function(){var o=m.classList.toggle('open');t.classList.toggle('open',o);t.setAttribute('aria-expanded',o?'true':'false')});m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){m.classList.remove('open');t.classList.remove('open');t.setAttribute('aria-expanded','false')})})}})();</script>

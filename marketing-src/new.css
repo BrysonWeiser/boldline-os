@@ -6,7 +6,6 @@
 .nav-inner{max-width:1180px}
 .nav-links a{font-size:13.5px;letter-spacing:0;padding:8px 12px}
 @media (max-width:1060px){.nav-links{display:none}.nav-toggle{display:flex}}
-.nav-mobile a:not(.hdr-cta){font-size:17px;padding:13px 14px}
 
 .wrap-x{max-width:1180px;margin:0 auto;padding:0 28px}
 .page main>section:first-of-type .section-head h1{font-family:var(--sans);font-weight:650;letter-spacing:-.035em;line-height:1.04;font-size:clamp(36px,5.4vw,64px);color:#fff;margin:16px 0 18px;text-wrap:balance}
@@ -527,3 +526,5 @@ html.mo .lj-stick{position:sticky;top:0;height:100vh;padding-top:60px}
 .f-cmp span{transition:transform .25s var(--ease)}
 .f-cmp:hover span{transform:translateX(4px)}
 @media (max-width:760px){.cmpn{grid-template-columns:1fr;padding:26px 22px;gap:20px}.cmpn-go{justify-self:start}}
+/* The phone menu covers the page, so the floating Book a Call button steps aside while it is open. */
+html.menu-open .sticky-cta{display:none}

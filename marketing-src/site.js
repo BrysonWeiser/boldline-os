@@ -171,12 +171,14 @@
       var open = mobile.classList.toggle('open');
       toggle.classList.toggle('open', open);
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.documentElement.classList.toggle('menu-open', open);
     });
     mobile.querySelectorAll('a').forEach(function(a){
       a.addEventListener('click', function(){
         mobile.classList.remove('open');
         toggle.classList.remove('open');
         toggle.setAttribute('aria-expanded', 'false');
+        document.documentElement.classList.remove('menu-open');
       });
     });
   }
