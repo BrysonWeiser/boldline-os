@@ -20,7 +20,11 @@ const OUT = join(ROOT, "marketing-site");
 const part = (n) => readFileSync(join(SRC, n), "utf8");
 const SITE = "https://boldlinemedia.com";
 const CAL = "https://calendly.com/theboldlinemedia/30min";
-const book = (cls = "btn", label = "Book a Call") => `<a class="${cls}" href="${CAL}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+// Website prospects get their own booking (Bryson, 2026-10-07): the ads booking asks about ad budget and
+// packages, which means nothing to someone who only wants a website. The OS labels these "Website call".
+const CAL_WEB = "https://calendly.com/theboldlinemedia/website";
+const calFor = (id) => (id === "websites" ? CAL_WEB : CAL);
+const book = (cls = "btn", label = "Book a Call", href = CAL) => `<a class="${cls}" href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 // The first section's heading becomes the page's one <h1>, so a page that opens on an existing section
@@ -52,7 +56,7 @@ ${MENU_MAIN.map(([k, h, l, sub]) => `      <a${here(k, id, "nm-big")} href="${h}
 ${MENU_MORE.map(([k, h, l]) => `      <a${here(k, id)} href="${h}">${l}</a>`).join("\n")}
     </div>
     <div class="nm-ctas">
-      ${book("hdr-cta")}
+      ${book("hdr-cta", "Book a Call", calFor(id))}
       <a${here("check", id, "nm-check")} href="/free-check/">Free Lead-Leak Check</a>
     </div>
   </div>
@@ -72,10 +76,10 @@ ${part("faq-web.html").trimEnd()}
 </div></section>
 `;
 
-const ctaBand = (title = "Ready for a steadier phone?", sub = "A 30 minute call. We'll tell you straight whether we're a fit, and what we'd do first.") => `
+const ctaBand = (title = "Ready for a steadier phone?", sub = "A 30 minute call. We'll tell you straight whether we're a fit, and what we'd do first.", cal = CAL) => `
 <section class="cta-band"><div class="wrap-x"><div class="cta-box reveal">
   <div><h2>${title}</h2><p>${sub}</p></div>
-  <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/free-check/">Free Lead-Leak Check</a></div>
+  <div class="hero-ctas">${book("btn", "Book a Call", cal)}<a class="btn btn-ghost" href="/free-check/">Free Lead-Leak Check</a></div>
 </div></div></section>
 `;
 
@@ -123,7 +127,7 @@ const webPricing = () => `
     <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">${usd(WEBSITE_OFFER.extraPage)}<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
     <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">${usd(WEBSITE_OFFER.blogMonthly)}<small>/mo</small></div><p>About ${WEBSITE_OFFER.blogPostsPerMonth} articles a month on your site, and you can read, edit or hold each one first. ${usd(WEBSITE_OFFER.blogSetup)} once to set it up.</p></div>
   </div>
-  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>.</p>
+  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>, or <a href="${CAL_WEB}" target="_blank" rel="noopener noreferrer">book a website call</a>.</p>
 </div></section>
 `;
 
@@ -356,7 +360,7 @@ const PAGES = [
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
-    body: promote(part("websites.html")) + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html", "ld-service.html"] },
+    body: promote(part("websites.html")) + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business.", CAL_WEB), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
     desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
@@ -418,7 +422,7 @@ const header = (id) => `<header>
 ${NAV.map(([k, h, l]) => `      <a href="${h}"${k === id ? ' class="current" aria-current="page"' : ""}>${l}</a>`).join("\n")}
     </nav>
     <div class="nav-right">
-      ${book("hdr-cta")}
+      ${book("hdr-cta", "Book a Call", calFor(id))}
       <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false"><span></span><span></span><span></span></button>
     </div>
   </div>
@@ -481,7 +485,7 @@ ${p.body}
 ${p.newsletter ? part("newsletter.html") : ""}</main>
 
 ${footer()}
-${part("sticky.html")}
+${p.id === "websites" ? part("sticky.html").split(CAL).join(CAL_WEB) : part("sticky.html")}
 ${p.extras || ""}
 <script src="/attribution.js" defer></script>
 <script src="/glossary.js" defer></script>
@@ -524,7 +528,7 @@ function samplePage(sm, page) {
   const hasLanding = LANDING_DEMOS.some((l) => l.slug === sm.slug);
   const designs = sm.switcher ? THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("")
     : hasLanding ? `<a aria-current="page" href="/examples/${sm.slug}/">Website</a><a href="/examples/${sm.slug}/landing/">Landing page</a>` : "";
-  const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`)
+  const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`).replace(`href="${CAL}"`, `href="${CAL_WEB}"`)
     .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>');
   html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
   html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${bar}`);

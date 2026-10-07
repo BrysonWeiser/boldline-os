@@ -48,6 +48,10 @@ const answersToText = (qa) => (Array.isArray(qa) ? qa : [])
 
 // Their business name is not a field Calendly gives us, so take it from whichever question
 // looks like it asked. Best effort: a missing business name is fine, a wrong one is not.
+// Website prospects book on their own event ("Website call", Bryson 2026-10-07). Told apart by the event's
+// name, so the lead card can say which kind of call it is before he picks up the phone.
+const callKindOf = (ev) => (/website/i.test(String((ev && ev.name) || "")) ? "website" : "ads");
+
 const businessFrom = (qa) => {
   const hit = (Array.isArray(qa) ? qa : []).find((x) =>
     /business|company|firm|shop/i.test(String((x && x.question) || "")));
@@ -110,10 +114,11 @@ export default async () => {
       const when = ev.start_time ? new Date(ev.start_time).toLocaleString("en-US",
         { timeZone: "America/Phoenix", weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
       const cancelled = String(ev.status || "").toLowerCase() === "canceled";
+      const kind = callKindOf(ev), what = kind === "website" ? "website call" : "call";
 
       const header = cancelled
-        ? `CANCELLED a call that was booked for ${when}.`
-        : `Booked a call for ${when} (Arizona time).`;
+        ? `CANCELLED a ${what} that was booked for ${when}.`
+        : `Booked a ${what} for ${when} (Arizona time).`;
       const answers = answersToText(qa);
 
       const { error: insErr } = await supabase.from("website_leads").insert({
@@ -128,6 +133,7 @@ export default async () => {
         payload: {
           calendlyEventUri: uri,
           eventName: clean(ev.name),
+          callKind: kind,
           startTime: ev.start_time || null,
           status: ev.status || null,
           inviteeUri: clean(invitee.uri),

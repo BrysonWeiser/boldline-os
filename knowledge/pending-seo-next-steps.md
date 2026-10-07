@@ -46,3 +46,10 @@ Service (with $1,500 / $100 a month) sits on /pricing/ and /websites/; `verify-m
 Request indexing for /, /websites/, /pricing/; Business Profile description + add a "Website design" service;
 LinkedIn headline, About and Services description (dash-free copy in `linkedin-brand-presence`). Google's AI answers
 cannot be edited directly; they refresh after Google re-reads the sources (days to a few weeks).
+
+## ✅ 2026-10-07: Google re-read requested + Business Profile updated (Job C parts 1-2)
+- Search Console: indexing requested for /, /websites/, /pricing/; sitemap resubmitted. 🔴 The property is a DOMAIN
+  property, so the sitemap box needs the FULL address `https://boldlinemedia.com/sitemap.xml` (typing `sitemap.xml`
+  gives "Invalid sitemap address"). Live sitemap had 35 URLs; Google had last read it Jul 21 with 10.
+- Google Business Profile: new description (ads, landing pages and websites) + "Website design" service added.
+- Expect Google's AI answer ($350/mo, no websites) to catch up over days to weeks.

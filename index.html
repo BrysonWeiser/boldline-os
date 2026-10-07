@@ -20071,7 +20071,7 @@ function LeadCard({lead,onUpdate,onReportSent,onDelete}){
           <div style={{fontSize:14,fontWeight:700,color:C.text}}>{title}</div>
           {lead.name&&lead.business&&<div style={{fontSize:11.5,color:C.textDim}}>{lead.business}</div>}
         </div>
-        <span style={{fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",whiteSpace:"nowrap",borderRadius:20,padding:"3px 9px",color:isCall?C.green:isQuiz?C.purple:C.gold,backgroundColor:isCall?"rgba(34,211,160,0.14)":isQuiz?"rgba(139,92,246,0.14)":C.goldDim}}>{isCall?"Booked call":isQuiz?"Quiz":"Contact"}</span>
+        <span style={{fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",whiteSpace:"nowrap",borderRadius:20,padding:"3px 9px",color:isCall?C.green:isQuiz?C.purple:C.gold,backgroundColor:isCall?"rgba(34,211,160,0.14)":isQuiz?"rgba(139,92,246,0.14)":C.goldDim}}>{isCall?(cal&&(cal.callKind==="website"||/website/i.test(String(cal.eventName||"")))?"Website call":"Booked call"):isQuiz?"Quiz":"Contact"}</span>
         <span style={{fontSize:11,color:C.textMuted,flexShrink:0,marginTop:2}}>{open?"▾":"▸"}</span>
       </button>
       {/* 🔴 WHERE THEY CAME FROM, ON THE CARD, NOT BURIED. It is the first thing he asks and

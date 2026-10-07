@@ -215,7 +215,8 @@ const SITE = readSite();
 const wsec = SITE.slice(SITE.indexOf('<section id="websites">'), SITE.indexOf("</section>", SITE.indexOf('<section id="websites">')));
 const usd = (n) => `$${n.toLocaleString("en-US")}`;
 ok("🔴 the marketing site quotes the same build price and care plan", wsec.includes(`<b>${usd(WEBSITE_OFFER.build)}</b>`) && wsec.includes(`<b>${usd(WEBSITE_OFFER.care)}/mo</b>`));
-ok("the website offer books a call like every other service", /href="https:\/\/calendly\.com\/theboldlinemedia\/30min"/.test(wsec));
+// Website prospects book their own "Website call" event since 2026-10-07 (KB calendly-leads).
+ok("the website offer books a website call", /href="https:\/\/calendly\.com\/theboldlinemedia\/website"/.test(wsec));
 ok("it is not dressed as an ads package (those cards are matched to the ads catalog)", !/class="pkg"/.test(wsec));
 ok("🔴 no dashes, no emojis, never 'local businesses' on the site section", !/[—–]/.test(wsec.replace(/<!--[\s\S]*?-->/g, "")) && !/\p{Extended_Pictographic}/u.test(wsec) && !/local business/i.test(wsec));
 ok("it says half now and half before launch, and that the care plan starts at launch", /half now and half before it goes live/.test(wsec) && /From launch/.test(wsec));

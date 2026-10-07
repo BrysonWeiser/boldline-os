@@ -118,3 +118,17 @@ and the recommendation he accepted:
 - **When he sends the link:** point website buttons (Websites page, website pricing, sample-site bar, website CTAs)
   at it, keep ads buttons on `/30min`, label those imported leads "Website call" (the importer already reads every
   event type), add tests.
+
+## Website calls have their own booking (LIVE 2026-10-07)
+- Bryson made a second Calendly event, **"Website call"** at `calendly.com/theboldlinemedia/website` (duplicated from
+  the 30 minute ads event, budget and package questions removed, website questions added, meeting link on both).
+- Marketing site: every booking button on the Websites page (header, phone menu, the offer's button, the closing band,
+  the sticky phone bar), the "book a website call" link under website pricing, and the bar on the sample WEBSITES
+  point at it (`CAL_WEB`, `calFor(id)` in scripts/build-marketing-site.mjs). Everything else, including the sample
+  LANDING pages and every ads plan, keeps the ads event. 🔴 `CAL_BASE` and `PKG_ANSWER_KEY "a3"` in site.js stay on
+  the ads event: the package prefill only exists there. The click handler opens whatever href was clicked when there
+  is no package card, so website links open the website event in the popup.
+- OS: `calendly-leads` stores `payload.callKind` ("website" when the event name says website, else "ads"), the message
+  says "Booked a website call for ...", and the lead card badge reads **Website call** instead of Booked call.
+- Pinned in verify-calendly-leads (website page all website links, ads pages all ads links, pricing both, samples,
+  prefill untouched) and verify-website-deal.

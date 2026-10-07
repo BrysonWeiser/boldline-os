@@ -456,3 +456,6 @@ kept at $100 as an easy yes after a $1,500 build, revisit for new clients once a
   redeployed. Its own netlify.app address returning "Page not found" is by design (it only serves client domains).
   The first real proof of the database key is the first client domain served there (the OS's hourly website check
   will flag it if not).
+
+## Booking for website prospects (2026-10-07)
+Website buttons now book the "Website call" Calendly event and the OS labels those leads; details in KB `calendly-leads`.
