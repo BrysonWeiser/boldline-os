@@ -35,8 +35,8 @@
     if(!DIGITS10(phone)){m.textContent='Please add a phone number we can reach you on.';return;}
     b.disabled=true;var old=b.textContent;b.textContent='Sending…';m.textContent='';
     fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,name:name,phone:phone,source:'homepage',attribution:(window.blOrigin?window.blOrigin():null)})})
-      .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
-      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
+      .then(function(r){if(!r.ok)throw 0;f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
+      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='That did not go through. Please try again, or email bryson@boldlinemedia.com.';});
   });
 })();
 </script>

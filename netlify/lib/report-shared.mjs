@@ -329,14 +329,30 @@ const reportToHTML = (reportText, { label, subtitle, internal, contactName }) =>
 </body></html>`;
 };
 
-export const sendEmail = async ({ to, subject, html, text }) => {
+// 🔴 WHERE A REPLY GOES (found 2026-10-07 walking the client journey). Every client email says
+// "Questions? Just reply to this email", and they are sent FROM hello@boldlinemedia.com, which is a
+// sending address. The address confirmed to forward into Bryson's inbox is bryson@ (Cloudflare Email
+// Routing, KB account-email-map). So every email now says where a reply should go, instead of
+// trusting that hello@ is routed somewhere.
+export const BOLDLINE_REPLY_TO = "bryson@boldlinemedia.com";
+// "BoldLine Media <hello@boldlinemedia.com>" -> the bare address, so a different display name can sit
+// in front of the same verified sender.
+export const senderAddress = (from) => { const m = String(from || "").match(/<([^>]+)>/); return (m ? m[1] : String(from || "")).trim(); };
+const displayName = (n) => String(n || "").replace(/["<>\r\n]/g, "").trim().slice(0, 70);
+
+// `fromName` replaces "BoldLine Media" in the From line (used when a client's CUSTOMER is written to:
+// they contacted that business, not us). `replyTo` defaults to Bryson's forwarding address.
+export const sendEmail = async ({ to, subject, html, text, replyTo, fromName }) => {
+  const from = fromName && displayName(fromName)
+    ? `"${displayName(fromName)}" <${senderAddress(process.env.REPORTS_FROM_EMAIL)}>`
+    : process.env.REPORTS_FROM_EMAIL;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL, to: [to], subject, html, text }),
+    body: JSON.stringify({ from, to: [to], subject, html, text, reply_to: replyTo || BOLDLINE_REPLY_TO }),
   });
   if (!res.ok) {
     const errBody = await res.text();

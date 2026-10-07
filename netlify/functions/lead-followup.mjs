@@ -52,7 +52,9 @@ const sendFollowUp = async (client, lead, due) => {
   }
   if (lead.email) {
     try {
-      await sendEmail({ to: lead.email, subject, html: leadEmailHTML(client, body), text: body });
+      await sendEmail({ to: lead.email, subject, html: leadEmailHTML(client, body), text: body,
+        // From the business they contacted, and a reply goes to that business, not to BoldLine.
+        fromName: client.name, replyTo: client.email || undefined });
     } catch (err) {
       console.error(`Follow-up email failed (${due.id}):`, err);
     }

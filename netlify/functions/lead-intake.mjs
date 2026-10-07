@@ -52,7 +52,9 @@ const notifyLead = async (client, lead) => {
   }
   if (lead.email) {
     try {
-      await sendEmail({ to: lead.email, subject: `Thanks for reaching out to ${client.name}`, html: leadEmailHTML(client, body), text: body });
+      await sendEmail({ to: lead.email, subject: `Thanks for reaching out to ${client.name}`, html: leadEmailHTML(client, body), text: body,
+        // From the business they contacted, and a reply goes to that business, not to BoldLine.
+        fromName: client.name, replyTo: client.email || undefined });
     } catch (err) {
       console.error("Lead auto-reply email failed:", err);
     }
