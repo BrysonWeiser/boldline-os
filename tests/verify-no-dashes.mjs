@@ -18,6 +18,7 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { humanize, humanizeDeep, NO_DASH_RULE } from "../netlify/lib/humanize.mjs";
+import { SITE_PAGES } from "./helpers/marketing-site.mjs";
 
 let n = 0; const fails = [];
 // 🔴 An async test used to return a promise, n++ would run, and any assertion inside was
@@ -235,7 +236,7 @@ t("the OS de-hyphenates the same phrases", () => {
 t("no hardcoded marketing hyphen survives in client-facing copy", () => {
   const files = [
     "../index.html", "../netlify/functions/portal.mjs",
-    "../marketing-site/index.html", "../marketing-site/get-started/index.html",
+    ...SITE_PAGES.map((f) => `../marketing-site/${f}`), "../marketing-site/site.js", "../marketing-site/get-started/index.html",
   ];
   const offenders = [];
   for (const f of files) {
@@ -414,7 +415,7 @@ t("no dash connects a sentence in any client lifecycle email", () => {
 
 t("no dash connects a sentence anywhere on the marketing site", () => {
   const offenders = [];
-  for (const f of ["../marketing-site/index.html", "../marketing-site/get-started/index.html"]) {
+  for (const f of [...SITE_PAGES.map((p) => `../marketing-site/${p}`), "../marketing-site/get-started/index.html"]) {
     const text = visibleText(readFileSync(new URL(f, import.meta.url), "utf8"));
     for (const m of text.matchAll(/[^.!?]{0,45}[—–][^.!?]{0,45}/g)) {
       const s = m[0].trim();
@@ -429,7 +430,8 @@ t("no dash connects a sentence anywhere on the marketing site", () => {
 // regex ate the body), the check above would pass on an empty string forever — a test that
 // cannot fail, which this project has shipped twice already (KB `repo-tests`).
 t("the visible-text reader really does see the page copy", () => {
-  const text = visibleText(readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8"));
+  // The pages only: site.js is bare script with no <script> tag around it for the reader to strip.
+  const text = SITE_PAGES.map((p) => visibleText(readFileSync(new URL(`../marketing-site/${p}`, import.meta.url), "utf8"))).join("\n");
   assert.ok(text.length > 8000, `only extracted ${text.length} characters of page copy`);
   assert.ok(/Book a Call/i.test(text), "the main call to action is missing from the extracted text");
   assert.ok(/qualified lead/i.test(text), "the pricing copy is missing from the extracted text");

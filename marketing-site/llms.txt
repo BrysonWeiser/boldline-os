@@ -1,23 +1,31 @@
 # BoldLine Media
 
-> BoldLine Media is a Phoenix, Arizona agency that plans, builds, and runs Google Ads and Meta (Facebook/Instagram) ad campaigns, plus the custom landing pages behind them, for local service businesses. Clients always own and are billed directly for their own ad account; BoldLine only manages it and never holds or fronts ad spend. Management starts at $350/month; most clients run about $1,000/month or more in ad budget, paid directly to Google or Meta.
+> BoldLine Media is a Phoenix, Arizona agency that plans, builds, and runs Google Ads and Meta (Facebook/Instagram) ad campaigns, plus the custom landing pages behind them and the business's website, for service businesses anywhere in the US. Clients always own and are billed directly for their own ad account; BoldLine only manages it and never holds or fronts ad spend. Ad management starts at $400/month; websites start at $1,500 to build. most clients run about $1,000/month or more in ad budget, paid directly to Google or Meta.
 
 ## Key pages
-- [Home](https://boldlinemedia.com/): what BoldLine does, packages and pricing, how an engagement runs, FAQ.
+- [Home](https://boldlinemedia.com/): what BoldLine does, in short.
+- [Ads](https://boldlinemedia.com/ads/): how we plan, build and run Google and Meta ads, and track every lead back to the ad.
+- [Websites](https://boldlinemedia.com/websites/): websites we design, build and host, with or without ads.
+- [Pricing](https://boldlinemedia.com/pricing/): every package and what it costs.
+- [How it works](https://boldlinemedia.com/how-it-works/): how an engagement runs, who it fits, and the FAQ.
+- [About](https://boldlinemedia.com/about/): who runs BoldLine and why it's paid on results.
+- [Free Lead-Leak Check](https://boldlinemedia.com/free-check/): a free look at where a business's website is losing customers.
+- [Contact](https://boldlinemedia.com/contact/): send a message.
 - [Get Started](https://boldlinemedia.com/get-started/): request a free strategy call.
-- [Blog](https://boldlinemedia.com/blog/): plain-English marketing tips for local service businesses (Google Ads, Meta Ads, landing pages, lead follow-up).
+- [Blog](https://boldlinemedia.com/blog/): plain-English marketing tips for service businesses (Google Ads, Meta Ads, landing pages, lead follow-up).
 
 ## Services
 - Google Ads management
 - Meta (Facebook and Instagram) Ads management
 - Custom landing pages built to convert
 - Call tracking and CRM lead routing
+- Websites: designed, built and hosted, with or without ads
 
 ## Who it's for
-Local and service businesses that want steady, predictable leads without managing ads themselves.
+Service businesses that want steady, predictable leads without managing ads themselves.
 
 ## Owner
-Bryson Weiser, founder. BoldLine keeps a small client roster on purpose — clients work directly with the founder, not a junior account manager.
+Bryson Weiser, founder. BoldLine keeps a small client roster on purpose, so clients work directly with the founder, not a junior account manager.
 
 ## Contact
 - Book a call: https://calendly.com/theboldlinemedia/30min

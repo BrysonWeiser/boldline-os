@@ -4,6 +4,7 @@
 // that fits that ad ... and then I also want the ability to run a seperate ad lets say for roofers
 // and have a landing page that fits that ad"*.
 import { readFileSync } from "node:fs";
+import { readSite } from "./helpers/marketing-site.mjs";
 import assert from "node:assert";
 import { renderLandingPage, landingTheme, designConfig } from "../netlify/functions/landing.mjs";
 import { pageSlug, freeSlug, findPage, listPages, clientForPage, newPage, publicUrlFor, slugsTaken, audienceFurniture }
@@ -611,7 +612,7 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     // the site changes and this fails, instead of the page quietly lying.
     // includes(), not match(): a failed assert.match on this file prints the whole 160KB site
     // into the test output and buries every other failure in the run.
-    const site = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+    const site = readSite();
     assert.ok(site.includes("stay in your name and are billed directly to you"),
       "the site no longer promises the client owns the ad account, so the page's claim may be stale");
     assert.ok(site.includes("You always own and pay for your own ad account"),

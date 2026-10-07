@@ -17,6 +17,7 @@
 // last one (the 5th of five, which would otherwise strand itself in the left column).
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { serveSite } from "./helpers/marketing-site.mjs";
 
 let chromium = null, exe = "";
 try {
@@ -26,7 +27,10 @@ try {
 if (!chromium) { console.log("verify-answer-rows: skipped, no browser in this environment"); process.exit(0); }
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const URL = "file://" + join(ROOT, "marketing-site", "index.html");
+// The rows live on two pages now: the "which package fits" quiz on /pricing/ and the lead wizard on
+// /contact/. Both are measured at every width; between them they must still show every row.
+const server = await serveSite();
+const PAGES = [`${server.base}/pricing/`, `${server.base}/contact/`];
 const WIDTHS = [390, 768, 1280, 1600];   // phone / tablet / laptop / desktop, the standing set
 
 const fails = [];
@@ -58,17 +62,23 @@ const readRows = (page) => page.evaluate(() => {
 });
 
 for (const width of WIDTHS) {
-  const page = await browser.newPage({ viewport: { width, height: 900 } });
-  await page.goto(URL);
-  await page.evaluate(() => {
-    document.querySelectorAll(".reveal,.sr").forEach((e) => {
-      e.classList.add("sr-in"); e.style.animation = "none"; e.style.opacity = 1; e.style.transform = "none";
+  const groups = [];
+  let sideways = false;
+  for (const url of PAGES) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    await page.goto(url);
+    await page.evaluate(() => {
+      document.querySelectorAll(".reveal,.sr").forEach((e) => {
+        e.classList.add("sr-in"); e.style.animation = "none"; e.style.opacity = 1; e.style.transform = "none";
+      });
+      const m = document.getElementById("recModal"); if (m) m.hidden = false;   // the recommender's three rows
     });
-    document.getElementById("recModal").hidden = false;   // the recommender's three rows
-  });
-  await page.waitForTimeout(250);
+    await page.waitForTimeout(250);
+    groups.push(...await readRows(page));
+    if (!await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)) sideways = url;
+    await page.close();
+  }
 
-  const groups = await readRows(page);
   ok(`${width}px: the answer rows are on the page at all`, groups.length >= 4, `found ${groups.length}`);
 
   for (const g of groups) {
@@ -91,9 +101,7 @@ for (const width of WIDTHS) {
     }
   }
 
-  ok(`${width}px: the page does not scroll sideways`,
-    await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
-  await page.close();
+  ok(`${width}px: neither page scrolls sideways`, !sideways, sideways || "");
 }
 
 // The wizard advances a step on click, so the later rows are only reachable by using it.
@@ -101,7 +109,7 @@ for (const width of WIDTHS) {
 // odd-last-child span — completely unmeasured.
 {
   const page = await browser.newPage({ viewport: { width: 390, height: 900 } });
-  await page.goto(URL);
+  await page.goto(`${server.base}/contact/`);
   await page.locator("#leadWiz").scrollIntoViewIfNeeded();
   await page.click('.opts[data-key="platform"] button');
   await page.waitForTimeout(350);
@@ -120,6 +128,7 @@ for (const width of WIDTHS) {
 }
 
 await browser.close();
+await server.close();
 console.log(fails.length ? `✕ ${fails.length} failed, ${pass} passed\n  ` + fails.slice(0, 12).join("\n  ")
   : `✓ verify-answer-rows: ${pass} checks passed`);
 process.exit(fails.length ? 1 : 0);

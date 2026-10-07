@@ -20,6 +20,7 @@
 
 import { readFileSync } from "node:fs";
 import * as shared from "../netlify/lib/pricing-shared.mjs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 let pass = 0;
 const fails = [];
@@ -72,7 +73,7 @@ const contract = new Function(
 const contractFeatures = new Function(
   `${sliceBlock(contractSrc, "const ALL_FEATURES = [", "\n];")}\nreturn ALL_FEATURES;`
 )();
-const site = readFileSync("marketing-site/index.html", "utf8");
+const site = readSite();
 
 const byId = (cat) => Object.fromEntries(cat.ALL_PKGS.map((p) => [p.id, p]));
 const osPkgs = byId(os);

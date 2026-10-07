@@ -21,6 +21,7 @@
 
 import { readFileSync } from "node:fs";
 import { makeContractHTML, resultWords } from "../netlify/lib/contract-shared.cjs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
@@ -369,7 +370,7 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
     "a shop-only note shown on every package is noise he will learn to skip");
   ok("it names where to set it afterwards", /Billing for &rarr; Sales/.test(dp));
   // 🔴 The public site must NOT carry it. This is the deliberate half of the decision.
-  const SITE = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+  const SITE = readSite();
   ok("🔴 the per-sale option is still not advertised publicly", !/per qualified sale|per sale/i.test(SITE),
     "it depends on the shop's tracking, so promising it in public means withdrawing it on the call");
 }

@@ -1,0 +1,42 @@
+<section id="lead-leak">
+  <div class="contact-box reveal" style="text-align:center">
+    <div class="eyebrow">Free, no obligation</div>
+    <h2>Get a free Lead-Leak Check.</h2>
+    <p style="max-width:580px;margin:0 auto 24px">Not ready for a call? Send us your website and we'll show you where your business is quietly losing customers: a slow or unclear site, ad spend going to the wrong searches, leads that never get followed up. Plus the 2 or 3 quickest fixes. Free, and no call required.</p>
+    <form id="leakForm" style="max-width:440px;margin:0 auto;display:flex;flex-direction:column;gap:10px;text-align:left">
+      <input type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <input id="lk-website" type="text" placeholder="Your website (e.g. yourbusiness.com)" autocomplete="url" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-name" type="text" placeholder="Your name" autocomplete="name" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-email" type="email" placeholder="Where should we send it? (email)" autocomplete="email" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <input id="lk-phone" type="tel" inputmode="tel" placeholder="Best number to reach you" autocomplete="tel" required style="width:100%;padding:13px 14px;background:#0D0F16;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#F5F3ED;font-size:15px">
+      <p class="sms-consent" style="margin:2px 0 0;font-size:11.5px;line-height:1.5;color:#8A8F9E;text-align:left">By providing your phone number, you agree to receive text messages from BoldLine Media about your request. Message frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for help. See our <a href="/privacy" style="color:#B8BCC8">Privacy Policy</a>.</p>
+      <button class="btn" type="submit" id="lkBtn" style="margin-top:2px">Get my free Lead-Leak Check &rarr;</button>
+      <div id="lkMsg" role="status" style="font-size:13px;color:#9CA3AF;min-height:18px;text-align:center"></div>
+    </form>
+  </div>
+</section>
+<script>
+(function(){
+  var f=document.getElementById('leakForm'); if(!f) return;
+  var EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  // Lenient on purpose: people type (480) 426-0885, 480.426.0885 and +1 480 426 0885.
+  // Count the digits and accept anything that could actually be dialled.
+  var DIGITS10=function(v){return String(v||'').replace(/[^0-9]/g,'').length>=10;};
+  f.addEventListener('submit',function(e){
+    e.preventDefault();
+    var w=document.getElementById('lk-website'),em=document.getElementById('lk-email'),b=document.getElementById('lkBtn'),m=document.getElementById('lkMsg');
+    var nm=document.getElementById('lk-name'),ph=document.getElementById('lk-phone');
+    var website=(w.value||'').trim(),email=(em.value||'').trim();
+    var name=(nm.value||'').trim(),phone=(ph.value||'').trim();
+    if(f.company&&f.company.value){return;}
+    if(!website){m.textContent='Please add your website.';return;}
+    if(name.length<2){m.textContent='Please add your name.';return;}
+    if(!EMAIL.test(email)){m.textContent='Please enter a valid email.';return;}
+    if(!DIGITS10(phone)){m.textContent='Please add a phone number we can reach you on.';return;}
+    b.disabled=true;var old=b.textContent;b.textContent='Sending…';m.textContent='';
+    fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,name:name,phone:phone,source:'homepage',attribution:(window.blOrigin?window.blOrigin():null)})})
+      .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
+      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
+  });
+})();
+</script>

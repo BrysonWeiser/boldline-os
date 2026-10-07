@@ -12,6 +12,7 @@ import * as R from "../netlify/lib/review-requests.mjs";
 import { runReviewSends, optOutUrl } from "../netlify/functions/review-requests-run.mjs";
 import { handle } from "../netlify/functions/review-requests.mjs";
 import { handleOptOut } from "../netlify/functions/review-optout.mjs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UI = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -266,7 +267,7 @@ ok("🔴 the screen only queues: no send path in the card", (() => { const a = U
 {
   const { createRequire } = await import("node:module");
   const C = createRequire(import.meta.url)("../netlify/lib/contract-shared.cjs");
-  const SITE = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+  const SITE = readSite();
   const PKG = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, leadFee: true, pricingModel: "per_lead", tier: "launch" };
   const base = { name: "Acme Pools LLC", email: "a@acme.com", packageId: "g-launch", niche: "Pool Construction", billingPerLead: 50, contactName: "Al" };
   const html = (cl) => C.makeContractHTML(cl, PKG, "");

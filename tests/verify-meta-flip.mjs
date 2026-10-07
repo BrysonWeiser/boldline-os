@@ -16,16 +16,17 @@
 // checking the checklist and starts asserting that every package books a call.
 
 import { readFileSync } from "node:fs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
 const eq = (l, a, b) => ok(l, a === b, `expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
 
-const SITE = "marketing-site/index.html";
+const SITE = "the marketing site (every page + site.js)";
 const GETSTARTED = "marketing-site/get-started/index.html";
 const CHECKLIST = "docs/META-FLIP-CHECKLIST.md";
 
-const site = readFileSync(SITE, "utf8");
+const site = readSite();
 const getStarted = readFileSync(GETSTARTED, "utf8");
 const checklist = readFileSync(CHECKLIST, "utf8");
 const bothFiles = [[SITE, site], [GETSTARTED, getStarted]];

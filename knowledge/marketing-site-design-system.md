@@ -7,7 +7,7 @@ status: verified
 summary: The homepage's visual language — dark --card boxes with a --line border, rounded corners, gold accents. Match this vocabulary when adding or restyling a component so nothing looks out of place.
 verified: 2026-07-02
 ---
-`marketing-site/index.html` `:root` tokens: `--bg #080A0F`, `--card #0D0F16`, `--line rgba(255,255,255,.08)`, text `--ink/--muted/--faint`, `--gold #C8A84B` (+ `--gold-soft`, `--gold-line`). Fonts: Playfair Display (serif headings) + Inter (sans body).
+Tokens now live in `marketing-src/base.css` (the site is generated, see KB `marketing-site-pages`). `:root` tokens: `--bg #080A0F`, `--card #0D0F16`, `--line rgba(255,255,255,.08)`, text `--ink/--muted/--faint`, `--gold #C8A84B` (+ `--gold-soft`, `--gold-line`). Fonts: Playfair Display (serif headings) + Inter (sans body).
 
 **"Box" convention:** contained, centered, `background:var(--card)`, `border:1px solid var(--line)`, `border-radius:14–16px`, generous padding, often a small gold accent. Section intros use `.eyebrow` (gold uppercase label) + `<h2>` + sometimes `.divider`. Blocks animate in on load via `.reveal` (fadeUp) — animate-on-load, never hide-until-scroll (see content-visibility-no-js).
 

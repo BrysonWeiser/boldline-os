@@ -34,6 +34,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { SITE_PAGES, SITE_ASSETS, readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -62,8 +63,10 @@ const commentsOf = (src) => {
   return out;
 };
 
+// Every public page, plus the stylesheet and script they all share (which hold most of the comments).
 const PAGES = [
-  ["the homepage", "marketing-site/index.html"],
+  ...SITE_PAGES.map((f) => [`the ${f.replace(/\/?index\.html$/, "") || "home"} page`, `marketing-site/${f}`]),
+  ...SITE_ASSETS.map((f) => [`the shared ${f}`, `marketing-site/${f}`]),
   ["the ads landing page", "marketing-site/get-started/index.html"],
 ];
 
@@ -77,8 +80,9 @@ const PAGES = [
   ok("🔴 and does not treat a URL as a comment",
     !probe.some((c) => c.includes("x.test")),
     "every link on the site would be scanned as internal text");
+  const found = (f) => commentsOf(readFileSync(join(ROOT, f), "utf8")).length;
   ok("and it finds plenty on the real pages",
-    PAGES.every(([, f]) => commentsOf(readFileSync(join(ROOT, f), "utf8")).length > 20));
+    found("marketing-site/site.js") + found("marketing-site/site.css") > 20 && found("marketing-site/get-started/index.html") > 20);
 }
 
 for (const [where, file] of PAGES) {
@@ -114,7 +118,7 @@ for (const [where, file] of PAGES) {
 // The rule is only worth having if the reasoning went somewhere. Each cleaned comment points at
 // the entry that now holds it, so the next person editing that code can still find out why.
 {
-  const home = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+  const home = readSite() + readFileSync(join(ROOT, "marketing-site/site.css"), "utf8");
   const ads = readFileSync(join(ROOT, "marketing-site/get-started/index.html"), "utf8");
   // Checked by ENTRY NAME, not by the words around it, so a comment may say "KB `x`" or
   // "the knowledge base (`x`)" and still count. The point is that the reason is findable.

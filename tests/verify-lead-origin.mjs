@@ -19,10 +19,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const S = readFileSync(join(ROOT, "index.html"), "utf8");
-const SITE = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+const SITE = readSite();
 const GET = readFileSync(join(ROOT, "marketing-site/get-started/index.html"), "utf8");
 const CAP = readFileSync(join(ROOT, "marketing-site/attribution.js"), "utf8");
 const AUDIT = readFileSync(join(ROOT, "marketing-site/netlify/functions/audit.mjs"), "utf8");

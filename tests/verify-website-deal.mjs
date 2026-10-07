@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import * as L from "../netlify/lib/website-deal.mjs";
 import { runWatch } from "../netlify/functions/docusign-watch.mjs";
 import { gateView, viewFor } from "../netlify/functions/site.mjs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UI = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -210,7 +211,7 @@ const { parseWebsiteLine } = await import("../netlify/functions/deal-research-ba
 ok("🔴 the agreement defaults come from the one website price list", L.DEAL_DEFAULTS.price === WEBSITE_OFFER.build && L.DEAL_DEFAULTS.care === WEBSITE_OFFER.care);
 const uiOffer = (UI.match(/const WEBSITE_OFFER=(\{[^}]+\});/) || [])[1];
 ok("🔴 the OS quotes the same website prices as the server", !!uiOffer && JSON.stringify(new Function(`return ${uiOffer}`)()) === JSON.stringify(WEBSITE_OFFER), uiOffer);
-const SITE = src("marketing-site/index.html");
+const SITE = readSite();
 const wsec = SITE.slice(SITE.indexOf('<section id="websites">'), SITE.indexOf("</section>", SITE.indexOf('<section id="websites">')));
 const usd = (n) => `$${n.toLocaleString("en-US")}`;
 ok("🔴 the marketing site quotes the same build price and care plan", wsec.includes(`<b>${usd(WEBSITE_OFFER.build)}</b>`) && wsec.includes(`<b>${usd(WEBSITE_OFFER.care)}/mo</b>`));

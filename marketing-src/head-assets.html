@@ -1,0 +1,9 @@
+<link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin.woff2" crossorigin>
+<link rel="preload" as="font" type="font/woff2" href="/fonts/playfair-display-latin.woff2" crossorigin>
+<!-- Calendly popup widget: keeps booking on-site in a modal instead of navigating away.
+     CSS loads non-blocking (media=print until loaded) so it never delays first paint;
+     it's only needed once the popup opens. -->
+<link rel="preconnect" href="https://assets.calendly.com" crossorigin>
+<link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet"></noscript>
+<script src="https://assets.calendly.com/assets/external/widget.js" async></script>
