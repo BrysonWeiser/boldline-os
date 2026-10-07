@@ -17,11 +17,12 @@
 // (a promise nothing checks), so silence would rebuild the hole this was written to close.
 
 import { readFileSync } from "node:fs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
 
-const SITE = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+const SITE = readSite();
 const OS = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 
 const block = (src, start, end) => src.slice(src.indexOf(start), src.indexOf(end, src.indexOf(start)) + end.length);

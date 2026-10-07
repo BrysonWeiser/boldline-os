@@ -1,0 +1,28 @@
+<!-- Email-list signup (posts to /.netlify/functions/subscribe → Resend Audience + website_leads backup) -->
+<section class="nl-signup" aria-labelledby="nl-h">
+  <div class="nl-inner">
+    <div class="nl-eyebrow">Free Newsletter</div>
+    <h3 id="nl-h">Marketing tips that actually move the needle</h3>
+    <p>Practical Google &amp; Meta ads and lead-gen tips for busy business owners, a couple times a month. No spam, unsubscribe anytime.</p>
+    <form class="nl-form" data-source="homepage" onsubmit="return blSubscribe(this,event)">
+      <input type="email" name="email" required placeholder="you@business.com" aria-label="Your email address" autocomplete="email">
+      <input type="text" name="company" class="nl-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button type="submit">Subscribe</button>
+    </form>
+    <div class="nl-msg" role="status" aria-live="polite"></div>
+  </div>
+</section>
+<script>
+window.blSubscribe=window.blSubscribe||function(form,ev){ev.preventDefault();
+  var msg=form.parentNode.querySelector('.nl-msg'),btn=form.querySelector('button'),old=btn.textContent;
+  if(form.company.value){return false;}
+  var email=(form.email.value||'').trim();
+  btn.disabled=true;btn.textContent='Subscribing…';
+  fetch('/.netlify/functions/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email,company:form.company.value,source:form.getAttribute('data-source')||'website'})})
+    .then(function(r){return r.json().catch(function(){return{ok:r.ok};});})
+    .then(function(d){ if(d&&d.ok){ msg.className='nl-msg ok'; msg.textContent="You're in, thanks! Watch your inbox for the first tips."; form.style.display='none'; }
+      else { msg.className='nl-msg err'; msg.textContent=(d&&d.error)||'Something went wrong. Please try again.'; btn.disabled=false; btn.textContent=old; } })
+    .catch(function(){ msg.className='nl-msg err'; msg.textContent='Network error. Please try again.'; btn.disabled=false; btn.textContent=old; });
+  return false;
+};
+</script>

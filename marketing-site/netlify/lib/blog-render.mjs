@@ -30,10 +30,12 @@ export const headerHTML = () => `<header>
       <span class="word">BoldLine Media</span>
     </a>
     <nav class="nav-links">
-      <a href="/#services">Services</a>
-      <a href="/#process">Process</a>
+      <a href="/ads/">Ads</a>
+      <a href="/websites/">Websites</a>
+      <a href="/pricing/">Pricing</a>
+      <a href="/how-it-works/">How it works</a>
+      <a href="/about/">About</a>
       <a href="/blog/" class="current">Blog</a>
-      <a href="/#contact">Contact</a>
     </nav>
     <div class="nav-right">
       <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
@@ -41,10 +43,14 @@ export const headerHTML = () => `<header>
     </div>
   </div>
   <div class="nav-mobile">
-    <a href="/#services">Services</a>
-    <a href="/#process">Process</a>
+    <a href="/ads/">Ads</a>
+    <a href="/websites/">Websites</a>
+    <a href="/pricing/">Pricing</a>
+    <a href="/how-it-works/">How it works</a>
+    <a href="/about/">About</a>
     <a href="/blog/" class="current">Blog</a>
-    <a href="/#contact">Contact</a>
+    <a href="/free-check/">Free Lead-Leak Check</a>
+    <a href="/contact/">Contact</a>
     <a class="hdr-cta" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
   </div>
 </header>
@@ -141,7 +147,7 @@ window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);
 gtag('js',new Date());gtag('config','G-MG7T0687RT');
 window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
 (function(){var done=false;
-  function load(){if(done)return;done=true;
+  function load(){if(done||window.__TEST_COPY)return;done=true;
     ['https://www.googletagmanager.com/gtag/js?id=G-MG7T0687RT','https://www.clarity.ms/tag/y0tivdizq8']
       .forEach(function(src){var s=document.createElement('script');s.async=true;s.src=src;document.head.appendChild(s);});}
   ['pointerdown','keydown','touchstart','scroll'].forEach(function(e){addEventListener(e,load,{once:true,passive:true});});
@@ -150,6 +156,7 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 </script>`;
 
 export const headTags = ({ title, ogTitle, description, canonical, ogType = "website", jsonLd }) => `<meta charset="UTF-8">
+<script src="/test-copy.js"></script>
 ${ANALYTICS}
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>

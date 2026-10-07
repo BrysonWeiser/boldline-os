@@ -1,0 +1,21 @@
+<!--TEST-COPY-GUARD-->
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script>document.documentElement.classList.add('js-tabs')</script>
+<!-- Analytics (GA4 + Microsoft Clarity), deferred off the critical path.
+     gtag.js alone is ~499KB and was the bulk of mobile main-thread time. The
+     command queues below are defined synchronously, so any early gtag()/clarity()
+     call is buffered and replayed once the real scripts land. Loading starts on
+     the first user interaction, or when the browser goes idle after load —
+     whichever happens first. -->
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','G-MG7T0687RT');
+window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};
+(function(){var done=false;
+  function load(){if(done||window.__TEST_COPY)return;done=true;
+    ['https://www.googletagmanager.com/gtag/js?id=G-MG7T0687RT','https://www.clarity.ms/tag/y0tivdizq8']
+      .forEach(function(src){var s=document.createElement('script');s.async=true;s.src=src;document.head.appendChild(s);});}
+  ['pointerdown','keydown','touchstart','scroll'].forEach(function(e){addEventListener(e,load,{once:true,passive:true});});
+  addEventListener('load',function(){(window.requestIdleCallback||function(f){setTimeout(f,1800);})(load,{timeout:3500});});
+})();
+</script>

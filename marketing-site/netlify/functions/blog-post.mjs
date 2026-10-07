@@ -45,7 +45,7 @@ export default async (req) => {
     image: `${SITE_URL}/og-image.png`,
     datePublished: isoDate(post.published_at),
     dateModified: isoDate(post.published_at),
-    author: { "@type": "Person", name: "Bryson Weiser", url: `${SITE_URL}/#founder` },
+    author: { "@type": "Person", name: "Bryson Weiser", url: `${SITE_URL}/about/` },
     publisher: { "@type": "Organization", name: "BoldLine Media", logo: { "@type": "ImageObject", url: `${SITE_URL}/icon.png` } },
     mainEntityOfPage: canonical,
   };
@@ -71,7 +71,7 @@ ${headerHTML()}
 <div class="article-head reveal">
   <div class="eyebrow">${esc(post.category)}</div>
   <h1>${esc(post.title)}</h1>
-  <div class="article-meta">By <a href="/#founder" rel="author" style="color:inherit">Bryson Weiser</a> · ${formatMonthYear(post.published_at)} · ${esc(post.read_minutes)} min read</div>
+  <div class="article-meta">By <a href="/about/" rel="author" style="color:inherit">Bryson Weiser</a> · ${formatMonthYear(post.published_at)} · ${esc(post.read_minutes)} min read</div>
 </div>
 
 <div class="article-body reveal">

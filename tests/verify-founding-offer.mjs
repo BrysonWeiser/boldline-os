@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { FOUNDING_CLIENT_COUNT } from "../netlify/lib/founding.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 let pass = 0, fail = 0;
@@ -27,7 +28,7 @@ const ok = (name, cond, extra) => {
   console.error(`  FAIL  ${name}${extra ? `\n        ${extra}` : ""}`);
 };
 
-const home = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+const home = readSite();
 const gs = readFileSync(join(ROOT, "marketing-site/get-started/index.html"), "utf8");
 const doc = readFileSync(join(ROOT, "docs/FOUNDING-OFFER.md"), "utf8");
 

@@ -15,11 +15,12 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { FOUNDING_CLIENT_COUNT, foundingTermsBlock, packagesPromptBlock } from "../netlify/lib/pricing-shared.mjs";
 import { foundingOfferActive, foundingSlotsLeft, countFoundingClients, isFoundingClient } from "../netlify/lib/founding.mjs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DEAL = readFileSync(join(ROOT, "netlify/functions/deal-research-background.mjs"), "utf8");
 const ALERTS = readFileSync(join(ROOT, "netlify/functions/alerts-watch.mjs"), "utf8");
-const SITE = readFileSync(join(ROOT, "marketing-site/index.html"), "utf8");
+const SITE = readSite();
 const OS = readFileSync(join(ROOT, "index.html"), "utf8");
 const OSCODE = OS.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*|\{\/\*)/.test(l)).join("\n");
 

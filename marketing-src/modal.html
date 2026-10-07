@@ -1,0 +1,66 @@
+<div class="modal-overlay" id="recModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recTitle">
+    <button class="modal-close" id="recClose" type="button" aria-label="Close">&times;</button>
+
+    <div id="recForm">
+      <div class="modal-eyebrow">Find your fit</div>
+      <h3 id="recTitle">Let's point you to the right package.</h3>
+      <p class="modal-sub">Three quick questions. No email or sign-up required.</p>
+
+      <div class="q" data-q="budget">
+        <div class="q-label">What's your monthly ad budget?</div>
+        <div class="opts">
+          <button type="button" data-val="tiny">Under $500</button>
+          <button type="button" data-val="low">$500 to $2,500</button>
+          <button type="button" data-val="mid">$2,500 to $5,000</button>
+          <button type="button" data-val="midplus">$5,000 to $10,000</button>
+          <button type="button" data-val="high">$10,000+</button>
+        </div>
+      </div>
+
+      <div class="q" data-q="type">
+        <div class="q-label">What kind of business are you?</div>
+        <div class="opts">
+          <button type="button" data-val="local">Local service business</button>
+          <button type="button" data-val="ecom">Online store</button>
+          <button type="button" data-val="both">A mix of both</button>
+          <button type="button" data-val="unsure">Not sure yet</button>
+        </div>
+      </div>
+
+      <div class="q" data-q="channel">
+        <div class="q-label">How do you currently get new clients?</div>
+        <div class="opts">
+          <button type="button" data-val="wordofmouth">Word of mouth &amp; referrals</button>
+          <button type="button" data-val="search">Google / online search</button>
+          <button type="button" data-val="social">Social media</button>
+          <button type="button" data-val="ads">Paid ads already</button>
+          <button type="button" data-val="none">Nothing consistent yet</button>
+        </div>
+      </div>
+
+      <button class="btn modal-submit" id="recSubmit" type="button" disabled>See my recommendation</button>
+    </div>
+
+    <div id="recResult" hidden>
+      <div class="modal-eyebrow">Your starting point</div>
+      <h3 id="recHeadline"></h3>
+      <p class="modal-why" id="recWhy"></p>
+      <div class="modal-actions">
+        <a class="btn" id="recBook" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a Call</a>
+        <button type="button" class="btn-outline" id="recSee">See this package</button>
+      </div>
+      <form class="rec-email" id="recEmailForm" name="recommendation" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+        <input type="hidden" name="form-name" value="recommendation">
+        <input type="hidden" name="attribution" value="">
+        <input type="hidden" name="recommended" id="recRecommended" value="">
+        <p class="lead-hp"><label>Leave this empty: <input name="bot-field" autocomplete="off" tabindex="-1"></label></p>
+        <label for="re-email">Not ready to book? Drop your email and we'll follow up with a plan for your business. No spam.</label>
+        <div class="re-row"><input id="re-email" type="email" name="email" autocomplete="email" placeholder="you@business.com"><button type="submit">Send it</button></div>
+      </form>
+      <div class="rec-email re-done" id="recEmailDone" hidden>Got it, we'll be in touch. ✓</div>
+      <p class="modal-fine">A starting point, not a quote. We'll confirm the right fit with you on the call. Your ad account always stays owned and paid for by you.</p>
+      <button type="button" class="link-btn" id="recRestart">Start over</button>
+    </div>
+  </div>
+</div>

@@ -24,6 +24,7 @@ import {
   uploadPlan, leadIsAtStage, CLICK_MAX_DAYS,
 } from "../netlify/lib/gads-conversions.mjs";
 import { CLICK_KEYS, pickAttribution } from "../netlify/lib/attribution.mjs";
+import { readSite } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const UI      = readFileSync(join(ROOT, "index.html"), "utf8");
@@ -389,7 +390,7 @@ const CLIENT = {
 // looks right, the lead arrives half-filled, and nobody finds out until someone tries to
 // phone it. So the homepage is pinned to the same shape, not just assumed to match.
 {
-  const home = readFileSync(new URL("../marketing-site/index.html", import.meta.url), "utf8");
+  const home = readSite();
   const fn = readFileSync(new URL("../marketing-site/netlify/functions/audit.mjs", import.meta.url), "utf8");
   const fnCode = fn.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
 

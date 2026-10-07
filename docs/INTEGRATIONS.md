@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 202 task-keyed entries under `knowledge/`. They surface automatically via the
+> 203 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**202 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**203 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -369,6 +369,9 @@
 - **[marketing-site-design-system](../knowledge/marketing-site-design-system.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   The homepage's visual language — dark --card boxes with a --line border, rounded corners, gold accents. Match this vocabulary when adding or restyling a component so nothing looks out of place.  
   <sub>*task:* keep the marketing site visually uniform or restyle a component to match the rest of the site &nbsp;|&nbsp; *keywords:* design-tokens, card, boutique, section-head, eyebrow, uniform, border-radius</sub>
+- **[marketing-site-pages](../knowledge/marketing-site-pages.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. Not merged: Bryson must say "go" after seeing the test copy.  
+  <sub>*task:* edit, add or restyle a page on boldlinemedia.com (BoldLine's own marketing site), or change its menu, footer, homepage or the test-copy guard &nbsp;|&nbsp; *keywords:* multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live</sub>
 - **[microsoft-clarity](../knowledge/microsoft-clarity.md)** &mdash; &#9989; verified &middot; 2026-08-11  
   Microsoft Clarity installed 2026-08-11 on EVERY marketing-site page (project y0tivdizq8, B2B Services, under the brysonaweiser@gmail.com Microsoft account). Free + unlimited session recordings and heatmaps — the CRO tool GA4 can't replace. Ships alongside GA4 via the shared ANALYTICS const in blog-render.mjs (blog) and inline heads (static pages). Verified live on /, /blog/, /privacy.html.  
   <sub>*task:* use, debug, or change Microsoft Clarity session recordings / heatmaps on boldlinemedia.com &nbsp;|&nbsp; *keywords:* clarity, microsoft-clarity, session-recordings, heatmaps, rage-clicks, dead-clicks, scroll-depth, y0tivdizq8, cro</sub>

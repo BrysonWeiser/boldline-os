@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { SITE_PAGES } from "./helpers/marketing-site.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 let pass = 0; const fails = [];
@@ -37,7 +38,7 @@ async function run(code, host) {
   return { calls, post: await post.text(), get: get.status, test: !!win.__TEST_COPY };
 }
 
-for (const page of ["marketing-site/index.html", "marketing-site/get-started/index.html"]) {
+for (const page of [...SITE_PAGES.map((f) => `marketing-site/${f}`), "marketing-site/get-started/index.html"]) {
   const html = readFileSync(join(ROOT, page), "utf8");
   const code = guardOf(html);
   ok(`${page} carries the test-copy guard`, code.length > 100);
@@ -55,6 +56,26 @@ for (const page of ["marketing-site/index.html", "marketing-site/get-started/ind
   ok(`${page}: nor on the site's own netlify address`, (await run(code, "boldline-media.netlify.app")).test === false);
   ok(`${page}: the guard names nobody and no date`, !/Bryson|20\d\d-\d\d/.test(code));
   ok(`🔴 ${page}: on the test copy the analytics never load (visits there are Bryson, not prospects)`, /function load\(\)\{if\(done\|\|window\.__TEST_COPY\)return;/.test(html) && /ga-disable-G-MG7T0687RT/.test(code));
+}
+
+// The hand-written pages (privacy, terms, 404, every blog page) load the same guard from /test-copy.js as
+// the first script in <head>, so a visit or a newsletter signup on the test copy is never real either.
+{
+  const shared = readFileSync(join(ROOT, "marketing-site/test-copy.js"), "utf8");
+  ok("test-copy.js is the very same guard the generated pages inline", shared.trim() === guardOf(readFileSync(join(ROOT, "marketing-site/index.html"), "utf8")).trim());
+  const t = await run(shared, "claude-monday-sept-7-catchup-hyschf--boldline-media.netlify.app");
+  ok("🔴 test-copy.js: on the test copy nothing posts, counts or submits", !t.calls.fetch.some(([, m]) => m === "POST") && t.calls.beacon === 0 && t.calls.prevented === 1 && t.test);
+  const live = await run(shared, "boldlinemedia.com");
+  ok("🔴 test-copy.js: on the live address nothing is touched", !live.test && live.calls.beacon === 1 && live.calls.prevented === 0);
+  for (const page of ["marketing-site/privacy.html", "marketing-site/terms.html", "marketing-site/404.html", "marketing-site/netlify/lib/blog-render.mjs"]) {
+    const file = readFileSync(join(ROOT, page), "utf8");
+    // The blog file holds several templates; what matters is the one that opens every blog page's <head>.
+    const src = page.endsWith("blog-render.mjs") ? file.slice(file.indexOf("export const headTags")) : file;
+    const at = src.indexOf('<script src="/test-copy.js"></script>');
+    ok(`${page} loads the guard`, at > 0);
+    ok(`${page}: right after the character set, before any other script`, at > src.indexOf("charset") && src.indexOf("<script") === at);
+    ok(`${page}: its analytics stay off on the test copy`, /function load\(\)\{if\(done\|\|window\.__TEST_COPY\)return;/.test(file));
+  }
 }
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
