@@ -639,3 +639,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-10-07 | `28d17d6` | `rollback/20261007T003415Z` | `cb60552` | KB only: `marketing-site-pages` marked live. |
 | 2026-10-07 | `9b11191` | `rollback/20261007T004341Z` | `dd7c786` | **Website prices**: care plan $99 -> **$100/mo**, blog add-on $149 -> **$150/mo** (price list, OS, Websites page). Signed agreements keep their stored price. Full suite **133 / 0**. KB: `website-builder`, `service-add-ons`. |
 | 2026-10-07 | `8dc61d4` | `rollback/20261007T004415Z` | `350a4c7` | KB only: `marketing-site-pages` summary corrected to live. |
+| 2026-10-07 | `88f4b00` | `rollback/20261007T012155Z` | `b02bfed` | Founder quote (home + About) now mentions websites; quote check requires every copy to match. Full suite **133 / 0**. KB: `site-copy-voice`. |
