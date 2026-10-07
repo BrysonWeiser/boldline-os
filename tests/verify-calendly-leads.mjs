@@ -51,7 +51,7 @@ t("a booked call starts further along than a form fill", () => {
 });
 
 t("cancellations are still recorded", () => {
-  assert.ok(/cancelled[\s\S]{0,200}CANCELLED a call/.test(src),
+  assert.ok(/cancelled[\s\S]{0,300}CANCELLED a \$\{what\}/.test(src),
     "someone who booked and cancelled is still a lead, arguably one worth calling");
   assert.ok(!/status: "active"/.test(src), "filtering to active only would hide cancellations entirely");
 });
@@ -121,7 +121,7 @@ t("it writes to the same table the website form uses", () => {
 
 t("the Leads screen tells a booked call apart from a form fill", () => {
   assert.ok(/const isCall = lead\.form==="calendly";/.test(os));
-  assert.ok(/isCall\?"Booked call"/.test(os), "the strongest lead type needs to be visible at a glance");
+  assert.ok(/isCall\?\(cal&&[\s\S]{0,90}\?"Website call":"Booked call"\)/.test(os), "the strongest lead type needs to be visible at a glance");
   assert.ok(/isCall\?C\.green/.test(os));
 });
 
@@ -129,6 +129,46 @@ t("and offers the reschedule and cancel links", () => {
   assert.ok(/cal\.rescheduleUrl/.test(os) && /cal\.cancelUrl/.test(os));
   assert.ok(/cal\s*=\s*\(lead\.payload&&lead\.payload\.source==="calendly-poll"\)/.test(os),
     "the links must only render for leads that actually came from a booking");
+});
+
+// ── WEBSITE CALLS HAVE THEIR OWN BOOKING (Bryson, 2026-10-07) ─────────────────────────────
+// The ads booking asks about ad budget and packages, which means nothing to a website prospect, so
+// website buttons go to his "Website call" event and the OS labels those leads. Ads buttons must stay
+// on the ads event, because the package prefill (custom answer a3) only exists there.
+const callKindOf = new Function(src.slice(src.indexOf("const callKindOf"), src.indexOf("\n", src.indexOf("const callKindOf"))) + "\nreturn callKindOf;")();
+const site = (f) => readFileSync(new URL(`../marketing-site/${f}`, import.meta.url), "utf8");
+const cals = (html) => [...html.matchAll(/https:\/\/calendly\.com\/theboldlinemedia\/[a-z0-9-]+/g)].map((m) => m[0]);
+const ADS = "https://calendly.com/theboldlinemedia/30min", WEB = "https://calendly.com/theboldlinemedia/website";
+t("the importer tells a website call from an ads call", () => {
+  assert.equal(callKindOf({ name: "Website call" }), "website");
+  assert.equal(callKindOf({ name: "30 Minute Meeting" }), "ads");
+  assert.equal(callKindOf({}), "ads");
+  assert.ok(/callKind: kind,/.test(src) && /Booked a \$\{what\}/.test(src), "the kind must be stored and said in the lead's message");
+});
+t("the lead card says Website call", () => {
+  assert.ok(/cal\.callKind==="website"[\s\S]{0,80}"Website call"/.test(os));
+});
+t("🔴 every booking button on the Websites page is the website booking", () => {
+  const l = cals(site("websites/index.html"));
+  assert.ok(l.length >= 4 && l.every((u) => u === WEB), l.join(", "));
+});
+t("🔴 the ads pages keep the ads booking", () => {
+  for (const f of ["index.html", "ads/index.html", "get-started/index.html"]) {
+    let l = []; try { l = cals(site(f)); } catch (e) { continue; }
+    assert.ok(l.length && l.every((u) => u === ADS), `${f}: ${l.join(", ")}`);
+  }
+});
+t("pricing offers both: ads plans book ads, the website section books a website call", () => {
+  const l = cals(site("pricing/index.html"));
+  assert.ok(l.includes(WEB) && l.filter((u) => u === ADS).length >= 5, l.join(", "));
+});
+t("sample websites book a website call; sample landing pages book an ads call", () => {
+  assert.ok(cals(site("examples/cinematic/index.html")).every((u) => u === WEB));
+  assert.ok(cals(site("examples/handyman/landing/index.html")).every((u) => u === ADS));
+});
+t("🔴 the package prefill still points at the ads event", () => {
+  const js = readFileSync(new URL("../marketing-src/site.js", import.meta.url), "utf8");
+  assert.ok(/var CAL_BASE = "https:\/\/calendly\.com\/theboldlinemedia\/30min";/.test(js) && /var PKG_ANSWER_KEY = "a3";/.test(js));
 });
 
 console.log(fails.length ? `✕ ${fails.length} failed, ${n} passed\n  ` + fails.join("\n  ")

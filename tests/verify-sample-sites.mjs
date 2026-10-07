@@ -49,7 +49,7 @@ for (const f of SAMPLE_FILES) {
   const hrefs = [...html.matchAll(/\shref="([^"]+)"/g)].map((m) => m[1]);
   const stray = hrefs.filter((h) => !(
     h.startsWith(`/examples/${theme}/`) || /^\/examples\/(cinematic|aurora|editorial)\/[a-z/]*$/.test(h)
-    || h === (TRADE_SAMPLES[theme] || "/websites/") || h === "https://calendly.com/theboldlinemedia/30min"
+    || h === (TRADE_SAMPLES[theme] || "/websites/") || /^https:\/\/calendly\.com\/theboldlinemedia\/(30min|website)$/.test(h)
     || /^tel:\d{3}5550\d{3}$/.test(h) || /^mailto:[^@]+@[a-z0-9.-]+\.example$/.test(h)
     || /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(h)));
   ok(`🔴 ${f}: no link leaves the sample except the bar's own`, stray.length === 0, [...new Set(stray)].join(", "));
@@ -82,7 +82,7 @@ for (const f of LANDING_FILES) {
   ok(`${f}: photos come from our own site`, !/images\.pexels\.com/.test(html));
   const hrefs = [...html.matchAll(/\shref="([^"]+)"/g)].map((m) => m[1]);
   const stray = hrefs.filter((h) => !(h.startsWith("#") || h === `/examples/${slug}/` || h === `/examples/${slug}/landing/` || h === TRADE_SAMPLES[slug]
-    || h === "https://calendly.com/theboldlinemedia/30min" || /^tel:/.test(h) || /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(h)));
+    || /^https:\/\/calendly\.com\/theboldlinemedia\/(30min|website)$/.test(h) || /^tel:/.test(h) || /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(h)));
   ok(`🔴 ${f}: no link leaves the sample except the bar's own`, stray.length === 0, [...new Set(stray)].join(", "));
   ok(`${f}: the trade page links to it`, readFileSync(join(MK, TRADE_SAMPLES[slug].slice(1), "index.html"), "utf8").includes(`href="/examples/${slug}/landing/"`));
   ok(`${f}: and the Ads page shows it`, readFileSync(join(MK, "ads/index.html"), "utf8").includes(`href="/examples/${slug}/landing/"`) && existsSync(join(MK, "img", "sample", `lp-${slug}.jpg`)));

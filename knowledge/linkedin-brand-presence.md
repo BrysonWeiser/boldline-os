@@ -3,7 +3,7 @@ name: linkedin-brand-presence
 topic: Marketing/SEO
 task: set up, edit, or reference BoldLine's LinkedIn personal profile + Company Page (copy, positioning, images, backlinks)
 keywords: [linkedin, company-page, personal-brand, headline, backlinks, sameAs, banner, cover-image, profile-url, services, positioning, not-local, national]
-status: in-progress
+status: verified
 summary: LinkedIn is backlink source #1 of the backlink push (started 2026-08-11). Personal profile "Bryson Weiser" is LIVE; the BoldLine Media Company Page is NOT created yet. HARD POSITIONING RULE from Bryson — never say "local businesses" anywhere; he serves businesses nationally/remotely. Approved copy for every field (headline, About, services, tagline, page About) is recorded here verbatim so it stays consistent with the GBP wording. LinkedIn image assets are generated + committed at brand/linkedin/.
 verified: 2026-08-11
 ---
@@ -154,3 +154,8 @@ Google's AI answer cited his LinkedIn for "landing pages" and left websites out.
   design and host modern websites that turn visits into calls. Clear reporting on what's working. Based in Phoenix,
   working with businesses across the U.S."
 - Company Page copy above still predates websites; update the tagline the same way when the page is created.
+
+## ✅ 2026-10-07: profile updated (Job C part 3)
+Bryson replaced his LinkedIn headline, About and Services description with the wording from the 2026-10-06 10pm /
+2026-10-07 8am reminder (ads, landing pages AND websites; Phoenix, working across the U.S.). Industry kept as
+**Advertising Services**, matching the company page.
