@@ -3,7 +3,7 @@ name: marketing-site-pages
 topic: Marketing site
 task: edit, add or restyle a page on boldlinemedia.com (BoldLine's own marketing site), or change its menu, footer, homepage or the test-copy guard
 keywords: [scroll motion, scroll animations, pinned hero, word fill, view transitions, lenis, smooth scroll, mo-pin, hero headline, We only earn more when your phone rings more, multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live]
-status: built on the dev branch 2026-10-06/07, NOT LIVE. Waiting on Bryson's "go" before merging to main.
+status: LIVE on boldlinemedia.com since 2026-10-06 ~5:30pm Phoenix (merge 44286da, rollback/20261007T003255Z). Test copy (Netlify branch deploy) still to be switched on, on the 10pm reminder, for FUTURE website changes.
 summary: boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. Not merged: Bryson must say "go" after seeing the test copy.
 verified: 2026-10-07
 ---
@@ -14,9 +14,13 @@ pages ... I want people to be able to quickly get to spots and have dedicated pa
 to them."* Then: *"Yes start on it."* Colours stayed black and gold on purpose (a rebrand means redoing the logo,
 OS, portal and every email).
 
-## 🔴 Not live yet
-All of this sits on the dev branch only, together with the earlier homepage re-skin. **Do not merge dev into
-main until Bryson says "go"** on the homepage. He reviews it on the Netlify test copy
+## ✅ Live (2026-10-06 evening, Phoenix)
+Bryson: *"Let make it live but I still want to do that test site tonight."* Merged and verified: all eight pages,
+/get-started/, /blog/, /privacy, sitemap (29 urls) answer 200; Netlify picked up the `contact` and `recommendation`
+forms on their new pages (it injects `form-name`, and rewrites attributes with single quotes, so grep for
+`name='contact'`). Rollback: `rollback/20261007T003255Z` (pre-merge `314a7cb`).
+Going forward, website changes are meant to be looked at on the test copy before they go live, once it exists.
+Previously: all of this sat on the dev branch, waiting for his "go". He reviews it on the Netlify test copy
 (`<branch>--boldline-media.netlify.app`, branch deploys enabled via the 10pm Netlify reminder). Any other
 unit of work that must ship before then has to be cherry-picked onto main on its own.
 

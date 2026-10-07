@@ -19513,7 +19513,7 @@
         "branch deploy",
         "not live"
       ],
-      "status": "built on the dev branch 2026-10-06/07, NOT LIVE. Waiting on Bryson's \"go\" before merging to main.",
+      "status": "LIVE on boldlinemedia.com since 2026-10-06 ~5:30pm Phoenix (merge 44286da, rollback/20261007T003255Z). Test copy (Netlify branch deploy) still to be switched on, on the 10pm reminder, for FUTURE website changes.",
       "summary": "boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. Not merged: Bryson must say \"go\" after seeing the test copy.",
       "verified": "2026-10-07",
       "terms": {
