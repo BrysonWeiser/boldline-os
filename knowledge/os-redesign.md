@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: approved ('that's it'). Stage 1 (Outreach = Power Hour) built in the real OS on the dev branch, tested, waiting on his OK of before/after screenshots before merging to main
+status: Stage 1 (Outreach = Power Hour) LIVE 2026-10-07; Stage 2 (grouped sidebar, Ctrl K, Mission Control theme) in progress
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -153,7 +153,10 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
   ignored while typing, and a confirmation panel (do-not-contact) only listens for Esc, so nothing permanent happens
   from a stray key.
 - **Side panel (desktop)**: Up next queue + This session log. On phone it stacks.
-- **Booking moment**: gold particle burst + "MEETING BOOKED" toast on a real booking only. **Recap** on END.
+- **Booking moment**: a calm "MEETING SECURED" card (dimmed backdrop, card opens from a centre line, gold ring + tick draw
+  in, one light sheen, business name, meeting day/time, "N booked from M calls this session", Prep this deal / Next call
+  (Enter), 7s countdown bar, auto-closes, any number key also closes it). 🔴 Bryson, 2026-10-07: the first version's
+  confetti burst "makes it seem childish", so NO confetti/particles; keep celebrations understated. **Recap** on END.
 - 🔴 **Test gotcha**: `tests/verify-outreach.mjs` evaluates everything between `const OUT_OUTCOMES = [` and
   `function OutreachScreen` with `new Function` (plain JS, no JSX). Anything JSX in that span crashes it, which is why
   the Power Hour block lives ABOVE the banner. Same test requires the History block within 800 characters of the
