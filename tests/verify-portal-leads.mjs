@@ -7,6 +7,7 @@
 //      the written performance report and no leads at all, so a client paying per qualified
 //      lead could not see the leads he is paying for.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -34,9 +35,7 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
     "the shared Save sits five cards below, so pasting an ID looked like nothing happened");
   ok("and it says what saving covers, so the button is not a mystery",
     /Saving here saves everything on this tab/.test(card));
-  ok("🔴 the owner-side preview copy got the same button",
-    (OS.match(/onclick="saveInfo\(this\)"/g) || []).length >= 2,
-    "the portal lives in two files; changing one and not the other is the standing trap here");
+  ok("🔴 the OS preview shows the live portal itself, so it has the same button", osShowsServedPortal(OS));
 }
 
 // ── 2. The client can see their leads ────────────────────────────────────────
@@ -118,9 +117,7 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
     "the preview blocks writes deliberately; calling that a failure invites someone to undo the guard");
   ok("and the real portal still reports a genuine failure honestly",
     /'Save failed\. Try again'/.test(src));
-  ok("the owner-side copy says the same thing",
-    /BL_PREVIEW\?'Preview only, nothing saved'/.test(OS),
-    "two portal copies, one behaviour");
+  ok("the OS preview shows the live portal itself, so it says the same thing", osShowsServedPortal(OS));
 }
 
 // ── 5. The client has somewhere to put a card ────────────────────────────────
@@ -287,9 +284,7 @@ const render = (extra) => _internal.makePortalHTML({ ...base, ...extra }, pkg);
     && /1 review saved/.test(render({ reviews: "Great job - A" })));
   ok("the client's own words are escaped, not injected",
     !/<script>bad/.test(render({ reviews: "<script>bad()<\/script> - X" })));
-  ok("the owner-side preview copy carries the same box",
-    /data-key="reviews"/.test(OS),
-    "the portal lives in two files; changing one and not the other is the standing trap here");
+  ok("the OS preview shows the live portal itself, so it carries the same box", osShowsServedPortal(OS));
 
   // 🔴 A NEW REVIEW IS NEWS. If it lands silently nobody rebuilds the page and it is never
   // used, which is the same as not having it.

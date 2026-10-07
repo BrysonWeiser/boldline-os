@@ -5,7 +5,19 @@ import { pipelineProgress } from "./pipeline-shared.mjs";
 import { resultWords } from "./contract-shared.cjs";
 
 import { SUPABASE_URL } from "./supabase-url.mjs";
+
 export { SUPABASE_URL };
+
+// Every report the client has been sent, newest first, so the portal can show past weeks and
+// not only the latest. Capped, because it lives on the client record and is read on every
+// portal load. A client who had reports before this existed starts with their latest one.
+export const REPORT_HISTORY_CAP = 26;
+export const withHistory = (client, report) => {
+  const prev = Array.isArray(client.reportHistory) ? client.reportHistory
+    : client.latestReport && client.latestReport.text ? [client.latestReport] : [];
+  return [report, ...prev.filter((r) => r && r.sentAt !== report.sentAt)].slice(0, REPORT_HISTORY_CAP);
+};
+
 
 export const PACKAGES_DB = {
   google: [
@@ -625,7 +637,7 @@ const processWeekly = async (supabaseAdmin, row, testMode = false) => {
   const nextData = { ...client };
   const logs = [];
   if (ownerDue) { nextData.lastOwnerBriefing = now; logs.push(logEntry("Weekly internal briefing sent to Bryson.", "email")); }
-  if (clientDue) { nextData.lastReportSent = now; nextData.latestReport = { period: "weekly", text: clientText, sentAt: now }; logs.push(logEntry("Weekly report sent to client.", "email")); }
+  if (clientDue) { nextData.lastReportSent = now; nextData.latestReport = { period: "weekly", text: clientText, sentAt: now }; nextData.reportHistory = withHistory(client, nextData.latestReport); logs.push(logEntry("Weekly report sent to client.", "email")); }
   nextData.commLog = [...logs, ...(client.commLog || [])];
 
   const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: now }).eq("id", row.id);
@@ -675,6 +687,7 @@ const processMonthly = async (supabaseAdmin, row, testMode = false) => {
     ...client,
     lastReportSent: now,
     latestReport: { period: "monthly", text: clientText, sentAt: now },
+    reportHistory: withHistory(client, { period: "monthly", text: clientText, sentAt: now }),
     commLog: [logEntry("Monthly report sent to client; copy sent to Bryson.", "email"), ...(client.commLog || [])],
   };
   const { error } = await supabaseAdmin.from("clients").update({ data: nextData, updated_at: now }).eq("id", row.id);

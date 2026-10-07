@@ -44,29 +44,16 @@ export const scriptsParse = (html) => {
   return { checked: n, bad };
 };
 
-// The OS page ships the portal PREVIEW as a template literal rather than as a script, so it
-// is checked the way the suite checks it: evaluate the literal, parse what comes out.
-export const previewScriptParses = (osHtml) => {
+// The OS used to ship its own COPY of the portal as a template literal, checked here by
+// evaluating it. Since 2026-10-07 the preview fetches and shows the real portal page instead
+// (PortalPreview), so the thing to confirm on the OS page is that it still does that. The
+// real portal's own script is checked in section 2, against a live client's page.
+export const previewIsLivePortal = (osHtml) => {
   const s = String(osHtml || "");
-  const start = s.indexOf("`<script>var selUpgName");
-  if (start < 0) return { found: false, ok: false, why: "the preview script is not in the served file at all" };
-  let i = start + 1, end = -1;
-  while (i < s.length) {
-    if (s[i] === "\\") { i += 2; continue; }
-    if (s[i] === "`") { end = i; break; }
-    i++;
-  }
-  if (end < 0) return { found: true, ok: false, why: "the preview script literal is unterminated" };
-  try {
-    const cl = { portalToken: "tok" };
-    // eslint-disable-next-line no-eval
-    const html = eval(s.slice(start, end + 1));
-    const code = html.replace(/^<script>/, "").replace(/<\/script>$/, "");
-    new Function(code);
-    return { found: true, ok: true, defines: /function show\(/.test(code) };
-  } catch (e) {
-    return { found: true, ok: false, why: String(e.message).slice(0, 140) };
-  }
+  if (!/function PortalPreview\(/.test(s)) return { ok: false, why: "the portal preview is not in the served file at all" };
+  if (/const makePortalHTML\s*=/.test(s)) return { ok: false, why: "the OS is carrying its own copy of the portal again, which drifts from the real one" };
+  if (!s.includes('fetch("/.netlify/functions/portal?token="')) return { ok: false, why: "the preview no longer loads the real portal page" };
+  return { ok: true };
 };
 
 // How stale a stored reading may get before it means the job behind it stopped.
@@ -180,9 +167,9 @@ export default withFailureAlert("daily-check", async () => {
   const os = await get(BASE + "/");
   add("The OS page loads", os.ok, os.ok ? "" : `returned ${os.status} ${os.error || ""}`);
   if (os.ok) {
-    const pv = previewScriptParses(os.body);
-    add("🔴 The client portal PREVIEW script parses", pv.ok,
-      pv.ok ? "" : `${pv.why}. Every button in the preview is dead until this is fixed.`);
+    const pv = previewIsLivePortal(os.body);
+    add("The client portal preview shows the real portal", pv.ok,
+      pv.ok ? "" : `${pv.why}. What you see in the OS may not be what the client sees.`);
     add("The OS page carries its app code", /function GoogleLaunchCard\(/.test(os.body),
       /function GoogleLaunchCard\(/.test(os.body) ? "" : "the served file is missing code it should have, which usually means a failed build serving an old copy");
   }

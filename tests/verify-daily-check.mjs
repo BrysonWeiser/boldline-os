@@ -14,7 +14,7 @@
 // broken page, does this check go red.
 
 import { readFileSync } from "node:fs";
-import { scriptsParse, previewScriptParses, summarize, hoursSince, STALE_HOURS, deployBehind } from "../netlify/functions/daily-check.mjs";
+import { scriptsParse, previewIsLivePortal, summarize, hoursSince, STALE_HOURS, deployBehind } from "../netlify/functions/daily-check.mjs";
 
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
@@ -60,25 +60,17 @@ eq("junk in does not throw", scriptsParse(null).bad, []);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 2. THE PREVIEW, WHICH IS A TEMPLATE LITERAL RATHER THAN A SCRIPT
+// 2. THE PREVIEW IS THE REAL PORTAL
 // ══════════════════════════════════════════════════════════════════════════════
-// Run against the REAL index.html, so this suite fails if the preview breaks again.
+// It used to be a template-literal COPY of the portal, checked by evaluating it. Since
+// 2026-10-07 it fetches the real page, so the check is that it still does.
 {
   const os = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-  const r = previewScriptParses(os);
-  ok("the preview literal is found in the OS page", r.found);
-  ok("🔴 and what it emits parses", r.ok, r.why);
-  ok("and it defines the tab handler", r.defines === true, "show() is what every tab button calls");
-
-  // Break it the way it was broken, and confirm the check goes red.
-  const sabotaged = os.replace("/^https?:\\\\/\\\\//i", "/^https?:\\/\\//i");
-  ok("the sabotage applied", sabotaged !== os);
-  const bad = previewScriptParses(sabotaged);
-  ok("🔴 re-breaking the preview is caught", bad.found && !bad.ok,
-    "if this passes, the check cannot see the bug it was built for");
-
-  eq("a page without the preview reports that, rather than passing", previewScriptParses("<html></html>").ok, false);
-  eq("and says so plainly", /not in the served file/.test(previewScriptParses("<html></html>").why), true);
+  const r = previewIsLivePortal(os);
+  ok("🔴 the OS page shows the real portal in its preview", r.ok, r.why);
+  ok("a page without the preview reports that, rather than passing", previewIsLivePortal("<html></html>").ok === false);
+  ok("and says so plainly", /not in the served file/.test(previewIsLivePortal("<html></html>").why));
+  ok("🔴 a second copy creeping back in is caught", previewIsLivePortal(os + "\nconst makePortalHTML = () => {};").ok === false);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

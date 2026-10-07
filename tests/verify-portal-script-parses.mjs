@@ -33,10 +33,11 @@ const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
 
 const FILES = [
   ["netlify/functions/portal.mjs", "the live portal Sebastian actually uses"],
-  ["index.html", "the preview inside the OS"],
+  // The OS preview used to be its own copy and was checked here too. Since 2026-10-07 it shows
+  // this same page (osShowsServedPortal), so there is one script to check.
 ];
 
-import { emittedPortalScript } from "./helpers/portal-script.mjs";
+import { emittedPortalScript, osShowsServedPortal } from "./helpers/portal-script.mjs";
 const emitted = (file) => emittedPortalScript(file);
 
 for (const [file, what] of FILES) {
@@ -79,21 +80,9 @@ for (const [file, what] of FILES) {
     risky.length ? `${risky.length} found: ${risky.map((m) => JSON.stringify(m[0])).join(", ")}` : "");
 }
 
-// Both copies ship the same script. A fix applied to one and not the other is how this kind
-// of thing survives, so the two must agree on the functions they define.
-{
-  const a = emitted(FILES[0][0]), b = emitted(FILES[1][0]);
-  if (a && b) {
-    const names = (c) => [...c.matchAll(/function ([A-Za-z_$][\w$]*)\(/g)].map((m) => m[1]);
-    const live = names(a.html), prev = names(b.html);
-    ok("the preview defines no function the live portal lacks",
-      prev.every((n) => live.includes(n)),
-      `only in the preview: ${prev.filter((n) => !live.includes(n)).join(", ")}`);
-    for (const n of ["show", "blUrl", "saveInfo", "blStartCard"]) {
-      ok(`both copies define ${n}()`, live.includes(n) && prev.includes(n));
-    }
-  }
-}
+// 🔴 The OS preview runs exactly this script, because it shows the real portal page rather
+// than a copy that could carry its own broken version.
+ok("🔴 the OS preview shows the served portal, so it runs this same script", osShowsServedPortal());
 
 console.log(`verify-portal-script-parses: ${pass} passed, ${fails.length} failed`);
 if (fails.length) { fails.forEach(f => console.log("  ✗ " + f)); process.exit(1); }

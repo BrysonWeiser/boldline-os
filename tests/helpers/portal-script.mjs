@@ -34,3 +34,17 @@ export function emittedPortalScript(file) {
     code: html.replace(/^<script>/, "").replace(/<\/script>$/, ""),
   };
 }
+
+// 🔴 ONE PORTAL (2026-10-07). The OS used to carry a hand-kept second copy of the portal for its
+// preview, and a dozen suites checked that copy matched. It drifted anyway. The OS preview now
+// fetches the real portal page and shows it in a srcdoc frame (PortalPreview in index.html), so
+// "the preview has it too" is true by construction, as long as THIS stays true. Every suite that
+// used to compare the two copies asserts this instead.
+export function osShowsServedPortal(indexSrc) {
+  const s = indexSrc ?? readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+  return !/const makePortalHTML\s*=/.test(s)
+    && /function PortalPreview\(/.test(s)
+    && /fetch\("\/\.netlify\/functions\/portal\?token=" \+ encodeURIComponent\(tok\)/.test(s)
+    && /<iframe srcDoc=\{html\}/.test(s)
+    && /<PortalPreview client=\{client\}\/>/.test(s);
+}

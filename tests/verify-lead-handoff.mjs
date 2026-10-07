@@ -16,6 +16,7 @@
 //
 // The rules are imported and executed rather than restated (KB `repo-tests`).
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -737,9 +738,7 @@ const fakeFetch = (script) => {
     "a small image can come out heavier after a re-encode, which would be a shrink step that grows files");
   ok("a decode failure falls back to the original rather than failing the upload",
     /rd\.onerror=function\(\)\{cb\(file\);\}/.test(PORTAL) && /img\.onerror=function\(\)\{cb\(file\);\}/.test(PORTAL));
-  ok("the owner-side copy of the portal shrinks them too",
-    /function blShrink\(file,category,cb\)/.test(OSSRC),
-    "the portal lives in two files; changing one and not the other is the standing trap here");
+  ok("the OS preview shows the live portal itself, so it shrinks them too", osShowsServedPortal(UI));
 }
 
 // ── A PHONE SCREENSHOT IS NOT A PRODUCT PHOTO ───────────────────────────────
@@ -782,7 +781,7 @@ const fakeFetch = (script) => {
 
   // The other half: warn the client BEFORE it is uploaded at all.
   const PORTAL = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
-  for (const [name, src] of [["the live portal", PORTAL], ["the owner-side copy", OSSRC]]) {
+  for (const [name, src] of [["the live portal", PORTAL]]) {
     ok(`${name} warns the client at the moment they pick one`,
       /function blScreenshot\(w,h\)\{[^}]*r>1\.9/.test(src)
       && /That looks like a screenshot of your phone, not a photo/.test(src),

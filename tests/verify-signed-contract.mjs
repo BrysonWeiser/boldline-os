@@ -22,6 +22,7 @@
 //      beside a signed contract has to say what it is.
 //   3. A failure anywhere in 1 never undoes a correctly recorded signature.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -255,7 +256,8 @@ const bytesOf = (s) => new Uint8Array([...s].map((c) => c.charCodeAt(0)));
 // The portal is what a client reads. Showing them a re-render titled "Your Agreement" after
 // they have signed means an edit on our side changes what they believe they agreed to, and
 // they have no way to check. Both copies of the portal, as always.
-for (const [label, src] of [["the served portal", PORTAL], ["the OS's own copy", UI]]) {
+ok("the OS preview shows the live portal itself, so it labels the agreement the same way", osShowsServedPortal(UI));
+for (const [label, src] of [["the served portal", PORTAL]]) {
   ok(`🔴 ${label} calls the signed document the signed one`,
     /Your Signed Agreement/.test(src) && /exactly as you signed it/.test(src),
     "the portal exists in two files and a fix in one is absent exactly where it is read");
