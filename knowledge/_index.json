@@ -14753,7 +14753,7 @@
         "dark email",
         "em dash subject"
       ],
-      "status": "built 2026-10-07 on the dev branch, waiting on Bryson's OK before it goes live",
+      "status": "LIVE 2026-10-07 (merge 0e03c03, rollback/20261007-213834)",
       "summary": "Bryson, 2026-10-07, \"lets look at the email branding\" then \"fix it\". Found 5 issues: the weekly/monthly REPORT (the email clients get most) was a white/grey template unlike every other client email; its heading AND subject had an em dash; it was signed \"The BoldLine Media Team\"; it had no numbers; the header everywhere was a dated Georgia serif wordmark; and emails to a client's own customers used BoldLine gold. Fixed: one header (gold B logo + \"BoldLine Media\" in sans) defined once in netlify/lib/email-brand.mjs; reports now use the dark shell with counted number tiles, a portal button, signed by Bryson, no dashes; lead emails use the business's brand colour (brandColorOf) or neutral ink.",
       "verified": "2026-10-07",
       "terms": {
