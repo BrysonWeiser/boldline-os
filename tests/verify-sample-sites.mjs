@@ -19,7 +19,13 @@ const { SAMPLE_FILES, outputs } = await import("../scripts/build-marketing-site.
 const { THEME_IDS, SITE_PAGES } = await import("../netlify/lib/site-render.mjs");
 const { DEMO } = await import("../scripts/site-showcase-demo.mjs");
 
-ok("every design gets all five pages", SAMPLE_FILES.length === THEME_IDS.length * SITE_PAGES.length && THEME_IDS.length === 3, `${SAMPLE_FILES.length}`);
+const TRADE_SAMPLES = { "car-detailing": "/industries/car-detailing/", handyman: "/industries/handyman/", "epoxy-floors": "/industries/epoxy-floors/", "window-tint": "/industries/window-tint/" };
+ok("every design gets all five pages, and so does each trade sample", SAMPLE_FILES.length === (THEME_IDS.length + Object.keys(TRADE_SAMPLES).length) * SITE_PAGES.length && THEME_IDS.length === 3, `${SAMPLE_FILES.length}`);
+const { DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT } = await import("../scripts/site-showcase-demo.mjs");
+for (const d of [DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT]) {
+  ok(`🔴 ${d.name}: its email can't belong to anyone`, /@[a-z0-9.-]+\.example$/.test(d.website.publicEmail), d.website.publicEmail);
+  ok(`${d.name}: its phone is a 555 number`, /555-01\d\d/.test(d.businessPhone), d.businessPhone);
+}
 ok("🔴 the sample business's email can't belong to anyone (a reserved .example address)", /@[a-z0-9.-]+\.example$/.test(DEMO.website.publicEmail), DEMO.website.publicEmail);
 ok("and its phone is a 555 number, which is never assigned", /555-01\d\d/.test(DEMO.businessPhone), DEMO.businessPhone);
 
@@ -31,16 +37,18 @@ for (const f of SAMPLE_FILES) {
   const g = html.indexOf("/* Sample site guard.");
   ok(`🔴 ${f}: the send guard is the first script on the page`, g > 0 && html.indexOf("<script") === html.lastIndexOf("<script>", g) && html.indexOf("charset") < g);
   // 2. Labelled, hidden from search, not described as a real business.
+  ok(`${f}: the design switcher only appears on the three-design pool sample`, /class="bl-designs"/.test(html) === !TRADE_SAMPLES[theme]);
   ok(`🔴 ${f}: says it's a sample, and on a phone too`, /class="bl-sample"/.test(html) && /<span class="bl-w">Sample site<\/span><span class="bl-n">Sample<\/span>/.test(html) && /made-up business/.test(html));
   ok(`🔴 ${f}: hidden from search engines`, /<meta name="robots" content="noindex">/.test(html));
   ok(`${f}: tells search engines nothing about the made-up business`, !/application\/ld\+json/.test(html));
-  ok(`${f}: photos come from our own site`, !/images\.pexels\.com/.test(html) && /\/img\/sample\/pool-\d+\.jpg/.test(html));
+  const imgs = [...html.matchAll(/(?:src|content)="([^"]+\.(?:jpe?g|png|webp))"/g)].map((m) => m[1]);
+  ok(`${f}: photos come from our own site`, !/images\.pexels\.com/.test(html) && imgs.every((u) => /^\/img\/sample\/[a-z]+-\d+\.jpg$/.test(u)), imgs.filter((u) => !/^\/img\/sample\//.test(u)).join(", "));
   // Every link stays inside this sample, or is one of the bar's own (designs, back, book a call).
   const hrefs = [...html.matchAll(/\shref="([^"]+)"/g)].map((m) => m[1]);
   const stray = hrefs.filter((h) => !(
     h.startsWith(`/examples/${theme}/`) || /^\/examples\/(cinematic|aurora|editorial)\/[a-z/]*$/.test(h)
-    || h === "/websites/" || h === "https://calendly.com/theboldlinemedia/30min"
-    || /^tel:6025550\d{3}$/.test(h) || /^mailto:[^@]+@[a-z0-9.-]+\.example$/.test(h)
+    || h === (TRADE_SAMPLES[theme] || "/websites/") || h === "https://calendly.com/theboldlinemedia/30min"
+    || /^tel:\d{3}5550\d{3}$/.test(h) || /^mailto:[^@]+@[a-z0-9.-]+\.example$/.test(h)
     || /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(h)));
   ok(`🔴 ${f}: no link leaves the sample except the bar's own`, stray.length === 0, [...new Set(stray)].join(", "));
   ok(`🔴 ${f}: nothing points at the OS or at a real-looking business domain`, !/boldlinemedia\.netlify\.app|saguaropools\.com/.test(html));
@@ -55,6 +63,7 @@ for (const f of SAMPLE_FILES) {
   const web = readFileSync(join(MK, "websites/index.html"), "utf8");
   for (const t of THEME_IDS) ok(`the Websites page opens the ${t} sample`, web.includes(`href="/examples/${t}/"`));
   ok("and the homepage hero links into a sample", readFileSync(join(MK, "index.html"), "utf8").includes('href="/examples/cinematic/"'));
+  for (const [slug, page] of Object.entries(TRADE_SAMPLES)) ok(`the ${slug} trade page opens its own sample`, readFileSync(join(MK, page.slice(1), "index.html"), "utf8").includes(`href="/examples/${slug}/"`));
 }
 
 // In a real browser: fill in and send each sample's contact form, and watch the network.
@@ -66,7 +75,7 @@ try {
 if (chromium) {
   const server = await serveSite();
   const browser = await chromium.launch({ executablePath: exe });
-  for (const t of THEME_IDS) for (const width of [390, 1280]) {
+  for (const t of [...THEME_IDS, ...Object.keys(TRADE_SAMPLES)]) for (const width of [390, 1280]) {
     const page = await browser.newPage({ viewport: { width, height: 860 } });
     const sent = [];
     page.on("request", (r) => { if (r.method() !== "GET" && r.method() !== "HEAD") sent.push(`${r.method()} ${r.url()}`); });

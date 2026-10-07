@@ -6,11 +6,12 @@
 //
 // Edit the pieces in marketing-src/ (or the page list below), never the generated pages.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
-import { DEMO } from "./site-showcase-demo.mjs";
+import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT } from "./site-showcase-demo.mjs";
+import { PACKAGES, WEBSITE_OFFER } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -31,7 +32,7 @@ const promote = (html) => {
 
 // ── The pages ───────────────────────────────────────────────────────────────────────────
 const NAV = [["ads", "/ads/", "Ads"], ["websites", "/websites/", "Websites"], ["pricing", "/pricing/", "Pricing"], ["how", "/how-it-works/", "How it works"], ["about", "/about/", "About"], ["blog", "/blog/", "Blog"]];
-const MOBILE_EXTRA = [["check", "/free-check/", "Free Lead-Leak Check"], ["contact", "/contact/", "Contact"]];
+const MOBILE_EXTRA = [["industries", "/industries/", "Who we work with"], ["check", "/free-check/", "Free Lead-Leak Check"], ["contact", "/contact/", "Contact"]];
 
 const icons = [...part("showcase.html").matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
 
@@ -40,6 +41,164 @@ const ctaBand = (title = "Ready for a steadier phone?", sub = "A 30 minute call.
   <div><h2>${title}</h2><p>${sub}</p></div>
   <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/free-check/">Free Lead-Leak Check</a></div>
 </div></div></section>
+`;
+
+// ── Pricing page pieces. Every number comes from the one price list (pricing-shared.mjs), so the page can
+// never quote a price the OS, the contract and the invoices don't. ─────────────────────────────────────────
+const usd = (n) => "$" + Number(n).toLocaleString("en-US");
+const PLAN_DATA = JSON.stringify(PACKAGES.filter((p) => /^(g|c)-/.test(p.id)).map((p) => ({ id: p.id, name: p.name, combined: p.id.startsWith("c-"), price: p.price, min: p.minBudget, max: p.maxBudget, band: p.adSpend })));
+const planFinder = () => `
+<section class="pf-sec"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Find your plan</div><h2>Slide to your ad budget.</h2></div></div>
+  <div class="pf reveal" data-plans='${PLAN_DATA.replace(/'/g, "&#39;")}'>
+    <div class="pf-left">
+      <label class="pf-label" for="pfBudget">Your monthly ad budget <span class="pf-hint">(paid straight to Google or Meta, never to us)</span></label>
+      <div class="pf-amount" id="pfAmount">$1,500</div>
+      <input id="pfBudget" class="pf-range" type="range" min="0" max="12" step="1" value="3" aria-describedby="pfResult" aria-label="Monthly ad budget">
+      <div class="pf-ticks" aria-hidden="true"><span style="left:0">$500</span><span style="left:41.667%">$2,500</span><span style="left:75%">$10,000</span><span style="left:100%">$30,000+</span></div>
+      <div class="pf-result" id="pfResult" aria-live="polite">
+        <div class="pf-plan"><span class="pf-name">Launch System</span><span class="pf-plat">Google or Meta, same price</span></div>
+        <div class="pf-min"><b>${usd(400)}/mo</b> minimum, or a fee per qualified lead, whichever is higher.</div>
+        <div class="pf-also"></div>
+      </div>
+    </div>
+    <div class="pf-right">
+      <div class="pf-toggle" role="tablist" aria-label="Example month">
+        <button type="button" class="on" data-month="slow" role="tab" aria-selected="true">A slow month</button>
+        <button type="button" data-month="busy" role="tab" aria-selected="false">A busy month</button>
+      </div>
+      <div class="pf-bars" data-month="slow">
+        <div class="pf-bar pf-bar-min"><div class="pf-fill"></div><span class="pf-cap">Your plan's minimum</span></div>
+        <div class="pf-bar pf-bar-lead"><div class="pf-fill"></div><span class="pf-cap">Qualified leads × your lead fee</span></div>
+      </div>
+      <p class="pf-say" data-for="slow">Fewer leads came in, so the lead fee stays under your minimum. <b>You pay the minimum.</b></p>
+      <p class="pf-say" data-for="busy" hidden>More qualified leads came in, so the lead fee is higher. <b>You pay the lead fee instead.</b> Never both.</p>
+      <p class="pf-small">An example to show how it works. Your lead fee is agreed on the call and written into your agreement.</p>
+    </div>
+  </div>
+</div></section>
+`;
+const webPricing = () => `
+<section class="wp-sec" id="website-pricing"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Websites</div><h2>Website pricing, with or without ads.</h2></div><a class="x-link" href="/websites/">See the designs <span>&rarr;</span></a></div>
+  <div class="wp-grid reveal">
+    <div class="wp-card wp-main"><div class="wp-k">To build</div><div class="wp-v">${usd(WEBSITE_OFFER.build)}</div><p>${WEBSITE_OFFER.pages} pages, written for you, in the design you pick. All up front, or half now and half before it goes live.</p></div>
+    <div class="wp-card"><div class="wp-k">Care plan</div><div class="wp-v">${usd(WEBSITE_OFFER.care)}<small>/mo</small></div><p>Hosting, security and up to ${WEBSITE_OFFER.carePlanEdits} small edits a month. Starts when the site goes live.</p></div>
+    <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">${usd(WEBSITE_OFFER.extraPage)}<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
+    <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">${usd(WEBSITE_OFFER.blogMonthly)}<small>/mo</small></div><p>About ${WEBSITE_OFFER.blogPostsPerMonth} articles a month on your site, and you can read, edit or hold each one first. ${usd(WEBSITE_OFFER.blogSetup)} once to set it up.</p></div>
+  </div>
+  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>. Comparing options? <a href="/compare/">See how we compare to a typical agency</a>.</p>
+</div></section>
+`;
+
+// ── Trade pages (Bryson, 2026-10-07: car detailers, handymen and similar). One per trade, each pointing at a
+// sample website for a made-up business in that trade. Plan numbers come from the one price list. ───────────────
+const launch = PACKAGES.find((p) => p.id === "g-launch");
+const TRADES = [
+  { slug: "car-detailing", label: "Car detailers", sampleLabel: "detailing", sample: "car-detailing", photo: "/img/sample/detail-6873123.jpg",
+    h1: "More booked details, <em>fewer slow weeks.</em>",
+    sub: "We run Google and Meta ads that put you in front of people looking for a detail right now, and send them to a page built to book.",
+    searches: ["mobile detailing near me", "ceramic coating price", "paint correction", "interior car cleaning"],
+    meta: "Before and after photos are made for Facebook and Instagram. We turn your best jobs into ads that reach car owners near you.",
+    wins: [["Searches with intent", "Google shows your ad to people typing what they want done, not people idly scrolling."], ["Photos that sell", "Your before and after shots become Meta ads that make people want the same result."], ["Reviews on autopilot", "After each job your customer gets one email asking for a Google review, so your rating keeps climbing."]],
+    faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a detailer?", "A real person in your area asking about a service you offer. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["I'm a one person shop. Is this too much?", "Most detailers start on our smallest plan, with a $500 a month ad budget. If the calendar fills, you scale up. If not, you'll know why."]] },
+  { slug: "handyman", label: "Handymen", sampleLabel: "handyman", sample: "handyman", photo: "/img/sample/handy-6474471.jpg",
+    h1: "Fill the calendar with <em>jobs worth driving to.</em>",
+    sub: "We run Google and Meta ads for handymen that bring in people with a real job to do, and a page that turns them into a booked visit.",
+    searches: ["handyman near me", "drywall repair", "ceiling fan installation", "door repair"],
+    meta: "Homeowners scroll Facebook with a to-do list in the back of their mind. A good before and after reminds them who to call.",
+    wins: [["The right jobs", "We aim the ads at the work you want more of, and keep them away from the jobs you don't."], ["A page that books", "Your ads land on a page about the job they searched for, with your reviews and a short form."], ["Every call counted", "Calls and forms are tracked back to the ad that caused them, so you know what's paying for itself."]],
+    faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a handyman?", "A real person in your area asking about work you do. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Can you avoid the tiny jobs?", "Yes. We tune the keywords and the page around the jobs you want, and we review the leads with you every month."]] },
+  { slug: "epoxy-floors", label: "Epoxy floor installers", sampleLabel: "floor coating", sample: "epoxy-floors", photo: "/img/sample/epoxy-3.jpg",
+    h1: "More garage floors booked, <em>less waiting on referrals.</em>",
+    sub: "We run Google and Meta ads that reach homeowners pricing out a garage floor right now, and send them to a page that books the free measure.",
+    searches: ["epoxy garage floor near me", "garage floor coating cost", "polyaspartic floor coating", "metallic epoxy floor"],
+    meta: "A finished garage is one of the best before and afters there is. We put yours in front of homeowners nearby, and they come asking for the same floor.",
+    wins: [["Buyers, not browsers", "We bid on the searches people make when they're ready for quotes, and skip the do it yourself crowd."], ["Before and afters that sell", "Your best floors become ads that make homeowners look at their own garage differently."], ["The jobs you want", "We can aim the ads at full garages, metallic floors or commercial space, whatever you want more of."]],
+    faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a floor installer?", "A homeowner or business in your area asking about a floor you'd do. Not a do it yourself question, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Does this work for commercial floors too?", "Yes. We can run shops and warehouses as their own campaign with their own page, so those leads don't get mixed in with garages."]] },
+  { slug: "window-tint", label: "Tint and film shops", sampleLabel: "tint shop", sample: "window-tint", photo: "/img/sample/tint-6872160.jpg",
+    h1: "Fill your bays with <em>film and tint jobs.</em>",
+    sub: "We run Google and Meta ads that reach drivers shopping for tint, paint protection film and coatings, and send them to a page that turns them into a booked install.",
+    searches: ["ceramic tint near me", "paint protection film cost", "clear bra near me", "ceramic coating"],
+    meta: "New car owners scroll Instagram looking at other people's cars. Your film and tint work, shot well, is exactly what makes them book.",
+    wins: [["High ticket first", "We can put more of the budget behind paint protection film and coatings, where one job is worth several tints."], ["New car buyers", "We reach people who just bought, while protecting the paint is on their mind."], ["Every call counted", "Calls and forms are traced back to the ad that caused them, so you know what's paying for itself."]],
+    faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a tint shop?", "A real person in your area asking about a service you offer. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Can you push film over tint?", "Yes. We tune the ads and the page around the work you want more of, and review the leads with you every month."]] },
+];
+const tradePage = (t) => `
+<section class="page-hero tr-hero"><div class="wrap-x tr-grid">
+  <div class="reveal"><div class="eyebrow">For ${t.label.toLowerCase()}</div><h1>${t.h1}</h1><p>${t.sub}</p>
+    <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/examples/${t.sample}/">See a sample ${t.sampleLabel} site</a></div></div>
+  <a class="tr-shot reveal" href="/examples/${t.sample}/" aria-label="Open the sample site"><img src="${t.photo}" width="1600" height="1067" alt="" loading="eager" decoding="async"><span class="tr-badge">Sample site <i>&rarr;</i></span></a>
+</div></section>
+
+<section class="x-sec"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Where your customers are</div><h2>People already search for what you do.</h2></div></div>
+  <div class="tr-two reveal">
+    <div class="tr-card"><h3>On Google</h3><p>We put you in front of people typing searches like these:</p><ul class="tr-q">${t.searches.map((q) => `<li><span class="tr-g">G</span>${q}</li>`).join("")}</ul></div>
+    <div class="tr-card"><h3>On Facebook and Instagram</h3><p>${t.meta}</p><p class="tr-small">Google and Meta cost the same on every plan, so you pick the one that fits, or both once your budget allows it.</p></div>
+  </div>
+</div></section>
+
+<section class="x-sec" style="padding-top:10px"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">What you get</div><h2>Built for how ${t.label.toLowerCase()} get booked.</h2></div><a class="x-link" href="/ads/">How the ads work <span>&rarr;</span></a></div>
+  <div class="steps3 reveal">${t.wins.map(([h, p], i) => `<div class="st"><div class="n">0${i + 1}</div><h3>${h}</h3><p>${p}</p></div>`).join("")}</div>
+</div></section>
+
+<section class="x-sec" style="padding-top:10px"><div class="wrap-x">
+  <div class="tr-price reveal">
+    <div><div class="eyebrow">What it costs</div><h2>Most ${t.label.toLowerCase()} start at ${usd(launch.price)} a month.</h2>
+      <p>That's the minimum on our Launch plan, or a fee per qualified lead, whichever is higher. Never both. Your ad budget, from $500 a month, goes straight to Google or Meta on your own card.</p></div>
+    <div class="hero-ctas"><a class="btn" href="/pricing/">See all pricing</a><a class="btn btn-ghost" href="/websites/">Need a website too?</a></div>
+  </div>
+</div></section>
+
+<section class="x-sec" style="padding-top:10px"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Questions</div><h2>What ${t.label.toLowerCase()} ask us.</h2></div></div>
+  <div class="tr-faq reveal">${t.faqs.map(([q, a]) => `<details class="tr-q1"><summary>${q}</summary><p>${a}</p></details>`).join("")}</div>
+</div></section>
+${ctaBand("Want more of the jobs you like?", "A 30 minute call. We'll look at your area and tell you straight what we'd do first.")}
+`;
+const industriesPage = () => `
+<section class="page-hero"><div class="wrap-x reveal">
+  <div class="eyebrow">Who we work with</div>
+  <h1>Service businesses that <em>want a steadier phone.</em></h1>
+  <p>We work with businesses that do the work themselves and need more of the right customers calling. These are the trades we know best.</p>
+</div></section>
+<section class="x-sec" style="padding-top:10px"><div class="wrap-x">
+  <div class="ind-grid reveal">
+    ${TRADES.map((t) => `<a class="ind-card" href="/industries/${t.slug}/"><img src="${t.photo}" width="1600" height="1067" alt="" loading="lazy" decoding="async"><div class="ind-txt"><h3>${t.label}</h3><p>${t.sub.split(".")[0]}.</p><span class="b-go">See how it works <i>&rarr;</i></span></div></a>`).join("\n    ")}
+    <div class="ind-card ind-more"><div class="ind-txt"><h3>Another service business?</h3><p>Cleaners, landscapers, pressure washers, painters and more. If people search for what you do, the same system works.</p><a class="b-go" href="/contact/">Tell us about yours <i>&rarr;</i></a></div></div>
+  </div>
+</div></section>
+${ctaBand()}
+`;
+
+// ── BoldLine vs a typical agency. Every BoldLine line is something the contract and pricing already promise; the
+// other column describes the common retainer setup in hedged words and names no one. ──────────────────────────────
+const CMP = [
+  ["How they get paid", "A flat monthly retainer, paid whether your phone rings or not.", "Your plan's minimum or a fee per qualified lead, whichever is higher. We only earn more when you get more."],
+  ["How long you're locked in", "Often 6 to 12 months, agreed up front.", "90 days, then month to month."],
+  ["Who owns the ad account", "Sometimes the agency's own account, so your history stays with them if you leave.", "Always yours, in your name and on your card. We only have manager access."],
+  ["Your ad budget", "Some pay Google for you and bill you back with a markup.", "Goes straight to Google or Meta on your own card. We never hold it or mark it up."],
+  ["Where the clicks go", "Usually your homepage.", "A landing page built for the ad, included on every plan."],
+  ["What the report says", "Impressions, clicks and charts that take a meeting to explain.", "What you spent, what came in, and what we're changing next. Every call and form traced to the ad."],
+  ["Your website", "Another company, another login, another bill.", "The same team builds and looks after it, if you want one."],
+  ["If you're not ready yet", "Most start the day you sign.", "We tell you before you spend a dollar if we don't think it will pay off yet."],
+];
+const comparePage = () => `
+<section class="page-hero"><div class="wrap-x reveal">
+  <div class="eyebrow">How we compare</div>
+  <h1>BoldLine vs <em>a typical agency.</em></h1>
+  <p>Plenty of agencies do good work. This is how the usual retainer setup tends to work, and where ours is different.</p>
+</div></section>
+<section class="x-sec" style="padding-top:10px"><div class="wrap-x">
+  <div class="cmp reveal" role="table" aria-label="BoldLine compared with a typical agency">
+    <div class="cmp-row cmp-head" role="row"><div role="columnheader"></div><div role="columnheader">A typical agency</div><div role="columnheader"><img src="/logo.png" alt="" width="18" height="21"> BoldLine</div></div>
+    ${CMP.map(([k, them, us]) => `<div class="cmp-row" role="row"><div class="cmp-k" role="rowheader">${k}</div><div class="cmp-them" role="cell"><span class="cmp-l">A typical agency</span>${them}</div><div class="cmp-us" role="cell"><span class="cmp-l">BoldLine</span>${us}</div></div>`).join("\n    ")}
+  </div>
+  <p class="cmp-foot reveal">Agencies vary, so ask yours. Everything on the BoldLine side is how we work with every client.</p>
+</div></section>
+${ctaBand("See if we're a fit.", "A 30 minute call. If we don't think we can make your ads pay, we'll tell you.")}
 `;
 
 const pageHero = (eyebrow, h1, sub, ctas = "") => `
@@ -103,6 +262,10 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
   </div>
 </div></section>
 
+<section class="x-sec ind-strip-sec"><div class="wrap-x">
+  <div class="ind-strip reveal"><span class="ind-lead">Built for service businesses like</span>${TRADES.map((t) => `<a href="/industries/${t.slug}/">${t.label}</a>`).join("")}<a class="ind-all" href="/industries/">and more <i>&rarr;</i></a></div>
+</div></section>
+
 <section class="x-sec" style="padding-top:20px"><div class="wrap-x">
   <div class="x-head reveal"><div><div class="eyebrow">How it works</div><h2>Built carefully, then run every week.</h2></div><a class="x-link" href="/how-it-works/">The full process <span>&rarr;</span></a></div>
   <div class="steps3 reveal">
@@ -131,16 +294,16 @@ const PAGES = [
     title: "Google and Meta Ads Management | BoldLine Media",
     desc: "Campaigns built to find buyers, every lead tied to the ad that caused it, and reporting in plain English. You own your ad account.",
     body: pageHero("Google and Meta ads", "Ads that <em>pay for themselves.</em>", "We plan, build and run your Google and Meta ads and the landing pages behind them. Every call and form is tracked back to the ad that caused it, so you always know what's working.", `${book()}<a class="btn btn-ghost" href="/pricing/">See pricing</a>`)
-      + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
+      + part("journey.html") + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
     body: promote(part("websites.html")) + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
-    desc: "Plans for Google Ads, Meta Ads, both, and online stores. You pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
+    desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
     body: pageHero("Pricing", "One number, <em>never two.</em>", "Each month you pay your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget is separate and goes straight to Google and Meta on your own card.")
-      + part("services.html") + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
+      + planFinder() + part("services.html") + webPricing() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",
@@ -158,6 +321,18 @@ const PAGES = [
     title: "Contact BoldLine Media",
     desc: "Book a call or send a message. We'll get back to you shortly and tell you honestly whether we're a good fit.",
     body: promote(part("contact.html")), newsletter: true, ld: ["ld-org.html"] },
+  { id: "industries", path: "/industries/", file: "industries/index.html",
+    title: "Who We Work With | BoldLine Media",
+    desc: "Google and Meta ads and websites for service businesses: car detailers, handymen and other trades that want a steadier phone.",
+    body: industriesPage(), ld: ["ld-org.html"] },
+  ...TRADES.map((t) => ({ id: "trade-" + t.slug, nav: "industries", path: `/industries/${t.slug}/`, file: `industries/${t.slug}/index.html`,
+    title: `Ads and Websites for ${t.label} | BoldLine Media`,
+    desc: t.sub,
+    body: tradePage(t), ld: ["ld-org.html"] })),
+  { id: "compare", path: "/compare/", file: "compare/index.html",
+    title: "BoldLine vs a Typical Agency | BoldLine Media",
+    desc: "How BoldLine compares with a typical ad agency retainer: how we get paid, contract length, who owns the ad account, and what the report tells you.",
+    body: comparePage(), ld: ["ld-org.html"] },
 ];
 
 // The FAQ's structured data is built from the visible questions, so the two can never disagree.
@@ -200,6 +375,7 @@ const footer = () => `<footer class="x-foot"><div class="wrap-x">
   <div class="f-top">
     <div><a class="f-brand" href="/"><img src="/logo.png" alt="" width="24" height="28">BoldLine Media</a><p class="f-blurb">Google and Meta ads, landing pages and websites for businesses that want a steadier phone. You always own your ad account.</p></div>
     <div><h4>Services</h4><ul><li><a href="/ads/">Google and Meta ads</a></li><li><a href="/websites/">Websites</a></li><li><a href="/pricing/">Pricing</a></li><li><a href="/free-check/">Free Lead-Leak Check</a></li></ul></div>
+    <div><h4>Who we work with</h4><ul><li><a href="/industries/car-detailing/">Car detailers</a></li><li><a href="/industries/handyman/">Handymen</a></li><li><a href="/industries/epoxy-floors/">Epoxy floor installers</a></li><li><a href="/industries/window-tint/">Tint and film shops</a></li><li><a href="/industries/">All trades</a></li><li><a href="/compare/">BoldLine vs a typical agency</a></li></ul></div>
     <div><h4>Company</h4><ul><li><a href="/how-it-works/">How it works</a></li><li><a href="/about/">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/contact/">Contact</a></li></ul></div>
     <div><h4>Legal</h4><ul><li><a href="/privacy.html">Privacy</a></li><li><a href="/terms.html">Terms</a></li></ul></div>
   </div>
@@ -267,30 +443,43 @@ ${p.extras || ""}
 // get, in each design, all five pages, at /examples/<design>/. Labelled as a sample, hidden from search, and
 // unable to send anything (KB marketing-site-pages, "Sample websites").
 const SAMPLE_ORIGIN = "https://boldlinemedia.com";
-const samplePath = (theme, page) => `examples/${theme}/${page.path ? page.path + "/" : ""}index.html`;
-function samplePage(theme, page) {
-  const root = `/examples/${theme}`;
-  let html = renderSite(DEMO, page.id, { base: SAMPLE_ORIGIN + root, theme, noindex: true });
+// Every sample: the pool company in each of the three designs (with a design switcher), and one business per
+// trade page, each in the design that suits it (no switcher; "back" returns to its trade page).
+const SAMPLES = [
+  ...THEME_IDS.map((t) => ({ slug: t, demo: DEMO, theme: t, switcher: true, back: "/websites/" })),
+  { slug: "car-detailing", demo: DEMO_DETAIL, theme: "aurora", switcher: false, back: "/industries/car-detailing/" },
+  { slug: "handyman", demo: DEMO_HANDY, theme: "editorial", switcher: false, back: "/industries/handyman/" },
+  { slug: "epoxy-floors", demo: DEMO_EPOXY, theme: "cinematic", switcher: false, back: "/industries/epoxy-floors/" },
+  { slug: "window-tint", demo: DEMO_TINT, theme: "aurora", switcher: false, back: "/industries/window-tint/" },
+];
+const samplePath = (slug, page) => `examples/${slug}/${page.path ? page.path + "/" : ""}index.html`;
+const SAMPLE_PHOTOS = existsSync(join(OUT, "img", "sample")) ? readdirSync(join(OUT, "img", "sample")) : [];
+function samplePage(sm, page) {
+  const root = `/examples/${sm.slug}`;
+  let html = renderSite(sm.demo, page.id, { base: SAMPLE_ORIGIN + root, theme: sm.theme, noindex: true });
   // Its own pages link within the sample, wherever the site is being served from (the test copy included).
-  html = html.split(SAMPLE_ORIGIN + root).join(root);
+  html = html.split(SAMPLE_ORIGIN + root).join(root).split(SAMPLE_ORIGIN + "/img/").join("/img/");
   // The builder describes the business to search engines; this one is made up, so that goes.
   html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
-  // The sample's photos are served from our own site (img/sample/), not hot-linked from the photo library.
+  // The sample's photos are served from our own site (img/sample/<trade>-<id>.jpg), not hot-linked.
   html = html.replace(/https:\/\/images\.pexels\.com\/photos\/(\d+)\/pexels-photo-\d+\.jpeg[^"'\s)]*/g, (m, id) => {
-    if (!existsSync(join(OUT, "img", "sample", `pool-${id}.jpg`))) throw new Error(`sample photo ${id} is not in marketing-site/img/sample/`);
-    return `/img/sample/pool-${id}.jpg`;
+    const f = SAMPLE_PHOTOS.find((n) => n.endsWith(`-${id}.jpg`));
+    if (!f) throw new Error(`sample photo ${id} is not in marketing-site/img/sample/`);
+    return `/img/sample/${f}`;
   });
-  const designs = THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("");
+  const designs = sm.switcher ? THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("") : "";
+  const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`)
+    .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>');
   html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
-  html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${part("sample-bar.html").replace("{{DESIGNS}}", designs)}`);
+  html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${bar}`);
   return html;
 }
-export const SAMPLE_FILES = THEME_IDS.flatMap((t) => SAMPLE_PAGES.map((p) => samplePath(t, p)));
+export const SAMPLE_FILES = SAMPLES.flatMap((sm) => SAMPLE_PAGES.map((p) => samplePath(sm.slug, p)));
 
 // test-copy.js is the same guard for the hand-written pages (privacy, terms, 404, the blog), loaded as the
 // first script in their <head> so it runs before anything that could send.
 const outputs = { "site.css": part("base.css") + part("new.css"), "site.js": part("site.js"), "test-copy.js": part("test-copy-guard.js") };
-for (const t of THEME_IDS) for (const p of SAMPLE_PAGES) outputs[samplePath(t, p)] = samplePage(t, p);
+for (const sm of SAMPLES) for (const p of SAMPLE_PAGES) outputs[samplePath(sm.slug, p)] = samplePage(sm, p);
 for (const p of PAGES) outputs[p.file] = render(p);
 
 // Run directly it writes (or with --check, compares); imported (by the tests) it only hands back what it

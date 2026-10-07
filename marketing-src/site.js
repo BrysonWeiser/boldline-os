@@ -789,3 +789,71 @@
     document.head.appendChild(s);
   },{timeout:3000}); });
 })();
+
+/* Pricing: the plan finder. Slide to a monthly ad budget and it shows the plan, its minimum and, from $5,000,
+   the Google and Meta together option. The example month shows "whichever is higher" instead of describing it.
+   The plans come from the page itself (data-plans, written from the one price list when the site is built). */
+(function(){
+  var pf=document.querySelector('.pf'); if(!pf) return;
+  var plans=[]; try{ plans=JSON.parse(pf.getAttribute('data-plans')||'[]'); }catch(e){}
+  var STEPS=[500,750,1000,1500,2000,2500,3500,5000,7500,10000,15000,20000,30000];
+  var r=document.getElementById('pfBudget'), amt=document.getElementById('pfAmount');
+  var name=pf.querySelector('.pf-name'), min=pf.querySelector('.pf-min'), also=pf.querySelector('.pf-also');
+  var money=function(n){ return '$'+Number(n).toLocaleString('en-US'); };
+  var fits=function(p,b){ return b>=p.min && (p.max==null || b<p.max); };
+  function show(){
+    var b=STEPS[+r.value]||STEPS[0];
+    amt.textContent=money(b)+(+r.value===STEPS.length-1?'+':'')+' a month';
+    var one=plans.filter(function(p){ return !p.combined && fits(p,b); })[0];
+    var both=plans.filter(function(p){ return p.combined && fits(p,b); })[0];
+    if(one){ name.textContent=one.name; min.innerHTML='<b>'+money(one.price)+'/mo</b> minimum, or a fee per qualified lead, whichever is higher.'; }
+    also.textContent=both?'Running Google and Meta together? '+both.name+' starts at '+money(both.price)+' a month.':'';
+    r.style.setProperty('--p',(+r.value/(STEPS.length-1)*100)+'%');
+  }
+  r.addEventListener('input',show); show();
+  var bars=pf.querySelector('.pf-bars');
+  [].forEach.call(pf.querySelectorAll('.pf-toggle button'),function(btn){
+    btn.addEventListener('click',function(){
+      var m=btn.getAttribute('data-month'); bars.setAttribute('data-month',m);
+      [].forEach.call(pf.querySelectorAll('.pf-toggle button'),function(x){ var on=x===btn; x.classList.toggle('on',on); x.setAttribute('aria-selected',on?'true':'false'); });
+      [].forEach.call(pf.querySelectorAll('.pf-say'),function(p){ p.hidden=p.getAttribute('data-for')!==m; });
+    });
+  });
+})();
+
+/* Pricing: the online store plans sit behind a link, since most visitors run a service business. */
+(function(){
+  [].forEach.call(document.querySelectorAll('[data-open-tab]'),function(b){
+    b.addEventListener('click',function(){
+      var t=document.querySelector('.tab[data-tab="'+b.getAttribute('data-open-tab')+'"]'); if(!t) return;
+      t.classList.add('shown'); t.click(); t.scrollIntoView({block:'center',behavior:'smooth'});
+    });
+  });
+})();
+
+/* Ads page: the journey of one lead. Steps are tabs anyone can tap; with scroll motion on (html.mo) the section
+   holds while you scroll and the steps advance by themselves. */
+(function(){
+  var sec=document.querySelector('.lj'); if(!sec) return;
+  var steps=sec.querySelectorAll('.lj-steps li'), scr=sec.querySelectorAll('.lj-scr'), dots=sec.querySelectorAll('.lj-dots i'), pin=sec.querySelector('.lj-pin');
+  var cur=-1;
+  function go(i){
+    if(i===cur) return; cur=i;
+    for(var k=0;k<steps.length;k++){ var on=k===i; steps[k].classList.toggle('on',on); steps[k].setAttribute('aria-selected',on?'true':'false'); if(scr[k]) scr[k].classList.toggle('on',on); if(dots[k]) dots[k].classList.toggle('on',on); }
+  }
+  [].forEach.call(steps,function(li,i){
+    var pick=function(){
+      if(document.documentElement.classList.contains('mo')&&pin){ var top=pin.getBoundingClientRect().top+window.scrollY, run=pin.offsetHeight-window.innerHeight; window.scrollTo({top:top+run*((i+.5)/steps.length),behavior:'smooth'}); }
+      else go(i);
+    };
+    li.addEventListener('click',pick);
+    li.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } });
+  });
+  go(0);
+  if(!document.documentElement.classList.contains('mo')||!pin) return;
+  var q=false;
+  function frame(){ q=false; var r=pin.getBoundingClientRect(), run=pin.offsetHeight-window.innerHeight; if(run<=0) return;
+    var p=Math.max(0,Math.min(.9999,-r.top/run)); go(Math.floor(p*steps.length)); }
+  addEventListener('scroll',function(){ if(!q){ q=true; requestAnimationFrame(frame); } },{passive:true});
+  addEventListener('resize',frame); frame();
+})();

@@ -133,3 +133,14 @@ handymen, etc."* Don't steer him back to pools or build pool-specific pages. The
 boldlinemedia.com is still a made-up pool company (Saguaro Pool Co.); that is a neutral demo, not a niche choice,
 but a detailer or handyman sample would fit his calls better. The old advice still holds in spirit: whichever trade
 he leads with, one script at a time compounds faster than several at once.
+
+## 2026-10-07: two more niches recommended and given trade pages
+Bryson asked for one or two more: high ticket, few gatekeepers. Recommended (and built pages + sample sites for):
+- **Epoxy / garage floor coatings** (top pick): $2,000 to $7,000 a garage, owner-run crews of 2 to 10 who answer
+  their own phone, lightly farmed by agencies, strong search intent, great before/afters for Meta.
+- **Window tint and paint protection film shops**: film $1,500 to $7,000 a car, ceramic coating $1,000+, small shops
+  with the owner on the counter, adjacent to detailing so the pitch carries over.
+Runner-up: artificial turf and pavers (huge tickets but office staff answer and more agency calls).
+Calling tip given: 7 to 8am before crews leave, or after 5pm. Recommended starting order: epoxy first, detailers
+second, still ONE niche at a time. Detailer caution: many are one-person shops for whom ~$900/mo all-in is a stretch;
+target 2+ van operations or ceramic/paint-correction shops.
