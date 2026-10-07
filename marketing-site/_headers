@@ -19,3 +19,8 @@
   Cache-Control: public, max-age=2592000
 
 # HTML/CSS/JS keep Netlify's default revalidation so edits show up immediately.
+
+# Sample websites: a made-up business that shows our work. Never indexed, so Google never mistakes
+# BoldLine for a pool company (the pages also carry a robots noindex tag).
+/examples/*
+  X-Robots-Tag: noindex

@@ -9,6 +9,8 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
+import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
+import { DEMO } from "./site-showcase-demo.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -65,7 +67,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
       </div>
       <div class="phone" aria-hidden="true"><img src="/img/site-phone.jpg" width="585" height="1266" alt="" decoding="async"></div>
       <div class="float-toast" aria-hidden="true"><span class="ft-ic">&#10003;</span> New enquiry from the website</div>
-      <p class="h-cap">A sample business, built with the same system we use for clients.</p>
+      <p class="h-cap">A sample business, built with the same system we use for clients. <a href="/examples/cinematic/">Click through it &rarr;</a></p>
     </div>
   </div>
 </div></div><div class="wrap-x">
@@ -259,9 +261,36 @@ ${p.extras || ""}
 `;
 }
 
+// ── Sample websites ─────────────────────────────────────────────────────────────────────
+// Bryson, 2026-10-07: "if someone click on it it not only shows that one specific home page but a full mini
+// website with animations and everything". The made-up Saguaro Pool Co., rendered by the SAME builder clients
+// get, in each design, all five pages, at /examples/<design>/. Labelled as a sample, hidden from search, and
+// unable to send anything (KB marketing-site-pages, "Sample websites").
+const SAMPLE_ORIGIN = "https://boldlinemedia.com";
+const samplePath = (theme, page) => `examples/${theme}/${page.path ? page.path + "/" : ""}index.html`;
+function samplePage(theme, page) {
+  const root = `/examples/${theme}`;
+  let html = renderSite(DEMO, page.id, { base: SAMPLE_ORIGIN + root, theme, noindex: true });
+  // Its own pages link within the sample, wherever the site is being served from (the test copy included).
+  html = html.split(SAMPLE_ORIGIN + root).join(root);
+  // The builder describes the business to search engines; this one is made up, so that goes.
+  html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
+  // The sample's photos are served from our own site (img/sample/), not hot-linked from the photo library.
+  html = html.replace(/https:\/\/images\.pexels\.com\/photos\/(\d+)\/pexels-photo-\d+\.jpeg[^"'\s)]*/g, (m, id) => {
+    if (!existsSync(join(OUT, "img", "sample", `pool-${id}.jpg`))) throw new Error(`sample photo ${id} is not in marketing-site/img/sample/`);
+    return `/img/sample/pool-${id}.jpg`;
+  });
+  const designs = THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("");
+  html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
+  html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${part("sample-bar.html").replace("{{DESIGNS}}", designs)}`);
+  return html;
+}
+export const SAMPLE_FILES = THEME_IDS.flatMap((t) => SAMPLE_PAGES.map((p) => samplePath(t, p)));
+
 // test-copy.js is the same guard for the hand-written pages (privacy, terms, 404, the blog), loaded as the
 // first script in their <head> so it runs before anything that could send.
 const outputs = { "site.css": part("base.css") + part("new.css"), "site.js": part("site.js"), "test-copy.js": part("test-copy-guard.js") };
+for (const t of THEME_IDS) for (const p of SAMPLE_PAGES) outputs[samplePath(t, p)] = samplePage(t, p);
 for (const p of PAGES) outputs[p.file] = render(p);
 
 // Run directly it writes (or with --check, compares); imported (by the tests) it only hands back what it

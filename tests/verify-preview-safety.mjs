@@ -84,6 +84,11 @@ const MANIFEST = {
 // address, not an OS embed, so it has its own guard (every POST, beacon and form is stopped on any
 // "name--site.netlify.app" address) and its own suite, tests/verify-site-test-copy.mjs, which RUNS it.
 
+// 🔴 ALSO NOT IN THE MANIFEST: the SAMPLE WEBSITES on the marketing site (2026-10-07), boldlinemedia.com/
+// examples/<design>/. They are pages, not OS embeds, and show a made-up business rendered by the real site
+// builder, whose contact form posts to /lead (forwarded to the OS lead intake). Their own guard stops every
+// send, and tests/verify-sample-sites.mjs RUNS it in a browser and watches the network.
+
 // ── 1. 🔴 NO UNREVIEWED PREVIEWS ─────────────────────────────────────────────
 {
   // Pull the title off every iframe that is handed rendered HTML.

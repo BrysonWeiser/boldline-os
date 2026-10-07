@@ -1,11 +1,12 @@
 // The sample business shown on BoldLine's own homepage (KB website-builder, "Homepage refresh").
 // 🔴 Made up on purpose: never a real client or prospect. Shown labelled as a sample.
 import { writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { renderSite, THEME_IDS } from "../netlify/lib/site-render.mjs";
 export const DEMO = {
   id: "demo", name: "Saguaro Pool Co.", niche: "Pool Construction", leadToken: "demo", businessPhone: "(602) 555-0148",
   businessAddress: "Phoenix, AZ", campaignSetup: { serviceArea: "Phoenix, AZ" },
-  website: { brandName: "Saguaro Pool Co.", brandColor: "#1E8FB8", publicEmail: "hello@saguaropools.com",
+  website: { brandName: "Saguaro Pool Co.", brandColor: "#1E8FB8", publicEmail: "hello@saguaropools.example",
     stock: [{ url: "https://images.pexels.com/photos/189296/pexels-photo-189296.jpeg?auto=compress&cs=tinysrgb&w=1600", alt: "Pool at dusk" }, { url: "https://images.pexels.com/photos/261102/pexels-photo-261102.jpeg?auto=compress&cs=tinysrgb&w=1600", alt: "Rooftop pool" }],
     reviews: [{ name: "Dana R.", text: "They built our pool in five weeks and kept us posted the whole way. The yard finally feels like a place to live.", stars: 5 }, { name: "Marcus T.", text: "Clear quote, no surprises, and the crew cleaned up every single day.", stars: 5 }],
     content: {
@@ -24,4 +25,5 @@ export function writeDemoPages(outDir) {
   for (const th of THEME_IDS) writeFileSync(`${outDir}/demo-${th}.html`, renderSite(DEMO, "home", { base, theme: th, noindex: true }));
   return THEME_IDS;
 }
-if (process.argv[2]) console.log("wrote", writeDemoPages(process.argv[2]).join(","));
+// Only when run directly: the marketing site build imports DEMO and must not write anything here.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href && process.argv[2]) console.log("wrote", writeDemoPages(process.argv[2]).join(","));

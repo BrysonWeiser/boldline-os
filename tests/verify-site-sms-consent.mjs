@@ -26,7 +26,9 @@ const ok = (name, cond, extra) => {
 
 const htmlFiles = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f);
-  if (["node_modules", "fonts", "netlify"].includes(f)) return [];
+  // examples/ holds the sample websites: a made-up business whose forms cannot send (tests/verify-sample-sites.mjs
+  // runs them and watches the network), and whose builder never opts anyone into texts. No phone number is collected there.
+  if (["node_modules", "fonts", "netlify", "examples"].includes(f)) return [];
   return statSync(p).isDirectory() ? htmlFiles(p) : (f.endsWith(".html") ? [p] : []);
 });
 
