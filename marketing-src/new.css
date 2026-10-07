@@ -471,3 +471,26 @@ html.mo .lj-stick{position:sticky;top:0;height:100vh;padding-top:60px}
 @media (max-width:640px){.lj-phone{zoom:.68}.lj-copy h2{font-size:28px}}
 @media (max-height:740px) and (max-width:1000px){.lj-phone{zoom:.58}}
 @media (prefers-reduced-motion:reduce){.lj-scr,.lj-steps li span{transition:none}.lj-scr *{animation:none!important}.g-type,.fm-in em{width:auto}.ls-note,.fm-ok{opacity:1;transform:none}.rp-bars i{height:var(--h)}}
+
+/* ── BoldLine vs a typical agency ── */
+.cmp{border-radius:24px;border:1px solid rgba(255,255,255,.09);overflow:hidden;background:rgba(255,255,255,.015)}
+.cmp-row{display:grid;grid-template-columns:.9fr 1.1fr 1.2fr}
+.cmp-row>div{padding:20px 24px;font-size:14.5px;line-height:1.6;border-top:1px solid var(--line)}
+.cmp-head>div{border-top:0;font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:8px}
+.cmp-head>div:last-child{color:var(--gold)}
+.cmp-k{font-weight:650;color:#fff}
+.cmp-them{color:var(--faint)}
+.cmp-us{color:var(--ink);background:linear-gradient(90deg,rgba(200,168,75,.08),rgba(200,168,75,.03));border-left:1px solid var(--gold-line)}
+.cmp-l{display:none}
+.cmp-foot{margin-top:16px;font-size:13px;color:var(--faint)}
+@media (max-width:760px){
+  .cmp-head{display:none!important}
+  .cmp-row{grid-template-columns:1fr;border-top:1px solid var(--line)}
+  .cmp-row:first-of-type{border-top:0}
+  .cmp-row>div{border-top:0;padding:10px 20px}
+  .cmp-k{padding-top:20px!important;font-size:16px}
+  .cmp-us{border-left:0;margin:0 12px 16px;border-radius:14px;border:1px solid var(--gold-line)}
+  .cmp-them{padding-bottom:6px!important}
+  .cmp-l{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;color:var(--faint)}
+  .cmp-us .cmp-l{color:var(--gold)}
+}

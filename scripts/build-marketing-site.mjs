@@ -87,7 +87,7 @@ const webPricing = () => `
     <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">${usd(WEBSITE_OFFER.extraPage)}<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
     <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">${usd(WEBSITE_OFFER.blogMonthly)}<small>/mo</small></div><p>About ${WEBSITE_OFFER.blogPostsPerMonth} articles a month on your site, and you can read, edit or hold each one first. ${usd(WEBSITE_OFFER.blogSetup)} once to set it up.</p></div>
   </div>
-  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>.</p>
+  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>. Comparing options? <a href="/compare/">See how we compare to a typical agency</a>.</p>
 </div></section>
 `;
 
@@ -157,6 +157,34 @@ const industriesPage = () => `
   </div>
 </div></section>
 ${ctaBand()}
+`;
+
+// ── BoldLine vs a typical agency. Every BoldLine line is something the contract and pricing already promise; the
+// other column describes the common retainer setup in hedged words and names no one. ──────────────────────────────
+const CMP = [
+  ["How they get paid", "A flat monthly retainer, paid whether your phone rings or not.", "Your plan's minimum or a fee per qualified lead, whichever is higher. We only earn more when you get more."],
+  ["How long you're locked in", "Often 6 to 12 months, agreed up front.", "90 days, then month to month."],
+  ["Who owns the ad account", "Sometimes the agency's own account, so your history stays with them if you leave.", "Always yours, in your name and on your card. We only have manager access."],
+  ["Your ad budget", "Some pay Google for you and bill you back with a markup.", "Goes straight to Google or Meta on your own card. We never hold it or mark it up."],
+  ["Where the clicks go", "Usually your homepage.", "A landing page built for the ad, included on every plan."],
+  ["What the report says", "Impressions, clicks and charts that take a meeting to explain.", "What you spent, what came in, and what we're changing next. Every call and form traced to the ad."],
+  ["Your website", "Another company, another login, another bill.", "The same team builds and looks after it, if you want one."],
+  ["If you're not ready yet", "Most start the day you sign.", "We tell you before you spend a dollar if we don't think it will pay off yet."],
+];
+const comparePage = () => `
+<section class="page-hero"><div class="wrap-x reveal">
+  <div class="eyebrow">How we compare</div>
+  <h1>BoldLine vs <em>a typical agency.</em></h1>
+  <p>Plenty of agencies do good work. This is how the usual retainer setup tends to work, and where ours is different.</p>
+</div></section>
+<section class="x-sec" style="padding-top:10px"><div class="wrap-x">
+  <div class="cmp reveal" role="table" aria-label="BoldLine compared with a typical agency">
+    <div class="cmp-row cmp-head" role="row"><div role="columnheader"></div><div role="columnheader">A typical agency</div><div role="columnheader"><img src="/logo.png" alt="" width="18" height="21"> BoldLine</div></div>
+    ${CMP.map(([k, them, us]) => `<div class="cmp-row" role="row"><div class="cmp-k" role="rowheader">${k}</div><div class="cmp-them" role="cell"><span class="cmp-l">A typical agency</span>${them}</div><div class="cmp-us" role="cell"><span class="cmp-l">BoldLine</span>${us}</div></div>`).join("\n    ")}
+  </div>
+  <p class="cmp-foot reveal">Agencies vary, so ask yours. Everything in the BoldLine column is how we work with every client.</p>
+</div></section>
+${ctaBand("See if we're a fit.", "A 30 minute call. If we don't think we can make your ads pay, we'll tell you.")}
 `;
 
 const pageHero = (eyebrow, h1, sub, ctas = "") => `
@@ -287,6 +315,10 @@ const PAGES = [
     title: `Ads and Websites for ${t.label} | BoldLine Media`,
     desc: t.sub,
     body: tradePage(t), ld: ["ld-org.html"] })),
+  { id: "compare", path: "/compare/", file: "compare/index.html",
+    title: "BoldLine vs a Typical Agency | BoldLine Media",
+    desc: "How BoldLine compares with a typical ad agency retainer: how we get paid, contract length, who owns the ad account, and what the report tells you.",
+    body: comparePage(), ld: ["ld-org.html"] },
 ];
 
 // The FAQ's structured data is built from the visible questions, so the two can never disagree.
@@ -329,7 +361,7 @@ const footer = () => `<footer class="x-foot"><div class="wrap-x">
   <div class="f-top">
     <div><a class="f-brand" href="/"><img src="/logo.png" alt="" width="24" height="28">BoldLine Media</a><p class="f-blurb">Google and Meta ads, landing pages and websites for businesses that want a steadier phone. You always own your ad account.</p></div>
     <div><h4>Services</h4><ul><li><a href="/ads/">Google and Meta ads</a></li><li><a href="/websites/">Websites</a></li><li><a href="/pricing/">Pricing</a></li><li><a href="/free-check/">Free Lead-Leak Check</a></li></ul></div>
-    <div><h4>Who we work with</h4><ul><li><a href="/industries/car-detailing/">Car detailers</a></li><li><a href="/industries/handyman/">Handymen</a></li><li><a href="/industries/">All trades</a></li></ul></div>
+    <div><h4>Who we work with</h4><ul><li><a href="/industries/car-detailing/">Car detailers</a></li><li><a href="/industries/handyman/">Handymen</a></li><li><a href="/industries/">All trades</a></li><li><a href="/compare/">BoldLine vs a typical agency</a></li></ul></div>
     <div><h4>Company</h4><ul><li><a href="/how-it-works/">How it works</a></li><li><a href="/about/">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/contact/">Contact</a></li></ul></div>
     <div><h4>Legal</h4><ul><li><a href="/privacy.html">Privacy</a></li><li><a href="/terms.html">Terms</a></li></ul></div>
   </div>

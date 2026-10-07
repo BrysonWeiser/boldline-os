@@ -2,7 +2,7 @@
 name: marketing-site-pages
 topic: Marketing site
 task: edit, add or restyle a page on boldlinemedia.com (BoldLine's own marketing site), or change its menu, footer, homepage or the test-copy guard
-keywords: [sample websites, examples, /examples/, sample site, Saguaro Pool, sample-guard, sample-bar, verify-sample-sites, scroll motion, scroll animations, pinned hero, word fill, view transitions, lenis, smooth scroll, mo-pin, hero headline, We only earn more when your phone rings more, multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live]
+keywords: [plan finder, pricing slider, website pricing, trade pages, industries, car detailing, handyman, Northline, Cedar and Nail, lead journey, journey of one lead, compare, BoldLine vs a typical agency, sample websites, examples, /examples/, sample site, Saguaro Pool, sample-guard, sample-bar, verify-sample-sites, scroll motion, scroll animations, pinned hero, word fill, view transitions, lenis, smooth scroll, mo-pin, hero headline, We only earn more when your phone rings more, multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live]
 status: LIVE on boldlinemedia.com since 2026-10-06 ~5:30pm Phoenix (merge 44286da, rollback/20261007T003255Z). Test copy (Netlify branch deploy) still to be switched on, on the 10pm reminder, for FUTURE website changes.
 summary: boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. LIVE since 2026-10-06 evening (Phoenix). Future website changes go to the Netlify test copy first, once it is switched on.
 verified: 2026-10-07
@@ -131,3 +131,23 @@ old file would keep showing the old picture. All pages, blog pages and blog JSON
 headline changes, edit og-card.html, re-render, and rename the file again.
 Note for Bryson: a phone that already showed the old preview for a link may keep it for that conversation; new
 shares (and other phones) get the new one. Facebook/LinkedIn can be forced with their preview debuggers.
+
+## 2026-10-07 evening: pricing redesign, trade pages, lead journey, comparison page (dev branch, NOT LIVE)
+Bryson asked what more animation, pages and a pricing redesign would look like, then "Let's do all of that in your order".
+1. **/pricing/**: plan finder (budget slider 500..30,000+, shows the plan + minimum, and the Google+Meta plan from
+   $5,000) and a slow-month/busy-month bar visual of "whichever is higher". Plans come from `PACKAGES` as
+   `data-plans` (no hand-typed prices). Website pricing block (`#website-pricing`) from `WEBSITE_OFFER`. The
+   E-Commerce tab is hidden (`.tab-more`) behind "See the online store plans" (`data-open-tab`), cards untouched so
+   the package tests still match.
+2. **Trade pages**: `/industries/`, `/industries/car-detailing/`, `/industries/handyman/` (TRADES in the generator).
+   Each opens its own sample site: `DEMO_DETAIL` "Northline Auto Detailing" (aurora, chrome scene) at
+   `/examples/car-detailing/`, `DEMO_HANDY` "Cedar and Nail Home Repair" (editorial) at `/examples/handyman/`.
+   Photos: Pexels (free licence) hosted in `img/sample/<trade>-<id>.jpg` (StockSnap and Unsplash block downloads;
+   Wikimedia public-domain photos were too amateur). Gotcha: in the editorial design a long `lineB` gets clipped by
+   the line-reveal mask, so keep hero lines short. Linked from the homepage strip, footer and mobile menu.
+3. **Ads page**: `marketing-src/journey.html`, "the journey of one lead": six steps (search, ad, landing page, form,
+   owner's lock screen, monthly report labelled "Example"), pinned 420vh under `html.mo`, tabs otherwise. Phone
+   mockup keeps 320px proportions and uses `zoom` on small screens (shrinking width cut the contents off).
+4. **/compare/**: BoldLine vs a typical agency, 8 rows, other column hedged ("often", "some"), names nobody.
+Tests: plan finder checked at every budget step; website prices pinned; sample-site suite covers trade samples;
+journey plays 0..5 in order at 390/1280 and is tappable tabs with motion off. Full suite 134/0.

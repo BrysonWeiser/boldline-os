@@ -12,7 +12,7 @@ export const MK = join(ROOT, "marketing-site");
 // Every page the generator writes, in the order it lists them (home first).
 export const SITE_PAGES = ["index.html", "ads/index.html", "websites/index.html", "pricing/index.html",
   "how-it-works/index.html", "about/index.html", "free-check/index.html", "contact/index.html",
-  "industries/index.html", "industries/car-detailing/index.html", "industries/handyman/index.html"];
+  "industries/index.html", "industries/car-detailing/index.html", "industries/handyman/index.html", "compare/index.html"];
 export const SITE_ASSETS = ["site.js", "site.css"];
 
 export const readPage = (rel) => readFileSync(join(MK, rel), "utf8");
