@@ -52,6 +52,24 @@ for (const theme of ["aurora", "cinematic", "editorial"]) {
   ok("and a website object without a picked design changes nothing either", siteBrandKit(base({ website: { brandName: "X" } })) === null);
 }
 
+// 4. Speed: the borrowed typefaces must never hold up the first paint. Loading the font stylesheet the normal way made
+// a landing page wait about 0.7s longer on a slow phone (measured 2026-10-07), on the page the ad money lands on, and a
+// client website about 0.8s. They load in the background and swap in when they arrive.
+{
+  const blocking = (html) => [...html.matchAll(/<link rel="stylesheet" href="https:\/\/fonts\.googleapis[^>]*>/g)].map((m) => m[0])
+    .filter((tag) => !/media="print" onload="this\.media='all'"/.test(tag) && !/<noscript>/.test(tag));
+  const noscriptOk = (html) => [...html.matchAll(/<noscript>(<link rel="stylesheet" href="https:\/\/fonts[^>]*>)<\/noscript>/g)].length;
+  for (const { slug, demo } of LANDING_DEMOS) {
+    const lp = renderLandingPage(demo).replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+    ok(`🔴 ${slug}: the landing page's fonts don't hold up the first paint`, blocking(lp).length === 0, blocking(lp).join(" "));
+    ok(`${slug}: and still load with scripts off`, noscriptOk(renderLandingPage(demo)) === 1);
+  }
+  for (const theme of ["aurora", "cinematic", "editorial"]) {
+    const site = renderSite(base({ website: { theme } }), "home", { base: "https://example.com", theme }).replace(/<noscript>[\s\S]*?<\/noscript>/g, "");
+    ok(`🔴 ${theme}: a client website's fonts don't hold up the first paint`, blocking(site).length === 0);
+  }
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-brand-match: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
