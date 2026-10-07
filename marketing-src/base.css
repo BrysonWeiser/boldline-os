@@ -222,8 +222,8 @@ html.js-tabs .tab-panel.active{display:block;animation:fadeUp .5s ease both}
 @media (max-width:900px){.sys-flow{flex-direction:column;max-width:440px}.sys-arrow{transform:rotate(90deg);padding:8px 0}}
 .pkg .budget{font-size:11.5px;color:var(--faint);margin-bottom:20px;letter-spacing:.01em}
 .pkg ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
-.pkg ul li{font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:flex-start;line-height:1.5}
-.pkg ul li::before{content:"✓";color:var(--gold);font-weight:700;flex-shrink:0}
+.pkg ul li{font-size:12.5px;color:var(--muted);position:relative;padding-left:20px;line-height:1.5}
+.pkg ul li::before{content:"✓";position:absolute;left:0;top:0;color:var(--gold);font-weight:700}
 .pkg .note{font-size:11.5px;color:var(--gold);margin-bottom:18px;line-height:1.55}
 /* Billing-rules callout. Built to read as a deliberate card rather than a pale
    filler band: the same surface, border and radius as the package cards above it,

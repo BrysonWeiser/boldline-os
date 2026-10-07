@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 204 task-keyed entries under `knowledge/`. They surface automatically via the
+> 205 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**204 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**205 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -771,4 +771,7 @@
 - **[website-design-bar](../knowledge/website-design-bar.md)** &mdash; &#9989; verified &middot; 2026-10-06  
   Bryson, 2026-10-06, before the website builder was started - every site we build (clients and BoldLine's own) must be the most modern, best-looking site possible, micro animations and 3D included, "thinking outside the box". Agreed with guardrails - motion and 3D are layered on AFTER the page is fast and readable, and drop out on slow phones and for reduce-motion, because a slow small-business site loses both Google ranking and the call. Several distinct looks rather than one template, the client's own photos over effects, and all existing copy/safety rules still apply.  
   <sub>*task:* design or build any website (a client site from the website builder, or BoldLine's own), or decide how much animation, 3D or effects to use &nbsp;|&nbsp; *keywords:* website design, modern website, micro animations, 3d graphics, webgl, three.js, motion, scroll animation, premium design, website builder, client website, design quality, page speed, core web vitals, reduce motion, website themes</sub>
+- **[website-landing-brand-match](../knowledge/website-landing-brand-match.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  Bryson, 2026-10-07 - (1) a business's website and its landing page must share colours and branding; (2) every button must fit its text and say something specific to that business, not the same copy-pasted label on every site. Built - once a website design is picked, the landing page borrows that website's background, text colours, brand colour, typefaces and corner shape (siteBrandKit); one brand colour rule for both (brandColorOf). Site buttons now come from the writer (cta.explore, cta.send) with fallbacks built from the client's own services. Pinned by verify-brand-match and verify-site-builder.  
+  <sub>*task:* build or change a client's website or landing page, pick colours or fonts for either, add a button label, or check that a business's pages look like one business &nbsp;|&nbsp; *keywords:* brand match, same colors, same branding, landing page colors, website colors, siteBrandKit, brandColorOf, kit, fonts, typeface, landing font, website theme, button labels, button text, generic buttons, our services, learn more, send, call now, cta explore, cta send</sub>
 

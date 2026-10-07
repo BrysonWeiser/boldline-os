@@ -1,5 +1,6 @@
 <section id="reviews">
-  <div class="section-head reveal">
+  <!-- Shown only once there are real reviews to show; until then the section is simply the invitation to leave one. -->
+  <div class="section-head reveal" id="reviewsHead" style="display:none">
     <div class="eyebrow">Reviews</div>
     <h2>What our clients say.</h2>
   </div>
@@ -66,6 +67,7 @@
       grid.appendChild(card);
     });
     document.getElementById('reviewsDisplay').style.display='block';
+    var rh=document.getElementById('reviewsHead'); if(rh) rh.style.display='';
   }).catch(function(){});
 
   // Submit

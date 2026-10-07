@@ -38,7 +38,7 @@ export const SITE_SCHEMA = obj({
   about: obj({ headline: str("About page headline, 3 to 7 words."), story: arr(str("A paragraph of 2 to 4 sentences."), "2 or 3 paragraphs.") }, "The About page."),
   process: arr(obj({ title: str("2 to 4 words."), text: str("One sentence.") }, "A step."), "Exactly 3 steps from first contact to the job being done."),
   faqs: arr(obj({ q: str("A real question a customer would ask."), a: str("An honest answer, 1 to 3 sentences, that never promises what you were not told.") }, "A question."), "4 to 6 questions."),
-  cta: obj({ headline: str("A short closing call to action headline, 3 to 8 words."), sub: str("One sentence."), button: str("Button text, 2 to 4 words, e.g. 'Book a visit' or 'Get a free quote'.") }, "The closing call to action."),
+  cta: obj({ headline: str("A short closing call to action headline, 3 to 8 words."), sub: str("One sentence."), button: str("Button text, 2 to 4 words, e.g. 'Book a visit' or 'Get a free quote'."), explore: str("The second button next to it, which opens their services page. 2 to 4 words, specific to this business, e.g. 'See our pool designs' or 'Browse detail packages'. Never 'Our services' or 'Learn more'."), send: str("The contact form's send button, 2 to 4 words in their voice, e.g. 'Send my request' or 'Request my quote'.") }, "The calls to action."),
   marquee: arr(str("1 to 3 words."), "6 to 8 short service or area words for the moving strip."),
   seo: obj({ title: str("Page title under 60 characters: what they do and where, then the business name."), description: str("Meta description under 155 characters.") }, "Search listing text."),
 }, "Website copy.");

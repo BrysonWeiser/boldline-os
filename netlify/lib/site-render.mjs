@@ -171,7 +171,11 @@ export function siteContent(cl) {
     about: { headline: clean(c.about && c.about.headline, 90) || `About ${name}`, story: list(c.about && c.about.story, 4).map((p) => clean(p, 700)).filter(Boolean) },
     process: list(c.process, 4).map((p) => ({ title: clean(p && p.title, 50), text: clean(p && p.text, 200) })).filter((p) => p.title),
     faqs: list(c.faqs, 8).map((f) => ({ q: clean(f && f.q, 160), a: clean(f && f.a, 600) })).filter((f) => f.q && f.a),
-    cta: { headline: clean(c.cta && c.cta.headline, 90) || "Ready when you are.", sub: clean(c.cta && c.cta.sub, 200) || "Tell us what you need and we'll get back to you fast.", button: clean(c.cta && c.cta.button, 28) || "Get in touch" },
+    cta: { headline: clean(c.cta && c.cta.headline, 90) || "Ready when you are.", sub: clean(c.cta && c.cta.sub, 200) || "Tell us what you need and we'll get back to you fast.", button: clean(c.cta && c.cta.button, 28) || "Get in touch",
+      // Buttons say something about THIS business rather than the same "Our services" / "Send" on every site
+      // (Bryson, 2026-10-07). Sites written before these existed get a fallback built from their own services.
+      explore: clean(c.cta && c.cta.explore, 28) || (services.length > 1 ? `See all ${services.length} services` : "See what we do"),
+      send: clean(c.cta && c.cta.send, 28) || "Send my request" },
     marquee: list(c.marquee, 10).map((m) => clean(m, 40)).filter(Boolean),
     seo: { title: clean(c.seo && c.seo.title, 70), description: clean(c.seo && c.seo.description, 160) },
   };
@@ -205,9 +209,17 @@ function glPalette(scene, dark, a, bg) {
   return (dark ? b.dark : b.light).map((c, i) => mix(c, a, b.lean[i]));
 }
 
+// The one brand colour rule, shared with the landing page so a business's website and its ad page can never disagree:
+// the colour set in the website editor, then the colour set by hand on the client, then the generated page colour.
+export function brandColorOf(cl) {
+  const w = (cl && cl.website) || {};
+  for (const c of [w.brandColor, cl && cl.brandColor, cl && cl.landingPage && cl.landingPage.brandColor]) if (hexOk(c)) return c;
+  return null;
+}
+
 function palette(theme, cl, scene) {
   const w = (cl && cl.website) || {};
-  const brand = hexOk(w.brandColor) ? w.brandColor : hexOk(cl && cl.landingPage && cl.landingPage.brandColor) ? cl.landingPage.brandColor : null;
+  const brand = brandColorOf(cl);
   if (theme === "cinematic") {
     const a = brand || "#2F6FED";
     return { bg: "#F3F1EC", bg2: "#FFFFFF", ink: "#16130F", mute: "#6C655C", line: "rgba(22,19,15,.10)", accent: a, onAccent: onColor(a), card: "rgba(255,255,255,.72)", dark: false,
@@ -229,10 +241,25 @@ const FONTS = {
   editorial: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
 };
 
+const typeOf = (theme) => ({
+  display: theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Fraunces',Georgia,serif" : "'Bricolage Grotesque',system-ui,sans-serif",
+  body: theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Instrument Sans',system-ui,sans-serif" : "'Geist',system-ui,sans-serif",
+  r: theme === "editorial" ? "4px" : theme === "cinematic" ? "28px" : "18px",
+});
+
+// What a client's landing page borrows from their website once a design has been picked (Bryson, 2026-10-07: the
+// website and the landing page for the same business must share colours and branding). Null when there is no website
+// design yet, so an ads-only client's landing page keeps its own look.
+export function siteBrandKit(cl) {
+  const w = (cl && cl.website) || {};
+  if (!SITE_THEMES[w.theme]) return null;
+  const theme = w.theme, P = palette(theme, cl, null), T = typeOf(theme);
+  return { theme, dark: P.dark, bg: P.bg, bg2: P.bg2, ink: P.ink, mute: P.mute, line: P.line, accent: P.accent, onAccent: P.onAccent,
+    fontHref: FONTS[theme], display: T.display, body: T.body, radius: T.r };
+}
+
 function css(theme, P) {
-  const display = theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Fraunces',Georgia,serif" : "'Bricolage Grotesque',system-ui,sans-serif";
-  const body = theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Instrument Sans',system-ui,sans-serif" : "'Geist',system-ui,sans-serif";
-  const r = theme === "editorial" ? "4px" : theme === "cinematic" ? "28px" : "18px";
+  const { display, body, r } = typeOf(theme);
   return `
 :root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mute:${P.mute};--line:${P.line};--ac:${P.accent};--on:${P.onAccent};--card:${P.card};--r:${r};--ease:cubic-bezier(.2,.7,.1,1);--io:cubic-bezier(.7,0,.2,1)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -254,7 +281,7 @@ ${theme === "aurora" ? ".eyebrow{border:1px solid var(--line);border-radius:999p
 .bt>span{position:relative;display:inline-block;transition:transform .55s var(--ease)}
 .bt>span::after{content:attr(data-t);content:attr(data-t) / "";position:absolute;left:0;top:100%;white-space:nowrap}
 @media (hover:hover){.btn:hover .bt>span{transform:translateY(-100%)}}
-${theme === "editorial" ? ".btn{border-radius:2px;letter-spacing:.02em}" : ""}
+${theme === "editorial" ? ".btn{border-radius:2px;letter-spacing:.02em}.pill{border-radius:6px}" : ""}
 /* header */
 .hd{position:fixed;inset:0 0 auto;z-index:50;transition:transform .5s var(--ease),background .4s,backdrop-filter .4s}
 .hd .wrap{display:flex;align-items:center;gap:22px;height:76px}
@@ -278,6 +305,10 @@ ${theme === "editorial" ? ".btn{border-radius:2px;letter-spacing:.02em}" : ""}
 .mnav .close{position:absolute;top:18px;right:20px}
 @media(max-width:880px){.nav,.hd .btn{display:none}.burger{display:block}}
 .nav a,.brand{white-space:nowrap}
+.burger{flex:0 0 auto}
+/* A long business name on a small phone shrinks rather than pushing the menu button off the screen. */
+.brand{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:380px){.hd .wrap{gap:12px}.brand{font-size:15px}}
 @media(max-width:1180px){.hd.many .nav,.hd.many .btn{display:none}.hd.many .burger{display:block}}
 /* hero */
 .hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;overflow:hidden;isolation:isolate}
@@ -313,9 +344,9 @@ section{position:relative}
 .glow{position:absolute;inset:auto;pointer-events:none;width:420px;height:420px;border-radius:50%;filter:blur(90px);opacity:.28;background:var(--ac)}
 /* marquee */
 .marq{border-block:1px solid var(--line);overflow:hidden;padding:22px 0;white-space:nowrap}
-.marq .tr{display:inline-flex;gap:56px;animation:mq 38s linear infinite;padding-left:56px;will-change:transform}
+.marq .tr{display:inline-flex;animation:mq 60s linear infinite;will-change:transform}
 .marq.vel .tr{animation:none}
-.marq span{font-size:clamp(22px,3vw,40px);font-weight:600;color:var(--mute)}
+.marq span{font-size:clamp(22px,3vw,40px);font-weight:600;color:var(--mute);padding-right:56px}
 .marq span b{color:var(--ac);font-weight:inherit;margin-right:56px}
 @keyframes mq{to{transform:translateX(-50%)}}
 /* story fill: the words are only split (and dimmed) by the script */
@@ -327,7 +358,10 @@ html.js .fill .w.lit{opacity:1}
 .ph{position:relative;overflow:hidden;border-radius:var(--r);background:color-mix(in srgb,var(--ink) 8%,var(--bg))}
 .ph img{width:100%;height:100%;object-fit:cover}
 .split{display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(28px,5vw,80px);align-items:center}
-@media(max-width:880px){.split{grid-template-columns:1fr}}
+@media(max-width:880px){.split{grid-template-columns:minmax(0,1fr)}}
+/* A long email or street address must wrap, not widen the column past a small phone's edge. */
+.split>*{min-width:0}
+.info dd,.ft a,.ft p{overflow-wrap:anywhere}
 /* services list */
 .svl{position:relative}
 .svc{position:relative;display:grid;grid-template-columns:1fr 1.2fr;gap:28px;padding:38px 0;border-top:1px solid var(--line);align-items:start}
@@ -353,11 +387,12 @@ html.js .fill .w.lit{opacity:1}
 .rc p{font-size:15px;opacity:.86}
 /* stacked service cards */
 .stk{display:grid;gap:18px}
-.sk{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,4vw,56px);align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:calc(var(--r) * 1.2);padding:clamp(22px,4vw,48px);box-shadow:0 -20px 60px -40px rgba(0,0,0,.35);transform-origin:50% 0}
+.sk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,4vw,56px);align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:calc(var(--r) * 1.2);padding:clamp(22px,4vw,48px);box-shadow:0 -20px 60px -40px rgba(0,0,0,.35);transform-origin:50% 0}
 .sk h3{font-size:clamp(30px,4vw,60px);line-height:1}
 .sk p{color:var(--mute);margin-top:16px;max-width:460px}
+.sk>*{min-width:0}
 .sk .ph{aspect-ratio:4/3}
-@media(max-width:760px){.sk{grid-template-columns:1fr}}
+@media(max-width:760px){.sk{grid-template-columns:minmax(0,1fr)}}
 /* the portal: a photo seen through a window, then stepped into */
 .portal .stage{position:relative;min-height:88svh;display:grid;align-items:end;overflow:hidden}
 .pframe{position:absolute;inset:0;background:radial-gradient(70% 70% at 30% 30%,color-mix(in srgb,var(--ac) 45%,transparent),transparent),${P.dark ? "var(--bg2)" : "var(--ink)"}}
@@ -411,6 +446,9 @@ details.faq p{color:var(--mute);margin-top:12px;max-width:780px}
 .pill{position:fixed;left:50%;bottom:18px;z-index:40;transform:translate(-50%,140%);transition:transform .6s var(--ease);display:flex;gap:6px;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--bg2) 80%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:0 20px 50px -20px rgba(0,0,0,.45)}
 .pill.show{transform:translate(-50%,0)}
 .pill .btn{min-height:46px;padding:0 20px;font-size:14px}
+.pill .btn.ghost{gap:8px}
+.pill .btn.ghost svg{width:16px;height:16px;flex:0 0 auto}
+@media(max-width:380px){.pill .btn{padding:0 16px}.pill .btn.ghost{padding:0 15px}.pill .pl-t{display:none}}
 .pill .btn.ghost{background:var(--bg2)}
 /* page transitions and the cursor ring: created by the script, so they never exist without it */
 .veil{position:fixed;inset:0;z-index:100;pointer-events:none;background:var(--bg);opacity:0;transition:opacity .45s var(--ease)}
@@ -603,7 +641,7 @@ var io='IntersectionObserver' in window?new IntersectionObserver(function(es){es
 q('.rv,.hl,.ph,.rule').forEach(function(el){if(io)io.observe(el);else el.classList.add('in');});
 var fl=q('.fill');fl.forEach(function(p){p.innerHTML=p.textContent.trim().split(/\\s+/).map(function(w){return '<span class="w">'+w.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span> ';}).join('');});
 var sc=q('[data-scene]'),sk=q('.stk .sk'),rails=q('.rail');
-function measure(){rails.forEach(function(r){var tr=r.querySelector('.track'),on=!rm&&innerWidth>=900&&r.querySelectorAll('.rc').length>=3;r.classList.toggle('on',on);if(!on){r.style.height='';return;}var dx=Math.max(0,tr.scrollWidth-innerWidth);r.style.setProperty('--dx',dx);r.style.height=(innerHeight+dx)+'px';});}
+function measure(){rails.forEach(function(r){var tr=r.querySelector('.track'),on=!rm&&innerWidth>=900&&r.querySelectorAll('.rc').length>=5;r.classList.toggle('on',on);if(!on){r.style.height='';return;}var dx=Math.max(0,tr.scrollWidth-innerWidth);if(dx<innerWidth*.4){r.classList.remove('on');r.style.height='';return;}r.style.setProperty('--dx',dx);r.style.height=(innerHeight+dx)+'px';});}
 function upd(){var vh=innerHeight;sc.forEach(function(el){var r=el.getBoundingClientRect(),p;if(el.getAttribute('data-scene')==='pass'){p=(vh*.8-r.top)/Math.max(1,r.height);}else{p=-r.top/Math.max(1,r.height-vh);}el.style.setProperty('--p',cl(p,0,1).toFixed(4));});
 for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].getBoundingClientRect();sk[i].style.setProperty('--c',cl(1-(b.top-a.top)/Math.max(1,a.height),0,1).toFixed(3));}
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
@@ -645,13 +683,13 @@ function formScript(cl) {
   return `var f=d.getElementById('sf');if(f){f.addEventListener('submit',function(e){e.preventDefault();
 var b=f.querySelector('button'),er=f.querySelector('.err'),ph=f.ph.value.trim(),em=f.em.value.trim();
 if(!ph&&!em){er.textContent='Please add a phone number or an email so we can reach you.';er.style.display='block';return;}
-er.style.display='none';b.disabled=true;b.textContent='Sending...';
+er.style.display='none';b.disabled=true;var lbl=b.textContent;b.textContent='Sending...';
 var p={name:f.nm.value,phone:ph,email:em,source:'website',message:f.msg?f.msg.value:'',smsConsentTransactional:false,smsConsentMarketing:false};
 try{p.page=location.href.split('#')[0];var q=new URLSearchParams(location.search);['gclid','wbraid','gbraid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){var v=q.get(k);if(v)p[k]=v;});}catch(x){}
 function done(){f.style.display='none';d.getElementById('sthx').style.display='block';}
 if(PREVIEW){done();return;}
 fetch('/lead?token=${token}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){if(!r.ok)throw 0;done();})
-.catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent='Send';});});}`;
+.catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent=lbl;});});}`;
 }
 
 // ── Page pieces ───────────────────────────────────────────────────────────────────────────
@@ -702,11 +740,11 @@ function footer(cl, base, C, pages = SITE_PAGES) {
 <div><h4>Contact</h4>${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : ""}${addr ? `<p>${esc(addr)}</p>` : ""}</div>
 <div class="fine">&copy; ${new Date().getFullYear()} ${esc(C.name)}. All rights reserved.</div>
 </div></footer>
-<div class="pill">${linkTo(base, "contact", bt(C.cta.button), "btn")}${phone ? `<a class="btn ghost" href="tel:${esc(digits(phone))}" aria-label="Call">Call</a>` : ""}</div>`;
+<div class="pill">${linkTo(base, "contact", bt(C.cta.button), "btn")}${phone ? `<a class="btn ghost" href="tel:${esc(digits(phone))}" aria-label="Call ${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="pl-t">Call</span></a>` : ""}</div>`;
 }
 
 function heroHome(theme, C, base, photos) {
-  const acts = `<div class="acts rv d2">${linkTo(base, "contact", bt(C.cta.button), "btn")}${linkTo(base, "services", bt("Our services"), "btn ghost")}</div>`;
+  const acts = `<div class="acts rv d2">${linkTo(base, "contact", bt(C.cta.button), "btn")}${linkTo(base, "services", bt(C.cta.explore), "btn ghost")}</div>`;
   if (theme === "cinematic") {
     const a = C.hero.lineA || C.hero.headline.split(/\s+/).slice(0, Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
     const b = C.hero.lineB || C.hero.headline.split(/\s+/).slice(Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
@@ -736,7 +774,12 @@ function pageHero(theme, title, sub, eyebrow) {
 const marquee = (C) => {
   const items = (C.marquee.length ? C.marquee : C.services.map((s) => s.name)).slice(0, 8);
   if (!items.length) return "";
-  const row = items.map((t) => `<span><b>&#10022;</b>${esc(t)}</span>`).join("");
+  // The strip slides left by exactly half its length and starts again, so each half has to be wider than the widest
+  // screen. Three short services made a half about 1,000px, and on a big monitor the strip visibly ran out and left a
+  // blank gap. Repeat the items until a half holds at least twelve, then show that half twice.
+  const half = [];
+  while (half.length < 12) half.push(...items);
+  const row = half.map((t) => `<span><b>&#10022;</b>${esc(t)}</span>`).join("");
   return `<div class="marq" aria-hidden="true"><div class="tr">${row}${row}</div></div>`;
 };
 
@@ -756,7 +799,7 @@ function servicesSection(scene, C, base, photos) {
   if (scene === "stack") {
     return `<section class="sec"><div class="wrap">${svcHead(C)}<div class="stk">${C.services.slice(0, 6).map((s, i) => {
       const ph = photos.length ? photos[i % photos.length] : null;
-      return `<article class="sk" style="--i:${i}"><div><h3 class="disp">${esc(s.name)}</h3><p>${esc(s.detail || s.blurb)}</p><div style="margin-top:24px">${linkTo(base, "services", bt("Learn more"), "btn ghost")}</div></div>${photoBlock(ph, "4/3")}</article>`;
+      return `<article class="sk" style="--i:${i}"><div><h3 class="disp">${esc(s.name)}</h3><p>${esc(s.detail || s.blurb)}</p><div style="margin-top:24px">${linkTo(base, "services", bt(s.name.length <= 14 ? `More on ${s.name.toLowerCase()}` : "See the details"), "btn ghost")}</div></div>${photoBlock(ph, "4/3")}</article>`;
     }).join("")}</div></div></section>`;
   }
   return `<section class="sec"><div class="wrap">${svcHead(C)}${svcCards(C, base, Math.min(C.services.length, C.services.length >= 4 ? 4 : 3))}</div></section>`;
@@ -799,7 +842,7 @@ function reviewsTeaser(cl, C, base) {
   const r = revs[0];
   return `<section class="sec"><div class="wrap" style="max-width:980px;text-align:center"><div class="stars rv">${"&#9733;".repeat(r.stars)}</div>
 <p class="disp rv" style="font-size:clamp(26px,3.6vw,46px);line-height:1.2">"${esc(r.text)}"</p><p class="rv d1" style="margin-top:20px;color:var(--mute)">${esc(r.name)}</p>
-<div class="rv d2" style="margin-top:26px">${linkTo(base, "reviews", bt("More reviews"), "btn ghost")}</div></div></section>`;
+<div class="rv d2" style="margin-top:26px">${linkTo(base, "reviews", bt(revs.length > 1 ? `Read all ${revs.length} reviews` : "See the review"), "btn ghost")}</div></div></section>`;
 }
 
 function servicesBody(theme, C, base, photos) {
@@ -845,7 +888,7 @@ function contactBody(theme, cl, C, base) {
 <label>Phone<input name="ph" type="tel" autocomplete="tel" inputmode="tel"></label>
 <label>Email<input name="em" type="email" autocomplete="email"></label>
 ${isHealth(cl) ? "" : `<label>How can we help?<textarea name="msg" rows="4"></textarea></label>`}
-<p class="err" role="alert"></p><button class="btn" type="submit">Send</button></form>
+<p class="err" role="alert"></p><button class="btn" type="submit">${esc(C.cta.send)}</button></form>
 <div class="thanks" id="sthx"><h3 class="disp" style="font-size:30px">Thanks, we got it.</h3><p style="color:var(--mute);margin-top:8px">We'll be in touch shortly.</p></div></div>
 <div><dl class="info rv d1">${phone ? `<dt>Call</dt><dd><a href="tel:${esc(digits(phone))}">${esc(phone)}</a></dd>` : ""}${email ? `<dt>Email</dt><dd><a href="mailto:${esc(email)}">${esc(email)}</a></dd>` : ""}${addr ? `<dt>Visit</dt><dd>${esc(addr)}</dd>` : ""}${hours ? `<dt>Hours</dt><dd>${esc(hours)}</dd>` : ""}${C.area ? `<dt>Service area</dt><dd>${esc(C.area)}</dd>` : ""}</dl>
 ${map ? `<div style="margin-top:30px">${map}</div>` : ""}</div></div></section>`;
@@ -879,7 +922,7 @@ function postBody(theme, C, base, post) {
 <section class="sec" style="padding-top:10px"><div class="wrap" style="max-width:760px">${blocks.map((b) => b && b.kind === "h2"
     ? `<h2 class="disp rv" style="font-size:clamp(24px,3vw,36px);margin:36px 0 12px">${esc(clean(b.text, 140))}</h2>`
     : `<p class="rv" style="font-size:18px;line-height:1.75;margin-bottom:18px">${esc(clean(b && b.text, 1600))}</p>`).join("")}
-<div class="rv" style="margin-top:34px">${linkTo(base, "blog", bt("More articles"), "btn ghost")}</div></div></section>
+<div class="rv" style="margin-top:34px">${linkTo(base, "blog", bt("Read the blog"), "btn ghost")}</div></div></section>
 ${ctaBand(C, base)}`;
 }
 

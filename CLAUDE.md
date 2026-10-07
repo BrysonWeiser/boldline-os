@@ -99,6 +99,10 @@ automated.
   "reduce motion"), mobile-first, real client photos over effects, and every existing rule still holds
   (no emojis, no em dashes, no links back to BoldLine, previews never change anything real). Details in
   KB `website-design-bar`.
+- **ONE BUSINESS, ONE LOOK; EVERY BUTTON FITS AND MEANS SOMETHING (Bryson, 2026-10-07).** A client's website and its
+  landing page share colours, typefaces and shape (enforced: `siteBrandKit` + `verify-brand-match`). Buttons say
+  something specific to that business and never wrap or spill (no copy-pasted "Our services" / "Learn more" / "Send").
+  Details in KB `website-landing-brand-match`.
 - **Never say "local businesses" — he serves businesses nationally/remotely (standing).**
   Applies to all public copy. See KB `linkedin-brand-presence`.
 - **ARIZONA TIME IS THE ONLY CLOCK — check it, never assume it (Bryson, 2026-08-31: "do you

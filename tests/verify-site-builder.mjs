@@ -115,7 +115,17 @@ for (const scene of MOTION.scene) for (const th of THEME_IDS) {
   ok(`🔴 the ${scene} scene (${th}) still shows every service and the story as plain content`, h && ["Back pain", "Neck pain", "TMJ"].every((n) => shown(h).includes(n)) && shown(h).includes("One."));
 }
 ok("the scroll scenes only pin and stretch under the motion class", /html\.mo \.portal\{height:300svh\}/.test(sceneHome("portal", "aurora")) && !/^\.portal\{height/m.test(sceneHome("portal", "aurora")));
-ok("the rail only turns sideways on a wide screen with enough cards", /innerWidth>=900&&r\.querySelectorAll\('\.rc'\)\.length>=3/.test(home));
+// Bryson, 2026-10-07: three pictures sliding sideways "didn't make sense". The sideways scroll needs at least five
+// cards AND real distance to travel (40% of a screen); otherwise the cards sit as a plain grid.
+ok("the rail only turns sideways on a wide screen with enough cards", /innerWidth>=900&&r\.querySelectorAll\('\.rc'\)\.length>=5/.test(home));
+ok("🔴 and only when there is real distance to travel", /if\(dx<innerWidth\*\.4\)\{r\.classList\.remove\('on'\)/.test(home));
+// The moving strip slides by half its length, so each half must outlast the widest screen.
+{
+  const strip = (home.match(/<div class="marq"[^>]*><div class="tr">([\s\S]*?)<\/div><\/div>/) || [])[1] || "";
+  const n = (strip.match(/<span>/g) || []).length;
+  ok("🔴 the moving strip never runs out on a wide screen (each half repeats to at least twelve items)", n >= 24 && n % 2 === 0, `${n} items`);
+  ok("and its two halves are identical, so the loop is seamless", strip.slice(0, strip.length / 2) === strip.slice(strip.length / 2));
+}
 ok("🔴 the right amount: the home page has exactly one big scroll moment", MOTION.scene.every((sc) => { const h = sceneHome(sc, "cinematic"); return (h.match(/class="portal"|class="sec rail"|class="stk"/g) || []).length === 1; }));
 ok("no AI tells: no all-caps labels, no [01] numbering, no monospace font", all.every((x) => !/text-transform:uppercase/.test(x.html) && !/\[\d\d\]/.test(shown(x.html)) && !/JetBrains|monospace/.test(x.html)));
 ok("button labels roll on hover, and the copy is silent to screen readers", /content:attr\(data-t\) \/ ""/.test(home) && /<span class="bt"><span data-t="Book a visit">Book a visit<\/span><\/span>/.test(home));

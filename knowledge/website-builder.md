@@ -426,3 +426,12 @@ Changed in `WEBSITE_OFFER` (pricing-shared.mjs) + the OS copy in index.html (a t
 Websites page. Agreements already signed keep their own stored price (terms live on the deal, not the list).
 Considered and NOT done: pricing care higher (hosting + security + 2 edits + domain management could justify it);
 kept at $100 as an easy yes after a $1,500 build, revisit for new clients once a few sites are live.
+
+## 2026-10-07 night: animation and small-screen fixes (LIVE)
+- **Sideways "rail" scroll** only turns on with 5+ service cards AND at least 40% of a screen to travel; otherwise the
+  cards sit as a grid. Bryson: three pictures sliding sideways "didn't make sense".
+- **Moving services strip** repeats its items until each half holds 12, then shows the half twice, so it loops
+  seamlessly on any screen. It used to run out and leave a blank gap on a big monitor (3 short services).
+- **Small phones (320px)**: business name shrinks instead of pushing the menu button off screen; contact column no
+  longer widened by a long email; stack cards may shrink. Sample bar compacts under 380px; toggle reads "Website".
+- Button wording and website/landing brand match: KB `website-landing-brand-match`.

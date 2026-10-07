@@ -61,8 +61,8 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .b-ads{grid-column:span 4;grid-row:span 2;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
 .b-ads .b-txt{display:flex;flex-direction:column;gap:10px;height:100%}
 .b-web{grid-column:span 2;grid-row:span 2}
-.b-web .b-thumbs{position:relative;height:150px;margin-top:6px}
-.b-web .b-thumbs img{position:absolute;width:78%;border-radius:10px;border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 40px -18px rgba(0,0,0,.9);transition:transform .5s var(--ease)}
+.b-web .b-thumbs{position:relative;height:170px;margin-top:6px}
+.b-web .b-thumbs img{position:absolute;width:78%;height:auto;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:10px;border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 40px -18px rgba(0,0,0,.9);transition:transform .5s var(--ease)}
 .b-web .b-thumbs img:nth-child(1){left:0;top:24px;transform:rotate(-5deg)}
 .b-web .b-thumbs img:nth-child(2){left:11%;top:12px;transform:rotate(0deg);z-index:1}
 .b-web .b-thumbs img:nth-child(3){left:22%;top:0;transform:rotate(5deg);z-index:2}
@@ -73,7 +73,7 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .b-check{grid-column:span 3}
 .mini-feed{display:flex;flex-direction:column;gap:8px}
 .wo-shot{position:relative}
-.wo-open{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:var(--gold);font-weight:600;font-size:13.5px;text-decoration:none}
+.wo-open{display:flex;width:fit-content;align-items:center;gap:6px;margin-top:10px;color:var(--gold);font-weight:600;font-size:13.5px;text-decoration:none}
 .wo-open::after{content:"";position:absolute;inset:0;border-radius:inherit}
 .wo-open span{transition:transform .25s var(--ease)}
 .wo-shot:hover .wo-open span{transform:translateX(4px)}
@@ -180,14 +180,7 @@ footer.x-foot{border-top:1px solid var(--line);padding:64px 0 40px;text-align:le
       on memory. Without it the page is complete and static. Only transform and opacity move. ── */
 .st-line{display:none}
 
-/* Page to page: the header stays put while the page underneath cross-fades. */
-@view-transition{navigation:auto}
-header{view-transition-name:site-head}
-::view-transition-old(root){animation:vtOut .26s ease both}
-::view-transition-new(root){animation:vtIn .5s var(--ease) both}
-@keyframes vtOut{to{opacity:0;transform:translateY(-10px)}}
-@keyframes vtIn{from{opacity:0;transform:translateY(16px)}}
-@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+/* No page-to-page cross-fade: Chrome's cross-document transition left a blank white page on a Windows laptop. */
 
 /* Homepage hero on wide screens: the page holds still while the sample site comes forward and fills
    the screen, then lets go. --e (0 to 1) is set by site.js from the scroll position. */
@@ -343,7 +336,9 @@ a.ind-card:hover{transform:translateY(-4px);border-color:var(--gold-line)}
 .ind-txt h3{font-size:21px;font-weight:650;color:#fff}
 .ind-txt p{font-size:14px;line-height:1.6;color:var(--muted)}
 .ind-txt .b-go{margin-top:auto;text-decoration:none}
-.ind-more{justify-content:center;border-style:dashed}
+.ind-more{justify-content:center;border-style:dashed;grid-column:span 2}
+.ind-more .ind-txt{flex:0 0 auto;max-width:560px;padding:32px}
+.ind-more .ind-txt .b-go{margin-top:8px}
 .ind-strip-sec{padding:0 0 10px}
 .ind-strip{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;padding:18px 22px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.02)}
 .ind-lead{font-size:14px;color:var(--faint);margin-right:4px}
@@ -352,7 +347,7 @@ a.ind-card:hover{transform:translateY(-4px);border-color:var(--gold-line)}
 .ind-strip a.ind-all{border:0;color:var(--gold)}
 .ind-strip a.ind-all i{font-style:normal}
 @media (max-width:1000px){.tr-grid{grid-template-columns:1fr}.tr-shot{max-width:640px}.ind-grid{grid-template-columns:1fr 1fr}.tr-price{grid-template-columns:1fr}.tr-price .hero-ctas{justify-content:flex-start}}
-@media (max-width:640px){.tr-two,.ind-grid{grid-template-columns:1fr}.tr-price{padding:24px}.ind-strip{border-radius:20px}.tr-hero .hero-ctas .btn{flex:1 1 100%}}
+@media (max-width:640px){.ind-more{grid-column:auto}.tr-two,.ind-grid{grid-template-columns:1fr}.tr-price{padding:24px}.ind-strip{border-radius:20px}.tr-hero .hero-ctas .btn{flex:1 1 100%}}
 
 /* ── Ads page: the journey of one lead ── */
 .lj{position:relative;padding:40px 0 60px}

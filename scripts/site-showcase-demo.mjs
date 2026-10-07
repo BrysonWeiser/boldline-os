@@ -16,7 +16,7 @@ export const DEMO = {
       about: { headline: "Family run since 2009", story: ["We started with one truck and a promise to answer the phone.", "Fifteen years later we still do."] },
       process: [{ title: "Design visit", text: "We measure, listen and sketch." }, { title: "Fixed quote", text: "Clear scope and one price." }, { title: "Build", text: "Most pools finish in five to eight weeks." }],
       faqs: [{ q: "How long does a build take?", a: "Most pools finish in five to eight weeks once permits are in." }],
-      cta: { headline: "Ready for a summer at home?", sub: "Book a free design visit.", button: "Book a design visit" }, marquee: ["Custom pools", "Remodels", "Spas"],
+      cta: { headline: "Ready for a summer at home?", sub: "Book a free design visit.", button: "Book a design visit", explore: "See finished pools", send: "Request a design visit" }, marquee: ["Custom pools", "Remodels", "Spas"],
       seo: { title: "Saguaro Pool Co.", description: "Custom pools in Phoenix." } } },
 };
 // Trade samples for the industry pages on boldlinemedia.com (KB marketing-site-pages, "Trade pages"). Made up on
@@ -35,7 +35,7 @@ export const DEMO_DETAIL = {
       about: { headline: "One van, done properly", story: ["We started with a bucket, a buffer and a few neighbors' cars.", "Now we run two vans, and every car still gets the same care."] },
       process: [{ title: "Book online", text: "Choose the service and a time that suits you." }, { title: "We arrive", text: "On time, with everything we need." }, { title: "Drive away", text: "A walk around with you before we leave." }],
       faqs: [{ q: "Do you need my water or power?", a: "No. The van carries both." }, { q: "How long does a full detail take?", a: "Most cars take three to four hours." }],
-      cta: { headline: "Ready for that new car feeling?", sub: "Pick a time that suits you.", button: "Book a detail" }, marquee: ["Full details", "Paint correction", "Ceramic coating"],
+      cta: { headline: "Ready for that new car feeling?", sub: "Pick a time that suits you.", button: "Book a detail", explore: "Browse detail packages", send: "Request my detail" }, marquee: ["Full details", "Paint correction", "Ceramic coating"],
       seo: { title: "Northline Auto Detailing", description: "Mobile car detailing in Scottsdale." } } },
 };
 export const DEMO_HANDY = {
@@ -51,7 +51,7 @@ export const DEMO_HANDY = {
       about: { headline: "Built on finishing the list", story: ["Most people don't need a contractor. They need someone reliable who shows up and gets through the list.", "That's the whole idea."] },
       process: [{ title: "Send your list", text: "Photos help, but a few lines is fine." }, { title: "Get a price", text: "One fixed number for the visit." }, { title: "We get it done", text: "Usually in a single trip." }],
       faqs: [{ q: "Is there a minimum job size?", a: "One hour. Most visits take care of several jobs at once." }, { q: "Do you bring the materials?", a: "Yes. They're listed in your price, so there are no surprises." }],
-      cta: { headline: "Got a list that keeps growing?", sub: "Send it over and get a fixed price.", button: "Get a price" }, marquee: ["Drywall", "Painting", "Fixtures", "Repairs"],
+      cta: { headline: "Got a list that keeps growing?", sub: "Send it over and get a fixed price.", button: "Get a price", explore: "See the jobs we do", send: "Send my list" }, marquee: ["Drywall", "Painting", "Fixtures", "Repairs"],
       seo: { title: "Cedar and Nail Home Repair", description: "Handyman services in Mesa." } } },
 };
 
@@ -69,7 +69,7 @@ export const DEMO_EPOXY = {
       about: { headline: "Floors are all we do", story: ["We started coating our own garage and the neighbors kept asking who did it.", "Now it's a full crew, and every floor still gets ground properly first."] },
       process: [{ title: "Free measure", text: "We check the concrete and talk through finishes." }, { title: "Fixed quote", text: "One price, in writing." }, { title: "Coated and cured", text: "Usually in one or two days." }],
       faqs: [{ q: "How long before I can park on it?", a: "Most floors take light foot traffic the next day and cars after about three days." }, { q: "Will hot tires lift the coating?", a: "Not with a properly ground and coated floor. That's why we grind every one." }],
-      cta: { headline: "Ready to love your garage?", sub: "Book a free measure and get a fixed quote.", button: "Book a free measure" }, marquee: ["Garage floors", "Metallic epoxy", "Flake finishes", "Shops"],
+      cta: { headline: "Ready to love your garage?", sub: "Book a free measure and get a fixed quote.", button: "Book a free measure", explore: "See floor finishes", send: "Book my measure" }, marquee: ["Garage floors", "Metallic epoxy", "Flake finishes", "Shops"],
       seo: { title: "Ironwood Floor Coatings", description: "Epoxy garage floor coatings in Peoria." } } },
 };
 export const DEMO_TINT = {
@@ -85,36 +85,38 @@ export const DEMO_TINT = {
       about: { headline: "Obsessed with the details", story: ["We started tinting friends' cars in a single garage bay.", "Today it's two bays, and we still check every edge under the light before you leave."] },
       process: [{ title: "Pick your package", text: "We help you choose the film for how you drive." }, { title: "Drop it off", text: "Most tint jobs are same day." }, { title: "Pick it up", text: "We walk you through care before you go." }],
       faqs: [{ q: "How long does paint protection film take?", a: "A full front usually takes one day. A full car takes two to three." }, { q: "Is ceramic tint legal?", a: "Yes. We install to your state's legal limits and can tell you exactly what they are." }],
-      cta: { headline: "Ready to protect the car you love?", sub: "Get a quote in one message.", button: "Get a quote" }, marquee: ["Ceramic tint", "Paint protection film", "Ceramic coating"],
+      cta: { headline: "Ready to protect the car you love?", sub: "Get a quote in one message.", button: "Get a quote", explore: "Compare our films", send: "Get my quote" }, marquee: ["Ceramic tint", "Paint protection film", "Ceramic coating"],
       seo: { title: "Blackline Tint and Film", description: "Window tint and paint protection film in Tempe." } } },
 };
 
 // Sample LANDING pages (the ads side): what a click on each trade's ad lands on, built by the real landing page
 // renderer from the same made-up businesses. One layout each so the four show the range.
 const asPhotos = (d) => ((d.website && d.website.stock) || []).map((p, i) => ({ category: "photo", url: p.url, label: p.alt, path: `sample-${i}` }));
-const lpFor = (d, layout, page) => ({ ...d, landingSlug: d.id, callTrackingNumber: d.businessPhone, mediaLibrary: asPhotos(d),
+// The sample landing page belongs to the same made-up business as its sample website, so it carries that website's
+// design: the landing renderer then borrows the website's colours and typefaces (siteBrandKit), as it does for a client.
+const lpFor = (d, layout, page, theme) => ({ ...d, website: { ...d.website, theme }, landingSlug: d.id, callTrackingNumber: d.businessPhone, mediaLibrary: asPhotos(d),
   brandColor: d.website.brandColor, landingPage: { published: true, brandColor: d.website.brandColor, design: { layout }, ...page } });
 export const LANDING_DEMOS = [
   { slug: "car-detailing", demo: lpFor(DEMO_DETAIL, "split", {
     eyebrow: "Mobile detailing in Scottsdale", headline: "Showroom shine without leaving your driveway",
     subheadline: "Hand washes, paint correction and ceramic coating at your home or office. Tell us about your car and get your price today.",
     ctaText: "Get my price", bullets: ["We come to you, with our own water and power", "Gentle on paint, with clean towels for every car", "Ceramic coatings that keep the shine for years"],
-    faqs: [{ q: "How long does a full detail take?", a: "Most cars take three to four hours." }, { q: "Do you need my water or power?", a: "No. The van carries both." }] }) },
+    faqs: [{ q: "How long does a full detail take?", a: "Most cars take three to four hours." }, { q: "Do you need my water or power?", a: "No. The van carries both." }] }, "aurora") },
   { slug: "handyman", demo: lpFor(DEMO_HANDY, "capture", {
     eyebrow: "Handyman services in Mesa", headline: "Your whole to-do list, done in one visit",
     subheadline: "Drywall, painting, fixtures and repairs. Send us your list and get one fixed price.",
     ctaText: "Get my fixed price", bullets: ["One fixed price before we start", "On time, and we call if anything changes", "Clean up included on every job"],
-    faqs: [{ q: "Is there a minimum job size?", a: "One hour. Most visits take care of several jobs at once." }] }) },
+    faqs: [{ q: "Is there a minimum job size?", a: "One hour. Most visits take care of several jobs at once." }] }, "editorial") },
   { slug: "epoxy-floors", demo: lpFor(DEMO_EPOXY, "centered", {
     eyebrow: "Garage floor coatings in Peoria", headline: "A garage floor you'll actually want to show off",
     subheadline: "Ground, repaired and coated in a day or two. Book a free measure and get a fixed quote.",
     ctaText: "Book my free measure", bullets: ["Ground properly so it never peels", "Shrugs off oil, hot tires and Arizona heat", "Fixed quote, measured on site"],
-    faqs: [{ q: "How long before I can park on it?", a: "Light foot traffic the next day, cars after about three days." }] }) },
+    faqs: [{ q: "How long before I can park on it?", a: "Light foot traffic the next day, cars after about three days." }] }, "cinematic") },
   { slug: "window-tint", demo: lpFor(DEMO_TINT, "overlay", {
     eyebrow: "Tint and paint protection in Tempe", headline: "A cooler car and paint that stays perfect",
     subheadline: "Ceramic window tint, paint protection film and coatings, installed in a clean bay. Get your quote in one message.",
     ctaText: "Get my quote", bullets: ["Ceramic tint that blocks the heat you feel", "Film that takes the rock chips, not your paint", "Warranty in writing on film and work"],
-    faqs: [{ q: "How long does paint protection film take?", a: "A full front usually takes one day." }] }) },
+    faqs: [{ q: "How long does paint protection film take?", a: "A full front usually takes one day." }] }, "aurora") },
 ];
 
 // Writes the three designs as HTML into `outDir`, for scripts/build-site-showcase.cjs to photograph.

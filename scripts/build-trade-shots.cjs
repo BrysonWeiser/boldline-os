@@ -10,12 +10,23 @@ const types = { ".css": "text/css", ".js": "text/javascript", ".html": "text/htm
 const srv = http.createServer((q, r) => { let p = decodeURIComponent(q.url.split("?")[0]); if (p.endsWith("/")) p += "index.html"; const f = path.join(ROOT, p);
   if (f.startsWith(ROOT) && fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200, { "content-type": types[path.extname(f)] || "application/octet-stream" }); r.end(fs.readFileSync(f)); } else { r.writeHead(404); r.end(); } });
 const exe = (() => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) && fs.readdirSync(r).find((x) => /^chromium-\d+$/.test(x)); return d ? path.join(r, d, "chrome-linux/chrome") : undefined; })();
+const { execFileSync } = require("child_process");
+const fontCache = new Map();
+const serveFont = async (route) => {
+  const url = route.request().url();
+  try {
+    if (!fontCache.has(url)) fontCache.set(url, execFileSync("curl", ["-sfL", "-A", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36", url], { maxBuffer: 1 << 24 }));
+    await route.fulfill({ status: 200, body: fontCache.get(url), headers: { "content-type": /googleapis/.test(url) ? "text/css" : "font/woff2", "access-control-allow-origin": "*" } });
+  } catch { await route.abort().catch(() => {}); }
+};
 (async () => {
   await new Promise((ok) => srv.listen(0, ok));
   const b = await chromium.launch({ executablePath: exe, args: ["--no-sandbox"] });
   for (const s of SHOTS) {
     const pg = await b.newPage({ viewport: { width: s.w || 1600, height: s.h || 1067 } });
-    await pg.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => (/fonts\./.test(r.request().url()) ? r.continue() : r.abort()));
+    // Google Fonts are fetched with curl and handed over (the browser here can't reach them itself), so the
+    // landing pages show the typefaces they borrow from their websites. Everything else external is blocked.
+    await pg.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => (/fonts\.(googleapis|gstatic)\.com/.test(r.request().url()) ? serveFont(r) : r.abort()));
     await pg.goto(`http://127.0.0.1:${srv.address().port}${s.url}`);
     await pg.addStyleTag({ content: ".bl-sample{display:none!important}body{padding-top:0!important}.hd{inset:0 0 auto!important}.hdr{top:0!important}" });
     await pg.waitForTimeout(3500);

@@ -32,7 +32,9 @@ const promote = (html) => {
 };
 
 // ── The pages ───────────────────────────────────────────────────────────────────────────
-const NAV = [["ads", "/ads/", "Ads"], ["websites", "/websites/", "Websites"], ["pricing", "/pricing/", "Pricing"], ["how", "/how-it-works/", "How it works"], ["about", "/about/", "About"], ["blog", "/blog/", "Blog"]];
+// The links shown along the top bar on a computer: only the three pages a buyer looks for. Everything else is one click
+// away in the menu button (Bryson, 2026-10-07: the full row repeated the menu).
+const NAV = [["ads", "/ads/", "Ads"], ["websites", "/websites/", "Websites"], ["pricing", "/pricing/", "Pricing"]];
 // The phone menu, grouped rather than one long list (Bryson, 2026-10-07: "there are to many things under the hamburger
 // menu but at the same time I want all of those things easily accessible"). Every page is still one tap away: the two
 // things we sell as big boxes, everything else in a two-column grid, and the two actions as buttons at the bottom.
@@ -368,7 +370,7 @@ const PAGES = [
     title: "About BoldLine Media",
     desc: "BoldLine Media only makes more when your ads do. Meet the founder, read what clients say, and leave a review.",
     body: pageHero("About", "Built so we only win <em>when you do.</em>", "BoldLine is a small, focused team that runs ads and builds websites for businesses that want a steadier phone. We take on a select group of clients on purpose.")
-      + part("founder.html") + compareNudge() + part("boutique.html") + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
+      + part("founder.html") + compareNudge() + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
   { id: "check", path: "/free-check/", file: "free-check/index.html",
     title: "Free Lead-Leak Check | BoldLine Media",
     desc: "Send us your website and we'll show you where your business is quietly losing customers, plus the quickest fixes. Free, and no call required.",
@@ -521,7 +523,7 @@ function samplePage(sm, page) {
   });
   const hasLanding = LANDING_DEMOS.some((l) => l.slug === sm.slug);
   const designs = sm.switcher ? THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("")
-    : hasLanding ? `<a aria-current="page" href="/examples/${sm.slug}/">Its website</a><a href="/examples/${sm.slug}/landing/">Landing page</a>` : "";
+    : hasLanding ? `<a aria-current="page" href="/examples/${sm.slug}/">Website</a><a href="/examples/${sm.slug}/landing/">Landing page</a>` : "";
   const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`)
     .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>');
   html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
@@ -544,7 +546,7 @@ function landingSample(l) {
   if (!/<meta name="robots"/i.test(html)) html = html.replace(/<\/head>/i, '<meta name="robots" content="noindex"></head>');
   const bar = part("sample-bar.html").replace("{{NAME}}", l.demo.name)
     .replace("<b><span class=\"bl-w\">Sample site</span><span class=\"bl-n\">Sample</span></b>", "<b><span class=\"bl-w\">Sample landing page</span><span class=\"bl-n\">Sample</span></b>")
-    .replace('<nav class="bl-designs" aria-label="Designs">{{DESIGNS}}</nav>', `<nav class="bl-designs" aria-label="More from this sample"><a href="/examples/${l.slug}/">Its website</a><a aria-current="page" href="/examples/${l.slug}/landing/">Landing page</a></nav>`)
+    .replace('<nav class="bl-designs" aria-label="Designs">{{DESIGNS}}</nav>', `<nav class="bl-designs" aria-label="More from this sample"><a href="/examples/${l.slug}/">Website</a><a aria-current="page" href="/examples/${l.slug}/landing/">Landing page</a></nav>`)
     .replace('href="/websites/"', `href="/industries/${l.slug}/"`);
   html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
   html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${bar}`);
@@ -562,6 +564,8 @@ for (const p of PAGES) outputs[p.file] = render(p);
 // The hand-written pages (privacy, terms, 404, the blog) carry their own copy of the header. Their phone menu is
 // rewritten from the same source, so they can't drift back to the old long list.
 const MENU_BLOCK = /  <div class="nav-mobile">[\s\S]*?\n  <\/div>\n<\/header>/;
+const NAV_BLOCK = /<nav class="nav-links">[\s\S]*?<\/nav>/;
+const navLinks = (id, indent) => `<nav class="nav-links">\n${NAV.map(([k, h, l]) => `${indent}  <a href="${h}"${k === id ? ' class="current" aria-current="page"' : ""}>${l}</a>`).join("\n")}\n${indent}</nav>`;
 {
   const MENU_CSS = /\/\* phone-menu:start[^*]*\*\/\n[\s\S]*?\/\* phone-menu:end \*\/\n/;
   const css = readFileSync(join(OUT, "blog.css"), "utf8");
@@ -571,7 +575,9 @@ const MENU_BLOCK = /  <div class="nav-mobile">[\s\S]*?\n  <\/div>\n<\/header>/;
 for (const [file, id] of [["privacy.html", ""], ["terms.html", ""], ["404.html", ""], ["netlify/lib/blog-render.mjs", "blog"]]) {
   const src = readFileSync(join(OUT, file), "utf8");
   if (!MENU_BLOCK.test(src)) throw new Error(`${file}: no phone menu block to update`);
-  outputs[file] = src.replace(MENU_BLOCK, () => mobileMenu(id));
+  if (!NAV_BLOCK.test(src)) throw new Error(`${file}: no top-bar links to update`);
+  const indent = (src.match(/\n([ \t]*)<nav class="nav-links">/) || ["", "    "])[1];
+  outputs[file] = src.replace(MENU_BLOCK, () => mobileMenu(id)).replace(NAV_BLOCK, () => navLinks(id, indent));
 }
 
 // Run directly it writes (or with --check, compares); imported (by the tests) it only hands back what it
