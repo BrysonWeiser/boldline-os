@@ -50,15 +50,15 @@ const pageHero = (eyebrow, h1, sub, ctas = "") => `
 `;
 
 const HOME = `
-<section class="h-hero"><div class="wrap-x">
+<section class="h-hero"><div class="h-pin"><div class="wrap-x">
   <div class="h-grid">
     <div class="h-copy">
       <div class="eyebrow">Google Ads, Meta Ads and websites</div>
-      <h1 class="h-title pains"><span style="--i:0">Slow weeks.</span> <span style="--i:1">Inconsistent leads.</span> <span class="g" style="--i:2">We fix both.</span></h1>
-      <p class="h-sub">It's not bad luck. Nobody has built your business a system that brings work in. <strong>BoldLine plans, builds and runs your ads</strong>, the landing pages behind them and your website. You get a steadier phone, and we only earn more when your ads do.</p>
+      <h1 class="h-title pains"><span style="--i:0">We only earn</span> <span style="--i:1">more when your</span> <span class="g" style="--i:2">phone rings more.</span></h1>
+      <p class="h-sub"><strong>BoldLine builds and runs your Google and Meta ads</strong>, and the website they send people to. Every call and form is traced back to the ad that caused it, so you always know what's working.</p>
       <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/free-check/">Free Lead-Leak Check</a></div>
 ${part("founding-home.html")}${part("trust.html")}    </div>
-    <div class="h-visual reveal">
+    <div class="h-visual">
       <div class="browser">
         <div class="browser-bar"><span class="bdot"></span><span class="bdot"></span><span class="bdot"></span><span class="burl">yourbusiness.com</span></div>
         <img class="stage-shot" src="/img/site-hero.jpg" width="1296" height="810" alt="A sample website built by BoldLine, on a computer" decoding="async" fetchpriority="high">
@@ -68,13 +68,14 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
       <p class="h-cap">A sample business, built with the same system we use for clients.</p>
     </div>
   </div>
+</div></div><div class="wrap-x">
   <div class="h-strip" aria-label="What we run"><span>Google Ads</span><span>Meta Ads</span><span>Landing pages</span><span>Websites</span><span>Call tracking</span><span>Lead follow-up</span></div>
 </div></section>
 
 <section class="x-sec"><div class="wrap-x">
   <div class="x-head reveal"><div><div class="eyebrow">What we do</div><h2>One team for the ads and the website they send people to.</h2></div></div>
   <div class="bento reveal">
-    <a class="b-card b-ads" href="/ads/">
+    <a class="b-card b-ads" style="--k:0" href="/ads/">
       <div class="b-txt"><h3>Google and Meta ads</h3><p>Campaigns built to find buyers, every call and form tied back to the ad that caused it, and a plain-English report of what came in.</p><span class="b-go">How it works <i>&rarr;</i></span></div>
       <div class="mini-feed" aria-hidden="true">
         <div class="mf"><span class="dot">${icons[0] || ""}</span><span><b>New lead</b><small>Landing page form</small></span><time>2m ago</time></div>
@@ -82,17 +83,17 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
         <div class="mf"><span class="dot">${icons[2] || ""}</span><span><b>New lead</b><small>Google Ads</small></span><time>1h ago</time></div>
       </div>
     </a>
-    <a class="b-card b-web" href="/websites/">
+    <a class="b-card b-web" style="--k:1" href="/websites/">
       <h3>Websites</h3><p>Three modern designs with real motion, still fast on a phone. From $1,500 to build.</p>
       <div class="b-thumbs" aria-hidden="true"><img src="/img/design-editorial.jpg" width="864" height="540" alt="" loading="lazy" decoding="async"><img src="/img/design-cinematic.jpg" width="864" height="540" alt="" loading="lazy" decoding="async"><img src="/img/design-aurora.jpg" width="864" height="540" alt="" loading="lazy" decoding="async"></div>
       <span class="b-go">See the designs <i>&rarr;</i></span>
     </a>
-    <a class="b-card b-price" href="/pricing/">
+    <a class="b-card b-price" style="--k:2" href="/pricing/">
       <div class="b-big">You pay one number, never two.</div>
       <p>Each month it's your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget goes straight to Google and Meta.</p>
       <span class="b-go">See pricing <i>&rarr;</i></span>
     </a>
-    <a class="b-card b-check" href="/free-check/">
+    <a class="b-card b-check" style="--k:3" href="/free-check/">
       <h3>Free Lead-Leak Check</h3><p>Send us your website and we'll show you where customers are slipping away, plus the two or three quickest fixes. No call needed.</p>
       <span class="b-go">Get yours <i>&rarr;</i></span>
     </a>
@@ -102,6 +103,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
 <section class="x-sec" style="padding-top:20px"><div class="wrap-x">
   <div class="x-head reveal"><div><div class="eyebrow">How it works</div><h2>Built carefully, then run every week.</h2></div><a class="x-link" href="/how-it-works/">The full process <span>&rarr;</span></a></div>
   <div class="steps3 reveal">
+    <div class="st-line" aria-hidden="true"><i></i></div>
     <div class="st"><div class="n">01</div><h3>We learn the business</h3><p>Your market, your customer and what a job is worth to you, before a single dollar moves.</p></div>
     <div class="st"><div class="n">02</div><h3>We build it</h3><p>Campaigns, tracking and the page people land on, all checked before anything goes live.</p></div>
     <div class="st"><div class="n">03</div><h3>We run it</h3><p>Tuned on a set schedule, with a plain report of what you spent and what it brought back.</p></div>

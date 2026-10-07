@@ -875,8 +875,8 @@ button.btn{border:0}
 /* ── Homepage hero: copy left, the product right ── */
 .h-hero{position:relative;padding:140px 0 30px;overflow:hidden}
 .h-hero::before{content:"";position:absolute;top:-300px;left:-200px;width:1100px;height:800px;background:radial-gradient(ellipse at center,rgba(200,168,75,.2),rgba(200,168,75,.04) 45%,transparent 70%);pointer-events:none}
-.h-grid{display:grid;grid-template-columns:1.02fr 1fr;gap:56px;align-items:center}
-.h-title{font-family:var(--sans);font-weight:680;letter-spacing:-.045em;line-height:.98;font-size:clamp(44px,5.6vw,84px);color:#fff;margin:20px 0 22px}
+.h-grid{display:grid;grid-template-columns:1.12fr 1fr;gap:52px;align-items:center}
+.h-title{font-family:var(--sans);font-weight:680;letter-spacing:-.045em;line-height:.98;font-size:clamp(44px,4.9vw,64px);color:#fff;margin:20px 0 22px}
 .h-title .g{display:block;background:linear-gradient(100deg,#EBD8A0,var(--gold) 45%,#B8923A);-webkit-background-clip:text;background-clip:text;color:transparent;font-family:var(--accent-serif);font-style:italic;font-weight:500;letter-spacing:-.02em}
 html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;animation-delay:calc(.06s + var(--i,0) * .12s)}
 .h-sub{font-size:clamp(16px,1.5vw,19px);line-height:1.65;color:var(--muted);max-width:540px;margin:0 0 30px}
@@ -884,7 +884,8 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .h-copy .hero-ctas{justify-content:flex-start}
 .h-copy .hero-trust{margin:22px 0 0;justify-content:flex-start;width:auto}
 .h-copy [data-founding]{margin:18px 0 0!important;text-align:left!important}
-.h-visual{position:relative;perspective:1600px}
+.h-visual{position:relative;perspective:1600px;animation:visIn 1s var(--ease) .15s backwards}
+@keyframes visIn{from{opacity:0;transform:translate3d(0,30px,0)}}
 .h-visual .browser{border-radius:16px;border:1px solid rgba(255,255,255,.12);overflow:hidden;background:#0B0E15;box-shadow:0 60px 120px -50px rgba(0,0,0,.9),0 0 0 1px rgba(200,168,75,.08),0 0 90px -20px rgba(200,168,75,.2);transform:rotateY(-9deg) rotateX(4deg);transform-origin:60% 50%;transition:transform .9s var(--ease)}
 .h-visual:hover .browser{transform:rotateY(-3deg) rotateX(1deg)}
 .h-visual .browser-bar{display:flex;align-items:center;padding:9px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--line)}
@@ -893,7 +894,7 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .h-visual .stage-shot{display:block;width:100%;height:auto}
 .h-visual .phone{position:absolute;right:-14px;bottom:-40px;width:31%;border-radius:22px;padding:5px;background:#0E1118;border:1px solid rgba(255,255,255,.14);box-shadow:0 40px 80px -30px rgba(0,0,0,.95);transform:rotate(5deg) translateY(var(--py,0px))}
 .h-visual .phone img{display:block;width:100%;height:auto;border-radius:17px}
-.h-visual .float-toast{position:absolute;left:-20px;bottom:18%;display:flex;align-items:center;gap:8px;background:#0F121A;border:1px solid var(--line);border-radius:30px;padding:9px 15px;font-size:12.5px;color:var(--ink);box-shadow:0 20px 40px -18px rgba(0,0,0,.9);animation:toastIn .7s var(--ease) 1.1s both}
+.h-visual .float-toast{position:absolute;top:auto;right:auto;left:-20px;bottom:18%;display:flex;align-items:center;gap:8px;background:#0F121A;border:1px solid var(--line);border-radius:30px;padding:9px 15px;font-size:12.5px;color:var(--ink);box-shadow:0 20px 40px -18px rgba(0,0,0,.9);animation:toastIn .7s var(--ease) 1.1s backwards}
 @keyframes toastIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
 .h-cap{font-size:12px;color:var(--faint);margin-top:58px;text-align:left;max-width:58%}
 .h-strip{margin-top:70px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;gap:14px 36px;flex-wrap:wrap;justify-content:space-between;font-size:13px;font-weight:600;letter-spacing:.02em;color:var(--faint)}
@@ -985,6 +986,7 @@ footer.x-foot{border-top:1px solid var(--line);padding:64px 0 40px;text-align:le
 /* ── Responsive ── */
 @media (max-width:1000px){
   .h-grid{grid-template-columns:1fr;gap:48px}
+  .h-title{font-size:clamp(44px,8vw,66px)}
   .h-visual{max-width:640px}
   .h-visual .browser{transform:none}
   .bento{grid-template-columns:1fr 1fr}
@@ -998,7 +1000,7 @@ footer.x-foot{border-top:1px solid var(--line);padding:64px 0 40px;text-align:le
 @media (max-width:640px){
   .wrap-x{padding:0 20px}
   .h-hero{padding:120px 0 20px}
-  .h-title{font-size:clamp(42px,12.5vw,58px)}
+  .h-title{font-size:clamp(38px,11vw,54px)}
   .h-copy .hero-ctas .btn{flex:1 1 100%}
   .h-visual .phone{right:-6px;bottom:-26px;width:32%;border-radius:16px;padding:4px}
   .h-visual .phone img{border-radius:12px}
@@ -1023,6 +1025,81 @@ footer.x-foot{border-top:1px solid var(--line);padding:64px 0 40px;text-align:le
 @media (prefers-reduced-motion:reduce){
   .h-visual .browser,.b-card,.b-web .b-thumbs img{transition:none}
   .mini-feed .mf{animation:none;opacity:1;transform:none}
-  .h-visual .float-toast{animation:none}
+  .h-visual .float-toast,.h-visual{animation:none}
   html.js-tabs .h-title>span{animation:none}
 }
+
+/* ── Scroll motion. Everything below only applies once site.js has added .mo to <html>, which it does
+      only when the visitor hasn't asked for reduced motion and the device isn't on data saver or short
+      on memory. Without it the page is complete and static. Only transform and opacity move. ── */
+.st-line{display:none}
+
+/* Page to page: the header stays put while the page underneath cross-fades. */
+@view-transition{navigation:auto}
+header{view-transition-name:site-head}
+::view-transition-old(root){animation:vtOut .26s ease both}
+::view-transition-new(root){animation:vtIn .5s var(--ease) both}
+@keyframes vtOut{to{opacity:0;transform:translateY(-10px)}}
+@keyframes vtIn{from{opacity:0;transform:translateY(16px)}}
+@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}
+
+/* Homepage hero on wide screens: the page holds still while the sample site comes forward and fills
+   the screen, then lets go. --e (0 to 1) is set by site.js from the scroll position. */
+html.mo-pin .h-hero{padding:0 0 30px;overflow:clip}
+html.mo-pin .h-pin{height:185vh}
+html.mo-pin .h-pin>.wrap-x{position:sticky;top:0;height:100vh;display:flex;align-items:center;padding-top:56px}
+html.mo-pin .h-grid{width:100%}
+html.mo-pin .h-copy{transform:translate3d(calc(var(--e,0) * -90px),0,0);opacity:calc(1 - var(--e,0) * 1.6);will-change:transform,opacity}
+html.mo-pin .h-hero.past .h-copy{pointer-events:none}
+html.mo-pin .h-visual{z-index:3;transform-origin:50% var(--oy,40%);transform:translate3d(calc(var(--dx,0px) * var(--e,0)),calc(var(--dy,0px) * var(--e,0)),0) scale(calc(1 + (var(--s,1) - 1) * var(--e,0)));will-change:transform}
+html.mo-pin .h-visual .browser{transition:none;transform:rotateY(calc(-9deg * (1 - var(--e,0)))) rotateX(calc(4deg * (1 - var(--e,0))))}
+html.mo-pin .h-visual .phone{transform:translate3d(calc(var(--e,0) * 10%),calc(var(--e,0) * -14%),0) rotate(calc(5deg - var(--e,0) * 5deg))}
+html.mo-pin .h-visual .float-toast,html.mo-pin .h-cap{opacity:calc(1 - var(--e,0) * 2.5)}
+html.mo-pin .h-hero::before{opacity:calc(1 - var(--e,0))}
+html.mo-pin .h-hero+.x-sec{padding-top:40px}
+html.mo-pin .h-strip{margin-top:30px}
+
+/* Smaller screens: no hold, the sample site just drifts up a little faster than the page. */
+html.mo:not(.mo-pin) .h-visual .browser{transform:translate3d(0,calc(var(--e,0) * -36px),0)}
+html.mo:not(.mo-pin) .h-visual .phone{transform:rotate(5deg) translate3d(0,calc(var(--e,0) * -70px),0)}
+
+/* Inner pages: the opening title lifts away as you scroll into the page. */
+html.mo .page-hero .wrap-x{transform:translate3d(0,calc(var(--ph,0) * -60px),0);opacity:calc(1 - var(--ph,0) * .9)}
+
+/* Headings and the founder quote light up word by word as they scroll through the screen. */
+html.mo .wf .w{opacity:.2;transition:opacity .35s ease}
+html.mo .wf .w.on{opacity:1}
+
+/* The four tiles land one after another, each tipping up into place. */
+html.mo .bento{perspective:1400px}
+html.mo .bento.sr-in .b-card{animation:cardIn .9s var(--ease) backwards;animation-delay:calc(var(--k,0) * .1s)}
+@keyframes cardIn{from{opacity:0;transform:translate3d(0,46px,0) rotateX(10deg)}}
+/* The lead feed plays when you reach it, not while you're still up at the headline. */
+html.mo .bento:not(.sr-in) .mini-feed .mf{animation-play-state:paused}
+html.mo .bento.sr-in .mini-feed .mf:nth-child(1){animation-delay:.6s}
+html.mo .bento.sr-in .mini-feed .mf:nth-child(2){animation-delay:1.1s}
+html.mo .bento.sr-in .mini-feed .mf:nth-child(3){animation-delay:1.6s}
+
+/* With a mouse: tiles lean toward the pointer and a soft gold light follows it. */
+html.mo-fine .b-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(200,168,75,.13),transparent 45%);opacity:0;transition:opacity .35s ease}
+html.mo-fine .b-card:hover::after{opacity:1}
+html.mo-fine .b-card:hover{transform:perspective(1000px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg)) translateY(-4px)}
+
+/* How it works: a gold line draws through the three steps and each one lights as it is reached. */
+html.mo .steps3{position:relative}
+html.mo .st-line{display:block;position:absolute;left:0;right:0;top:-22px;height:2px;border-radius:2px;background:var(--line);overflow:hidden}
+html.mo .st-line i{position:absolute;inset:0;background:linear-gradient(90deg,#B8923A,var(--gold),#EBD8A0);transform-origin:left center;transform:scaleX(var(--sp,0))}
+html.mo .st{transition:border-color .5s ease,background .5s ease,transform .6s var(--ease),opacity .6s ease;opacity:.45;transform:translate3d(0,14px,0)}
+html.mo .st.lit{opacity:1;transform:none;border-color:var(--gold-line);background:linear-gradient(180deg,rgba(200,168,75,.07),rgba(255,255,255,.012))}
+html.mo .st .n{transition:text-shadow .5s ease}
+html.mo .st.lit .n{text-shadow:0 0 18px rgba(200,168,75,.7)}
+@media (max-width:1000px){
+  html.mo .steps3{padding-left:24px}
+  html.mo .st-line{left:4px;right:auto;top:0;bottom:0;width:2px;height:auto}
+  html.mo .st-line i{background:linear-gradient(180deg,#B8923A,var(--gold),#EBD8A0);transform-origin:center top;transform:scaleY(var(--sp,0))}
+}
+
+/* Smooth scrolling (desktop, see site.js) */
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+.lenis.lenis-stopped{overflow:hidden}

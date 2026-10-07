@@ -686,3 +686,98 @@
   addEventListener('scroll',function(){if(!q){q=true;requestAnimationFrame(f);}},{passive:true});
   addEventListener('resize',f);f();
 })();
+
+/* Scroll motion (the styles are at the end of new.css). Turned on only when the visitor hasn't asked for
+   reduced motion and the device isn't on data saver, a 2G connection or short on memory, so a slow phone
+   gets the plain page straight away. One scroll loop, throttled to the screen's frame rate. */
+(function(){
+  var H=document.documentElement, mm=function(q){return !!(window.matchMedia&&matchMedia(q).matches);};
+  var c=navigator.connection||{};
+  if(mm('(prefers-reduced-motion: reduce)')||c.saveData||/(^|-)2g$/.test(c.effectiveType||'')||(navigator.deviceMemory&&navigator.deviceMemory<4)||!window.requestAnimationFrame) return;
+  H.classList.add('mo');
+  var fine=mm('(hover: hover) and (pointer: fine)'); if(fine) H.classList.add('mo-fine');
+  var clamp=function(v){return v<0?0:v>1?1:v;}, ease=function(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;};
+
+  /* Word by word: wrap each word of the chosen headings in a span, keeping any markup inside them. */
+  var wf=[].slice.call(document.querySelectorAll('.x-head h2,.section-head h2,.f-strip blockquote'));
+  wf.forEach(function(el){
+    (function walk(n){[].slice.call(n.childNodes).forEach(function(k){
+      if(k.nodeType===3){ if(!/\S/.test(k.nodeValue)) return; var f=document.createDocumentFragment();
+        k.nodeValue.split(/(\s+)/).forEach(function(t){ if(!t) return; if(/^\s+$/.test(t)){f.appendChild(document.createTextNode(t));return;}
+          var s=document.createElement('span'); s.className='w'; s.textContent=t; f.appendChild(s); });
+        n.replaceChild(f,k);
+      } else if(k.nodeType===1) walk(k);
+    });})(el);
+    el.classList.add('wf'); el._w=el.querySelectorAll('.w');
+  });
+
+  var hero=document.querySelector('.h-hero'), pin=hero&&hero.querySelector('.h-pin'), vis=hero&&hero.querySelector('.h-visual');
+  var ph=document.querySelector('.page-hero');
+  var steps=document.querySelector('.steps3'), stl=steps&&steps.querySelector('.st-line'), sts=steps?steps.querySelectorAll('.st'):[];
+  var pinned=false, vw=0, vh=0;
+
+  /* Where the sample site has to travel to end up centred and filling most of the screen. */
+  function measure(){
+    vw=window.innerWidth; vh=window.innerHeight;
+    pinned=!!(pin&&vis&&vw>=1060&&vh>=640);
+    H.classList.toggle('mo-pin',pinned);
+    if(!pinned) return;
+    var b=vis.querySelector('.browser'); hero.style.setProperty('--e','0');
+    var wrap=pin.firstElementChild.getBoundingClientRect(), v=vis.getBoundingClientRect(), br=b.getBoundingClientRect();
+    var relY=br.top-wrap.top, s=Math.min(vw*.74/br.width,(vh-150)*.8/br.height);
+    hero.style.setProperty('--s',s.toFixed(3));
+    hero.style.setProperty('--oy',(br.height/2)+'px');
+    hero.style.setProperty('--dx',(vw/2-(v.left+br.width/2)).toFixed(1)+'px');
+    hero.style.setProperty('--dy',(vh/2+12-(relY+br.height/2)).toFixed(1)+'px');
+  }
+
+  var q=false;
+  function frame(){
+    q=false; var y=window.scrollY||0;
+    if(hero){
+      var e;
+      if(pinned){ var run=pin.offsetHeight-vh; e=ease(clamp(y/(run*.82))); }
+      else e=clamp(y/(vh*.9));
+      hero.style.setProperty('--e',e.toFixed(4));
+      hero.classList.toggle('past',e>.45);
+    }
+    if(ph) ph.style.setProperty('--ph',clamp(y/(ph.offsetHeight||1)).toFixed(4));
+    for(var i=0;i<wf.length;i++){
+      var r=wf[i].getBoundingClientRect(); if(r.bottom<-50||r.top>vh+50) continue;
+      var p=clamp((vh*.92-r.top)/(vh*.5)), n=wf[i]._w, lit=Math.round(p*n.length);
+      for(var j=0;j<n.length;j++) n[j].classList.toggle('on',j<lit);
+    }
+    if(steps){
+      var sr=steps.getBoundingClientRect(), sp=clamp((vh*.85-sr.top)/(sr.height+vh*.25));
+      steps.style.setProperty('--sp',sp.toFixed(4));
+      for(var k=0;k<sts.length;k++) sts[k].classList.toggle('lit',sp>=(k+.5)/sts.length-.12);
+    }
+  }
+  function kick(){ if(!q){ q=true; requestAnimationFrame(frame); } }
+  measure(); frame();
+  addEventListener('scroll',kick,{passive:true});
+  var rt; addEventListener('resize',function(){ clearTimeout(rt); rt=setTimeout(function(){ measure(); frame(); },120); });
+  addEventListener('load',function(){ measure(); frame(); });
+
+  /* With a mouse, tiles lean toward the pointer and carry a soft light under it. */
+  if(fine) [].forEach.call(document.querySelectorAll('.b-card'),function(cd){
+    cd.addEventListener('pointermove',function(ev){ var r=cd.getBoundingClientRect(), x=(ev.clientX-r.left)/r.width, y=(ev.clientY-r.top)/r.height;
+      cd.style.setProperty('--mx',(x*100).toFixed(1)+'%'); cd.style.setProperty('--my',(y*100).toFixed(1)+'%');
+      cd.style.setProperty('--ry',((x-.5)*5).toFixed(2)+'deg'); cd.style.setProperty('--rx',((.5-y)*5).toFixed(2)+'deg'); });
+    cd.addEventListener('pointerleave',function(){ cd.style.setProperty('--rx','0deg'); cd.style.setProperty('--ry','0deg'); });
+  });
+
+  /* Smooth, weighted scrolling with a mouse or trackpad only (phones keep their own native scroll). Loaded
+     once the page is idle, so it never slows the first view. Scrollable popups and the menu opt out. */
+  if(fine) addEventListener('load',function(){ (window.requestIdleCallback||function(f){setTimeout(f,1200);})(function(){
+    var s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js';
+    s.integrity='sha384-jqpi9VmOdhyLoLURgjCn7EpnG9BbnHW57ibIZoeaIU+erWDH3k8fQQg0xH2ySjnw'; s.crossOrigin='anonymous';
+    s.onload=function(){ if(!window.Lenis) return;
+      [].forEach.call(document.querySelectorAll('.modal-overlay,.nav-mobile,[role=dialog],textarea'),function(el){ el.setAttribute('data-lenis-prevent',''); });
+      var l=new Lenis({lerp:.1,smoothWheel:true,anchors:true}); window.__lenis=l;
+      l.on('scroll',kick);
+      (function raf(t){ l.raf(t); requestAnimationFrame(raf); })(performance.now());
+    };
+    document.head.appendChild(s);
+  },{timeout:3000}); });
+})();
