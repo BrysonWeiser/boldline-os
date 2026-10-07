@@ -196,7 +196,7 @@ most visitors aren't comparing yet); put it where comparing starts instead.
   link doesn't count, the old pricing one would have passed), and the pills must match rows on /compare/.
 - Sales idea given to Bryson: text the /compare/ link after a cold call when someone says an agency burned them.
 
-## 2026-10-07 night: phone menu grouped (dev branch, waiting on Bryson's "go" after before/after screenshots)
+## 2026-10-07 night: phone menu grouped (LIVE, Bryson said "go" after before/after screenshots)
 Bryson: "there are to many things under the hamburger menu but at the same time I want all of those things easily
 accessible". Was nine equal links. Also found: the menu was see-through (page text showed behind it), and on short
 phones it ran off the screen while the page's floating Book a Call bar sat on top of "Contact".
@@ -209,3 +209,19 @@ phones it ran off the screen while the page's floating Book a Call bar sat on to
   `netlify/lib/blog-render.mjs`) get their menu block rewritten by the builder, so they can't drift.
 - Desktop top bar unchanged. Checked at 320x568, 390x667, 390x844 and 768. Guard in verify-marketing-pages: every
   page's phone menu reaches all nine destinations plus the booking link, in the grouped shape.
+
+## 2026-10-07 night: website FAQ + menu button on computers (LIVE)
+Bryson (photo of the site on his laptop): "Do all that you can do right now" + "on pc the top menu bar needs to be
+fixed it doesn't have the hamburger menu like mobile".
+- **Website questions in the FAQ.** All six old questions were about ads. Five added, written ONCE in
+  `marketing-src/faq-web.html`: who owns the site + domain, how long it takes, who writes the words, changes after
+  launch, stopping the care plan. Shown under a "Websites" label in the /how-it-works/ FAQ (and its FAQ structured
+  data) AND as its own section "What people ask about websites" on /websites/. No prices in them on purpose (prices
+  live in pricing-shared.mjs). Every answer is taken from the website agreement (`netlify/lib/website-deal.mjs`
+  WA-2), and verify-marketing-pages pins each claim to the agreement's wording, so changing the agreement fails the
+  test until the FAQ is re-checked.
+- **Menu button on computers.** The same button and grouped menu now show at every width. On a computer the top
+  links stay and the button opens the menu as a 440px panel under the bar's right edge (`--nav-max` lines it up:
+  1180px on site.css pages, 1000px on blog.css pages). Clicking elsewhere or Escape closes it.
+- Gotcha: verify-public-source fails if a comment in the shared CSS/JS names Bryson or carries a date. Keep those
+  in the builder or KB, not in public files.

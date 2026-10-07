@@ -58,6 +58,18 @@ ${MENU_MORE.map(([k, h, l]) => `      <a${here(k, id)} href="${h}">${l}</a>`).jo
 
 const icons = [...part("showcase.html").matchAll(/<svg[\s\S]*?<\/svg>/g)].map((m) => m[0]);
 
+// The FAQ, with the website questions written once (faq-web.html) and shown both here and on /websites/. Every
+// answer there is something the website agreement (netlify/lib/website-deal.mjs) already promises.
+const faqHtml = () => part("faq.html").replace("<!--FAQ_WEB-->", part("faq-web.html").trimEnd());
+const webFaq = () => `
+<section class="x-sec" id="faq"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Questions</div><h2>What people ask about websites.</h2></div><a class="x-link" href="/how-it-works/#faq">All questions <span>&rarr;</span></a></div>
+  <div class="faq-list reveal">
+${part("faq-web.html").trimEnd()}
+  </div>
+</div></section>
+`;
+
 const ctaBand = (title = "Ready for a steadier phone?", sub = "A 30 minute call. We'll tell you straight whether we're a fit, and what we'd do first.") => `
 <section class="cta-band"><div class="wrap-x"><div class="cta-box reveal">
   <div><h2>${title}</h2><p>${sub}</p></div>
@@ -342,7 +354,7 @@ const PAGES = [
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
-    body: promote(part("websites.html")) + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html", "ld-service.html"] },
+    body: promote(part("websites.html")) + webFaq() + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
     desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
@@ -351,7 +363,7 @@ const PAGES = [
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",
-    body: promote(part("process.html")) + part("fit.html") + part("faq.html") + ctaBand(), ld: ["ld-org.html", "faq"] },
+    body: promote(part("process.html")) + part("fit.html") + faqHtml() + ctaBand(), ld: ["ld-org.html", "faq"] },
   { id: "about", path: "/about/", file: "about/index.html",
     title: "About BoldLine Media",
     desc: "BoldLine Media only makes more when your ads do. Meet the founder, read what clients say, and leave a review.",
@@ -381,7 +393,7 @@ const PAGES = [
 
 // The FAQ's structured data is built from the visible questions, so the two can never disagree.
 function faqLd() {
-  const qa = [...part("faq.html").matchAll(/<summary>([\s\S]*?)<\/summary><div class="faq-a">([\s\S]*?)<\/div><\/details>/g)]
+  const qa = [...faqHtml().matchAll(/<summary>([\s\S]*?)<\/summary><div class="faq-a">([\s\S]*?)<\/div><\/details>/g)]
     .map((m) => ({ "@type": "Question", name: m[1].replace(/<[^>]+>/g, "").trim(), acceptedAnswer: { "@type": "Answer", text: m[2].replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim() } }));
   return `<script type="application/ld+json">\n${JSON.stringify({ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: qa })}\n</script>\n`;
 }

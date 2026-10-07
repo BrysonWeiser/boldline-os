@@ -875,6 +875,13 @@ button.btn{border:0}
 .nm-ctas .hdr-cta{margin:0;background:var(--gold);color:#0B0D14;border:1px solid var(--gold);text-transform:none;letter-spacing:0}
 .nm-check{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft)}
 @media (max-width:340px){.nm-main,.nm-ctas{grid-template-columns:1fr}}
+/* On a computer the same button and menu are there too. The top links stay; the button opens the grouped menu as a
+   panel under the bar's right edge. */
+.nav-toggle{display:flex}
+@media (min-width:1061px){
+  .nav-mobile{position:absolute;top:calc(100% - 6px);right:max(20px,calc((100% - var(--nav-max,1180px)) / 2));width:440px;margin-top:0}
+  .nav-mobile.open{max-height:calc(100vh - 110px)}
+}
 
 /* ══ Multi-page site: the new homepage, page heroes, bento tiles, CTA band, footer. Layered after the base
    styles. Black and gold, left-aligned, bigger and quieter. ══ */
@@ -1405,3 +1412,9 @@ html.mo .lj-stick{position:sticky;top:0;height:100vh;padding-top:60px}
 @media (max-width:760px){.cmpn{grid-template-columns:1fr;padding:26px 22px;gap:20px}.cmpn-go{justify-self:start}}
 /* The phone menu covers the page, so the floating Book a Call button steps aside while it is open. */
 html.menu-open .sticky-cta{display:none}
+/* FAQ split into Ads and Websites (the website questions also appear on /websites/). */
+.faq-sub{margin:18px 0 2px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.faq-sub:first-child{margin-top:0}
+/* FAQ split into Ads and Websites (the website questions also appear on /websites/). */
+.faq-sub{margin:18px 0 2px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.faq-sub:first-child{margin-top:0}
