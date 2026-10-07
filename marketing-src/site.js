@@ -830,3 +830,30 @@
     });
   });
 })();
+
+/* Ads page: the journey of one lead. Steps are tabs anyone can tap; with scroll motion on (html.mo) the section
+   holds while you scroll and the steps advance by themselves. */
+(function(){
+  var sec=document.querySelector('.lj'); if(!sec) return;
+  var steps=sec.querySelectorAll('.lj-steps li'), scr=sec.querySelectorAll('.lj-scr'), dots=sec.querySelectorAll('.lj-dots i'), pin=sec.querySelector('.lj-pin');
+  var cur=-1;
+  function go(i){
+    if(i===cur) return; cur=i;
+    for(var k=0;k<steps.length;k++){ var on=k===i; steps[k].classList.toggle('on',on); steps[k].setAttribute('aria-selected',on?'true':'false'); if(scr[k]) scr[k].classList.toggle('on',on); if(dots[k]) dots[k].classList.toggle('on',on); }
+  }
+  [].forEach.call(steps,function(li,i){
+    var pick=function(){
+      if(document.documentElement.classList.contains('mo')&&pin){ var top=pin.getBoundingClientRect().top+window.scrollY, run=pin.offsetHeight-window.innerHeight; window.scrollTo({top:top+run*((i+.5)/steps.length),behavior:'smooth'}); }
+      else go(i);
+    };
+    li.addEventListener('click',pick);
+    li.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); pick(); } });
+  });
+  go(0);
+  if(!document.documentElement.classList.contains('mo')||!pin) return;
+  var q=false;
+  function frame(){ q=false; var r=pin.getBoundingClientRect(), run=pin.offsetHeight-window.innerHeight; if(run<=0) return;
+    var p=Math.max(0,Math.min(.9999,-r.top/run)); go(Math.floor(p*steps.length)); }
+  addEventListener('scroll',function(){ if(!q){ q=true; requestAnimationFrame(frame); } },{passive:true});
+  addEventListener('resize',frame); frame();
+})();

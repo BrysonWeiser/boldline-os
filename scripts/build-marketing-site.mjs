@@ -252,7 +252,7 @@ const PAGES = [
     title: "Google and Meta Ads Management | BoldLine Media",
     desc: "Campaigns built to find buyers, every lead tied to the ad that caused it, and reporting in plain English. You own your ad account.",
     body: pageHero("Google and Meta ads", "Ads that <em>pay for themselves.</em>", "We plan, build and run your Google and Meta ads and the landing pages behind them. Every call and form is tracked back to the ad that caused it, so you always know what's working.", `${book()}<a class="btn btn-ghost" href="/pricing/">See pricing</a>`)
-      + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
+      + part("journey.html") + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",

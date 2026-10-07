@@ -154,6 +154,30 @@ for (const path of ["/pricing/", "/about/", "/how-it-works/"]) {
   await close();
 }
 
+// The journey of one lead on /ads/: scrolling plays all six steps in order; with motion off it is tabs.
+for (const width of [390, 1280]) {
+  const { page, close } = await open(width, "/ads/");
+  const seen = await page.evaluate(async () => {
+    const pin = document.querySelector(".lj-pin"), top = pin.getBoundingClientRect().top + scrollY, run = pin.offsetHeight - innerHeight, out = [];
+    for (let i = 0; i < 6; i++) { scrollTo(0, top + run * (i + .5) / 6); await new Promise((r) => setTimeout(r, 120)); out.push([...document.querySelectorAll(".lj-steps li")].findIndex((l) => l.classList.contains("on")) + "/" + [...document.querySelectorAll(".lj-scr")].findIndex((l) => l.classList.contains("on"))); }
+    return out.join(",");
+  });
+  ok(`🔴 ${width}px: scrolling the lead journey plays all six steps in order`, seen === "0/0,1/1,2/2,3/3,4/4,5/5", seen);
+  const fits = await page.evaluate(() => { const ph = document.querySelector(".lj-phone").getBoundingClientRect(); return ph.height <= innerHeight && document.documentElement.scrollWidth <= document.documentElement.clientWidth; });
+  ok(`${width}px: the journey's phone fits on screen`, fits);
+  await close();
+}
+{
+  const { page, close } = await open(390, "/ads/", { reduce: true });
+  const r = await page.evaluate(async () => {
+    const held = getComputedStyle(document.querySelector(".lj-stick")).position;
+    document.querySelectorAll(".lj-steps li")[3].click(); await new Promise((r) => setTimeout(r, 50));
+    return { held, on: [...document.querySelectorAll(".lj-scr")].findIndex((l) => l.classList.contains("on")) };
+  });
+  ok("🔴 with motion off the journey doesn't hold the page, and the steps are tappable", r.held !== "sticky" && r.on === 3, JSON.stringify(r));
+  await close();
+}
+
 await browser.close();
 await server.close();
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
