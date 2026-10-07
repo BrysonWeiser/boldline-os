@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: Stages 1-3 LIVE 2026-10-07; Stage 4 (ARIA voice + Hey ARIA) built on the dev branch, waiting on his OK
+status: Stages 1-4 LIVE 2026-10-07, plus the start-up screen
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -234,3 +234,18 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
 - Testing the model headlessly: Playwright route() can't carry the 92 MB body (browser closes) and the proxy CA isn't
   trusted inside module workers; the working recipe is a local mirror server that curls each URL once and rewrites
   `https://cdn.jsdelivr.net/` and `https://huggingface.co/` inside the JS to itself (scratchpad `vt/m.cjs`).
+
+## Start-up screen LIVE (2026-10-07): "I didn't get the cool loading screen you showed me in the preview"
+- The preview had a JARVIS-style boot; the real OS still showed the old "Loading your dashboard" spinner. Now
+  `#osboot` sits right after `<body>` in `index.html` as plain HTML/CSS/JS, so it shows the instant the page arrives,
+  before React, Babel or Supabase have downloaded (that wait is most of the load time).
+- Spinning gold and ice rings around a glowing core, "BOLDLINE OS", five mono lines with dotted leaders
+  (Authenticating ok, Reading client accounts ok, Syncing leads ok, Loading the call list ready, ARIA core online), a
+  gold progress bar, "Tap to skip".
+- Timing: lines tick ~330 ms apart while loading; once the app calls `window.__osReady()` they finish fast; minimum
+  1.5 s on screen, then a 0.55 s fade and the element is removed. Click or any key skips. 25 s failsafe always hides it.
+  Reduced motion: no animation, no minimum.
+- `__osReady()` is called in AuthGate when there is no session (login screen) and in App right after the
+  `dataState === "loading"` early return, so it covers the data load too and the old spinner is never seen.
+- 🔴 It can never hide an error: `window.onerror` and the missing-library watchdog both call `window.__osBootHide()`
+  first. It is a sibling of `#root`, so the watchdog's "root is empty" check is unaffected.
