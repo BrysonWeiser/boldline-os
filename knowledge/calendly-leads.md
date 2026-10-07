@@ -102,3 +102,19 @@ event types, the booking popup showed *"This calendar is currently unavailable"*
 the direct link worked seconds later. That message means the event type is off, deleted, or
 MID-SAVE. It was transient and cleared on a retry in a private window. Check for a genuinely
 switched-off event type first, but do not assume a real fault until a clean retry also fails.
+
+## 2026-10-07: a second booking type for WEBSITE clients (decided, waiting on Bryson's setup)
+Bryson: the one Calendly event asks about ad budget and ad packages, so it only suits ads clients. Options weighed
+and the recommendation he accepted:
+- **Keep Calendly** (already paid, already feeding OS leads and the OS calendar). Building our own booking tool was
+  advised against: calendar sync, time zones, reminders, rescheduling and meeting links are about a week of work to
+  replace a $10/mo tool, and its failures land on prospects. Cal.com is a good free option but switching means
+  rebuilding the OS connection for a $10/mo saving.
+- **Add a second event type "Website call"** (link ending `website`), duplicated from the 30 min one, with the
+  budget and package questions swapped for: business description, current website link, what the new site should do.
+  Location set to Google Meet or Zoom on BOTH events so every booking gets a meeting link automatically.
+- The original event must keep its question order: the site prefills the package answer by position (`a3`).
+- Steps are in the 8am Wed Oct 7 reminder (trigger `trig_011tCixTvVNJdb9B8mrPgLqN`, Job D).
+- **When he sends the link:** point website buttons (Websites page, website pricing, sample-site bar, website CTAs)
+  at it, keep ads buttons on `/30min`, label those imported leads "Website call" (the importer already reads every
+  event type), add tests.
