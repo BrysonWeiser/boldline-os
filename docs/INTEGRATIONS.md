@@ -441,9 +441,9 @@
 - **[netlify-new-format-function-req-url](../knowledge/netlify-new-format-function-req-url.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Netlify NEW-format functions (export default async (req)) receive the ORIGINAL request URL in req.url, NOT the rewrite target's query. OLD-format (exports.handler + event.queryStringParameters) DO get the rewrite target's query. For new-format functions behind a rewrite, parse params from req.url's PATH.  
   <sub>*task:* debug why a Netlify function behind a redirect or rewrite is not receiving its query params, and read path params correctly &nbsp;|&nbsp; *keywords:* export-default, exports.handler, req.url, queryStringParameters, netlify-rewrite, cb141a7</sub>
-- **[two-netlify-sites](../knowledge/two-netlify-sites.md)** &mdash; &#9989; verified &middot; 2026-07-02  
-  One git repo deploys as TWO separate Netlify sites, both from main — the OS (repo-root netlify.toml, index.html at /*) and the marketing site (base dir marketing-site, its own netlify.toml). Each has its OWN env-var list.  
-  <sub>*task:* understand or configure the two separate Netlify sites (OS vs marketing) and which branch and base dir each uses &nbsp;|&nbsp; *keywords:* netlify.toml, marketing-site, base-directory, boldline-media.netlify.app, second-netlify-site</sub>
+- **[two-netlify-sites](../knowledge/two-netlify-sites.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  One git repo deploys as THREE separate Netlify sites, all from main — the OS (repo-root netlify.toml, index.html at /*), the marketing site (base dir marketing-site, its own netlify.toml) and, since 2026-10-07, the client-websites site boldline-sites (base dir sites). Each has its OWN env-var list. The marketing site also builds the dev branch as a test copy.  
+  <sub>*task:* understand or configure the Netlify sites (OS, marketing, client websites) and which branch and base dir each uses &nbsp;|&nbsp; *keywords:* netlify.toml, marketing-site, base-directory, boldline-media.netlify.app, second-netlify-site, third netlify site, boldline-sites, sites base directory, branch deploys, test copy, build skipped</sub>
 
 ## OS
 
