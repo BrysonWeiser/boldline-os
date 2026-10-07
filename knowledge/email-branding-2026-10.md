@@ -28,3 +28,10 @@ verified: 2026-10-07
 `verify-email-brand` (77 checks): header + no Georgia + no emoji on every EMAIL_TYPES template and the newsletter; header
 defined once; report counts, no dash in subject/body, portal link, Bryson signoff, no-adPerf case, XSS; both report sends use
 the new email; lead email colour. Suite 144/144.
+
+## Follow-up (same day): the free Lead-Leak Check email to PROSPECTS
+- Found in the "anything else?" sweep: its fixed wording had 3 em dashes (intro, closing, preheader) and its writing prompt
+  had 10 (a model mirrors the style it is given; the output is also run through `humanize`). All removed; it now uses
+  EMAIL_SANS. Owner-only subjects ("[Review before sending] ... — email") keep theirs (exempt). Pinned in verify-email-brand.
+- The client AGREEMENT was reviewed and left as is: a light, printable serif legal document is right for a contract, and
+  existing signed agreements must not move a byte (verify-billing-for-sales 5b).

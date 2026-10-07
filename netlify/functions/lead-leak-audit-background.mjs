@@ -28,10 +28,11 @@ import { humanize } from "../lib/humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL, sendEmail, escapeHTML, GOLD } from "../lib/report-shared.mjs";
 import { emailShell } from "../lib/client-emails-shared.mjs";
+import { EMAIL_SANS } from "../lib/email-brand.mjs";
 import { lookAtSite, metricLines } from "../lib/site-vision.mjs";
 
 const BOOK_URL = "https://calendly.com/theboldlinemedia/30min";
-const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+const SANS = EMAIL_SANS;
 const DARK = { head: "#F5F3EA", body: "#C6CAE0", muted: "#8B91B8" };
 
 const anthropic = new Anthropic();
@@ -122,14 +123,14 @@ const inspectSite = async (rawUrl) => {
 };
 
 // ── 2. generate the audit (Claude + web search) ─────────────────────────────
-const buildSystem = () => `You are the analyst behind BoldLine Media's free "Lead-Leak Check" — a quick, genuinely helpful mini-audit of a prospect's website and online presence that shows them where they are likely LOSING potential customers, plus the highest-impact fixes. BoldLine Media is a digital marketing agency (owner: Bryson Weiser) that runs managed Google & Meta ads and builds custom landing pages for businesses of any size. It works with them remotely and nationally, so NEVER say "local businesses" and never suggest it only serves one city.
+const buildSystem = () => `You are the analyst behind BoldLine Media's free "Lead-Leak Check", a quick, genuinely helpful mini-audit of a prospect's website and online presence that shows them where they are likely LOSING potential customers, plus the highest-impact fixes. BoldLine Media is a digital marketing agency (owner: Bryson Weiser) that runs managed Google & Meta ads and builds custom landing pages for businesses of any size. It works with them remotely and nationally, so NEVER say "local businesses" and never suggest it only serves one city.
 
-The reader is a business owner who just requested this audit on our website. This email IS the audit — it must deliver real value on its own, feel personal to THEIR site, and leave them thinking "these people clearly know what they're doing." It is also a first impression, so be helpful and encouraging — never insulting, never generic.
+The reader is a business owner who just requested this audit on our website. This email IS the audit, it must deliver real value on its own, feel personal to THEIR site, and leave them thinking "these people clearly know what they're doing." It is also a first impression, so be helpful and encouraging, never insulting, never generic.
 
 You are given: (a) a SCREENSHOT of their homepage as a phone renders it, when one is available, plus Google's own speed measurements of the live page, (b) what we pulled from their homepage (title, meta description, main headline, whether it has a mobile viewport tag, a click-to-call link, a contact form, image/script counts, page weight, and a text sample, where anything reported as not visible in the page source means WE COULD NOT SEE IT rather than that it does not exist), and (c) web search, which you should use to check their Google Business Profile, reviews, and whether they appear to be running ads.
 
-HARD ACCURACY RULES — this goes to a real stranger, so a single wrong claim kills the deal and the brand:
-- Base every observation on the actual page data provided or something you genuinely confirmed via web search. If you did NOT confirm something, do not assert it — either leave it out or phrase it as a question ("I couldn't find a Google Business Profile — if you don't have one yet, that's the single biggest quick win").
+HARD ACCURACY RULES, this goes to a real stranger, so a single wrong claim kills the deal and the brand:
+- Base every observation on the actual page data provided or something you genuinely confirmed via web search. If you did NOT confirm something, do not assert it, either leave it out or phrase it as a question ("I couldn't find a Google Business Profile, if you don't have one yet, that's the single biggest quick win").
 - NEVER invent specifics: no made-up review counts, star ratings, owner names, traffic numbers, or "you're losing $X per month." No fabricated statistics of any kind.
 - 🔴 WHEN A SCREENSHOT IS ATTACHED, IT IS THE TRUTH AND THE PAGE SOURCE IS NOT. The screenshot is the page after it finished loading in a real browser on a phone, which is what their customer actually gets. The page source is the skeleton that arrived first. Where the two disagree, believe the screenshot, and you may then describe what you can SEE as fact: the layout, what is above the fold, how the buttons read, whether a form is visible, how it looks on a phone. Say what you noticed looking at it, because that is what proves you really looked. If there is NO screenshot this time, you are back to the source alone and the rule below applies at full strength.
 - 🔴 NEVER TELL THEM SOMETHING IS MISSING FROM THEIR SITE. You are reading the first HTML response only. Wix, Squarespace, GoDaddy, Webflow and every JavaScript site add their contact forms, phone links and half their page after that, so a thing you cannot see is very often sitting right there on the live page. Anything marked NOT VISIBLE IN THE PAGE SOURCE is UNKNOWN, not absent, and you must not build a finding on it. This is the single most damaging mistake available to you: every other point in this email asks them to take your word for it, but "you have no contact form" is something they can disprove in four seconds by scrolling their own homepage, and the moment they do, everything else you wrote is worthless too. If you want to raise it anyway, ASK: "I could not see a form on the homepage, though it may be further down or added by your site builder. If people can only reach you by calling, adding one short form is the quickest win there is." Never state it as fact.
@@ -140,9 +141,9 @@ HARD ACCURACY RULES — this goes to a real stranger, so a single wrong claim ki
 STYLE:
 - Warm, plain-English, confident, concise. Sound like a helpful expert, not a salesperson and not a robot. No hype, no jargon dumps.
 - NO emojis and no decorative symbols anywhere.
-- Be specific to THEIR site — reference their actual headline / title / what they appear to do so it is obviously not a template.
+- Be specific to THEIR site, reference their actual headline / title / what they appear to do so it is obviously not a template.
 
-OUTPUT — respond with EXACTLY this and nothing before it:
+OUTPUT, respond with EXACTLY this and nothing before it:
 First line, alone: SUBJECT: <a specific, non-spammy subject line, about 6-9 words, referencing their site or business>
 Then a blank line, then the audit body in light markdown. Formatting rules for the body:
 - Open with one or two sentences that prove you actually looked at their specific site.
@@ -150,8 +151,8 @@ Then a blank line, then the audit body in light markdown. Formatting rules for t
     **<short leak name>**
     One or two sentences on what is happening and why it is costing them leads.
     - Fix: the concrete, specific fix.
-- Close with 2-3 sentences: which single fix to do first, and a low-pressure invitation to book a quick free call with Bryson to walk through it. Do NOT paste any URL or booking link — a button is added automatically below your text.
-Use only "**bold**" for the leak names and "- " for bullets. No top-level "#" headings. Keep the whole thing tight — a busy owner should read it in under two minutes.`;
+- Close with 2-3 sentences: which single fix to do first, and a low-pressure invitation to book a quick free call with Bryson to walk through it. Do NOT paste any URL or booking link, a button is added automatically below your text.
+Use only "**bold**" for the leak names and "- " for bullets. No top-level "#" headings. Keep the whole thing tight, a busy owner should read it in under two minutes.`;
 
 const generateReport = async (site, vision) => {
   // 🔴 The exact words handed to the model for anything we looked for and did not find.
@@ -167,7 +168,7 @@ const generateReport = async (site, vision) => {
     `Page title: ${site.title || "(none found)"}`,
     `Main headline (H1): ${site.h1 || "(none found)"}`,
     `Meta description: ${site.metaDesc || "(missing)"}`,
-    `Mobile viewport tag: ${site.hasViewport ? "present" : "MISSING — page may not be mobile-friendly"}`,
+    `Mobile viewport tag: ${site.hasViewport ? "present" : "MISSING, page may not be mobile-friendly"}`,
     // 🔴 A THING WE FOUND IS A FACT. A THING WE DID NOT FIND IS NOT.
     // These three are read out of the first HTML response, and every site builder on earth
     // (Wix, Squarespace, GoDaddy, Webflow) renders them afterwards with JavaScript. Reporting
@@ -264,11 +265,11 @@ const button = (label, url) =>
   `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto 4px"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${escapeHTML(url)}" style="display:inline-block;padding:13px 30px;font-family:${SANS};font-size:14px;font-weight:700;color:#15110A;text-decoration:none;border-radius:10px">${escapeHTML(label)} &rarr;</a></td></tr></table>`;
 
 const buildEmailHtml = ({ bodyMd, siteLabel }) => {
-  const intro = `<p style="margin:0 0 16px;font-family:${SANS};font-size:15px;line-height:1.65;color:${DARK.body}">Thanks for requesting a free Lead-Leak Check${siteLabel ? " for " + escapeHTML(siteLabel) : ""}. Here is a quick, honest look at where your site may be leaving leads on the table — and the fixes that matter most.</p>`;
-  const closing = `<p style="margin:16px 0 0;font-family:${SANS};font-size:12.5px;line-height:1.6;color:${DARK.muted}">No pressure and no obligation — if even one of these fixes helps you land another customer, this audit did its job. Prefer email? Just reply to this message and it comes straight to Bryson.</p>`;
+  const intro = `<p style="margin:0 0 16px;font-family:${SANS};font-size:15px;line-height:1.65;color:${DARK.body}">Thanks for requesting a free Lead-Leak Check${siteLabel ? " for " + escapeHTML(siteLabel) : ""}. Here is a quick, honest look at where your site may be leaving leads on the table, and the fixes that matter most.</p>`;
+  const closing = `<p style="margin:16px 0 0;font-family:${SANS};font-size:12.5px;line-height:1.6;color:${DARK.muted}">No pressure and no obligation. If even one of these fixes helps you land another customer, this audit did its job. Prefer email? Just reply to this message and it comes straight to Bryson.</p>`;
   const bodyHtml = intro + mdToBody(bodyMd) + button("Book a Free 30-Minute Call", BOOK_URL) + closing;
   return emailShell({
-    preheader: "Your free Lead-Leak Check — where your site may be losing customers, and the top fixes.",
+    preheader: "Your free Lead-Leak Check: where your site may be losing customers, and the top fixes.",
     bodyHtml,
     footerNote: "BoldLine Media. Google &amp; Meta ads and landing pages, managed for you.",
   });
