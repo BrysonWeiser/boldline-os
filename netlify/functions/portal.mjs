@@ -590,8 +590,8 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
   const kpis = '<div class="kpis">'
     + tile(Nouns + ", 30 days", String(last30.length), W.kind === "sale" ? "Counted from your order records" : q30 + " counted as qualified", true)
     + tile(Nouns + " in " + monthName(thisMonth), String(nThis), esc(trendLine))
-    + tile("Ad spend, 30 days", perf ? money(spend30) : "&ndash;", perf ? "Paid by you straight to " + payTo : "Shows once your ad account is connected")
-    + tile("Cost per " + noun, cpl != null ? money2(cpl) : "&ndash;", cpl != null ? clicks30.toLocaleString("en-US") + " clicks on your ads" : perf ? "Shows after your first " + noun : "Needs your ad account connected")
+    + tile("Ad spend, 30 days", perf ? money(spend30) : "Not yet", perf ? "Paid by you straight to " + payTo : "Shows once your ad account is connected")
+    + tile("Cost per " + noun, cpl != null ? money2(cpl) : "Not yet", cpl != null ? clicks30.toLocaleString("en-US") + " clicks on your ads" : perf ? "Shows after your first " + noun : "Needs your ad account connected")
     + "</div>";
   // One series, so one colour and no legend: the title names it. Each bar carries its own
   // label for a screen reader and a tooltip on hover or tap (it is focusable for that).

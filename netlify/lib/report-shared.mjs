@@ -3,6 +3,7 @@ import { humanize } from "./humanize.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { pipelineProgress } from "./pipeline-shared.mjs";
 import { resultWords } from "./contract-shared.cjs";
+import { brandColorOf } from "./site-render.mjs";
 
 import { SUPABASE_URL } from "./supabase-url.mjs";
 
@@ -446,16 +447,22 @@ export const notifyOwnerOfLead = async (client, lead) => {
 // own leads — headlined with the client's business name, not BoldLine's,
 // since from the lead's perspective this email comes from the business they
 // contacted.
-export const leadEmailHTML = (client, bodyText) => `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
+// 🔴 IN THE BUSINESS'S OWN COLOUR, NOT BOLDLINE GOLD (2026-10-07). The customer contacted that
+// business, so the accent is its brand colour from the same rule its website and landing page use
+// (brandColorOf), and a neutral ink when none is set. BoldLine's gold has no business here.
+export const leadEmailHTML = (client, bodyText) => {
+  const accent = brandColorOf(client) || "#1F2937";
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
 <div style="max-width:480px;margin:0 auto;padding:28px 20px">
   <div style="margin-bottom:18px;text-align:center">
     <div style="font-size:16px;font-weight:700;letter-spacing:.04em;color:#1F2937;text-transform:uppercase">${escapeHTML(client.name)}</div>
-    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
+    <div style="margin:6px auto 0;height:2px;width:34px;background:${accent}"></div>
   </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:22px 22px;font-size:14px;line-height:1.6;color:#1F2937">${escapeHTML(bodyText).replace(/\n/g, "<br>")}</div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${accent};border-radius:14px;padding:22px 22px;font-size:14px;line-height:1.6;color:#1F2937">${escapeHTML(bodyText).replace(/\n/g, "<br>")}</div>
   <div style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center">This is an automated message from ${escapeHTML(client.name)}.</div>
 </div>
 </body></html>`;
+};
 
 export const sendSMS = async ({ to, body }) => {
   // SMS is OFF by default (Bryson, 2026-07-25) — the trial Twilio account's A2P
@@ -588,6 +595,15 @@ const logEntry = (note, cat) => ({
 // WEEKLY run: a weekly internal briefing to Bryson for EVERY active client
 // (so he stays current on monthly-tier clients too), plus the client-facing
 // performance report for weekly-tier clients only.
+// The CLIENT's report email, in the same dark design as every other client email (2026-10-07).
+// Loaded on demand because client-emails-shared imports this file; a static import back would
+// be a loop. The internal briefing below keeps the plain light layout: only Bryson reads it.
+const clientReportEmail = async (client, period, text) => {
+  const { renderReportEmail } = await import("./client-emails-shared.mjs");
+  const base = String(process.env.URL || "https://boldlinemedia.com").replace(/\/$/, "");
+  return renderReportEmail({ period, text, client, portalUrl: client.portalToken ? `${base}/portal?token=${client.portalToken}` : "" });
+};
+
 const processWeekly = async (supabaseAdmin, row, testMode = false) => {
   const client = row.data;
   const pkg = findPkg(client.packageId);
@@ -623,10 +639,11 @@ const processWeekly = async (supabaseAdmin, row, testMode = false) => {
     });
   }
   if (clientDue) {
+    const rep = await clientReportEmail(client, "weekly", clientText);
     await sendEmail({
       to: testMode ? process.env.OWNER_EMAIL : client.email,
-      subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your Weekly Performance Report — ${client.name}`,
-      html: reportToHTML(clientText, { label: "Weekly Performance Report", subtitle: client.name, internal: false, contactName: client.contactName }),
+      subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}${rep.subject}`,
+      html: rep.html,
       text: clientText,
     });
   }
@@ -666,17 +683,19 @@ const processMonthly = async (supabaseAdmin, row, testMode = false) => {
   const clientText = await generateText(clientP.system, clientP.user);
   const testPrefix = testMode ? "[TEST] " : "";
 
-  // Owner's copy first (a duplicate on retry is harmless), then the client send.
+  // Owner's copy first (a duplicate on retry is harmless), then the client send. Both carry the
+  // SAME html, so Bryson's copy is exactly what the client saw.
+  const rep = await clientReportEmail(client, "monthly", clientText);
   await sendEmail({
     to: process.env.OWNER_EMAIL,
-    subject: `${testPrefix}[Copy] ${client.name} — Monthly Performance Report (sent to client)`,
-    html: reportToHTML(clientText, { label: "Monthly Performance Report", subtitle: client.name, internal: false, contactName: client.contactName }),
+    subject: `${testPrefix}[Copy] ${client.name}: monthly report (sent to client)`,
+    html: rep.html,
     text: clientText,
   });
   await sendEmail({
     to: testMode ? process.env.OWNER_EMAIL : client.email,
-    subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}Your Monthly Performance Report — ${client.name}`,
-    html: reportToHTML(clientText, { label: "Monthly Performance Report", subtitle: client.name, internal: false, contactName: client.contactName }),
+    subject: `${testPrefix}${testMode ? `[would go to ${client.email}] ` : ""}${rep.subject}`,
+    html: rep.html,
     text: clientText,
   });
 

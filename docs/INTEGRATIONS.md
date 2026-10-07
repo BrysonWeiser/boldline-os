@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 209 task-keyed entries under `knowledge/`. They surface automatically via the
+> 210 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**209 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**210 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -231,6 +231,9 @@
 - **[branded-lead-email-dormant](../knowledge/branded-lead-email-dormant.md)** &mdash; &#9940; dead-end &middot; 2026-07-02  
   DORMANT/DEAD-END — the branded lead email can't ship: verifying boldlinemedia.com in Resend needs a subdomain MX record Wix won't create, and the onboarding@resend.dev fallback sender lands in spam. So the branded email is dormant; the plain Netlify form notification is used instead. Reactivate only if the domain leaves Wix.  
   <sub>*task:* enable or understand why the branded HTML lead-notification email is disabled &nbsp;|&nbsp; *keywords:* submission-created.mjs, resend-domain-verification, wix-subdomain-MX, onboarding@resend.dev, spam</sub>
+- **[email-branding-2026-10](../knowledge/email-branding-2026-10.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  Bryson, 2026-10-07, "lets look at the email branding" then "fix it". Found 5 issues: the weekly/monthly REPORT (the email clients get most) was a white/grey template unlike every other client email; its heading AND subject had an em dash; it was signed "The BoldLine Media Team"; it had no numbers; the header everywhere was a dated Georgia serif wordmark; and emails to a client's own customers used BoldLine gold. Fixed: one header (gold B logo + "BoldLine Media" in sans) defined once in netlify/lib/email-brand.mjs; reports now use the dark shell with counted number tiles, a portal button, signed by Bryson, no dashes; lead emails use the business's brand colour (brandColorOf) or neutral ink.  
+  <sub>*task:* change how BoldLine's emails look (client lifecycle emails, weekly/monthly reports, newsletter, emails to a client's customers), the email header/logo, or the report email's numbers &nbsp;|&nbsp; *keywords:* email branding, email header, email logo, report email, weekly report email, monthly report email, renderReportEmail, reportStats, email-brand, brandHeaderRow, leadEmailHTML, newsletter email, dark email, em dash subject</sub>
 - **[resend-email-sending](../knowledge/resend-email-sending.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Email is sent via Resend using RESEND_API_KEY (+ optional REPORTS_FROM_EMAIL sender). Used by OS report/blog emails and the marketing submission-created function. The marketing site needs only RESEND_API_KEY; if REPORTS_FROM_EMAIL is unset it falls back to onboarding@resend.dev. Functions fail soft.  
   <sub>*task:* send transactional or notification email from a serverless function via Resend &nbsp;|&nbsp; *keywords:* RESEND_API_KEY, REPORTS_FROM_EMAIL, onboarding@resend.dev, resend, fail-soft</sub>
