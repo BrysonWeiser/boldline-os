@@ -173,6 +173,16 @@
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       document.documentElement.classList.toggle('menu-open', open);
     });
+    // On a computer the menu is a dropdown, so a click anywhere else or Escape closes it.
+    var closeMenu = function(){
+      if(!mobile.classList.contains('open')) return;
+      mobile.classList.remove('open');
+      toggle.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+      document.documentElement.classList.remove('menu-open');
+    };
+    document.addEventListener('click', function(e){ if(!header.contains(e.target)) closeMenu(); });
+    document.addEventListener('keydown', function(e){ if(e.key === 'Escape') closeMenu(); });
     mobile.querySelectorAll('a').forEach(function(a){
       a.addEventListener('click', function(){
         mobile.classList.remove('open');

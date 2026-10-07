@@ -528,3 +528,9 @@ html.mo .lj-stick{position:sticky;top:0;height:100vh;padding-top:60px}
 @media (max-width:760px){.cmpn{grid-template-columns:1fr;padding:26px 22px;gap:20px}.cmpn-go{justify-self:start}}
 /* The phone menu covers the page, so the floating Book a Call button steps aside while it is open. */
 html.menu-open .sticky-cta{display:none}
+/* FAQ split into Ads and Websites (the website questions also appear on /websites/). */
+.faq-sub{margin:18px 0 2px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.faq-sub:first-child{margin-top:0}
+/* FAQ split into Ads and Websites (the website questions also appear on /websites/). */
+.faq-sub{margin:18px 0 2px;font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.faq-sub:first-child{margin-top:0}

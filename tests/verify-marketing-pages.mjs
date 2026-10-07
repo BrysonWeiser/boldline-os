@@ -174,6 +174,36 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   ok("the blog, privacy, terms and 404 pages carry the same menu styles", blogCss.includes(".nm-main{") && !/\.nav-mobile a:not\(\.hdr-cta\)/.test(blogCss));
 }
 
+// Website questions in the FAQ (Bryson, 2026-10-07). Written once, shown on /how-it-works/ and /websites/, and every
+// answer leans on a promise in the website agreement. If the agreement changes, these fail so the answers get checked.
+{
+  const web = readFileSync(join(ROOT, "marketing-src", "faq-web.html"), "utf8");
+  const qs = [...web.matchAll(/<summary>([^<]+)<\/summary>/g)].map((m) => m[1]);
+  ok("the website questions exist", qs.length === 5, qs.join(" | "));
+  for (const f of ["how-it-works/index.html", "websites/index.html"])
+    ok(`${f}: shows every website question`, qs.every((q) => readPage(f).includes(`<summary>${q}</summary>`)));
+  const ldText = readPage("how-it-works/index.html");
+  ok("search engines read the website questions too (FAQ structured data)", qs.every((q) => ldText.includes(`"name":"${q.replace(/'/g, "'")}"`)));
+  ok("the website answers carry no dashes", !/[\u2014\u2013]/.test(web));
+  const deal = readFileSync(join(ROOT, "netlify", "lib", "website-deal.mjs"), "utf8");
+  for (const [claim, term] of [
+    ["the domain stays theirs", "Client owns its domain name and keeps it registered in its own name"],
+    ["a first version in about two weeks", "within fourteen (14) days"],
+    ["two rounds of changes before launch", "two rounds of changes before launch"],
+    ["up to two small changes a month", "up to two small content changes per month"],
+    ["30 days' notice to stop the care plan", "cancel the Care Plan at any time with thirty (30) days"],
+    ["a copy of the site when they leave", "provide a copy of the Website&rsquo;s pages and images"],
+    ["stock photos never passed off as theirs", "never be presented as Client&rsquo;s own work"],
+  ]) ok(`🔴 the FAQ's "${claim}" is still what the website agreement says`, deal.includes(term));
+}
+
+// The menu button shows on a computer too (Bryson, 2026-10-07), on the generated pages and the hand-written ones.
+{
+  const menuCss = readFileSync(join(ROOT, "marketing-src", "menu.css"), "utf8");
+  ok("the menu button is shown at every width", /\.nav-toggle\{display:flex\}/.test(menuCss) && !/@media[^{]*\{[^}]*\.nav-toggle\{display:none/.test(menuCss));
+  ok("and the blog/legal stylesheet carries it", readFileSync(join(MK, "blog.css"), "utf8").includes(".nav-toggle{display:flex}"));
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-marketing-pages: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

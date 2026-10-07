@@ -20,3 +20,10 @@
 .nm-ctas .hdr-cta{margin:0;background:var(--gold);color:#0B0D14;border:1px solid var(--gold);text-transform:none;letter-spacing:0}
 .nm-check{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft)}
 @media (max-width:340px){.nm-main,.nm-ctas{grid-template-columns:1fr}}
+/* On a computer the same button and menu are there too. The top links stay; the button opens the grouped menu as a
+   panel under the bar's right edge. */
+.nav-toggle{display:flex}
+@media (min-width:1061px){
+  .nav-mobile{position:absolute;top:calc(100% - 6px);right:max(20px,calc((100% - var(--nav-max,1180px)) / 2));width:440px;margin-top:0}
+  .nav-mobile.open{max-height:calc(100vh - 110px)}
+}

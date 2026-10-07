@@ -49,6 +49,7 @@ header.scrolled .nav-inner{background:rgba(8,10,15,.9);border-color:rgba(255,255
 .nav-toggle.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
 .nav-toggle.open span:nth-child(2){opacity:0}
 .nav-toggle.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+header{--nav-max:1000px}
 /* phone-menu:start (written by scripts/build-marketing-site.mjs from marketing-src/menu.css) */
 /* The grouped phone menu. Shared by site.css and blog.css (privacy, terms, 404 and the blog), via
    scripts/build-marketing-site.mjs, so every page's menu looks the same. */
@@ -72,6 +73,13 @@ header.scrolled .nav-inner{background:rgba(8,10,15,.9);border-color:rgba(255,255
 .nm-ctas .hdr-cta{margin:0;background:var(--gold);color:#0B0D14;border:1px solid var(--gold);text-transform:none;letter-spacing:0}
 .nm-check{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft)}
 @media (max-width:340px){.nm-main,.nm-ctas{grid-template-columns:1fr}}
+/* On a computer the same button and menu are there too. The top links stay; the button opens the grouped menu as a
+   panel under the bar's right edge. */
+.nav-toggle{display:flex}
+@media (min-width:1061px){
+  .nav-mobile{position:absolute;top:calc(100% - 6px);right:max(20px,calc((100% - var(--nav-max,1180px)) / 2));width:440px;margin-top:0}
+  .nav-mobile.open{max-height:calc(100vh - 110px)}
+}
 /* phone-menu:end */
 
 .btn{display:inline-block;padding:16px 36px;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;background:var(--gold);color:#15110A;text-decoration:none;transition:transform .25s,box-shadow .25s}
