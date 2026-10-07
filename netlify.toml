@@ -27,7 +27,7 @@
   # Every genuinely-secret key (Stripe, Twilio auth, Supabase service role, Google Ads,
   # Resend, Meta system-user token, etc.) stays fully scanned — none of their values are
   # ever committed.
-  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL,META_APP_ID,GOOGLE_ADS_MANAGER_CUSTOMER_ID"
+  SECRETS_SCAN_OMIT_KEYS = "DOCUSIGN_BASE_PATH,OWNER_EMAIL,REPORTS_FROM_EMAIL,META_APP_ID,GOOGLE_ADS_MANAGER_CUSTOMER_ID,SITES_NETLIFY_SITE"
 
 # WEEKLY (Mon 15:00 UTC): a weekly internal briefing to Bryson on EVERY active
 # client (even monthly-tier ones, so he stays current) + the client-facing
