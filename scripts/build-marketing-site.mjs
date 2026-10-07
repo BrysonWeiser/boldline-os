@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
 import { DEMO } from "./site-showcase-demo.mjs";
+import { PACKAGES, WEBSITE_OFFER } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -40,6 +41,54 @@ const ctaBand = (title = "Ready for a steadier phone?", sub = "A 30 minute call.
   <div><h2>${title}</h2><p>${sub}</p></div>
   <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/free-check/">Free Lead-Leak Check</a></div>
 </div></div></section>
+`;
+
+// ── Pricing page pieces. Every number comes from the one price list (pricing-shared.mjs), so the page can
+// never quote a price the OS, the contract and the invoices don't. ─────────────────────────────────────────
+const usd = (n) => "$" + Number(n).toLocaleString("en-US");
+const PLAN_DATA = JSON.stringify(PACKAGES.filter((p) => /^(g|c)-/.test(p.id)).map((p) => ({ id: p.id, name: p.name, combined: p.id.startsWith("c-"), price: p.price, min: p.minBudget, max: p.maxBudget, band: p.adSpend })));
+const planFinder = () => `
+<section class="pf-sec"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Find your plan</div><h2>Slide to your ad budget.</h2></div></div>
+  <div class="pf reveal" data-plans='${PLAN_DATA.replace(/'/g, "&#39;")}'>
+    <div class="pf-left">
+      <label class="pf-label" for="pfBudget">Your monthly ad budget <span class="pf-hint">(paid straight to Google or Meta, never to us)</span></label>
+      <div class="pf-amount" id="pfAmount">$1,500</div>
+      <input id="pfBudget" class="pf-range" type="range" min="0" max="12" step="1" value="3" aria-describedby="pfResult" aria-label="Monthly ad budget">
+      <div class="pf-ticks" aria-hidden="true"><span style="left:0">$500</span><span style="left:41.667%">$2,500</span><span style="left:75%">$10,000</span><span style="left:100%">$30,000+</span></div>
+      <div class="pf-result" id="pfResult" aria-live="polite">
+        <div class="pf-plan"><span class="pf-name">Launch System</span><span class="pf-plat">Google or Meta, same price</span></div>
+        <div class="pf-min"><b>${usd(400)}/mo</b> minimum, or a fee per qualified lead, whichever is higher.</div>
+        <div class="pf-also"></div>
+      </div>
+    </div>
+    <div class="pf-right">
+      <div class="pf-toggle" role="tablist" aria-label="Example month">
+        <button type="button" class="on" data-month="slow" role="tab" aria-selected="true">A slow month</button>
+        <button type="button" data-month="busy" role="tab" aria-selected="false">A busy month</button>
+      </div>
+      <div class="pf-bars" data-month="slow">
+        <div class="pf-bar pf-bar-min"><div class="pf-fill"></div><span class="pf-cap">Your plan's minimum</span></div>
+        <div class="pf-bar pf-bar-lead"><div class="pf-fill"></div><span class="pf-cap">Qualified leads × your lead fee</span></div>
+      </div>
+      <p class="pf-say" data-for="slow">Fewer leads came in, so the lead fee stays under your minimum. <b>You pay the minimum.</b></p>
+      <p class="pf-say" data-for="busy" hidden>More qualified leads came in, so the lead fee is higher. <b>You pay the lead fee instead.</b> Never both.</p>
+      <p class="pf-small">An example to show how it works. Your lead fee is agreed on the call and written into your agreement.</p>
+    </div>
+  </div>
+</div></section>
+`;
+const webPricing = () => `
+<section class="wp-sec" id="website-pricing"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Websites</div><h2>Website pricing, with or without ads.</h2></div><a class="x-link" href="/websites/">See the designs <span>&rarr;</span></a></div>
+  <div class="wp-grid reveal">
+    <div class="wp-card wp-main"><div class="wp-k">To build</div><div class="wp-v">${usd(WEBSITE_OFFER.build)}</div><p>${WEBSITE_OFFER.pages} pages, written for you, in the design you pick. All up front, or half now and half before it goes live.</p></div>
+    <div class="wp-card"><div class="wp-k">Care plan</div><div class="wp-v">${usd(WEBSITE_OFFER.care)}<small>/mo</small></div><p>Hosting, security and up to ${WEBSITE_OFFER.carePlanEdits} small edits a month. Starts when the site goes live.</p></div>
+    <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">${usd(WEBSITE_OFFER.extraPage)}<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
+    <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">${usd(WEBSITE_OFFER.blogMonthly)}<small>/mo</small></div><p>About ${WEBSITE_OFFER.blogPostsPerMonth} articles a month on your site, and you can read, edit or hold each one first. ${usd(WEBSITE_OFFER.blogSetup)} once to set it up.</p></div>
+  </div>
+  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>.</p>
+</div></section>
 `;
 
 const pageHero = (eyebrow, h1, sub, ctas = "") => `
@@ -138,9 +187,9 @@ const PAGES = [
     body: promote(part("websites.html")) + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
-    desc: "Plans for Google Ads, Meta Ads, both, and online stores. You pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
+    desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
     body: pageHero("Pricing", "One number, <em>never two.</em>", "Each month you pay your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget is separate and goes straight to Google and Meta on your own card.")
-      + part("services.html") + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
+      + planFinder() + part("services.html") + webPricing() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",

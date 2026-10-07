@@ -136,6 +136,24 @@ for (const path of ["/pricing/", "/about/", "/how-it-works/"]) {
   await close();
 }
 
+// The plan finder on /pricing/: every budget lands on the plan the price list says it should.
+{
+  const { PACKAGES } = await import("../netlify/lib/pricing-shared.mjs");
+  const { page, close } = await open(390, "/pricing/");
+  const steps = [500, 750, 1000, 1500, 2000, 2500, 3500, 5000, 7500, 10000, 15000, 20000, 30000];
+  const bad = [];
+  for (let i = 0; i < steps.length; i++) {
+    const shown = await page.evaluate((v) => { const r = document.getElementById("pfBudget"); r.value = v; r.dispatchEvent(new Event("input")); return { name: document.querySelector(".pf-name").textContent, min: document.querySelector(".pf-min b").textContent, also: document.querySelector(".pf-also").textContent }; }, i);
+    const b = steps[i], fits = (p) => b >= p.minBudget && (p.maxBudget == null || b < p.maxBudget);
+    const one = PACKAGES.find((p) => p.id.startsWith("g-") && fits(p)), both = PACKAGES.find((p) => p.id.startsWith("c-") && fits(p));
+    if (shown.name !== one.name || shown.min !== `$${one.price.toLocaleString("en-US")}/mo` || (both ? !shown.also.includes(both.name) : shown.also !== "")) bad.push(`$${b}: ${JSON.stringify(shown)}`);
+  }
+  ok("🔴 the plan finder picks the right plan and minimum at every budget", bad.length === 0, bad.join(" | "));
+  await page.click('.pf-toggle button[data-month="busy"]');
+  ok("and the busy month says the lead fee is what you pay", await page.evaluate(() => document.querySelector(".pf-bars").getAttribute("data-month") === "busy" && !document.querySelector('.pf-say[data-for="busy"]').hidden));
+  await close();
+}
+
 await browser.close();
 await server.close();
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));

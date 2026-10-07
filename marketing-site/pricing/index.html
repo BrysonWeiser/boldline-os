@@ -43,7 +43,7 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 })();
 </script>
 <title>Pricing | BoldLine Media</title>
-<meta name="description" content="Plans for Google Ads, Meta Ads, both, and online stores. You pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.">
+<meta name="description" content="Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.">
 <link rel="canonical" href="https://boldlinemedia.com/pricing/">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" href="/icon.png">
@@ -51,14 +51,14 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="BoldLine Media">
 <meta property="og:title" content="Pricing | BoldLine Media">
-<meta property="og:description" content="Plans for Google Ads, Meta Ads, both, and online stores. You pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.">
+<meta property="og:description" content="Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.">
 <meta property="og:url" content="https://boldlinemedia.com/pricing/">
 <meta property="og:image" content="https://boldlinemedia.com/og-boldline.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pricing | BoldLine Media">
-<meta name="twitter:description" content="Plans for Google Ads, Meta Ads, both, and online stores. You pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.">
+<meta name="twitter:description" content="Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.">
 <meta name="twitter:image" content="https://boldlinemedia.com/og-boldline.jpg">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"Organization","name":"BoldLine Media","alternateName":"BoldLine","url":"https://boldlinemedia.com/","logo":"https://boldlinemedia.com/icon.png","image":"https://boldlinemedia.com/icon.png","description":"BoldLine plans, builds and runs Google and Meta ad campaigns, the landing pages behind them, and the websites they send people to, for businesses across the United States.","email":"theboldlinemedia@gmail.com","founder":{"@type":"Person","name":"Bryson Weiser","sameAs":["https://www.linkedin.com/in/brysonweiser"]},"sameAs":["https://www.instagram.com/boldlinemedia","https://www.facebook.com/BoldLineMedia"],"areaServed":{"@type":"Country","name":"United States"},"knowsAbout":["Google Ads management","Meta Ads management","Landing page design","Website design","Website hosting and care","Call tracking","CRM lead routing"]}
@@ -127,9 +127,39 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
   <p>Each month you pay your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget is separate and goes straight to Google and Meta on your own card.</p>
   
 </div></section>
+
+<section class="pf-sec"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Find your plan</div><h2>Slide to your ad budget.</h2></div></div>
+  <div class="pf reveal" data-plans='[{"id":"g-launch","name":"Launch System","combined":false,"price":400,"min":500,"max":2500,"band":"$500 to $2,500/mo"},{"id":"g-growth","name":"Growth System","combined":false,"price":700,"min":2500,"max":10000,"band":"$2,500 to $10,000/mo"},{"id":"g-acquisition","name":"Acquisition System","combined":false,"price":1200,"min":10000,"max":null,"band":"$10,000+/mo"},{"id":"c-growth","name":"Full System: Growth","combined":true,"price":900,"min":5000,"max":10000,"band":"$5,000 to $10,000/mo"},{"id":"c-acquisition","name":"Full System: Acquisition","combined":true,"price":1500,"min":10000,"max":null,"band":"$10,000+/mo"}]'>
+    <div class="pf-left">
+      <label class="pf-label" for="pfBudget">Your monthly ad budget <span class="pf-hint">(paid straight to Google or Meta, never to us)</span></label>
+      <div class="pf-amount" id="pfAmount">$1,500</div>
+      <input id="pfBudget" class="pf-range" type="range" min="0" max="12" step="1" value="3" aria-describedby="pfResult" aria-label="Monthly ad budget">
+      <div class="pf-ticks" aria-hidden="true"><span style="left:0">$500</span><span style="left:41.667%">$2,500</span><span style="left:75%">$10,000</span><span style="left:100%">$30,000+</span></div>
+      <div class="pf-result" id="pfResult" aria-live="polite">
+        <div class="pf-plan"><span class="pf-name">Launch System</span><span class="pf-plat">Google or Meta, same price</span></div>
+        <div class="pf-min"><b>$400/mo</b> minimum, or a fee per qualified lead, whichever is higher.</div>
+        <div class="pf-also"></div>
+      </div>
+    </div>
+    <div class="pf-right">
+      <div class="pf-toggle" role="tablist" aria-label="Example month">
+        <button type="button" class="on" data-month="slow" role="tab" aria-selected="true">A slow month</button>
+        <button type="button" data-month="busy" role="tab" aria-selected="false">A busy month</button>
+      </div>
+      <div class="pf-bars" data-month="slow">
+        <div class="pf-bar pf-bar-min"><div class="pf-fill"></div><span class="pf-cap">Your plan's minimum</span></div>
+        <div class="pf-bar pf-bar-lead"><div class="pf-fill"></div><span class="pf-cap">Qualified leads × your lead fee</span></div>
+      </div>
+      <p class="pf-say" data-for="slow">Fewer leads came in, so the lead fee stays under your minimum. <b>You pay the minimum.</b></p>
+      <p class="pf-say" data-for="busy" hidden>More qualified leads came in, so the lead fee is higher. <b>You pay the lead fee instead.</b> Never both.</p>
+      <p class="pf-small">An example to show how it works. Your lead fee is agreed on the call and written into your agreement.</p>
+    </div>
+  </div>
+</div></section>
 <section id="services">
   <div class="section-head reveal">
-    <div class="eyebrow">Services</div>
+    <div class="eyebrow">Ad plans</div>
     <h2>Where your customers already are.</h2>
   </div>
 
@@ -137,8 +167,9 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
     <button class="tab active" data-tab="google" role="tab" aria-selected="true">Google Ads</button>
     <button class="tab" data-tab="meta" role="tab" aria-selected="false">Meta Ads</button>
     <button class="tab" data-tab="combined" role="tab" aria-selected="false">Combined Systems</button>
-    <button class="tab" data-tab="ecom" role="tab" aria-selected="false">E-Commerce</button>
+    <button class="tab tab-more" data-tab="ecom" role="tab" aria-selected="false">E-Commerce</button>
   </div>
+  <p class="store-link">Selling products online instead? <button type="button" data-open-tab="ecom">See the online store plans</button></p>
 
   <div class="tab-panels">
     <div class="tab-panel active" data-panel="google">
@@ -354,6 +385,17 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
   </div>
   <div class="cap-note reveal">Not sure which fits? <a href="https://calendly.com/theboldlinemedia/30min" id="openRecommender" target="_blank" rel="noopener noreferrer">Answer 3 quick questions</a> and we'll point you to the right starting package.</div>
 </section>
+
+<section class="wp-sec" id="website-pricing"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">Websites</div><h2>Website pricing, with or without ads.</h2></div><a class="x-link" href="/websites/">See the designs <span>&rarr;</span></a></div>
+  <div class="wp-grid reveal">
+    <div class="wp-card wp-main"><div class="wp-k">To build</div><div class="wp-v">$1,500</div><p>5 pages, written for you, in the design you pick. All up front, or half now and half before it goes live.</p></div>
+    <div class="wp-card"><div class="wp-k">Care plan</div><div class="wp-v">$100<small>/mo</small></div><p>Hosting, security and up to 2 small edits a month. Starts when the site goes live.</p></div>
+    <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">$200<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
+    <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">$150<small>/mo</small></div><p>About 4 articles a month on your site, and you can read, edit or hold each one first. $300 once to set it up.</p></div>
+  </div>
+  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>.</p>
+</div></section>
 
 <section class="cta-band"><div class="wrap-x"><div class="cta-box reveal">
   <div><h2>Ready for a steadier phone?</h2><p>A 30 minute call. We'll tell you straight whether we're a fit, and what we'd do first.</p></div>

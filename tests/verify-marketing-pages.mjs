@@ -130,6 +130,19 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   ok("and the picture exists", existsSync(join(MK, "og-boldline.jpg")));
 }
 
+// The pricing page's plan finder and website prices are written from the one price list when the site is built.
+{
+  const { PACKAGES, WEBSITE_OFFER } = await import("../netlify/lib/pricing-shared.mjs");
+  const pr = readPage("pricing/index.html");
+  const data = JSON.parse(((pr.match(/data-plans='([^']+)'/) || [])[1] || "[]").replace(/&#39;/g, "'"));
+  const want = PACKAGES.filter((p) => /^(g|c)-/.test(p.id));
+  ok("🔴 the plan finder knows every Google and combined plan at today's prices", data.length === want.length && want.every((p) => data.some((d) => d.id === p.id && d.price === p.price && d.min === p.minBudget && d.max === p.maxBudget)), JSON.stringify(data.map((d) => d.id + ":" + d.price)));
+  const usd = (n) => "$" + n.toLocaleString("en-US");
+  const wp = pr.slice(pr.indexOf('id="website-pricing"'), pr.indexOf("</section>", pr.indexOf('id="website-pricing"')));
+  ok("🔴 the pricing page quotes today's website prices", [WEBSITE_OFFER.build, WEBSITE_OFFER.care, WEBSITE_OFFER.extraPage, WEBSITE_OFFER.blogMonthly, WEBSITE_OFFER.blogSetup].every((n) => wp.includes(usd(n))), wp.slice(0, 120));
+  ok("the online store plans are still on the page, one tap away", /class="tab tab-more" data-tab="ecom"/.test(pr) && /data-open-tab="ecom"/.test(pr) && /data-panel="ecom"/.test(pr));
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-marketing-pages: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
