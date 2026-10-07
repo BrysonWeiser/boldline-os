@@ -5,12 +5,17 @@
 import {
   getSupabase, html, esc, headerHTML, footerHTML, headTags, notFoundPage, SITE_URL, PAGE_SIZE,
 } from "../lib/blog-render.mjs";
+import { coverSVG } from "../lib/blog-cover.mjs";
 
-const postCard = (p) => `<a class="post-card" href="/blog/${esc(p.slug)}/">
-    <div class="pmeta">${esc(p.category)}</div>
-    <h3>${esc(p.title)}</h3>
-    <p>${esc(p.excerpt)}</p>
-    <span class="read-more">Read the post →</span>
+const day = (iso) => new Date(iso).toLocaleDateString("en-US", { timeZone: "America/Phoenix", month: "short", day: "numeric", year: "numeric" });
+const meta = (p) => `<div class="bx-meta">${day(p.published_at)}<i></i>${esc(p.read_minutes || 5)} min read</div>`;
+const postCard = (p) => `<a class="bx-card reveal" href="/blog/${esc(p.slug)}/" data-cat="${esc(p.category)}">
+    <div class="bx-cover">${coverSVG(p)}</div>
+    <div class="bx-body"><h3>${esc(p.title)}</h3><p>${esc(p.excerpt)}</p>${meta(p)}</div>
+  </a>`;
+const featured = (p) => `<a class="bx-feature reveal" href="/blog/${esc(p.slug)}/" data-cat="${esc(p.category)}">
+    <div class="bx-cover">${coverSVG(p)}</div>
+    <div class="bx-txt"><span class="bx-new">Latest</span><h2>${esc(p.title)}</h2><p>${esc(p.excerpt)}</p>${meta(p)}</div>
   </a>`;
 
 export default async (req) => {
@@ -34,7 +39,7 @@ export default async (req) => {
   const to = from + PAGE_SIZE - 1;
   const { data: posts, count, error } = await supabase
     .from("blog_posts")
-    .select("slug, title, category, excerpt, published_at", { count: "exact" })
+    .select("slug, title, category, excerpt, published_at, read_minutes", { count: "exact" })
     .eq("status", "published")
     .order("published_at", { ascending: false })
     .range(from, to);
@@ -46,17 +51,24 @@ export default async (req) => {
 
   const canonical = page === 1 ? `${SITE_URL}/blog/` : `${SITE_URL}/blog/page/${page}/`;
   const title = page === 1 ? "Blog | BoldLine Media" : `Blog | Page ${page} | BoldLine Media`;
-  const description = "Straight answers on Google Ads, Meta Ads, and landing pages for small and mid-size businesses, written by the team that runs them day to day.";
+  const description = "Straight answers on Google and Meta ads, websites and getting more calls, from the team that builds and runs them.";
 
   const prevHref = page <= 1 ? null : page - 1 === 1 ? "/blog/" : `/blog/page/${page - 1}/`;
   const nextHref = page >= totalPages ? null : `/blog/page/${page + 1}/`;
 
   const pagination = totalPages > 1 ? `
-<nav class="pagination reveal" aria-label="Blog pages">
-  ${prevHref ? `<a href="${prevHref}">← Newer</a>` : `<span class="page-disabled">← Newer</span>`}
-  <span class="page-current">Page ${page} of ${totalPages}</span>
-  ${nextHref ? `<a href="${nextHref}">Older →</a>` : `<span class="page-disabled">Older →</span>`}
+<nav class="bx-pages" aria-label="Blog pages">
+  ${prevHref ? `<a href="${prevHref}">Newer posts</a>` : ""}
+  <span>Page ${page} of ${totalPages}</span>
+  ${nextHref ? `<a href="${nextHref}">Older posts</a>` : ""}
 </nav>` : "";
+  const list = posts || [];
+  const cats = [...new Set(list.map((p) => p.category).filter(Boolean))].sort();
+  const chips = cats.length > 1 ? `<div class="bx-chips reveal" role="toolbar" aria-label="Filter by topic">
+    <button class="bx-chip on" type="button" data-cat="">All</button>${cats.map((c) => `<button class="bx-chip" type="button" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}
+  </div>` : "";
+  const top = page === 1 && list.length ? featured(list[0]) : "";
+  const rest = page === 1 ? list.slice(1) : list;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -72,22 +84,31 @@ export default async (req) => {
 <head>
 ${headTags({ title, description, canonical, jsonLd })}
 </head>
-<body>
+<body class="page" data-page="blog">
 
 ${headerHTML()}
 
-<div class="blog-hero">
-  <div class="blog-hero-inner reveal">
-    <div class="eyebrow">From BoldLine Media</div>
-    <h1>Notes on running ads that actually work.</h1>
-    <p>Plain answers to the questions we hear most from business owners before they sign with anyone, written by the people who actually run the campaigns.</p>
-  </div>
+<section class="page-hero ph-centre"><div class="wrap-x reveal">
+  <div class="eyebrow">Blog</div>
+  <h1>Straight answers on ads, websites and <em>more calls.</em></h1>
+  <p>What we've learned building and running Google and Meta ads and websites for service businesses, written the way we'd say it across the table.</p>
 </div>
+${chips}
+</section>
 
-<div class="post-grid reveal">
-  ${(posts || []).map(postCard).join("\n  ")}
-</div>
-${pagination}
+<section class="bx-sec"><div class="wrap-x">
+  ${top}
+  <div class="bx-grid">
+  ${rest.map(postCard).join("\n  ")}
+  </div>
+  <p class="bx-empty" hidden>Nothing on this page in that topic yet.</p>
+  ${pagination}
+</div></section>
+<script>
+(function(){var bar=document.querySelector('.bx-chips');if(!bar)return;var items=[].slice.call(document.querySelectorAll('.bx-card,.bx-feature')),empty=document.querySelector('.bx-empty');
+bar.addEventListener('click',function(e){var b=e.target.closest('.bx-chip');if(!b)return;[].forEach.call(bar.children,function(x){x.classList.toggle('on',x===b);});
+var c=b.getAttribute('data-cat'),n=0;items.forEach(function(it){var show=!c||it.getAttribute('data-cat')===c;it.hidden=!show;if(show)n++;});if(empty)empty.hidden=n>0;});})();
+</script>
 
 ${footerHTML()}
 
