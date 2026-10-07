@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: Stage 1 (Outreach = Power Hour) LIVE 2026-10-07; Stage 2 (grouped menu, Ctrl K, Mission Control theme) built on the dev branch, waiting on his OK of before/after screenshots
+status: Stages 1 and 2 LIVE 2026-10-07; Stage 3 (Today screen + ARIA core) built on the dev branch, waiting on his OK; Stage 4 (voice) next
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -186,3 +186,18 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
   shots show fallback fonts instead of the real look.
 - Left for Stage 3: the dashboard tiles still use emoji icons (internal-only, allowed, but off-theme); the Today screen
   replaces that dashboard.
+
+## Stage 3 BUILT (2026-10-07): Today screen with the ARIA core (dev branch)
+- Top of the Dashboard is now `TodayHero` (code block `TODAY (the Dashboard's top)`, just above `RevenueScreen`):
+  Phoenix date + "Good morning/afternoon/evening/Working late, Bryson.", ARIA's typed briefing built locally (calls so
+  far vs 40, new leads, meetings today, nearest contract ending; no AI call), three goal tiles (Calls /40, Talked /8,
+  Booked /2, same numbers the 3D rings show), actions (Start Power Hour, Lead Scout, Deal Prep, Ask ARIA), a "Needs you"
+  list (new leads, meetings today, urgent alerts, contracts ending) and "Your week" (7 Phoenix-day bars + calling streak).
+- Reads the Outreach call log (`/outreach?action=touches&days=30`) and nothing else; verify-today fails on any write.
+- `AriaCore`: the concept's 7,000-particle shader sphere (4,200 on small screens) with three goal rings, ported to React.
+  three.js r128 loads from cdnjs on idle, only on this screen; skipped on Data Saver / deviceMemory <= 2 (CSS glow
+  `.td-orb` instead); reduce motion renders one still frame; pauses off screen; disposes on leave.
+  `window.__ariaCore = {state, env}` is the hook Stage 4's voice will drive (speak pulses, listen turns it ice blue).
+- Sidebar "Dashboard" renamed "Today"; the emoji shortcut tiles and the two leftover emoji icons on the dashboard are now
+  line icons / glowing dots.
+- Harness: also lets cdnjs through and launches Chromium with SwiftShader WebGL so the core renders in screenshots.
