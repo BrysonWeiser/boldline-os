@@ -942,8 +942,8 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .b-go{margin-top:auto;padding-top:8px;color:var(--gold);font-weight:600;font-size:14px;display:inline-flex;gap:6px}
 .b-go i{font-style:normal;transition:transform .25s var(--ease)}
 .b-card:hover .b-go i{transform:translateX(4px)}
-.b-ads{grid-column:span 4;grid-row:span 2;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
-.b-ads .b-txt{display:flex;flex-direction:column;gap:10px;height:100%}
+.b-paid{grid-column:span 4;grid-row:span 2;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
+.b-paid .b-txt{display:flex;flex-direction:column;gap:10px;height:100%}
 .b-web{grid-column:span 2;grid-row:span 2}
 .b-web .b-thumbs{position:relative;height:170px;margin-top:6px}
 .b-web .b-thumbs img{position:absolute;width:78%;height:auto;aspect-ratio:16/10;object-fit:cover;object-position:top;border-radius:10px;border:1px solid rgba(255,255,255,.12);box-shadow:0 20px 40px -18px rgba(0,0,0,.9);transition:transform .5s var(--ease)}
@@ -990,6 +990,8 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .page-hero h1 em{font-family:var(--accent-serif);font-style:italic;font-weight:500;color:var(--gold);letter-spacing:-.02em}
 .page-hero p{font-size:clamp(16px,1.5vw,19px);line-height:1.65;color:var(--muted);max-width:640px}
 .page-hero .hero-ctas{justify-content:flex-start;margin-top:28px}
+/* A page whose story below is centred (About) opens centred too, so the heading lines up with it. */
+.page-hero.ph-centre .wrap-x{text-align:center}.page-hero.ph-centre h1,.page-hero.ph-centre p{margin-left:auto;margin-right:auto}.page-hero.ph-centre .hero-ctas{justify-content:center}
 
 /* ── Closing call to action, every page ── */
 .cta-band{padding:30px 0 110px}
@@ -1020,8 +1022,8 @@ footer.x-foot{border-top:1px solid var(--line);padding:64px 0 40px;text-align:le
   .h-visual{max-width:640px}
   .h-visual .browser{transform:none}
   .bento{grid-template-columns:1fr 1fr}
-  .b-ads,.b-web,.b-price,.b-check{grid-column:span 2;grid-row:auto}
-  .b-ads{grid-template-columns:1fr}
+  .b-paid,.b-web,.b-price,.b-check{grid-column:span 2;grid-row:auto}
+  .b-paid{grid-template-columns:1fr}
   .steps3{grid-template-columns:1fr}
   .cta-box{grid-template-columns:1fr;padding:44px 32px}
   .cta-box .hero-ctas{justify-content:flex-start}
@@ -1040,7 +1042,7 @@ footer.x-foot{border-top:1px solid var(--line);padding:64px 0 40px;text-align:le
   .x-sec{padding:64px 0}
   .x-head{flex-direction:column;align-items:flex-start;gap:12px;margin-bottom:26px}
   .bento{grid-template-columns:1fr}
-  .b-ads,.b-web,.b-price,.b-check{grid-column:auto}
+  .b-paid,.b-web,.b-price,.b-check{grid-column:auto}
   .b-card{padding:22px}
   .f-strip{grid-template-columns:1fr;padding:28px;gap:20px}
   .f-strip img{width:84px;height:84px}
@@ -1074,7 +1076,10 @@ html.mo-pin .h-pin>.wrap-x{position:sticky;top:0;height:100vh;display:flex;align
 html.mo-pin .h-grid{width:100%}
 html.mo-pin .h-copy{transform:translate3d(calc(var(--e,0) * -90px),0,0);opacity:calc(1 - var(--e,0) * 1.6);will-change:transform,opacity}
 html.mo-pin .h-hero.past .h-copy{pointer-events:none}
-html.mo-pin .h-visual{z-index:3;transform-origin:50% var(--oy,40%);transform:translate3d(calc(var(--dx,0px) * var(--e,0)),calc(var(--dy,0px) * var(--e,0)),0) scale(calc(1 + (var(--s,1) - 1) * var(--e,0)));will-change:transform}
+html.mo-pin .h-visual{z-index:3;transform-origin:50% var(--oy,40%);transform:translate3d(calc(var(--dx,0px) * var(--e,0)),calc(var(--dy,0px) * var(--e,0)),0) scale(calc(1 + (var(--s,1) - 1) * var(--e,0)))}
+/* No will-change on the growing sample site: Chrome would paint it once at its small size and stretch that
+   picture as it grows, which is what made it look low resolution on a big screen. Without the hint the
+   browser repaints it at the size it is actually shown. */
 html.mo-pin .h-visual .browser{transition:none;transform:rotateY(calc(-9deg * (1 - var(--e,0)))) rotateX(calc(4deg * (1 - var(--e,0))))}
 html.mo-pin .h-visual .phone{transform:translate3d(calc(var(--e,0) * 10%),calc(var(--e,0) * -14%),0) rotate(calc(5deg - var(--e,0) * 5deg))}
 html.mo-pin .h-visual .float-toast,html.mo-pin .h-cap{opacity:calc(1 - var(--e,0) * 2.5)}
@@ -1266,12 +1271,12 @@ a.ind-card:hover{transform:translateY(-4px);border-color:var(--gold-line)}
 .g-sk i:nth-child(2){width:80%}.g-sk i:nth-child(3){width:60%}
 /* 2 ad */
 .g-bar{height:38px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08);font-size:12.5px;display:flex;align-items:center;padding:0 14px;color:#444;margin-bottom:16px}
-.g-ad{position:relative;padding:14px;border-radius:14px;background:#fff;border:2px solid transparent;font-size:12px;line-height:1.45}
-.lj-s1.on .g-ad{animation:ljAdGlow 1.2s ease .5s forwards}
+.serp-card{position:relative;padding:14px;border-radius:14px;background:#fff;border:2px solid transparent;font-size:12px;line-height:1.45}
+.lj-s1.on .serp-card{animation:ljAdGlow 1.2s ease .5s forwards}
 @keyframes ljAdGlow{to{border-color:#C8A84B;box-shadow:0 10px 30px -10px rgba(200,168,75,.6)}}
-.g-ad small{font-weight:700;font-size:11px;color:#202124}.g-ad em{display:block;font-style:normal;color:#4D5156;font-size:11px;margin:2px 0}
-.g-ad strong{display:block;color:#1A0DAB;font-size:15px;font-weight:500;margin:2px 0 4px}
-.g-ad p{color:#4D5156;font-size:12px}
+.serp-card small{font-weight:700;font-size:11px;color:#202124}.serp-card em{display:block;font-style:normal;color:#4D5156;font-size:11px;margin:2px 0}
+.serp-card strong{display:block;color:#1A0DAB;font-size:15px;font-weight:500;margin:2px 0 4px}
+.serp-card p{color:#4D5156;font-size:12px}
 .g-tap{position:absolute;right:26px;bottom:18px;width:34px;height:34px;border-radius:50%;background:rgba(66,133,244,.25);opacity:0}
 .lj-s1.on .g-tap{animation:ljTap 1s ease 1.4s forwards}
 @keyframes ljTap{0%{opacity:0;transform:scale(.4)}40%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.6)}}
