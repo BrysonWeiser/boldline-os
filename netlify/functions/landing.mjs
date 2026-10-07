@@ -4,6 +4,7 @@ import { findPage, clientForPage } from "../lib/landing-pages-shared.mjs";
 import { fitPhrase } from "../lib/humanize.mjs";
 import { normalizeHost } from "../lib/client-domain.mjs";
 import { serveWebsiteOnDomain } from "./site.mjs";
+import { siteBrandKit } from "../lib/site-render.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
 import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
@@ -29,8 +30,28 @@ const unavailablePage = (name) => new Response(
 );
 
 // Colour theme from the CLIENT's OWN branding — accent + light/dark. Never BoldLine's.
+const hexA = (hex, a) => { const n = parseInt(String(hex).slice(1, 7), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`; };
+
 export function landingTheme(cl) {
   const lp = (cl && cl.landingPage) || {};
+  // 🔴 ONE BUSINESS, ONE LOOK. Bryson, 2026-10-07, comparing Northline's website (dark, red, its own typeface) with
+  // its landing page (white, a different red, system font): the two "have the same colors and branding". Once a
+  // website design is picked, the landing page takes that website's background, text colours and brand colour.
+  // Ads-only clients (no design picked) keep everything below exactly as it was.
+  const kit = siteBrandKit(cl);
+  if (kit) {
+    const brand = kit.accent;
+    const n = parseInt(brand.slice(1), 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const deep = `#${[r, g, b].map((v) => Math.round(v * 0.22).toString(16).padStart(2, "0")).join("")}`;
+    const bright = `#${[r, g, b].map((v) => Math.min(255, Math.round(v + (255 - v) * 0.22)).toString(16).padStart(2, "0")).join("")}`;
+    const d = kit.dark;
+    return { mode: d ? "dark" : "light", bg: kit.bg, text: kit.ink, headline: kit.ink, muted: kit.mute, surface: kit.bg2, border: kit.line, line: kit.line,
+      chipText: kit.ink, formBg: kit.bg2, cardBg: kit.bg2, cardBorder: kit.line, inBg: d ? kit.bg : "#ffffff", inBorder: kit.line, inText: kit.ink,
+      ph: kit.mute, topName: kit.ink, foot: kit.mute, headBg: hexA(kit.bg, 0.82), grid: d ? "rgba(255,255,255,.05)" : "rgba(15,23,42,.05)",
+      r, g, b, brand, onBrand: kit.onAccent, tint: `rgba(${r},${g},${b},.16)`, band: deep, bright,
+      glowA: `rgba(${r},${g},${b},.26)`, glowB: `rgba(${r},${g},${b},.12)`, bandGrad: `linear-gradient(135deg, ${bright}, ${brand} 55%, ${deep})`, kit };
+  }
   // 🔴 THE HAND-SET COLOUR WINS, AND THE ORDER HERE IS THE WHOLE POINT OF THE FIELD.
   // `client.brandColor` is what Bryson typed; `landingPage.brandColor` is what the generator
   // produced. Reading the page first made the override INERT on every page that already had a
@@ -715,7 +736,7 @@ a{color:inherit}
     .filter(fresh)
     .map((t) => `<span><b>${esc(t)}</b></span>`).join("");
   const trustH = trustBits ? `<div class="trust an" style="animation-delay:.24s">${trustBits}</div>` : "";
-  const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">Call now</a>` : ""}</div>`;
+  const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">Call ${esc(phone)}</a>` : ""}</div>`;
   // 🔴 A RAW .slice(0, 40) PRINTED THE OWNER'S TYPED NOTE, CHOPPED MID-WORD, ON A LIVE
   // PAGE. Same defect already fixed in the ad writers. `fitPhrase` trims to a whole
   // thought and returns nothing when it cannot, so the badge is HIDDEN rather than
@@ -1354,8 +1375,16 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
   // the gate simply does not match and every element sits at its finished, visible state,
   // which is what rule 1 of the motion block above has always claimed.
   const bodyClass = `lay-${layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
+  // The website's typefaces and corner shape, so the ad page reads as the same business (see landingTheme).
+  const K = P.kit;
+  const kitHead = K ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${esc(K.fontHref)}">` : "";
+  const kitCss = K ? `
+body.kit{font-family:${K.body};--r:${K.radius}}
+body.kit .headline,body.kit .sec-t,body.kit .formtitle,body.kit .offer h2,body.kit .form-copy h2,body.kit .bcard h3,body.kit .bnum h3,body.kit .brow h3,body.kit .brandmark,body.kit .faq summary{font-family:${K.display};letter-spacing:-.02em}
+body.kit .cta,body.kit .hdr-cta,body.kit .mcta a{border-radius:${K.theme === "editorial" ? "2px" : "999px"}}
+` : "";
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}<style>${css}</style></head><body class="${bodyClass}">
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}<style>${css}${kitCss}</style></head><body class="${bodyClass}${P.kit ? " kit" : ""}">
 ${annHTML}
 <header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(sized(logoUrl, 400))}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}

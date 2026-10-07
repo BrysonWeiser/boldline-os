@@ -38,7 +38,7 @@ for (const f of SAMPLE_FILES) {
   ok(`🔴 ${f}: the send guard is the first script on the page`, g > 0 && html.indexOf("<script") === html.lastIndexOf("<script>", g) && html.indexOf("charset") < g);
   // 2. Labelled, hidden from search, not described as a real business.
   ok(`${f}: the bar switches designs on the pool sample, and website/landing page on a trade sample`, TRADE_SAMPLES[theme]
-    ? html.includes(`<a aria-current="page" href="/examples/${theme}/">Its website</a><a href="/examples/${theme}/landing/">Landing page</a>`) && !/>Cinematic</.test(html)
+    ? html.includes(`<a aria-current="page" href="/examples/${theme}/">Website</a><a href="/examples/${theme}/landing/">Landing page</a>`) && !/>Cinematic</.test(html)
     : />Cinematic<\/a>/.test(html) && !/>Landing page</.test(html));
   ok(`🔴 ${f}: says it's a sample, and on a phone too`, /class="bl-sample"/.test(html) && /<span class="bl-w">Sample site<\/span><span class="bl-n">Sample<\/span>/.test(html) && /made-up business/.test(html));
   ok(`🔴 ${f}: hidden from search engines`, /<meta name="robots" content="noindex">/.test(html));

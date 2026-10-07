@@ -66,6 +66,10 @@ a{color:inherit;text-decoration:none}
 .mnav .close{position:absolute;top:18px;right:20px}
 @media(max-width:880px){.nav,.hd .btn{display:none}.burger{display:block}}
 .nav a,.brand{white-space:nowrap}
+.burger{flex:0 0 auto}
+/* A long business name on a small phone shrinks rather than pushing the menu button off the screen. */
+.brand{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:380px){.hd .wrap{gap:12px}.brand{font-size:15px}}
 @media(max-width:1180px){.hd.many .nav,.hd.many .btn{display:none}.hd.many .burger{display:block}}
 /* hero */
 .hero{position:relative;min-height:100svh;display:flex;align-items:flex-end;overflow:hidden;isolation:isolate}
@@ -101,9 +105,9 @@ section{position:relative}
 .glow{position:absolute;inset:auto;pointer-events:none;width:420px;height:420px;border-radius:50%;filter:blur(90px);opacity:.28;background:var(--ac)}
 /* marquee */
 .marq{border-block:1px solid var(--line);overflow:hidden;padding:22px 0;white-space:nowrap}
-.marq .tr{display:inline-flex;gap:56px;animation:mq 38s linear infinite;padding-left:56px;will-change:transform}
+.marq .tr{display:inline-flex;animation:mq 60s linear infinite;will-change:transform}
 .marq.vel .tr{animation:none}
-.marq span{font-size:clamp(22px,3vw,40px);font-weight:600;color:var(--mute)}
+.marq span{font-size:clamp(22px,3vw,40px);font-weight:600;color:var(--mute);padding-right:56px}
 .marq span b{color:var(--ac);font-weight:inherit;margin-right:56px}
 @keyframes mq{to{transform:translateX(-50%)}}
 /* story fill: the words are only split (and dimmed) by the script */
@@ -115,7 +119,10 @@ html.js .fill .w.lit{opacity:1}
 .ph{position:relative;overflow:hidden;border-radius:var(--r);background:color-mix(in srgb,var(--ink) 8%,var(--bg))}
 .ph img{width:100%;height:100%;object-fit:cover}
 .split{display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(28px,5vw,80px);align-items:center}
-@media(max-width:880px){.split{grid-template-columns:1fr}}
+@media(max-width:880px){.split{grid-template-columns:minmax(0,1fr)}}
+/* A long email or street address must wrap, not widen the column past a small phone's edge. */
+.split>*{min-width:0}
+.info dd,.ft a,.ft p{overflow-wrap:anywhere}
 /* services list */
 .svl{position:relative}
 .svc{position:relative;display:grid;grid-template-columns:1fr 1.2fr;gap:28px;padding:38px 0;border-top:1px solid var(--line);align-items:start}
@@ -141,11 +148,12 @@ html.js .fill .w.lit{opacity:1}
 .rc p{font-size:15px;opacity:.86}
 /* stacked service cards */
 .stk{display:grid;gap:18px}
-.sk{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,4vw,56px);align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:calc(var(--r) * 1.2);padding:clamp(22px,4vw,48px);box-shadow:0 -20px 60px -40px rgba(0,0,0,.35);transform-origin:50% 0}
+.sk{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(20px,4vw,56px);align-items:center;background:var(--bg2);border:1px solid var(--line);border-radius:calc(var(--r) * 1.2);padding:clamp(22px,4vw,48px);box-shadow:0 -20px 60px -40px rgba(0,0,0,.35);transform-origin:50% 0}
 .sk h3{font-size:clamp(30px,4vw,60px);line-height:1}
 .sk p{color:var(--mute);margin-top:16px;max-width:460px}
+.sk>*{min-width:0}
 .sk .ph{aspect-ratio:4/3}
-@media(max-width:760px){.sk{grid-template-columns:1fr}}
+@media(max-width:760px){.sk{grid-template-columns:minmax(0,1fr)}}
 /* the portal: a photo seen through a window, then stepped into */
 .portal .stage{position:relative;min-height:88svh;display:grid;align-items:end;overflow:hidden}
 .pframe{position:absolute;inset:0;background:radial-gradient(70% 70% at 30% 30%,color-mix(in srgb,var(--ac) 45%,transparent),transparent),var(--bg2)}
@@ -199,6 +207,9 @@ details.faq p{color:var(--mute);margin-top:12px;max-width:780px}
 .pill{position:fixed;left:50%;bottom:18px;z-index:40;transform:translate(-50%,140%);transition:transform .6s var(--ease);display:flex;gap:6px;padding:6px;border-radius:999px;background:color-mix(in srgb,var(--bg2) 80%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);box-shadow:0 20px 50px -20px rgba(0,0,0,.45)}
 .pill.show{transform:translate(-50%,0)}
 .pill .btn{min-height:46px;padding:0 20px;font-size:14px}
+.pill .btn.ghost{gap:8px}
+.pill .btn.ghost svg{width:16px;height:16px;flex:0 0 auto}
+@media(max-width:380px){.pill .btn{padding:0 16px}.pill .btn.ghost{padding:0 15px}.pill .pl-t{display:none}}
 .pill .btn.ghost{background:var(--bg2)}
 /* page transitions and the cursor ring: created by the script, so they never exist without it */
 .veil{position:fixed;inset:0;z-index:100;pointer-events:none;background:var(--bg);opacity:0;transition:opacity .45s var(--ease)}
@@ -291,6 +302,7 @@ body{padding-top:44px}
 @media (max-width:900px){.bl-sample .bl-long,.bl-sample .bl-n{display:none}
 .bl-sample .bl-book{display:none}}
 @media (max-width:560px){.bl-sample{gap:8px;padding:0 10px;font-size:11.5px}.bl-sample .bl-designs a{padding:6px 8px}.bl-sample .bl-w{display:none}.bl-sample .bl-n{display:inline}}
+@media (max-width:380px){.bl-sample{gap:6px;padding:0 8px;font-size:11px}.bl-sample .bl-tag b{display:none}.bl-sample .bl-designs a{padding:6px 7px}}
 </style>
 <div class="bl-sample" role="note" aria-label="Sample website"><span class="bl-tag"><i></i><b><span class="bl-w">Sample site</span><span class="bl-n">Sample</span></b><span class="bl-long">Saguaro Pool Co. is a made-up business we use to show our work.</span></span><nav class="bl-designs" aria-label="Designs"><a href="/examples/cinematic/">Cinematic</a><a href="/examples/aurora/" aria-current="page">Aurora</a><a href="/examples/editorial/">Editorial</a></nav><a class="bl-back" href="/websites/"><span class="bl-w">Back to BoldLine</span><span class="bl-n">Exit</span></a><a class="bl-book" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a call</a></div>
 
@@ -305,8 +317,8 @@ body{padding-top:44px}
 <a href="tel:6025550148">(602) 555-0148</a></div>
 <main><section class="hero"><div class="fx" style="background:radial-gradient(50% 55% at 70% 65%,color-mix(in srgb,var(--ac) 26%,transparent),transparent),radial-gradient(40% 45% at 20% 30%,color-mix(in srgb,var(--ac) 12%,transparent),transparent),var(--bg)"><canvas aria-hidden="true"></canvas></div>
 <div class="wrap copy"><span class="eyebrow rv"><i></i>Custom pools in Phoenix</span><h1 class="disp hl" style="margin-top:26px"><span class="ln"><span>Your backyard, finished.</span></span></h1>
-<p class="sub rv d1">Custom pools designed around how your family actually uses the yard, built on schedule and backed for ten years.</p><div class="acts rv d2"><a href="/examples/aurora/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a design visit">Book a design visit</span></span></a><a href="/examples/aurora/services/" data-page="services" class="btn ghost"><span class="bt"><span data-t="Our services">Our services</span></span></a></div></div></section>
-<div class="marq" aria-hidden="true"><div class="tr"><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span></div></div>
+<p class="sub rv d1">Custom pools designed around how your family actually uses the yard, built on schedule and backed for ten years.</p><div class="acts rv d2"><a href="/examples/aurora/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a design visit">Book a design visit</span></span></a><a href="/examples/aurora/services/" data-page="services" class="btn ghost"><span class="bt"><span data-t="See finished pools">See finished pools</span></span></a></div></div></section>
+<div class="marq" aria-hidden="true"><div class="tr"><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span><span><b>&#10022;</b>Custom pools</span><span><b>&#10022;</b>Remodels</span><span><b>&#10022;</b>Spas</span></div></div>
 <section class="sec"><div class="wrap"><div class="sec-h"><h2 class="disp rv">What we do</h2><p class="rv d1">3 ways we can help.</p></div><div class="grid g3"><a class="card rv d0" href="/examples/aurora/services/#s1" data-page="services"><span class="tick"></span><h3>Custom pool builds</h3><p>Designed for your yard, your budget and the way you swim.</p></a><a class="card rv d1" href="/examples/aurora/services/#s2" data-page="services"><span class="tick"></span><h3>Remodels</h3><p>New finish, tile and lighting for a pool that&#39;s seen better days.</p></a><a class="card rv d2" href="/examples/aurora/services/#s3" data-page="services"><span class="tick"></span><h3>Spas and water features</h3><p>Add warmth and sound without starting over.</p></a></div></div></section>
 <section class="portal" data-scene="pin"><div class="stage"><div class="pword disp" aria-hidden="true">Saguaro Pool</div>
 <div class="pframe"><img src="/img/sample/pool-189296.jpg" alt="Pool at dusk" loading="lazy" decoding="async"></div>
@@ -316,7 +328,7 @@ body{padding-top:44px}
 <div class="steps" data-scene="pass"><div class="step rv"><span class="num">Step 1</span><div><h3>Design visit</h3><p>We measure, listen and sketch.</p></div></div><div class="step rv"><span class="num">Step 2</span><div><h3>Fixed quote</h3><p>Clear scope and one price.</p></div></div><div class="step rv"><span class="num">Step 3</span><div><h3>Build</h3><p>Most pools finish in five to eight weeks.</p></div></div></div></div></section><section class="sec"><div class="wrap"><div class="sec-h"><h2 class="disp rv">Questions, answered</h2></div>
 <details class="faq rv"><summary>How long does a build take?<i aria-hidden="true">+</i></summary><p>Most pools finish in five to eight weeks once permits are in.</p></details></div></section><section class="sec"><div class="wrap" style="max-width:980px;text-align:center"><div class="stars rv">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
 <p class="disp rv" style="font-size:clamp(26px,3.6vw,46px);line-height:1.2">"They built our pool in five weeks and kept us posted the whole way. The yard finally feels like a place to live."</p><p class="rv d1" style="margin-top:20px;color:var(--mute)">Dana R.</p>
-<div class="rv d2" style="margin-top:26px"><a href="/examples/aurora/reviews/" data-page="reviews" class="btn ghost"><span class="bt"><span data-t="More reviews">More reviews</span></span></a></div></div></section><section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
+<div class="rv d2" style="margin-top:26px"><a href="/examples/aurora/reviews/" data-page="reviews" class="btn ghost"><span class="bt"><span data-t="Read all 2 reviews">Read all 2 reviews</span></span></a></div></div></section><section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
 <h2 class="disp">Ready for a summer at home?</h2><p>Book a free design visit.</p><a href="/examples/aurora/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a design visit">Book a design visit</span></span></a></div></div></section></main>
 <footer class="ft"><div class="wrap">
 <div><div class="big disp">Saguaro Pool</div><p style="color:var(--mute)">Serving Phoenix, AZ</p></div>
@@ -324,7 +336,7 @@ body{padding-top:44px}
 <div><h4>Contact</h4><a href="tel:6025550148">(602) 555-0148</a><a href="mailto:hello@saguaropools.example">hello@saguaropools.example</a><p>Phoenix, AZ</p></div>
 <div class="fine">&copy; 2026 Saguaro Pool. All rights reserved.</div>
 </div></footer>
-<div class="pill"><a href="/examples/aurora/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a design visit">Book a design visit</span></span></a><a class="btn ghost" href="tel:6025550148" aria-label="Call">Call</a></div>
+<div class="pill"><a href="/examples/aurora/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a design visit">Book a design visit</span></span></a><a class="btn ghost" href="tel:6025550148" aria-label="Call (602) 555-0148"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="pl-t">Call</span></a></div>
 <script>(function(){var d=document,h=d.documentElement;h.classList.add('js');
 var PREVIEW=String(location.href).indexOf('about:')===0;
 try{var M={"e":"wipe","m":"velocity","c":false};
@@ -339,7 +351,7 @@ var io='IntersectionObserver' in window?new IntersectionObserver(function(es){es
 q('.rv,.hl,.ph,.rule').forEach(function(el){if(io)io.observe(el);else el.classList.add('in');});
 var fl=q('.fill');fl.forEach(function(p){p.innerHTML=p.textContent.trim().split(/\s+/).map(function(w){return '<span class="w">'+w.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span> ';}).join('');});
 var sc=q('[data-scene]'),sk=q('.stk .sk'),rails=q('.rail');
-function measure(){rails.forEach(function(r){var tr=r.querySelector('.track'),on=!rm&&innerWidth>=900&&r.querySelectorAll('.rc').length>=3;r.classList.toggle('on',on);if(!on){r.style.height='';return;}var dx=Math.max(0,tr.scrollWidth-innerWidth);r.style.setProperty('--dx',dx);r.style.height=(innerHeight+dx)+'px';});}
+function measure(){rails.forEach(function(r){var tr=r.querySelector('.track'),on=!rm&&innerWidth>=900&&r.querySelectorAll('.rc').length>=5;r.classList.toggle('on',on);if(!on){r.style.height='';return;}var dx=Math.max(0,tr.scrollWidth-innerWidth);if(dx<innerWidth*.4){r.classList.remove('on');r.style.height='';return;}r.style.setProperty('--dx',dx);r.style.height=(innerHeight+dx)+'px';});}
 function upd(){var vh=innerHeight;sc.forEach(function(el){var r=el.getBoundingClientRect(),p;if(el.getAttribute('data-scene')==='pass'){p=(vh*.8-r.top)/Math.max(1,r.height);}else{p=-r.top/Math.max(1,r.height-vh);}el.style.setProperty('--p',cl(p,0,1).toFixed(4));});
 for(var i=0;i<sk.length-1;i++){var a=sk[i].getBoundingClientRect(),b=sk[i+1].getBoundingClientRect();sk[i].style.setProperty('--c',cl(1-(b.top-a.top)/Math.max(1,a.height),0,1).toFixed(3));}
 fl.forEach(function(p){var r=p.getBoundingClientRect(),ws=p.querySelectorAll('.w');var k=cl((vh*.85-r.top)/(r.height+vh*.35),0,1);var m=Math.round(k*ws.length);for(var j=0;j<ws.length;j++)ws[j].classList.toggle('lit',rm||j<m);});}
@@ -376,13 +388,13 @@ addEventListener('pageshow',function(e){if(e.persisted&&vl){vl.classList.remove(
 var f=d.getElementById('sf');if(f){f.addEventListener('submit',function(e){e.preventDefault();
 var b=f.querySelector('button'),er=f.querySelector('.err'),ph=f.ph.value.trim(),em=f.em.value.trim();
 if(!ph&&!em){er.textContent='Please add a phone number or an email so we can reach you.';er.style.display='block';return;}
-er.style.display='none';b.disabled=true;b.textContent='Sending...';
+er.style.display='none';b.disabled=true;var lbl=b.textContent;b.textContent='Sending...';
 var p={name:f.nm.value,phone:ph,email:em,source:'website',message:f.msg?f.msg.value:'',smsConsentTransactional:false,smsConsentMarketing:false};
 try{p.page=location.href.split('#')[0];var q=new URLSearchParams(location.search);['gclid','wbraid','gbraid','utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(function(k){var v=q.get(k);if(v)p[k]=v;});}catch(x){}
 function done(){f.style.display='none';d.getElementById('sthx').style.display='block';}
 if(PREVIEW){done();return;}
 fetch('/lead?token=demo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){if(!r.ok)throw 0;done();})
-.catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent='Send';});});}})();</script><script>(function(){var c=document.querySelector('.hero canvas');if(!c)return;
+.catch(function(){er.textContent='Something went wrong, please try again or call us.';er.style.display='block';b.disabled=false;b.textContent=lbl;});});}})();</script><script>(function(){var c=document.querySelector('.hero canvas');if(!c)return;
 var mq=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;var nv=navigator||{};
 if(mq||(nv.connection&&nv.connection.saveData)||(nv.deviceMemory&&nv.deviceMemory<4))return;
 function go(){var g=c.getContext('webgl',{antialias:false,alpha:false,powerPreference:'low-power'});if(!g)return;

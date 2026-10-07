@@ -239,3 +239,21 @@ buttons inside it went soft as the picture grows on scroll.
   (`page.route`). Same fix would apply to any future screenshot script that uses web fonts.
 - Measured: the hero picture shows at most ~1,070 css px wide (1920 screen), so 1440/2880 has headroom.
 - Link preview picture `og-boldline.jpg` re-rendered from the new shots.
+
+## 2026-10-07 night: top bar, white screen, spacing sweep (LIVE)
+- **Top bar on a computer: only Ads, Websites, Pricing** (`NAV`), everything else in the menu button. The builder also
+  rewrites the top-bar links in privacy, terms, 404 and the blog.
+- **White screen on /ads/ (Bryson's Windows laptop, Chrome)**: could not reproduce here. The page-to-page cross-fade
+  (`@view-transition`) was removed as the likely cause; Chrome's cross-document transitions are known to leave a blank
+  page on some Windows GPUs. If it ever comes back, it is NOT that.
+- Homepage Websites tile: the three design previews were stretched (fixed height, no `height:auto`). Fixed, and the
+  audit now flags any picture shown out of proportion (ignores tilted ones).
+- /industries/: "Another service business?" spans two columns instead of a tall empty card.
+- /about/: removed the "select group" box (it repeated the hero and was jammed under the comparison box). The
+  reviews heading "What our clients say." now shows only once real reviews exist; until then the section is just the
+  invitation to leave one.
+- /websites/: "Open the full sample site" on its own line (it ran into the sentence).
+- Pricing plan lists: words around underlined terms were spaced apart (flex gap on mixed text). Fixed.
+- Ads page gallery pictures re-shot with the matched landing pages and real fonts.
+- Audit scripts used (scratchpad, not committed): page errors, sideways overflow, overlapping text, stretched pictures,
+  buttons whose text wraps or spills, at 1440, 390 and 320.
