@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 205 task-keyed entries under `knowledge/`. They surface automatically via the
+> 206 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**205 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**206 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -645,6 +645,9 @@
 - **[nav-parity](../knowledge/nav-parity.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   My Ads was in the desktop sidebar and on the dashboard but had no entry in the mobile navigation at all, reachable only by scrolling the dashboard and spotting a card. The More sheet was simply never handed the action that already existed. Now added, and parity between the two navigations is asserted rather than described in a comment. 6 checks, five mutations caught.  
   <sub>*task:* add a destination to the OS navigation, or work out why something is missing on mobile &nbsp;|&nbsp; *keywords:* my ads missing mobile, no my ads tab, More sheet, MoreSheet, BottomNav, SideNav, nav parity, mobile navigation, desktop sidebar, openMyAds, phone navigation</sub>
+- **[os-redesign](../knowledge/os-redesign.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.  
+  <sub>*task:* redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating &nbsp;|&nbsp; *keywords:* os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual</sub>
 - **[white-screen](../knowledge/white-screen.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   The OS loaded to a silent white screen on Bryson's phone. The app was fine. React, Babel and Supabase come from unpkg and the service worker cached the shell but not them, so one dropped bar of signal meant the babel block was never compiled, nothing ran, nothing threw, and no error handler could fire. Now the libraries are cached, a missing one says so in plain English, and a React crash shows a readable message with a copy button. 13 checks, reproduced in a real browser both before and after.  
   <sub>*task:* diagnose the OS loading to a blank page, or add a new failure that must not be silent &nbsp;|&nbsp; *keywords:* white screen, blank page, os won't load, app not loading, unpkg, CDN, React missing, Babel missing, service worker cache, CrashScreen, error boundary, window.onerror, silent failure, PWA stuck, clear and reload, CACHE_VERSION v71, offline libraries</sub>
