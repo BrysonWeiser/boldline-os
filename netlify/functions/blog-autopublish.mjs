@@ -17,64 +17,19 @@
 //      notice. The per-cycle guard means it fires ~Tuesday 08:00 and never
 //      floods; deleting the pending draft makes the next run refill it.
 //
+// 🔴 Since 2026-10-07 this function WRITES NOTHING ITSELF: Netlify stops it at 30 seconds and an
+// article takes longer. It decides, then starts blog-write-background (../lib/blog-jobs.mjs).
+//
 // ?test=1 reports what a real run would do (due drafts, pipeline state)
 // without publishing/writing/emailing the real notices -- mirrors
 // lead-followup.mjs's dry-run convention.
 
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL, sendEmail, GOLD, escapeHTML } from "../lib/report-shared.mjs";
-import { createScheduledPost, azMostRecent, htmlProblems, regeneratePost, repairOneBrokenPost, applyBlogContent } from "../lib/blog-shared.mjs";
+import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
+import { azMostRecent, htmlProblems, applyBlogContent } from "../lib/blog-shared.mjs";
 import { pingPostPublished } from "../lib/indexnow-shared.mjs";
-
-const SITE_URL = "https://boldlinemedia.com";
-
-const fmtWhen = (iso) =>
-  new Date(iso).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Phoenix" }) + " Arizona time";
-
-const noticeEmailHTML = (headline, message) => `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
-<div style="max-width:480px;margin:0 auto;padding:28px 20px">
-  <div style="margin-bottom:18px;text-align:center">
-    <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
-    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
-    <div style="font-size:11px;color:#6B7280;margin-top:10px">${escapeHTML(headline)}</div>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:22px 22px;font-size:14px;line-height:1.6;color:#1F2937">${escapeHTML(message).replace(/\n/g, "<br>")}</div>
-</div>
-</body></html>`;
-
-const publishEmailHTML = (post) => `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
-<div style="max-width:480px;margin:0 auto;padding:28px 20px">
-  <div style="margin-bottom:18px;text-align:center">
-    <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
-    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
-    <div style="font-size:11px;color:#6B7280;margin-top:10px">Scheduled blog post is now live</div>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:24px 22px">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${GOLD};margin-bottom:8px">${escapeHTML(post.category)}</div>
-    <div style="font-size:19px;font-weight:700;color:#1F2937;line-height:1.3;margin-bottom:10px">${escapeHTML(post.title)}</div>
-    <p style="margin:0 0 18px;font-size:14px;line-height:1.6;color:#4B5563">${escapeHTML(post.excerpt)}</p>
-    <a href="${SITE_URL}/blog/${post.slug}/" style="display:inline-block;padding:11px 20px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:6px;background:${GOLD};color:#15110A;text-decoration:none">Read it live</a>
-  </div>
-  <div style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center">Published on its scheduled time. Need changes? Edit it any time from the Website tab in BoldLine OS.</div>
-</div>
-</body></html>`;
-
-const scheduledEmailHTML = (post, whenISO) => `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,Helvetica,Arial,sans-serif">
-<div style="max-width:480px;margin:0 auto;padding:28px 20px">
-  <div style="margin-bottom:18px;text-align:center">
-    <div style="font-size:16px;font-weight:700;letter-spacing:.06em;color:${GOLD};text-transform:uppercase">BoldLine Media</div>
-    <div style="margin:6px auto 0;height:2px;width:34px;background:${GOLD}"></div>
-    <div style="font-size:11px;color:#6B7280;margin-top:10px">New post scheduled -- review before it goes live</div>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid ${GOLD};border-radius:14px;padding:24px 22px">
-    <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${GOLD};margin-bottom:8px">${escapeHTML(post.category)}</div>
-    <div style="font-size:19px;font-weight:700;color:#1F2937;line-height:1.3;margin-bottom:10px">${escapeHTML(post.title)}</div>
-    <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#4B5563">${escapeHTML(post.excerpt)}</p>
-    <div style="font-size:13px;font-weight:700;color:#1F2937;margin-bottom:4px">Publishes ${escapeHTML(fmtWhen(whenISO))}</div>
-    <div style="font-size:12.5px;line-height:1.6;color:#6B7280">Review, edit, AI-rewrite, reschedule, or delete it in the <strong>Website</strong> tab of BoldLine OS before then. Do nothing and it publishes itself on time.</div>
-  </div>
-</div>
-</body></html>`;
+import { SITE_URL, fmtWhen, noticeEmailHTML, publishEmailHTML } from "../lib/blog-notify.mjs";
+import { startBlogJob } from "../lib/blog-jobs.mjs";
 
 export default async (req) => {
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -117,23 +72,38 @@ export default async (req) => {
       return new Response(JSON.stringify({ ok: true, due: (due || []).length, cycleCount: cycleCount || 0, needsPost, target: needsPost ? new Date(targetMs).toISOString() : null, message: msg }), { status: 200, headers: { "content-type": "application/json" } });
     }
 
-    // 1. Publish anything whose scheduled time has arrived.
-    for (let post of due || []) {
-      // 🔴 Never publish a broken article (six went live as two paragraphs and empty headings). Rewrite it on
-      // the same topic first; if that fails too, hold it a week and tell Bryson once.
+    // 🔴 THIS FUNCTION MAY ONLY RUN 30 SECONDS (Netlify's limit for scheduled functions), and
+    // writing one article takes longer. So nothing here writes: it decides, does the quick
+    // database work, and hands any writing to blog-write-background (see ../lib/blog-jobs.mjs).
+    // Writing is started at most once an hour (the first pass after the hour), so a topic the
+    // model keeps failing on costs 24 attempts a day, not 96.
+    const firstPassOfHour = new Date(now).getUTCMinutes() < 15;
+    const jobs = [];
+    const start = async (action, body) => {
+      try { if (await startBlogJob(action, body)) jobs.push(action); }
+      catch (e) { console.error(`blog-autopublish: could not start ${action}:`, e && e.message); }
+    };
+
+    // 1. Hand-written content first: quick, and it must never wait behind the AI again.
+    try {
+      const c = await applyBlogContent(supabase, now);
+      if (c.edited.length) console.log("blog-autopublish: wording fixed on", c.edited.join(", "));
+      if (c.scheduled.length) {
+        const msg = `New hand-written posts are scheduled, one per Monday at 8am Arizona time. Read or edit them in the Website tab of BoldLine OS before they go out:\n\n${c.scheduled.map((x) => `${fmtWhen(x.when)}: ${x.title}`).join("\n")}`;
+        try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `${c.scheduled.length} new blog posts scheduled`, html: noticeEmailHTML("New blog posts scheduled", msg), text: msg }); } catch (err) { console.error(err); }
+      }
+    } catch (e) { console.error("blog-autopublish: content step failed:", e && e.message); }
+
+    // 2. Publish anything whose scheduled time has arrived.
+    for (const post of due || []) {
+      // 🔴 Never publish a broken article (six went live as two paragraphs and empty headings).
+      // It is rewritten in the background on the same topic; it keeps its time, so the next pass
+      // publishes it. If the rewrite fails, the job holds it a week and tells Bryson once.
       const bad = htmlProblems(post.body_html);
       if (bad.length) {
-        try {
-          post = await regeneratePost(post.id);
-          if (htmlProblems(post.body_html).length) throw new Error(htmlProblems(post.body_html).join(", "));
-        } catch (e) {
-          const later = new Date(new Date(post.published_at).getTime() + 7 * 864e5).toISOString();
-          await supabase.from("blog_posts").update({ published_at: later }).eq("id", post.id);
-          const msg = `"${post.title}" was due to go live but came out incomplete (${bad.join(", ")}), and rewriting it failed (${e.message}). It was NOT published. It is now scheduled for ${fmtWhen(later)}. Rewrite or delete it in the Website tab of BoldLine OS.`;
-          console.error("blog-autopublish:", msg);
-          try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `Blog post held back: ${post.title}`, html: noticeEmailHTML("A blog post was held back", msg), text: msg }); } catch (err) { console.error(err); }
-          continue;
-        }
+        if (firstPassOfHour) await start("job-fix-draft", { postId: post.id });
+        console.error(`blog-autopublish: NOT publishing "${post.title}", it is incomplete (${bad.join(", ")})`);
+        continue;
       }
       const { error } = await supabase.from("blog_posts").update({ status: "published" }).eq("id", post.id);
       if (error) throw error;
@@ -151,51 +121,18 @@ export default async (req) => {
       }
     }
 
-    // 1b. Repair one broken PUBLISHED post per run (rewritten on the same topic, same date and address).
-    try {
-      const fixed = await repairOneBrokenPost(supabase);
-      if (fixed) {
-        console.log(`blog-autopublish: repaired broken post "${fixed.title}" (${fixed.slug}): ${fixed.was.join(", ")}`);
-        const msg = `A published post was broken on the site (${fixed.was.join(", ")}). It has been rewritten on the same topic and kept its date and address:\n\n${fixed.title}\n${SITE_URL}/blog/${fixed.slug}/\n\nRead it, and edit or rewrite it again in the Website tab of BoldLine OS if you want changes.`;
-        await pingPostPublished(fixed.slug);
-        try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `Blog post repaired: ${fixed.title}`, html: noticeEmailHTML("A broken blog post was repaired", msg), text: msg }); } catch (err) { console.error(err); }
-      }
-    } catch (e) { console.error("blog-autopublish: repair failed:", e && e.message); }
-
-    // 1c. Hand-written content: wording fixes on live posts, new posts as scheduled drafts (blog-seed.mjs).
-    try {
-      const c = await applyBlogContent(supabase, now);
-      if (c.edited.length) console.log("blog-autopublish: wording fixed on", c.edited.join(", "));
-      if (c.scheduled.length) {
-        const msg = `New hand-written posts are scheduled, one per Monday at 8am Arizona time. Read or edit them in the Website tab of BoldLine OS before they go out:\n\n${c.scheduled.map((x) => `${fmtWhen(x.when)}: ${x.title}`).join("\n")}`;
-        try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `${c.scheduled.length} new blog posts scheduled`, html: noticeEmailHTML("New blog posts scheduled", msg), text: msg }); } catch (err) { console.error(err); }
-      }
-    } catch (e) { console.error("blog-autopublish: content step failed:", e && e.message); }
-
-    // 2. Once per cycle, write next Monday's post and schedule it for review.
-    if (needsPost) {
-      const slot = new Date(targetMs).toISOString();
-      const post = await createScheduledPost(slot);
-      // createScheduledPost returns null when the week was claimed by a
-      // concurrent run (at-least-once duplicate delivery) between our guard and
-      // its insert -- that means this week is already covered, so do nothing.
-      if (!post) {
-        console.log(`blog-autopublish: week ${slot} already covered by another run -- skipped duplicate.`);
-        return new Response("ok", { status: 200 });
-      }
-      console.log(`blog-autopublish: scheduled "${post.title}" (${post.slug}) for ${slot}`);
+    // 3. A broken PUBLISHED post: the background job rewrites one per start (same date and address).
+    if (firstPassOfHour) {
       try {
-        await sendEmail({
-          to: process.env.OWNER_EMAIL,
-          subject: `New post scheduled for ${fmtWhen(slot)}: ${post.title}`,
-          html: scheduledEmailHTML(post, slot),
-          text: `${post.title}\n\n${post.excerpt}\n\nPublishes ${fmtWhen(slot)}. Review it in the Website tab of BoldLine OS before then.`,
-        });
-      } catch (err) {
-        console.error("blog-autopublish: scheduling succeeded but notification email failed:", err);
-      }
+        const { data: live } = await supabase.from("blog_posts").select("id, body_html").eq("status", "published").limit(200);
+        if ((live || []).some((p) => htmlProblems(p.body_html).length)) await start("job-repair", {});
+      } catch (e) { console.error("blog-autopublish: repair check failed:", e && e.message); }
     }
 
+    // 4. Once per cycle, the AI writes next Monday's post and schedules it for review.
+    if (needsPost && firstPassOfHour) await start("job-weekly", { slot: new Date(targetMs).toISOString() });
+
+    if (jobs.length) console.log("blog-autopublish: started", jobs.join(", "));
     return new Response("ok", { status: 200 });
   } catch (err) {
     console.error("blog-autopublish failed:", err);

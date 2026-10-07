@@ -55,3 +55,18 @@ verified: 2026-10-07
 - To add more hand-written posts later: append to `BLOG_SEED` (HTML body, voice rules), deploy; the next autopublish run schedules it.
 - 🔴 Gotcha: the redesign drops empty `<h2>`s at render, so a broken post no longer SHOWS empty headings; check broken posts by word
   count (< 450), not by counting `<h2></h2>`.
+
+## 🔴 The 30-second limit (found 2026-10-07 afternoon): why the repairs crawled and the wording fixes never landed
+- Netlify stops a SCHEDULED function at 30 seconds. One article on claude-opus-5-5 with high effort often takes longer, so
+  blog-autopublish's repair step was cut off most runs (6 posts took 3+ hours and the last stuck), and every cut-off run
+  also skipped the steps queued behind it, which is why the two `BLOG_EDITS` wording fixes had not applied hours later.
+  The weekly writer lived in the same function with the same exposure.
+- Fix: blog-autopublish now writes NOTHING. It runs the hand-written content step FIRST, publishes due drafts (a broken one is
+  skipped and handed off), then starts jobs on `blog-write-background` (15-minute limit) via `startBlogJob()` in
+  `netlify/lib/blog-jobs.mjs`: `job-repair` (one broken published post), `job-fix-draft` (rewrite a due broken draft in place;
+  holds it a week + emails if that fails), `job-weekly` (write next Monday's post). Jobs start only on the first pass after
+  each UTC hour (`getUTCMinutes() < 15`), capping a failing topic at 24 tries a day.
+- Auth: header `x-blog-job-key` = sha256(service role key + ":blog-jobs"), compared with timingSafeEqual; it opens ONLY the
+  three jobs. No new env var. Emails moved to `netlify/lib/blog-notify.mjs`.
+- verify-blog-writer pins: publisher calls no writer function at all; all three jobs handed off; hourly cap; key refuses a wrong
+  key and the owner-only actions; content step runs before publishing.

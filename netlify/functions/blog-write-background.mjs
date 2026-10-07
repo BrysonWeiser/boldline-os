@@ -19,6 +19,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { createAndPublishPost, createScheduledPost, nextOpenWeeklySlotISO, regeneratePost } from "../lib/blog-shared.mjs";
+import { blogJobKey, BLOG_JOBS, runRepair, runFixDraft, runWeekly } from "../lib/blog-jobs.mjs";
+import crypto from "node:crypto";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -26,6 +28,27 @@ const json = (body, status = 200) =>
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return json({ ok: false, error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
+
+  // 🔴 THE 15-MINUTE PUBLISHER'S JOBS (2026-10-07). It may only run 30 seconds, so it hands the
+  // writing here with an internal key (blog-jobs.mjs). The key opens ONLY these three jobs.
+  const jobKey = req.headers.get("x-blog-job-key") || "";
+  if (jobKey) {
+    const want = blogJobKey();
+    const good = jobKey.length === want.length && crypto.timingSafeEqual(Buffer.from(jobKey), Buffer.from(want));
+    if (!good) return json({ ok: false, error: "Not authenticated" }, 401);
+    let jb;
+    try { jb = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    if (!BLOG_JOBS.includes(jb.action)) return json({ ok: false, error: "Unknown job" }, 400);
+    try {
+      const out = jb.action === "job-repair" ? await runRepair()
+        : jb.action === "job-fix-draft" ? await runFixDraft(String(jb.postId || ""))
+        : await runWeekly(String(jb.slot || ""));
+      return json({ ...out, action: jb.action });
+    } catch (err) {
+      console.error("blog-write-background job failed:", jb.action, err && err.message);
+      return json({ ok: false, action: jb.action, error: String((err && err.message) || err).slice(0, 200) }, 500);
+    }
+  }
 
   const authHeader = req.headers.get("authorization") || "";
   const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";

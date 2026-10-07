@@ -24923,7 +24923,7 @@
         "one portal",
         "makePortalHTML"
       ],
-      "status": "built 2026-10-07 on the dev branch, waiting on Bryson's OK before it goes live",
+      "status": "LIVE 2026-10-07 (merge dab9d27, rollback/20261007-205015)",
       "summary": "Bryson, 2026-10-07, \"now lets look at the client portal\" then \"yes start\". Portal now opens on RESULTS for a live client (leads 30 days + qualified, leads this month vs the same point last month, ad spend 30 days labelled \"paid by you straight to Google/Meta\", cost per lead, a 30-day leads-per-day bar chart, newest 3 leads, latest report teaser), with campaign progress below. New look matching the site (Inter, bigger text, full 1112px width on a computer, 2x2 tiles on a phone). Reports tab keeps past reports (new reportHistory on the client, written by report-shared). Leads show where they came from and the client's local time. Two emojis removed. The OS's second copy of the portal was DELETED; the OS preview now fetches and shows the real page.",
       "verified": "2026-10-07",
       "terms": {
