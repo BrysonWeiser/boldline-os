@@ -2,7 +2,7 @@
 name: marketing-site-pages
 topic: Marketing site
 task: edit, add or restyle a page on boldlinemedia.com (BoldLine's own marketing site), or change its menu, footer, homepage or the test-copy guard
-keywords: [scroll motion, scroll animations, pinned hero, word fill, view transitions, lenis, smooth scroll, mo-pin, hero headline, We only earn more when your phone rings more, multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live]
+keywords: [sample websites, examples, /examples/, sample site, Saguaro Pool, sample-guard, sample-bar, verify-sample-sites, scroll motion, scroll animations, pinned hero, word fill, view transitions, lenis, smooth scroll, mo-pin, hero headline, We only earn more when your phone rings more, multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live]
 status: LIVE on boldlinemedia.com since 2026-10-06 ~5:30pm Phoenix (merge 44286da, rollback/20261007T003255Z). Test copy (Netlify branch deploy) still to be switched on, on the 10pm reminder, for FUTURE website changes.
 summary: boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. LIVE since 2026-10-06 evening (Phoenix). Future website changes go to the Netlify test copy first, once it is switched on.
 verified: 2026-10-07
@@ -97,3 +97,25 @@ lead feed" so a prospect never reads the made-up rows as real client data. `veri
 requires all three rows visible at every width (mutation-checked).
 Bryson asked about results in that tile: the feed stays as the placeholder; swap in a real result once a
 client allows one to be shared (never an invented number).
+
+## Sample websites (2026-10-07, BUILT on the dev branch, NOT LIVE until Bryson says "go" on the test copy)
+Bryson: *"if someone click on it it not only shows that one specific home page but a full mini website with
+animations and everything"*, then "Yes build that and we can eventually make a page showing real clients".
+- `/examples/<cinematic|aurora|editorial>/` + services/about/reviews/contact: the made-up Saguaro Pool Co.
+  (`scripts/site-showcase-demo.mjs`) rendered by the REAL builder (`renderSite`) inside
+  `scripts/build-marketing-site.mjs`, so they always match what clients get (drift fails `--check`).
+- Links rewritten to stay inside the sample (works on the test copy too); JSON-LD stripped (no fake
+  LocalBusiness on our domain); photos served from `marketing-site/img/sample/` (downloaded from Pexels, free
+  licence) instead of hot-linking; noindex meta + `X-Robots-Tag` for `/examples/*`; not in the sitemap.
+- 🔴 `marketing-src/sample-guard.js` is the FIRST script: every non-GET fetch is faked, beacons are no-ops, and
+  any submit is stopped with a plain note. Without it the contact form POSTs to /lead, which boldlinemedia.com
+  forwards to the OS lead intake (proven by mutation).
+- `marketing-src/sample-bar.html`: fixed 44px bar ("Sample site", "made-up business" line, design switcher,
+  Back to BoldLine, Book a call); phones keep "Sample" + "Exit". Client header pushed down via `.hd{inset:44px..}`.
+- Demo email changed to `hello@saguaropools.example` (reserved, can't be anyone's); phone is a 555-01xx number.
+- Linked from each design card on /websites/ ("Open the full sample site") and the homepage hero caption.
+- `tests/verify-sample-sites.mjs` (234 checks, browser + network watch, mutation-checked); sms-consent and
+  privacy-disclosure scanners skip `examples/` with the reason written in.
+- Later: a real-clients page, once a client agrees to be shown.
+🔴 While this sits unmerged, the dev branch is ahead of main with unapproved site work. Don't merge dev into
+main for other work until he says "go"; cherry-pick that work onto main instead.

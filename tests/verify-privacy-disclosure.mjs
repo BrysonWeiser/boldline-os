@@ -28,7 +28,9 @@ const ok = (name, cond, extra) => {
 
 const htmlFiles = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f);
-  if (["node_modules", "fonts", "netlify"].includes(f)) return [];
+  // examples/ holds the sample websites: a made-up business with no analytics and nothing that can send
+  // (tests/verify-sample-sites.mjs). The privacy page describes the pages that collect something; these collect nothing.
+  if (["node_modules", "fonts", "netlify", "examples"].includes(f)) return [];
   return statSync(p).isDirectory() ? htmlFiles(p) : (f.endsWith(".html") ? [p] : []);
 });
 const pages = htmlFiles(SITE).map((f) => ({ rel: f.slice(SITE.length + 1), html: readFileSync(f, "utf8") }));
