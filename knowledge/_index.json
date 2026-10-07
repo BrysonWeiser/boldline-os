@@ -9238,7 +9238,7 @@
         "newsletter dash",
         "author bio local"
       ],
-      "status": "writer fix + self-repair LIVE 2026-10-07; redesign on the test copy waiting for Bryson's \"go\"; content audit pending his decisions",
+      "status": "writer fix, self-repair and redesign LIVE 2026-10-07 (Bryson approved the test copy); 2 wording fixes + 4 hand-written posts shipped as scheduled drafts",
       "summary": "Bryson, 2026-10-07 - the blog \"seems outdated and not worth anyones time\". Found 6 LIVE posts broken (two paragraphs then ~65 empty h2s): the writer forced a tool call on claude-opus-4-8 and published whatever came back. Writer now claude-opus-5-5 with structured JSON output, a shape check + one retry, an HTML check, rotating topic lanes (ads / websites / a trade / lead follow-up) and updated facts; blog-autopublish never publishes a broken draft and repairs one broken PUBLISHED post per run (same topic, same date and address, email to Bryson). Redesign: blog pages now use the site's own stylesheet, header, footer and scripts (generated site-chrome.mjs), drawn cover art per post, featured post, topic filters, contents sidebar, author box, topic-matched offer, related posts.",
       "verified": "2026-10-07",
       "terms": {

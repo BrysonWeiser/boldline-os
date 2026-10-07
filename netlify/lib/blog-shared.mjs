@@ -3,6 +3,7 @@ import { humanize } from "./humanize.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "./report-shared.mjs";
 import { pingIndexNow } from "./indexnow-shared.mjs";
+import { BLOG_EDITS, BLOG_SEED } from "./blog-seed.mjs";
 
 const anthropic = new Anthropic();
 
@@ -439,4 +440,30 @@ export async function repairOneBrokenPost(supabase) {
   if (!broken) return null;
   const fixed = await regeneratePost(broken.id, { keepDate: true });
   return { ...fixed, was: htmlProblems(broken.body_html) };
+}
+
+// Hand-written content (netlify/lib/blog-seed.mjs). Wording fixes are applied to live posts only while the old words
+// are still there; new posts go in as scheduled drafts on the next open Monday slots, never twice, and never back
+// after Bryson deletes one. Returns what changed, for the run log and his email.
+export async function applyBlogContent(supabase, nowMs = Date.now(), { edits = BLOG_EDITS, seed = BLOG_SEED } = {}) {
+  const out = { edited: [], scheduled: [] };
+  for (const e of edits) {
+    const { data } = await supabase.from("blog_posts").select("id, body_html").eq("slug", e.slug).eq("status", "published").maybeSingle();
+    if (data && String(data.body_html || "").includes(e.find)) {
+      const { error } = await supabase.from("blog_posts").update({ body_html: data.body_html.split(e.find).join(e.replace) }).eq("id", data.id);
+      if (!error) out.edited.push(e.slug);
+    }
+  }
+  if (seed.length) {
+    const { data: have, error } = await supabase.from("blog_posts").select("slug").in("slug", seed.map((p) => p.slug));
+    if (error) throw error;
+    const taken = new Set((have || []).map((r) => r.slug));
+    for (const p of seed) {
+      if (taken.has(p.slug) || htmlProblems(p.body_html).length) continue;
+      const when = await nextOpenWeeklySlotISO(supabase, nowMs);
+      const { error: insErr } = await supabase.from("blog_posts").insert({ ...p, status: "draft", source: "manual", published_at: when });
+      if (!insErr) out.scheduled.push({ title: p.title, slug: p.slug, when });
+    }
+  }
+  return out;
 }
