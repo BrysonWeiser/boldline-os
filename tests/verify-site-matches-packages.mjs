@@ -137,6 +137,11 @@ ok("and every mapped feature is a real feature",
 {
   const quote = (SITE.match(/<blockquote>([\s\S]*?)<\/blockquote>/) || [])[1] || "";
   ok("the founder quote was found", quote.length > 40, JSON.stringify(quote.slice(0, 60)));
+  // The quote appears on the homepage AND the About page. Only the first is read above, so the rest must be
+  // word-for-word the same, or an edit to one would leave the other saying something the rules never saw.
+  const founderQuotes = [...SITE.matchAll(/<blockquote>([\s\S]*?)<\/blockquote>/g)].map((m) => m[1]).filter((q) => /Most agencies/.test(q));
+  ok("every copy of the founder quote on the site says the same thing",
+    founderQuotes.length >= 2 && founderQuotes.every((q) => q === quote), `${founderQuotes.length} copies`);
 
   // The site promises the minimum OR the performance fee, whichever is higher. So a quote may
   // say the UPSIDE depends on results. It may not say the whole fee does.
