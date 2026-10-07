@@ -196,7 +196,7 @@ most visitors aren't comparing yet); put it where comparing starts instead.
   link doesn't count, the old pricing one would have passed), and the pills must match rows on /compare/.
 - Sales idea given to Bryson: text the /compare/ link after a cold call when someone says an agency burned them.
 
-## 2026-10-07 night: phone menu grouped (dev branch, waiting on Bryson's "go" after before/after screenshots)
+## 2026-10-07 night: phone menu grouped (LIVE, Bryson said "go" after before/after screenshots)
 Bryson: "there are to many things under the hamburger menu but at the same time I want all of those things easily
 accessible". Was nine equal links. Also found: the menu was see-through (page text showed behind it), and on short
 phones it ran off the screen while the page's floating Book a Call bar sat on top of "Contact".
