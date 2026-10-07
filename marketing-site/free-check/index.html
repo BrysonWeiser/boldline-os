@@ -61,7 +61,7 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
 <meta name="twitter:description" content="Send us your website and we'll show you where your business is quietly losing customers, plus the quickest fixes. Free, and no call required.">
 <meta name="twitter:image" content="https://boldlinemedia.com/og-boldline.jpg">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Organization","name":"BoldLine Media","alternateName":"BoldLine","url":"https://boldlinemedia.com/","logo":"https://boldlinemedia.com/icon.png","image":"https://boldlinemedia.com/icon.png","description":"BoldLine plans, builds and runs Google and Meta ad campaigns, the landing pages behind them, and the websites they send people to, for businesses across the United States.","email":"theboldlinemedia@gmail.com","founder":{"@type":"Person","name":"Bryson Weiser","sameAs":["https://www.linkedin.com/in/brysonweiser"]},"sameAs":["https://www.instagram.com/boldlinemedia","https://www.facebook.com/BoldLineMedia"],"areaServed":{"@type":"Country","name":"United States"},"knowsAbout":["Google Ads management","Meta Ads management","Landing page design","Website design","Website hosting and care","Call tracking","CRM lead routing"]}
+{"@context":"https://schema.org","@type":"Organization","name":"BoldLine Media","alternateName":"BoldLine","url":"https://boldlinemedia.com/","logo":"https://boldlinemedia.com/icon.png","image":"https://boldlinemedia.com/icon.png","description":"BoldLine plans, builds and runs Google and Meta ad campaigns, the landing pages behind them, and the websites they send people to, for businesses across the United States.","email":"bryson@boldlinemedia.com","founder":{"@type":"Person","name":"Bryson Weiser","sameAs":["https://www.linkedin.com/in/brysonweiser"]},"sameAs":["https://www.instagram.com/boldlinemedia","https://www.facebook.com/BoldLineMedia"],"areaServed":{"@type":"Country","name":"United States"},"knowsAbout":["Google Ads management","Meta Ads management","Landing page design","Website design","Website hosting and care","Call tracking","CRM lead routing"]}
 </script>
 <link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin.woff2" crossorigin>
 <link rel="preload" as="font" type="font/woff2" href="/fonts/playfair-display-latin.woff2" crossorigin>
@@ -158,8 +158,8 @@ window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]
     if(!DIGITS10(phone)){m.textContent='Please add a phone number we can reach you on.';return;}
     b.disabled=true;var old=b.textContent;b.textContent='Sending…';m.textContent='';
     fetch('/.netlify/functions/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({website:website,email:email,name:name,phone:phone,source:'homepage',attribution:(window.blOrigin?window.blOrigin():null)})})
-      .then(function(){f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
-      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='Something went wrong. Email us at theboldlinemedia@gmail.com.';});
+      .then(function(r){if(!r.ok)throw 0;f.innerHTML='<div style="padding:10px 0;font-size:15px;color:#F5F3ED">Got it. Your Lead-Leak Check is on the way. We\'ll get it to you within one business day.</div>';})
+      .catch(function(){b.disabled=false;b.textContent=old;m.textContent='That did not go through. Please try again, or email bryson@boldlinemedia.com.';});
   });
 })();
 </script>

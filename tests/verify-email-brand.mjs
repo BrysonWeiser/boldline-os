@@ -84,6 +84,36 @@ ok("the logo is a real file on the website", /^https:\/\/boldlinemedia\.com\/log
   ok("it uses the shared email shell and type", /import \{ emailShell \} from "\.\.\/lib\/client-emails-shared\.mjs";/.test(L) && /const SANS = EMAIL_SANS;/.test(L));
 }
 
+// 6. Where replies go, and who an email is from (found 2026-10-07 walking the client journey)
+{
+  const sent = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, o) => { sent.push(JSON.parse(o.body)); return { ok: true, text: async () => "" }; };
+  const prevFrom = process.env.REPORTS_FROM_EMAIL;
+  process.env.REPORTS_FROM_EMAIL = "BoldLine Media <hello@boldlinemedia.com>";
+  try {
+    await RS.sendEmail({ to: "client@x.com", subject: "s", html: "h", text: "t" });
+    await RS.sendEmail({ to: "customer@x.com", subject: "s", html: "h", text: "t", fromName: 'Desert "Gloss" <x>', replyTo: "owner@desertgloss.com" });
+  } finally { globalThis.fetch = realFetch; process.env.REPORTS_FROM_EMAIL = prevFrom; }
+  ok("🔴 a client's reply goes to the address that reaches Bryson's inbox", sent[0] && sent[0].reply_to === "bryson@boldlinemedia.com");
+  ok("and the usual sender is unchanged", sent[0] && sent[0].from === "BoldLine Media <hello@boldlinemedia.com>");
+  ok("🔴 an email to a client's customer comes from that business, on the same verified address", sent[1] && sent[1].from === '"Desert Gloss x" <hello@boldlinemedia.com>');
+  ok("and the customer's reply goes to the business, not to BoldLine", sent[1] && sent[1].reply_to === "owner@desertgloss.com");
+  for (const f of ["netlify/functions/lead-intake.mjs", "netlify/functions/lead-followup.mjs"]) {
+    ok(`${f.split("/").pop()}: customer emails are sent as the business`, /fromName: client\.name, replyTo: client\.email \|\| undefined/.test(src(f)));
+  }
+  ok("the newsletter's replies reach Bryson too", /reply_to: BOLDLINE_REPLY_TO/.test(src("netlify/lib/newsletter-shared.mjs")));
+}
+
+// 7. The free check never says "Got it" for a request that went nowhere
+{
+  const A = src("marketing-site/netlify/functions/audit.mjs");
+  ok("🔴 if the request was neither saved nor sent to Bryson, the visitor is told", /if \(!leadId && !alerted\) return json\(\{ ok: false/.test(A) && /return true;\n\};/.test(A));
+  const page = src("marketing-src/leadleak.html");
+  ok("🔴 and the page checks the answer before saying Got it", /\.then\(function\(r\)\{if\(!r\.ok\)throw 0;f\.innerHTML=/.test(page));
+  ok("no public page tells a visitor to email a gmail address", !/theboldlinemedia@gmail\.com/.test(src("marketing-src/leadleak.html") + src("marketing-src/site.js") + src("marketing-src/contact.html") + src("marketing-src/reviews.html") + src("marketing-src/ld-org.html")));
+}
+
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-email-brand: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

@@ -63,6 +63,7 @@ const notifyOwnerNewRequest = async ({ website, email, name, phone }) => {
     body: JSON.stringify({ from: process.env.REPORTS_FROM_EMAIL, to: [OWNER_EMAIL], subject: `New Lead-Leak Check request${name ? ": " + name : website ? ": " + website : ""}`, html, text }),
   });
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
+  return true;
 };
 
 export default async (req) => {
@@ -113,7 +114,8 @@ export default async (req) => {
   // Instant owner alert (best-effort). Fires on every valid request, even if the
   // capture or the audit bot fails, so the owner is always notified something
   // came in. Never blocks or fails the visitor's response.
-  try { await notifyOwnerNewRequest({ website, email, name, phone }); }
+  let alerted = false;
+  try { alerted = (await notifyOwnerNewRequest({ website, email, name, phone })) === true; }
   catch (e) { console.error("lead-leak owner alert failed:", e && e.message); }
 
   // Fire the automated Lead-Leak Check bot (best-effort). It lives on the OS
@@ -136,5 +138,11 @@ export default async (req) => {
     } catch { /* fire-and-forget: never block or fail the visitor's response */ }
   }
 
+  // 🔴 NEVER "GOT IT" FOR A REQUEST THAT WENT NOWHERE (found 2026-10-07 walking the client
+  // journey). This used to answer success no matter what, and the page said "Got it". If the
+  // save failed AND the alert email did not go (it is off whenever this site has no verified
+  // sender), the request existed nowhere and the visitor was told it was on its way. Now that
+  // one case answers with an error, so the page tells them how to reach Bryson instead.
+  if (!leadId && !alerted) return json({ ok: false, error: "We could not take that just now." }, 503);
   return json({ ok: true });
 };

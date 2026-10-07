@@ -216,7 +216,7 @@
         if(leadOk) leadOk.style.display = "block";
       }, function(){
         if(btn){ btn.disabled = false; btn.textContent = "Send Message"; }
-        alert("Something went wrong. Please email theboldlinemedia@gmail.com.");
+        alert("That did not go through. Please try again, or email bryson@boldlinemedia.com.");
       });
     });
   }
@@ -291,7 +291,7 @@
         })
         .catch(function(){
           btn.disabled = false; btn.textContent = 'Send \u2192';
-          alert('Something went wrong. Please email theboldlinemedia@gmail.com.');
+          alert('That did not go through. Please try again, or email bryson@boldlinemedia.com.');
         });
     }
     document.getElementById('wizSend').addEventListener('click', wizSubmit);

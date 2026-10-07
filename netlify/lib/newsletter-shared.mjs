@@ -11,6 +11,7 @@
 // scheduling, subscribers, analytics. sendDueNewsletters() no-ops while disabled.
 
 import { EMAIL_SANS, EMAIL_DARK, brandHeaderRow, emailH1 } from "./email-brand.mjs";
+import { BOLDLINE_REPLY_TO } from "./report-shared.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { humanize } from "./humanize.mjs";
 import { createClient } from "@supabase/supabase-js";
@@ -249,7 +250,7 @@ export async function sendBroadcast(em) {
   const create = await fetch("https://api.resend.com/broadcasts", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ segment_id: segmentId, from, subject: em.subject, html: em.body_html }),
+    body: JSON.stringify({ segment_id: segmentId, from, subject: em.subject, html: em.body_html, reply_to: BOLDLINE_REPLY_TO }),
   });
   if (!create.ok) throw new Error(`Resend broadcast create ${create.status}: ${await create.text()}`);
   const { id } = await create.json();
