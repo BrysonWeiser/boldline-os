@@ -153,3 +153,10 @@ Tests: plan finder checked at every budget step; website prices pinned; sample-s
 journey plays 0..5 in order at 390/1280 and is tappable tabs with motion off. Full suite 134/0.
 - 2026-10-07: /compare/ on phones rebuilt after Bryson said it "looks a little crazy": no boxes or repeated labels;
   each row is a gold topic line, BoldLine's answer with a gold check, then one quiet "A typical agency:" line.
+- 2026-10-07: trades 3 and 4 added: `/industries/epoxy-floors/` (sample `DEMO_EPOXY` "Ironwood Floor Coatings",
+  cinematic, NO photos: no usable free epoxy-floor photos were found, and car-wash shots on tile floors would mislead;
+  its trade-page picture is a render of the sample's own first screen, `img/sample/epoxy-hero.jpg`, made by
+  `scripts/build-trade-shots.cjs`) and `/industries/window-tint/` (sample `DEMO_TINT` "Blackline Tint and Film",
+  aurora, Pexels shots from the same car-care shoot as the detailer, `img/sample/tint-*.jpg`). Fixed: industry
+  card images stretched tall because the width/height attributes beat aspect-ratio (added height:auto).
+  Swap real floor photos into the epoxy sample when Bryson or a floor client provides some.

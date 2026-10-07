@@ -55,6 +55,39 @@ export const DEMO_HANDY = {
       seo: { title: "Cedar and Nail Home Repair", description: "Handyman services in Mesa." } } },
 };
 
+export const DEMO_EPOXY = {
+  id: "demo-epoxy", name: "Ironwood Floor Coatings", niche: "Epoxy Garage Floor Coatings", leadToken: "demo", businessPhone: "(623) 555-0164",
+  businessAddress: "Peoria, AZ", campaignSetup: { serviceArea: "Peoria, AZ" },
+  website: { brandName: "Ironwood Floor Coatings", brandColor: "#3B6EA8", publicEmail: "quotes@ironwoodfloors.example",
+    stock: [],
+    reviews: [{ name: "Jason L.", text: "Two days start to finish and the garage looks like a showroom. Hot tires haven't left a mark.", stars: 5 }, { name: "Priya S.", text: "They ground out the old oil stains completely. Fixed price, no surprises.", stars: 5 }],
+    content: {
+      hero: { eyebrow: "Garage floor coatings in Peoria", headline: "A garage floor that looks finished.", lineA: "A garage floor", lineB: "that looks finished.", sub: "Epoxy and polyaspartic coatings that shrug off oil, hot tires and Arizona heat. Most garages done in a day or two." },
+      services: [{ name: "Garage floor coatings", blurb: "Ground, repaired and coated, with a flake finish that hides dust and grips underfoot." }, { name: "Metallic epoxy", blurb: "A deep, glossy finish for garages, gyms and showrooms that want to stand out." }, { name: "Shops and warehouses", blurb: "Hard wearing floors for workshops and commercial spaces, done around your hours." }],
+      why: [{ title: "Done in a day or two", text: "Most two car garages are coated and walkable the next day." }, { title: "Ground, not just painted", text: "We grind the concrete so the coating bonds instead of peeling." }, { title: "Fixed quotes", text: "Measured on site, priced once, no add ons later." }],
+      about: { headline: "Floors are all we do", story: ["We started coating our own garage and the neighbors kept asking who did it.", "Now it's a full crew, and every floor still gets ground properly first."] },
+      process: [{ title: "Free measure", text: "We check the concrete and talk through finishes." }, { title: "Fixed quote", text: "One price, in writing." }, { title: "Coated and cured", text: "Usually in one or two days." }],
+      faqs: [{ q: "How long before I can park on it?", a: "Most floors take light foot traffic the next day and cars after about three days." }, { q: "Will hot tires lift the coating?", a: "Not with a properly ground and coated floor. That's why we grind every one." }],
+      cta: { headline: "Ready to love your garage?", sub: "Book a free measure and get a fixed quote.", button: "Book a free measure" }, marquee: ["Garage floors", "Metallic epoxy", "Flake finishes", "Shops"],
+      seo: { title: "Ironwood Floor Coatings", description: "Epoxy garage floor coatings in Peoria." } } },
+};
+export const DEMO_TINT = {
+  id: "demo-tint", name: "Blackline Tint and Film", niche: "Window Tint and Paint Protection Film", leadToken: "demo", businessPhone: "(480) 555-0187",
+  businessAddress: "Tempe, AZ", campaignSetup: { serviceArea: "Tempe, AZ" },
+  website: { brandName: "Blackline Tint and Film", brandColor: "#B8312F", publicEmail: "shop@blacklinetint.example",
+    stock: [{ url: px(6872165), alt: "Tail light glowing on a dark car" }, { url: px(6872160), alt: "Installer working on glass with a squeegee" }, { url: px(6872149), alt: "Headlight close up" }, { url: px(6872151), alt: "Tail light detail" }],
+    reviews: [{ name: "Marco V.", text: "Full front film on my new car and you honestly can't see the edges. Worth every dollar.", stars: 5 }, { name: "Kelsey T.", text: "Ceramic tint made a huge difference in the Arizona sun. In and out the same afternoon.", stars: 5 }],
+    content: {
+      hero: { eyebrow: "Tint and paint protection in Tempe", headline: "Cooler inside. Flawless outside.", lineA: "Cooler inside.", lineB: "Flawless outside.", sub: "Ceramic window tint, paint protection film and coatings, installed in a clean bay by people who care about edges." },
+      services: [{ name: "Ceramic window tint", blurb: "Blocks the heat you feel without making it hard to see at night." }, { name: "Paint protection film", blurb: "Clear film that takes the rock chips so your paint doesn't." }, { name: "Ceramic coating", blurb: "A glossy, hard layer that keeps the car cleaner for longer." }],
+      why: [{ title: "Clean bay installs", text: "Dust free, so there are no specks under the film." }, { title: "Edges you can't find", text: "Wrapped edges where the panel allows it." }, { title: "Warranty in writing", text: "On the film and on our work." }],
+      about: { headline: "Obsessed with the details", story: ["We started tinting friends' cars in a single garage bay.", "Today it's two bays, and we still check every edge under the light before you leave."] },
+      process: [{ title: "Pick your package", text: "We help you choose the film for how you drive." }, { title: "Drop it off", text: "Most tint jobs are same day." }, { title: "Pick it up", text: "We walk you through care before you go." }],
+      faqs: [{ q: "How long does paint protection film take?", a: "A full front usually takes one day. A full car takes two to three." }, { q: "Is ceramic tint legal?", a: "Yes. We install to your state's legal limits and can tell you exactly what they are." }],
+      cta: { headline: "Ready to protect the car you love?", sub: "Get a quote in one message.", button: "Get a quote" }, marquee: ["Ceramic tint", "Paint protection film", "Ceramic coating"],
+      seo: { title: "Blackline Tint and Film", description: "Window tint and paint protection film in Tempe." } } },
+};
+
 // Writes the three designs as HTML into `outDir`, for scripts/build-site-showcase.cjs to photograph.
 export function writeDemoPages(outDir) {
   const base = "https://saguaropools.example";

@@ -19,10 +19,10 @@ const { SAMPLE_FILES, outputs } = await import("../scripts/build-marketing-site.
 const { THEME_IDS, SITE_PAGES } = await import("../netlify/lib/site-render.mjs");
 const { DEMO } = await import("../scripts/site-showcase-demo.mjs");
 
-const TRADE_SAMPLES = { "car-detailing": "/industries/car-detailing/", handyman: "/industries/handyman/" };
+const TRADE_SAMPLES = { "car-detailing": "/industries/car-detailing/", handyman: "/industries/handyman/", "epoxy-floors": "/industries/epoxy-floors/", "window-tint": "/industries/window-tint/" };
 ok("every design gets all five pages, and so does each trade sample", SAMPLE_FILES.length === (THEME_IDS.length + Object.keys(TRADE_SAMPLES).length) * SITE_PAGES.length && THEME_IDS.length === 3, `${SAMPLE_FILES.length}`);
-const { DEMO_DETAIL, DEMO_HANDY } = await import("../scripts/site-showcase-demo.mjs");
-for (const d of [DEMO_DETAIL, DEMO_HANDY]) {
+const { DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT } = await import("../scripts/site-showcase-demo.mjs");
+for (const d of [DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT]) {
   ok(`🔴 ${d.name}: its email can't belong to anyone`, /@[a-z0-9.-]+\.example$/.test(d.website.publicEmail), d.website.publicEmail);
   ok(`${d.name}: its phone is a 555 number`, /555-01\d\d/.test(d.businessPhone), d.businessPhone);
 }

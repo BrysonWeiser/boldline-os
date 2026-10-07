@@ -10,7 +10,7 @@ import { getSupabase, esc, SITE_URL } from "../lib/blog-render.mjs";
 export const SITE_PAGES = [
   ["/ads/", "0.9"], ["/websites/", "0.9"], ["/pricing/", "0.9"], ["/how-it-works/", "0.8"],
   ["/about/", "0.7"], ["/free-check/", "0.8"], ["/contact/", "0.7"], ["/get-started/", "0.7"],
-  ["/industries/", "0.7"], ["/industries/car-detailing/", "0.8"], ["/industries/handyman/", "0.8"], ["/compare/", "0.6"],
+  ["/industries/", "0.7"], ["/industries/car-detailing/", "0.8"], ["/industries/handyman/", "0.8"], ["/industries/epoxy-floors/", "0.8"], ["/industries/window-tint/", "0.8"], ["/compare/", "0.6"],
 ];
 
 const xml = (body) => new Response(body, { status: 200, headers: { "content-type": "application/xml; charset=utf-8" } });

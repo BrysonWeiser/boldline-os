@@ -339,7 +339,7 @@ html.lenis,html.lenis body{height:auto}
 .ind-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .ind-card{display:flex;flex-direction:column;border-radius:22px;overflow:hidden;border:1px solid rgba(255,255,255,.09);background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.012));text-decoration:none;color:var(--ink);transition:transform .35s var(--ease),border-color .35s ease}
 a.ind-card:hover{transform:translateY(-4px);border-color:var(--gold-line)}
-.ind-card img{width:100%;aspect-ratio:16/10;object-fit:cover;display:block}
+.ind-card img{width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;display:block}
 .ind-txt{padding:22px 24px 24px;display:flex;flex-direction:column;gap:8px;flex:1}
 .ind-txt h3{font-size:21px;font-weight:650;color:#fff}
 .ind-txt p{font-size:14px;line-height:1.6;color:var(--muted)}

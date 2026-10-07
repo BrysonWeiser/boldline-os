@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
-import { DEMO, DEMO_DETAIL, DEMO_HANDY } from "./site-showcase-demo.mjs";
+import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT } from "./site-showcase-demo.mjs";
 import { PACKAGES, WEBSITE_OFFER } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -95,25 +95,39 @@ const webPricing = () => `
 // sample website for a made-up business in that trade. Plan numbers come from the one price list. ───────────────
 const launch = PACKAGES.find((p) => p.id === "g-launch");
 const TRADES = [
-  { slug: "car-detailing", label: "Car detailers", short: "Detailers", sample: "car-detailing", photo: "/img/sample/detail-6873123.jpg",
+  { slug: "car-detailing", label: "Car detailers", sampleLabel: "detailing", sample: "car-detailing", photo: "/img/sample/detail-6873123.jpg",
     h1: "More booked details, <em>fewer slow weeks.</em>",
     sub: "We run Google and Meta ads that put you in front of people looking for a detail right now, and send them to a page built to book.",
     searches: ["mobile detailing near me", "ceramic coating price", "paint correction", "interior car cleaning"],
     meta: "Before and after photos are made for Facebook and Instagram. We turn your best jobs into ads that reach car owners near you.",
     wins: [["Searches with intent", "Google shows your ad to people typing what they want done, not people idly scrolling."], ["Photos that sell", "Your before and after shots become Meta ads that make people want the same result."], ["Reviews on autopilot", "After each job your customer gets one email asking for a Google review, so your rating keeps climbing."]],
     faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a detailer?", "A real person in your area asking about a service you offer. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["I'm a one person shop. Is this too much?", "Most detailers start on our smallest plan, with a $500 a month ad budget. If the calendar fills, you scale up. If not, you'll know why."]] },
-  { slug: "handyman", label: "Handymen", short: "Handymen", sample: "handyman", photo: "/img/sample/handy-6474471.jpg",
+  { slug: "handyman", label: "Handymen", sampleLabel: "handyman", sample: "handyman", photo: "/img/sample/handy-6474471.jpg",
     h1: "Fill the calendar with <em>jobs worth driving to.</em>",
     sub: "We run Google and Meta ads for handymen that bring in people with a real job to do, and a page that turns them into a booked visit.",
     searches: ["handyman near me", "drywall repair", "ceiling fan installation", "door repair"],
     meta: "Homeowners scroll Facebook with a to-do list in the back of their mind. A good before and after reminds them who to call.",
     wins: [["The right jobs", "We aim the ads at the work you want more of, and keep them away from the jobs you don't."], ["A page that books", "Your ads land on a page about the job they searched for, with your reviews and a short form."], ["Every call counted", "Calls and forms are tracked back to the ad that caused them, so you know what's paying for itself."]],
     faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a handyman?", "A real person in your area asking about work you do. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Can you avoid the tiny jobs?", "Yes. We tune the keywords and the page around the jobs you want, and we review the leads with you every month."]] },
+  { slug: "epoxy-floors", label: "Epoxy floor installers", sampleLabel: "floor coating", sample: "epoxy-floors", photo: "/img/sample/epoxy-hero.jpg",
+    h1: "More garage floors booked, <em>less waiting on referrals.</em>",
+    sub: "We run Google and Meta ads that reach homeowners pricing out a garage floor right now, and send them to a page that books the free measure.",
+    searches: ["epoxy garage floor near me", "garage floor coating cost", "polyaspartic floor coating", "metallic epoxy floor"],
+    meta: "A finished garage is one of the best before and afters there is. We put yours in front of homeowners nearby, and they come asking for the same floor.",
+    wins: [["Buyers, not browsers", "We bid on the searches people make when they're ready for quotes, and skip the do it yourself crowd."], ["Before and afters that sell", "Your best floors become ads that make homeowners look at their own garage differently."], ["The jobs you want", "We can aim the ads at full garages, metallic floors or commercial space, whatever you want more of."]],
+    faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a floor installer?", "A homeowner or business in your area asking about a floor you'd do. Not a do it yourself question, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Does this work for commercial floors too?", "Yes. We can run shops and warehouses as their own campaign with their own page, so those leads don't get mixed in with garages."]] },
+  { slug: "window-tint", label: "Tint and film shops", sampleLabel: "tint shop", sample: "window-tint", photo: "/img/sample/tint-6872160.jpg",
+    h1: "Fill your bays with <em>film and tint jobs.</em>",
+    sub: "We run Google and Meta ads that reach drivers shopping for tint, paint protection film and coatings, and send them to a page that turns them into a booked install.",
+    searches: ["ceramic tint near me", "paint protection film cost", "clear bra near me", "ceramic coating"],
+    meta: "New car owners scroll Instagram looking at other people's cars. Your film and tint work, shot well, is exactly what makes them book.",
+    wins: [["High ticket first", "We can put more of the budget behind paint protection film and coatings, where one job is worth several tints."], ["New car buyers", "We reach people who just bought, while protecting the paint is on their mind."], ["Every call counted", "Calls and forms are traced back to the ad that caused them, so you know what's paying for itself."]],
+    faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a tint shop?", "A real person in your area asking about a service you offer. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Can you push film over tint?", "Yes. We tune the ads and the page around the work you want more of, and review the leads with you every month."]] },
 ];
 const tradePage = (t) => `
 <section class="page-hero tr-hero"><div class="wrap-x tr-grid">
   <div class="reveal"><div class="eyebrow">For ${t.label.toLowerCase()}</div><h1>${t.h1}</h1><p>${t.sub}</p>
-    <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/examples/${t.sample}/">See a sample ${t.short === "Detailers" ? "detailing" : "handyman"} site</a></div></div>
+    <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/examples/${t.sample}/">See a sample ${t.sampleLabel} site</a></div></div>
   <a class="tr-shot reveal" href="/examples/${t.sample}/" aria-label="Open the sample site"><img src="${t.photo}" width="1600" height="1067" alt="" loading="eager" decoding="async"><span class="tr-badge">Sample site <i>&rarr;</i></span></a>
 </div></section>
 
@@ -361,7 +375,7 @@ const footer = () => `<footer class="x-foot"><div class="wrap-x">
   <div class="f-top">
     <div><a class="f-brand" href="/"><img src="/logo.png" alt="" width="24" height="28">BoldLine Media</a><p class="f-blurb">Google and Meta ads, landing pages and websites for businesses that want a steadier phone. You always own your ad account.</p></div>
     <div><h4>Services</h4><ul><li><a href="/ads/">Google and Meta ads</a></li><li><a href="/websites/">Websites</a></li><li><a href="/pricing/">Pricing</a></li><li><a href="/free-check/">Free Lead-Leak Check</a></li></ul></div>
-    <div><h4>Who we work with</h4><ul><li><a href="/industries/car-detailing/">Car detailers</a></li><li><a href="/industries/handyman/">Handymen</a></li><li><a href="/industries/">All trades</a></li><li><a href="/compare/">BoldLine vs a typical agency</a></li></ul></div>
+    <div><h4>Who we work with</h4><ul><li><a href="/industries/car-detailing/">Car detailers</a></li><li><a href="/industries/handyman/">Handymen</a></li><li><a href="/industries/epoxy-floors/">Epoxy floor installers</a></li><li><a href="/industries/window-tint/">Tint and film shops</a></li><li><a href="/industries/">All trades</a></li><li><a href="/compare/">BoldLine vs a typical agency</a></li></ul></div>
     <div><h4>Company</h4><ul><li><a href="/how-it-works/">How it works</a></li><li><a href="/about/">About</a></li><li><a href="/blog/">Blog</a></li><li><a href="/contact/">Contact</a></li></ul></div>
     <div><h4>Legal</h4><ul><li><a href="/privacy.html">Privacy</a></li><li><a href="/terms.html">Terms</a></li></ul></div>
   </div>
@@ -435,6 +449,8 @@ const SAMPLES = [
   ...THEME_IDS.map((t) => ({ slug: t, demo: DEMO, theme: t, switcher: true, back: "/websites/" })),
   { slug: "car-detailing", demo: DEMO_DETAIL, theme: "aurora", switcher: false, back: "/industries/car-detailing/" },
   { slug: "handyman", demo: DEMO_HANDY, theme: "editorial", switcher: false, back: "/industries/handyman/" },
+  { slug: "epoxy-floors", demo: DEMO_EPOXY, theme: "cinematic", switcher: false, back: "/industries/epoxy-floors/" },
+  { slug: "window-tint", demo: DEMO_TINT, theme: "aurora", switcher: false, back: "/industries/window-tint/" },
 ];
 const samplePath = (slug, page) => `examples/${slug}/${page.path ? page.path + "/" : ""}index.html`;
 const SAMPLE_PHOTOS = existsSync(join(OUT, "img", "sample")) ? readdirSync(join(OUT, "img", "sample")) : [];
