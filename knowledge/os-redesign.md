@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: concept v2 (JARVIS layer) published, waiting on Bryson's reaction
+status: concept v3 (ARIA core + voice) published, waiting on Bryson's reaction
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -55,3 +55,25 @@ Same artifact URL, version 2. Added:
   snap in and "TARGET ACQUIRED" flashes each time a new business loads.
 - For the real build: three.js is ~600KB; load it only on the Today screen, after the screen is usable, and skip on
   slow phones (same rule as client websites).
+
+## v3 (2026-10-07): better 3D, ARIA talks right away, "Hey ARIA" like Siri, more utility
+- **Globe replaced by the ARIA core**: a ~7,000-particle sphere (custom shader) that breathes when idle, swirls and
+  turns ice blue when listening, and pulses on every spoken word (speech boundary events) when speaking. Three goal
+  rings orbit it (calls gold, conversations ice, meetings green) and **fill as he works**, so the 3D shows his day.
+- **Speaks right away**: browsers block sound until one tap, so the boot ends on "Tap to wake ARIA" (any key works);
+  that tap unlocks audio and she reads the briefing immediately. British male voice preferred for the JARVIS feel.
+- **"Hey ARIA"**: wake-word logic built on the browser's speech recognition (continuous, restarts itself, reacts to
+  "aria" / common mishears). 🔴 The private preview page is NOT allowed the microphone (the artifact runtime offers
+  no mic capability), so there it falls back to the typed command box with a note. In the real OS (a normal site)
+  it works in Chrome and Safari after a one-time mic permission. Chrome's recognition sends audio to Google; note
+  that to Bryson before shipping, and only listen while the OS tab is open.
+- **Commands** (typed in the preview, spoken in the real build): start Power Hour, how am I doing, who's next, read
+  my new leads, what's tomorrow, objections, booked / no answer while calling, end session. Unknown questions: in the
+  real OS route to the existing ARIA (Claude) with the client/lead data.
+- **Utility added**: Call windows strip (local time + open/prime/wrapping up/closed for Pacific, Arizona, Mountain,
+  Central, Eastern, since he calls nationally); each prospect shows ITS local time and status + a per-call timer;
+  Objections drawer (O) with five short comebacks (pricing line matches the real $400 minimum); tool buttons for
+  Notes and Follow-up text; End session -> recap (calls, conversations, booked, calls an hour) with ARIA's spoken
+  line; ARIA reacts out loud to each booking.
+- Ideas raised but not built: Stark-style 3D "holotable" map of prospects by city (better fit for Lead Scout), UI sound
+  design toggle, personal-best badges, voice notes after a call transcribed by ARIA.
