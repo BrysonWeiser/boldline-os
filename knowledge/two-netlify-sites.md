@@ -30,6 +30,9 @@ One git repo produces **independent Netlify sites**, all auto-deploying from `ma
 - 🔴 GOTCHA: with a Base directory set, Netlify SKIPS a build when the commit changed nothing inside that folder. A
   KB-only push does not create or refresh the test copy (it stayed 404 after the first push). A commit must touch
   `marketing-site/` (the first one added a comment to marketing-site/netlify.toml explaining this).
+- ✅ Verified 2026-10-07 ~10:10am Phoenix: the test copy answers 200 with the gold "Test version" bar, the
+  `__TEST_COPY` guard and robots noindex. Workflow from now on: marketing changes go to the dev branch, Bryson looks
+  at the test address, says "go", then merge to main.
 
 ## 2026-10-07 ~9:53 to 10:00 Phoenix: GitHub refused every write
 - Both `git push` and the GitHub API returned HTTP 500 for this repo for about 7 minutes while githubstatus.com said

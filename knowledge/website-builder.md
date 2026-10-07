@@ -241,7 +241,7 @@ marketing-site suites pass; verified at 390/768/1280/1600, no sideways scroll.
   marketing site (`boldline-media`) for the dev branch give a permanent address
   `https://claude-monday-sept-7-catchup-hyschf--boldline-media.netlify.app`. Needs one Netlify setting
   (Site configuration > Build & deploy > Branches and deploy contexts > Branch deploys: add the dev branch);
-  on the 2026-10-06 10pm reminder. Workflow after: he looks at the test address, says "go", I merge to main.
+  on the 2026-10-06 10pm reminder. ✅ Switched on and verified 2026-10-07 (KB two-netlify-sites). Workflow after: he looks at the test address, says "go", I merge to main.
   Guard in BOTH marketing pages, right after the charset meta: on any `name--site.netlify.app` host every
   non-GET fetch is faked, sendBeacon is a no-op, POST form submits are stopped, analytics never load
   (`load()` checks `window.__TEST_COPY`, plus ga-disable flags), a gold "Test version" bar shows, and robots
