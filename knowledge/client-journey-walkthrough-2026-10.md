@@ -3,7 +3,7 @@ name: client-journey-walkthrough-2026-10
 topic: Sales funnel
 task: check or change the path a new client takes (ad, website, booking, free check, contact form, emails, agreement, welcome), where replies to our emails go, or who customer emails appear to come from
 keywords: [client journey, funnel, walkthrough, reply to, reply_to, BOLDLINE_REPLY_TO, fromName, free check silent failure, audit.mjs, contact form auto reply, speed to lead, public email address]
-status: fixes built 2026-10-07 on the dev branch, waiting on Bryson's OK before they go live
+status: fixes LIVE 2026-10-07 (merge f0ac1e7); instant reply + faster ping approved, being built
 summary: Bryson, 2026-10-07, picked "walk the whole path a new client takes". Live crawl of boldlinemedia.com (49 pages) found no broken links; two Calendly links (30min ads, website), four real forms. Fixed: (1) every email now carries reply_to bryson@boldlinemedia.com, the address CONFIRMED to forward (hello@, the sender, is not confirmed routed), (2) emails to a client's CUSTOMERS are sent as that business with reply_to the business, (3) the free-check form said "Got it" even when the request was saved nowhere, (4) public pages showed a gmail address, now bryson@boldlinemedia.com. Recommended, not built: an instant reply to contact-form enquiries, and a faster than 15-minute phone ping.
 verified: 2026-10-07
 ---
