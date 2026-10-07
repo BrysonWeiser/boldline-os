@@ -19,6 +19,42 @@ export const DEMO = {
       cta: { headline: "Ready for a summer at home?", sub: "Book a free design visit.", button: "Book a design visit" }, marquee: ["Custom pools", "Remodels", "Spas"],
       seo: { title: "Saguaro Pool Co.", description: "Custom pools in Phoenix." } } },
 };
+// Trade samples for the industry pages on boldlinemedia.com (KB marketing-site-pages, "Trade pages"). Made up on
+// purpose, like the pool company: 555 phone numbers, reserved .example email addresses, no real business.
+const px = (id) => `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=1600`;
+export const DEMO_DETAIL = {
+  id: "demo-detail", name: "Northline Auto Detailing", niche: "Car Detailing", leadToken: "demo", businessPhone: "(480) 555-0172",
+  businessAddress: "Scottsdale, AZ", campaignSetup: { serviceArea: "Scottsdale, AZ" },
+  website: { brandName: "Northline Auto Detailing", brandColor: "#C7362F", publicEmail: "book@northlinedetail.example",
+    stock: [{ url: px(6873123), alt: "Detailer finishing a white sports car" }, { url: px(6873089), alt: "Pressure washing a car" }, { url: px(6872572), alt: "Hand drying paint with a microfiber towel" }, { url: px(3354648), alt: "White car under the lights" }],
+    reviews: [{ name: "Chris M.", text: "They came to my office, and by lunch the car looked better than the day I bought it.", stars: 5 }, { name: "Alyssa P.", text: "Booked online in a minute. The ceramic coating still beads water months later.", stars: 5 }],
+    content: {
+      hero: { eyebrow: "Mobile detailing in Scottsdale", headline: "Showroom shine, in your driveway.", lineA: "Showroom shine,", lineB: "in your driveway.", sub: "Hand washes, paint correction and ceramic coating, done at your home or office so you never lose a day to the car wash." },
+      services: [{ name: "Full detail", blurb: "Inside and out, from the wheel wells to the headliner." }, { name: "Paint correction", blurb: "Swirls and light scratches polished out, so the paint looks deep again." }, { name: "Ceramic coating", blurb: "A hard, glossy layer that keeps the shine and makes every wash easier." }],
+      why: [{ title: "We come to you", text: "The van carries its own water and power." }, { title: "Gentle on paint", text: "Soft mitts, clean towels and products made for the finish you have." }, { title: "Book in a minute", text: "Pick a time online and get a reminder the day before." }],
+      about: { headline: "One van, done properly", story: ["We started with a bucket, a buffer and a few neighbors' cars.", "Now we run two vans, and every car still gets the same care."] },
+      process: [{ title: "Book online", text: "Choose the service and a time that suits you." }, { title: "We arrive", text: "On time, with everything we need." }, { title: "Drive away", text: "A walk around with you before we leave." }],
+      faqs: [{ q: "Do you need my water or power?", a: "No. The van carries both." }, { q: "How long does a full detail take?", a: "Most cars take three to four hours." }],
+      cta: { headline: "Ready for that new car feeling?", sub: "Pick a time that suits you.", button: "Book a detail" }, marquee: ["Full details", "Paint correction", "Ceramic coating"],
+      seo: { title: "Northline Auto Detailing", description: "Mobile car detailing in Scottsdale." } } },
+};
+export const DEMO_HANDY = {
+  id: "demo-handy", name: "Cedar and Nail Home Repair", niche: "Handyman", leadToken: "demo", businessPhone: "(602) 555-0193",
+  businessAddress: "Mesa, AZ", campaignSetup: { serviceArea: "Mesa, AZ" },
+  website: { brandName: "Cedar and Nail", brandColor: "#2F6B4F", publicEmail: "hello@cedarandnail.example",
+    stock: [{ url: px(1249611), alt: "Drilling into a floor" }, { url: px(6474471), alt: "Painting a wall" }, { url: px(5691622), alt: "Smoothing drywall" }, { url: px(5691590), alt: "Wiring an outlet" }],
+    reviews: [{ name: "Sandra K.", text: "I sent a list of nine small jobs and they finished all of them in one visit, for the price they quoted.", stars: 5 }, { name: "Ray D.", text: "Showed up when they said, cleaned up after, and the drywall patch is invisible.", stars: 5 }],
+    content: {
+      hero: { eyebrow: "Handyman services in Mesa", headline: "Small jobs, done right.", lineA: "Small jobs,", lineB: "done right.", sub: "Drywall, painting, fixtures and the to-do list you keep putting off. One call, a fixed price and a tidy finish." },
+      services: [{ name: "Drywall and painting", blurb: "Holes patched, walls smoothed and rooms painted so you can't tell where the damage was." }, { name: "Fixtures and fans", blurb: "Lights, ceiling fans, faucets and hardware, swapped and working." }, { name: "Doors, trim and repairs", blurb: "Sticky doors, loose trim and the little things that add up." }],
+      why: [{ title: "Fixed prices", text: "You get the price before we start." }, { title: "On time", text: "And if something changes, we call you first." }, { title: "Clean up included", text: "We leave the room the way we found it, minus the problem." }],
+      about: { headline: "Built on finishing the list", story: ["Most people don't need a contractor. They need someone reliable who shows up and gets through the list.", "That's the whole idea."] },
+      process: [{ title: "Send your list", text: "Photos help, but a few lines is fine." }, { title: "Get a price", text: "One fixed number for the visit." }, { title: "We get it done", text: "Usually in a single trip." }],
+      faqs: [{ q: "Is there a minimum job size?", a: "One hour. Most visits take care of several jobs at once." }, { q: "Do you bring the materials?", a: "Yes. They're listed in your price, so there are no surprises." }],
+      cta: { headline: "Got a list that keeps growing?", sub: "Send it over and get a fixed price.", button: "Get a price" }, marquee: ["Drywall", "Painting", "Fixtures", "Repairs"],
+      seo: { title: "Cedar and Nail Home Repair", description: "Handyman services in Mesa." } } },
+};
+
 // Writes the three designs as HTML into `outDir`, for scripts/build-site-showcase.cjs to photograph.
 export function writeDemoPages(outDir) {
   const base = "https://saguaropools.example";
