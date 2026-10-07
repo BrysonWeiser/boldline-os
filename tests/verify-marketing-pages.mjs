@@ -99,6 +99,24 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   ok(`${f}: menu points at the new pages`, ["/ads/", "/websites/", "/pricing/", "/how-it-works/", "/about/"].every((h) => src.includes(`href="${h}"`)) && !/href="\/#/.test(src));
 }
 
+// What search engines (and Google's AI answers) read about us has to match the real price list. The old
+// summary said ads and landing pages only, and an old $350 price lived on in Google's answers for weeks.
+{
+  const { WEBSITE_OFFER } = await import("../netlify/lib/pricing-shared.mjs");
+  const ld = (f) => [...readPage(f).matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => [].concat(JSON.parse(m[1])));
+  const org = ld("index.html").find((x) => x["@type"] === "Organization") || {};
+  ok("🔴 the business summary search engines read mentions websites", /websites/i.test(org.description || "") && (org.knowsAbout || []).some((k) => /website/i.test(k)), org.description);
+  for (const f of ["pricing/index.html", "websites/index.html"]) {
+    const web = ld(f).find((x) => x["@type"] === "Service" && /website/i.test(x.serviceType || ""));
+    const usd = (n) => `$${n.toLocaleString("en-US")}`;
+    ok(`🔴 ${f}: the website service search engines read carries today's prices`,
+      !!web && String(web.offers.price) === String(WEBSITE_OFFER.build) && web.offers.description.includes(usd(WEBSITE_OFFER.build)) && web.offers.description.includes(`${usd(WEBSITE_OFFER.care)} a month`),
+      web ? web.offers.description : "missing");
+  }
+  const ads = ld("pricing/index.html").find((x) => x["@type"] === "Service" && /advertising/i.test(x.serviceType || ""));
+  ok("and the ads service quotes the real $400 minimum, never the old $350", !!ads && ads.offers.price === "400" && !/350/.test(JSON.stringify(ads)));
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-marketing-pages: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
