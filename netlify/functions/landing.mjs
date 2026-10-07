@@ -427,7 +427,7 @@ a{color:inherit}
 /* overlay hero */
 .hero-ov{padding:0;min-height:520px;display:flex;align-items:flex-end;background-image:var(--heroimg);background-size:cover;background-position:center}
 .hero-ov::before,.hero-ov::after{display:none}
-.hero-ov .hero-ovc{position:relative;z-index:2;color:#fff;padding:0 0 8px;max-width:640px}
+.hero-ov .hero-ovc{position:relative;z-index:2;color:#fff;padding:0 20px 8px;max-width:640px}
 .hero-ov .headline{color:#fff}.hero-ov .subhead{color:rgba(255,255,255,.9)}
 .hero-ov .cta.ghost{color:#fff;border-color:rgba(255,255,255,.5)}
 .hero-ov .trust{color:rgba(255,255,255,.9)}.hero-ov .trust b{color:#fff}
