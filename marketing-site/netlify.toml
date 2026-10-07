@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+# Branch deploys: the working branch also builds a private test copy of this site on its own
+# netlify.app address. The test-copy guard in every page fakes form posts and hides it from search
+# engines there, so a change can be looked at before it reaches the live domain (KB two-netlify-sites).
+# Netlify skips a build when nothing in this folder changed, so a test copy only refreshes when a
+# commit touches marketing-site/.
+
 # ── BoldLine's OWN audience landing pages ────────────────────────────────────
 # Bryson, 2026-09-15, wants a page per audience for his own ads: one for car detailers, a
 # different one for roofers, and so on. Google prints the address under the ad, so it has to
