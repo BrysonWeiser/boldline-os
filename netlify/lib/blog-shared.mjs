@@ -11,14 +11,14 @@ const clip = (s, n) => String(s || "").slice(0, n);
 // The only facts the AI is allowed to state about BoldLine. Keep this in
 // sync with marketing-site/index.html -- never let generated posts invent
 // client results, testimonials, or capabilities not listed here.
-export const BLOG_FACTS = `Business: BoldLine Media -- a digital marketing agency running Google Ads, Meta Ads, custom landing pages, call tracking, and CRM lead routing for small and mid-size businesses.
-Niches served (by design, a limited number of clients): home services, medical & wellness, automotive, e-commerce brands.
-Process used on every engagement: Discovery (learn the business and customer before any money moves) -> Build (campaign structure, ad creative, tracking, and a dedicated landing page, all checked before launch) -> Launch (quality-checked against the full plan, then live) -> Optimize (reviewed on a set cadence against real performance data, never left untouched) -> Scale (budget grows only once the numbers earn it, and only with the client's sign-off).
-True on every plan regardless of tier: a landing page built specifically for the campaign; leads reach the business immediately (automatic notification, no manual forwarding); reporting in plain English on a set cadence; scope locked and checked before anything launches; full account transparency; no spend without the client's sign-off.
-The one rule that never bends: the client's ad account is always owned and paid for directly by the client. BoldLine only ever holds manager-level access to run it day to day -- BoldLine never holds, fronts, or touches client ad spend.
-Contract terms: engagements start with a three month minimum (paid ads compound; the first month is learning, the second applies the data, the third shows judgeable momentum), then run month to month.
-Booking link for every CTA: https://calendly.com/theboldlinemedia/30min
-BoldLine does not have real client case studies, testimonials, or performance numbers to cite yet -- never invent any.`;
+export const BLOG_FACTS = `Business: BoldLine Media -- plans, builds and runs Google Ads and Meta Ads, the landing pages behind them, and the websites businesses send people to. Based in Phoenix, working with businesses across the U.S. Never describe the clients as "local businesses".
+Who it is for: service businesses that want a steadier phone, especially trades like car detailing, handyman work, epoxy floors and window tint, plus any business that sells a service people search for.
+Ads: every call and form is traced back to the ad that caused it, and the client gets a plain-English report. Each month the client pays the plan's minimum or the fee for qualified leads delivered, whichever is higher, never both. Plans start at $400 a month. The ad budget is separate and goes straight to Google or Meta on the client's own card.
+Websites: five pages written for the business in one of three modern designs, $1,500 to build (all up front, or half now and half before it goes live), then $100 a month for hosting, security and up to two small edits a month. Extra pages and a blog are add-ons.
+The one rule that never bends: the client's ad account is always owned and paid for directly by the client. BoldLine only ever holds manager-level access to run it -- BoldLine never holds, fronts, or touches client ad spend.
+Contract terms: ads engagements start with a three month minimum (the first month is learning, the second applies the data, the third shows judgeable momentum), then run month to month.
+Free offer: the Free Lead-Leak Check at boldlinemedia.com/free-check/ looks at a business's website and says where customers are slipping away.
+BoldLine is a young company. It does not have client case studies, testimonials, results or numbers to cite yet -- never invent any, and never say things like "a question we hear from every client" or "one of our clients".`;
 
 export function slugify(title) {
   return String(title || "")
@@ -56,6 +56,34 @@ const renderBullet = (b) => {
   return lead ? `<li><strong>${lead}.</strong> ${rest}</li>` : `<li>${rest}</li>`;
 };
 
+// 🔴 Six posts went live in 2026 as two paragraphs followed by ~65 empty headings: the model's answer came
+// back with `sections` in the wrong shape and nothing checked it before publishing. Every AI post is now
+// checked here, and every scheduled post again right before it goes live (blog-autopublish).
+const words = (s) => String(s || "").replace(/<[^>]*>/g, " ").split(/\s+/).filter(Boolean).length;
+export function postProblems(post) {
+  const out = [];
+  if (!post || typeof post !== "object") return ["no post"];
+  for (const k of ["title", "excerpt", "intro", "conclusion"]) if (!String(post[k] || "").trim()) out.push(`missing ${k}`);
+  const secs = post.sections;
+  if (!Array.isArray(secs)) out.push("sections is not a list");
+  else {
+    if (secs.length < 3 || secs.length > 7) out.push(`${secs.length} sections`);
+    secs.forEach((x, i) => {
+      if (!x || typeof x !== "object" || !String(x.heading || "").trim()) out.push(`section ${i + 1} has no heading`);
+      else if (words(x.body) + (Array.isArray(x.bullets) ? x.bullets.reduce((n, b) => n + words(b && b.lead) + words(b && b.rest), 0) : 0) < 40) out.push(`section ${i + 1} is nearly empty`);
+    });
+  }
+  return out;
+}
+export function htmlProblems(html) {
+  const out = [];
+  const empty = (String(html || "").match(/<h[23][^>]*>\s*<\/h[23]>/g) || []).length;
+  if (empty) out.push(`${empty} empty headings`);
+  if (words(html) < 450) out.push(`only ${words(html)} words`);
+  if (!/<h2[^>]*>\s*\S/.test(String(html || ""))) out.push("no headings");
+  return out;
+}
+
 function postToHTML(post) {
   const parts = [paragraphsToHTML(post.intro)];
   for (const section of post.sections || []) {
@@ -70,53 +98,84 @@ function postToHTML(post) {
   return parts.filter(Boolean).join("\n\n");
 }
 
-const BLOG_POST_TOOL = {
-  name: "blog_post",
-  description: "Submit a finished blog post for the BoldLine Media marketing blog.",
-  input_schema: {
-    type: "object",
-    properties: {
-      title: { type: "string", description: "Headline, under 70 characters. No trailing period." },
-      category: { type: "string", description: "A short one-or-two word topic label shown as an eyebrow tag, e.g. 'Strategy', 'Conversion', 'Getting Started'." },
-      excerpt: { type: "string", description: "1-2 sentence teaser for the blog index card, under 200 characters." },
-      meta_description: { type: "string", description: "SEO meta description, under 160 characters. Can match the excerpt or be a close variant." },
-      read_minutes: { type: "integer", description: "Honest estimated reading time in minutes, typically 4-7." },
-      intro: { type: "string", description: "Opening paragraph(s), no heading. Separate paragraphs with a blank line." },
-      sections: {
-        type: "array",
-        description: "3-5 body sections, each becomes an H2 plus supporting content.",
-        items: {
-          type: "object",
-          properties: {
-            heading: { type: "string", description: "H2 heading for this section." },
-            body: { type: "string", description: "Supporting prose for this section. Separate paragraphs with a blank line. Omit if this section is a bulleted list with no lead-in prose." },
-            bullets: {
-              type: "array",
-              description: "Optional bulleted list for this section. Omit entirely if this section is prose-only.",
-              items: {
-                type: "object",
-                properties: {
-                  lead: { type: "string", description: "Short bolded lead-in clause, e.g. 'It loads fast'. No trailing period." },
-                  rest: { type: "string", description: "The rest of the sentence after the bolded lead-in, including its own closing punctuation." },
-                },
-                required: ["lead", "rest"],
-              },
+// The answer must come back in exactly this shape (structured output), so `sections` can never arrive as
+// anything but a list of headed sections.
+const S = (description) => ({ type: "string", description });
+const POST_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["title", "category", "excerpt", "meta_description", "read_minutes", "intro", "sections", "pull_quote", "conclusion"],
+  properties: {
+    title: S("Headline, under 70 characters. No trailing period."),
+    category: S("One of: Google Ads, Meta Ads, Websites, Landing Pages, Lead Follow-Up, Budgeting, Getting Started, Trades."),
+    excerpt: S("1-2 sentence teaser for the blog index card, under 200 characters."),
+    meta_description: S("SEO meta description, under 160 characters."),
+    read_minutes: { type: "integer", description: "Honest reading time in minutes, typically 4-7." },
+    intro: S("Opening paragraphs, no heading. Separate paragraphs with a blank line."),
+    sections: {
+      type: "array",
+      description: "3-5 body sections. Each becomes an H2 plus its content.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["heading", "body", "bullets"],
+        properties: {
+          heading: S("H2 heading for this section."),
+          body: S("Prose for this section, paragraphs separated by a blank line. Empty string only if the bullets carry the section."),
+          bullets: {
+            type: "array",
+            description: "Optional list for this section. Empty list if the section is prose only.",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["lead", "rest"],
+              properties: { lead: S("Short bolded lead-in, no trailing period."), rest: S("The rest of the sentence, with its own punctuation.") },
             },
           },
-          required: ["heading"],
         },
       },
-      pull_quote: { type: "string", description: "One punchy sentence or two summarizing the post's core point, used as a blockquote. Should not be a verbatim copy of a sentence already used elsewhere in the post." },
-      conclusion: { type: "string", description: "Closing paragraph, no heading." },
     },
-    required: ["title", "category", "excerpt", "meta_description", "read_minutes", "intro", "sections", "pull_quote", "conclusion"],
+    pull_quote: S("One or two punchy sentences with the post's core point. Not a verbatim copy of a sentence in the post."),
+    conclusion: S("Closing paragraph, no heading."),
   },
 };
+export const BLOG_MODEL = "claude-opus-5-5";
 
-export async function generateBlogPost({ topic, existingSlugs = [], existingTitles = [] } = {}) {
+// What the weekly post is about rotates, so the blog covers websites and the trades BoldLine calls, not only ads.
+export const BLOG_LANES = [
+  "Google or Meta ads: a decision a business owner faces before or while running ads",
+  "Websites: what makes a service business's website turn visitors into calls, or how to judge one before paying for it",
+  "A trade guide: getting more booked jobs for one specific trade (car detailing, handyman, epoxy floors, window tint, pressure washing, or a similar service trade), with the searches and offers that trade's customers respond to",
+  "Landing pages and lead follow-up: what happens between the click and the booked job",
+];
+export const laneFor = (ms = Date.now()) => BLOG_LANES[Math.floor(ms / (7 * 864e5)) % BLOG_LANES.length];
+
+async function askForPost(client, system) {
+  const req = {
+    model: BLOG_MODEL,
+    max_tokens: 16000,
+    output_config: { effort: "high", format: { type: "json_schema", schema: POST_SCHEMA } },
+    system,
+    messages: [{ role: "user", content: "Write the post." }],
+  };
+  let res;
+  try {
+    // A safety decline on one model is retried on another inside the same call.
+    res = await client.beta.messages.create({ ...req, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" });
+  } catch (e) {
+    if (!(e && e.status === 400)) throw e;
+    res = await client.messages.create(req);
+  }
+  if (res.stop_reason === "refusal") throw new Error("The writer declined this topic.");
+  if (res.stop_reason === "max_tokens") throw new Error("The post came back cut off.");
+  const text = (res.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
+  try { return JSON.parse(text); } catch { throw new Error("The post came back in the wrong shape."); }
+}
+
+export async function generateBlogPost({ topic, existingSlugs = [], existingTitles = [], lane = laneFor(), client = anthropic } = {}) {
   const topicInstruction = topic
     ? `Write specifically about this topic, in your own words and structure -- this is a fresh attempt at an existing post, so improve on it rather than just rephrasing it: "${topic}"`
-    : `Pick your own topic -- something a real business owner would search for or wonder about before/while running Google Ads or Meta Ads, or about landing pages or lead follow-up.`;
+    : `Pick your own topic in this lane: ${lane}. It should be something a real business owner would type into Google or ask on a sales call. Write something only a team that builds the ads and the websites itself would know, not generic advice anyone could write.`;
 
   const avoidInstruction = existingTitles.length
     ? `Do not repeat or closely rephrase any of these existing post topics:\n${existingTitles.map((t) => `- ${t}`).join("\n")}`
@@ -137,35 +196,32 @@ WRITING STYLE (this is how NOT to sound like AI — follow it closely):
 - Avoid these tics: "It's not X, it's Y" setups, rule-of-three triads, "here's the thing," "the truth is," "no fluff," "let's dive in," "in today's world," "when it comes to," and constant hedging.
 - Go easy on "actually," "simply," "just," "truly," "seamless," "robust," "leverage," "elevate," "unlock."
 - Write like one experienced person talking to a business owner across the table: plain, direct, a little blunt. Use contractions. It's fine to start a sentence with "And" or "But," and fine to have an opinion.
+- Be concrete: real search terms, real numbers worked through as examples (labelled as examples), real page elements. Never invent clients, quotes, results or "we see this all the time".
+- 900 to 1,400 words. Every section earns its place with substance, never filler.
 
-Call the blog_post tool with the finished post. Do not write any other text.`;
+Return the finished post in the required JSON shape.`;
 
-  const response = await anthropic.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 3000,
-    system,
-    messages: [{ role: "user", content: "Write the post." }],
-    tools: [BLOG_POST_TOOL],
-    tool_choice: { type: "tool", name: "blog_post" },
-  });
-
-  const toolUse = response.content.find((b) => b.type === "tool_use");
-  if (!toolUse) throw new Error("No post generated");
-
-  const post = toolUse.input;
+  // One retry if the answer is malformed; a post that is still wrong is never saved.
+  let post = await askForPost(client, system);
+  let problems = postProblems(post);
+  if (problems.length) { post = await askForPost(client, system); problems = postProblems(post); }
+  if (problems.length) throw new Error("The post came back incomplete: " + problems.join(", "));
   // Safety net behind the style prompt: guarantee no em-dashes ever ship, even
   // if the model slips. Replace "—" (with any surrounding spaces) with ", ".
   // Shared humanizer: this used to match ONLY the em dash, so en dashes and spaced
   // hyphens both survived into published posts. Prose join, so a dash becomes a comma
   // rather than chopping a sentence in half.
   const deDash = (s) => humanize(s, { join: ", " });
+  const body_html = deDash(postToHTML(post));
+  const bad = htmlProblems(body_html);
+  if (bad.length) throw new Error("The post came back incomplete: " + bad.join(", "));
   return {
     slug: uniqueSlug(slugify(post.title), existingSlugs),
     title: clip(deDash(post.title), 150),
     category: clip(deDash(post.category), 40),
     excerpt: clip(deDash(post.excerpt), 240),
     meta_description: clip(deDash(post.meta_description), 200),
-    body_html: deDash(postToHTML(post)),
+    body_html,
     read_minutes: Math.max(3, Math.min(12, Number(post.read_minutes) || 5)),
   };
 }
@@ -340,7 +396,7 @@ export async function createScheduledPost(whenISO) {
 // breaks), fresh title/content on the same topic, bumped to the top as newest
 // so the owner can immediately see the new version. Used by the owner's
 // per-post "Regenerate" button.
-export async function regeneratePost(postId) {
+export async function regeneratePost(postId, { keepDate = false } = {}) {
   const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { data: target, error: fetchErr } = await supabase.from("blog_posts").select("*").eq("id", postId).single();
@@ -364,11 +420,23 @@ export async function regeneratePost(postId) {
       source: "ai",
       // Scheduled drafts keep their future publish time -- rewriting the text
       // must not change WHEN it goes live. Published posts bump to newest.
-      published_at: target.status === "draft" ? target.published_at : new Date().toISOString(),
+      published_at: target.status === "draft" || keepDate ? target.published_at : new Date().toISOString(),
     })
     .eq("id", postId)
     .select()
     .single();
   if (error) throw error;
   return data;
+}
+
+// Self-repair (2026-10-07): a PUBLISHED post that fails the article check (empty headings, a few dozen words) is
+// rewritten on the same topic with the fixed writer, keeping its date and address so links and search results keep
+// working. At most one per run, so a bad day can never turn into a burst of AI calls. Returns the repaired post or null.
+export async function repairOneBrokenPost(supabase) {
+  const { data, error } = await supabase.from("blog_posts").select("id, slug, title, body_html").eq("status", "published").order("published_at", { ascending: false }).limit(200);
+  if (error) throw error;
+  const broken = (data || []).find((p) => htmlProblems(p.body_html).length);
+  if (!broken) return null;
+  const fixed = await regeneratePost(broken.id, { keepDate: true });
+  return { ...fixed, was: htmlProblems(broken.body_html) };
 }

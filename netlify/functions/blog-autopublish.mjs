@@ -23,7 +23,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, GOLD, escapeHTML } from "../lib/report-shared.mjs";
-import { createScheduledPost, azMostRecent } from "../lib/blog-shared.mjs";
+import { createScheduledPost, azMostRecent, htmlProblems, regeneratePost, repairOneBrokenPost } from "../lib/blog-shared.mjs";
 import { pingPostPublished } from "../lib/indexnow-shared.mjs";
 
 const SITE_URL = "https://boldlinemedia.com";
@@ -90,7 +90,7 @@ export default async (req) => {
   try {
     const { data: due, error: dueErr } = await supabase
       .from("blog_posts")
-      .select("id, slug, title, category, excerpt, published_at")
+      .select("id, slug, title, category, excerpt, published_at, body_html")
       .eq("status", "draft")
       .lte("published_at", nowISO);
     if (dueErr) throw dueErr;
@@ -118,7 +118,23 @@ export default async (req) => {
     }
 
     // 1. Publish anything whose scheduled time has arrived.
-    for (const post of due || []) {
+    for (let post of due || []) {
+      // 🔴 Never publish a broken article (six went live as two paragraphs and empty headings). Rewrite it on
+      // the same topic first; if that fails too, hold it a week and tell Bryson once.
+      const bad = htmlProblems(post.body_html);
+      if (bad.length) {
+        try {
+          post = await regeneratePost(post.id);
+          if (htmlProblems(post.body_html).length) throw new Error(htmlProblems(post.body_html).join(", "));
+        } catch (e) {
+          const later = new Date(new Date(post.published_at).getTime() + 7 * 864e5).toISOString();
+          await supabase.from("blog_posts").update({ published_at: later }).eq("id", post.id);
+          const msg = `"${post.title}" was due to go live but came out incomplete (${bad.join(", ")}), and rewriting it failed (${e.message}). It was NOT published. It is now scheduled for ${fmtWhen(later)}. Rewrite or delete it in the Website tab of BoldLine OS.`;
+          console.error("blog-autopublish:", msg);
+          try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `Blog post held back: ${post.title}`, html: noticeEmailHTML("A blog post was held back", msg), text: msg }); } catch (err) { console.error(err); }
+          continue;
+        }
+      }
       const { error } = await supabase.from("blog_posts").update({ status: "published" }).eq("id", post.id);
       if (error) throw error;
       console.log(`blog-autopublish: published scheduled post "${post.title}" (${post.slug})`);
@@ -134,6 +150,17 @@ export default async (req) => {
         console.error("blog-autopublish: publish succeeded but notification email failed:", err);
       }
     }
+
+    // 1b. Repair one broken PUBLISHED post per run (rewritten on the same topic, same date and address).
+    try {
+      const fixed = await repairOneBrokenPost(supabase);
+      if (fixed) {
+        console.log(`blog-autopublish: repaired broken post "${fixed.title}" (${fixed.slug}): ${fixed.was.join(", ")}`);
+        const msg = `A published post was broken on the site (${fixed.was.join(", ")}). It has been rewritten on the same topic and kept its date and address:\n\n${fixed.title}\n${SITE_URL}/blog/${fixed.slug}/\n\nRead it, and edit or rewrite it again in the Website tab of BoldLine OS if you want changes.`;
+        await pingPostPublished(fixed.slug);
+        try { await sendEmail({ to: process.env.OWNER_EMAIL, subject: `Blog post repaired: ${fixed.title}`, html: noticeEmailHTML("A broken blog post was repaired", msg), text: msg }); } catch (err) { console.error(err); }
+      }
+    } catch (e) { console.error("blog-autopublish: repair failed:", e && e.message); }
 
     // 2. Once per cycle, write next Monday's post and schedule it for review.
     if (needsPost) {

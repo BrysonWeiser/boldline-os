@@ -1,0 +1,45 @@
+---
+name: blog-redesign-2026-10
+topic: Marketing site
+task: change the blog's look, its cover pictures, the weekly AI writer, or fix/rewrite broken or weak blog posts
+keywords: [blog redesign, blog covers, blog-cover.mjs, coverSVG, site-chrome.mjs, bx-card, art-body, broken blog posts, empty h2, blog writer, generateBlogPost, postProblems, htmlProblems, repairOneBrokenPost, blog lanes, BLOG_FACTS, blog-autopublish, newsletter dash, author bio local]
+status: writer fix + self-repair LIVE 2026-10-07; redesign on the test copy waiting for Bryson's "go"; content audit pending his decisions
+summary: Bryson, 2026-10-07 - the blog "seems outdated and not worth anyones time". Found 6 LIVE posts broken (two paragraphs then ~65 empty h2s): the writer forced a tool call on claude-opus-4-8 and published whatever came back. Writer now claude-opus-5-5 with structured JSON output, a shape check + one retry, an HTML check, rotating topic lanes (ads / websites / a trade / lead follow-up) and updated facts; blog-autopublish never publishes a broken draft and repairs one broken PUBLISHED post per run (same topic, same date and address, email to Bryson). Redesign: blog pages now use the site's own stylesheet, header, footer and scripts (generated site-chrome.mjs), drawn cover art per post, featured post, topic filters, contents sidebar, author box, topic-matched offer, related posts.
+verified: 2026-10-07
+---
+
+## What was wrong (2026-10-07 audit of the 19 live posts)
+- 🔴 6 broken, live for weeks: why-your-ad-budget-doesnt-work-the-way-you-think, what-happens-in-the-first-30-days-of-a-new-ad-campaign,
+  why-someone-clicked-your-ad-and-then-vanished, what-does-a-marketing-agency-actually-do-all-month,
+  what-a-good-cost-per-lead-actually-looks-like, what-happens-to-your-ad-account-if-you-fire-your-agency. Each is 2 paragraphs + ~65
+  `<h2></h2>`. Cause: `sections` came back malformed (a string iterates per character in `postToHTML`), and nothing validated.
+- Old look (Playfair headings, text-only cards, no dates, old footer) next to the new site; ads only, nothing on websites.
+- Author bio said "local service businesses" (banned phrase) and the newsletter box carried an em dash. Both fixed in the redesign.
+- Only 2 healthy posts had wording issues: "a question we get from almost every new client" (pause-ads-on-weekends) and an
+  "isn't X, it's Y" line (google-ads-vs-meta-ads).
+
+## The writer (netlify/lib/blog-shared.mjs) - LIVE
+- `BLOG_MODEL = "claude-opus-5-5"`, `output_config: {effort:"high", format: json_schema POST_SCHEMA}` (strict, additionalProperties
+  false), max_tokens 16000, fallbacks "default" with a plain retry on 400 (same pattern as site-build-background).
+- `postProblems(post)` (shape) -> one retry -> throw; `htmlProblems(html)` (empty headings, < 450 words, no headings) -> throw.
+- `BLOG_LANES` + `laneFor(ms)` rotate weekly: ads decision / websites / a trade guide / landing pages + follow-up.
+- `BLOG_FACTS` rewritten: ads + landing pages + websites, real prices ($400 minimum, $1,500 + $100/mo), Phoenix + across the U.S.,
+  never "local businesses", no invented clients or "we hear this from every client".
+- blog-autopublish: a due draft failing `htmlProblems` is rewritten (`regeneratePost`) or, if that fails, moved a week and Bryson is
+  emailed once. `repairOneBrokenPost` fixes one broken PUBLISHED post per 15-minute run (`regeneratePost(id, {keepDate:true})`) and
+  emails "Blog post repaired: <title>". The 6 broken posts heal themselves within ~90 minutes of deploy.
+- Tests: tests/verify-blog-writer.mjs (fake client: good answer, malformed then good, malformed twice, cut off; the live broken
+  HTML; repair picks only the broken one).
+
+## The redesign (marketing-site) - TEST COPY, not live yet
+- `scripts/build-marketing-site.mjs` generates `marketing-site/netlify/lib/site-chrome.mjs` (HEAD_ASSETS incl. /site.css, AMBIENT,
+  FOOTER, STICKY, SCRIPTS, CAL, CAL_WEB) so the blog uses the exact same pieces as every page. site.css now = base + menu + new +
+  `marketing-src/blog.css`. Blog pages no longer load blog.css (privacy/terms/404 still do) or their own header script (site.js does it).
+- `marketing-site/netlify/lib/blog-cover.mjs` `coverSVG(post)`: drawn covers, kind from category/title: google (search result with
+  the post's own words in the search box), meta (feed post), web (browser + phone), lead (alert + timer), money (chart), calendar,
+  trade (job card), start (checklist titled from the post). Seeded from the slug so no two are identical.
+- Index: centred hero, topic chips (client-side filter), Latest featured card, 3/2/1 column cards with cover, date (Phoenix), read time;
+  24 per page. Article: crumb, chip, big title, excerpt as dek, author line, cover, contents sidebar (desktop, highlights as you read),
+  readable body, author box, offer by topic (website posts: Book a website call + See the designs; else Free Lead-Leak Check + Book a
+  Call), Keep reading (same topic first). Empty `<h2>`s are dropped at render time too.
+- Local preview recipe: scratchpad `blog/serve.mjs` answers Supabase from the live posts (`posts.json` scraped from the site).
