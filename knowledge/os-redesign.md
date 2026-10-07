@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: concept v3 (ARIA core + voice) published, waiting on Bryson's reaction
+status: concept v5 published (ARIA voice locked in); waiting on 'that's it' to build the real OS
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -123,3 +123,16 @@ Same audition URL, version 3. All built on Deeper A (base 0.6 Emma + 0.4 Isabell
 - **3 Alice blend**: 0.45 Emma + 0.3 Isabella + 0.25 Alice, speed .9, pitch x0.92, WARM, treble -2.
 - **4 Lily blend**: 0.45 Emma + 0.3 Isabella + 0.25 Lily, same chain.
 - **5 Seasoned**: speed .86, same as 2 plus vibrato f=4.5 d=0.025 and treble -3.
+
+## 🔒 ARIA's voice LOCKED (2026-10-07): Deeper A, slightly quicker
+Bryson: "Let's just go with deeper a and can you just ever so slightly speed it up remember I still want to feel
+energized and like it's Jarvis from Ironman."
+- **Recipe**: Kokoro style = 0.6 bf_emma + 0.4 bf_isabella, `speed=0.98` (was .93), lang en-gb; then pitch x0.92
+  (tempo kept), bass +3dB @140Hz, compressor (threshold .12, ratio 2.5, attack 8ms, release 120ms), volume x1.4.
+  A faster alternative at speed 1.02 is on the audition page if he wants more pace.
+- **In the preview (v5)**: the briefing (morning/afternoon/evening/late), "Power Hour is live", both booking reactions
+  and the recap opener are pre-recorded in this voice and embedded (~550KB); the core's pulse follows the real audio
+  level (Web Audio analyser). Dynamic answers still fall back to the device voice in the preview only.
+- **Real OS plan**: run Kokoro in the browser with this exact style vector + the same chain rebuilt in Web Audio
+  (lowshelf filter + DynamicsCompressor; pitch via a lower playbackRate on a slightly faster render, or render then
+  pitch-shift offline before playback), so EVERY line is in her voice. Pre-render the fixed lines as files for phones.
