@@ -131,7 +131,7 @@ const PAGES = [
       + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
-    desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $99 a month to look after.",
+    desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
     body: promote(part("websites.html")) + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",

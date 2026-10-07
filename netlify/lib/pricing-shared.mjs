@@ -117,11 +117,12 @@ DO NOT invent a deadline or a countdown. If asked how many places are left, the 
 
 // The website service (KB `website-builder`). One price list for the OS defaults, the website
 // agreement, Deal Prep and the marketing site, so a quote can never disagree with the contract.
-// Bryson, 2026-10-06: $1,500 build + $99/mo care, sold to anyone, cross-sold both ways with ads.
-export const WEBSITE_OFFER = { build: 1500, care: 99, pages: 5, carePlanEdits: 2, revisionRounds: 2,
+// Bryson, 2026-10-06: $1,500 build + care plan, sold to anyone, cross-sold both ways with ads.
+// 2026-10-07: care $99 -> $100 and blog $149 -> $150 (round numbers, like every other price we quote).
+export const WEBSITE_OFFER = { build: 1500, care: 100, pages: 5, carePlanEdits: 2, revisionRounds: 2,
   // Add-ons (Bryson, 2026-10-06: "if a client wants to add extra pages such as a blog page ... charge an
   // extra for blog page creation and then ai blog post creations"). Defaults; each is editable per client.
-  extraPage: 200, blogSetup: 300, blogMonthly: 149, blogPostsPerMonth: 4 };
+  extraPage: 200, blogSetup: 300, blogMonthly: 150, blogPostsPerMonth: 4 };
 
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:

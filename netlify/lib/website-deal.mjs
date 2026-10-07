@@ -3,7 +3,7 @@
 // Bryson, 2026-10-06: *"make sure that the option to build a website is only available after a client
 // signs the agreement and pays (I also want to be able to modify the payment as I want and then allow
 // the option for pay half now half when finished)"*, and the same day: the second half is due BEFORE the
-// site goes live, and the $99/mo care plan starts at launch. KB `website-builder` (step 2).
+// site goes live, and the monthly care plan starts at launch. KB `website-builder` (step 2).
 //
 // 🔴 WHY A SEPARATE AGREEMENT, NOT A SECTION IN THE ADS AGREEMENT. Websites are sold to anyone, including
 // businesses that never buy ads, and a signed ads agreement can never gain a clause it was not signed

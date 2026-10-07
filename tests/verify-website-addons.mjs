@@ -31,7 +31,7 @@ const base = { id: "c1", name: "Acme Roofing LLC", niche: "Roofing", email: "o@a
   website: { content: { hero: { headline: "Roofs done right" }, services: [{ name: "Repairs", blurb: "Fixed fast." }] } } };
 
 // ── 1. Price and terms ─────────────────────────────────────────────────────────────────────
-ok("defaults come from the one price list", WEBSITE_OFFER.extraPage === 200 && WEBSITE_OFFER.blogSetup === 300 && WEBSITE_OFFER.blogMonthly === 149 && WEBSITE_OFFER.blogPostsPerMonth === 4);
+ok("defaults come from the one price list", WEBSITE_OFFER.extraPage === 200 && WEBSITE_OFFER.blogSetup === 300 && WEBSITE_OFFER.blogMonthly === 150 && WEBSITE_OFFER.blogPostsPerMonth === 4);
 ok("🔴 the build total adds extra pages and the blog setup", L.buildTotal(addons) === 1500 + 400 + 300);
 ok("🔴 the monthly total adds the blog plan to care", L.monthlyTotal(addons) === 99 + 149 && L.monthlyTotal({ ...addons, blog: false }) === 99);
 ok("🔴 half and half splits the WHOLE build, add-ons included", (({ first, final }) => first === 1100 && final === 1100)(L.amountsOf(addons)));
