@@ -259,8 +259,8 @@ const lpGallery = () => `
 </div></section>
 `;
 
-const pageHero = (eyebrow, h1, sub, ctas = "") => `
-<section class="page-hero"><div class="wrap-x reveal">
+const pageHero = (eyebrow, h1, sub, ctas = "", centred = false) => `
+<section class="page-hero${centred ? " ph-centre" : ""}"><div class="wrap-x reveal">
   <div class="eyebrow">${eyebrow}</div>
   <h1>${h1}</h1>
   <p>${sub}</p>
@@ -294,7 +294,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
 <section class="x-sec"><div class="wrap-x">
   <div class="x-head reveal"><div><div class="eyebrow">What we do</div><h2>One team for the ads and the website they send people to.</h2></div></div>
   <div class="bento reveal">
-    <a class="b-card b-ads" style="--k:0" href="/ads/">
+    <a class="b-card b-paid" style="--k:0" href="/ads/">
       <div class="b-txt"><h3>Google and Meta ads</h3><p>Campaigns built to find buyers, every call and form tied back to the ad that caused it, and a plain-English report of what came in.</p><span class="b-go">How it works <i>&rarr;</i></span></div>
       <div class="mini-feed" aria-hidden="true">
         <div class="mf"><span class="dot">${icons[0] || ""}</span><span><b>New lead</b><small>Landing page form</small></span><time>2m ago</time></div>
@@ -369,7 +369,7 @@ const PAGES = [
   { id: "about", path: "/about/", file: "about/index.html",
     title: "About BoldLine Media",
     desc: "BoldLine Media only makes more when your ads do. Meet the founder, read what clients say, and leave a review.",
-    body: pageHero("About", "Built so we only win <em>when you do.</em>", "BoldLine is a small, focused team that runs ads and builds websites for businesses that want a steadier phone. We take on a select group of clients on purpose.")
+    body: pageHero("About", "Built so we only win <em>when you do.</em>", "BoldLine is a small, focused team that runs ads and builds websites for businesses that want a steadier phone. We take on a select group of clients on purpose.", "", true)
       + part("founder.html") + compareNudge() + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
   { id: "check", path: "/free-check/", file: "free-check/index.html",
     title: "Free Lead-Leak Check | BoldLine Media",
@@ -465,7 +465,7 @@ ${part("head-top.html").replace("<!--TEST-COPY-GUARD-->", `<script>\n${part("tes
 <meta name="twitter:image" content="${SITE}/og-boldline.jpg">
 ${ld}${part("head-assets.html")}<link rel="stylesheet" href="/site.css">
 </head>
-<body class="${p.id === "home" ? "home" : "page"} page-${p.id}">
+<body class="${p.id === "home" ? "home" : "page"}" data-page="${p.id}">
 ${p.homeRedirects ? HOME_REDIRECTS : ""}
 <div class="ambient" aria-hidden="true">
   <div class="ow ow-a"><div class="orb"></div></div>
