@@ -444,3 +444,10 @@ kept at $100 as an easy yes after a $1,500 build, revisit for new clients once a
   plain (non-rail) `.track` of cards packs 3 across from 700px and stacks below it. Pinned in verify-site-builder.
 - Swept every sample page at 1440/1024/768/600/390 for rows whose last line is under 80% full. Only the landing
   gallery's centred last photo remains, and that one is centred on purpose.
+
+## Job A in progress (2026-10-07 morning): the client-websites Netlify site
+- Bryson created the new Netlify project (base directory `sites`) and set `SUPABASE_SERVICE_ROLE_KEY` on it (the only
+  key that site reads), taking the legacy service_role key from Supabase > API Keys > Legacy API Keys.
+- 🔴 `SITES_NETLIFY_SITE` added to `SECRETS_SCAN_OMIT_KEYS`: it is an address, not a credential, and
+  `tests/verify-sites-split.mjs` contains `boldline-sites.netlify.app`, so Netlify's scanner would have failed every OS
+  build the moment he set it to that value. He was told NOT to tick "Contains secret values" for it.
