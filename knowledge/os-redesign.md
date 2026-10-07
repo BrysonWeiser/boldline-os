@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: concept v5 published (ARIA voice locked in); waiting on 'that's it' to build the real OS
+status: approved ('that's it'). Stage 1 (Outreach = Power Hour) built in the real OS on the dev branch, tested, waiting on his OK of before/after screenshots before merging to main
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -136,3 +136,29 @@ energized and like it's Jarvis from Ironman."
 - **Real OS plan**: run Kokoro in the browser with this exact style vector + the same chain rebuilt in Web Audio
   (lowshelf filter + DynamicsCompressor; pitch via a lower playbackRate on a slightly faster render, or render then
   pitch-shift offline before playback), so EVERY line is in her voice. Pre-render the fixed lines as files for phones.
+
+## Stage 1 BUILT (2026-10-07): Outreach becomes Power Hour (real OS, dev branch)
+He said "That's it" to the concept. Staged plan: 1 Power Hour, 2 grouped sidebar + Ctrl K + theme, 3 Today screen with
+the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, his OK, THEN merge.
+- **What it is**: a layer on top of the existing Outreach screen in `index.html` (block `POWER HOUR`, placed just
+  ABOVE the `COLD OUTREACH` banner). Nothing underneath changed: every outcome still goes through `choose()`/`commit()`,
+  so cadence, do-not-contact, undo and the counters are untouched.
+- **HUD bar**: goal ring (today's calls from the real logged touches, Phoenix day, goal `PH_GOAL=40`), session clock
+  START/PAUSE/RESUME/END, session counters (calls, talked, booked, calls an hour), Objections button.
+- **Card**: slides in per company with a scan line + "TARGET ACQUIRED" + reticle rings; chips for the prospect's local
+  time + call window (state to timezone map, prime 7:30-9:30 and 4-6pm, wrapping up 6-7:30, closed nights/Sunday) and an
+  "On this call" timer. Next company auto-scrolls into view after logging.
+- **Keys**: 1-n log the outcomes in button order (hint badges on the buttons); a key that needs a time scrolls to and
+  focuses the time box, Enter saves; O objections; S or Right arrow skip; Space start/pause; Esc cancels. Keys are
+  ignored while typing, and a confirmation panel (do-not-contact) only listens for Esc, so nothing permanent happens
+  from a stray key.
+- **Side panel (desktop)**: Up next queue + This session log. On phone it stacks.
+- **Booking moment**: gold particle burst + "MEETING BOOKED" toast on a real booking only. **Recap** on END.
+- 🔴 **Test gotcha**: `tests/verify-outreach.mjs` evaluates everything between `const OUT_OUTCOMES = [` and
+  `function OutreachScreen` with `new Function` (plain JS, no JSX). Anything JSX in that span crashes it, which is why
+  the Power Hour block lives ABOVE the banner. Same test requires the History block within 800 characters of the
+  attempt count, which is why the time chips are a small component (`PHTimeChips`) instead of inline.
+- **Harness** (scratchpad, not in repo): `osh/outreach-shot.cjs` stubs Supabase + the outreach endpoint with four sample
+  prospects; actions `key:`, `click:`, `wait:`, `setwhen`; `WIDTHS="390:844:phone;..."` for other sizes. Its one
+  console 404 is a script the stub server doesn't serve, present before the change too.
+- Verified: renders at 390/768/1280/1600 with no sideways scroll; full suite 135/135.
