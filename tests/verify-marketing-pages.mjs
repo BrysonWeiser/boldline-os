@@ -143,6 +143,21 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   ok("the online store plans are still on the page, one tap away", /class="tab tab-more" data-tab="ecom"/.test(pr) && /data-open-tab="ecom"/.test(pr) && /data-panel="ecom"/.test(pr));
 }
 
+// The comparison page is reachable from where people start comparing, not only the footer (Bryson, 2026-10-07: "it's
+// only accessible if someone scrolls all the way to the bottom").
+{
+  const body = (f) => readPage(f).split("<footer")[0];
+  // The visible box or button, not just any link: pricing already had a small line of text and nobody saw it.
+  for (const [f, mark] of [["pricing/index.html", 'class="cmpn reveal" href="/compare/"'], ["about/index.html", 'class="cmpn reveal" href="/compare/"'], ["index.html", 'class="f-cmp" href="/compare/"']])
+    ok(`🔴 ${f}: shows the way to /compare/ above the footer`, body(f).includes(mark));
+  const { PAGES: P2 } = await import("../scripts/build-marketing-site.mjs");
+  ok("and every topic the box names is a row on the comparison page", (() => {
+    const tags = [...readPage("pricing/index.html").matchAll(/<div class="cmpn-tags">([\s\S]*?)<\/div>/g)].flatMap((m) => [...m[1].matchAll(/<span>([^<]+)<\/span>/g)].map((x) => x[1]));
+    const cmp = readPage("compare/index.html");
+    return tags.length === 3 && tags.every((t) => cmp.includes(`>${t}</div>`)) && P2.some((p) => p.id === "compare");
+  })());
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-marketing-pages: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
