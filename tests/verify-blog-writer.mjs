@@ -17,6 +17,8 @@ process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "test";
 const B = await import("../netlify/lib/blog-shared.mjs");
 const src = readFileSync(join(ROOT, "netlify/lib/blog-shared.mjs"), "utf8");
 const auto = readFileSync(join(ROOT, "netlify/functions/blog-autopublish.mjs"), "utf8");
+const jobs = readFileSync(join(ROOT, "netlify/lib/blog-jobs.mjs"), "utf8");
+const bg = readFileSync(join(ROOT, "netlify/functions/blog-write-background.mjs"), "utf8");
 
 const para = (n) => Array.from({ length: n }, (_, i) => `Sentence number ${i} about calls and ads and booked jobs for a business owner.`).join(" ");
 const good = () => ({
@@ -73,7 +75,22 @@ ok("the old model and forced tool call are gone", !/claude-opus-4-8|tool_choice/
 
 // The last line of defence
 ok("🔴 autopublish checks every due draft before publishing it", /const bad = htmlProblems\(post\.body_html\);/.test(auto) && auto.indexOf("htmlProblems(post.body_html)") < auto.indexOf('update({ status: "published" })'));
-ok("a broken draft is rewritten, or held a week with one email, never published", /post = await regeneratePost\(post\.id\)/.test(auto) && /published_at: later/.test(auto) && /continue;/.test(auto));
+ok("🔴 a broken draft is never published: it is handed to the rewrite job and skipped", /start\("job-fix-draft", \{ postId: post\.id \}\)/.test(auto) && /continue;/.test(auto) && auto.indexOf("job-fix-draft") < auto.indexOf('update({ status: "published" })'));
+ok("and the rewrite job holds it a week with one email if the rewrite fails", /await regeneratePost\(post\.id\)/.test(jobs) && /published_at: later/.test(jobs) && /Blog post held back/.test(jobs));
+
+// 🔴 THE 30-SECOND LIMIT (2026-10-07). Netlify stops a scheduled function at 30 seconds and one
+// article takes longer, so the repair crawled and the steps queued behind it never ran. The
+// publisher may not call the AI at all; every piece of writing goes to the background function.
+ok("🔴 the 15-minute publisher never writes an article itself",
+  !/regeneratePost\(|createScheduledPost\(|repairOneBrokenPost\(|generateBlogPost\(|createAndPublishPost\(/.test(auto));
+ok("all three kinds of writing go to the background function, which has fifteen minutes",
+  ["job-repair", "job-fix-draft", "job-weekly"].every((j) => auto.includes(`start("${j}"`)) && /blog-write-background/.test(jobs));
+ok("writing is started at most once an hour, so a failing topic cannot burn 96 attempts a day",
+  /const firstPassOfHour = new Date\(now\)\.getUTCMinutes\(\) < 15;/.test(auto) && (auto.match(/firstPassOfHour/g) || []).length >= 4);
+ok("🔴 only the publisher can start a job: a key derived from a secret, compared in constant time",
+  /x-blog-job-key/.test(bg) && /timingSafeEqual/.test(bg) && /BLOG_JOBS\.includes\(jb\.action\)/.test(bg) && /createHash\("sha256"\)/.test(jobs));
+ok("the hand-written wording fixes run before anything else, so nothing can starve them again",
+  auto.indexOf("applyBlogContent(supabase, now)") > 0 && auto.indexOf("applyBlogContent(supabase, now)") < auto.indexOf("for (const post of due"));
 ok("the draft query includes the article body", /select\("id, slug, title, category, excerpt, published_at, body_html"\)/.test(auto));
 
 // Self-repair of posts already live
@@ -84,8 +101,8 @@ ok("the draft query includes the article body", /select\("id, slug, title, categ
   const found = rows.find((p) => B.htmlProblems(p.body_html).length);
   ok("🔴 the repair picks the broken live post, not a healthy one", found && found.slug === "broken" && B.htmlProblems(rows[0].body_html).length === 0);
   ok("a repaired post keeps its date and address", /regeneratePost\(broken\.id, \{ keepDate: true \}\)/.test(src) && /target\.status === "draft" \|\| keepDate \? target\.published_at/.test(src) && !/slug:/.test(src.slice(src.indexOf("export async function regeneratePost"), src.indexOf("export async function repairOneBrokenPost"))));
-  ok("at most one repair per run, and Bryson gets an email naming it", /const fixed = await repairOneBrokenPost\(supabase\);/.test(auto) && /Blog post repaired:/.test(auto) && (auto.match(/repairOneBrokenPost\(/g) || []).length === 1);
-  ok("a failed repair never stops publishing", /catch \(e\) \{ console\.error\("blog-autopublish: repair failed:"/.test(auto));
+  ok("one repair per job, and Bryson gets an email naming it", /const fixed = await repairOneBrokenPost\(db\(\)\);/.test(jobs) && /Blog post repaired:/.test(jobs) && (jobs.match(/repairOneBrokenPost\(/g) || []).length === 1);
+  ok("a failed repair check never stops publishing", /catch \(e\) \{ console\.error\("blog-autopublish: repair check failed:"/.test(auto));
   void sb;
 }
 
@@ -121,6 +138,23 @@ ok("the draft query includes the article body", /select\("id, slug, title, categ
   const again = await B.applyBlogContent({ from: table }, Date.UTC(2026, 9, 7, 18, 15));
   ok("running again changes nothing", again.edited.length === 0 && again.scheduled.length === 0);
   ok("the publisher runs it every pass, and a failure never stops publishing", /const c = await applyBlogContent\(supabase, now\);/.test(auto) && /content step failed/.test(auto));
+}
+
+// The hand-off, run for real against a fake network.
+{
+  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "test-service-key";
+  const J = await import("../netlify/lib/blog-jobs.mjs");
+  const sent = [];
+  const okStart = await J.startBlogJob("job-weekly", { slot: "2026-10-12T15:00:00.000Z" }, { base: "https://os.example/", fetchImpl: async (u, o) => { sent.push({ u, o }); return { status: 202, ok: false }; } });
+  ok("the publisher starts a job and counts a 202 as started", okStart === true);
+  ok("it calls the background function on the same site", sent[0] && sent[0].u === "https://os.example/.netlify/functions/blog-write-background");
+  ok("with the job key and the job named", sent[0] && sent[0].o.headers["x-blog-job-key"] === J.blogJobKey() && JSON.parse(sent[0].o.body).action === "job-weekly");
+  const BG = (await import("../netlify/functions/blog-write-background.mjs")).default;
+  const call = (key, body) => BG(new Request("https://os.example/.netlify/functions/blog-write-background", { method: "POST", headers: { "content-type": "application/json", "x-blog-job-key": key }, body: JSON.stringify(body) }));
+  ok("🔴 a wrong key is refused", (await call("nope", { action: "job-repair" })).status === 401);
+  ok("🔴 the key opens only the three jobs, not the owner's actions", (await call(J.blogJobKey(), { action: "generate-now" })).status === 400);
+  const wk = await (await call(J.blogJobKey(), { action: "job-weekly", slot: "" })).json();
+  ok("a weekly job with no week does nothing", wk.ok === false && /no week/.test(wk.error));
 }
 
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
