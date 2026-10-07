@@ -4,7 +4,7 @@ topic: Working preferences
 task: design, build or change a client's landing page or website, add a default trust line, chip, badge or tick row to the landing renderer, or decide what furniture every client page gets
 keywords: [checkmark, check mark, tick, trust row, chip row, chips, free quotes, fast response, free quote no obligation, secure checkout, ships straight to you, feels cheap, client landing page, landing renderer, default furniture, looks like boldline]
 status: standing rule
-summary: Bryson, 2026-10-07, on the handyman sample landing page - client pages had bits that look like BoldLine's own site and "it feels cheap". He named the little checkmark lines - the hero trust row ("Mesa, AZ ✓ Free quotes Fast response") and the pill row ("✓ Free quote, no obligation"). Both default rows are now gone from every client landing page; a page only shows them if it writes its own (BoldLine's audience pages do). Pinned in verify-landing-pages.
+summary: Bryson, 2026-10-07, on the handyman sample landing page - client pages had bits that look like BoldLine's own site and "it feels cheap". He named the little checkmark lines - the hero trust row ("Mesa, AZ ✓ Free quotes Fast response") and the pill row ("✓ Free quote, no obligation"). Both default rows are now gone from every client landing page (a page only shows them if it writes its own, as BoldLine's audience pages do), and the ✓ benefit tiles and photo-badge tick became brand-colour accents. Live 2026-10-07. Pinned in verify-landing-pages.
 verified: 2026-10-07
 ---
 
@@ -31,10 +31,12 @@ lead page and a store page and fails if either row, any of the old default lines
 back. Mutation-proven (restoring the old renderer fails it). Store-mode, market-research and motion
 checks were re-pointed at page-written rows.
 
-## Not changed (he only picked the lines) - worth raising if he brings it up again
-- The big ✓ tiles on the "Why choose us" benefit cards (`.bico`), and the ✓ dot on the hero photo
-  badge (`.bdot`). Same generic-template feel; a number, a small icon per benefit, or nothing would
-  look less stock.
+## Then the benefit ticks too (2026-10-07, Bryson said "Yes")
+- The big ✓ tiles on "Why choose us" (`.bico`) are now a short brand-colour accent bar (a 28px line
+  above each card's heading; a 3px vertical bar in the list layout). The ✓ in the hero photo badge
+  (`.bdot`) is now a small brand-colour dot. BoldLine's own site still uses its own ticks.
+- The guard now fails on ANY ✓ outside the stylesheet on a client page, across cards and list
+  layouts, and asserts the fixture really renders the tiles and the badge (so it can't pass on nothing).
 
 ## Rule going forward
 Don't add BoldLine-style furniture (tick rows, "Free quote, no obligation" pills, generic trust

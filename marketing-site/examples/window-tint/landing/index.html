@@ -78,7 +78,7 @@ a{color:inherit}
 .hero-media{position:relative}
 .heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);box-shadow:0 30px 60px rgba(0,0,0,.30)}
 .hero-media .badge{position:absolute;left:16px;bottom:16px;background:#ffffff;color:#1F2937;border:1px solid #E9ECF1;border-radius:14px;padding:11px 14px;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:13px;font-weight:700;display:flex;align-items:center;gap:9px}
-.badge .bdot{width:26px;height:26px;border-radius:8px;background:rgba(184,49,47,.16);color:#b8312f;display:flex;align-items:center;justify-content:center;font-size:15px}
+.badge .bdot{width:8px;height:8px;border-radius:50%;background:#b8312f;flex-shrink:0}
 .hero-form{position:relative;z-index:2}.hero-form .fcard{box-shadow:0 24px 60px rgba(0,0,0,.22)}
 /* hero background treatments */
 .hero::before,.hero::after{content:"";position:absolute;pointer-events:none}
@@ -111,13 +111,13 @@ a{color:inherit}
 .bene{display:grid;gap:14px;grid-template-columns:1fr}
 .bcard{background:#ffffff;border:1px solid #E9ECF1;border-radius:var(--r);padding:22px 20px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
 .bcard:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.14);border-color:rgba(184,49,47,.16)}
-.bico{width:44px;height:44px;border-radius:12px;background:rgba(184,49,47,.16);color:#b8312f;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin-bottom:14px}
+.bico{width:28px;height:3px;border-radius:2px;background:#b8312f;margin-bottom:16px;transform-origin:0 50%}
 .bcard h3,.brow h3,.bnum h3{font-size:16px;font-weight:750;color:#0F172A;margin-bottom:5px}
 .bcard p,.brow p,.bnum p{font-size:13.5px;color:#5B6472}
 /* benefits: list */
 .belist{max-width:760px;margin:0 auto;display:grid;gap:2px}
 .brow{display:flex;gap:16px;align-items:flex-start;padding:18px 6px;border-bottom:1px solid #EEF0F4}
-.brow .bico{margin-bottom:0;flex-shrink:0}
+.brow .bico{width:3px;height:22px;margin:2px 0 0;flex-shrink:0;transform-origin:50% 0}
 /* benefits: numbered */
 .benum{display:grid;gap:22px;grid-template-columns:1fr}
 .bnum{display:flex;gap:16px;align-items:flex-start}
@@ -295,7 +295,7 @@ a{color:inherit}
 .faq{transition:border-color .2s ease}
 .faq:hover{border-color:rgba(184,49,47,.16)}
 .bico{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
-.bcard:hover .bico,.brow:hover .bico,.step:hover .num{transform:translateY(-2px) scale(1.07)}
+.bcard:hover .bico{transform:scaleX(1.6)}.brow:hover .bico{transform:scaleY(1.4)}.step:hover .num{transform:translateY(-2px) scale(1.07)}
 .step .num{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
 .brow{transition:background-color .2s ease}
 .brow:hover{background:#F8F9FB}
@@ -360,7 +360,7 @@ body{padding-top:44px}
 <header class="hdr"><div class="wrap"><div class="brandmark"><span class="dot"></span>Blackline Tint and Film</div><a class="hdr-cta" href="tel:4805550187">(480) 555-0187</a></div></header>
 <section class="hero hero-ov" style="--heroimg:url('/img/sample/tint-6872165.jpg')"><div class="hero-ov-scrim"></div><div class="wrap hero-ovc"><div class="eyebrow an">Tint and paint protection in Tempe</div><h1 class="headline an" style="animation-delay:.06s">A cooler car and paint that stays perfect</h1><p class="subhead an" style="animation-delay:.12s">Ceramic window tint, paint protection film and coatings, installed in a clean bay. Get your quote in one message.</p><div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="#lead-form">Get my quote</a><a class="cta ghost" href="tel:4805550187">Call now</a></div></div></section>
 
-<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose Blackline Tint and Film</h2></div><div class="belist"><div class="brow reveal" style="transition-delay:0ms"><div class="bico">✓</div><div><h3>Ceramic tint that blocks the heat you feel</h3></div></div><div class="brow reveal" style="transition-delay:50ms"><div class="bico">✓</div><div><h3>Film that takes the rock chips, not your paint</h3></div></div><div class="brow reveal" style="transition-delay:100ms"><div class="bico">✓</div><div><h3>Warranty in writing on film and work</h3></div></div></div></div></section>
+<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose Blackline Tint and Film</h2></div><div class="belist"><div class="brow reveal" style="transition-delay:0ms"><div class="bico" aria-hidden="true"></div><div><h3>Ceramic tint that blocks the heat you feel</h3></div></div><div class="brow reveal" style="transition-delay:50ms"><div class="bico" aria-hidden="true"></div><div><h3>Film that takes the rock chips, not your paint</h3></div></div><div class="brow reveal" style="transition-delay:100ms"><div class="bico" aria-hidden="true"></div><div><h3>Warranty in writing on film and work</h3></div></div></div></div></section>
 <section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps"><div class="step reveal" style="transition-delay:0ms"><div class="num">1</div><h3>Tell us what you need</h3></div><div class="step reveal" style="transition-delay:70ms"><div class="num">2</div><h3>Get a fast, free quote</h3></div><div class="step reveal" style="transition-delay:140ms"><div class="num">3</div><h3>We handle the rest</h3></div></div></div></section>
 <section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal g4"><div class="gitem reveal" style="transition-delay:0ms"><img src="/img/sample/tint-6872165.jpg" alt="Tail light glowing on a dark car" decoding="async"></div><div class="gitem reveal" style="transition-delay:60ms"><img src="/img/sample/tint-6872160.jpg" alt="Installer working on glass with a squeegee" decoding="async"></div><div class="gitem reveal" style="transition-delay:120ms"><img src="/img/sample/tint-6872149.jpg" alt="Headlight close up" decoding="async"></div><div class="gitem reveal" style="transition-delay:180ms"><img src="/img/sample/tint-6872151.jpg" alt="Tail light detail" decoding="async"></div></div></div></section>
 <section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">FAQ</div><h2 class="sec-t">Common questions</h2></div><div class="faqwrap"><details class="faq reveal" style="transition-delay:0ms"><summary>How long does paint protection film take?</summary><p>A full front usually takes one day.</p></details></div></div></section>

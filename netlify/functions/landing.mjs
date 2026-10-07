@@ -414,7 +414,7 @@ a{color:inherit}
 .hero-media{position:relative}
 .heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);box-shadow:0 30px 60px rgba(0,0,0,.30)}
 .hero-media .badge{position:absolute;left:16px;bottom:16px;background:${P.cardBg};color:${P.text};border:1px solid ${P.cardBorder};border-radius:14px;padding:11px 14px;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:13px;font-weight:700;display:flex;align-items:center;gap:9px}
-.badge .bdot{width:26px;height:26px;border-radius:8px;background:${P.tint};color:${P.brand};display:flex;align-items:center;justify-content:center;font-size:15px}
+.badge .bdot{width:8px;height:8px;border-radius:50%;background:${P.brand};flex-shrink:0}
 .hero-form{position:relative;z-index:2}.hero-form .fcard{box-shadow:0 24px 60px rgba(0,0,0,.22)}
 /* hero background treatments */
 .hero::before,.hero::after{content:"";position:absolute;pointer-events:none}
@@ -447,13 +447,13 @@ a{color:inherit}
 .bene{display:grid;gap:14px;grid-template-columns:1fr}
 .bcard{background:${P.cardBg};border:1px solid ${P.border};border-radius:var(--r);padding:22px 20px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
 .bcard:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.14);border-color:${P.tint}}
-.bico{width:44px;height:44px;border-radius:12px;background:${P.tint};color:${P.brand};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;margin-bottom:14px}
+.bico{width:28px;height:3px;border-radius:2px;background:${P.brand};margin-bottom:16px;transform-origin:0 50%}
 .bcard h3,.brow h3,.bnum h3{font-size:16px;font-weight:750;color:${P.headline};margin-bottom:5px}
 .bcard p,.brow p,.bnum p{font-size:13.5px;color:${P.muted}}
 /* benefits: list */
 .belist{max-width:760px;margin:0 auto;display:grid;gap:2px}
 .brow{display:flex;gap:16px;align-items:flex-start;padding:18px 6px;border-bottom:1px solid ${P.line}}
-.brow .bico{margin-bottom:0;flex-shrink:0}
+.brow .bico{width:3px;height:22px;margin:2px 0 0;flex-shrink:0;transform-origin:50% 0}
 /* benefits: numbered */
 .benum{display:grid;gap:22px;grid-template-columns:1fr}
 .bnum{display:flex;gap:16px;align-items:flex-start}
@@ -631,7 +631,7 @@ a{color:inherit}
 .faq{transition:border-color .2s ease}
 .faq:hover{border-color:${P.tint}}
 .bico{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
-.bcard:hover .bico,.brow:hover .bico,.step:hover .num{transform:translateY(-2px) scale(1.07)}
+.bcard:hover .bico{transform:scaleX(1.6)}.brow:hover .bico{transform:scaleY(1.4)}.step:hover .num{transform:translateY(-2px) scale(1.07)}
 .step .num{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
 .brow{transition:background-color .2s ease}
 .brow:hover{background:${P.surface}}
@@ -721,7 +721,7 @@ a{color:inherit}
   // thought and returns nothing when it cannot, so the badge is HIDDEN rather than
   // showing half a sentence. No badge beats a broken one.
   const badgeText = fitPhrase(differentiator || offer, 44);
-  const badgeH = badgeText ? `<div class="badge"><span class="bdot">✓</span><span>${esc(badgeText)}</span></div>` : "";
+  const badgeH = badgeText ? `<div class="badge"><span class="bdot" aria-hidden="true"></span><span>${esc(badgeText)}</span></div>` : "";
 
   // 🔴 SMS CONSENT. Shaun Smith, 2026-08-29, on why this decides whether a campaign is worth
   // running at all: *"If the form doesn't carry a consent checkbox, the lead still lands in
@@ -871,14 +871,16 @@ a{color:inherit}
   // three-then-two, which is a full row and a pair rather than a row and an orphan.
   const gridFor = (n) => (n <= 1 ? "g1" : n === 2 ? "g2" : n === 4 ? "g4" : n === 5 ? "g5" : "g3");
 
+  // The accent on each benefit is a short bar in the brand colour, not a big ✓ tile. Bryson,
+  // 2026-10-07: the checkmarks made every client page look like BoldLine's own site and cheap.
   let benefitsInner, benefitsAlt = true;
   if (D.benefits === "list") {
-    benefitsInner = `<div class="belist">${parsed.map((x, i) => `<div class="brow reveal" style="transition-delay:${i * 50}ms"><div class="bico">✓</div><div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div></div>`).join("")}</div>`;
+    benefitsInner = `<div class="belist">${parsed.map((x, i) => `<div class="brow reveal" style="transition-delay:${i * 50}ms"><div class="bico" aria-hidden="true"></div><div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div></div>`).join("")}</div>`;
     benefitsAlt = false;
   } else if (D.benefits === "numbered") {
     benefitsInner = `<div class="benum ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bnum reveal" style="transition-delay:${i * 60}ms"><div class="bn">${String(i + 1).padStart(2, "0")}</div><div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div></div>`).join("")}</div>`;
   } else {
-    benefitsInner = `<div class="bene ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bcard reveal" style="transition-delay:${i * 60}ms"><div class="bico">✓</div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div>`).join("")}</div>`;
+    benefitsInner = `<div class="bene ${gridFor(parsed.length)}">${parsed.map((x, i) => `<div class="bcard reveal" style="transition-delay:${i * 60}ms"><div class="bico" aria-hidden="true"></div><h3>${esc(x.h)}</h3>${x.p ? `<p>${esc(x.p)}</p>` : ""}</div>`).join("")}</div>`;
   }
   const benefitsSection = `<section class="sec${benefitsAlt ? " alt" : ""}"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose ${esc(name)}</h2></div>${benefitsInner}</div></section>`;
 

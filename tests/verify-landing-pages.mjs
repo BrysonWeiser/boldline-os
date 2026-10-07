@@ -487,13 +487,16 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     const cli = { id: "c", name: "Stencil & Thread", landingSlug: "st", leadToken: "T",
       callTrackingNumber: "(541) 555-0199",
       campaignSetup: { serviceArea: "Eugene, OR", mainOffer: "25+ piece orders" },
-      landingPage: { headline: "S", ctaText: "Q", published: true } };
-    for (const storeUrl of ["", "https://shop.example/x"]) {
-      const h = renderLandingPage({ ...cli, storeUrl });
+      brandVoice: { differentiator: "Family run since 1998" },
+      landingPage: { headline: "S", ctaText: "Q", published: true, heroUrl: "https://img.example/a.jpg", bullets: ["Fast: same week", "Local: we live here"] } };
+    for (const storeUrl of ["", "https://shop.example/x"]) for (const benefits of ["cards", "list"]) {
+      const h = renderLandingPage({ ...cli, storeUrl, landingPage: { ...cli.landingPage, design: { benefits, layout: "split" } } });
+      assert.ok(/class="bico"/.test(h) && (storeUrl || /class="bdot"/.test(h)), "the fixture no longer renders the benefit tiles or the photo badge, so this pins nothing");
       assert.ok(!/<div class="trust an"/.test(h), "the hero trust row is back");
       assert.ok(!/<div class="chips">/.test(h), "the chip row is back");
-      assert.ok(!/&#10003;|\u2713/.test(h.replace(/<style>[\s\S]*?<\/style>/, "").replace(/class="bdot">✓/, "")),
-        "a checkmark line is back somewhere on the page");
+      // Not just the rows: the benefit tiles and the photo badge used to carry a ✓ too.
+      assert.ok(!/&#10003;|\u2713/.test(h.replace(/<style>[\s\S]*?<\/style>/, "")),
+        "a checkmark is back somewhere on the page");
       for (const line of ["Free quotes", "Free quote, no obligation", "Fast response",
                           "Ships straight to you", "Cancel any time", "Secure checkout", "Questions? Call us"])
         assert.ok(!h.includes(line), `"${line}" is back on a client's page`);
