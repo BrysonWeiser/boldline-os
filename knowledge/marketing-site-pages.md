@@ -119,3 +119,15 @@ animations and everything"*, then "Yes build that and we can eventually make a p
 - Later: a real-clients page, once a client agrees to be shown.
 🔴 While this sits unmerged, the dev branch is ahead of main with unapproved site work. Don't merge dev into
 main for other work until he says "go"; cherry-pick that work onto main instead.
+
+## 2026-10-07: sample websites LIVE + new link preview picture
+Bryson: "Make it live right now" (skipped the test copy). Merged; /examples/* answers 200 on boldlinemedia.com.
+He also saw that sharing the URL still showed the OLD site ("Slow weeks. Inconsistent leads.") in iMessage. The
+preview is a saved picture (`og-image.jpg/png`), not the page. New one: `marketing-src/og-card.html` rendered by
+`scripts/build-og-image.cjs` to `marketing-site/og-boldline.jpg` (1200x630). NEW FILE NAME on purpose: iMessage,
+Facebook and LinkedIn cache previews per image address (and `_headers` caches images 30 days), so overwriting the
+old file would keep showing the old picture. All pages, blog pages and blog JSON-LD point at it.
+`verify-marketing-pages` fails if the card's headline differs from the homepage's (mutation-checked): when the
+headline changes, edit og-card.html, re-render, and rename the file again.
+Note for Bryson: a phone that already showed the old preview for a link may keep it for that conversation; new
+shares (and other phones) get the new one. Facebook/LinkedIn can be forced with their preview debuggers.

@@ -42,7 +42,7 @@ export default async (req) => {
     "@type": "Article",
     headline: post.title,
     description: post.meta_description,
-    image: `${SITE_URL}/og-image.png`,
+    image: `${SITE_URL}/og-boldline.jpg`,
     datePublished: isoDate(post.published_at),
     dateModified: isoDate(post.published_at),
     author: { "@type": "Person", name: "Bryson Weiser", url: `${SITE_URL}/about/` },

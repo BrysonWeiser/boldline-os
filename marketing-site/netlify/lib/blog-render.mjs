@@ -170,10 +170,10 @@ ${ANALYTICS}
 <meta property="og:title" content="${esc(ogTitle || title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:url" content="${esc(canonical)}">
-<meta property="og:image" content="${SITE_URL}/og-image.png">
+<meta property="og:image" content="${SITE_URL}/og-boldline.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(ogTitle || title)}">
-<meta name="twitter:image" content="${SITE_URL}/og-image.png">${jsonLd ? `
+<meta name="twitter:image" content="${SITE_URL}/og-boldline.jpg">${jsonLd ? `
 <script type="application/ld+json">
 ${JSON.stringify(jsonLd)}
 </script>` : ""}

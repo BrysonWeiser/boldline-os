@@ -117,6 +117,19 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   ok("and the ads service quotes the real $400 minimum, never the old $350", !!ads && ads.offers.price === "400" && !/350/.test(JSON.stringify(ads)));
 }
 
+// The link preview picture (what iMessage, LinkedIn and Facebook show when the site is shared). It once kept
+// the old "Slow weeks" headline for a day after the site changed, because it is a separate saved picture.
+{
+  const card = readFileSync(join(ROOT, "marketing-src", "og-card.html"), "utf8");
+  const words = (h) => h.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const homeH1 = words((readPage("index.html").match(/<h1 class="h-title[^"]*">([\s\S]*?)<\/h1>/) || [])[1] || "");
+  const cardH1 = words((card.match(/<h1>([\s\S]*?)<\/h1>/) || [])[1] || "");
+  ok("🔴 the link preview picture says what the homepage headline says (re-render it with scripts/build-og-image.cjs)", !!homeH1 && homeH1 === cardH1, `home "${homeH1}" vs preview "${cardH1}"`);
+  for (const f of SITE_PAGES) ok(`${f}: shares the current preview picture`, readPage(f).includes('content="https://boldlinemedia.com/og-boldline.jpg"'));
+  ok("and the blog pages share it too", /og-boldline\.jpg/.test(readFileSync(join(MK, "netlify/lib/blog-render.mjs"), "utf8")));
+  ok("and the picture exists", existsSync(join(MK, "og-boldline.jpg")));
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-marketing-pages: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
