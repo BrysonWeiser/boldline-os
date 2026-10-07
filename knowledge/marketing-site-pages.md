@@ -160,3 +160,9 @@ journey plays 0..5 in order at 390/1280 and is tappable tabs with motion off. Fu
   aurora, Pexels shots from the same car-care shoot as the detailer, `img/sample/tint-*.jpg`). Fixed: industry
   card images stretched tall because the width/height attributes beat aspect-ratio (added height:auto).
   Swap real floor photos into the epoxy sample when Bryson or a floor client provides some.
+- 2026-10-07: epoxy sample now has images: RENDERINGS made in the browser (`marketing-src/epoxy-renders.html`, saved
+  by `scripts/build-trade-shots.cjs` as `img/sample/epoxy-1..3.jpg`: flake swatch from above, metallic swirl shader,
+  coated garage in perspective). Alt text says "Rendering of ...". Order in `DEMO_EPOXY.stock` matters: the builder
+  pairs photos with services by position (garage, metallic, flake). Wikimedia/Openverse/StockSnap had nothing usable.
+  Bryson then said make it live: the whole evening batch (pricing slider, four trade pages + samples, lead journey,
+  comparison page, epoxy renders) merged to main.

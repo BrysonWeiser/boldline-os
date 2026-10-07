@@ -59,7 +59,8 @@ export const DEMO_EPOXY = {
   id: "demo-epoxy", name: "Ironwood Floor Coatings", niche: "Epoxy Garage Floor Coatings", leadToken: "demo", businessPhone: "(623) 555-0164",
   businessAddress: "Peoria, AZ", campaignSetup: { serviceArea: "Peoria, AZ" },
   website: { brandName: "Ironwood Floor Coatings", brandColor: "#3B6EA8", publicEmail: "quotes@ironwoodfloors.example",
-    stock: [],
+    // Rendered finishes (marketing-src/epoxy-renders.html): no usable free photos of coated floors exist.
+    stock: [{ url: "https://boldlinemedia.com/img/sample/epoxy-3.jpg", alt: "Rendering of a finished garage floor" }, { url: "https://boldlinemedia.com/img/sample/epoxy-2.jpg", alt: "Rendering of a metallic epoxy finish" }, { url: "https://boldlinemedia.com/img/sample/epoxy-1.jpg", alt: "Rendering of a flake floor finish up close" }],
     reviews: [{ name: "Jason L.", text: "Two days start to finish and the garage looks like a showroom. Hot tires haven't left a mark.", stars: 5 }, { name: "Priya S.", text: "They ground out the old oil stains completely. Fixed price, no surprises.", stars: 5 }],
     content: {
       hero: { eyebrow: "Garage floor coatings in Peoria", headline: "A garage floor that looks finished.", lineA: "A garage floor", lineB: "that looks finished.", sub: "Epoxy and polyaspartic coatings that shrug off oil, hot tires and Arizona heat. Most garages done in a day or two." },

@@ -1,0 +1,97 @@
+<!doctype html>
+<!-- Rendered images of floor finishes for the made-up epoxy sample business (no usable free photos of coated floors
+     exist). scripts/build-trade-shots.cjs opens this page with ?shot=1|2|3 and saves each as img/sample/epoxy-N.jpg. -->
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:1600px;height:1067px;overflow:hidden;background:#111}
+#stage{position:absolute;inset:0;overflow:hidden}
+canvas{display:block}
+</style></head><body><div id="stage"></div>
+<script>
+const W = 1600, H = 1067, shot = new URLSearchParams(location.search).get("shot") || "1";
+let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+const stage = document.getElementById("stage");
+
+// A flake broadcast floor: a grey base coat with thousands of vinyl chips, then a clear glossy top coat.
+function flakeTexture(w, h, scale = 1) {
+  const c = document.createElement("canvas"); c.width = w; c.height = h; const g = c.getContext("2d");
+  g.fillStyle = "#8d8b86"; g.fillRect(0, 0, w, h);
+  const cols = [["#262624", 18], ["#ecebe6", 16], ["#77746d", 22], ["#b8b2a5", 18], ["#55524c", 16], ["#9c968a", 10]];
+  const pick = () => { let r = rnd() * 100; for (const [c2, p] of cols) { if ((r -= p) <= 0) return c2; } return cols[0][0]; };
+  const n = Math.round(w * h / 9 * scale);
+  for (let i = 0; i < n; i++) {
+    const x = rnd() * w, y = rnd() * h, s = (2 + rnd() * 7) * scale, a = rnd() * Math.PI;
+    g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = pick(); g.beginPath();
+    const k = 4 + Math.floor(rnd() * 3);
+    for (let j = 0; j < k; j++) { const t = j / k * Math.PI * 2, r = s * (0.55 + rnd() * 0.6); g.lineTo(Math.cos(t) * r, Math.sin(t) * r * (0.5 + rnd() * 0.5)); }
+    g.closePath(); g.fill(); g.restore();
+  }
+  return c;
+}
+function gloss(g, w, h, bars) {
+  // Soft reflections of overhead LED strips, then a gentle sheen: what makes a coated floor read as glossy.
+  for (const b of bars) {
+    const grd = g.createLinearGradient(0, b.y - b.h, 0, b.y + b.h);
+    grd.addColorStop(0, "rgba(255,255,255,0)"); grd.addColorStop(.5, `rgba(255,255,255,${b.a})`); grd.addColorStop(1, "rgba(255,255,255,0)");
+    g.save(); g.filter = `blur(${b.blur}px)`; g.fillStyle = grd; g.beginPath(); g.ellipse(b.x, b.y, b.w, b.h, b.rot || 0, 0, Math.PI * 2); g.fill(); g.restore();
+  }
+  const sh = g.createRadialGradient(w * .35, h * .25, 10, w * .4, h * .3, w * .9);
+  sh.addColorStop(0, "rgba(255,255,255,.18)"); sh.addColorStop(.5, "rgba(255,255,255,.04)"); sh.addColorStop(1, "rgba(0,0,0,.28)");
+  g.fillStyle = sh; g.fillRect(0, 0, w, h);
+}
+
+if (shot === "1") {
+  // Close up of a flake floor from above, with LED strips reflecting in the clear top coat.
+  const tex = flakeTexture(W, H, 1.25); tex.style.cssText = "position:absolute;inset:0"; stage.appendChild(tex);
+  const ov = document.createElement("canvas"); ov.width = W; ov.height = H; ov.style.cssText = "position:absolute;inset:0";
+  stage.appendChild(ov); const g = ov.getContext("2d");
+  gloss(g, W, H, [{ x: 560, y: 300, w: 760, h: 22, a: .55, blur: 14, rot: -.18 }, { x: 980, y: 640, w: 900, h: 34, a: .38, blur: 22, rot: -.18 }, { x: 1300, y: 960, w: 700, h: 30, a: .25, blur: 26, rot: -.18 }]);
+} else if (shot === "2") {
+  // Metallic epoxy: pigment swirls in a clear resin, domain-warped noise in a shader.
+  const c = document.createElement("canvas"); c.width = W; c.height = H; stage.appendChild(c);
+  const gl = c.getContext("webgl");
+  const vs = "attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}";
+  const fs = `precision highp float;uniform vec2 r;
+  float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+  float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<6;i++){v+=a*n(p);p=p*2.03+vec2(1.7,9.2);a*=.5;}return v;}
+  void main(){vec2 uv=gl_FragCoord.xy/r.y*1.6;
+    vec2 q=vec2(fbm(uv),fbm(uv+vec2(5.2,1.3)));vec2 w=vec2(fbm(uv+4.*q+vec2(1.7,9.2)),fbm(uv+4.*q+vec2(8.3,2.8)));
+    float f=fbm(uv+3.5*w);
+    vec3 dark=vec3(.10,.11,.13),steel=vec3(.38,.42,.48),silver=vec3(.80,.81,.82),blue=vec3(.22,.34,.50);
+    vec3 col=mix(dark,steel,smoothstep(.25,.6,f));col=mix(col,blue,smoothstep(.45,.75,w.x)*.55);col=mix(col,silver,pow(smoothstep(.55,.95,f),2.)*.9);
+    float vein=smoothstep(.015,0.,abs(f-.62));col+=vec3(.9)*vein*.35;
+    vec2 s=gl_FragCoord.xy/r;float spec=exp(-pow((s.y-.62)*7.,2.))*exp(-pow((s.x-.45)*1.8,2.));col+=vec3(.55)*spec;
+    col*=1.-.35*length(s-vec2(.5,.55));gl_FragColor=vec4(col,1.);}`;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
+  const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  gl.uniform2f(gl.getUniformLocation(pr, "r"), W, H); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+} else {
+  // A finished two car garage: clean walls, cabinets, and the flake floor running away in perspective.
+  stage.style.background = "linear-gradient(#e9e8e4,#d9d7d1)";
+  const wall = document.createElement("div");
+  wall.style.cssText = "position:absolute;left:0;right:0;top:0;height:470px;background:linear-gradient(#f1f0ec,#dcdad4)";
+  stage.appendChild(wall);
+  const cab = document.createElement("div");
+  cab.style.cssText = "position:absolute;left:180px;right:180px;top:250px;height:220px;display:grid;grid-template-columns:repeat(8,1fr);gap:6px";
+  for (let i = 0; i < 8; i++) { const d = document.createElement("div"); d.style.cssText = "background:linear-gradient(#3a3d42,#26282c);border-radius:4px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)"; const hd = document.createElement("i"); hd.style.cssText = "display:block;width:30%;height:4px;margin:18px auto 0;border-radius:2px;background:#9aa0a8"; d.appendChild(hd); cab.appendChild(d); }
+  stage.appendChild(cab);
+  const top = document.createElement("div"); top.style.cssText = "position:absolute;left:170px;right:170px;top:236px;height:16px;background:#8b6f4e;border-radius:2px";
+  stage.appendChild(top);
+  for (const x of [380, 800, 1220]) { const l = document.createElement("div"); l.style.cssText = `position:absolute;left:${x - 110}px;top:30px;width:220px;height:10px;border-radius:5px;background:#fff;box-shadow:0 0 30px 10px rgba(255,255,255,.8)`; stage.appendChild(l); }
+  const floorWrap = document.createElement("div");
+  floorWrap.style.cssText = "position:absolute;left:0;right:0;top:470px;bottom:0;perspective:700px;perspective-origin:50% 0;overflow:hidden";
+  const tex = flakeTexture(5200, 3000, .45);
+  tex.style.cssText = "position:absolute;left:-1800px;top:0;transform:rotateX(78deg);transform-origin:50% 0";
+  floorWrap.appendChild(tex); stage.appendChild(floorWrap);
+  const ov = document.createElement("canvas"); ov.width = W; ov.height = H; ov.style.cssText = "position:absolute;inset:0"; stage.appendChild(ov);
+  const g = ov.getContext("2d");
+  // The cabinets and lights reflect in the gloss coat.
+  const rf = g.createLinearGradient(0, 472, 0, 640); rf.addColorStop(0, "rgba(38,40,44,.55)"); rf.addColorStop(1, "rgba(38,40,44,0)");
+  g.save(); g.filter = "blur(5px)"; g.fillStyle = rf; g.fillRect(180, 472, 1240, 170); g.restore();
+  gloss(g, W, H, [{ x: 380, y: 610, w: 140, h: 16, a: .5, blur: 12 }, { x: 800, y: 610, w: 150, h: 16, a: .5, blur: 12 }, { x: 1220, y: 610, w: 140, h: 16, a: .5, blur: 12 }, { x: 800, y: 820, w: 700, h: 90, a: .12, blur: 50 }]);
+  const edge = g.createLinearGradient(0, 466, 0, 482); edge.addColorStop(0, "rgba(0,0,0,.25)"); edge.addColorStop(1, "rgba(0,0,0,0)"); g.fillStyle = edge; g.fillRect(0, 466, W, 16);
+}
+document.title = "ready";
+</script></body></html>

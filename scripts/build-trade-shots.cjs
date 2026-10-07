@@ -4,7 +4,7 @@
 const path = require("path"), fs = require("fs"), http = require("http");
 const { chromium } = require("playwright");
 const ROOT = path.join(__dirname, "..", "marketing-site");
-const SHOTS = [{ name: "epoxy", url: "/examples/epoxy-floors/" }];
+const SHOTS = [];   // { name, url } for any trade page that needs a picture of its sample site
 const types = { ".css": "text/css", ".js": "text/javascript", ".html": "text/html", ".jpg": "image/jpeg", ".png": "image/png", ".woff2": "font/woff2" };
 const srv = http.createServer((q, r) => { let p = decodeURIComponent(q.url.split("?")[0]); if (p.endsWith("/")) p += "index.html"; const f = path.join(ROOT, p);
   if (f.startsWith(ROOT) && fs.existsSync(f) && fs.statSync(f).isFile()) { r.writeHead(200, { "content-type": types[path.extname(f)] || "application/octet-stream" }); r.end(fs.readFileSync(f)); } else { r.writeHead(404); r.end(); } });
@@ -20,6 +20,17 @@ const exe = (() => { const r = "/opt/pw-browsers"; const d = fs.existsSync(r) &&
     await pg.waitForTimeout(3500);
     const out = path.join(ROOT, "img", "sample", `${s.name}-hero.jpg`);
     await pg.screenshot({ path: out, type: "jpeg", quality: 82 });
+    console.log("wrote", out);
+    await pg.close();
+  }
+  // Rendered finishes for the epoxy sample (marketing-src/epoxy-renders.html): flake close up, metallic, garage.
+  for (const n of [1, 2, 3]) {
+    const pg = await b.newPage({ viewport: { width: 1600, height: 1067 } });
+    await pg.goto("file://" + path.join(__dirname, "..", "marketing-src", "epoxy-renders.html") + "?shot=" + n);
+    await pg.waitForFunction(() => document.title === "ready");
+    await pg.waitForTimeout(500);
+    const out = path.join(ROOT, "img", "sample", `epoxy-${n}.jpg`);
+    await pg.screenshot({ path: out, type: "jpeg", quality: 84 });
     console.log("wrote", out);
     await pg.close();
   }

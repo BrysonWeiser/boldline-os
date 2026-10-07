@@ -109,7 +109,7 @@ const TRADES = [
     meta: "Homeowners scroll Facebook with a to-do list in the back of their mind. A good before and after reminds them who to call.",
     wins: [["The right jobs", "We aim the ads at the work you want more of, and keep them away from the jobs you don't."], ["A page that books", "Your ads land on a page about the job they searched for, with your reviews and a short form."], ["Every call counted", "Calls and forms are tracked back to the ad that caused them, so you know what's paying for itself."]],
     faqs: [["Do I need a website first?", "No. Every plan includes a landing page built for your ads. If you want a full website too, we build those as well."], ["What counts as a qualified lead for a handyman?", "A real person in your area asking about work you do. Not a spam call, not a salesperson, not a duplicate. We agree on it before you pay for any."], ["Can you avoid the tiny jobs?", "Yes. We tune the keywords and the page around the jobs you want, and we review the leads with you every month."]] },
-  { slug: "epoxy-floors", label: "Epoxy floor installers", sampleLabel: "floor coating", sample: "epoxy-floors", photo: "/img/sample/epoxy-hero.jpg",
+  { slug: "epoxy-floors", label: "Epoxy floor installers", sampleLabel: "floor coating", sample: "epoxy-floors", photo: "/img/sample/epoxy-3.jpg",
     h1: "More garage floors booked, <em>less waiting on referrals.</em>",
     sub: "We run Google and Meta ads that reach homeowners pricing out a garage floor right now, and send them to a page that books the free measure.",
     searches: ["epoxy garage floor near me", "garage floor coating cost", "polyaspartic floor coating", "metallic epoxy floor"],
@@ -458,7 +458,7 @@ function samplePage(sm, page) {
   const root = `/examples/${sm.slug}`;
   let html = renderSite(sm.demo, page.id, { base: SAMPLE_ORIGIN + root, theme: sm.theme, noindex: true });
   // Its own pages link within the sample, wherever the site is being served from (the test copy included).
-  html = html.split(SAMPLE_ORIGIN + root).join(root);
+  html = html.split(SAMPLE_ORIGIN + root).join(root).split(SAMPLE_ORIGIN + "/img/").join("/img/");
   // The builder describes the business to search engines; this one is made up, so that goes.
   html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
   // The sample's photos are served from our own site (img/sample/<trade>-<id>.jpg), not hot-linked.
