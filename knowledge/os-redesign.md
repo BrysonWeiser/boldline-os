@@ -91,3 +91,16 @@ Same artifact URL, version 2. Added:
   voices, about $5/mo starter which covers short daily briefings) or Microsoft Azure neural "Sonia" (very good, free
   tier covers his use). Either is a small server function calling the service with a key kept in Netlify (setup steps
   go in the 10pm reminder). The preview can't call outside services, so it can only use device voices.
+
+## Voice: free option chosen to audition (2026-10-07)
+Bryson didn't want to depend on the Edge browser or a paid service. Answer: **Kokoro** (open-source, Apache 2.0,
+commercial use OK), an 82M-parameter neural voice with British female voices (bf_emma, bf_isabella, bf_alice,
+bf_lily) and voice BLENDING (mix two style vectors into a voice unique to BoldLine).
+- Audition page (private artifact): https://claude.ai/artifact/YDAiLLiA1ixrp5U4yFNcpu with six samples of the same
+  briefing: blend A (0.6 Emma + 0.4 Isabella, speed .95), blend B (0.5 Emma + 0.5 Alice, .95), then Emma, Isabella,
+  Alice, Lily at 1.0. Generated here with `kokoro-onnx` (int8 model ~92MB + voices.bin ~28MB from the kokoro-onnx
+  GitHub release `model-files-v1.0`), lang en-gb.
+- Real-OS plan: run Kokoro IN THE BROWSER (kokoro-js / onnxruntime-web, WebGPU where available, WASM otherwise).
+  One-time model download (~90MB with the int8/q8 model) cached by the browser, then free and offline. Fine on a
+  laptop; on iPhone it's heavy (slow first load, slower speech), so phones fall back to the device's Enhanced
+  British voice or we pre-render the fixed lines (boot, booking reactions) as audio files. Waiting on his pick.
