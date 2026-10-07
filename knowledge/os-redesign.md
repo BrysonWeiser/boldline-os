@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: Stages 1 and 2 LIVE 2026-10-07; Stage 3 (Today screen + ARIA core) built on the dev branch, waiting on his OK; Stage 4 (voice) next
+status: Stages 1-3 LIVE 2026-10-07; Stage 4 (ARIA voice + Hey ARIA) built on the dev branch, waiting on his OK
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -201,3 +201,36 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
 - Sidebar "Dashboard" renamed "Today"; the emoji shortcut tiles and the two leftover emoji icons on the dashboard are now
   line icons / glowing dots.
 - Harness: also lets cdnjs through and launches Chromium with SwiftShader WebGL so the core renders in screenshots.
+
+## Stage 4 BUILT (2026-10-07): ARIA's voice and "Hey ARIA" (dev branch)
+- **Locked voice everywhere** (`ARIA_LOCK`): 0.6 bf_emma + 0.4 bf_isabella, speed 0.98, en-gb; pitch 0.92 with tempo
+  kept, lowshelf +3 dB @140 Hz, compressor 2.5:1 @-18.4 dB, gain 1.4.
+- **Fixed lines** = 24 MP3s in `/aria/` (56 kbps mono, ~390 KB total), rendered here with kokoro-onnx + the exact ffmpeg
+  chain (scratchpad `voice/clips.py` + `clips.json`; re-render and re-run ffmpeg to change a line, then update
+  `ARIA_CLIPS`). Greetings by time of day, power_start, booked_1/2, recap, yes, on_it, thinking, sorry, open_<screen>,
+  objections. Play instantly, phones included.
+- **Live lines** (numbers, names, ARIA chat replies): kokoro-js 1.2.1 (jsdelivr) in a module Web Worker built from a
+  Blob (`ARIA_WORKER_SRC`). Picks WebGPU (fp16 if shader-f16 else fp32) and falls back to wasm q8 (~92 MB). Blend is
+  written into kokoro's own Cache Storage ("kokoro-voices") under bf_emma's URL from freshly fetched originals. Live
+  sound chain is Web Audio: ask the model for speed 0.98/0.92, play at playbackRate 0.92, then shelf, compressor, gain.
+  Sentence-by-sentence pipelining. Computers only; phones never download the model.
+  - Measured in a headless sandbox on wasm (slow CPU, single thread): 2.1 s of speech took ~18 s cold incl. download,
+    then 3.75 s of speech in ~15 s. A real laptop is several times faster and WebGPU much faster again, but if he says
+    she's slow, that's the knob (or shorten what she reads).
+  - Until the model is ready she uses the fixed line (or stays quiet and shows the words) and downloads in the background.
+- **Greeting**: browsers block sound until a click/key, so on his first one each Phoenix day she greets (clip, or the
+  full live briefing once the model is ready). `window.__ariaBrief` is published by TodayHero.
+- **Hey ARIA** (`ARIA_VOICE.setMic`): browser SpeechRecognition, off by default, remembered per device, only while the tab
+  is open, paused while she speaks. Chrome uses Google's speech service (said on the switch). Wake regex covers
+  aria/arya/area/maria. `ariaRoute()` maps speech to: stop, power (opens Outreach with the clock running via
+  `window.__phAutostart`), brief, objections (presses "o"), next (ArrowRight), alerts, open <screen>, open <client>, else
+  the ARIA chat with the question pre-sent (`initialAsk`) and her reply spoken (`speakReplies`).
+  🔴 Voice never logs an outcome or takes an action; verify-aria-voice pins it ("log a no answer" goes to the chat).
+- **Power Hour lines**: power_start on first START/Space, booked_1/booked_2 on a real booking, recap on END.
+- Controls: "Voice on/off" and "Hey ARIA" pills on the Today hero, with live status (Listening, Speaking, download %,
+  blocked-mic help).
+- 🔴 Gotcha: App has early returns (loading/error), so new hooks in App must sit near the top (after the Ctrl K effect),
+  never just above the final `return`, or React throws #310 and the whole OS crashes.
+- Testing the model headlessly: Playwright route() can't carry the 92 MB body (browser closes) and the proxy CA isn't
+  trusted inside module workers; the working recipe is a local mirror server that curls each URL once and rewrites
+  `https://cdn.jsdelivr.net/` and `https://huggingface.co/` inside the JS to itself (scratchpad `vt/m.cjs`).
