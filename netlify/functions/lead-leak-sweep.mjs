@@ -34,7 +34,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
-import { auditLead } from "./lead-leak-audit-background.mjs";
+import { startAudit } from "../lib/lead-arrival.mjs";
 
 // How many times to try one lead before it needs a person. An unfunded AI account or a
 // prospect's site that refuses every request will never succeed, and retrying it every ten
@@ -93,22 +93,26 @@ export default withFailureAlert("lead-leak-sweep", async () => {
   const now = Date.now();
   const due = (rows || []).filter((r) => needsAudit(r, now));
   let sent = 0;
-  const stuck = [];
 
+  // 🔴 HANDED TO THE BACKGROUND FUNCTION, NEVER WRITTEN HERE (2026-10-07). A report is a speed
+  // test of their site plus AI research, well over the 30 seconds Netlify gives a scheduled
+  // function, so writing it inline meant this safety net could never finish one. It now starts
+  // lead-leak-audit-background (15 minutes) with the OS's own key, one lead per start.
   for (const row of due) {
+    try { if (await startAudit(row.id)) sent++; }
+    catch (e) { console.error("lead-leak-sweep: could not start the audit for", row.id, e && e.message); }
+  }
+
+  // A request that has used up its attempts and still has not gone out. Alerted ONCE per lead
+  // (stuckAlertedAt), because this runs every ten minutes and would otherwise page him all day.
+  const stuck = [];
+  for (const row of rows || []) {
     const p = row.payload || {};
-    const r = await auditLead(supabase, {
-      leadId: row.id,
-      website: String(p.website || ""),
-      email: String(row.email || "").toLowerCase(),
-      name: String(row.name || p.name || ""),
-    });
-    if (r && r.ok && !r.skipped) { sent++; continue; }
-    if (r && r.ok) continue;                       // already audited by the other path
-    // Out of attempts, so this one is not going to fix itself.
-    if (Number(r && r.tries) >= MAX_AUDIT_TRIES) {
-      stuck.push({ email: row.email, website: p.website || "", reason: (r && r.error) || "unknown" });
-    }
+    const st = String(p.auditStatus || "");
+    if (st === "sent" || st === "review_sent" || st === "sent_by_hand" || p.stuckAlertedAt) continue;
+    if (Number(p.auditTries || 0) < MAX_AUDIT_TRIES || st === "running") continue;
+    stuck.push({ email: row.email, website: p.website || "", reason: p.auditError || "unknown" });
+    await supabase.from("website_leads").update({ payload: { ...p, stuckAlertedAt: new Date(now).toISOString() } }).eq("id", row.id);
   }
 
   // 🔴 THE POINT OF THE WHOLE FILE. A prospect asked for something free and did not get it,
@@ -124,7 +128,7 @@ export default withFailureAlert("lead-leak-sweep", async () => {
     });
   }
 
-  console.log(`lead-leak-sweep: ${(rows || []).length} recent request(s), ${due.length} due, ${sent} sent, ${stuck.length} stuck.`);
+  console.log(`lead-leak-sweep: ${(rows || []).length} recent request(s), ${due.length} due, ${sent} started, ${stuck.length} stuck.`);
   return new Response(JSON.stringify({ ok: true, scanned: (rows || []).length, due: due.length, sent, stuck: stuck.length }),
     { status: 200, headers: { "content-type": "application/json" } });
 });

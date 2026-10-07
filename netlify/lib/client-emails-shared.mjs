@@ -790,6 +790,32 @@ export function renderReportEmail({ period = "weekly", text = "", client = {}, p
   };
 }
 
+// ── 🔴 THE INSTANT REPLY TO SOMEONE WHO FILLED IN THE CONTACT FORM ───────────────
+// Bryson, 2026-10-07 ("add both of those things"): BoldLine sells instant lead follow-up, and
+// its own contact form answered nobody. This goes out within a minute of the form (lead-arrival).
+// Written the way he talks: no dashes, no promise of a time he might miss ("today" is wrong at
+// 11pm), and an easy way to skip the wait. Replies reach bryson@ (sendEmail's reply_to).
+// `recommended` is set when it came from the pricing quiz ("drop your email and we'll follow up
+// with a plan"), so the reply names the starting point they were shown.
+export function renderEnquiryAck({ name = "", bookUrl = "", recommended = "" } = {}) {
+  const first = String(name || "").trim() ? firstName(name) : "";
+  const rec = String(recommended || "").trim().slice(0, 120);
+  const bodyHtml = (rec
+    ? h1("Here's your starting point.") +
+      p(`Based on your answers, we'd start you with the ${b(escapeHTML(rec))}. It's a starting point, not a quote. We confirm the right fit together.`) +
+      p("I'll follow up within one business day with a plan for your business. Usually it's a lot sooner than that.")
+    : h1(first ? `Got your message, ${escapeHTML(first)}.` : "Got your message.") +
+      p("Thanks for reaching out to BoldLine Media. I read every message myself, and I'll get back to you within one business day. Usually it's a lot sooner than that.")) +
+    p("If you'd rather not wait, grab a time on my calendar and we'll talk it through. It's free, and there's no pressure to sign anything.") +
+    (bookUrl ? button("Pick a Time", bookUrl) : "") +
+    small("Or just reply to this email. It comes straight to me.") +
+    signoff();
+  return {
+    subject: rec ? "Your starting point with BoldLine Media" : first ? `Got your message, ${first}` : "Got your message",
+    html: emailShell({ preheader: "I'll get back to you within one business day. Or pick a time that suits you.", bodyHtml }),
+  };
+}
+
 export function renderClientEmail(type, ctx = {}) {
   const tpl = T[type];
   if (!tpl) throw new Error(`Unknown email type: ${type}`);

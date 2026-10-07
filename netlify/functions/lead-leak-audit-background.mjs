@@ -29,6 +29,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL, sendEmail, escapeHTML, GOLD } from "../lib/report-shared.mjs";
 import { emailShell } from "../lib/client-emails-shared.mjs";
 import { EMAIL_SANS } from "../lib/email-brand.mjs";
+import { keyOk, UUID_RE } from "../lib/lead-arrival.mjs";
 import { lookAtSite, metricLines } from "../lib/site-vision.mjs";
 
 const BOOK_URL = "https://calendly.com/theboldlinemedia/30min";
@@ -355,6 +356,20 @@ export default async (req) => {
   let body;
   try { body = JSON.parse((await req.text()) || "{}"); }
   catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+
+  // 🔴 STARTED FROM INSIDE THE OS (2026-10-07): the instant lead endpoint and the 10-minute
+  // safety net both start this with a key derived from a secret the OS already holds, and send
+  // only the lead's id. Everything else is read from the saved row, never from the request.
+  if (keyOk(req.headers.get("x-lead-job-key"))) {
+    const leadId = String(body.leadId || "").trim();
+    if (!UUID_RE.test(leadId)) return json({ ok: false, error: "leadId required" }, 400);
+    const supabase = createClient(SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data: row } = await supabase.from("website_leads").select("id, form, name, email, payload").eq("id", leadId).maybeSingle();
+    if (!row || row.form !== "lead_leak") return json({ ok: false, error: "not a free-check request" }, 404);
+    const p = row.payload || {};
+    const r = await auditLead(supabase, { leadId, website: String(p.website || ""), email: String(row.email || "").toLowerCase(), name: String(row.name || p.name || "") });
+    return json(r, r.status || 200);
+  }
 
   // Shared-secret gate — the marketing site is unauthenticated, so this is what
   // stops anyone from invoking the bot. If the secret isn't configured, refuse

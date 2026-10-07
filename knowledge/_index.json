@@ -11537,7 +11537,7 @@
         "speed to lead",
         "public email address"
       ],
-      "status": "fixes LIVE 2026-10-07 (merge f0ac1e7); instant reply + faster ping approved, being built",
+      "status": "fixes LIVE 2026-10-07 (merge f0ac1e7); instant reply + instant phone ping + free-check rewiring LIVE the same evening",
       "summary": "Bryson, 2026-10-07, picked \"walk the whole path a new client takes\". Live crawl of boldlinemedia.com (49 pages) found no broken links; two Calendly links (30min ads, website), four real forms. Fixed: (1) every email now carries reply_to bryson@boldlinemedia.com, the address CONFIRMED to forward (hello@, the sender, is not confirmed routed), (2) emails to a client's CUSTOMERS are sent as that business with reply_to the business, (3) the free-check form said \"Got it\" even when the request was saved nowhere, (4) public pages showed a gmail address, now bryson@boldlinemedia.com. Recommended, not built: an instant reply to contact-form enquiries, and a faster than 15-minute phone ping.",
       "verified": "2026-10-07",
       "terms": {

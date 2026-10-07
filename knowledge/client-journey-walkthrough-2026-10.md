@@ -3,7 +3,7 @@ name: client-journey-walkthrough-2026-10
 topic: Sales funnel
 task: check or change the path a new client takes (ad, website, booking, free check, contact form, emails, agreement, welcome), where replies to our emails go, or who customer emails appear to come from
 keywords: [client journey, funnel, walkthrough, reply to, reply_to, BOLDLINE_REPLY_TO, fromName, free check silent failure, audit.mjs, contact form auto reply, speed to lead, public email address]
-status: fixes LIVE 2026-10-07 (merge f0ac1e7); instant reply + faster ping approved, being built
+status: fixes LIVE 2026-10-07 (merge f0ac1e7); instant reply + instant phone ping + free-check rewiring LIVE the same evening
 summary: Bryson, 2026-10-07, picked "walk the whole path a new client takes". Live crawl of boldlinemedia.com (49 pages) found no broken links; two Calendly links (30min ads, website), four real forms. Fixed: (1) every email now carries reply_to bryson@boldlinemedia.com, the address CONFIRMED to forward (hello@, the sender, is not confirmed routed), (2) emails to a client's CUSTOMERS are sent as that business with reply_to the business, (3) the free-check form said "Got it" even when the request was saved nowhere, (4) public pages showed a gmail address, now bryson@boldlinemedia.com. Recommended, not built: an instant reply to contact-form enquiries, and a faster than 15-minute phone ping.
 verified: 2026-10-07
 ---
@@ -27,7 +27,23 @@ verified: 2026-10-07
 - Error messages + contact page + Organization schema email: bryson@boldlinemedia.com instead of the gmail.
 - Pinned in verify-email-brand sections 6 and 7.
 
+## Instant reply + instant ping (Bryson: "add both of those things", built + live 2026-10-07)
+- `netlify/lib/lead-arrival.mjs` + `netlify/functions/lead-arrived-background.mjs` (public, background, acts only on the id of a
+  website_leads row created in the last 15 min, reads everything else from the row; no shared password).
+- Website side: `submission-created` saves the row (`.select("id")`), then POSTs `{leadId}` to the OS endpoint; its own old
+  auto-reply (`emailLead`, which had an em dash and only ran if the MARKETING site had a verified sender) was removed so there
+  is exactly ONE reply. `audit.mjs` does the same instead of the old AUDIT_TRIGGER_SECRET call (that env var is no longer needed).
+- OS endpoint: runs `syncHouseLeads` (the same mirror, so the phone push fires in seconds and can't double), sends the instant
+  reply for forms `contact` and `recommendation` (pricing quiz "email me a plan", names the package), and starts the free check.
+- Reply: `renderEnquiryAck` in client-emails-shared, from "Bryson at BoldLine Media", reply_to bryson@, Calendly 30min button, no
+  "today" promise, no dashes. Claimed on the row first (`payload.ackClaimAt`, conditional update with a plain-filter fallback),
+  `ackSentAt` on success, `ackTries` max 3, only within 2 hours, never if status moved off new.
+- Safety nets: `house-leads` (15 min) runs `sendPendingAcks`; `lead-leak-sweep` (10 min) now STARTS the background audit via
+  `startAudit` (key `x-lead-job-key`, sha256(service role + ":lead-jobs")) instead of running it inline, which could never finish
+  inside a 30-second scheduled function; a stuck free check alerts once (`stuckAlertedAt`). `calendly-leads` runs the mirror
+  when it saves a new booking, so a booked call buzzes on that run (was up to two runs, ~30 min).
+- Tests: `verify-lead-arrival` (48, incl. a fake-DB claim race and the fallback), plus updated lead-leak-delivery and
+  conversion-loop. Suite 145/145.
+
 ## Still open (recommended to Bryson)
-- Instant "got it" reply to contact-form enquiries (new automated email to real people: needs his yes).
-- Faster phone ping for website enquiries (currently the 15-minute mirror).
 - Check the marketing site has a verified sender set, otherwise the instant free-check alert email to Bryson is off.
