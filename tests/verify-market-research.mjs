@@ -402,19 +402,18 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   // business that sells nationally must not have its town printed on its page, and must get the
   // national line in its place.
   ok("so does the trust row", (() => {
-    const row = (html) => (html.match(/<div class="trust an"[^>]*>([\s\S]*?)<\/div>/) || [])[1] || "";
+    // 2026-10-07: client pages no longer get a default trust row at all (Bryson: the checkmark
+    // lines "feel cheap"), so the town and the national line now live only in the footer, which
+    // is the check above. What is left to pin: a national business's town is printed nowhere.
     const base = { id: "c", name: "A Client", leadToken: "T",
       landingPage: { headline: "H", ctaText: "Q", published: true, bullets: ["x"] } };
     const local = renderLandingPage({ ...base, landingSlug: "l",
       campaignSetup: { serviceArea: "Gilbert, Arizona" } });
-    // 🔴 `NATIONAL_MARKETS` is a list of CITIES to research, not a national signal, and using
-    // it here made the "national" fixture local, so the check passed on nothing. `sellsNationally`
-    // reads the wording of the service area, so the fixture has to say it.
     const natl = renderLandingPage({ ...base, landingSlug: "n", niche: "Marketing Agency",
       campaignSetup: { serviceArea: "Gilbert, Arizona", targetLocations: "Nationwide" } });
-    return row(local).includes("Gilbert, Arizona")
+    return local.includes("Gilbert, Arizona")
       && !natl.includes("Gilbert, Arizona")
-      && row(natl).includes("Working with businesses nationwide");
+      && natl.includes("Working with businesses nationwide");
   })());
   // 🔴 CHECKED ON THE RENDERED ROW, NOT ON THE SOURCE LINE. This read the source with
   // `/const trustBits = \[/`, so it broke the moment that line stopped starting with a `[`
@@ -436,7 +435,9 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
         landingPage: { headline: "H", ctaText: "Q", published: true,
           trust: ["You keep your own ad account", "\u2713 Free plan, no obligation"] } }),
     ];
-    return pages.every((h) => row(h).length > 0 && !/\p{Extended_Pictographic}/u.test(row(h)));
+    // The first two write no row of their own, so they get none; the third keeps its own.
+    return !row(pages[0]) && !row(pages[1]) && row(pages[2]).length > 0
+      && !/\p{Extended_Pictographic}/u.test(row(pages[2]));
   })());
 
   // 🔴 And a raw slice printed the owner's typed note chopped mid-word on a live page.
@@ -444,7 +445,7 @@ const cl = { name: "BoldLine Media", internal: true, website: "https://boldlinem
   ok("it trims to a whole thought", /fitPhrase\(differentiator \|\| offer, 44\)/.test(LANDING_CODE));
   ok("and hides itself rather than showing half a sentence",
     /const badgeH = badgeText \?/.test(LANDING_CODE));
-  ok("the differentiator chip is trimmed the same way", /fitPhrase\(differentiator, 64\)/.test(LANDING_CODE));
+  // The differentiator chip went with the default chip row (2026-10-07); the badge above still trims.
   ok("no raw slice survives on the page", !/differentiator\.slice\(0, 60\)/.test(LANDING_CODE));
 
   // The trimmer moved so the page could use it without dragging the Anthropic SDK in.

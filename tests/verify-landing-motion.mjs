@@ -50,6 +50,8 @@ const FULL = {
     { category: "photo", url: "https://example.com/c.jpg", path: "c" },
   ],
   landingPage: {
+    // Client pages get no chip row unless they write one (2026-10-07), so this page writes one.
+    chips: ["Family run", "Same week turnaround", "Eugene and Springfield"],
     headline: "Custom work, done right the first time",
     subheadline: "Tell us what you need and we come back with a real number today.",
     bullets: [
@@ -251,9 +253,12 @@ const keyframesIn = (css) => parseRules(css).filter((r) => r.kind === "keyframes
 // not filled in most of them. Numbering before the filter leaves holes in the timing,
 // so the row arrives with visible gaps in it.
 {
-  const bare = render({}, { callTrackingNumber: "", campaignSetup: {}, brandVoice: {} });
+  // Client pages get no default chips any more (2026-10-07), so the filter is exercised with a
+  // page's own chips, two of them blank, which is the same hole the old defaults left.
+  const bare = render({}, { callTrackingNumber: "", campaignSetup: {}, brandVoice: {},
+    landingPage: { chips: ["", "Family run", "", "Same week"] } });
   const delays = [...bare.matchAll(/class="chip reveal" style="transition-delay:(\d+)ms"/g)].map((m) => +m[1]);
-  ok("a client with nothing filled in still gets chips", delays.length >= 1, `${delays.length} chips`);
+  ok("a page's own chips survive the filter", delays.length === 2, `${delays.length} chips`);
   ok("and their timing has no holes in it", delays.every((d, i) => d === i * (delays[1] ?? 45) || i === 0), delays.join(","));
   ok("the first one is immediate", delays[0] === 0);
 }

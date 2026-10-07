@@ -703,14 +703,17 @@ a{color:inherit}
   const said = new Set((bullets || [])
     .map((b) => dedupKey(typeof b === "string" ? b : (b && b.text) || "")).filter(Boolean));
   const fresh = (t) => { const k = dedupKey(t); if (!k || said.has(k)) return false; said.add(k); return true; };
-  const trustBits = (ownTrust
-    ? ownTrust
-    : shopping
-      ? [area || reach || "", "&#10003; Ships straight to you", "&#10003; Cancel any time"]
-      : [area || reach || "", "&#10003; Free quotes", phone ? "Fast response" : ""])
+  // 🔴 NO CHECKMARK LINES ON A CLIENT'S PAGE (Bryson, 2026-10-07, on the handyman sample: "some
+  // of the things are like how my website is and I don't want that for all websites if any
+  // because it feels cheap"). Every page used to get a hero row like "Mesa, AZ  ✓ Free quotes
+  // Fast response" and a pill row like "✓ Free quote, no obligation", written by us rather than
+  // the client, so every client's page wore BoldLine's own furniture. Both rows are now empty
+  // unless a page writes its own (BoldLine's audience pages do, and a line Bryson types for a
+  // client is his call), and the town still appears once, in the footer.
+  const trustBits = (ownTrust || [])
     .filter(Boolean)
     .filter(fresh)
-    .map((t) => `<span><b>${/&#10003;/.test(t) ? t : esc(t)}</b></span>`).join("");
+    .map((t) => `<span><b>${esc(t)}</b></span>`).join("");
   const trustH = trustBits ? `<div class="trust an" style="animation-delay:.24s">${trustBits}</div>` : "";
   const ctasH = `<div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="${ctaHref}"${ctaAttr}>${esc(cta)}</a>${phone ? `<a class="cta ghost" href="${telHref}">Call now</a>` : ""}</div>`;
   // 🔴 A RAW .slice(0, 40) PRINTED THE OWNER'S TYPED NOTE, CHOPPED MID-WORD, ON A LIVE
@@ -1326,20 +1329,9 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
   const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}\n${storeJS}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
-  const diffChip = fitPhrase(differentiator, 64);
   // Built as labels first so the stagger delay counts the chips that SURVIVE the filter.
-  // Indexing before filtering would leave gaps in the timing whenever a client has no
-  // phone number or no service area, which is most of them at the start.
-  const chipLabels = (ownChips
-    ? ownChips.map((c) => esc(c))
-    // 🔴 THE SECOND PLACE THE QUOTE LANGUAGE LIVES. The trust row above was fixed for shops and
-    // the page STILL printed "Free quote, no obligation", from here, because the same promise is
-    // written twice in this renderer. A shop makes no quotes, so both copies have to know.
-    : shopping
-      ? [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
-         "&#10003; Secure checkout", phone ? "Questions? Call us" : ""]
-      : [area ? `Serving ${esc(area)}` : reach ? esc(reach) : "", diffChip ? esc(diffChip) : "",
-         "&#10003; Free quote, no obligation", phone ? "Fast response" : ""])
+  // No defaults, for the reason given at the trust row above.
+  const chipLabels = (ownChips || []).map((c) => esc(c))
     .filter(Boolean)
     .filter(fresh);
   const chips = chipLabels.map((t, i) => `<div class="chip reveal" style="transition-delay:${i * 45}ms">${t}</div>`).join("");
