@@ -3,10 +3,12 @@ name: os-portal-dual-copy
 topic: OS app
 task: edit the client portal without the live and preview copies drifting apart
 keywords: [portal.js, makePortalHTML, dual-copy, portal-token, server-rendered]
-status: verified
-summary: The client portal HTML lives in TWO places that must be edited together — netlify/functions/portal.mjs (the LIVE portal at /portal?token=) and a near-identical makePortalHTML inside index.html (the owner-side preview). Change one, change the other or they drift.
-verified: 2026-07-02
+status: superseded 2026-10-07 — there is ONE portal now
+summary: SUPERSEDED 2026-10-07. The OS no longer carries its own copy of the portal. The Live Client View (PortalPreview in index.html) fetches the real page from /.netlify/functions/portal?token= and shows it with srcdoc, so edit ONLY netlify/functions/portal.mjs. Do not recreate makePortalHTML in index.html; tests (osShowsServedPortal in tests/helpers/portal-script.mjs) and the daily health check fail if a copy comes back. See KB portal-redesign-2026-10.
+verified: 2026-10-07
 ---
+
+> **2026-10-07: everything below is HISTORY.** There is one portal (netlify/functions/portal.mjs). The OS preview fetches it. Kept for context only.
 
 **Read this before editing the portal.** The portal HTML exists in **two** places and must be kept in sync:
 - `netlify/functions/portal.mjs` — the **live** portal, server-rendered at `/portal?token=`.

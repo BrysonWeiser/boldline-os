@@ -16,6 +16,7 @@
 //
 // Rendered and read, because a portal page is generated HTML and the words are the product.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -194,99 +195,11 @@ const render = (o) => {
 
 
 // ── 6. 🔴 THE OS PREVIEW AND THE REAL PORTAL ARE ONE PAGE, NOT TWO ────────────
-// index.html renders its own copy of this page for the "Live Client View" card. The first
-// fix landed only in the server copy, so Bryson looked at the preview and correctly said
-// the update had not stuck — the preview is what he checks, and it was still showing a flat
-// "$700/mo" with a clickable button. Exactly the drift found in the contract earlier the
-// same day, in a second file, for the same reason.
-//
-// So this compares the OUTPUT of both renderers. Comparing source would pass on two blocks
-// that merely look alike; only the rendered markup is what anyone sees.
-{
-  const UI = readFileSync(join(ROOT, "index.html"), "utf8");
-  // The OS copy is inside a Babel-compiled single file, so it is sliced and evaluated
-  // rather than imported. Its dependencies come from the SAME file, never hand-written:
-  // a harness that supplies what the real page does not is how the useMemo crash shipped.
-  const decl = (name, endMark) => {
-    const a = UI.indexOf(`\nconst ${name}`);
-    if (a < 0) throw new Error(`could not find ${name} in index.html`);
-    const b = UI.indexOf(endMark, a + name.length + 10);
-    return UI.slice(a, b + endMark.length);
-  };
-  let osUpgrade;
-  try {
-    const deps = [
-      decl("ALL_FEATURES = [", "\n];"),
-      decl("PKG_FEATURES = {", "\n};"),
-      decl("PER_LEAD ", "};"),
-      decl("COMBO_MIN_BUDGET", ";"),
-    ].join("\n");
-    // Just the upgrade block, lifted whole out of the OS renderer.
-    const a = UI.indexOf("  // ── Upgrades ──");
-    const b = UI.indexOf("\n  const contractAlert", a);
-    const block = UI.slice(a, b);
-    osUpgrade = new Function("cl", "pkg", "upgOpts", "pkgHasFeature", "pl",
-      deps + "\n" + block + "\nreturn upgSection;");
-  } catch (e) {
-    ok("the OS preview's upgrade block can be lifted out and run", false, e.message);
-  }
-
-  if (osUpgrade) {
-    ok("the OS preview's upgrade block runs", true);
-    // The server's own helpers, so both sides get identical inputs.
-    const srvUI = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
-    ok("both files still contain an upgrade section to compare",
-      /id="upgrade-section"/.test(UI) && /id="upgrade-section"/.test(srvUI));
-
-    for (const budget of ["$500/mo", "$3,000/mo", "$12,000/mo", ""]) {
-      const label = budget || "no budget on file";
-      const serverBlock = upgradeBlock(render({ adBudget: budget || undefined }));
-      // Pull the OS copy's rendered section for the same client.
-      const cl = CLIENT({ adBudget: budget || undefined });
-      const pkg = findPkg(cl.packageId);
-      let osBlock = "";
-      try {
-        // Reuse the server's own option list and feature test so only the RENDERING differs.
-        const srv = render({ adBudget: budget || undefined });
-        void srv;
-        osBlock = "";
-      } catch { /* handled below */ }
-      // Compare the human-visible text of the server block against the OS source's copy of
-      // the same strings. Every sentence the server shows must exist in the OS file too.
-      const sentences = [
-        "set by your", "monthly ad budget", "not chosen from a list",
-        "monthly minimum", "not an added fee", "whichever is higher, never both",
-        "paid by you directly to Google and Meta",
-        "Unlocks at", "of ad budget", "more than you run today",
-        "You qualify", "budget meets the", "needed",
-        "/mo minimum", "one-time build",
-        // The fee wording is now shared (RW.per), because a client who sells straight from a
-        // website is billed per qualified SALE and the portal must not tell them otherwise.
-        // Still a dual-copy check: this exact template literal has to exist in both files.
-        "${RW.per}, whichever is higher",
-        "uopt-locked", "Ask About Scaling Up",
-        "whether the extra spend is worth it in your market",
-        "Tell us your monthly ad budget",
-      ];
-      if (budget === "$500/mo") {
-        for (const t of sentences) {
-          ok(`🔴 the OS preview carries "${t.slice(0, 42)}"`, UI.includes(t),
-            "the Live Client View is a second copy of this page and must not drift");
-        }
-      }
-      ok(`the server renders a section for ${label}`, serverBlock.length > 200, `${serverBlock.length} chars`);
-    }
-
-    // 🔴 The specific things that were wrong in the preview Bryson screenshotted.
-    ok("🔴 the OS preview no longer shows a bare $ price with /mo beside it",
-      !/\$\$\{p\.price\}<span style="font-size:10px;font-weight:400;color:#6B7280">\/mo<\/span>/.test(UI),
-      "that was the flat '$700/mo' on the Live Client View");
-    ok("🔴 and no longer makes every option clickable regardless of budget",
-      !/<div class="uopt" id="u\$\{i\}" data-name="[^"]*" onclick="selUpg/.test(UI));
-    ok("the OS preview computes a qualification threshold at all", /const needed  = Math\.max/.test(UI));
-    ok("and honours the two-platform unlock", /isCombo \? COMBO_MIN_BUDGET : 0/.test(UI));
-  }
-}
+// The first fix to this section landed only in the server copy, so Bryson looked at the OS
+// preview and correctly said the update had not stuck. For a year the answer was a second
+// copy plus checks that it matched. Since 2026-10-07 the preview fetches and shows the real
+// page (PortalPreview), so there is nothing to drift. This is the check that it stays so.
+ok("🔴 the OS preview shows the served portal, so it has this exact section", osShowsServedPortal());
 
 // ── 🔴 THE PORTAL IS BUILT TWICE, AND THE TABS HAD ALREADY DRIFTED ───────────
 //
@@ -307,7 +220,6 @@ const render = (o) => {
   const tabsOf = (text) => [...new Set([...text.matchAll(/onclick="show\('([a-z]+)'/g)].map((m) => m[1]))].sort();
 
   const real = tabsOf(src);
-  const preview = tabsOf(osSrc);
 
   // 🔴 FIVE TABS AS OF 2026-09-08. Six was 451px of buttons in a 390px strip, so Contract
   // sat off-screen until you swiped; Package, Info and Contract became tap-to-open sections
@@ -328,10 +240,6 @@ const render = (o) => {
   ok("and on a phone the tab buttons share the strip instead of sizing to their text",
     /@media\(max-width:460px\)\{\.nb\{flex:1 1 0/.test(src),
     "five tabs only fit at 360px because of this rule; drop it and the last tab goes off-screen");
-  ok("the preview really is a subset, not a different set",
-    preview.every((t) => real.includes(t)), `preview has ${preview.filter((t) => !real.includes(t)).join(", ")} which the real portal does not`);
-  same("and the preview omits exactly the three known tabs", real.filter((t) => !preview.includes(t)),
-    ["approvals", "leads", "reports"]);
 
   // 🔴 The claim on the preview is the part that actually misled. If the wording ever goes
   // back to promising exactness, this fails.
@@ -340,9 +248,10 @@ const render = (o) => {
   const i = osSrc.indexOf("<Label>Live Client View</Label>");
   ok("the Live Client View card was found", i > 0);
   const near = osSrc.slice(i, i + 2200);
-  ok("the preview does not claim to be exactly what the client sees",
-    !/Exactly what \{client\.name\} sees/.test(near),
-    "it is short two tabs, so that sentence sends him to the wrong conclusion");
+  // It was short two tabs, so it was forbidden to claim exactness. Now it IS the real page,
+  // so the claim is true, and it is only allowed while the preview really is the portal.
+  ok("the preview only claims to be exactly what the client sees while it really is",
+    !/Exactly what \{client\.name\} sees/.test(near) || osShowsServedPortal(osSrc));
   // 🔴 The LINK, not the words. First version matched /Open Theirs/, which also appears in
   // the sentence below the button, so deleting the button entirely still passed.
   ok("and it opens the real portal in a new tab", /<a href=\{`\$\{window\.location\.origin\}\/portal\?token=\$\{client\.portalToken\}`\} target="_blank"/.test(near),
@@ -366,15 +275,9 @@ const render = (o) => {
   const keysOf = (t) => [...new Set([...t.matchAll(/data-key="([^"]+)"/g)].map((m) => m[1]))].sort();
 
   const realKeys = keysOf(srv);
-  // Slice to the OS's portal mirror so unrelated data-key attributes elsewhere in the app
-  // cannot make this pass by accident.
-  const i = osSrc.indexOf("const makePortalHTML=(cl,pkg,notice)=>{");
-  const j = osSrc.indexOf("+'</body></html>';", i);
-  ok("the OS portal mirror was found", i > 0 && j > i);
-  const previewKeys = keysOf(osSrc.slice(i, j));
 
   ok("the portal really does ask for a lot", realKeys.length >= 18, String(realKeys.length));
-  same("🔴 both copies ask for exactly the same fields", previewKeys, realKeys);
+  ok("🔴 the OS preview shows the served portal, so Bryson reviews the same fields the client fills in", osShowsServedPortal(osSrc));
 
   // The four added for the first launch, pinned by name so a tidy-up cannot drop them.
   for (const k of ["campaignSetup.webContact", "campaignSetup.privacyUrl",
@@ -535,22 +438,18 @@ const render = (o) => {
 // hold the contract. That also keeps the standing rule that siblings in one container share
 // a width, which widening only the agreement card would have broken.
 {
-  for (const [name, src] of [
-    ["the real portal", readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8")],
-    ["the OS copy", readFileSync(join(ROOT, "index.html"), "utf8")],
-  ]) {
-    ok(`${name} widens the Account pane on a desktop`,
-      /#t-account\{width:min\(94vw,980px\)/.test(src),
-      "without this the contract breaks out of a 572px card and 204px is cut off each side");
-    ok(`${name} stops the inner breakout doubling up`,
-      /#t-account \.cwide\{width:auto;margin-left:0\}/.test(src),
-      "two breakouts nested would shift the contract off its own card again");
-    // 🔴 The card still clips, on purpose, for its rounded corners. The fix must not be
-    // "remove overflow:hidden", which would let content spill outside the card border.
-    ok(`${name} keeps the accordion clipping its corners`,
-      /\.acc\{[^}]*overflow:hidden/.test(src),
-      "dropping this makes content spill outside the card instead of fixing the width");
-  }
+  // 🔴 2026-10-07: the whole page is now wide (results first, KB os-redesign), so the
+  // contract no longer needs to break out of a narrow column. What must hold instead: the
+  // column is wide enough for a legal document, and no leftover breakout pushes the contract
+  // past the edge of its own card.
+  const src = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+  ok("the portal column is wide enough for the contract on a desktop",
+    /\.main\{max-width:1112px/.test(src), "a narrow column is what cut the contract off before");
+  ok("🔴 and the old breakout is switched off, so it cannot shift the contract off its card",
+    /\.cwide,#t-account\{width:auto!important;margin-left:0!important\}/.test(src));
+  ok("the accordion still clips its corners",
+    /\.acc\{[^}]*overflow:hidden/.test(src),
+    "dropping this makes content spill outside the card instead of fixing the width");
 }
 
 // ── 🔴 A SIGNED AGREEMENT SHOWS WHO SIGNED IT, AN UNSIGNED ONE STAYS BLANK ───

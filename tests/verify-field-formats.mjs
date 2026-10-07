@@ -9,6 +9,7 @@
 // into a box whose own label says one per line. Google would have been asked for a place
 // called "Eugene and Lane County" and then the whole state of Oregon, on a $17 a day budget.
 // The box explained the format underneath it. Explaining a format is not applying one.
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -140,7 +141,8 @@ const { tidyField, locationNotes, lineNotes } =
 // is not a link, and the consequence is that a new lead silently stops getting a text.
 {
   const PORTAL = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
-  for (const [name, src] of [["the live portal", PORTAL], ["the owner-side copy", S]]) {
+  ok("the OS preview shows the live portal itself, so these fixes reach it too", osShowsServedPortal(S));
+  for (const [name, src] of [["the live portal", PORTAL]]) {
     ok(`${name} fixes a link the client types without https`,
       /function blUrl\(el\)\{[^}]*https:\/\//.test(src),
       "the portal lives in two files; changing one and not the other is the standing trap here");

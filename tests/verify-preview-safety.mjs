@@ -26,6 +26,7 @@
 // listed with what makes it safe. A new preview added without an entry FAILS THIS SUITE,
 // which forces the question to be asked once rather than discovered by a client.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -220,8 +221,12 @@ const MANIFEST = {
 }
 
 // ── 3. 🔴 THE PORTAL: the one that was actually firing ───────────────────────
-// Both copies. The portal exists twice (the served function and the OS's own mirror), and a
-// guard in only one of them is a guard that is absent exactly where Bryson clicks.
+// 🔴 ONE PAGE SINCE 2026-10-07. The OS used to carry its own copy of the portal, and this
+// section checked both copies carried the guard. Now the OS preview fetches the REAL page and
+// places it with srcdoc (PortalPreview), so the guard below is the one that runs in the OS
+// too, PROVIDED two things stay true, both pinned at the end of this section: the frame is
+// filled with srcdoc (so its address is about:srcdoc and the guard arms), and loading the
+// page is a read that writes nothing.
 {
   const { _internal } = await import("../netlify/functions/portal.mjs");
   const pkg = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, tier: "launch" };
@@ -237,7 +242,7 @@ const MANIFEST = {
   // armed reads identically to one that works. Pin the expression.
   const ARMED = /BL_PREVIEW=String\(location\.href\)\.indexOf\('about:'\)===0/;
 
-  for (const [label, html] of [["served portal", served], ["the OS's own copy", UI]]) {
+  for (const [label, html] of [["served portal", served]]) {
     ok(`🔴 ${label} actually detects a preview, rather than defining the flag`, ARMED.test(html),
       "BL_PREVIEW=false leaves every string in this suite intact while disarming the guard "
       + "completely, which is the exact shape of a mutation that got through once");
@@ -256,11 +261,28 @@ const MANIFEST = {
       "deleting a client's uploaded file asks for confirmation first, so this stops it earlier");
   }
 
-  // 🔴 THE TWO COPIES MUST NOT DRIFT. The portal exists twice on purpose, and every bug of
-  // this class so far has been one copy fixed and the other forgotten.
-  const grab = (h) => (/(var BL_PREVIEW=[\s\S]{0,700}?document\.body\.firstChild\);\}catch\(e\)\{\}\})/.exec(h) || [])[1] || "";
-  ok("🔴 both copies carry byte-identical guards", !!grab(served) && grab(served) === grab(UI),
-    "a guard in only one copy is absent exactly where Bryson clicks");
+  // 🔴 THE OS PREVIEW IS THIS PAGE, PLACED WITH SRCDOC. If someone "simplifies" it to
+  // src="/portal?token=...", the frame's address becomes a real https URL, BL_PREVIEW reads
+  // false, and every Approve and Save in the OS preview writes to the client's live record.
+  ok("🔴 the OS preview shows the served portal rather than a copy", osShowsServedPortal(UI));
+  {
+    const a = UI.indexOf("function PortalPreview(");
+    const comp = a < 0 ? "" : UI.slice(a, UI.indexOf("\n}\n", a));
+    ok("🔴 and fills its frame with srcdoc, which is what arms the guard",
+      /<iframe srcDoc=\{html\}/.test(comp) && !/<iframe[^>]*\ssrc=/.test(comp),
+      "a src= frame has a real address, so BL_PREVIEW reads false and the buttons go live");
+  }
+  // 🔴 AND LOADING IT CHANGES NOTHING. The preview now makes a real request on every view, so
+  // the page-load path of the portal must stay a pure read: no write, no alert, no email.
+  {
+    const PSRC = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
+    const a = PSRC.indexOf('if (event.httpMethod !== "GET")');
+    const getPath = a < 0 ? "" : PSRC.slice(a, PSRC.indexOf("export default", a));
+    ok("the portal's page-load path was found", getPath.length > 200);
+    ok("🔴 opening the portal writes nothing, so viewing it from the OS cannot change the record",
+      getPath.length > 200 && !/\.(update|insert|upsert|delete)\(/.test(getPath) && !/dispatchAlert|sendEmail|notify/i.test(getPath),
+      "the OS preview loads this page every time Bryson opens a client");
+  }
 
   // The token is genuinely present, which is what makes the guard load-bearing rather than
   // theoretical. An assertion the data cannot violate is not a test.

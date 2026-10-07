@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { transform } from "@babel/standalone";
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 let pass = 0, fail = 0;
@@ -52,14 +53,22 @@ const sandbox = `
   const fetch=async()=>({ok:true,json:async()=>({})});
 `;
 
-let makePortalHTML;
+// 🔴 SINCE 2026-10-07 THE OS PREVIEW IS THE REAL PORTAL. It used to be a second copy, which is
+// what this file was written to render. Now the OS fetches the served page and shows it
+// (PortalPreview), so this checks two things: the OS still evaluates and defines that
+// component, and the served portal renders whole, which is what the preview will show.
+let PortalPreview;
 try {
-  ({ makePortalHTML } = new Function(sandbox + js + "\n;return { makePortalHTML };")());
+  ({ PortalPreview } = new Function(sandbox + js + "\n;return { PortalPreview };")());
 } catch (e) {
   ok("the OS code evaluates", false, e.message);
 }
-ok("makePortalHTML is defined", typeof makePortalHTML === "function");
+ok("the OS defines the portal preview", typeof PortalPreview === "function");
+ok("🔴 and it shows the served portal rather than a copy of its own", osShowsServedPortal(S));
 
+process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "test";
+const { _internal } = await import("../netlify/functions/portal.mjs");
+const makePortalHTML = _internal.makePortalHTML;
 if (typeof makePortalHTML === "function") {
   const pkg = { id: "g-launch", name: "Launch System", platform: "Google Ads", price: 400, setup: 750, tier: "launch" };
   const base = {

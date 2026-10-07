@@ -14,6 +14,7 @@
 // 🔴 AND THE WHITELIST IS WHY A NEW BOX IS NEVER JUST A NEW BOX. `sanitizeFields` drops anything
 // it does not name, silently — the client presses Save, sees "✓ Saved", and the value is gone.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 
 let pass = 0; const fails = [];
@@ -58,10 +59,8 @@ ok("and no longer says 'both IDs' now there are three", !/Enter both IDs below/.
   "the client counts the boxes, finds three, and wonders which two were meant");
 
 // ── 3. 🔴 Dual copy. The OS preview is a second implementation of this page ───
-for (const frag of ['data-key="metaPixelId"', "Events Manager", "Dataset (Pixel) ID"]) {
-  ok(`🔴 the OS preview carries "${frag}"`, OS.includes(frag),
-    "the Live Client View shows a different page from the one the client is looking at");
-}
+// Since 2026-10-07 the OS preview shows the served portal itself, so it cannot differ.
+ok("🔴 the OS preview shows the served portal, so it has the same pixel box", osShowsServedPortal(OS));
 
 // ── 4. The reason it matters is still true ────────────────────────────────────
 ok("🔴 a missing dataset id really does downgrade the campaign to traffic",

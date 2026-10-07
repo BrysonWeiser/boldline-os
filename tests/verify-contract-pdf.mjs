@@ -11,6 +11,7 @@
 // envelope id must never be accepted from the request: an endpoint that took one would let
 // anyone with any valid portal link enumerate every agreement BoldLine has ever sent.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -114,11 +115,8 @@ const body = src.split("\n").filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("
   ok("🔴 and the envelope id never reaches the page", !html.includes("env-1"),
     "the id is not a secret, but nothing client-side needs it and it should not be handed out");
 
-  // Both copies of the portal must agree, or the preview shows a button the client lacks.
-  const os = readFileSync(join(ROOT, "index.html"), "utf8");
-  ok("the OS copy offers it too", /Download the Signed Copy/.test(os));
-  ok("and gates it on the same two fields",
-    /cl\.contractSigned&&cl\.docusignEnvelopeId/.test(os));
+  // The OS preview shows this same page, so it can never offer a button the client lacks.
+  ok("the OS preview shows the live portal itself", osShowsServedPortal(readFileSync(join(ROOT, "index.html"), "utf8")));
 }
 
 console.log(`verify-contract-pdf: ${pass} passed, ${fail} failed`);

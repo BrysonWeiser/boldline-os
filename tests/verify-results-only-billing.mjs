@@ -19,6 +19,7 @@
 // and each Stripe call is captured with its decoded parameters. A test that asserted on a
 // re-implementation of the request builder would prove nothing (KB `repo-tests`).
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -182,11 +183,9 @@ const PORTAL = "https://os.test/portal?token=abc-123";
   ok("🔴 a saved card says plainly that nothing was charged",
     /Your card is saved[\s\S]{0,200}Nothing has been charged/.test(portalSrc),
     "a client who sees a payment page and then hears nothing assumes they were billed");
-  // Same page, two implementations. They drifted on the same day once already.
-  for (const phrase of ["Your card is saved", "Payment set up", "Nothing was saved"]) {
-    ok(`the OS's own portal preview shows "${phrase}" too`, app.includes(phrase),
-      "the portal exists twice in this repo and the copies must not diverge");
-  }
+  // There used to be two implementations of this page and they drifted. The OS preview now
+  // shows the real one, so it says exactly what the client is told.
+  ok("the OS preview shows the live portal itself", osShowsServedPortal(app));
 }
 {
   // Guards. Each is a way to create a broken Stripe record.

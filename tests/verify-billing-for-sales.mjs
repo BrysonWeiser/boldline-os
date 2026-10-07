@@ -19,6 +19,7 @@
 // bottle), so the contract quotes the sentence Bryson wrote — which means it can be MISSING,
 // and a blank where the billable event belongs is exactly what `contractGaps` exists to stop.
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { makeContractHTML, resultWords } from "../netlify/lib/contract-shared.cjs";
 import { readSite } from "./helpers/marketing-site.mjs";
@@ -253,22 +254,13 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   ok("and a lead client's portal still does", /per qualified lead/i.test(lead2),
     "the ordinary case was broken while fixing the new one");
 
-  // 🔴 Dual copy: the OS preview is a second implementation of this page.
-  // 🔴 The end anchor is searched FROM the start. contractGaps sits ABOVE makePortalHTML in
-  // this file, so an unanchored search returned an index before the start and sliced nothing —
-  // a dual-copy check that silently compared an empty string against the server.
-  const pStart = S.indexOf("const makePortalHTML=(cl,pkg,notice)=>{");
-  const osPortal = S.slice(pStart, S.indexOf("function LandingOptionsCard(", pStart));
-  ok("the OS copy of the portal was found", osPortal.length > 5000, `got ${osPortal.length} chars`);
+  // The OS preview used to be a second copy of the portal and these fragments had to exist in
+  // both. Since 2026-10-07 it shows the served page, so they only need to exist there.
+  ok("the OS preview shows the served portal, so it uses the same words", osShowsServedPortal(S));
   const srvPortal = readFileSync(new URL("../netlify/functions/portal.mjs", import.meta.url), "utf8");
-  // 🔴 The portal stopped carrying a private three-word copy on 2026-09-17 and now asks the same
-  // `resultWords` the agreement asks, so the fragments pinned here are the shared ones. Every
-  // other line in the portal that names the billable thing had gone on saying "lead" to a client
-  // billed per sale, because the small copy only covered three of them.
   for (const frag of ["RW.per", "RW.many", "const W = resultWords(cl);",
                       'const noun = W.itNoun, nouns = W.itNoun + "s";']) {
-    ok(`🔴 the OS preview carries "${frag}"`, osPortal.includes(frag) && srvPortal.includes(frag),
-      "the Live Client View is a second copy of this page and must not drift");
+    ok(`🔴 the portal carries "${frag}"`, srvPortal.includes(frag));
   }
 }
 
@@ -710,10 +702,10 @@ const ECOM = { id:"e-launch", name:"Store Launch", platform:"Meta Ads (ecom)", p
   ok("and it lands where the copy writers already read", /path:"brandVoice\.madeIn"/.test(q));
   ok("🔴 and it says out loud that it is optional", /[Oo]ptional/.test(q), q);
 
-  // 🔴 BOTH COPIES OF THE PORTAL FORM. The OS carries a preview copy of the client's onboarding
-  // form, and a box added to one and not the other is a box that appears in the preview and not
-  // in the thing the client actually fills in, or the reverse.
-  for (const [where, src] of [["the client's portal", PORTAL], ["the OS preview of it", S]]) {
+  // The OS preview used to be a second copy of this form. Since 2026-10-07 it shows the served
+  // portal, so the box is checked once, where the client fills it in.
+  ok("the OS preview shows the served portal, so it has the same box", osShowsServedPortal(S));
+  for (const [where, src] of [["the client's portal", PORTAL]]) {
     ok(`🔴 ${where} offers the box`, /data-key="brandVoice\.madeIn"/.test(src));
     ok(`and ${where} says it is optional and may be left blank`,
       /Where it is made \(optional\)/.test(src) && /Leave it blank and we simply will not mention it/.test(src));

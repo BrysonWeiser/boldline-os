@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 208 task-keyed entries under `knowledge/`. They surface automatically via the
+> 209 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**208 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**209 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -168,6 +168,9 @@
 - **[portal-leads-and-payment](../knowledge/portal-leads-and-payment.md)** &mdash; &#9989; verified &middot; 2026-09-08  
   The client portal now has FIVE tabs (Status | Review | Leads | Reports | Account). Leads was briefly folded into Reports because five buttons overflowed a 360px strip; Bryson reversed that the same day and the overflow was fixed in CSS instead (`@media(max-width:460px){.nb{flex:1 1 0}}` — the buttons divide the strip rather than sizing to their text, so they cannot overflow at any width). Inside Your Information on the Account tab the client now has a Payment Method card that CREATES its own Stripe setup session (`{startCard:true}` on the token endpoint, `mode:"setup"` only, so it charges nothing) rather than waiting on a link Bryson pastes in, and a Your Reviews box for typing his own testimonials straight onto his landing page. Three real bugs fixed alongside: the portal quoted the niche default per-lead rate instead of the client's agreed `billingPerLead`; a Stripe `mode:"setup"` checkout was recorded as `billingStatus:"active"` when there is no subscription; and the launch checklist's "card on file" step looked only for a subscription id, so it could never tick for a results-only client. Built 2026-09-08.  
   <sub>*task:* give the client his own Leads tab, a separate Reports tab, and a place to add a payment method; fix the per-lead rate and card-on-file state the portal was getting wrong &nbsp;|&nbsp; *keywords:* portal testimonials, client reviews, own testimonials, reviews box, startCard, self serve card, connect payment portal, portal leads tab, leads tab, reports tab, five tabs, nav overflow, 360px tabs, payment method, add a card, card on file, billingCheckoutUrl, results only billing, per lead rate, billingPerLead, setup session, stripe setup mode, launch checklist card step, portal payment</sub>
+- **[portal-redesign-2026-10](../knowledge/portal-redesign-2026-10.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  Bryson, 2026-10-07, "now lets look at the client portal" then "yes start". Portal now opens on RESULTS for a live client (leads 30 days + qualified, leads this month vs the same point last month, ad spend 30 days labelled "paid by you straight to Google/Meta", cost per lead, a 30-day leads-per-day bar chart, newest 3 leads, latest report teaser), with campaign progress below. New look matching the site (Inter, bigger text, full 1112px width on a computer, 2x2 tiles on a phone). Reports tab keeps past reports (new reportHistory on the client, written by report-shared). Leads show where they came from and the client's local time. Two emojis removed. The OS's second copy of the portal was DELETED; the OS preview now fetches and shows the real page.  
+  <sub>*task:* change the client portal's look, its Status/results screen, reports, leads list, or the OS's Live Client View preview of it &nbsp;|&nbsp; *keywords:* client portal, portal redesign, results first, kpi, cost per lead, leads per day, report history, reportHistory, portal preview, PortalPreview, live client view, one portal, makePortalHTML</sub>
 
 ## Clients
 
@@ -588,8 +591,8 @@
 - **[os-portal-aesthetic](../knowledge/os-portal-aesthetic.md)** &mdash; &#9989; verified &middot; 2026-07-06  
   2026-07-06 visual refresh. Client portal got a "living" gold aesthetic (ambient aurora orbs + top halo + grain, glass cards, a gold conic progress ring "N/8" + an 8-node stage tracker, welcome hero, tab fade-in). The OS app got a lighter shared-layer pass (subtle ambient behind the app, card depth + hover, screen fade, gold scrollbar/focus). Brand stays dark + gold.  
   <sub>*task:* change the visual style / aesthetic of the client portal or the OS interface &nbsp;|&nbsp; *keywords:* aesthetic, ambient, orbs, glass, backdrop-filter, progress-ring, tracker, os-card, os-ambient, prog-hero, ringGlow, topglow, conic-gradient</sub>
-- **[os-portal-dual-copy](../knowledge/os-portal-dual-copy.md)** &mdash; &#9989; verified &middot; 2026-07-02  
-  The client portal HTML lives in TWO places that must be edited together — netlify/functions/portal.mjs (the LIVE portal at /portal?token=) and a near-identical makePortalHTML inside index.html (the owner-side preview). Change one, change the other or they drift.  
+- **[os-portal-dual-copy](../knowledge/os-portal-dual-copy.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  SUPERSEDED 2026-10-07. The OS no longer carries its own copy of the portal. The Live Client View (PortalPreview in index.html) fetches the real page from /.netlify/functions/portal?token= and shows it with srcdoc, so edit ONLY netlify/functions/portal.mjs. Do not recreate makePortalHTML in index.html; tests (osShowsServedPortal in tests/helpers/portal-script.mjs) and the daily health check fail if a copy comes back. See KB portal-redesign-2026-10.  
   <sub>*task:* edit the client portal without the live and preview copies drifting apart &nbsp;|&nbsp; *keywords:* portal.js, makePortalHTML, dual-copy, portal-token, server-rendered</sub>
 - **[os-screen-routing](../knowledge/os-screen-routing.md)** &mdash; &#9989; verified &middot; 2026-07-07  
   How the OS app (index.html) routes between top-level screens, how the Revenue-by-Client page was added, and how the desktop layout works — ≥1024px gets a sidebar shell (SideNav) + multi-column grids via a useIsDesktop() hook while mobile keeps the BottomNav single-column layout untouched.  

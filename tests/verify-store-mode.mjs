@@ -31,6 +31,7 @@
 // national variants, because the furniture differs per branch and a mutation that never
 // renders looks exactly like a guard that works (KB `repo-tests`).
 
+import { osShowsServedPortal } from "./helpers/portal-script.mjs";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -250,7 +251,7 @@ ok("🔴 and the portal actually saves it",
 ok("🔴 it is not clipped to the length of an ID",
   /out\.storeUrl = clip\(fields\.storeUrl, 500\)/.test(PORTAL),
   "a product link with a collection path runs well past sixty characters; a clipped one looks saved and goes nowhere");
-ok("the owner-side copy of the portal has the same box", /data-key="storeUrl"/.test(UI));
+ok("the OS preview shows the live portal itself, so it has the same box", osShowsServedPortal(UI));
 ok("Bryson can set it from the client's edit sheet", /set\("storeUrl", tidyField\.url\(/.test(UI));
 
 // ── 9. 🔴 BREAK EVERY GUARD ONCE ─────────────────────────────────────────────
