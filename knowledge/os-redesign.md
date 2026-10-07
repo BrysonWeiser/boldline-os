@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: concept published, waiting on Bryson's reaction
+status: concept v2 (JARVIS layer) published, waiting on Bryson's reaction
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -39,3 +39,19 @@ verified: 2026-10-07
   previews can't change real data). Four-width check (390/768/1280/1600). No emojis in client-facing parts (the OS is
   internal, so icons are fine).
 - Index.html is ~1.7MB single file; restyle via a shared token/theme layer rather than editing every inline style.
+
+## v2 (2026-10-07): "feel like Jarvis from Iron Man", with "a 3d thing"
+Same artifact URL, version 2. Added:
+- **Start-up sequence**: arc-reactor style core (three counter-rotating rings + glowing heart), typed status lines
+  (authenticating, syncing prospect field, call list ready, "ARIA online"), progress bar, ~2.2s, skipped by any key
+  or click, skipped entirely for reduce-motion.
+- **3D hologram globe** (three.js r128 from cdnjs) on Today: wireframe + dotted sphere in gold, glowing points for
+  prospects (gold), new leads (ice blue) and clients (green), signal arcs drawing out from Phoenix to each point and
+  fading, three orbiting rings + a spinning tick arc, slow auto-spin, drag to rotate, tilt follows the pointer,
+  "SCAN %" counter, sweep line. Falls back to a glow if WebGL is missing.
+- **ARIA briefing**: typed-out line under the greeting (time-of-day aware, Phoenix clock), "Hear it" reads it aloud
+  with the browser's voice (prefers a British male voice for the JARVIS feel).
+- **Power Hour target lock**: rotating rings around the business's badge, a scan line sweeps the card, corner brackets
+  snap in and "TARGET ACQUIRED" flashes each time a new business loads.
+- For the real build: three.js is ~600KB; load it only on the Today screen, after the screen is usable, and skip on
+  slow phones (same rule as client websites).
