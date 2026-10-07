@@ -27,10 +27,72 @@
   <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #05060A; } #root { min-height: 100vh; }</style>
 </head>
 <body>
+  <!-- Start-up screen (Bryson, 2026-10-07: "I didn't get the cool loading screen you showed me in the preview").
+       Plain HTML and CSS so it shows the instant the page arrives, before React and the compiler have even
+       loaded. The app calls window.__osReady() once it has drawn something real (Today, the login screen or an
+       error); the screen then finishes its lines quickly and fades. A click or key skips it. It is a separate
+       element from #root, so the blank-screen watchdog below still works, and it hides itself on any error. -->
+  <style>
+    #osboot{position:fixed;inset:0;z-index:9999;background:radial-gradient(ellipse 70% 55% at 50% 42%,rgba(200,168,75,.10),transparent 70%),#05060A;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;font-family:'Chakra Petch',ui-monospace,Menlo,monospace;color:#F0F2FF;transition:opacity .55s ease,visibility .55s ease;cursor:pointer}
+    #osboot.done{opacity:0;visibility:hidden}
+    #osboot .core{position:relative;width:min(46vw,190px);aspect-ratio:1}
+    #osboot .core i{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(200,168,75,.55);border-top-color:transparent;border-left-color:transparent;animation:obSpin 2.4s linear infinite}
+    #osboot .core i:nth-child(2){inset:13%;border-color:rgba(143,214,255,.5);border-bottom-color:transparent;border-right-color:transparent;animation-duration:1.7s;animation-direction:reverse}
+    #osboot .core i:nth-child(3){inset:26%;border-color:rgba(232,201,106,.75);border-top-color:transparent;animation-duration:3.2s}
+    #osboot .core b{position:absolute;inset:38%;border-radius:50%;background:radial-gradient(circle,#FFF6D8 0,#E8C96A 35%,rgba(200,168,75,.2) 70%,transparent 72%);box-shadow:0 0 60px 10px rgba(200,168,75,.45);animation:obPulse 1.6s ease-in-out infinite}
+    #osboot .title{font-size:13px;letter-spacing:.42em;color:#E8C96A;text-transform:uppercase;padding-left:.42em}
+    #osboot .log{width:min(86vw,360px);min-height:132px;font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.75;color:#8B91B8}
+    #osboot .log div{display:flex;gap:8px;white-space:nowrap;animation:obIn .25s ease both}
+    #osboot .log span{flex:1;overflow:hidden;color:#3a3f5c}
+    #osboot .log span::before{content:"........................................................................"}
+    #osboot .log b{color:#22D3A0;font-weight:700}
+    #osboot .log b.g{color:#E8C96A}
+    #osboot .bar{width:min(86vw,360px);height:2px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+    #osboot .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#C8A84B,#F3D88E);box-shadow:0 0 10px rgba(200,168,75,.7);transition:width .35s ease}
+    #osboot .hint{font-size:10.5px;letter-spacing:.24em;color:#3D4266;text-transform:uppercase}
+    @keyframes obSpin{to{transform:rotate(360deg)}}
+    @keyframes obPulse{50%{transform:scale(1.12);opacity:.8}}
+    @keyframes obIn{from{opacity:0;transform:translateY(4px)}}
+    @media (prefers-reduced-motion:reduce){#osboot .core i,#osboot .core b,#osboot .log div{animation:none}}
+  </style>
+  <div id="osboot" role="status" aria-label="BoldLine OS is starting">
+    <div class="core" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+    <div class="title">BoldLine OS</div>
+    <div class="log" id="osbootlog"></div>
+    <div class="bar"><i id="osbootbar"></i></div>
+    <div class="hint">Tap to skip</div>
+  </div>
+  <script>
+    (function(){
+      var el=document.getElementById("osboot"),log=document.getElementById("osbootlog"),bar=document.getElementById("osbootbar");
+      var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var LINES=[["Authenticating","ok"],["Reading client accounts","ok"],["Syncing leads","ok"],["Loading the call list","ready"],["ARIA core","online"]];
+      var i=0,ready=false,gone=false,t0=Date.now(),MIN=reduce?0:1500;
+      function finish(){ if(gone) return; gone=true; bar.style.width="100%"; el.classList.add("done"); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); },700); }
+      function next(){
+        if(gone) return;
+        if(i<LINES.length){
+          var l=LINES[i++],d=document.createElement("div");
+          d.innerHTML=l[0]+"<span></span><b"+(i===LINES.length?' class="g"':"")+">"+l[1]+"</b>";
+          log.appendChild(d); bar.style.width=Math.round(i/LINES.length*92)+"%";
+        }
+        // Lines tick at a steady pace while the OS loads; once it is ready they finish fast.
+        if(i>=LINES.length&&ready&&Date.now()-t0>=MIN) return setTimeout(finish,reduce?0:380);
+        setTimeout(next, ready?(reduce?0:90):(i<LINES.length-1?330:600));
+      }
+      window.__osReady=function(){ ready=true; };
+      window.__osBootHide=finish;
+      el.addEventListener("click",finish); addEventListener("keydown",function k(){ removeEventListener("keydown",k); finish(); });
+      // Never trap him behind it: after 25 seconds it gets out of the way whatever happened.
+      setTimeout(finish,25000);
+      setTimeout(next,reduce?0:180);
+    })();
+  </script>
   <div id="root"></div>
   <div id="err" style="display:none;padding:20px;color:#f87171;font-family:monospace;font-size:13px;background:#1a0000;min-height:100vh;white-space:pre-wrap;word-break:break-all"></div>
   <script>
     window.onerror=function(m,s,l,c,e){
+      if(window.__osBootHide) window.__osBootHide();
       document.getElementById('root').style.display='none';
       var el=document.getElementById('err');
       el.style.display='block';
@@ -64,6 +126,7 @@
       function show() {
         var gone = missing();
         if (!gone.length) return;                       // everything arrived, nothing to say
+        if (window.__osBootHide) window.__osBootHide();
         var root = document.getElementById("root");
         if (!root || root.innerHTML.trim().length > 0) return;   // the app drew something: leave it alone
         root.innerHTML =
@@ -19996,7 +20059,7 @@ function AuthGate() {
   if (session === undefined) {
     return <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.textMuted,fontSize:13}}>Loading…</div></div>;
   }
-  if (!session) return <LoginScreen/>;
+  if (!session) { if (window.__osReady) window.__osReady(); return <LoginScreen/>; }
   return <App onLogout={()=>supabaseClient.auth.signOut()}/>;
 }
 
@@ -20838,6 +20901,7 @@ function App({onLogout}) {
   if (dataState==="loading") {
     return <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{color:C.textMuted,fontSize:13}}>Loading your dashboard…</div></div>;
   }
+  if (window.__osReady) window.__osReady();
   if (dataState==="error") {
     return (
       <div style={{minHeight:"100vh",backgroundColor:C.bg,display:"flex",flexDirection:"column",gap:14,alignItems:"center",justifyContent:"center",padding:20}}>
@@ -21034,6 +21098,7 @@ class CrashScreen extends React.Component {
   constructor(p){ super(p); this.state = { err:null, info:"" }; }
   static getDerivedStateFromError(err){ return { err }; }
   componentDidCatch(err, info){
+    if (window.__osBootHide) window.__osBootHide();   // never leave the crash message hidden behind the start-up screen
     this.setState({ info: String((info && info.componentStack) || "").split("\n").slice(0,6).join("\n") });
     try { console.error("BoldLine OS crashed:", err, info); } catch(_){}
   }
