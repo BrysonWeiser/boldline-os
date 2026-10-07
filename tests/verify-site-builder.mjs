@@ -75,6 +75,15 @@ ok("either a phone or an email is enough, neither alone is forced", /if\(!ph&&!e
 
 // ── 4. Fast first ───────────────────────────────────────────────────────────────────────────
 const home = renderSite(FULL, "home", { base: BASE, theme: "aurora" });
+// 🔴 Bryson, 2026-10-07: the pool sample's photo row "looks like a picture is missing". It had two photos in a
+// three-across row. The row now sizes to the photos it has, and a row that wraps to two never strands the last one.
+{
+  const two = renderSite(FULL, "services", { base: BASE });
+  const three = renderSite({ ...FULL, website: { ...FULL.website, stock: [...FULL.website.stock, { url: "https://images.pexels.com/photos/2/b.jpeg", alt: "b" }] } }, "services", { base: BASE });
+  ok("🔴 two photos fill a two-across row, not two thirds of a three-across one", /class="wrap grid gal g2"/.test(two) && !/gal g3/.test(two));
+  ok("three photos use three across", /class="wrap grid gal g3"/.test(three));
+  ok("🔴 on a tablet the odd card out runs full width instead of leaving a hole", /\.g3>:last-child:nth-child\(odd\),\.g4>:last-child:nth-child\(odd\)\{grid-column:1\/-1\}/.test(two));
+}
 // Every rule that hides content until it animates in must be gated on a class the script adds.
 const hidingRules = (h) => [...(h.match(/<style>([\s\S]*?)<\/style>/) || ["", ""])[1].replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)]
   .filter((m) => /\.(rv|hl|ln|ch|w|pcopy|sk|ph)\b/.test(m[1]) && /opacity:0[;}]|opacity:0$|translateY\(1\d\d%\)|clip-path:inset\((100%|-20% 100%)/.test(m[2]))

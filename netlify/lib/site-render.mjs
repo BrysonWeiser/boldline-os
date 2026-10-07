@@ -332,7 +332,7 @@ section{position:relative}
 .sec-h p{max-width:420px;color:var(--mute)}
 .grid{display:grid;gap:18px}
 .g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:980px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:980px){.g3,.g4{grid-template-columns:repeat(2,1fr)}.g3>:last-child:nth-child(odd),.g4>:last-child:nth-child(odd){grid-column:1/-1}.gal.g3>:nth-child(3){aspect-ratio:16/9!important}}
 @media(max-width:640px){.g3,.g2,.g4{grid-template-columns:1fr}}
 .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:30px;transition:transform .5s var(--ease),border-color .4s}
 .card:hover{border-color:color-mix(in srgb,var(--ac) 45%,var(--line))}
@@ -377,7 +377,7 @@ html.js .fill .w.lit{opacity:1}
 .hov img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}
 .hov img.on{opacity:1}
 /* rail of service panels */
-.track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:18px}@media(max-width:700px){.track{grid-template-columns:1fr}}
 .rc{position:relative;display:block;aspect-ratio:4/5;overflow:hidden;border-radius:var(--r);background:radial-gradient(80% 70% at 30% 20%,color-mix(in srgb,var(--ac) 40%,transparent),transparent),${P.dark ? "var(--bg2)" : "var(--ink)"};color:#fff}
 .rc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
 .rc:hover img{transform:scale(1.06)}
@@ -850,7 +850,7 @@ function servicesBody(theme, C, base, photos) {
   const hov = photos.length ? `<figure class="hov" aria-hidden="true">${photos.slice(0, 6).map((p) => `<img src="${esc(p.url)}" alt="" loading="lazy" decoding="async">`).join("")}</figure>` : "";
   return `${pageHero(theme, "Our services", C.hero.sub, C.niche || "Services")}
 <section class="sec"><div class="wrap svl">${C.services.map((s, i) => `<div class="svc rv" id="s${i + 1}"><h3 class="disp">${esc(s.name)}</h3><div><p>${esc(s.detail || s.blurb)}</p></div></div>`).join("")}${hov}</div></section>
-${photos.length > 1 ? `<section class="sec" style="padding-top:0"><div class="wrap grid g3">${photos.slice(0, 3).map((p) => photoBlock(p, "3/4")).join("")}</div></section>` : ""}
+${photos.length > 1 ? `<section class="sec" style="padding-top:0"><div class="wrap grid gal ${photos.length >= 3 ? "g3" : "g2"}">${photos.slice(0, 3).map((p) => photoBlock(p, photos.length >= 3 ? "3/4" : "4/3")).join("")}</div></section>` : ""}
 ${ctaBand(C, base)}`;
 }
 
