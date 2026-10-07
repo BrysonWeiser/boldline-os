@@ -87,3 +87,13 @@ get paid when", because the minimum means we're paid either way and a prospect w
 Sub: what we do + every call traced to the ad. The founder quote further down makes the same point in his words,
 on purpose. Alternatives offered to him: "Your ads and your website, run by one team that's paid on results." and
 keeping the pain line as the opener.
+
+## 2026-10-07 bug: the example lead feed in the homepage ads tile was blank everywhere
+Bryson spotted an empty Google and Meta ads tile on his phone. The motion CSS paused the feed until `.bento`
+got `.sr-in`, but `.bento` is not in the scroll-reveal groups, so it never did (on any width, since motion
+shipped). The motion script now watches `.bento` itself with threshold 0 (the grid is taller than a phone
+screen, so a ratio-based reveal would never fire) and adds `.in` once. Also added the caption "An example of your
+lead feed" so a prospect never reads the made-up rows as real client data. `verify-marketing-motion` now
+requires all three rows visible at every width (mutation-checked).
+Bryson asked about results in that tile: the feed stays as the placeholder; swap in a real result once a
+client allows one to be shared (never an invented number).

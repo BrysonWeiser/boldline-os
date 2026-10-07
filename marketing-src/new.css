@@ -73,6 +73,7 @@ html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;a
 .b-price .b-big{font-size:clamp(26px,2.6vw,34px);font-weight:680;letter-spacing:-.035em;line-height:1.05;color:#fff}
 .b-check{grid-column:span 3}
 .mini-feed{display:flex;flex-direction:column;gap:8px}
+.mf-cap{font-size:11px;color:var(--faint);margin-top:2px;letter-spacing:.01em}
 .mini-feed .mf{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#0C0F16;border:1px solid var(--line);font-size:13px;opacity:0;transform:translateY(10px);animation:mfIn .6s var(--ease) forwards}
 .mini-feed .mf:nth-child(2){animation-delay:.25s}.mini-feed .mf:nth-child(3){animation-delay:.5s}
 @keyframes mfIn{to{opacity:1;transform:none}}
@@ -212,13 +213,13 @@ html.mo .wf .w.on{opacity:1}
 
 /* The four tiles land one after another, each tipping up into place. */
 html.mo .bento{perspective:1400px}
-html.mo .bento.sr-in .b-card{animation:cardIn .9s var(--ease) backwards;animation-delay:calc(var(--k,0) * .1s)}
+html.mo .bento.in .b-card{animation:cardIn .9s var(--ease) backwards;animation-delay:calc(var(--k,0) * .1s)}
 @keyframes cardIn{from{opacity:0;transform:translate3d(0,46px,0) rotateX(10deg)}}
 /* The lead feed plays when you reach it, not while you're still up at the headline. */
-html.mo .bento:not(.sr-in) .mini-feed .mf{animation-play-state:paused}
-html.mo .bento.sr-in .mini-feed .mf:nth-child(1){animation-delay:.6s}
-html.mo .bento.sr-in .mini-feed .mf:nth-child(2){animation-delay:1.1s}
-html.mo .bento.sr-in .mini-feed .mf:nth-child(3){animation-delay:1.6s}
+html.mo .bento:not(.in) .mini-feed .mf{animation-play-state:paused}
+html.mo .bento.in .mini-feed .mf:nth-child(1){animation-delay:.6s}
+html.mo .bento.in .mini-feed .mf:nth-child(2){animation-delay:1.1s}
+html.mo .bento.in .mini-feed .mf:nth-child(3){animation-delay:1.6s}
 
 /* With a mouse: tiles lean toward the pointer and a soft gold light follows it. */
 html.mo-fine .b-card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(200,168,75,.13),transparent 45%);opacity:0;transition:opacity .35s ease}

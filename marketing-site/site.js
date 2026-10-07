@@ -711,6 +711,14 @@
     el.classList.add('wf'); el._w=el.querySelectorAll('.w');
   });
 
+  /* The tiles play once, the first time they come on screen. Watched here with threshold 0 because the
+     tile grid is taller than a phone screen, so a ratio-based reveal would never fire on one. */
+  var bento=document.querySelector('.bento');
+  if(bento&&'IntersectionObserver' in window){
+    var bio=new IntersectionObserver(function(es){ es.forEach(function(e){ if(e.isIntersecting){ bento.classList.add('in'); bio.disconnect(); } }); },{rootMargin:'0px 0px -10% 0px',threshold:0});
+    bio.observe(bento);
+  } else if(bento) bento.classList.add('in');
+
   var hero=document.querySelector('.h-hero'), pin=hero&&hero.querySelector('.h-pin'), vis=hero&&hero.querySelector('.h-visual');
   var ph=document.querySelector('.page-hero');
   var steps=document.querySelector('.steps3'), stl=steps&&steps.querySelector('.st-line'), sts=steps?steps.querySelectorAll('.st'):[];
