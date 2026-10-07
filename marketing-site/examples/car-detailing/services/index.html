@@ -93,7 +93,7 @@ section{position:relative}
 .sec-h p{max-width:420px;color:var(--mute)}
 .grid{display:grid;gap:18px}
 .g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:980px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:980px){.g3,.g4{grid-template-columns:repeat(2,1fr)}.g3>:last-child:nth-child(odd),.g4>:last-child:nth-child(odd){grid-column:1/-1}.gal.g3>:nth-child(3){aspect-ratio:16/9!important}}
 @media(max-width:640px){.g3,.g2,.g4{grid-template-columns:1fr}}
 .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:30px;transition:transform .5s var(--ease),border-color .4s}
 .card:hover{border-color:color-mix(in srgb,var(--ac) 45%,var(--line))}
@@ -138,7 +138,7 @@ html.js .fill .w.lit{opacity:1}
 .hov img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}
 .hov img.on{opacity:1}
 /* rail of service panels */
-.track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:18px}@media(max-width:700px){.track{grid-template-columns:1fr}}
 .rc{position:relative;display:block;aspect-ratio:4/5;overflow:hidden;border-radius:var(--r);background:radial-gradient(80% 70% at 30% 20%,color-mix(in srgb,var(--ac) 40%,transparent),transparent),var(--bg2);color:#fff}
 .rc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
 .rc:hover img{transform:scale(1.06)}
@@ -318,7 +318,7 @@ body{padding-top:44px}
 <main><section class="hero page-hero"><div class="fx" style="background:radial-gradient(50% 60% at 75% 80%,color-mix(in srgb,var(--ac) 26%,transparent),transparent),var(--bg)"><canvas aria-hidden="true"></canvas></div><div class="wrap copy"><span class="eyebrow rv"><i></i>Car Detailing</span>
 <h1 class="disp hl" style="margin-top:22px"><span class="ln"><span>Our services</span></span></h1><p class="sub rv d1">Hand washes, paint correction and ceramic coating, done at your home or office so you never lose a day to the car wash.</p></div></section>
 <section class="sec"><div class="wrap svl"><div class="svc rv" id="s1"><h3 class="disp">Full detail</h3><div><p>Inside and out, from the wheel wells to the headliner.</p></div></div><div class="svc rv" id="s2"><h3 class="disp">Paint correction</h3><div><p>Swirls and light scratches polished out, so the paint looks deep again.</p></div></div><div class="svc rv" id="s3"><h3 class="disp">Ceramic coating</h3><div><p>A hard, glossy layer that keeps the shine and makes every wash easier.</p></div></div><figure class="hov" aria-hidden="true"><img src="/img/sample/detail-6873123.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/detail-6873089.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/detail-6872572.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/detail-3354648.jpg" alt="" loading="lazy" decoding="async"></figure></div></section>
-<section class="sec" style="padding-top:0"><div class="wrap grid g3"><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/detail-6873123.jpg" alt="Detailer finishing a white sports car" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/detail-6873089.jpg" alt="Pressure washing a car" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/detail-6872572.jpg" alt="Hand drying paint with a microfiber towel" loading="lazy" decoding="async"></div></div></section>
+<section class="sec" style="padding-top:0"><div class="wrap grid gal g3"><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/detail-6873123.jpg" alt="Detailer finishing a white sports car" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/detail-6873089.jpg" alt="Pressure washing a car" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/detail-6872572.jpg" alt="Hand drying paint with a microfiber towel" loading="lazy" decoding="async"></div></div></section>
 <section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
 <h2 class="disp">Ready for that new car feeling?</h2><p>Pick a time that suits you.</p><a href="/examples/car-detailing/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Book a detail">Book a detail</span></span></a></div></div></section></main>
 <footer class="ft"><div class="wrap">

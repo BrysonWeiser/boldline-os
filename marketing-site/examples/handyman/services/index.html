@@ -93,7 +93,7 @@ section{position:relative}
 .sec-h p{max-width:420px;color:var(--mute)}
 .grid{display:grid;gap:18px}
 .g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
-@media(max-width:980px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:980px){.g3,.g4{grid-template-columns:repeat(2,1fr)}.g3>:last-child:nth-child(odd),.g4>:last-child:nth-child(odd){grid-column:1/-1}.gal.g3>:nth-child(3){aspect-ratio:16/9!important}}
 @media(max-width:640px){.g3,.g2,.g4{grid-template-columns:1fr}}
 .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:30px;transition:transform .5s var(--ease),border-color .4s}
 .card:hover{border-color:color-mix(in srgb,var(--ac) 45%,var(--line))}
@@ -138,7 +138,7 @@ html.js .fill .w.lit{opacity:1}
 .hov img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .35s}
 .hov img.on{opacity:1}
 /* rail of service panels */
-.track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.track{width:min(1240px,100% - 40px);margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:18px}@media(max-width:700px){.track{grid-template-columns:1fr}}
 .rc{position:relative;display:block;aspect-ratio:4/5;overflow:hidden;border-radius:var(--r);background:radial-gradient(80% 70% at 30% 20%,color-mix(in srgb,var(--ac) 40%,transparent),transparent),var(--ink);color:#fff}
 .rc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
 .rc:hover img{transform:scale(1.06)}
@@ -319,7 +319,7 @@ body{padding-top:44px}
 <main><section class="hero page-hero"><div class="wrap copy"><span class="eyebrow rv"><i></i>Handyman</span>
 <h1 class="disp hl" style="margin-top:22px"><span class="ln"><span>Our <span class="mk">services</span></span></span></h1><p class="sub rv d1">Drywall, painting, fixtures and the to-do list you keep putting off. One call, a fixed price and a tidy finish.</p></div></section>
 <section class="sec"><div class="wrap svl"><div class="svc rv" id="s1"><h3 class="disp">Drywall and painting</h3><div><p>Holes patched, walls smoothed and rooms painted so you can&#39;t tell where the damage was.</p></div></div><div class="svc rv" id="s2"><h3 class="disp">Fixtures and fans</h3><div><p>Lights, ceiling fans, faucets and hardware, swapped and working.</p></div></div><div class="svc rv" id="s3"><h3 class="disp">Doors, trim and repairs</h3><div><p>Sticky doors, loose trim and the little things that add up.</p></div></div><figure class="hov" aria-hidden="true"><img src="/img/sample/handy-1249611.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/handy-6474471.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/handy-5691622.jpg" alt="" loading="lazy" decoding="async"><img src="/img/sample/handy-5691590.jpg" alt="" loading="lazy" decoding="async"></figure></div></section>
-<section class="sec" style="padding-top:0"><div class="wrap grid g3"><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/handy-1249611.jpg" alt="Drilling into a floor" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/handy-6474471.jpg" alt="Painting a wall" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/handy-5691622.jpg" alt="Smoothing drywall" loading="lazy" decoding="async"></div></div></section>
+<section class="sec" style="padding-top:0"><div class="wrap grid gal g3"><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/handy-1249611.jpg" alt="Drilling into a floor" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/handy-6474471.jpg" alt="Painting a wall" loading="lazy" decoding="async"></div><div class="ph rv" style="aspect-ratio:3/4"><img src="/img/sample/handy-5691622.jpg" alt="Smoothing drywall" loading="lazy" decoding="async"></div></div></section>
 <section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
 <h2 class="disp">Got a list that keeps growing?</h2><p>Send it over and get a fixed price.</p><a href="/examples/handyman/contact/" data-page="contact" class="btn"><span class="bt"><span data-t="Get a price">Get a price</span></span></a></div></div></section></main>
 <footer class="ft"><div class="wrap">

@@ -435,3 +435,12 @@ kept at $100 as an easy yes after a $1,500 build, revisit for new clients once a
 - **Small phones (320px)**: business name shrinks instead of pushing the menu button off screen; contact column no
   longer widened by a long email; stack cards may shrink. Sample bar compacts under 380px; toggle reads "Website".
 - Button wording and website/landing brand match: KB `website-landing-brand-match`.
+
+## Photo rows never leave a hole (2026-10-07)
+- Bryson: on the pool sample's Services page "it looks like a picture is either missing". The services photo row was
+  always three-across, and the pool sample only has two photos. Now `gal g2` (two wide 4:3 photos) when there are two,
+  `gal g3` when three or more. Same day: on tablets every three-across row (`.g3`/`.g4`) wraps to two and stranded the
+  third card next to an empty hole; now the odd last card runs full width (the third gallery photo turns 16:9). The
+  plain (non-rail) `.track` of cards packs 3 across from 700px and stacks below it. Pinned in verify-site-builder.
+- Swept every sample page at 1440/1024/768/600/390 for rows whose last line is under 80% full. Only the landing
+  gallery's centred last photo remains, and that one is centred on purpose.
