@@ -7,7 +7,7 @@
 
   <!-- PWA: installable app shell — manifest, icons, platform meta. See knowledge/pwa-build.md -->
   <link rel="manifest" href="/manifest.webmanifest">
-  <meta name="theme-color" content="#070810">
+  <meta name="theme-color" content="#05060A">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -20,7 +20,11 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #070810; } #root { min-height: 100vh; }</style>
+  <!-- Display + number faces for the Mission Control look. Loaded in the background (media=print
+       swap) so a slow connection never holds the OS on a blank screen waiting for type. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" media="print" onload="this.media='all'">
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #05060A; } #root { min-height: 100vh; }</style>
 </head>
 <body>
   <div id="root"></div>
@@ -1238,11 +1242,11 @@ const STAGES    = [
 ];
 
 const C = {
-  bg:"#070810", bg2:"#0C0D18", bg3:"#10111C",
-  bg4:"#14162A",
+  bg:"#05060A", bg2:"#0A0B12", bg3:"#0E1018",
+  bg4:"#141726",
   border:"rgba(255,255,255,0.07)", border2:"rgba(255,255,255,0.03)",
   borderAccent:"rgba(200,168,75,0.18)",
-  text:"#F0F2FF", textDim:"#8B91B8", textMuted:"#3D4266",
+  text:"#F0F2FF", textDim:"#8B91B8", textMuted:"#555B80",
   gold:"#C8A84B", goldLight:"#E8C96A", goldDim:"rgba(200,168,75,0.15)",
   green:"#22D3A0", blue:"#4F8EF7",
   purple:"#8B5CF6", red:"#F87171", amber:"#FBBF24",
@@ -2450,7 +2454,7 @@ function CloseBtn({onClick}) {
   return <button onClick={onClick} style={{background:"none",border:"none",color:C.textMuted,fontSize:20,cursor:"pointer",lineHeight:1,flexShrink:0,padding:"2px 4px"}}>✕</button>;
 }
 function Label({children}) {
-  return <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".09em",color:C.textMuted,marginBottom:8,opacity:.8}}>{children}</div>;
+  return <div className="os-hud" style={{fontSize:9.5,fontWeight:700,textTransform:"uppercase",letterSpacing:".16em",color:C.textMuted,marginBottom:8}}>{children}</div>;
 }
 function Card({children,style}) {
   return <div className="os-card" style={{...card,...style}}>{children}</div>;
@@ -5828,7 +5832,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
         {back}
         <div>
-          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Deal Prep</div>
+          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Deal Prep</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Research a prospect and get your pitch before the call.</div>
         </div>
       </div>
@@ -6598,7 +6602,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
         {back}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Lead Scout</div>
+          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Lead Scout</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Find businesses worth calling, ranked worst-to-best-use-of-your-time.</div>
         </div>
       </div>
@@ -6943,7 +6947,7 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
       <div style={{display:"flex",alignItems:"center",gap:10,rowGap:10,flexWrap:"wrap",marginBottom:14}}>
         {back}
         <div style={{minWidth:0,flex:"1 1 auto"}}>
-          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Calendar</div>
+          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Calendar</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every scheduled thing across the OS, in one place.</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",gap:8,flexShrink:0}}>
@@ -7069,7 +7073,7 @@ const PH_CSS=`
 @keyframes phBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}
 .ph-in{animation:phLockIn .5s cubic-bezier(.2,.7,.1,1)}
 .ph-scan{position:absolute;left:0;right:0;top:0;height:2px;background:linear-gradient(90deg,transparent,#F3D88E,transparent);box-shadow:0 0 18px #C8A84B;pointer-events:none;animation:phScan .9s cubic-bezier(.2,.7,.1,1) forwards;z-index:2}
-.ph-tag{position:absolute;top:14px;right:16px;font-size:10px;font-weight:800;letter-spacing:.24em;color:#22D3A0;pointer-events:none;animation:phTag 1.4s ease forwards}
+.ph-tag{position:absolute;top:14px;right:16px;font-family:var(--hud);font-size:10px;font-weight:700;letter-spacing:.24em;color:#22D3A0;pointer-events:none;animation:phTag 1.4s ease forwards}
 .ph-ring{animation:phSpin 8s linear infinite}.ph-ring2{animation:phSpin 5s linear infinite reverse}
 .ph-live{animation:phPulse 1.8s ease-in-out infinite}
 .ph-win-back{position:fixed;inset:0;z-index:119;background:radial-gradient(ellipse at 50% 45%,rgba(200,168,75,.10),rgba(3,4,8,.62) 70%);animation:phFade .35s ease}
@@ -7561,7 +7565,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
         {back}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Outreach</div>
+          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Outreach</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Work the list, one at a time, with no deciding in between. Number keys log each call.</div>
         </div>
       </div>
@@ -7598,13 +7602,13 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
               <div style={{position:"absolute",inset:0,display:"grid",placeItems:"center",fontSize:15,fontWeight:800,color:C.text,fontVariantNumeric:"tabular-nums"}}>{todayCalls}</div>
             </div>
             <div>
-              <div style={{fontSize:10,fontWeight:800,letterSpacing:".22em",color:C.gold}}>POWER HOUR</div>
+              <div className="os-hud" style={{fontSize:10.5,fontWeight:700,letterSpacing:".22em",color:C.gold}}>POWER HOUR</div>
               <div style={{fontSize:13,color:C.textDim,marginTop:2}}>{todayCalls>=PH_GOAL?<b style={{color:C.green}}>Today's goal hit. Anything now is a bonus.</b>:<><b style={{color:C.text}}>{todayCalls}</b> of {PH_GOAL} calls today</>}</div>
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 6px 6px 13px",borderRadius:11,border:`1px solid ${C.border}`,background:"rgba(0,0,0,.25)"}}>
             {ph.running&&<span className="ph-live" style={{width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:`0 0 10px ${C.green}`}}/>}
-            <span style={{fontSize:20,fontWeight:700,fontVariantNumeric:"tabular-nums",color:C.text,minWidth:58}}>{phClock(ph.secs)}</span>
+            <span className="os-mono" style={{fontSize:20,fontWeight:700,fontVariantNumeric:"tabular-nums",color:C.text,minWidth:58}}>{phClock(ph.secs)}</span>
             <button onClick={()=>setPh(p=>({...p,running:!p.running}))} style={{padding:"7px 12px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:"pointer",background:ph.running?C.green+"22":C.goldDim,color:ph.running?C.green:C.goldLight}}>{ph.running?"PAUSE":ph.secs?"RESUME":"START"}</button>
             <button onClick={()=>{setPh(p=>({...p,running:false}));setRecap(true);}} disabled={!ph.calls&&!ph.secs} style={{padding:"7px 11px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:(!ph.calls&&!ph.secs)?"default":"pointer",background:"rgba(255,255,255,.05)",color:C.textDim,opacity:(!ph.calls&&!ph.secs)?.5:1}}>END</button>
           </div>
@@ -8002,7 +8006,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                 <path className="ph-win-tick" d="M14 22.5l5.5 5.5L30.5 17" fill="none" stroke={C.goldLight} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <div>
-                <div style={{fontSize:10.5,fontWeight:800,letterSpacing:".26em",color:C.gold}}>MEETING SECURED</div>
+                <div className="os-hud" style={{fontSize:11,fontWeight:700,letterSpacing:".26em",color:C.gold}}>MEETING SECURED</div>
                 <div style={{fontSize:12,color:C.textMuted,marginTop:3}}>{win.n===1?"First one today. Nice work.":`That's ${win.n} today. You're on a roll.`}</div>
               </div>
             </div>
@@ -8030,7 +8034,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       {recap&&(
         <div onClick={()=>setRecap(false)} style={{position:"fixed",inset:0,zIndex:115,background:"rgba(3,4,8,.78)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
           <div onClick={e=>e.stopPropagation()} role="dialog" aria-label="Session recap" style={{width:"min(560px,100%)",borderRadius:20,border:`1px solid ${C.gold}`,background:"radial-gradient(circle at 50% 0%,rgba(200,168,75,.18),rgba(10,11,18,.98) 60%)",padding:"24px 22px",boxShadow:"0 0 120px -20px rgba(200,168,75,.4)"}}>
-            <div style={{fontSize:10.5,fontWeight:800,letterSpacing:".22em",color:C.gold}}>SESSION COMPLETE</div>
+            <div className="os-hud" style={{fontSize:11,fontWeight:700,letterSpacing:".22em",color:C.gold}}>SESSION COMPLETE</div>
             <div style={{fontSize:26,fontWeight:800,color:C.text,margin:"4px 0 16px"}}>Power Hour recap</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:9,marginBottom:16}}>
               {[["Calls",ph.calls,C.text],["Talked",ph.talks,C.text],["Booked",ph.booked,C.green],["Time",phClock(ph.secs),C.goldLight]].map(([l,v,c])=>(
@@ -8096,7 +8100,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
       {/* Header — mobile shows brand + logout (desktop has them in the sidebar) */}
       {isDesktop?(
         <div style={{marginBottom:18}}>
-          <div style={{fontSize:24,fontWeight:800,color:C.text,letterSpacing:"-0.02em",lineHeight:1.1}}>Dashboard</div>
+          <div className="os-title" style={{fontSize:24,fontWeight:800,color:C.text,letterSpacing:"-0.02em",lineHeight:1.1}}>Dashboard</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:3}}>Overview of every client, alert, and dollar of recurring revenue.</div>
         </div>
       ):(
@@ -8104,8 +8108,8 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <img src={LOGO} alt="BoldLine Media" style={{width:42,height:42,objectFit:"contain",flexShrink:0}}/>
             <div>
-              <div style={{fontSize:17,fontWeight:800,color:C.text,letterSpacing:"-0.02em",lineHeight:1.1}}>BoldLine OS</div>
-              <div style={{fontSize:10,color:C.textMuted,letterSpacing:"0.06em",textTransform:"uppercase",marginTop:2}}>Agency Dashboard</div>
+              <div className="os-hud" style={{fontSize:17,fontWeight:700,color:C.text,letterSpacing:".02em",lineHeight:1.1}}>BoldLine OS</div>
+              <div className="os-hud" style={{fontSize:9.5,color:C.gold,letterSpacing:".22em",textTransform:"uppercase",marginTop:3,opacity:.85}}>Mission Control</div>
             </div>
           </div>
           <button onClick={onLogout} style={{padding:"6px 10px",fontSize:10,fontWeight:700,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Log Out</button>
@@ -8460,7 +8464,7 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
             border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
             display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>‹</button>}
           <div style={S.f1min}>
-            <div style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>Revenue</div>
+            <div className="os-title" style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>Revenue</div>
             <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>What you actually invoiced</div>
           </div>
           <button onClick={load} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",flexShrink:0}}>{data===null?"…":"Refresh"}</button>
@@ -8649,7 +8653,7 @@ function SegmentScreen({mode,clients,onSelect,onBack,isDesktop}) {
             ‹
           </button>
           <div>
-            <div style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>{meta.title}</div>
+            <div className="os-title" style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>{meta.title}</div>
             <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>{meta.sub} · {rows.length}</div>
           </div>
         </div>
@@ -15372,7 +15376,7 @@ function ContentStudioScreen({onBack,isDesktop,account,onSaveAccount}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
         {back}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Content Studio</div>
+          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Content Studio</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Video ideas and scripts for the agency and your personal brand.</div>
         </div>
       </div>
@@ -16435,7 +16439,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
         {back}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Campaigns</div>
+          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Campaigns</div>
           <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every campaign on every linked ad account — yours and your clients'.</div>
         </div>
         <button onClick={load} disabled={state==="loading"} style={{fontSize:11.5,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:state==="loading"?"default":"pointer",opacity:state==="loading"?.5:1,flexShrink:0}}>↻ Refresh</button>
@@ -17573,7 +17577,7 @@ function WebsiteScreen() {
   return (
     <div style={{flex:1,overflowY:"auto",padding:"var(--pad)"}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-        <div style={{fontSize:20,fontWeight:800,color:C.text}}>Website</div>
+        <div className="os-title" style={{fontSize:20,fontWeight:800,color:C.text}}>Website</div>
         <a href="https://boldlinemedia.com/" target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"6px 10px"}}>Open Site ↗</a>
       </div>
       <div style={{fontSize:11.5,color:C.textMuted,marginBottom:14,lineHeight:1.6}}>Everything for boldlinemedia.com. Manage the AI-written blog below — form submissions from the site land in the Leads tab automatically.</div>
@@ -19490,31 +19494,44 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // 🔴 The comment above SideNav claimed "same destinations as BottomNav" while the two had
 // drifted apart, which is exactly how a missing entry survives a read of the code. Parity is
 // now asserted in tests/verify-nav-parity.mjs rather than described in a comment.
-function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onOutreach, onRevenue, onCampaigns, onContent }) {
+function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onOutreach, onRevenue, onCampaigns, onContent, onSearch }) {
+  // Tiles, two to a row, grouped like the computer menu so the same thing lives in the same place.
   const row = (icon,label,desc,onClick) => (
-    <button onClick={onClick} style={{display:"flex",alignItems:"center",gap:13,width:"100%",padding:"14px 14px",borderRadius:13,border:`1px solid ${C.border}`,background:C.bg3,cursor:"pointer",textAlign:"left",marginBottom:9}}>
-      <span style={{width:38,height:38,borderRadius:10,background:"rgba(200,168,75,0.10)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
-      <span style={{flex:1,minWidth:0}}>
-        <span style={{display:"block",fontSize:14,fontWeight:700,color:C.text}}>{label}</span>
-        <span style={{display:"block",fontSize:11,color:C.textMuted,marginTop:1}}>{desc}</span>
+    <button onClick={onClick} style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:8,minWidth:0,padding:"12px 12px 11px",borderRadius:13,border:`1px solid ${C.border}`,background:"linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))",cursor:"pointer",textAlign:"left"}}>
+      <span style={{width:34,height:34,borderRadius:10,background:"rgba(200,168,75,0.10)",border:"1px solid rgba(200,168,75,0.18)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{icon}</span>
+      <span style={{minWidth:0,width:"100%"}}>
+        <span style={{display:"block",fontSize:13.5,fontWeight:700,color:C.text}}>{label}</span>
+        <span style={{fontSize:10.5,color:C.textMuted,marginTop:2,lineHeight:1.35,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{desc}</span>
       </span>
-      <span style={{fontSize:16,color:C.textMuted,flexShrink:0}}>›</span>
     </button>
   );
+  const grp = (t) => <div className="os-hud" style={{fontSize:9.5,fontWeight:700,letterSpacing:".2em",textTransform:"uppercase",color:C.textMuted,margin:"14px 2px 8px"}}>{t}</div>;
+  const grid = {display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8};
   const sv=(d)=><svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,0.55)",display:"flex",alignItems:"flex-end"}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:C.bg2,borderTopLeftRadius:20,borderTopRightRadius:20,borderTop:`1px solid ${C.border}`,padding:"16px 16px calc(20px + env(safe-area-inset-bottom))",animation:"fadeIn .2s ease both"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",background:C.bg2,borderTopLeftRadius:20,borderTopRightRadius:20,borderTop:`1px solid ${C.border}`,padding:"16px 16px calc(20px + env(safe-area-inset-bottom))",animation:"fadeIn .2s ease both",maxHeight:"88dvh",overflowY:"auto"}}>
         <div style={{width:38,height:4,borderRadius:2,background:"rgba(255,255,255,0.15)",margin:"0 auto 14px"}}/>
-        <div style={{fontSize:12,fontWeight:800,letterSpacing:".05em",textTransform:"uppercase",color:C.textMuted,marginBottom:12,paddingLeft:2}}>More</div>
-        {row(sv(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>),"My Ads","BoldLine's own ads, leads and campaigns",onMyAds)}
-        {row(sv(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>),"Campaigns","Every ad campaign — start, pause, delete",onCampaigns)}
-        {row(sv(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>),"Content Studio","Video ideas + scripts, short and long form",onContent)}
-        {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
-        {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
-        {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
-        {row(sv(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>),"Outreach","Work the list, one at a time",onOutreach)}
-        {row(sv(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>),"Revenue","What you actually invoiced, by month",onRevenue)}
+        {onSearch&&<button onClick={onSearch} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"12px 14px",borderRadius:12,border:"1px solid rgba(200,168,75,0.25)",background:"rgba(200,168,75,0.06)",color:C.textDim,fontSize:14,cursor:"pointer",textAlign:"left"}}>
+          {sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>)}<span>Search clients, leads, screens</span>
+        </button>}
+        {grp("Get clients")}
+        <div style={grid}>
+          {row(sv(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>),"Outreach","Work the list, one at a time",onOutreach)}
+          {row(sv(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>),"Lead Scout","Find + rank businesses to cold call",onLeadScout)}
+          {row(sv(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>),"Deal Prep","Research a prospect before the call",onDealPrep)}
+          {row(sv(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>),"Calendar","Everything scheduled, in one view",onCalendar)}
+        </div>
+        {grp("Run clients")}
+        <div style={grid}>
+          {row(sv(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>),"My Ads","BoldLine's own ads, leads and campaigns",onMyAds)}
+          {row(sv(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>),"Campaigns","Every ad campaign — start, pause, delete",onCampaigns)}
+          {row(sv(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>),"Content Studio","Video ideas + scripts, short and long form",onContent)}
+        </div>
+        {grp("Money")}
+        <div style={grid}>
+          {row(sv(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>),"Revenue","What you actually invoiced, by month",onRevenue)}
+        </div>
       </div>
     </div>
   );
@@ -19784,7 +19801,7 @@ function LeadsScreen({leads,onUpdate,onReportSent,onDelete,onRefresh,isDesktop,e
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"var(--pad)"}}>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-        <div style={{fontSize:20,fontWeight:800,color:C.text}}>Leads</div>
+        <div className="os-title" style={{fontSize:20,fontWeight:800,color:C.text}}>Leads</div>
         <div style={{fontSize:11.5,color:C.textDim}}>{leads.length} total{counts.new?` · ${counts.new} new`:""}</div>
         <button onClick={onRefresh} style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer"}}>Refresh</button>
       </div>
@@ -19841,11 +19858,11 @@ function useIsDesktop(bp=1024){
 // not: the bar holds five, the sheet holds the rest, and My Ads went missing from the sheet
 // for exactly as long as that sentence made the split look accounted for. Parity is asserted
 // in tests/verify-nav-parity.mjs now, because a comment cannot fail.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onOutreach,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent}){
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onOutreach,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent,onSearch}){
   const item = (active) => ({
-    display:"flex",alignItems:"center",gap:12,width:"100%",padding:"11px 13px",
+    display:"flex",alignItems:"center",gap:12,width:"100%",padding:"9px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
-    background:active?"rgba(200,168,75,0.10)":"transparent",
+    background:active?"linear-gradient(90deg,rgba(200,168,75,0.16),rgba(200,168,75,0.03))":"transparent",
     color:active?C.gold:C.textDim,fontSize:13.5,fontWeight:active?700:600,
     letterSpacing:"0.01em",transition:"background .15s,color .15s",
   });
@@ -19857,49 +19874,147 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
       color:col===C.green?"#04110b":"#fff",fontSize:10,fontWeight:800,display:"flex",
       alignItems:"center",justifyContent:"center",padding:"0 5px",lineHeight:1}}>{n}</span>
   );
-  const svg = (d,color) => <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
+  const svg = (d,color) => <svg width={19} height={19} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
   const col = (s) => screen===s?C.gold:C.textMuted;
+  // Grouped by the job he is doing, in the order he does it: find and close, then run, then get paid.
+  const grp = (t) => <div className="os-hud" style={{fontSize:9.5,fontWeight:700,letterSpacing:".2em",textTransform:"uppercase",color:C.textMuted,padding:"14px 13px 6px"}}>{t}</div>;
   return (
     <div style={{width:236,flexShrink:0,height:"100vh",borderRight:`1px solid ${C.border}`,
-      backgroundColor:"rgba(9,10,20,0.72)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",
-      display:"flex",flexDirection:"column",padding:"22px 16px 18px",position:"sticky",top:0,zIndex:40}}>
+      background:"linear-gradient(180deg,rgba(10,11,18,0.82),rgba(6,7,11,0.9))",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",
+      display:"flex",flexDirection:"column",padding:"20px 14px 14px",position:"sticky",top:0,zIndex:40}}>
       {/* Brand */}
-      <div style={{display:"flex",alignItems:"center",gap:11,padding:"0 6px",marginBottom:26}}>
-        <img src={LOGO} alt="BoldLine Media" style={{width:38,height:38,objectFit:"contain",flexShrink:0}}/>
+      <div style={{display:"flex",alignItems:"center",gap:11,padding:"0 6px",marginBottom:16}}>
+        <img src={LOGO} alt="BoldLine Media" style={{width:36,height:36,objectFit:"contain",flexShrink:0}}/>
         <div>
-          <div style={{fontSize:15,fontWeight:800,color:C.text,letterSpacing:"-0.02em",lineHeight:1.1}}>BoldLine OS</div>
-          <div style={{fontSize:9,color:C.textMuted,letterSpacing:"0.08em",textTransform:"uppercase",marginTop:2}}>Agency Dashboard</div>
+          <div className="os-hud" style={{fontSize:15,fontWeight:700,color:C.text,letterSpacing:".02em",lineHeight:1.1}}>BoldLine OS</div>
+          <div className="os-hud" style={{fontSize:9,color:C.gold,letterSpacing:".22em",textTransform:"uppercase",marginTop:3,opacity:.85}}>Mission Control</div>
         </div>
       </div>
-      {/* Primary nav */}
-      <div style={{display:"flex",flexDirection:"column",gap:3}}>
-        <button onClick={onHome} style={item(screen==="home")}>{bar(screen==="home")}<IconHome size={20} color={col("home")}/>Dashboard</button>
-        <button onClick={onRevenue} style={item(screen==="revenue")}>{bar(screen==="revenue")}{svg(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>,col("revenue"))}Revenue</button>
-        <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
-        <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
-        <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
-        <button onClick={onCampaigns} style={item(screen==="campaigns")}>{bar(screen==="campaigns")}{svg(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>,col("campaigns"))}Campaigns</button>
-        <button onClick={onContent} style={item(screen==="content")}>{bar(screen==="content")}{svg(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>,col("content"))}Content</button>
-        <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
-        <button onClick={onOutreach} style={item(screen==="outreach")}>{bar(screen==="outreach")}{svg(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>,col("outreach"))}Outreach</button>
-        <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
-        <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
+      {/* Search everything: Ctrl K anywhere, or this. */}
+      {onSearch&&<button onClick={onSearch} style={{display:"flex",alignItems:"center",gap:9,width:"100%",padding:"9px 11px",marginBottom:4,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,0.025)",color:C.textMuted,fontSize:12.5,cursor:"pointer",textAlign:"left"}}>
+        {svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,C.textMuted)}
+        <span style={{flex:1}}>Search</span>
+        <span className="os-mono" style={{fontSize:10,padding:"2px 6px",borderRadius:5,border:`1px solid ${C.border}`,color:C.textDim}}>Ctrl K</span>
+      </button>}
+      <div style={{flex:1,minHeight:0,overflowY:"auto",margin:"0 -4px",padding:"0 4px"}}>
+        {grp("Command")}
+        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+          <button onClick={onHome} style={item(screen==="home")}>{bar(screen==="home")}<IconHome size={20} color={col("home")}/>Dashboard</button>
+          <button onClick={onNotif} style={item(false)}><IconBell size={20} color={notifCount>0?C.amber:C.textMuted}/>Alerts{badge(notifCount,C.red)}</button>
+          <button onClick={onARIA} style={item(false)}>
+            <span style={{width:22,height:22,borderRadius:7,background:C.gradA,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><IconStar size={12} color="#fff"/></span>
+            <span style={{color:C.purple,fontWeight:700}}>ARIA</span>
+            <span style={{marginLeft:"auto",fontSize:9,color:C.textMuted,letterSpacing:".04em"}}>AI</span>
+          </button>
+        </div>
+        {grp("Get clients")}
+        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+          <button onClick={onOutreach} style={item(screen==="outreach")}>{bar(screen==="outreach")}{svg(<><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.6a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.5-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.6 2.6.7a2 2 0 0 1 1.7 2z"/></>,col("outreach"))}Outreach</button>
+          <button onClick={onLeadScout} style={item(screen==="leadscout")}>{bar(screen==="leadscout")}{svg(<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,col("leadscout"))}Lead Scout</button>
+          <button onClick={onDealPrep} style={item(screen==="dealprep")}>{bar(screen==="dealprep")}{svg(<><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></>,col("dealprep"))}Deal Prep</button>
+          <button onClick={onCalendar} style={item(screen==="calendar")}>{bar(screen==="calendar")}{svg(<><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></>,col("calendar"))}Calendar</button>
+        </div>
+        {grp("Run clients")}
+        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+          <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
+          <button onClick={onCampaigns} style={item(screen==="campaigns")}>{bar(screen==="campaigns")}{svg(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>,col("campaigns"))}Campaigns</button>
+          <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
+          <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
+          <button onClick={onContent} style={item(screen==="content")}>{bar(screen==="content")}{svg(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>,col("content"))}Content</button>
+        </div>
+        {grp("Money")}
+        <div style={{display:"flex",flexDirection:"column",gap:2}}>
+          <button onClick={onRevenue} style={item(screen==="revenue")}>{bar(screen==="revenue")}{svg(<><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="4" width="3" height="14"/></>,col("revenue"))}Revenue</button>
+        </div>
       </div>
-      <div style={{height:1,background:C.border,margin:"16px 6px"}}/>
-      {/* Tools */}
-      <div style={{display:"flex",flexDirection:"column",gap:3}}>
-        <button onClick={onNotif} style={item(false)}><IconBell size={20} color={notifCount>0?C.amber:C.textMuted}/>Alerts{badge(notifCount,C.red)}</button>
-        <button onClick={onARIA} style={item(false)}>
-          <span style={{width:22,height:22,borderRadius:7,background:C.gradA,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><IconStar size={12} color="#fff"/></span>
-          <span style={{color:C.purple,fontWeight:700}}>ARIA</span>
-          <span style={{marginLeft:"auto",fontSize:9,color:C.textMuted,letterSpacing:".04em"}}>AI</span>
+      {/* Footer: the clock he lives by, and the way out. */}
+      <div style={{borderTop:`1px solid ${C.border}`,marginTop:10,paddingTop:10,display:"flex",alignItems:"center",gap:8}}>
+        <PhxClock/>
+        <button onClick={onLogout} title="Log out" aria-label="Log out" style={{marginLeft:"auto",display:"flex",alignItems:"center",justifyContent:"center",width:34,height:34,flexShrink:0,borderRadius:9,border:`1px solid ${C.border}`,background:"transparent",cursor:"pointer"}}>
+          {svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,C.textMuted)}
         </button>
       </div>
-      {/* Footer */}
-      <div style={{marginTop:"auto",display:"flex",flexDirection:"column",gap:10}}>
-        <button onClick={onLogout} style={{...item(false),justifyContent:"flex-start",gap:12,color:C.textMuted}}>
-          {svg(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,C.textMuted)}Log Out
-        </button>
+    </div>
+  );
+}
+
+// Phoenix time, always: Arizona never changes its clocks, and every call window on the Outreach screen is
+// worked out from his day, not the server's.
+function PhxClock(){
+  const [, setT] = useState(0);
+  useEffect(()=>{ const t=setInterval(()=>setT(x=>x+1),15000); return ()=>clearInterval(t); },[]);
+  const d=new Date();
+  const hm=d.toLocaleTimeString("en-US",{timeZone:"America/Phoenix",hour:"numeric",minute:"2-digit"});
+  const day=d.toLocaleDateString("en-US",{timeZone:"America/Phoenix",weekday:"short",month:"short",day:"numeric"});
+  return (<div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+    <span className="ph-live" style={{width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:`0 0 8px ${C.green}`,flexShrink:0}}/>
+    <div style={{lineHeight:1.15}}>
+      <div className="os-mono" style={{fontSize:12.5,fontWeight:700,color:C.text}}>{hm}</div>
+      <div style={{fontSize:9.5,color:C.textMuted,letterSpacing:".04em",whiteSpace:"nowrap"}}>{day} · Phoenix</div>
+    </div>
+  </div>);
+}
+
+// ─── QUICK SEARCH (Ctrl K) ────────────────────────────────────────────────────
+// One box that jumps anywhere: a screen, a client, a lead, or a common action. It only ever NAVIGATES or
+// opens a panel he would open by hand; nothing here writes, sends or spends.
+const CMD_KIND = { go:"Go to", act:"Do", client:"Client", lead:"Lead" };
+function cmdScore(q, it){
+  if(!q) return 1;
+  const l=it.label.toLowerCase(), k=(it.kw||"").toLowerCase()+" "+(it.hint||"").toLowerCase();
+  if(l.startsWith(q)) return 5;
+  if(l.split(/[\s&/-]+/).some(w=>w.startsWith(q))) return 4;
+  if(l.includes(q)) return 3;
+  if(k.includes(q)) return 2;
+  let n=0; for(const ch of l){ if(ch===q[n]) n++; if(n===q.length) return 1; }
+  return 0;
+}
+function CommandPalette({items,onClose}){
+  const [q,setQ]=useState(""); const [a,setA]=useState(0);
+  const inRef=useRef(null), listRef=useRef(null);
+  useEffect(()=>{ const t=setTimeout(()=>inRef.current&&inRef.current.focus(),20); return ()=>clearTimeout(t); },[]);
+  const qq=q.trim().toLowerCase();
+  const shown=useMemo(()=>{
+    if(!qq) return items.filter(it=>it.k==="go"||it.k==="act");
+    return items.map(it=>({it,sc:cmdScore(qq,it)})).filter(x=>x.sc>0)
+      .sort((x,y)=>y.sc-x.sc||(x.it.k==="go"?-1:0)).slice(0,14).map(x=>x.it);
+  },[qq,items]);
+  useEffect(()=>{ setA(0); },[qq]);
+  useEffect(()=>{ const el=listRef.current&&listRef.current.querySelector('[data-on="1"]'); if(el&&el.scrollIntoView) el.scrollIntoView({block:"nearest"}); },[a]);
+  const run=(it)=>{ if(!it) return; onClose(); setTimeout(()=>it.run(),0); };
+  const onKey=(e)=>{
+    if(e.key==="Escape"){ e.preventDefault(); onClose(); }
+    else if(e.key==="ArrowDown"){ e.preventDefault(); setA(x=>Math.min(x+1,shown.length-1)); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); setA(x=>Math.max(x-1,0)); }
+    else if(e.key==="Enter"){ e.preventDefault(); run(shown[a]); }
+  };
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:400,background:"rgba(2,3,6,0.62)",backdropFilter:"blur(3px)",WebkitBackdropFilter:"blur(3px)",display:"flex",justifyContent:"center",alignItems:"flex-start",padding:"11vh 12px 12px"}}>
+      <div onClick={e=>e.stopPropagation()} className="os-cmd" style={{width:"min(640px,100%)",borderRadius:16,border:"1px solid rgba(200,168,75,0.30)",background:"linear-gradient(180deg,rgba(16,17,26,0.98),rgba(8,9,14,0.98))",boxShadow:"0 40px 90px -30px rgba(0,0,0,.9),0 0 50px -20px rgba(200,168,75,.35)",overflow:"hidden"}}>
+        <div style={{height:1,background:"linear-gradient(90deg,transparent,rgba(232,201,106,.7),transparent)"}}/>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 16px",borderBottom:`1px solid ${C.border}`}}>
+          <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth={2} strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input ref={inRef} value={q} onChange={e=>setQ(e.target.value)} onKeyDown={onKey} placeholder="Search screens, clients, leads..."
+            style={{flex:1,minWidth:0,background:"transparent",border:"none",outline:"none",color:C.text,fontSize:16}}/>
+          <button onClick={onClose} className="os-mono" style={{fontSize:10,padding:"3px 7px",borderRadius:6,border:`1px solid ${C.border}`,background:"transparent",color:C.textDim,cursor:"pointer"}}>Esc</button>
+        </div>
+        <div ref={listRef} style={{maxHeight:"min(56vh,460px)",overflowY:"auto",padding:6}}>
+          {!shown.length&&<div style={{padding:"22px 14px",fontSize:13,color:C.textMuted,textAlign:"center"}}>Nothing matches "{q}".</div>}
+          {shown.map((it,n)=>{ const on=n===a; return (
+            <button key={it.id} data-on={on?"1":"0"} onMouseEnter={()=>setA(n)} onClick={()=>run(it)}
+              style={{display:"flex",alignItems:"center",gap:12,width:"100%",padding:"10px 12px",borderRadius:10,border:"none",cursor:"pointer",textAlign:"left",
+                background:on?"linear-gradient(90deg,rgba(200,168,75,0.16),rgba(200,168,75,0.04))":"transparent",boxShadow:on?"inset 2px 0 0 "+C.gold:"none"}}>
+              <span className="os-hud" style={{width:52,flexShrink:0,fontSize:9,fontWeight:700,letterSpacing:".14em",textTransform:"uppercase",color:it.k==="client"?C.green:it.k==="lead"?C.blue:C.textMuted}}>{CMD_KIND[it.k]}</span>
+              <span style={{flex:1,minWidth:0}}>
+                <span style={{display:"block",fontSize:14,fontWeight:700,color:on?C.text:C.textDim,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.label}</span>
+                {it.hint&&<span style={{display:"block",fontSize:11.5,color:C.textMuted,marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.hint}</span>}
+              </span>
+              {on&&<span className="os-mono" style={{fontSize:11,color:C.gold,flexShrink:0}}>Enter</span>}
+            </button>); })}
+        </div>
+        <div className="os-cmd-foot" style={{display:"flex",gap:14,padding:"9px 16px",borderTop:`1px solid ${C.border}`,fontSize:11,color:C.textMuted}}>
+          <span>Up and down to move</span><span>Enter to open</span><span style={{marginLeft:"auto"}}>Ctrl K any time</span>
+        </div>
       </div>
     </div>
   );
@@ -19928,6 +20043,10 @@ function App({onLogout}) {
   }catch(e){} },[]);
   const [showNotif,setShowNotif]       = useState(false);
   const [showMore,setShowMore]         = useState(false);
+  const [showCmd,setShowCmd]           = useState(false);
+  // Ctrl K (Cmd K on a Mac) opens quick search from anywhere, even mid-typing, like every modern app.
+  useEffect(()=>{ const f=(e)=>{ if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==="k"||e.key==="K")){ e.preventDefault(); setShowCmd(v=>!v); } };
+    window.addEventListener("keydown",f); return ()=>window.removeEventListener("keydown",f); },[]);
   const [leads,setLeads]               = useState([]);
   // 🔴 "The leads have arrived" is not the same question as "is the leads array empty", and
   // conflating them is what announced every lead on every launch. See the toast effect.
@@ -20314,11 +20433,22 @@ function App({onLogout}) {
           :root{--pad:28px;--card-r:18px;--font-base:15px;--font-sm:13px;--font-xs:11px}
         }
         /* ── Aesthetic pass: living ambient + card depth + gentle motion ── */
-        body{background:#070810}
+        body{background:#05060A}
         .os-ambient{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
         .os-ambient .t{position:absolute;top:-260px;left:50%;transform:translateX(-50%);width:860px;max-width:160vw;height:480px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(200,168,75,.20),transparent 70%)}
         .os-ambient .ob{position:absolute;border-radius:50%;filter:blur(66px);will-change:transform}
-        .os-ambient .a{width:540px;height:540px;top:-160px;left:-190px;background:radial-gradient(circle,rgba(200,168,75,.17),transparent 66%);animation:obDrift 52s ease-in-out infinite alternate}
+        .os-ambient .a{width:540px;height:540px;top:-160px;left:-190px;background:radial-gradient(circle,rgba(200,168,75,.12),transparent 66%);animation:obDrift 52s ease-in-out infinite alternate}
+        /* Mission Control: a faint HUD grid that fades out below the top of the screen, one slow
+           scan band, and a vignette. All of it sits behind everything and ignores the pointer. */
+        .os-ambient .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(200,168,75,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(200,168,75,.05) 1px,transparent 1px);background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse 85% 65% at 50% 0%,#000 25%,transparent 75%);mask-image:radial-gradient(ellipse 85% 65% at 50% 0%,#000 25%,transparent 75%)}
+        .os-ambient .scan{position:absolute;left:0;right:0;height:160px;top:-160px;background:linear-gradient(180deg,transparent,rgba(200,168,75,.035),transparent);animation:osScan 16s linear infinite}
+        .os-ambient .vig{position:absolute;inset:0;background:radial-gradient(ellipse 120% 90% at 50% 40%,transparent 55%,rgba(0,0,0,.55))}
+        @keyframes osScan{to{transform:translateY(calc(100vh + 160px))}}
+        :root{--hud:'Chakra Petch','Segoe UI',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+        .os-hud{font-family:var(--hud)}
+        .os-mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+        .os-title{font-family:var(--hud);font-weight:700!important;letter-spacing:.01em!important}
+        .os-card{background-image:linear-gradient(90deg,transparent,rgba(200,168,75,.32),transparent),linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 45%);background-size:100% 1px,100% 100%;background-repeat:no-repeat}
         .os-ambient .b{width:480px;height:480px;bottom:-200px;right:-180px;background:radial-gradient(circle,rgba(79,142,247,.12),transparent 66%);animation:obDrift 66s ease-in-out -20s infinite alternate-reverse}
         .os-ambient .grain{position:absolute;inset:0;opacity:.05;background-size:170px 170px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='170'%3E%3Cfilter id='osn'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23osn)'/%3E%3C/svg%3E")}
         @keyframes obDrift{0%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(46px,-34px,0) scale(1.12)}100%{transform:translate3d(-40px,40px,0) scale(.92)}}
@@ -20348,13 +20478,16 @@ function App({onLogout}) {
         /* Pinned action bars clear the phone's home indicator / gesture bar. */
         .os-sheet-actions{padding-bottom:calc(16px + env(safe-area-inset-bottom))!important}
         .os-chatbar{padding-bottom:calc(20px + env(safe-area-inset-bottom))!important}
-        @media(prefers-reduced-motion:reduce){.os-ambient .ob,.os-content{animation:none!important}.os-card{transition:none}}
+        .os-cmd{animation:osCmd .22s cubic-bezier(.2,.8,.1,1)}
+        @keyframes osCmd{from{opacity:0;transform:translateY(-8px) scale(.985)}}
+        @media(hover:none){.os-cmd-foot{display:none!important}}
+        @media(prefers-reduced-motion:reduce){.os-cmd{animation:none}.os-ambient .ob,.os-ambient .scan,.os-content{animation:none!important}.os-ambient .scan{display:none}.os-card{transition:none}}
       `}</style>
       {/* The learned playbooks live on the house account: no migration to run, already
           backed up, already live-refreshed. `save` is null when there is no house account
           yet, and every consumer disables its own editing rather than throwing. */}
-      <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="ob a"></div><div className="ob b"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")}/>}
+      <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="grid"></div><div className="ob a"></div><div className="ob b"></div><div className="scan"></div><div className="vig"></div><div className="grain"></div></div>
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")} onSearch={()=>setShowCmd(true)}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
         {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} onOutreach={()=>setScreen("outreach")} hasMyAccount={!!myAccount} isDesktop={isDesktop}/>}
@@ -20374,7 +20507,7 @@ function App({onLogout}) {
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}} onSearch={()=>{setShowMore(false);setShowCmd(true);}}/>}
       {/* Sits OUTSIDE .os-content on purpose: that element animates its opacity, which
           makes it a permanent stacking context and would trap this behind the screen
           (the same trap that hid the bot chat bar). A refused save has to be seen. */}
@@ -20418,6 +20551,24 @@ function App({onLogout}) {
         }}
       />}
       {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)} onDelete={deleteClient} onUpdate={updateClient}/>}
+      {showCmd&&<CommandPalette onClose={()=>setShowCmd(false)} items={[
+        {id:"g-out",k:"go",label:"Outreach",hint:"Power Hour: work the call list",kw:"calls dial cold call power hour",run:()=>setScreen("outreach")},
+        {id:"g-home",k:"go",label:"Dashboard",hint:"Every client, alert and recurring dollar",kw:"home",run:()=>setScreen("home")},
+        {id:"g-leads",k:"go",label:"Leads",hint:"Website leads and enquiries",kw:"inbox enquiries",run:()=>setScreen("leads")},
+        {id:"g-scout",k:"go",label:"Lead Scout",hint:"Find and rank businesses to call",kw:"prospects search find",run:()=>setScreen("leadscout")},
+        {id:"g-deal",k:"go",label:"Deal Prep",hint:"Research a prospect before the call",kw:"quote pitch research",run:()=>openDealPrep(null)},
+        {id:"g-cal",k:"go",label:"Calendar",hint:"Everything scheduled",kw:"meetings schedule",run:()=>setScreen("calendar")},
+        {id:"g-camp",k:"go",label:"Campaigns",hint:"Every ad campaign",kw:"google meta ads",run:()=>setScreen("campaigns")},
+        {id:"g-myads",k:"go",label:"My Ads",hint:"BoldLine's own ads",kw:"house account boldline",run:()=>openMyAds()},
+        {id:"g-web",k:"go",label:"Website",hint:"boldlinemedia.com",kw:"site marketing",run:()=>setScreen("website")},
+        {id:"g-content",k:"go",label:"Content Studio",hint:"Video ideas and scripts",kw:"videos social",run:()=>setScreen("content")},
+        {id:"g-rev",k:"go",label:"Revenue",hint:"What you invoiced, by month",kw:"money income invoices",run:()=>setScreen("revenue")},
+        {id:"a-add",k:"act",label:"Add a new client",kw:"create new client",run:()=>setShowAdd(true)},
+        {id:"a-aria",k:"act",label:"Ask ARIA",hint:"Your AI assistant",kw:"ai help question",run:()=>setShowARIA(true)},
+        {id:"a-alerts",k:"act",label:"Open alerts",kw:"notifications",run:()=>setShowNotif(true)},
+        ...realClients.map(cl=>({id:"c-"+cl.id,k:"client",label:cl.name||"Client",hint:[cl.niche,cl.package].filter(Boolean).join(" · "),kw:(cl.email||"")+" "+(cl.phone||""),run:()=>selectClient(cl)})),
+        ...leads.slice(0,300).map((l,n)=>({id:"l-"+(l.id||n),k:"lead",label:l.business||l.name||l.email||"Lead",hint:[l.name&&l.business?l.name:"",l.email,l.phone].filter(Boolean).join(" · "),kw:"",run:()=>setScreen("leads")})),
+      ]}/>}
       {showAdd&&<AddClientSheet initial={addPrefill} onSave={addClient} onClose={()=>{ setShowAdd(false); setAddPrefill(null); }}/>}
     </div>
     </PlaybookCtx.Provider>
