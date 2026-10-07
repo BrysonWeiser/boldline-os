@@ -278,9 +278,9 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
     <div class="h-visual">
       <div class="browser">
         <div class="browser-bar"><span class="bdot"></span><span class="bdot"></span><span class="bdot"></span><span class="burl">yourbusiness.com</span></div>
-        <img class="stage-shot" src="/img/site-hero.jpg" width="1296" height="810" alt="A sample website built by BoldLine, on a computer" decoding="async" fetchpriority="high">
+        <img class="stage-shot" src="/img/site-hero.jpg" srcset="/img/site-hero.jpg 1440w, /img/site-hero-2x.jpg 2880w" sizes="(max-width:900px) 100vw, 1400px" width="1440" height="900" alt="A sample website built by BoldLine, on a computer" decoding="async" fetchpriority="high">
       </div>
-      <div class="phone" aria-hidden="true"><img src="/img/site-phone.jpg" width="585" height="1266" alt="" decoding="async"></div>
+      <div class="phone" aria-hidden="true"><img src="/img/site-phone.jpg" srcset="/img/site-phone.jpg 780w, /img/site-phone-2x.jpg 1170w" sizes="(max-width:900px) 45vw, 420px" width="780" height="1688" alt="" decoding="async"></div>
       <div class="float-toast" aria-hidden="true"><span class="ft-ic">&#10003;</span> New enquiry from the website</div>
       <p class="h-cap">A sample business, built with the same system we use for clients. <a href="/examples/cinematic/">Click through it &rarr;</a></p>
     </div>
@@ -303,7 +303,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
     </a>
     <a class="b-card b-web" style="--k:1" href="/websites/">
       <h3>Websites</h3><p>Three modern designs with real motion, still fast on a phone. From $1,500 to build.</p>
-      <div class="b-thumbs" aria-hidden="true"><img src="/img/design-editorial.jpg" width="864" height="540" alt="" loading="lazy" decoding="async"><img src="/img/design-cinematic.jpg" width="864" height="540" alt="" loading="lazy" decoding="async"><img src="/img/design-aurora.jpg" width="864" height="540" alt="" loading="lazy" decoding="async"></div>
+      <div class="b-thumbs" aria-hidden="true"><img src="/img/design-editorial.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-cinematic.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"><img src="/img/design-aurora.jpg" width="1440" height="900" alt="" loading="lazy" decoding="async"></div>
       <span class="b-go">See the designs <i>&rarr;</i></span>
     </a>
     <a class="b-card b-price" style="--k:2" href="/pricing/">

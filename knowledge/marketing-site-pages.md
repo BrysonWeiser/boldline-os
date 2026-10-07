@@ -225,3 +225,17 @@ fixed it doesn't have the hamburger menu like mobile".
   1180px on site.css pages, 1000px on blog.css pages). Clicking elsewhere or Escape closes it.
 - Gotcha: verify-public-source fails if a comment in the shared CSS/JS names Bryson or carries a date. Keep those
   in the builder or KB, not in public files.
+
+## 2026-10-07 night: sharper homepage pictures + the real fonts in them (LIVE)
+Bryson (on his computer): the homepage sample-site picture "looks great but we need to up the quality", the small
+buttons inside it went soft as the picture grows on scroll.
+- Cause 1: `scripts/build-site-showcase.cjs` shot the hero at deviceScaleFactor 0.9 (1296px) and the phone at 1.5,
+  so screens denser than that upscaled the text. Now: `site-hero.jpg` 1440 (1x) + `site-hero-2x.jpg` 2880, and
+  `site-phone.jpg` 780 + `site-phone-2x.jpg` 1170, served with srcset/sizes (phones and 1x desktops get the
+  lighter file; high-density screens get the 2x). Design thumbnails now 1440x900 (were 864).
+- Cause 2 (found on the way): the shots never had the sample site's real typefaces. Chromium here can't reach
+  fonts.gstatic.com (ERR_TOO_MANY_RETRIES through the proxy), so every shot used a system fallback font and didn't
+  match the clickable sample. The script now fetches Google Fonts with curl and hands them to the page
+  (`page.route`). Same fix would apply to any future screenshot script that uses web fonts.
+- Measured: the hero picture shows at most ~1,070 css px wide (1920 screen), so 1440/2880 has headroom.
+- Link preview picture `og-boldline.jpg` re-rendered from the new shots.
