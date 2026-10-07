@@ -11,14 +11,15 @@
 // already delivers client reports — so these send today, no new config.
 
 import { GOLD, escapeHTML } from "./report-shared.mjs";
+import { EMAIL_SANS, EMAIL_DARK, brandHeaderRow, emailH1 } from "./email-brand.mjs";
 
-const DARK = { bg:"#070810", card:"#0C0D18", cardBorder:"rgba(255,255,255,.08)", head:"#F5F3EA", body:"#C6CAE0", muted:"#8B91B8", faint:"#5A6078", chip:"#12131F" };
+const DARK = EMAIL_DARK;
 const SITE = "https://boldlinemedia.com"; // last-resort fallback so a button link is never empty
 // Where the review request points. The reviews section on the marketing site, which is
 // collect-then-approve: nothing appears publicly until Bryson approves it.
 const REVIEW_URL = `${SITE}#reviews`;
-const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-const SERIF = "Georgia,'Times New Roman',serif";
+// One look for every BoldLine email (./email-brand.mjs). The serif headings were retired 2026-10-07.
+const SANS = EMAIL_SANS;
 
 // The footer every website email carries, and every email to a website-only client: the default one
 // says "Google & Meta ads, managed for you", which is not what they bought.
@@ -94,7 +95,7 @@ const emailWords = (c) => String((c || {}).resultKind || "") === "enquiry"
     };
 
 // ── content helpers (inline-styled fragments) ──────────────────────────────
-const h1   = (t) => `<h1 style="margin:0 0 16px;font-family:${SERIF};font-size:23px;font-weight:700;line-height:1.3;color:${DARK.head}">${t}</h1>`;
+const h1   = emailH1;
 const p    = (t) => `<p style="margin:0 0 15px;font-family:${SANS};font-size:15px;line-height:1.65;color:${DARK.body}">${t}</p>`;
 const small= (t) => `<p style="margin:0 0 12px;font-family:${SANS};font-size:12.5px;line-height:1.6;color:${DARK.muted}">${t}</p>`;
 const b    = (t) => `<strong style="color:${DARK.head};font-weight:700">${t}</strong>`;
@@ -130,10 +131,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${DARK.bg};padding:28px 12px">
   <tr><td align="center">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
-      <tr><td align="center" style="padding:4px 0 22px">
-        <div style="font-family:${SERIF};font-size:22px;font-weight:700;letter-spacing:.04em;color:${GOLD}">BoldLine Media</div>
-        <div style="margin:9px auto 0;height:2px;width:40px;background:${GOLD};opacity:.85"></div>
-      </td></tr>
+      ${brandHeaderRow()}
       <tr><td style="background:${DARK.card};border:1px solid ${DARK.cardBorder};border-top:3px solid ${GOLD};border-radius:16px;padding:30px 28px">${bodyHtml}</td></tr>
       <tr><td align="center" style="padding:18px 10px 0">
         <div style="font-family:${SANS};font-size:11px;line-height:1.65;color:${DARK.faint}">${footerNote || "BoldLine Media. Google &amp; Meta ads, managed for you."}<br>Questions? Just reply to this email.</div>
@@ -709,6 +707,87 @@ export function emailAutoRecorded(type, client) {
   // `welcomeAt` is a timestamp, so only the boolean-ish keys decide "already recorded".
   // Comparing the timestamp would make this always false and the button never disappear.
   return Object.keys(patch).filter((k) => !/At$/.test(k)).every((k) => ea[k] === patch[k]);
+}
+
+// ── 🔴 THE WEEKLY AND MONTHLY REPORT, IN THE SAME DESIGN AS EVERYTHING ELSE ──────
+// Bryson, 2026-10-07: the report was a white and grey email with its own heading, so the email a
+// client gets EVERY WEEK looked like it came from a different company than their welcome and
+// invoices. Its heading also carried an em dash, against the standing rule. It now uses the shell
+// above, opens with the same numbers the portal shows, and links to the portal.
+//
+// The numbers are counted, never estimated: leads from the client's own log (our form and call
+// line, so complete), ad spend and clicks from the ad account sync. Spend is labelled as the
+// client's, paid to the platform, because BoldLine never holds ad money.
+const DAY = 864e5;
+export function reportStats(client, { period = "weekly", now = Date.now() } = {}) {
+  const sale = String((client && client.billingResultKind) || "") === "sale";
+  const Nouns = sale ? "Sales" : "Leads", noun = sale ? "sale" : "lead";
+  const log = (Array.isArray(client && client.leadsLog) ? client.leadsLog : []).filter((l) => l && l.receivedAt && !Number.isNaN(new Date(l.receivedAt).getTime()));
+  const within = (days) => log.filter((l) => now - new Date(l.receivedAt).getTime() < days * DAY);
+  const win = period === "monthly" ? 30 : 7;
+  const inWin = within(win), in30 = within(30);
+  const perf = client && client.adPerf && client.adPerf.totals ? client.adPerf.totals : null;
+  const spend = perf ? Number(perf.spend30d) || 0 : 0;
+  const tiles = [
+    [period === "monthly" ? `${Nouns}, last 30 days` : `${Nouns} this week`, String(inWin.length), true],
+    [sale ? "Counted" : "Qualified", String(inWin.filter((l) => l.qualified).length), false],
+  ];
+  if (perf) {
+    tiles.push(["Ad spend, 30 days", "$" + Math.round(spend).toLocaleString("en-US"), false]);
+    const cpl = spend > 0 && in30.length ? spend / in30.length : null;
+    tiles.push([`Cost per ${noun}, 30 days`, cpl == null ? "Not yet" : "$" + (cpl >= 100 ? Math.round(cpl).toLocaleString("en-US") : cpl.toFixed(2)), false]);
+  }
+  return { tiles, paidTo: perf ? "Ad spend is paid by you straight to the ad platform. It is never part of our invoice." : "" };
+}
+
+const statTiles = (tiles) => {
+  const cell = ([label, value, hi]) => `<td width="50%" valign="top" style="padding:5px">
+      <div style="background:${DARK.chip};border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px">
+        <div style="font-family:${SANS};font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${DARK.muted}">${label}</div>
+        <div style="margin-top:8px;font-family:${SANS};font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1;color:${hi ? GOLD : DARK.head}">${value}</div>
+      </div></td>`;
+  const rows = [];
+  for (let i = 0; i < tiles.length; i += 2) rows.push(`<tr>${cell(tiles[i])}${tiles[i + 1] ? cell(tiles[i + 1]) : '<td width="50%"></td>'}</tr>`);
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:2px 0 14px">${rows.join("")}</table>`;
+};
+
+// The report's own words (bold headings, "- " bullets, paragraphs), in the dark design.
+const reportBody = (text) => {
+  const inl = (t) => escapeHTML(t).replace(/\*\*(.+?)\*\*/g, `<strong style="color:${DARK.head}">$1</strong>`);
+  const out = []; let list = null, first = true;
+  const flush = () => { if (list && list.length) out.push(`<ul style="margin:0 0 16px;padding-left:20px;font-family:${SANS};font-size:15px;line-height:1.6;color:${DARK.body}">${list.map((x) => `<li style="margin-bottom:6px">${inl(x)}</li>`).join("")}</ul>`); list = null; };
+  for (const raw of String(text || "").replace(/\r\n/g, "\n").split("\n")) {
+    const line = raw.trim();
+    if (!line) { flush(); continue; }
+    const h = line.match(/^\*\*(.+?)\*\*:?$/);
+    if (h) { flush(); out.push(`<div style="margin:${first ? "4px" : "22px"} 0 8px;font-family:${SANS};font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${GOLD}">${escapeHTML(h[1])}</div>`); first = false; continue; }
+    const li = line.match(/^[-*]\s+(.*)$/);
+    if (li) { (list = list || []).push(li[1]); first = false; continue; }
+    flush(); out.push(p(inl(line))); first = false;
+  }
+  flush();
+  return out.join("");
+};
+
+export function renderReportEmail({ period = "weekly", text = "", client = {}, portalUrl = "", now = Date.now() } = {}) {
+  const biz = client.name || "your business";
+  const kind = period === "monthly" ? "monthly" : "weekly";
+  const { tiles, paidTo } = reportStats(client, { period: kind, now });
+  const when = new Date(now).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "America/Phoenix" });
+  const bodyHtml =
+    h1(`Your ${kind} report`) +
+    small(`${escapeHTML(biz)} &middot; ${escapeHTML(when)}`) +
+    p(`Hi ${escapeHTML(firstName(client.contactName))}, here is where things stand.`) +
+    statTiles(tiles) +
+    (paidTo ? small(paidTo) : "") +
+    rule() +
+    reportBody(text) +
+    (portalUrl ? button("Open Your Portal", portalUrl) : "") +
+    signoff();
+  return {
+    subject: `Your ${kind} report for ${biz}`,
+    html: emailShell({ preheader: `Your ${kind} numbers for ${biz}, and what we changed.`, bodyHtml }),
+  };
 }
 
 export function renderClientEmail(type, ctx = {}) {

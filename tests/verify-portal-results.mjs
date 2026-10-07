@@ -54,8 +54,8 @@ const kpiVals = (h) => [...h.matchAll(/<div class="kpi-v[^"]*">([^<]*)<\/div>/g)
 {
   const v = kpiVals(html(live({ adPerf: undefined })));
   const h = html(live({ adPerf: undefined }));
-  ok("🔴 with no ad account connected, spend shows a dash, not $0", v[2] === "&ndash;" && /Shows once your ad account is connected/.test(h));
-  ok("and cost per lead does too", v[3] === "&ndash;");
+  ok("🔴 with no ad account connected, spend says Not yet, never $0", v[2] === "Not yet" && /Shows once your ad account is connected/.test(h));
+  ok("and cost per lead does too", v[3] === "Not yet");
 }
 
 // 2. Who sees it
@@ -98,7 +98,7 @@ const kpiVals = (h) => [...h.matchAll(/<div class="kpi-v[^"]*">([^<]*)<\/div>/g)
   const h = html(live({ leadsLog: [lead(1, { name: "<img src=x onerror=alert(1)>" })] }));
   ok("🔴 a lead's name cannot inject into the page", !h.includes("<img src=x onerror") && h.includes("&lt;img src=x"));
   const results = h.slice(h.indexOf('class="kpis"'), h.indexOf("Campaign Progress"));
-  ok("🔴 no em or en dash in the results a client reads", !/[—–]|&mdash;/.test(results));
+  ok("🔴 no em or en dash in the results a client reads", !/[—–]|&mdash;|&ndash;/.test(results) && !/&ndash;/.test(html(live({ adPerf: undefined })).slice(html(live({ adPerf: undefined })).indexOf("class=\"kpis\""), html(live({ adPerf: undefined })).indexOf("Campaign Progress"))));
   const allowed = new Set(["✓", "✕", "▶", "▾", "▴"]);
   const emoji = [...h].filter((c) => /\p{Extended_Pictographic}/u.test(c) && !allowed.has(c));
   ok("🔴 no emoji anywhere in the portal", emoji.length === 0, emoji.join(" "));

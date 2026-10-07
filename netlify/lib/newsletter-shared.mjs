@@ -10,6 +10,7 @@
 // email-list-newsletter). Until then everything else works: AI drafts, review,
 // scheduling, subscribers, analytics. sendDueNewsletters() no-ops while disabled.
 
+import { EMAIL_SANS, EMAIL_DARK, brandHeaderRow, emailH1 } from "./email-brand.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { humanize } from "./humanize.mjs";
 import { createClient } from "@supabase/supabase-js";
@@ -81,9 +82,9 @@ Write: a subject line (curiosity + value, under 60 chars, no clickbait), a one-l
 // footer (broadcasts need the {{{RESEND_UNSUBSCRIBE_URL}}} tag in the body).
 export function renderNewsletterHTML({ post, preview, paragraphs, ctaText }) {
   const url = `${SITE_URL}/blog/${post.slug}/`;
-  const D = { bg:"#070810", card:"#0C0D18", cardBorder:"rgba(255,255,255,.08)", head:"#F5F3EA", body:"#C6CAE0", faint:"#5A6078" };
-  const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
-  const SERIF = "Georgia,'Times New Roman',serif";
+  // Same header and type as every other BoldLine email (./email-brand.mjs).
+  const D = EMAIL_DARK;
+  const SANS = EMAIL_SANS;
   const paras = (paragraphs || []).map((para) =>
     `<p style="margin:0 0 15px;font-family:${SANS};font-size:15px;line-height:1.65;color:${D.body}">${escapeHTML(para)}</p>`).join("");
   const previewSpan = preview
@@ -94,12 +95,9 @@ ${previewSpan}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${D.bg};padding:28px 12px">
   <tr><td align="center">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%">
-      <tr><td align="center" style="padding:4px 0 22px">
-        <div style="font-family:${SERIF};font-size:22px;font-weight:700;letter-spacing:.04em;color:${GOLD}">BoldLine Media</div>
-        <div style="margin:9px auto 0;height:2px;width:40px;background:${GOLD};opacity:.85"></div>
-      </td></tr>
+      ${brandHeaderRow()}
       <tr><td style="background:${D.card};border:1px solid ${D.cardBorder};border-top:3px solid ${GOLD};border-radius:16px;padding:30px 28px">
-        <h1 style="margin:0 0 16px;font-family:${SERIF};font-size:23px;font-weight:700;line-height:1.3;color:${D.head}">${escapeHTML(post.title)}</h1>
+        ${emailH1(escapeHTML(post.title))}
         ${paras}
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px auto 4px"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${url}" style="display:inline-block;padding:13px 32px;font-family:${SANS};font-size:14px;font-weight:700;color:#15110A;text-decoration:none;border-radius:10px">${escapeHTML(ctaText)} &rarr;</a></td></tr></table>
       </td></tr>
