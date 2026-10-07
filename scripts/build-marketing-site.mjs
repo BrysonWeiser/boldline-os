@@ -226,13 +226,13 @@ ${part("head-top.html").replace("<!--TEST-COPY-GUARD-->", `<script>\n${part("tes
 <meta property="og:title" content="${esc(p.title)}">
 <meta property="og:description" content="${esc(p.desc)}">
 <meta property="og:url" content="${url}">
-<meta property="og:image" content="${SITE}/og-image.jpg">
+<meta property="og:image" content="${SITE}/og-boldline.jpg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${esc(p.title)}">
 <meta name="twitter:description" content="${esc(p.desc)}">
-<meta name="twitter:image" content="${SITE}/og-image.jpg">
+<meta name="twitter:image" content="${SITE}/og-boldline.jpg">
 ${ld}${part("head-assets.html")}<link rel="stylesheet" href="/site.css">
 </head>
 <body class="${p.id === "home" ? "home" : "page"} page-${p.id}">

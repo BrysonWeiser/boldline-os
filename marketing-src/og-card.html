@@ -1,0 +1,43 @@
+<!doctype html>
+<!-- The link preview picture (what iMessage, LinkedIn, Facebook and Slack show when boldlinemedia.com is shared).
+     Rendered to marketing-site/og-boldline.jpg by scripts/build-og-image.cjs. Rename the output when it changes,
+     because apps keep the old picture cached under the old address for weeks. -->
+<html><head><meta charset="utf-8"><style>
+@font-face{font-family:'Inter';font-weight:100 900;src:url('../marketing-site/fonts/inter-latin.woff2') format('woff2')}
+@font-face{font-family:'Playfair Display';font-weight:400 900;src:url('../marketing-site/fonts/playfair-display-latin.woff2') format('woff2')}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1200px;height:630px;overflow:hidden}
+body{position:relative;background:#080A0F;font-family:'Inter',sans-serif;color:#fff}
+body::before{content:"";position:absolute;top:-260px;left:-220px;width:980px;height:760px;background:radial-gradient(ellipse at center,rgba(200,168,75,.26),rgba(200,168,75,.05) 45%,transparent 70%)}
+body::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse at 30% 40%,#000 30%,transparent 75%)}
+.copy{position:absolute;left:64px;top:54px;width:600px;z-index:2}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:17px;letter-spacing:.14em;color:#C8A84B}
+.brand img{width:26px;height:30px}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;margin-top:40px;padding:8px 15px;border:1px solid rgba(200,168,75,.38);border-radius:999px;font-size:13px;font-weight:700;letter-spacing:.12em;color:#C8A84B;background:rgba(200,168,75,.07)}
+.eyebrow i{width:6px;height:6px;border-radius:50%;background:#C8A84B}
+h1{margin-top:22px;font-weight:680;font-size:66px;line-height:.98;letter-spacing:-.045em}
+h1 span{display:block}
+h1 .g{font-family:'Playfair Display',serif;font-style:italic;font-weight:500;letter-spacing:-.02em;padding-bottom:.12em;background:linear-gradient(100deg,#EBD8A0,#C8A84B 45%,#B8923A);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{margin-top:18px;font-size:21px;line-height:1.45;color:#B9B5AC;max-width:560px}
+.url{position:absolute;left:64px;bottom:44px;z-index:2;font-size:17px;font-weight:600;color:#8E8A82;letter-spacing:.02em}
+.visual{position:absolute;right:-40px;top:118px;width:560px;perspective:1600px;z-index:1}
+.browser{border-radius:16px;border:1px solid rgba(255,255,255,.14);overflow:hidden;background:#0B0E15;transform:rotateY(-12deg) rotateX(5deg);transform-origin:70% 50%;box-shadow:0 60px 120px -50px rgba(0,0,0,.95),0 0 90px -20px rgba(200,168,75,.25)}
+.bar{display:flex;align-items:center;gap:6px;padding:10px 13px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.08)}
+.bar i{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.14)}
+.bar span{margin-left:8px;font-size:11px;color:#77736B;background:rgba(255,255,255,.05);border-radius:6px;padding:3px 12px}
+.browser img{display:block;width:100%}
+.phone{position:absolute;left:-46px;bottom:-70px;width:150px;border-radius:22px;padding:5px;background:#0E1118;border:1px solid rgba(255,255,255,.16);box-shadow:0 40px 80px -30px rgba(0,0,0,.95);transform:rotate(-6deg)}
+.phone img{display:block;width:100%;border-radius:17px}
+</style></head><body>
+<div class="copy">
+  <div class="brand"><img src="../marketing-site/logo.png" alt="">BOLDLINE MEDIA</div>
+  <div class="eyebrow"><i></i>GOOGLE ADS, META ADS AND WEBSITES</div>
+  <h1><span>We only earn</span><span>more when your</span><span class="g">phone rings more.</span></h1>
+  <p class="sub">We build and run your Google and Meta ads, and the website they send people to.</p>
+</div>
+<div class="visual">
+  <div class="browser"><div class="bar"><i></i><i></i><i></i><span>yourbusiness.com</span></div><img src="../marketing-site/img/site-hero.jpg" alt=""></div>
+  <div class="phone"><img src="../marketing-site/img/site-phone.jpg" alt=""></div>
+</div>
+<div class="url">boldlinemedia.com</div>
+</body></html>

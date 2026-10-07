@@ -11,6 +11,8 @@
   Cache-Control: public, max-age=2592000
 /og-image.jpg
   Cache-Control: public, max-age=2592000
+/og-boldline.jpg
+  Cache-Control: public, max-age=2592000
 /founder.jpg
   Cache-Control: public, max-age=2592000
 /icon.png
