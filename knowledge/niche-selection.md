@@ -4,8 +4,8 @@ topic: Sales
 task: choose which niche to cold call and sell ads to, and judge whether a new one is worth it
 keywords: [pool construction, pool builder, pool remodel, niche locked, which niche, what industry, cold call niche, saturated niches, med spa, avoid med spas, commercial cleaning, janitorial, artificial turf, pool remodel, audiology, hearing aids, epoxy floors, ABA therapy, foundation repair, commercial landscaping, niche test, job value, pick one niche]
 status: verified
-summary: ✅ LOCKED 2026-09-22: POOL CONSTRUCTION, selling the REMODEL side (closes in weeks, inside the 3-month minimum) and selling BOOKED CONSULTATIONS rather than closed jobs. Do not reopen the choice until 100 calls are done. Original discussion: Bryson, 2026-09-22, the night before his first calling day - "i dont think med spas would be the right one what are some other niches that you know wouldnt be heavily cold called." He is right and the instinct is good. The farmed list is med spa, PI law, roofing, HVAC, dental implants, chiro, solar, real estate agents. The recommended alternatives split three ways: B2B commercial services (the unfarmed twin of every residential trade), high-ticket trades that are not the famous four, and medical-adjacent that is not aesthetics. Top picks for Phoenix: commercial cleaning, artificial turf, pool remodelling, audiology, epoxy floors, ABA therapy. 🔴 The bigger rule is PICK ONE AND STAY ON IT for 100 calls - five niches is five scripts and no compounding.
-verified: 2026-09-22
+summary: 🔴 SUPERSEDED 2026-10-07: Bryson is no longer calling pool companies specifically; he prefers car detailers, handymen and similar service trades (see the section at the end). Old: ✅ LOCKED 2026-09-22: POOL CONSTRUCTION, selling the REMODEL side (closes in weeks, inside the 3-month minimum) and selling BOOKED CONSULTATIONS rather than closed jobs. Do not reopen the choice until 100 calls are done. Original discussion: Bryson, 2026-09-22, the night before his first calling day - "i dont think med spas would be the right one what are some other niches that you know wouldnt be heavily cold called." He is right and the instinct is good. The farmed list is med spa, PI law, roofing, HVAC, dental implants, chiro, solar, real estate agents. The recommended alternatives split three ways: B2B commercial services (the unfarmed twin of every residential trade), high-ticket trades that are not the famous four, and medical-adjacent that is not aesthetics. Top picks for Phoenix: commercial cleaning, artificial turf, pool remodelling, audiology, epoxy floors, ABA therapy. 🔴 The bigger rule is PICK ONE AND STAY ON IT for 100 calls - five niches is five scripts and no compounding.
+verified: 2026-10-07
 ---
 
 **His question (2026-09-22, ~1am Phoenix, calling that morning):** *"for niches i dont think med
@@ -126,3 +126,10 @@ per run). Both are small and both are worth it; neither is an ad budget.
 
 Niche locked 2026-09-22. Own ads paused for the rest of September 2026. **Update this entry with what the first 100 calls actually produced** —
 dials, conversations, meetings booked, meetings that showed.
+
+## 🔴 2026-10-07: pool construction is no longer the focus
+Bryson: *"I'm not specifically calling pool companies anymore. If anything I'd prefer to work with car detailers,
+handymen, etc."* Don't steer him back to pools or build pool-specific pages. The sample website on
+boldlinemedia.com is still a made-up pool company (Saguaro Pool Co.); that is a neutral demo, not a niche choice,
+but a detailer or handyman sample would fit his calls better. The old advice still holds in spirit: whichever trade
+he leads with, one script at a time compounds faster than several at once.
