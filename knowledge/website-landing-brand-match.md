@@ -37,3 +37,14 @@ verified: 2026-10-07
 - The floating bottom bar ("pill"): matches each design's corner shape (editorial square), call button has a phone
   icon and goes icon-only under 380px so the main button never squeezes.
 - Checked at 1440, 390 and 320 with a script that flags a button whose text wraps to a second line or spills out.
+
+## Speed (2026-10-07, measured, LIVE)
+Bryson asked for a speed check after the brand match added web fonts to landing pages. Simulated slow 4G (150ms
+latency, 1.6 Mbps) + 4x slower CPU, a new origin costing ~600ms, median of 3:
+- Landing page, fonts loaded the normal (blocking) way: first paint **~1.04s** vs **~0.35s** before the brand match.
+- Fonts loaded in the background (`media="print" onload="this.media='all'"` + `<noscript>` copy): **~0.37s first
+  paint, ~1.0s main content**. Same fix on client websites: **1.1s → 0.34s** first paint (they had always blocked).
+- Trade-off accepted: text shows in a system font for a moment and swaps when the fonts arrive (it already did after
+  the stylesheet loaded, with `display=swap`).
+- Guarded in verify-brand-match: no Google Fonts stylesheet on a landing page or client website may block the paint.
+- Not done (bigger change, only worth it if real-world numbers say so): serving the fonts from our own domain.

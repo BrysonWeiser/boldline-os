@@ -1375,9 +1375,11 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
   // the gate simply does not match and every element sits at its finished, visible state,
   // which is what rule 1 of the motion block above has always claimed.
   const bodyClass = `lay-${layout} bg-${D.bg} mo-${D.motion} be-${D.benefits} font-${D.font} sh-${D.shape}`;
-  // The website's typefaces and corner shape, so the ad page reads as the same business (see landingTheme).
+  // The website's typefaces and corner shape, so the ad page reads as the same business (see landingTheme). The font
+  // stylesheet loads without holding up the first paint: blocking on it cost about 0.7s on a slow phone (measured
+  // 2026-10-07), on the page the ad money lands on. The text shows in a system font and swaps when the fonts arrive.
   const K = P.kit;
-  const kitHead = K ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${esc(K.fontHref)}">` : "";
+  const kitHead = K ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${esc(K.fontHref)}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${esc(K.fontHref)}"></noscript>` : "";
   const kitCss = K ? `
 body.kit{font-family:${K.body};--r:${K.radius}}
 body.kit .headline,body.kit .sec-t,body.kit .formtitle,body.kit .offer h2,body.kit .form-copy h2,body.kit .bcard h3,body.kit .bnum h3,body.kit .brow h3,body.kit .brandmark,body.kit .faq summary{font-family:${K.display};letter-spacing:-.02em}
