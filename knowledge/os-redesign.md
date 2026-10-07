@@ -104,3 +104,13 @@ bf_lily) and voice BLENDING (mix two style vectors into a voice unique to BoldLi
   One-time model download (~90MB with the int8/q8 model) cached by the browser, then free and offline. Fine on a
   laptop; on iPhone it's heavy (slow first load, slower speech), so phones fall back to the device's Enhanced
   British voice or we pre-render the fixed lines (boot, booking reactions) as audio files. Waiting on his pick.
+
+## Voice round 2 (2026-10-07): Bryson liked #1 (blend A), wanted "slightly deeper, more powerful"
+Same audition URL, version 2. Base = 0.6 Emma + 0.4 Isabella at speed .93 (or .92). Variants:
+- **A**: base, pitch x0.92 (~1.5 semitones down, tempo kept), bass shelf +3dB @140Hz, gentle compression.
+- **B**: base, pitch x0.87 (~2.5 semitones down), same warmth/compression.
+- **C**: 0.85 base + 0.15 bm_george, pitch x0.95. **D**: 0.75 base + 0.25 bm_george, natural pitch.
+- **E**: 0.8 base + 0.2 bm_daniel, pitch x0.94.
+ffmpeg chain: `asetrate=24000*F,aresample=24000,atempo=1/F,bass=g=3:f=140,acompressor=threshold=0.12:ratio=2.5:attack=8:release=120,volume=1.4`.
+In-browser build note: pitch-down + EQ can be done live with the Web Audio API (playbackRate + a lowshelf filter +
+DynamicsCompressor), or bake the chosen style vector and render at a lower pitch.
