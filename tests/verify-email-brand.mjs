@@ -73,6 +73,17 @@ ok("the logo is a real file on the website", /^https:\/\/boldlinemedia\.com\/log
   ok("it uses the same brand-colour rule as the website and landing page", /import \{ brandColorOf \} from "\.\/site-render\.mjs";/.test(src("netlify/lib/report-shared.mjs")));
 }
 
+// 5. The free Lead-Leak Check a PROSPECT receives from the website (found 2026-10-07 in the same sweep)
+{
+  const L = src("netlify/functions/lead-leak-audit-background.mjs");
+  const tpl = L.slice(L.indexOf("const buildEmailHtml"), L.indexOf("// ── One lead, audited and sent"));
+  ok("🔴 the prospect's free-check email has no em dash in its fixed wording", tpl.length > 200 && !/[\u2014\u2013]/.test(tpl));
+  const sys = L.slice(L.indexOf("const buildSystem = () => `"), L.indexOf("`;", L.indexOf("const buildSystem = () => `")));
+  ok("and the prompt that writes it carries none, because a model copies the style it is given", sys.length > 500 && !/[\u2014\u2013]/.test(sys));
+  ok("its output still goes through the dash remover", /humanize\(/.test(L));
+  ok("it uses the shared email shell and type", /import \{ emailShell \} from "\.\.\/lib\/client-emails-shared\.mjs";/.test(L) && /const SANS = EMAIL_SANS;/.test(L));
+}
+
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-email-brand: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);
