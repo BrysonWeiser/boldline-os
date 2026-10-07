@@ -78,6 +78,11 @@ for (const width of WIDTHS) {
     return [...t.children].map((s) => Math.round(s.getBoundingClientRect().height / lh));
   });
   ok(`🔴 ${width}px: the headline sits on three single lines`, lines.length === 3 && lines.every((n) => n === 1), lines.join("/"));
+  // The gold line is painted through its letters (background-clip:text), which cuts off anything below the
+  // line box: the tails of "p" and "g" were sliced off until the line was given room underneath.
+  const room = await page.evaluate(() => { const g = document.querySelector(".h-title .g"), c = getComputedStyle(g);
+    return parseFloat(c.paddingBottom) / parseFloat(c.fontSize); });
+  ok(`${width}px: the gold headline line has room for the tails of its letters`, room >= 0.12, room.toFixed(3));
   const toast = await page.evaluate(() => document.querySelector(".h-visual .float-toast").getBoundingClientRect().height);
   ok(`${width}px: the "New enquiry" bubble is a bubble, not a box over the picture`, toast < 60, `${Math.round(toast)}px tall`);
   await scrollThrough(page);

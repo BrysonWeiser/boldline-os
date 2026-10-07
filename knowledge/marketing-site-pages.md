@@ -70,7 +70,7 @@ for reduced motion and the device isn't on data saver, 2G or under 4GB memory. W
 - Gotchas hit while building: the `.reveal` load animation (`fill: both`) on `.h-visual` silently overrode the
   scroll transform (so nothing moved); `overflow:hidden` on `.h-hero` stopped `position:sticky` (use `clip`);
   the old homepage's `.float-toast{top;right}` in base.css plus the new `left;bottom` stretched the "New enquiry"
-  bubble over the whole picture. All three are pinned by `tests/verify-marketing-motion.mjs` (browser, 4 widths,
+  bubble over the whole picture. Also: the gold gradient line (`background-clip:text`) clipped the tails of "p" and "g" at line-height .98 (Bryson spotted it); fixed with `padding-bottom:.16em;margin-bottom:-.16em` on `.h-title .g`. All of these are pinned by `tests/verify-marketing-motion.mjs` (browser, 4 widths,
   off-switches, every heading fully lit, steps lit, headline on 3 lines; mutation-checked).
 
 ## Hero copy (2026-10-07, proposed, not live)

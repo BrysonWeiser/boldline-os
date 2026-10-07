@@ -17,7 +17,7 @@
 .h-hero::before{content:"";position:absolute;top:-300px;left:-200px;width:1100px;height:800px;background:radial-gradient(ellipse at center,rgba(200,168,75,.2),rgba(200,168,75,.04) 45%,transparent 70%);pointer-events:none}
 .h-grid{display:grid;grid-template-columns:1.12fr 1fr;gap:52px;align-items:center}
 .h-title{font-family:var(--sans);font-weight:680;letter-spacing:-.045em;line-height:.98;font-size:clamp(44px,4.9vw,64px);color:#fff;margin:20px 0 22px}
-.h-title .g{display:block;background:linear-gradient(100deg,#EBD8A0,var(--gold) 45%,#B8923A);-webkit-background-clip:text;background-clip:text;color:transparent;font-family:var(--accent-serif);font-style:italic;font-weight:500;letter-spacing:-.02em}
+.h-title .g{display:block;padding-bottom:.16em;margin-bottom:-.16em;background:linear-gradient(100deg,#EBD8A0,var(--gold) 45%,#B8923A);-webkit-background-clip:text;background-clip:text;color:transparent;font-family:var(--accent-serif);font-style:italic;font-weight:500;letter-spacing:-.02em}
 html.js-tabs .h-title>span{display:block;animation:painIn .7s var(--ease) both;animation-delay:calc(.06s + var(--i,0) * .12s)}
 .h-sub{font-size:clamp(16px,1.5vw,19px);line-height:1.65;color:var(--muted);max-width:540px;margin:0 0 30px}
 .h-sub strong{color:var(--ink);font-weight:600}
