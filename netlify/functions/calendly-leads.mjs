@@ -23,6 +23,7 @@
 //
 // Env: CALENDLY_API_TOKEN (same token the calendar uses), SUPABASE_SERVICE_ROLE_KEY.
 
+import { syncHouseLeads } from "../lib/house-leads-run.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 
@@ -147,6 +148,14 @@ export default async () => {
       added++;
     }
 
+    // 🔴 A BOOKED CALL BUZZES HIS PHONE ON THIS RUN, NOT THE NEXT ONE (2026-10-07). The push is
+    // sent by the house-leads mirror, which also runs every 15 minutes, so a booking could take two
+    // runs (up to half an hour) to reach him. Running the mirror here, only when something new was
+    // saved, sends it now. Same code as the scheduled mirror, so it cannot buzz twice for one lead.
+    if (added) {
+      try { await syncHouseLeads(supabase); }
+      catch (e) { console.error("calendly-leads: could not run the mirror:", e && e.message); }
+    }
     return json({ ok: true, configured: true, scanned: events.length, added, skipped, failed });
   } catch (e) {
     console.error("calendly-leads failed:", e && e.message);

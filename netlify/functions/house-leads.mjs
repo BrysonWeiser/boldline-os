@@ -45,6 +45,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { syncHouseLeads } from "../lib/house-leads-run.mjs";
 import { withFailureAlert } from "../lib/alerts-shared.mjs";
+import { sendPendingAcks } from "../lib/lead-arrival.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -95,7 +96,13 @@ export default withFailureAlert("house-leads", async () => {
     // the same mirror on demand (house-leads-sync) so the My Ads numbers update the moment
     // a lead lands rather than waiting for the next quarter hour. ONE implementation: a
     // second copy here would drift, and the two would disagree about a client's lead count.
-    return json(await syncHouseLeads(supabase, { warn }));
+    const out = await syncHouseLeads(supabase, { warn });
+    // 🔴 The safety net for the instant reply to contact-form enquiries (../lib/lead-arrival.mjs).
+    // The website normally triggers it within seconds; this catches anything that call missed,
+    // within two hours, and never twice. A failure here never costs the mirror its result.
+    try { const a = await sendPendingAcks(supabase); out.acks = a.sent || 0; }
+    catch (e) { console.error("house-leads: instant-reply safety net failed:", e && e.message); }
+    return json(out);
   } catch (e) {
     await warn("the run itself", String((e && e.message) || e));
     return json({ ok: false, error: String((e && e.message) || e), added: 0 });

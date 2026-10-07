@@ -118,20 +118,20 @@ export default async (req) => {
   try { alerted = (await notifyOwnerNewRequest({ website, email, name, phone })) === true; }
   catch (e) { console.error("lead-leak owner alert failed:", e && e.message); }
 
-  // Fire the automated Lead-Leak Check bot (best-effort). It lives on the OS
-  // site as a Netlify *-background* function, so it returns 202 immediately and
-  // does the slow fetch + AI + email work asynchronously — the visitor never
-  // waits on it. Guarded by a shared secret set on both sites; if the secret
-  // isn't set the bot simply doesn't run and the lead is handled manually.
-  if (leadId && process.env.AUDIT_TRIGGER_SECRET) {
+  // 🔴 START THE CHECK FROM THE OS (2026-10-07). This used to call the OS's background function
+  // carrying AUDIT_TRIGGER_SECRET, a password that had to be set identically on both sites, and
+  // when it was not, nothing started. Now it only tells the OS the id of the row it just saved;
+  // the OS buzzes Bryson's phone and starts the report with its own key (lead-arrival.mjs). The
+  // OS's 10-minute sweep is still the safety net.
+  if (leadId) {
     const osOrigin = process.env.OS_ORIGIN || "https://boldlinemedia.netlify.app";
     try {
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 8000);
-      await fetch(`${osOrigin}/.netlify/functions/lead-leak-audit-background`, {
+      const timer = setTimeout(() => ctrl.abort(), 5000);
+      await fetch(`${osOrigin}/.netlify/functions/lead-arrived-background`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ leadId, website, email, name, phone, secret: process.env.AUDIT_TRIGGER_SECRET }),
+        body: JSON.stringify({ leadId }),
         signal: ctrl.signal,
       }).catch(() => {});
       clearTimeout(timer);

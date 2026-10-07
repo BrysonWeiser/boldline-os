@@ -64,8 +64,14 @@ t("🔴 and it runs on a schedule, or it is just another thing nobody calls", ()
 });
 
 t("🔴 ONE implementation, not a second copy of the audit", () => {
-  assert.match(SWEEP, /import \{ auditLead \} from "\.\/lead-leak-audit-background\.mjs";/,
-    "the sweep has its own copy of the audit, which will drift from the one the POST path uses");
+  // 🔴 Since 2026-10-07 the sweep STARTS the background function rather than running the audit
+  // itself: a report takes far longer than the 30 seconds a scheduled function gets, so the
+  // inline call could never finish. It still has no copy of its own.
+  assert.match(SWEEP, /import \{ startAudit \} from "\.\.\/lib\/lead-arrival\.mjs";/,
+    "the sweep does not hand the work to the background function");
+  assert.ok(!/auditLead\(/.test(code(SWEEP)), "the sweep runs the audit inline again, inside a function Netlify stops at 30 seconds");
+  assert.match(BG, /if \(keyOk\(req\.headers\.get\("x-lead-job-key"\)\)\) \{[\s\S]{0,700}await auditLead\(supabase, \{ leadId, website:/,
+    "the OS-started path does not go through the shared function");
   assert.match(BG, /export async function auditLead\(supabase, \{ leadId, website, email, name \}\)/,
     "the audit body is not reachable by a second caller");
   assert.match(BG, /const r = await auditLead\(supabase, \{ leadId, website, email, name: body\.name \}\);/,
@@ -149,12 +155,15 @@ t("🔴 running out of attempts raises an alarm naming the prospect", () => {
   assert.match(SWEEP, /\$\{s\.email\} asked for the free Lead-Leak Check/, "the alert does not say who");
   assert.match(SWEEP, /they have received nothing/, "the alert does not say the prospect is still waiting");
   assert.match(SWEEP, /Reason: \$\{s\.reason\}/, "the alert does not say what went wrong");
+  assert.match(SWEEP, /reason: p\.auditError \|\| "unknown"/, "the reason recorded by the failed attempt is not passed on");
   assert.match(SWEEP, /severity: "red"/, "a prospect getting nothing is filed as a minor note");
 });
 
-t("only a genuinely exhausted lead alerts, not every retry", () => {
-  assert.match(SWEEP, /if \(Number\(r && r\.tries\) >= MAX_AUDIT_TRIES\) \{/,
+t("only a genuinely exhausted lead alerts, not every retry, and only once", () => {
+  assert.match(SWEEP, /if \(Number\(p\.auditTries \|\| 0\) < MAX_AUDIT_TRIES \|\| st === "running"\) continue;/,
     "every transient failure alerts him, which trains him to ignore the alert");
+  assert.match(SWEEP, /p\.stuckAlertedAt\) continue;/, "a stuck lead would page him every ten minutes");
+  assert.match(SWEEP, /stuckAlertedAt: new Date\(now\)\.toISOString\(\)/, "the one-time alert is never recorded");
 });
 
 t("the sweep's own failure is reported too", () => {

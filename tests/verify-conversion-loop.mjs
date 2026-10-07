@@ -420,8 +420,10 @@ const CLIENT = {
   ok("🔴 and the number is tappable in that alert, because he reads it on his phone",
     /href="tel:\$\{esc\(String\((phone|v)\)/.test(fnCode),
     "a number he has to retype is a number that gets called tomorrow instead of now");
-  ok("the audit bot is told the phone too, so the report can use it",
-    /leadId, website, email, name, phone/.test(fnCode));
+  // Since 2026-10-07 the website sends the OS only the lead's id and the OS reads the rest from
+  // the saved row, so the phone has to be ON the row (it is, in the payload).
+  ok("the phone is saved on the lead, where the OS reads it",
+    /payload: \{ website, name, phone, source/.test(fnCode));
 }
 
 // ── The lead card in the OS turns that number into one tap ────────────────────
