@@ -92,3 +92,13 @@ Those are all said elsewhere.
 |---|---|
 | *"Big budget or small, you get the same team and the same effort."* | Not a small-team brag. It answers the fear a $500-a-month advertiser actually has, which is being deprioritised behind bigger accounts. |
 | *"We keep our client roster focused, so we're upfront about fit."* | It is there to justify the niche list that follows it, not to sell a small team. |
+
+## 2026-10-07: quote now mentions websites (Bryson chose it)
+Bryson wanted the quote to include websites. Pushed back first: websites are a flat $1,500 + $100/mo, so folding
+them into "I only make more when..." would be untrue for a website-only client, and the homepage already covers
+websites three times. Offered a version that ties websites to the same goal without claiming results-pay; he picked it:
+> "Most agencies get paid the same whether your phone rings or not. I didn't want to build that. I only make more
+> when your ads do, and the websites I build have the same job: turning a visit into a call."
+Lives in `marketing-src/founder.html` (About) and the homepage strip in `scripts/build-marketing-site.mjs`.
+`verify-site-matches-packages` now also requires every copy of the quote on the site to be word-for-word identical
+(it only ever read the first one, so the About copy was unguarded).
