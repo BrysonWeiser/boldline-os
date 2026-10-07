@@ -77,3 +77,17 @@ Same artifact URL, version 2. Added:
   line; ARIA reacts out loud to each booking.
 - Ideas raised but not built: Stark-style 3D "holotable" map of prospects by city (better fit for Lead Scout), UI sound
   design toggle, personal-best badges, voice notes after a call transcribed by ARIA.
+
+## v4 (2026-10-07): phone layout fix, British female voice, always-on voice answer
+- Phone bug (his screenshot): the ARIA block shrank to a sliver beside the headline (`flex:1` = basis 0 in a wrapping
+  row). Fixed with a real basis and a stacked layout under 820px; call windows scroll sideways on phones.
+- ARIA is **female** ("give her a smart English accent"). Voice picker now prefers the most natural en-GB female voice
+  the device has: Edge "Microsoft Sonia/Libby Online (Natural)", Apple "Enhanced/Premium" (Serena, Kate, Stephanie,
+  Martha), Chrome "Google UK English Female"; rate .97, pitch 1.04; waits for the voice list to load (iPhone loads late).
+- **Always-on voice**: computer Chrome/Edge remembers the mic permission and can listen for "Hey ARIA" the whole time
+  the OS tab is open; iPhone only while the OS is open and on screen (stops on lock or app switch); no web app can
+  listen while closed. Not possible in the private preview (no mic).
+- **Natural voice options put to him (decision pending)**: ElevenLabs (most natural, movie quality, British female
+  voices, about $5/mo starter which covers short daily briefings) or Microsoft Azure neural "Sonia" (very good, free
+  tier covers his use). Either is a small server function calling the service with a key kept in Netlify (setup steps
+  go in the 10pm reminder). The preview can't call outside services, so it can only use device voices.
