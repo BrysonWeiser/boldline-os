@@ -89,6 +89,34 @@ export const DEMO_TINT = {
       seo: { title: "Blackline Tint and Film", description: "Window tint and paint protection film in Tempe." } } },
 };
 
+// Sample LANDING pages (the ads side): what a click on each trade's ad lands on, built by the real landing page
+// renderer from the same made-up businesses. One layout each so the four show the range.
+const asPhotos = (d) => ((d.website && d.website.stock) || []).map((p, i) => ({ category: "photo", url: p.url, label: p.alt, path: `sample-${i}` }));
+const lpFor = (d, layout, page) => ({ ...d, landingSlug: d.id, callTrackingNumber: d.businessPhone, mediaLibrary: asPhotos(d),
+  brandColor: d.website.brandColor, landingPage: { published: true, brandColor: d.website.brandColor, design: { layout }, ...page } });
+export const LANDING_DEMOS = [
+  { slug: "car-detailing", demo: lpFor(DEMO_DETAIL, "split", {
+    eyebrow: "Mobile detailing in Scottsdale", headline: "Showroom shine without leaving your driveway",
+    subheadline: "Hand washes, paint correction and ceramic coating at your home or office. Tell us about your car and get your price today.",
+    ctaText: "Get my price", bullets: ["We come to you, with our own water and power", "Gentle on paint, with clean towels for every car", "Ceramic coatings that keep the shine for years"],
+    faqs: [{ q: "How long does a full detail take?", a: "Most cars take three to four hours." }, { q: "Do you need my water or power?", a: "No. The van carries both." }] }) },
+  { slug: "handyman", demo: lpFor(DEMO_HANDY, "capture", {
+    eyebrow: "Handyman services in Mesa", headline: "Your whole to-do list, done in one visit",
+    subheadline: "Drywall, painting, fixtures and repairs. Send us your list and get one fixed price.",
+    ctaText: "Get my fixed price", bullets: ["One fixed price before we start", "On time, and we call if anything changes", "Clean up included on every job"],
+    faqs: [{ q: "Is there a minimum job size?", a: "One hour. Most visits take care of several jobs at once." }] }) },
+  { slug: "epoxy-floors", demo: lpFor(DEMO_EPOXY, "centered", {
+    eyebrow: "Garage floor coatings in Peoria", headline: "A garage floor you'll actually want to show off",
+    subheadline: "Ground, repaired and coated in a day or two. Book a free measure and get a fixed quote.",
+    ctaText: "Book my free measure", bullets: ["Ground properly so it never peels", "Shrugs off oil, hot tires and Arizona heat", "Fixed quote, measured on site"],
+    faqs: [{ q: "How long before I can park on it?", a: "Light foot traffic the next day, cars after about three days." }] }) },
+  { slug: "window-tint", demo: lpFor(DEMO_TINT, "overlay", {
+    eyebrow: "Tint and paint protection in Tempe", headline: "A cooler car and paint that stays perfect",
+    subheadline: "Ceramic window tint, paint protection film and coatings, installed in a clean bay. Get your quote in one message.",
+    ctaText: "Get my quote", bullets: ["Ceramic tint that blocks the heat you feel", "Film that takes the rock chips, not your paint", "Warranty in writing on film and work"],
+    faqs: [{ q: "How long does paint protection film take?", a: "A full front usually takes one day." }] }) },
+];
+
 // Writes the three designs as HTML into `outDir`, for scripts/build-site-showcase.cjs to photograph.
 export function writeDemoPages(outDir) {
   const base = "https://saguaropools.example";

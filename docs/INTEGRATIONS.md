@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 203 task-keyed entries under `knowledge/`. They surface automatically via the
+> 204 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**203 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**204 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -762,6 +762,9 @@
 - **[arizona-time](../knowledge/arizona-time.md)** &mdash; &#9989; verified &middot; 2026-08-31  
   Bryson is in Phoenix, MST, UTC-7, and Arizona never observes daylight saving, so the offset is 7 hours all year. The session clock is UTC and is already a day ahead of him every evening after 5pm his time, which has caused two real errors. Run `TZ=America/Phoenix date` before writing any time, day name, date or relative day, especially in anything a client or partner reads.  
   <sub>*task:* write any date, time, day name, deadline or scheduled reminder for Bryson &nbsp;|&nbsp; *keywords:* arizona, phoenix, MST, timezone, time zone, UTC, what time is it, today, tomorrow, yesterday, daylight saving, DST, cron, schedule, reminder, routine, trigger, meeting time, availability, day of week, date wrong, off by one day, what day is it, what day is it today, current time, whats the date, clock</sub>
+- **[client-pages-not-boldline-furniture](../knowledge/client-pages-not-boldline-furniture.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  Bryson, 2026-10-07, on the handyman sample landing page - client pages had bits that look like BoldLine's own site and "it feels cheap". He named the little checkmark lines - the hero trust row ("Mesa, AZ ✓ Free quotes Fast response") and the pill row ("✓ Free quote, no obligation"). Both default rows are now gone from every client landing page (a page only shows them if it writes its own, as BoldLine's audience pages do), and the ✓ benefit tiles and photo-badge tick became brand-colour accents. Live 2026-10-07. Pinned in verify-landing-pages.  
+  <sub>*task:* design, build or change a client's landing page or website, add a default trust line, chip, badge or tick row to the landing renderer, or decide what furniture every client page gets &nbsp;|&nbsp; *keywords:* checkmark, check mark, tick, trust row, chip row, chips, free quotes, fast response, free quote no obligation, secure checkout, ships straight to you, feels cheap, client landing page, landing renderer, default furniture, looks like boldline</sub>
 - **[preview-safety](../knowledge/preview-safety.md)** &mdash; &#9989; verified &middot; 2026-09-01  
   Anything the OS renders so Bryson can look at it must be incapable of writing to a client's record, sending to a real person, spending money, or navigating the OS away from itself. Two live bugs of this shape were found in one sitting, one of which recorded a client decision the client never made. Enforced by a manifest test that fails when a new preview is added without a guard.  
   <sub>*task:* add or change any preview, demo, test send or dry run in the OS &nbsp;|&nbsp; *keywords:* preview, iframe, srcdoc, srcDoc, sandbox, allow-forms, allow-scripts, allow-same-origin, BL_PREVIEW, about:srcdoc, phantom lead, fake approval, preview fires for real, dry run, demo mode, test send, landing preview, portal preview, contract preview, email preview, verify-preview-safety</sub>

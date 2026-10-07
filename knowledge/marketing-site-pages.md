@@ -166,3 +166,17 @@ journey plays 0..5 in order at 390/1280 and is tappable tabs with motion off. Fu
   pairs photos with services by position (garage, metallic, flake). Wikimedia/Openverse/StockSnap had nothing usable.
   Bryson then said make it live: the whole evening batch (pricing slider, four trade pages + samples, lead journey,
   comparison page, epoxy renders) merged to main.
+
+## Sample LANDING pages (2026-10-07, dev branch, waiting on "go")
+Bryson: *"Since we have full website previews let's also do landing page previews for the ads side."*
+`/examples/<trade>/landing/` for detailers (split layout), handyman (capture), epoxy (centered), tint (overlay):
+`LANDING_DEMOS` in `scripts/site-showcase-demo.mjs` feeds the four made-up businesses to the REAL
+`renderLandingPage` (netlify/functions/landing.mjs). Same treatment as the sample sites: guard first, "Sample
+landing page" bar (links: Its website / Landing page / Back to the trade page / Book a call), noindex, JSON-LD
+stripped, photos local. The sample websites' bar now flips to their landing page too. Linked from each trade page
+("Or see the landing page we'd send your ads to") and an Ads page gallery ("What your ads land on") whose card
+pictures are `img/sample/lp-<trade>.jpg` from `scripts/build-trade-shots.cjs`. `.hdr` (sticky landing header) is
+pushed below the bar.
+🔴 Real-client bug found and fixed on the way: the OVERLAY layout's `.hero-ovc` set `padding:0 0 8px`, wiping the
+wrap's 20px side padding, so on a phone the headline touched the screen edge on every overlay page. Now
+`padding:0 20px 8px`. `verify-sample-sites` checks the headline margin at 390 on all four layouts (mutation-checked).

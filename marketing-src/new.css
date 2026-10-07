@@ -498,3 +498,18 @@ html.mo .lj-stick{position:sticky;top:0;height:100vh;padding-top:60px}
   .cmp-us .cmp-l{display:none}
 }
 
+
+/* ── Sample landing pages: links and the Ads page gallery ── */
+.tr-lp{display:inline-flex;gap:6px;margin-top:16px;color:var(--gold);font-weight:600;font-size:14px;text-decoration:none}
+.tr-lp span{transition:transform .25s var(--ease)}.tr-lp:hover span{transform:translateX(4px)}
+.lpg-sec{padding-top:40px}
+.lpg-sub{margin:-18px 0 26px;font-size:15px;line-height:1.6;color:var(--muted);max-width:640px}
+.lpg{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.lpg-card{display:block;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:#0D0F16;text-decoration:none;transition:transform .35s var(--ease),border-color .35s ease}
+.lpg-card:hover{transform:translateY(-4px);border-color:var(--gold-line)}
+.lpg-card img{display:block;width:100%;height:auto;aspect-ratio:16/10;object-fit:cover;object-position:top}
+.lpg-txt{padding:14px 16px 16px;display:flex;flex-direction:column;gap:3px}
+.lpg-txt b{color:#fff;font-size:15px;font-weight:650}
+.lpg-txt span{color:var(--faint);font-size:12.5px}
+@media (max-width:1000px){.lpg{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.lpg{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:78%;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:8px}.lpg-card{scroll-snap-align:start}}

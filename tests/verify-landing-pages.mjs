@@ -479,17 +479,30 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     assert.match(h, /class="ann"><b>My bar/);
   });
 
-  t("🔴 and a real client's page still gets every bit of it", () => {
-    // The defaults are unchanged when a page says nothing, so nothing about Stencil & Thread's
-    // page moves. This is the assertion that makes the change safe to ship.
+  t("🔴 and a client's page carries none of BoldLine's checkmark lines", () => {
+    // Bryson, 2026-10-07, on the handyman sample: the "✓ Free quotes" trust row and the
+    // "✓ Free quote, no obligation" chip row made every client's page look like his own site
+    // and "feels cheap". A page that writes no rows of its own now gets none, and its town is
+    // still printed once, in the footer.
     const cli = { id: "c", name: "Stencil & Thread", landingSlug: "st", leadToken: "T",
+      callTrackingNumber: "(541) 555-0199",
       campaignSetup: { serviceArea: "Eugene, OR", mainOffer: "25+ piece orders" },
-      landingPage: { headline: "S", ctaText: "Q", published: true } };
-    const h = renderLandingPage(cli);
-    assert.match(h, /Free quotes/);
-    assert.match(h, /Free quote, no obligation/);
-    assert.match(h, /Serving Eugene, OR/);
-    assert.match(h, /class="ann"><b>25\+ piece orders/);
+      brandVoice: { differentiator: "Family run since 1998" },
+      landingPage: { headline: "S", ctaText: "Q", published: true, heroUrl: "https://img.example/a.jpg", bullets: ["Fast: same week", "Local: we live here"] } };
+    for (const storeUrl of ["", "https://shop.example/x"]) for (const benefits of ["cards", "list"]) {
+      const h = renderLandingPage({ ...cli, storeUrl, landingPage: { ...cli.landingPage, design: { benefits, layout: "split" } } });
+      assert.ok(/class="bico"/.test(h) && (storeUrl || /class="bdot"/.test(h)), "the fixture no longer renders the benefit tiles or the photo badge, so this pins nothing");
+      assert.ok(!/<div class="trust an"/.test(h), "the hero trust row is back");
+      assert.ok(!/<div class="chips">/.test(h), "the chip row is back");
+      // Not just the rows: the benefit tiles and the photo badge used to carry a ✓ too.
+      assert.ok(!/&#10003;|\u2713/.test(h.replace(/<style>[\s\S]*?<\/style>/, "")),
+        "a checkmark is back somewhere on the page");
+      for (const line of ["Free quotes", "Free quote, no obligation", "Fast response",
+                          "Ships straight to you", "Cancel any time", "Secure checkout", "Questions? Call us"])
+        assert.ok(!h.includes(line), `"${line}" is back on a client's page`);
+      assert.match(h, /<footer class="foot">[^]*?Serving Eugene, OR/);
+    }
+    assert.match(renderLandingPage(cli), /class="ann"><b>25\+ piece orders/);
   });
 
   // ── 7d. 🔴 NOTHING IS SAID TWICE ───────────────────────────────────────────
@@ -508,13 +521,16 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     .replace(/^\s*serving\s+/, "").replace(/[^a-z0-9]+/g, " ").trim();
 
   t("🔴 a client's town is not printed in two rows at once", () => {
+    // A page writing both rows itself still gets the de-dup between them.
     const h = renderLandingPage({ id: "c", name: "S&T", landingSlug: "st", leadToken: "T",
       callTrackingNumber: "(541) 555-0199", campaignSetup: { serviceArea: "Eugene, OR" },
-      landingPage: { headline: "S", ctaText: "Q", published: true, bullets: ["Free digital proof"] } });
+      landingPage: { headline: "S", ctaText: "Q", published: true, bullets: ["Free digital proof"],
+        trust: ["Eugene, OR", "Family run"], chips: ["Serving Eugene, OR", "Free digital proof", "Same week"] } });
     const { trust, chips } = rowsOf(h);
     const both = trust.map(norm).filter((k) => chips.map(norm).includes(k));
     assert.deepEqual(both, [], `said in both rows: ${both.join(", ")}`);
     assert.ok(trust.map(norm).includes("eugene or"), "the town vanished entirely, which is the other failure");
+    assert.deepEqual(chips, ["Same week"], "a chip repeating the town or a bullet survived");
   });
 
   t("🔴 nothing in either row repeats a benefit bullet", () => {
@@ -545,7 +561,8 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     // printing one twice, so "Free quotes" and "Free quote, no obligation" both survive.
     const h = renderLandingPage({ id: "c", name: "S&T", landingSlug: "st", leadToken: "T",
       campaignSetup: { serviceArea: "Eugene, OR" },
-      landingPage: { headline: "S", ctaText: "Q", published: true, bullets: ["x"] } });
+      landingPage: { headline: "S", ctaText: "Q", published: true, bullets: ["x"],
+        trust: ["Free quotes"], chips: ["Free quote, no obligation"] } });
     assert.match(h, /Free quotes/);
     assert.match(h, /Free quote, no obligation/);
   });

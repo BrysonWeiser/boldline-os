@@ -229,7 +229,7 @@ for (const [label, html] of shopPages) {
 for (const layout of LAYOUTS) {
   const html = renderLandingPage(base({}, { layout }));
   ok(`the ${layout} lead page still has its form`, /<form\b/i.test(html));
-  ok(`the ${layout} lead page still asks for a quote`, /Free quote|Free quotes/.test(html));
+  ok(`the ${layout} lead page still asks for a quote`, /free quote/i.test(html));
   ok(`the ${layout} lead page has no store markup`, !/data-store/.test(html));
   ok(`the ${layout} lead page ships no forwarding script`, !/var SF = /.test(html));
 }
@@ -258,8 +258,8 @@ ok("Bryson can set it from the client's edit sheet", /set\("storeUrl", tidyField
 {
   const html = renderLandingPage(base({ storeUrl: SHOP }));
   const quoteWords = (h) => QUOTE_WORDS.test(h);
-  ok("caught: the trust row keeps its lead-gen wording",
-    quoteWords(html.replace("Ships straight to you", "Free quote, no obligation")));
+  ok("caught: the button keeps its lead-gen wording",
+    quoteWords(html.replace("Shop Now", "Get My Free Quote")));
   ok("caught: the form comes back", /<form\b/i.test(html.replace("<footer", "<form></form><footer")));
   ok("caught: every button loses its store marker",
     [...html.replaceAll(' data-store="1"', "").matchAll(/href="([^"]*)"[^>]*data-store="1"/g)].length === 0);

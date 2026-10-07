@@ -10,7 +10,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
-import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT } from "./site-showcase-demo.mjs";
+import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
+import { renderLandingPage } from "../netlify/functions/landing.mjs";
 import { PACKAGES, WEBSITE_OFFER } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -127,7 +128,8 @@ const TRADES = [
 const tradePage = (t) => `
 <section class="page-hero tr-hero"><div class="wrap-x tr-grid">
   <div class="reveal"><div class="eyebrow">For ${t.label.toLowerCase()}</div><h1>${t.h1}</h1><p>${t.sub}</p>
-    <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/examples/${t.sample}/">See a sample ${t.sampleLabel} site</a></div></div>
+    <div class="hero-ctas">${book()}<a class="btn btn-ghost" href="/examples/${t.sample}/">See a sample ${t.sampleLabel} site</a></div>
+    <a class="tr-lp" href="/examples/${t.sample}/landing/">Or see the landing page we'd send your ads to <span>&rarr;</span></a></div>
   <a class="tr-shot reveal" href="/examples/${t.sample}/" aria-label="Open the sample site"><img src="${t.photo}" width="1600" height="1067" alt="" loading="eager" decoding="async"><span class="tr-badge">Sample site <i>&rarr;</i></span></a>
 </div></section>
 
@@ -199,6 +201,15 @@ const comparePage = () => `
   <p class="cmp-foot reveal">Agencies vary, so ask yours. Everything on the BoldLine side is how we work with every client.</p>
 </div></section>
 ${ctaBand("See if we're a fit.", "A 30 minute call. If we don't think we can make your ads pay, we'll tell you.")}
+`;
+
+// Ads page: what the ads land on. One card per sample landing page (pictures by scripts/build-trade-shots.cjs).
+const lpGallery = () => `
+<section class="x-sec lpg-sec"><div class="wrap-x">
+  <div class="x-head reveal"><div><div class="eyebrow">What your ads land on</div><h2>A page built for the click, not your homepage.</h2></div></div>
+  <p class="lpg-sub reveal">Every plan includes a landing page like these. Tap one to try it. They're samples for made-up businesses, so the forms don't send.</p>
+  <div class="lpg reveal">${LANDING_DEMOS.map((l) => { const t = TRADES.find((x) => x.slug === l.slug); return `<a class="lpg-card" href="/examples/${l.slug}/landing/"><img src="/img/sample/lp-${l.slug}.jpg" width="1280" height="800" alt="" loading="lazy" decoding="async"><div class="lpg-txt"><b>${t ? t.label : l.demo.name}</b><span>${l.demo.name}</span></div></a>`; }).join("")}</div>
+</div></section>
 `;
 
 const pageHero = (eyebrow, h1, sub, ctas = "") => `
@@ -294,7 +305,7 @@ const PAGES = [
     title: "Google and Meta Ads Management | BoldLine Media",
     desc: "Campaigns built to find buyers, every lead tied to the ad that caused it, and reporting in plain English. You own your ad account.",
     body: pageHero("Google and Meta ads", "Ads that <em>pay for themselves.</em>", "We plan, build and run your Google and Meta ads and the landing pages behind them. Every call and form is tracked back to the ad that caused it, so you always know what's working.", `${book()}<a class="btn btn-ghost" href="/pricing/">See pricing</a>`)
-      + part("journey.html") + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
+      + part("journey.html") + lpGallery() + part("system.html") + part("showcase.html") + part("included.html") + ctaBand(), ld: ["ld-org.html", "ld-service.html"] },
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
@@ -467,7 +478,9 @@ function samplePage(sm, page) {
     if (!f) throw new Error(`sample photo ${id} is not in marketing-site/img/sample/`);
     return `/img/sample/${f}`;
   });
-  const designs = sm.switcher ? THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("") : "";
+  const hasLanding = LANDING_DEMOS.some((l) => l.slug === sm.slug);
+  const designs = sm.switcher ? THEME_IDS.map((t) => `<a href="/examples/${t}/${page.path ? page.path + "/" : ""}"${t === sm.theme ? ' aria-current="page"' : ""}>${SITE_THEMES[t].label}</a>`).join("")
+    : hasLanding ? `<a aria-current="page" href="/examples/${sm.slug}/">Its website</a><a href="/examples/${sm.slug}/landing/">Landing page</a>` : "";
   const bar = part("sample-bar.html").replace("{{DESIGNS}}", designs).replace("{{NAME}}", sm.demo.name).replace('href="/websites/"', `href="${sm.back}"`)
     .replace('<nav class="bl-designs" aria-label="Designs"></nav>', '<span class="bl-spacer"></span>');
   html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
@@ -475,11 +488,35 @@ function samplePage(sm, page) {
   return html;
 }
 export const SAMPLE_FILES = SAMPLES.flatMap((sm) => SAMPLE_PAGES.map((p) => samplePath(sm.slug, p)));
+// Sample LANDING pages: what a click on each trade's ad lands on, built by the real landing page renderer. Same
+// guard and bar as the sample websites; the bar links across to that business's full sample website.
+const localPhotos = (html) => html.split(SAMPLE_ORIGIN + "/img/").join("/img/")
+  .replace(/https:\/\/images\.pexels\.com\/photos\/(\d+)\/pexels-photo-\d+\.jpeg[^"'\s)]*/g, (m, id) => {
+    const f = SAMPLE_PHOTOS.find((n) => n.endsWith(`-${id}.jpg`));
+    if (!f) throw new Error(`sample photo ${id} is not in marketing-site/img/sample/`);
+    return `/img/sample/${f}`;
+  });
+const landingPath = (slug) => `examples/${slug}/landing/index.html`;
+function landingSample(l) {
+  let html = localPhotos(renderLandingPage(l.demo));
+  html = html.replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "");
+  if (!/<meta name="robots"/i.test(html)) html = html.replace(/<\/head>/i, '<meta name="robots" content="noindex"></head>');
+  const bar = part("sample-bar.html").replace("{{NAME}}", l.demo.name)
+    .replace("<b><span class=\"bl-w\">Sample site</span><span class=\"bl-n\">Sample</span></b>", "<b><span class=\"bl-w\">Sample landing page</span><span class=\"bl-n\">Sample</span></b>")
+    .replace('<nav class="bl-designs" aria-label="Designs">{{DESIGNS}}</nav>', `<nav class="bl-designs" aria-label="More from this sample"><a href="/examples/${l.slug}/">Its website</a><a aria-current="page" href="/examples/${l.slug}/landing/">Landing page</a></nav>`)
+    .replace('href="/websites/"', `href="/industries/${l.slug}/"`);
+  html = html.replace(/<meta charset="utf-8">/i, (m) => `${m}<script>\n${part("sample-guard.js")}</script>`);
+  html = html.replace(/<body([^>]*)>/i, (m) => `${m}\n${bar}`);
+  return html;
+}
+export const LANDING_FILES = LANDING_DEMOS.map((l) => landingPath(l.slug));
+
 
 // test-copy.js is the same guard for the hand-written pages (privacy, terms, 404, the blog), loaded as the
 // first script in their <head> so it runs before anything that could send.
 const outputs = { "site.css": part("base.css") + part("new.css"), "site.js": part("site.js"), "test-copy.js": part("test-copy-guard.js") };
 for (const sm of SAMPLES) for (const p of SAMPLE_PAGES) outputs[samplePath(sm.slug, p)] = samplePage(sm, p);
+for (const l of LANDING_DEMOS) outputs[landingPath(l.slug)] = landingSample(l);
 for (const p of PAGES) outputs[p.file] = render(p);
 
 // Run directly it writes (or with --check, compares); imported (by the tests) it only hands back what it

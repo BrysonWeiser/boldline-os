@@ -1,0 +1,546 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><script>
+/* Sample site guard. These pages show a made-up business, so nothing on them may reach anything real:
+   no form is sent, no enquiry is created, no visit is counted. Runs before anything else on the page. */
+(function(){
+  window.__SAMPLE_SITE=true;
+  var real=window.fetch;
+  window.fetch=function(u,o){var m=String((o&&o.method)||'GET').toUpperCase();
+    if(m!=='GET'&&m!=='HEAD'){return Promise.resolve(new Response('{"ok":true,"sample":true}',{status:200,headers:{'content-type':'application/json'}}));}
+    return real.apply(this,arguments);};
+  if(navigator.sendBeacon){navigator.sendBeacon=function(){return true;};}
+  document.addEventListener('submit',function(e){
+    e.preventDefault();e.stopImmediatePropagation();
+    var f=e.target;if(!f||f.querySelector('.bl-note'))return;
+    var n=document.createElement('p');n.className='bl-note';n.setAttribute('role','status');
+    n.textContent="This is a sample website, so this form doesn't send anything. On your site, every enquiry comes straight to you.";
+    f.appendChild(n);
+  },true);
+})();
+</script><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>Showroom shine without leaving your driveway | Northline Auto Detailing</title><meta name="description" content="Hand washes, paint correction and ceramic coating at your home or office. Tell us about your car and get your price today."><meta property="og:title" content="Showroom shine without leaving your driveway | Northline Auto Detailing"><meta property="og:description" content="Hand washes, paint correction and ceramic coating at your home or office. Tell us about your car and get your price today."><meta property="og:image" content="/img/sample/detail-6873123.jpg"><style>
+*{box-sizing:border-box;margin:0;padding:0}img{max-width:100%;display:block}
+:root{--r:18px}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:#ffffff;color:#1F2937;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;--rv:20px}
+.sh-soft{--r:12px}.sh-sharp{--r:6px}
+/* EVERYTHING MOVES UP OR DOWN. Bryson, 2026-09-02: "make sure the animations are for up
+   and down". The old vocabulary had a sideways slide and a zoom in it; both are gone. The
+   three remaining feels are all vertical, which is what keeps the three page options
+   visibly different from each other without anything sliding in from the edge.
+   up   = content rises into place (the body default).
+   down = content settles down into place.
+   alt  = they alternate, so a row arrives from both directions at once. */
+.mo-down{--rv:-22px}
+.mo-alt .reveal:nth-child(even){--rv:-22px}
+a{color:inherit}
+.wrap{max-width:1140px;margin:0 auto;padding:0 20px}
+/* header */
+.hdr{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.2) blur(10px);-webkit-backdrop-filter:saturate(1.2) blur(10px);border-bottom:1px solid #EEF0F4}
+.hdr .wrap{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px}
+.brandmark{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15.5px;color:#0F172A}
+.dot{width:10px;height:10px;border-radius:3px;background:#c7362f;box-shadow:0 0 0 4px rgba(199,54,47,.16)}
+.blogo{height:30px;width:auto;max-width:180px;object-fit:contain;display:block}
+/* reviews */
+.revs{display:grid;gap:14px;grid-template-columns:1fr}
+.rev{background:#ffffff;border:1px solid #E9ECF1;border-radius:var(--r);padding:22px 20px}
+.rev .stars{color:#c7362f;font-size:13px;letter-spacing:2px;margin-bottom:9px}
+.rev p{font-size:14.5px;color:#1F2937;margin-bottom:12px;line-height:1.6}
+.rev .who{font-size:13px;font-weight:700;color:#5B6472}
+/* faq */
+.faqwrap{max-width:760px;margin:0 auto;display:grid;gap:10px}
+.faq{background:#ffffff;border:1px solid #E9ECF1;border-radius:var(--r);padding:0 18px}
+.faq summary{cursor:pointer;list-style:none;padding:16px 0;font-weight:700;font-size:15px;color:#0F172A;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:#c7362f;font-size:22px;font-weight:800;line-height:1}
+.faq[open] summary::after{content:"+"}
+.faq p{padding:0 0 16px;font-size:14px;color:#5B6472;line-height:1.6}
+.hdr-cta{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;color:#c7362f;text-decoration:none;border:1px solid rgba(199,54,47,.16);border-radius:999px;padding:7px 14px;background:rgba(199,54,47,.16)}
+.ann{background:#2c0c0a;color:#fff;text-align:center;font-size:13px;font-weight:600;padding:9px 16px}
+.ann b{font-weight:800}
+/* hero base */
+.hero{position:relative;overflow:hidden;padding:44px 0 40px}
+.hero .wrap{position:relative;z-index:2}
+.hero-g{display:grid;gap:30px;align-items:center}
+.hero-c{max-width:760px;margin:0 auto;text-align:center}
+.hero-c .ctarow,.hero-c .trust{justify-content:center}
+.hero-c .subhead{margin-left:auto;margin-right:auto}
+.heroband{margin-top:30px;border-radius:var(--r);overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.28)}
+.heroband img{width:100%;max-height:460px;object-fit:cover}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#c7362f;background:rgba(199,54,47,.16);border:1px solid rgba(199,54,47,.16);padding:6px 12px;border-radius:999px;margin-bottom:16px}
+.headline{font-size:clamp(30px,5.4vw,50px);font-weight:850;color:#0F172A;line-height:1.08;letter-spacing:-.02em;margin-bottom:14px}
+.subhead{font-size:clamp(15.5px,2vw,19px);color:#5B6472;margin-bottom:24px;max-width:54ch}
+.ctarow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.cta{position:relative;display:inline-flex;align-items:center;gap:9px;padding:15px 28px;font-size:16px;font-weight:800;border-radius:var(--r);border:none;background:#c7362f;color:#ffffff;cursor:pointer;text-decoration:none;box-shadow:0 10px 26px rgba(199,54,47,.12);transition:transform .18s ease,box-shadow .18s ease}
+.cta:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(199,54,47,.26)}
+.cta.ghost{background:transparent;color:#1F2937;border:1px solid #E9ECF1;box-shadow:none}
+.cta.ghost:hover{border-color:#c7362f;color:#c7362f}
+.trust{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:20px;font-size:13px;color:#5B6472}
+.trust b{color:#1F2937}
+.hero-media{position:relative}
+.heroimg{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:var(--r);box-shadow:0 30px 60px rgba(0,0,0,.30)}
+.hero-media .badge{position:absolute;left:16px;bottom:16px;background:#ffffff;color:#1F2937;border:1px solid #E9ECF1;border-radius:14px;padding:11px 14px;box-shadow:0 12px 30px rgba(0,0,0,.22);font-size:13px;font-weight:700;display:flex;align-items:center;gap:9px}
+.badge .bdot{width:8px;height:8px;border-radius:50%;background:#c7362f;flex-shrink:0}
+.hero-form{position:relative;z-index:2}.hero-form .fcard{box-shadow:0 24px 60px rgba(0,0,0,.22)}
+/* hero background treatments */
+.hero::before,.hero::after{content:"";position:absolute;pointer-events:none}
+.bg-glowgrid .hero::before{inset:-30% -10% auto -10%;height:120%;background:radial-gradient(60% 60% at 20% 20%,rgba(199,54,47,.26),transparent 60%),radial-gradient(50% 50% at 92% 8%,rgba(199,54,47,.12),transparent 55%)}
+.bg-glowgrid .hero::after{inset:0;background-image:linear-gradient(rgba(15,23,42,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,.05) 1px,transparent 1px);background-size:34px 34px;-webkit-mask-image:radial-gradient(80% 70% at 50% 30%,#000,transparent 75%);mask-image:radial-gradient(80% 70% at 50% 30%,#000,transparent 75%)}
+.bg-mesh .hero::before{inset:-40% -20%;height:150%;background:radial-gradient(40% 40% at 15% 25%,rgba(199,54,47,.26),transparent 60%),radial-gradient(35% 35% at 85% 15%,rgba(199,54,47,.12),transparent 60%),radial-gradient(45% 45% at 70% 90%,rgba(199,54,47,.12),transparent 60%)}
+.bg-dots .hero::before{inset:0;background:radial-gradient(60% 60% at 80% 10%,rgba(199,54,47,.12),transparent 60%)}
+.bg-dots .hero::after{inset:0;background-image:radial-gradient(rgba(15,23,42,.05) 1.4px,transparent 1.4px);background-size:22px 22px;-webkit-mask-image:radial-gradient(90% 80% at 50% 25%,#000,transparent 78%);mask-image:radial-gradient(90% 80% at 50% 25%,#000,transparent 78%)}
+.bg-clean .hero::before{inset:0;background:linear-gradient(180deg,rgba(199,54,47,.16),transparent 55%)}
+/* overlay hero */
+.hero-ov{padding:0;min-height:520px;display:flex;align-items:flex-end;background-image:var(--heroimg);background-size:cover;background-position:center}
+.hero-ov::before,.hero-ov::after{display:none}
+.hero-ov .hero-ovc{position:relative;z-index:2;color:#fff;padding:0 20px 8px;max-width:640px}
+.hero-ov .headline{color:#fff}.hero-ov .subhead{color:rgba(255,255,255,.9)}
+.hero-ov .cta.ghost{color:#fff;border-color:rgba(255,255,255,.5)}
+.hero-ov .trust{color:rgba(255,255,255,.9)}.hero-ov .trust b{color:#fff}
+.hero-ov-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15),rgba(0,0,0,.78));z-index:1}
+.hero-ov .wrap{padding-top:70px;padding-bottom:44px}
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:10px;padding:20px 0}
+.lay-centered .chips{justify-content:center}
+.chip{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#374151;background:#F8F9FB;border:1px solid #E9ECF1;border-radius:999px;padding:9px 15px}
+/* sections */
+.sec{padding:52px 0}
+.sec.alt{background:#F8F9FB}
+.sec-head{max-width:640px;margin:0 auto 30px;text-align:center}
+.sec-k{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#c7362f;margin-bottom:8px}
+.sec-t{font-size:clamp(23px,3.2vw,32px);font-weight:850;letter-spacing:-.01em;color:#0F172A}
+/* benefits: cards */
+.bene{display:grid;gap:14px;grid-template-columns:1fr}
+.bcard{background:#ffffff;border:1px solid #E9ECF1;border-radius:var(--r);padding:22px 20px;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.bcard:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.14);border-color:rgba(199,54,47,.16)}
+.bico{width:28px;height:3px;border-radius:2px;background:#c7362f;margin-bottom:16px;transform-origin:0 50%}
+.bcard h3,.brow h3,.bnum h3{font-size:16px;font-weight:750;color:#0F172A;margin-bottom:5px}
+.bcard p,.brow p,.bnum p{font-size:13.5px;color:#5B6472}
+/* benefits: list */
+.belist{max-width:760px;margin:0 auto;display:grid;gap:2px}
+.brow{display:flex;gap:16px;align-items:flex-start;padding:18px 6px;border-bottom:1px solid #EEF0F4}
+.brow .bico{width:3px;height:22px;margin:2px 0 0;flex-shrink:0;transform-origin:50% 0}
+/* benefits: numbered */
+.benum{display:grid;gap:22px;grid-template-columns:1fr}
+.bnum{display:flex;gap:16px;align-items:flex-start}
+.bnum .bn{font-size:34px;font-weight:900;line-height:1;color:#c7362f;opacity:.5;flex-shrink:0;width:46px}
+/* steps */
+.steps{display:grid;gap:16px;grid-template-columns:1fr}
+.step{position:relative;background:#ffffff;border:1px solid #E9ECF1;border-radius:var(--r);padding:22px 20px 20px}
+.step .num{width:34px;height:34px;border-radius:10px;background:#c7362f;color:#ffffff;font-weight:800;display:flex;align-items:center;justify-content:center;margin-bottom:12px}
+.step h3{font-size:15.5px;font-weight:750;color:#0F172A}
+/* gallery */
+/* The gallery follows its own count, same reason the benefits do: four photos
+   gave three across and one stranded underneath. */
+.gal{display:grid;gap:12px;grid-template-columns:1fr 1fr}
+.gal.g1{grid-template-columns:1fr}
+/* A LONE PHOTO ON THE LAST ROW SITS IN THE MIDDLE, NOT OFF TO THE LEFT.
+   Bryson, 2026-09-02, with a screenshot of Stencil and Thread's three shirts:
+   *"make sure when there is 3 images the one one the bottom is in the middle and
+   everything is uniform and formatted."* Two on top, the third hard against the left
+   edge with a hole beside it, which reads as a page that broke rather than a page
+   with three photos.
+   The gallery is the ONLY grid on this page with a two-column base, so it is the only
+   one where an odd count strands an item on a phone. The benefits, steps and reviews
+   all stack single-column at this width and cannot.
+   Centred at exactly one column wide, so it stays the same size as the two above it
+   rather than stretching to fill the row, which would be a different kind of wrong. */
+.gal.g3>:last-child,.gal.g5>:last-child{grid-column:1/-1;justify-self:center;width:calc(50% - 6px)}
+.gitem{overflow:hidden;border-radius:var(--r);background:#F8F9FB}
+.gal{align-items:start}.gitem img{width:100%;height:auto;display:block;transition:transform .5s ease}.gal.uni .gitem img{aspect-ratio:var(--galr);object-fit:cover}
+.gitem:hover img{transform:scale(1.06)}
+/* offer */
+.offer{position:relative;overflow:hidden;background:linear-gradient(135deg, #d3625d, #c7362f 55%, #2c0c0a);border-radius:calc(var(--r) + 4px);padding:40px 26px;text-align:center;color:#fff}
+.offer::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);background-size:30px 30px;-webkit-mask-image:radial-gradient(70% 100% at 50% 0,#000,transparent);mask-image:radial-gradient(70% 100% at 50% 0,#000,transparent);opacity:.6}
+.offer>*{position:relative;z-index:1}
+.offer .ok{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.9;margin-bottom:10px}
+.offer h2{font-size:clamp(22px,3vw,30px);font-weight:850;margin-bottom:20px}
+.offer .cta{background:#fff;color:#111;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+/* form */
+.formsec{background:#F5F7FA;padding:56px 0 64px}
+.form-g{display:grid;gap:28px;grid-template-columns:1fr;align-items:start}
+.form-copy h2{font-size:clamp(22px,3vw,30px);font-weight:850;color:#0F172A;margin-bottom:12px;letter-spacing:-.01em}
+.form-copy p{font-size:15px;color:#5B6472;margin-bottom:18px}
+.rlist{list-style:none;display:grid;gap:12px}
+.rlist li{display:flex;gap:11px;align-items:flex-start;font-size:14.5px;color:#1F2937}
+.rlist .rk{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:rgba(199,54,47,.16);color:#c7362f;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.fcard{background:#ffffff;border:1px solid #E9ECF1;border-radius:var(--r);padding:28px 24px;box-shadow:0 20px 50px rgba(0,0,0,.12)}
+.formtitle{font-size:21px;font-weight:850;margin-bottom:4px;color:#0F172A}
+.formsub{font-size:13.5px;color:#5B6472;margin-bottom:18px}
+.inp{width:100%;padding:14px 15px;border:1px solid #E2E6EC;border-radius:calc(var(--r) - 4px);font-size:15px;margin-bottom:11px;font-family:inherit;background:#ffffff;color:#111827;transition:border-color .15s ease,box-shadow .15s ease}
+.inp:focus{outline:none;border-color:#c7362f;box-shadow:0 0 0 3px rgba(199,54,47,.16)}
+.inp::placeholder{color:#9CA3AF}
+.fine{font-size:12px;color:#5B6472;text-align:center;margin-top:10px}
+/* Consent. Left aligned and full width on purpose: a centred wall of small print reads as
+   decoration, and this is the text that has to be legible if anyone ever asks what the
+   visitor agreed to. Generous tap target on the box itself for phones. */
+/* THE CONSENT BLOCK NEEDS AIR ON BOTH SIDES, AND THE SIDE THAT MATTERS IS THE BOTTOM.
+   Shipped first with only a top margin, which left the second checkbox sitting flush against
+   the submit button (Bryson, 2026-09-01: "the check boxes are to close to the get my free
+   quote button"). Two problems with that, and the second is the real one: it reads as clutter,
+   and a tick box a few pixels above the thing someone is about to tap is a mis-tap waiting to
+   happen. Ticking a consent box by accident is not a cosmetic bug.
+   Spacing lives on the wrapper so the gap before the button is one number, not a guess about
+   which element happens to follow (the two form variants differ: one has an error row next). */
+.consbox{margin:16px 0 20px}
+.cons{display:flex;align-items:flex-start;gap:9px;margin-top:11px;text-align:left}
+.cons:first-child{margin-top:0}
+.cons input{width:18px;height:18px;min-width:18px;margin:1px 0 0;accent-color:#c7362f;cursor:pointer}
+.cons label{font-size:12px;line-height:1.5;color:#5B6472;cursor:pointer}
+.cons label b{color:#1F2937;font-weight:600}
+/* The texting box is the one that gates the instant reply, so it must not look like the
+   optional one beside it. Registered consent wording runs long, so it gets real line height. */
+.cons-main label{font-size:13px;color:#1F2937;line-height:1.55}
+.cons-main input{width:20px;height:20px;min-width:20px}
+/* The policy links have to be visibly links. A carrier or a reviewer looking for them should
+   not have to hunt, and underlined-on-a-muted-line is the convention people already read. */
+.cons label a{color:#1F2937;text-decoration:underline}
+.err{display:none;font-size:12.5px;color:#F87171;margin-bottom:10px;text-align:center}
+.thanks{display:none;text-align:center;padding:22px 6px}
+.thanks h2{font-size:20px;margin-bottom:6px;color:#0F172A}.thanks p{font-size:14px;color:#5B6472}
+/* sticky mobile cta */
+.mcta{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;gap:10px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid #EEF0F4}
+.mcta a{flex:1;text-align:center;padding:13px;border-radius:12px;font-weight:800;font-size:14.5px;text-decoration:none}
+.mcta .call{border:1px solid #E9ECF1;color:#1F2937}
+.mcta .quote{background:#c7362f;color:#ffffff}
+.foot{padding:30px 0 34px;text-align:center;font-size:13px;color:#6B7280;border-top:1px solid #EEF0F4}
+.foot a{color:#1F2937;font-weight:700;text-decoration:none}
+/* typography moods */
+.font-elegant .headline,.font-elegant .sec-t,.font-elegant .formtitle,.font-elegant .offer h2,.font-elegant .form-copy h2,.font-elegant .bcard h3,.font-elegant .bnum h3,.font-elegant .brow h3{font-family:Georgia,'Times New Roman',serif;font-weight:700;letter-spacing:-.005em}
+.font-bold .headline,.font-bold .sec-t,.font-bold .offer h2,.font-bold .form-copy h2{font-weight:900;letter-spacing:-.03em}
+/* ── reveal / motion ─────────────────────────────────────────────────────────
+   Bryson, 2026-09-02: "can we also add micro animations so they dont feel stale
+   (do this for every one)". Two rules govern everything in this block, and both
+   exist because of failures this project has already had.
+
+   1. NOTHING HERE IS LOAD-BEARING. Every element's resting state is its
+      finished, visible state, and motion is only ever layered on top. So a page
+      with JavaScript off, a page whose animation never fires, and a visitor whose
+      system asks for reduced motion all render COMPLETE. The one exception is
+      .reveal, which is gated behind the .js class, backed by a 1.5s safety net
+      that shows everything regardless, and explicitly unwound in the reduced-motion
+      block at the end. That exception already bit this file once, when scroll
+      reveals left whole sections blank in a non-scrolling context.
+   2. ANYTHING THAT LOOPS ANIMATES TRANSFORM OR OPACITY ONLY. Those two the browser
+      hands to the graphics card. Width, height, top, left and background-position
+      make it re-measure the page every frame instead, which on a phone reads as a
+      stutter in the middle of somebody reading, on the one page we are paying for
+      clicks to. Hover and focus effects are exempt: they are brief and only ever
+      one element at a time. */
+/* THE REVEAL MOVES WITH translate, NOT transform, AND THAT IS THE WHOLE POINT.
+   Nearly every element that reveals is also an element you can hover: cards, chips, steps,
+   review tiles. .js .reveal.in outranks .bcard:hover on specificity, so while the reveal
+   owned transform it pinned it to none and EVERY HOVER LIFT ON THE PAGE SILENTLY DID
+   NOTHING. The rules were all there and read correctly; the cards just never moved.
+   translate is a separate property the browser composes with transform, so the two jobs
+   stop competing: the reveal owns translate, every hover and press owns transform.
+   It also makes sideways reveal movement structurally impossible, since --rv is now a
+   single Y offset fed into translate:0 var(--rv) rather than a whole transform string. */
+.js .reveal{opacity:0;translate:0 var(--rv)}
+.js .reveal.in{opacity:1;translate:none;transition:opacity .6s ease,translate .6s ease}
+.js .an{animation:rise .7s cubic-bezier(.2,.7,.2,1) both}
+.mo-down .an{animation-name:drop}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes drop{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:none}}
+/* The header settles when you leave the hero, so the page feels like it is moving
+   under a fixed frame rather than sliding as one flat sheet. stuck is added by
+   script; without script the header simply stays in its resting state. */
+.hdr{transition:box-shadow .25s ease}
+.hdr .wrap{transition:padding .25s ease}
+.hdr.stuck{box-shadow:0 6px 22px rgba(0,0,0,.10)}
+.hdr.stuck .wrap{padding:8px 20px}
+/* The hero glow drifts. This is the one continuous movement on the page and it is
+   deliberately the slowest thing on it: it should register as the page being alive,
+   never as something asking to be looked at. Transform only, and the hero already
+   clips its overflow, so the drift can never widen the page. */
+.hero::before{animation:drift 26s ease-in-out infinite alternate;will-change:transform}
+@keyframes drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(0,3.2%,0) scale(1.06)}}
+/* The photo hero has no glow to drift, so its scrim breathes instead. Opacity is
+   free to animate and the light over the photo shifts by a few percent. */
+.hero-ov-scrim{animation:scrim 13s ease-in-out infinite alternate}
+@keyframes scrim{from{opacity:1}to{opacity:.87}}
+.hero-media .badge{animation:float 5.6s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+/* Buttons: a light sweeps across on hover, and the press is acknowledged. A button
+   that visibly answers a press feels responsive even when the network is slow. */
+.cta{overflow:hidden}
+.cta:not(.ghost)::before{content:"";position:absolute;top:0;bottom:0;left:0;width:45%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.34),transparent);transform:translateX(-220%) skewX(-18deg);opacity:0;pointer-events:none}
+.cta:not(.ghost):hover::before{animation:sheen .75s ease-out}
+@keyframes sheen{0%{transform:translateX(-220%) skewX(-18deg);opacity:1}100%{transform:translateX(340%) skewX(-18deg);opacity:0}}
+.cta:active{transform:translateY(0) scale(.985)}
+/* While the form is sending. The spinner is a pseudo-element so the script can keep
+   using textContent for the label without wiping it. */
+.cta.sending::after{content:"";width:15px;height:15px;flex-shrink:0;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .65s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hdr-cta{transition:transform .18s ease,background-color .18s ease}
+.hdr-cta:hover{transform:translateY(-1px)}
+/* THE STICKY BAR STANDS DOWN WHEN A REAL BUTTON IS ON SCREEN. Bryson, 2026-09-02:
+   *"make sure at the bottom of the page for mobile that there isnt two buttons like
+   there is now [...] when your at the very top where there is a button or the very
+   bottom where there is a button I want the one that stays at the bottom of the
+   screen to disappear."* At the top the hero button and the sticky bar sat one above
+   the other saying the same words, and again at the closing button. Two identical
+   calls to action touching each other read as a mistake, and the sticky one is the
+   one that has no reason to be there at that moment.
+   It slides down rather than vanishing, so it never blinks in and out mid-scroll.
+   Default is VISIBLE and the class is only ever added by script, so a phone with no
+   JavaScript keeps the bar it has always had. */
+.mcta{transition:transform .25s ease,opacity .25s ease}
+.mcta.tuck{transform:translateY(115%);opacity:0;pointer-events:none}
+.mcta a{transition:transform .15s ease}
+.mcta a:active{transform:scale(.97)}
+/* Everything a visitor can point at answers back. */
+.chip{transition:transform .18s ease,border-color .18s ease}
+.chip:hover{transform:translateY(-2px);border-color:rgba(199,54,47,.16)}
+.step,.rev{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.step:hover,.rev:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(0,0,0,.14);border-color:rgba(199,54,47,.16)}
+.faq{transition:border-color .2s ease}
+.faq:hover{border-color:rgba(199,54,47,.16)}
+.bico{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+.bcard:hover .bico{transform:scaleX(1.6)}.brow:hover .bico{transform:scaleY(1.4)}.step:hover .num{transform:translateY(-2px) scale(1.07)}
+.step .num{transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+.brow{transition:background-color .2s ease}
+.brow:hover{background:#F8F9FB}
+.bnum .bn{transition:opacity .25s ease,transform .25s ease}
+.bnum:hover .bn{opacity:.85;transform:translateY(-2px)}
+/* The FAQ marker TURNS instead of swapping glyph. It stays a plus and rotates 45
+   degrees into a cross, so the change is one continuous movement rather than one
+   character blinking into another. Swapping the glyph would also have meant shipping
+   an en dash to a visitor, which the no-AI-voice rule bans outright. */
+.faq summary::after{transition:transform .25s ease}
+.faq[open] summary::after{transform:rotate(45deg)}
+.faq[open] p{animation:faqin .28s ease both}
+@keyframes faqin{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+/* The footer link draws its own underline. The consent links are left alone on
+   purpose: they are underlined at rest because someone auditing what a visitor
+   agreed to should not have to hover to find them. */
+.foot a{background-image:linear-gradient(currentColor,currentColor);background-size:0 1px;background-repeat:no-repeat;background-position:0 100%;transition:background-size .25s ease}
+.foot a:hover{background-size:100% 1px}
+/* THE OFF SWITCH. !important rather than source order, because this block is easy
+   to move by accident and it has to win from anywhere.
+   ::before AND ::after ARE LISTED SEPARATELY BECAUSE * DOES NOT MATCH THEM. The bare
+   universal selector matches elements only, so the drifting hero glow, the button sheen
+   and the sending spinner all kept running for a visitor who had asked their computer
+   for less motion. Found in a real browser, not by reading this; every one of those
+   three lives on a pseudo-element, so the omission covered the entire motion layer.
+   .reveal needs its own line: it is the only thing here whose resting state is invisible,
+   so removing its transition alone would freeze it hidden forever. */
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.js .reveal{opacity:1!important;translate:none!important}}
+@media(min-width:720px){.bene.g2,.benum.g2,.bene.g4,.benum.g4{grid-template-columns:repeat(2,1fr)}.bene.g3,.benum.g3,.bene.g5,.benum.g5{grid-template-columns:repeat(3,1fr)}.steps{grid-template-columns:repeat(3,1fr)}.gal{grid-template-columns:repeat(3,1fr)}.revs{grid-template-columns:repeat(3,1fr)}.gal.g1{grid-template-columns:1fr}.gal.g2,.gal.g4{grid-template-columns:repeat(2,1fr)}.gal.g3,.gal.g5{grid-template-columns:repeat(3,1fr)}.gal.g3>:last-child,.gal.g5>:last-child{grid-column:auto;justify-self:stretch;width:auto}}
+/* Four cards open out to a single row of four only when the container is genuinely wide
+   enough to keep them readable. This block MUST stay after the 720px one: same specificity,
+   so source order decides, and put earlier it loses and never applies at all. Numbered
+   benefits are excluded on purpose, they lay out sideways and need the width. */
+@media(min-width:940px){.hero{padding:64px 0 56px}.hero-g.has-img{grid-template-columns:1.05fr .95fr}.form-g{grid-template-columns:.9fr 1.1fr;gap:44px}}
+@media(min-width:1100px){.bene.g4{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:719px){.mcta{display:flex}body{padding-bottom:76px}.hdr-cta{display:none}.hero-ov{min-height:440px}}
+</style><meta name="robots" content="noindex"></head><body class="lay-split bg-dots mo-down be-cards font-modern sh-rounded">
+<style>
+.bl-sample{position:fixed;top:0;left:0;right:0;height:44px;z-index:70;display:flex;align-items:center;gap:14px;padding:0 16px;background:#0B0D12;color:#E9E6DF;font:500 12.5px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;border-bottom:1px solid rgba(200,168,75,.4);box-shadow:0 6px 20px -10px rgba(0,0,0,.6)}
+.bl-sample a{color:inherit;text-decoration:none}
+.bl-sample .bl-tag{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.bl-sample .bl-tag i{width:7px;height:7px;border-radius:50%;background:#C8A84B;box-shadow:0 0 0 3px rgba(200,168,75,.2)}
+.bl-sample .bl-long{color:#A9A59C}
+.bl-sample .bl-spacer{margin-left:auto}
+.bl-sample .bl-designs{display:flex;gap:4px;margin-left:auto;padding:3px;border-radius:999px;background:rgba(255,255,255,.06)}
+.bl-sample .bl-designs a{padding:6px 11px;border-radius:999px;color:#C9C5BB}
+.bl-sample .bl-designs a[aria-current]{background:#C8A84B;color:#15110A;font-weight:650}
+.bl-sample .bl-back{white-space:nowrap;color:#C8A84B;font-weight:600}
+.bl-sample .bl-n{display:none}
+.bl-sample .bl-book{white-space:nowrap;padding:7px 14px;border-radius:999px;background:#C8A84B;color:#15110A;font-weight:650}
+.hd{inset:44px 0 auto!important}
+.hdr{top:44px!important}
+body{padding-top:44px}
+.bl-note{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(200,168,75,.14);border:1px solid rgba(200,168,75,.45);font-size:13.5px;line-height:1.5}
+@media (max-width:900px){.bl-sample .bl-long,.bl-sample .bl-n{display:none}
+.bl-sample .bl-book{display:none}}
+@media (max-width:560px){.bl-sample{gap:8px;padding:0 10px;font-size:11.5px}.bl-sample .bl-designs a{padding:6px 8px}.bl-sample .bl-w{display:none}.bl-sample .bl-n{display:inline}}
+</style>
+<div class="bl-sample" role="note" aria-label="Sample website"><span class="bl-tag"><i></i><b><span class="bl-w">Sample landing page</span><span class="bl-n">Sample</span></b><span class="bl-long">Northline Auto Detailing is a made-up business we use to show our work.</span></span><nav class="bl-designs" aria-label="More from this sample"><a href="/examples/car-detailing/">Its website</a><a aria-current="page" href="/examples/car-detailing/landing/">Landing page</a></nav><a class="bl-back" href="/industries/car-detailing/"><span class="bl-w">Back to BoldLine</span><span class="bl-n">Exit</span></a><a class="bl-book" href="https://calendly.com/theboldlinemedia/30min" target="_blank" rel="noopener noreferrer">Book a call</a></div>
+
+
+<header class="hdr"><div class="wrap"><div class="brandmark"><span class="dot"></span>Northline Auto Detailing</div><a class="hdr-cta" href="tel:4805550172">(480) 555-0172</a></div></header>
+<section class="hero"><div class="wrap hero-g has-img"><div><div class="eyebrow an">Mobile detailing in Scottsdale</div><h1 class="headline an" style="animation-delay:.06s">Showroom shine without leaving your driveway</h1><p class="subhead an" style="animation-delay:.12s">Hand washes, paint correction and ceramic coating at your home or office. Tell us about your car and get your price today.</p><div class="ctarow an" style="animation-delay:.18s"><a class="cta" href="#lead-form">Get my price</a><a class="cta ghost" href="tel:4805550172">Call now</a></div></div><div class="hero-media reveal"><img class="heroimg" src="/img/sample/detail-6873123.jpg" alt="Northline Auto Detailing"></div></div></section>
+
+<section class="sec alt"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Why us</div><h2 class="sec-t">Why choose Northline Auto Detailing</h2></div><div class="bene g3"><div class="bcard reveal" style="transition-delay:0ms"><div class="bico" aria-hidden="true"></div><h3>We come to you, with our own water and power</h3></div><div class="bcard reveal" style="transition-delay:60ms"><div class="bico" aria-hidden="true"></div><h3>Gentle on paint, with clean towels for every car</h3></div><div class="bcard reveal" style="transition-delay:120ms"><div class="bico" aria-hidden="true"></div><h3>Ceramic coatings that keep the shine for years</h3></div></div></div></section>
+<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">Our work</div><h2 class="sec-t">See the results</h2></div><div class="gal g4"><div class="gitem reveal" style="transition-delay:0ms"><img src="/img/sample/detail-6873123.jpg" alt="Detailer finishing a white sports car" decoding="async"></div><div class="gitem reveal" style="transition-delay:60ms"><img src="/img/sample/detail-6873089.jpg" alt="Pressure washing a car" decoding="async"></div><div class="gitem reveal" style="transition-delay:120ms"><img src="/img/sample/detail-6872572.jpg" alt="Hand drying paint with a microfiber towel" decoding="async"></div><div class="gitem reveal" style="transition-delay:180ms"><img src="/img/sample/detail-3354648.jpg" alt="White car under the lights" decoding="async"></div></div></div></section>
+<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">How it works</div><h2 class="sec-t">Getting started is easy</h2></div><div class="steps"><div class="step reveal" style="transition-delay:0ms"><div class="num">1</div><h3>Tell us what you need</h3></div><div class="step reveal" style="transition-delay:70ms"><div class="num">2</div><h3>Get a fast, free quote</h3></div><div class="step reveal" style="transition-delay:140ms"><div class="num">3</div><h3>We handle the rest</h3></div></div></div></section>
+<section class="sec"><div class="wrap"><div class="sec-head reveal"><div class="sec-k">FAQ</div><h2 class="sec-t">Common questions</h2></div><div class="faqwrap"><details class="faq reveal" style="transition-delay:0ms"><summary>How long does a full detail take?</summary><p>Most cars take three to four hours.</p></details><details class="faq reveal" style="transition-delay:55ms"><summary>Do you need my water or power?</summary><p>No. The van carries both.</p></details></div></div></section>
+<section class="formsec"><div class="wrap"><div class="form-g">
+  <div class="form-copy reveal">
+    <h2>Ready to get started?</h2>
+    <p>Fill out the form and we'll get right back to you. No pressure, no obligation.</p>
+    <ul class="rlist"><li><span class="rk">1</span><span>Tell us a bit about what you need.</span></li><li><span class="rk">2</span><span>We'll reach out fast with your free quote.</span></li><li><span class="rk">3</span><span>Book your slot and we handle the rest.</span></li></ul>
+  </div>
+  <div class="fcard reveal" id="lead-form">
+    <div class="formtitle">Get my price</div>
+    <div class="formsub">Takes 20 seconds. We'll be in touch shortly.</div>
+    <form id="lf">
+      <input class="inp" id="lf-name" placeholder="Your name" required>
+      <input class="inp" id="lf-phone" placeholder="Phone number">
+      <input class="inp" id="lf-email" type="email" placeholder="Email address">
+      <div class="fine" style="margin:-2px 0 4px">Phone or email, whichever you prefer.</div>
+      <div class="consbox"><div class="cons cons-main">
+      <input type="checkbox" id="lf-sms" name="smsConsentTransactional" value="yes">
+      <label for="lf-sms">Text me updates about my quote and order from Northline Auto Detailing. Optional, not required to get a quote. Msg frequency varies, msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.</label>
+    </div>
+    <div class="cons">
+      <input type="checkbox" id="lf-mkt" name="smsConsentMarketing" value="yes">
+      <label for="lf-mkt">Send me occasional offers and updates too. Optional, and you can stop any time.</label>
+    </div></div>
+      <div class="err" id="lf-err">Something went wrong, please try again.</div>
+      <button class="cta" type="submit" id="lf-btn" style="width:100%;justify-content:center">Get my price</button>
+      <div class="fine">Your info stays private. No spam, ever.</div>
+    </form>
+    <div class="thanks" id="lf-thanks"><h2>Got it, thank you.</h2><p>We'll be in touch shortly.</p></div>
+  </div>
+</div></div></section>
+
+
+<footer class="foot"><div class="wrap">Northline Auto Detailing · Serving Scottsdale, AZ · <a href="tel:4805550172">(480) 555-0172</a></div></footer>
+<nav class="mcta"><a class="call" href="tel:4805550172">Call</a><a class="quote" href="#lead-form">Get my price</a></nav>
+<script>
+(function(){
+
+  var gal=document.querySelector('.gal');
+  if(gal){
+    var ims=[].slice.call(gal.querySelectorAll('img'));
+    var settle=function(){
+      var rs=ims.map(function(i){return i.naturalWidth&&i.naturalHeight?i.naturalWidth/i.naturalHeight:0;})
+                .filter(function(r){return r>0;}).sort(function(a,b){return a-b;});
+      if(!rs.length) return;
+      var m=rs.length%2?rs[(rs.length-1)/2]:(rs[rs.length/2-1]+rs[rs.length/2])/2;
+      m=Math.max(0.62,Math.min(1.6,m));
+      gal.style.setProperty('--galr',String(m.toFixed(3)));
+      gal.classList.add('uni');
+    };
+    settle();
+    ims.forEach(function(i){ i.addEventListener('load',settle); });
+    window.addEventListener('load',settle);
+  }
+
+  var els=[].slice.call(document.querySelectorAll('.reveal'));
+  var EDGE=160;
+  function showAll(){els.forEach(function(el){el.classList.add('in');});}
+  function rearm(){
+    var h=window.innerHeight||0;
+    els.forEach(function(el){
+      var r=el.getBoundingClientRect();
+      if(r.top>h+EDGE||r.bottom< -EDGE)el.classList.remove('in');
+    });
+  }
+  try{
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(e.isIntersecting)e.target.classList.add('in');});
+    },{rootMargin:'0px 0px -6% 0px',threshold:0});
+    var arm=new IntersectionObserver(function(es){
+      es.forEach(function(e){if(!e.isIntersecting)e.target.classList.remove('in');});
+    },{rootMargin:EDGE+'px 0px '+EDGE+'px 0px',threshold:0});
+    els.forEach(function(el){io.observe(el);arm.observe(el);});
+    var net=setTimeout(showAll,1500);
+    var first=function(){
+      window.removeEventListener('scroll',first);
+      clearTimeout(net);
+      rearm();
+    };
+    window.addEventListener('scroll',first,{passive:true});
+  }catch(e){showAll();}
+
+  var CK=["gclid","wbraid","gbraid"],UK=["utm_source","utm_medium","utm_campaign","utm_term","utm_content"];
+  function remember(k,qs,now){
+    var v=qs.get(k);
+    if(v){try{localStorage.setItem('bl_'+k,JSON.stringify({v:v,t:now}));}catch(e){}return v;}
+    try{var s=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s&&s.v&&(now-s.t)<90*864e5)return s.v;}catch(e){}
+    return '';
+  }
+  function clickIds(){
+    var out={},qs=new URLSearchParams(location.search),now=Date.now();
+    CK.forEach(function(k){
+      var v=remember(k,qs,now);
+      if(v)out[k]=v;
+      if(v&&!out.clickAt){
+        var t=now;try{var s2=JSON.parse(localStorage.getItem('bl_'+k)||'null');if(s2&&s2.t)t=s2.t;}catch(e){}
+        out.clickAt=new Date(t).toISOString();
+      }
+    });
+    UK.forEach(function(k){var v=remember(k,qs,now);if(v)out[k]=v;});
+    return out;
+  }
+  try{clickIds();}catch(e){}
+  var lf=document.getElementById('lf');
+  if(lf){lf.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=document.getElementById('lf-btn'),err=document.getElementById('lf-err');
+    var ph=document.getElementById('lf-phone').value.trim(),em=document.getElementById('lf-email').value.trim();
+    if(!ph&&!em){err.textContent='Please add a phone number or an email so we can reach you.';err.style.display='block';return;}
+    err.textContent="Something went wrong, please try again.";
+    err.style.display='none';btn.disabled=true;btn.classList.add('sending');btn.textContent='Sending…';
+    var payload={name:document.getElementById('lf-name').value,phone:ph,email:em,source:'landing_page'};
+    try{var sc=document.getElementById('lf-sms'),mc=document.getElementById('lf-mkt');
+      payload.smsConsentTransactional=!!(sc&&sc.checked);payload.smsConsentMarketing=!!(mc&&mc.checked);
+      payload.consentDisclosure="Text me updates about my quote and order from Northline Auto Detailing. Optional, not required to get a quote. Msg frequency varies, msg & data rates may apply. Reply STOP to opt out, HELP for help.";}catch(e){}
+    try{payload.page=location.href.split('#')[0];}catch(e){}
+    try{var ids=clickIds();for(var k in ids){payload[k]=ids[k];}}catch(e){}
+    if(String(location.href).indexOf('about:')===0){
+      document.getElementById('lf').style.display='none';
+      document.getElementById('lf-thanks').style.display='block';
+      return;
+    }
+    fetch('/lead?token=demo',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    }).then(function(r){if(!r.ok)throw 0;document.getElementById('lf').style.display='none';document.getElementById('lf-thanks').style.display='block';/* No conversion tag yet. Run Conversion Setup on this client so Google can see
+         form submissions, otherwise the campaign is bidding blind. */})
+    .catch(function(){err.style.display='block';btn.disabled=false;btn.classList.remove('sending');btn.textContent="Get my price";});
+  });}
+
+  try{
+    Array.prototype.forEach.call(document.querySelectorAll('a[href^="#"]'),function(a){
+      a.addEventListener('click',function(e){
+        var id=(a.getAttribute('href')||'').slice(1);
+        var t=id&&document.getElementById(id);
+        if(!t)return;
+        e.preventDefault();
+        try{t.scrollIntoView({behavior:'smooth',block:'start'});}catch(_){t.scrollIntoView();}
+      });
+    });
+  }catch(e){}
+
+  try{
+    var hdr=document.querySelector('.hdr');
+    if(hdr){
+      var pending=false;
+      var settle=function(){
+        pending=false;
+        var y=window.pageYOffset||document.documentElement.scrollTop||0;
+        if(y>24){hdr.classList.add('stuck');}else{hdr.classList.remove('stuck');}
+      };
+      var onScroll=function(){if(pending)return;pending=true;(window.requestAnimationFrame||setTimeout)(settle,16);};
+      window.addEventListener('scroll',onScroll,{passive:true});
+      settle();
+    }
+  }catch(e){}
+
+  try{
+    var bar=document.querySelector('.mcta');
+    var ctas=[];
+    Array.prototype.forEach.call(document.querySelectorAll('.cta'),function(el){
+      if(!bar||!bar.contains(el))ctas.push(el);
+    });
+    if(bar&&ctas.length&&window.IntersectionObserver){
+      var seen=[];
+      for(var i=0;i<ctas.length;i++)seen.push(false);
+      var io2=new IntersectionObserver(function(es){
+        es.forEach(function(e){
+          var idx=ctas.indexOf(e.target);
+          if(idx>=0)seen[idx]=e.isIntersecting;
+        });
+        var any=false;
+        for(var j=0;j<seen.length;j++){if(seen[j]){any=true;break;}}
+        if(any){bar.classList.add('tuck');}else{bar.classList.remove('tuck');}
+      },{threshold:0});
+      ctas.forEach(function(el){io2.observe(el);});
+    }
+  }catch(e){}
+
+})();
+</script>
+</body></html>

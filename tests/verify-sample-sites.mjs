@@ -15,7 +15,7 @@ import { MK, serveSite } from "./helpers/marketing-site.mjs";
 let pass = 0; const fails = [];
 const ok = (what, cond, detail = "") => { if (cond) pass++; else fails.push(`${what}${detail ? " — " + detail : ""}`); };
 
-const { SAMPLE_FILES, outputs } = await import("../scripts/build-marketing-site.mjs");
+const { SAMPLE_FILES, LANDING_FILES, outputs } = await import("../scripts/build-marketing-site.mjs");
 const { THEME_IDS, SITE_PAGES } = await import("../netlify/lib/site-render.mjs");
 const { DEMO } = await import("../scripts/site-showcase-demo.mjs");
 
@@ -37,7 +37,9 @@ for (const f of SAMPLE_FILES) {
   const g = html.indexOf("/* Sample site guard.");
   ok(`🔴 ${f}: the send guard is the first script on the page`, g > 0 && html.indexOf("<script") === html.lastIndexOf("<script>", g) && html.indexOf("charset") < g);
   // 2. Labelled, hidden from search, not described as a real business.
-  ok(`${f}: the design switcher only appears on the three-design pool sample`, /class="bl-designs"/.test(html) === !TRADE_SAMPLES[theme]);
+  ok(`${f}: the bar switches designs on the pool sample, and website/landing page on a trade sample`, TRADE_SAMPLES[theme]
+    ? html.includes(`<a aria-current="page" href="/examples/${theme}/">Its website</a><a href="/examples/${theme}/landing/">Landing page</a>`) && !/>Cinematic</.test(html)
+    : />Cinematic<\/a>/.test(html) && !/>Landing page</.test(html));
   ok(`🔴 ${f}: says it's a sample, and on a phone too`, /class="bl-sample"/.test(html) && /<span class="bl-w">Sample site<\/span><span class="bl-n">Sample<\/span>/.test(html) && /made-up business/.test(html));
   ok(`🔴 ${f}: hidden from search engines`, /<meta name="robots" content="noindex">/.test(html));
   ok(`${f}: tells search engines nothing about the made-up business`, !/application\/ld\+json/.test(html));
@@ -64,6 +66,26 @@ for (const f of SAMPLE_FILES) {
   for (const t of THEME_IDS) ok(`the Websites page opens the ${t} sample`, web.includes(`href="/examples/${t}/"`));
   ok("and the homepage hero links into a sample", readFileSync(join(MK, "index.html"), "utf8").includes('href="/examples/cinematic/"'));
   for (const [slug, page] of Object.entries(TRADE_SAMPLES)) ok(`the ${slug} trade page opens its own sample`, readFileSync(join(MK, page.slice(1), "index.html"), "utf8").includes(`href="/examples/${slug}/"`));
+}
+
+// ── Sample LANDING pages (the ads side): same rules, built by the real landing page renderer. ──────────────────
+ok("one sample landing page per trade", LANDING_FILES.length === Object.keys(TRADE_SAMPLES).length && Object.keys(TRADE_SAMPLES).every((t) => LANDING_FILES.includes(`examples/${t}/landing/index.html`)), LANDING_FILES.join(", "));
+for (const f of LANDING_FILES) {
+  const slug = f.split("/")[1];
+  const html = readFileSync(join(MK, f), "utf8");
+  ok(`${f}: matches what the builders make today`, html === outputs[f]);
+  const g = html.indexOf("/* Sample site guard.");
+  ok(`🔴 ${f}: the send guard is the first script on the page`, g > 0 && html.indexOf("<script") === html.lastIndexOf("<script>", g));
+  ok(`🔴 ${f}: says it's a sample landing page, and on a phone too`, /<span class="bl-w">Sample landing page<\/span><span class="bl-n">Sample<\/span>/.test(html) && /made-up business/.test(html));
+  ok(`🔴 ${f}: hidden from search engines`, /<meta name="robots" content="noindex">/.test(html));
+  ok(`${f}: tells search engines nothing about the made-up business`, !/application\/ld\+json/.test(html));
+  ok(`${f}: photos come from our own site`, !/images\.pexels\.com/.test(html));
+  const hrefs = [...html.matchAll(/\shref="([^"]+)"/g)].map((m) => m[1]);
+  const stray = hrefs.filter((h) => !(h.startsWith("#") || h === `/examples/${slug}/` || h === `/examples/${slug}/landing/` || h === TRADE_SAMPLES[slug]
+    || h === "https://calendly.com/theboldlinemedia/30min" || /^tel:/.test(h) || /^https:\/\/fonts\.(googleapis|gstatic)\.com/.test(h)));
+  ok(`🔴 ${f}: no link leaves the sample except the bar's own`, stray.length === 0, [...new Set(stray)].join(", "));
+  ok(`${f}: the trade page links to it`, readFileSync(join(MK, TRADE_SAMPLES[slug].slice(1), "index.html"), "utf8").includes(`href="/examples/${slug}/landing/"`));
+  ok(`${f}: and the Ads page shows it`, readFileSync(join(MK, "ads/index.html"), "utf8").includes(`href="/examples/${slug}/landing/"`) && existsSync(join(MK, "img", "sample", `lp-${slug}.jpg`)));
 }
 
 // In a real browser: fill in and send each sample's contact form, and watch the network.
@@ -101,6 +123,26 @@ if (chromium) {
     ok(`${t} ${width}px: the sample label is visible`, /Sample/.test(s.label), s.label);
     ok(`${t} ${width}px: the site's own header sits below the sample bar, not under it`, Math.round(s.hd) >= Math.round(s.bar) - 1, JSON.stringify(s));
     ok(`${t} ${width}px: no sideways scrolling`, s.over <= 0, `${s.over}`);
+    await page.close();
+  }
+  // The sample landing pages: send the lead form, and check the words never touch the edge of a phone screen.
+  for (const slug of Object.keys(TRADE_SAMPLES)) for (const width of [390, 1280]) {
+    const page = await browser.newPage({ viewport: { width, height: 860 } });
+    const sent = [];
+    page.on("request", (r) => { if (r.method() !== "GET" && r.method() !== "HEAD") sent.push(`${r.method()} ${r.url()}`); });
+    await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+    await page.goto(`${server.base}/examples/${slug}/landing/`);
+    await page.waitForTimeout(500);
+    const edge = await page.evaluate(() => { const r = document.querySelector("h1").getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(innerWidth - r.right) }; });
+    ok(`🔴 ${slug} landing ${width}px: the headline keeps a margin from the screen edge`, edge.l >= 12 && edge.r >= 0, JSON.stringify(edge));
+    await page.evaluate(() => {
+      const f = document.querySelector("form"); if (!f) return;
+      f.querySelectorAll("input,textarea,select").forEach((i) => { if (i.type === "checkbox" || i.type === "hidden") return; if (i.type === "email") i.value = "a@b.co"; else if (i.type === "tel") i.value = "6025550100"; else if (i.tagName === "SELECT") i.selectedIndex = 1; else i.value = "Test"; });
+      const b = f.querySelector("button[type=submit],button:not([type])"); if (b) b.click(); else f.requestSubmit();
+    });
+    await page.waitForTimeout(600);
+    ok(`🔴 ${slug} landing ${width}px: sending the lead form sends nothing at all`, sent.length === 0, sent.join(", "));
+    ok(`${slug} landing ${width}px: no sideways scrolling`, await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
     await page.close();
   }
   await browser.close();
