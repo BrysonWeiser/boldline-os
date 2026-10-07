@@ -182,7 +182,7 @@ const comparePage = () => `
     <div class="cmp-row cmp-head" role="row"><div role="columnheader"></div><div role="columnheader">A typical agency</div><div role="columnheader"><img src="/logo.png" alt="" width="18" height="21"> BoldLine</div></div>
     ${CMP.map(([k, them, us]) => `<div class="cmp-row" role="row"><div class="cmp-k" role="rowheader">${k}</div><div class="cmp-them" role="cell"><span class="cmp-l">A typical agency</span>${them}</div><div class="cmp-us" role="cell"><span class="cmp-l">BoldLine</span>${us}</div></div>`).join("\n    ")}
   </div>
-  <p class="cmp-foot reveal">Agencies vary, so ask yours. Everything in the BoldLine column is how we work with every client.</p>
+  <p class="cmp-foot reveal">Agencies vary, so ask yours. Everything on the BoldLine side is how we work with every client.</p>
 </div></section>
 ${ctaBand("See if we're a fit.", "A 30 minute call. If we don't think we can make your ads pay, we'll tell you.")}
 `;

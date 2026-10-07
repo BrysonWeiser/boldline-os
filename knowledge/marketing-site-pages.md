@@ -151,3 +151,5 @@ Bryson asked what more animation, pages and a pricing redesign would look like, 
 4. **/compare/**: BoldLine vs a typical agency, 8 rows, other column hedged ("often", "some"), names nobody.
 Tests: plan finder checked at every budget step; website prices pinned; sample-site suite covers trade samples;
 journey plays 0..5 in order at 390/1280 and is tappable tabs with motion off. Full suite 134/0.
+- 2026-10-07: /compare/ on phones rebuilt after Bryson said it "looks a little crazy": no boxes or repeated labels;
+  each row is a gold topic line, BoldLine's answer with a gold check, then one quiet "A typical agency:" line.
