@@ -272,3 +272,14 @@ BAA before any patient emails). Bryson asked to include reviews, overriding the 
 Next: when he says go, VOID the 28 Sep envelope in DocuSign, set per-lead $40 + Special Terms (pay-per-show
 text from 29 Sep entry), and resend (it will be terms v7 and list review requests; tick "doesn't want
 review requests" first if he declines). If silent by Thu 8 Oct, a phone call (he is a friend).
+
+## 2026-10-06 evening: Brendon asked if review requests could keep out negative reviews
+His text: he doesn't get negative reviews but doesn't want to ruin the five star rating he's kept for years.
+Answer given to Bryson (draft text for him to send): no, and by design. Filtering out unhappy customers is
+"review gating", which Google bans and can punish by removing reviews or flagging the listing; the feature sends
+everyone the same email with one link to Google (`netlify/lib/review-requests.mjs`, rule 3). Do NOT tell him he
+can choose to ask only patients he thinks are happy: that is the same banned practice. Reassurance that is true:
+asking everyone mostly adds 5-star reviews, more reviews dilute any one bad one, he can reply publicly, and
+reviews that break Google's rules can be flagged. Reminders: a BAA before sending to his patients (patient
+emails are PHI, see service-add-ons), and review replies must never confirm the reviewer is a patient.
+Still NOT a client (no signed contract on the record), so nothing is counted.
