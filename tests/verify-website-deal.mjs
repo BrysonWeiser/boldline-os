@@ -55,7 +55,7 @@ ok("BoldLine's own site has nothing to sign or pay", L.buildLock(C.house) === nu
 ok("🔴 once the agreement is out, the terms it was sent with bind, not whatever is typed later",
   L.termsOf(C.tampered).price === 1500 && L.termsOf(C.tampered).plan === "half" && L.termsOf(C.tampered).care === 99 && L.publishLock(C.tampered) !== null);
 ok("a voided agreement frees the terms to change", L.termsOf(C.voided).price === 1200 && !!L.buildLock(C.voided));
-ok("defaults: $1,500, paid up front, $99 a month care, no extra pages, no blog", (({ price, plan, care, extraPages, blog }) => price === 1500 && plan === "full" && care === 99 && extraPages === 0 && blog === false)(L.termsOf(C.fresh)));
+ok("defaults: $1,500, paid up front, $100 a month care, no extra pages, no blog", (({ price, plan, care, extraPages, blog }) => price === 1500 && plan === "full" && care === 100 && extraPages === 0 && blog === false)(L.termsOf(C.fresh)));
 const odd = L.amountsOf({ price: 1499.99, plan: "half" });
 ok("🔴 half and half never loses a cent (the deposit takes the odd one)", odd.first === 750 && odd.final === 749.99 && Math.round((odd.first + odd.final) * 100) === 149999);
 ok("every state has a plain next step", Object.values(C).every((c) => typeof L.nextStep(c) === "string" && L.nextStep(c).length > 10));

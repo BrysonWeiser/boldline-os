@@ -8902,7 +8902,7 @@ function BlogCard({client}){
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
 const SERVER_OWNED_KEYS=["websiteDeal"];
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
-const WEBSITE_OFFER={build:1500,care:99,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:149,blogPostsPerMonth:4};
+const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
 const wdNum=(v,d)=>{ const n=Number(v); return Number.isFinite(n)&&n>=0?Math.round(n*100)/100:d; };
 const wdMoney=(n)=>`$${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}`;

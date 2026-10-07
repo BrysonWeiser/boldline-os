@@ -24,9 +24,9 @@ Amber note while there are no client photos: ask them to upload in their portal 
 
 ## 🔴 Step 2a: the website deal (BUILT 2026-10-06): signed and paid before building, paid in full before live
 Bryson: build only *"after a client signs the agreement and pays"*, price his to change, *"pay half now half
-when finished"*, second half BEFORE going live, $99/mo care from launch.
+when finished"*, second half BEFORE going live, $100/mo care from launch ($99 until 2026-10-07).
 **What he does** (Website tab, new top card "Website deal"): set Build price (default $1,500), How they pay
-(All up front / Half now, half before launch), Care plan $/mo (default $99, 0 = waived) > Save price >
+(All up front / Half now, half before launch), Care plan $/mo (default $100, 0 = waived) > Save price >
 "Read the agreement" (sandboxed preview) > "Send the agreement" (DocuSign). Then nothing until the site
 is built: when they sign, the watcher sends the first invoice BY ITSELF (Stripe emails it) and alerts him;
 when it's paid, the Build button unlocks (alert). Half plan: once built and approved, "Send the final
@@ -64,7 +64,7 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
   reused), a portal view of the website deal, and the static-files export promised on exit.
 
 ## Step 2b: selling it (BUILT 2026-10-06)
-- **One price list:** `WEBSITE_OFFER` in netlify/lib/pricing-shared.mjs ({build 1500, care 99, pages 5,
+- **One price list:** `WEBSITE_OFFER` in netlify/lib/pricing-shared.mjs ({build 1500, care 100, pages 5,
   carePlanEdits 2, revisionRounds 2}). The agreement defaults, the OS (mirror `WEBSITE_OFFER` in
   index.html), Deal Prep and the marketing site all read it; tests pin every copy to it.
 - **Deal Prep:** the research prompt gets `websitePromptBlock()` (prices, payment rules, WHEN to pitch,
@@ -77,7 +77,7 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
   website deal and no built site; "Set it up" opens the Website tab; "Not now" hides it 60 days
   (`websiteUpsellHiddenAt`, browser-owned). Website to ads lives in the Deal Prep talk track.
 - **Marketing site:** new `#websites` section on the homepage between Services and "Every Engagement":
-  what's included, the both-ways pitch, $1,500 / $99/mo, Book a Call. 🔴 NOT a tab of `.pkg` cards and
+  what's included, the both-ways pitch, $1,500 / $100/mo, Book a Call. 🔴 NOT a tab of `.pkg` cards and
   its button is `.wo-cta`, not `.pkg-cta`: verify-site-matches-packages maps every .pkg card to an ads
   package, and verify-meta-flip counts `.pkg-cta` per panel (a `.pkg-cta` here was counted into the
   e-commerce panel and failed it). /get-started (BoldLine's own ad landing page) is left single-goal.
@@ -95,7 +95,7 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
 ## Add-ons: extra pages and the blog (BUILT 2026-10-06)
 Bryson: *"what if a client wants to add extra pages such as a blog page? We should charge an extra for blog
 page creation and then ai blog post creations"*. Recommended defaults (in `WEBSITE_OFFER`, all editable per
-client on the deal card): **extra page $200 each**, **blog $300 setup + $149/mo for ~4 articles a month**.
+client on the deal card): **extra page $200 each**, **blog $300 setup + $150/mo for ~4 articles a month**.
 - **Deal terms** gain `extraPages, extraPagePrice, blog, blogSetup, blogMonthly, blogPosts` (`normTerms`,
   mirrored as `wdNorm`). `buildTotal` = website + pages + blog setup (half-and-half splits the WHOLE
   total); `monthlyTotal` = care + blog. Agreements sent before add-ons read as none. The agreement shows
@@ -417,4 +417,12 @@ half when finished)"*. Not built yet; it lands with step 2 because it needs the 
 - Price editable per client (default $1,500); payment plan per client: in full, or 50/50 (deposit now,
   balance when finished). Stripe invoice with a pay link, metadata `kind: website`, `stage: deposit|final`.
 - ✅ DECIDED (Bryson, 2026-10-06): the second half is due BEFORE it goes live. "Put it live" stays locked
-  until the final payment arrives. The $99/mo care plan starts at launch.
+  until the final payment arrives. The $100/mo care plan starts at launch.
+
+## Price change 2026-10-07: care $99 -> $100, blog $149 -> $150
+Bryson asked whether $100 beat $99; agreed. $99 is retail/impulse charm pricing and was the only non-round number
+next to $400/$700/$1,200/$1,500; $1 a month is irrelevant to revenue. Blog moved to $150 for the same reason.
+Changed in `WEBSITE_OFFER` (pricing-shared.mjs) + the OS copy in index.html (a test pins the two equal) + the
+Websites page. Agreements already signed keep their own stored price (terms live on the deal, not the list).
+Considered and NOT done: pricing care higher (hosting + security + 2 edits + domain management could justify it);
+kept at $100 as an easy yes after a $1,500 build, revisit for new clients once a few sites are live.

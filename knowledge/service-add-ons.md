@@ -155,7 +155,7 @@ wanted to see BoldLine's work first, which Sebastian's silence now makes impossi
 **Decisions (Bryson, 2026-10-06):**
 | | |
 |---|---|
-| Price | **$1,500 build + $99/month** care (hosting, upkeep, up to 2 small edits a month) |
+| Price | **$1,500 build + $100/month** care (hosting, upkeep, up to 2 small edits a month). Was $99 until 2026-10-07. |
 | Who can buy | **Anyone**, not only ads clients |
 | Pairing | Cross-sell both ways: a website buyer gets offered ads; an ads prospect with a weak site gets offered the website |
 | Shaun | Heads-up is optional (see below) |
