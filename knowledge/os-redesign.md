@@ -114,3 +114,12 @@ Same audition URL, version 2. Base = 0.6 Emma + 0.4 Isabella at speed .93 (or .9
 ffmpeg chain: `asetrate=24000*F,aresample=24000,atempo=1/F,bass=g=3:f=140,acompressor=threshold=0.12:ratio=2.5:attack=8:release=120,volume=1.4`.
 In-browser build note: pitch-down + EQ can be done live with the Web Audio API (playbackRate + a lowshelf filter +
 DynamicsCompressor), or bake the chosen style vector and render at a lower pitch.
+
+## Voice round 3 (2026-10-07): Bryson picked **Deeper A**, then asked for "older" rather than deeper
+Same audition URL, version 3. All built on Deeper A (base 0.6 Emma + 0.4 Isabella; WARM = bass +3 @140 + compressor):
+- **1 Measured**: speed .88, pitch x0.92, WARM, treble -2.5 @4.5k.
+- **2 Mature tone**: speed .91, asetrate x0.86 then rubberband pitch 1.07 formant=preserved (net pitch = A, formants
+  lower, i.e. a "larger" vocal tract), WARM, treble -2.
+- **3 Alice blend**: 0.45 Emma + 0.3 Isabella + 0.25 Alice, speed .9, pitch x0.92, WARM, treble -2.
+- **4 Lily blend**: 0.45 Emma + 0.3 Isabella + 0.25 Lily, same chain.
+- **5 Seasoned**: speed .86, same as 2 plus vibrato f=4.5 d=0.025 and treble -3.
