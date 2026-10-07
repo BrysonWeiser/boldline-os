@@ -3,7 +3,7 @@ name: os-redesign
 topic: OS/App
 task: redesign the OS look or navigation, rebuild the Outreach screen, the dashboard/Today screen, the sidebar, quick search, or make the OS feel more motivating
 keywords: [os redesign, mission control, power hour, outreach redesign, today screen, dashboard redesign, sidebar groups, command palette, quick search, ctrl k, cinematic, motivating, crowded, hard to navigate, os look, os visual]
-status: Stage 1 (Outreach = Power Hour) LIVE 2026-10-07; Stage 2 (grouped sidebar, Ctrl K, Mission Control theme) in progress
+status: Stage 1 (Outreach = Power Hour) LIVE 2026-10-07; Stage 2 (grouped menu, Ctrl K, Mission Control theme) built on the dev branch, waiting on his OK of before/after screenshots
 summary: Bryson, 2026-10-07 - the OS is crowded and hard to navigate; he wants it more functional AND "cool as shit... like out of a movie", motivating to open. Outreach is his most-used screen. Agreed direction is "mission control" - deep black + BoldLine gold, glass panels, live HUD, quick motion. Clickable preview with made-up data published as a private artifact (https://claude.ai/artifact/KfcP7as8TWs6ZEm65pQuEf). Real OS untouched until he says "that's it"; then build Outreach first, screen by screen, with before/after screenshots.
 verified: 2026-10-07
 ---
@@ -165,3 +165,24 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
   prospects; actions `key:`, `click:`, `wait:`, `setwhen`; `WIDTHS="390:844:phone;..."` for other sizes. Its one
   console 404 is a script the stub server doesn't serve, present before the change too.
 - Verified: renders at 390/768/1280/1600 with no sideways scroll; full suite 135/135.
+
+## Stage 2 BUILT (2026-10-07): grouped menu, Ctrl K quick search, Mission Control theme (dev branch)
+- **Sidebar**: brand reads "Mission Control"; Search button (Ctrl K); groups Command (Dashboard, Alerts, ARIA) · Get
+  clients (Outreach first, Lead Scout, Deal Prep, Calendar) · Run clients (Leads, Campaigns, My Ads, Website, Content)
+  · Money (Revenue). Middle scrolls on short laptops. Footer: live Phoenix clock (`PhxClock`) + icon-only log out.
+- **Phone More sheet**: search bar on top, same groups, two-per-row tiles, scrolls past 88% height.
+- **Quick search** (`CommandPalette`, before `function App`): screens, actions (add client, ARIA, alerts), every client,
+  up to 300 leads. Arrow keys + Enter, Esc, Ctrl/Cmd K toggles from anywhere. 🔴 Results only navigate or open a panel;
+  `tests/verify-os-nav.mjs` whitelists each result's action and fails on anything else.
+- **Theme**: tokens darker (`bg #05060A`), `textMuted` brighter (#555B80, the old one was nearly unreadable);
+  Chakra Petch for screen titles (`.os-title`), labels (`Label`, `.os-hud`) and HUD text; JetBrains Mono for clocks
+  (`.os-mono`). Both fonts load non-blocking. Background: faint gold HUD grid fading down from the top, one slow
+  scan band, vignette (all off for reduce-motion). Cards get a gold top hairline + glass sheen via background-image,
+  so no positioning changed.
+- 🔴 **Test gotcha**: `verify-nav-parity` slices the sidebar from `function SideNav({` to the next `\n// ─── ` and
+  falls back to 6,000 characters if none; the longer grouped sidebar pushed Revenue past that, so a `// ─── QUICK
+  SEARCH` section header now ends the slice. Keep a section header right after the sidebar.
+- **Screenshot harness** now lets Google Fonts through via curl (Chromium can't reach gstatic through the proxy), or the
+  shots show fallback fonts instead of the real look.
+- Left for Stage 3: the dashboard tiles still use emoji icons (internal-only, allowed, but off-theme); the Today screen
+  replaces that dashboard.
