@@ -195,3 +195,17 @@ most visitors aren't comparing yet); put it where comparing starts instead.
 - Guard in verify-marketing-pages: each of the three pages must show the box/pill above the footer (a plain text
   link doesn't count, the old pricing one would have passed), and the pills must match rows on /compare/.
 - Sales idea given to Bryson: text the /compare/ link after a cold call when someone says an agency burned them.
+
+## 2026-10-07 night: phone menu grouped (dev branch, waiting on Bryson's "go" after before/after screenshots)
+Bryson: "there are to many things under the hamburger menu but at the same time I want all of those things easily
+accessible". Was nine equal links. Also found: the menu was see-through (page text showed behind it), and on short
+phones it ran off the screen while the page's floating Book a Call bar sat on top of "Contact".
+- Now: two big boxes (Ads, Websites, each with a one-line description), a two-column grid (Pricing, How it works,
+  Industries, About, Blog, Contact), then Book a Call (filled gold) and Free Lead-Leak Check side by side. Solid
+  background, scrolls inside itself if a phone is very short, the floating Book a Call bar hides while it is open.
+  "Who we work with" is labelled "Industries" in the phone menu only, so it fits on one line.
+- One source: `mobileMenu()` + `MENU_MAIN`/`MENU_MORE` in the builder; styles in `marketing-src/menu.css`, shared into
+  `site.css` AND into `blog.css` between `phone-menu:start/end` markers. The hand-written pages (privacy, terms, 404,
+  `netlify/lib/blog-render.mjs`) get their menu block rewritten by the builder, so they can't drift.
+- Desktop top bar unchanged. Checked at 320x568, 390x667, 390x844 and 768. Guard in verify-marketing-pages: every
+  page's phone menu reaches all nine destinations plus the booking link, in the grouped shape.
