@@ -81,6 +81,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
         <div class="mf"><span class="dot">${icons[0] || ""}</span><span><b>New lead</b><small>Landing page form</small></span><time>2m ago</time></div>
         <div class="mf"><span class="dot">${icons[1] || ""}</span><span><b>Call tracked</b><small>3m 41s, logged automatically</small></span><time>26m ago</time></div>
         <div class="mf"><span class="dot">${icons[2] || ""}</span><span><b>New lead</b><small>Google Ads</small></span><time>1h ago</time></div>
+        <div class="mf-cap">An example of your lead feed</div>
       </div>
     </a>
     <a class="b-card b-web" style="--k:1" href="/websites/">

@@ -99,6 +99,14 @@ for (const width of WIDTHS) {
     return out;
   });
   ok(`${width}px: every heading is fully lit once you've scrolled to it`, unlit.length === 0, unlit.join(" | "));
+  // The example lead feed in the ads tile waits for the tiles to come on screen. It once waited for a signal
+  // the tile grid never got (it is taller than a phone screen), and sat blank on every device.
+  const feed = await page.evaluate(async () => {
+    document.querySelector(".bento").scrollIntoView({ block: "start" });
+    await new Promise((r) => setTimeout(r, 2600));
+    return [...document.querySelectorAll(".mini-feed .mf")].map((m) => Number(getComputedStyle(m).opacity));
+  });
+  ok(`🔴 ${width}px: the example lead feed in the ads tile shows once you reach it`, feed.length === 3 && feed.every((o) => o > 0.95), feed.join(","));
   const steps = await page.evaluate(async () => {
     const s = document.querySelector(".steps3"); s.scrollIntoView({ block: "start" }); window.scrollBy(0, 200);
     await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
