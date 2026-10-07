@@ -4,7 +4,7 @@ topic: Marketing site
 task: edit, add or restyle a page on boldlinemedia.com (BoldLine's own marketing site), or change its menu, footer, homepage or the test-copy guard
 keywords: [plan finder, pricing slider, website pricing, trade pages, industries, car detailing, handyman, Northline, Cedar and Nail, lead journey, journey of one lead, compare, BoldLine vs a typical agency, sample websites, examples, /examples/, sample site, Saguaro Pool, sample-guard, sample-bar, verify-sample-sites, scroll motion, scroll animations, pinned hero, word fill, view transitions, lenis, smooth scroll, mo-pin, hero headline, We only earn more when your phone rings more, multi-page site, marketing-src, build-marketing-site, generator, site.css, site.js, test-copy.js, pages, /ads/, /websites/, /pricing/, /how-it-works/, /about/, /free-check/, /contact/, nav, menu, footer, homepage redesign, homepage refresh, h-hero, bento, cta band, old hash links, HOME_REDIRECTS, sitemap pages, llms.txt, readSite, tests/helpers/marketing-site.mjs, verify-marketing-pages, test copy, branch deploy, not live]
 status: LIVE on boldlinemedia.com since 2026-10-06 ~5:30pm Phoenix (merge 44286da, rollback/20261007T003255Z). Test copy (Netlify branch deploy) still to be switched on, on the 10pm reminder, for FUTURE website changes.
-summary: boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. LIVE since 2026-10-06 evening (Phoenix). Future website changes go to the Netlify test copy first, once it is switched on.
+summary: boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. LIVE since 2026-10-06 evening (Phoenix). Future website changes go to the Netlify test copy first, once it is switched on. /compare/ is now promoted from pricing, about and the homepage founder quote (2026-10-07).
 verified: 2026-10-07
 ---
 
@@ -180,3 +180,18 @@ pushed below the bar.
 🔴 Real-client bug found and fixed on the way: the OVERLAY layout's `.hero-ovc` set `padding:0 0 8px`, wiping the
 wrap's 20px side padding, so on a phone the headline touched the screen edge on every overlay page. Now
 `padding:0 20px 8px`. `verify-sample-sites` checks the headline margin at 390 on all four layouts (mutation-checked).
+
+## 2026-10-07 night: ways into /compare/ (LIVE)
+Bryson: the comparison page was "only accessible if someone scrolls all the way to the bottom" (footer only, plus
+one small text line on pricing nobody saw). Agreed: NOT in the top menu (seven links already, tight on a phone, and
+most visitors aren't comparing yet); put it where comparing starts instead.
+- **Pricing**: a gold-edged box right under the ad plans, "Talking to other agencies? See how we're different before
+  you sign anything", three topic pills read from the `CMP` rows (so they can't name a row the page lacks), button
+  "See the comparison". The old small text line in the website-pricing footnote was removed (it duplicated this).
+- **About**: the same box after the founder section (`compareNudge()` in the builder).
+- **Homepage**: a gold pill "BoldLine vs a typical agency" under the founder quote, which already opens on "Most
+  agencies get paid the same whether your phone rings or not".
+- Styles `.cmpn*` and `.f-cmp` in `marketing-src/new.css`. Checked at 390/768/1280/1600, no sideways scroll.
+- Guard in verify-marketing-pages: each of the three pages must show the box/pill above the footer (a plain text
+  link doesn't count, the old pricing one would have passed), and the pills must match rows on /compare/.
+- Sales idea given to Bryson: text the /compare/ link after a cold call when someone says an agency burned them.

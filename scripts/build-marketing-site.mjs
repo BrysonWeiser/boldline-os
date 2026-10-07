@@ -88,7 +88,7 @@ const webPricing = () => `
     <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">${usd(WEBSITE_OFFER.extraPage)}<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
     <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">${usd(WEBSITE_OFFER.blogMonthly)}<small>/mo</small></div><p>About ${WEBSITE_OFFER.blogPostsPerMonth} articles a month on your site, and you can read, edit or hold each one first. ${usd(WEBSITE_OFFER.blogSetup)} once to set it up.</p></div>
   </div>
-  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>. Comparing options? <a href="/compare/">See how we compare to a typical agency</a>.</p>
+  <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>.</p>
 </div></section>
 `;
 
@@ -203,6 +203,18 @@ const comparePage = () => `
 ${ctaBand("See if we're a fit.", "A 30 minute call. If we don't think we can make your ads pay, we'll tell you.")}
 `;
 
+// The way into /compare/ from the pages where people start comparing (Bryson, 2026-10-07: it was only reachable from
+// the footer). The topics are read from CMP, so the box can never name a row the page doesn't have.
+const compareNudge = () => `
+<section class="x-sec cmpn-sec"><div class="wrap-x">
+  <a class="cmpn reveal" href="/compare/">
+    <div class="cmpn-txt"><div class="eyebrow">Talking to other agencies?</div><h3>See how we're different before you sign anything.</h3>
+      <div class="cmpn-tags">${[0, 2, 5].map((i) => `<span>${CMP[i][0]}</span>`).join("")}</div></div>
+    <span class="btn btn-ghost cmpn-go">See the comparison <i>&rarr;</i></span>
+  </a>
+</div></section>
+`;
+
 // Ads page: what the ads land on. One card per sample landing page (pictures by scripts/build-trade-shots.cjs).
 const lpGallery = () => `
 <section class="x-sec lpg-sec"><div class="wrap-x">
@@ -290,7 +302,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
 <section class="x-sec" style="padding-top:20px"><div class="wrap-x">
   <div class="f-strip reveal">
     <img src="/founder.jpg" width="240" height="240" alt="Bryson, founder of BoldLine Media" loading="lazy" decoding="async">
-    <div><blockquote>"Most agencies get paid the same whether your phone rings or not. I didn't want to build that. I only make more when your ads do, and the websites I build have the same job: turning a visit into a call."</blockquote><div class="who">BRYSON, FOUNDER &middot; <a class="x-link" href="/about/" style="font-size:13px">About BoldLine <span>&rarr;</span></a></div></div>
+    <div><blockquote>"Most agencies get paid the same whether your phone rings or not. I didn't want to build that. I only make more when your ads do, and the websites I build have the same job: turning a visit into a call."</blockquote><div class="who">BRYSON, FOUNDER &middot; <a class="x-link" href="/about/" style="font-size:13px">About BoldLine <span>&rarr;</span></a></div><a class="f-cmp" href="/compare/">BoldLine vs a typical agency <span>&rarr;</span></a></div>
   </div>
 </div></section>
 ${ctaBand()}
@@ -314,7 +326,7 @@ const PAGES = [
     title: "Pricing | BoldLine Media",
     desc: "Ad plans for Google and Meta, and website pricing. For ads you pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
     body: pageHero("Pricing", "One number, <em>never two.</em>", "Each month you pay your plan's minimum or the fee for the qualified leads we delivered, whichever is higher. Your ad budget is separate and goes straight to Google and Meta on your own card.")
-      + planFinder() + part("services.html") + webPricing() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
+      + planFinder() + part("services.html") + compareNudge() + webPricing() + ctaBand(), extras: part("modal.html"), ld: ["ld-org.html", "ld-service.html"] },
   { id: "how", path: "/how-it-works/", file: "how-it-works/index.html",
     title: "How It Works | BoldLine Media",
     desc: "The same structure every time: discovery, build, launch and weekly optimization. Who we work with, and the questions people ask first.",
@@ -323,7 +335,7 @@ const PAGES = [
     title: "About BoldLine Media",
     desc: "BoldLine Media only makes more when your ads do. Meet the founder, read what clients say, and leave a review.",
     body: pageHero("About", "Built so we only win <em>when you do.</em>", "BoldLine is a small, focused team that runs ads and builds websites for businesses that want a steadier phone. We take on a select group of clients on purpose.")
-      + part("founder.html") + part("boutique.html") + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
+      + part("founder.html") + compareNudge() + part("boutique.html") + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
   { id: "check", path: "/free-check/", file: "free-check/index.html",
     title: "Free Lead-Leak Check | BoldLine Media",
     desc: "Send us your website and we'll show you where your business is quietly losing customers, plus the quickest fixes. Free, and no call required.",

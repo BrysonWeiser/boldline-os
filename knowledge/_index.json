@@ -118,7 +118,7 @@
     "never": 77,
     "public": 10,
     "concentration": 1,
-    "now": 79,
+    "now": 80,
     "large": 2,
     "enough": 2,
     "own": 50,
@@ -910,7 +910,7 @@
     "down": 8,
     "maintenance": 2,
     "deal": 10,
-    "quote": 8,
+    "quote": 9,
     "decide": 10,
     "price": 7,
     "must": 14,
@@ -2961,7 +2961,7 @@
     "integration": 4,
     "envelopes": 1,
     "unwatermarked": 1,
-    "promoted": 2,
+    "promoted": 3,
     "keypair": 1,
     "consent": 3,
     "swapped": 1,
@@ -4243,7 +4243,7 @@
     "popular": 2,
     "ring": 3,
     "founder blockquote": 1,
-    "founder": 3,
+    "founder": 4,
     "blockquote": 2,
     "pull quote": 1,
     "pull": 2,
@@ -19699,7 +19699,7 @@
         "not live"
       ],
       "status": "LIVE on boldlinemedia.com since 2026-10-06 ~5:30pm Phoenix (merge 44286da, rollback/20261007T003255Z). Test copy (Netlify branch deploy) still to be switched on, on the 10pm reminder, for FUTURE website changes.",
-      "summary": "boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. LIVE since 2026-10-06 evening (Phoenix). Future website changes go to the Netlify test copy first, once it is switched on.",
+      "summary": "boldlinemedia.com went from one long page to eight pages (Home, Ads, Websites, Pricing, How it works, About, Free Lead-Leak Check, Contact) built by scripts/build-marketing-site.mjs from pieces in marketing-src/. Edit the pieces, never the generated pages; verify-marketing-pages fails if they drift. LIVE since 2026-10-06 evening (Phoenix). Future website changes go to the Netlify test copy first, once it is switched on. /compare/ is now promoted from pricing, about and the homepage founder quote (2026-10-07).",
       "verified": "2026-10-07",
       "terms": {
         "2026": 1.5,
@@ -19867,7 +19867,11 @@
         "netlify": 1.5,
         "first": 1.5,
         "once": 1.5,
-        "switched": 1.5
+        "switched": 1.5,
+        "now": 1.5,
+        "promoted": 1.5,
+        "founder": 1.5,
+        "quote": 1.5
       }
     },
     {
