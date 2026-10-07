@@ -641,3 +641,4 @@ Each row = the production state saved *before* that merge (the rollback target).
 | 2026-10-07 | `8dc61d4` | `rollback/20261007T004415Z` | `350a4c7` | KB only: `marketing-site-pages` summary corrected to live. |
 | 2026-10-07 | `88f4b00` | `rollback/20261007T012155Z` | `b02bfed` | Founder quote (home + About) now mentions websites; quote check requires every copy to match. Full suite **133 / 0**. KB: `site-copy-voice`. |
 | 2026-10-07 | `36e625a` | `rollback/20261007T012638Z` | `a8e94cf` | Structured data: Organization summary names websites; website Service ($1,500 + $100/mo) on /pricing/ and /websites/; test pins prices. Full suite **133 / 0**. KB: `pending-seo-next-steps`, `linkedin-brand-presence`. |
+| 2026-10-07 | `952a158` | `rollback/20261007T012712Z` | `bf6281d` | KB only: Brendon's review-gating question (`springbok-wellness-deal`). |
