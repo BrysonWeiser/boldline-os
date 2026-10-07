@@ -7433,6 +7433,8 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
     setPh(p=>p.running?{...p,secs:p.secs+1}:p); setCallSecs(c=>c+1); },1000); return ()=>clearInterval(t); },[]);
   useEffect(()=>{ if(!win) return; const t=setTimeout(()=>setWin(null),7000); return ()=>clearTimeout(t); },[win]);
   const cardRef=useRef(null);
+  // "Hey ARIA, start Power Hour" arrives here with the clock already running.
+  useEffect(()=>{ if(window.__phAutostart){ window.__phAutostart=false; setPh(p=>({...p,running:true})); } },[]);
   useEffect(()=>{ setCallSecs(0);
     const el=cardRef.current; if(el&&el.getBoundingClientRect().top<0){ try{ el.scrollIntoView({block:"start",behavior:"smooth"}); }catch(e){} } },[cur?cur.id:null]);
   // A key that needs a time brings the time box to him, focused, so Enter finishes the log.
@@ -7455,7 +7457,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       const list=outFor(channel), n=parseInt(e.key,10);
       if(n>=1&&n<=list.length){ e.preventDefault(); choose(list[n-1]); return; }
       if(e.key==="ArrowRight"||e.key==="s"||e.key==="S"){ setI(k=>Math.min(k+1,queue.length-1)); return; }
-      if(e.key===" "){ e.preventDefault(); setPh(p=>({...p,running:!p.running})); }
+      if(e.key===" "){ e.preventDefault(); if(!ph.running&&!ph.secs) ARIA_VOICE.clip("power_start"); setPh(p=>({...p,running:!p.running})); }
     };
     window.addEventListener("keydown",onKey); return ()=>window.removeEventListener("keydown",onKey);
   });
@@ -7492,7 +7494,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
       setLastDone({id:cur.id,name:cur.name,label:o.label});
       setPh(p=>({...p,running:true,calls:p.calls+1,talks:p.talks+(o.reached?1:0),booked:p.booked+(o.books?1:0),
         log:[{name:cur.name,label:o.label,books:!!o.books,bad:!!(o.blocks||o.id==="not_interested"),at:Date.now()},...p.log].slice(0,40)}));
-      if(o.books) setWin({p:cur,when:whenVal||null,n:ph.booked+1,calls:ph.calls+1,at:Date.now()});
+      if(o.books){ setWin({p:cur,when:whenVal||null,n:ph.booked+1,calls:ph.calls+1,at:Date.now()}); ARIA_VOICE.clip(ph.booked+1>=2?"booked_2":"booked_1"); }
       // The notes box is NOT cleared here: it belongs to this company, is already saved, and the
       // switch to the next company saves anything still pending before loading theirs.
       setPending(null); setWhen(""); setDrafts(null);
@@ -7609,8 +7611,8 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
           <div style={{display:"flex",alignItems:"center",gap:8,padding:"6px 6px 6px 13px",borderRadius:11,border:`1px solid ${C.border}`,background:"rgba(0,0,0,.25)"}}>
             {ph.running&&<span className="ph-live" style={{width:7,height:7,borderRadius:"50%",background:C.green,boxShadow:`0 0 10px ${C.green}`}}/>}
             <span className="os-mono" style={{fontSize:20,fontWeight:700,fontVariantNumeric:"tabular-nums",color:C.text,minWidth:58}}>{phClock(ph.secs)}</span>
-            <button onClick={()=>setPh(p=>({...p,running:!p.running}))} style={{padding:"7px 12px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:"pointer",background:ph.running?C.green+"22":C.goldDim,color:ph.running?C.green:C.goldLight}}>{ph.running?"PAUSE":ph.secs?"RESUME":"START"}</button>
-            <button onClick={()=>{setPh(p=>({...p,running:false}));setRecap(true);}} disabled={!ph.calls&&!ph.secs} style={{padding:"7px 11px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:(!ph.calls&&!ph.secs)?"default":"pointer",background:"rgba(255,255,255,.05)",color:C.textDim,opacity:(!ph.calls&&!ph.secs)?.5:1}}>END</button>
+            <button onClick={()=>{ if(!ph.running&&!ph.secs) ARIA_VOICE.clip("power_start"); setPh(p=>({...p,running:!p.running})); }} style={{padding:"7px 12px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:"pointer",background:ph.running?C.green+"22":C.goldDim,color:ph.running?C.green:C.goldLight}}>{ph.running?"PAUSE":ph.secs?"RESUME":"START"}</button>
+            <button onClick={()=>{setPh(p=>({...p,running:false}));setRecap(true);ARIA_VOICE.clip("recap");}} disabled={!ph.calls&&!ph.secs} style={{padding:"7px 11px",fontSize:11,fontWeight:800,letterSpacing:".1em",borderRadius:9,border:"none",cursor:(!ph.calls&&!ph.secs)?"default":"pointer",background:"rgba(255,255,255,.05)",color:C.textDim,opacity:(!ph.calls&&!ph.secs)?.5:1}}>END</button>
           </div>
           <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
             {stat("Calls",ph.calls)}{stat("Talked",ph.talks)}{stat("Booked",ph.booked,C.green)}{stat("Calls an hour",pace==null?"–":pace,C.goldLight)}
@@ -8388,6 +8390,202 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
 // OS's own records would drift the first time an invoice was voided, refunded, or paid
 // late. The floor is still shown, clearly labelled as the floor, because it is the one
 // number he CAN count on next month.
+// ─── ARIA VOICE (Stage 4) ─────────────────────────────────────────────────────
+// Bryson, 2026-10-07: ARIA should talk "like Jarvis", with "a smart English accent", sound smooth not robotic,
+// and answer to "Hey ARIA" while the OS is open. The voice he picked and locked (KB os-redesign):
+//   Kokoro, style = 0.6 bf_emma + 0.4 bf_isabella, speed 0.98, British English, then pitch down 8% with the
+//   tempo kept, +3 dB bass at 140 Hz, a gentle 2.5:1 compressor and 1.4x gain.
+// Two ways she speaks:
+//   • Fixed lines (greetings, "Power Hour is live", "That one's booked") are pre-recorded in that exact voice
+//     in /aria/*.mp3, so they play instantly everywhere, phones included.
+//   • Anything with live numbers or names is spoken by the same voice model running IN THE BROWSER, in a
+//     background worker so the OS never stutters. Computers only: it is a one-time ~90 MB download that the
+//     browser then keeps. Phones show the words instead of reading them in a robotic device voice.
+// "Hey ARIA" uses the browser's own speech recognition (in Chrome that is Google's service), only while the
+// OS tab is open, only after he switches it on, and never while ARIA herself is talking.
+const ARIA_LOCK = { blend: [["bf_emma", 0.6], ["bf_isabella", 0.4]], speed: 0.98, pitch: 0.92, bassHz: 140, bassDb: 3, ratio: 2.5, thresholdDb: -18.4, gain: 1.4 };
+const ARIA_CLIPS = ["greet_morning","greet_afternoon","greet_evening","greet_late","yes","on_it","power_start","booked_1","booked_2","recap","thinking","sorry",
+  "open_today","open_outreach","open_leadscout","open_dealprep","open_calendar","open_leads","open_campaigns","open_website","open_content","open_revenue","open_alerts","objections"];
+const ARIA_WAKE = /\b(?:hey|hi|okay|ok)?\s*(?:aria|arya|ariah|area|aaria|maria|ariya)\b[\s,.!?]*/i;
+const ARIA_WORKER_SRC = `
+const KOKORO="https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js";
+const VOX="https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/resolve/main/voices/";
+let tts=null, loading=null;
+// Kokoro reads a voice from its own cache by name, so the locked blend is written there under the first
+// voice's name. The originals are fetched fresh (never from that cache) so a blend is never blended twice.
+async function blend(parts){
+  const bufs=await Promise.all(parts.map(([v])=>fetch(VOX+v+".bin").then(r=>{ if(!r.ok) throw new Error("voice "+v); return r.arrayBuffer(); })));
+  const arrs=bufs.map(b=>new Float32Array(b)), out=new Float32Array(arrs[0].length);
+  for(let i=0;i<out.length;i++){ let s=0; for(let k=0;k<arrs.length;k++) s+=arrs[k][i]*parts[k][1]; out[i]=s; }
+  const c=await caches.open("kokoro-voices"); await c.put(VOX+parts[0][0]+".bin", new Response(out.buffer,{headers:{"content-type":"application/octet-stream"}}));
+}
+// The graphics chip makes her several times faster; without one she runs on the processor (smaller model).
+async function pick(){ try{ if(self.navigator&&navigator.gpu){ const a=await navigator.gpu.requestAdapter(); if(a) return {device:"webgpu",dtype:a.features.has("shader-f16")?"fp16":"fp32"}; } }catch(e){} return {device:"wasm",dtype:"q8"}; }
+function load(parts){ return loading||(loading=(async()=>{
+  const m=await import(KOKORO); await blend(parts);
+  const progress_callback=(p)=>{ if(p&&p.status==="progress"&&/onnx/.test(p.file||"")) self.postMessage({type:"progress",pct:Math.round(p.progress||0)}); };
+  const how=await pick();
+  try{ tts=await m.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{...how,progress_callback}); }
+  catch(e){ if(how.device==="wasm") throw e; tts=await m.KokoroTTS.from_pretrained("onnx-community/Kokoro-82M-v1.0-ONNX",{device:"wasm",dtype:"q8",progress_callback}); }
+  return tts; })().catch(e=>{ loading=null; throw e; })); }
+self.onmessage=async(e)=>{ const d=e.data||{};
+  try{ const t=await load(d.blend);
+    if(d.type==="say"){ const a=await t.generate(d.text,{voice:d.blend[0][0],speed:d.speed}); const pcm=a.audio; self.postMessage({type:"audio",id:d.id,pcm,sr:a.sampling_rate},[pcm.buffer]); }
+    else self.postMessage({type:"ready",id:d.id});
+  }catch(err){ self.postMessage({type:"error",id:d.id,error:String((err&&err.message)||err)}); } };
+`;
+const ARIA_VOICE = (() => {
+  const W = typeof window !== "undefined" ? window : {};
+  const LS = { voice: "aria-voice-on", mic: "aria-mic-on", greeted: "aria-greeted-day" };
+  const get = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v === "1"; } catch (e) { return d; } };
+  const set = (k, v) => { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} };
+  const isPhone = () => (W.matchMedia && matchMedia("(hover: none) and (pointer: coarse)").matches) || (W.innerWidth || 1200) < 700;
+  const st = { voiceOn: get(LS.voice, true), micOn: get(LS.mic, false), listening: false, awake: false, speaking: false, neural: "idle", pct: 0, heard: "", err: "" };
+  const subs = new Set(); const emit = () => subs.forEach((f) => { try { f({ ...st }); } catch (e) {} });
+  const patch = (p) => { Object.assign(st, p); emit(); };
+  let ctx = null, out = null, an = null, worker = null, seq = 0, cur = null, queue = [], rec = null, handler = null, awakeT = null;
+  const core = () => (W.__ariaCore || (W.__ariaCore = { state: "idle", env: 0 }));
+  const audio = () => {
+    if (ctx) return ctx; const AC = W.AudioContext || W.webkitAudioContext; if (!AC) return null;
+    ctx = new AC(); an = ctx.createAnalyser(); an.fftSize = 512; out = ctx.createGain(); out.gain.value = 1; out.connect(an); an.connect(ctx.destination);
+    const buf = new Uint8Array(an.fftSize);
+    const meter = () => { if (st.speaking) { an.getByteTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; s += v * v; } core().env = Math.min(1, Math.sqrt(s / buf.length) * 4); } requestAnimationFrame(meter); };
+    requestAnimationFrame(meter); return ctx;
+  };
+  // The locked sound chain for live speech (the clips already carry it): pitch down with the tempo kept is
+  // done by asking the model for speech 1/0.92 faster and playing it at 0.92.
+  const chain = () => {
+    const c = audio(); const shelf = c.createBiquadFilter(); shelf.type = "lowshelf"; shelf.frequency.value = ARIA_LOCK.bassHz; shelf.gain.value = ARIA_LOCK.bassDb;
+    const comp = c.createDynamicsCompressor(); comp.threshold.value = ARIA_LOCK.thresholdDb; comp.ratio.value = ARIA_LOCK.ratio; comp.attack.value = 0.008; comp.release.value = 0.12; comp.knee.value = 6;
+    const g = c.createGain(); g.gain.value = ARIA_LOCK.gain; shelf.connect(comp); comp.connect(g); g.connect(out); return shelf;
+  };
+  const pauseMic = () => { if (rec && st.listening) { try { rec.abort(); } catch (e) {} } };
+  const play = (buffer, live) => new Promise((res) => {
+    const c = audio(); if (!c) return res(); const src = c.createBufferSource(); src.buffer = buffer;
+    if (live) { src.playbackRate.value = ARIA_LOCK.pitch; src.connect(chain()); } else src.connect(out);
+    cur = src; patch({ speaking: true }); core().state = "speak"; pauseMic();
+    src.onended = () => { if (cur === src) cur = null; res(); }; src.start();
+  });
+  const done = () => { if (!cur && !queue.length) { patch({ speaking: false }); core().state = st.awake ? "listen" : "idle"; setTimeout(resumeMic, 250); } };
+  const unlock = () => { const c = audio(); if (c && c.state === "suspended") c.resume().catch(() => {}); };
+  const clipCache = {};
+  const clip = async (name) => {
+    if (!st.voiceOn || !ARIA_CLIPS.includes(name)) return; const c = audio(); if (!c) return; unlock();
+    try { const ab = clipCache[name] || (clipCache[name] = await fetch(`/aria/${name}.mp3`).then((r) => r.arrayBuffer()));
+      const b = await c.decodeAudioData(ab.slice(0)); stopNow(); await play(b, false); } catch (e) {} done();
+  };
+  const ensureWorker = () => {
+    if (worker || isPhone() || !W.Worker || !W.caches) return worker;
+    try { worker = new Worker(URL.createObjectURL(new Blob([ARIA_WORKER_SRC], { type: "text/javascript" })), { type: "module" }); }
+    catch (e) { patch({ neural: "off" }); return null; }
+    worker.onmessage = (e) => { const d = e.data || {};
+      if (d.type === "progress") patch({ neural: "loading", pct: d.pct });
+      else if (d.type === "ready") patch({ neural: "ready", pct: 100 });
+      else if (d.type === "error") { patch({ neural: "off", err: d.error }); const j = pending[d.id]; if (j) { delete pending[d.id]; j(null); } }
+      else if (d.type === "audio") { if (st.neural !== "ready") patch({ neural: "ready", pct: 100 }); const j = pending[d.id]; if (j) { delete pending[d.id]; j(d); } } };
+    return worker;
+  };
+  const pending = {};
+  const synth = (text) => new Promise((res) => { const w = ensureWorker(); if (!w) return res(null); const id = ++seq; pending[id] = res;
+    if (st.neural === "idle") patch({ neural: "loading", pct: 0 });
+    w.postMessage({ type: "say", id, text, blend: ARIA_LOCK.blend, speed: ARIA_LOCK.speed / ARIA_LOCK.pitch }); });
+  // Sentence by sentence: the next one is being made while the current one plays.
+  const say = async (text, fallback) => {
+    if (!st.voiceOn) return; const clean = String(text || "").replace(/[*_#`>]/g, "").replace(/\s+/g, " ").trim(); if (!clean) return;
+    if (isPhone() || st.neural === "off" || !W.Worker) { if (fallback) await clip(fallback); return; }
+    // Until the voice model has downloaded once, a fixed line stands in (or the words stay on screen), and
+    // the download carries on in the background. Waiting would make her answer a minute late.
+    if (st.neural !== "ready") { warm(); if (fallback) await clip(fallback); return; }
+    unlock(); stopNow();
+    const parts = clean.match(/[^.!?]+[.!?]*/g).map((s) => s.trim()).filter(Boolean).slice(0, 8);
+    const my = queue = parts.map((p) => synth(p));
+    for (const p of my) { const d = await p; if (queue !== my) return; if (!d) break;
+      const c = audio(); const b = c.createBuffer(1, d.pcm.length, d.sr); b.copyToChannel(d.pcm, 0); await play(b, true); if (queue !== my) return; }
+    queue = []; done();
+  };
+  const stopNow = () => { queue = []; if (cur) { try { cur.onended = null; cur.stop(); } catch (e) {} cur = null; } };
+  const stop = () => { stopNow(); done(); };
+  const warm = () => { const w = ensureWorker(); if (w && st.neural === "idle") { patch({ neural: "loading", pct: 0 }); w.postMessage({ type: "warm", id: ++seq, blend: ARIA_LOCK.blend }); } };
+  // ── "Hey ARIA" ──
+  const SR = W.SpeechRecognition || W.webkitSpeechRecognition;
+  const resumeMic = () => { if (st.micOn && rec && !st.speaking && !st.listening) { try { rec.start(); } catch (e) {} } };
+  const wakeFor = (ms) => { clearTimeout(awakeT); patch({ awake: true }); core().state = "listen"; awakeT = setTimeout(() => { patch({ awake: false }); if (!st.speaking) core().state = "idle"; }, ms); };
+  const heard = (raw) => {
+    const t = raw.trim(); if (!t) return; patch({ heard: t });
+    if (st.awake) { clearTimeout(awakeT); patch({ awake: false }); core().state = "idle"; return handler && handler(t); }
+    const m = t.match(ARIA_WAKE); if (!m) return;
+    const rest = t.slice(m.index + m[0].length).trim();
+    if (rest.length > 1) { if (handler) handler(rest); } else { clip("yes"); wakeFor(7000); }
+  };
+  const startMic = () => {
+    if (!SR) { patch({ err: "This browser can't listen. Chrome, Edge or Safari can." }); return false; }
+    if (!rec) { rec = new SR(); rec.continuous = true; rec.interimResults = false; rec.lang = "en-US"; rec.maxAlternatives = 1;
+      rec.onstart = () => patch({ listening: true, err: "" });
+      rec.onend = () => { patch({ listening: false }); if (st.micOn && !st.speaking) setTimeout(resumeMic, 400); };
+      rec.onerror = (e) => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { st.micOn = false; set(LS.mic, false); patch({ err: "Microphone blocked. Allow it from the lock icon next to the address, then turn Hey ARIA on again." }); } };
+      rec.onresult = (e) => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard(e.results[i][0].transcript); }; }
+    try { rec.start(); } catch (e) {} return true;
+  };
+  return {
+    clips: ARIA_CLIPS, lock: ARIA_LOCK, wake: ARIA_WAKE, heard,
+    subscribe: (f) => { subs.add(f); f({ ...st }); return () => subs.delete(f); },
+    state: () => ({ ...st }), clip, say, stop, warm, unlock, isPhone,
+    setHandler: (f) => { handler = f; },
+    setVoice: (on) => { set(LS.voice, on); patch({ voiceOn: on }); if (!on) stop(); else { unlock(); if (!isPhone()) warm(); } },
+    setMic: (on) => { set(LS.mic, on); patch({ micOn: on }); if (on) { unlock(); startMic(); } else { clearTimeout(awakeT); patch({ awake: false }); if (rec) { try { rec.abort(); } catch (e) {} } } },
+    resumeMicIfOn: () => { if (st.micOn) startMic(); },
+    greetedToday: () => { try { return localStorage.getItem(LS.greeted) === phxDayKey(Date.now()); } catch (e) { return true; } },
+    markGreeted: () => { try { localStorage.setItem(LS.greeted, phxDayKey(Date.now())); } catch (e) {} },
+  };
+})();
+// Plain-language helpers for what he says to her. Only ever navigates, reads out, or hands the question to the
+// ARIA chat (whose own actions still wait for a click to confirm). Nothing spoken can write, send or spend.
+const ARIA_SCREENS = [
+  ["outreach", /outreach|call list|calling|dial/, "open_outreach"], ["leadscout", /lead ?scout|scout|prospect/, "open_leadscout"],
+  ["dealprep", /deal ?prep|prep/, "open_dealprep"], ["calendar", /calendar|schedule|meeting/, "open_calendar"],
+  ["leads", /\bleads?\b|inbox|enquir/, "open_leads"], ["campaigns", /campaign/, "open_campaigns"], ["website", /website|site/, "open_website"],
+  ["content", /content|video|script/, "open_content"], ["revenue", /revenue|money|invoice|income/, "open_revenue"], ["home", /today|dashboard|home|my day/, "open_today"],
+];
+function ariaRoute(text) {
+  const t = String(text || "").toLowerCase().replace(/[.!?,]/g, " ").replace(/\s+/g, " ").trim();
+  if (!t) return { kind: "none" };
+  if (/^(stop|quiet|be quiet|shut up|cancel|never ?mind|that's all)\b/.test(t)) return { kind: "stop" };
+  if (/power hour|start (calling|dialing|the hour)|let's (dial|call|go)/.test(t)) return { kind: "power" };
+  if (/how am i doing|how'?s my day|status|brief|update me|what'?s (up|new|going on)|catch me up/.test(t)) return { kind: "brief" };
+  if (/objection|comeback/.test(t)) return { kind: "objections" };
+  if (/^(next|skip)( one| call| company)?$/.test(t)) return { kind: "next" };
+  if (/alert|what needs me|urgent/.test(t)) return { kind: "alerts" };
+  const nav = /^(open|go to|show( me)?|take me to|pull up|bring up|switch to)\b/.test(t) || t.split(" ").length <= 3;
+  if (nav) { for (const [screen, rx, clip] of ARIA_SCREENS) if (rx.test(t)) return { kind: "go", screen, clip }; }
+  return { kind: "ask", text: String(text).trim() };
+}
+
+function useAriaVoice(){ const [v,setV]=useState(()=>ARIA_VOICE.state()); useEffect(()=>ARIA_VOICE.subscribe(setV),[]); return v; }
+// The two switches: her voice, and "Hey ARIA". Both remembered on this device.
+function AriaVoiceBar(){
+  const v=useAriaVoice();
+  const pill=(on,label,title,onClick,icon)=>(
+    <button title={title} aria-pressed={on} onClick={onClick} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"6px 11px",borderRadius:999,cursor:"pointer",fontSize:11.5,fontWeight:700,
+      border:`1px solid ${on?"rgba(143,214,255,.45)":C.border}`,background:on?"rgba(143,214,255,.10)":"rgba(255,255,255,.03)",color:on?"#BFE6FF":C.textDim}}>{icon}{label}</button>);
+  const ic=(d)=><svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">{d}</svg>;
+  const status = v.err ? v.err
+    : v.speaking ? "Speaking"
+    : v.awake ? "Listening..."
+    : v.listening ? "Say “Hey ARIA”"
+    : v.micOn ? "Starting the mic"
+    : v.neural==="loading" ? `Downloading her voice (one time) ${v.pct||0}%` : "";
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:7,flexWrap:"wrap"}}>
+      {pill(v.voiceOn, v.voiceOn?"Voice on":"Voice off", "ARIA speaks out loud", ()=>ARIA_VOICE.setVoice(!v.voiceOn),
+        ic(v.voiceOn?<><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></>:<><path d="M11 5 6 9H2v6h4l5 4z"/><path d="m23 9-6 6M17 9l6 6"/></>))}
+      {pill(v.micOn, "Hey ARIA", "Listens for “Hey ARIA” while the OS is open. Chrome uses Google's speech service for this.", ()=>ARIA_VOICE.setMic(!v.micOn),
+        ic(<><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></>))}
+      {status&&<span style={{fontSize:11.5,color:v.err?C.amber:v.awake?"#BFE6FF":C.textMuted,display:"inline-flex",alignItems:"center",gap:6}}>
+        {(v.listening||v.awake)&&!v.err&&<span className="ph-live" style={{width:7,height:7,borderRadius:"50%",background:"#8FD6FF",boxShadow:"0 0 8px #8FD6FF"}}/>}{status}</span>}
+    </div>
+  );
+}
+
 // ─── TODAY (the Dashboard's top) ──────────────────────────────────────────────
 // Bryson, 2026-10-07: he wants to open the OS and be motivated, "like Jarvis". This is the first thing he
 // sees: a greeting on Phoenix time, ARIA's short briefing, the ARIA core (a 3D particle sphere whose three
@@ -8522,6 +8720,8 @@ function TodayHero({ clients, leads, isDesktop, onOutreach, onLeadScout, onDealP
   ].filter(Boolean).join(" ");
   useEffect(() => { if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) { setTyped(9999); return; }
     setTyped(0); let n = 0; const t = setInterval(() => { n += 2; setTyped(n); if (n >= brief.length) clearInterval(t); }, 18); return () => clearInterval(t); }, [brief]);
+  // What ARIA reads out when he asks "how am I doing" or on the day's first visit.
+  useEffect(() => { window.__ariaBrief = `${part}, Bryson. ${brief}`; }, [part, brief]);
   const goals = { calls: calls / TODAY_GOALS.calls, talks: roll.conversations / TODAY_GOALS.talks, booked: roll.booked / TODAY_GOALS.booked };
   const needs = [
     newLeads.length && { tone: C.green, t: `${newLeads.length} new ${newLeads.length === 1 ? "lead" : "leads"}`, s: newLeads.slice(0, 2).map((l) => l.business || l.name).filter(Boolean).join(", ") || "Reply while they're warm", go: onLeads },
@@ -8556,7 +8756,10 @@ function TodayHero({ clients, leads, isDesktop, onOutreach, onLeadScout, onDealP
       <div style={{ display: "grid", gridTemplateColumns: isDesktop ? "minmax(0,1.15fr) minmax(0,1fr)" : "1fr", alignItems: "center" }}>
         {!isDesktop && <AriaCore goals={goals} height={230}/>}
         <div style={{ padding: isDesktop ? "26px 8px 24px 28px" : "4px 16px 18px" }}>
-          <div className="os-hud" style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".24em", color: C.gold, textTransform: "uppercase" }}>{dateLine}</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
+            <div className="os-hud" style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".24em", color: C.gold, textTransform: "uppercase" }}>{dateLine}</div>
+            <AriaVoiceBar/>
+          </div>
           <div className="os-title" style={{ fontSize: isDesktop ? 34 : 26, fontWeight: 700, color: C.text, marginTop: 6, lineHeight: 1.1 }}>{part}, Bryson.</div>
           <div style={{ display: "flex", gap: 9, alignItems: "flex-start", marginTop: 12, minHeight: 44 }}>
             <span style={{ width: 20, height: 20, borderRadius: 6, background: C.gradA, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}><IconStar size={11} color="#fff"/></span>
@@ -13692,7 +13895,7 @@ function LeadsTabContent({client,onUpdate}) {
 }
 
 // ─── ARIA ─────────────────────────────────────────────────────────────────────
-function ARIAPanel({clients,onClose,onDelete,onUpdate}) {
+function ARIAPanel({clients,onClose,onDelete,onUpdate,initialAsk,speakReplies}) {
   const [ariaTab,setAriaTab]=useState("chat");
   const {messages,loading,send,reset,pendingAction,confirmAction,cancelAction}=useAI("",{enableTools:true});
   const [input,setInput]=useState("");const [repGen,setRepGen]=useState(false);
@@ -13738,6 +13941,11 @@ ${(adsLines||metaLines)?`LIVE AD CAMPAIGNS (real, from the APIs — 30-day metri
 ${adsLines?`GOOGLE ADS:\n${adsLines}\n`:""}${metaLines?`META ADS:\n${metaLines}\n`:""}When a proposal is exactly ONE budget change or ONE pause/enable on a listed campaign, include the exec payload (platform + kind + that campaign's exact id + name) so Bryson's approval executes it automatically.`:""}`;
   const buildReport=()=>{ reset();setRepGen(true);setAriaTab("chat");send(`Generate the weekly BoldLine Media system report. Include: 1) Executive Summary 2) Each client status 3) Revenue analysis including upgrade opportunities 4) Bot system health 5) Top 3 optimization recommendations 6) Urgent alerts 7) Actions for this week.`,SYSTEM); };
   const handleSend=()=>{ if(!input.trim()||loading)return; send(input.trim(),SYSTEM); setInput(""); };
+  // A question he asked out loud arrives already typed; when he asked by voice, she answers by voice too.
+  const askedRef=useRef(null), spokenRef=useRef(0);
+  useEffect(()=>{ if(initialAsk&&askedRef.current!==initialAsk){ askedRef.current=initialAsk; const t=setTimeout(()=>send(initialAsk,SYSTEM),350); return ()=>clearTimeout(t); } },[initialAsk]);
+  useEffect(()=>{ if(!speakReplies) return; const last=messages[messages.length-1];
+    if(last&&last.role==="assistant"&&messages.length>spokenRef.current){ spokenRef.current=messages.length; ARIA_VOICE.say(String(last.content||"").slice(0,600)); } },[messages,speakReplies]);
 
   const handleConfirmDelete=()=>{
     const targetName=String((pendingAction.input && pendingAction.input.client_name)||"");
@@ -20244,9 +20452,40 @@ function App({onLogout}) {
   const [showNotif,setShowNotif]       = useState(false);
   const [showMore,setShowMore]         = useState(false);
   const [showCmd,setShowCmd]           = useState(false);
+  const [ariaAsk,setAriaAsk]           = useState(null); // a question he asked out loud, handed to the ARIA chat
   // Ctrl K (Cmd K on a Mac) opens quick search from anywhere, even mid-typing, like every modern app.
   useEffect(()=>{ const f=(e)=>{ if((e.ctrlKey||e.metaKey)&&!e.altKey&&(e.key==="k"||e.key==="K")){ e.preventDefault(); setShowCmd(v=>!v); } };
     window.addEventListener("keydown",f); return ()=>window.removeEventListener("keydown",f); },[]);
+  // "Hey ARIA": what he says is routed here. It only navigates, reads something out, or hands the question to
+  // the ARIA chat, where any real action still waits for his click. See ariaRoute.
+  const screenNow = useRef(screen); screenNow.current = screen;
+  useEffect(()=>{ ARIA_VOICE.setHandler((text)=>{
+    const r=ariaRoute(text), on=screenNow.current;
+    if(r.kind==="none") return;
+    if(r.kind==="stop") return ARIA_VOICE.stop();
+    if(r.kind==="power"){ window.__phAutostart=true; setScreen("outreach"); return ARIA_VOICE.clip("power_start"); }
+    if(r.kind==="brief"){ if(window.__ariaBrief&&on==="home") return ARIA_VOICE.say(window.__ariaBrief,"open_today"); setScreen("home"); return ARIA_VOICE.clip("open_today"); }
+    if(r.kind==="objections"){ if(on!=="outreach") setScreen("outreach"); setTimeout(()=>window.dispatchEvent(new KeyboardEvent("keydown",{key:"o"})),on==="outreach"?0:1200); return ARIA_VOICE.clip("objections"); }
+    if(r.kind==="next"&&on==="outreach"){ window.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight"})); return ARIA_VOICE.clip("on_it"); }
+    if(r.kind==="alerts"){ setShowNotif(true); return ARIA_VOICE.clip("open_alerts"); }
+    if(r.kind==="go"){ if(r.screen==="dealprep") openDealPrep(null); else setScreen(r.screen); return ARIA_VOICE.clip(r.clip); }
+    const low=String(text).toLowerCase(), cl=realClients.find(c=>c.name&&low.includes(c.name.toLowerCase()));
+    if(cl&&/^(open|show|go to|pull up|bring up)/.test(low)){ selectClient(cl); return ARIA_VOICE.say("Opening "+cl.name+".","on_it"); }
+    setAriaAsk(String(text)); setShowARIA(true); ARIA_VOICE.clip("thinking");
+  }); });
+  // Browsers only allow sound after a click or key press, so she greets him on the first one, once a day.
+  useEffect(()=>{
+    ARIA_VOICE.resumeMicIfOn();
+    const first=()=>{ window.removeEventListener("pointerdown",first); window.removeEventListener("keydown",first);
+      ARIA_VOICE.unlock(); const v=ARIA_VOICE.state(); if(!v.voiceOn) return;
+      if(!ARIA_VOICE.greetedToday()){ ARIA_VOICE.markGreeted(); const h=phxHour(), c=h<5?"greet_late":h<12?"greet_morning":h<17?"greet_afternoon":"greet_evening";
+        if(v.neural==="ready"&&window.__ariaBrief) ARIA_VOICE.say(window.__ariaBrief,c); else ARIA_VOICE.clip(c); }
+      if(!ARIA_VOICE.isPhone()) ARIA_VOICE.warm();
+      if(v.micOn) ARIA_VOICE.resumeMicIfOn(); };
+    window.addEventListener("pointerdown",first); window.addEventListener("keydown",first);
+    return ()=>{ window.removeEventListener("pointerdown",first); window.removeEventListener("keydown",first); };
+  },[]);
+
   const [leads,setLeads]               = useState([]);
   // 🔴 "The leads have arrived" is not the same question as "is the leads array empty", and
   // conflating them is what announced every lead on every launch. See the toast effect.
@@ -20755,7 +20994,7 @@ function App({onLogout}) {
           setShowNotif(false);
         }}
       />}
-      {showARIA&&<ARIAPanel clients={clients} onClose={()=>setShowARIA(false)} onDelete={deleteClient} onUpdate={updateClient}/>}
+      {showARIA&&<ARIAPanel clients={clients} onClose={()=>{setShowARIA(false);setAriaAsk(null);}} onDelete={deleteClient} onUpdate={updateClient} initialAsk={ariaAsk} speakReplies={!!ariaAsk}/>}
       {showCmd&&<CommandPalette onClose={()=>setShowCmd(false)} items={[
         {id:"g-out",k:"go",label:"Outreach",hint:"Power Hour: work the call list",kw:"calls dial cold call power hour",run:()=>setScreen("outreach")},
         {id:"g-home",k:"go",label:"Today",hint:"Your day, goals, and every client",kw:"home dashboard clients",run:()=>setScreen("home")},
