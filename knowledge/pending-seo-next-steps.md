@@ -37,3 +37,12 @@ Context: the second Netlify site and the custom domain are **DONE** (marketing s
    (the Resend dead-end was a SUBDOMAIN record) and may unlock the dormant branded lead emails.
 5. ~~**Google Business Profile**~~ — DONE 2026-08-08/09, see above.
 Small folds-in: proper square favicon; first-client testimonial section someday.
+## 2026-10-07: Google's AI answer was out of date (Bryson screenshot)
+Searching "boldline media" gave an AI summary saying management starts at **$350/month** and listing only ads +
+landing pages (no websites). Sources it cites: our site (old FAQ + llms.txt said $350; both fixed 2026-10-06) and
+his LinkedIn. Fixed on our side: the Organization summary search engines read now names websites, and a website
+Service (with $1,500 / $100 a month) sits on /pricing/ and /websites/; `verify-marketing-pages` pins those to
+`WEBSITE_OFFER` and the ads minimum to $400. His side (given click by click): Search Console > URL inspection >
+Request indexing for /, /websites/, /pricing/; Business Profile description + add a "Website design" service;
+LinkedIn headline, About and Services description (dash-free copy in `linkedin-brand-presence`). Google's AI answers
+cannot be edited directly; they refresh after Google re-reads the sources (days to a few weeks).

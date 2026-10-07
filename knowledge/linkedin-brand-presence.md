@@ -143,3 +143,14 @@ an excuse invites a follow-up question.
 This is the same instinct as never telling a prospect about the wisdom-teeth surgery when declining
 a Friday meeting (same day): **decline or reschedule with a time, not a reason.** Applies to
 clients, prospects, referral partners and their developers alike.
+
+## 2026-10-07: copy updated to include websites (given to Bryson, he pastes it)
+Google's AI answer cited his LinkedIn for "landing pages" and left websites out. New copy, no dashes:
+- **Headline:** `Founder at BoldLine Media | Google and Meta ads, landing pages and websites that bring businesses more customers`
+- **About:** "I build the ads, landing pages and websites that turn strangers into booked customers, for businesses
+  that want to grow, wherever they are. BoldLine Media runs your Google and Meta ads for you and builds the website
+  they send people to. You focus on your customers, we bring them in. Based in Phoenix, working with businesses across the U.S."
+- **Services description:** "I run Google and Meta ads for businesses, build the landing pages behind them, and
+  design and host modern websites that turn visits into calls. Clear reporting on what's working. Based in Phoenix,
+  working with businesses across the U.S."
+- Company Page copy above still predates websites; update the tagline the same way when the page is created.

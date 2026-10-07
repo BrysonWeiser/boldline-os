@@ -132,7 +132,7 @@ const PAGES = [
   { id: "websites", path: "/websites/", file: "websites/index.html",
     title: "Websites for Businesses | BoldLine Media",
     desc: "Modern websites with real motion that still load fast on a phone. Three designs to choose from, $1,500 to build and $100 a month to look after.",
-    body: promote(part("websites.html")) + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html"] },
+    body: promote(part("websites.html")) + ctaBand("Want a site like this?", "Book a call and we'll show you the three designs on your own business."), ld: ["ld-org.html", "ld-service.html"] },
   { id: "pricing", path: "/pricing/", file: "pricing/index.html",
     title: "Pricing | BoldLine Media",
     desc: "Plans for Google Ads, Meta Ads, both, and online stores. You pay your plan's minimum or the fee for qualified leads, whichever is higher. Never both.",
