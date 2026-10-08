@@ -279,14 +279,14 @@ const os = read("../index.html");
     (os.match(/Which service is this campaign for\?/g) || []).length, 2);
   ok("Google seeds a client campaign from that service", /const clientSeed = \(service\)/.test(os));
   ok("Meta does too", /const metaClientSeed = \(service\)/.test(os));
-  ok("Google's fill honours which account it is", /client\.internal \? agencySeed\(audience\) : clientSeed\(audience\)/.test(os));
-  ok("Meta's fill honours which account it is", /client\.internal \? metaAgencySeed\(audience\) : metaClientSeed\(audience\)/.test(os));
+  ok("Google's fill honours which account it is", /isHouse\(client\) \? agencySeed\(audience\) : clientSeed\(audience\)/.test(os));
+  ok("Meta's fill honours which account it is", /isHouse\(client\) \? metaAgencySeed\(audience\) : metaClientSeed\(audience\)/.test(os));
 
   // The AI brief has to agree with the campaign name and the seeds, or the ad is written
   // for the whole trade while everything around it says one service.
   eq("both generators send the chosen service as the niche",
     (os.match(/\(audience \|\| client\.niche \|\| ""\)/g) || []).length, 2);
-  ok("Google's brief uses it as the offer too", /offer: client\.internal \? "Google and Meta ad management plus the landing pages behind them" : \(audience \|\| cs\.mainOffer \|\| ""\)/.test(os));
+  ok("Google's brief uses it as the offer too", /offer: isHouse\(client\) \? "Google and Meta ad management plus the landing pages behind them" : \(audience \|\| cs\.mainOffer \|\| ""\)/.test(os));
 
   // Meta's split testing used to be house-only, because Meta's Development tier refused
   // writes to any account BoldLine did not own. **Standard access was granted 2026-09-14**

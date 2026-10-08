@@ -57,6 +57,9 @@ const src = [
   slice(/^const adPlatformsOf = /m, /\n};\n/) + "\n};\n",
   slice(/^const platformLabel = /m, /\n};\n/) + "\n};\n",
   slice(/^const BOT_IDS = \[/m, /\n\];\n/) + "\n];\n",
+  // 🔴 And again (2026-10-07): adLanding now asks isHouse, because one of Bryson's own businesses
+  // is internal too and must get its own landing page, not BoldLine's /get-started.
+  slice(/^const isHouse = /m, /\n/) + "\n",
 ].join("\n");
 
 // `window` is what adLanding reads for the origin of a generated page. Absent here, which
@@ -186,7 +189,7 @@ const client = (over = {}) => ({
   ok("that one occurrence is the constant itself",
     /^const HOUSE_LANDING_URL = "https:\/\/boldlinemedia\.com\/get-started";$/m.test(UI));
   ok("both launch cards default to the constant",
-    (UI.match(/client\.internal \? HOUSE_LANDING_URL/g) || []).length === 2);
+    (UI.match(/isHouse\(client\) \? HOUSE_LANDING_URL/g) || []).length === 2);
   ok("the Preview link and Copy button use it too",
     /<a href=\{HOUSE_LANDING_URL\}/.test(UI) && /writeText\(HOUSE_LANDING_URL\)/.test(UI));
 }

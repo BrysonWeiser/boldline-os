@@ -24,6 +24,7 @@
 // Kept separate from the function so the tests can run the real thing (KB `repo-tests`).
 
 import { humanize } from "./humanize.mjs";
+import { isHouse } from "./owned.mjs";
 
 // How a proposed differentiator is grounded, and what that means for trusting it.
 //   record   — traceable to something the business itself has stated in the OS (their
@@ -68,7 +69,7 @@ export const researchArea = (cl) => {
 const NATIONAL_WORDS = /\b(nationwide|nationally|national|united states|u\.?s\.?a?|all 50|anywhere|remote(ly)?|online only|worldwide|global)\b/i;
 
 export const sellsNationally = (cl) => {
-  if (cl && cl.internal) return true;                       // BoldLine itself, always
+  if (isHouse(cl)) return true;                             // BoldLine itself, always
   const cs = (cl && cl.campaignSetup) || {};
   if (NATIONAL_WORDS.test(`${cs.serviceArea || ""} ${cs.targetLocations || ""}`)) return true;
   // An e-commerce brand ships to whoever buys. Its competitor is a store, not a neighbour.

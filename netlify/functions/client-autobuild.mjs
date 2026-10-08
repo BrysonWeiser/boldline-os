@@ -26,6 +26,7 @@ import { nextStep, successPatch, failurePatch } from "../lib/autobuild-decide.mj
 import landingHandler from "./generate-landing.mjs";
 import { getAccessToken, createCampaign } from "./google-ads.mjs";
 import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle, brief } from "../lib/ad-gen-shared.mjs";
+import { isHouse } from "../lib/owned.mjs";
 
 // ── The outside edges, injected so the orchestration can be tested without a network ──
 // Same shape as docusign-watch's runWatch, for the same reason: the decisions and the
@@ -119,7 +120,7 @@ const realCampaign = async (cl) => {
     : `https://boldlinemedia.netlify.app/lp/${cl.landingSlug || ""}`;
 
   const { data } = await runTool({
-    tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(!!cl.internal),
+    tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(isHouse(cl)),
     prompt: `Write a Google Search campaign for this business.\n\n${brief(cl)}\n\n`
       + `Their landing page says: "${landing.headline || ""}" ${landing.subheadline || ""}\n\n`
       + `Build 3 tightly themed ad groups, each with its own keywords and its own ad.`,

@@ -44,6 +44,7 @@ import {
 import { runTool, TOOL_FOR, MAX_TOKENS_FOR, systemFor, cleanGoogle, cleanMeta } from "../lib/ad-gen-shared.mjs";
 import { getLocalConditions, conditionsFingerprint } from "../lib/local-conditions.mjs";
 import { metaDelivering, googleDelivering } from "../lib/meta-status.mjs";
+import { isHouse } from "../lib/owned.mjs";
 
 const DAYS_PER_MONTH = 30.4;
 
@@ -270,7 +271,7 @@ export default withFailureAlert("ads-autopilot", async () => {
     if (monthly <= 0) { skipped++; continue; }
 
     clientsChecked++;
-    const who = cl.internal ? "My Ads (BoldLine's own account)" : (cl.name || "A client");
+    const who = isHouse(cl) ? "My Ads (BoldLine's own account)" : (cl.name || "A client");
     const recent = Array.isArray(ap.log) ? ap.log : [];
     const onCooldown = (key) => recent.some((a) => a.key === key && (now - new Date(a.at).getTime()) < COOLDOWN_HOURS * 3600e3);
     // Test vs multi-angle, resolved once and honoured identically by both platforms so a
@@ -482,7 +483,7 @@ export default withFailureAlert("ads-autopilot", async () => {
           if (!finalUrl) continue;
           try {
             const { data } = await runTool({
-              tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(!!cl.internal),
+              tool: TOOL_FOR.google, maxTokens: MAX_TOKENS_FOR.google, system: systemFor(isHouse(cl)),
               prompt: `Write ONE challenger responsive search ad to split test against the ad currently running.
 
 THE AD GROUP: "${g.name}" in campaign "${t.c.name}".
@@ -598,7 +599,7 @@ Return exactly ONE ad group named "${g.name}" carrying exactly 15 headlines at 3
           }
           try {
             const { data } = await runTool({
-              tool: TOOL_FOR.meta, maxTokens: MAX_TOKENS_FOR.meta, system: systemFor(!!cl.internal),
+              tool: TOOL_FOR.meta, maxTokens: MAX_TOKENS_FOR.meta, system: systemFor(isHouse(cl)),
               prompt: `Write ONE challenger Meta ad to split test against the ad currently running.
 
 THE CAMPAIGN: "${t.c.name}".

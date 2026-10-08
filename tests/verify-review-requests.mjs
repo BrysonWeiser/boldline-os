@@ -257,7 +257,7 @@ await t("opt-out", async () => {
 
 // ── 9. Wiring ───────────────────────────────────────────────────────────────────────────────
 ok("the sender is scheduled", /\[functions\."review-requests-run"\]\s*\n\s*schedule = "\*\/15 \* \* \* \*"/.test(TOML));
-ok("the Reviews tab exists, and not on the house account", /\["reviews","Reviews"\]/.test(UI) && /k==="log"\|\|k==="reviews"/.test(UI));
+ok("the Reviews tab exists, and not on the house account", /\["reviews","Reviews"\]/.test(UI) && /k==="log"\|\|\(isHouse\(client\)&&k==="reviews"\)/.test(UI));
 ok("🔴 the screen only queues: no send path in the card", (() => { const a = UI.indexOf("function ReviewRequestsCard"); const b = UI.indexOf("\n}\n", a); const c = UI.slice(a, b); return a > 0 && !/api\.resend|action=send/.test(c) && /action=add/.test(c); })());
 
 

@@ -50,8 +50,8 @@ const eq = (name, got, want) =>
   ok("🔴 Lead Scout is one of them", /<NicheSelect value=\{selected\?selected\.label:""\} source=\{SCOUT_NICHES\}/.test(UI),
     "this is the field he reported; a fix that misses it fixes nothing he can see");
   ok("the client sheets still pass their own list by leaving `source` out",
-    (UI.match(/<NicheSelect value=\{form\.niche\} onChange=\{v=>set\("niche",v\)\}\/>/g) || []).length === 2,
-    "one picker, two lists, and the default must keep working untouched");
+    (UI.match(/<NicheSelect value=\{form\.niche\} onChange=\{v=>set\("niche",v\)\}\/>/g) || []).length === 3,
+    "one picker, two lists, and the default must keep working untouched (the two client sheets and the add-a-business sheet)");
   ok("the default list is the client-sheet one, reshaped rather than duplicated",
     /const NICHE_SOURCE_DEFAULT = Object\.entries\(NICHE_GROUPS\)\.map\(\(\[g,n\]\)=>\(\{g,n,k:"service"\}\)\);/.test(UI));
 }

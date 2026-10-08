@@ -40,8 +40,8 @@ ok("🔴 a failure still tells him how to do it by hand",
   /Link existing account/.test(UI),
   "this runs while he is on a call with the client; a dead end there is the worst outcome");
 ok("BoldLine's own house account is not offered the button",
-  /!client\.internal&&<LinkRequestRow/.test(UI),
-  "the house account is already under the manager; asking it to link to itself is nonsense");
+  /!isHouse\(client\)&&<LinkRequestRow/.test(UI),
+  "the house account is already under the manager; asking it to link to itself is nonsense (one of his own businesses DOES get it: its account starts outside the manager)");
 
 // ── The server side ──────────────────────────────────────────────────────────
 ok("the endpoint has a linkClient action", /action === "linkClient"/.test(GADS));
