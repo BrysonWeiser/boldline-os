@@ -19,7 +19,7 @@ const src = (f) => readFileSync(join(ROOT, f), "utf8");
 let pass = 0; const fails = [];
 const ok = (l, c, d) => c ? pass++ : fails.push(l + (d ? ` — ${d}` : ""));
 const same = (l, a, b) => ok(l, a === b, `${a} vs ${b}`);
-const text = (h) => h.replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, " ");
+const text = (h) => h.replace(/<style[\s\S]*?<\/style>/g, " ").replace(/<img\b[^>]*\balt="([^"]*)"[^>]*>/g, " $1 ").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/\s+/g, " ");
 
 const WEB = ["website_welcome", "website_payment", "website_review", "website_live", "website_past_due", "blog_scheduled", "website_monthly"];
 const T = { price: 1500, plan: "half", care: 99, blog: true, blogMonthly: 149, blogPosts: 4 };
