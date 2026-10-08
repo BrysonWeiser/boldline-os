@@ -39,6 +39,7 @@
 //     fabricated testimonials, counts, ratings or years in business.
 
 import { termsOf } from "./website-deal.mjs";
+import { bookingOn, bookingConfig, intakeOf } from "./booking.mjs";
 
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
@@ -59,13 +60,16 @@ export const pageById = (id) => SITE_PAGES.find((p) => p.id === id) || null;
 // Pages beyond the five: extra pages the client paid for (each written by the builder) and the blog.
 // Ids carry their own path ("x-service-areas", "blog") so a link never needs the page list to resolve.
 // Bryson, 2026-10-06: *"what if a client wants to add extra pages such as a blog page?"* KB `website-builder`.
-export const RESERVED_SLUGS = ["", "home", "services", "about", "reviews", "contact", "blog", "site"];
+export const RESERVED_SLUGS = ["", "home", "services", "about", "reviews", "contact", "blog", "site", "book"];
 export const slugify = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48);
 export const blogOn = (cl) => !!(cl && (termsOf(cl).blog || (cl.internal && cl.website && cl.website.blogOn)));
 export const extraPagesOf = (cl) => (((cl && cl.website && cl.website.extraPages) || []))
   .filter((p) => p && p.slug && !RESERVED_SLUGS.includes(p.slug) && p.title && p.content && p.content.headline)
   .map((p) => ({ id: `x-${p.slug}`, label: clean(p.title, 40), path: p.slug, extra: p }));
-export const pagesFor = (cl) => SITE_PAGES.concat(extraPagesOf(cl), blogOn(cl) ? [{ id: "blog", label: "Blog", path: "blog" }] : []);
+// The Book page joins once online booking is on with at least one package (./booking.mjs). It stays out of
+// the top bar, because the main button there already goes to it.
+export const pagesFor = (cl) => SITE_PAGES.concat(extraPagesOf(cl), blogOn(cl) ? [{ id: "blog", label: "Blog", path: "blog" }] : [],
+  bookingOn(cl) ? [{ id: "book", label: "Book", path: "book", nav: false }] : []);
 export const pageInSite = (cl, id) => pagesFor(cl).find((p) => p.id === id) || null;
 export const pageByPath = (cl, seg) => pagesFor(cl).find((p) => p.path === String(seg || "")) || null;
 
@@ -682,7 +686,39 @@ if(pg&&vl&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&a.target!=='_blank'&&a.href.spli
 vl.style.transition='none';vl.classList.remove('out','on');void vl.offsetWidth;vl.style.transition='';vl.classList.add('on');setTimeout(function(){location.href=a.href;},560);}});
 addEventListener('pageshow',function(e){if(e.persisted&&vl){vl.classList.remove('on');vl.classList.add('out');}});
 }catch(err){h.classList.remove('js','mo');var vv=d.querySelector('.veil');if(vv)vv.parentNode.removeChild(vv);}
-${formScript(cl)}})();`;
+${formScript(cl)}${bookScript(cl)}})();`;
+}
+
+function bookScript(cl) {
+  if (!bookingOn(cl)) return "";
+  const token = encodeURIComponent((cl && cl.leadToken) || "");
+  return `var bk=d.getElementById('bk');if(bk){var BKP=PREVIEW||/[?&]preview=/.test(location.search),BS={},bf=d.getElementById('bkform');
+function bq(s){return [].slice.call(bk.querySelectorAll(s));}
+function bshow(id){d.getElementById(id).hidden=false;}
+function bmsg(t){d.getElementById('bkdm').textContent=t||'';}
+function bdays(){var dl=d.getElementById('bkdays'),tl=d.getElementById('bktimes');dl.innerHTML='';tl.innerHTML='';bmsg('Finding open times...');
+fetch('/book?token=${token}&pkg='+encodeURIComponent(BS.pkg)).then(function(r){return r.json();}).then(function(j){if(!j||!j.ok){bmsg((j&&j.error)||'Online booking is down for a moment. Please call us.');return;}
+var days=j.days||[],first=null;bmsg(days.some(function(x){return x.slots.length;})?'':'No open times in the next few weeks. Please call us and we will find one.');
+days.forEach(function(x){var b=d.createElement('button');b.type='button';b.className='bk-d';b.textContent=x.label;if(!x.slots.length)b.disabled=true;else if(!first)first=b;
+b.onclick=function(){bq('.bk-d').forEach(function(y){y.classList.toggle('on',y===b);});btimes(x);};dl.appendChild(b);});if(first)first.click();})
+.catch(function(){bmsg('Online booking is down for a moment. Please call us.');});}
+function btimes(x){var tl=d.getElementById('bktimes');tl.innerHTML='';x.slots.forEach(function(s){var b=d.createElement('button');b.type='button';b.className='bk-t';b.textContent=s.label;
+b.onclick=function(){bq('.bk-t').forEach(function(y){y.classList.toggle('on',y===b);});BS.start=s.start;BS.when=x.label+' at '+s.label;
+d.getElementById('bksum').textContent=BS.name+', '+BS.when;bshow('bkf');try{d.getElementById('bkf').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};tl.appendChild(b);});}
+bq('.bk-p').forEach(function(p){p.onclick=function(){bq('.bk-p').forEach(function(y){y.classList.toggle('on',y===p);});BS.pkg=p.getAttribute('data-id');BS.name=p.getAttribute('data-name');BS.start=null;
+d.getElementById('bkf').hidden=true;bshow('bkd');bdays();try{d.getElementById('bkd').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};});
+function bdone(t){bf.parentNode.hidden=true;d.getElementById('bkd').hidden=true;bq('.bk-step')[0].hidden=true;d.getElementById('bkokt').textContent=t;d.getElementById('bkok').style.display='block';try{d.getElementById('bkok').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}
+bf.addEventListener('submit',function(e){e.preventDefault();var er=bf.querySelector('.err'),b=bf.querySelector('button'),ph=bf.ph.value.trim(),em=bf.em.value.trim();
+function bad(t){er.textContent=t;er.style.display='block';}
+if(!BS.start)return bad('Please pick a time first.');if(!bf.ad.value.trim())return bad('Please add the address where the vehicle will be.');
+if(!bf.nm.value.trim())return bad('Please add your name.');if(!ph&&!em)return bad('Please add a phone number or an email so we can confirm.');
+er.style.display='none';if(BKP){bdone('Preview only. Nothing was booked.');return;}
+var lbl=b.textContent;b.disabled=true;b.textContent='Booking...';
+var p={packageId:BS.pkg,start:BS.start,address:bf.ad.value,name:bf.nm.value,phone:ph,email:em,notes:bf.no.value};try{p.page=location.href.split('#')[0];}catch(x){}
+fetch('/book?token=${token}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
+.then(function(o){if(o.j&&o.j.ok){bdone(BS.name+', '+o.j.when+'. '+(em?'A confirmation is on its way to your email.':'We will be in touch to confirm.'));return;}
+b.disabled=false;b.textContent=lbl;bad((o.j&&o.j.error)||'Something went wrong. Please try again or call us.');if(o.s===409){d.getElementById('bkf').hidden=true;bdays();}})
+.catch(function(){b.disabled=false;b.textContent=lbl;bad('Something went wrong. Please try again or call us.');});});}`;
 }
 
 function formScript(cl) {
@@ -700,10 +736,20 @@ fetch('/lead?token=${token}',{method:'POST',headers:{'Content-Type':'application
 }
 
 // ── Page pieces ───────────────────────────────────────────────────────────────────────────
+// The main button, wherever it appears: to the quote form, the Book page, the booking system the business
+// already uses, or its phone (./booking.mjs intakeOf). Their own booking address is one he typed in, so it
+// renders; it is always absolute https, never relative.
+const ctaBtn = (C, base, cls = "btn") => {
+  const I = C.intake || { how: "quote" };
+  if (I.how === "link") return `<a href="${esc(I.link)}" class="${cls}" target="_blank" rel="noopener">${bt(I.label)}</a>`;
+  if (I.how === "call") return `<a href="tel:${esc(digits(I.phone))}" class="${cls}">${bt(I.label)}</a>`;
+  if (I.how === "book") return linkTo(base, "book", bt(I.label), cls);
+  return linkTo(base, "contact", bt(C.cta.button), cls);
+};
 // Button text that rolls up to a copy of itself on hover. The copy is CSS-only and silent to
 // screen readers.
 const bt = (t) => `<span class="bt"><span data-t="${esc(t)}">${esc(t)}</span></span>`;
-const pathOf = (id) => { const p = pageById(id); if (p) return p.path; if (id === "blog") return "blog"; if (/^x-[a-z0-9-]+$/.test(String(id))) return String(id).slice(2); return ""; };
+const pathOf = (id) => { const p = pageById(id); if (p) return p.path; if (id === "blog") return "blog"; if (id === "book") return "book"; if (/^x-[a-z0-9-]+$/.test(String(id))) return String(id).slice(2); return ""; };
 const href = (base, id) => { const path = pathOf(id); return `${base}/${path ? path + "/" : ""}`; };
 const postHref = (base, slug) => `${base}/blog/${encodeURIComponent(slug)}/`;
 const linkTo = (base, id, inner, cls = "", extra = "") => `<a href="${esc(href(base, id))}" data-page="${id}"${cls ? ` class="${cls}"` : ""}${extra}>${inner}</a>`;
@@ -724,12 +770,12 @@ function header(cl, base, pageId, C, pages = SITE_PAGES) {
   const logo = logoOf(cl);
   // The top bar stays readable: extra pages join it only while it holds seven links or fewer; past that
   // they live in the menu and the footer, which always list every page.
-  const top = pages.length <= 7 ? pages : pages.filter((p) => !p.extra);
+  const top = (pages.length <= 7 ? pages : pages.filter((p) => !p.extra)).filter((p) => p.nav !== false);
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
   return `<header class="hd${top.length > 5 ? " many" : ""}"><div class="wrap">
 ${linkTo(base, "home", `${logo ? `<img src="${esc(logo)}" alt="" width="34" height="34">` : ""}<span>${esc(C.name)}</span>`, "brand")}
 <nav class="nav" aria-label="Main">${top.map((p) => linkTo(base, p.id, esc(p.label), "", p.id === pageId ? ' aria-current="page"' : "")).join("")}</nav>
-${linkTo(base, "contact", bt(C.cta.button), "btn")}
+${phone && C.intake && C.intake.how !== "call" ? `<a class="hph" href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}${ctaBtn(C, base)}
 <button class="burger" aria-label="Open menu"><span></span><span></span></button>
 </div></header>
 <div class="mnav" role="dialog" aria-label="Menu"><button class="burger close" aria-label="Close menu"><span style="transform:translateY(3px) rotate(45deg)"></span><span style="transform:translateY(-3px) rotate(-45deg)"></span></button>
@@ -747,11 +793,11 @@ function footer(cl, base, C, pages = SITE_PAGES) {
 <div><h4>Contact</h4>${phone ? `<a href="tel:${esc(digits(phone))}">${esc(phone)}</a>` : ""}${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : ""}${addr ? `<p>${esc(addr)}</p>` : ""}</div>
 <div class="fine">&copy; ${new Date().getFullYear()} ${esc(C.name)}. All rights reserved.</div>
 </div></footer>
-<div class="pill">${linkTo(base, "contact", bt(C.cta.button), "btn")}${phone ? `<a class="btn ghost" href="tel:${esc(digits(phone))}" aria-label="Call ${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="pl-t">Call</span></a>` : ""}</div>`;
+<div class="pill">${ctaBtn(C, base)}${phone ? `<a class="btn ghost" href="tel:${esc(digits(phone))}" aria-label="Call ${esc(phone)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg><span class="pl-t">Call</span></a>` : ""}</div>`;
 }
 
 function heroHome(theme, C, base, photos) {
-  const acts = `<div class="acts rv d2">${linkTo(base, "contact", bt(C.cta.button), "btn")}${linkTo(base, "services", bt(C.cta.explore), "btn ghost")}</div>`;
+  const acts = `<div class="acts rv d2">${ctaBtn(C, base)}${linkTo(base, "services", bt(C.cta.explore), "btn ghost")}</div>`;
   if (theme === "cinematic") {
     const a = C.hero.lineA || C.hero.headline.split(/\s+/).slice(0, Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
     const b = C.hero.lineB || C.hero.headline.split(/\s+/).slice(Math.ceil(C.hero.headline.split(/\s+/).length / 2)).join(" ");
@@ -817,7 +863,7 @@ const portal = (C, ph, story) => `<section class="portal" data-scene="pin"><div 
 <div class="wrap pcopy"><p class="disp">${esc(story)}</p></div></div></section>`;
 
 const ctaBand = (C, base) => `<section class="sec"><div class="wrap"><div class="ctab rv"><span class="glow" style="right:-120px;top:-160px"></span>
-<h2 class="disp">${esc(C.cta.headline)}</h2><p>${esc(C.cta.sub)}</p>${linkTo(base, "contact", bt(C.cta.button), "btn")}</div></div></section>`;
+<h2 class="disp">${esc(C.cta.headline)}</h2><p>${esc(C.cta.sub)}</p>${ctaBtn(C, base)}</div></div></section>`;
 
 function photoBlock(ph, ratio = "4/3") {
   if (!ph) return `<div class="ph rv" style="aspect-ratio:${ratio};background:radial-gradient(70% 70% at 30% 30%,color-mix(in srgb,var(--ac) 35%,transparent),transparent),var(--bg2)"></div>`;
@@ -901,6 +947,58 @@ ${isHealth(cl) ? "" : `<label>How can we help?<textarea name="msg" rows="4"></te
 ${map ? `<div style="margin-top:30px">${map}</div>` : ""}</div></div></section>`;
 }
 
+// The Book page (./booking.mjs): tap a package, pick a day and an open time, then where and who. The
+// packages are in the page; open times come from /book as the customer picks.
+const durLabel = (m) => { const h = Math.floor(m / 60), r = m % 60; return h ? `${h} hr${r ? ` ${r} min` : ""}` : `${r} min`; };
+function bookBody(theme, cl, C) {
+  const cfg = bookingConfig(cl);
+  const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
+  const DN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const t12 = (m) => { const h = Math.floor(m / 60), mm = m % 60; return `${((h + 11) % 12) + 1}${mm ? ":" + String(mm).padStart(2, "0") : ""}${h < 12 ? "am" : "pm"}`; };
+  const hours = cfg.hours.map((h, i) => h ? `${DN[i]} ${t12(h[0])} to ${t12(h[1])}` : "").filter(Boolean);
+  return `${pageHero(theme, `Book ${C.name}`, cfg.note || "Pick a package and a time that works for you. It takes about a minute.", "Book")}
+<section class="sec" style="padding-top:20px"><div class="wrap bk-wrap">
+<div class="bk" id="bk">
+<div class="bk-step"><h2 class="disp bk-h"><span>1</span>Pick a package</h2><div class="bk-pk">${cfg.packages.map((p) =>
+    `<button type="button" class="bk-p" data-id="${esc(p.id)}" data-name="${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc([p.price, durLabel(p.minutes)].filter(Boolean).join(" · "))}</span>${p.desc ? `<em>${esc(p.desc)}</em>` : ""}</button>`).join("")}</div></div>
+<div class="bk-step" id="bkd" hidden><h2 class="disp bk-h"><span>2</span>Pick a day and time</h2><div class="bk-days" id="bkdays"></div><div class="bk-times" id="bktimes"></div><p class="bk-msg" id="bkdm"></p></div>
+<div class="bk-step" id="bkf" hidden><h2 class="disp bk-h"><span>3</span>Where and who</h2><div class="bk-sum" id="bksum"></div>
+<form id="bkform" class="form" novalidate>
+<label>Address where the vehicle will be<input name="ad" autocomplete="street-address" required></label>
+<label>Your name<input name="nm" autocomplete="name" required></label>
+<label>Phone<input name="ph" type="tel" autocomplete="tel" inputmode="tel"></label>
+<label>Email<input name="em" type="email" autocomplete="email"></label>
+<label>Anything we should know? (optional)<textarea name="no" rows="3"></textarea></label>
+<p class="err" role="alert"></p><button class="btn" type="submit">Book it</button></form></div>
+<div class="thanks" id="bkok"><h3 class="disp" style="font-size:30px">You're booked.</h3><p id="bkokt" style="color:var(--mute);margin-top:8px"></p></div>
+</div>
+<aside class="bk-side">${phone ? `<div class="bk-call"><div>Rather talk to a person?</div><a class="btn ghost" href="tel:${esc(digits(phone))}">Call ${esc(phone)}</a></div>` : ""}${hours.length ? `<p>${hours.map(esc).join("<br>")}</p>` : ""}</aside>
+</div></section>`;
+}
+const HPH_CSS = `.hd .hph{font-size:14.5px;font-weight:600;white-space:nowrap}@media (max-width:1000px){.hd .hph{display:none}}`;
+const BOOK_CSS = `.bk-wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:40px;align-items:start}
+.bk-step{margin-bottom:34px}.bk-step[hidden]{display:none}
+.bk-h{font-size:clamp(22px,2.6vw,30px);display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.bk-h span{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--ac);color:var(--on);font-size:15px;flex:0 0 auto}
+.bk-pk{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.bk-p{text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;display:grid;gap:6px;transition:border-color .2s,box-shadow .2s}
+.bk-p b{font-size:18px}.bk-p span{color:var(--ac);font-weight:600;font-size:15px}.bk-p em{font-style:normal;color:var(--mute);font-size:14.5px;line-height:1.5}
+.bk-p:hover{border-color:var(--ink)}.bk-p.on{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 25%,transparent)}
+.bk-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
+.bk-d{flex:0 0 auto;min-width:92px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:calc(var(--r) * .6);padding:10px 12px;cursor:pointer}
+.bk-d[disabled]{opacity:.35;cursor:default}.bk-d.on{background:var(--ac);color:var(--on);border-color:var(--ac)}
+.bk-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:14px}
+.bk-t{font:inherit;font-size:15px;font-weight:600;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-radius:calc(var(--r) * .5);min-height:48px;cursor:pointer}
+.bk-t.on{background:var(--ac);color:var(--on);border-color:var(--ac)}
+.bk-msg{color:var(--mute);font-size:15px;margin-top:10px}
+.bk-sum{padding:14px 16px;border-radius:calc(var(--r) * .6);background:var(--bg2);border:1px solid var(--line);margin-bottom:14px;font-size:15px}
+.bk-side{position:sticky;top:100px;display:grid;gap:16px}
+.bk-call{padding:20px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);display:grid;gap:12px;font-weight:600}
+.bk-side p{color:var(--mute);font-size:15px}
+.bk,.bk-step{min-width:0}
+.bk-step,#bkok{scroll-margin-top:96px}
+@media (max-width:900px){.bk-wrap{grid-template-columns:minmax(0,1fr)}.bk-side{position:static;order:-1}}`;
+
 // An extra page: written by the builder from a one-line brief (site-build-background `extraPage`).
 function extraBody(theme, C, base, photos, page) {
   const c = page.extra.content || {};
@@ -969,8 +1067,12 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   const M = motionRecipe(cl, theme);
   const P = palette(theme, cl, M.gl);
   const C = siteContent(cl);
+  // How this business takes customers decides where every main button goes (ctaBtn).
+  C.intake = intakeOf(cl);
+  C.bookOn = C.intake.how === "book";
   const photos = photosFor(cl);
-  const body = page === "services" ? servicesBody(theme, C, base, photos)
+  const body = page === "book" && C.bookOn ? bookBody(theme, cl, C)
+    : page === "services" ? servicesBody(theme, C, base, photos)
     : page === "about" ? aboutBody(theme, C, base, photos, M)
     : page === "reviews" ? reviewsBody(theme, cl, C, base)
     : page === "contact" ? contactBody(theme, cl, C, base)
@@ -991,7 +1093,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${esc(canonical)}">${ogImg}
 <meta name="theme-color" content="${P.bg}">${opts.noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS[theme]}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${FONTS[theme]}"></noscript>
-<style>${css(theme, P)}${IOS_NO_ZOOM}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
+<style>${css(theme, P)}${IOS_NO_ZOOM}</style><style>${HPH_CSS}${C.bookOn ? BOOK_CSS : ""}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
 <body data-theme="${theme}" data-page="${page}" data-in="${M.entrance}" data-rv="${M.reveal}" data-tx="${M.transition}">
 ${header(cl, base, page, C, pages)}
 <main>${body}</main>

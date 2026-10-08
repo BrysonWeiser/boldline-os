@@ -261,6 +261,12 @@
   to = "/.netlify/functions/lead-intake"
   status = 200
 
+# Online booking from a business's website (netlify/functions/book.mjs).
+[[redirects]]
+  from = "/book"
+  to = "/.netlify/functions/book"
+  status = 200
+
 # Page views on client websites (KB `website-builder`), counted for the portal's visitor numbers.
 [[redirects]]
   from = "/site-hit"

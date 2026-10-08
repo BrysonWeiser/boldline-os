@@ -9367,6 +9367,200 @@ function ShowcaseCard({client,onUpdate}){
   );
 }
 
+// ─── ONLINE BOOKING (owned businesses) ────────────────────────────────────────
+// Bryson, 2026-10-07: customers pick a package, a day and an open time, then where and who, and it is
+// booked; the business's number is there for anyone who would rather call. This card sets it up and lists
+// what is booked. The rules for open times live in netlify/lib/booking.mjs; the clock helpers below are a
+// copy of its tzOffsetMin / zonedToUtc (tests/verify-booking.mjs runs both on the same dates).
+const bkTzOffsetMin = (tz, at) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+    .formatToParts(new Date(at)).filter((x) => x.type !== "literal").map((x) => [x.type, x.value]));
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour === 24 ? 0 : +p.hour, +p.minute);
+  return Math.round((asUtc - Math.floor(at / 60000) * 60000) / 60000);
+};
+const bkZonedToUtc = (ymd, minutes, tz) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d, 0, minutes);
+  const off = bkTzOffsetMin(tz, guess);
+  const t = guess - off * 60000;
+  const off2 = bkTzOffsetMin(tz, t);
+  return off2 === off ? t : guess - off2 * 60000;
+};
+const BK_DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const BK_DEFAULT_HOURS = [null,[480,1020],[480,1020],[480,1020],[480,1020],[480,1020],[480,1020]];
+const bkT12 = (m) => { const h = Math.floor(m/60), mm = m%60; return `${((h+11)%12)+1}:${String(mm).padStart(2,"0")} ${h<12?"AM":"PM"}`; };
+const BK_TIMES = Array.from({length:37},(_,i)=>300+i*30);   // 5:00 AM to 11:00 PM
+const bkDur = (m) => { const h=Math.floor(m/60), r=m%60; return h?`${h} hr${r?` ${r} min`:""}`:`${r} min`; };
+// Where the website's main buttons go right now. Same outcomes as intakeOf in netlify/lib/booking.mjs.
+const osIntake = (cl) => {
+  const i = (cl && cl.intake) || {};
+  const phone = String((cl && (cl.businessPhone || cl.callTrackingNumber)) || "").trim();
+  const link = /^https:\/\/[^\s"'<>]+$/i.test(String(i.link||"").trim()) ? String(i.link).trim() : "";
+  const want = ["quote","book","link","call"].includes(i.how) ? i.how : (cl && cl.booking && cl.booking.on ? "book" : "quote");
+  const pk = ((cl && cl.booking && cl.booking.packages) || []).filter(p=>p&&p.id&&String(p.name||"").trim()).length;
+  const how = want==="book"&&!pk ? "quote" : want==="link"&&!link ? "quote" : want==="call"&&!phone ? "quote" : want;
+  return { how, wanted: want, link, phone };
+};
+
+function BookingCard({client,onUpdate}){
+  const b0 = client.booking || {};
+  const tz = b0.tz || "America/Phoenix";
+  const [cfg,setCfg] = useState(()=>({ packages:(b0.packages||[]).map(p=>({...p})), hours:(Array.isArray(b0.hours)&&b0.hours.length===7?b0.hours:BK_DEFAULT_HOURS).map(h=>h?[...h]:null),
+    buffer:b0.buffer!=null?b0.buffer:30, leadHours:b0.leadHours!=null?b0.leadHours:12, daysAhead:b0.daysAhead||21, note:b0.note||"", cta:b0.cta||"" }));
+  const [saved,setSaved] = useState(false);
+  const [blk,setBlk] = useState({date:"",from:480,to:1020,note:""});
+  const siteLive = !!(client.website && typeof client.website==="object" && client.website.published);
+  const set = (k,v)=>setCfg(c=>({...c,[k]:v}));
+  const setPkg = (i,k,v)=>setCfg(c=>({...c,packages:c.packages.map((p,j)=>j===i?{...p,[k]:v}:p)}));
+  const addPkg = ()=>setCfg(c=>({...c,packages:[...c.packages,{id:uid().slice(0,8),name:"",price:"",minutes:120,desc:""}]}));
+  const delPkg = (i)=>setCfg(c=>({...c,packages:c.packages.filter((_,j)=>j!==i)}));
+  const setHr = (i,v)=>setCfg(c=>({...c,hours:c.hours.map((h,j)=>j===i?v:h)}));
+  const save = (extra={}) => {
+    const packages = cfg.packages.map(p=>({...p,name:String(p.name||"").trim(),price:String(p.price||"").trim(),desc:String(p.desc||"").trim(),minutes:Number(p.minutes)||120})).filter(p=>p.name);
+    onUpdate({...client, booking:{...b0, ...cfg, packages, cta:String(cfg.cta||"").trim(), note:String(cfg.note||"").trim(), tz, ...extra}});
+    setSaved(true); setTimeout(()=>setSaved(false),1500);
+  };
+  const I = osIntake(client);
+  const [link,setLink] = useState((client.intake&&client.intake.link)||"");
+  const [linkLabel,setLinkLabel] = useState((client.intake&&client.intake.linkLabel)||"");
+  const [callLabel,setCallLabel] = useState((client.intake&&client.intake.callLabel)||"");
+  const choose = (how) => onUpdate({...client, intake:{...(client.intake||{}), how}});
+  const saveIntake = () => { onUpdate({...client, intake:{...(client.intake||{}), link:link.trim(), linkLabel:linkLabel.trim(), callLabel:callLabel.trim()}}); setSaved(true); setTimeout(()=>setSaved(false),1500); };
+  const linkBad = link.trim() && !/^https:\/\/[^\s"'<>]+$/i.test(link.trim());
+  const now = Date.now();
+  const upcoming = (client.bookings||[]).filter(x=>x&&x.status!=="cancelled"&&Date.parse(x.end)>now).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+  const when = (iso) => new Date(iso).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:tz});
+  const cancel = (bk) => { if(!window.confirm(`Cancel ${bk.name}'s ${bk.packageName} on ${when(bk.start)}?\n\nThe time opens up again on the website. This does not tell them, so call or text them yourself.`)) return;
+    onUpdate({...client, bookings:(client.bookings||[]).map(x=>x.id===bk.id?{...x,status:"cancelled",cancelledAt:new Date().toISOString()}:x)}); };
+  const blocks = ((client.booking||{}).blocks||[]).filter(x=>x&&Date.parse(x.end)>now);
+  const addBlock = () => { if(!blk.date||!(blk.to>blk.from)) return;
+    const start=new Date(bkZonedToUtc(blk.date,blk.from,tz)).toISOString(), end=new Date(bkZonedToUtc(blk.date,blk.to,tz)).toISOString();
+    onUpdate({...client, booking:{...(client.booking||{}), blocks:[...(((client.booking||{}).blocks)||[]),{id:uid().slice(0,8),start,end,note:String(blk.note||"").trim()}]}}); setBlk({date:"",from:480,to:1020,note:""}); };
+  const delBlock = (id) => onUpdate({...client, booking:{...(client.booking||{}), blocks:(((client.booking||{}).blocks)||[]).filter(x=>x.id!==id)}});
+  const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const sel = {...inp,padding:"8px 10px",minHeight:0,fontSize:12.5};
+  const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
+  const small = (primary)=>({padding:"7px 11px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim});
+  return (
+    <Card style={{borderColor:`${C.gold}2a`,marginBottom:12}}>
+      <Label>How customers book</Label>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,margin:"4px 0 10px"}}>Pick how {client.name} takes customers. Every main button on the website follows it, and the phone number shows whichever you pick. Changing this never counts as one of the client's website changes.</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8}}>
+        {[["quote","Request a quote","They fill out a short form and you get back to them."],
+          ["book","Book online","They pick a package, a day and an open time, and it's booked."],
+          ["link","Their own booking link","They already use Square, Calendly, Housecall Pro or similar: every button goes there."],
+          ["call","Call first","Every main button calls the business. Best for urgent jobs."]].map(([k,t,d])=>(
+          <button key={k} onClick={()=>choose(k)} style={{textAlign:"left",padding:"11px 12px",borderRadius:10,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${I.wanted===k?C.gold:C.border}`,backgroundColor:I.wanted===k?C.goldDim:"rgba(255,255,255,.02)"}}>
+            <div style={{fontSize:12.5,fontWeight:800,color:I.wanted===k?C.gold:C.text}}>{I.wanted===k?"✓ ":""}{t}</div>
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:3}}>{d}</div>
+          </button>))}
+      </div>
+      <div style={{fontSize:11.5,lineHeight:1.6,marginTop:10,color:I.how===I.wanted?C.green:C.amber}}>
+        {I.how!==I.wanted
+          ? (I.wanted==="book"?"Add at least one package below and save. Until then the buttons go to the quote form."
+            : I.wanted==="link"?"Paste their booking address below (it starts with https://) and save. Until then the buttons go to the quote form."
+            : "Add the business phone number in Edit. Until then the buttons go to the quote form.")
+          : I.how==="book"?"The website's main buttons go to its Book page."
+          : I.how==="link"?"The website's main buttons open their booking link."
+          : I.how==="call"?`The website's main buttons call ${I.phone}.`
+          : "The website's main buttons go to the quote form on its Contact page. Every enquiry lands on the Leads tab."}
+        {!siteLive&&" It all goes live with the website."}
+      </div>
+
+      {I.wanted==="link"&&<>
+        <div style={sub}>Their booking link</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:8}}>
+          <div><div style={lbl}>Booking address</div><input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://..." style={{...inp,borderColor:linkBad?C.red:undefined}}/></div>
+          <div><div style={lbl}>Button wording</div><input value={linkLabel} onChange={e=>setLinkLabel(e.target.value)} placeholder="Book now" style={inp}/></div>
+        </div>
+        {linkBad&&<div style={{fontSize:11,color:C.red,marginTop:6}}>It needs to start with https:// (copy it from the address bar of their booking page).</div>}
+        <button onClick={saveIntake} disabled={!!linkBad} style={{...small(true),width:"100%",padding:"11px",marginTop:10,opacity:linkBad?.5:1}}>{saved?"✓ Saved":"Save"}</button>
+      </>}
+      {I.wanted==="call"&&<>
+        <div style={sub}>Call first</div>
+        <div><div style={lbl}>Button wording</div><input value={callLabel} onChange={e=>setCallLabel(e.target.value)} placeholder="Call now" style={inp}/></div>
+        <div style={{fontSize:11,color:C.textMuted,marginTop:6}}>Calls go to {I.phone||"the business phone (add it in Edit)"}. The quote form stays on the Contact page for anyone who would rather write.</div>
+        <button onClick={saveIntake} style={{...small(true),width:"100%",padding:"11px",marginTop:10}}>{saved?"✓ Saved":"Save"}</button>
+      </>}
+
+      {I.wanted==="book"&&<>
+      <div style={sub}>Packages</div>
+      {cfg.packages.length===0&&<div style={{fontSize:11.5,color:C.textMuted,marginBottom:8}}>No packages yet. Add the ones customers can pick, like "Full Detail" or "Interior Only".</div>}
+      {cfg.packages.map((p,i)=>(
+        <div key={p.id||i} style={{padding:10,borderRadius:10,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",marginBottom:8,display:"grid",gap:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"minmax(0,2fr) minmax(0,1fr) minmax(0,1fr)",gap:8}}>
+            <div><div style={lbl}>Name</div><input value={p.name} onChange={e=>setPkg(i,"name",e.target.value)} placeholder="Full Detail" style={inp}/></div>
+            <div><div style={lbl}>Price</div><input value={p.price} onChange={e=>setPkg(i,"price",e.target.value)} placeholder="$199" style={inp}/></div>
+            <div><div style={lbl}>Takes</div><select value={p.minutes} onChange={e=>setPkg(i,"minutes",Number(e.target.value))} style={sel}>{[30,45,60,90,120,150,180,240,300,360,480].map(m=><option key={m} value={m}>{bkDur(m)}</option>)}</select></div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+            <div style={{flex:1,minWidth:0}}><div style={lbl}>What's included (optional)</div><input value={p.desc} onChange={e=>setPkg(i,"desc",e.target.value)} placeholder="Hand wash, wax, interior vacuum and wipe down" style={inp}/></div>
+            <button onClick={()=>delPkg(i)} style={small(false)}>Remove</button>
+          </div>
+        </div>))}
+      <button onClick={addPkg} style={small(true)}>+ Add a package</button>
+
+      <div style={sub}>Working hours</div>
+      <div style={{display:"grid",gap:6}}>
+        {cfg.hours.map((h,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <label style={{display:"flex",alignItems:"center",gap:7,width:120,fontSize:12.5,color:C.text}}><input type="checkbox" checked={!!h} onChange={e=>setHr(i,e.target.checked?[480,1020]:null)}/>{BK_DAYS[i]}</label>
+            {h?<><select value={h[0]} onChange={e=>setHr(i,[Number(e.target.value),h[1]])} style={{...sel,width:"auto"}}>{BK_TIMES.map(t=><option key={t} value={t}>{bkT12(t)}</option>)}</select>
+                <span style={{fontSize:12,color:C.textMuted}}>to</span>
+                <select value={h[1]} onChange={e=>setHr(i,[h[0],Number(e.target.value)])} style={{...sel,width:"auto"}}>{BK_TIMES.map(t=><option key={t} value={t}>{bkT12(t)}</option>)}</select></>
+              :<span style={{fontSize:12,color:C.textMuted}}>Closed</span>}
+          </div>))}
+      </div>
+
+      <div style={sub}>Rules</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:8}}>
+        <div><div style={lbl}>Travel time between jobs</div><select value={cfg.buffer} onChange={e=>set("buffer",Number(e.target.value))} style={sel}>{[0,15,30,45,60,90].map(m=><option key={m} value={m}>{m?bkDur(m):"None"}</option>)}</select></div>
+        <div><div style={lbl}>Soonest they can book</div><select value={cfg.leadHours} onChange={e=>set("leadHours",Number(e.target.value))} style={sel}>{[2,4,8,12,24,48].map(h=><option key={h} value={h}>{h} hours ahead</option>)}</select></div>
+        <div><div style={lbl}>How far ahead</div><select value={cfg.daysAhead} onChange={e=>set("daysAhead",Number(e.target.value))} style={sel}>{[7,14,21,30,45,60].map(d=><option key={d} value={d}>{d} days</option>)}</select></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:8,marginTop:8}}>
+        <div><div style={lbl}>Line under the Book heading (optional)</div><input value={cfg.note} onChange={e=>set("note",e.target.value)} placeholder="We come to you anywhere in the East Valley." style={inp}/></div>
+        <div><div style={lbl}>Main button wording</div><input value={cfg.cta} onChange={e=>set("cta",e.target.value)} placeholder="Book now" style={inp}/></div>
+      </div>
+      <button onClick={()=>save()} style={{...small(true),width:"100%",padding:"11px",marginTop:12}}>{saved?"✓ Saved":"Save booking setup"}</button>
+      </>}
+
+      {(I.wanted==="book"||upcoming.length>0)&&<>
+      <div style={sub}>Coming up ({upcoming.length})</div>
+      {upcoming.length===0
+        ? <div style={{fontSize:11.5,color:C.textMuted}}>Nothing booked yet. Bookings also show on the Leads tab and on your partner's page.</div>
+        : upcoming.map(bk=>(
+          <div key={bk.id} style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:7,display:"flex",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
+            <div style={{flex:"1 1 220px",minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:800,color:C.text}}>{when(bk.start)} · {bk.packageName}</div>
+              <div style={{fontSize:11.5,color:C.textDim,marginTop:2}}>{bk.name}{bk.phone?` · ${bk.phone}`:""}</div>
+              <div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>{bk.address}</div>
+              {bk.notes&&<div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>"{bk.notes}"</div>}
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              {bk.phone&&<a href={`tel:${String(bk.phone).replace(/[^0-9+]/g,"")}`} style={{...small(true),textDecoration:"none"}}>Call</a>}
+              <button onClick={()=>cancel(bk)} style={small(false)}>Cancel</button>
+            </div>
+          </div>))}
+
+      <div style={sub}>Block time off</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <div><div style={lbl}>Day</div><input type="date" value={blk.date} onChange={e=>setBlk(b=>({...b,date:e.target.value}))} style={{...sel,width:150}}/></div>
+        <div><div style={lbl}>From</div><select value={blk.from} onChange={e=>setBlk(b=>({...b,from:Number(e.target.value)}))} style={{...sel,width:"auto"}}>{BK_TIMES.map(t=><option key={t} value={t}>{bkT12(t)}</option>)}</select></div>
+        <div><div style={lbl}>To</div><select value={blk.to} onChange={e=>setBlk(b=>({...b,to:Number(e.target.value)}))} style={{...sel,width:"auto"}}>{BK_TIMES.map(t=><option key={t} value={t}>{bkT12(t)}</option>)}</select></div>
+        <div style={{flex:"1 1 140px",minWidth:0}}><div style={lbl}>Why (optional)</div><input value={blk.note} onChange={e=>setBlk(b=>({...b,note:e.target.value}))} placeholder="Booked by phone" style={inp}/></div>
+        <button onClick={addBlock} disabled={!blk.date||!(blk.to>blk.from)} style={{...small(true),opacity:(!blk.date||!(blk.to>blk.from))?.5:1}}>Block it</button>
+      </div>
+      {blocks.map(x=>(
+        <div key={x.id||x.start} style={{display:"flex",alignItems:"center",gap:8,marginTop:7,fontSize:11.5,color:C.textDim}}>
+          <span style={{flex:1,minWidth:0}}>{when(x.start)} to {new Date(x.end).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:tz})}{x.note?` · ${x.note}`:""}</span>
+          <button onClick={()=>delBlock(x.id)} style={small(false)}>Remove</button>
+        </div>))}
+      </>}
+    </Card>
+  );
+}
+
 function EmailCenterTab({client,pkg,onUpdate}) {
   const [types,setTypes]=useState([]);
   const [loadingTypes,setLoadingTypes]=useState(true);
@@ -12166,6 +12360,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="leads"&&<LeadsTabContent client={client} onUpdate={onUpdate}/>}
 
         {tab==="reviews"&&!isHouse(client)&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
+        {tab==="website"&&<BookingCard client={client} onUpdate={onUpdate}/>}
         {tab==="website"&&<WebsiteTab client={client} onUpdate={onUpdate}/>}
 
         {tab==="portal"&&(
