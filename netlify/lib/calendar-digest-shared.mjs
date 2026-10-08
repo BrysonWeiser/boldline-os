@@ -13,11 +13,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, escapeHTML } from "./report-shared.mjs";
 import { sendPushToAll } from "./push-shared.mjs";
+import { isOwned } from "./owned.mjs";
 
 const TZ = "America/Phoenix";
 const CAL = "https://api.calendly.com";
 const GOLD = "#C8A84B";
-const KIND_COLOR = { meeting:"#F87171", invoice:GOLD, review:GOLD, contract:"#FBBF24", renewal:"#FBBF24", newsletter:"#4F8EF7", blog:"#4F8EF7", task:"#8B5CF6", reminder:"#22D3A0", other:"#8B91B8" };
+const KIND_COLOR = { booking:"#F472B6", meeting:"#F87171", invoice:GOLD, review:GOLD, contract:"#FBBF24", renewal:"#FBBF24", newsletter:"#4F8EF7", blog:"#4F8EF7", task:"#8B5CF6", reminder:"#22D3A0", other:"#8B91B8" };
 
 const ymdInTZ = (v) => {
   if (!v) return null;
@@ -85,7 +86,15 @@ const buildToday = async (supabase, todayYMD) => {
   try {
     const { data } = await supabase.from("clients").select("id, data");
     (data || []).forEach((row) => {
-      const c = row.data || {}; if (c.internal) return;
+      const c = row.data || {};
+      // Bookings on one of Bryson's own businesses are his jobs for the day (2026-10-07).
+      if (isOwned(c)) {
+        (c.bookings || []).filter((b) => b && b.status !== "cancelled" && b.start).forEach((b) => {
+          const t = timeFromISO(b.start);
+          add(ymdInTZ(b.start), { kind: "booking", title: `${b.packageName} for ${b.name} (${c.name})`, sub: b.address || "", timeLabel: t.label, sortMin: t.min });
+        });
+      }
+      if (c.internal) return;
       if (c.billingStatus === "active" && c.billingNextCharge) {
         add(ymdInTZ(c.billingNextCharge), { kind: "invoice", title: `Invoice — ${c.name}`, sub: "Auto-charges the card on file" });
         add(shiftYMD(c.billingNextCharge, -7), { kind: "review", title: `Review leads — ${c.name}`, sub: "Approve or exclude before the invoice" });

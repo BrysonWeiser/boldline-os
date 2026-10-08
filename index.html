@@ -6769,6 +6769,16 @@ function buildCalendarEvents({ clients, newsletter, blog, meetings }) {
   const toYMD = (v) => { const d = new Date(v); if (isNaN(d)) return null; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
   const shift = (v, n) => { const d = new Date(v); if (isNaN(d)) return null; d.setDate(d.getDate()+n); return d; };
   (clients||[]).forEach(c => {
+    // Bookings on one of Bryson's own businesses are his jobs, so they go on his calendar (2026-10-07).
+    // A client's bookings are the client's schedule and stay off it.
+    if (isOwned(c)) {
+      const tz = (c.booking && c.booking.tz) || "America/Phoenix";
+      (c.bookings||[]).filter(b=>b&&b.status!=="cancelled"&&b.start).forEach(b=>{
+        const ymd = new Date(b.start).toLocaleDateString("en-CA",{timeZone:tz});
+        const t = new Date(b.start).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:tz});
+        out.push({ ymd, kind:"booking", title:`${b.packageName} · ${c.name}`, sub:[t, b.name, b.address, b.deposit&&!b.deposit.paid?"deposit not paid yet":""].filter(Boolean).join(" · "), clientId:c.id });
+      });
+    }
     if (c.internal) return; // skip the internal house account
     if (c.billingStatus==="active" && c.billingNextCharge) {
       const yb = toYMD(c.billingNextCharge);
@@ -6828,7 +6838,7 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const manualEvents=(manual||[]).map(m=>({ymd:m.event_date,kind:m.kind||"other",title:m.title,sub:[m.event_time,m.note].filter(Boolean).join(" · "),manual:true,id:m.id}));
   const events=[...buildCalendarEvents({clients,newsletter:nl,blog:bl,meetings:mt}),...manualEvents];
   const byDay={}; events.forEach(e=>{ (byDay[e.ymd]=byDay[e.ymd]||[]).push(e); });
-  const KC={ meeting:C.red, invoice:C.gold, review:C.gold, contract:C.amber, renewal:C.amber, newsletter:C.blue, blog:C.blue, task:C.green, reminder:C.purple, other:C.purple };
+  const KC={ meeting:C.red, invoice:C.gold, review:C.gold, contract:C.amber, renewal:C.amber, newsletter:C.blue, blog:C.blue, task:C.green, reminder:C.purple, other:C.purple, booking:"#F472B6" };
   const kc=k=>KC[k]||C.textMuted;
 
   const y=view.getFullYear(), mo=view.getMonth();
@@ -6842,7 +6852,7 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const openEvent=(e)=>{ if(e.clientId){ const c=(clients||[]).find(x=>x.id===e.clientId); if(c){ onSelect&&onSelect(c); return; } } if(e.kind==="meeting"&&e.joinUrl){ window.open(e.joinUrl,"_blank","noopener"); } };
   const navBtn={width:30,height:30,borderRadius:8,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",fontSize:15,flexShrink:0};
   const lbl={fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"};
-  const legendItems=[["Meetings",C.red],["Tasks",C.green],["Reminders",C.purple],["Billing",C.gold],["Contracts",C.amber],["Content",C.blue]];
+  const legendItems=[["Meetings",C.red],["Bookings","#F472B6"],["Tasks",C.green],["Reminders",C.purple],["Billing",C.gold],["Contracts",C.amber],["Content",C.blue]];
   const back = !isDesktop && (<button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>);
   // The header's "needs you" line and week chart wait for the data, so a slow load never says "nothing on today".
   const next7=[0,1,2,3,4,5,6].map(i=>{ const d=new Date(now0); d.setDate(d.getDate()+i); return d; });
@@ -9391,6 +9401,7 @@ const BK_DEFAULT_HOURS = [null,[480,1020],[480,1020],[480,1020],[480,1020],[480,
 const bkT12 = (m) => { const h = Math.floor(m/60), mm = m%60; return `${((h+11)%12)+1}:${String(mm).padStart(2,"0")} ${h<12?"AM":"PM"}`; };
 const BK_TIMES = Array.from({length:37},(_,i)=>300+i*30);   // 5:00 AM to 11:00 PM
 const bkDur = (m) => { const h=Math.floor(m/60), r=m%60; return h?`${h} hr${r?` ${r} min`:""}`:`${r} min`; };
+const bkHttps = (u) => /^https:\/\/[^\s"'<>]+$/i.test(String(u||"").trim());
 // Where the website's main buttons go right now. Same outcomes as intakeOf in netlify/lib/booking.mjs.
 const osIntake = (cl) => {
   const i = (cl && cl.intake) || {};
@@ -9406,7 +9417,8 @@ function BookingCard({client,onUpdate}){
   const b0 = client.booking || {};
   const tz = b0.tz || "America/Phoenix";
   const [cfg,setCfg] = useState(()=>({ packages:(b0.packages||[]).map(p=>({...p})), hours:(Array.isArray(b0.hours)&&b0.hours.length===7?b0.hours:BK_DEFAULT_HOURS).map(h=>h?[...h]:null),
-    buffer:b0.buffer!=null?b0.buffer:30, leadHours:b0.leadHours!=null?b0.leadHours:12, daysAhead:b0.daysAhead||21, note:b0.note||"", cta:b0.cta||"" }));
+    buffer:b0.buffer!=null?b0.buffer:30, leadHours:b0.leadHours!=null?b0.leadHours:12, daysAhead:b0.daysAhead||21, note:b0.note||"", cta:b0.cta||"",
+    askAddress:b0.askAddress!==false, addressLabel:b0.addressLabel||"" }));
   const [saved,setSaved] = useState(false);
   const [blk,setBlk] = useState({date:"",from:480,to:1020,note:""});
   const siteLive = !!(client.website && typeof client.website==="object" && client.website.published);
@@ -9414,10 +9426,12 @@ function BookingCard({client,onUpdate}){
   const setPkg = (i,k,v)=>setCfg(c=>({...c,packages:c.packages.map((p,j)=>j===i?{...p,[k]:v}:p)}));
   const addPkg = ()=>setCfg(c=>({...c,packages:[...c.packages,{id:uid().slice(0,8),name:"",price:"",minutes:120,desc:""}]}));
   const delPkg = (i)=>setCfg(c=>({...c,packages:c.packages.filter((_,j)=>j!==i)}));
+  const depBad = cfg.packages.some(p=>String(p.depositLink||"").trim()&&!bkHttps(p.depositLink));
   const setHr = (i,v)=>setCfg(c=>({...c,hours:c.hours.map((h,j)=>j===i?v:h)}));
   const save = (extra={}) => {
-    const packages = cfg.packages.map(p=>({...p,name:String(p.name||"").trim(),price:String(p.price||"").trim(),desc:String(p.desc||"").trim(),minutes:Number(p.minutes)||120})).filter(p=>p.name);
-    onUpdate({...client, booking:{...b0, ...cfg, packages, cta:String(cfg.cta||"").trim(), note:String(cfg.note||"").trim(), tz, ...extra}});
+    const packages = cfg.packages.map(p=>({...p,name:String(p.name||"").trim(),price:String(p.price||"").trim(),desc:String(p.desc||"").trim(),minutes:Number(p.minutes)||120,
+      deposit:String(p.deposit||"").trim(),depositLink:bkHttps(p.depositLink)?String(p.depositLink).trim():""})).filter(p=>p.name);
+    onUpdate({...client, booking:{...b0, ...cfg, packages, cta:String(cfg.cta||"").trim(), note:String(cfg.note||"").trim(), addressLabel:String(cfg.addressLabel||"").trim(), tz, ...extra}});
     setSaved(true); setTimeout(()=>setSaved(false),1500);
   };
   const I = osIntake(client);
@@ -9432,6 +9446,8 @@ function BookingCard({client,onUpdate}){
   const when = (iso) => new Date(iso).toLocaleString("en-US",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:tz});
   const cancel = (bk) => { if(!window.confirm(`Cancel ${bk.name}'s ${bk.packageName} on ${when(bk.start)}?\n\nThe time opens up again on the website. This does not tell them, so call or text them yourself.`)) return;
     onUpdate({...client, bookings:(client.bookings||[]).map(x=>x.id===bk.id?{...x,status:"cancelled",cancelledAt:new Date().toISOString()}:x)}); };
+  // The deposit is paid to the business's own payment page, so the OS cannot see it land; he marks it.
+  const markPaid = (bk,paid) => onUpdate({...client, bookings:(client.bookings||[]).map(x=>x.id===bk.id?{...x,deposit:{...x.deposit,paid,paidAt:paid?new Date().toISOString():null}}:x)});
   const blocks = ((client.booking||{}).blocks||[]).filter(x=>x&&Date.parse(x.end)>now);
   const addBlock = () => { if(!blk.date||!(blk.to>blk.from)) return;
     const start=new Date(bkZonedToUtc(blk.date,blk.from,tz)).toISOString(), end=new Date(bkZonedToUtc(blk.date,blk.to,tz)).toISOString();
@@ -9497,8 +9513,14 @@ function BookingCard({client,onUpdate}){
             <div style={{flex:1,minWidth:0}}><div style={lbl}>What's included (optional)</div><input value={p.desc} onChange={e=>setPkg(i,"desc",e.target.value)} placeholder="Hand wash, wax, interior vacuum and wipe down" style={inp}/></div>
             <button onClick={()=>delPkg(i)} style={small(false)}>Remove</button>
           </div>
+          <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,2fr)",gap:8}}>
+            <div><div style={lbl}>Deposit (optional)</div><input value={p.deposit||""} onChange={e=>setPkg(i,"deposit",e.target.value)} placeholder="$50" style={inp}/></div>
+            <div><div style={lbl}>Deposit payment link</div><input value={p.depositLink||""} onChange={e=>setPkg(i,"depositLink",e.target.value)} placeholder="https://buy.stripe.com/..." style={{...inp,borderColor:String(p.depositLink||"").trim()&&!bkHttps(p.depositLink)?C.red:undefined}}/></div>
+          </div>
         </div>))}
       <button onClick={addPkg} style={small(true)}>+ Add a package</button>
+      {cfg.packages.length>0&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Deposits are optional. Paste a payment link from the business's own Stripe, Square or PayPal, and after booking the customer gets a "Pay the deposit" button. The money goes straight to the business, never through BoldLine. Mark it paid below once it lands.</div>}
+      {depBad&&<div style={{fontSize:11,color:C.red,marginTop:6}}>A deposit link needs to start with https:// (copy it from the payment page's address bar). Until it does, that package has no deposit.</div>}
 
       <div style={sub}>Working hours</div>
       <div style={{display:"grid",gap:6}}>
@@ -9522,6 +9544,10 @@ function BookingCard({client,onUpdate}){
         <div><div style={lbl}>Line under the Book heading (optional)</div><input value={cfg.note} onChange={e=>set("note",e.target.value)} placeholder="We come to you anywhere in the East Valley." style={inp}/></div>
         <div><div style={lbl}>Main button wording</div><input value={cfg.cta} onChange={e=>set("cta",e.target.value)} placeholder="Book now" style={inp}/></div>
       </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:8,marginTop:8}}>
+        <div><div style={lbl}>Ask for an address?</div><select value={cfg.askAddress?"yes":"no"} onChange={e=>set("askAddress",e.target.value==="yes")} style={sel}><option value="yes">Yes, we go to them</option><option value="no">No, they come to us</option></select></div>
+        {cfg.askAddress&&<div><div style={lbl}>How to ask it</div><input value={cfg.addressLabel} onChange={e=>set("addressLabel",e.target.value)} placeholder="Service address" style={inp}/></div>}
+      </div>
       <button onClick={()=>save()} style={{...small(true),width:"100%",padding:"11px",marginTop:12}}>{saved?"✓ Saved":"Save booking setup"}</button>
       </>}
 
@@ -9536,9 +9562,11 @@ function BookingCard({client,onUpdate}){
               <div style={{fontSize:11.5,color:C.textDim,marginTop:2}}>{bk.name}{bk.phone?` · ${bk.phone}`:""}</div>
               <div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>{bk.address}</div>
               {bk.notes&&<div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>"{bk.notes}"</div>}
+              {bk.deposit&&<div style={{fontSize:11.5,fontWeight:700,marginTop:4,color:bk.deposit.paid?C.green:C.amber}}>{bk.deposit.paid?"✓ Deposit paid":`Deposit${bk.deposit.amount?` of ${bk.deposit.amount}`:""} not paid yet`}</div>}
             </div>
-            <div style={{display:"flex",gap:6}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {bk.phone&&<a href={`tel:${String(bk.phone).replace(/[^0-9+]/g,"")}`} style={{...small(true),textDecoration:"none"}}>Call</a>}
+              {bk.deposit&&<button onClick={()=>markPaid(bk,!bk.deposit.paid)} style={small(!bk.deposit.paid)}>{bk.deposit.paid?"Mark unpaid":"Mark paid"}</button>}
               <button onClick={()=>cancel(bk)} style={small(false)}>Cancel</button>
             </div>
           </div>))}
@@ -21457,7 +21485,7 @@ function App({onLogout}) {
         {screen==="outreach"&&<OutreachScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {screen==="campaigns"&&<CampaignManagerScreen clients={clients} onBack={()=>{setFocusCampaign(null);setScreen("home");}} isDesktop={isDesktop} onSelectClient={selectClient} onUpdate={updateClient} focusKey={focusCampaign}/>}
         {screen==="content"&&<ContentStudioScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} account={myAccount} onSaveAccount={updateClient}/>}
-        {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="calendar"&&<CalendarScreen clients={[...realClients,...myBusinesses]} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="businesses"&&<MyBusinessesScreen businesses={myBusinesses} onSelect={selectClient} onAdd={()=>setShowAddBiz(true)} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
