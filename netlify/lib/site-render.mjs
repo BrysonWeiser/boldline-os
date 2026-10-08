@@ -40,6 +40,13 @@
 
 import { termsOf } from "./website-deal.mjs";
 
+// 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
+// Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
+// stays zoomed after they submit, so the page reads as cut off. Every form box on a phone is 16px.
+// The same rule sits in the marketing site, the landing pages, the client websites and the portal
+// (verify-no-ios-zoom keeps them identical and checks the rendered pages).
+export const IOS_NO_ZOOM = "@media (max-width:1024px),(pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=submit]):not([type=button]):not([type=hidden]),select,textarea{font-size:16px!important}}";
+
 export const SITE_PAGES = [
   { id: "home", label: "Home", path: "" },
   { id: "services", label: "Services", path: "services" },
@@ -984,7 +991,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${esc(canonical)}">${ogImg}
 <meta name="theme-color" content="${P.bg}">${opts.noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS[theme]}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${FONTS[theme]}"></noscript>
-<style>${css(theme, P)}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
+<style>${css(theme, P)}${IOS_NO_ZOOM}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
 <body data-theme="${theme}" data-page="${page}" data-in="${M.entrance}" data-rv="${M.reveal}" data-tx="${M.transition}">
 ${header(cl, base, page, C, pages)}
 <main>${body}</main>

@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 211 task-keyed entries under `knowledge/`. They surface automatically via the
+> 212 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**211 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**212 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -732,6 +732,12 @@
 - **[os-report-period](../knowledge/os-report-period.md)** &mdash; &#9989; verified &middot; 2026-09-04  
   The monthly OS health report counted BoldLine's own ad account as a client (one client read as two) and reported LIFETIME lead totals under a monthly heading. It now excludes the internal account and reports it separately, counts leads for the calendar month just ended from the dates on the records, and labels the ad spend honestly as a trailing 30-day reading because that is the only spend figure stored. 18 checks, seven mutations caught.  
   <sub>*task:* fix or change what the monthly OS health report counts, or why its numbers look wrong &nbsp;|&nbsp; *keywords:* os health report, monthly report, two clients, client count wrong, internal account counted, buildOSDataBlock, leadsInMonth, MONTH_KEY, whole month, snapshot, trailing 30 days, spend30d, reporting period, ARIA report, liveStats leads lifetime</sub>
+
+## Responsive
+
+- **[ios-input-zoom](../knowledge/ios-input-zoom.md)** &mdash; &#9989; verified &middot; 2026-10-08  
+  Bryson, 2026-10-08, screenshot of /contact/ cut off on the right after sending a test message on his iPhone. NOT an overflow (headless Chromium measured 0px sideways scroll at 360 to 414): Safari on iPhone zooms in when a form box with text under 16px is tapped and stays zoomed after submit. Nearly every form box was 13 to 15px on the marketing site AND on client landing pages and client websites. Fix: one identical rule (every text input/select/textarea 16px !important on max-width 1024px or pointer:coarse) in base.css, the standalone get-started page, landing.mjs (IOS_NO_ZOOM), site-render.mjs (IOS_NO_ZOOM) and the portal; the portal's maximum-scale=1 removed (blocked pinch zoom). verify-no-ios-zoom (19).  
+  <sub>*task:* fix a page that looks cut off or zoomed in on an iPhone after typing in a form, or add any new form box to the website, landing pages, client websites or portal &nbsp;|&nbsp; *keywords:* iphone zoom, ios zoom, safari zoom, cut off on mobile, page cut off after submit, input font size, 16px, maximum-scale, pinch zoom, form box text size, mobile fit</sub>
 
 ## Sales
 

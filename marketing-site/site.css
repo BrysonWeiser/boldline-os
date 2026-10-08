@@ -853,6 +853,7 @@ button.btn{border:0}
 .nl-msg.ok{color:#34D399}
 .nl-msg.err{color:#F87171}
 @media(max-width:480px){.nl-form input[type=email],.nl-form button{flex:1 1 100%;max-width:none}}
+@media (max-width:1024px),(pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=submit]):not([type=button]):not([type=hidden]),select,textarea{font-size:16px!important}}
 /* The grouped phone menu. Shared by site.css and blog.css (privacy, terms, 404 and the blog), via
    scripts/build-marketing-site.mjs, so every page's menu looks the same. */
 .nav-mobile{display:none;width:100%;max-width:1000px;flex-direction:column;gap:12px;margin-top:8px;padding:12px;background:#0B0D14;border:1px solid var(--line);border-radius:16px;pointer-events:auto;box-shadow:0 30px 60px -20px rgba(0,0,0,.85)}
