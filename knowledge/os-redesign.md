@@ -269,3 +269,15 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
 - Screenshot harness had to be rebuilt after a container restart (scratchpad `osh/outreach-shot.cjs`, `screens.cjs` opens
   each screen via Ctrl K; client page via getByText(/^Apex Roofing/)). Zero sideways scroll at 1440, 390 and 360.
 - Pinned by tests/verify-os-screens.mjs (33).
+
+## Stage 5 addition (2026-10-08): "cool but clear" (same dev branch, still waiting on his OK)
+- Bryson asked for the screens to be cooler without getting confusing, and for the same on every future page.
+  Folded into Stage 5 before it goes live. The full rule and the shared pieces are in KB **`cool-but-clear`**.
+- ScreenHeader gained `focus` (a "needs you" line) and `viz` (a live bar chart panel that replaces the ring).
+  Every stat chip now counts up (`CountUp`).
+- Applied:
+  - Leads: line + 14-day chart.
+  - Calendar: line + next-7-days chart, and neither shows until loaded.
+  - Revenue: unpaid line + 6-month chart.
+  - Campaigns: line only.
+- Tests: `verify-os-screens` 54 checks.

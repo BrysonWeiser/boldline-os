@@ -99,6 +99,14 @@ automated.
   "reduce motion"), mobile-first, real client photos over effects, and every existing rule still holds
   (no emojis, no em dashes, no links back to BoldLine, previews never change anything real). Details in
   KB `website-design-bar`.
+- **COOL BUT CLEAR: EVERY SCREEN AND PAGE WE BUILD (Bryson, 2026-10-08: "make them cooler but still very
+  useful and not confusing, same thing for the other pages we are going to build").** Motion must say
+  something true: numbers count up because they arrived, charts are real data he can point at, a dot pulses
+  only while something waits on him, an all-clear sits still. The top of every screen answers "what needs me
+  now", and each screen carries one live chart of its own numbers in place of decoration. Phones get the
+  same information, and "reduce motion" makes everything still. Reuse the shared pieces (`ScreenHeader`
+  `focus`/`viz`, `CountUp`, `Spark`), never hand-built effects. Pinned by `verify-os-screens`. Details in
+  KB `cool-but-clear`.
 - **ONE BUSINESS, ONE LOOK; EVERY BUTTON FITS AND MEANS SOMETHING (Bryson, 2026-10-07).** A client's website and its
   landing page share colours, typefaces and shape (enforced: `siteBrandKit` + `verify-brand-match`). Buttons say
   something specific to that business and never wrap or spill (no copy-pasted "Our services" / "Learn more" / "Send").

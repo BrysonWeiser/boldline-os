@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 212 task-keyed entries under `knowledge/`. They surface automatically via the
+> 213 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**212 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**213 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -792,6 +792,9 @@
 - **[client-pages-not-boldline-furniture](../knowledge/client-pages-not-boldline-furniture.md)** &mdash; &#9989; verified &middot; 2026-10-07  
   Bryson, 2026-10-07, on the handyman sample landing page - client pages had bits that look like BoldLine's own site and "it feels cheap". He named the little checkmark lines - the hero trust row ("Mesa, AZ ✓ Free quotes Fast response") and the pill row ("✓ Free quote, no obligation"). Both default rows are now gone from every client landing page (a page only shows them if it writes its own, as BoldLine's audience pages do), and the ✓ benefit tiles and photo-badge tick became brand-colour accents. Live 2026-10-07. Pinned in verify-landing-pages.  
   <sub>*task:* design, build or change a client's landing page or website, add a default trust line, chip, badge or tick row to the landing renderer, or decide what furniture every client page gets &nbsp;|&nbsp; *keywords:* checkmark, check mark, tick, trust row, chip row, chips, free quotes, fast response, free quote no obligation, secure checkout, ships straight to you, feels cheap, client landing page, landing renderer, default furniture, looks like boldline</sub>
+- **[cool-but-clear](../knowledge/cool-but-clear.md)** &mdash; &#9989; verified &middot; 2026-10-08  
+  Bryson, 2026-10-08 - "make them cooler but still very useful and not confusing, same thing for the other pages we are going to build". Rule - every bit of motion says something true (numbers count up because they arrived, charts are real data you can point at, a dot pulses only while something waits on him, an all-clear sits still). Each screen's header answers "what needs me now" and carries one live chart of its own numbers. Built as shared pieces on ScreenHeader (focus + viz props, CountUp, Spark, ShViz) and pinned by verify-os-screens section 5.  
+  <sub>*task:* design or build any OS screen or new page and decide how to make it look cool, modern or exciting without making it confusing; add charts, animated numbers or a "needs you" line to a screen header &nbsp;|&nbsp; *keywords:* cool but clear, cooler screens, screen header, ScreenHeader, CountUp, Spark, ShViz, sparkline, count up, needs you, focus line, viz, reduce motion, prefersStill, micro interactions, mission control, os screens</sub>
 - **[preview-safety](../knowledge/preview-safety.md)** &mdash; &#9989; verified &middot; 2026-09-01  
   Anything the OS renders so Bryson can look at it must be incapable of writing to a client's record, sending to a real person, spending money, or navigating the OS away from itself. Two live bugs of this shape were found in one sitting, one of which recorded a client decision the client never made. Enforced by a manifest test that fails when a new preview is added without a guard.  
   <sub>*task:* add or change any preview, demo, test send or dry run in the OS &nbsp;|&nbsp; *keywords:* preview, iframe, srcdoc, srcDoc, sandbox, allow-forms, allow-scripts, allow-same-origin, BL_PREVIEW, about:srcdoc, phantom lead, fake approval, preview fires for real, dry run, demo mode, test send, landing preview, portal preview, contract preview, email preview, verify-preview-safety</sub>

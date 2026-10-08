@@ -6830,11 +6830,19 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const lbl={fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"};
   const legendItems=[["Meetings",C.red],["Tasks",C.green],["Reminders",C.purple],["Billing",C.gold],["Contracts",C.amber],["Content",C.blue]];
   const back = !isDesktop && (<button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>);
+  // The header's "needs you" line and week chart wait for the data, so a slow load never says "nothing on today".
+  const next7=[0,1,2,3,4,5,6].map(i=>{ const d=new Date(now0); d.setDate(d.getDate()+i); return d; });
+  const todays=byDay[todayYMD]||[], todayMeet=todays.filter(e=>e.kind==="meeting").length;
+  const calFocus=loading?null:todays.length
+    ?{tone:"gold",text:`${todays.length} ${todays.length===1?"thing":"things"} on today${todayMeet?`, including ${todayMeet} ${todayMeet===1?"meeting":"meetings"}`:""}`,onClick:()=>{ setView(new Date(now0.getFullYear(),now0.getMonth(),1)); setSel(todayYMD); }}
+    :{tone:"green",text:"Nothing on today."};
+  const calViz=loading?null:{label:"Next 7 days",mark:0,data:next7.map(d=>(byDay[ymdOf(d)]||[]).length),labels:next7.map((d,i)=>i===0?"Today":d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}))};
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
       <ScreenHeader group="Get clients" title="Calendar" icon="calendar" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
         sub="Every scheduled thing across the OS, in one place."
+        focus={calFocus} viz={calViz}
         actions={<>
           <button onClick={sendDigest} disabled={digestState==="sending"} title="Send today's agenda to your phone + email now" style={{padding:"9px 12px",fontSize:12,fontWeight:700,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:digestState==="sent"?C.green:digestState==="error"?C.red:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>{digestState==="sending"?"Sending…":digestState==="sent"?"✓ Sent":digestState==="error"?"Failed":"Send agenda"}</button>
           <button onClick={()=>{ setAddForm(f=>({...f,date:sel})); setShowAdd(true); }} style={{padding:"9px 14px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer",whiteSpace:"nowrap"}}>+ Add</button>
@@ -8592,8 +8600,78 @@ const SH_ICONS = {
   myads:<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></>,
   client:<><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></>,
 };
-function ScreenHeader({ group, title, sub, stats, actions, icon, onBack, isDesktop }) {
+// ─── COOL BUT CLEAR (2026-10-08) ─────────────────────────────────────────
+// Bryson, 2026-10-08: "make them cooler but still very useful and not confusing, same thing for the
+// other pages we are going to build". The rule these pieces carry: every bit of motion says something
+// true. A number counts up because it just arrived, a chart draws because it is real data, a dot pulses
+// only while something is waiting on him (an all-clear sits still). Nothing moves just to move, and all
+// of it holds still for "reduce motion". New screens reuse these instead of hand-building effects.
+const prefersStill = () => { try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (e) { return false; } };
+const phxLastDays = (n) => { const out = []; for (let i = n - 1; i >= 0; i--) out.push(phxDayKey(Date.now() - i * 864e5)); return out; };
+const shortDay = (ymd) => new Date(ymd + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+// A number that counts up to its value when it first shows or changes. Anything that is not a plain
+// number (text, "$1,200", a dash) is shown exactly as given.
+function CountUp({ value, format, ms = 700 }) {
+  const n = typeof value === "number" && isFinite(value) ? value : null;
+  const [shown, setShown] = useState(n == null || prefersStill() ? n : 0);
+  const cur = useRef(n == null || prefersStill() ? n || 0 : 0);
+  useEffect(() => {
+    if (n == null) return;
+    if (prefersStill()) { cur.current = n; setShown(n); return; }
+    const a = cur.current, t0 = performance.now(); let raf;
+    const step = (t) => { const p = Math.min(1, (t - t0) / ms), v = p < 1 ? a + (n - a) * (1 - Math.pow(1 - p, 3)) : n; cur.current = v; setShown(v); if (p < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [n, ms]);
+  if (n == null) return <>{value}</>;
+  const r = Number.isInteger(n) ? Math.round(shown) : Math.round(shown * 10) / 10;
+  return <>{format ? format(r) : r.toLocaleString()}</>;
+}
+
+// A small bar chart of real numbers, oldest on the left. Pointing at (or tapping) a bar hands its
+// index up, so the panel above it can say exactly what that bar is. The marked bar is the one the big
+// number is about (today, this month).
+function Spark({ data, hi, onHi, mark, w = 200, h = 46, label }) {
+  const pts = (data || []).map((v) => Math.max(0, Number(v) || 0));
+  if (pts.length < 2) return null;
+  const max = Math.max(1, ...pts), n = pts.length, gap = n > 10 ? 3 : 5, bw = (w - gap * (n - 1)) / n;
+  const m = mark == null ? n - 1 : mark;
+  return (
+    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label}>
+      {pts.map((v, i) => { const bh = Math.max(2, (v / max) * (h - 4)), x = i * (bw + gap);
+        return (
+          <g key={i} onMouseEnter={onHi ? () => onHi(i) : undefined} onClick={onHi ? () => onHi(hi === i ? null : i) : undefined} style={{ cursor: onHi ? "pointer" : undefined }}>
+            <rect x={x} y="0" width={bw + gap} height={h} fill="transparent"/>
+            <rect className="spark-bar" x={x} y={h - bh} width={bw} height={bh} rx={Math.min(2, bw / 3)} style={{ animationDelay: Math.min(i * 30, 420) + "ms" }}
+              fill={hi === i ? "#F7E2A0" : i === m ? "#E8C96A" : hi != null ? "rgba(200,168,75,.26)" : "rgba(200,168,75,.42)"}/>
+          </g>
+        ); })}
+    </svg>
+  );
+}
+
+// The header's live panel: a label, the number it is about, and the bars behind it. Pointing at a bar
+// swaps the label and number for that bar's own, so the chart can always be read, never just admired.
+function ShViz({ viz, inline }) {
+  const [hi, setHi] = useState(null);
+  const pts = (viz.data || []).map((v) => Number(v) || 0);
+  if (pts.length < 2) return null;
+  const fmt = viz.format || ((v) => Math.round(v).toLocaleString());
+  const total = viz.value != null ? viz.value : pts.reduce((a, b) => a + b, 0);
+  const said = (viz.labels || []).map((l, i) => `${l}: ${fmt(pts[i])}`).join(", ");
+  return (
+    <div className={"sh-viz" + (inline ? " in" : "")} onMouseLeave={() => setHi(null)}>
+      <div className="sh-viz-l">{hi == null ? viz.label : (viz.labels && viz.labels[hi]) || ""}</div>
+      <div className="sh-viz-v"><span hidden={hi != null}><CountUp value={total} format={viz.format}/></span>{hi != null && fmt(pts[hi])}</div>
+      <Spark data={pts} hi={hi} onHi={setHi} mark={viz.mark} w={inline ? 150 : 206} h={inline ? 38 : 46} label={`${viz.label}. ${said}`}/>
+    </div>
+  );
+}
+
+function ScreenHeader({ group, title, sub, stats, actions, icon, onBack, isDesktop, focus, viz }) {
   const svg = SH_ICONS[icon];
+  const live = viz && (viz.data || []).length > 1;
   return (
     <div className="sh">
       <div className="sh-row">
@@ -8605,11 +8683,16 @@ function ScreenHeader({ group, title, sub, stats, actions, icon, onBack, isDeskt
           </div>
           <div className="sh-title">{title}</div>
           {sub && <div className="sh-sub">{sub}</div>}
+          {focus && focus.text && (focus.onClick
+            ? <button className={"sh-focus " + (focus.tone || "info")} onClick={focus.onClick}><i/><span>{focus.text}</span><em className="sh-focus-go">→</em></button>
+            : <div className={"sh-focus " + (focus.tone || "info")}><i/><span>{focus.text}</span></div>)}
           {stats && stats.filter(Boolean).length > 0 && (
-            <div className="sh-stats">{stats.filter(Boolean).map((st, k) => <span key={k} className={"sh-stat" + (st.tone ? " " + st.tone : "")}><b>{st.v}</b>{st.l}</span>)}</div>
+            <div className="sh-stats">{stats.filter(Boolean).map((st, k) => <span key={k} className={"sh-stat" + (st.tone ? " " + st.tone : "")}><b><CountUp value={st.v}/></b>{st.l}</span>)}</div>
           )}
+          {!isDesktop && live && <ShViz viz={viz} inline/>}
         </div>
-        {isDesktop && svg && <div className="sh-ring" aria-hidden="true"><i/><i/><span><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{svg}</svg></span></div>}
+        {isDesktop && live && <ShViz viz={viz}/>}
+        {isDesktop && !live && svg && <div className="sh-ring" aria-hidden="true"><i/><i/><span><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{svg}</svg></span></div>}
       </div>
     </div>
   );
@@ -8803,6 +8886,10 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"20px 32px 60px":"14px 14px 100px"}}>
         <ScreenHeader group="Money" title="Revenue" icon="revenue" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
           sub="What you actually invoiced, month by month."
+          focus={cur&&cur.outstanding>0?{tone:"gold",text:`${money0(cur.outstanding)} still unpaid this month`}
+            :cur&&cur.invoices>0?{tone:"green",text:"Every invoice this month is paid."}:null}
+          viz={data&&data.length>1?{label:`Last ${data.length} months`,format:money0,
+            data:[...data].reverse().map(m=>m.net),labels:[...data].reverse().map(m=>monthLabel(m.month)+(m.isCurrent?" so far":""))}:null}
           actions={<button onClick={load} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",}}>{data===null?"…":"Refresh"}</button>}/>
         {/* ── This month, headline ──────────────────────────────────────────── */}
         <div className="os-card" style={{background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
@@ -16750,6 +16837,8 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
       <ScreenHeader group="Run clients" title="Campaigns" icon="campaigns" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
         sub="Every campaign on every linked ad account, yours and your clients'."
+        focus={errors.length?{tone:"red",text:`${errors.length===1?"One ad account":errors.length+" ad accounts"} didn't answer. The reason is further down.`}
+          :state==="ready"&&rows.length?(liveCount?{tone:"green",text:`${liveCount} ${liveCount===1?"campaign":"campaigns"} running right now.`}:{text:"Nothing is running right now."}):null}
         stats={[{v:linked.length,l:linked.length===1?"linked account":"linked accounts"},rows.length?{v:rows.length,l:"campaigns"}:null]}
         actions={<button onClick={load} disabled={state==="loading"} style={{fontSize:11.5,fontWeight:700,color:C.gold,background:"rgba(200,168,75,.08)",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"6px 10px",cursor:state==="loading"?"default":"pointer",opacity:state==="loading"?.5:1}}>↻ Refresh</button>}/>
 
@@ -20108,10 +20197,15 @@ function LeadsScreen({leads,onUpdate,onReportSent,onDelete,onRefresh,isDesktop,e
   const counts = LEAD_STATUSES.reduce((a,s)=>{a[s]=leads.filter(l=>l.status===s).length;return a;},{});
   const shown = filter==="all"?leads:leads.filter(l=>l.status===filter);
   const FILTERS = [["all","All"],["new","New"],["contacted","Contacted"],["won","Won"],["lost","Lost"]];
+  const days14 = phxLastDays(14);
+  const perDay = days14.map(k=>leads.filter(l=>l.created_at&&phxDayKey(l.created_at)===k).length);
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"var(--pad)"}}>
       <ScreenHeader group="Run clients" title="Leads" icon="leads" isDesktop={isDesktop}
         sub="Everyone who reaches out through boldlinemedia.com lands here automatically."
+        focus={counts.new?{tone:"gold",text:`${counts.new} new ${counts.new===1?"lead you haven't":"leads you haven't"} contacted yet`,onClick:()=>setFilter("new")}
+          :leads.length?{tone:"green",text:"All caught up. No new leads waiting on you."}:null}
+        viz={leads.length?{label:"Leads, last 14 days",data:perDay,labels:days14.map(shortDay)}:null}
         stats={[{v:leads.length,l:"total"},counts.new?{v:counts.new,l:"new",tone:"gold"}:null,counts.contacted?{v:counts.contacted,l:"contacted"}:null,counts.won?{v:counts.won,l:"won",tone:"green"}:null]}
         actions={<button onClick={onRefresh} style={{fontSize:11,fontWeight:700,color:C.textDim,background:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer"}}>Refresh</button>}/>
       {/* A refused save or delete used to go to the browser console, where nobody would
@@ -20824,6 +20918,30 @@ function App({onLogout}) {
         @keyframes obSpin{to{transform:rotate(360deg)}}
         @media (max-width:700px){.sh{padding:14px 14px 16px;border-radius:14px;margin-bottom:14px}.sh-top{flex-wrap:wrap;row-gap:8px}.sh-title{font-size:23px;margin-top:8px}.sh-sub{font-size:12.5px}.sh-stats{margin-top:12px}.sh-actions button,.sh-actions a{padding:7px 10px!important;font-size:11.5px!important}}
         @media (prefers-reduced-motion:reduce){.sh,.sh-ring i,.sh-eye i{animation:none!important}}
+        /* Cool but clear (2026-10-08): the "needs you" line, and the live panel that replaces the ring. */
+        .sh-focus{display:flex;align-items:center;gap:9px;width:fit-content;max-width:100%;margin-top:12px;padding:7px 12px 7px 11px;border-radius:10px;font-family:inherit;font-size:12.5px;font-weight:600;line-height:1.4;color:#F0F2FF;text-align:left;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09)}
+        .sh-focus i{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#8B91B8}
+        .sh-focus span{min-width:0}
+        .sh-focus.gold{background:rgba(200,168,75,.08);border-color:rgba(200,168,75,.3)}.sh-focus.gold i{background:#E8C96A;animation:shPing 1.8s ease-out infinite}
+        .sh-focus.red{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.32)}.sh-focus.red i{background:#F87171;animation:shPingR 1.8s ease-out infinite}
+        .sh-focus.green{background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.22);color:#C9CFEA}.sh-focus.green i{background:#34D399}
+        .sh-focus.info{color:#C9CFEA}
+        button.sh-focus{cursor:pointer;transition:background .2s,border-color .2s,transform .12s}
+        button.sh-focus:hover{background:rgba(200,168,75,.13);border-color:rgba(200,168,75,.5)}
+        button.sh-focus:active{transform:scale(.98)}
+        .sh-focus-go{font-style:normal;color:#E8C96A;margin-left:2px;transition:transform .2s}
+        button.sh-focus:hover .sh-focus-go{transform:translateX(3px)}
+        @keyframes shPing{0%{box-shadow:0 0 0 0 rgba(232,201,106,.6)}80%,100%{box-shadow:0 0 0 8px rgba(232,201,106,0)}}
+        @keyframes shPingR{0%{box-shadow:0 0 0 0 rgba(248,113,113,.6)}80%,100%{box-shadow:0 0 0 8px rgba(248,113,113,0)}}
+        .sh-viz{flex-shrink:0;width:236px;padding:12px 15px 11px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(7,8,12,.5);box-shadow:inset 0 1px 0 rgba(200,168,75,.12)}
+        .sh-viz-l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8B91B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:14px}
+        .sh-viz-v{font-family:var(--hud);font-weight:700;font-size:27px;line-height:1.15;color:#F0F2FF;margin:2px 0 9px;font-variant-numeric:tabular-nums;white-space:nowrap}
+        .sh-viz.in{width:auto;margin-top:14px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center}
+        .sh-viz.in .sh-viz-l{white-space:normal;line-height:1.35;letter-spacing:.1em}.sh-viz.in .spark{grid-column:2;grid-row:1/3}.sh-viz.in .sh-viz-v{font-size:21px;margin:2px 0 0}
+        .spark{display:block;overflow:visible}
+        .spark-bar{transform-box:fill-box;transform-origin:50% 100%;animation:sparkGrow .55s cubic-bezier(.2,.8,.2,1) backwards;transition:fill .15s}
+        @keyframes sparkGrow{from{transform:scaleY(0)}}
+        @media (prefers-reduced-motion:reduce){.sh-focus i,.spark-bar{animation:none!important}button.sh-focus,.sh-focus-go{transition:none!important}}
         .ch-bar{position:relative;background:radial-gradient(120% 260% at 0% 0%,rgba(200,168,75,.10),transparent 55%),linear-gradient(180deg,#0D0E16,#0A0B11)}
         .ch-bar::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,75,.45),transparent)}
         /* Wide screens: a form on the left and its results on the right, instead of one thin column. */
