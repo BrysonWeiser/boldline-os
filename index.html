@@ -5588,7 +5588,7 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
   const [result,setResult]=useState(null);
   const [recent,setRecent]=useState(null); // null = hidden; [] = loaded
   const [nicheFilter,setNicheFilter]=useState("all");
-  const [showFee,setShowFee]=useState(false);   // per-lead fee finder, collapsed by default
+  const [showFee,setShowFee]=useState(!!isDesktop);   // per-lead fee finder, collapsed by default
   // ── Meeting notes ──────────────────────────────────────────────────────────
   // `briefId` is what ties the answers to a prospect. Without a brief there is nothing to save
   // against, so the panel says so rather than quietly throwing typing away.
@@ -5716,80 +5716,81 @@ function DealPrepScreen({onBack,isDesktop,seed,onSeedUsed,clients,onCreateClient
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-        {back}
+      <ScreenHeader group="Get clients" title="Deal Prep" icon="deal" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Research a prospect and get your pitch before the call."/>
+
+      {/* Stage 5: on a wide screen the brief form sits on the left and the quick fee finder and
+          recent briefs on the right, instead of one 640px strip with half the screen empty. */}
+      <div className={state==="done"?"":"os-split"}>
+        <div className="os-split-l">
+          {(state==="form"||state==="working"||state==="error")&&(
+            <div style={{...card,marginTop:14}}>
+              <div style={S.col12}>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Company name *</div><input value={form.companyName} onChange={set("companyName")} placeholder="e.g. Summit Roofing" style={inp}/></div>
+                  <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Industry / niche *</div><input value={form.niche} onChange={set("niche")} placeholder="e.g. Roofing, Med Spa, Personal Injury Law" style={inp}/></div>
+                </div>
+                <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                  <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Website <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><input value={form.website} onChange={set("website")} placeholder="theircompany.com" style={inp}/></div>
+                  <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Location <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><input value={form.location} onChange={set("location")} placeholder="Phoenix, AZ" style={inp}/></div>
+                </div>
+                <div><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Anything you already know <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><textarea value={form.notes} onChange={set("notes")} placeholder="Owner's name, how you got the lead, budget hints, what they said…" rows={3} style={{...inp,resize:"vertical",fontFamily:"inherit"}}/></div>
+                <button onClick={run} disabled={state==="working"} style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",background:state==="working"?"rgba(255,255,255,.06)":C.gradB,color:state==="working"?C.textMuted:"#1a1400",cursor:state==="working"?"default":"pointer"}}>{state==="working"?"Researching…":"🎯 Research & Build My Pitch"}</button>
+                {msg&&<div style={{fontSize:12,color:state==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
+              </div>
+            </div>
+          )}
+        </div>
         <div>
-          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Deal Prep</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Research a prospect and get your pitch before the call.</div>
-        </div>
-      </div>
-
-      {/* Quick per-lead fee, without waiting on a full brief. The full brief also
-          returns a fee, but it takes about a minute and this answers in seconds — which
-          is the difference between having a number on a live call and not. */}
-      <div style={{maxWidth:640,marginTop:14}}>
-        <button onClick={()=>setShowFee(v=>!v)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:12,border:`1px solid ${showFee?C.borderAccent:C.border}`,backgroundColor:showFee?"rgba(200,168,75,0.06)":"rgba(255,255,255,0.03)",cursor:"pointer",textAlign:"left"}}>
-          <div style={S.f1min}>
-            <div style={{fontSize:13,fontWeight:800,color:C.text}}>What should I charge per lead?</div>
-            <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>Type a niche, get a defensible number in seconds</div>
-          </div>
-          <span style={{fontSize:15,color:C.gold,flexShrink:0,transform:showFee?"rotate(90deg)":"none",transition:"transform .15s"}}>›</span>
-        </button>
-        {showFee&&(
-          <div style={{...card,marginTop:10}}>
-            <LeadFeeFinder isDesktop={isDesktop} defaults={{niche:form.niche,company:form.companyName,location:form.location}}/>
-          </div>
-        )}
-      </div>
-
-      {(state==="form"||state==="working"||state==="error")&&(
-        <div style={{...card,maxWidth:640,marginTop:14}}>
-          <div style={S.col12}>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Company name *</div><input value={form.companyName} onChange={set("companyName")} placeholder="e.g. Summit Roofing" style={inp}/></div>
-              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Industry / niche *</div><input value={form.niche} onChange={set("niche")} placeholder="e.g. Roofing, Med Spa, Personal Injury Law" style={inp}/></div>
-            </div>
-            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Website <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><input value={form.website} onChange={set("website")} placeholder="theircompany.com" style={inp}/></div>
-              <div style={{flex:"1 1 240px",minWidth:0}}><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Location <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><input value={form.location} onChange={set("location")} placeholder="Phoenix, AZ" style={inp}/></div>
-            </div>
-            <div><div style={{fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"}}>Anything you already know <span style={{color:C.textMuted,fontWeight:500}}>(optional)</span></div><textarea value={form.notes} onChange={set("notes")} placeholder="Owner's name, how you got the lead, budget hints, what they said…" rows={3} style={{...inp,resize:"vertical",fontFamily:"inherit"}}/></div>
-            <button onClick={run} disabled={state==="working"} style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",background:state==="working"?"rgba(255,255,255,.06)":C.gradB,color:state==="working"?C.textMuted:"#1a1400",cursor:state==="working"?"default":"pointer"}}>{state==="working"?"Researching…":"🎯 Research & Build My Pitch"}</button>
-            {msg&&<div style={{fontSize:12,color:state==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
-          </div>
-        </div>
-      )}
-
-      {(state==="form"||state==="error")&&(
-        <div style={{maxWidth:640,marginTop:10}}>
-          <button onClick={toggleRecent} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:600,cursor:"pointer",padding:"4px 2px"}}>{recent?"Hide recent briefs":"↺ Pull up a recent brief"}</button>
-          {recent&&(recent.length?(<>
-            {recentNiches.length>1&&(
-              <div style={{display:"flex",alignItems:"center",gap:8,margin:"8px 0 2px"}}>
-                <span style={{fontSize:10.5,color:C.textMuted,fontWeight:600,flexShrink:0}}>Filter</span>
-                <select value={nicheFilter} onChange={e=>setNicheFilter(e.target.value)} style={{flex:1,minWidth:0,padding:"7px 9px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,cursor:"pointer"}}>
-                  <option value="all">All categories ({recent.length})</option>
-                  {recentNiches.map(n=>(<option key={n} value={n}>{n} ({recent.filter(b=>((b.input&&b.input.niche)||"")===n).length})</option>))}
-                </select>
+          {/* Quick per-lead fee, without waiting on a full brief. The full brief also
+              returns a fee, but it takes about a minute and this answers in seconds — which
+              is the difference between having a number on a live call and not. */}
+          <div style={{marginTop:14}}>
+            <button onClick={()=>setShowFee(v=>!v)} style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:12,border:`1px solid ${showFee?C.borderAccent:C.border}`,backgroundColor:showFee?"rgba(200,168,75,0.06)":"rgba(255,255,255,0.03)",cursor:"pointer",textAlign:"left"}}>
+              <div style={S.f1min}>
+                <div style={{fontSize:13,fontWeight:800,color:C.text}}>What should I charge per lead?</div>
+                <div style={{fontSize:11,color:C.textMuted,marginTop:2}}>Type a niche, get a defensible number in seconds</div>
+              </div>
+              <span style={{fontSize:15,color:C.gold,flexShrink:0,transform:showFee?"rotate(90deg)":"none",transition:"transform .15s"}}>›</span>
+            </button>
+            {showFee&&(
+              <div style={{...card,marginTop:10}}>
+                <LeadFeeFinder isDesktop={isDesktop} defaults={{niche:form.niche,company:form.companyName,location:form.location}}/>
               </div>
             )}
-            {shownRecent.map(b=>(
-              <div key={b.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginTop:5,border:`1px solid ${C.border}`,background:C.bg3}}>
-                <div onClick={()=>openBrief(b)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
-                  <div style={{...S.t13b,...S.ovh}}>{(b.input&&b.input.companyName)||"—"}</div>
-                  <div style={{fontSize:10.5,color:C.textMuted}}>{(b.input&&b.input.niche)||""}</div>
-                </div>
-                <span onClick={()=>openBrief(b)} style={{fontSize:11,fontWeight:700,color:b.status==="done"?C.green:b.status==="error"?C.red:C.amber,flexShrink:0,cursor:"pointer"}}>{b.status==="done"?"View ›":b.status}</span>
-                <button onClick={()=>deleteBrief(b)} title="Delete brief" style={{flexShrink:0,width:24,height:24,borderRadius:6,border:"none",background:"rgba(255,255,255,.05)",color:C.textMuted,cursor:"pointer",fontSize:12,lineHeight:1}}>✕</button>
-              </div>
-            ))}
-            {!shownRecent.length&&<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs in this category.</div>}
-          </>):<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs yet.</div>)}
+          </div>
+          {(state==="form"||state==="error")&&(
+            <div style={{marginTop:10}}>
+              <button onClick={toggleRecent} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:600,cursor:"pointer",padding:"4px 2px"}}>{recent?"Hide recent briefs":"↺ Pull up a recent brief"}</button>
+              {recent&&(recent.length?(<>
+                {recentNiches.length>1&&(
+                  <div style={{display:"flex",alignItems:"center",gap:8,margin:"8px 0 2px"}}>
+                    <span style={{fontSize:10.5,color:C.textMuted,fontWeight:600,flexShrink:0}}>Filter</span>
+                    <select value={nicheFilter} onChange={e=>setNicheFilter(e.target.value)} style={{flex:1,minWidth:0,padding:"7px 9px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg3,color:C.text,cursor:"pointer"}}>
+                      <option value="all">All categories ({recent.length})</option>
+                      {recentNiches.map(n=>(<option key={n} value={n}>{n} ({recent.filter(b=>((b.input&&b.input.niche)||"")===n).length})</option>))}
+                    </select>
+                  </div>
+                )}
+                {shownRecent.map(b=>(
+                  <div key={b.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",borderRadius:9,marginTop:5,border:`1px solid ${C.border}`,background:C.bg3}}>
+                    <div onClick={()=>openBrief(b)} style={{flex:1,minWidth:0,cursor:"pointer"}}>
+                      <div style={{...S.t13b,...S.ovh}}>{(b.input&&b.input.companyName)||"—"}</div>
+                      <div style={{fontSize:10.5,color:C.textMuted}}>{(b.input&&b.input.niche)||""}</div>
+                    </div>
+                    <span onClick={()=>openBrief(b)} style={{fontSize:11,fontWeight:700,color:b.status==="done"?C.green:b.status==="error"?C.red:C.amber,flexShrink:0,cursor:"pointer"}}>{b.status==="done"?"View ›":b.status}</span>
+                    <button onClick={()=>deleteBrief(b)} title="Delete brief" style={{flexShrink:0,width:24,height:24,borderRadius:6,border:"none",background:"rgba(255,255,255,.05)",color:C.textMuted,cursor:"pointer",fontSize:12,lineHeight:1}}>✕</button>
+                  </div>
+                ))}
+                {!shownRecent.length&&<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs in this category.</div>}
+              </>):<div style={{fontSize:11,color:C.textMuted,marginTop:6,paddingLeft:2}}>No briefs yet.</div>)}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {state==="done"&&result&&(
-        <div style={{maxWidth:720,marginTop:14}}>
+        <div style={{maxWidth:980,marginTop:14}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
             <div style={{fontSize:13,color:C.textDim}}>Briefing for <span style={{color:C.text,fontWeight:700}}>{result._prospect}</span></div>
             <button onClick={()=>{setState("form");setResult(null);setMsg("");}} style={{marginLeft:"auto",padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>+ New prospect</button>
@@ -6486,13 +6487,9 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-        {back}
-        <div style={{flex:1,minWidth:0}}>
-          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Lead Scout</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Find businesses worth calling, ranked worst-to-best-use-of-your-time.</div>
-        </div>
-      </div>
+      <ScreenHeader group="Get clients" title="Lead Scout" icon="scout" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Find businesses worth calling, ranked by how good a use of your time each one is."
+        stats={facets&&facets.total?[{v:facets.total,l:"on your call list",tone:"gold"}]:null}/>
 
       <div style={{display:"flex",gap:8,marginBottom:16}}>
         <button onClick={()=>setTab("search")} style={chipBtn(tab==="search")}>New search</button>
@@ -6500,7 +6497,8 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
       </div>
 
       {tab==="search"&&(
-        <div style={{maxWidth:760}}>
+        <div className="os-split">
+          <div className="os-split-l">
           {/* Which real-data sources are live. AI research always runs; the two
               providers upgrade it from "researched" to "verified". */}
           {providers&&(
@@ -6607,6 +6605,9 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
             </div>
           </div>
 
+          </div>
+          <div>
+          {isDesktop&&runState!=="running"&&!(runState==="done"&&runResult)&&<div style={{...card}}><EmptyState icon="scout" text="Pick a niche and an area, then press Find prospects. The businesses worth calling show up here, best first, and go straight onto your call list."/></div>}
           {runState==="running"&&progress&&(
             <div style={{...card,marginTop:12}}>
               <div style={{display:"flex",alignItems:"baseline",gap:10}}>
@@ -6686,11 +6687,12 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                   Nothing new this time. Try adding more areas, widening the niche, or raising the count — and remember the scout deliberately skips anything already on your list.
                 </div>)}
             </div>)}
+          </div>
         </div>
       )}
 
       {tab==="list"&&(
-        <div style={{maxWidth:900}}>
+        <div style={{maxWidth:1180}}>
           <div style={{...card,marginBottom:14}}>
             <div style={{display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
               <div style={{flex:"1 1 200px",minWidth:0}}>
@@ -6828,20 +6830,23 @@ function CalendarScreen({ clients, onSelect, onBack, isDesktop }) {
   const lbl={fontSize:10.5,fontWeight:700,color:C.textDim,marginBottom:5,textTransform:"uppercase",letterSpacing:".05em"};
   const legendItems=[["Meetings",C.red],["Tasks",C.green],["Reminders",C.purple],["Billing",C.gold],["Contracts",C.amber],["Content",C.blue]];
   const back = !isDesktop && (<button onClick={onBack} style={{width:32,height:32,borderRadius:9,border:"none",background:"rgba(255,255,255,0.05)",color:C.textDim,cursor:"pointer",fontSize:17,flexShrink:0}}>‹</button>);
+  // The header's "needs you" line and week chart wait for the data, so a slow load never says "nothing on today".
+  const next7=[0,1,2,3,4,5,6].map(i=>{ const d=new Date(now0); d.setDate(d.getDate()+i); return d; });
+  const todays=byDay[todayYMD]||[], todayMeet=todays.filter(e=>e.kind==="meeting").length;
+  const calFocus=loading?null:todays.length
+    ?{tone:"gold",text:`${todays.length} ${todays.length===1?"thing":"things"} on today${todayMeet?`, including ${todayMeet} ${todayMeet===1?"meeting":"meetings"}`:""}`,onClick:()=>{ setView(new Date(now0.getFullYear(),now0.getMonth(),1)); setSel(todayYMD); }}
+    :{tone:"green",text:"Nothing on today."};
+  const calViz=loading?null:{label:"Next 7 days",mark:0,data:next7.map(d=>(byDay[ymdOf(d)]||[]).length),labels:next7.map((d,i)=>i===0?"Today":d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"}))};
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,rowGap:10,flexWrap:"wrap",marginBottom:14}}>
-        {back}
-        <div style={{minWidth:0,flex:"1 1 auto"}}>
-          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Calendar</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every scheduled thing across the OS, in one place.</div>
-        </div>
-        <div style={{marginLeft:"auto",display:"flex",gap:8,flexShrink:0}}>
+      <ScreenHeader group="Get clients" title="Calendar" icon="calendar" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Every scheduled thing across the OS, in one place."
+        focus={calFocus} viz={calViz}
+        actions={<>
           <button onClick={sendDigest} disabled={digestState==="sending"} title="Send today's agenda to your phone + email now" style={{padding:"9px 12px",fontSize:12,fontWeight:700,borderRadius:10,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:digestState==="sent"?C.green:digestState==="error"?C.red:C.textDim,cursor:"pointer",whiteSpace:"nowrap"}}>{digestState==="sending"?"Sending…":digestState==="sent"?"✓ Sent":digestState==="error"?"Failed":"Send agenda"}</button>
           <button onClick={()=>{ setAddForm(f=>({...f,date:sel})); setShowAdd(true); }} style={{padding:"9px 14px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer",whiteSpace:"nowrap"}}>+ Add</button>
-        </div>
-      </div>
+        </>}/>
 
       <div style={{maxWidth:820}}>
         <div style={{...card,padding:isDesktop?18:12}}>
@@ -8187,7 +8192,7 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
       {/* ── EMPTY STATE ── */}
       {filtered.length===0&&(
         <div style={{textAlign:"center",padding:"40px 20px",color:C.textMuted}}>
-          <div style={{fontSize:28,marginBottom:10}}>🔍</div>
+          <div style={{width:54,height:54,margin:"0 auto 12px",borderRadius:"50%",border:`1px solid ${C.borderAccent}`,display:"flex",alignItems:"center",justifyContent:"center",color:C.gold,background:"radial-gradient(circle,rgba(200,168,75,.12),transparent 70%)"}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{SH_ICONS.deal}</svg></div>
           <div style={{fontSize:14,fontWeight:700,color:C.textDim,marginBottom:6}}>No clients found</div>
           <div style={{fontSize:12,lineHeight:1.7}}>
             {search?`No results for "${search}".`:"No clients match the selected filters."}
@@ -8576,6 +8581,135 @@ function AriaCore({ goals, height }) {
   );
 }
 
+// ─── SCREEN HEADER (Stage 5) ─────────────────────────────────────────────
+// Bryson, 2026-10-07: "let's finish the os screens". Today and Power Hour had the Mission Control
+// look; every other screen still opened on a small plain title, each hand-built and drifting. This is
+// the one header they all share now: a gold section label, the title in the HUD face, a line saying
+// what the screen is for, live counts, the screen's actions, and its icon in a slowly turning ring
+// (computers only, still for "reduce motion"). Purely presentational: it takes what it shows.
+const SH_ICONS = {
+  leads:<><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></>,
+  scout:<><path d="M12 21s-7-4.9-7-10a7 7 0 1 1 14 0c0 5.1-7 10-7 10z"/><circle cx="12" cy="11" r="2.6"/></>,
+  deal:<><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></>,
+  calendar:<><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></>,
+  campaigns:<><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></>,
+  website:<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></>,
+  content:<><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4z"/></>,
+  revenue:<><path d="M3 21h18"/><rect x="5" y="11" width="3" height="7"/><rect x="10.5" y="7" width="3" height="11"/><rect x="16" y="4" width="3" height="14"/></>,
+  segment:<><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.9 2.6 2.6 3 5.2"/></>,
+  myads:<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></>,
+  client:<><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></>,
+};
+// ─── COOL BUT CLEAR (2026-10-08) ─────────────────────────────────────────
+// Bryson, 2026-10-08: "make them cooler but still very useful and not confusing, same thing for the
+// other pages we are going to build". The rule these pieces carry: every bit of motion says something
+// true. A number counts up because it just arrived, a chart draws because it is real data, a dot pulses
+// only while something is waiting on him (an all-clear sits still). Nothing moves just to move, and all
+// of it holds still for "reduce motion". New screens reuse these instead of hand-building effects.
+const prefersStill = () => { try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (e) { return false; } };
+const phxLastDays = (n) => { const out = []; for (let i = n - 1; i >= 0; i--) out.push(phxDayKey(Date.now() - i * 864e5)); return out; };
+const shortDay = (ymd) => new Date(ymd + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+// A number that counts up to its value when it first shows or changes. Anything that is not a plain
+// number (text, "$1,200", a dash) is shown exactly as given.
+function CountUp({ value, format, ms = 700 }) {
+  const n = typeof value === "number" && isFinite(value) ? value : null;
+  const [shown, setShown] = useState(n == null || prefersStill() ? n : 0);
+  const cur = useRef(n == null || prefersStill() ? n || 0 : 0);
+  useEffect(() => {
+    if (n == null) return;
+    if (prefersStill()) { cur.current = n; setShown(n); return; }
+    const a = cur.current, t0 = performance.now(); let raf;
+    const step = (t) => { const p = Math.min(1, (t - t0) / ms), v = p < 1 ? a + (n - a) * (1 - Math.pow(1 - p, 3)) : n; cur.current = v; setShown(v); if (p < 1) raf = requestAnimationFrame(step); };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [n, ms]);
+  if (n == null) return <>{value}</>;
+  const r = Number.isInteger(n) ? Math.round(shown) : Math.round(shown * 10) / 10;
+  return <>{format ? format(r) : r.toLocaleString()}</>;
+}
+
+// A small bar chart of real numbers, oldest on the left. Pointing at (or tapping) a bar hands its
+// index up, so the panel above it can say exactly what that bar is. The marked bar is the one the big
+// number is about (today, this month).
+function Spark({ data, hi, onHi, mark, w = 200, h = 46, label }) {
+  const pts = (data || []).map((v) => Math.max(0, Number(v) || 0));
+  if (pts.length < 2) return null;
+  const max = Math.max(1, ...pts), n = pts.length, gap = n > 10 ? 3 : 5, bw = (w - gap * (n - 1)) / n;
+  const m = mark == null ? n - 1 : mark;
+  return (
+    <svg className="spark" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={label}>
+      {pts.map((v, i) => { const bh = Math.max(2, (v / max) * (h - 4)), x = i * (bw + gap);
+        return (
+          <g key={i} onMouseEnter={onHi ? () => onHi(i) : undefined} onClick={onHi ? () => onHi(hi === i ? null : i) : undefined} style={{ cursor: onHi ? "pointer" : undefined }}>
+            <rect x={x} y="0" width={bw + gap} height={h} fill="transparent"/>
+            <rect className="spark-bar" x={x} y={h - bh} width={bw} height={bh} rx={Math.min(2, bw / 3)} style={{ animationDelay: Math.min(i * 30, 420) + "ms" }}
+              fill={hi === i ? "#F7E2A0" : i === m ? "#E8C96A" : hi != null ? "rgba(200,168,75,.26)" : "rgba(200,168,75,.42)"}/>
+          </g>
+        ); })}
+    </svg>
+  );
+}
+
+// The header's live panel: a label, the number it is about, and the bars behind it. Pointing at a bar
+// swaps the label and number for that bar's own, so the chart can always be read, never just admired.
+function ShViz({ viz, inline }) {
+  const [hi, setHi] = useState(null);
+  const pts = (viz.data || []).map((v) => Number(v) || 0);
+  if (pts.length < 2) return null;
+  const fmt = viz.format || ((v) => Math.round(v).toLocaleString());
+  const total = viz.value != null ? viz.value : pts.reduce((a, b) => a + b, 0);
+  const said = (viz.labels || []).map((l, i) => `${l}: ${fmt(pts[i])}`).join(", ");
+  return (
+    <div className={"sh-viz" + (inline ? " in" : "")} onMouseLeave={() => setHi(null)}>
+      <div className="sh-viz-l">{hi == null ? viz.label : (viz.labels && viz.labels[hi]) || ""}</div>
+      <div className="sh-viz-v"><span hidden={hi != null}><CountUp value={total} format={viz.format}/></span>{hi != null && fmt(pts[hi])}</div>
+      <Spark data={pts} hi={hi} onHi={setHi} mark={viz.mark} w={inline ? 150 : 206} h={inline ? 38 : 46} label={`${viz.label}. ${said}`}/>
+    </div>
+  );
+}
+
+function ScreenHeader({ group, title, sub, stats, actions, icon, onBack, isDesktop, focus, viz }) {
+  const svg = SH_ICONS[icon];
+  const live = viz && (viz.data || []).length > 1;
+  return (
+    <div className="sh">
+      <div className="sh-row">
+        <div className="sh-main">
+          <div className="sh-top">
+            {onBack && <button className="sh-back" onClick={onBack} aria-label="Back">‹</button>}
+            <span className="sh-eye"><i/>{group ? (isDesktop ? `${group} // ${title}` : group) : title}</span>
+            {actions && <div className="sh-actions">{actions}</div>}
+          </div>
+          <div className="sh-title">{title}</div>
+          {sub && <div className="sh-sub">{sub}</div>}
+          {focus && focus.text && (focus.onClick
+            ? <button className={"sh-focus " + (focus.tone || "info")} onClick={focus.onClick}><i/><span>{focus.text}</span><em className="sh-focus-go">→</em></button>
+            : <div className={"sh-focus " + (focus.tone || "info")}><i/><span>{focus.text}</span></div>)}
+          {stats && stats.filter(Boolean).length > 0 && (
+            <div className="sh-stats">{stats.filter(Boolean).map((st, k) => <span key={k} className={"sh-stat" + (st.tone ? " " + st.tone : "")}><b><CountUp value={st.v}/></b>{st.l}</span>)}</div>
+          )}
+          {!isDesktop && live && <ShViz viz={viz} inline/>}
+        </div>
+        {isDesktop && live && <ShViz viz={viz}/>}
+        {isDesktop && !live && svg && <div className="sh-ring" aria-hidden="true"><i/><i/><span><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{svg}</svg></span></div>}
+      </div>
+    </div>
+  );
+}
+
+// The quiet, consistent empty state every screen uses: a line icon in a ring and one sentence.
+function EmptyState({ icon, text, action }) {
+  const svg = SH_ICONS[icon];
+  return (
+    <div style={{textAlign:"center",padding:"44px 20px",color:C.textMuted}}>
+      {svg && <div style={{width:58,height:58,margin:"0 auto 14px",borderRadius:"50%",border:`1px solid ${C.borderAccent}`,display:"flex",alignItems:"center",justifyContent:"center",color:C.gold,background:"radial-gradient(circle,rgba(200,168,75,.12),transparent 70%)"}}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{svg}</svg></div>}
+      <div style={{fontSize:13.5,lineHeight:1.6,maxWidth:420,margin:"0 auto"}}>{text}</div>
+      {action && <div style={{marginTop:14}}>{action}</div>}
+    </div>
+  );
+}
+
 function TodayHero({ clients, leads, isDesktop, onOutreach, onLeadScout, onDealPrep, onLeads, onSegment, onARIA, onCalendar }) {
   const [touches, setTouches] = useState(null);
   const [typed, setTyped] = useState(0);
@@ -8748,20 +8882,15 @@ function RevenueScreen({clients,onSelect,onBack,isDesktop}) {
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
-        <div style={{padding:isDesktop?"18px 32px":"12px 14px",display:"flex",alignItems:"center",gap:10}}>
-          {!isDesktop&&<button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
-            border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
-            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>‹</button>}
-          <div style={S.f1min}>
-            <div className="os-title" style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>Revenue</div>
-            <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>What you actually invoiced</div>
-          </div>
-          <button onClick={load} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",flexShrink:0}}>{data===null?"…":"Refresh"}</button>
-        </div>
-      </div>
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"20px 32px 60px":"14px 14px 100px"}}>
+        <ScreenHeader group="Money" title="Revenue" icon="revenue" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+          sub="What you actually invoiced, month by month."
+          focus={cur&&cur.outstanding>0?{tone:"gold",text:`${money0(cur.outstanding)} still unpaid this month`}
+            :cur&&cur.invoices>0?{tone:"green",text:"Every invoice this month is paid."}:null}
+          viz={data&&data.length>1?{label:`Last ${data.length} months`,format:money0,
+            data:[...data].reverse().map(m=>m.net),labels:[...data].reverse().map(m=>monthLabel(m.month)+(m.isCurrent?" so far":""))}:null}
+          actions={<button onClick={load} style={{padding:"7px 12px",fontSize:11,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer",}}>{data===null?"…":"Refresh"}</button>}/>
         {/* ── This month, headline ──────────────────────────────────────────── */}
         <div className="os-card" style={{background:"linear-gradient(135deg,rgba(200,168,75,0.12),rgba(200,168,75,0.04))",
           border:"1px solid rgba(200,168,75,0.2)",borderRadius:16,padding:isDesktop?"20px 22px":"17px 18px",marginBottom:12,position:"relative",overflow:"hidden"}}>
@@ -8934,27 +9063,12 @@ function SegmentScreen({mode,clients,onSelect,onBack,isDesktop}) {
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      {/* Header bar */}
-      <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
-        <div style={{padding:isDesktop?"18px 32px":"12px 14px",display:"flex",alignItems:"center",gap:10}}>
-          <button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
-            border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
-            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-            ‹
-          </button>
-          <div>
-            <div className="os-title" style={{fontSize:isDesktop?22:15,fontWeight:800,color:C.text,letterSpacing:"-0.01em",lineHeight:1.1}}>{meta.title}</div>
-            <div style={{fontSize:isDesktop?11:10,color:C.textMuted,letterSpacing:"0.05em",textTransform:"uppercase",marginTop:2}}>{meta.sub} · {rows.length}</div>
-          </div>
-        </div>
-      </div>
 
       <div style={{flex:1,overflowY:"auto",padding:isDesktop?"20px 32px 60px":"14px 14px 100px"}}>
+        <ScreenHeader group="Clients" title={meta.title} icon="segment" isDesktop={isDesktop} onBack={onBack}
+          sub={meta.sub} stats={[{v:rows.length,l:rows.length===1?"client":"clients",tone:mode==="alerts"?"red":mode==="expiring"?"gold":undefined}]}/>
         {rows.length===0
-          ? <div style={{textAlign:"center",padding:"56px 20px"}}>
-              <div style={{fontSize:30,marginBottom:10}}>{EMPTY.icon}</div>
-              <div style={{fontSize:13,color:C.textDim,lineHeight:1.6}}>{EMPTY.msg}</div>
-            </div>
+          ? <EmptyState icon="segment" text={EMPTY.msg}/>
           : <div style={isDesktop?{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))",gap:10,alignItems:"start"}:{display:"flex",flexDirection:"column",gap:8}}>
             {rows.map((r)=>{
               const cl=r.cl, pkg=findPkg(cl.packageId), stage=stageInfo(cl.stage), health=calcHealth(cl);
@@ -11485,23 +11599,24 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{borderBottom:`1px solid ${C.border}`,flexShrink:0,backgroundColor:C.bg2}}>
-        {/* Client header bar */}
-        <div style={{padding:"12px 14px 10px",display:"flex",alignItems:"center",gap:10}}>
+      <div className="ch-bar" style={{borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        {/* Client header bar (Stage 5 look: HUD label, title face, gold hairline; still pinned with its tabs) */}
+        <div style={{padding:isDesktop?"18px 28px 12px":"12px 14px 10px",display:"flex",alignItems:"center",gap:isDesktop?14:10,position:"relative",zIndex:1}}>
           <button onClick={onBack} style={{width:32,height:32,borderRadius:9,background:"rgba(255,255,255,0.05)",
             border:`1px solid ${C.border}`,color:C.textDim,fontSize:16,cursor:"pointer",
             display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
             ‹
           </button>
-          <div style={{width:36,height:36,borderRadius:10,
+          <div className="os-hud" style={{width:isDesktop?48:36,height:isDesktop?48:36,borderRadius:isDesktop?13:10,
             background:`linear-gradient(135deg,${stage.color}44,${stage.color}15)`,
-            border:`1px solid ${stage.color}33`,
+            border:`1px solid ${stage.color}44`,boxShadow:`0 0 22px -8px ${stage.color}`,
             display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:14,fontWeight:900,color:stage.color,flexShrink:0}}>
+            fontSize:isDesktop?19:14,fontWeight:700,color:stage.color,flexShrink:0}}>
             {client.name[0]}
           </div>
           <div style={S.f1min}>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em"}}>{client.name}{client.internal&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:C.gold,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:6,padding:"1px 6px",verticalAlign:"middle"}}>My Ads</span>}</div>
+            {isDesktop&&<div className="sh-eye" style={{fontSize:10,marginBottom:3}}><i/>{client.internal?"House account":"Client"} // {stage.label}</div>}
+            <div className="os-title" style={{fontSize:isDesktop?22:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em",lineHeight:1.15}}>{client.name}{client.internal&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:C.gold,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:6,padding:"1px 6px",verticalAlign:"middle"}}>My Ads</span>}</div>
             <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:1}}>
               <>{client.internal&&<Chip label="House account" color={C.textMuted} small/>}<Chip label={stage.label} color={stage.color} small/></>
               {!client.internal&&<span style={{fontSize:10,fontWeight:600,color:healthColor(calcHealth(client))}}>⬡ {calcHealth(client).toFixed(1)}/10</span>}
@@ -15660,21 +15775,17 @@ function ContentStudioScreen({onBack,isDesktop,account,onSaveAccount}){
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-        {back}
-        <div style={{flex:1,minWidth:0}}>
-          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Content Studio</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Video ideas and scripts for the agency and your personal brand.</div>
-        </div>
-      </div>
+      <ScreenHeader group="Run clients" title="Content Studio" icon="content" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Video ideas and scripts for the agency and your personal brand."
+        stats={saved.length?[{v:saved.length,l:"saved"}]:null}/>
 
       <div style={{display:"flex",gap:8,marginBottom:16}}>
         <button onClick={()=>setTab("new")} style={chip(tab==="new")}>New ideas</button>
         <button onClick={()=>setTab("saved")} style={chip(tab==="saved")}>Saved{saved.length?` (${saved.length})`:""}</button>
       </div>
 
-      <div style={{maxWidth:820}}>
-        {tab==="new"&&<>
+      <div style={{maxWidth:tab==="saved"?900:"none"}}>
+        {tab==="new"&&<div className="os-split"><div className="os-split-l">
           <Card style={{marginBottom:14}}>
             <Label>What are we making</Label>
             <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:11}}>
@@ -15703,6 +15814,7 @@ function ContentStudioScreen({onBack,isDesktop,account,onSaveAccount}){
             </button>
             {ideas.length>0&&<span style={{fontSize:11,color:C.textMuted,marginLeft:10}}>New batch skips everything you've already got.</span>}
           </Card>
+          </div><div>
 
           {err&&<Card style={{borderColor:`${C.red}44`,marginBottom:12}}><div style={{fontSize:12,color:C.red,lineHeight:1.6}}>{err}</div></Card>}
 
@@ -15716,7 +15828,7 @@ function ContentStudioScreen({onBack,isDesktop,account,onSaveAccount}){
           )}
 
           {ideas.map((idea,i)=><IdeaCard key={i} idea={idea} i={i}/>)}
-        </>}
+        </div></div>}
 
         {tab==="saved"&&<>
           {!account&&<Card><div style={{fontSize:12,color:C.textMuted,lineHeight:1.7}}>Saved ideas live on your <b style={{color:C.gold}}>My Ads</b> account. Open My Ads once from the dashboard to create it, then saving will work here.</div></Card>}
@@ -16723,14 +16835,12 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
 
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-        {back}
-        <div style={{flex:1,minWidth:0}}>
-          <div className="os-title" style={{fontSize:isDesktop?24:19,fontWeight:800,color:C.text,letterSpacing:"-0.02em"}}>Campaigns</div>
-          <div style={{fontSize:12,color:C.textMuted,marginTop:2}}>Every campaign on every linked ad account — yours and your clients'.</div>
-        </div>
-        <button onClick={load} disabled={state==="loading"} style={{fontSize:11.5,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:state==="loading"?"default":"pointer",opacity:state==="loading"?.5:1,flexShrink:0}}>↻ Refresh</button>
-      </div>
+      <ScreenHeader group="Run clients" title="Campaigns" icon="campaigns" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Every campaign on every linked ad account, yours and your clients'."
+        focus={errors.length?{tone:"red",text:`${errors.length===1?"One ad account":errors.length+" ad accounts"} didn't answer. The reason is further down.`}
+          :state==="ready"&&rows.length?(liveCount?{tone:"green",text:`${liveCount} ${liveCount===1?"campaign":"campaigns"} running right now.`}:{text:"Nothing is running right now."}):null}
+        stats={[{v:linked.length,l:linked.length===1?"linked account":"linked accounts"},rows.length?{v:rows.length,l:"campaigns"}:null]}
+        actions={<button onClick={load} disabled={state==="loading"} style={{fontSize:11.5,fontWeight:700,color:C.gold,background:"rgba(200,168,75,.08)",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"6px 10px",cursor:state==="loading"?"default":"pointer",opacity:state==="loading"?.5:1}}>↻ Refresh</button>}/>
 
       <div style={{maxWidth:1180}}>
         {linked.length===0&&(
@@ -17025,6 +17135,9 @@ function GA4AnalyticsCard() {
       const r=await fetch("/.netlify/functions/ga4",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({action:"summary"})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok||!d.ok){ setState("error"); setErr((d.stage?d.stage+" — ":"")+(d.error||"Couldn't load analytics.")); return; }
+      // A reply without its numbers is an error to show, not a crash: reading d.totals.users off a
+      // missing object used to take the whole OS down to the "Something broke" screen.
+      if(!d.totals||typeof d.totals!=="object"){ setState("error"); setErr("Analytics answered without any numbers. Try again in a minute."); return; }
       setData(d); setState("ok");
     }catch(e){ setState("error"); setErr("Network error — try again."); }
   };
@@ -17673,8 +17786,8 @@ function NewsletterManagementCard() {
       {subs&&(
         <div style={{marginBottom:14}}>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {stat("Subscribers",subs.total,C.gold)}
-            {stat("New this month","+"+subs.thisMonthAdded,C.green)}
+            {stat("Subscribers",subs.total==null?"—":subs.total,C.gold)}
+            {stat("New this month",subs.thisMonthAdded==null?"—":"+"+subs.thisMonthAdded,C.green)}
             {stat("Unsubscribed",subs.unsubscribed==null?"—":subs.unsubscribed)}
           </div>
           {subs.months&&subs.months.length>0&&(()=>{ const max=Math.max(1,...subs.months.map(m=>m.added)); return (
@@ -17854,6 +17967,7 @@ function ReviewsManagementCard() {
 }
 
 function WebsiteScreen() {
+  const isDesktop = useIsDesktop();
   const LINKS=[
     ["Homepage","https://boldlinemedia.com/"],
     ["Blog","https://boldlinemedia.com/blog/"],
@@ -17863,11 +17977,9 @@ function WebsiteScreen() {
   ];
   return (
     <div style={{flex:1,overflowY:"auto",padding:"var(--pad)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-        <div className="os-title" style={{fontSize:20,fontWeight:800,color:C.text}}>Website</div>
-        <a href="https://boldlinemedia.com/" target="_blank" rel="noopener noreferrer" style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"6px 10px"}}>Open Site ↗</a>
-      </div>
-      <div style={{fontSize:11.5,color:C.textMuted,marginBottom:14,lineHeight:1.6}}>Everything for boldlinemedia.com. Manage the AI-written blog below — form submissions from the site land in the Leads tab automatically.</div>
+      <ScreenHeader group="Run clients" title="Website" icon="website" isDesktop={isDesktop}
+        sub="Everything for boldlinemedia.com: traffic, the blog that writes itself, and the newsletter. Form submissions from the site land in Leads automatically."
+        actions={<a href="https://boldlinemedia.com/" target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none",border:`1px solid ${C.borderAccent}`,borderRadius:8,padding:"6px 10px"}}>Open Site ↗</a>}/>
       <div style={{display:"flex",gap:7,marginBottom:16,flexWrap:"wrap"}}>
         {LINKS.map(([label,url])=>(
           <a key={label} href={url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,padding:"6px 12px",borderRadius:20,border:`1px solid ${C.border}`,color:C.textDim,textDecoration:"none"}}>{label} ↗</a>
@@ -20085,14 +20197,17 @@ function LeadsScreen({leads,onUpdate,onReportSent,onDelete,onRefresh,isDesktop,e
   const counts = LEAD_STATUSES.reduce((a,s)=>{a[s]=leads.filter(l=>l.status===s).length;return a;},{});
   const shown = filter==="all"?leads:leads.filter(l=>l.status===filter);
   const FILTERS = [["all","All"],["new","New"],["contacted","Contacted"],["won","Won"],["lost","Lost"]];
+  const days14 = phxLastDays(14);
+  const perDay = days14.map(k=>leads.filter(l=>l.created_at&&phxDayKey(l.created_at)===k).length);
   return (
     <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"var(--pad)"}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-        <div className="os-title" style={{fontSize:20,fontWeight:800,color:C.text}}>Leads</div>
-        <div style={{fontSize:11.5,color:C.textDim}}>{leads.length} total{counts.new?` · ${counts.new} new`:""}</div>
-        <button onClick={onRefresh} style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:C.textDim,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer"}}>Refresh</button>
-      </div>
-      <div style={{fontSize:11.5,color:C.textMuted,marginBottom:14,lineHeight:1.6}}>Everyone who reaches out through boldlinemedia.com lands here automatically.</div>
+      <ScreenHeader group="Run clients" title="Leads" icon="leads" isDesktop={isDesktop}
+        sub="Everyone who reaches out through boldlinemedia.com lands here automatically."
+        focus={counts.new?{tone:"gold",text:`${counts.new} new ${counts.new===1?"lead you haven't":"leads you haven't"} contacted yet`,onClick:()=>setFilter("new")}
+          :leads.length?{tone:"green",text:"All caught up. No new leads waiting on you."}:null}
+        viz={leads.length?{label:"Leads, last 14 days",data:perDay,labels:days14.map(shortDay)}:null}
+        stats={[{v:leads.length,l:"total"},counts.new?{v:counts.new,l:"new",tone:"gold"}:null,counts.contacted?{v:counts.contacted,l:"contacted"}:null,counts.won?{v:counts.won,l:"won",tone:"green"}:null]}
+        actions={<button onClick={onRefresh} style={{fontSize:11,fontWeight:700,color:C.textDim,background:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer"}}>Refresh</button>}/>
       {/* A refused save or delete used to go to the browser console, where nobody would
           ever see it — the screen just carried on as if it had worked. */}
       {error&&(
@@ -20109,10 +20224,7 @@ function LeadsScreen({leads,onUpdate,onReportSent,onDelete,onRefresh,isDesktop,e
         ))}
       </div>
       {shown.length===0?(
-        <div style={{textAlign:"center",padding:"56px 20px"}}>
-          <div style={{fontSize:32,marginBottom:10}}>📭</div>
-          <div style={{fontSize:13,color:C.textDim,lineHeight:1.6}}>{leads.length===0?"No leads yet. They'll show up here the moment someone submits a form on the website.":("No "+filter+" leads right now.")}</div>
-        </div>
+        <EmptyState icon="leads" text={leads.length===0?"No leads yet. They'll show up here the moment someone submits a form on the website.":("No "+filter+" leads right now.")}/>
       ):(
         <div style={isDesktop?{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(380px,1fr))",gap:12,alignItems:"start"}:{display:"flex",flexDirection:"column",gap:12}}>
           {shown.map(l=><LeadCard key={l.id} lead={l} onUpdate={onUpdate} onReportSent={onReportSent} onDelete={onDelete}/>)}
@@ -20782,6 +20894,59 @@ function App({onLogout}) {
            headless browser: with "both" the nav paints on top, with "backwards" the
            overlay does. See tests/verify-sheet-layering.mjs. */
         .os-content{animation:osIn .35s ease backwards}
+        /* Stage 5 (2026-10-07): one screen header for every screen, in Today's style (ScreenHeader). */
+        .sh{position:relative;overflow:hidden;border-radius:18px;border:1px solid rgba(255,255,255,.07);background:radial-gradient(120% 160% at 0% 0%,rgba(200,168,75,.11),transparent 55%),linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01));padding:22px 26px;margin-bottom:18px;animation:osIn .4s ease backwards}
+        .sh::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,75,.55),transparent)}
+        .sh::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(200,168,75,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(200,168,75,.05) 1px,transparent 1px);background-size:26px 26px;-webkit-mask-image:linear-gradient(90deg,transparent 45%,#000 100%);mask-image:linear-gradient(90deg,transparent 45%,#000 100%)}
+        .sh-row{position:relative;z-index:1;display:flex;align-items:center;gap:16px}
+        .sh-main{flex:1;min-width:0}
+        .sh-top{display:flex;align-items:center;gap:10px;min-height:28px}
+        .sh-eye{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:#C8A84B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .sh-eye i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#C8A84B;box-shadow:0 0 8px #C8A84B;margin-right:8px;vertical-align:1px;animation:blink 2.4s ease-in-out infinite}
+        .sh-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+        .sh-title{font-family:var(--hud);font-weight:700;font-size:32px;letter-spacing:.01em;line-height:1.08;color:#F0F2FF;margin:6px 0 6px}
+        .sh-sub{font-size:13.5px;line-height:1.55;color:#8B91B8;max-width:680px}
+        .sh-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+        .sh-stat{font-family:var(--mono);font-size:11.5px;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);color:#8B91B8;white-space:nowrap}
+        .sh-stat b{color:#F0F2FF;font-weight:700;margin-right:6px}
+        .sh-stat.gold b{color:#E8C96A}.sh-stat.green b{color:#34D399}.sh-stat.red b{color:#F87171}.sh-stat.blue b{color:#8FD6FF}
+        .sh-ring{position:relative;width:96px;height:96px;flex-shrink:0;margin-left:6px}
+        .sh-ring i{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(200,168,75,.5);border-top-color:transparent;border-left-color:transparent;animation:obSpin 9s linear infinite}
+        .sh-ring i+i{inset:12px;border-color:rgba(143,214,255,.35);border-bottom-color:transparent;border-right-color:transparent;animation-duration:6s;animation-direction:reverse}
+        .sh-ring span{position:absolute;inset:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(200,168,75,.18),transparent 70%);color:#E8C96A}
+        .sh-back{width:30px;height:30px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#8B91B8;font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:2px}
+        @keyframes obSpin{to{transform:rotate(360deg)}}
+        @media (max-width:700px){.sh{padding:14px 14px 16px;border-radius:14px;margin-bottom:14px}.sh-top{flex-wrap:wrap;row-gap:8px}.sh-title{font-size:23px;margin-top:8px}.sh-sub{font-size:12.5px}.sh-stats{margin-top:12px}.sh-actions button,.sh-actions a{padding:7px 10px!important;font-size:11.5px!important}}
+        @media (prefers-reduced-motion:reduce){.sh,.sh-ring i,.sh-eye i{animation:none!important}}
+        /* Cool but clear (2026-10-08): the "needs you" line, and the live panel that replaces the ring. */
+        .sh-focus{display:flex;align-items:center;gap:9px;width:fit-content;max-width:100%;margin-top:12px;padding:7px 12px 7px 11px;border-radius:10px;font-family:inherit;font-size:12.5px;font-weight:600;line-height:1.4;color:#F0F2FF;text-align:left;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09)}
+        .sh-focus i{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#8B91B8}
+        .sh-focus span{min-width:0}
+        .sh-focus.gold{background:rgba(200,168,75,.08);border-color:rgba(200,168,75,.3)}.sh-focus.gold i{background:#E8C96A;animation:shPing 1.8s ease-out infinite}
+        .sh-focus.red{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.32)}.sh-focus.red i{background:#F87171;animation:shPingR 1.8s ease-out infinite}
+        .sh-focus.green{background:rgba(52,211,153,.06);border-color:rgba(52,211,153,.22);color:#C9CFEA}.sh-focus.green i{background:#34D399}
+        .sh-focus.info{color:#C9CFEA}
+        button.sh-focus{cursor:pointer;transition:background .2s,border-color .2s,transform .12s}
+        button.sh-focus:hover{background:rgba(200,168,75,.13);border-color:rgba(200,168,75,.5)}
+        button.sh-focus:active{transform:scale(.98)}
+        .sh-focus-go{font-style:normal;color:#E8C96A;margin-left:2px;transition:transform .2s}
+        button.sh-focus:hover .sh-focus-go{transform:translateX(3px)}
+        @keyframes shPing{0%{box-shadow:0 0 0 0 rgba(232,201,106,.6)}80%,100%{box-shadow:0 0 0 8px rgba(232,201,106,0)}}
+        @keyframes shPingR{0%{box-shadow:0 0 0 0 rgba(248,113,113,.6)}80%,100%{box-shadow:0 0 0 8px rgba(248,113,113,0)}}
+        .sh-viz{flex-shrink:0;width:236px;padding:12px 15px 11px;border-radius:14px;border:1px solid rgba(255,255,255,.08);background:rgba(7,8,12,.5);box-shadow:inset 0 1px 0 rgba(200,168,75,.12)}
+        .sh-viz-l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#8B91B8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:14px}
+        .sh-viz-v{font-family:var(--hud);font-weight:700;font-size:27px;line-height:1.15;color:#F0F2FF;margin:2px 0 9px;font-variant-numeric:tabular-nums;white-space:nowrap}
+        .sh-viz.in{width:auto;margin-top:14px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;align-items:center}
+        .sh-viz.in .sh-viz-l{white-space:normal;line-height:1.35;letter-spacing:.1em}.sh-viz.in .spark{grid-column:2;grid-row:1/3}.sh-viz.in .sh-viz-v{font-size:21px;margin:2px 0 0}
+        .spark{display:block;overflow:visible}
+        .spark-bar{transform-box:fill-box;transform-origin:50% 100%;animation:sparkGrow .55s cubic-bezier(.2,.8,.2,1) backwards;transition:fill .15s}
+        @keyframes sparkGrow{from{transform:scaleY(0)}}
+        @media (prefers-reduced-motion:reduce){.sh-focus i,.spark-bar{animation:none!important}button.sh-focus,.sh-focus-go{transition:none!important}}
+        .ch-bar{position:relative;background:radial-gradient(120% 260% at 0% 0%,rgba(200,168,75,.10),transparent 55%),linear-gradient(180deg,#0D0E16,#0A0B11)}
+        .ch-bar::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(200,168,75,.45),transparent)}
+        /* Wide screens: a form on the left and its results on the right, instead of one thin column. */
+        .os-split{display:block}
+        @media (min-width:1180px){.os-split{display:grid;grid-template-columns:minmax(380px,460px) minmax(0,1fr);gap:22px;align-items:start}.os-split>.os-split-l{position:sticky;top:12px}}
         .os-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
         .os-card:hover{transform:translateY(-2px);border-color:rgba(200,168,75,0.22);box-shadow:inset 0 1px 0 rgba(200,168,75,0.14),0 16px 34px -22px rgba(0,0,0,0.85)}
         ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:rgba(200,168,75,0.22);border-radius:3px}
