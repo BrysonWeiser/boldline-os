@@ -250,7 +250,7 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
 - 🔴 It can never hide an error: `window.onerror` and the missing-library watchdog both call `window.__osBootHide()`
   first. It is a sibling of `#root`, so the watchdog's "root is empty" check is unaffected.
 
-## Stage 5 BUILT (2026-10-07 evening): every other screen gets the Mission Control look (dev branch, waiting on his OK)
+## Stage 5 LIVE (built 2026-10-07 evening, live 2026-10-07 19:41 Phoenix, merge `cb9dbe1`): every other screen gets the Mission Control look
 - Bryson: "let's finish the os screens". Before shots showed Today was the only screen with the new header; Deal Prep,
   Lead Scout, Campaigns and Content Studio were thin columns (640-820px) with half a computer screen empty; empty states
   were emoji.
@@ -270,7 +270,7 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
   each screen via Ctrl K; client page via getByText(/^Apex Roofing/)). Zero sideways scroll at 1440, 390 and 360.
 - Pinned by tests/verify-os-screens.mjs (33).
 
-## Stage 5 addition (2026-10-08): "cool but clear" (same dev branch, still waiting on his OK)
+## Stage 5 addition (2026-10-08): "cool but clear" (LIVE with Stage 5, merge `cb9dbe1`, rollback `rollback/20261008-024128`)
 - Bryson asked for the screens to be cooler without getting confusing, and for the same on every future page.
   Folded into Stage 5 before it goes live. The full rule and the shared pieces are in KB **`cool-but-clear`**.
 - ScreenHeader gained `focus` (a "needs you" line) and `viz` (a live bar chart panel that replaces the ring).

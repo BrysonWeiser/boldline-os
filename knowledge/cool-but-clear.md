@@ -8,6 +8,8 @@ summary: Bryson, 2026-10-08 - "make them cooler but still very useful and not co
 verified: 2026-10-08
 ---
 
+**LIVE** since 2026-10-07 19:41 Phoenix (merge `cb9dbe1`; restore point `rollback/20261008-024128`).
+
 ## What he asked
 
 After seeing OS Stage 5 (the shared Mission Control header on every screen), Bryson asked, 2026-10-08:
