@@ -250,6 +250,12 @@
   to = "/.netlify/functions/portal"
   status = 200
 
+# The partner's leads page for one of Bryson's own businesses (netlify/functions/team.mjs).
+[[redirects]]
+  from = "/team"
+  to = "/.netlify/functions/team"
+  status = 200
+
 [[redirects]]
   from = "/lead"
   to = "/.netlify/functions/lead-intake"

@@ -9262,6 +9262,111 @@ function AddBusinessSheet({onSave,onClose}) {
   );
 }
 
+// ─── PARTNER VIEW + WEBSITE RESULTS (owned businesses) ───────────────────────
+// Bryson, 2026-10-07: "can you make those two ideas" (a page for his partner on the detailing business
+// to see new leads, and results from it shown on boldlinemedia.com). Owned businesses only.
+// The numbers below are a copy of netlify/lib/showcase.mjs between the same markers, so the preview
+// here and the section on the website can never disagree (tests/verify-showcase.mjs runs both).
+// SHOWCASE-MIRROR-START
+const SHOWCASE_MIN_LEADS = 10;
+const SHOWCASE_MIN_SPEND = 100;
+const showcaseNumbers = (cl, now = Date.now()) => {
+  const cut = now - 30 * 864e5;
+  const log = ((cl && cl.leadsLog) || []).filter((l) => l && l.receivedAt && Date.parse(l.receivedAt) >= cut && Date.parse(l.receivedAt) <= now);
+  const leads = log.length;
+  const won = log.filter((l) => l.status === "won").length;
+  const spend = Math.round(Number((((cl && cl.adPerf) || {}).totals || {}).spend30d || 0));
+  const costPerLead = leads > 0 && spend > 0 ? Math.round(spend / leads) : null;
+  const ready = leads >= SHOWCASE_MIN_LEADS && spend >= SHOWCASE_MIN_SPEND;
+  const short = [];
+  if (leads < SHOWCASE_MIN_LEADS) short.push(`${SHOWCASE_MIN_LEADS - leads} more lead${SHOWCASE_MIN_LEADS - leads === 1 ? "" : "s"} in the last 30 days`);
+  if (spend < SHOWCASE_MIN_SPEND) short.push(`at least $${SHOWCASE_MIN_SPEND} of ad spend in the last 30 days`);
+  return { leads, won, spend, costPerLead, ready, short };
+};
+const showcaseLabel = (cl) => {
+  const s = (cl && cl.showcase) || {};
+  if (s.label && String(s.label).trim()) return String(s.label).trim().slice(0, 140);
+  const what = String((cl && cl.niche) || "service").toLowerCase();
+  const where = String((cl && (cl.businessAddress || (cl.campaignSetup || {}).serviceArea)) || "").trim();
+  return `${(cl && cl.name) || "Our business"}, our own ${what} business${where ? " in " + where : ""}`;
+};
+// SHOWCASE-MIRROR-END
+
+function TeamViewCard({client,onUpdate}){
+  const team = client.team || {};
+  const [email,setEmail] = useState(team.email||"");
+  const [copied,setCopied] = useState(false);
+  const url = team.on && team.token ? `${window.location.origin}/team?t=${team.token}` : "";
+  const turnOn = () => onUpdate({...client, team:{...team, on:true, token: team.token || crypto.randomUUID(), email: email.trim(), createdAt: team.createdAt || new Date().toISOString()}});
+  // Off means the old link stops working for good: the token goes, and a new one is made next time.
+  const turnOff = () => { if(!window.confirm("Turn the partner link off? The page stops working straight away. You can make a new link any time.")) return; onUpdate({...client, team:{...team, on:false, token:""}}); };
+  const saveEmail = () => onUpdate({...client, team:{...team, email: email.trim()}});
+  const copy = () => { try{ navigator.clipboard.writeText(url); setCopied(true); setTimeout(()=>setCopied(false),1500); }catch(e){} };
+  const sms = url ? `sms:?&body=${encodeURIComponent(`Here's the page with every lead for ${client.name}. Keep it on your phone: ${url}`)}` : "";
+  const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const btn = (primary) => ({flex:1,minWidth:0,textAlign:"center",padding:"9px 10px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",textDecoration:"none",
+    border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim});
+  return (
+    <Card style={{borderColor:`${C.gold}2a`,marginBottom:12}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+        <Label>Partner view</Label>
+        <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,border:`1px solid ${team.on?"rgba(34,211,160,0.3)":C.border}`,backgroundColor:team.on?"rgba(34,211,160,0.12)":"transparent",color:team.on?C.green:C.textMuted}}>{team.on?"On":"Off"}</span>
+      </div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginBottom:10}}>A private page for your partner's phone with every lead for {client.name}: tap to call or text, and mark each one contacted, won or lost. It shows leads only, nothing about ads or money, and the status stays in step with this tab.</div>
+      <div style={lbl}>Email a new lead to (optional)</div>
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="partner@email.com" style={{...inp,flex:1,minWidth:0}}/>
+        {team.on&&email.trim()!==(team.email||"")&&<button onClick={saveEmail} style={{...btn(true),flex:"0 0 auto"}}>Save</button>}
+      </div>
+      {!team.on
+        ? <button onClick={turnOn} style={{...btn(true),width:"100%",padding:"11px"}}>Make the partner link</button>
+        : <>
+            <div style={{padding:"9px 12px",borderRadius:9,backgroundColor:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,marginBottom:9,fontSize:12,color:C.gold,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{url.replace(/^https?:\/\//,"")}</div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              <a href={sms} style={btn(true)}>Text it to them</a>
+              <button onClick={copy} style={btn(false)}>{copied?"✓ Copied":"Copy link"}</button>
+              <a href={url} target="_blank" rel="noopener noreferrer" style={btn(false)}>Open</a>
+              <button onClick={turnOff} style={btn(false)}>Turn off</button>
+            </div>
+            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Anyone with this link can see these leads, so only send it to your partner. Turning it off kills the link straight away.</div>
+          </>}
+    </Card>
+  );
+}
+
+function ShowcaseCard({client,onUpdate}){
+  const sc = client.showcase || {};
+  const n = showcaseNumbers(client);
+  const [label,setLabel] = useState(sc.label || "");
+  const auto = showcaseLabel({...client, showcase:{}});
+  const money = (v) => "$"+Number(v||0).toLocaleString();
+  const set = (patch) => onUpdate({...client, showcase:{...sc, ...patch}});
+  const tile = (l,v) => <div style={{flex:"1 1 110px",minWidth:0,padding:"10px 12px",borderRadius:10,backgroundColor:C.bg2,border:`1px solid ${C.border}`}}>
+    <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted}}>{l}</div>
+    <div style={{fontSize:19,fontWeight:800,color:C.text,marginTop:2}}>{v}</div></div>;
+  return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+        <Label>Show its results on your website</Label>
+        <button onClick={()=>set({on:!sc.on})} style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:20,cursor:"pointer",border:`1px solid ${sc.on?C.green:C.border}`,backgroundColor:sc.on?"rgba(34,211,160,0.12)":"transparent",color:sc.on?C.green:C.textDim}}>{sc.on?"On":"Off"}</button>
+      </div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginBottom:10}}>Puts this business's real numbers from the last 30 days on boldlinemedia.com, always labelled as your own business, never as a client. It only appears once there are at least {SHOWCASE_MIN_LEADS} leads and ${SHOWCASE_MIN_SPEND} of ad spend in the last 30 days, so it never shows a thin or empty number.</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+        {tile("Leads",n.leads)}{tile("Ad spend",money(n.spend))}{tile("Cost per lead",n.costPerLead!=null?money(n.costPerLead):"Not yet")}{tile("Jobs won",n.won)}
+      </div>
+      <div style={{fontSize:11.5,lineHeight:1.6,marginBottom:10,color:n.ready?C.green:C.amber}}>
+        {n.ready ? (sc.on ? "Showing on your website now. It refreshes on its own." : "Ready to show. Switch it on when you want it live.") : `Not showing yet. It needs ${n.short.join(" and ")}.`}
+      </div>
+      <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4}}>How it is described on the site</div>
+      <div style={{display:"flex",gap:8}}>
+        <input value={label} onChange={e=>setLabel(e.target.value)} placeholder={auto} style={{...inp,flex:1,minWidth:0}}/>
+        {label.trim()!==(sc.label||"")&&<button onClick={()=>set({label:label.trim()})} style={{padding:"9px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,flexShrink:0}}>Save</button>}
+      </div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>The site always adds: "Our own business. We run it on the same system we sell, so these are our numbers, not a client's."</div>
+    </Card>
+  );
+}
+
 function EmailCenterTab({client,pkg,onUpdate}) {
   const [types,setTypes]=useState([]);
   const [loadingTypes,setLoadingTypes]=useState(true);
@@ -11800,6 +11905,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="overview"&&isWebsiteOnly(client)&&<WebsiteOnlyOverview client={client} onUpdate={onUpdate} onOpen={setTab}/>}
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
+            {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
             <LaunchChecklistCard client={client}/>
             <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -12056,6 +12162,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
           </div>
         )}
 
+        {tab==="leads"&&isOwned(client)&&<TeamViewCard client={client} onUpdate={onUpdate}/>}
         {tab==="leads"&&<LeadsTabContent client={client} onUpdate={onUpdate}/>}
 
         {tab==="reviews"&&!isHouse(client)&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
