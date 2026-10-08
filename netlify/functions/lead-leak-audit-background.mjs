@@ -202,16 +202,26 @@ const generateReport = async (site, vision) => {
     : userMsg;
   let messages = [{ role: "user", content }];
   let response;
-  // web_search runs a server-side loop; a pause_turn means "re-send to resume."
-  for (let i = 0; i < 4; i++) {
-    response = await anthropic.messages.create({
-      model: "claude-opus-4-8",
-      max_tokens: 8000,
+  // Bryson, 2026-10-07: moved from Opus 4.8 to the current Opus, since this report is the first thing a
+  // prospect ever gets from BoldLine. Effort is set explicitly (this model defaults one level lower), and
+  // max_tokens has room for the thinking as well as the report, because both count toward it.
+  const ask = (msgs) => {
+    const req = {
+      model: "claude-opus-5-5",
+      max_tokens: 16000,
       thinking: { type: "adaptive" },
+      output_config: { effort: "high" },
       tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3 }],
       system: buildSystem(),
-      messages,
-    });
+      messages: msgs,
+    };
+    // A safety decline on one model is retried on another inside the same call.
+    return anthropic.beta.messages.create({ ...req, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" })
+      .catch((e) => { if (e && e.status === 400) return anthropic.messages.create(req); throw e; });
+  };
+  // web_search runs a server-side loop; a pause_turn means "re-send to resume."
+  for (let i = 0; i < 4; i++) {
+    response = await ask(messages);
     if (response.stop_reason === "pause_turn") {
       messages = [...messages, { role: "assistant", content: response.content }];
       continue;
@@ -219,8 +229,15 @@ const generateReport = async (site, vision) => {
     break;
   }
 
+  // 🔴 A refused, cut-off or empty answer must never reach a prospect. Throwing releases the claim, the
+  // sweep retries, and after the last try Bryson is told it needs a person.
+  if (response.stop_reason === "refusal") throw new Error("The report writer declined this site.");
+  if (response.stop_reason === "max_tokens") throw new Error("The report came back cut off.");
+  if (response.stop_reason === "pause_turn") throw new Error("The report writer was still researching after four rounds.");
+
   // Goes straight to a prospect's inbox as BoldLine's first impression.
   const text = humanize((response.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim(), { join: ", " });
+  if (text.length < 200) throw new Error("The report came back empty.");
   let subject = "Your free Lead-Leak Check from BoldLine Media";
   let bodyMd = text;
   const m = text.match(/^\s*SUBJECT:\s*(.+?)\s*(?:\n|$)/i);

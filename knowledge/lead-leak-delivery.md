@@ -143,3 +143,27 @@ losing play, because it is the one finding they can disprove in four seconds.
 It leads naturally to "we can track your calls", and the OS **does** have call tracking built. It is
 still on a Twilio trial account and unusable for real clients (KB `call-tracking`). **Present the
 missed call as a problem spotted, never as a product on offer, until Twilio is upgraded.**
+
+## Writer moved to the current Opus (2026-10-07 evening, Bryson: "Yes")
+
+- The report is the first thing a prospect ever gets from BoldLine. Its writer (`generateReport` in
+  `lead-leak-audit-background.mjs`) moved from `claude-opus-4-8` to `claude-opus-5-5`.
+- What changed in the request:
+  - `output_config.effort: "high"` is set explicitly, because this model defaults to `medium`, one level
+    below what 4.8 ran at.
+  - `max_tokens` went from 8000 to 16000. Thinking counts toward it, and this model thinks more at the
+    same level.
+  - It goes through `client.beta.messages.create` with `fallbacks: "default"` (beta
+    `server-side-fallback-2026-07-01`), so a safety decline retries on another model inside the same
+    call. A 400 on the beta path drops back to the plain request. This is the same pattern as the blog
+    writer and the site builder.
+  - Adaptive thinking, the web search tool, the screenshot and the `pause_turn` loop are unchanged.
+    The system prompt is static and the loop only appends, so the newer model's rule that earlier
+    turns must not be edited ("preserved thinking") is met.
+- 🔴 New guards: a refused, cut-off (`max_tokens`), still-researching (`pause_turn` after 4 rounds) or
+  empty (under 200 characters) answer now THROWS instead of being emailed. Before this, a truncated
+  report would have gone straight to the prospect. Throwing releases the claim, the sweep retries, and
+  after `MAX_AUDIT_TRIES` Bryson gets the "needs a person" alert.
+- Cost: a few cents more per report, at most (newer model $4/$20 per MTok vs $5/$25, but more
+  thinking at `high`).
+- Pinned in `verify-lead-leak-delivery` (2 new checks, 34 total).
