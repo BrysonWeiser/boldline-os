@@ -17,6 +17,8 @@ export const MAX_PACKAGES = 12;
 
 const num = (v, d, lo, hi) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : d; };
 const str = (v, n) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, n);
+// Only a full https address is ever used as a link: no scripts, no bare domains, nothing relative.
+const httpsUrl = (u) => { const t = String(u || "").trim(); if (!/^https:\/\/[^\s"'<>]+$/i.test(t)) return ""; try { return new URL(t).href; } catch (e) { return ""; } };
 
 export function bookingConfig(cl) {
   const b = (cl && cl.booking) || {};
@@ -26,7 +28,11 @@ export function bookingConfig(cl) {
   const packages = (Array.isArray(b.packages) ? b.packages : [])
     .filter((p) => p && p.id && str(p.name, 80))
     .slice(0, MAX_PACKAGES)
-    .map((p) => ({ id: str(p.id, 40), name: str(p.name, 80), price: str(p.price, 30), minutes: num(p.minutes, 120, 15, 720), desc: str(p.desc, 300) }));
+    .map((p) => {
+      const depositLink = httpsUrl(p.depositLink);
+      return { id: str(p.id, 40), name: str(p.name, 80), price: str(p.price, 30), minutes: num(p.minutes, 120, 15, 720), desc: str(p.desc, 300),
+        deposit: depositLink ? str(p.deposit, 20) : "", depositLink };
+    });
   return {
     on: !!b.on, packages, hours,
     tz: str(b.tz, 60) || "America/Phoenix",
@@ -36,6 +42,10 @@ export function bookingConfig(cl) {
     buffer: num(b.buffer, 30, 0, 240),         // travel time kept free around every job
     note: str(b.note, 240),
     cta: str(b.cta, 30) || "Book now",
+    // Where the job happens. A mobile business asks for the address (the detailer: where the vehicle will be);
+    // a business customers come to (a salon, a shop) switches it off. The wording is the business's own.
+    askAddress: b.askAddress !== false,
+    addressLabel: str(b.addressLabel, 80) || "Service address",
     blocks: (Array.isArray(b.blocks) ? b.blocks : []).filter((x) => x && Date.parse(x.start) && Date.parse(x.end) > Date.parse(x.start)),
   };
 }
@@ -52,7 +62,6 @@ export function bookingConfig(cl) {
 // A choice that cannot work yet falls back to the quote form, so a button never leads nowhere. The phone
 // number shows on the site whatever is picked. Changing it is never a round of website changes (agreement WA-3).
 export const INTAKE_WAYS = ["quote", "book", "link", "call"];
-const httpsUrl = (u) => { const t = String(u || "").trim(); if (!/^https:\/\/[^\s"'<>]+$/i.test(t)) return ""; try { return new URL(t).href; } catch (e) { return ""; } };
 export function intakeOf(cl) {
   const i = (cl && cl.intake) || {};
   const phone = String((cl && (cl.businessPhone || cl.callTrackingNumber)) || "").trim();
@@ -129,7 +138,7 @@ export function bookingDays(cl, pkgId, now = Date.now()) {
 }
 
 // What the website may know: the packages and the business's phone, nothing about other bookings.
-export const publicBooking = (cl) => { const c = bookingConfig(cl); return { on: bookingOn(cl), packages: c.packages, note: c.note, cta: c.cta, tz: c.tz }; };
+export const publicBooking = (cl) => { const c = bookingConfig(cl); return { on: bookingOn(cl), packages: c.packages.map(({ depositLink, ...p }) => p), note: c.note, cta: c.cta, tz: c.tz }; };
 
 // ── A new booking ───────────────────────────────────────────────────────────
 // Checks everything again on the server, against the record as it is right now. Returns the booking and
@@ -147,16 +156,21 @@ export function makeBooking(cl, body, now = Date.now(), id = (globalThis.crypto 
   const name = str(body.name, 120), phone = str(body.phone, 40), email = str(body.email, 160), address = str(body.address, 240), notes = str(body.notes, 800);
   if (!name) return { error: "Please add your name." };
   if (!phone && !email) return { error: "Please add a phone number or an email so we can confirm." };
-  if (!address) return { error: "Please add the address where the vehicle will be." };
+  if (cfg.askAddress && !address) return { error: "Please add the address." };
   const end = start + pkg.minutes * 60000;
   const when = longWhen(start, cfg.tz);
+  // 🔴 A DEPOSIT IS PAID TO THE BUSINESS, NEVER THROUGH BOLDLINE. The link is the business's own payment
+  // page (Stripe, Square, PayPal); BoldLine only shows it and lets him mark it paid. It never holds the money.
+  const deposit = pkg.depositLink ? { amount: pkg.deposit, link: pkg.depositLink, paid: false } : null;
   const booking = { id, packageId: pkg.id, packageName: pkg.name, price: pkg.price, minutes: pkg.minutes,
-    start: new Date(start).toISOString(), end: new Date(end).toISOString(), address, name, phone, email, notes,
+    start: new Date(start).toISOString(), end: new Date(end).toISOString(), address, name, phone, email, notes, deposit,
     status: "booked", createdAt: new Date(now).toISOString() };
   const lead = { name, phone, email, source: "booking", page: str(body.page, 500), receivedAt: new Date(now).toISOString(), leadId: id, bookingId: id,
-    message: [`Booked: ${pkg.name}${pkg.price ? ` (${pkg.price})` : ""} on ${when}.`, `Address: ${address}.`, notes ? `Notes: ${notes}` : ""].filter(Boolean).join("\n") };
+    message: [`Booked: ${pkg.name}${pkg.price ? ` (${pkg.price})` : ""} on ${when}.`, address ? `Address: ${address}.` : "", deposit ? `Deposit${deposit.amount ? ` of ${deposit.amount}` : ""} not paid yet.` : "", notes ? `Notes: ${notes}` : ""].filter(Boolean).join("\n") };
   return { booking, lead, when };
 }
+
+export const depositPhrase = (amount) => (String(amount || "").trim() ? `the ${String(amount).trim()} deposit` : "the deposit");
 
 // The customer's confirmation, sent as the business. No emojis, no dashes, nothing pointing at BoldLine.
 export function bookingConfirmEmail(cl, booking) {
@@ -164,15 +178,16 @@ export function bookingConfirmEmail(cl, booking) {
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const phone = String((cl && (cl.businessPhone || cl.callTrackingNumber)) || "").trim();
   const when = longWhen(Date.parse(booking.start), cfg.tz);
-  const rows = [["What", `${booking.packageName}${booking.price ? ` (${booking.price})` : ""}`], ["When", when], ["Where", booking.address]];
+  const rows = [["What", `${booking.packageName}${booking.price ? ` (${booking.price})` : ""}`], ["When", when], ...(booking.address ? [["Where", booking.address]] : [])];
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F4F5F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border:1px solid #E5E7EB;border-radius:14px">
 <tr><td style="padding:24px 24px 8px"><div style="font-size:13px;font-weight:700;color:#6B7280">${esc(cl.name || "")}</div>
 <div style="font-size:22px;font-weight:700;color:#111827;margin-top:4px">You're booked, ${esc(String(booking.name || "").split(" ")[0] || "thanks")}.</div></td></tr>
 <tr><td style="padding:8px 24px">${rows.map(([k, v]) => `<div style="margin:0 0 12px"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#6B7280">${esc(k)}</div><div style="font-size:15px;color:#111827">${esc(v)}</div></div>`).join("")}</td></tr>
+${booking.deposit && booking.deposit.link ? `<tr><td style="padding:4px 24px 14px"><div style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:10px">Your time is held. Pay ${esc(depositPhrase(booking.deposit.amount))} to lock it in.</div><a href="${esc(booking.deposit.link)}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#111827;background-image:linear-gradient(#111827,#111827);color:#ffffff;font-weight:700;font-size:15px;text-decoration:none">Pay the deposit</a></td></tr>` : ""}
 <tr><td style="padding:4px 24px 24px;font-size:14px;color:#374151;line-height:1.6">${phone ? `Need to change anything? Call or text us at <a href="tel:${esc(phone.replace(/[^0-9+]/g, ""))}" style="color:#111827;font-weight:700">${esc(phone)}</a>, or just reply to this email.` : "Need to change anything? Just reply to this email."}</td></tr>
 </table></td></tr></table></body></html>`;
-  const text = rows.map(([k, v]) => `${k}: ${v}`).join("\n") + (phone ? `\n\nNeed to change anything? Call or text us at ${phone}, or reply to this email.` : "\n\nNeed to change anything? Reply to this email.");
+  const text = rows.map(([k, v]) => `${k}: ${v}`).join("\n") + (booking.deposit && booking.deposit.link ? `\n\nYour time is held. Pay ${depositPhrase(booking.deposit.amount)} to lock it in: ${booking.deposit.link}` : "") + (phone ? `\n\nNeed to change anything? Call or text us at ${phone}, or reply to this email.` : "\n\nNeed to change anything? Reply to this email.");
   return { subject: `You're booked: ${booking.packageName}, ${when}`, html, text };
 }

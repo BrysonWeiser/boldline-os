@@ -215,8 +215,10 @@ export default withFailureAlert("daily-check", async () => {
         // at all. This asserted the hand-off shape only, so it failed every single morning on
         // a page whose form was present and working, which is precisely the cry-wolf check
         // Bryson called out on 2026-09-13. Accept either shape; the test renders both.
+        // A third shape since 2026-10-08: a page that takes bookings carries the booking steps
+        // (`id="bk-phone"`) in place of the lead form (verify-booking renders it through this check).
         const hasForm = /<form/i.test(lp.body);
-        const hasPhone = /name=["']phone["']/i.test(lp.body) || /id=["']lf-phone["']/i.test(lp.body);
+        const hasPhone = /name=["']phone["']/i.test(lp.body) || /id=["']lf-phone["']/i.test(lp.body) || /id=["']bk-phone["']/i.test(lp.body);
         add("The landing page still has its lead form", hasForm && hasPhone,
           !hasForm ? "there is no form on the page at all"
             : "the form has no phone field, so a lead arrives with no way to call them back");

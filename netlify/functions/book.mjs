@@ -62,5 +62,6 @@ export default async (req) => {
       ? sendEmail({ to: made.booking.email, subject: mail.subject, html: mail.html, text: mail.text, fromName: next.name, replyTo: next.email || undefined }).catch((e) => console.error("booking confirmation failed:", e && e.message))
       : Promise.resolve(),
   ]);
-  return json({ ok: true, when: made.when, packageName: made.booking.packageName, phone: phoneOf(next) });
+  return json({ ok: true, when: made.when, packageName: made.booking.packageName, phone: phoneOf(next),
+    deposit: made.booking.deposit ? { amount: made.booking.deposit.amount, link: made.booking.deposit.link } : null });
 };

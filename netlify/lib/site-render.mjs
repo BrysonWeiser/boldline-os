@@ -40,6 +40,7 @@
 
 import { termsOf } from "./website-deal.mjs";
 import { bookingOn, bookingConfig, intakeOf } from "./booking.mjs";
+import { bookingWidgetHTML, bookingWidgetJS, BOOKING_WIDGET_CSS } from "./booking-widget.mjs";
 
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
@@ -686,39 +687,7 @@ if(pg&&vl&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&a.target!=='_blank'&&a.href.spli
 vl.style.transition='none';vl.classList.remove('out','on');void vl.offsetWidth;vl.style.transition='';vl.classList.add('on');setTimeout(function(){location.href=a.href;},560);}});
 addEventListener('pageshow',function(e){if(e.persisted&&vl){vl.classList.remove('on');vl.classList.add('out');}});
 }catch(err){h.classList.remove('js','mo');var vv=d.querySelector('.veil');if(vv)vv.parentNode.removeChild(vv);}
-${formScript(cl)}${bookScript(cl)}})();`;
-}
-
-function bookScript(cl) {
-  if (!bookingOn(cl)) return "";
-  const token = encodeURIComponent((cl && cl.leadToken) || "");
-  return `var bk=d.getElementById('bk');if(bk){var BKP=PREVIEW||/[?&]preview=/.test(location.search),BS={},bf=d.getElementById('bkform');
-function bq(s){return [].slice.call(bk.querySelectorAll(s));}
-function bshow(id){d.getElementById(id).hidden=false;}
-function bmsg(t){d.getElementById('bkdm').textContent=t||'';}
-function bdays(){var dl=d.getElementById('bkdays'),tl=d.getElementById('bktimes');dl.innerHTML='';tl.innerHTML='';bmsg('Finding open times...');
-fetch('/book?token=${token}&pkg='+encodeURIComponent(BS.pkg)).then(function(r){return r.json();}).then(function(j){if(!j||!j.ok){bmsg((j&&j.error)||'Online booking is down for a moment. Please call us.');return;}
-var days=j.days||[],first=null;bmsg(days.some(function(x){return x.slots.length;})?'':'No open times in the next few weeks. Please call us and we will find one.');
-days.forEach(function(x){var b=d.createElement('button');b.type='button';b.className='bk-d';b.textContent=x.label;if(!x.slots.length)b.disabled=true;else if(!first)first=b;
-b.onclick=function(){bq('.bk-d').forEach(function(y){y.classList.toggle('on',y===b);});btimes(x);};dl.appendChild(b);});if(first)first.click();})
-.catch(function(){bmsg('Online booking is down for a moment. Please call us.');});}
-function btimes(x){var tl=d.getElementById('bktimes');tl.innerHTML='';x.slots.forEach(function(s){var b=d.createElement('button');b.type='button';b.className='bk-t';b.textContent=s.label;
-b.onclick=function(){bq('.bk-t').forEach(function(y){y.classList.toggle('on',y===b);});BS.start=s.start;BS.when=x.label+' at '+s.label;
-d.getElementById('bksum').textContent=BS.name+', '+BS.when;bshow('bkf');try{d.getElementById('bkf').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};tl.appendChild(b);});}
-bq('.bk-p').forEach(function(p){p.onclick=function(){bq('.bk-p').forEach(function(y){y.classList.toggle('on',y===p);});BS.pkg=p.getAttribute('data-id');BS.name=p.getAttribute('data-name');BS.start=null;
-d.getElementById('bkf').hidden=true;bshow('bkd');bdays();try{d.getElementById('bkd').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){}};});
-function bdone(t){bf.parentNode.hidden=true;d.getElementById('bkd').hidden=true;bq('.bk-step')[0].hidden=true;d.getElementById('bkokt').textContent=t;d.getElementById('bkok').style.display='block';try{d.getElementById('bkok').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}
-bf.addEventListener('submit',function(e){e.preventDefault();var er=bf.querySelector('.err'),b=bf.querySelector('button'),ph=bf.ph.value.trim(),em=bf.em.value.trim();
-function bad(t){er.textContent=t;er.style.display='block';}
-if(!BS.start)return bad('Please pick a time first.');if(!bf.ad.value.trim())return bad('Please add the address where the vehicle will be.');
-if(!bf.nm.value.trim())return bad('Please add your name.');if(!ph&&!em)return bad('Please add a phone number or an email so we can confirm.');
-er.style.display='none';if(BKP){bdone('Preview only. Nothing was booked.');return;}
-var lbl=b.textContent;b.disabled=true;b.textContent='Booking...';
-var p={packageId:BS.pkg,start:BS.start,address:bf.ad.value,name:bf.nm.value,phone:ph,email:em,notes:bf.no.value};try{p.page=location.href.split('#')[0];}catch(x){}
-fetch('/book?token=${token}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)}).then(function(r){return r.json().then(function(j){return {s:r.status,j:j};});})
-.then(function(o){if(o.j&&o.j.ok){bdone(BS.name+', '+o.j.when+'. '+(em?'A confirmation is on its way to your email.':'We will be in touch to confirm.'));return;}
-b.disabled=false;b.textContent=lbl;bad((o.j&&o.j.error)||'Something went wrong. Please try again or call us.');if(o.s===409){d.getElementById('bkf').hidden=true;bdays();}})
-.catch(function(){b.disabled=false;b.textContent=lbl;bad('Something went wrong. Please try again or call us.');});});}`;
+${formScript(cl)}})();`;
 }
 
 function formScript(cl) {
@@ -949,7 +918,6 @@ ${map ? `<div style="margin-top:30px">${map}</div>` : ""}</div></div></section>`
 
 // The Book page (./booking.mjs): tap a package, pick a day and an open time, then where and who. The
 // packages are in the page; open times come from /book as the customer picks.
-const durLabel = (m) => { const h = Math.floor(m / 60), r = m % 60; return h ? `${h} hr${r ? ` ${r} min` : ""}` : `${r} min`; };
 function bookBody(theme, cl, C) {
   const cfg = bookingConfig(cl);
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
@@ -958,45 +926,18 @@ function bookBody(theme, cl, C) {
   const hours = cfg.hours.map((h, i) => h ? `${DN[i]} ${t12(h[0])} to ${t12(h[1])}` : "").filter(Boolean);
   return `${pageHero(theme, `Book ${C.name}`, cfg.note || "Pick a package and a time that works for you. It takes about a minute.", "Book")}
 <section class="sec" style="padding-top:20px"><div class="wrap bk-wrap">
-<div class="bk" id="bk">
-<div class="bk-step"><h2 class="disp bk-h"><span>1</span>Pick a package</h2><div class="bk-pk">${cfg.packages.map((p) =>
-    `<button type="button" class="bk-p" data-id="${esc(p.id)}" data-name="${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc([p.price, durLabel(p.minutes)].filter(Boolean).join(" · "))}</span>${p.desc ? `<em>${esc(p.desc)}</em>` : ""}</button>`).join("")}</div></div>
-<div class="bk-step" id="bkd" hidden><h2 class="disp bk-h"><span>2</span>Pick a day and time</h2><div class="bk-days" id="bkdays"></div><div class="bk-times" id="bktimes"></div><p class="bk-msg" id="bkdm"></p></div>
-<div class="bk-step" id="bkf" hidden><h2 class="disp bk-h"><span>3</span>Where and who</h2><div class="bk-sum" id="bksum"></div>
-<form id="bkform" class="form" novalidate>
-<label>Address where the vehicle will be<input name="ad" autocomplete="street-address" required></label>
-<label>Your name<input name="nm" autocomplete="name" required></label>
-<label>Phone<input name="ph" type="tel" autocomplete="tel" inputmode="tel"></label>
-<label>Email<input name="em" type="email" autocomplete="email"></label>
-<label>Anything we should know? (optional)<textarea name="no" rows="3"></textarea></label>
-<p class="err" role="alert"></p><button class="btn" type="submit">Book it</button></form></div>
-<div class="thanks" id="bkok"><h3 class="disp" style="font-size:30px">You're booked.</h3><p id="bkokt" style="color:var(--mute);margin-top:8px"></p></div>
-</div>
+${bookingWidgetHTML(cl, { btnClass: "btn", headClass: "disp bk-h" })}
 <aside class="bk-side">${phone ? `<div class="bk-call"><div>Rather talk to a person?</div><a class="btn ghost" href="tel:${esc(digits(phone))}">Call ${esc(phone)}</a></div>` : ""}${hours.length ? `<p>${hours.map(esc).join("<br>")}</p>` : ""}</aside>
 </div></section>`;
 }
 const HPH_CSS = `.hd .hph{font-size:14.5px;font-weight:600;white-space:nowrap}@media (max-width:1000px){.hd .hph{display:none}}`;
-const BOOK_CSS = `.bk-wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:40px;align-items:start}
-.bk-step{margin-bottom:34px}.bk-step[hidden]{display:none}
-.bk-h{font-size:clamp(22px,2.6vw,30px);display:flex;align-items:center;gap:12px;margin-bottom:16px}
-.bk-h span{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--ac);color:var(--on);font-size:15px;flex:0 0 auto}
-.bk-pk{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.bk-p{text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;display:grid;gap:6px;transition:border-color .2s,box-shadow .2s}
-.bk-p b{font-size:18px}.bk-p span{color:var(--ac);font-weight:600;font-size:15px}.bk-p em{font-style:normal;color:var(--mute);font-size:14.5px;line-height:1.5}
-.bk-p:hover{border-color:var(--ink)}.bk-p.on{border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb,var(--ac) 25%,transparent)}
-.bk-days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}
-.bk-d{flex:0 0 auto;min-width:92px;font:inherit;font-size:14px;font-weight:600;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:calc(var(--r) * .6);padding:10px 12px;cursor:pointer}
-.bk-d[disabled]{opacity:.35;cursor:default}.bk-d.on{background:var(--ac);color:var(--on);border-color:var(--ac)}
-.bk-times{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;margin-top:14px}
-.bk-t{font:inherit;font-size:15px;font-weight:600;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-radius:calc(var(--r) * .5);min-height:48px;cursor:pointer}
-.bk-t.on{background:var(--ac);color:var(--on);border-color:var(--ac)}
-.bk-msg{color:var(--mute);font-size:15px;margin-top:10px}
-.bk-sum{padding:14px 16px;border-radius:calc(var(--r) * .6);background:var(--bg2);border:1px solid var(--line);margin-bottom:14px;font-size:15px}
+const BOOK_CSS = `.bk{--bk-ac:var(--ac);--bk-on:var(--on);--bk-card:var(--card);--bk-line:var(--line);--bk-ink:var(--ink);--bk-mute:var(--mute);--bk-bg2:var(--bg2);--bk-r:var(--r)}
+${BOOKING_WIDGET_CSS}
+.bk-wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:40px;align-items:start}
 .bk-side{position:sticky;top:100px;display:grid;gap:16px}
 .bk-call{padding:20px;border-radius:var(--r);border:1px solid var(--line);background:var(--card);display:grid;gap:12px;font-weight:600}
 .bk-side p{color:var(--mute);font-size:15px}
-.bk,.bk-step{min-width:0}
-.bk-step,#bkok{scroll-margin-top:96px}
+.bk-ok h3{font-family:inherit}
 @media (max-width:900px){.bk-wrap{grid-template-columns:minmax(0,1fr)}.bk-side{position:static;order:-1}}`;
 
 // An extra page: written by the builder from a one-line brief (site-build-background `extraPage`).
@@ -1098,7 +1039,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
 ${header(cl, base, page, C, pages)}
 <main>${body}</main>
 ${footer(cl, base, C, pages)}
-<script>${motionScript(cl, M)}</script>${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}${opts.track ? `<script>${hitScript(opts.track, base)}</script>` : ""}
+<script>${motionScript(cl, M)}</script>${C.bookOn && page === "book" ? `<script>${bookingWidgetJS(cl)}</script>` : ""}${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}${opts.track ? `<script>${hitScript(opts.track, base)}</script>` : ""}
 </body></html>`;
   // A preview link has to stay a preview link as you click around, or Services lands on "coming soon".
   const q = String(opts.query || "");

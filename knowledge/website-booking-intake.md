@@ -2,10 +2,10 @@
 name: website-booking-intake
 topic: Website
 task: set or change how a business takes customers through its website (quote form, online booking with packages and times, its own booking link like Square or Calendly, or call first), set up booking packages and hours, block time, see or cancel bookings
-keywords: [booking, book online, online booking, packages, time slots, book page, intake, how customers book, quote form, booking link, square, calendly, housecall pro, call first, intakeOf, bookingOn, booking.mjs, book.mjs, BookingCard, /book, travel time, buffer, block time, WA-3, two rounds of changes]
+keywords: [booking, book online, online booking, packages, time slots, book page, intake, how customers book, quote form, booking link, square, calendly, housecall pro, call first, intakeOf, bookingOn, booking.mjs, book.mjs, booking-widget.mjs, BookingCard, /book, travel time, buffer, block time, WA-3, two rounds of changes, deposit, mark paid, landing page booking, calendar bookings, address question, askAddress, bk-phone]
 status: verified
-summary: Bryson, 2026-10-07 - the detailing business should show its number for callers but let customers book by tapping a package, picking a day and time, and giving the address and their details; then "modify websites (my other businesses and my clients) to include whatever booking system they have ... and it won't count as one of the two client edits". Built one setting per business, `cl.intake.how` (quote | book | link | call), that decides where every main website button goes, plus a built-in Book page (packages, working hours, travel time between jobs, soonest-allowed window, blocked time, never double-booked), a "How customers book" card on every website's Website tab, and agreement WA-3 saying this setup is never a round of changes.
-verified: 2026-10-07
+summary: Bryson, 2026-10-07 - the detailing business should show its number for callers but let customers book by tapping a package, picking a day and time, and giving the address and their details; then "modify websites (my other businesses and my clients) to include whatever booking system they have ... and it won't count as one of the two client edits". Built one setting per business, `cl.intake.how` (quote | book | link | call), that decides where every main website button goes, plus a built-in Book page (packages, working hours, travel time between jobs, soonest-allowed window, blocked time, never double-booked), a "How customers book" card on every website's Website tab, and agreement WA-3 saying this setup is never a round of changes. 2026-10-08 ("do all those next"): landing pages follow the same choice with the same booking steps, packages can carry a deposit paid to the business's own payment link, and his own businesses' bookings show on the OS Calendar and in the morning digest.
+verified: 2026-10-08
 ---
 
 ## What he asked (2026-10-07, about 9:40pm Phoenix)
@@ -42,7 +42,7 @@ verified: 2026-10-07
 ## The built-in Book page
 
 - **Data:** `cl.booking`:
-  - `packages[{id,name,price,minutes,desc}]` (up to 12);
+  - `packages[{id,name,price,minutes,desc,deposit,depositLink}]` (up to 12);
   - `hours[7]` (minutes from midnight; default Mon to Sat 8 to 5, Sunday closed);
   - `buffer` travel time (default 30 min);
   - `leadHours` soonest-allowed window (default 12h);
@@ -51,11 +51,11 @@ verified: 2026-10-07
 - **Bookings:** `cl.bookings[{id,packageId,packageName,price,minutes,start,end,address,name,phone,email,notes,status:"booked"|"cancelled"}]`.
 - **Open times** = working hours, minus the soonest-allowed window, minus every live booking with travel
   time on both sides, minus blocked time. A cancelled booking frees its time.
-- **The page** (`bookBody` plus `bookScript`, in all three designs):
+- **The page** (`bookBody` plus the shared widget, in all three designs):
   1. Pick a package (cards with price and length).
   2. Pick a day and time (day strip, time grid).
-  3. Where and who: the address where the vehicle will be, name, phone, email (one of the two is
-     required), and notes.
+  3. Where and who: the address (its wording is the business's own, or left out), name, phone, email
+     (one of the two is required), and notes.
   - Then "You're booked".
   - The side panel has "Rather talk to a person? Call (number)" and the hours. On phones it comes first.
 - **🔴 A preview never books:** `BKP` is true for `about:` documents (OS iframes) and for any
@@ -100,13 +100,58 @@ or calling) is part of the build and the care plan. It never counts as a round o
 charged separately." Already-signed agreements keep their wording (DocuSign snapshots, KB
 `contract-start-date`).
 
+## Added 2026-10-08 ("Yea do all those next")
+
+### One booking widget, two places
+- **`netlify/lib/booking-widget.mjs`** holds the booking steps: `bookingWidgetHTML`, `BOOKING_WIDGET_CSS`
+  (colours via `--bk-*` custom properties each page sets), `bookingWidgetJS`. The website's Book page
+  (`site-render.mjs`, script only on the Book page) and a landing page that takes bookings both use it,
+  so they can never work differently. `bookScript` in site-render is gone.
+
+### Landing pages follow "How customers book"
+- `landing.mjs`: only when `cl.intake.how` is explicitly set, the page is not a hand-off page, and it is
+  not a shop (`storeUrl`). Not set = exactly the page it was before.
+  - **book:** the booking steps replace the lead form inside `#lead-form` (the main button still scrolls
+    there), with "Rather call? (number)" above them. The capture layout puts the form in the hero; booking
+    is too tall for that, so a booking page keeps it in the closing section.
+  - **link:** every main button goes to their booking address. **call:** every main button is `tel:`.
+- 🔴 **Phone overflow, again:** the landing form grid needed `.form-g>*,#lead-form{min-width:0}`, or the day
+  strip made the page 1,772px wide on a phone. Pinned in verify-booking.
+- 🔴 **The morning page check** (`daily-check.mjs`) looked for the lead form's phone box. A booking page
+  has none, so it accepts `id="bk-phone"` too, or it would have cried wolf every morning.
+
+### Deposits
+- Per package: `deposit` (the amount, as he types it, optional) and `depositLink` (an https payment page
+  from the **business's own** Stripe, Square or PayPal; anything else is dropped).
+- 🔴 **BoldLine never holds the money** (hard constraint). The link goes to the customer only after they
+  book: in the booking answer, the "You're booked" panel ("Pay the deposit" button) and the confirmation
+  email. `publicBooking` (the open-times answer) never carries it.
+- Each booking keeps `deposit:{amount,link,paid}`. The OS cannot see a payment land on someone else's
+  page, so the Website tab's "Coming up" list has **Mark paid / Mark unpaid** (`paidAt` recorded). The lead
+  note and the Calendar both say "deposit not paid yet" until he marks it.
+- `depositPhrase(amount)` keeps the wording right with no amount set ("Pay the deposit").
+
+### The address question fits the business
+- `booking.askAddress` (default on) and `booking.addressLabel` (default "Service address"). The detailer
+  sets it to "Address where the vehicle will be"; a business customers come to switches it off, and the
+  step reads "Your details". Before this it said "vehicle" for every business, clients included.
+
+### On the OS Calendar and the morning digest
+- `buildCalendarEvents` adds bookings from **his own businesses only** (a client's bookings are the
+  client's schedule), on the business's own clock, cancelled ones left off, pink (`#F472B6`, "Bookings"
+  in the legend; teal was too close to Tasks). The day list reads "Full Detail · Desert Gloss Detailing,
+  10:00 AM · Ana Ruiz · address · deposit not paid yet". The Calendar is handed `[...realClients,
+  ...myBusinesses]`.
+- `calendar-digest-shared.mjs` lists today's bookings in the morning email/push, before it skips
+  internal accounts.
+
 ## Not built yet
 
-- **Landing pages** still use their own form (and their own booking-URL variant). They do not yet follow
-  `cl.intake`.
-- **Deposits or payment at booking.**
 - **Text reminders before a job** (texts are off until the texting account is paid and registered).
-- **Two-way sync with Google Calendar.** Bookings do not show on the OS Calendar screen yet.
+- **Two-way sync with Google Calendar.**
+- **Paying the deposit inside the booking itself** (it opens the business's own payment page; the
+  OS does not learn it was paid until he marks it). Connecting to each business's payment account
+  to learn this automatically is possible later but means holding their payment keys.
 
 ## Verification
 
@@ -125,3 +170,7 @@ charged separately." Already-signed agreements keep their wording (DocuSign snap
   package and a time picked. No sideways scroll and no script errors. The OS card was checked on laptop
   and phone.
 - Full suite 152/152.
+- 2026-10-08: verify-booking 124 checks (adds deposits, the address question, landing pages in all four
+  layouts plus hand-off and shop, the morning check, the Calendar and digest). Booking landing page driven
+  in a browser at 390 / 768 / 1280 / 1600 in split and capture: package, time, details, booked, deposit
+  button; no sideways scroll, no script errors. OS card ("Mark paid") and Calendar checked on laptop and phone.

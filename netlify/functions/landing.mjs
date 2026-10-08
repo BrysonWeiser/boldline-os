@@ -8,6 +8,8 @@ import { siteBrandKit } from "../lib/site-render.mjs";
 import { isBillingPaused } from "../lib/late-payment.mjs";
 import { sellsNationally } from "../lib/market-research-shared.mjs";
 import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
+import { intakeOf } from "../lib/booking.mjs";
+import { bookingWidgetHTML, bookingWidgetJS, BOOKING_WIDGET_CSS } from "../lib/booking-widget.mjs";
 
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
@@ -290,7 +292,15 @@ export function renderLandingPage(cl, opts = {}) {
   // A shop's default button asks for the sale. "Get My Free Quote" on a page selling an $11
   // bottle is the wrong verb and, worse, promises a quote that will never arrive. A ctaText the
   // client wrote always wins over either default.
-  const cta = lp.ctaText || (String(cl.storeUrl || "").trim() ? "Shop Now" : "Get My Free Quote");
+  // HOW THIS BUSINESS TAKES CUSTOMERS (Bryson, 2026-10-07; KB `website-booking-intake`). Once it is chosen on
+  // the Website tab, the landing page follows it too: book online puts the booking steps right here, their
+  // own booking link and call first become the button. A shop keeps its shop, and a hand-off page keeps its
+  // client's own form. Not chosen = exactly the page it was before.
+  const I = intakeOf(cl);
+  const intakeSet = !HO && !String(cl.storeUrl || "").trim() && !!(cl.intake && cl.intake.how);
+  const bookHere = intakeSet && I.how === "book";
+  const callHere = intakeSet && I.how === "call";
+  const cta = intakeSet && I.how !== "quote" ? I.label : (lp.ctaText || (String(cl.storeUrl || "").trim() ? "Shop Now" : "Get My Free Quote"));
   // 🔴 WHERE A CLIENT'S PHOTOS GO, AND WHICH ONES GET USED. Bryson, 2026-09-02: *"make sure
   // on the see the results page that there is at least 4-6 good images and if there is less
   // to make sure that they are all used [...] make sure the images are put in the right
@@ -341,12 +351,12 @@ export function renderLandingPage(cl, opts = {}) {
   // this page was opened with is appended to the store link, and a default set of UTM tags is
   // baked into the href so attribution survives even with JavaScript off.
   const storeUrl = String(cl.storeUrl || "").trim();
-  const booking = String(cl.bookingUrl || "").trim();
+  const booking = intakeSet ? (I.how === "link" ? I.link : "") : String(cl.bookingUrl || "").trim();
   const shopping = !!storeUrl;
   const tagged = shopping ? withTags(storeUrl, cl) : null;
   const storeHref = tagged ? tagged.href : "";
   const destination = storeHref || booking;
-  const ctaHref = destination ? esc(destination) : "#lead-form";
+  const ctaHref = callHere ? `tel:${esc(I.phone.replace(/[^0-9+]/g, ""))}` : destination ? esc(destination) : "#lead-form";
   // 🔴 SAME TAB FOR A PURCHASE. A booking opens in a new tab so the visitor keeps the page they
   // were reading; a purchase is the end of the journey and a second tab only splits the session,
   // which some shop analytics then read as two visitors.
@@ -369,7 +379,9 @@ export function renderLandingPage(cl, opts = {}) {
   const layout = D.layout === "overlay" && !overlaySuits ? "split" : D.layout;
   const useOverlay = layout === "overlay" && !!hero;
   const useCentered = layout === "centered";
-  const useCapture = layout === "capture"; // lead form sits IN the hero (above the fold)
+  // Lead form IN the hero (above the fold). The booking steps are too tall for a hero, so a page that
+  // takes bookings keeps them in the closing section instead.
+  const useCapture = layout === "capture" && !bookHere;
 
   // 🔴 ONE ALIGNMENT RULE WORTH EXPLAINING, and the reasoning lives out here because this
   // stylesheet is delivered verbatim to the client's own domain. `.lay-centered .chips`
@@ -837,7 +849,12 @@ a{color:inherit}
 
   // The lead form (single instance on the page) — reused in the hero (capture layout)
   // or in the bottom form section (all other layouts). id="lead-form" is the scroll target.
-  const formCardHTML = `<div class="fcard reveal" id="lead-form">
+  const bookCardHTML = `<div class="fcard reveal" id="lead-form">
+    <div class="formtitle">${esc(cta)}</div>
+    <div class="formsub">Pick a package and a time. It takes about a minute.${I.phone ? ` Rather call? <a href="tel:${esc(I.phone.replace(/[^0-9+]/g, ""))}">${esc(I.phone)}</a>` : ""}</div>
+    ${bookingWidgetHTML(cl, { btnClass: "cta", headClass: "bk-h" })}
+  </div>`;
+  const formCardHTML = bookHere ? bookCardHTML : `<div class="fcard reveal" id="lead-form">
     <div class="formtitle">${esc(cta)}</div>
     <div class="formsub">Takes 20 seconds. We'll be in touch shortly.</div>
     ${HO ? `<form id="lf" name="leads" method="POST" data-netlify="true" netlify-honeypot="company-website" action="?sent=1">
@@ -990,7 +1007,7 @@ a{color:inherit}
     : `<section class="formsec"><div class="wrap"><div class="form-g">
   <div class="form-copy reveal">
     <h2>Ready to get started?</h2>
-    <p>Fill out the form and we'll get right back to you. No pressure, no obligation.</p>
+    <p>${bookHere ? "Pick a package and a time, and it's booked. No back and forth." : "Fill out the form and we'll get right back to you. No pressure, no obligation."}</p>
     <ul class="rlist">${readyList.map((t, i) => `<li><span class="rk">${i + 1}</span><span>${esc(t)}</span></li>`).join("")}</ul>
   </div>
   ${formCardHTML}
@@ -1356,7 +1373,7 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
       a.setAttribute('href', u.toString());
     } catch (e) {}
   });` : "";
-  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}\n${storeJS}`;
+  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}\n${storeJS}${bookHere ? "\n" + bookingWidgetJS(cl) : ""}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   // Built as labels first so the stagger delay counts the chips that SURVIVE the filter.
@@ -1393,7 +1410,7 @@ body.kit .headline,body.kit .sec-t,body.kit .formtitle,body.kit .offer h2,body.k
 body.kit .cta,body.kit .hdr-cta,body.kit .mcta a{border-radius:${K.theme === "editorial" ? "2px" : "999px"}}
 ` : "";
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}<style>${css}${kitCss}${IOS_NO_ZOOM}</style></head><body class="${bodyClass}${P.kit ? " kit" : ""}">
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}<style>${css}${kitCss}${IOS_NO_ZOOM}</style>${bookHere ? `<style>.bk{--bk-ac:${P.brand};--bk-on:${P.onBrand};--bk-card:${P.cardBg};--bk-line:${P.border};--bk-ink:${P.text};--bk-mute:${P.muted};--bk-bg2:${P.inBg};--bk-r:12px}${BOOKING_WIDGET_CSS}.bk-h{font-size:19px}.formsub a{color:inherit;font-weight:700}.form-g>*,#lead-form{min-width:0}</style>` : ""}</head><body class="${bodyClass}${P.kit ? " kit" : ""}">
 ${annHTML}
 <header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(sized(logoUrl, 400))}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}
