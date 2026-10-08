@@ -249,3 +249,23 @@ the ARIA core, 4 ARIA voice + "Hey ARIA". Each stage: before/after screenshots, 
   `dataState === "loading"` early return, so it covers the data load too and the old spinner is never seen.
 - 🔴 It can never hide an error: `window.onerror` and the missing-library watchdog both call `window.__osBootHide()`
   first. It is a sibling of `#root`, so the watchdog's "root is empty" check is unaffected.
+
+## Stage 5 BUILT (2026-10-07 evening): every other screen gets the Mission Control look (dev branch, waiting on his OK)
+- Bryson: "let's finish the os screens". Before shots showed Today was the only screen with the new header; Deal Prep,
+  Lead Scout, Campaigns and Content Studio were thin columns (640-820px) with half a computer screen empty; empty states
+  were emoji.
+- `ScreenHeader({group,title,sub,stats,actions,icon,onBack,isDesktop})` + `SH_ICONS` + `EmptyState`, defined just above
+  TodayHero. Glass panel, gold hairline, grid fading in from the right, mono HUD label ("GET CLIENTS // DEAL PREP" on a
+  computer, group only on a phone), HUD-face title, sub line, mono stat chips (tones gold/green/red/blue), actions top right,
+  the screen's icon in a turning ring (computers only; still for reduce-motion). Back arrow sits in the label row (phones).
+- Applied to Leads, Deal Prep, Lead Scout, Calendar, Campaigns, Website, Content Studio, Revenue (title bar moved into the
+  scroll), the client lists (SegmentScreen). The client page (ClientHub) keeps its PINNED bar + tabs, restyled (`.ch-bar`,
+  HUD label, bigger avatar/title on a computer).
+- `.os-split` (grid at >=1180px: 380-460px left column, sticky; results right): Deal Prep (brief form left; fee finder,
+  open by default on a computer, + recent briefs right; result widened to 980px), Lead Scout search tab (form left; progress
+  and results right, an EmptyState placeholder until a search runs; call list widened to 1180px), Content Studio new tab.
+- Two robustness fixes found by the screenshots: GA4AnalyticsCard crashed the WHOLE OS (React boundary) when the reply had
+  no `totals`; now shows an error on the card. Newsletter stats printed "+undefined" on a partial reply.
+- Screenshot harness had to be rebuilt after a container restart (scratchpad `osh/outreach-shot.cjs`, `screens.cjs` opens
+  each screen via Ctrl K; client page via getByText(/^Apex Roofing/)). Zero sideways scroll at 1440, 390 and 360.
+- Pinned by tests/verify-os-screens.mjs (33).
