@@ -93,12 +93,63 @@ verified: 2026-10-07
 - **Also fixed on the way:** the Meta launch card no longer says "(Meta ads also need App Review approved
   first.)". Meta was approved 2026-09-14.
 
+## Partner view (built 2026-10-07 evening, Bryson: "can you make those two ideas")
+
+- **What it is:** a private page for the partner on an owned business: every lead, newest first, with
+  Call / Text buttons and Contacted / Won / Lost. It shows leads only.
+  - Served by `netlify/functions/team.mjs` at `/team?t=<token>` (redirect in `netlify.toml`).
+  - Built in `netlify/lib/team-view.mjs`; mobile-first; refreshes every minute.
+- **Status changes:** written onto the same `leadsLog` entry, keyed by `leadId` (or `receivedAt` for
+  older leads), with `statusBy: "partner"`. The record is re-read right before the write. The OS Leads
+  tab and the partner page stay in step.
+- **The OS card:** `TeamViewCard`, at the top of the Leads tab, owned businesses only.
+  - "Make the partner link" mints `team.token` (`crypto.randomUUID`).
+  - Buttons: Text it to them (`sms:`), Copy, Open (new tab), Turn off.
+  - Turning it off sets `team.on:false` and clears the token, so the old link is dead.
+- **🔴 Never embedded as a preview** (KB `preview-safety`): the page writes real data. The OS only
+  opens it as the real page.
+- **Safety:** the token is the whole key.
+  - The endpoint answers only a well-formed token on an owned business with the link on.
+  - `no-store`, `noindex`, `referrer-policy: no-referrer`.
+  - Lead text is JSON-escaped in the script (`\u003c`), so a message cannot close the tag.
+  - No emojis or dashes, and no link to BoldLine on the page.
+- **Optional partner email** (`team.email`): `notifyTeamOfLead` in lead-intake sends each new lead as
+  the business (`fromName`), with replies going to the customer, plus Call and "See all leads"
+  buttons. 🔴 It is LAST in the `Promise.all`, because `const [, , crm]` reads the third result. Putting
+  it earlier would have handed the CRM outcome the wrong value (caught before shipping).
+- Pinned by `tests/verify-team-view.mjs` (38 checks).
+
+## Results on boldlinemedia.com (built the same evening)
+
+- **The OS card:** `ShowcaseCard`, at the top of the Overview tab, owned businesses only.
+  - On/Off switch (`showcase.on`) and an editable description (`showcase.label`). The default is
+    "<name>, our own <niche> business in <area>".
+  - A live preview of the last-30-day numbers: leads, ad spend, cost per lead, jobs won.
+  - The gate in plain words ("needs 4 more leads...").
+- **The gate:** at least **10 leads** AND **$100 of ad spend** in the last 30 days. No zero or thin
+  claims, and no cost per lead without spend.
+- **One arithmetic:** `showcaseNumbers` / `showcaseLabel` live in `netlify/lib/showcase.mjs` between
+  `SHOWCASE-MIRROR` markers, and are copied character for character into `index.html`.
+  `verify-showcase` compares the two copies and runs both on the same records.
+- **The public endpoint** `netlify/functions/proof.mjs` (CORS `*`, cached 15 min):
+  - returns aggregates only (label, leads, won, spend, costPerLead, window, updatedAt), for owned
+    businesses switched on and past the gate;
+  - a failure returns an empty list.
+- **On the site:**
+  - `marketing-src/proof.html`: a `hidden` section, on Home just before the founder strip and on
+    About after the founder;
+  - CSS in `new.css`;
+  - `site.js` fetches `https://os.boldlinemedia.com/.netlify/functions/proof` with credentials
+    omitted, builds the cards with `textContent`, and unhides only if there are items.
+  - It always carries "Our own business. We run it on the same system we sell, so these are our
+    numbers, not a client's."
+- **Rebuild after editing:** `node scripts/build-marketing-site.mjs`.
+- Pinned by `tests/verify-showcase.mjs` (27 checks).
+
 ## Not built yet (natural next steps)
 
-- **A results / case-study block** for the marketing site from this business's numbers. It must carry
-  the "our own business" disclosure.
-- **A view for the friend** (his own login to see leads and jobs). Owned businesses have no portal on
-  purpose for now.
+- Texting the partner on a new lead, instead of email. Texts are off until the texting account is paid
+  and registered (KB `client-text-back`).
 - **Ad images for owned businesses:** the creative studio is BoldLine-only, so use real photos of their
   work uploaded under Assets (better anyway). A customer-angle creative studio could come later.
 

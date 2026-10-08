@@ -338,7 +338,7 @@ ${part("founding-home.html")}${part("trust.html")}    </div>
   </div>
 </div></section>
 
-<section class="x-sec" style="padding-top:20px"><div class="wrap-x">
+${part("proof.html")}<section class="x-sec" style="padding-top:20px"><div class="wrap-x">
   <div class="f-strip reveal">
     <img src="/founder.jpg" width="240" height="240" alt="Bryson, founder of BoldLine Media" loading="lazy" decoding="async">
     <div><blockquote>"Most agencies get paid the same whether your phone rings or not. I didn't want to build that. I only make more when your ads do, and the websites I build have the same job: turning a visit into a call."</blockquote><div class="who">BRYSON, FOUNDER &middot; <a class="x-link" href="/about/" style="font-size:13px">About BoldLine <span>&rarr;</span></a></div><a class="f-cmp" href="/compare/">BoldLine vs a typical agency <span>&rarr;</span></a></div>
@@ -374,7 +374,7 @@ const PAGES = [
     title: "About BoldLine Media",
     desc: "BoldLine Media only makes more when your ads do. Meet the founder, read what clients say, and leave a review.",
     body: pageHero("About", "Built so we only win <em>when you do.</em>", "BoldLine is a small, focused team that runs ads and builds websites for businesses that want a steadier phone. We take on a select group of clients on purpose.", "", true)
-      + part("founder.html") + compareNudge() + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
+      + part("founder.html") + part("proof.html") + compareNudge() + part("reviews.html") + ctaBand(), ld: ["ld-org.html"] },
   { id: "check", path: "/free-check/", file: "free-check/index.html",
     title: "Free Lead-Leak Check | BoldLine Media",
     desc: "Send us your website and we'll show you where your business is quietly losing customers, plus the quickest fixes. Free, and no call required.",

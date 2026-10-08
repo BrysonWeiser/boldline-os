@@ -869,3 +869,33 @@
   addEventListener('scroll',function(){ if(!q){ q=true; requestAnimationFrame(frame); } },{passive:true});
   addEventListener('resize',frame); frame();
 })();
+
+// Results from a business BoldLine owns, read from the OS. The section is hidden in the page and only
+// appears when there are real numbers to show; any failure leaves it hidden.
+(function () {
+  var sec = document.getElementById("own-results");
+  if (!sec || !window.fetch) return;
+  fetch("https://os.boldlinemedia.com/.netlify/functions/proof", { credentials: "omit" })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || !d.items || !d.items.length) return;
+      var list = sec.querySelector("[data-proof-list]");
+      var money = function (n) { return "$" + Number(n || 0).toLocaleString("en-US"); };
+      var el = function (t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+      d.items.forEach(function (it) {
+        var card = el("div", "proof-card");
+        card.appendChild(el("div", "proof-label", it.label));
+        var st = el("div", "proof-stats");
+        var add = function (v, l) { var b = el("div"); b.appendChild(el("b", null, v)); b.appendChild(el("span", null, l)); st.appendChild(b); };
+        add(String(it.leads), "leads");
+        add(money(it.spend), "spent on ads");
+        if (it.costPerLead != null) add(money(it.costPerLead), "per lead");
+        add(String(it.won), "jobs won");
+        card.appendChild(st);
+        card.appendChild(el("div", "proof-when", "Last 30 days"));
+        list.appendChild(card);
+      });
+      sec.hidden = false;
+    })
+    .catch(function () {});
+})();

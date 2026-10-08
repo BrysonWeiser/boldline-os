@@ -3,6 +3,7 @@ import { SUPABASE_URL, sendEmail, sendSMS, appendLead, leadEmailHTML, notifyOwne
 import { forwardLead, forwardResult } from "../lib/crm-forward.mjs";
 import { pickAttribution } from "../lib/attribution.mjs";
 import { pickConsent, mayTextLead, weSendTheText } from "../lib/sms-consent.mjs";
+import { notifyTeamOfLead } from "../lib/team-view.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -136,6 +137,8 @@ export default async (req) => {
   // click id is captured here, and without it an order weeks later can never be credited
   // back to the search that produced it. So the lead lands here first and goes onward
   // second. See ../lib/crm-forward.mjs.
+  // The partner on one of Bryson's own businesses gets the lead too, when he has switched that on
+  // (KB `my-businesses-owned`). A no-op for every client and for BoldLine's own account.
   const [, , crm] = await Promise.all([
     notifyOwnerOfLead(nextData, lead),
     notifyLead(nextData, lead),
@@ -143,6 +146,8 @@ export default async (req) => {
       console.error("CRM forward threw:", e && e.message);
       return forwardResult({ ok: false, error: String((e && e.message) || e) });
     }),
+    // Last, so `crm` above stays the third result. It never throws (it catches its own failure).
+    notifyTeamOfLead(nextData, lead, { send: sendEmail, base: process.env.URL }),
   ]);
 
   // Record the outcome ON THE LEAD, so a CRM that quietly stopped accepting leads shows up
