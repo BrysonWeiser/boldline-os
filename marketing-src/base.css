@@ -853,3 +853,4 @@ button.btn{border:0}
 .nl-msg.ok{color:#34D399}
 .nl-msg.err{color:#F87171}
 @media(max-width:480px){.nl-form input[type=email],.nl-form button{flex:1 1 100%;max-width:none}}
+@media (max-width:1024px),(pointer:coarse){input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=submit]):not([type=button]):not([type=hidden]),select,textarea{font-size:16px!important}}
