@@ -9,6 +9,7 @@ import { SUPABASE_URL } from "../lib/supabase-url.mjs";
 import { loadAllClients } from "../lib/report-shared.mjs";
 import { withFailureAlert, dispatchAlert } from "../lib/alerts-shared.mjs";
 import { liveDomain, sitesTarget, NETLIFY_TARGET } from "../lib/site-domain.mjs";
+import { isHouse } from "../lib/owned.mjs";
 
 export const DOWN_AFTER = 2;
 
@@ -39,7 +40,7 @@ const handler = async () => {
   for (const r of rows) {
     const cl = { ...(r.data || {}), id: r.id };
     const host = liveDomain(cl);
-    if (!host || cl.internal) continue;
+    if (!host || isHouse(cl)) continue;
     checked++;
     const up = await siteIsUp(host, cl.landingSlug);
     if (!up) down++;

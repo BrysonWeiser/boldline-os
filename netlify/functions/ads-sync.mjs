@@ -40,6 +40,7 @@ import { metaOn, metaDelivering, googleOn, googleDelivering } from "../lib/meta-
 import { foldFirstSpend } from "../lib/campaign-runtime.mjs";
 import { goLiveDecision, fmtDate as fmtDay } from "../lib/campaign-live.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { isHouse } from "../lib/owned.mjs";
 
 const DAYS_PER_MONTH = 30.4; // matches MyAdsInsights in index.html
 const OVER_BUDGET_GRACE = 1.05; // 5% headroom before "over budget" trips
@@ -302,8 +303,8 @@ export default withFailureAlert("ads-sync", async () => {
       metaFail: !!mid && !meta.ok,
       scaleReady: !!scale.ready,
     };
-    const who = cl.internal ? "My Ads (BoldLine's own account)" : cl.name || "A client";
-    const whose = cl.internal ? "your" : `${cl.name || "the client"}'s`;
+    const who = isHouse(cl) ? "My Ads (BoldLine's own account)" : cl.name || "A client";
+    const whose = isHouse(cl) ? "your" : `${cl.name || "the client"}'s`;
 
     if (cur.over && !prev.over) {
       const basis = adPerf.budget.basis === "projected"

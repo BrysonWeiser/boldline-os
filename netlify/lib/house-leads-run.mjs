@@ -22,6 +22,7 @@
 
 import { mergeHouseLeads, PRUNE_LIMIT } from "./house-leads-merge.mjs";
 import { retryQuery } from "./report-shared.mjs";
+import { isHouse } from "./owned.mjs";
 
 /**
  * Mirror `website_leads` onto the internal (house) client record.
@@ -40,12 +41,14 @@ import { retryQuery } from "./report-shared.mjs";
 // and it must never become one without this changing with it.
 export async function syncHouseLeads(supabase, { warn = async () => {} } = {}) {
   // The house account. No internal client means nothing to mirror into, which is a normal
-  // state (he can delete and re-add it), not an error.
+  // state (he can delete and re-add it), not an error. 🔴 Every internal record is read and the
+  // house picked by isHouse: a business Bryson owns is internal too, and BoldLine's website leads
+  // must never land on the detailing business's list.
   const { data: houses, error: clErr } = await retryQuery(
-    () => supabase.from("clients").select("id, data").eq("data->>internal", "true").limit(1),
+    () => supabase.from("clients").select("id, data").eq("data->>internal", "true").limit(50),
     { job: "house-leads", step: "reading the client list" });
   if (clErr) { await warn("reading the client list", clErr.message); return { ok: false, error: `clients read failed: ${clErr.message}`, added: 0 }; }
-  const house = (houses || [])[0];
+  const house = (houses || []).find((r) => isHouse(r && r.data)) || null;
   if (!house) return { ok: true, house: false, added: 0 };
 
   const { data: rows, error: wlErr } = await retryQuery(

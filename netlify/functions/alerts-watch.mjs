@@ -24,6 +24,7 @@ import { countFoundingClients, FOUNDING_CLIENT_COUNT } from "../lib/founding.mjs
 import { dispatchAlert, withFailureAlert } from "../lib/alerts-shared.mjs";
 import { leadMirrorState, STALE_HOURS } from "../lib/heartbeats.mjs";
 import { autoSendClientEmail } from "../lib/client-email-auto.mjs";
+import { isHouse } from "../lib/owned.mjs";
 
 const ACTIVE_STAGES = ["active", "optimizing", "scaling"];
 // How long a signed client may go without their ads ever starting before it is raised.
@@ -141,7 +142,7 @@ export default withFailureAlert("alerts-watch", async () => {
   {
     const all = (rows || []).map((r) => r.data).filter(Boolean);
     const signed = countFoundingClients(all);
-    const houseRow = (rows || []).find((r) => r.data && r.data.internal);
+    const houseRow = (rows || []).find((r) => isHouse(r.data));
     const hd = (houseRow && houseRow.data) || {};
     const alertedFor = Number(hd.foundingOfferSpentAt || 0)
       || (hd.foundingOfferSpentAlerted ? 3 : 0);   // legacy flag predates the limit being movable
@@ -174,7 +175,7 @@ export default withFailureAlert("alerts-watch", async () => {
   // Said ONCE per stall and re-armed on recovery. Without the re-arm this fires once ever and
   // then stays silent through every future outage, which is worse than not having it.
   {
-    const houseRow = (rows || []).find((r) => r.data && r.data.internal);
+    const houseRow = (rows || []).find((r) => isHouse(r.data));
     const st = leadMirrorState(houseRow);
     if (st.alert) {
       await dispatchAlert({

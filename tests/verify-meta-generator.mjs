@@ -31,7 +31,7 @@ ok("it goes through the BACKGROUND path, not the sync one",
   /adGenBackground\(\{\s*action:\s*"meta"/.test(card.replace(/\s+/g, " ").replace(/adGenBackground\( \{/, "adGenBackground({")) || /adGenBackground\(\{ action:"meta"/.test(card.replace(/\s+/g, " ")),
   "the sync endpoint refuses meta and returns 400");
 ok("it passes the clientId the background job stores its result against", /clientId:\s*client\.id/.test(card));
-ok("it flags the house account so the agency prompt is used", /agency:\s*!!client\.internal/.test(card));
+ok("it flags the house account so the agency prompt is used", /agency:\s*!!isHouse\(client\)/.test(card));
 
 // ── picking a variant fills the real fields ──────────────────────────────────
 ok("applying a variant sets the headline", /headline:\s*humanizeAdCopy\(v\.headline\)/.test(card));

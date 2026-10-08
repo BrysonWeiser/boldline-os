@@ -192,7 +192,7 @@ ok("the sitemap also works on our address", /where\.seg === "sitemap\.xml" && !w
 
 ok("the address card also shows before the site is built (DNS takes hours, the build a minute)", (UI.match(/<SiteDomainCard client=\{client\} onUpdate=\{onUpdate\}\/>/g) || []).length === 2);
 
-ok("🔴 My Ads (the house account) has no Website tab unless a site was built there on purpose", /client\.internal&&k==="website"&&!\(client\.website&&typeof client\.website==="object"&&client\.website\.content\)/.test(UI));
+ok("🔴 My Ads (the house account) has no Website tab unless a site was built there on purpose", /isHouse\(client\)&&k==="website"&&!\(client\.website&&typeof client\.website==="object"&&client\.website\.content\)/.test(UI));
 
 // 🔴 We are their web people: the default ask is access to their domain account, not instructions for someone else.
 {

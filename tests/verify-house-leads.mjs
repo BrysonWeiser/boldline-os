@@ -125,7 +125,7 @@ const wl = (id, over = {}) => ({
   ok("every real website status maps into the house pipeline",
     SCHEMA.every((s) => HOUSE_STATUSES.includes(mapStatus(s))));
   // The house Leads tab's own status list is the set we are mapping into.
-  const tab = UI.match(/const STATUSES = client\.internal[\s\S]{0,600}?\]\s*:/);
+  const tab = UI.match(/const STATUSES = isHouse\(client\)[\s\S]{0,600}?\]\s*:/);
   ok("the house Leads tab still offers exactly these stages", !!tab
     && HOUSE_STATUSES.every((s) => new RegExp(`id:"${s}"`).test(tab[0])));
 }
@@ -377,8 +377,8 @@ const wl = (id, over = {}) => ({
     "the live update is on a timer only, so it is not actually live");
 
   ok("🔴 only for the house account",
-    /if \(!client\.internal \|\| syncingHouseLeads\.current\) return;/.test(UI_CODE3),
-    "opening any client would trigger the house mirror, and a real client's leads are written by a different path entirely");
+    /if \(!isHouse\(client\) \|\| syncingHouseLeads\.current\) return;/.test(UI_CODE3),
+    "opening any client (or one of Bryson's own businesses, which are internal too) would trigger the house mirror, and their leads are written by a different path entirely");
 
   ok("🔴 two runs cannot overlap",
     /syncingHouseLeads\.current = true;/.test(UI_CODE3) && /syncingHouseLeads\.current = false;/.test(UI_CODE3),

@@ -68,3 +68,8 @@ verified: 2026-08-07
 - With no monthly budget on file it falls back to $20/day and the hint says "set a monthly budget above and this fills itself" rather than silently using a magic number.
 - **Verified 2026-08-13, 23 cases** across BOTH cards: auto-fill, follow-on-change, override, override labelling, reset, no-budget fallback, the reverse monthly figure, and 0px overflow at 390/1280 with no page errors.
 
+
+**🔴 2026-10-07: `internal` no longer means "BoldLine".** Bryson's own businesses (My Businesses, KB
+`my-businesses-owned`) are internal too, with `owned: true`. Anything that means BoldLine's own account
+must use `isHouse(c)`; `c.internal` now means only "not a paying client". The OS's `myAccount` is
+`clients.find(isHouse)`.

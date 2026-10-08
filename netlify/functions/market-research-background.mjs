@@ -38,6 +38,7 @@ import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { placesSearch, inspectAdTech } from "../lib/scout-providers.mjs";
+import { isHouse } from "../lib/owned.mjs";
 import {
   MR_TOOL, mrSystem, mrPrompt, cleanResearch, rankCompetitors, researchArea, researchAreas,
   researchNiche, sellsNationally,
@@ -84,7 +85,7 @@ export default async (req) => {
   const cl = (row && row.data) || null;
   if (!cl) return json({ ok: false, error: "Client not found" }, 404);
 
-  const isAgency = !!cl.internal;
+  const isAgency = isHouse(cl);
   const niche = researchNiche(cl) || (isAgency ? "marketing agency" : "");
   // 🔴 ONE CITY IS NOT ALWAYS THE MARKET. Bryson, 2026-08-22: "don't just search only in
   // Gilbert search in other places as well because marketing agencies can be anywhere".

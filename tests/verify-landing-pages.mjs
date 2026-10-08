@@ -201,11 +201,11 @@ t("🔴 a landing page uses exactly ONE relative address, and it is the proxied 
     // 🔴 PROVED, NOT GUESSED AT BY LOOKING A FIXED NUMBER OF CHARACTERS BACK. The first
     // version of this checked a 2000-character window and failed because the branch was 2354
     // away, which would have been "fixed" by widening the window until it passed — a test
-    // tuned to its answer. Instead: find the nearest `client.internal ? (` before the mount
+    // tuned to its answer. Instead: find the nearest `isHouse(client) ? (` before the mount
     // and assert the else-arm has not opened in between. If the card ever moves to the other
     // side of the branch, a client's Assets tab starts offering to write pages that advertise
     // BoldLine, and this fails.
-    const branch = ui.lastIndexOf("client.internal ? (", at);
+    const branch = ui.lastIndexOf("isHouse(client) ? (", at);
     assert.ok(branch > 0, "there is no internal branch before the mount at all");
     const between = ui.slice(branch, at);
     assert.ok(!/\n\s*\) : \(/.test(between),

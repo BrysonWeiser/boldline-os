@@ -588,6 +588,20 @@ const pkgPriceSummary = (pkg, perLeadFee) =>
 // the marketing site, or in an upgrade list. findPkg resolves it separately.
 const HOUSE_PKG_ID = "bl-house";
 PKG_FEATURES[HOUSE_PKG_ID] = [...new Set(Object.values(PKG_FEATURES).flat())];
+
+// ─── OWNED BUSINESSES ─────────────────────────────────────────────────────────
+// Bryson, 2026-10-07: "I need a place in the os for me to build a website for my other businesses and
+// then also to be able to run whatever ads I want to the other businesses including making landing
+// pages for them" (a car detailing business with a friend, whose results he also wants to show).
+// An owned business is a record flagged `internal` AND `owned`. `internal` keeps every money and
+// relationship rule that already protects the house account: never billed or invoiced, no contract,
+// no portal, no client emails, never counted as a client and never the founding offer. `owned` says it
+// is NOT BoldLine, so it gets the customer-facing tools a client gets (its own ad wording, landing
+// page, website, review asks) and never BoldLine's own page, prospect pipeline or agency ad copy.
+// 🔴 Anything that means "BoldLine's own account" must ask isHouse. Four places used to take the
+// FIRST internal record, and with an owned business in the list that could have been the wrong one.
+const isHouse = (c) => !!(c && c.internal && !c.owned);
+const isOwned = (c) => !!(c && c.internal && c.owned);
 const HOUSE_PKG = {
   id: HOUSE_PKG_ID, name: "Full System (House Account)", platform: "Google + Meta",
   price: 0, setup: 0, leadFee: false, tag: "Internal", adSpend: "",
@@ -1521,7 +1535,7 @@ const adLanding = (cl) => {
              url: landingUrlFor(cl),
              why: "Your generated landing page is published" };
   }
-  if (cl && cl.internal) {
+  if (cl && isHouse(cl)) {
     return { published: true, written: true, source: "site", label: "Live on your site",
              url: HOUSE_LANDING_URL,
              why: "Your ads point at /get-started, which is live" };
@@ -7947,7 +7961,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   );
 }
 
-function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegment,onOpenMyAds,onDealPrep,onLeadScout,onOutreach,hasMyAccount,isDesktop,leads,onLeads,onARIA,onCalendar}) {
+function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegment,onOpenMyAds,onOpenBusinesses,businessCount,onDealPrep,onLeadScout,onOutreach,hasMyAccount,isDesktop,leads,onLeads,onARIA,onCalendar}) {
   const [search,setSearch]     = useState("");
   const [stageFilter,setStageF]= useState("all");
   const [nicheFilter,setNicheF]= useState("all");
@@ -8051,6 +8065,16 @@ function HomeScreen({clients,onSelect,onAdd,onAddDemo,onLogout,onRevenue,onSegme
         </div>
         <span style={{fontSize:11,fontWeight:700,color:C.gold,whiteSpace:"nowrap",flexShrink:0}}>{hasMyAccount?"Open ›":"Set up ›"}</span>
       </button>
+      {/* Bryson's own businesses (isOwned): websites, landing pages and ads, kept apart from BoldLine. */}
+      {onOpenBusinesses&&<button onClick={onOpenBusinesses} className="os-card" style={{width:"100%",textAlign:"left",cursor:"pointer",display:"flex",alignItems:"center",gap:12,
+        background:"rgba(255,255,255,0.025)",border:`1px solid ${C.border}`,borderRadius:14,padding:"12px 16px",marginTop:-6,marginBottom:14}}>
+        <span style={{width:36,height:36,borderRadius:10,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(200,168,75,0.08)",border:"1px solid rgba(200,168,75,0.18)"}}><svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={C.gold} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{BIZ}</svg></span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:14,fontWeight:800,color:C.text,letterSpacing:"-0.01em"}}>My Businesses</div>
+          <div style={{fontSize:11,color:C.textMuted,marginTop:2,lineHeight:1.5}}>{businessCount?`${businessCount} business${businessCount===1?"":"es"} you own: websites, landing pages and ads.`:"Build a website and run ads for a business you own."}</div>
+        </div>
+        <span style={{fontSize:11,fontWeight:700,color:C.gold,whiteSpace:"nowrap",flexShrink:0}}>{businessCount?"Open ›":"Add ›"}</span>
+      </button>}
 
       {/* Urgent alerts — payment/billing failures first: a client not paying is
          the most urgent business alert, so it leads the dashboard (matches the
@@ -8599,6 +8623,7 @@ const SH_ICONS = {
   segment:<><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.6.9 2.6 2.6 3 5.2"/></>,
   myads:<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></>,
   client:<><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></>,
+  business:<><path d="M3 9.5 4.6 4h14.8L21 9.5"/><path d="M3 9.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8M10 20v-5h4v5"/></>,
 };
 // ─── COOL BUT CLEAR (2026-10-08) ─────────────────────────────────────────
 // Bryson, 2026-10-08: "make them cooler but still very useful and not confusing, same thing for the
@@ -9126,6 +9151,117 @@ function SegmentScreen({mode,clients,onSelect,onBack,isDesktop}) {
 // previewed (rendered in an iframe), edited (VisualEditor + subject), reset, or
 // sent. Templates + sending live server-side (netlify/functions/client-email.mjs
 // → client-emails-shared.mjs) so there's one source of truth for the branding.
+// ─── MY BUSINESSES ────────────────────────────────────────────────────────────
+// Bryson's own businesses (see isOwned), each with its website, landing pages, ads and leads, kept
+// apart from BoldLine and from the client list. The top line says the one next step that is missing,
+// so the screen answers "what needs me" before anything else (KB `cool-but-clear`).
+const bizSteps = (b) => {
+  const site = b.website && typeof b.website === "object" ? b.website : null;
+  return [
+    { k:"site",  label:"Website",      done: !!(site && site.published), started: !!(site && site.content), next: "build its website" },
+    { k:"page",  label:"Landing page", done: !!adLanding(b).published, started: !!(b.landingPage && b.landingPage.headline), next: "make its landing page" },
+    { k:"ads",   label:"Ad accounts",  done: !!(b.googleAdsCustomerId || b.metaAdAccountId), started: false, next: "connect its ad accounts" },
+  ];
+};
+function MyBusinessesScreen({businesses,onSelect,onAdd,onBack,isDesktop}) {
+  const list = [...(businesses||[])].sort((a,b)=>String(a.name||"").localeCompare(String(b.name||"")));
+  const days14 = phxLastDays(14);
+  const allLeads = list.flatMap(b=>b.leadsLog||[]);
+  const perDay = days14.map(k=>allLeads.filter(l=>l&&l.receivedAt&&phxDayKey(l.receivedAt)===k).length);
+  const leads30 = list.reduce((n,b)=>n+adPerfStats(b).leads30,0);
+  const gap = list.map(b=>({ b, step: bizSteps(b).find(s=>!s.done) })).find(x=>x.step);
+  const focus = !list.length
+    ? { tone:"gold", text:"Add your first business to build its website and run its ads.", onClick:onAdd }
+    : gap ? { tone:"gold", text:`${gap.b.name}: next, ${gap.step.next}.`, onClick:()=>onSelect(gap.b) }
+    : { tone:"green", text:"Every business has a live website, a landing page and its ad accounts connected." };
+  const pill = (s) => {
+    const col = s.done ? C.green : s.started ? C.amber : C.textMuted;
+    return <span key={s.k} style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:20,border:`1px solid ${col}44`,backgroundColor:`${col}12`,color:col,whiteSpace:"nowrap"}}>
+      {s.label}: {s.done ? (s.k==="ads"?"Connected":"Live") : s.started ? "Started" : "Not yet"}</span>;
+  };
+  const addBtn = <button onClick={onAdd} style={{padding:"9px 14px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",background:C.gradB,color:"#1a1400",cursor:"pointer",whiteSpace:"nowrap"}}>+ Add a business</button>;
+  return (
+    <div style={{flex:1,overflowY:"auto",padding:isDesktop?"26px 32px 60px":"16px 14px 100px"}}>
+      <ScreenHeader group="Run clients" title="My Businesses" icon="business" isDesktop={isDesktop} onBack={!isDesktop?onBack:undefined}
+        sub="Businesses you own. Build each one's website, landing pages and ads with the same tools you use for clients, kept apart from BoldLine and never counted as a client."
+        focus={focus}
+        viz={list.length&&allLeads.length?{label:"Leads, last 14 days",data:perDay,labels:days14.map(shortDay)}:null}
+        stats={list.length?[{v:list.length,l:list.length===1?"business":"businesses"},{v:leads30,l:"leads in 30 days",tone:"gold"}]:null}
+        actions={addBtn}/>
+      {!list.length
+        ? <EmptyState icon="business" text="No businesses yet. Add the detailing business to build its website, its landing pages and its ads, all kept apart from BoldLine." action={addBtn}/>
+        : <div style={isDesktop?{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(360px,1fr))",gap:12,alignItems:"start",maxWidth:1180}:{display:"flex",flexDirection:"column",gap:10}}>
+            {list.map(b=>{
+              const st = adPerfStats(b);
+              return (
+                <button key={b.id} onClick={()=>onSelect(b)} className="os-card" style={{textAlign:"left",width:"100%",cursor:"pointer",padding:"16px 16px 14px",borderRadius:14,border:`1px solid ${C.border}`,backgroundColor:C.bg2,color:C.text,fontFamily:"inherit"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                    <div style={{width:38,height:38,borderRadius:11,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",color:C.gold,border:`1px solid ${C.borderAccent}`,background:"radial-gradient(circle,rgba(200,168,75,.14),transparent 70%)"}}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{SH_ICONS.business}</svg></div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:15,fontWeight:800,letterSpacing:"-0.01em",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</div>
+                      <div style={{fontSize:11.5,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{[b.niche,b.businessAddress].filter(Boolean).join(" · ")||"Add what it does and where, in Edit"}</div>
+                    </div>
+                    <span style={{color:C.gold,fontSize:16,flexShrink:0}}>›</span>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{bizSteps(b).map(pill)}</div>
+                  <div style={{fontSize:11.5,color:C.textDim}}><b style={{color:C.text}}>{st.leads30}</b> lead{st.leads30===1?"":"s"} in the last 30 days{st.spend30>0?<> · <b style={{color:C.text}}>${Math.round(st.spend30).toLocaleString()}</b> spent on ads</>:null}</div>
+                </button>
+              );
+            })}
+          </div>}
+      <div style={{marginTop:16,padding:"12px 14px",borderRadius:12,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.02)",fontSize:11.5,color:C.textMuted,lineHeight:1.65,maxWidth:1180,boxSizing:"border-box"}}>
+        <b style={{color:C.textDim}}>Two rules that keep this clean.</b> Each business pays for its own ads, from its own Google and Meta ad accounts on its own card, never BoldLine's. And when you show its results to a prospect, say it is your own business, run on the same system you sell.
+      </div>
+    </div>
+  );
+}
+
+function AddBusinessSheet({onSave,onClose}) {
+  const [form,setForm] = useState({name:"",niche:"",serviceArea:"",businessPhone:"",email:"",plat:"both"});
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const can = form.name.trim().length>1;
+  const PLAT = { google:["Google Ads"], meta:["Meta Ads"], both:["Google Ads","Meta Ads"] };
+  const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const field = (k,l,ph,t="text") => (
+    <div key={k} style={{marginBottom:11}}><div style={lbl}>{l}</div><input type={t} value={form[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} style={inp}/></div>);
+  const save = () => { if(!can) return; onSave({...form, name:form.name.trim(), platforms:PLAT[form.plat]}); };
+  return (
+    <Sheet onClose={onClose} zIndex={90} height="92vh">
+      <div style={{padding:"13px 14px 11px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+        <div style={{flex:1,minWidth:0}}><div style={{fontSize:15,fontWeight:700,color:C.text}}>Add Your Business</div>
+          <div style={{fontSize:11,color:C.textMuted}}>A business you own. Never billed, never counted as a client.</div></div>
+        <CloseBtn onClick={onClose}/>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"13px 14px",display:"flex",flexDirection:"column",gap:12}}>
+        <Card>
+          <Label>About the business</Label>
+          {field("name","Business name *","e.g. Desert Gloss Detailing")}
+          <div style={lbl}>What it does</div>
+          <div style={{marginBottom:11}}><NicheSelect value={form.niche} onChange={v=>set("niche",v)}/></div>
+          {field("serviceArea","Where it works","e.g. Gilbert, Arizona")}
+          {field("businessPhone","Phone number customers call","(480) 555-0100","tel")}
+          {field("email","Email for leads and customer replies","hello@yourbusiness.com","email")}
+        </Card>
+        <Card>
+          <Label>Where to advertise</Label>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap",marginTop:4}}>
+            {[["both","Google + Meta"],["google","Google"],["meta","Meta"]].map(([k,l])=>(
+              <button key={k} onClick={()=>set("plat",k)} style={{padding:"8px 13px",fontSize:12,fontWeight:700,borderRadius:20,cursor:"pointer",border:`1px solid ${form.plat===k?C.gold:C.border}`,backgroundColor:form.plat===k?C.goldDim:"transparent",color:form.plat===k?C.gold:C.textDim}}>{l}</button>))}
+          </div>
+          <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:9}}>You can change this later in Edit.</div>
+        </Card>
+        <Card style={{backgroundColor:`${C.gold}0a`,borderColor:`${C.gold}33`}}>
+          <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.65}}>Before it runs ads, give it its <b style={{color:C.text}}>own</b> Google Ads and Meta ad accounts, paid on the business's own card. BoldLine never pays for its ads. The Campaigns tab walks you through it step by step.</div>
+        </Card>
+      </div>
+      <div style={{padding:"11px 14px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+        <button onClick={save} disabled={!can} style={{width:"100%",padding:"12px",fontSize:13.5,fontWeight:800,borderRadius:11,border:"none",background:can?C.gradB:"rgba(255,255,255,.06)",color:can?"#1a1400":C.textMuted,cursor:can?"pointer":"default"}}>Add Business</button>
+      </div>
+    </Sheet>
+  );
+}
+
 function EmailCenterTab({client,pkg,onUpdate}) {
   const [types,setTypes]=useState([]);
   const [loadingTypes,setLoadingTypes]=useState(true);
@@ -11387,7 +11523,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   const pullHouseLeads = useCallback(async () => {
     // Only the house account has a mirror. A real client's leads live on their own record
     // and are written by a different path entirely.
-    if (!client.internal || syncingHouseLeads.current) return;
+    if (!isHouse(client) || syncingHouseLeads.current) return;
     syncingHouseLeads.current = true;
     try{
       const { data:{ session } } = await supabaseClient.auth.getSession();
@@ -11403,10 +11539,10 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
       }
     }catch(e){ /* the fifteen-minute job still covers this; a red banner here would be noise */ }
     finally{ syncingHouseLeads.current = false; }
-  },[client.internal,client.id]);
+  },[isHouse(client),client.id]);
   // Same subscription the Leads screen uses, so it fires on the same event. The poll is a
   // slow backstop for a dropped socket, not the main path.
-  useLiveData(pullHouseLeads,{ table:"website_leads", interval:120000, active:!!client.internal, channel:"house-leads-live" });
+  useLiveData(pullHouseLeads,{ table:"website_leads", interval:120000, active:!!isHouse(client), channel:"house-leads-live" });
 
   const pkg    = findPkg(client.packageId);
   const derivedBots = deriveBotStatuses(client);
@@ -11437,12 +11573,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
   // on every screen of theirs. Same one field the agreement, the invoice, the portal and the
   // branded emails read (Bryson, 2026-09-17: *"make sure these tabs are good as well"*).
   const TABS   = [["overview","Overview"],["campaign","Campaign"],["pipeline","Pipeline"],["leads",resultWords(client).kind==="sale"?"Sales":"Leads"],["reviews","Reviews"],["website","Website"],["portal","Client View"],["package","Package"],["research","Competitors"],["contract","Contract"],["emails","Emails"],["reports","Reports"],["log","Log"]]
-                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log"||k==="reviews")))
+                   .filter(([k])=>!(client.internal&&(k==="contract"||k==="emails"||k==="log"||(isHouse(client)&&k==="reviews"))))
                    // The website builder is for CLIENTS. BoldLine's own site is the marketing site, run from
                    // the Website page in the left menu, so on My Ads the tab only offered to build a second
                    // one (Bryson, 2026-10-06: "why is there an option to build myself a website when we
                    // already have one?"). Shown again only if one was ever built here on purpose.
-                   .filter(([k])=>!(client.internal&&k==="website"&&!(client.website&&typeof client.website==="object"&&client.website.content)))
+                   .filter(([k])=>!(isHouse(client)&&k==="website"&&!(client.website&&typeof client.website==="object"&&client.website.content)))
                    // A website-only client has no campaign, ads contract, package, reports or ads emails.
                    .filter(([k])=>!(isWebsiteOnly(client)&&["campaign","pipeline","reviews","package","research","contract","emails","reports"].includes(k)))
                    // 🔴 "Assets" ON EVERY ACCOUNT, NOT JUST THE HOUSE ONE. Bryson, 2026-09-02:
@@ -11615,10 +11751,10 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
             {client.name[0]}
           </div>
           <div style={S.f1min}>
-            {isDesktop&&<div className="sh-eye" style={{fontSize:10,marginBottom:3}}><i/>{client.internal?"House account":"Client"} // {stage.label}</div>}
-            <div className="os-title" style={{fontSize:isDesktop?22:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em",lineHeight:1.15}}>{client.name}{client.internal&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:C.gold,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:6,padding:"1px 6px",verticalAlign:"middle"}}>My Ads</span>}</div>
+            {isDesktop&&<div className="sh-eye" style={{fontSize:10,marginBottom:3}}><i/>{isOwned(client)?"Your business":client.internal?"House account":"Client"} // {stage.label}</div>}
+            <div className="os-title" style={{fontSize:isDesktop?22:14,fontWeight:700,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",letterSpacing:"-0.01em",lineHeight:1.15}}>{client.name}{client.internal&&<span style={{marginLeft:6,fontSize:9,fontWeight:800,letterSpacing:".04em",textTransform:"uppercase",color:C.gold,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`,borderRadius:6,padding:"1px 6px",verticalAlign:"middle"}}>{isOwned(client)?"Your business":"My Ads"}</span>}</div>
             <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",marginTop:1}}>
-              <>{client.internal&&<Chip label="House account" color={C.textMuted} small/>}<Chip label={stage.label} color={stage.color} small/></>
+              <>{client.internal&&<Chip label={isOwned(client)?"Your own business":"House account"} color={C.textMuted} small/>}<Chip label={stage.label} color={stage.color} small/></>
               {!client.internal&&<span style={{fontSize:10,fontWeight:600,color:healthColor(calcHealth(client))}}>⬡ {calcHealth(client).toFixed(1)}/10</span>}
               {!client.internal&&days<=30&&days>=0&&<span style={{fontSize:10,color:days<=7?C.red:C.amber,fontWeight:700}}>{days}d left</span>}
             </div>
@@ -11922,7 +12058,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
         {tab==="leads"&&<LeadsTabContent client={client} onUpdate={onUpdate}/>}
 
-        {tab==="reviews"&&!client.internal&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
+        {tab==="reviews"&&!isHouse(client)&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
         {tab==="website"&&<WebsiteTab client={client} onUpdate={onUpdate}/>}
 
         {tab==="portal"&&(
@@ -11940,7 +12076,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
               <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Exactly what {client.name} sees in their portal, every tab. Buttons in here are switched off, so nothing you click changes their account.</div>
               <PortalPreview client={client}/>
             </Card>}
-            {!client.internal&&<LandingOptionsCard client={client} onUpdate={onUpdate}/>}
+            {!isHouse(client)&&<LandingOptionsCard client={client} onUpdate={onUpdate}/>}
             {!client.internal&&<ClientApprovalsCard client={client} onUpdate={onUpdate}/>}
             {!client.internal&&<Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
@@ -11964,7 +12100,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 <Label>{client.internal?"Media":"Client Media"} ({(client.mediaLibrary||[]).length})</Label>
               </div>
               {(client.mediaLibrary||[]).length===0 ? (
-                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?"No media uploaded yet. Your /get-started landing page already uses your site's branding; upload photos or video here if you want them on hand for ad creatives.":`Nothing uploaded yet — ${client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.`}</div>
+                <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{isHouse(client)?"No media uploaded yet. Your /get-started landing page already uses your site's branding; upload photos or video here if you want them on hand for ad creatives.":`Nothing uploaded yet — ${client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.`}</div>
               ) : (
                 <div>
                   <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>Everything {client.name} has uploaded. The AI picks what it needs from here — it's never required to use all of it. Deleting removes the file for good, on both sides.</div>
@@ -12004,7 +12140,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                 onCancel={()=>setCropping(null)}
                 onDone={(lib,patch)=>{ onUpdate({...client, mediaLibrary:lib, ...(patch||{})}); setCropping(null); }}/>
             )}
-            {client.internal ? (
+            {isHouse(client) ? (
               <>
               <Card style={{borderColor:`${C.gold}2a`}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
@@ -12078,7 +12214,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
               {client.callTrackingNumber ? (
                 <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{client.callTrackingNumber}</div>
               ) : (
-                <div style={{fontSize:11,color:C.textMuted,marginBottom:8,lineHeight:1.6}}>{client.internal?"Buy a dedicated tracking number for your ads. Calls forward to your real number and log automatically as leads.":(isSaleClient(client)?`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and are logged here. They sell through their own store, so a call is a question rather than an order, and none of these count toward their bill.`:`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and log automatically as leads.`)}</div>
+                <div style={{fontSize:11,color:C.textMuted,marginBottom:8,lineHeight:1.6}}>{isHouse(client)?"Buy a dedicated tracking number for your ads. Calls forward to your real number and log automatically as leads.":(isSaleClient(client)?`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and are logged here. They sell through their own store, so a call is a question rather than an order, and none of these count toward their bill.`:`Buy a dedicated tracking number for ${client.name}'s ads. Calls forward to their real number and log automatically as leads.`)}</div>
               )}
               <div style={{fontSize:11,color:C.textMuted,marginBottom:8}}>Forwards to: {client.businessPhone ? <span style={{color:C.textDim,fontWeight:600}}>{client.businessPhone}</span> : <span style={{color:C.amber}}>{client.internal?"Not set — add your phone number in Edit.":"Not set — ask the client to add their phone number in their portal"}</span>}</div>
               {callTrack.error&&<div style={{fontSize:11,color:C.red,marginBottom:8}}>{callTrack.error}</div>}
@@ -12123,7 +12259,9 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
                     build the campaign that consumes it. Scoped to the house
                     account for now — a client's creative needs their brand, not
                     BoldLine's (see KB ad-creative-studio). */}
-                {client.internal && runsMeta && <AdCreativeStudio client={client} onUpdate={onUpdate}/>}
+                {/* Its fixed angles are BoldLine selling to business owners ("Stop buying shared leads"), so it is
+                    BoldLine's own account only. One of Bryson's own businesses uses its real photos from Assets. */}
+                {isHouse(client) && runsMeta && <AdCreativeStudio client={client} onUpdate={onUpdate}/>}
                 {runsGoogle && <GoogleLaunchCard client={client} onUpdate={onUpdate} platformCount={(runsGoogle?1:0)+(runsMeta?1:0)}/>}
                 {runsMeta && <MetaLaunchCard client={client} onUpdate={onUpdate} platformCount={(runsGoogle?1:0)+(runsMeta?1:0)}/>}
                 {client.internal && !runsGoogle && !runsMeta && (
@@ -12139,12 +12277,12 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
           <>
             {client.internal
               ? <Card style={{backgroundColor:`${C.gold}0d`,borderColor:`${C.gold}2a`}}>
-                  <Label>Run Your Own Ads</Label>
-                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>Launch and manage BoldLine's own Google and Meta campaigns here — the same tools you use for clients. Set your budget, add your payment card, and connect your accounts below, then build a campaign further down.</div>
+                  <Label>{isOwned(client)?`Run ${client.name}'s Ads`:"Run Your Own Ads"}</Label>
+                  <div style={{fontSize:12,color:C.textDim,lineHeight:1.6,marginTop:4}}>{isOwned(client)?<>Launch and manage {client.name}'s Google and Meta ads here, with the same tools you use for clients. Its ad accounts belong to {client.name} and are paid on its own card, never BoldLine's. Set the budget, add that card, and connect the accounts below, then build a campaign further down.</>:"Launch and manage BoldLine's own Google and Meta campaigns here — the same tools you use for clients. Set your budget, add your payment card, and connect your accounts below, then build a campaign further down."}</div>
                 </Card>
               : <PackageTabContent client={client} pkg={pkg} onUpgradeRequest={handleUpgradeRequest} onManualUpgrade={handleManualUpgrade}/>}
-            {!client.internal && <ScorecardCard client={client}/>}
-            {!client.internal && <TradePlaybookCard client={client}/>}
+            {!isHouse(client) && <ScorecardCard client={client}/>}
+            {!isHouse(client) && <TradePlaybookCard client={client}/>}
             {(client.internal || client.googleAdsCustomerId || client.metaAdAccountId) && <CreativeStrategyCard client={client} onUpdate={onUpdate}/>}
           </>
         )}
@@ -13649,7 +13787,7 @@ function LeadsTabContent({client,onUpdate}) {
   // The house account's leads are prospective BOLDLINE clients, so it gets a
   // sales pipeline with a "Meeting Booked" stage + a book-a-call outreach tool.
   // Regular clients' leads are their own customers — plain 4-stage pipeline.
-  const STATUSES = client.internal
+  const STATUSES = isHouse(client)
     ? [
         {id:"new",label:"New",color:C.amber},
         {id:"contacted",label:"Contacted",color:C.blue},
@@ -13797,7 +13935,7 @@ function LeadsTabContent({client,onUpdate}) {
                     cursor:(lead.status||"new")===s.id?"default":"pointer"
                   }}>{s.label}</button>
                 ))}
-                {client.internal&&<button onClick={()=>openReachOut(idx,lead)} style={{marginLeft:followCount>0?0:"auto",padding:"3px 10px",fontSize:9,fontWeight:800,borderRadius:7,border:`1px solid ${C.gold}55`,backgroundColor:openOutreach===idx?C.goldDim:"transparent",color:C.gold,cursor:"pointer",whiteSpace:"nowrap"}}>📅 {openOutreach===idx?"Close":"Reach Out & Book"}</button>}
+                {isHouse(client)&&<button onClick={()=>openReachOut(idx,lead)} style={{marginLeft:followCount>0?0:"auto",padding:"3px 10px",fontSize:9,fontWeight:800,borderRadius:7,border:`1px solid ${C.gold}55`,backgroundColor:openOutreach===idx?C.goldDim:"transparent",color:C.gold,cursor:"pointer",whiteSpace:"nowrap"}}>📅 {openOutreach===idx?"Close":"Reach Out & Book"}</button>}
                 {followCount>0&&<span style={{fontSize:9,color:C.textMuted,marginLeft:"auto"}}>{followCount} follow-up{followCount===1?"":"s"} sent</span>}
               </div>
 
@@ -13863,7 +14001,7 @@ function LeadsTabContent({client,onUpdate}) {
                 <div style={{marginTop:7,padding:"7px 10px",borderRadius:8,border:`1px solid ${C.amber}44`,backgroundColor:`${C.amber}10`,fontSize:10.5,color:C.amber,lineHeight:1.6}}>
                   This lead did not reach {client.name}'s own system{lead.crm.error?`: ${lead.crm.error}`:""}. It is saved here, so nothing is lost, but their automatic follow-up never ran.</div>
               )}
-              {client.internal&&openOutreach===idx&&(
+              {isHouse(client)&&openOutreach===idx&&(
                 <div style={{marginTop:8,padding:"11px 12px",borderRadius:10,backgroundColor:"rgba(200,168,75,0.05)",border:`1px solid ${C.borderAccent}`}}>
                   <div style={{fontSize:10,fontWeight:700,color:C.gold,marginBottom:8}}>Book a call — reach out from your own email or phone (personal beats a no-reply blast).</div>
                   <textarea value={draft} onChange={e=>setDraft(e.target.value)} rows={7} style={{width:"100%",padding:"9px 11px",fontSize:11.5,lineHeight:1.55,borderRadius:8,border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.04)",color:C.text,fontFamily:"inherit",resize:"vertical",marginBottom:8}}/>
@@ -13927,7 +14065,7 @@ function ARIAPanel({clients,onClose,onDelete,onUpdate,initialAsk,speakReplies}) 
   const SYSTEM=`You are ARIA, BoldLine Media's agency AI. Full system access. Bryson runs a pay-per-lead agency (roofing, med spas, auto detailing).
 STATE: ${realClients.length} clients | ${realClients.filter(c=>c.stage==="active").length} active | guaranteed monthly floor $${MRR.toLocaleString()} (the MINIMUM billed; actual revenue is whichever is higher of that or the month's lead fees) | ${realClients.flatMap(c=>getAlerts(c)).length} alerts | ${upgradeRequests.length} upgrade requests
 CLIENTS:
-${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}${c.internal?" [INTERNAL: BoldLine's OWN house ad account, not a paying client — help run/optimize its ads, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":""}`; }).join("\n")}
+${clients.map(c=>{ const p=findPkg(c.packageId); return `${c.name}: ${(p && p.name)}(${(p && p.platform)}) stage=${c.stage} leads=${c.leads} CPL=$${c.cpl} health=${calcHealth(c).toFixed(1)} contract=${c.contractEnd}${c.upgradeRequest?" UPGRADE:"+c.upgradeRequest:""}${isOwned(c)?" [OWNED: a business Bryson owns himself, run from the OS. Not BoldLine and not a client — help run/optimize its ads, website and landing pages for its own customers, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":c.internal?" [INTERNAL: BoldLine's OWN house ad account, not a paying client — help run/optimize its ads, but never propose upgrades, billing, or contract actions on it, and don't count it as client revenue]":""}`; }).join("\n")}
 Be direct, opinionated. Flag problems Bryson hasn't noticed.
 If Bryson clearly asks you to delete a specific client, call the delete_client tool with that client's exact name. He'll see an on-screen confirm button before anything is actually deleted, so just call the tool — no need to double-check in chat first.
 If you identify a specific, concrete action worth taking on a client's campaign — a budget change, pausing something underperforming, a creative refresh, anything with real-world or financial impact — call the propose_action tool instead of just suggesting it in chat. It lands in Bryson's approval queue (Notifications) for him to approve or reject; nothing executes without his approval. Propose it any time you'd otherwise just tell him "you should..." about a specific client.
@@ -14509,7 +14647,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
   const playbooks = usePlaybooks();
   const linked = !!client.googleAdsCustomerId;
   // House account's ads point at the real ad landing page; clients point at their own /lp page.
-  const landingDefault = client.internal ? HOUSE_LANDING_URL
+  const landingDefault = isHouse(client) ? HOUSE_LANDING_URL
     : landingUrlFor(client);
   const niche = client.niche || "";
   const cs = client.campaignSetup || {};
@@ -14586,12 +14724,12 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
         subject?`best ${subject}`:"", subject?`${subject} cost`:""].map(x=>String(x||"").trim()).filter(Boolean))].slice(0,8),
     };
   };
-  const seed0 = client.internal ? agencySeed("") : { name:`${client.name} — Search`, headlines:headlineSeed, descriptions:descSeed, keywords:kwSeed };
+  const seed0 = isHouse(client) ? agencySeed("") : { name:`${client.name} — Search`, headlines:headlineSeed, descriptions:descSeed, keywords:kwSeed };
 
   // Google targets EVERY country if a campaign is created with no location criteria,
   // so these are required, not optional. House account = the metro Bryson actually
   // cold calls; a client = whatever service area their intake captured.
-  const locationDefault = client.internal
+  const locationDefault = isHouse(client)
     ? "Gilbert, Arizona\nChandler, Arizona\nMesa, Arizona\nTempe, Arizona\nPhoenix, Arizona\nScottsdale, Arizona"
     : String(cs.serviceArea || cs.targetLocations || "").split(/[,;\n]/).map(s=>s.trim()).filter(Boolean).join("\n");
   // The searchers who can never buy. Cheap to exclude, expensive to leave in on a
@@ -14724,13 +14862,13 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       // Fire-and-poll. A synchronous call 504'd here: Netlify gives a sync function
       // ~10 seconds and this writes 3-5 full ads. The background function answers
       // immediately and stores its result on the client record.
-      const d = await adGenBackground({ action:"google", clientId: client.id, agency: !!client.internal,
-        name: client.internal ? "BoldLine Media" : client.name,
+      const d = await adGenBackground({ action:"google", clientId: client.id, agency: !!isHouse(client),
+        name: isHouse(client) ? "BoldLine Media" : client.name,
         // A client's chosen service narrows the brief the same way a niche narrows the
         // house account's. Without this the AI writes for the whole trade while the
         // campaign name and seeds say one service, and the two disagree.
-        niche: client.internal ? (audience || "any business owner") : (audience || client.niche || ""),
-        offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : (audience || cs.mainOffer || ""),
+        niche: isHouse(client) ? (audience || "any business owner") : (audience || client.niche || ""),
+        offer: isHouse(client) ? "Google and Meta ad management plus the landing pages behind them" : (audience || cs.mainOffer || ""),
         locations: f.locationsText.split("\n").map(x=>x.trim()).filter(Boolean).join(", "),
         avgTicket: cs.avgTicket||"", differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"",
         landingUrl: f.landingUrl, avoid: cs.excludedKeywords||"" });
@@ -14752,7 +14890,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     setF(p => (Number(p.dailyBudgetDollars) === autoDaily ? p : {...p, dailyBudgetDollars: autoDaily}));
   },[autoDaily,budgetTouched]);
   const fillFromAudience = () => {
-    const s = client.internal ? agencySeed(audience) : clientSeed(audience);
+    const s = isHouse(client) ? agencySeed(audience) : clientSeed(audience);
     setF(p=>({...p, name:s.name, headlinesText:s.headlines.join("\n"), descriptionsText:s.descriptions.join("\n"), keywordsText:s.keywords.join("\n")}));
     setState("idle"); setMsg("");
   };
@@ -14841,12 +14979,12 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
       <AreaConditionsCard locations={f.locationsText}/>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full Search campaign on <strong>your</strong> Google Ads account, pointing at your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full Search campaign (budget → ad group → responsive search ad → keywords) on <strong>{client.name}</strong>'s Google Ads account. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you enable it. They own the account + pay their own spend.</>}</div>
       <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
-        <label style={lbl}>{client.internal?"Who should this ad target?":"Which service is this campaign for?"}</label>
+        <label style={lbl}>{isHouse(client)?"Who should this ad target?":"Which service is this campaign for?"}</label>
         <div style={{display:"flex",gap:6}}>
-          <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder={client.internal?"e.g. Roofers, Med spas — or blank for any business owner":`e.g. roof repair, water heater install — or blank for ${niche||"everything"}`} style={{...box,flex:1}}/>
+          <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder={isHouse(client)?"e.g. Roofers, Med spas — or blank for any business owner":`e.g. roof repair, water heater install — or blank for ${niche||"everything"}`} style={{...box,flex:1}}/>
           <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
         </div>
-        <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>{client.internal
+        <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>{isHouse(client)
           ? <>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the campaign for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</>
           : <>Name <b style={{color:C.textDim}}>one service</b> and tap <b style={{color:C.textDim}}>Fill copy</b>, then Build. Change it and build again — each service gets its own campaign, which is how the ad ends up matching what was actually searched for. Leave blank to cover everything they do.</>}</div>
       </div>
@@ -15043,7 +15181,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           rows={5} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
         <FieldNotes notes={lineNotes(f.headlinesText,30,3,"headlines")}
           fix={fixLines(f.headlinesText,30,t=>set("headlinesText",t),{
-            agency: !!client.internal, name: client.name, niche: client.niche,
+            agency: !!isHouse(client), name: client.name, niche: client.niche,
             offer: (client.campaignSetup||{}).mainOffer, locations: f.locationsText,
             avgTicket: (client.campaignSetup||{}).avgTicket,
             differentiator: (client.brandVoice||{}).differentiator, landingUrl: f.landingUrl,
@@ -15057,7 +15195,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
           rows={3} style={{...box,resize:"vertical",fontFamily:"inherit"}}/>
         <FieldNotes notes={lineNotes(f.descriptionsText,90,2,"descriptions")}
           fix={fixLines(f.descriptionsText,90,t=>set("descriptionsText",t),{
-            agency: !!client.internal, name: client.name, niche: client.niche,
+            agency: !!isHouse(client), name: client.name, niche: client.niche,
             offer: (client.campaignSetup||{}).mainOffer, locations: f.locationsText,
             avgTicket: (client.campaignSetup||{}).avgTicket,
             differentiator: (client.brandVoice||{}).differentiator, landingUrl: f.landingUrl,
@@ -15080,7 +15218,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
 
 function MetaLaunchCard({client, onUpdate, platformCount}) {
   const linked = client.metaAdAccountId && client.metaPageId;
-  const landingDefault = client.internal ? HOUSE_LANDING_URL
+  const landingDefault = isHouse(client) ? HOUSE_LANDING_URL
     : landingUrlFor(client);
   // Newest image wins, and ad creatives beat stock photos: the Creative Studio saves
   // with category "ad-creative" and its own hint promises the launch card uses the
@@ -15129,7 +15267,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       description: svc ? `Fast ${svc} quotes` : (nch ? `Trusted ${nch}` : ""),
     };
   };
-  const mseed0 = client.internal ? metaAgencySeed("") : metaClientSeed("");
+  const mseed0 = isHouse(client) ? metaAgencySeed("") : metaClientSeed("");
   const [audience,setAudience] = useState("");
   const monthlyBudget = monthlyBudgetNum(client);
   // Split the monthly budget across the platforms actually being run — otherwise
@@ -15154,7 +15292,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     const cs = client.campaignSetup || {};
     const own = String(cs.targetLocations || cs.serviceArea || client.location || "").trim();
     if (own) return own;
-    return client.internal ? "Gilbert, Arizona, Chandler, Arizona, Mesa, Arizona, Tempe, Arizona, Phoenix, Arizona, Scottsdale, Arizona" : "";
+    return isHouse(client) ? "Gilbert, Arizona, Chandler, Arizona, Mesa, Arizona, Tempe, Arizona, Phoenix, Arizona, Scottsdale, Arizona" : "";
   })();
 
   const [f,setF] = useState({
@@ -15206,10 +15344,10 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     try{
       // Same fire-and-poll path as the Google card: this is a background job because
       // a synchronous Netlify function gets ~10 seconds and this writes several full ads.
-      const d = await adGenBackground({ action:"meta", clientId: client.id, agency: !!client.internal,
-        name: client.internal ? "BoldLine Media" : client.name,
-        niche: client.internal ? (audience || "any business owner") : (audience || client.niche || ""),
-        offer: client.internal ? "Google and Meta ad management plus the landing pages behind them"
+      const d = await adGenBackground({ action:"meta", clientId: client.id, agency: !!isHouse(client),
+        name: isHouse(client) ? "BoldLine Media" : client.name,
+        niche: isHouse(client) ? (audience || "any business owner") : (audience || client.niche || ""),
+        offer: isHouse(client) ? "Google and Meta ad management plus the landing pages behind them"
                                : (audience || (client.campaignSetup&&client.campaignSetup.mainOffer) || ""),
         // 🔴 WITHOUT THIS, META ADS GOT NO LOCAL CONDITIONS AT ALL. The server looks up the
         // weather from `locations`, and this call simply never sent it, so every Meta variant
@@ -15240,7 +15378,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
     setF(p => (p.imageUrl === autoImg ? p : {...p, imageUrl: autoImg}));
   },[autoImg,imgTouched]);
   const fillFromAudience = () => {
-    const s = client.internal ? metaAgencySeed(audience) : metaClientSeed(audience);
+    const s = isHouse(client) ? metaAgencySeed(audience) : metaClientSeed(audience);
     setF(p=>({...p, name:s.name, headline:s.headline, primaryText:s.primaryText, description:s.description}));
     setState("idle"); setMsg("");
   };
@@ -15306,7 +15444,7 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
   if(!linked) return (
     <Card>
       <Label>📘 Launch Meta Campaign</Label>
-      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?<>Link your <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then build and launch your Meta ads right here. (Meta ads also need App Review approved first.)</>:<>Link this client's <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then you can build and launch their Meta ads right here. (Client accounts also require Meta App Review to be approved.)</>}</div>
+      <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{client.internal?<>Link your <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then build and launch your Meta ads right here.</>:<>Link this client's <strong style={{color:C.textDim}}>Meta Ad Account ID</strong> and <strong style={{color:C.textDim}}>Facebook Page ID</strong> first — in <em>Edit → Campaign → Ad Account Linking</em>. Then you can build and launch their Meta ads right here. (Client accounts also require Meta App Review to be approved.)</>}</div>
     </Card>
   );
   return (
@@ -15315,12 +15453,12 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
       <AreaConditionsCard locations={metaLocations}/>
       <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?<>Builds a full lead-gen campaign on <strong>your</strong> Meta ad account, driving to your ad landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — start it from <strong style={{color:C.textDim}}>Your Live Campaigns</strong> above. Build one per niche to run several at once.</>:<>Builds a full lead-gen campaign on <strong>{client.name}</strong>'s ad account, driving to their landing page. Created <strong style={{color:C.gold}}>PAUSED</strong> — nothing spends until you activate it. They own the account + pay their own spend.</>}</div>
       <div style={{marginBottom:12,padding:"11px 12px",borderRadius:10,backgroundColor:C.goldDim,border:`1px solid ${C.borderAccent}`}}>
-        <label style={lbl}>{client.internal?"Who should this ad target?":"Which service is this campaign for?"}</label>
+        <label style={lbl}>{isHouse(client)?"Who should this ad target?":"Which service is this campaign for?"}</label>
         <div style={{display:"flex",gap:6}}>
-          <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder={client.internal?"e.g. Roofers, Med spas — or blank for any business owner":`e.g. roof repair, water heater install — or blank for ${client.niche||"everything"}`} style={{...box,flex:1}}/>
+          <input value={audience} onChange={e=>setAudience(e.target.value)} placeholder={isHouse(client)?"e.g. Roofers, Med spas — or blank for any business owner":`e.g. roof repair, water heater install — or blank for ${client.niche||"everything"}`} style={{...box,flex:1}}/>
           <button onClick={fillFromAudience} style={{flexShrink:0,padding:"8px 13px",fontSize:11,fontWeight:800,borderRadius:8,border:"none",backgroundColor:C.gold,color:"#15110A",cursor:"pointer"}}>✨ Fill copy</button>
         </div>
-        <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>{client.internal
+        <div style={{fontSize:10,color:C.textMuted,marginTop:7,lineHeight:1.55}}>{isHouse(client)
           ? <>Type a niche and tap <b style={{color:C.textDim}}>Fill copy</b> to auto-write the ad for it, then Build. Change the niche and build again — each is its own campaign. Leave blank for a general "any business owner" ad.</>
           : <>Name <b style={{color:C.textDim}}>one service</b> and tap <b style={{color:C.textDim}}>Fill copy</b>, then Build. Change it and build again — each service gets its own campaign, so the picture and the words can match that one job. Leave blank to cover everything they do.</>}</div>
       </div>
@@ -16073,10 +16211,10 @@ function AdCreativeStudio({client,onUpdate}){
   const generateAngles = async () => {
     setAngleState("working"); setAngleMsg("");
     try{
-      const d = await adGenCall({ action:"creatives", agency: !!client.internal,
-        name: client.internal ? "BoldLine Media" : client.name,
-        niche: niche || (client.internal ? "any business owner" : (client.niche||"")),
-        locations: city, offer: client.internal ? "Google and Meta ad management plus the landing pages behind them" : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),
+      const d = await adGenCall({ action:"creatives", agency: !!isHouse(client),
+        name: isHouse(client) ? "BoldLine Media" : client.name,
+        niche: niche || (isHouse(client) ? "any business owner" : (client.niche||"")),
+        locations: city, offer: isHouse(client) ? "Google and Meta ad management plus the landing pages behind them" : ((client.campaignSetup&&client.campaignSetup.mainOffer)||""),
         differentiator: (client.brandVoice&&client.brandVoice.differentiator)||"" });
       setAiAngles(d.angles||[]);
       if((d.angles||[]).length){
@@ -16118,7 +16256,7 @@ function AdCreativeStudio({client,onUpdate}){
   const findPhotos=async()=>{
     setStockState("working"); setStockMsg(""); setStock([]);
     try{
-      const q=niche||(client.internal?"":(client.niche||""));
+      const q=niche||(isHouse(client)?"":(client.niche||""));
       const d=await stockCall({action:"search",niche:q});
       setStock(d.photos||[]);
       setStockState(""); setStockMsg(`${(d.photos||[]).length} photos for "${d.query}"`);
@@ -16547,7 +16685,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
 
   const toggle=async(r)=>{
     const on=isOn(r);
-    if(!on&&!window.confirm(`Start "${r.c.name}"?\n\nThis turns the ads ON and begins REAL ad spend on ${r.client.internal?"BoldLine's own":(r.client.name||"the client")+"'s"} ${r.platform==="google"?"Google":"Meta"} account. You can pause it again any time.`)) return;
+    if(!on&&!window.confirm(`Start "${r.c.name}"?\n\nThis turns the ads ON and begins REAL ad spend on ${isHouse(r.client)?"BoldLine's own":(r.client.name||"the client")+"'s"} ${r.platform==="google"?"Google":"Meta"} account. You can pause it again any time.`)) return;
     setBusy(keyOf(r)); setActionErr("");
     try{
       if(r.platform==="google") await gadsCall({action:"setStatus",customerId:r.client.googleAdsCustomerId,campaignResourceName:r.c.campaignResourceName,status:on?"PAUSED":"ENABLED"});
@@ -16597,7 +16735,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
 
   const remove=async(r)=>{
     const on=isOn(r);
-    const whose=r.client.internal?"BoldLine's own":(r.client.name||"the client")+"'s";
+    const whose=isHouse(r.client)?"BoldLine's own":(r.client.name||"the client")+"'s";
     const plat=r.platform==="google"?"Google Ads":"Meta";
     let msg=`Delete "${r.c.name}"?\n\nThis permanently removes the campaign from ${whose} ${plat} account. It can NOT be undone — rebuilding it from scratch is the only way back.`;
     if(r.platform==="google") msg+=`\n\nGoogle marks it REMOVED, which is permanent — a removed campaign can never be re-enabled.`;
@@ -16866,7 +17004,7 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
             {linked.length>1&&(
               <select value={fClient} onChange={e=>setFClient(e.target.value)} style={{padding:"6px 10px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,backgroundColor:C.bg2,color:C.textDim,cursor:"pointer"}}>
                 <option value="all">All accounts</option>
-                {linked.map(c=><option key={c.id} value={c.id}>{c.internal?"My Ads (BoldLine)":(c.name||"Unnamed")}</option>)}
+                {linked.map(c=><option key={c.id} value={c.id}>{isHouse(c)?"My Ads (BoldLine)":(c.name||"Unnamed")}</option>)}
               </select>
             )}
           </div>
@@ -16898,8 +17036,8 @@ function CampaignManagerScreen({clients,onBack,isDesktop,onSelectClient,onUpdate
           {state==="ready"&&groups.map(g=>(
             <Card key={g.client.id} style={{marginBottom:12,borderColor:g.client.internal?`${C.gold}2a`:C.border}}>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4,flexWrap:"wrap"}}>
-                <Label>{g.client.internal?"My Ads — BoldLine Media":(g.client.name||"Unnamed")}</Label>
-                {g.client.internal&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:"#1a1400",background:C.gold,padding:"2px 6px",borderRadius:5}}>Internal</span>}
+                <Label>{isHouse(g.client)?"My Ads — BoldLine Media":(g.client.name||"Unnamed")}</Label>
+                {isHouse(g.client)&&<span style={{fontSize:8.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:"#1a1400",background:C.gold,padding:"2px 6px",borderRadius:5}}>Internal</span>}
                 <span style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
                   <span style={{fontSize:10,color:C.textMuted}}>{g.items.length} shown</span>
                   {onSelectClient&&<button onClick={()=>onSelectClient(g.client)} style={{fontSize:11,fontWeight:700,color:C.gold,background:"none",border:"none",cursor:"pointer",padding:0}}>Open ›</button>}
@@ -18260,7 +18398,7 @@ function MyAdsInsights({client,onUpdate}){
   const cardAdded=!!(client.myAdsSetup&&client.myAdsSetup.cardAdded);
   const steps=[
     {k:"budget",  label:"Set your monthly budget",                  done:monthlyBudget>0},
-    {k:"card",    label:"Add your payment card to Google / Meta",   done:cardAdded, manual:true},
+    {k:"card",    label:isOwned(client)?"Add the business's own card to Google / Meta":"Add your payment card to Google / Meta", done:cardAdded, manual:true},
     {k:"connect", label:"Connect your ad accounts (paste the IDs)", done:hasG||hasM},
     // Same helper as everywhere else: his ads already land on a live page, so this step
     // is genuinely done even though the OS did not generate that page.
@@ -18338,19 +18476,21 @@ function MyAdsInsights({client,onUpdate}){
     <Card>
       <Label>Acquisition ROI</Label>
       {nLeads===0
-        ? <div style={{fontSize:11.5,color:C.textMuted,marginTop:6,lineHeight:1.6}}>Once your ads bring in leads, your funnel shows up here — leads, calls booked, clients won, and what each new client costs you.</div>
+        ? <div style={{fontSize:11.5,color:C.textMuted,marginTop:6,lineHeight:1.6}}>{isOwned(client)?"Once its ads bring in leads, the numbers show up here: leads, customers won, and what each new customer costs.":"Once your ads bring in leads, your funnel shows up here — leads, calls booked, clients won, and what each new client costs you."}</div>
         : <div style={{marginTop:6}}>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Funnel (all time)</div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:13}}>
               {tile("Leads",nLeads)}
-              {tile("Calls booked",nBooked,nLeads>0?`${pct(nBooked,nLeads)}% of leads`:null,C.purple)}
-              {tile("Clients won",nWon,nBooked>0?`${pct(nWon,nBooked)}% of calls`:null,C.green)}
+              {!isOwned(client)&&tile("Calls booked",nBooked,nLeads>0?`${pct(nBooked,nLeads)}% of leads`:null,C.purple)}
+              {isOwned(client)
+                ? tile("Customers won",nWon,nLeads>0?`${pct(nWon,nLeads)}% of leads`:null,C.green)
+                : tile("Clients won",nWon,nBooked>0?`${pct(nWon,nBooked)}% of calls`:null,C.green)}
             </div>
             <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginBottom:6}}>Ad economics</div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {tile("Spent (30d)",money(spend30))}
               {tile("Cost / lead",costPerLead!=null?money(costPerLead):"—",costPerLead!=null?"last 30 days":"needs 30d leads + spend")}
-              {tile("Cost / client",projCAC!=null?money(projCAC):"—",projCAC!=null?"projected at your close rate":(nWon===0?"no clients won yet":"—"),C.gold)}
+              {tile(isOwned(client)?"Cost / customer":"Cost / client",projCAC!=null?money(projCAC):"—",projCAC!=null?"projected at your close rate":(nWon===0?(isOwned(client)?"no customers won yet":"no clients won yet"):"—"),C.gold)}
             </div>
           </div>}
     </Card>
@@ -18388,7 +18528,7 @@ function MyAdsSetupCards({client,onUpdate}){
   return (<>
     <Card>
       <Label>Monthly Ad Budget</Label>
-      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,margin:"3px 0 10px"}}>What you plan to spend across <b style={{color:C.textDim}}>all</b> your ads each month. You pay Google / Meta directly for this — BoldLine never holds it. The launch cards below fill their own daily budget from this figure, splitting it evenly across the platforms you run — you don't need to do the maths.</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,margin:"3px 0 10px"}}>What you plan to spend across <b style={{color:C.textDim}}>all</b> your ads each month. {isOwned(client)?<>{client.name} pays Google / Meta directly for this, on its own card. BoldLine never holds it or pays it.</>:"You pay Google / Meta directly for this — BoldLine never holds it."} The launch cards below fill their own daily budget from this figure, splitting it evenly across the platforms you run — you don't need to do the maths.</div>
       <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
         <div style={{position:"relative",flex:1,minWidth:0}}>
           <span style={{position:"absolute",left:11,top:"50%",transform:"translateY(-50%)",color:C.textMuted,fontSize:13,pointerEvents:"none"}}>$</span>
@@ -18404,7 +18544,7 @@ function MyAdsSetupCards({client,onUpdate}){
 
     <Card>
       <button onClick={()=>setOpenPay(o=>!o)} style={toggleBtn}>
-        <span style={{flex:1,minWidth:0}}>Step 1 — Add your payment card to Google &amp; Meta</span>
+        <span style={{flex:1,minWidth:0}}>{isOwned(client)?"Step 1 — Add the business's own card to Google & Meta":<>Step 1 — Add your payment card to Google &amp; Meta</>}</span>
         <span style={{color:C.textMuted,fontSize:11,flexShrink:0}}>{openPay?"▾":"▸"}</span>
       </button>
       {openPay&&<div style={{marginTop:9}}>
@@ -18413,12 +18553,12 @@ function MyAdsSetupCards({client,onUpdate}){
         <ol style={stepOl}>
           <li>Sign in at <b>ads.google.com</b>.</li>
           <li>Left menu → <b>Billing</b> (credit-card icon) → <b>Payments</b>.</li>
-          <li><b>Add payment method</b> → enter your card → <b>Save</b>.</li>
+          <li><b>Add payment method</b> → enter {isOwned(client)?"the business's":"your"} card → <b>Save</b>.</li>
         </ol>
         <div style={subHead}>Meta — Facebook &amp; Instagram</div>
         <ol style={stepOl}>
           <li>Go to <b>business.facebook.com</b> → <b>Billing &amp; payments</b> (or Settings → Payments).</li>
-          <li><b>Payment settings</b> → <b>Add payment method</b> → enter your card → <b>Save</b>.</li>
+          <li><b>Payment settings</b> → <b>Add payment method</b> → enter {isOwned(client)?"the business's":"your"} card → <b>Save</b>.</li>
           <li>If asked, set this card as the <b>primary</b> method for your ad account.</li>
         </ol>
         <div style={{fontSize:11,color:C.textMuted,marginTop:8,lineHeight:1.6,fontStyle:"italic"}}>You're only adding a card here — nothing is charged until a campaign is live and spending.</div>
@@ -18431,10 +18571,17 @@ function MyAdsSetupCards({client,onUpdate}){
         <span style={{color:C.textMuted,fontSize:11,flexShrink:0}}>{openConnect?"▾":"▸"}</span>
       </button>
       {openConnect&&<div style={{marginTop:9}}>
-        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>These are BoldLine's own accounts, so they already sit inside your MCC / Business Manager — no manager request to approve. Just paste the IDs so the bots know which account to run and can read live performance.</div>
+        {isOwned(client)
+          ? <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>{client.name} needs its <b style={{color:C.textDim}}>own</b> ad accounts, paid on its own card, so its spend and results never mix with BoldLine's. The easiest way is to create them from inside the accounts you already manage, so they are connected from day one:
+              <ol style={stepOl}>
+                <li><b>Google:</b> sign in at <b>ads.google.com</b> to your <b>manager account (MCC)</b>. Click <b>Accounts</b> in the left menu, then the blue <b>+</b>, then <b>Create new account</b>. Name it after the business, finish the steps, and add <b>the business's card</b> under <b>Billing</b>.</li>
+                <li><b>Meta:</b> at <b>business.facebook.com</b>, open <b>Settings</b> (gear icon), then <b>Accounts → Pages</b> to add the business's Facebook Page, and <b>Accounts → Ad accounts → Add → Create a new ad account</b>. Name it after the business, then add <b>the business's card</b> under <b>Billing & payments</b>.</li>
+                <li>Then paste both IDs below. Made the Google account outside your MCC instead? Paste its ID and send the link request from <b>Edit → Campaign</b>.</li>
+              </ol></div>
+          : <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>These are BoldLine's own accounts, so they already sit inside your MCC / Business Manager — no manager request to approve. Just paste the IDs so the bots know which account to run and can read live performance.</div>}
         <div style={subHead}>Google Ads Customer ID</div>
         <ol style={stepOl}>
-          <li>Sign in at <b>ads.google.com</b> on the account you run BoldLine's ads from.</li>
+          <li>Sign in at <b>ads.google.com</b> on the account you run {isOwned(client)?`${client.name}'s`:"BoldLine's"} ads from.</li>
           <li>Your <b>Customer ID</b> is the 10-digit number at the <b>top-right</b>, like <b>123-456-7890</b>.</li>
           <li>Paste it below and tap <b>Save IDs</b>.</li>
         </ol>
@@ -18515,7 +18662,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
             {client.name[0]}
           </div>
           <div style={S.f1min}>
-            <div style={{fontSize:15,fontWeight:700,color:C.text}}>{client.internal?"Edit My Ads Account":"Edit Client"}</div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>{isOwned(client)?"Edit Your Business":client.internal?"Edit My Ads Account":"Edit Client"}</div>
             <div style={{fontSize:11,color:C.textMuted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client.name}</div>
           </div>
           <button onClick={()=>setDeleteConfirm(true)} title="Delete client" aria-label="Delete client" style={{width:34,height:34,borderRadius:9,border:`1px solid ${C.red}33`,backgroundColor:"rgba(248,113,113,0.08)",color:C.red,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginRight:8}}>
@@ -18759,7 +18906,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
             </Card>
             <Card>
               <Label>Ad Account Linking</Label>
-              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{client.internal?"Link BoldLine's OWN ad accounts here (paste your Google Ads Customer ID / Meta Ad Account ID). Once linked, build a campaign on the Campaigns screen (More, then Campaigns) and Start it live — and ARIA reads live performance.":"Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes."}</div>
+              <div style={{fontSize:10,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>{isOwned(client)?`Link ${client.name}'s own ad accounts here. They belong to the business and are paid on its card, never BoldLine's. Create its Google Ads account from inside your manager account (MCC) so it is linked from day one, or send a link request below.`:client.internal?"Link BoldLine's OWN ad accounts here (paste your Google Ads Customer ID / Meta Ad Account ID). Once linked, build a campaign on the Campaigns screen (More, then Campaigns) and Start it live — and ARIA reads live performance.":"Link the client's OWN ad accounts (they keep ownership + pay their own spend; BoldLine holds manager access only). Once linked, ARIA reads live campaigns and your ⚡ approvals execute real changes."}</div>
               {[
                 {k:"googleAdsCustomerId", l:"Google Ads Customer ID", ph:"123-456-7890"},
                 {k:"metaAdAccountId",     l:"Meta Ad Account ID",     ph:"e.g. 1234567890 (digits only)"},
@@ -18794,7 +18941,7 @@ function EditClientSheet({client,onSave,onClose,onDelete}) {
                   means one mistyped digit sends a stranger a request from an agency they have
                   never heard of, asking for control of their ad account. So the number is
                   shown back and it waits to be pressed. */}
-              {!client.internal&&<LinkRequestRow customerId={form.googleAdsCustomerId} />}
+              {!isHouse(client)&&<LinkRequestRow customerId={form.googleAdsCustomerId} />}
             </Card>
             {/* 🔴 THE AGREED RATE, WHERE HE ACTUALLY LOOKS FOR IT. Bryson, 2026-09-08:
                 *"there is no place to put 50 in the edit tab but it is on the contract that
@@ -19075,6 +19222,21 @@ function makeInternalClient() {
     landingPage: { headline: "", subheadline: "", bullets: [], ctaText: "", published: false, generatedAt: null },
     googleAdsCustomerId: "", metaAdAccountId: "", metaPageId: "",
   };
+}
+
+// One of Bryson's own businesses (see isOwned). Built on the house account's shape so every money and
+// relationship rule already treats it as "not a client", then given its own name, trade and area.
+function makeOwnedBusiness(f) {
+  const base = makeInternalClient();
+  const name = String(f.name||"").trim() || "My business";
+  const area = String(f.serviceArea||"").trim();
+  return { ...base, owned: true, name,
+    contactName: "Bryson Weiser", email: String(f.email||"").trim(),
+    businessAddress: area, businessPhone: String(f.businessPhone||"").trim(), niche: f.niche||"",
+    website: "", platforms: (f.platforms&&f.platforms.length) ? f.platforms : ["Google Ads","Meta Ads"],
+    notes: "Your own business. Not a client: never billed, never counted, kept apart from BoldLine.",
+    campaignSetup: { ...base.campaignSetup, serviceArea: area, targetLocations: area },
+    landingSlug: makeSlug(name) };
 }
 
 // ─── DEMO CLIENT ──────────────────────────────────────────────────────────────
@@ -19893,7 +20055,7 @@ function BottomNav({screen,onHome,onLeads,onWebsite,onNotif,onARIA,onMore,notifC
 // 🔴 The comment above SideNav claimed "same destinations as BottomNav" while the two had
 // drifted apart, which is exactly how a missing entry survives a read of the code. Parity is
 // now asserted in tests/verify-nav-parity.mjs rather than described in a comment.
-function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onOutreach, onRevenue, onCampaigns, onContent, onSearch }) {
+function MoreSheet({ onClose, onMyAds, onBusinesses, onCalendar, onDealPrep, onLeadScout, onOutreach, onRevenue, onCampaigns, onContent, onSearch }) {
   // Tiles, two to a row, grouped like the computer menu so the same thing lives in the same place.
   const row = (icon,label,desc,onClick) => (
     <button onClick={onClick} style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:8,minWidth:0,padding:"12px 12px 11px",borderRadius:13,border:`1px solid ${C.border}`,background:"linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))",cursor:"pointer",textAlign:"left"}}>
@@ -19924,6 +20086,7 @@ function MoreSheet({ onClose, onMyAds, onCalendar, onDealPrep, onLeadScout, onOu
         {grp("Run clients")}
         <div style={grid}>
           {row(sv(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>),"My Ads","BoldLine's own ads, leads and campaigns",onMyAds)}
+          {row(sv(BIZ),"My Businesses","Your own businesses: websites, pages, ads",onBusinesses)}
           {row(sv(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>),"Campaigns","Every ad campaign — start, pause, delete",onCampaigns)}
           {row(sv(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>),"Content Studio","Video ideas + scripts, short and long form",onContent)}
         </div>
@@ -20257,7 +20420,8 @@ function useIsDesktop(bp=1024){
 // not: the bar holds five, the sheet holds the rest, and My Ads went missing from the sheet
 // for exactly as long as that sentence made the split look accounted for. Parity is asserted
 // in tests/verify-nav-parity.mjs now, because a comment cannot fail.
-function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onOutreach,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent,onSearch}){
+const BIZ = <><path d="M3 9.5 4.6 4h14.8L21 9.5"/><path d="M3 9.5a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/><path d="M5 12v8h14v-8M10 20v-5h4v5"/></>;
+function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLogout,notifCount,newLeadsCount,onMyAds,myAdsActive,onBusinesses,businessesActive,onOutreach,onDealPrep,onLeadScout,onCalendar,onCampaigns,onContent,onSearch}){
   const item = (active) => ({
     display:"flex",alignItems:"center",gap:12,width:"100%",padding:"9px 13px",
     borderRadius:11,border:"none",cursor:"pointer",textAlign:"left",position:"relative",
@@ -20318,6 +20482,7 @@ function SideNav({screen,onHome,onRevenue,onLeads,onWebsite,onNotif,onARIA,onLog
           <button onClick={onLeads} style={item(screen==="leads")}>{bar(screen==="leads")}{svg(<><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></>,col("leads"))}Leads{badge(newLeadsCount,C.green)}</button>
           <button onClick={onCampaigns} style={item(screen==="campaigns")}>{bar(screen==="campaigns")}{svg(<><path d="M3 11 21 4l-7 18-2.5-7.5L3 11z"/></>,col("campaigns"))}Campaigns</button>
           <button onClick={onMyAds} style={item(myAdsActive)}>{bar(myAdsActive)}{svg(<><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/></>,myAdsActive?C.gold:C.textMuted)}My Ads</button>
+          <button onClick={onBusinesses} style={item(businessesActive)}>{bar(businessesActive)}{svg(BIZ,businessesActive?C.gold:C.textMuted)}My Businesses</button>
           <button onClick={onWebsite} style={item(screen==="website")}>{bar(screen==="website")}{svg(<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.9 5.7 3.9 9S14.5 18.4 12 21c-2.5-2.6-3.9-5.7-3.9-9S9.5 5.6 12 3z"/></>,col("website"))}Website</button>
           <button onClick={onContent} style={item(screen==="content")}>{bar(screen==="content")}{svg(<><rect x="2" y="5" width="14" height="14" rx="2"/><path d="m16 10 6-3.5v11L16 14z"/></>,col("content"))}Content</button>
         </div>
@@ -20432,6 +20597,7 @@ function App({onLogout}) {
   const [activeClient,setActiveClient] = useState(null);
   const [showARIA,setShowARIA]         = useState(false);
   const [showAdd,setShowAdd]           = useState(false);
+  const [showAddBiz,setShowAddBiz]     = useState(false);
   const [addPrefill,setAddPrefill]     = useState(null);
   // A link Claude prepared (see parseClientPrefill): open Add Client already filled in, then clear the
   // hash so a reload does not reopen it. Nothing is written until Bryson presses Add Client.
@@ -20806,7 +20972,9 @@ function App({onLogout}) {
   // business metrics (MRR/revenue/count/billing). It's reached via its own
   // section, and created on first open.
   const realClients = clients.filter(c=>!c.internal);
-  const myAccount   = clients.find(c=>c.internal) || null;
+  const myAccount   = clients.find(isHouse) || null;
+  // Bryson's own businesses: internal (never billed, never counted) but not BoldLine.
+  const myBusinesses = clients.filter(isOwned);
   // 🔴 THE LEARNED PLAYBOOKS ARE GLOBAL, NOT PER CLIENT. What a screen printer teaches us
   // is worth having on the NEXT screen printer, so they live in one place: the house
   // account's record. No migration to run (the thing that made Lead Scout hang silently),
@@ -20976,10 +21144,10 @@ function App({onLogout}) {
           backed up, already live-refreshed. `save` is null when there is no house account
           yet, and every consumer disables its own editing rather than throwing. */}
       <div className="os-ambient" aria-hidden="true"><div className="t"></div><div className="grid"></div><div className="ob a"></div><div className="ob b"></div><div className="scan"></div><div className="vig"></div><div className="grain"></div></div>
-      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&!!(activeClient&&activeClient.internal)} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")} onSearch={()=>setShowCmd(true)}/>}
+      {isDesktop&&<SideNav screen={screen} onHome={()=>setScreen("home")} onRevenue={()=>setScreen("revenue")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onLogout={onLogout} notifCount={notifCount} newLeadsCount={newLeadsCount} onMyAds={openMyAds} myAdsActive={screen==="client"&&isHouse(activeClient)} onBusinesses={()=>setScreen("businesses")} businessesActive={screen==="businesses"||(screen==="client"&&isOwned(activeClient))} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} onCalendar={()=>setScreen("calendar")} onOutreach={()=>setScreen("outreach")} onCalendar={()=>setScreen("calendar")} onCampaigns={()=>setScreen("campaigns")} onContent={()=>setScreen("content")} onSearch={()=>setShowCmd(true)}/>}
       <div style={isDesktop?{flex:1,minWidth:0,height:"100vh",display:"flex",flexDirection:"column",overflow:"hidden"}:{display:"contents"}}>
       <div key={screen} className="os-content" style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",paddingBottom:isDesktop?0:60,width:"100%",maxWidth:isDesktop?1200:"none",margin:isDesktop?"0 auto":undefined}}>
-        {screen==="home"&&<HomeScreen clients={realClients} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} onOutreach={()=>setScreen("outreach")} hasMyAccount={!!myAccount} isDesktop={isDesktop} leads={leads} onLeads={()=>setScreen("leads")} onARIA={()=>setShowARIA(true)} onCalendar={()=>setScreen("calendar")}/>}
+        {screen==="home"&&<HomeScreen clients={realClients} onOpenBusinesses={()=>setScreen("businesses")} businessCount={myBusinesses.length} onSelect={selectClient} onAdd={()=>setShowAdd(true)} onAddDemo={addDemoClient} onLogout={onLogout} onRevenue={()=>setScreen("revenue")} onSegment={(k)=>{setSegment(k);setScreen("segment");}} onOpenMyAds={openMyAds} onDealPrep={()=>openDealPrep(null)} onLeadScout={()=>setScreen("leadscout")} hasMyAccount={!!myAccount} onOutreach={()=>setScreen("outreach")} hasMyAccount={!!myAccount} isDesktop={isDesktop} leads={leads} onLeads={()=>setScreen("leads")} onARIA={()=>setShowARIA(true)} onCalendar={()=>setScreen("calendar")}/>}
         {screen==="dealprep"&&<DealPrepScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} seed={dealSeed} onSeedUsed={()=>setDealSeed(null)} clients={clients} onCreateClient={addClient}/>}
         {screen==="leadscout"&&<LeadScoutScreen onBack={()=>setScreen("home")} isDesktop={isDesktop} onDealPrep={openDealPrep}/>}
         {/* Lead Scout finds them, Outreach works them. Two screens because they are two jobs:
@@ -20990,13 +21158,14 @@ function App({onLogout}) {
         {screen==="calendar"&&<CalendarScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="revenue"&&<RevenueScreen clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
         {screen==="segment"&&segment&&<SegmentScreen mode={segment} clients={realClients} onSelect={selectClient} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
-        {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen("home")} isDesktop={isDesktop} onOpenCampaign={openCampaign}/>}
+        {screen==="businesses"&&<MyBusinessesScreen businesses={myBusinesses} onSelect={selectClient} onAdd={()=>setShowAddBiz(true)} onBack={()=>setScreen("home")} isDesktop={isDesktop}/>}
+        {screen==="client"&&activeClient&&<ClientHub client={activeClient} onUpdate={updateClient} onDelete={deleteClient} onBack={()=>setScreen(isOwned(activeClient)?"businesses":"home")} isDesktop={isDesktop} onOpenCampaign={openCampaign}/>}
         {screen==="leads"&&<LeadsScreen leads={leads} onUpdate={updateLead} onReportSent={markReportSentByHand} onDelete={deleteLead} onRefresh={loadLeads} isDesktop={isDesktop} error={leadError} onDismissError={()=>setLeadError("")}/>}
         {screen==="website"&&<WebsiteScreen/>}
       </div>
       </div>
       {!isDesktop&&<BottomNav screen={screen} onHome={()=>setScreen("home")} onLeads={()=>setScreen("leads")} onWebsite={()=>setScreen("website")} onNotif={()=>setShowNotif(true)} onARIA={()=>setShowARIA(true)} onMore={()=>setShowMore(true)} notifCount={notifCount} newLeadsCount={newLeadsCount}/>}
-      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}} onSearch={()=>{setShowMore(false);setShowCmd(true);}}/>}
+      {showMore&&<MoreSheet onClose={()=>setShowMore(false)} onMyAds={()=>{openMyAds();setShowMore(false);}} onBusinesses={()=>{setScreen("businesses");setShowMore(false);}} onCalendar={()=>{setScreen("calendar");setShowMore(false);}} onDealPrep={()=>{openDealPrep(null);setShowMore(false);}} onLeadScout={()=>{setScreen("leadscout");setShowMore(false);}} onOutreach={()=>{setScreen("outreach");setShowMore(false);}} onRevenue={()=>{setScreen("revenue");setShowMore(false);}} onCampaigns={()=>{setScreen("campaigns");setShowMore(false);}} onContent={()=>{setScreen("content");setShowMore(false);}} onSearch={()=>{setShowMore(false);setShowCmd(true);}}/>}
       {/* Sits OUTSIDE .os-content on purpose: that element animates its opacity, which
           makes it a permanent stacking context and would trap this behind the screen
           (the same trap that hid the bot chat bar). A refused save has to be seen. */}
@@ -21049,6 +21218,7 @@ function App({onLogout}) {
         {id:"g-cal",k:"go",label:"Calendar",hint:"Everything scheduled",kw:"meetings schedule",run:()=>setScreen("calendar")},
         {id:"g-camp",k:"go",label:"Campaigns",hint:"Every ad campaign",kw:"google meta ads",run:()=>setScreen("campaigns")},
         {id:"g-myads",k:"go",label:"My Ads",hint:"BoldLine's own ads",kw:"house account boldline",run:()=>openMyAds()},
+        {id:"g-biz",k:"go",label:"My Businesses",hint:"Your own businesses: websites, landing pages, ads",kw:"detailing side business owned own company website",run:()=>setScreen("businesses")},
         {id:"g-web",k:"go",label:"Website",hint:"boldlinemedia.com",kw:"site marketing",run:()=>setScreen("website")},
         {id:"g-content",k:"go",label:"Content Studio",hint:"Video ideas and scripts",kw:"videos social",run:()=>setScreen("content")},
         {id:"g-rev",k:"go",label:"Revenue",hint:"What you invoiced, by month",kw:"money income invoices",run:()=>setScreen("revenue")},
@@ -21058,6 +21228,7 @@ function App({onLogout}) {
         ...realClients.map(cl=>({id:"c-"+cl.id,k:"client",label:cl.name||"Client",hint:[cl.niche,cl.package].filter(Boolean).join(" · "),kw:(cl.email||"")+" "+(cl.phone||""),run:()=>selectClient(cl)})),
         ...leads.slice(0,300).map((l,n)=>({id:"l-"+(l.id||n),k:"lead",label:l.business||l.name||l.email||"Lead",hint:[l.name&&l.business?l.name:"",l.email,l.phone].filter(Boolean).join(" · "),kw:"",run:()=>setScreen("leads")})),
       ]}/>}
+      {showAddBiz&&<AddBusinessSheet onSave={(f)=>{ setShowAddBiz(false); addClient(makeOwnedBusiness(f)); }} onClose={()=>setShowAddBiz(false)}/>}
       {showAdd&&<AddClientSheet initial={addPrefill} onSave={addClient} onClose={()=>{ setShowAdd(false); setAddPrefill(null); }}/>}
     </div>
     </PlaybookCtx.Provider>

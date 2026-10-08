@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { pipelineProgress } from "./pipeline-shared.mjs";
 import { resultWords } from "./contract-shared.cjs";
 import { brandColorOf } from "./site-render.mjs";
+import { isHouse, isOwned } from "./owned.mjs";
 
 import { SUPABASE_URL } from "./supabase-url.mjs";
 
@@ -213,7 +214,9 @@ export const buildOwnerPrompt = (client, period, data) => ({
   // The house account is not a client. Calling it one produces a briefing that
   // talks about "the client" and "the contract" when the account is Bryson's own
   // money, which reads as a template rather than a read on his own advertising.
-  system: `${client.internal
+  system: `${isOwned(client)
+    ? `You are writing a private ${period} briefing for Bryson Weiser about ${client.name}, a ${client.niche || "service"} business he owns and runs the advertising for. It is not a BoldLine client and not BoldLine itself: it is his own business, spending its own money on ads to win its own customers. There is no contract and no billing. Read it as an owner would: what the ads cost, what came in, and what to change. Never mention AI or bots.`
+    : client.internal
     ? `You are writing a private ${period} briefing for Bryson Weiser about BOLDLINE MEDIA'S OWN advertising. This is not a client account, it is his own money buying his own leads. There is no contract, no client to keep happy, and no billing to discuss. Judge it the way an owner would: is the spend producing booked calls, what is working, what should change this week. Be blunt. Never mention AI or bots.`
     : `You are writing a private internal account briefing for Bryson Weiser, owner of BoldLine Media, about one of his clients. This is for his eyes only — be direct and specific, not diplomatic. Never mention AI or bots.`}
 
@@ -850,7 +853,7 @@ export const buildOSDataBlock = (rows, now = new Date()) => {
   const all = (rows || []).map((r) => r.data).filter(Boolean);
   // BoldLine's own advertising account is not a client. It is still worth reporting, so it is
   // pulled out and reported as itself rather than dropped.
-  const house = all.find((c) => c.internal) || null;
+  const house = all.find(isHouse) || null;
   const clients = all.filter((c) => !c.internal);
   const active = clients.filter((c) => c.contractStatus === "active");
 
