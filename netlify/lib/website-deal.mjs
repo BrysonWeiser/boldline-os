@@ -33,7 +33,11 @@ import { WEBSITE_OFFER } from "./pricing-shared.mjs";
 export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
 // WA-2 (2026-10-06): section 6 spells out that BoldLine manages the client's domain settings through access the
 // client gives it, that the domain stays the client's, and what BoldLine may and may not do with that access.
-export const AGREEMENT_VERSION = "WA-2";
+// WA-3 (2026-10-07): setting up or changing how customers reach the business through the site (a quote form,
+// online booking, their own booking link, or calling) is part of the work and never a round of changes
+// (Bryson: "it won't count as one of the two client edits because it's just to fit how their business
+// takes clients").
+export const AGREEMENT_VERSION = "WA-3";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -187,6 +191,7 @@ ${pay}
 
 <h2>4. Changes before launch</h2>
 <p>Two rounds of changes before launch are included. A round is one list of changes sent together. New pages, a different design after work has started, or changes beyond two rounds are quoted separately and only done if Client agrees to the quote in writing.</p>
+<p>Setting up, and later changing, how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and the care plan. It never counts as a round of changes and is never charged separately.</p>
 
 <h2>5. Timing</h2>
 <p>BoldLine aims to have a first version ready for Client to review within fourteen (14) days of receiving the first payment and the information it needs. If BoldLine has not delivered a first version within sixty (60) days of receiving both, Client may end this Agreement by written notice and receive a refund of the Build Fee paid.</p>

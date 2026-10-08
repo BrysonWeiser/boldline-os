@@ -76,7 +76,8 @@ export function isOwnHost(host, extra = "") {
 // landing function, which reads any POST as the OS's owner-only preview and answered 401 "Not
 // authenticated". So every enquiry from a landing page on a client's own subdomain was refused while
 // the visitor saw "something went wrong", and nothing anywhere recorded it.
-const PASS_PATHS = ["/lead", "/site-hit"];
+// `/book` too (2026-10-07): the website's Book page asks it for open times and sends the booking there.
+const PASS_PATHS = ["/lead", "/site-hit", "/book"];
 export const isReservedPath = (pathname) => {
   const p = String(pathname || "/");
   return p.startsWith("/.netlify/") || p.startsWith("/.well-known/") || PASS_PATHS.includes(p.replace(/\/+$/, "") || "/");

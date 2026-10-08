@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 214 task-keyed entries under `knowledge/`. They surface automatically via the
+> 215 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**214 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**215 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -780,6 +780,12 @@
 - **[verification-harness](../knowledge/verification-harness.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   Sandbox has no live Supabase/Netlify CLI/ANTHROPIC_API_KEY. Verify with node --check on every file; a real Babel transformSync() of the extracted JSX (index.html has no build step); import/export cross-checks; and headless Chromium/Playwright against a LOCAL HTTP server (not file://) with full-page desktop+mobile shots + a javaScriptEnabled:false pass.  
   <sub>*task:* verify a code change in this sandbox (no live Supabase/Netlify/Anthropic) before shipping &nbsp;|&nbsp; *keywords:* node-check, transformSync, javaScriptEnabled, playwright, chromium, xss-payload</sub>
+
+## Website
+
+- **[website-booking-intake](../knowledge/website-booking-intake.md)** &mdash; &#9989; verified &middot; 2026-10-07  
+  Bryson, 2026-10-07 - the detailing business should show its number for callers but let customers book by tapping a package, picking a day and time, and giving the address and their details; then "modify websites (my other businesses and my clients) to include whatever booking system they have ... and it won't count as one of the two client edits". Built one setting per business, `cl.intake.how` (quote | book | link | call), that decides where every main website button goes, plus a built-in Book page (packages, working hours, travel time between jobs, soonest-allowed window, blocked time, never double-booked), a "How customers book" card on every website's Website tab, and agreement WA-3 saying this setup is never a round of changes.  
+  <sub>*task:* set or change how a business takes customers through its website (quote form, online booking with packages and times, its own booking link like Square or Calendly, or call first), set up booking packages and hours, block time, see or cancel bookings &nbsp;|&nbsp; *keywords:* booking, book online, online booking, packages, time slots, book page, intake, how customers book, quote form, booking link, square, calendly, housecall pro, call first, intakeOf, bookingOn, booking.mjs, book.mjs, BookingCard, /book, travel time, buffer, block time, WA-3, two rounds of changes</sub>
 
 ## Workflow
 
