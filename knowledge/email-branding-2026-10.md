@@ -35,3 +35,39 @@ the new email; lead email colour. Suite 144/144.
   EMAIL_SANS. Owner-only subjects ("[Review before sending] ... — email") keep theirs (exempt). Pinned in verify-email-brand.
 - The client AGREEMENT was reviewed and left as is: a light, printable serif legal document is right for a contract, and
   existing signed agreements must not move a byte (verify-billing-for-sales 5b).
+
+## Gmail on iPhone dark mode: the gold button went olive (2026-10-07 evening)
+
+- Bryson sent a screenshot of the free website check in Gmail on his iPhone: "doesn't look like the
+  other ones and the button is too dark".
+- 🔴 **Cause:** the Gmail iPhone app in dark mode recolours EVERY email. It flips light and dark on
+  every colour it's given, and it ignores `color-scheme: dark only`.
+  - Our dark emails come out light.
+  - The gold button comes out dark olive with white text.
+  - Most emails he gets (including the OS's own owner alerts) are light, so Gmail turns those dark.
+    That is why ours looked like the odd one out.
+  - Apple Mail, Gmail in light mode and Gmail on the web all show our dark design as built.
+- What Gmail never recolours: **pictures**, and **background images** (including
+  `linear-gradient(c,c)`).
+- **Fix (live):** `netlify/lib/email-button.mjs` `emailButton(label, url, {margin})` is now the one
+  button for client emails, the free check and the newsletter.
+  - Every FIXED label is a picture of the button, in `marketing-site/email/v1/<slug>.png` (2x, Inter,
+    gold #C8A84B, ink #15110A). Sizes are in the generated `netlify/lib/email-button-images.mjs`.
+  - The picture sits on a gold cell, gold set both as the colour and as a gradient background image,
+    so with pictures off it still reads as a gold button. The alt text is the label in dark ink.
+  - A label with no picture (the newsletter's, which the AI writes) gets the drawn button, with gold
+    locked as a background image so it stays gold. Its words may turn light in Gmail dark mode.
+- **Adding or renaming a button in an email:** run
+  `NODE_PATH=/opt/node22/lib/node_modules node scripts/build-email-buttons.mjs`, then commit the PNGs
+  and the manifest. `tests/verify-email-buttons.mjs` (46 checks) fails until you do.
+  - The label list is read from the code (`scripts/email-button-labels.mjs`: `button("...")` and
+    `seeAll: "..."`).
+  - Changing the LOOK means bumping `VERSION` (new folder). `/email/*` is cached as immutable in
+    `marketing-site/_headers`, and Gmail caches pictures too.
+- Tests that read an email's words now also read a picture's alt text (`verify-client-emails`,
+  `verify-website-emails`).
+- **Not done, on purpose:** keeping the whole email DARK inside Gmail's dark mode. The only known
+  trick (Gmail-only CSS with gradient backgrounds plus `mix-blend-mode` screen/difference) works for
+  white text only. It turns gold text blue, and it can't be tested from here. If it went wrong, every
+  Gmail reader would get unreadable text. Offered to Bryson as an option, to try only with him
+  checking on his phone.

@@ -11,6 +11,7 @@
 // scheduling, subscribers, analytics. sendDueNewsletters() no-ops while disabled.
 
 import { EMAIL_SANS, EMAIL_DARK, brandHeaderRow, emailH1 } from "./email-brand.mjs";
+import { emailButton } from "./email-button.mjs";
 import { BOLDLINE_REPLY_TO } from "./report-shared.mjs";
 import Anthropic from "@anthropic-ai/sdk";
 import { humanize } from "./humanize.mjs";
@@ -100,7 +101,7 @@ ${previewSpan}
       <tr><td style="background:${D.card};border:1px solid ${D.cardBorder};border-top:3px solid ${GOLD};border-radius:16px;padding:30px 28px">
         ${emailH1(escapeHTML(post.title))}
         ${paras}
-        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px auto 4px"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${url}" style="display:inline-block;padding:13px 32px;font-family:${SANS};font-size:14px;font-weight:700;color:#15110A;text-decoration:none;border-radius:10px">${escapeHTML(ctaText)} &rarr;</a></td></tr></table>
+        ${emailButton(ctaText, url, { margin: "22px auto 4px" })}
       </td></tr>
       <tr><td align="center" style="padding:18px 10px 0">
         <div style="font-family:${SANS};font-size:11px;line-height:1.65;color:${D.faint}">You're getting this because you subscribed at boldlinemedia.com.<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:${D.faint};text-decoration:underline">Unsubscribe</a></div>

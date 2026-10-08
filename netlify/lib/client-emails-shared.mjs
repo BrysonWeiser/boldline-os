@@ -12,6 +12,7 @@
 
 import { GOLD, escapeHTML } from "./report-shared.mjs";
 import { EMAIL_SANS, EMAIL_DARK, brandHeaderRow, emailH1 } from "./email-brand.mjs";
+import { emailButton } from "./email-button.mjs";
 
 const DARK = EMAIL_DARK;
 const SITE = "https://boldlinemedia.com"; // last-resort fallback so a button link is never empty
@@ -102,9 +103,8 @@ const b    = (t) => `<strong style="color:${DARK.head};font-weight:700">${t}</st
 const gold = (t) => `<span style="color:${GOLD};font-weight:700">${t}</span>`;
 const rule = () => `<div style="height:1px;background:rgba(255,255,255,.07);margin:20px 0"></div>`;
 
-const button = (label, url) => url
-  ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px auto 6px"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${escapeHTML(url)}" style="display:inline-block;padding:13px 32px;font-family:${SANS};font-size:14px;font-weight:700;color:#15110A;text-decoration:none;border-radius:10px">${escapeHTML(label)} &rarr;</a></td></tr></table>`
-  : "";
+// A picture of the gold button where there is one, so Gmail's dark mode cannot dull it (./email-button.mjs).
+const button = (label, url) => emailButton(label, url);
 
 // a bordered "receipt" / detail box (label → value rows)
 const detailBox = (rows) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${DARK.chip};border:1px solid rgba(255,255,255,.07);border-radius:12px;margin:6px 0 18px">

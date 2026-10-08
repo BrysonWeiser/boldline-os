@@ -33,7 +33,7 @@ const same = (name, got, want) => {
   const a = JSON.stringify(got), b = JSON.stringify(want);
   ok(name, a === b, a === b ? "" : `got ${a}, wanted ${b}`);
 };
-const text = (html) => html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
+const text = (html) => html.replace(/<img\b[^>]*\balt="([^"]*)"[^>]*>/g, " $1 ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&[a-z]+;/g, " ").replace(/\s+/g, " ").trim();
 
 const PORTAL = "https://boldlinemedia.com/portal?token=abc-123";
 const BASE = {

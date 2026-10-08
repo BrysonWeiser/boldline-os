@@ -29,6 +29,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL, sendEmail, escapeHTML, GOLD } from "../lib/report-shared.mjs";
 import { emailShell } from "../lib/client-emails-shared.mjs";
 import { EMAIL_SANS } from "../lib/email-brand.mjs";
+import { emailButton } from "../lib/email-button.mjs";
 import { keyOk, UUID_RE } from "../lib/lead-arrival.mjs";
 import { lookAtSite, metricLines } from "../lib/site-vision.mjs";
 
@@ -279,8 +280,7 @@ const mdToBody = (text) => {
   return blocks.join("");
 };
 
-const button = (label, url) =>
-  `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px auto 4px"><tr><td align="center" style="border-radius:10px;background:${GOLD}"><a href="${escapeHTML(url)}" style="display:inline-block;padding:13px 30px;font-family:${SANS};font-size:14px;font-weight:700;color:#15110A;text-decoration:none;border-radius:10px">${escapeHTML(label)} &rarr;</a></td></tr></table>`;
+const button = (label, url) => emailButton(label, url, { margin: "20px auto 4px" });
 
 const buildEmailHtml = ({ bodyMd, siteLabel }) => {
   const intro = `<p style="margin:0 0 16px;font-family:${SANS};font-size:15px;line-height:1.65;color:${DARK.body}">Thanks for requesting a free Lead-Leak Check${siteLabel ? " for " + escapeHTML(siteLabel) : ""}. Here is a quick, honest look at where your site may be leaving leads on the table, and the fixes that matter most.</p>`;
@@ -404,3 +404,6 @@ export default async (req) => {
   const r = await auditLead(supabase, { leadId, website, email, name: body.name });
   return json(r, r.status || 200);
 };
+
+// For the email checks and previews.
+export const _internal = { buildEmailHtml };
