@@ -317,4 +317,21 @@ t("a page assembled in the browser says so, so nothing missing is commented on a
   assert.match(BG, /Do not comment on it at all\./, "it is told the data is weak and still allowed to use it");
 });
 
+// Bryson, 2026-10-07: the writer moved to the current Opus. A model swap must not quietly lower the
+// quality of the first thing a prospect gets, or let a broken answer through to their inbox.
+t("the report is written by the current Opus, at an effort set on purpose, with room for its thinking", () => {
+  assert.match(BG, /model: "claude-opus-5-5",\n\s+max_tokens: 16000,/, "the writer is not on the current model");
+  assert.match(BG, /output_config: \{ effort: "high" \}/, "effort left to this model's lower default");
+  assert.doesNotMatch(BG, /claude-opus-4-8/, "the old model is still referenced");
+  assert.match(BG, /betas: \["server-side-fallback-2026-07-01"\], fallbacks: "default"/, "a safety decline would end the report instead of retrying on another model");
+});
+t("🔴 a refused, cut-off, unfinished or empty answer never reaches the prospect", () => {
+  const g = BG.slice(BG.indexOf("const generateReport"), BG.indexOf("// ── 3. render"));
+  for (const [what, re] of [["refused", /stop_reason === "refusal"\) throw/], ["cut off", /stop_reason === "max_tokens"\) throw/],
+    ["still researching", /stop_reason === "pause_turn"\) throw/], ["empty", /if \(text\.length < 200\) throw/]]) {
+    assert.match(g, re, `a ${what} answer would be emailed`);
+  }
+  assert.ok(g.indexOf('stop_reason === "refusal") throw') < g.indexOf("const text = humanize"), "the answer is read before it is checked");
+});
+
 console.log(`✓ verify-lead-leak-delivery: ${n} checks passed`);
