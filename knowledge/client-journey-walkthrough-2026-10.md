@@ -47,3 +47,9 @@ verified: 2026-10-07
 
 ## Still open (recommended to Bryson)
 - Check the marketing site has a verified sender set, otherwise the instant free-check alert email to Bryson is off.
+- **Stripe branding (his job, in Stripe: Settings, Business, Branding).** Icon `boldlinemedia.com/icon.png`,
+  logo `boldlinemedia.com/logo.png`, support email + website under Public details.
+  🔴 **Colour gotcha (2026-10-08, his screenshot):** Stripe paints the checkout header in the **Brand color**,
+  so brand `#C8A84B` (gold) put the gold B logo on a gold block where it vanished, and looked mustard.
+  Corrected: **Brand color `#07080C`** (our near-black, the site's own background, so the gold logo pops)
+  and **Accent color `#C8A84B`** (gold, used for the Pay button). Waiting on him to save and confirm.
