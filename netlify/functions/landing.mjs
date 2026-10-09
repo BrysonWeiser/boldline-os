@@ -70,7 +70,8 @@ export function landingTheme(cl) {
   //
   // It also means setting the colour updates EVERY page immediately, with no regeneration,
   // because a landing page is built from this record on each request rather than stored.
-  const raw = (cl && cl.brandColor) || lp.brandColor || "";
+  // A brand kit (KB brand-kit) is the most deliberate of all, so it goes first.
+  const raw = (cl && cl.brandKit && cl.brandKit.primary) || (cl && cl.brandColor) || lp.brandColor || "";
   const m = /^#?([0-9a-fA-F]{6})$/.exec(String(raw).trim());
   const brand = m ? `#${m[1].toLowerCase()}` : "#4f6bed";
   const n = parseInt(brand.slice(1), 16);

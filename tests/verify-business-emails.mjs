@@ -90,7 +90,7 @@ ok("🔴 the automatic emails wait until the address is proven", kinds(BIZ({ ema
     && !E.safePublicUrl("https://169.254.169.254/") && !E.safePublicUrl("https://x.internal/") && !E.safePublicUrl("https://[::1]/") && !E.safePublicUrl("https://desertgloss.com:8443/"));
   ok("every redirect is checked too", /redirect: "manual"/.test(src("netlify/functions/biz-email.mjs")) && /u = safePublicUrl\(new URL\(r\.headers\.get\("location"\), u\)\.href\)/.test(src("netlify/functions/biz-email.mjs")));
   ok("🔴 adding a business takes its website, and its branding is pulled the first time it opens", /field\("website","Website it already has \(optional\)"/.test(UI) && /brand: \{ website: bizWebsiteUrl\(f\.website\) \},/.test(UI)
-    && /useEffect\(\(\)=>\{ if\(br\.website && !br\.fetchedAt\) pull\(br\.website\); \},\[client\.id\]\)/.test(UI));
+    && /useEffect\(\(\)=>\{ if\(br\.website && !br\.fetchedAt\) pull\(\); \},\[client\.id\]\)/.test(UI));
   ok("and it sends from its own email once tested", /emailSender: \{ address: String\(f\.email\|\|""\)\.trim\(\) \},/.test(UI));
 }
 

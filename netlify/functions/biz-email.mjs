@@ -2,8 +2,12 @@
 //   POST {action:"sniff", url}                 pull the logo, brand colour and name from its own website
 //   POST {action:"test-sender", clientId}      prove the business's own From address works (a real send to Bryson)
 //   POST {action:"sample", clientId, kind}     email Bryson a sample: confirmation | reminder | review | rebook
+//   POST {action:"read-brand", clientId, path, type}   read colours and typefaces out of an uploaded brand file (KB brand-kit)
 // 🔴 Only the test send writes, and only `emailSenderStatus` (server-owned; the OS never saves over it).
 import { createClient } from "@supabase/supabase-js";
+import Anthropic from "@anthropic-ai/sdk";
+import { BRAND_READ_PROMPT, BRAND_FILE_TYPES, parseBrandRead } from "../lib/brand-kit.mjs";
+import { humanize } from "../lib/humanize.mjs";
 import { SUPABASE_URL, sendEmail } from "../lib/report-shared.mjs";
 import { isOwned } from "../lib/owned.mjs";
 import { bookingConfirmEmail } from "../lib/booking.mjs";
@@ -77,6 +81,31 @@ export default async (req) => {
     return json({ ok: false, status, error: /domain|verif/i.test(err)
       ? `${domain} isn't set up in the email service yet, so it can't send as ${address}. Finish the domain setup, then test again.`
       : "The test email did not send. Try again in a minute." });
+  }
+
+  // Read the colours and typefaces out of an uploaded brand file (KB brand-kit). The file was uploaded to this
+  // business's own storage folder a moment ago; only a path inside that folder is accepted.
+  if (body.action === "read-brand") {
+    const path = String(body.path || "");
+    if (!path.startsWith(`${row.id}/brand-file/`) || path.includes("..")) return json({ ok: false, error: "That file could not be found." }, 400);
+    const kind = BRAND_FILE_TYPES[String(body.type || "")];
+    if (!kind) return json({ ok: false, error: "Use a PDF, PNG, JPG or WEBP file." }, 400);
+    const { data: pub } = db.storage.from("client-media").getPublicUrl(path);
+    const block = { type: kind, source: { type: "url", url: pub.publicUrl } };
+    const anthropic = new Anthropic();
+    let lastErr = null;
+    for (const model of ["claude-sonnet-5-5", "claude-sonnet-5"]) {
+      try {
+        const msg = await anthropic.messages.create({ model, max_tokens: 1200, messages: [{ role: "user", content: [block, { type: "text", text: BRAND_READ_PROMPT }] }] });
+        const text = (msg.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
+        const read = parseBrandRead(text);
+        read.colors = read.colors.map((c) => ({ ...c, name: humanize(c.name) }));   // house rule: NEVER use a dash in anything shown
+        if (!read.colors.length && !read.headingFont && !read.bodyFont) return json({ ok: false, error: "No brand colours or fonts were found in that file. Type them in instead." });
+        return json({ ok: true, ...read });
+      } catch (e) { lastErr = e; }
+    }
+    console.error("read-brand failed:", lastErr && lastErr.message);
+    return json({ ok: false, error: "The file could not be read just now. Try again in a minute, or type the colours in." });
   }
 
   if (body.action === "sample") {

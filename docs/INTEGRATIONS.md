@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 217 task-keyed entries under `knowledge/`. They surface automatically via the
+> 218 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**217 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**218 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -447,6 +447,9 @@
 
 ## My Businesses
 
+- **[brand-kit](../knowledge/brand-kit.md)** &mdash; &#9989; verified &middot; 2026-10-09  
+  Bryson, 2026-10-09 - "i need a way to import my businesses or other businesses brand colors not by seeing their website but by being able to upload a file and or type in the actual colors as well as uploading images videos etc like how they would if they were an ad client for their landing page" and "work only on the my business part first ... then we will go to clients side". Built a Brand kit card on an owned business's Overview tab - main/second/accent colours (typed in any common form, colour picker, or tapped from colours found in a file), fonts, logo upload, photos and video upload into the same media library an ad client's portal uses. Files - an SVG's own colours, a picture's exact main colours sampled in the browser, a PDF brand guide (or picture) read by the AI for printed HEX codes and named fonts. Saving makes the main colour win on the website, landing page and emails. Clients' side is next.  
+  <sub>*task:* set a business's exact brand colours (typed, picked, or read from an uploaded file such as a brand guide PDF, logo or picture), fonts, logo, photos and video from the OS; make the website, landing page and emails use them &nbsp;|&nbsp; *keywords:* brand kit, brand colours, brand colors, hex, rgb, brand guide, pdf, logo upload, svg colours, palette, photos, video, media library, upload, brandKit, brandColor, bkParseColor, bkPalette, bkUpload, BrandKitCard, read-brand, brand-kit.mjs</sub>
 - **[business-emails](../knowledge/business-emails.md)** &mdash; &#9989; verified &middot; 2026-10-09  
   Bryson, 2026-10-09 - "lets do all of them" (reminder before a job, review request after, phone calendar feed, time for another) "but make sure the email comes from the business email for my other business not boldline media (make a way for you to brand the email based off of the business name and website when i add it to the my businesses tab)" and the rebook email "only goes to the one off customers ... and dont already have a subscription". Built a branded email design per business (logo and colour pulled from its own website), sending from its own address once a test send proves it, an hourly job for the three automatic emails with narrow windows (no backlog), strict one-off-only rebook logic, signed unsubscribe, and a webcal calendar feed. Needs Bryson to verify the business's email domain in Resend before the automatic emails start.  
   <sub>*task:* emails a business Bryson owns sends its own customers (booking confirmation, reminder before the job, review request after, time for another for one-off customers), sent from the business's own address and branded from its website; unsubscribe; the phone calendar feed &nbsp;|&nbsp; *keywords:* customer emails, reminder email, review request, rebook, time for another, one-off customers, subscription, plan package, planCustomers, sendAsBusiness, emailSender, emailSenderStatus, customerEmailLog, emailOptOut, optout, unsubscribe, biz-email.mjs, biz-email-shell.mjs, biz-customer-emails, brandFromHTML, Resend domain, fromAddress, biz-cal, webcal, ics, calendar feed</sub>

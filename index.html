@@ -9346,6 +9346,200 @@ function TeamViewCard({client,onUpdate}){
   );
 }
 
+// ─── BRAND KIT (owned businesses) ─────────────────────────────────────────────
+// Bryson, 2026-10-09: "i need a way to import my businesses or other businesses brand colors not by seeing their
+// website but by being able to upload a file and or type in the actual colors as well as uploading images videos
+// etc like how they would if they were an ad client for their landing page". Colours typed in, picked, or read
+// from a file (an image sampled right here, an SVG's own colours, or a PDF/image read by the AI); the logo,
+// photos and video upload into the same library an ad client's portal uploads into. Saving puts the main colour
+// on the website, the landing page, the ads and every email at once. KB brand-kit.
+const bkParseColor = (v) => {   // same answers as parseColor in netlify/lib/brand-kit.mjs (verify-brand-kit runs both)
+  const t = String(v || "").trim();
+  let m = t.match(/^#?([0-9a-f]{6})$/i);
+  if (m) return `#${m[1].toUpperCase()}`;
+  m = t.match(/^#?([0-9a-f]{3})$/i);
+  if (m) return `#${m[1].split("").map((c) => c + c).join("").toUpperCase()}`;
+  m = t.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+  if (m && [m[1], m[2], m[3]].every((x) => Number(x) <= 255)) return `#${[m[1], m[2], m[3]].map((x) => Number(x).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+  return "";
+};
+// The main colours in a picture, sampled in the browser: most used first, greys and near-white/black last, and
+// colours too close to one already picked are skipped.
+const bkPalette = (file) => new Promise((resolve) => {
+  const url = URL.createObjectURL(file); const img = new Image();
+  img.onload = () => { try {
+    const cv = document.createElement("canvas"); const n = 72; cv.width = n; cv.height = n;
+    const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0, n, n);
+    // Pixels are grouped into coarse buckets, but each bucket reports the AVERAGE of its real pixels, so a flat
+    // brand colour comes back exact rather than rounded. Buckets under 2% of the picture are edge blends.
+    const d = cx.getImageData(0, 0, n, n).data; const counts = new Map(); let total = 0;
+    for (let i = 0; i < d.length; i += 4) { if (d[i+3] < 128) continue; total++; const k = ((d[i]>>4)<<8)|((d[i+1]>>4)<<4)|(d[i+2]>>4);
+      const b = counts.get(k) || [0,0,0,0]; b[0]++; b[1]+=d[i]; b[2]+=d[i+1]; b[3]+=d[i+2]; counts.set(k, b); }
+    const hexOf = (b) => "#" + [b[1],b[2],b[3]].map((v) => Math.round(v/b[0]).toString(16).padStart(2,"0")).join("").toUpperCase();
+    const rgb = (h) => [1,3,5].map((i) => parseInt(h.slice(i,i+2),16));
+    const grey = (h) => { const [r,g,b] = rgb(h); return Math.max(r,g,b) - Math.min(r,g,b) < 24; };
+    const far = (a, b) => { const x = rgb(a), y = rgb(b); return Math.hypot(x[0]-y[0], x[1]-y[1], x[2]-y[2]) > 56; };
+    const out = [];
+    [...counts.values()].filter((b) => b[0] >= total * 0.02).map((b) => [hexOf(b), b[0]]).sort((a,b) => (grey(a[0]) - grey(b[0])) || (b[1] - a[1]))
+      .forEach(([h]) => { if (out.length < 6 && out.every((o) => far(o, h))) out.push(h); });
+    resolve(out);
+  } catch(e){ resolve([]); } finally { URL.revokeObjectURL(url); } };
+  img.onerror = () => { URL.revokeObjectURL(url); resolve([]); };
+  img.src = url;
+});
+const bkSvgColors = (t) => { const counts = new Map();   // same as svgColors in netlify/lib/brand-kit.mjs
+  for (const m of String(t||"").slice(0,400000).matchAll(/(?:fill|stroke|stop-color)\s*[:=]\s*["']?\s*(#[0-9a-f]{3,6}\b|rgba?\([^)]*\))/gi)) { const c = bkParseColor(m[1]); if (c) counts.set(c, (counts.get(c)||0)+1); }
+  const grey = (h) => { const [r,g,b] = [1,3,5].map((i) => parseInt(h.slice(i,i+2),16)); return Math.max(r,g,b) - Math.min(r,g,b) < 16; };
+  return [...counts.entries()].sort((a,b) => (grey(a[0]) - grey(b[0])) || (b[1] - a[1])).map(([c]) => c).slice(0, 8); };
+// Upload one file into the business's media library, the same path an ad client's portal uses.
+const bkUpload = async (client, file, category, { confirm = true } = {}) => {
+  const tok = encodeURIComponent(client.portalToken || "");
+  const sign = await fetch(`/.netlify/functions/media?action=sign&token=${tok}`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ filename: file.name || "file", category }) }).then((r) => r.json()).catch(() => ({}));
+  if (!sign || !sign.ok) throw new Error((sign && sign.error) || "Could not start the upload.");
+  const put = await fetch(sign.signedUrl, { method:"PUT", headers:{ "Content-Type": file.type || "application/octet-stream" }, body: file });
+  if (!put.ok) throw new Error("The upload was refused. Files must be under 50 MB.");
+  if (!confirm) return { path: sign.path };
+  let w, h;
+  if (/^image\//.test(file.type)) { try { const bm = await createImageBitmap(file); w = bm.width; h = bm.height; } catch(e){} }
+  const conf = await fetch(`/.netlify/functions/media?action=confirm&token=${tok}`, { method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ path: sign.path, category, label: file.name || category, ...(w ? { w, h } : {}) }) }).then((r) => r.json()).catch(() => ({}));
+  if (!conf || !conf.ok) throw new Error((conf && conf.error) || "It uploaded but could not be saved.");
+  return { path: sign.path, mediaLibrary: conf.mediaLibrary, url: ((conf.mediaLibrary || []).find((m) => m.path === sign.path) || {}).url || "" };
+};
+function BrandKitCard({client,onUpdate,onOpenAssets}){
+  const k0 = client.brandKit || {};
+  const br = client.brand || {};
+  const startColor = (k0.primary) || (client.website&&client.website.brandColor) || client.brandColor || br.color || "";
+  const [kit,setKit] = useState({ primary: startColor, secondary: k0.secondary||"", accent: k0.accent||"", headingFont: k0.headingFont||"", bodyFont: k0.bodyFont||"" });
+  const [slot,setSlot] = useState("primary");
+  const [found,setFound] = useState([]);   // [{hex,name}]
+  const [site,setSite] = useState(br.website||"");
+  const [busy,setBusy] = useState(""); const [msg,setMsg] = useState({});
+  const say = (k,t,ok) => setMsg(m=>({...m,[k]:{t,ok}}));
+  const lib = client.mediaLibrary || [];
+  const logo = (lib.find(m=>m&&m.category==="logo")||{}).url || client.brandLogo || br.logoUrl || "";
+  const media = lib.filter(m=>m&&(m.category==="photo"||m.category==="video"));
+  const SLOTS = [["primary","Main colour","Buttons, links and highlights everywhere"],["secondary","Second colour","Saved with the kit"],["accent","Accent colour","Saved with the kit"]];
+  const pick = (hex) => { const c = bkParseColor(hex); if(!c) return; setKit(k=>({...k,[slot]:c})); const i = SLOTS.findIndex(x=>x[0]===slot); if(i<SLOTS.length-1) setSlot(SLOTS[i+1][0]); };
+  const dirty = ["primary","secondary","accent","headingFont","bodyFont"].some(f=>String(kit[f]||"")!==String((f==="primary"?startColor:k0[f])||""));
+  const bad = ["primary","secondary","accent"].filter(f=>String(kit[f]||"").trim()&&!bkParseColor(kit[f]));
+  const save = () => {
+    if (bad.length) { say("kit","Fix the colour codes in red first (like #1D4ED8).",false); return; }
+    const primary = bkParseColor(kit.primary), font = (f) => String(f||"").replace(/[^A-Za-z0-9 \-']/g,"").trim().slice(0,60);
+    const brandKit = { primary, secondary: bkParseColor(kit.secondary), accent: bkParseColor(kit.accent), headingFont: font(kit.headingFont), bodyFont: font(kit.bodyFont), updatedAt: new Date().toISOString() };
+    const next = { ...client, brandKit, brand: { ...br, ...(primary ? { color: primary } : {}) }, ...(primary ? { brandColor: primary } : {}) };
+    if (primary && client.website && typeof client.website === "object") next.website = { ...client.website, brandColor: primary };
+    onUpdate(next); setKit(k=>({...k,...brandKit})); say("kit", primary ? "Saved. The website, landing page and emails now use these colours." : "Saved.", true);
+  };
+  const readFile = async (file) => {
+    if (!file) return; setFound([]); say("file","",true);
+    const type = file.type || "";
+    if (type === "image/svg+xml" || /\.svg$/i.test(file.name||"")) {
+      const cs = bkSvgColors(await file.text()); setFound(cs.map(hex=>({hex})));
+      say("file", cs.length ? "Found these colours in the logo. Tap one to put it in the highlighted colour." : "No colours found in that file. Type them in instead.", !!cs.length); return;
+    }
+    if (/^image\//.test(type)) { const cs = await bkPalette(file); setFound(cs.map(hex=>({hex}))); }
+    if (!/^(application\/pdf|image\/(png|jpeg|webp|gif))$/.test(type)) { say("file", /^image\//.test(type) ? "Found these colours in the picture." : "Use a PDF, PNG, JPG, WEBP or SVG file.", /^image\//.test(type)); return; }
+    setBusy("file");
+    try {
+      const up = await bkUpload(client, file, "brand-file", { confirm:false });
+      const r = await bizEmailCall("read-brand", { clientId: client.id, path: up.path, type });
+      if (r.ok) {
+        setFound(f => { const seen = new Set(); return [...(r.colors||[]), ...f].filter(c=>c&&c.hex&&!seen.has(c.hex)&&seen.add(c.hex)).slice(0,10); });
+        setKit(k => ({ ...k, headingFont: k.headingFont || r.headingFont || "", bodyFont: k.bodyFont || r.bodyFont || "" }));
+        say("file", `Read the file.${(r.colors||[]).length?" Tap a colour to put it in the highlighted colour.":""}${r.headingFont||r.bodyFont?" The fonts it names are filled in below.":""} Then press Save.`, true);
+      } else say("file", r.error || "The file could not be read.", false);
+    } catch(e){ say("file", e.message || "The upload did not work.", false); }
+    setBusy("");
+  };
+  const pull = async () => {
+    const u = bizWebsiteUrl(site); if(!u){ say("site","Type the website's address first, like yourbusiness.com.",false); return; }
+    setBusy("site"); const r = await bizEmailCall("sniff",{url:u}); setBusy("");
+    onUpdate({...client, brand:{...br, website:u, ...(r.ok&&r.brand&&r.brand.logoUrl?{logoUrl:r.brand.logoUrl}:{}), fetchedAt:new Date().toISOString()}});
+    if(!r.ok){ say("site",r.error||"Could not read that website.",false); return; }
+    if(r.brand&&r.brand.color) setFound(f=>[{hex:r.brand.color,name:"From the website"},...f.filter(x=>x.hex!==r.brand.color)]);
+    say("site", r.brand&&(r.brand.color||r.brand.logoUrl) ? `${r.brand.logoUrl?"Took the logo. ":""}${r.brand.color?"Its colour is in the list above: tap it to use it.":""}` : "The website didn't list a logo or colour. Upload a file or type them in.", true);
+  };
+  // A business added with a website gets its branding pulled the first time this card opens.
+  useEffect(()=>{ if(br.website && !br.fetchedAt) pull(); },[client.id]); // eslint-disable-line
+  const uploadLogo = async (file) => { if(!file) return; setBusy("logo"); try { const r = await bkUpload(client, file, "logo");
+      onUpdate({...client, mediaLibrary: r.mediaLibrary || lib, brandLogo: r.url || client.brandLogo, brand:{...br, logoUrl: r.url || br.logoUrl}}); say("logo","Logo saved. The website, landing page and emails use it.",true);
+      if (/^image\//.test(file.type) && !k0.primary) { const cs = file.type==="image/svg+xml" ? bkSvgColors(await file.text()) : await bkPalette(file); if (cs.length) { setFound(cs.map(hex=>({hex,name:"From the logo"}))); } }
+    } catch(e){ say("logo", e.message, false); } setBusy(""); };
+  const uploadMedia = async (files) => { const list = [...(files||[])]; if(!list.length) return; let latest = null, n = 0;
+    for (const f of list) { setBusy(`media ${n+1}/${list.length}`); try { const r = await bkUpload(client, f, /^video\//.test(f.type) ? "video" : "photo"); latest = r.mediaLibrary || latest; n++; } catch(e){ say("media", `${f.name}: ${e.message}`, false); } }
+    setBusy(""); if (latest) { onUpdate({...client, mediaLibrary: latest}); say("media", `${n} file${n===1?"":"s"} added.`, true); } };
+  const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
+  const small = (primary)=>({padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,flexShrink:0,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6});
+  const note = (k) => msg[k]&&msg[k].t ? <div style={{fontSize:11.5,lineHeight:1.55,marginTop:7,color:msg[k].ok?C.green:C.red}}>{msg[k].t}</div> : null;
+  const fileBtn = (label, accept, onPick, key, multiple) => (
+    <label style={{...small(true),cursor:busy?"default":"pointer",opacity:busy&&busy!==key?.6:1}}>{busy===key||(key==="media"&&busy.startsWith("media"))?(key==="media"?`Uploading ${busy.replace("media ","")}...`:"Working..."):label}
+      <input type="file" accept={accept} multiple={!!multiple} disabled={!!busy} onChange={e=>{ const f = multiple ? e.target.files : e.target.files[0]; e.target.value=""; onPick(f); }} style={{display:"none"}}/></label>);
+  return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <Label>Brand kit</Label>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,margin:"4px 0 6px"}}>{client.name}'s colours, logo, photos and video. Its website, landing page, ads and every email use them, so set them once here.</div>
+
+      <div style={sub}>Colours</div>
+      <div style={{display:"grid",gap:8}}>
+        {SLOTS.map(([f,l,d])=>{ const c = bkParseColor(kit[f]); const on = slot===f; return (
+          <div key={f} onClick={()=>setSlot(f)} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderRadius:10,cursor:"pointer",border:`1px solid ${on?C.gold:C.border}`,backgroundColor:on?C.goldDim:"rgba(255,255,255,.02)"}}>
+            <input type="color" value={c||"#000000"} onChange={e=>setKit(k=>({...k,[f]:e.target.value.toUpperCase()}))} onClick={e=>e.stopPropagation()} title={`Pick the ${l.toLowerCase()}`} style={{width:38,height:38,padding:0,border:`1px solid ${C.border}`,borderRadius:8,background:"none",cursor:"pointer",flexShrink:0,opacity:c?1:.35}}/>
+            <div style={{flex:1,minWidth:0}}><div style={{fontSize:12,fontWeight:800,color:on?C.gold:C.text}}>{l}</div><div style={{fontSize:10.5,color:C.textMuted}}>{d}</div></div>
+            <input value={kit[f]} onChange={e=>setKit(k=>({...k,[f]:e.target.value}))} onClick={e=>e.stopPropagation()} placeholder="#1D4ED8" style={{...inp,width:118,flexShrink:0,borderColor:bad.includes(f)?C.red:undefined}}/>
+          </div>); })}
+      </div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Type a code (#1D4ED8, 1D4ED8 or rgb(29, 78, 216)), use the colour picker, or get them from a file.</div>
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:10}}>
+        {fileBtn("Get colours from a file", "image/*,.svg,application/pdf,.pdf", readFile, "file")}
+        <span style={{fontSize:10.5,color:C.textMuted,flex:"1 1 200px",lineHeight:1.5}}>A brand guide (PDF), the logo, or any picture with their colours. A PDF is read by AI, which takes the exact codes printed in it.</span>
+      </div>
+      {note("file")}
+      {found.length>0&&<div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:10}}>
+        {found.map(c=>(
+          <button key={c.hex} onClick={()=>pick(c.hex)} title={`Use ${c.hex}`} style={{display:"flex",alignItems:"center",gap:7,padding:"5px 10px 5px 5px",borderRadius:20,cursor:"pointer",border:`1px solid ${C.border}`,backgroundColor:"rgba(255,255,255,.03)",fontFamily:"inherit"}}>
+            <span style={{width:22,height:22,borderRadius:"50%",backgroundColor:c.hex,border:"1px solid rgba(255,255,255,.25)"}}/>
+            <span style={{fontSize:11,color:C.text,fontWeight:700}}>{c.hex}</span>{c.name&&<span style={{fontSize:10.5,color:C.textMuted}}>{c.name}</span>}
+          </button>))}
+      </div>}
+      <div style={{display:"flex",gap:8,marginTop:10}}><input value={site} onChange={e=>setSite(e.target.value)} placeholder="Or its website: yourbusiness.com" style={{...inp,flex:1,minWidth:0}}/>
+        <button onClick={pull} disabled={!!busy} style={small(false)}>{busy==="site"?"Looking...":"Pull from website"}</button></div>
+      {note("site")}
+
+      <div style={sub}>Fonts (optional)</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:8}}>
+        <div><div style={lbl}>Headings</div><input value={kit.headingFont} onChange={e=>setKit(k=>({...k,headingFont:e.target.value}))} placeholder="e.g. Montserrat" style={inp}/></div>
+        <div><div style={lbl}>Body text</div><input value={kit.bodyFont} onChange={e=>setKit(k=>({...k,bodyFont:e.target.value}))} placeholder="e.g. Inter" style={inp}/></div>
+      </div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Saved with the kit. The website designs still use their own fonts for now.</div>
+      <button onClick={save} disabled={!dirty} style={{...small(true),width:"100%",padding:"11px",marginTop:12,opacity:dirty?1:.5}}>Save the brand kit</button>
+      {note("kit")}
+
+      <div style={sub}>Logo</div>
+      <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+        <div style={{width:120,height:56,borderRadius:10,backgroundColor:"#fff",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+          {logo ? <img src={logo} alt="" style={{maxWidth:"90%",maxHeight:"80%",objectFit:"contain"}}/> : <span style={{fontSize:10.5,color:"#6B7280"}}>No logo yet</span>}</div>
+        {fileBtn(logo?"Replace the logo":"Upload the logo","image/png,image/jpeg,image/webp,image/svg+xml,.svg",uploadLogo,"logo")}
+      </div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>A PNG or SVG with a see-through background looks best.</div>
+      {note("logo")}
+
+      <div style={sub}>Photos and video</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        {fileBtn("Upload photos or video","image/*,video/*",uploadMedia,"media",true)}
+        <span style={{fontSize:11.5,color:C.textDim}}>{media.length} in the library{media.length?". ":""}{media.length>0&&<button onClick={onOpenAssets} style={{background:"none",border:0,padding:0,color:C.gold,fontWeight:700,fontSize:11.5,cursor:"pointer",fontFamily:"inherit"}}>See them, crop or remove</button>}</span>
+      </div>
+      {media.length>0&&<div style={{display:"flex",gap:6,marginTop:10,overflowX:"auto"}}>{media.slice(-8).reverse().map(m=>m.category==="video"
+        ? <div key={m.path} style={{width:64,height:64,borderRadius:8,backgroundColor:"#000",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>▶</div>
+        : <img key={m.path} src={m.url} alt="" style={{width:64,height:64,borderRadius:8,objectFit:"cover",flexShrink:0}}/>)}</div>}
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Real photos of the work, the team and the vehicle, plus a short video if you have one. The website, landing page and ads pick from these. Up to 50 MB a file.</div>
+      {note("media")}
+    </Card>
+  );
+}
+
 // ─── CUSTOMER EMAILS (owned businesses) ───────────────────────────────────────
 // Bryson, 2026-10-09: a reminder the day before a job, a review request after it, and "time for another" for
 // one-off customers only (never anyone on a subscription), every one "from the business email ... not boldline
@@ -9361,9 +9555,6 @@ function CustomerEmailsCard({client,onUpdate}){
   const br = client.brand || {};
   const ce = client.customerEmails || {};
   const st = client.emailSenderStatus || {};
-  const [site,setSite] = useState(br.website||"");
-  const [logo,setLogo] = useState(br.logoUrl||"");
-  const [color,setColor] = useState(br.color||"");
   const [addr,setAddr] = useState(((client.emailSender||{}).address)||client.email||"");
   const [review,setReview] = useState(ce.reviewUrl||"");
   const [plans,setPlans] = useState(Array.isArray(ce.planCustomers)?ce.planCustomers.join("\n"):(ce.planCustomers||""));
@@ -9373,18 +9564,6 @@ function CustomerEmailsCard({client,onUpdate}){
   const okUrl = (u) => /^https:\/\/[^\s"'<>]+$/i.test(String(u||"").trim());
   const sending = st.verified && String(st.address||"").toLowerCase()===String(((client.emailSender||{}).address)||"").toLowerCase() && String(st.address||"").toLowerCase()===addr.trim().toLowerCase();
   const setCE = (patch) => onUpdate({...client, customerEmails:{...ce, ...patch}});
-  const pull = async (url) => {
-    const u = bizWebsiteUrl(url); if(!u){ say("brand","Type the website's address first, like yourbusiness.com.",false); return; }
-    setBusy("brand"); const r = await bizEmailCall("sniff",{url:u}); setBusy("");
-    if(!r.ok){ say("brand",r.error||"Could not read that website.",false); onUpdate({...client, brand:{...br, website:u, fetchedAt:new Date().toISOString()}}); return; }
-    const b = r.brand||{};
-    setSite(u); if(b.logoUrl) setLogo(b.logoUrl); if(b.color) setColor(b.color);
-    onUpdate({...client, brand:{...br, website:u, logoUrl:b.logoUrl||br.logoUrl||"", color:b.color||br.color||"", fetchedAt:new Date().toISOString()}});
-    say("brand", b.logoUrl||b.color ? `Pulled ${[b.logoUrl&&"the logo",b.color&&"the brand colour"].filter(Boolean).join(" and ")} from the website.` : "The website didn't list a logo or colour we could use. Add them below.", true);
-  };
-  // A business added with a website gets its branding pulled the first time this card opens.
-  useEffect(()=>{ if(br.website && !br.fetchedAt) pull(br.website); },[client.id]); // eslint-disable-line
-  const saveBrand = () => { onUpdate({...client, brand:{...br, website:bizWebsiteUrl(site), logoUrl:okUrl(logo)?logo.trim():"", color:hex.test(color.trim())?color.trim().toUpperCase():""}}); say("brand","Saved.",true); };
   const test = async () => {
     const a = addr.trim(); if(!/^[^\s@<>"',;]+@[^\s@<>"',;]+\.[a-z]{2,}$/i.test(a)){ say("send","That doesn't look like an email address.",false); return; }
     onUpdate({...client, emailSender:{...(client.emailSender||{}), address:a}});
@@ -9393,7 +9572,10 @@ function CustomerEmailsCard({client,onUpdate}){
   };
   const sample = async (kind) => { setBusy("s-"+kind); const r = await bizEmailCall("sample",{clientId:client.id, kind}); setBusy("");
     say("sample", r.ok ? `Sent to your inbox${r.via==="fallback"?" (from our sending address, because the business's own one isn't set up yet)":""}.` : (r.error||"It did not send."), !!r.ok); };
-  const shownColor = hex.test(color.trim()) ? color.trim() : (client.website&&client.website.brandColor) || "#111827";
+  // What the emails will look like: the Brand kit's logo and main colour (biz-email-shell bizBrand).
+  const lib = client.mediaLibrary || [];
+  const logo = (client.brand&&client.brand.logoUrl) || client.brandLogo || "";
+  const shownColor = [client.brandKit&&client.brandKit.primary, br.color, client.website&&client.website.brandColor, client.brandColor].find(c=>hex.test(String(c||""))) || "#111827";
   const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
   const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
   const small = (primary)=>({padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,flexShrink:0});
@@ -9416,16 +9598,7 @@ function CustomerEmailsCard({client,onUpdate}){
         {okUrl(logo) ? <img src={logo} alt="" style={{height:34,maxWidth:160,objectFit:"contain"}}/> : <div style={{fontSize:16,fontWeight:800,color:"#111827"}}>{client.name}</div>}
         <div style={{flex:1}}/><span style={{padding:"8px 14px",borderRadius:8,backgroundColor:shownColor,color:"#fff",fontSize:12,fontWeight:700,textShadow:"0 1px 1px rgba(0,0,0,.25)"}}>Button</span>
       </div>
-      <div style={lbl}>Its website</div>
-      <div style={{display:"flex",gap:8}}><input value={site} onChange={e=>setSite(e.target.value)} placeholder="https://yourbusiness.com" style={{...inp,flex:1,minWidth:0}}/>
-        <button onClick={()=>pull(site)} disabled={busy==="brand"} style={small(true)}>{busy==="brand"?"Looking...":"Pull logo and colour"}</button></div>
-      <div style={{display:"grid",gridTemplateColumns:"minmax(0,2fr) minmax(0,1fr)",gap:8,marginTop:8}}>
-        <div><div style={lbl}>Logo link (optional)</div><input value={logo} onChange={e=>setLogo(e.target.value)} placeholder="https://.../logo.png" style={inp}/></div>
-        <div><div style={lbl}>Brand colour</div><input value={color} onChange={e=>setColor(e.target.value)} placeholder={(client.website&&client.website.brandColor)||"#1D4ED8"} style={inp}/></div>
-      </div>
-      <button onClick={saveBrand} style={{...small(false),marginTop:8}}>Save the look</button>
-      {note("brand")}
-      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>No website yet? It uses the colour of the website you build for it here, and its name in place of a logo.</div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6}}>The logo and colour come from the Brand kit above.</div>
 
       <div style={sub}>Sent from</div>
       <div style={{display:"flex",gap:8}}><input type="email" value={addr} onChange={e=>setAddr(e.target.value)} placeholder="hello@yourbusiness.com" style={{...inp,flex:1,minWidth:0}}/>
@@ -12292,6 +12465,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
             {isOwned(client)&&<BusinessPortalCard client={client} onUpdate={onUpdate}/>}
+            {isOwned(client)&&<BrandKitCard client={client} onUpdate={onUpdate} onOpenAssets={()=>setTab("portal")}/>}
             {isOwned(client)&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
             <LaunchChecklistCard client={client}/>
