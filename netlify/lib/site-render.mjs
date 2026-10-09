@@ -855,7 +855,107 @@ function photoBlock(ph, ratio = "4/3") {
 
 const storyText = (fill, text) => fill ? `<p class="fill">${esc(text)}</p>` : `<p class="lead disp rv">${esc(text)}</p>`;
 
-function homeBody(theme, cl, C, base, photos, M, ba = []) {
+// ── The home page as sections he can show, hide, reorder and add to (Bryson, 2026-10-09: "edit any text, show,
+// hide, reorder, add new sections, choose each photo", plus an AI that does it from what he says). KB site-editor.
+// 🔴 A SITE NOBODY EDITED RENDERS EXACTLY AS BEFORE: no saved layout means the original order with nothing hidden.
+export const HOME_SECTIONS = [["hero", "Top of the page"], ["marquee", "Moving strip of words"], ["services", "Services"], ["story", "Your story"],
+  ["beforeafter", "Before and after"], ["why", "Why choose us"], ["steps", "How it works"], ["faq", "Questions"], ["reviews", "A review"], ["cta", "Closing call to action"]];
+export const BLOCK_TYPES = { text: "Text", gallery: "Photo gallery", pricing: "Prices", video: "Video", areas: "Areas we serve", team: "Team" };
+export const MAX_BLOCKS = 12;
+const BUILT_KEYS = HOME_SECTIONS.map((x) => x[0]);
+const blockId = (k) => String(k || "").replace(/[^a-z0-9]/gi, "").slice(0, 16);
+// Every block, cleaned: only known types, only known fields, text trimmed, links https only.
+export function cleanBlock(b) {
+  if (!b || !BLOCK_TYPES[b.type]) return null;
+  const list = (a, n) => (Array.isArray(a) ? a : []).slice(0, n);
+  const base = { id: blockId(b.id), type: b.type, heading: clean(b.heading, 90) };
+  if (!base.id) return null;
+  if (b.type === "text") return { ...base, body: String(b.body == null ? "" : b.body).replace(/[—–]/g, ", ").slice(0, 2000).trim() };
+  if (b.type === "gallery") return { ...base, photos: list(b.photos, 12).map(httpsUrl).filter(Boolean) };
+  if (b.type === "pricing") return { ...base, items: list(b.items, 6).map((i) => ({ name: clean(i && i.name, 60), price: clean(i && i.price, 30), text: clean(i && i.text, 220) })).filter((i) => i.name), note: clean(b.note, 160) };
+  if (b.type === "video") return { ...base, url: httpsUrl(b.url), text: clean(b.text, 300) };
+  if (b.type === "areas") return { ...base, text: clean(b.text, 300), places: list(b.places, 30).map((p) => clean(p, 40)).filter(Boolean) };
+  if (b.type === "team") return { ...base, people: list(b.people, 8).map((p) => ({ name: clean(p && p.name, 60), role: clean(p && p.role, 60), photo: httpsUrl(p && p.photo) })).filter((p) => p.name) };
+  return null;
+}
+export const blocksOf = (cl) => ((cl && cl.website && cl.website.blocks) || []).map(cleanBlock).filter(Boolean).slice(0, MAX_BLOCKS);
+const blockOf = (cl, id) => blocksOf(cl).find((b) => b.id === id) || null;
+export function homeLayout(cl) {
+  const saved = (cl && cl.website && cl.website.layout && Array.isArray(cl.website.layout.home)) ? cl.website.layout.home : [];
+  const ids = new Set(blocksOf(cl).map((b) => b.id));
+  const seen = new Set(); const out = [];
+  for (const x of saved) {
+    const key = String((x && x.key) || "");
+    const ok = BUILT_KEYS.includes(key) || (key.startsWith("b:") && ids.has(key.slice(2)));
+    if (!ok || seen.has(key)) continue;
+    seen.add(key); out.push({ key, hidden: key !== "hero" && !!x.hidden });
+  }
+  // A section he never placed (a new built-in, or a block added without a position) goes where it belongs.
+  BUILT_KEYS.forEach((k, i) => { if (!seen.has(k)) { const after = BUILT_KEYS.slice(0, i).reverse().find((p) => seen.has(p)); const at = after ? out.findIndex((x) => x.key === after) + 1 : 0; out.splice(at, 0, { key: k, hidden: false }); seen.add(k); } });
+  blocksOf(cl).forEach((b) => { const k = `b:${b.id}`; if (!seen.has(k)) { const at = out.findIndex((x) => x.key === "cta"); out.splice(at < 0 ? out.length : at, 0, { key: k, hidden: false }); seen.add(k); } });
+  // The top of the page is always first.
+  const h = out.findIndex((x) => x.key === "hero"); if (h > 0) out.unshift(out.splice(h, 1)[0]);
+  return out;
+}
+// The photo he chose for a spot, only if it is one this site actually has.
+export const PHOTO_SPOTS = [["hero", "Top of the home page"], ["story", "Next to your story"], ["about", "About page"]];
+export function photoPicks(cl, photos) {
+  const pk = (cl && cl.website && cl.website.photoPick) || {};
+  const out = {};
+  PHOTO_SPOTS.forEach(([k]) => { const p = photos.find((x) => x.url === httpsUrl(pk[k])); if (p) out[k] = p; });
+  return out;
+}
+const videoEmbed = (u) => {
+  const t = String(u || "");
+  let m = t.match(/^https:\/\/(?:www\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,20})/);
+  if (m) return { kind: "frame", src: `https://www.youtube-nocookie.com/embed/${m[1]}?rel=0` };
+  m = t.match(/^https:\/\/(?:www\.)?(?:player\.)?vimeo\.com\/(?:video\/)?(\d{5,12})/);
+  if (m) return { kind: "frame", src: `https://player.vimeo.com/video/${m[1]}` };
+  return t ? { kind: "file", src: t } : null;
+};
+// An added section. One with nothing in it is not drawn, so an empty frame never reaches the live site.
+function renderBlock(theme, b, C, base, photos) {
+  if (!b) return "";
+  const head = b.heading ? `<div class="sec-h"><h2 class="disp rv">${esc(b.heading)}</h2></div>` : "";
+  if (b.type === "text") {
+    if (!b.body && !b.heading) return "";
+    return `<section class="sec"><div class="wrap" style="max-width:900px">${head}${b.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => `<p class="rv" style="font-size:19px;margin-bottom:18px">${esc(p.replace(/\s+/g, " "))}</p>`).join("")}</div></section>`;
+  }
+  if (b.type === "gallery") {
+    const own = photos.filter((p) => p.own);
+    const pics = b.photos.length ? b.photos.map((u) => ({ url: u, alt: "" })) : own.slice(0, 6);
+    if (!pics.length) return "";
+    return `<section class="sec"><div class="wrap">${head}<div class="grid gal ${pics.length >= 3 ? "g3" : "g2"}">${pics.map((p) => photoBlock(p, "4/3")).join("")}</div></div></section>`;
+  }
+  if (b.type === "pricing") {
+    if (!b.items.length) return "";
+    return `<section class="sec"><div class="wrap">${head}<div class="grid ${b.items.length === 4 ? "g4" : b.items.length === 2 || b.items.length === 1 ? "g2" : "g3"}">${b.items.map((i, n) => `<div class="card rv d${n % 3}"><span class="tick"></span><h3>${esc(i.name)}</h3>${i.price ? `<p class="disp" style="font-size:30px;color:var(--ink);margin:6px 0 10px">${esc(i.price)}</p>` : ""}${i.text ? `<p>${esc(i.text)}</p>` : ""}</div>`).join("")}</div>
+${b.note ? `<p class="rv" style="color:var(--mute);margin-top:18px">${esc(b.note)}</p>` : ""}<div class="rv" style="margin-top:26px">${ctaBtn(C, base)}</div></div></section>`;
+  }
+  if (b.type === "video") {
+    const v = videoEmbed(b.url);
+    if (!v) return "";
+    const media = v.kind === "frame"
+      ? `<iframe src="${esc(v.src)}" title="${esc(b.heading || "Video")}" loading="lazy" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`
+      : `<video src="${esc(v.src)}" controls playsinline preload="metadata" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000"></video>`;
+    return `<section class="sec"><div class="wrap" style="max-width:1000px">${head}${b.text ? `<p class="rv" style="color:var(--mute);margin:-20px 0 24px">${esc(b.text)}</p>` : ""}<div class="ph rv" style="position:relative;aspect-ratio:16/9">${media}</div></div></section>`;
+  }
+  if (b.type === "areas") {
+    if (!b.places.length && !b.text) return "";
+    return `<section class="sec"><div class="wrap">${head}${b.text ? `<p class="rv" style="max-width:640px;color:var(--mute);margin-bottom:22px">${esc(b.text)}</p>` : ""}<div class="rv" style="display:flex;flex-wrap:wrap;gap:10px">${b.places.map((p) => `<span class="area-chip" style="display:inline-block;border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-weight:600">${esc(p)}</span>`).join("")}</div></div></section>`;
+  }
+  if (b.type === "team") {
+    if (!b.people.length) return "";
+    return `<section class="sec"><div class="wrap">${head}<div class="grid ${b.people.length >= 3 ? "g3" : "g2"}">${b.people.map((p, n) => `<figure class="card rv d${n % 3}" style="padding:0;overflow:hidden">${p.photo ? `<div style="aspect-ratio:4/3;overflow:hidden"><img src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:cover"></div>` : ""}<figcaption style="padding:22px"><h3>${esc(p.name)}</h3>${p.role ? `<p>${esc(p.role)}</p>` : ""}</figcaption></figure>`).join("")}</div></div></section>`;
+  }
+  return "";
+}
+
+function homeBody(theme, cl, C, base, photos0, M, ba = []) {
+  // Photos he chose for a spot (KB site-editor) go first for that spot; otherwise the usual order.
+  const pk = photoPicks(cl, photos0);
+  const photos = pk.hero ? [pk.hero, ...photos0.filter((p) => p.url !== pk.hero.url)] : photos0;
+  const storyPh = pk.story || photos0[theme === "editorial" ? 1 : 0] || photos0[0];
   const story = (C.about.story[0] || C.hero.sub);
   const why = C.why.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><h2 class="disp rv">Why people choose ${esc(C.name)}</h2></div>
 <div class="grid ${C.why.length === 4 ? "g4" : C.why.length === 2 ? "g2" : "g3"}">${C.why.map((w, i) => `<div class="card rv d${i % 3}"><span class="tick"></span><h3>${esc(w.title)}</h3><p>${esc(w.text)}</p></div>`).join("")}</div></div></section>` : "";
@@ -863,13 +963,16 @@ function homeBody(theme, cl, C, base, photos, M, ba = []) {
 <div class="steps" data-scene="pass">${C.process.map((s, i) => `<div class="step rv"><span class="num">Step ${i + 1}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></div></div>`).join("")}</div></div></section>` : "";
   const faq = C.faqs.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><h2 class="disp rv">Questions, answered</h2></div>
 ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i aria-hidden="true">+</i></summary><p>${esc(f.a)}</p></details>`).join("")}</div></section>` : "";
-  const storySec = M.scene === "portal" ? portal(C, photos[theme === "editorial" ? 1 : 0] || photos[0], story)
-    : `<section class="sec"><div class="wrap split">${storyText(M.fill, story)}${photoBlock(photos[theme === "editorial" ? 1 : 0], "4/5")}</div></section>`;
-  return `${heroHome(theme, C, base, photos)}
-${marquee(C)}
-${servicesSection(M.scene, C, base, photos)}
-${storySec}
-${beforeAfterHTML(ba, { headClass: "disp rv" })}${why}${steps}${faq}${reviewsTeaser(cl, C, base)}${ctaBand(C, base)}`;
+  const storySec = M.scene === "portal" ? portal(C, storyPh, story)
+    : `<section class="sec"><div class="wrap split">${storyText(M.fill, story)}${photoBlock(storyPh, "4/5")}</div></section>`;
+  const built = {
+    hero: () => heroHome(theme, C, base, photos), marquee: () => marquee(C), services: () => servicesSection(M.scene, C, base, photos),
+    story: () => storySec, beforeafter: () => beforeAfterHTML(ba, { headClass: "disp rv" }), why: () => why, steps: () => steps, faq: () => faq,
+    reviews: () => reviewsTeaser(cl, C, base), cta: () => ctaBand(C, base),
+  };
+  // The order, and which parts are switched off, are his (website.layout.home); added sections live in website.blocks.
+  return homeLayout(cl).filter((x) => !x.hidden).map((x) => x.key.startsWith("b:") ? renderBlock(theme, blockOf(cl, x.key.slice(2)), C, base, photos0) : (built[x.key] ? built[x.key]() : ""))
+    .filter(Boolean).join("\n");
 }
 
 function reviewsTeaser(cl, C, base) {
@@ -890,7 +993,9 @@ ${photos.length > 1 ? `<section class="sec" style="padding-top:0"><div class="wr
 ${ctaBand(C, base)}`;
 }
 
-function aboutBody(theme, C, base, photos, M) {
+function aboutBody(theme, C, base, photos0, M, cl) {
+  const pk = photoPicks(cl, photos0);
+  const photos = pk.about ? [pk.about, ...photos0.filter((p) => p.url !== pk.about.url)] : photos0;
   const [first, ...rest] = C.about.story.length ? C.about.story : [C.hero.sub];
   // The word-by-word light goes wherever the home page did not use it.
   return `${pageHero(theme, C.about.headline, "", "About us")}
@@ -1030,7 +1135,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   const ba = beforeAfterPairs(cl);
   const body = page === "book" && C.bookOn ? bookBody(theme, cl, C)
     : page === "services" ? servicesBody(theme, C, base, photos)
-    : page === "about" ? aboutBody(theme, C, base, photos, M)
+    : page === "about" ? aboutBody(theme, C, base, photos, M, cl)
     : page === "reviews" ? reviewsBody(theme, cl, C, base)
     : page === "contact" ? contactBody(theme, cl, C, base)
     : page === "blog" ? (post ? postBody(theme, C, base, post) : blogBody(theme, C, base, opts.posts))

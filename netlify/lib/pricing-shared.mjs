@@ -122,7 +122,9 @@ DO NOT invent a deadline or a countdown. If asked how many places are left, the 
 export const WEBSITE_OFFER = { build: 1500, care: 100, pages: 5, carePlanEdits: 2, revisionRounds: 2,
   // Add-ons (Bryson, 2026-10-06: "if a client wants to add extra pages such as a blog page ... charge an
   // extra for blog page creation and then ai blog post creations"). Defaults; each is editable per client.
-  extraPage: 200, blogSetup: 300, blogMonthly: 150, blogPostsPerMonth: 4 };
+  extraPage: 200, blogSetup: 300, blogMonthly: 150, blogPostsPerMonth: 4,
+  // Business email on their own domain (Bryson, 2026-10-09). Connecting the domain itself is part of every build.
+  emailSetup: 99 };
 
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
@@ -130,6 +132,7 @@ BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
 - $${WEBSITE_OFFER.build.toLocaleString("en-US")} to build. They can pay it all up front, or half now and half before it goes live. Nothing is built until they sign and pay, and it does not go live until it is paid in full.
 - Then $${WEBSITE_OFFER.care}/mo care plan from launch: hosting, security, and up to ${WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain.
 - Add-ons: extra pages beyond the five at $${WEBSITE_OFFER.extraPage} each (for example service areas, a gallery, pricing), and a blog: $${WEBSITE_OFFER.blogSetup} to add it, then $${WEBSITE_OFFER.blogMonthly}/mo for about ${WEBSITE_OFFER.blogPostsPerMonth} new articles a month written for them. Mention the blog when they care about showing up on Google over time.
+- Business email setup add-on: $${WEBSITE_OFFER.emailSetup} once. BoldLine sets up email on their own domain (like hello@theirbusiness.com) with the provider they choose, paid by them directly to that provider. Connecting their domain to the website is always included in the build, never charged for.
 - It is a separate agreement from the ads. Ending one does not end the other.
 WHEN TO PITCH IT. Pitch a website when their current site is missing, broken, slow, outdated, not mobile friendly, or plainly not built to turn a visitor into a call. Say what you actually saw. Pitch it ALONE (no ads) only if they plainly cannot fund $${MIN_AD_BUDGET}/mo of ad spend but their site is the bigger problem. Do NOT pitch it when their site is genuinely good: say so, because recommending something they do not need costs Bryson the trust he needs for the ads.
 `;

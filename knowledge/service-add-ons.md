@@ -172,7 +172,7 @@ going back on your word if he hears it elsewhere. One line, optional, offered as
 Build NOT started: flagged as an Opus-level multi-session build per CLAUDE.md, waiting on his go.
 
 
-## Domain setup for website clients (asked 2026-10-09, NOT decided, nothing built)
+## Domain setup for website clients (decided + LIVE 2026-10-09)
 
 Bryson asked whether a new website client should buy and connect their own domain from step-by-step
 instructions, or whether BoldLine should do it for an extra fee as an optional add-on. Recommendation given:
@@ -184,3 +184,19 @@ instructions, or whether BoldLine should do it for an extra fee as an optional a
   BoldLine connects it and sets up their business email on the domain.
 - Suggested about $99 one time, including the business email setup.
 - Build it only after the My Businesses side is finished (his order: his businesses first, then clients).
+
+**Decided 2026-10-09 (Bryson chose the recommended option):** connecting the domain stays INCLUDED in every
+website build, because agreement section 6 already promises it and charging extra on a $1,500 build would feel
+nickel-and-dimed. The paid add-on became **Business email setup, $99 once** (WEBSITE_OFFER.emailSetup), a
+checkbox and price in the Website deal card. Agreement **WA-4** adds section 6a only when it is chosen: up to
+three mailboxes with the provider the client picks (Google Workspace, Microsoft 365), in the client's name, paid
+by the client directly to the provider. The free option is the **"how to buy an address" guide**, copied from
+the domain card ("Their web address") when no address is set: buy it in your own name, with your own email and
+card, auto-renew on, then reply with the address. Pinned in verify-website-deal.
+
+## Still to raise with Bryson (2026-10-09)
+- **Google Business Profile creation and management.** Recommended first add-on (above), not built.
+- **Review requests.** Already built for his own businesses (KB `business-emails`), so offering it to clients
+  is mostly switching it on for them.
+- **A "fully custom website" tier.** He floated it as an upsell; see KB `site-editor` (the AI editor is the
+  engine for it).

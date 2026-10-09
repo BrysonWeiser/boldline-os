@@ -10378,9 +10378,9 @@ function BlogCard({client}){
 
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
-const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut"];   // the last three: KB business-emails
+const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob"];   // emails: KB business-emails; siteAiJob: KB site-editor
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
-const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4};
+const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
 const wdNum=(v,d)=>{ const n=Number(v); return Number.isFinite(n)&&n>=0?Math.round(n*100)/100:d; };
 const wdMoney=(n)=>`$${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}`;
@@ -10392,9 +10392,10 @@ const wdInt=(v,d,max)=>Math.max(0,Math.min(max,Math.floor(wdNum(v,d))));
 const wdNorm=(t0)=>{ const t=t0||{}; return {price:wdNum(t.price,WD_DEFAULTS.price),plan:t.plan==="half"?"half":"full",care:wdNum(t.care,WD_DEFAULTS.care),
   extraPages:wdInt(t.extraPages,0,20),extraPagePrice:wdNum(t.extraPagePrice,WEBSITE_OFFER.extraPage),
   blog:t.blog===true,blogSetup:wdNum(t.blogSetup,WEBSITE_OFFER.blogSetup),blogMonthly:wdNum(t.blogMonthly,WEBSITE_OFFER.blogMonthly),
-  blogPosts:Math.max(1,wdInt(t.blogPosts,WEBSITE_OFFER.blogPostsPerMonth,8))}; };
+  blogPosts:Math.max(1,wdInt(t.blogPosts,WEBSITE_OFFER.blogPostsPerMonth,8)),
+  emailSetup:t.emailSetup===true,emailSetupPrice:wdNum(t.emailSetupPrice,WEBSITE_OFFER.emailSetup)}; };
 const wdR2=(n)=>Math.round(n*100)/100;
-const wdBuildTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.price+t.extraPages*t.extraPagePrice+(t.blog?t.blogSetup:0)); };
+const wdBuildTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.price+t.extraPages*t.extraPagePrice+(t.blog?t.blogSetup:0)+(t.emailSetup?t.emailSetupPrice:0)); };
 const wdMonthlyTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.care+(t.blog?t.blogMonthly:0)); };
 // Their own web address (KB website-builder, step 3). Server-owned on websiteDeal.domain; `live` only once
 // a check fetched their site over https on it. The DNS advice mirrors netlify/lib/site-domain.mjs (a test pins it).
@@ -10477,6 +10478,9 @@ function SiteDomainCard({client,onUpdate}){
   const askAccess=d?`Hi ${first}, to get your new website running on ${d.host}, we just need access to the account where your domain is managed. That way we handle everything on our side and you never have to touch it.\n\nLog in to the company you bought ${apexOf(d.host)} from (GoDaddy, Namecheap, Squarespace, Cloudflare or similar). Find the option called Delegate access, Share access, Members or Users. It's usually under your account settings. Invite ${me||"us"}, and if it asks what they can do, pick the option that allows managing DNS.\n\nThe domain stays in your name and you stay the owner. We only use the access to point it at your new website and keep it running. If you get stuck, reply and we'll do it together on a quick call.`:"";
   const forThem=d?`Hi ${first}, to put your new website on ${d.host}, please add these records where your domain is managed (GoDaddy, Namecheap, Squarespace, Cloudflare or similar):\n\n${recs.map(r=>`Type ${r.type}, Name ${r.name}, Value ${r.value}`).join("\n")}\n\nIf there are already A or CNAME records for those names, replace them. Please don't change any MX records, those run your email. If you use Cloudflare, set these to DNS only (the grey cloud). It can take a few hours to take effect. Let me know once it's done and I'll take it from there.`:"";
   const alt=d?(d.host.startsWith("www.")?d.host.slice(4):d.host.split(".").length===2?"www."+d.host:""):"";
+  // The free, do-it-yourself way to GET an address (Bryson, 2026-10-09). Buying it is theirs to do, in their name on
+  // their card, so it is always theirs; connecting it afterwards is ours and always included (agreement section 6).
+  const buyGuide=`Hi ${first}, here's how to get the web address for your new website. It takes about 5 minutes and costs about $12 to $20 a year.\n\n1. Go to namecheap.com (or cloudflare.com, GoDaddy works too).\n2. Type the name you want, like ${String(client.name||"yourbusiness").toLowerCase().replace(/[^a-z0-9]+/g,"")}.com, in the search box. If it's taken, try adding your city or a word like "pro" or "co".\n3. Add it to your cart and check out. Use your business's name, your own email and your own card, so the address is always yours.\n4. Turn on auto-renew so it never runs out.\n5. Reply with the address you bought. We'll send one quick step so we can connect it to your website, and we take it from there.\n\nWould rather do it together? We can hop on a 5 minute call and I'll walk you through it.`;
   return (
     <div style={card}>
       <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:8}}>
@@ -10490,6 +10494,10 @@ function SiteDomainCard({client,onUpdate}){
           <button disabled={!!busy||!val.trim()} onClick={()=>call("domain-set",{domain:val},o=>o.alias&&o.alias.ok?"✓ Saved and added to Netlify. Next, ask them for access to their domain account (step 1 below).":"✓ Saved. Next, ask them for access to their domain account (step 1 below).")} style={btn(true,!!busy||!val.trim())}>{busy==="domain-set"?"Saving…":"Use this address"}</button>
         </div>
         {nf&&<div style={{fontSize:11,color:nf.connected?C.green:nf.set?C.amber:C.textMuted,marginTop:8,lineHeight:1.5}}>{nf.connected?"✓ ":""}{nf.note}</div>}
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:10}}>
+          <button onClick={async()=>{ try{ await navigator.clipboard.writeText(buyGuide); setMsg("✓ Copied. Text or email it to them."); }catch(e){ setMsg(buyGuide); } }} style={btn(false,false)}>Copy the "how to buy an address" guide</button>
+          <span style={{fontSize:11,color:C.textMuted,lineHeight:1.5,flex:"1 1 200px"}}>Free for them. Step by step, in their own name and on their own card.</span>
+        </div>
       </>)}
       {d&&(<>
         <div style={{fontSize:16,fontWeight:800,color:C.text,wordBreak:"break-all"}}>{d.live?<a href={`https://${d.host}/`} target="_blank" rel="noopener noreferrer" style={{color:C.gold}}>{d.host}</a>:d.host}</div>
@@ -10519,7 +10527,7 @@ function SiteDomainCard({client,onUpdate}){
 }
 function WebsiteDealCard({client,onUpdate}){
   const d=wdDeal(client), t=wdTerms(client), m=wdAmounts(t), a=d.agreement, live=wdAgreementLive(client);
-  const termsForm=(x)=>{ const n=wdNorm(x); return {price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts)}; };
+  const termsForm=(x)=>{ const n=wdNorm(x); return {price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts),emailSetup:n.emailSetup,emailSetupPrice:String(n.emailSetupPrice)}; };
   const [form,setForm]=useState(termsForm(d));
   const [busy,setBusy]=useState("");
   const [msg,setMsg]=useState("");
@@ -10573,7 +10581,7 @@ function WebsiteDealCard({client,onUpdate}){
     <div style={card}>
       <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
         <div style={lbl}>Website deal</div>
-        <div style={{marginLeft:"auto",fontSize:11.5,color:C.textDim}}>{wdMoney(wdBuildTotal(t))} build{t.extraPages?` (+${t.extraPages} page${t.extraPages>1?"s":""})`:""}{t.blog?" + blog":""} · {t.plan==="half"?"half now, half before launch":"paid up front"} · {wdMonthlyTotal(t)>0?`${wdMoney(wdMonthlyTotal(t))}/mo`:"no monthly"}</div>
+        <div style={{marginLeft:"auto",fontSize:11.5,color:C.textDim}}>{wdMoney(wdBuildTotal(t))} build{t.extraPages?` (+${t.extraPages} page${t.extraPages>1?"s":""})`:""}{t.blog?" + blog":""}{t.emailSetup?" + email":""} · {t.plan==="half"?"half now, half before launch":"paid up front"} · {wdMonthlyTotal(t)>0?`${wdMoney(wdMonthlyTotal(t))}/mo`:"no monthly"}</div>
       </div>
       {!live&&(
         <div style={{marginTop:8}}>
@@ -10591,13 +10599,18 @@ function WebsiteDealCard({client,onUpdate}){
             <label style={{fontSize:11,color:C.textMuted}}>Blog plan ($ a month)<input inputMode="decimal" value={form.blogMonthly} onChange={e=>setForm({...form,blogMonthly:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>Articles a month<input inputMode="numeric" value={form.blogPosts} onChange={e=>setForm({...form,blogPosts:e.target.value})} style={{...inp,marginTop:4}}/></label>
           </div>}
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.text,margin:"2px 0 8px",cursor:"pointer"}}><input type="checkbox" checked={!!form.emailSetup} onChange={e=>setForm({...form,emailSetup:e.target.checked})}/>Add business email setup (we set up hello@theirbusiness.com for them)</label>
+          {form.emailSetup&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+            <label style={{fontSize:11,color:C.textMuted}}>Email setup ($ once)<input inputMode="decimal" value={form.emailSetupPrice} onChange={e=>setForm({...form,emailSetupPrice:e.target.value})} style={{...inp,marginTop:4}}/></label>
+            <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,alignSelf:"end"}}>They pay the email company (like Google Workspace, about $7 a month) themselves. Connecting their domain is always included, never charged.</div>
+          </div>}
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <button disabled={!!busy} onClick={()=>call("set-terms",{price:Number(form.price),plan:form.plan,care:Number(form.care),extraPages:Number(form.extraPages||0),extraPagePrice:Number(form.extraPagePrice),blog:!!form.blog,blogSetup:Number(form.blogSetup),blogMonthly:Number(form.blogMonthly),blogPosts:Number(form.blogPosts)},"✓ Saved.")} style={btn(false,!!busy)}>{busy==="set-terms"?"Saving…":"Save price"}</button>
+            <button disabled={!!busy} onClick={()=>call("set-terms",{price:Number(form.price),plan:form.plan,care:Number(form.care),extraPages:Number(form.extraPages||0),extraPagePrice:Number(form.extraPagePrice),blog:!!form.blog,blogSetup:Number(form.blogSetup),blogMonthly:Number(form.blogMonthly),blogPosts:Number(form.blogPosts),emailSetup:!!form.emailSetup,emailSetupPrice:Number(form.emailSetupPrice)},"✓ Saved.")} style={btn(false,!!busy)}>{busy==="set-terms"?"Saving…":"Save price"}</button>
             <button disabled={!!busy} onClick={async()=>{ const out=await call("preview"); if(out) setPreview(out.html); }} style={btn(false,!!busy)}>Read the agreement</button>
             <button disabled={!!busy||!client.email} onClick={async()=>{
               const dirty=JSON.stringify(form)!==JSON.stringify(termsForm(d));
               if(dirty){ setMsg("Save the price first, so the agreement says what you mean."); return; }
-              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\nBuild: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\nCare plan: ${t.care>0?wdMoney(t.care)+" a month from launch":"waived"}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
+              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\nBuild: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}${t.emailSetup?" (includes email setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\nCare plan: ${t.care>0?wdMoney(t.care)+" a month from launch":"waived"}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
               call("send",{},"✓ Sent. You'll get an alert the moment they sign.");
             }} style={btn(true,!!busy||!client.email)}>{busy==="send"?"Sending…":"Send the agreement"}</button>
           </div>
@@ -10628,6 +10641,242 @@ const SITE_THEME_LIST=[["cinematic","Cinematic","Light and airy, huge type, a gl
 // Hand-typed edits go through the same no-dash rule as everything else a visitor reads.
 const siteDeDash=(v)=>typeof v==="string"?humanizeAdCopy(v):Array.isArray(v)?v.map(siteDeDash):v&&typeof v==="object"?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,siteDeDash(x)])):v;
 const siteKey=()=>Array.from(crypto.getRandomValues(new Uint8Array(12)),b=>b.toString(16).padStart(2,"0")).join("");
+// ─── SITE EDITOR (his own businesses first) ───────────────────────────────────
+// Bryson, 2026-10-09: edit any text, show/hide/reorder sections, add new sections, choose each photo, and "talk to
+// the ai like how I talk to you and have it edit the website ... give suggestions and also tell me if it's a bad idea
+// and why". Everything here edits a DRAFT shown in the preview; nothing reaches the live site until "Save to the
+// website", and every save keeps the version before it so Undo puts it back. The rendering rules live in
+// netlify/lib/site-render.mjs (homeLayout, cleanBlock, renderBlock); seLayout below is their mirror for this
+// screen (verify-site-editor runs both on the same records). KB site-editor.
+const SE_SECTIONS=[["hero","Top of the page"],["marquee","Moving strip of words"],["services","Services"],["story","Your story"],["beforeafter","Before and after"],["why","Why choose us"],["steps","How it works"],["faq","Questions"],["reviews","A review"],["cta","Closing call to action"]];
+const SE_BLOCKS={text:"Text",gallery:"Photo gallery",pricing:"Prices",video:"Video",areas:"Areas we serve",team:"Team"};
+const SE_SPOTS=[["hero","Top of the home page"],["story","Next to your story"],["about","About page"]];
+const seLayout=(w)=>{
+  const keys=SE_SECTIONS.map(x=>x[0]);
+  const ids=new Set(((w&&w.blocks)||[]).filter(b=>b&&SE_BLOCKS[b.type]&&String(b.id||"").replace(/[^a-z0-9]/gi,"")).slice(0,12).map(b=>String(b.id).replace(/[^a-z0-9]/gi,"").slice(0,16)));
+  const saved=(w&&w.layout&&Array.isArray(w.layout.home))?w.layout.home:[];
+  const seen=new Set(), out=[];
+  for(const x of saved){ const key=String((x&&x.key)||""); const ok=keys.includes(key)||(key.startsWith("b:")&&ids.has(key.slice(2))); if(!ok||seen.has(key)) continue; seen.add(key); out.push({key,hidden:key!=="hero"&&!!x.hidden}); }
+  keys.forEach((k,i)=>{ if(!seen.has(k)){ const after=keys.slice(0,i).reverse().find(p=>seen.has(p)); const at=after?out.findIndex(x=>x.key===after)+1:0; out.splice(at,0,{key:k,hidden:false}); seen.add(k); } });
+  [...ids].forEach(id=>{ const k="b:"+id; if(!seen.has(k)){ const at=out.findIndex(x=>x.key==="cta"); out.splice(at<0?out.length:at,0,{key:k,hidden:false}); seen.add(k); } });
+  const h=out.findIndex(x=>x.key==="hero"); if(h>0) out.unshift(out.splice(h,1)[0]);
+  return out;
+};
+const seNewBlock=(type)=>({id:uid().replace(/[^a-z0-9]/gi,"").slice(0,10),type,heading:{text:"",gallery:"Our work",pricing:"Prices",video:"See us in action",areas:"Areas we serve",team:"Meet the team"}[type]||"",
+  ...(type==="text"?{body:""}:type==="gallery"?{photos:[]}:type==="pricing"?{items:[{name:"",price:"",text:""}],note:""}:type==="video"?{url:"",text:""}:type==="areas"?{text:"",places:[]}:type==="team"?{people:[{name:"",role:"",photo:""}]}:{})});
+// The dash rule on the words only: a link or a photo address can contain "same-day" and must never be rewritten.
+const seDeDashBlocks=(bs)=>(bs||[]).map(b=>({...b,...(b.heading!=null?{heading:siteDeDash(b.heading)}:{}),...(b.body!=null?{body:String(b.body).split(/\n\s*\n/).map(x=>siteDeDash(x.trim())).filter(Boolean).join("\n\n")}:{}),...(b.text!=null?{text:siteDeDash(b.text)}:{}),...(b.note!=null?{note:siteDeDash(b.note)}:{}),
+  ...(b.items?{items:b.items.map(i=>({...i,name:siteDeDash(i.name||""),price:i.price||"",text:siteDeDash(i.text||"")}))}:{}),...(b.places?{places:b.places.map(x=>siteDeDash(x))}:{}),
+  ...(b.people?{people:b.people.map(x=>({...x,name:siteDeDash(x.name||""),role:siteDeDash(x.role||"")}))}:{})}));
+const seDraftOf=(w)=>({content:JSON.parse(JSON.stringify(w.content||{})),layout:{home:seLayout(w)},blocks:JSON.parse(JSON.stringify(w.blocks||[])),photoPick:{...(w.photoPick||{})}});
+// The text fields, in the order they appear on the site.
+const SE_TEXT=[
+  ["Top of the home page",[["hero.eyebrow","Small line above the headline"],["hero.headline","Headline"],["hero.lineA","Headline, first half (some designs)"],["hero.lineB","Headline, second half (some designs)"],["hero.sub","Line under the headline",1]]],
+  ["Buttons and closing",[["cta.button","Main button"],["cta.explore","Second button"],["cta.headline","Closing headline"],["cta.sub","Closing line",1],["cta.send","Contact form button"]]],
+  ["About",[["about.headline","About page headline"]]],
+  ["Search listing",[["seo.title","Title in Google"],["seo.description","Description in Google",1]]],
+];
+const seGet=(o,path)=>path.split(".").reduce((a,k)=>a&&a[k],o)||"";
+const seSet=(o,path,v)=>{ const [a,b]=path.split("."); return {...o,[a]:{...(o[a]||{}),[b]:v}}; };
+
+// The AI website editor's chat (server: netlify/functions/site-ai-background.mjs, rules in netlify/lib/site-ai.mjs).
+// Its changes land in the editor's DRAFT and the preview; Save is still his. The conversation is kept on this
+// device only, so he can pick it back up after a refresh.
+function SiteAIChat({client,draft,setDraft}){
+  const store="bl-siteai-"+client.id;
+  const [msgs,setMsgs]=useState(()=>{ try{ return JSON.parse(localStorage.getItem(store)||"[]").slice(-30); }catch(e){ return []; } });
+  const [text,setText]=useState("");
+  const [busy,setBusy]=useState(false);
+  const endRef=useRef(null);
+  useEffect(()=>{ try{ localStorage.setItem(store,JSON.stringify(msgs.slice(-30))); }catch(e){} try{ endRef.current&&endRef.current.scrollIntoView({block:"nearest"}); }catch(e){} },[msgs]); // eslint-disable-line
+  const send=async(t0)=>{
+    const t=String(t0||text).trim(); if(!t||busy) return;
+    const next=[...msgs,{role:"user",text:t}]; setMsgs(next); setText(""); setBusy(true);
+    try{
+      const { data:{ session } }=await supabaseClient.auth.getSession(); const token=(session&&session.access_token)||"";
+      const jobId=`ai-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+      const r=await fetch("/.netlify/functions/site-ai-background",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},
+        body:JSON.stringify({clientId:client.id,jobId,draft,messages:next.map(m=>({role:m.role,text:m.text}))})});
+      if(r.status!==202&&!r.ok){ const d=await r.json().catch(()=>({})); throw new Error(d.error||"Couldn't reach the AI."); }
+      const started=Date.now(); await new Promise(res=>setTimeout(res,4000));
+      while(Date.now()-started<240000){
+        const p=await fetch("/.netlify/functions/site-ai-poll",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({clientId:client.id,jobId})});
+        const d=await p.json().catch(()=>({})); const job=d&&d.job;
+        if(job&&job.status==="done"){
+          if(job.draft) setDraft(job.draft);
+          setMsgs(m=>[...m,{role:"assistant",text:job.reply,suggestions:job.suggestions||[],done:job.done||[],skipped:job.skipped||[]}]); setBusy(false); return;
+        }
+        if(job&&job.status==="error") throw new Error(job.error);
+        await new Promise(res=>setTimeout(res,3000));
+      }
+      throw new Error("That took too long. Try again.");
+    }catch(e){ setMsgs(m=>[...m,{role:"assistant",text:e.message||"Something went wrong.",error:true}]); }
+    setBusy(false);
+  };
+  const starters=["What would you change to get more bookings?","Make the headline punchier","Add a prices section with our packages","Is anything on the home page hurting us?"];
+  return (
+    <div>
+      <div style={{maxHeight:420,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,padding:"2px 2px 6px"}}>
+        {msgs.length===0&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6}}>Tell it what you want in your own words, like you'd text a designer. It changes the preview, suggests ideas, and tells you straight if something's a bad idea and why. Each answer costs a few cents of AI time.</div>}
+        {msgs.map((m,i)=>(
+          <div key={i} style={{alignSelf:m.role==="user"?"flex-end":"flex-start",maxWidth:"88%",padding:"9px 12px",borderRadius:12,fontSize:12.5,lineHeight:1.55,whiteSpace:"pre-wrap",
+            backgroundColor:m.role==="user"?C.goldDim:"rgba(255,255,255,.04)",border:`1px solid ${m.role==="user"?C.borderAccent:m.error?C.red+"55":C.border}`,color:m.error?C.red:C.text}}>
+            {m.text}
+            {m.done&&m.done.length>0&&<div style={{marginTop:7,fontSize:11.5,color:C.green}}>{m.done.map((x,j)=><div key={j}>✓ {x}</div>)}<div style={{color:C.textMuted,marginTop:3}}>In the preview below. Press Save to put it on the website.</div></div>}
+            {m.skipped&&m.skipped.length>0&&<div style={{marginTop:5,fontSize:11,color:C.amber}}>{m.skipped.map((x,j)=><div key={j}>{x}</div>)}</div>}
+            {m.suggestions&&m.suggestions.length>0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>{m.suggestions.map((x,j)=><button key={j} onClick={()=>send(x)} disabled={busy} style={{padding:"6px 10px",fontSize:11,fontWeight:600,borderRadius:16,border:`1px solid ${C.borderAccent}`,backgroundColor:"transparent",color:C.gold,cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>{x}</button>)}</div>}
+          </div>))}
+        {busy&&<div style={{alignSelf:"flex-start",fontSize:11.5,color:C.textMuted,padding:"6px 2px"}}>Thinking it over…</div>}
+        <div ref={endRef}/>
+      </div>
+      {msgs.length===0&&<div style={{display:"flex",gap:6,flexWrap:"wrap",margin:"6px 0"}}>{starters.map(x=><button key={x} onClick={()=>send(x)} disabled={busy} style={{padding:"6px 10px",fontSize:11,fontWeight:600,borderRadius:16,border:`1px solid ${C.border}`,backgroundColor:"transparent",color:C.textDim,cursor:"pointer",fontFamily:"inherit"}}>{x}</button>)}</div>}
+      <div style={{display:"flex",gap:8,marginTop:6}}>
+        <textarea value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); send(); } }} rows={2} placeholder="e.g. Move the reviews higher and add a gallery of our work" style={{...inp,flex:1,minWidth:0,resize:"vertical"}}/>
+        <button onClick={()=>send()} disabled={busy||!text.trim()} style={{padding:"0 16px",fontSize:12.5,fontWeight:800,borderRadius:10,border:"none",backgroundColor:busy||!text.trim()?"rgba(255,255,255,.06)":C.gold,color:busy||!text.trim()?C.textMuted:"#0a0800",cursor:busy?"default":"pointer"}}>Send</button>
+      </div>
+      {msgs.length>0&&<button onClick={()=>{ if(window.confirm("Clear this conversation? Your draft stays.")) setMsgs([]); }} style={{marginTop:6,background:"none",border:0,color:C.textMuted,fontSize:11,cursor:"pointer",padding:0}}>Start a new conversation</button>}
+    </div>);
+}
+
+function SiteEditorCard({client,onUpdate}){
+  const w=client.website||{};
+  const [draft,setDraft]=useState(()=>seDraftOf(w));
+  const [open,setOpen]=useState("ai");
+  const [editing,setEditing]=useState("");
+  const [msg,setMsg]=useState("");
+  const savedJson=JSON.stringify(seDraftOf(w));
+  const dirty=JSON.stringify(draft)!==savedJson;
+  useEffect(()=>{ if(!dirty) setDraft(seDraftOf(w)); },[savedJson]); // eslint-disable-line
+  const C0=draft.content||{};
+  const lay=draft.layout.home;
+  const setLay=(next)=>setDraft(d=>({...d,layout:{home:next}}));
+  const move=(i,dir)=>{ const j=i+dir; if(j<1||j>=lay.length) return; const n=[...lay]; [n[i],n[j]]=[n[j],n[i]]; setLay(n); };
+  const toggle=(i)=>setLay(lay.map((x,k)=>k===i&&x.key!=="hero"?{...x,hidden:!x.hidden}:x));
+  const blocks=draft.blocks||[];
+  const blockFor=(key)=>blocks.find(b=>"b:"+b.id===key);
+  const setBlock=(id,patch)=>setDraft(d=>({...d,blocks:d.blocks.map(b=>b.id===id?{...b,...patch}:b)}));
+  const addBlock=(type)=>{ if(blocks.length>=12){ setMsg("That's the most sections a page can hold (12)."); return; } const b=seNewBlock(type); const at=lay.findIndex(x=>x.key==="cta");
+    setDraft(d=>({...d,blocks:[...d.blocks,b],layout:{home:[...lay.slice(0,at<0?lay.length:at),{key:"b:"+b.id,hidden:false},...lay.slice(at<0?lay.length:at)]}})); setEditing(b.id); };
+  const delBlock=(id)=>{ if(!window.confirm("Remove this section?")) return; setDraft(d=>({...d,blocks:d.blocks.filter(b=>b.id!==id),layout:{home:lay.filter(x=>x.key!=="b:"+id)}})); };
+  const photos=[...(client.mediaLibrary||[]).filter(m=>m&&m.category==="photo"&&/^https:/.test(m.url||"")).map(m=>({url:m.url,own:true})),...((w.stock||[]).filter(x=>x&&/^https:/.test(x.url||"")).map(x=>({url:x.url,own:false})))];
+  const save=()=>{
+    const snap={content:w.content||{},layout:w.layout||{},blocks:w.blocks||[],photoPick:w.photoPick||{},at:new Date().toISOString()};
+    onUpdate&&onUpdate({...client,website:{...w,content:siteDeDash(draft.content),layout:draft.layout,blocks:seDeDashBlocks(draft.blocks),photoPick:draft.photoPick,history:[snap,...(w.history||[])].slice(0,15),editedAt:new Date().toISOString()}});
+    setMsg(w.published?"✓ Saved. It's on the live site now.":"✓ Saved.");
+  };
+  const undo=()=>{ const h=(w.history||[])[0]; if(!h) return; if(!window.confirm("Put the website back the way it was before the last save?")) return;
+    onUpdate&&onUpdate({...client,website:{...w,content:h.content,layout:h.layout,blocks:h.blocks,photoPick:h.photoPick,history:(w.history||[]).slice(1)}}); setMsg("✓ Put back."); };
+  const lbl={fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const small=(primary,dis)=>({padding:"7px 11px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:dis?"default":"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,opacity:dis?.45:1,flexShrink:0});
+  const tab=(k,l)=><button key={k} onClick={()=>setOpen(k)} style={{padding:"8px 13px",fontSize:12,fontWeight:800,borderRadius:20,cursor:"pointer",border:`1px solid ${open===k?C.gold:C.border}`,backgroundColor:open===k?C.goldDim:"transparent",color:open===k?C.gold:C.textDim}}>{l}</button>;
+  const listEd=(key,fields,blank,max,label)=>{ const arr=Array.isArray(C0[key])?C0[key]:[]; return (
+    <div style={{marginBottom:12}}>
+      <div style={{...lbl,marginBottom:6}}>{label}</div>
+      {arr.map((it,i)=>(
+        <div key={i} style={{padding:8,borderRadius:9,border:`1px solid ${C.border}`,marginBottom:6,display:"grid",gap:6}}>
+          {fields.map(([f,ph,area])=>area
+            ?<textarea key={f} value={(typeof it==="string"?it:it[f])||""} rows={3} placeholder={ph} onChange={e=>setDraft(d=>({...d,content:{...d.content,[key]:arr.map((x,j)=>j===i?(typeof x==="string"?e.target.value:{...x,[f]:e.target.value}):x)}}))} style={{...inp,resize:"vertical"}}/>
+            :<input key={f} value={(typeof it==="string"?it:it[f])||""} placeholder={ph} onChange={e=>setDraft(d=>({...d,content:{...d.content,[key]:arr.map((x,j)=>j===i?(typeof x==="string"?e.target.value:{...x,[f]:e.target.value}):x)}}))} style={inp}/>)}
+          <button onClick={()=>setDraft(d=>({...d,content:{...d.content,[key]:arr.filter((_,j)=>j!==i)}}))} style={{...small(false),justifySelf:"start"}}>Remove</button>
+        </div>))}
+      {arr.length<max&&<button onClick={()=>setDraft(d=>({...d,content:{...d.content,[key]:[...arr,blank]}}))} style={small(true)}>+ Add</button>}
+    </div>); };
+  const blockForm=(b)=>{
+    const set=(patch)=>setBlock(b.id,patch);
+    const rows=(key,fields,blank,max)=>{ const arr=b[key]||[]; return (<div style={{display:"grid",gap:6}}>
+      {arr.map((it,i)=><div key={i} style={{display:"flex",flexWrap:"wrap",gap:6,paddingBottom:6,borderBottom:`1px solid ${C.border}`}}>
+        {fields.map(([f,ph],n)=><input key={f} value={it[f]||""} placeholder={ph} onChange={e=>set({[key]:arr.map((x,j)=>j===i?{...x,[f]:e.target.value}:x)})} style={{...inp,flex:n===fields.length-1&&fields.length>2?"1 1 100%":"1 1 120px",minWidth:0}}/>)}
+        <button onClick={()=>set({[key]:arr.filter((_,j)=>j!==i)})} style={small(false)}>✕</button></div>)}
+      {arr.length<max&&<button onClick={()=>set({[key]:[...arr,blank]})} style={{...small(true),justifySelf:"start"}}>+ Add</button>}</div>); };
+    return (<div style={{display:"grid",gap:8,padding:"10px 0 4px"}}>
+      <div><div style={lbl}>Heading</div><input value={b.heading||""} onChange={e=>set({heading:e.target.value})} style={inp}/></div>
+      {b.type==="text"&&<div><div style={lbl}>Words (a blank line starts a new paragraph)</div><textarea value={b.body||""} rows={5} onChange={e=>set({body:e.target.value})} style={{...inp,resize:"vertical"}}/></div>}
+      {b.type==="gallery"&&<div><div style={lbl}>Photos (tap to include; none picked shows your newest 6)</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{photos.filter(p=>p.own).map(p=>{ const on=(b.photos||[]).includes(p.url); return <img key={p.url} src={p.url} alt="" onClick={()=>set({photos:on?b.photos.filter(u=>u!==p.url):[...(b.photos||[]),p.url].slice(0,12)})} style={{width:64,height:64,objectFit:"cover",borderRadius:8,cursor:"pointer",outline:on?`3px solid ${C.gold}`:"none",opacity:on?1:.6}}/>; })}
+        {!photos.some(p=>p.own)&&<span style={{fontSize:11,color:C.textMuted}}>No photos uploaded yet. This section stays hidden on the site until there are some.</span>}</div></div>}
+      {b.type==="pricing"&&<><div style={lbl}>Prices</div>{rows("items",[["name","Name"],["price","$199"],["text","What's included"]],{name:"",price:"",text:""},6)}
+        {((client.booking||{}).packages||[]).length>0&&<button onClick={()=>set({items:(client.booking.packages||[]).slice(0,6).map(p=>({name:p.name,price:p.price,text:p.desc||""}))})} style={{...small(false),justifySelf:"start"}}>Fill from your booking packages</button>}
+        <div><div style={lbl}>Small print (optional)</div><input value={b.note||""} onChange={e=>set({note:e.target.value})} style={inp}/></div></>}
+      {b.type==="video"&&<><div><div style={lbl}>YouTube or Vimeo link, or an uploaded video</div><input value={b.url||""} placeholder="https://www.youtube.com/watch?v=..." onChange={e=>set({url:e.target.value})} style={inp}/></div>
+        {(client.mediaLibrary||[]).filter(m=>m&&m.category==="video").map(m=><button key={m.url} onClick={()=>set({url:m.url})} style={{...small(b.url===m.url),justifySelf:"start"}}>Use {m.label||"uploaded video"}</button>)}
+        <div><div style={lbl}>Line under the heading (optional)</div><input value={b.text||""} onChange={e=>set({text:e.target.value})} style={inp}/></div></>}
+      {b.type==="areas"&&<><div><div style={lbl}>Line under the heading (optional)</div><input value={b.text||""} onChange={e=>set({text:e.target.value})} style={inp}/></div>
+        <div><div style={lbl}>Places, separated by commas</div><input value={(b.places||[]).join(", ")} placeholder="Gilbert, Mesa, Chandler" onChange={e=>set({places:e.target.value.split(",").map(x=>x.trimStart())})} style={inp}/></div></>}
+      {b.type==="team"&&<><div style={lbl}>People</div>{rows("people",[["name","Name"],["role","Role"]],{name:"",role:"",photo:""},8)}</>}
+    </div>);
+  };
+  const preview={...client,website:{...w,content:draft.content,layout:draft.layout,blocks:draft.blocks,photoPick:draft.photoPick}};
+  return (
+    <div style={card}>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+        <div style={{fontSize:15,fontWeight:800,color:C.text,marginRight:"auto"}}>Edit the website</div>
+        {dirty&&<span style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"3px 9px",borderRadius:7,color:C.amber,border:`1px solid ${C.amber}55`}}>Not saved</span>}
+      </div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Change anything, or just tell the AI what you want. Changes show in the preview first. Nothing reaches the live site until you press Save, and Undo always puts the last version back.</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>{tab("ai","Ask the AI")}{tab("sections","Sections")}{tab("text","Words")}{tab("photos","Photos")}</div>
+
+      {open==="ai"&&<SiteAIChat client={client} draft={draft} setDraft={setDraft}/>}
+
+      {open==="sections"&&<div>
+        {lay.map((x,i)=>{ const b=x.key.startsWith("b:")?blockFor(x.key):null; const name=b?`${SE_BLOCKS[b.type]}${b.heading?`: ${b.heading}`:""}`:(SE_SECTIONS.find(s=>s[0]===x.key)||[0,x.key])[1];
+          return (<div key={x.key} style={{padding:"8px 10px",borderRadius:10,border:`1px solid ${b?C.borderAccent:C.border}`,marginBottom:6,opacity:x.hidden?.55:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+              <div style={{flex:"1 1 160px",minWidth:0,fontSize:12.5,fontWeight:700,color:C.text}}>{name}{x.hidden&&<span style={{fontSize:10.5,color:C.textMuted,fontWeight:600}}> · hidden</span>}</div>
+              <button onClick={()=>move(i,-1)} disabled={i<=1} aria-label="Move up" style={small(false,i<=1)}>↑</button>
+              <button onClick={()=>move(i,1)} disabled={i===0||i===lay.length-1} aria-label="Move down" style={small(false,i===0||i===lay.length-1)}>↓</button>
+              {x.key!=="hero"&&<button onClick={()=>toggle(i)} style={small(false)}>{x.hidden?"Show":"Hide"}</button>}
+              {b&&<button onClick={()=>setEditing(editing===b.id?"":b.id)} style={small(true)}>{editing===b.id?"Done":"Edit"}</button>}
+              {b&&<button onClick={()=>delBlock(b.id)} style={small(false)}>Remove</button>}
+            </div>
+            {b&&editing===b.id&&blockForm(b)}
+          </div>); })}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:8}}>
+          <span style={{fontSize:11.5,color:C.textDim,fontWeight:700}}>Add a section:</span>
+          {Object.entries(SE_BLOCKS).map(([k,l])=><button key={k} onClick={()=>addBlock(k)} style={small(true)}>+ {l}</button>)}
+        </div>
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>The top of the page always stays first. A section with nothing in it yet (no photos, no prices) stays off the site until it has something to show.</div>
+      </div>}
+
+      {open==="text"&&<div>
+        {SE_TEXT.map(([g,fields])=>(<div key={g} style={{marginBottom:12}}>
+          <div style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"4px 0 8px"}}>{g}</div>
+          {fields.map(([path,l,area])=>(<div key={path} style={{marginBottom:8}}><div style={lbl}>{l}</div>
+            {area?<textarea value={seGet(C0,path)} rows={2} onChange={e=>setDraft(d=>({...d,content:seSet(d.content,path,e.target.value)}))} style={{...inp,resize:"vertical"}}/>
+              :<input value={seGet(C0,path)} onChange={e=>setDraft(d=>({...d,content:seSet(d.content,path,e.target.value)}))} style={inp}/>}</div>))}
+        </div>))}
+        {listEd("services",[["name","Service name"],["blurb","One line"],["detail","More detail for the Services page",1]],{name:"",blurb:"",detail:""},8,"Services")}
+        {listEd("why",[["title","Reason"],["text","One line"]],{title:"",text:""},4,"Why choose us")}
+        <div style={{marginBottom:12}}><div style={lbl}>About story (a blank line starts a new paragraph)</div>
+          <textarea value={((C0.about||{}).story||[]).join("\n\n")} rows={6} onChange={e=>setDraft(d=>({...d,content:{...d.content,about:{...(d.content.about||{}),story:e.target.value.split(/\n\s*\n/)}}}))} style={{...inp,resize:"vertical"}}/></div>
+        {listEd("process",[["title","Step"],["text","One line"]],{title:"",text:""},4,"How it works")}
+        {listEd("faqs",[["q","Question"],["a","Answer",1]],{q:"",a:""},8,"Questions")}
+        <div style={{marginBottom:12}}><div style={lbl}>Moving strip of words, separated by commas</div>
+          <input value={(C0.marquee||[]).join(", ")} onChange={e=>setDraft(d=>({...d,content:{...d.content,marquee:e.target.value.split(",").map(x=>x.trimStart())}}))} style={inp}/></div>
+      </div>}
+
+      {open==="photos"&&<div>
+        {!photos.length&&<div style={{fontSize:11.5,color:C.textMuted}}>No photos yet. Upload some in the Brand kit on the Overview tab.</div>}
+        {SE_SPOTS.map(([k,l])=>(<div key={k} style={{marginBottom:12}}>
+          <div style={lbl}>{l}</div>
+          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
+            <button onClick={()=>setDraft(d=>({...d,photoPick:{...d.photoPick,[k]:""}}))} style={{...small(!draft.photoPick[k]),width:64,height:64,flexShrink:0,whiteSpace:"normal",lineHeight:1.2}}>Auto</button>
+            {photos.map(p=><img key={p.url} src={p.url} alt="" onClick={()=>setDraft(d=>({...d,photoPick:{...d.photoPick,[k]:p.url}}))} style={{width:64,height:64,objectFit:"cover",borderRadius:8,cursor:"pointer",flexShrink:0,outline:draft.photoPick[k]===p.url?`3px solid ${C.gold}`:"none"}} title={p.own?"Your photo":"Background photo"}/>)}
+          </div></div>))}
+        <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6}}>Auto uses your own photos first, then the background photos picked for the site.</div>
+      </div>}
+
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:12}}>
+        <button onClick={save} disabled={!dirty} style={{...small(true,!dirty),padding:"10px 16px",fontSize:12.5}}>Save to the website</button>
+        {dirty&&<button onClick={()=>{ setDraft(seDraftOf(w)); setMsg(""); }} style={small(false)}>Throw away changes</button>}
+        {(w.history||[]).length>0&&!dirty&&<button onClick={undo} style={small(false)}>Undo the last save</button>}
+      </div>
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:8}}>{msg}</div>}
+      <div style={{marginTop:12}}><div style={lbl}>Preview{dirty?" (with your changes)":""}</div>
+        <SiteFrame client={preview} page="home" theme={w.theme||"aurora"} height={1400} scale={0.42} title="Website preview"/></div>
+    </div>
+  );
+}
+
 function SiteFrame({client,page,theme,height,scale,title}){
   const [html,setHtml]=useState("");
   const [err,setErr]=useState("");
@@ -10762,6 +11011,7 @@ function WebsiteTab({client,onUpdate}){
         {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5}}>{msg}</div>}
       </div>
       <SiteDomainCard client={client} onUpdate={onUpdate}/>
+      {isOwned(client)&&<SiteEditorCard client={client} onUpdate={onUpdate}/>}
 
       <div style={card}>
         <div style={lbl}>Pick a design</div>

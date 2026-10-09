@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 218 task-keyed entries under `knowledge/`. They surface automatically via the
+> 219 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**218 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**219 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -795,6 +795,9 @@
 
 ## Website
 
+- **[site-editor](../knowledge/site-editor.md)** &mdash; &#9989; verified &middot; 2026-10-09  
+  Bryson, 2026-10-09 - wanted to "modify my own website and a clients own website more" (all of edit any text, show/hide/reorder, add new sections, choose each photo) plus "talk to the ai like how I talk to you and have it edit the website based off of what I say and then also have it give suggestions and also tell me if it's a bad idea and why". Built for HIS OWN businesses first (the card and the AI endpoint are owned-only); clients next. An "Edit the website" card on the Website tab with four tabs (Ask the AI, Sections, Words, Photos) editing a DRAFT shown in a live preview; Save puts it on the site and keeps the previous version for Undo (15 kept). The AI answers with a fixed menu of changes, each checked by applySiteOps, so it can only ever produce a draft he throws away.  
+  <sub>*task:* edit a website from the OS (any text, show/hide/reorder home page sections, add sections like prices, gallery, video, areas, team, text; choose photos per spot) or by talking to the AI, which edits a draft, suggests ideas and pushes back on bad ones; undo a save &nbsp;|&nbsp; *keywords:* site editor, edit website, sections, layout, reorder, hide section, add section, blocks, pricing section, gallery, video, areas we serve, team, photo pick, AI editor, talk to the AI, site-ai, applySiteOps, homeLayout, SiteEditorCard, SiteAIChat, undo, history, custom website</sub>
 - **[website-booking-intake](../knowledge/website-booking-intake.md)** &mdash; &#9989; verified &middot; 2026-10-08  
   Bryson, 2026-10-07 - the detailing business should show its number for callers but let customers book by tapping a package, picking a day and time, and giving the address and their details; then "modify websites (my other businesses and my clients) to include whatever booking system they have ... and it won't count as one of the two client edits". Built one setting per business, `cl.intake.how` (quote | book | link | call), that decides where every main website button goes, plus a built-in Book page (packages, working hours, travel time between jobs, soonest-allowed window, blocked time, never double-booked), a "How customers book" card on every website's Website tab, and agreement WA-3 saying this setup is never a round of changes. 2026-10-08 ("do all those next"): landing pages follow the same choice with the same booking steps, packages can carry a deposit paid to the business's own payment link, and his own businesses' bookings show on the OS Calendar and in the morning digest.  
   <sub>*task:* set or change how a business takes customers through its website (quote form, online booking with packages and times, its own booking link like Square or Calendly, or call first), set up booking packages and hours, block time, see or cancel bookings &nbsp;|&nbsp; *keywords:* booking, book online, online booking, packages, time slots, book page, intake, how customers book, quote form, booking link, square, calendly, housecall pro, call first, intakeOf, bookingOn, booking.mjs, book.mjs, booking-widget.mjs, BookingCard, /book, travel time, buffer, block time, WA-3, two rounds of changes, deposit, mark paid, landing page booking, calendar bookings, address question, askAddress, bk-phone</sub>
