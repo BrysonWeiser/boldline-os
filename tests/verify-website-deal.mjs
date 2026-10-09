@@ -96,7 +96,7 @@ ok("the care plan starts on launch day", /starts on the day the Website goes liv
 ok("🔴 WA-2: BoldLine manages the domain through access the client gives, and may not transfer it, cancel it or touch their email settings", /Client will give BoldLine access to the account where the domain is registered/.test(aH) && /will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on/.test(aH));
 ok("🔴 WA-2: the domain stays theirs, they can remove our access any time, and the hand-back never depends on money owed", /The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses/.test(aH) && /This does not depend on any amount being owed/.test(aH));
 ok("WA-2: renewing the domain stays the client's job", /Keeping the domain renewed and paid for remains Client&rsquo;s responsibility/.test(aH));
-ok("the agreement is version WA-3", L.AGREEMENT_VERSION === "WA-3");
+ok("the agreement is version WA-4", L.AGREEMENT_VERSION === "WA-4");
 ok("🔴 WA-3: how customers reach the business (quote form, booking, their booking link, calling) is never a round of changes", /how customers reach Client through the website \(a quote form, online booking, a link to a booking system Client already uses, or calling\) is part of the build and the care plan\. It never counts as a round of changes and is never charged separately\./.test(aH));
 ok("🔴 the client keeps its domain and gets a copy of the site if it leaves", /Client owns its domain name/.test(aH) && /standard web files/.test(aH));
 ok("no promises about rankings or results", /does not guarantee any particular search ranking/.test(aH));
@@ -258,6 +258,21 @@ ok("🔴 a website-only client is created with no ads contract dates (both ways 
 ok("Add Client and Deal Prep both offer 'Website only'", /\["website","Website only"\]/.test(UI) && /<option value=\{WEB_PKG_ID\}>Website only/.test(UI));
 const WOO = UI.slice(UI.indexOf("function WebsiteOnlyOverview("), UI.indexOf("function DealPrepWebsite("));
 ok("🔴 adding ads asks first and only changes the package (nothing is sent or charged)", /window\.confirm\(`Make \$\{client\.name\} an ads client/.test(WOO) && !/fetch\(/.test(WOO) && !/websiteDeal/.test(WOO.slice(WOO.indexOf("onUpdate&&onUpdate("))));
+
+// WA-4 (2026-10-09): the optional business email setup add-on. Connecting the domain stays included.
+{
+  const base = { price: 1500, plan: "full", care: 100 };
+  ok("🔴 email setup is an optional add-on, $99 by default, added to the build", L.buildTotal({ ...base, emailSetup: true }) === 1599 && L.buildTotal(base) === 1500 && L.normTerms({}).emailSetupPrice === 99);
+  ok("an agreement signed before it existed reads as no email setup", L.normTerms({ price: 1500 }).emailSetup === false);
+  const cl = { id: "c1", name: "Acme Pools", email: "a@acme.example", websiteDeal: { ...base, emailSetup: true } };
+  const html = L.websiteAgreementHTML(cl, { ...base, emailSetup: true });
+  ok("🔴 the agreement says what it is, that the client pays the email provider, and that it is in the build fee", /6a\. Business email setup/.test(html) && /Client pays the provider directly/.test(html) && /\$99 business email setup/.test(html));
+  ok("without it, the clause is not there", !/6a\. Business email setup/.test(L.websiteAgreementHTML(cl, base)));
+  ok("🔴 connecting the domain is still promised in every agreement, never charged", /BoldLine will publish it on Client&rsquo;s domain name/.test(L.websiteAgreementHTML(cl, base)));
+  ok("the OS can switch it on and price it", /Add business email setup \(we set up hello@theirbusiness\.com for them\)/.test(src("index.html")) && /emailSetup:!!form\.emailSetup,emailSetupPrice:Number\(form\.emailSetupPrice\)/.test(src("index.html")));
+  ok("the server saves it", /emailSetup: body\.emailSetup === true, emailSetupPrice: r\(emailSetupPrice\)/.test(src("netlify/functions/website-deal.mjs")));
+  ok("the free guide to buying an address is one tap away, in their name on their card", /Copy the "how to buy an address" guide/.test(src("index.html")) && /Use your business's name, your own email and your own card/.test(src("index.html")));
+}
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-website-deal: ${pass} passed, ${fails.length} failed`);

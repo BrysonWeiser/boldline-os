@@ -57,7 +57,7 @@ ok("🔴 the automatic emails wait until the address is proven", kinds(BIZ({ ema
   const J = src("netlify/functions/biz-customer-emails.mjs");
   ok("🔴 the hourly job sends strictly, records after, and merges into a fresh read", /\{ send: sendEmail, strict: true \}/.test(J) && J.indexOf("sendAsBusiness(") < J.indexOf('select("data").eq("id", row.id)') && /customerEmailLog: \{ \.\.\.\(fresh\.data\.customerEmailLog \|\| \{\}\), \.\.\.log \}/.test(J));
   ok("it runs every hour", /\[functions\."biz-customer-emails"\]\n  schedule = "7 \* \* \* \*"/.test(src("netlify.toml")));
-  ok("🔴 what was sent, and whether the address works, are never saved over by an OS screen", /const SERVER_OWNED_KEYS=\["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut"\];/.test(UI));
+  ok("🔴 what was sent, and whether the address works, are never saved over by an OS screen", /const SERVER_OWNED_KEYS=\["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut"/.test(UI));
   const F = src("netlify/functions/biz-email.mjs");
   ok("the test send is the only thing that marks an address as working, and only touches that", /status = \{ address, verified: true, verifiedAt:/.test(F) && /data: \{ \.\.\.fresh\.data, emailSenderStatus: status \}/.test(F) && /db\.auth\.getUser\(jwt\)/.test(F));
   ok("samples go to Bryson, never a customer", /sendAsBusiness\(cl, \{ to: owner, subject: `Sample: \$\{mail\.subject\}`/.test(F));

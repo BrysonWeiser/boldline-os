@@ -37,7 +37,8 @@ export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: W
 // online booking, their own booking link, or calling) is part of the work and never a round of changes
 // (Bryson: "it won't count as one of the two client edits because it's just to fit how their business
 // takes clients").
-export const AGREEMENT_VERSION = "WA-3";
+// WA-4 (2026-10-09): the optional Business Email Setup add-on (section 6a). Connecting the domain stays included.
+export const AGREEMENT_VERSION = "WA-4";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -72,11 +73,12 @@ export const normTerms = (t0) => {
     extraPages: int(t.extraPages, 0, 20), extraPagePrice: num(t.extraPagePrice, WEBSITE_OFFER.extraPage),
     blog: t.blog === true, blogSetup: num(t.blogSetup, WEBSITE_OFFER.blogSetup), blogMonthly: num(t.blogMonthly, WEBSITE_OFFER.blogMonthly),
     blogPosts: Math.max(1, int(t.blogPosts, WEBSITE_OFFER.blogPostsPerMonth, 8)),
+    emailSetup: t.emailSetup === true, emailSetupPrice: num(t.emailSetupPrice, WEBSITE_OFFER.emailSetup),
   };
 };
 const r2 = (n) => Math.round(n * 100) / 100;
 // One-time: the website, its extra pages and the blog setup. Monthly: care plus the blog.
-export const buildTotal = (t0) => { const t = normTerms(t0); return r2(t.price + t.extraPages * t.extraPagePrice + (t.blog ? t.blogSetup : 0)); };
+export const buildTotal = (t0) => { const t = normTerms(t0); return r2(t.price + t.extraPages * t.extraPagePrice + (t.blog ? t.blogSetup : 0) + (t.emailSetup ? t.emailSetupPrice : 0)); };
 export const monthlyTotal = (t0) => { const t = normTerms(t0); return r2(t.care + (t.blog ? t.blogMonthly : 0)); };
 
 // The terms that bind: the ones frozen into the agreement once it went out, else the ones being set.
@@ -142,7 +144,7 @@ export function websiteAgreementHTML(cl, terms = termsOf(cl), { now = new Date()
   const t = normTerms(terms);
   const m = amountsOf(t);
   const total = buildTotal(t), monthly = monthlyTotal(t);
-  const parts = [`${money(t.price)} website`].concat(t.extraPages ? [`${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} at ${money(t.extraPagePrice)} each`] : [], t.blog ? [`${money(t.blogSetup)} blog setup`] : []);
+  const parts = [`${money(t.price)} website`].concat(t.extraPages ? [`${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} at ${money(t.extraPagePrice)} each`] : [], t.blog ? [`${money(t.blogSetup)} blog setup`] : [], t.emailSetup ? [`${money(t.emailSetupPrice)} business email setup`] : []);
   const biz = esc(c.name || "Client");
   const signer = esc(c.contactName || c.name || "Authorized Signatory");
   const email = esc(c.email || "");
@@ -175,7 +177,7 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}td{borde
 <tr><td>Payment</td><td>${t.plan === "half" ? `${money(m.first)} on signing, ${money(m.final)} before the Website goes live` : `${money(total)} on signing`}</td></tr>
 <tr><td>Care Plan</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "Waived"}</td></tr>
 ${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for about ${t.blogPosts} article${t.blogPosts > 1 ? "s" : ""} a month, starting the day the Website goes live</td></tr>
-` : ""}<tr><td>Included</td><td>A website of five pages (Home, Services, About, Reviews, Contact)${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}, a contact form that sends enquiries to Client, mobile friendly design, two rounds of changes before launch</td></tr>
+` : ""}<tr><td>Included</td><td>A website of five pages (Home, Services, About, Reviews, Contact)${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}${t.emailSetup ? ", business email set up on Client&rsquo;s domain" : ""}, a contact form that sends enquiries to Client, mobile friendly design, two rounds of changes before launch</td></tr>
 </table>
 
 <h2>1. What BoldLine builds</h2>
@@ -202,6 +204,9 @@ ${pay}
 <p>BoldLine manages the domain&rsquo;s settings for Client, so Client does not need anyone else to look after the Website. To do this, Client will give BoldLine access to the account where the domain is registered, limited to managing its settings where the provider allows it, for as long as BoldLine hosts the Website. BoldLine will use that access only to connect the domain to the Website and keep it working. Without Client&rsquo;s written approval (email is fine), BoldLine will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on. Keeping the domain renewed and paid for remains Client&rsquo;s responsibility.</p>
 <p>The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses. While BoldLine hosts the Website, removing that access or changing those settings may stop the Website working on the domain, which will not be a breach by BoldLine. When BoldLine stops hosting the Website, it will stop using the access, and on request will tell Client exactly which settings it made so they can be pointed wherever Client chooses. This does not depend on any amount being owed.</p>
 
+${t.emailSetup ? `<h2>6a. Business email setup</h2>
+<p>BoldLine will set up email on Client&rsquo;s domain (for example hello@ followed by Client&rsquo;s domain) with an email provider Client chooses, such as Google Workspace or Microsoft 365. The email account is in Client&rsquo;s name and Client pays the provider directly for it; that monthly fee is not part of this Agreement. Setup includes creating the mailbox or mailboxes Client asks for (up to three), adding the domain settings email needs, checking that mail sends and arrives, and connecting the address so emails the Website sends to Client&rsquo;s customers come from it. It is a one-time service, included in the Build Fee shown above.</p>
+` : ""}
 <h2>7. The Care Plan</h2>
 ${care}
 <p>The Care Plan covers hosting, security updates, keeping the Website online, and up to two small content changes per month (for example text, photos, hours or prices). Larger changes are quoted separately. Client may cancel the Care Plan at any time with thirty (30) days&rsquo; written notice. If a Care Plan invoice is unpaid fifteen (15) days after its due date, BoldLine may take the Website offline until it is paid.</p>
