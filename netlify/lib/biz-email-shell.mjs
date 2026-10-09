@@ -20,7 +20,7 @@ const textOn = (hex) => { const L = lum(hex); return 1.05 / (L + 0.05) >= (L + 0
 export function bizBrand(cl) {
   const c = cl || {};
   const b = c.brand || {};
-  const color = [b.color, c.website && c.website.brandColor, c.brandColor, c.landingPage && c.landingPage.brandColor].find(hex6) || "#111827";
+  const color = [c.brandKit && c.brandKit.primary, b.color, c.website && c.website.brandColor, c.brandColor, c.landingPage && c.landingPage.brandColor].find(hex6) || "#111827";
   const d = ((c.websiteDeal || {}).domain) || {};
   const website = https(b.website) || (d.live && d.host ? `https://${d.host}/` : "");
   return {
@@ -28,7 +28,8 @@ export function bizBrand(cl) {
     color, on: textOn(color),
     // Brand colour as words: a light colour (a gold, a yellow) is unreadable as text on white.
     ink: textOn(color) === "#FFFFFF" ? color : "#374151",
-    logo: https(b.logoUrl) || https(c.brandLogo) || https(c.landingPage && c.landingPage.logo),
+    logo: https(b.logoUrl) || https(c.brandLogo) || https(c.landingPage && c.landingPage.logo)
+      || https(((c.mediaLibrary || []).find((m) => m && m.category === "logo") || {}).url),
     website, phone: String(c.businessPhone || c.callTrackingNumber || "").trim(), email: String(c.email || "").trim(),
     area: String(c.businessAddress || (c.campaignSetup || {}).serviceArea || "").trim(),
   };

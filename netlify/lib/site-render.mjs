@@ -225,7 +225,8 @@ function glPalette(scene, dark, a, bg) {
 // the colour set in the website editor, then the colour set by hand on the client, then the generated page colour.
 export function brandColorOf(cl) {
   const w = (cl && cl.website) || {};
-  for (const c of [w.brandColor, cl && cl.brandColor, cl && cl.landingPage && cl.landingPage.brandColor]) if (hexOk(c)) return c;
+  // A brand kit he set by hand (KB brand-kit) beats anything a generator chose.
+  for (const c of [cl && cl.brandKit && cl.brandKit.primary, w.brandColor, cl && cl.brandColor, cl && cl.landingPage && cl.landingPage.brandColor]) if (hexOk(c)) return c;
   return null;
 }
 

@@ -114,7 +114,7 @@ a subscription."
     Calendar);
   - the OS Business portal card.
 
-## Bryson's one-time setup (computer job; in the 10pm reminder)
+## Bryson's one-time setup (computer job; in the 10pm reminder `trig_01NMyjjyJ9R2r2rM6x5Us6ND`, Fri 2026-10-09)
 
 1. **The business needs an email address on its own domain** (for example hello@desertglossdetailing.com).
    Gmail or Outlook addresses cannot be verified as a sender.
