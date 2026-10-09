@@ -55,7 +55,9 @@ export default async (req) => {
   }
 
   const { data: row, error } = await db.from("clients").select("id, data").eq("id", String(body.clientId || "")).maybeSingle();
-  if (error || !row || !isOwned(row.data)) return json({ ok: false, error: "That business could not be found." }, 404);
+  if (error || !row || !row.data) return json({ ok: false, error: "That business could not be found." }, 404);
+  // Reading a brand file works for every client's Brand kit; the customer-email actions are his own businesses only.
+  if (body.action !== "read-brand" && !isOwned(row.data)) return json({ ok: false, error: "That business could not be found." }, 404);
   const cl = { ...row.data, id: row.data.id || row.id };
   const owner = process.env.OWNER_EMAIL;
   if (!owner) return json({ ok: false, error: "OWNER_EMAIL is not set, so there is nowhere to send it." }, 500);

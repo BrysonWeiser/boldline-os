@@ -10243,7 +10243,7 @@ const SITE_RESERVED=["","home","services","about","reviews","contact","blog","si
 // a one-line brief, then edited or removed here. KB website-builder.
 function ExtraPagesCard({client,onUpdate}){
   const w=client.website||{}, pages=(w.extraPages||[]).filter(p=>p&&p.slug&&p.content);
-  const room=client.internal?99:wdTerms(client).extraPages;
+  const room=client.internal?99:wdExtraAllowance(wdTerms(client));
   const [title,setTitle]=useState(""); const [brief,setBrief]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState("");
   if(!room&&!pages.length) return null;
   const write=async(t,b,slug)=>{
@@ -10382,6 +10382,8 @@ const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","e
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
 const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
+// Mirror of WEBSITE_SIGNATURE (the premium tier, KB site-editor).
+const WEBSITE_SIGNATURE={build:3500,care:150,pages:8,includedExtraPages:3,carePlanEdits:4,revisionRounds:3};
 const wdNum=(v,d)=>{ const n=Number(v); return Number.isFinite(n)&&n>=0?Math.round(n*100)/100:d; };
 const wdMoney=(n)=>`$${Number(n||0).toLocaleString("en-US",{minimumFractionDigits:n%1?2:0,maximumFractionDigits:2})}`;
 const wdDeal=(cl)=>{ const d=(cl&&cl.websiteDeal)||{}; return {...d,price:wdNum(d.price,WD_DEFAULTS.price),plan:d.plan==="half"?"half":"full",care:wdNum(d.care,WD_DEFAULTS.care),agreement:d.agreement||null,invoices:d.invoices||{}}; };
@@ -10389,12 +10391,14 @@ const WD_LIVE=["sent","delivered","completed"];
 const wdAgreementLive=(cl)=>{ const a=wdDeal(cl).agreement; return !!(a&&WD_LIVE.includes(a.status)); };
 const wdSigned=(cl)=>{ const a=wdDeal(cl).agreement; return !!(a&&a.status==="completed"); };
 const wdInt=(v,d,max)=>Math.max(0,Math.min(max,Math.floor(wdNum(v,d))));
-const wdNorm=(t0)=>{ const t=t0||{}; return {price:wdNum(t.price,WD_DEFAULTS.price),plan:t.plan==="half"?"half":"full",care:wdNum(t.care,WD_DEFAULTS.care),
+const wdNorm=(t0)=>{ const t=t0||{}; const tier=t.tier==="signature"?"signature":"standard"; const D=tier==="signature"?{price:WEBSITE_SIGNATURE.build,care:WEBSITE_SIGNATURE.care}:WD_DEFAULTS;
+  return {tier,price:wdNum(t.price,D.price),plan:t.plan==="half"?"half":"full",care:wdNum(t.care,D.care),
   extraPages:wdInt(t.extraPages,0,20),extraPagePrice:wdNum(t.extraPagePrice,WEBSITE_OFFER.extraPage),
   blog:t.blog===true,blogSetup:wdNum(t.blogSetup,WEBSITE_OFFER.blogSetup),blogMonthly:wdNum(t.blogMonthly,WEBSITE_OFFER.blogMonthly),
   blogPosts:Math.max(1,wdInt(t.blogPosts,WEBSITE_OFFER.blogPostsPerMonth,8)),
   emailSetup:t.emailSetup===true,emailSetupPrice:wdNum(t.emailSetupPrice,WEBSITE_OFFER.emailSetup)}; };
 const wdR2=(n)=>Math.round(n*100)/100;
+const wdExtraAllowance=(t0)=>{ const t=wdNorm(t0); return t.extraPages+(t.tier==="signature"?WEBSITE_SIGNATURE.includedExtraPages:0); };
 const wdBuildTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.price+t.extraPages*t.extraPagePrice+(t.blog?t.blogSetup:0)+(t.emailSetup?t.emailSetupPrice:0)); };
 const wdMonthlyTotal=(t0)=>{ const t=wdNorm(t0); return wdR2(t.care+(t.blog?t.blogMonthly:0)); };
 // Their own web address (KB website-builder, step 3). Server-owned on websiteDeal.domain; `live` only once
@@ -10527,7 +10531,7 @@ function SiteDomainCard({client,onUpdate}){
 }
 function WebsiteDealCard({client,onUpdate}){
   const d=wdDeal(client), t=wdTerms(client), m=wdAmounts(t), a=d.agreement, live=wdAgreementLive(client);
-  const termsForm=(x)=>{ const n=wdNorm(x); return {price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts),emailSetup:n.emailSetup,emailSetupPrice:String(n.emailSetupPrice)}; };
+  const termsForm=(x)=>{ const n=wdNorm(x); return {tier:n.tier,price:String(n.price),plan:n.plan,care:String(n.care),extraPages:String(n.extraPages),extraPagePrice:String(n.extraPagePrice),blog:n.blog,blogSetup:String(n.blogSetup),blogMonthly:String(n.blogMonthly),blogPosts:String(n.blogPosts),emailSetup:n.emailSetup,emailSetupPrice:String(n.emailSetupPrice)}; };
   const [form,setForm]=useState(termsForm(d));
   const [busy,setBusy]=useState("");
   const [msg,setMsg]=useState("");
@@ -10586,6 +10590,13 @@ function WebsiteDealCard({client,onUpdate}){
       {!live&&(
         <div style={{marginTop:8}}>
           <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55,marginBottom:10}}>Set the price, then send the agreement. Nothing gets built until they sign and pay, and nothing goes live until it's paid in full.{a&&(a.status==="voided"||a.status==="declined")?` The last agreement was ${a.status}.`:""}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:8,marginBottom:10}}>
+            {[["standard","Standard website",`${wdMoney(WEBSITE_OFFER.build)} · one of our 3 designs · 5 pages · 2 rounds of changes`],["signature","Signature website",`${wdMoney(WEBSITE_SIGNATURE.build)} · designed around their brand · ${WEBSITE_SIGNATURE.pages} pages · ${WEBSITE_SIGNATURE.revisionRounds} rounds · AI editor`]].map(([k,l,d])=>(
+              <button key={k} onClick={()=>{ const was=wdNorm({tier:form.tier}), now=wdNorm({tier:k}); setForm({...form,tier:k,price:String(form.price)===String(was.price)?String(now.price):form.price,care:String(form.care)===String(was.care)?String(now.care):form.care}); }}
+                style={{textAlign:"left",padding:"10px 12px",borderRadius:10,cursor:"pointer",fontFamily:"inherit",border:`1px solid ${form.tier===k?C.gold:C.border}`,backgroundColor:form.tier===k?C.goldDim:"transparent"}}>
+                <div style={{fontSize:12.5,fontWeight:800,color:form.tier===k?C.gold:C.text}}>{form.tier===k?"✓ ":""}{l}</div>
+                <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{d}</div></button>))}
+          </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8,marginBottom:10}}>
             <label style={{fontSize:11,color:C.textMuted}}>Build price ($)<input inputMode="decimal" value={form.price} onChange={e=>setForm({...form,price:e.target.value})} style={{...inp,marginTop:4}}/></label>
             <label style={{fontSize:11,color:C.textMuted}}>How they pay<select value={form.plan} onChange={e=>setForm({...form,plan:e.target.value})} style={{...inp,marginTop:4}}><option value="full">All up front</option><option value="half">Half now, half before launch</option></select></label>
@@ -10605,12 +10616,12 @@ function WebsiteDealCard({client,onUpdate}){
             <div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,alignSelf:"end"}}>They pay the email company (like Google Workspace, about $7 a month) themselves. Connecting their domain is always included, never charged.</div>
           </div>}
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <button disabled={!!busy} onClick={()=>call("set-terms",{price:Number(form.price),plan:form.plan,care:Number(form.care),extraPages:Number(form.extraPages||0),extraPagePrice:Number(form.extraPagePrice),blog:!!form.blog,blogSetup:Number(form.blogSetup),blogMonthly:Number(form.blogMonthly),blogPosts:Number(form.blogPosts),emailSetup:!!form.emailSetup,emailSetupPrice:Number(form.emailSetupPrice)},"✓ Saved.")} style={btn(false,!!busy)}>{busy==="set-terms"?"Saving…":"Save price"}</button>
+            <button disabled={!!busy} onClick={()=>call("set-terms",{tier:form.tier,price:Number(form.price),plan:form.plan,care:Number(form.care),extraPages:Number(form.extraPages||0),extraPagePrice:Number(form.extraPagePrice),blog:!!form.blog,blogSetup:Number(form.blogSetup),blogMonthly:Number(form.blogMonthly),blogPosts:Number(form.blogPosts),emailSetup:!!form.emailSetup,emailSetupPrice:Number(form.emailSetupPrice)},"✓ Saved.")} style={btn(false,!!busy)}>{busy==="set-terms"?"Saving…":"Save price"}</button>
             <button disabled={!!busy} onClick={async()=>{ const out=await call("preview"); if(out) setPreview(out.html); }} style={btn(false,!!busy)}>Read the agreement</button>
             <button disabled={!!busy||!client.email} onClick={async()=>{
               const dirty=JSON.stringify(form)!==JSON.stringify(termsForm(d));
               if(dirty){ setMsg("Save the price first, so the agreement says what you mean."); return; }
-              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\nBuild: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}${t.emailSetup?" (includes email setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\nCare plan: ${t.care>0?wdMoney(t.care)+" a month from launch":"waived"}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
+              if(!window.confirm(`Send the website agreement to ${client.email} to sign?\n\n${t.tier==="signature"?"Signature website. ":""}Build: ${wdMoney(wdBuildTotal(t))}${t.extraPages?` (includes ${t.extraPages} extra page${t.extraPages>1?"s":""})`:""}${t.blog?" (includes blog setup)":""}${t.emailSetup?" (includes email setup)":""}, ${t.plan==="half"?`${wdMoney(m.first)} now, ${wdMoney(m.final)} before launch`:"paid up front"}\nCare plan: ${t.care>0?wdMoney(t.care)+" a month from launch":"waived"}${t.blog?`\nBlog plan: ${wdMoney(t.blogMonthly)} a month for ${t.blogPosts} articles`:""}\n\nWhen they sign, the first invoice goes to them by itself.`)) return;
               call("send",{},"✓ Sent. You'll get an alert the moment they sign.");
             }} style={btn(true,!!busy||!client.email)}>{busy==="send"?"Sending…":"Send the agreement"}</button>
           </div>
@@ -10738,10 +10749,23 @@ function SiteAIChat({client,draft,setDraft}){
     </div>);
 }
 
+// What a standard client sees where the AI editor would be: what Signature adds, and how to offer it.
+function SignatureUpsell({client}){
+  const t=wdTerms(client), live=wdAgreementLive(client);
+  return (<div style={{padding:"12px 14px",borderRadius:12,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.06)"}}>
+    <div style={{fontSize:13,fontWeight:800,color:C.gold,marginBottom:4}}>The AI editor comes with the Signature website</div>
+    <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.65}}>{client.name} is on the standard website ({wdMoney(wdBuildTotal(t))}). Signature ({wdMoney(WEBSITE_SIGNATURE.build)}) is designed around their own brand: their colours and fonts, new sections and layout made for them with the AI editor, {WEBSITE_SIGNATURE.pages} pages, {WEBSITE_SIGNATURE.revisionRounds} rounds of changes, and a {wdMoney(WEBSITE_SIGNATURE.care)} a month care plan with {WEBSITE_SIGNATURE.carePlanEdits} edits a month.</div>
+    <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>{live?"Their agreement is already out or signed, so an upgrade needs a new one: cancel and resend from the Website deal card at the top, or agree it by email first.":"To offer it, pick Signature in the Website deal card at the top of this tab before you send the agreement."}</div>
+  </div>);
+}
 function SiteEditorCard({client,onUpdate}){
   const w=client.website||{};
+  // Custom work (the AI editor and new sections) is his own businesses and Signature clients. A standard client's
+  // site can still have any words, its sections shown, hidden or reordered, and its photos chosen (KB site-editor).
+  const custom=isOwned(client)||wdTerms(client).tier==="signature";
+  const isClient=!client.internal;
   const [draft,setDraft]=useState(()=>seDraftOf(w));
-  const [open,setOpen]=useState("ai");
+  const [open,setOpen]=useState(custom?"ai":"sections");
   const [editing,setEditing]=useState("");
   const [msg,setMsg]=useState("");
   const savedJson=JSON.stringify(seDraftOf(w));
@@ -10812,10 +10836,10 @@ function SiteEditorCard({client,onUpdate}){
         <div style={{fontSize:15,fontWeight:800,color:C.text,marginRight:"auto"}}>Edit the website</div>
         {dirty&&<span style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",padding:"3px 9px",borderRadius:7,color:C.amber,border:`1px solid ${C.amber}55`}}>Not saved</span>}
       </div>
-      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Change anything, or just tell the AI what you want. Changes show in the preview first. Nothing reaches the live site until you press Save, and Undo always puts the last version back.</div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:10}}>Change anything{custom?", or just tell the AI what you want":""}. Changes show in the preview first. Nothing reaches the live site until you press Save, and Undo always puts the last version back.{isClient?" For a client, changes they ask for count toward their rounds of changes (or their care plan edits once it's live), except how customers book.":""}</div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>{tab("ai","Ask the AI")}{tab("sections","Sections")}{tab("text","Words")}{tab("photos","Photos")}</div>
 
-      {open==="ai"&&<SiteAIChat client={client} draft={draft} setDraft={setDraft}/>}
+      {open==="ai"&&(custom?<SiteAIChat client={client} draft={draft} setDraft={setDraft}/>:<SignatureUpsell client={client}/>)}
 
       {open==="sections"&&<div>
         {lay.map((x,i)=>{ const b=x.key.startsWith("b:")?blockFor(x.key):null; const name=b?`${SE_BLOCKS[b.type]}${b.heading?`: ${b.heading}`:""}`:(SE_SECTIONS.find(s=>s[0]===x.key)||[0,x.key])[1];
@@ -10830,10 +10854,10 @@ function SiteEditorCard({client,onUpdate}){
             </div>
             {b&&editing===b.id&&blockForm(b)}
           </div>); })}
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:8}}>
+        {custom?<div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:8}}>
           <span style={{fontSize:11.5,color:C.textDim,fontWeight:700}}>Add a section:</span>
           {Object.entries(SE_BLOCKS).map(([k,l])=><button key={k} onClick={()=>addBlock(k)} style={small(true)}>+ {l}</button>)}
-        </div>
+        </div>:<div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Adding new sections (prices, gallery, video, team and more) is part of the Signature website. See "Ask the AI" for how to offer it.</div>}
         <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>The top of the page always stays first. A section with nothing in it yet (no photos, no prices) stays off the site until it has something to show.</div>
       </div>}
 
@@ -11011,7 +11035,7 @@ function WebsiteTab({client,onUpdate}){
         {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.amber,marginTop:10,lineHeight:1.5}}>{msg}</div>}
       </div>
       <SiteDomainCard client={client} onUpdate={onUpdate}/>
-      {isOwned(client)&&<SiteEditorCard client={client} onUpdate={onUpdate}/>}
+      <SiteEditorCard client={client} onUpdate={onUpdate}/>
 
       <div style={card}>
         <div style={lbl}>Pick a design</div>
@@ -13016,6 +13040,8 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
         {tab==="portal"&&(
           <div style={S.col11}>
+            {/* Clients get the same Brand kit as his own businesses (Bryson, 2026-10-09: "add it for the client side now"). */}
+            {!client.internal&&<BrandKitCard client={client} onUpdate={onUpdate} onOpenAssets={()=>{ try{ document.getElementById("client-media-card").scrollIntoView({behavior:"smooth"}); }catch(e){} }}/>}
             {!client.internal&&<Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                 <Label>Live Client View</Label>
@@ -13050,7 +13076,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
             </Card>}
             <Card>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
-                <Label>{client.internal?"Media":"Client Media"} ({(client.mediaLibrary||[]).length})</Label>
+                <Label><span id="client-media-card"/>{client.internal?"Media":"Client Media"} ({(client.mediaLibrary||[]).length})</Label>
               </div>
               {(client.mediaLibrary||[]).length===0 ? (
                 <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>{isHouse(client)?"No media uploaded yet. Your /get-started landing page already uses your site's branding; upload photos or video here if you want them on hand for ad creatives.":`Nothing uploaded yet — ${client.name} adds photos, logo, and video from the My Info tab of their portal. Files will show up here.`}</div>

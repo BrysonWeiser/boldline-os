@@ -4,7 +4,7 @@ topic: My Businesses
 task: set a business's exact brand colours (typed, picked, or read from an uploaded file such as a brand guide PDF, logo or picture), fonts, logo, photos and video from the OS; make the website, landing page and emails use them
 keywords: [brand kit, brand colours, brand colors, hex, rgb, brand guide, pdf, logo upload, svg colours, palette, photos, video, media library, upload, brandKit, brandColor, bkParseColor, bkPalette, bkUpload, BrandKitCard, read-brand, brand-kit.mjs]
 status: verified
-summary: 2026-10-09 update: fonts, second and accent colours, and before-and-after sliders are now LIVE on the website and landing page. Bryson, 2026-10-09 - "i need a way to import my businesses or other businesses brand colors not by seeing their website but by being able to upload a file and or type in the actual colors as well as uploading images videos etc like how they would if they were an ad client for their landing page" and "work only on the my business part first ... then we will go to clients side". Built a Brand kit card on an owned business's Overview tab - main/second/accent colours (typed in any common form, colour picker, or tapped from colours found in a file), fonts, logo upload, photos and video upload into the same media library an ad client's portal uses. Files - an SVG's own colours, a picture's exact main colours sampled in the browser, a PDF brand guide (or picture) read by the AI for printed HEX codes and named fonts. Saving makes the main colour win on the website, landing page and emails. Clients' side is next.
+summary: 2026-10-09: now also on every CLIENT's Assets tab (read-brand works for any client). 2026-10-09 update: fonts, second and accent colours, and before-and-after sliders are now LIVE on the website and landing page. Bryson, 2026-10-09 - "i need a way to import my businesses or other businesses brand colors not by seeing their website but by being able to upload a file and or type in the actual colors as well as uploading images videos etc like how they would if they were an ad client for their landing page" and "work only on the my business part first ... then we will go to clients side". Built a Brand kit card on an owned business's Overview tab - main/second/accent colours (typed in any common form, colour picker, or tapped from colours found in a file), fonts, logo upload, photos and video upload into the same media library an ad client's portal uses. Files - an SVG's own colours, a picture's exact main colours sampled in the browser, a PDF brand guide (or picture) read by the AI for printed HEX codes and named fonts. Saving makes the main colour win on the website, landing page and emails. Clients' side is next.
 verified: 2026-10-09
 ---
 
@@ -15,7 +15,7 @@ verified: 2026-10-09
   how they would if they were an ad client for their landing page."
 - "work only on the my business part first for building then once we finish that we will go to clients side"
 
-**Not done yet: the clients' side.** The card is mounted for `isOwned` only.
+**Clients' side: DONE 2026-10-09.** The card is on his businesses' Overview tab and every client's Assets tab.
 
 ## Where
 

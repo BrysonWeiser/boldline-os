@@ -4,7 +4,7 @@ topic: Website
 task: edit a website from the OS (any text, show/hide/reorder home page sections, add sections like prices, gallery, video, areas, team, text; choose photos per spot) or by talking to the AI, which edits a draft, suggests ideas and pushes back on bad ones; undo a save
 keywords: [site editor, edit website, sections, layout, reorder, hide section, add section, blocks, pricing section, gallery, video, areas we serve, team, photo pick, AI editor, talk to the AI, site-ai, applySiteOps, homeLayout, SiteEditorCard, SiteAIChat, undo, history, custom website]
 status: verified
-summary: Bryson, 2026-10-09 - wanted to "modify my own website and a clients own website more" (all of edit any text, show/hide/reorder, add new sections, choose each photo) plus "talk to the ai like how I talk to you and have it edit the website based off of what I say and then also have it give suggestions and also tell me if it's a bad idea and why". Built for HIS OWN businesses first (the card and the AI endpoint are owned-only); clients next. An "Edit the website" card on the Website tab with four tabs (Ask the AI, Sections, Words, Photos) editing a DRAFT shown in a live preview; Save puts it on the site and keeps the previous version for Undo (15 kept). The AI answers with a fixed menu of changes, each checked by applySiteOps, so it can only ever produce a draft he throws away.
+summary: 2026-10-09 (later the same day) - CLIENT SIDE + SIGNATURE TIER LIVE: every website now has the editor (words, sections show/hide/reorder, photos); the AI editor and new sections are for his own businesses and clients on the new Signature website ($3,500 build, $150/mo care, 8 pages incl. 3 extra, 3 rounds, 4 care edits a month, designed around their brand); clients' Assets tab has the Brand kit. Original: Bryson, 2026-10-09 - wanted to "modify my own website and a clients own website more" (all of edit any text, show/hide/reorder, add new sections, choose each photo) plus "talk to the ai like how I talk to you and have it edit the website based off of what I say and then also have it give suggestions and also tell me if it's a bad idea and why". Built for HIS OWN businesses first (the card and the AI endpoint are owned-only); clients next. An "Edit the website" card on the Website tab with four tabs (Ask the AI, Sections, Words, Photos) editing a DRAFT shown in a live preview; Save puts it on the site and keeps the previous version for Undo (15 kept). The AI answers with a fixed menu of changes, each checked by applySiteOps, so it can only ever produce a draft he throws away.
 verified: 2026-10-09
 ---
 
@@ -85,9 +85,37 @@ verified: 2026-10-09
   🔴 **It never writes the website itself**; Save is his.
 - **The conversation** is kept in localStorage on his device (last 30). Each answer costs a few cents.
 
+## Client side and the Signature tier (2026-10-09, same day: "add it for the client side now" + "Also add the new premium package")
+
+- **The editor is on every website's Website tab.** `custom = isOwned || wdTerms(client).tier === "signature"`.
+  - **Every client** gets Words, Sections (show, hide, reorder) and Photos.
+  - **Only `custom`** gets the AI editor and adding new sections.
+  - A standard client sees `SignatureUpsell` in the AI tab: what Signature adds and how to offer it (pick
+    Signature on the deal card before sending, or a new agreement if one is already out).
+  - The card tells him a client's changes count toward their rounds or care plan edits, except how
+    customers book.
+- **Server:** `site-ai-background` refuses a non-owned client unless `termsOf(cl).tier === "signature"`
+  (403 "The AI editor comes with the Signature website").
+- **The Brand kit** is also on every client's **Assets** tab (`{!client.internal&&<BrandKitCard/>}`).
+  `biz-email` `read-brand` now works for any client; test-sender and samples stay owned-only.
+- **The Signature website** (`WEBSITE_SIGNATURE` in pricing-shared, mirrored in index.html):
+  - **Price and inclusions:** $3,500 build, $150/mo care, 8 pages (the 5 plus 3 extra included), 3 rounds
+    of changes, 4 care edits a month, designed around their brand, and a design call before building.
+  - **Terms:** `websiteDeal.tier` / terms `tier` (`normTerms`: no tier means standard). The tier sets the
+    default price and care, and anything typed still wins. `tierIncludes` and `extraPageAllowance` give
+    extra pages plus the included 3, used by the page writer and the OS Extra pages card.
+  - **Agreement WA-4:** the wording changes by tier. Key terms gets a "Website" row; section 1 gets eight
+    pages plus the Signature paragraph; section 4 says three rounds; section 7 says four edits.
+  - **OS:** the deal card has tier tiles (Standard / Signature). Picking one moves the price and care to
+    that tier's defaults unless he had changed them.
+  - **Public:** the `/pricing` page website section has a full-width "Signature website $3,500" card
+    (`.wp-sig`), from the same price list.
+  - **Deal Prep:** `websitePromptBlock` includes when to pitch it.
+- **verify-marketing-pages** now reads the FAQ claims from the RENDERED standard agreement, because the
+  wording varies by tier.
+
 ## Not built yet
 
-- The clients' side: the editor card and the AI for clients, and the "fully custom website" upsell.
 - Sections on pages other than Home.
 - Using the second and accent colours in new sections.
 

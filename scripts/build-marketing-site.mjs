@@ -12,7 +12,7 @@ import { dirname, join } from "node:path";
 import { renderSite, THEME_IDS, SITE_THEMES, SITE_PAGES as SAMPLE_PAGES } from "../netlify/lib/site-render.mjs";
 import { DEMO, DEMO_DETAIL, DEMO_HANDY, DEMO_EPOXY, DEMO_TINT, LANDING_DEMOS } from "./site-showcase-demo.mjs";
 import { renderLandingPage } from "../netlify/functions/landing.mjs";
-import { PACKAGES, WEBSITE_OFFER } from "../netlify/lib/pricing-shared.mjs";
+import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE } from "../netlify/lib/pricing-shared.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "marketing-src");
@@ -127,6 +127,8 @@ const webPricing = () => `
     <div class="wp-card"><div class="wp-k">Extra pages</div><div class="wp-v">${usd(WEBSITE_OFFER.extraPage)}<small> each</small></div><p>Anything past the five: a page per service, a gallery, a page for a second location.</p></div>
     <div class="wp-card"><div class="wp-k">Blog</div><div class="wp-v">${usd(WEBSITE_OFFER.blogMonthly)}<small>/mo</small></div><p>About ${WEBSITE_OFFER.blogPostsPerMonth} articles a month on your site, and you can read, edit or hold each one first. ${usd(WEBSITE_OFFER.blogSetup)} once to set it up.</p></div>
   </div>
+  <div class="wp-sig reveal"><div class="wp-sig-l"><div class="wp-k">Signature website</div><div class="wp-v">${usd(WEBSITE_SIGNATURE.build)}</div></div>
+    <p>Designed around your brand instead of one of our designs: your colours and fonts, sections and a layout made for your business, ${WEBSITE_SIGNATURE.pages} pages and ${WEBSITE_SIGNATURE.revisionRounds} rounds of changes. Then ${usd(WEBSITE_SIGNATURE.care)}/mo care with up to ${WEBSITE_SIGNATURE.carePlanEdits} edits a month.</p></div>
   <p class="wp-foot reveal">Want to see one first? <a href="/examples/cinematic/">Click through a full sample site</a>, or <a href="${CAL_WEB}" target="_blank" rel="noopener noreferrer">book a website call</a>.</p>
 </div></section>
 `;

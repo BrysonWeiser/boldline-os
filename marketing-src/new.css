@@ -301,6 +301,9 @@ html.lenis,html.lenis body{height:auto}
 .wp-v{font-size:34px;font-weight:700;letter-spacing:-.03em;color:var(--gold);margin:8px 0 10px}
 .wp-v small{font-size:15px;color:var(--muted);font-weight:600;letter-spacing:0}
 .wp-card p{font-size:14px;line-height:1.6;color:var(--muted)}
+.wp-sig{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,3.1fr);gap:16px 28px;align-items:center;margin-top:16px;padding:26px;border-radius:22px;border:1px solid var(--gold-line);background:linear-gradient(120deg,rgba(200,168,75,.12),rgba(255,255,255,.012) 60%)}
+.wp-sig p{margin:0;font-size:14.5px;line-height:1.65;color:var(--muted)}
+@media (max-width:760px){.wp-sig{grid-template-columns:minmax(0,1fr)}}
 .wp-foot{margin-top:18px;font-size:14px;color:var(--faint)}
 .wp-foot a{color:var(--gold);font-weight:600;text-decoration:none}
 @media (max-width:1000px){.pf{grid-template-columns:1fr}.wp-grid{grid-template-columns:1fr 1fr}.wp-main{grid-column:1/-1}}

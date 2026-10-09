@@ -125,6 +125,11 @@ export const WEBSITE_OFFER = { build: 1500, care: 100, pages: 5, carePlanEdits: 
   extraPage: 200, blogSetup: 300, blogMonthly: 150, blogPostsPerMonth: 4,
   // Business email on their own domain (Bryson, 2026-10-09). Connecting the domain itself is part of every build.
   emailSetup: 99 };
+// The premium tier (Bryson, 2026-10-09: "add the new premium package", after "add the option for a fully custom
+// build website instead of paying for one of the templates that way it allows for an upsell"). Same engine, shaped
+// around their brand: their typefaces and colours, sections and layout made for them with the AI editor, eight
+// pages, three rounds of changes, and a bigger care plan. KB `site-editor`.
+export const WEBSITE_SIGNATURE = { build: 3500, care: 150, pages: 8, includedExtraPages: 3, carePlanEdits: 4, revisionRounds: 3 };
 
 export const websitePromptBlock = () => `
 BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
@@ -133,6 +138,7 @@ BoldLine ALSO BUILDS WEBSITES, sold to anyone, with or without ads:
 - Then $${WEBSITE_OFFER.care}/mo care plan from launch: hosting, security, and up to ${WEBSITE_OFFER.carePlanEdits} small edits a month. They own their domain.
 - Add-ons: extra pages beyond the five at $${WEBSITE_OFFER.extraPage} each (for example service areas, a gallery, pricing), and a blog: $${WEBSITE_OFFER.blogSetup} to add it, then $${WEBSITE_OFFER.blogMonthly}/mo for about ${WEBSITE_OFFER.blogPostsPerMonth} new articles a month written for them. Mention the blog when they care about showing up on Google over time.
 - Business email setup add-on: $${WEBSITE_OFFER.emailSetup} once. BoldLine sets up email on their own domain (like hello@theirbusiness.com) with the provider they choose, paid by them directly to that provider. Connecting their domain to the website is always included in the build, never charged for.
+- Premium tier, the Signature website: $${WEBSITE_SIGNATURE.build.toLocaleString("en-US")} to build, designed around their own brand (their logo, colours and typefaces, sections and layout made for them rather than one of the three designs), ${WEBSITE_SIGNATURE.pages} pages, ${WEBSITE_SIGNATURE.revisionRounds} rounds of changes, then $${WEBSITE_SIGNATURE.care}/mo care with up to ${WEBSITE_SIGNATURE.carePlanEdits} small edits a month. Pitch it to a business that cares how it looks next to competitors or has a strong brand already; the standard site is the default.
 - It is a separate agreement from the ads. Ending one does not end the other.
 WHEN TO PITCH IT. Pitch a website when their current site is missing, broken, slow, outdated, not mobile friendly, or plainly not built to turn a visitor into a call. Say what you actually saw. Pitch it ALONE (no ads) only if they plainly cannot fund $${MIN_AD_BUDGET}/mo of ad spend but their site is the bigger problem. Do NOT pitch it when their site is genuinely good: say so, because recommending something they do not need costs Bryson the trust he needs for the ads.
 `;

@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { isOwned } from "../lib/owned.mjs";
+import { termsOf } from "../lib/website-deal.mjs";
 import { homeLayout } from "../lib/site-render.mjs";
 import { humanize, humanizeDeep, NO_DASH_RULE } from "../lib/humanize.mjs";
 import { SITE_AI_MODEL, SITE_AI_TOOL, siteAISystem, applySiteOps, cleanAnswer } from "../lib/site-ai.mjs";
@@ -31,8 +32,9 @@ export default async (req) => {
   let body = {}; try { body = await req.json(); } catch (e) {}
   const clientId = String(body.clientId || ""), jobId = String(body.jobId || "").slice(0, 60);
   const { data: row } = await db.from("clients").select("data").eq("id", clientId).maybeSingle();
-  // His own businesses first (Bryson, 2026-10-09: "work only on the my business part first").
-  if (!row || !row.data || !isOwned(row.data)) return json({ ok: false, error: "That business could not be found." }, 404);
+  // His own businesses, and clients on the Signature website (the premium tier the AI editor is part of).
+  if (!row || !row.data) return json({ ok: false, error: "That business could not be found." }, 404);
+  if (!isOwned(row.data) && termsOf(row.data).tier !== "signature") return json({ ok: false, error: "The AI editor comes with the Signature website." }, 403);
   const cl = { ...row.data, id: clientId };
   const d0 = body.draft || {};
   const draft = { content: d0.content || (cl.website || {}).content || {}, layout: d0.layout || {}, blocks: Array.isArray(d0.blocks) ? d0.blocks : [], photoPick: d0.photoPick || {} };

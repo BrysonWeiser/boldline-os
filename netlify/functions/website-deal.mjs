@@ -90,7 +90,7 @@ export default async (req) => {
         const r = (n) => Math.round(n * 100) / 100;
         const next = await save({ price: r(price), care: r(care), plan: body.plan === "half" ? "half" : "full",
           extraPages, extraPagePrice: r(extraPagePrice), blog: body.blog === true, blogSetup: r(blogSetup), blogMonthly: r(blogMonthly), blogPosts,
-          emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice) });
+          emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice), tier: body.tier === "signature" ? "signature" : "standard" });
         return json({ ok: true, deal: next });
       }
       case "preview":
