@@ -256,6 +256,12 @@
   to = "/.netlify/functions/team"
   status = 200
 
+# The view-only business portal for one of Bryson's own businesses (netlify/functions/biz.mjs).
+[[redirects]]
+  from = "/biz"
+  to = "/.netlify/functions/biz"
+  status = 200
+
 [[redirects]]
   from = "/lead"
   to = "/.netlify/functions/lead-intake"

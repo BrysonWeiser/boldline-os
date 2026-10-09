@@ -9344,6 +9344,47 @@ function TeamViewCard({client,onUpdate}){
   );
 }
 
+// ─── BUSINESS PORTAL (owned businesses) ───────────────────────────────────────
+// Bryson, 2026-10-08: a portal link for each of his own businesses, "similar to client portals except include
+// everything for the business but dont allow edits", with a calendar of every booking he can tap into. The
+// page is netlify/lib/biz-portal.mjs, served by /biz, which answers GET only, so the link can never change
+// anything. Turning it off removes the token, so the old link dies. Opened in a new tab, never embedded
+// (KB preview-safety, business-portal).
+function BusinessPortalCard({client,onUpdate}){
+  const portal = client.portal || {};
+  const [copied,setCopied] = useState(false);
+  const url = portal.on && portal.token ? `${window.location.origin}/biz?t=${portal.token}` : "";
+  const turnOn = () => onUpdate({...client, portal:{...portal, on:true, token: portal.token || crypto.randomUUID(), createdAt: portal.createdAt || new Date().toISOString()}});
+  const turnOff = () => { if(!window.confirm("Turn the portal link off? Anyone using it loses access straight away. You can make a new link any time.")) return; onUpdate({...client, portal:{...portal, on:false, token:""}}); };
+  const copy = () => { try{ navigator.clipboard.writeText(url); setCopied(true); setTimeout(()=>setCopied(false),1500); }catch(e){} };
+  const sms = url ? `sms:?&body=${encodeURIComponent(`Here's the page for ${client.name}: bookings, leads and numbers. Keep it on your phone: ${url}`)}` : "";
+  const now = Date.now();
+  const upcoming = (client.bookings||[]).filter(b=>b&&b.status!=="cancelled"&&Date.parse(b.end||b.start)>now).length;
+  const btn = (primary) => ({flex:1,minWidth:0,textAlign:"center",padding:"9px 10px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",textDecoration:"none",
+    border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim});
+  return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+        <Label>Business portal</Label>
+        <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:20,border:`1px solid ${portal.on?"rgba(34,211,160,0.3)":C.border}`,backgroundColor:portal.on?"rgba(34,211,160,0.12)":"transparent",color:portal.on?C.green:C.textMuted}}>{portal.on?"On":"Off"}</span>
+      </div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginBottom:10}}>One private page with everything for {client.name}: a calendar of every booking (tap a booking to see everything the customer filled in), what's coming up, leads, the last 30 days of numbers, the ads, and the packages and hours. It's view only. Nothing can be changed from it, so it's safe to keep on your phone or share with your partner.{upcoming?` ${upcoming} booking${upcoming===1?"":"s"} coming up right now.`:""}</div>
+      {!portal.on
+        ? <button onClick={turnOn} style={{...btn(true),width:"100%",padding:"11px"}}>Make the portal link</button>
+        : <>
+            <div style={{padding:"9px 12px",borderRadius:9,backgroundColor:"rgba(255,255,255,.04)",border:`1px solid ${C.border}`,marginBottom:9,fontSize:12,color:C.gold,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{url.replace(/^https?:\/\//,"")}</div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              <a href={url} target="_blank" rel="noopener noreferrer" style={btn(true)}>Open</a>
+              <button onClick={copy} style={btn(false)}>{copied?"✓ Copied":"Copy link"}</button>
+              <a href={sms} style={btn(false)}>Text it</a>
+              <button onClick={turnOff} style={btn(false)}>Turn off</button>
+            </div>
+            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Anyone with this link can see the bookings and customers' details, so only share it with people you trust. Turning it off kills the link straight away.</div>
+          </>}
+    </Card>
+  );
+}
+
 function ShowcaseCard({client,onUpdate}){
   const sc = client.showcase || {};
   const n = showcaseNumbers(client);
@@ -12127,6 +12168,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="overview"&&isWebsiteOnly(client)&&<WebsiteOnlyOverview client={client} onUpdate={onUpdate} onOpen={setTab}/>}
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
+            {isOwned(client)&&<BusinessPortalCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
             <LaunchChecklistCard client={client}/>
             <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
@@ -19566,6 +19608,8 @@ function makeOwnedBusiness(f) {
     website: "", platforms: (f.platforms&&f.platforms.length) ? f.platforms : ["Google Ads","Meta Ads"],
     notes: "Your own business. Not a client: never billed, never counted, kept apart from BoldLine.",
     campaignSetup: { ...base.campaignSetup, serviceArea: area, targetLocations: area },
+    // Every business he adds comes with its view-only portal link ready (Bryson, 2026-10-08).
+    portal: { on: true, token: crypto.randomUUID(), createdAt: new Date().toISOString() },
     landingSlug: makeSlug(name) };
 }
 

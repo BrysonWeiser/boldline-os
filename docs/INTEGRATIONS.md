@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 215 task-keyed entries under `knowledge/`. They surface automatically via the
+> 216 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**215 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**216 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -444,6 +444,12 @@
 - **[mobile-glow-overflow](../knowledge/mobile-glow-overflow.md)** &mdash; &#9989; verified &middot; 2026-07-02  
   A 720px-wide decorative glow behind #services/#process (sections without overflow:hidden) bled to 555px on a 390px phone, expanding the layout viewport to 555px and disabling the ≤480px media query (phones got tablet styles). Fix: overflow:hidden on those sections + cap the glow at min(720px,100%). Always clip decorative overflow.  
   <sub>*task:* fix a mobile layout that renders the wrong breakpoint or zoomed out because the viewport is wider than the device &nbsp;|&nbsp; *keywords:* overflow-hidden, decorative-glow, layout-viewport, phone-breakpoint, 720px, viewport-zoom</sub>
+
+## My Businesses
+
+- **[business-portal](../knowledge/business-portal.md)** &mdash; &#9989; verified &middot; 2026-10-08  
+  Bryson, 2026-10-08 - "when i add my business to it can you also give me a portal link (similar to client portals) except include everything for the business but dont allow edits through there but have the calendar showing all of the bookings for that specific business with the ability to click each person whos booked and it will open up to their details". Built /biz?t=<token>, a view-only page per owned business (right now, month calendar of bookings with a tap-to-open detail sheet, coming up, last 30 days, leads, ads, setup and live links). The server answers GET only, so nothing can be changed from it. Every new business gets the link automatically; existing ones get a "Make the portal link" button on the Overview tab.  
+  <sub>*task:* give Bryson (or his partner) a private view-only page for one of his own businesses with a bookings calendar, booking details, leads, numbers, ads and setup; turn the portal link on or off &nbsp;|&nbsp; *keywords:* business portal, portal link, view only, read only, /biz, biz-portal.mjs, biz.mjs, BusinessPortalCard, bookings calendar, booking details, owned business, partner, portal token</sub>
 
 ## Netlify
 
