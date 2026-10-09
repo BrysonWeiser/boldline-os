@@ -459,3 +459,26 @@ kept at $100 as an easy yes after a $1,500 build, revisit for new clients once a
 
 ## Booking for website prospects (2026-10-07)
 Website buttons now book the "Website call" Calendly event and the OS labels those leads; details in KB `calendly-leads`.
+
+## The website client's portal (2026-10-09, Bryson: "show me what the client portal for a website client would look like ... make sure that it fits mobile properly")
+
+- **Driven in a browser at 360 / 390 / 768 / 1280 / 1600** on every tab (Website, Enquiries, Account), with
+  every Account section open. **No sideways scroll anywhere.** The only elements past the edge are the
+  blurred background glows (`.topglow`, `.orb`), which are clipped.
+- **His earlier phone screenshot of /pricing** showed the logo bar in the middle of the page. That was the
+  capture method (a fixed header inside an element screenshot), not the page itself.
+- **Content fixed for website-only clients (`packageId: "w-site"`)** in `netlify/functions/portal.mjs`:
+  - **Enquiries:** "Your enquiries", showing the total and the last 30 days. No "Counted as qualified",
+    and no line about an invoice built from it. They are not billed per lead.
+  - **Account: "Your Website Plan"** replaces the empty "Your Package: —". It shows the tier, build total
+    and monthly cost, and what is included (pages, rounds, care edits, domain, blog, email setup,
+    Signature design).
+  - **Account: Your Information** has no Campaign Setup (ad budget), no "If people buy straight from your
+    website", and no "who looks after your site" box.
+  - **Account: Your Agreement** shows the WEBSITE agreement's status (On its way / Waiting for your
+    signature / Signed on a date) and its terms in a frame with Save or Print. It no longer shows the
+    ads contract marked "Expired".
+  - **The signature badge** follows the website agreement for these clients.
+  - 🔴 **The website sections are built before `sigDot` exists**, so they use the dot markup directly. Using
+    `sigDot` would have thrown for any client whose agreement was out but unsigned.
+- **Tests:** `tests/verify-portal-website-client.mjs` (8). Phone screenshots are in `docs/screens/`.
