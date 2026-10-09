@@ -9419,7 +9419,7 @@ function BrandKitCard({client,onUpdate,onOpenAssets}){
   const lib = client.mediaLibrary || [];
   const logo = (lib.find(m=>m&&m.category==="logo")||{}).url || client.brandLogo || br.logoUrl || "";
   const media = lib.filter(m=>m&&(m.category==="photo"||m.category==="video"));
-  const SLOTS = [["primary","Main colour","Buttons, links and highlights everywhere"],["secondary","Second colour","Saved with the kit"],["accent","Accent colour","Saved with the kit"]];
+  const SLOTS = [["primary","Main colour","Buttons, links and highlights everywhere"],["secondary","Second colour","Background glows and marked numbers"],["accent","Accent colour","Small touches: stars, dots and lines"]];
   const pick = (hex) => { const c = bkParseColor(hex); if(!c) return; setKit(k=>({...k,[slot]:c})); const i = SLOTS.findIndex(x=>x[0]===slot); if(i<SLOTS.length-1) setSlot(SLOTS[i+1][0]); };
   const dirty = ["primary","secondary","accent","headingFont","bodyFont"].some(f=>String(kit[f]||"")!==String((f==="primary"?startColor:k0[f])||""));
   const bad = ["primary","secondary","accent"].filter(f=>String(kit[f]||"").trim()&&!bkParseColor(kit[f]));
@@ -9466,6 +9466,17 @@ function BrandKitCard({client,onUpdate,onOpenAssets}){
       onUpdate({...client, mediaLibrary: r.mediaLibrary || lib, brandLogo: r.url || client.brandLogo, brand:{...br, logoUrl: r.url || br.logoUrl}}); say("logo","Logo saved. The website, landing page and emails use it.",true);
       if (/^image\//.test(file.type) && !k0.primary) { const cs = file.type==="image/svg+xml" ? bkSvgColors(await file.text()) : await bkPalette(file); if (cs.length) { setFound(cs.map(hex=>({hex,name:"From the logo"}))); } }
     } catch(e){ say("logo", e.message, false); } setBusy(""); };
+  // Before and after (KB brand-kit): a pair shows on the website and landing page as a drag slider the moment the
+  // first one is added. Until then that section stays hidden rather than showing empty frames.
+  const pairs = client.beforeAfter || [];
+  const [baB,setBaB] = useState(null); const [baA,setBaA] = useState(null); const [baCap,setBaCap] = useState("");
+  const bUrl = useMemo(()=>baB?URL.createObjectURL(baB):"",[baB]), aUrl = useMemo(()=>baA?URL.createObjectURL(baA):"",[baA]);
+  const addPair = async () => { if(!baB||!baA) return; setBusy("ba");
+    try { const b = await bkUpload(client, baB, "before-after"); const a = await bkUpload(client, baA, "before-after");
+      onUpdate({...client, mediaLibrary: a.mediaLibrary || b.mediaLibrary || lib, beforeAfter:[...pairs, { id: uid().slice(0,8), before: b.url, after: a.url, caption: baCap.trim().slice(0,120), addedAt: new Date().toISOString() }].slice(-6)});
+      setBaB(null); setBaA(null); setBaCap(""); say("ba","Added. It's on the website and landing page now.",true);
+    } catch(e){ say("ba", e.message, false); } setBusy(""); };
+  const delPair = (id) => { if(!window.confirm("Take this before and after off the website? The photos stay in the library.")) return; onUpdate({...client, beforeAfter: pairs.filter(p=>p.id!==id)}); };
   const uploadMedia = async (files) => { const list = [...(files||[])]; if(!list.length) return; let latest = null, n = 0;
     for (const f of list) { setBusy(`media ${n+1}/${list.length}`); try { const r = await bkUpload(client, f, /^video\//.test(f.type) ? "video" : "photo"); latest = r.mediaLibrary || latest; n++; } catch(e){ say("media", `${f.name}: ${e.message}`, false); } }
     setBusy(""); if (latest) { onUpdate({...client, mediaLibrary: latest}); say("media", `${n} file${n===1?"":"s"} added.`, true); } };
@@ -9513,7 +9524,7 @@ function BrandKitCard({client,onUpdate,onOpenAssets}){
         <div><div style={lbl}>Headings</div><input value={kit.headingFont} onChange={e=>setKit(k=>({...k,headingFont:e.target.value}))} placeholder="e.g. Montserrat" style={inp}/></div>
         <div><div style={lbl}>Body text</div><input value={kit.bodyFont} onChange={e=>setKit(k=>({...k,bodyFont:e.target.value}))} placeholder="e.g. Inter" style={inp}/></div>
       </div>
-      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Saved with the kit. The website designs still use their own fonts for now.</div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Any font from Google Fonts (fonts.google.com), typed exactly as it's named there. The website and landing page use them; if a name isn't found, the design's own font shows instead.</div>
       <button onClick={save} disabled={!dirty} style={{...small(true),width:"100%",padding:"11px",marginTop:12,opacity:dirty?1:.5}}>Save the brand kit</button>
       {note("kit")}
 
@@ -9534,8 +9545,30 @@ function BrandKitCard({client,onUpdate,onOpenAssets}){
       {media.length>0&&<div style={{display:"flex",gap:6,marginTop:10,overflowX:"auto"}}>{media.slice(-8).reverse().map(m=>m.category==="video"
         ? <div key={m.path} style={{width:64,height:64,borderRadius:8,backgroundColor:"#000",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>▶</div>
         : <img key={m.path} src={m.url} alt="" style={{width:64,height:64,borderRadius:8,objectFit:"cover",flexShrink:0}}/>)}</div>}
-      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Real photos of the work, the team and the vehicle, plus a short video if you have one. The website, landing page and ads pick from these. Up to 50 MB a file.</div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Real photos of the work, the team and the vehicle, plus a short video if you have one. Until you add some, the website uses background photos that fit the business; your own take their place automatically as soon as they're uploaded. Up to 50 MB a file.</div>
       {note("media")}
+
+      <div style={sub}>Before and after</div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginBottom:8}}>A photo from before the job and one from after, taken from the same angle. Each pair becomes a slider on the website and landing page that visitors drag to compare. {pairs.length?`${pairs.length} showing now (up to 6).`:"None yet, so that section is hidden until you add the first pair."}</div>
+      {pairs.map(p=>(
+        <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:8,borderRadius:10,border:`1px solid ${C.border}`,marginBottom:7}}>
+          <img src={p.before} alt="Before" style={{width:58,height:44,objectFit:"cover",borderRadius:6}}/><img src={p.after} alt="After" style={{width:58,height:44,objectFit:"cover",borderRadius:6}}/>
+          <div style={{flex:1,minWidth:0,fontSize:11.5,color:C.textDim,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.caption||"No caption"}</div>
+          <button onClick={()=>delPair(p.id)} style={small(false)}>Remove</button>
+        </div>))}
+      {pairs.length<6&&<div style={{padding:10,borderRadius:10,border:`1px dashed ${C.border}`}}>
+        <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:8}}>
+          {[["Before",baB,setBaB,bUrl],["After",baA,setBaA,aUrl]].map(([l,f,set,src])=>(
+            <label key={l} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,aspectRatio:"4/3",borderRadius:9,cursor:"pointer",overflow:"hidden",backgroundColor:"rgba(255,255,255,.03)",border:`1px solid ${C.border}`,position:"relative"}}>
+              {f ? <img src={src} alt={l} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/> : <><span style={{fontSize:12,fontWeight:800,color:C.text}}>{l}</span><span style={{fontSize:10.5,color:C.textMuted}}>Tap to choose a photo</span></>}
+              {f&&<span style={{position:"absolute",top:6,left:6,padding:"2px 8px",borderRadius:20,backgroundColor:"rgba(0,0,0,.6)",color:"#fff",fontSize:10,fontWeight:700}}>{l}</span>}
+              <input type="file" accept="image/*" onChange={e=>{ const x=e.target.files[0]; e.target.value=""; if(x) set(x); }} style={{display:"none"}}/>
+            </label>))}
+        </div>
+        <input value={baCap} onChange={e=>setBaCap(e.target.value)} placeholder="Caption (optional), like: Ford F-150, full interior" style={{...inp,marginTop:8}}/>
+        <button onClick={addPair} disabled={!baB||!baA||!!busy} style={{...small(true),width:"100%",padding:"10px",marginTop:8,opacity:(!baB||!baA)?.5:1}}>{busy==="ba"?"Uploading...":"Add the pair"}</button>
+      </div>}
+      {note("ba")}
     </Card>
   );
 }

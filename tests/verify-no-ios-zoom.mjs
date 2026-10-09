@@ -37,8 +37,8 @@ for (const f of ["marketing-site/examples/aurora/contact/index.html", "marketing
   const { IOS_NO_ZOOM: L } = await import("../netlify/functions/landing.mjs");
   const { IOS_NO_ZOOM: S } = await import("../netlify/lib/site-render.mjs");
   ok("the landing page and website renderers export the identical rule", L === RULE && S === RULE);
-  ok("🔴 a client landing page actually renders it", /\$\{css\}\$\{kitCss\}\$\{IOS_NO_ZOOM\}<\/style>/.test(src("netlify/functions/landing.mjs")));
-  ok("🔴 a client website actually renders it", /<style>\$\{css\(theme, P\)\}\$\{IOS_NO_ZOOM\}<\/style>/.test(src("netlify/lib/site-render.mjs")));
+  ok("🔴 a client landing page actually renders it", /\$\{css\}\$\{kitCss\}(\$\{[a-zA-Z]+\})*\$\{IOS_NO_ZOOM\}<\/style>/.test(src("netlify/functions/landing.mjs")));
+  ok("🔴 a client website actually renders it", /<style>\$\{css\(theme, P, cl\)\}\$\{IOS_NO_ZOOM\}<\/style>/.test(src("netlify/lib/site-render.mjs")));
   const P = await import("../netlify/functions/portal.mjs");
   const html = P._internal.makePortalHTML({ name: "A", packageId: "g-launch", portalToken: "t" }, P._internal.findPkg("g-launch"));
   ok("🔴 the portal renders it", html.includes(RULE));

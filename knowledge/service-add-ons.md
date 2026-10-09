@@ -170,3 +170,17 @@ writing that BoldLine "steps out of any website job entirely", so changing cours
 going back on your word if he hears it elsewhere. One line, optional, offered as a draft.
 
 Build NOT started: flagged as an Opus-level multi-session build per CLAUDE.md, waiting on his go.
+
+
+## Domain setup for website clients (asked 2026-10-09, NOT decided, nothing built)
+
+Bryson asked whether a new website client should buy and connect their own domain from step-by-step
+instructions, or whether BoldLine should do it for an extra fee as an optional add-on. Recommendation given:
+- Offer both: free step-by-step (the OS already gives the DNS records), or a paid "we set it up" add-on.
+- 🔴 Either way, the domain is bought **in the client's name, on the client's card**. Never on BoldLine's.
+  This follows the hard constraint (the client pays for everything) and avoids "who owns the domain"
+  fights if they ever leave.
+- Done-for-you means they buy it (a 5 minute link) and give BoldLine delegate access at the registrar, then
+  BoldLine connects it and sets up their business email on the domain.
+- Suggested about $99 one time, including the business email setup.
+- Build it only after the My Businesses side is finished (his order: his businesses first, then clients).
