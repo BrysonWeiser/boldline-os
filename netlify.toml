@@ -57,6 +57,11 @@
 [functions."lead-leak-sweep"]
   schedule = "*/10 * * * *"
 
+# A business Bryson owns emails its customers on its own: a reminder before the job, a review request
+# after it, "time for another" for one-off customers (KB business-emails). Hourly, at 7 past.
+[functions."biz-customer-emails"]
+  schedule = "7 * * * *"
+
 # Daily billing enforcement: syncs overdue invoices from Stripe, accrues the
 # Agreement's 1.5%/mo late interest after day 10 (as a pending invoice item on
 # the client's next bill), and emails the owner on late/interest/recovered
@@ -260,6 +265,18 @@
 [[redirects]]
   from = "/biz"
   to = "/.netlify/functions/biz"
+  status = 200
+
+# The same business's bookings as a calendar a phone subscribes to (netlify/functions/biz-cal.mjs).
+[[redirects]]
+  from = "/biz-cal"
+  to = "/.netlify/functions/biz-cal"
+  status = 200
+
+# Unsubscribe from a business's review and "book again" emails (netlify/functions/optout.mjs).
+[[redirects]]
+  from = "/optout"
+  to = "/.netlify/functions/optout"
   status = 200
 
 [[redirects]]

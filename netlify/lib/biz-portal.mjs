@@ -194,6 +194,7 @@ h1{margin:1px 0 0;font-size:22px;line-height:1.15;letter-spacing:-.01em;overflow
 .pk{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .pk .card b{display:block;font-size:16px}.pk .card span{font-size:13.5px;color:${ink};font-weight:700}.pk .card p{margin:4px 0 0;font-size:13.5px;color:#6B7280}
 .links{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.addcal{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:-2px 0 12px}.addcal span{flex:1 1 260px;min-width:0;font-size:12.5px;color:#6B7280;overflow-wrap:anywhere}.addcal b{font-weight:600;color:#374151}
 .foot{text-align:center;font-size:12px;color:#9CA3AF;margin-top:30px}
 .sheet{position:fixed;inset:0;z-index:20;display:none;align-items:flex-end;justify-content:center;background:rgba(17,24,39,.45)}
 .sheet.on{display:flex}
@@ -215,6 +216,7 @@ h1{margin:1px 0 0;font-size:22px;line-height:1.15;letter-spacing:-.01em;overflow
 <div class="wrap">
   <section class="sec" id="now" style="margin-top:4px"><h2>Right now</h2><div class="now" id="nowTiles"></div><div id="nextBox"></div></section>
   <section class="sec" id="calendar"><h2>Calendar</h2>
+    ${token && base ? `<div class="addcal"><a class="btn" href="${esc(calWebcalUrl(base, token))}">Add to my phone's calendar</a><span>On an iPhone, tap it and choose Subscribe. Every booking then shows up in your phone's calendar on its own. For Google Calendar, copy <b>${esc(calFeedUrl(base, token))}</b> into "Add calendar, From URL".</span></div>` : ""}
     <div class="cal"><div class="card"><div class="ch"><button type="button" id="prev" aria-label="Previous month">&#8249;</button><h3 id="mon"></h3><button type="button" class="td" id="tdy">Today</button><button type="button" id="next" aria-label="Next month">&#8250;</button></div>
       <div class="dow"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div><div class="grid" id="grid"></div></div>
       <div><div class="dayh" id="dayh"></div><div id="dayList"></div></div></div>
@@ -325,3 +327,31 @@ h1{margin:1px 0 0;font-size:22px;line-height:1.15;letter-spacing:-.01em;overflow
 export const portalOffPage = () => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Link turned off</title>
 <style>body{margin:0;background:#F4F5F7;color:#111827;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}div{max-width:420px;text-align:center}h1{font-size:21px;margin:0 0 8px}p{margin:0;color:#6B7280}</style></head>
 <body><div><h1>This link is turned off</h1><p>Ask for a new link to see this business again.</p></div></body></html>`;
+
+// ── The same bookings as a calendar a phone subscribes to ─────────────────────────────────────────────
+// Bryson, 2026-10-09 ("lets do all of them", the second being jobs on his and his partner's phone calendar).
+// /biz-cal?t=<portal token>. A phone re-reads it on its own; a cancelled booking is sent as cancelled so it
+// disappears from the phone too. Same token, same people, same view-only rule as the portal.
+const icsText = (s) => String(s == null ? "" : s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const icsTime = (iso) => new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+// Lines longer than 75 characters are folded, as the calendar format requires.
+const fold = (line) => { const out = []; let s = line; while (s.length > 74) { out.push(s.slice(0, 74)); s = " " + s.slice(74); } out.push(s); return out.join("\r\n"); };
+export function bookingsIcs(cl, now = Date.now()) {
+  const name = str(cl && cl.name, 120) || "Bookings";
+  const host = "bookings";
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Business portal//Bookings//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    `X-WR-CALNAME:${icsText(`${name} bookings`)}`, "REFRESH-INTERVAL;VALUE=DURATION:PT1H", "X-PUBLISHED-TTL:PT1H"];
+  portalBookings(cl).filter((b) => Date.parse(b.end || b.start) > now - 60 * 864e5).forEach((b) => {
+    const end = b.end || new Date(Date.parse(b.start) + (b.minutes || 60) * 60000).toISOString();
+    const desc = [b.pkg && `${b.pkg}${b.price ? ` (${b.price})` : ""}`, b.phone && `Phone: ${b.phone}`, b.email && `Email: ${b.email}`,
+      b.deposit && `Deposit: ${b.deposit.amount ? b.deposit.amount + ", " : ""}${b.deposit.paid ? "paid" : "not paid yet"}`, b.notes && `They said: ${b.notes}`].filter(Boolean).join("\n");
+    lines.push("BEGIN:VEVENT", `UID:${icsText(b.id || b.start)}@${host}`, `DTSTAMP:${icsTime(now)}`, `DTSTART:${icsTime(b.start)}`, `DTEND:${icsTime(end)}`,
+      `SUMMARY:${icsText(`${b.pkg || "Booking"}: ${b.name || "Customer"}`)}`, b.address ? `LOCATION:${icsText(b.address)}` : "", `DESCRIPTION:${icsText(desc)}`,
+      `STATUS:${b.status === "cancelled" ? "CANCELLED" : "CONFIRMED"}`, "END:VEVENT");
+  });
+  lines.push("END:VCALENDAR");
+  return lines.filter(Boolean).map(fold).join("\r\n") + "\r\n";
+}
+// webcal:// opens the phone's "subscribe to calendar" screen; Google Calendar takes the https form.
+export const calFeedUrl = (base, token) => `${String(base || "").replace(/\/$/, "")}/biz-cal?t=${encodeURIComponent(token)}`;
+export const calWebcalUrl = (base, token) => calFeedUrl(base, token).replace(/^https?:\/\//, "webcal://");

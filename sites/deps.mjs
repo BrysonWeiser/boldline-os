@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 export const SITES_DIR = dirname(fileURLToPath(import.meta.url));
 export const REPO = resolve(SITES_DIR, "..");
-export const ENTRIES = ["functions/website.mjs", "functions/site-hit.mjs", "functions/lead.mjs", "functions/book.mjs"].map((f) => join(SITES_DIR, f));
+export const ENTRIES = ["functions/website.mjs", "functions/site-hit.mjs", "functions/lead.mjs", "functions/book.mjs", "functions/optout.mjs"].map((f) => join(SITES_DIR, f));
 
 const IMPORT_RE = /(?:import|export)\s[^"'`;]*?from\s*["'](\.{1,2}\/[^"']+)["']|import\(\s*["'](\.{1,2}\/[^"']+)["']\s*\)/g;
 

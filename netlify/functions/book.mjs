@@ -2,6 +2,7 @@
 // GET  /book?token=<leadToken>&pkg=<packageId>   the packages, the phone, and open times for that package
 // POST /book?token=<leadToken>                     {packageId, start, name, phone, email, address, notes, page}
 // The website on a client's own domain reaches this through its own /book (sites/functions/book.mjs).
+import { sendAsBusiness } from "../lib/biz-email.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, notifyOwnerOfLead } from "../lib/report-shared.mjs";
 import { bookingOn, bookingDays, publicBooking, makeBooking, bookingConfirmEmail } from "../lib/booking.mjs";
@@ -59,7 +60,8 @@ export default async (req) => {
     notifyOwnerOfLead(next, made.lead),
     notifyTeamOfLead(next, made.lead, { send: sendEmail, base: process.env.URL }),
     made.booking.email
-      ? sendEmail({ to: made.booking.email, subject: mail.subject, html: mail.html, text: mail.text, fromName: next.name, replyTo: next.email || undefined }).catch((e) => console.error("booking confirmation failed:", e && e.message))
+      // From the business's own address once it is proven, otherwise under its name (KB business-emails).
+      ? sendAsBusiness(next, { to: made.booking.email, subject: mail.subject, html: mail.html, text: mail.text }, { send: sendEmail }).catch((e) => console.error("booking confirmation failed:", e && e.message))
       : Promise.resolve(),
   ]);
   return json({ ok: true, when: made.when, packageName: made.booking.packageName, phone: phoneOf(next),

@@ -44,7 +44,7 @@ ok("🔴 only an owned business with the link on", P.portalOn(BIZ) && !P.portalO
   && !P.portalOn({ ...BIZ, portal: { on: false, token: TOKEN } }) && !P.portalOn({ ...BIZ, portal: { on: true, token: "" } }));
 ok("the link is the OS address plus the token", P.portalUrl("https://os.example/", TOKEN) === `https://os.example/biz?t=${TOKEN}`);
 ok("🔴 turning it off removes the token, so the old link is dead", /onUpdate\(\{\.\.\.client, portal:\{\.\.\.portal, on:false, token:""\}\}\)/.test(UI));
-ok("🔴 every business he adds comes with its portal link ready", /portal: \{ on: true, token: crypto\.randomUUID\(\), createdAt: new Date\(\)\.toISOString\(\) \},\n    landingSlug: makeSlug\(name\) \};/.test(UI));
+ok("🔴 every business he adds comes with its portal link ready", /portal: \{ on: true, token: crypto\.randomUUID\(\), createdAt: new Date\(\)\.toISOString\(\) \},/.test(UI.slice(UI.indexOf("function makeOwnedBusiness("), UI.indexOf("function makeOwnedBusiness(") + 1500)));
 ok("a dead link gets a plain 'turned off' page", /This link is turned off/.test(P.portalOffPage()));
 
 // 2. View only

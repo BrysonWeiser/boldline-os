@@ -9,6 +9,7 @@
 // twice. All times are the business's own clock (Arizona unless set otherwise).
 //
 // Used by netlify/functions/book.mjs (the OS, the only writer) and site-render.mjs (the Book page).
+import { bizEmailHTML, bizEmailText } from "./biz-email-shell.mjs";
 
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 // Minutes from midnight, [open, close]; null is closed. Monday to Saturday, 8 to 5.
@@ -31,7 +32,9 @@ export function bookingConfig(cl) {
     .map((p) => {
       const depositLink = httpsUrl(p.depositLink);
       return { id: str(p.id, 40), name: str(p.name, 80), price: str(p.price, 30), minutes: num(p.minutes, 120, 15, 720), desc: str(p.desc, 300),
-        deposit: depositLink ? str(p.deposit, 20) : "", depositLink };
+        deposit: depositLink ? str(p.deposit, 20) : "", depositLink,
+        // A subscription / membership package. Its customers never get the "time for another" email.
+        plan: !!p.plan };
     });
   return {
     on: !!b.on, packages, hours,
@@ -162,7 +165,7 @@ export function makeBooking(cl, body, now = Date.now(), id = (globalThis.crypto 
   // 🔴 A DEPOSIT IS PAID TO THE BUSINESS, NEVER THROUGH BOLDLINE. The link is the business's own payment
   // page (Stripe, Square, PayPal); BoldLine only shows it and lets him mark it paid. It never holds the money.
   const deposit = pkg.depositLink ? { amount: pkg.deposit, link: pkg.depositLink, paid: false } : null;
-  const booking = { id, packageId: pkg.id, packageName: pkg.name, price: pkg.price, minutes: pkg.minutes,
+  const booking = { id, packageId: pkg.id, packageName: pkg.name, price: pkg.price, minutes: pkg.minutes, plan: pkg.plan,
     start: new Date(start).toISOString(), end: new Date(end).toISOString(), address, name, phone, email, notes, deposit,
     status: "booked", createdAt: new Date(now).toISOString() };
   const lead = { name, phone, email, source: "booking", page: str(body.page, 500), receivedAt: new Date(now).toISOString(), leadId: id, bookingId: id,
@@ -172,22 +175,24 @@ export function makeBooking(cl, body, now = Date.now(), id = (globalThis.crypto 
 
 export const depositPhrase = (amount) => (String(amount || "").trim() ? `the ${String(amount).trim()} deposit` : "the deposit");
 
-// The customer's confirmation, sent as the business. No emojis, no dashes, nothing pointing at BoldLine.
+// The customer's confirmation, sent as the business and in its own branding (biz-email-shell.mjs). No
+// emojis, no dashes, nothing pointing at BoldLine.
 export function bookingConfirmEmail(cl, booking) {
   const cfg = bookingConfig(cl);
-  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   const phone = String((cl && (cl.businessPhone || cl.callTrackingNumber)) || "").trim();
   const when = longWhen(Date.parse(booking.start), cfg.tz);
-  const rows = [["What", `${booking.packageName}${booking.price ? ` (${booking.price})` : ""}`], ["When", when], ...(booking.address ? [["Where", booking.address]] : [])];
-  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F4F5F7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F4F5F7;padding:24px 12px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#ffffff;border:1px solid #E5E7EB;border-radius:14px">
-<tr><td style="padding:24px 24px 8px"><div style="font-size:13px;font-weight:700;color:#6B7280">${esc(cl.name || "")}</div>
-<div style="font-size:22px;font-weight:700;color:#111827;margin-top:4px">You're booked, ${esc(String(booking.name || "").split(" ")[0] || "thanks")}.</div></td></tr>
-<tr><td style="padding:8px 24px">${rows.map(([k, v]) => `<div style="margin:0 0 12px"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#6B7280">${esc(k)}</div><div style="font-size:15px;color:#111827">${esc(v)}</div></div>`).join("")}</td></tr>
-${booking.deposit && booking.deposit.link ? `<tr><td style="padding:4px 24px 14px"><div style="font-size:14px;color:#374151;line-height:1.6;margin-bottom:10px">Your time is held. Pay ${esc(depositPhrase(booking.deposit.amount))} to lock it in.</div><a href="${esc(booking.deposit.link)}" style="display:inline-block;padding:12px 20px;border-radius:10px;background:#111827;background-image:linear-gradient(#111827,#111827);color:#ffffff;font-weight:700;font-size:15px;text-decoration:none">Pay the deposit</a></td></tr>` : ""}
-<tr><td style="padding:4px 24px 24px;font-size:14px;color:#374151;line-height:1.6">${phone ? `Need to change anything? Call or text us at <a href="tel:${esc(phone.replace(/[^0-9+]/g, ""))}" style="color:#111827;font-weight:700">${esc(phone)}</a>, or just reply to this email.` : "Need to change anything? Just reply to this email."}</td></tr>
-</table></td></tr></table></body></html>`;
-  const text = rows.map(([k, v]) => `${k}: ${v}`).join("\n") + (booking.deposit && booking.deposit.link ? `\n\nYour time is held. Pay ${depositPhrase(booking.deposit.amount)} to lock it in: ${booking.deposit.link}` : "") + (phone ? `\n\nNeed to change anything? Call or text us at ${phone}, or reply to this email.` : "\n\nNeed to change anything? Reply to this email.");
-  return { subject: `You're booked: ${booking.packageName}, ${when}`, html, text };
+  const first = String(booking.name || "").split(" ")[0];
+  const dep = booking.deposit && booking.deposit.link ? booking.deposit : null;
+  const parts = {
+    preheader: `${booking.packageName}, ${when}`,
+    heading: `You're booked${first ? `, ${first}` : ""}.`,
+    paras: ["Here are the details. We'll see you then."],
+    rows: [["What", `${booking.packageName}${booking.price ? ` (${booking.price})` : ""}`], ["When", when], ["Where", booking.address || ""]],
+    button: dep ? { href: dep.link, label: "Pay the deposit" } : null,
+    after: [dep ? `Your time is held. Pay ${depositPhrase(dep.amount)} to lock it in.` : "",
+      phone ? `Need to change anything? Call or text us at ${phone}, or just reply to this email.` : "Need to change anything? Just reply to this email."],
+  };
+  // The deposit line reads before its button.
+  if (dep) { parts.paras.push(parts.after[0]); parts.after = parts.after.slice(1); }
+  return { subject: `You're booked: ${booking.packageName}, ${when}`, html: bizEmailHTML(cl, parts), text: bizEmailText(cl, parts) };
 }

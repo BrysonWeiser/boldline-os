@@ -345,10 +345,13 @@ const displayName = (n) => String(n || "").replace(/["<>\r\n]/g, "").trim().slic
 
 // `fromName` replaces "BoldLine Media" in the From line (used when a client's CUSTOMER is written to:
 // they contacted that business, not us). `replyTo` defaults to Bryson's forwarding address.
-export const sendEmail = async ({ to, subject, html, text, replyTo, fromName }) => {
+// `fromAddress` sends from the business's OWN address (KB `business-emails`): only ever passed once that
+// address has been proven by a test send, because the email service refuses a domain it has not verified.
+export const sendEmail = async ({ to, subject, html, text, replyTo, fromName, fromAddress }) => {
+  const addr = fromAddress && /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[a-z]{2,}$/i.test(fromAddress) ? fromAddress : senderAddress(process.env.REPORTS_FROM_EMAIL);
   const from = fromName && displayName(fromName)
-    ? `"${displayName(fromName)}" <${senderAddress(process.env.REPORTS_FROM_EMAIL)}>`
-    : process.env.REPORTS_FROM_EMAIL;
+    ? `"${displayName(fromName)}" <${addr}>`
+    : (addr !== senderAddress(process.env.REPORTS_FROM_EMAIL) ? addr : process.env.REPORTS_FROM_EMAIL);
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
