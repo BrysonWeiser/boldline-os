@@ -9228,7 +9228,7 @@ function MyBusinessesScreen({businesses,onSelect,onAdd,onBack,isDesktop}) {
 }
 
 function AddBusinessSheet({onSave,onClose}) {
-  const [form,setForm] = useState({name:"",niche:"",serviceArea:"",businessPhone:"",email:"",plat:"both"});
+  const [form,setForm] = useState({name:"",niche:"",serviceArea:"",businessPhone:"",email:"",website:"",plat:"both"});
   const set=(k,v)=>setForm(p=>({...p,[k]:v}));
   const can = form.name.trim().length>1;
   const PLAT = { google:["Google Ads"], meta:["Meta Ads"], both:["Google Ads","Meta Ads"] };
@@ -9251,7 +9251,9 @@ function AddBusinessSheet({onSave,onClose}) {
           <div style={{marginBottom:11}}><NicheSelect value={form.niche} onChange={v=>set("niche",v)}/></div>
           {field("serviceArea","Where it works","e.g. Gilbert, Arizona")}
           {field("businessPhone","Phone number customers call","(480) 555-0100","tel")}
-          {field("email","Email for leads and customer replies","hello@yourbusiness.com","email")}
+          {field("email","Business email (customers' emails come from it)","hello@yourbusiness.com","email")}
+          {field("website","Website it already has (optional)","https://yourbusiness.com","url")}
+          <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6,marginTop:-4}}>If it has a website, its logo and colours are pulled from it so every email to its customers looks like the business.</div>
         </Card>
         <Card>
           <Label>Where to advertise</Label>
@@ -9344,6 +9346,125 @@ function TeamViewCard({client,onUpdate}){
   );
 }
 
+// ─── CUSTOMER EMAILS (owned businesses) ───────────────────────────────────────
+// Bryson, 2026-10-09: a reminder the day before a job, a review request after it, and "time for another" for
+// one-off customers only (never anyone on a subscription), every one "from the business email ... not boldline
+// media" and branded "based off of the business name and website". The sending is netlify/lib/biz-email.mjs
+// (hourly job biz-customer-emails); this card sets it up. Whether the address works and what has been sent are
+// written by the server only (SERVER_OWNED_KEYS). KB business-emails.
+const bizEmailCall = async (action, body) => {
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  const r = await fetch("/.netlify/functions/biz-email", { method:"POST", headers:{ "Content-Type":"application/json", Authorization:`Bearer ${session&&session.access_token}` }, body: JSON.stringify({ action, ...body }) });
+  try { return await r.json(); } catch(e){ return { ok:false, error:"Could not reach the server. Try again." }; }
+};
+function CustomerEmailsCard({client,onUpdate}){
+  const br = client.brand || {};
+  const ce = client.customerEmails || {};
+  const st = client.emailSenderStatus || {};
+  const [site,setSite] = useState(br.website||"");
+  const [logo,setLogo] = useState(br.logoUrl||"");
+  const [color,setColor] = useState(br.color||"");
+  const [addr,setAddr] = useState(((client.emailSender||{}).address)||client.email||"");
+  const [review,setReview] = useState(ce.reviewUrl||"");
+  const [plans,setPlans] = useState(Array.isArray(ce.planCustomers)?ce.planCustomers.join("\n"):(ce.planCustomers||""));
+  const [busy,setBusy] = useState(""); const [msg,setMsg] = useState({});
+  const say = (k,t,ok) => setMsg(m=>({...m,[k]:{t,ok}}));
+  const hex = /^#[0-9a-f]{6}$/i;
+  const okUrl = (u) => /^https:\/\/[^\s"'<>]+$/i.test(String(u||"").trim());
+  const sending = st.verified && String(st.address||"").toLowerCase()===String(((client.emailSender||{}).address)||"").toLowerCase() && String(st.address||"").toLowerCase()===addr.trim().toLowerCase();
+  const setCE = (patch) => onUpdate({...client, customerEmails:{...ce, ...patch}});
+  const pull = async (url) => {
+    const u = bizWebsiteUrl(url); if(!u){ say("brand","Type the website's address first, like yourbusiness.com.",false); return; }
+    setBusy("brand"); const r = await bizEmailCall("sniff",{url:u}); setBusy("");
+    if(!r.ok){ say("brand",r.error||"Could not read that website.",false); onUpdate({...client, brand:{...br, website:u, fetchedAt:new Date().toISOString()}}); return; }
+    const b = r.brand||{};
+    setSite(u); if(b.logoUrl) setLogo(b.logoUrl); if(b.color) setColor(b.color);
+    onUpdate({...client, brand:{...br, website:u, logoUrl:b.logoUrl||br.logoUrl||"", color:b.color||br.color||"", fetchedAt:new Date().toISOString()}});
+    say("brand", b.logoUrl||b.color ? `Pulled ${[b.logoUrl&&"the logo",b.color&&"the brand colour"].filter(Boolean).join(" and ")} from the website.` : "The website didn't list a logo or colour we could use. Add them below.", true);
+  };
+  // A business added with a website gets its branding pulled the first time this card opens.
+  useEffect(()=>{ if(br.website && !br.fetchedAt) pull(br.website); },[client.id]); // eslint-disable-line
+  const saveBrand = () => { onUpdate({...client, brand:{...br, website:bizWebsiteUrl(site), logoUrl:okUrl(logo)?logo.trim():"", color:hex.test(color.trim())?color.trim().toUpperCase():""}}); say("brand","Saved.",true); };
+  const test = async () => {
+    const a = addr.trim(); if(!/^[^\s@<>"',;]+@[^\s@<>"',;]+\.[a-z]{2,}$/i.test(a)){ say("send","That doesn't look like an email address.",false); return; }
+    onUpdate({...client, emailSender:{...(client.emailSender||{}), address:a}});
+    setBusy("send"); const r = await bizEmailCall("test-sender",{clientId:client.id, address:a}); setBusy("");
+    say("send", r.ok ? `It worked. Check your inbox for the test. Emails to customers now come from ${a}.` : (r.error||"The test did not send."), !!r.ok);
+  };
+  const sample = async (kind) => { setBusy("s-"+kind); const r = await bizEmailCall("sample",{clientId:client.id, kind}); setBusy("");
+    say("sample", r.ok ? `Sent to your inbox${r.via==="fallback"?" (from our sending address, because the business's own one isn't set up yet)":""}.` : (r.error||"It did not send."), !!r.ok); };
+  const shownColor = hex.test(color.trim()) ? color.trim() : (client.website&&client.website.brandColor) || "#111827";
+  const lbl = {fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:".06em",color:C.textMuted,marginBottom:4};
+  const sub = {fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".07em",color:C.gold,margin:"16px 0 8px"};
+  const small = (primary)=>({padding:"8px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${primary?C.borderAccent:C.border}`,backgroundColor:primary?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:primary?C.gold:C.textDim,flexShrink:0});
+  const note = (k) => msg[k] ? <div style={{fontSize:11.5,lineHeight:1.55,marginTop:7,color:msg[k].ok?C.green:C.red}}>{msg[k].t}</div> : null;
+  const toggle = (k,title,desc,extra) => (
+    <div style={{padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`,marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+        <div style={{flex:1,minWidth:0}}><div style={{fontSize:12.5,fontWeight:800,color:C.text}}>{title}</div><div style={{fontSize:11,color:C.textMuted,lineHeight:1.55,marginTop:2}}>{desc}</div></div>
+        <button onClick={()=>setCE({[k]:ce[k]===false})} style={{padding:"5px 11px",fontSize:11,fontWeight:800,borderRadius:20,cursor:"pointer",flexShrink:0,border:`1px solid ${ce[k]!==false?C.green:C.border}`,backgroundColor:ce[k]!==false?"rgba(34,211,160,0.12)":"transparent",color:ce[k]!==false?C.green:C.textDim}}>{ce[k]!==false?"On":"Off"}</button>
+      </div>{extra}
+    </div>);
+  const optOuts = (client.emailOptOut||[]).length;
+  return (
+    <Card style={{borderColor:`${C.gold}2a`}}>
+      <Label>Customer emails</Label>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,margin:"4px 0 6px"}}>Every email {client.name}'s customers get comes from the business's own address and looks like the business: its logo, its colour, its name. Nothing in them mentions BoldLine.</div>
+
+      <div style={sub}>How the emails look</div>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:10,backgroundColor:"#fff",borderTop:`4px solid ${shownColor}`,marginBottom:10}}>
+        {okUrl(logo) ? <img src={logo} alt="" style={{height:34,maxWidth:160,objectFit:"contain"}}/> : <div style={{fontSize:16,fontWeight:800,color:"#111827"}}>{client.name}</div>}
+        <div style={{flex:1}}/><span style={{padding:"8px 14px",borderRadius:8,backgroundColor:shownColor,color:"#fff",fontSize:12,fontWeight:700,textShadow:"0 1px 1px rgba(0,0,0,.25)"}}>Button</span>
+      </div>
+      <div style={lbl}>Its website</div>
+      <div style={{display:"flex",gap:8}}><input value={site} onChange={e=>setSite(e.target.value)} placeholder="https://yourbusiness.com" style={{...inp,flex:1,minWidth:0}}/>
+        <button onClick={()=>pull(site)} disabled={busy==="brand"} style={small(true)}>{busy==="brand"?"Looking...":"Pull logo and colour"}</button></div>
+      <div style={{display:"grid",gridTemplateColumns:"minmax(0,2fr) minmax(0,1fr)",gap:8,marginTop:8}}>
+        <div><div style={lbl}>Logo link (optional)</div><input value={logo} onChange={e=>setLogo(e.target.value)} placeholder="https://.../logo.png" style={inp}/></div>
+        <div><div style={lbl}>Brand colour</div><input value={color} onChange={e=>setColor(e.target.value)} placeholder={(client.website&&client.website.brandColor)||"#1D4ED8"} style={inp}/></div>
+      </div>
+      <button onClick={saveBrand} style={{...small(false),marginTop:8}}>Save the look</button>
+      {note("brand")}
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>No website yet? It uses the colour of the website you build for it here, and its name in place of a logo.</div>
+
+      <div style={sub}>Sent from</div>
+      <div style={{display:"flex",gap:8}}><input type="email" value={addr} onChange={e=>setAddr(e.target.value)} placeholder="hello@yourbusiness.com" style={{...inp,flex:1,minWidth:0}}/>
+        <button onClick={test} disabled={busy==="send"} style={small(true)}>{busy==="send"?"Sending...":"Send a test to me"}</button></div>
+      <div style={{fontSize:11.5,lineHeight:1.6,marginTop:7,color:sending?C.green:st.failedAt&&!st.verified?C.red:C.amber}}>
+        {sending ? `✓ Sending as ${st.address}.`
+          : st.failedAt&&!st.verified&&String(st.address||"").toLowerCase()===addr.trim().toLowerCase() ? `${addr.trim().split("@")[1]||"That domain"} isn't set up in the email service yet. Finish the one-time domain setup, then test again.`
+          : "Not set up yet. Until a test works, booking confirmations still go out (under the business's name, from our sending address) and the three emails below wait."}
+      </div>
+      {note("send")}
+
+      <div style={sub}>Sent on their own</div>
+      {toggle("reminder","Reminder before the job","About a day before: the time, the address and what they booked, plus a Pay the deposit button if it isn't paid.")}
+      {toggle("review","Review request after the job","The day after the job, a short thank you with a button to leave a Google review.",
+        <div style={{marginTop:8}}><div style={lbl}>Google review link</div>
+          <div style={{display:"flex",gap:8}}><input value={review} onChange={e=>setReview(e.target.value)} placeholder="https://g.page/r/.../review" style={{...inp,flex:1,minWidth:0,borderColor:review.trim()&&!okUrl(review)?C.red:undefined}}/>
+            {review.trim()!==(ce.reviewUrl||"")&&<button onClick={()=>okUrl(review)||!review.trim() ? setCE({reviewUrl:review.trim()}) : null} style={small(true)}>Save</button>}</div>
+          {!ce.reviewUrl&&<div style={{fontSize:10.5,color:C.amber,lineHeight:1.55,marginTop:5}}>Waits until there's a link. Get it from the business's Google profile: "Ask for reviews", then copy the link.</div>}</div>)}
+      {toggle("rebook","Time for another (one-off customers only)","Goes once to a customer whose last job was a one-time booking, after the time you pick, with a button to book again. Never to anyone on a subscription, anyone who already has a job booked, or anyone who unsubscribed.",
+        <div style={{marginTop:8,display:"grid",gap:8}}>
+          <div><div style={lbl}>Send it after</div><select value={ce.rebookDays||60} onChange={e=>setCE({rebookDays:Number(e.target.value)})} style={{...inp,padding:"8px 10px"}}>{[30,45,60,90,120].map(d=><option key={d} value={d}>{d} days</option>)}</select></div>
+          <div><div style={lbl}>Customers on a subscription (their email or phone, one per line)</div>
+            <textarea value={plans} onChange={e=>setPlans(e.target.value)} rows={3} placeholder={"ana@email.com\n(480) 555-0199"} style={{...inp,resize:"vertical"}}/>
+            {plans!==(Array.isArray(ce.planCustomers)?ce.planCustomers.join("\n"):(ce.planCustomers||""))&&<button onClick={()=>setCE({planCustomers:plans.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean)})} style={{...small(true),marginTop:6}}>Save the list</button>}
+            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.55,marginTop:5}}>Anyone who books a package marked as a subscription (Website tab) is left out on their own. This list is for people who signed up some other way.</div></div>
+        </div>)}
+      {optOuts>0&&<div style={{fontSize:11,color:C.textMuted,marginTop:2}}>{optOuts} customer{optOuts===1?"":"s"} unsubscribed from the review and "time for another" emails.</div>}
+
+      <div style={sub}>See them</div>
+      <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+        {[["confirmation","Booking confirmation"],["reminder","Reminder"],["review","Review request"],["rebook","Time for another"]].map(([k,l])=>(
+          <button key={k} onClick={()=>sample(k)} disabled={!!busy} style={small(false)}>{busy==="s-"+k?"Sending...":l}</button>))}
+      </div>
+      <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>Each button emails a sample to you, never to a customer.</div>
+      {note("sample")}
+    </Card>
+  );
+}
+
 // ─── BUSINESS PORTAL (owned businesses) ───────────────────────────────────────
 // Bryson, 2026-10-08: a portal link for each of his own businesses, "similar to client portals except include
 // everything for the business but dont allow edits", with a calendar of every booking he can tap into. The
@@ -9379,7 +9500,8 @@ function BusinessPortalCard({client,onUpdate}){
               <a href={sms} style={btn(false)}>Text it</a>
               <button onClick={turnOff} style={btn(false)}>Turn off</button>
             </div>
-            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Anyone with this link can see the bookings and customers' details, so only share it with people you trust. Turning it off kills the link straight away.</div>
+            <a href={`webcal://${window.location.host}/biz-cal?t=${portal.token}`} style={{...btn(false),display:"block",marginTop:7}}>Add the bookings to my phone's calendar</a>
+            <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Anyone with this link can see the bookings and customers' details, so only share it with people you trust. Turning it off kills the link straight away, and the phone calendar with it. On an iPhone, the calendar button asks you to Subscribe; after that every booking shows up on its own.</div>
           </>}
     </Card>
   );
@@ -9558,6 +9680,7 @@ function BookingCard({client,onUpdate}){
             <div><div style={lbl}>Deposit (optional)</div><input value={p.deposit||""} onChange={e=>setPkg(i,"deposit",e.target.value)} placeholder="$50" style={inp}/></div>
             <div><div style={lbl}>Deposit payment link</div><input value={p.depositLink||""} onChange={e=>setPkg(i,"depositLink",e.target.value)} placeholder="https://buy.stripe.com/..." style={{...inp,borderColor:String(p.depositLink||"").trim()&&!bkHttps(p.depositLink)?C.red:undefined}}/></div>
           </div>
+          <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.textDim,cursor:"pointer"}}><input type="checkbox" checked={!!p.plan} onChange={e=>setPkg(i,"plan",e.target.checked)}/>This is a subscription or membership (its customers never get "time for another" emails)</label>
         </div>))}
       <button onClick={addPkg} style={small(true)}>+ Add a package</button>
       {cfg.packages.length>0&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Deposits are optional. Paste a payment link from the business's own Stripe, Square or PayPal, and after booking the customer gets a "Pay the deposit" button. The money goes straight to the business, never through BoldLine. Mark it paid below once it lands.</div>}
@@ -10049,7 +10172,7 @@ function BlogCard({client}){
 
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
-const SERVER_OWNED_KEYS=["websiteDeal"];
+const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut"];   // the last three: KB business-emails
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
 const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
@@ -12169,6 +12292,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
         {tab==="overview"&&!isWebsiteOnly(client)&&(
           <div style={S.col11}>
             {isOwned(client)&&<BusinessPortalCard client={client} onUpdate={onUpdate}/>}
+            {isOwned(client)&&<CustomerEmailsCard client={client} onUpdate={onUpdate}/>}
             {isOwned(client)&&<ShowcaseCard client={client} onUpdate={onUpdate}/>}
             <LaunchChecklistCard client={client}/>
             <WebsiteUpsell client={client} onOpen={()=>setTab("website")} onUpdate={onUpdate}/>
@@ -19598,6 +19722,7 @@ function makeInternalClient() {
 
 // One of Bryson's own businesses (see isOwned). Built on the house account's shape so every money and
 // relationship rule already treats it as "not a client", then given its own name, trade and area.
+const bizWebsiteUrl = (u) => { let t = String(u||"").trim(); if(!t) return ""; if(!/^https?:\/\//i.test(t)) t = "https://"+t; t = t.replace(/^http:\/\//i,"https://"); return /^https:\/\/[^\s"'<>]+\.[^\s"'<>]+$/i.test(t) ? t : ""; };
 function makeOwnedBusiness(f) {
   const base = makeInternalClient();
   const name = String(f.name||"").trim() || "My business";
@@ -19610,6 +19735,10 @@ function makeOwnedBusiness(f) {
     campaignSetup: { ...base.campaignSetup, serviceArea: area, targetLocations: area },
     // Every business he adds comes with its view-only portal link ready (Bryson, 2026-10-08).
     portal: { on: true, token: crypto.randomUUID(), createdAt: new Date().toISOString() },
+    // Its customer emails: branded from its own website (pulled the first time the Overview tab opens) and sent
+    // from its own address once that passes a test (KB business-emails).
+    brand: { website: bizWebsiteUrl(f.website) },
+    emailSender: { address: String(f.email||"").trim() },
     landingSlug: makeSlug(name) };
 }
 

@@ -75,10 +75,10 @@ ok("the website learns the packages, never anyone else's booking", Object.keys(B
   // 3. Saved, then told
   ok("🔴 saved before any email", F.indexOf(".update({ data: next") < F.indexOf("notifyOwnerOfLead(next"));
   ok("the booking is kept, and added as a lead and to the account log", /bookings: \[made\.booking, \.\.\.\(cur\.bookings \|\| \[\]\)\]/.test(F) && /leadsLog: \[\{ status: "new", followUps: \[\], \.\.\.made\.lead \}/.test(F));
-  ok("Bryson, the partner and the customer are each told", /notifyOwnerOfLead\(next, made\.lead\)/.test(F) && /notifyTeamOfLead\(next, made\.lead, \{ send: sendEmail/.test(F) && /sendEmail\(\{ to: made\.booking\.email, subject: mail\.subject/.test(F));
-  ok("🔴 the confirmation goes out as the business, replies to the business", /fromName: next\.name, replyTo: next\.email \|\| undefined/.test(F));
+  ok("Bryson, the partner and the customer are each told", /notifyOwnerOfLead\(next, made\.lead\)/.test(F) && /notifyTeamOfLead\(next, made\.lead, \{ send: sendEmail/.test(F) && /sendAsBusiness\(next, \{ to: made\.booking\.email, subject: mail\.subject/.test(F));
+  ok("🔴 the confirmation goes out as the business, replies to the business", /sendAsBusiness\(next, \{ to: made\.booking\.email, subject: mail\.subject, html: mail\.html, text: mail\.text \}, \{ send: sendEmail \}\)/.test(F));
   const mail = B.bookingConfirmEmail(base(), r.booking);
-  ok("the confirmation says what, when and where, and how to change it", /Full Detail \(\$199\)/.test(mail.html) && /Thursday, October 8 at 9:00 AM/.test(mail.html) && /123 Main St/.test(mail.html) && /tel:4805550100/.test(mail.html));
+  ok("the confirmation says what, when and where, and how to change it", /Full Detail \(\$199\)/.test(mail.html) && /Thursday, October 8 at 9:00 AM/.test(mail.html) && /123 Main St/.test(mail.html) && /Call or text us at \(480\) 555-0100/.test(mail.html));
   ok("no emojis, no dashes, nothing about BoldLine in it", !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(mail.html) && !/[—–]/.test(mail.html + mail.subject) && !/boldline/i.test(mail.html));
   ok("a customer's words are escaped in it", !B.bookingConfirmEmail(base(), { ...r.booking, address: "<script>x</script>" }).html.includes("<script>x"));
 }
@@ -141,9 +141,9 @@ ok("the website learns the packages, never anyone else's booking", Object.keys(B
 
 // 5. Reachable
 ok("/book reaches the OS endpoint", /from = "\/book"\n  to = "\/\.netlify\/functions\/book"\n  status = 200/.test(src("netlify.toml")));
-ok("a client domain served by the OS lets /book through", /const PASS_PATHS = \["\/lead", "\/site-hit", "\/book"\];/.test(src("netlify/lib/client-domain.mjs")));
+ok("a client domain served by the OS lets /book through", /const PASS_PATHS = \["\/lead", "\/site-hit", "\/book", "\/optout"\];/.test(src("netlify/lib/client-domain.mjs")));
 ok("🔴 the websites site has its own /book, passed to the OS", /export const config = \{ path: "\/book" \};/.test(src("sites/functions/book.mjs")) && /fetch\(`\$\{base\}\/book\$\{u\.search\}`/.test(src("sites/functions/book.mjs")));
-ok("and it ships with that site", /"functions\/book\.mjs"\]/.test(src("sites/deps.mjs")));
+ok("and it ships with that site", /"functions\/book\.mjs", "functions\/optout\.mjs"\]/.test(src("sites/deps.mjs")));
 ok("if the OS does not answer, the page says to call", /Online booking is down for a moment\. Please call us\./.test(src("sites/functions/book.mjs")));
 
 // 6. In the OS
@@ -175,8 +175,9 @@ ok("cancelling frees the time and reminds him to tell the customer", /status:"ca
   const F = src("netlify/functions/book.mjs");
   ok("the booking answer hands the page the deposit to pay", /deposit: made\.booking\.deposit \? \{ amount: made\.booking\.deposit\.amount, link: made\.booking\.deposit\.link \} : null/.test(F));
   const mail = B.bookingConfirmEmail(cl, r.booking);
-  ok("🔴 the confirmation carries a Pay the deposit button to the business's own page", mail.html.includes('href="https://buy.stripe.com/test_abc"') && />Pay the deposit</.test(mail.html) && /Pay the \$50 deposit to lock it in: https:\/\/buy\.stripe\.com\/test_abc/.test(mail.text));
+  ok("🔴 the confirmation carries a Pay the deposit button to the business's own page", mail.html.includes('href="https://buy.stripe.com/test_abc"') && />Pay the deposit</.test(mail.html) && /Pay the \$50 deposit to lock it in\./.test(mail.text) && /Pay the deposit: https:\/\/buy\.stripe\.com\/test_abc/.test(mail.text));
   ok("Gmail's dark mode cannot turn that button invisible (a gradient keeps its colour)", /background-image:linear-gradient\(#111827,#111827\)/.test(mail.html));
+  ok("🔴 the confirmation wears the business's own brand, never BoldLine's", B.bookingConfirmEmail({ ...cl, website: { brandColor: "#1D4ED8" } }, r.booking).html.includes("border-top:4px solid #1D4ED8") && !/boldline/i.test(mail.html + mail.text));
   ok("no amount set still reads right", B.depositPhrase("") === "the deposit" && B.depositPhrase("$50") === "the $50 deposit" && !/Pay the  deposit|a deposit deposit/.test(B.bookingConfirmEmail(cl, { ...r.booking, deposit: { link: DEP.depositLink, amount: "" } }).text));
   ok("no emojis or dashes in the deposit wording", !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(mail.html) && !/[—–]/.test(mail.html + mail.text));
   const W = await import("../netlify/lib/booking-widget.mjs");

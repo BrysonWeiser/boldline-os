@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 216 task-keyed entries under `knowledge/`. They surface automatically via the
+> 217 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**216 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**217 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -447,6 +447,9 @@
 
 ## My Businesses
 
+- **[business-emails](../knowledge/business-emails.md)** &mdash; &#9989; verified &middot; 2026-10-09  
+  Bryson, 2026-10-09 - "lets do all of them" (reminder before a job, review request after, phone calendar feed, time for another) "but make sure the email comes from the business email for my other business not boldline media (make a way for you to brand the email based off of the business name and website when i add it to the my businesses tab)" and the rebook email "only goes to the one off customers ... and dont already have a subscription". Built a branded email design per business (logo and colour pulled from its own website), sending from its own address once a test send proves it, an hourly job for the three automatic emails with narrow windows (no backlog), strict one-off-only rebook logic, signed unsubscribe, and a webcal calendar feed. Needs Bryson to verify the business's email domain in Resend before the automatic emails start.  
+  <sub>*task:* emails a business Bryson owns sends its own customers (booking confirmation, reminder before the job, review request after, time for another for one-off customers), sent from the business's own address and branded from its website; unsubscribe; the phone calendar feed &nbsp;|&nbsp; *keywords:* customer emails, reminder email, review request, rebook, time for another, one-off customers, subscription, plan package, planCustomers, sendAsBusiness, emailSender, emailSenderStatus, customerEmailLog, emailOptOut, optout, unsubscribe, biz-email.mjs, biz-email-shell.mjs, biz-customer-emails, brandFromHTML, Resend domain, fromAddress, biz-cal, webcal, ics, calendar feed</sub>
 - **[business-portal](../knowledge/business-portal.md)** &mdash; &#9989; verified &middot; 2026-10-08  
   Bryson, 2026-10-08 - "when i add my business to it can you also give me a portal link (similar to client portals) except include everything for the business but dont allow edits through there but have the calendar showing all of the bookings for that specific business with the ability to click each person whos booked and it will open up to their details". Built /biz?t=<token>, a view-only page per owned business (right now, month calendar of bookings with a tap-to-open detail sheet, coming up, last 30 days, leads, ads, setup and live links). The server answers GET only, so nothing can be changed from it. Every new business gets the link automatically; existing ones get a "Make the portal link" button on the Overview tab.  
   <sub>*task:* give Bryson (or his partner) a private view-only page for one of his own businesses with a bookings calendar, booking details, leads, numbers, ads and setup; turn the portal link on or off &nbsp;|&nbsp; *keywords:* business portal, portal link, view only, read only, /biz, biz-portal.mjs, biz.mjs, BusinessPortalCard, bookings calendar, booking details, owned business, partner, portal token</sub>
