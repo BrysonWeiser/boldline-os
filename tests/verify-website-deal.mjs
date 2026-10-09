@@ -274,6 +274,25 @@ ok("🔴 adding ads asks first and only changes the package (nothing is sent or 
   ok("the free guide to buying an address is one tap away, in their name on their card", /Copy the "how to buy an address" guide/.test(src("index.html")) && /Use your business's name, your own email and your own card/.test(src("index.html")));
 }
 
+// The Signature website, the premium tier (2026-10-09: "add the new premium package").
+{
+  const P = await import("../netlify/lib/pricing-shared.mjs");
+  const sig = { tier: "signature", plan: "full" };
+  ok("🔴 Signature: $3,500 build and $150 care by default, any price he types still wins", L.normTerms(sig).price === 3500 && L.normTerms(sig).care === 150 && L.normTerms({ ...sig, price: 4200 }).price === 4200 && P.WEBSITE_SIGNATURE.build === 3500);
+  ok("an agreement from before tiers reads as standard", L.normTerms({ price: 1500 }).tier === "standard");
+  ok("🔴 Signature includes three extra pages in its price, paid ones come on top", L.extraPageAllowance(sig) === 3 && L.extraPageAllowance({ ...sig, extraPages: 2 }) === 5 && L.extraPageAllowance({}) === 0 && L.buildTotal(sig) === 3500);
+  const h = L.websiteAgreementHTML({ id: "c", name: "Acme" }, sig), std = L.websiteAgreementHTML({ id: "c", name: "Acme" }, {});
+  ok("🔴 the Signature agreement says what it is: their brand, eight pages, three rounds, four edits a month, a design call", /Signature website, designed around Client&rsquo;s own brand/.test(h) && /eight pages/.test(h) && /Three rounds of changes before launch/.test(h) && /four small content changes per month/.test(h) && /short design call/.test(h));
+  ok("the standard agreement still says five pages, two rounds and two edits", /five pages/.test(std) && /Two rounds of changes before launch/.test(std) && /two small content changes per month/.test(std) && /Client chooses one of the designs/.test(std));
+  ok("no dashes in either", !/[\u2014\u2013]/.test(h + std));
+  ok("the server and the page writer honour the included pages", /tier: body\.tier === "signature" \? "signature" : "standard"/.test(src("netlify/functions/website-deal.mjs")) && /extraPageAllowance\(termsOf\(cl\)\)/.test(src("netlify/functions/site-build-background.mjs")));
+  const UIx = src("index.html");
+  ok("🔴 the OS mirror matches the price list", /const WEBSITE_SIGNATURE=\{build:3500,care:150,pages:8,includedExtraPages:3,carePlanEdits:4,revisionRounds:3\};/.test(UIx) && P.WEBSITE_SIGNATURE.pages === 8 && P.WEBSITE_SIGNATURE.carePlanEdits === 4);
+  ok("he picks the tier on the deal card, and the price follows unless he changed it", /\["signature","Signature website"/.test(UIx) && /call\("set-terms",\{tier:form\.tier,/.test(UIx));
+  ok("the public pricing shows it, from the same price list", readFileSync(join(ROOT, "marketing-site", "pricing", "index.html"), "utf8").includes("Signature website") && readFileSync(join(ROOT, "marketing-site", "pricing", "index.html"), "utf8").includes("$3,500"));
+  ok("Deal Prep knows to pitch it", /Premium tier, the Signature website/.test(src("netlify/lib/pricing-shared.mjs")));
+}
+
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-website-deal: ${pass} passed, ${fails.length} failed`);
 process.exit(fails.length ? 1 : 0);

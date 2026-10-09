@@ -28,7 +28,7 @@
 //   care      { subscriptionId, status, startedAt, lastPaidAt, collection }
 //   launchedAt
 
-import { WEBSITE_OFFER } from "./pricing-shared.mjs";
+import { WEBSITE_OFFER, WEBSITE_SIGNATURE } from "./pricing-shared.mjs";
 
 export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: WEBSITE_OFFER.care };
 // WA-2 (2026-10-06): section 6 spells out that BoldLine manages the client's domain settings through access the
@@ -37,7 +37,8 @@ export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: W
 // online booking, their own booking link, or calling) is part of the work and never a round of changes
 // (Bryson: "it won't count as one of the two client edits because it's just to fit how their business
 // takes clients").
-// WA-4 (2026-10-09): the optional Business Email Setup add-on (section 6a). Connecting the domain stays included.
+// WA-4 (2026-10-09): the optional Business Email Setup add-on (section 6a), and the Signature tier (designed around
+// the client's brand, eight pages, three rounds, a four-edit care plan). Connecting the domain stays included.
 export const AGREEMENT_VERSION = "WA-4";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
@@ -66,10 +67,15 @@ export const isSigned = (cl) => { const a = dealOf(cl).agreement; return !!(a &&
 // Every term, with defaults. Agreements sent before add-ons existed carry none of the add-on fields,
 // which read as "no extra pages, no blog", exactly what they were signed with.
 const int = (v, d, max) => Math.max(0, Math.min(max, Math.floor(num(v, d))));
+export const TIERS = { standard: "Standard website", signature: "Signature website" };
 export const normTerms = (t0) => {
   const t = t0 || {};
+  // The tier sets the defaults; any price he typed still wins. An agreement from before tiers reads as standard.
+  const tier = t.tier === "signature" ? "signature" : "standard";
+  const D = tier === "signature" ? { price: WEBSITE_SIGNATURE.build, care: WEBSITE_SIGNATURE.care } : DEAL_DEFAULTS;
   return {
-    price: num(t.price, DEAL_DEFAULTS.price), plan: t.plan === "half" ? "half" : "full", care: num(t.care, DEAL_DEFAULTS.care),
+    tier,
+    price: num(t.price, D.price), plan: t.plan === "half" ? "half" : "full", care: num(t.care, D.care),
     extraPages: int(t.extraPages, 0, 20), extraPagePrice: num(t.extraPagePrice, WEBSITE_OFFER.extraPage),
     blog: t.blog === true, blogSetup: num(t.blogSetup, WEBSITE_OFFER.blogSetup), blogMonthly: num(t.blogMonthly, WEBSITE_OFFER.blogMonthly),
     blogPosts: Math.max(1, int(t.blogPosts, WEBSITE_OFFER.blogPostsPerMonth, 8)),
@@ -78,6 +84,15 @@ export const normTerms = (t0) => {
 };
 const r2 = (n) => Math.round(n * 100) / 100;
 // One-time: the website, its extra pages and the blog setup. Monthly: care plus the blog.
+// What each tier includes. Signature includes three extra pages in its price; paid extra pages come on top.
+export const tierIncludes = (t0) => {
+  const t = normTerms(t0);
+  return t.tier === "signature"
+    ? { basePages: WEBSITE_SIGNATURE.pages, includedExtraPages: WEBSITE_SIGNATURE.includedExtraPages, rounds: WEBSITE_SIGNATURE.revisionRounds, careEdits: WEBSITE_SIGNATURE.carePlanEdits }
+    : { basePages: WEBSITE_OFFER.pages, includedExtraPages: 0, rounds: WEBSITE_OFFER.revisionRounds, careEdits: WEBSITE_OFFER.carePlanEdits };
+};
+// How many extra pages (beyond the five main ones) may be written for this client.
+export const extraPageAllowance = (t0) => normTerms(t0).extraPages + tierIncludes(t0).includedExtraPages;
 export const buildTotal = (t0) => { const t = normTerms(t0); return r2(t.price + t.extraPages * t.extraPagePrice + (t.blog ? t.blogSetup : 0) + (t.emailSetup ? t.emailSetupPrice : 0)); };
 export const monthlyTotal = (t0) => { const t = normTerms(t0); return r2(t.care + (t.blog ? t.blogMonthly : 0)); };
 
@@ -144,7 +159,10 @@ export function websiteAgreementHTML(cl, terms = termsOf(cl), { now = new Date()
   const t = normTerms(terms);
   const m = amountsOf(t);
   const total = buildTotal(t), monthly = monthlyTotal(t);
-  const parts = [`${money(t.price)} website`].concat(t.extraPages ? [`${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} at ${money(t.extraPagePrice)} each`] : [], t.blog ? [`${money(t.blogSetup)} blog setup`] : [], t.emailSetup ? [`${money(t.emailSetupPrice)} business email setup`] : []);
+  const inc = tierIncludes(t);
+  const sig = t.tier === "signature";
+  const words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  const parts = [`${money(t.price)} ${sig ? "Signature website" : "website"}`].concat(t.extraPages ? [`${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} at ${money(t.extraPagePrice)} each`] : [], t.blog ? [`${money(t.blogSetup)} blog setup`] : [], t.emailSetup ? [`${money(t.emailSetupPrice)} business email setup`] : []);
   const biz = esc(c.name || "Client");
   const signer = esc(c.contactName || c.name || "Authorized Signatory");
   const email = esc(c.email || "");
@@ -177,11 +195,12 @@ table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}td{borde
 <tr><td>Payment</td><td>${t.plan === "half" ? `${money(m.first)} on signing, ${money(m.final)} before the Website goes live` : `${money(total)} on signing`}</td></tr>
 <tr><td>Care Plan</td><td>${t.care > 0 ? `${money(t.care)} per month, starting the day the Website goes live` : "Waived"}</td></tr>
 ${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for about ${t.blogPosts} article${t.blogPosts > 1 ? "s" : ""} a month, starting the day the Website goes live</td></tr>
-` : ""}<tr><td>Included</td><td>A website of five pages (Home, Services, About, Reviews, Contact)${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}${t.emailSetup ? ", business email set up on Client&rsquo;s domain" : ""}, a contact form that sends enquiries to Client, mobile friendly design, two rounds of changes before launch</td></tr>
+` : ""}<tr><td>Website</td><td>${sig ? "Signature website, designed around Client&rsquo;s own brand" : "Standard website, in one of BoldLine&rsquo;s designs"}</td></tr>
+<tr><td>Included</td><td>A website of ${sig ? `${words[inc.basePages]} pages (Home, Services, About, Reviews, Contact, and ${words[inc.includedExtraPages]} more agreed with Client)` : "five pages (Home, Services, About, Reviews, Contact)"}${t.extraPages ? ` plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} agreed with Client` : ""}${t.blog ? ", a blog" : ""}${t.emailSetup ? ", business email set up on Client&rsquo;s domain" : ""}, a contact form that sends enquiries to Client, mobile friendly design, ${words[inc.rounds]} rounds of changes before launch</td></tr>
 </table>
 
 <h2>1. What BoldLine builds</h2>
-<p>BoldLine will design, write and build a website for Client with five pages: Home, Services, About, Reviews and Contact${t.extraPages ? `, plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} on subjects Client and BoldLine agree in writing (email is fine)` : ""}${t.blog ? ", and a blog (section 7a)" : ""} (the &ldquo;Website&rdquo;). Client chooses one of the designs BoldLine offers. The Website works on phones, tablets and computers, and its contact form sends enquiries to Client.</p>
+<p>BoldLine will design, write and build a website for Client with ${sig ? `${words[inc.basePages]} pages: Home, Services, About, Reviews and Contact, plus ${words[inc.includedExtraPages]} more on subjects Client and BoldLine agree in writing (email is fine)` : "five pages: Home, Services, About, Reviews and Contact"}${t.extraPages ? `, plus ${t.extraPages} extra page${t.extraPages > 1 ? "s" : ""} on subjects Client and BoldLine agree in writing (email is fine)` : ""}${t.blog ? ", and a blog (section 7a)" : ""} (the &ldquo;Website&rdquo;). ${sig ? "This is a Signature website: rather than one of BoldLine&rsquo;s ready-made designs, BoldLine designs it around Client&rsquo;s own brand, using Client&rsquo;s logo, colours and typefaces where Client provides them, with sections and a page layout made for Client&rsquo;s business, including a before and after showcase where Client provides the photos. Before building, BoldLine and Client will agree the look on a short design call." : "Client chooses one of the designs BoldLine offers."} The Website works on phones, tablets and computers, and its contact form sends enquiries to Client.</p>
 <p>BoldLine writes the words from what Client tells it about the business. Client reviews them before launch and is responsible for confirming they are accurate. BoldLine will not state facts about Client&rsquo;s business that Client has not given it.</p>
 
 <h2>2. What Client provides</h2>
@@ -192,7 +211,7 @@ ${pay}
 <p>Payments are made by card or bank transfer through a secure invoice from BoldLine&rsquo;s payment processor, and are due within seven (7) days of the invoice. Once BoldLine has started work, payments already made are not refunded, except as set out in section 5.</p>
 
 <h2>4. Changes before launch</h2>
-<p>Two rounds of changes before launch are included. A round is one list of changes sent together. New pages, a different design after work has started, or changes beyond two rounds are quoted separately and only done if Client agrees to the quote in writing.</p>
+<p>${words[inc.rounds][0].toUpperCase() + words[inc.rounds].slice(1)} rounds of changes before launch are included. A round is one list of changes sent together. New pages, a different design after work has started, or changes beyond ${words[inc.rounds]} rounds are quoted separately and only done if Client agrees to the quote in writing.</p>
 <p>Setting up, and later changing, how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and the care plan. It never counts as a round of changes and is never charged separately.</p>
 
 <h2>5. Timing</h2>
@@ -209,7 +228,7 @@ ${t.emailSetup ? `<h2>6a. Business email setup</h2>
 ` : ""}
 <h2>7. The Care Plan</h2>
 ${care}
-<p>The Care Plan covers hosting, security updates, keeping the Website online, and up to two small content changes per month (for example text, photos, hours or prices). Larger changes are quoted separately. Client may cancel the Care Plan at any time with thirty (30) days&rsquo; written notice. If a Care Plan invoice is unpaid fifteen (15) days after its due date, BoldLine may take the Website offline until it is paid.</p>
+<p>The Care Plan covers hosting, security updates, keeping the Website online, and up to ${words[inc.careEdits]} small content changes per month (for example text, photos, hours or prices). Larger changes are quoted separately. Client may cancel the Care Plan at any time with thirty (30) days&rsquo; written notice. If a Care Plan invoice is unpaid fifteen (15) days after its due date, BoldLine may take the Website offline until it is paid.</p>
 
 ${blog}
 

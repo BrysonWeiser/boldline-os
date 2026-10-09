@@ -119,7 +119,7 @@ ok("an added section with no place goes just before the closing call to action",
   ok("it knows what it can't do and where he does it instead", /Brand kit on the Overview tab/.test(P) && /Extra pages card/.test(P));
   const F = src("netlify/functions/site-ai-background.mjs");
   ok("🔴 the AI never writes the website: its one write is its answer, on its own server-owned key", (F.match(/\.update\(/g) || []).length === 1 && /\.update\(\{ data: \{ \.\.\.row\.data, siteAiJob: job \}/.test(F) && /"siteAiJob"\]/.test(UI));
-  ok("🔴 his own businesses only, for now, and signed in", /!isOwned\(row\.data\)/.test(F) && /db\.auth\.getUser\(jwt\)/.test(F));
+  ok("🔴 signed in", /db\.auth\.getUser\(jwt\)/.test(F));
   ok("it must answer with the change menu", /tool_choice: \{ type: "tool", name: "answer" \}/.test(F) && /tools: \[SITE_AI_TOOL\]/.test(F));
   ok("the words it writes follow the house rules, links are left alone", /humanizeDeep\(applied\.draft\.content\)/.test(F) && /NO_DASH_RULE/.test(F));
   const Pl = src("netlify/functions/site-ai-poll.mjs");
@@ -128,7 +128,12 @@ ok("an added section with no place goes just before the closing call to action",
 
 // 5. The editor screen
 {
-  ok("🔴 the editor is on his own businesses' Website tab only, for now", /\{isOwned\(client\)&&<SiteEditorCard client=\{client\} onUpdate=\{onUpdate\}\/>\}/.test(UI));
+  ok("the editor is on every website's Website tab (clients too, 2026-10-09)", /\n      <SiteEditorCard client=\{client\} onUpdate=\{onUpdate\}\/>\n/.test(UI));
+  ok("🔴 the AI editor and new sections are his own businesses and Signature clients only, in the OS and on the server",
+    /const custom=isOwned\(client\)\|\|wdTerms\(client\)\.tier==="signature";/.test(UI) && /\{open==="ai"&&\(custom\?<SiteAIChat/.test(UI) && /\{custom\?<div style=\{\{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center",marginTop:8\}\}>/.test(UI)
+    && /if \(!isOwned\(row\.data\) && termsOf\(row\.data\)\.tier !== "signature"\)/.test(src("netlify/functions/site-ai-background.mjs")));
+  ok("a standard client sees what Signature adds and how to offer it", /The AI editor comes with the Signature website/.test(UI));
+  ok("for a client, it says their changes count toward their rounds", /count toward their rounds of changes/.test(UI));
   ok("🔴 every save keeps the version before it, and Undo puts it back", /history:\[snap,\.\.\.\(w\.history\|\|\[\]\)\]\.slice\(0,15\)/.test(UI) && /content:h\.content,layout:h\.layout,blocks:h\.blocks,photoPick:h\.photoPick/.test(UI));
   ok("🔴 the preview shows the draft; the AI's changes go into the draft, not the site", /const preview=\{\.\.\.client,website:\{\.\.\.w,content:draft\.content,layout:draft\.layout,blocks:draft\.blocks,photoPick:draft\.photoPick\}\}/.test(UI) && /if\(job\.draft\) setDraft\(job\.draft\)/.test(UI));
   ok("links and photo addresses are never rewritten by the dash cleaner", /blocks:seDeDashBlocks\(draft\.blocks\)/.test(UI) && !/blocks:siteDeDash\(/.test(UI));

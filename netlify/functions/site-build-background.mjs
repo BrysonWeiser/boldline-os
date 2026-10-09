@@ -14,7 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { humanizeDeep } from "../lib/humanize.mjs";
 import { brandName } from "../lib/site-render.mjs";
-import { buildLock, termsOf, exempt } from "../lib/website-deal.mjs";
+import { buildLock, termsOf, exempt, extraPageAllowance } from "../lib/website-deal.mjs";
 import { slugify, RESERVED_SLUGS } from "../lib/site-render.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -93,7 +93,8 @@ export function pagePrompt(cl, title, brief) {
 export const extraPageRoom = (cl, slug) => {
   if (exempt(cl)) return true;
   const have = (((cl.website || {}).extraPages) || []).filter((p) => p && p.slug && p.slug !== slug && p.content).length;
-  return have < termsOf(cl).extraPages;
+  // A Signature website includes three extra pages in its price (KB site-editor).
+  return have < extraPageAllowance(termsOf(cl));
 };
 
 async function writeJob(supabase, clientId, job) {
@@ -167,7 +168,7 @@ export default async (req) => {
     const slug = slugify(body.extraPage.slug || title);
     if (!title || !slug || RESERVED_SLUGS.includes(slug)) return json({ ok: false, error: "Give the page a name that isn't one of the five main pages." }, 400);
     // 🔴 Only as many extra pages as the client paid for.
-    if (!extraPageRoom({ ...row.data, id: clientId }, slug)) return json({ ok: false, error: `Their agreement includes ${termsOf(row.data).extraPages} extra page(s), and they're all written. Add more to the deal first.` }, 409);
+    if (!extraPageRoom({ ...row.data, id: clientId }, slug)) return json({ ok: false, error: `Their agreement includes ${extraPageAllowance(termsOf(row.data))} extra page(s), and they're all written. Add more to the deal first.` }, 409);
     await writeJob(supabase, clientId, { id, kind: "page", status: "running", startedAt: new Date().toISOString(), page: null, error: null });
     try {
       const content = await writeCopy(row.data, new Anthropic(), { schema: PAGE_SCHEMA, prompt: pagePrompt(row.data, title, body.extraPage.brief) });

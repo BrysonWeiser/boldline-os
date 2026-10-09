@@ -185,7 +185,9 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
   const ldText = readPage("how-it-works/index.html");
   ok("search engines read the website questions too (FAQ structured data)", qs.every((q) => ldText.includes(`"name":"${q.replace(/'/g, "'")}"`)));
   ok("the website answers carry no dashes", !/[\u2014\u2013]/.test(web));
-  const deal = readFileSync(join(ROOT, "netlify", "lib", "website-deal.mjs"), "utf8");
+  // Read from the agreement a standard client is actually sent (the wording now varies by tier: KB site-editor).
+  const WD = await import("../netlify/lib/website-deal.mjs");
+  const deal = WD.websiteAgreementHTML({ id: "faq", name: "Client" }, {}).toLowerCase();
   for (const [claim, term] of [
     ["the domain stays theirs", "Client owns its domain name and keeps it registered in its own name"],
     ["a first version in about two weeks", "within fourteen (14) days"],
@@ -194,7 +196,7 @@ for (const f of ["privacy.html", "terms.html", "404.html", "netlify/lib/blog-ren
     ["30 days' notice to stop the care plan", "cancel the Care Plan at any time with thirty (30) days"],
     ["a copy of the site when they leave", "provide a copy of the Website&rsquo;s pages and images"],
     ["stock photos never passed off as theirs", "never be presented as Client&rsquo;s own work"],
-  ]) ok(`🔴 the FAQ's "${claim}" is still what the website agreement says`, deal.includes(term));
+  ]) ok(`🔴 the FAQ's "${claim}" is still what the website agreement says`, deal.includes(term.toLowerCase()));
 }
 
 // The menu button shows on a computer too (Bryson, 2026-10-07), on the generated pages and the hand-written ones.
