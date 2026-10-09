@@ -10,6 +10,7 @@ import { sellsNationally } from "../lib/market-research-shared.mjs";
 import { CLICK_KEYS, UTM_KEYS, STORE_FORWARD_KEYS } from "../lib/attribution.mjs";
 import { intakeOf } from "../lib/booking.mjs";
 import { bookingWidgetHTML, bookingWidgetJS, BOOKING_WIDGET_CSS } from "../lib/booking-widget.mjs";
+import { brandFonts, withFont, fontLinks, brandAccents, beforeAfterPairs, beforeAfterHTML, BEFORE_AFTER_CSS, BEFORE_AFTER_JS } from "../lib/brand-style.mjs";
 
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
@@ -993,7 +994,13 @@ a{color:inherit}
     c: [offerSection, benefitsSection, reviewsSection, gallerySection, faqSection, stepsSection],
     d: [benefitsSection, gallerySection, stepsSection, reviewsSection, faqSection, offerSection],
   };
-  const middle = (orders[D.order] || orders.a).filter(Boolean).join("\n");
+  // Before-and-after pairs from the Brand kit (KB brand-kit): the strongest proof a detailer has, so they sit
+  // second, after whatever the page leads with. Not drawn at all until a pair is uploaded.
+  const baPairs = beforeAfterPairs(cl);
+  const baSection = beforeAfterHTML(baPairs, { headClass: "sec-t reveal", sub: "Drag the line to see the difference." });
+  const ordered = (orders[D.order] || orders.a).filter(Boolean);
+  if (baSection) ordered.splice(1, 0, baSection);
+  const middle = ordered.join("\n");
 
   // Bottom conversion block: the full form section for most layouts; for the capture
   // layout (form already in the hero) a slim closing CTA that scrolls back to it.
@@ -1374,7 +1381,7 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
       a.setAttribute('href', u.toString());
     } catch (e) {}
   });` : "";
-  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}\n${storeJS}${bookHere ? "\n" + bookingWidgetJS(cl) : ""}`;
+  const formJS = `${HO ? handoffFormJS : managedFormJS}\n${navJS}\n${headerJS}\n${stickyJS}\n${storeJS}${bookHere ? "\n" + bookingWidgetJS(cl) : ""}${baSection ? "\n" + BEFORE_AFTER_JS : ""}`;
 
   const annHTML = offer ? `<div class="ann"><b>${esc(offer.slice(0, 90))}</b></div>` : "";
   // Built as labels first so the stagger delay counts the chips that SURVIVE the filter.
@@ -1405,13 +1412,22 @@ fbq('init',${JSON.stringify(metaPixelId)});fbq('track','PageView');})();
   // 2026-10-07), on the page the ad money lands on. The text shows in a system font and swaps when the fonts arrive.
   const K = P.kit;
   const kitHead = K ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${esc(K.fontHref)}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${esc(K.fontHref)}"></noscript>` : "";
+  // The Brand kit's own fonts (KB brand-kit): through the website's kit when there is one, otherwise on their own.
+  const BF = brandFonts(cl);
+  const ownFontCss = !K && (BF.heading || BF.body) ? `
+${BF.body ? `body{font-family:${withFont(BF.body, "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif")}}` : ""}
+${BF.heading ? `.headline,.sec-t,.formtitle,.offer h2,.form-copy h2,.bcard h3,.bnum h3,.brow h3,.brandmark,.faq summary{font-family:${withFont(BF.heading, "inherit")}}` : ""}` : "";
+  // Second and accent colours: small touches only (the dot by the name, review stars, the step numbers).
+  const BA = brandAccents(cl, P.brand);
+  const accentCss = (BA.second !== P.brand || BA.accent !== P.brand) ? `
+.dot{background:${BA.accent}}.rev .stars{color:${BA.accent}}.rlist .rk{color:${BA.second}}` : "";
   const kitCss = K ? `
 body.kit{font-family:${K.body};--r:${K.radius}}
 body.kit .headline,body.kit .sec-t,body.kit .formtitle,body.kit .offer h2,body.kit .form-copy h2,body.kit .bcard h3,body.kit .bnum h3,body.kit .brow h3,body.kit .brandmark,body.kit .faq summary{font-family:${K.display};letter-spacing:-.02em}
 body.kit .cta,body.kit .hdr-cta,body.kit .mcta a{border-radius:${K.theme === "editorial" ? "2px" : "999px"}}
 ` : "";
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}<style>${css}${kitCss}${IOS_NO_ZOOM}</style>${bookHere ? `<style>.bk{--bk-ac:${P.brand};--bk-on:${P.onBrand};--bk-card:${P.cardBg};--bk-line:${P.border};--bk-ink:${P.text};--bk-mute:${P.muted};--bk-bg2:${P.inBg};--bk-r:12px}${BOOKING_WIDGET_CSS}.bk-h{font-size:19px}.formsub a{color:inherit;font-weight:700}.form-g>*,#lead-form{min-width:0}</style>` : ""}</head><body class="${bodyClass}${P.kit ? " kit" : ""}">
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><script>document.documentElement.className+=' js'</script><title>${esc(lp.headline)} | ${esc(name)}</title><meta name="description" content="${esc(lp.subheadline || "")}"><meta property="og:title" content="${esc(lp.headline)} | ${esc(name)}"><meta property="og:description" content="${esc(lp.subheadline || "")}">${hero ? `<meta property="og:image" content="${esc(hero.url)}">` : ""}${kitHead}${BF.hrefs.length ? `<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>${fontLinks(BF.hrefs)}` : ""}<style>${css}${kitCss}${ownFontCss}${accentCss}${IOS_NO_ZOOM}</style>${baSection ? `<style>.ba-sec{--ba-r:var(--r,14px);--ba-mute:${P.muted}}${BEFORE_AFTER_CSS}</style>` : ""}${bookHere ? `<style>.bk{--bk-ac:${P.brand};--bk-on:${P.onBrand};--bk-card:${P.cardBg};--bk-line:${P.border};--bk-ink:${P.text};--bk-mute:${P.muted};--bk-bg2:${P.inBg};--bk-r:12px}${BOOKING_WIDGET_CSS}.bk-h{font-size:19px}.formsub a{color:inherit;font-weight:700}.form-g>*,#lead-form{min-width:0}</style>` : ""}</head><body class="${bodyClass}${P.kit ? " kit" : ""}">
 ${annHTML}
 <header class="hdr"><div class="wrap">${logoUrl ? `<div class="brandmark"><img class="blogo" src="${esc(sized(logoUrl, 400))}" alt="${esc(name)}"></div>` : `<div class="brandmark"><span class="dot"></span>${esc(name)}</div>`}${phone ? `<a class="hdr-cta" href="${telHref}">${esc(phone)}</a>` : ""}</div></header>
 ${heroSection}

@@ -4,7 +4,7 @@ topic: My Businesses
 task: set a business's exact brand colours (typed, picked, or read from an uploaded file such as a brand guide PDF, logo or picture), fonts, logo, photos and video from the OS; make the website, landing page and emails use them
 keywords: [brand kit, brand colours, brand colors, hex, rgb, brand guide, pdf, logo upload, svg colours, palette, photos, video, media library, upload, brandKit, brandColor, bkParseColor, bkPalette, bkUpload, BrandKitCard, read-brand, brand-kit.mjs]
 status: verified
-summary: Bryson, 2026-10-09 - "i need a way to import my businesses or other businesses brand colors not by seeing their website but by being able to upload a file and or type in the actual colors as well as uploading images videos etc like how they would if they were an ad client for their landing page" and "work only on the my business part first ... then we will go to clients side". Built a Brand kit card on an owned business's Overview tab - main/second/accent colours (typed in any common form, colour picker, or tapped from colours found in a file), fonts, logo upload, photos and video upload into the same media library an ad client's portal uses. Files - an SVG's own colours, a picture's exact main colours sampled in the browser, a PDF brand guide (or picture) read by the AI for printed HEX codes and named fonts. Saving makes the main colour win on the website, landing page and emails. Clients' side is next.
+summary: 2026-10-09 update: fonts, second and accent colours, and before-and-after sliders are now LIVE on the website and landing page. Bryson, 2026-10-09 - "i need a way to import my businesses or other businesses brand colors not by seeing their website but by being able to upload a file and or type in the actual colors as well as uploading images videos etc like how they would if they were an ad client for their landing page" and "work only on the my business part first ... then we will go to clients side". Built a Brand kit card on an owned business's Overview tab - main/second/accent colours (typed in any common form, colour picker, or tapped from colours found in a file), fonts, logo upload, photos and video upload into the same media library an ad client's portal uses. Files - an SVG's own colours, a picture's exact main colours sampled in the browser, a PDF brand guide (or picture) read by the AI for printed HEX codes and named fonts. Saving makes the main colour win on the website, landing page and emails. Clients' side is next.
 verified: 2026-10-09
 ---
 
@@ -47,21 +47,20 @@ and points to the Brand kit.
 - **"Pull from website"** (the old sniff) moved here. It still runs once on first open when the business
   was added with a website.
 
-## Fonts
+## Fonts (live on the website and landing page since 2026-10-09)
 
-Headings and body. The AI fills them only when the file names them. 🔴 **They are saved but NOT yet used:**
-the website designs still use their own fonts. This is suggested as the next step.
-
-## Saving: the main colour wins everywhere
-
-- `brandKit = {primary, secondary, accent, headingFont, bodyFont, updatedAt}`.
-- It also sets `brandColor`, `brand.color`, and `website.brandColor` when the website is an object.
-- Reading order:
-  - `brandColorOf` (site-render, used by website, reports, partner page and portal) checks
-    `brandKit.primary` first;
-  - landing.mjs's colour reads it first;
-  - `bizBrand` (emails) reads it first.
-- Second and accent are saved with the kit; nothing uses them yet.
+- **Where they come from:** headings and body fields. The AI fills them only when a file names them.
+- **How a name is checked:** `netlify/lib/brand-style.mjs` `brandFonts` accepts letters, digits and
+  spaces only (anything else is ignored).
+- **How they load:** two Google Fonts stylesheets per font. The plain one always exists for a Google
+  font. The `400;600;700` one may not exist for a single-weight display face, and if it fails it only
+  costs that one request.
+- **Fallback:** `withFont` puts the kit font first and the design's own font behind it, so a name that
+  is not on Google Fonts falls back quietly.
+- **Website:** site-render `typeOf(theme, cl)` is used by `css` and by `siteBrandKit` (so a landing page
+  that borrows the website kit gets the fonts too).
+- **Landing page with no website design:** gets its own override CSS.
+- **No kit:** no font requests at all, and the design's fonts are used.
 
 ## Logo, photos, video
 

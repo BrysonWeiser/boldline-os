@@ -41,6 +41,7 @@
 import { termsOf } from "./website-deal.mjs";
 import { bookingOn, bookingConfig, intakeOf } from "./booking.mjs";
 import { bookingWidgetHTML, bookingWidgetJS, BOOKING_WIDGET_CSS } from "./booking-widget.mjs";
+import { brandFonts, withFont, fontLinks, brandAccents, beforeAfterPairs, beforeAfterHTML, BEFORE_AFTER_CSS, BEFORE_AFTER_JS } from "./brand-style.mjs";
 
 // 🔴 NO ZOOM ON AN IPHONE (Bryson, 2026-10-08, screenshot of the contact page cut off after sending).
 // Safari on iPhone zooms the page in when someone taps a form box whose text is under 16px, and it
@@ -231,6 +232,13 @@ export function brandColorOf(cl) {
 }
 
 function palette(theme, cl, scene) {
+  const P = paletteBase(theme, cl, scene);
+  // The Brand kit's second and accent colours (KB brand-kit); without them both are the main colour, so a
+  // site with no kit looks exactly as before.
+  const A = brandAccents(cl, P.accent);
+  return { ...P, accent2: A.second, accent3: A.accent };
+}
+function paletteBase(theme, cl, scene) {
   const w = (cl && cl.website) || {};
   const brand = brandColorOf(cl);
   if (theme === "cinematic") {
@@ -254,11 +262,16 @@ const FONTS = {
   editorial: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Instrument+Sans:wght@400..700&display=swap",
 };
 
-const typeOf = (theme) => ({
-  display: theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Fraunces',Georgia,serif" : "'Bricolage Grotesque',system-ui,sans-serif",
-  body: theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Instrument Sans',system-ui,sans-serif" : "'Geist',system-ui,sans-serif",
-  r: theme === "editorial" ? "4px" : theme === "cinematic" ? "28px" : "18px",
-});
+// The design's own typefaces, with the business's Brand kit fonts in front when it has them (KB brand-kit).
+const typeOf = (theme, cl) => {
+  const F = brandFonts(cl);
+  return {
+    display: withFont(F.heading, theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Fraunces',Georgia,serif" : "'Bricolage Grotesque',system-ui,sans-serif"),
+    body: withFont(F.body, theme === "cinematic" ? "'Archivo',system-ui,sans-serif" : theme === "editorial" ? "'Instrument Sans',system-ui,sans-serif" : "'Geist',system-ui,sans-serif"),
+    r: theme === "editorial" ? "4px" : theme === "cinematic" ? "28px" : "18px",
+    fontHrefs: F.hrefs,
+  };
+};
 
 // What a client's landing page borrows from their website once a design has been picked (Bryson, 2026-10-07: the
 // website and the landing page for the same business must share colours and branding). Null when there is no website
@@ -266,15 +279,15 @@ const typeOf = (theme) => ({
 export function siteBrandKit(cl) {
   const w = (cl && cl.website) || {};
   if (!SITE_THEMES[w.theme]) return null;
-  const theme = w.theme, P = palette(theme, cl, null), T = typeOf(theme);
+  const theme = w.theme, P = palette(theme, cl, null), T = typeOf(theme, cl);
   return { theme, dark: P.dark, bg: P.bg, bg2: P.bg2, ink: P.ink, mute: P.mute, line: P.line, accent: P.accent, onAccent: P.onAccent,
-    fontHref: FONTS[theme], display: T.display, body: T.body, radius: T.r };
+    fontHref: FONTS[theme], fontHrefs: T.fontHrefs, display: T.display, body: T.body, radius: T.r, second: P.accent2, accent3: P.accent3 };
 }
 
-function css(theme, P) {
-  const { display, body, r } = typeOf(theme);
+function css(theme, P, cl) {
+  const { display, body, r } = typeOf(theme, cl);
   return `
-:root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mute:${P.mute};--line:${P.line};--ac:${P.accent};--on:${P.onAccent};--card:${P.card};--r:${r};--ease:cubic-bezier(.2,.7,.1,1);--io:cubic-bezier(.7,0,.2,1)}
+:root{--bg:${P.bg};--bg2:${P.bg2};--ink:${P.ink};--mute:${P.mute};--line:${P.line};--ac:${P.accent};--ac2:${P.accent2};--ac3:${P.accent3};--on:${P.onAccent};--card:${P.card};--r:${r};--ease:cubic-bezier(.2,.7,.1,1);--io:cubic-bezier(.7,0,.2,1)}
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 html.lenis,html.lenis body{height:auto}.lenis.lenis-smooth{scroll-behavior:auto!important}.lenis.lenis-stopped{overflow:hidden}
@@ -285,7 +298,7 @@ a{color:inherit;text-decoration:none}
 .disp{font-family:${display};${theme === "cinematic" ? "font-stretch:125%;font-weight:600;letter-spacing:-.035em;" : theme === "editorial" ? "font-weight:380;letter-spacing:-.025em;font-variation-settings:'opsz' 144;" : "font-weight:700;font-variation-settings:'opsz' 96;letter-spacing:-.035em;"}line-height:.98}
 .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--mute)}
 ${theme === "aurora" ? ".eyebrow{border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 12px;color:var(--ink);background:rgba(255,255,255,.03)}" : ""}
-.eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--ac)}
+.eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--ac3)}
 .btn{position:relative;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;min-height:52px;padding:0 28px;border-radius:999px;background:var(--ac);color:var(--on);font-weight:600;font-size:15px;border:0;cursor:pointer;transition:transform .35s var(--ease),box-shadow .35s var(--ease),background .3s;will-change:transform}
 .btn:hover{box-shadow:0 14px 40px -14px var(--ac)}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
@@ -351,16 +364,16 @@ section{position:relative}
 .card:hover{border-color:color-mix(in srgb,var(--ac) 45%,var(--line))}
 .card h3{font-size:22px;line-height:1.2;margin-bottom:10px;letter-spacing:-.01em}
 .card p{color:var(--mute);font-size:15.5px}
-.card .tick{display:block;width:28px;height:2px;background:var(--ac);margin-bottom:22px;transform-origin:left;transition:transform .5s var(--ease)}
+.card .tick{display:block;width:28px;height:2px;background:var(--ac3);margin-bottom:22px;transform-origin:left;transition:transform .5s var(--ease)}
 .card:hover .tick{transform:scaleX(1.8)}
 .num{font-family:${display};font-size:15px;color:var(--ac);margin-bottom:22px;display:block}
-.glow{position:absolute;inset:auto;pointer-events:none;width:420px;height:420px;border-radius:50%;filter:blur(90px);opacity:.28;background:var(--ac)}
+.glow{position:absolute;inset:auto;pointer-events:none;width:420px;height:420px;border-radius:50%;filter:blur(90px);opacity:.28;background:var(--ac2)}
 /* marquee */
 .marq{border-block:1px solid var(--line);overflow:hidden;padding:22px 0;white-space:nowrap}
 .marq .tr{display:inline-flex;animation:mq 60s linear infinite;will-change:transform}
 .marq.vel .tr{animation:none}
 .marq span{font-size:clamp(22px,3vw,40px);font-weight:600;color:var(--mute);padding-right:56px}
-.marq span b{color:var(--ac);font-weight:inherit;margin-right:56px}
+.marq span b{color:var(--ac2);font-weight:inherit;margin-right:56px}
 @keyframes mq{to{transform:translateX(-50%)}}
 /* story fill: the words are only split (and dimmed) by the script */
 .fill{font-size:clamp(28px,4.2vw,58px);line-height:1.18;font-weight:${theme === "editorial" ? 380 : 600};letter-spacing:-.025em}
@@ -434,7 +447,7 @@ details.faq p{color:var(--mute);margin-top:12px;max-width:780px}
 .ctab p{opacity:.72;max-width:520px;margin:18px 0 30px}
 /* reviews */
 .rev{break-inside:avoid;margin-bottom:18px}
-.stars{color:var(--ac);letter-spacing:3px;font-size:15px;margin-bottom:14px}
+.stars{color:var(--ac3);letter-spacing:3px;font-size:15px;margin-bottom:14px}
 .revs{columns:3;column-gap:18px}
 @media(max-width:980px){.revs{columns:2}}@media(max-width:640px){.revs{columns:1}}
 /* contact */
@@ -842,7 +855,7 @@ function photoBlock(ph, ratio = "4/3") {
 
 const storyText = (fill, text) => fill ? `<p class="fill">${esc(text)}</p>` : `<p class="lead disp rv">${esc(text)}</p>`;
 
-function homeBody(theme, cl, C, base, photos, M) {
+function homeBody(theme, cl, C, base, photos, M, ba = []) {
   const story = (C.about.story[0] || C.hero.sub);
   const why = C.why.length ? `<section class="sec"><div class="wrap"><div class="sec-h"><h2 class="disp rv">Why people choose ${esc(C.name)}</h2></div>
 <div class="grid ${C.why.length === 4 ? "g4" : C.why.length === 2 ? "g2" : "g3"}">${C.why.map((w, i) => `<div class="card rv d${i % 3}"><span class="tick"></span><h3>${esc(w.title)}</h3><p>${esc(w.text)}</p></div>`).join("")}</div></div></section>` : "";
@@ -856,7 +869,7 @@ ${C.faqs.slice(0, 5).map((f) => `<details class="faq rv"><summary>${esc(f.q)}<i 
 ${marquee(C)}
 ${servicesSection(M.scene, C, base, photos)}
 ${storySec}
-${why}${steps}${faq}${reviewsTeaser(cl, C, base)}${ctaBand(C, base)}`;
+${beforeAfterHTML(ba, { headClass: "disp rv" })}${why}${steps}${faq}${reviewsTeaser(cl, C, base)}${ctaBand(C, base)}`;
 }
 
 function reviewsTeaser(cl, C, base) {
@@ -1013,6 +1026,8 @@ export function renderSite(cl, pageId = "home", opts = {}) {
   C.intake = intakeOf(cl);
   C.bookOn = C.intake.how === "book";
   const photos = photosFor(cl);
+  // Before-and-after pairs from the Brand kit: drawn on the home page once at least one is uploaded (KB brand-kit).
+  const ba = beforeAfterPairs(cl);
   const body = page === "book" && C.bookOn ? bookBody(theme, cl, C)
     : page === "services" ? servicesBody(theme, C, base, photos)
     : page === "about" ? aboutBody(theme, C, base, photos, M)
@@ -1020,7 +1035,7 @@ export function renderSite(cl, pageId = "home", opts = {}) {
     : page === "contact" ? contactBody(theme, cl, C, base)
     : page === "blog" ? (post ? postBody(theme, C, base, post) : blogBody(theme, C, base, opts.posts))
     : pg.extra ? extraBody(theme, C, base, photos, pg)
-    : homeBody(theme, cl, C, base, photos, M);
+    : homeBody(theme, cl, C, base, photos, M, ba);
   const label = pg.label;
   const title = page === "home" ? (C.seo.title || `${C.name}${C.niche ? " | " + C.niche : ""}`) : post ? `${clean(post.title, 70)} | ${C.name}` : `${label} | ${C.name}`;
   const desc = post ? clean(post.excerpt, 160) || C.hero.sub : pg.extra ? clean(pg.extra.content.intro, 160) || C.hero.sub : C.seo.description || C.hero.sub;
@@ -1035,12 +1050,13 @@ export function renderSite(cl, pageId = "home", opts = {}) {
 <meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:type" content="website"><meta property="og:url" content="${esc(canonical)}">${ogImg}
 <meta name="theme-color" content="${P.bg}">${opts.noindex ? '<meta name="robots" content="noindex">' : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="${FONTS[theme]}" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="${FONTS[theme]}"></noscript>
-<style>${css(theme, P)}${IOS_NO_ZOOM}</style><style>${HPH_CSS}${C.bookOn ? BOOK_CSS : ""}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
+${fontLinks(typeOf(theme, cl).fontHrefs)}
+<style>${css(theme, P, cl)}${IOS_NO_ZOOM}</style><style>${HPH_CSS}${C.bookOn ? BOOK_CSS : ""}${ba.length && page === "home" ? `.ba-sec{--ba-r:var(--r);--ba-mute:var(--mute)}${BEFORE_AFTER_CSS}` : ""}</style><script type="application/ld+json">${jsonLd(cl, C, base)}</script>${post ? `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@type": "BlogPosting", headline: clean(post.title, 110), datePublished: post.publishAt, author: { "@type": "Organization", name: C.name }, mainEntityOfPage: canonical }).replace(/</g, "\\u003c")}</script>` : ""}</head>
 <body data-theme="${theme}" data-page="${page}" data-in="${M.entrance}" data-rv="${M.reveal}" data-tx="${M.transition}">
 ${header(cl, base, page, C, pages)}
 <main>${body}</main>
 ${footer(cl, base, C, pages)}
-<script>${motionScript(cl, M)}</script>${C.bookOn && page === "book" ? `<script>${bookingWidgetJS(cl)}</script>` : ""}${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}${opts.track ? `<script>${hitScript(opts.track, base)}</script>` : ""}
+<script>${motionScript(cl, M)}</script>${C.bookOn && page === "book" ? `<script>${bookingWidgetJS(cl)}</script>` : ""}${ba.length && page === "home" ? `<script>${BEFORE_AFTER_JS}</script>` : ""}${hasGl ? `<script>${glScript(P, theme, M.gl)}</script>` : ""}${opts.track ? `<script>${hitScript(opts.track, base)}</script>` : ""}
 </body></html>`;
   // A preview link has to stay a preview link as you click around, or Services lands on "coming soon".
   const q = String(opts.query || "");

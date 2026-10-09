@@ -71,6 +71,41 @@ ok("a brand file is uploaded but never added to the photo library", /bkUpload\(c
   ok("a logo already in the library is used by the emails", bizBrand({ name: "X", mediaLibrary: [{ category: "photo", url: "https://x.co/p.jpg" }, { category: "logo", url: "https://x.co/l.png" }] }).logo === "https://x.co/l.png");
 }
 
+// 6. "Do all 3": fonts on the pages, before and after, second and accent colours (2026-10-09)
+{
+  const S = await import("../netlify/lib/brand-style.mjs");
+  const { renderSite } = await import("../netlify/lib/site-render.mjs");
+  const { renderLandingPage } = await import("../netlify/functions/landing.mjs");
+  const LIB = [{ category: "before-after", url: "https://x.co/b.jpg" }, { category: "before-after", url: "https://x.co/a.jpg" }];
+  const cl = { id: "b", internal: true, owned: true, name: "Desert Gloss", niche: "Auto Detailing", landingSlug: "dg", website: { theme: "aurora", published: true, content: {} },
+    landingPage: { headline: "Mobile detailing", published: true },
+    brandKit: { primary: "#0F766E", secondary: "#F59E0B", accent: "#E11D48", headingFont: "Montserrat", bodyFont: "Inter" },
+    mediaLibrary: LIB, beforeAfter: [{ before: "https://x.co/b.jpg", after: "https://x.co/a.jpg", caption: "F-150 <interior>" }] };
+  const bare = { ...cl, brandKit: undefined, beforeAfter: undefined };
+  const site = renderSite(cl, "home", { base: "https://dg.example" }), siteBare = renderSite(bare, "home", { base: "https://dg.example" });
+  const lp = renderLandingPage(cl), lpBare = renderLandingPage(bare);
+  // Fonts
+  ok("🔴 the kit's fonts load and come first on the website, the design's font behind them", site.includes("family=Montserrat&amp;display=swap") && site.includes("family=Inter:wght@400;600;700&amp;display=swap")
+    && /font-family:'Inter','Geist',system-ui,sans-serif/.test(site) && /\.disp\{font-family:'Montserrat','Bricolage Grotesque'/.test(site));
+  ok("and on the landing page", lp.includes("family=Montserrat&amp;display=swap") && /'Montserrat'/.test(lp));
+  ok("a font name that could not be a font is ignored", S.brandFonts({ brandKit: { headingFont: "x');}body{display:none", bodyFont: "Inter" } }).heading === "" && S.brandFonts({ brandKit: { bodyFont: "Inter" } }).body === "Inter");
+  ok("no kit, no font requests and the design's own fonts", !siteBare.includes("family=Montserrat") && /font-family:'Geist',system-ui,sans-serif/.test(siteBare) && !lpBare.includes("family=Montserrat"));
+  // Colours
+  ok("🔴 the second and accent colours reach the website", site.includes("--ac2:#F59E0B;--ac3:#E11D48;") && /\.stars\{color:var\(--ac3\)/.test(site) && /opacity:\.28;background:var\(--ac2\)/.test(site));
+  ok("and the landing page's small touches", lp.includes(".dot{background:#E11D48}") && lp.includes(".rlist .rk{color:#F59E0B}"));
+  ok("no kit, both fall back to the main colour (nothing changes)", /--ac2:([^;]+);--ac3:\1;/.test(siteBare) && siteBare.match(/--ac:([^;]+);--ac2:([^;]+);/).slice(1).every((x, _, a) => x === a[0]) && !lpBare.includes(".rlist .rk{color:"));
+  // Before and after
+  ok("🔴 a pair shows as a drag slider on the website home page and the landing page", site.includes('id="before-after"') && site.includes('type="range"') && site.includes(S.BEFORE_AFTER_JS) && lp.includes('id="before-after"') && lp.includes(S.BEFORE_AFTER_JS));
+  ok("🔴 no pair yet: the section is not there at all (no empty frames)", !siteBare.includes("before-after") && !lpBare.includes("before-after") && !siteBare.includes(".ba{"));
+  ok("🔴 a photo deleted from the library takes its pair off the page", S.beforeAfterPairs({ ...cl, mediaLibrary: [LIB[0]] }).length === 0);
+  ok("captions and photo links are escaped, and only https photos are used", site.includes("F-150 &lt;interior&gt;") && S.beforeAfterPairs({ ...cl, beforeAfter: [{ before: "http://x.co/b.jpg", after: "https://x.co/a.jpg" }] }).length === 0);
+  ok("the slider works by keyboard and touch, and lets the page scroll", /aria-label="Compare before and after"/.test(site) && /touch-action:pan-y/.test(S.BEFORE_AFTER_CSS));
+  ok("before-and-after photos never turn up as ordinary photos", !/x\.co\/b\.jpg/.test(renderSite({ ...cl, beforeAfter: [] }, "home", { base: "https://dg.example" })));
+  ok("no emojis, no dashes, no BoldLine, no relative links on the landing page", !/[\u{1F300}-\u{1FAFF}]/u.test(lp) && !/boldline/i.test(lp)
+    && !(lp.match(/href="([^"]*)"/g) || []).some((x) => !/^href="(https:|http:|tel:|mailto:|sms:|#)/.test(x)) && !/[\u2014\u2013]/.test(S.beforeAfterHTML(S.beforeAfterPairs(cl))));
+  ok("the OS adds a pair: before, after, a caption, up to six", /bkUpload\(client, baB, "before-after"\)/.test(UI) && /bkUpload\(client, baA, "before-after"\)/.test(UI) && /\.slice\(-6\)\}\);/.test(UI));
+}
+
 // 5. His businesses first
 ok("🔴 the card is on his own businesses only, for now", /\{isOwned\(client\)&&<BrandKitCard client=\{client\} onUpdate=\{onUpdate\} onOpenAssets=\{\(\)=>setTab\("portal"\)\}\/>\}/.test(UI) && (UI.match(/<BrandKitCard /g) || []).length === 1);
 ok("no emojis in the card", !/[\u{1F300}-\u{1FAFF}]/u.test(UI.slice(UI.indexOf("function BrandKitCard("), UI.indexOf("// ─── CUSTOMER EMAILS"))));
