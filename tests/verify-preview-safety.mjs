@@ -94,9 +94,17 @@ const MANIFEST = {
 {
   // Pull the title off every iframe that is handed rendered HTML.
   const embeds = [];
+  // 🔴 FitFrame (2026-10-09) is a frame that shrinks a document to fit a phone. Its one inner <iframe> takes its title
+  // and content from whoever uses it, so the scan reads each <FitFrame ...> use as the embed instead.
+  const fa = UI.indexOf("function FitFrame("), fb = fa < 0 ? -1 : UI.indexOf("\n}\n", fa);
+  const UIs = fa < 0 ? UI : UI.slice(0, fa) + UI.slice(fb);
+  for (const f of UI.matchAll(/<FitFrame\b[^>]*>/g)) {
+    const t = /title="([^"]+)"/.exec(f[0]);
+    embeds.push({ title: t ? t[1] : "(untitled)", tag: f[0] });
+  }
   const re = /<iframe\b[^>]*src[Dd]oc[^>]*>/g;
   let m;
-  while ((m = re.exec(UI))) {
+  while ((m = re.exec(UIs))) {
     const tag = m[0];
     const t = /title="([^"]+)"/.exec(tag);
     embeds.push({ title: t ? t[1] : "(untitled)", tag });
@@ -109,7 +117,7 @@ const MANIFEST = {
   // every `src=` and swept in the saved-page viewer, whose iframe is written into a STRING for
   // a document that opens in its own tab — already out of scope for the reason set out below
   // the manifest, and carrying a runtime title this file could never match anyway.
-  for (const m2 of UI.matchAll(/<iframe\b(?![^>]*src[Dd]oc)[^>]*\ssrc=\{[^>]*>/g)) {
+  for (const m2 of UIs.matchAll(/<iframe\b(?![^>]*src[Dd]oc)[^>]*\ssrc=\{[^>]*>/g)) {
     const t = /title="([^"]+)"/.exec(m2[0]);
     embeds.push({ title: t ? t[1] : "(untitled)", tag: m2[0] });
   }
@@ -122,6 +130,7 @@ const MANIFEST = {
   }
 
   ok("the OS still renders previews at all", embeds.length >= 4, `found ${embeds.length}`);
+  ok("🔴 FitFrame passes on the sandbox it is given and adds no permissions of its own", fa > 0 && /\{\.\.\.\(sandbox\?\{sandbox\}:\{\}\)\}/.test(UI.slice(fa, fb)) && !/allow-/.test(UI.slice(fa, fb)));
   for (const e of embeds) {
     ok(`🔴 the "${e.title}" preview is accounted for`, !!MANIFEST[e.title],
       "a new preview was added without deciding what stops it changing real data. Add it to "

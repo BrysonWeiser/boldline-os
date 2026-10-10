@@ -1065,7 +1065,7 @@ const FOUNDING_CLIENT_COUNT = 5;
 // the copy and website banner to take down the offer"*). Monotonic on purpose: once three have
 // signed the offer is spent forever, even if one later churns, because "we gave our first clients
 // a free build" is a statement about history.
-const foundingCountsFor = (c) => c && !c.internal && !c.demo && (!!c.contractSigned || c.contractStatus==="active");
+const foundingCountsFor = (c) => c && !c.internal && !c.demo && (!!c.contractSigned || c.contractStatus==="active" || !!(c.replacesAgreement && c.replacesAgreement.signedAt));
 const foundingSignedCount = (clients) => (clients||[]).filter(foundingCountsFor).length;
 const foundingOfferOpen = (clients) => foundingSignedCount(clients) < FOUNDING_CLIENT_COUNT;
 const foundingSlotsLeft = (clients) => Math.max(0, FOUNDING_CLIENT_COUNT - foundingSignedCount(clients));
@@ -3743,6 +3743,8 @@ const makeContractHTML=(cl,pkg)=>{
 
    +'<h2>'+nGen+'. General</h2>'
    +'<p>This Agreement (including the Key Commercial Terms above) is the entire agreement between the parties about its subject and supersedes all prior discussions and proposals. Amendments must be in a writing signed (including electronically) by both parties, except that package upgrades and renewal terms may be confirmed by exchange of email or through Agency&rsquo;s client systems. If any provision is held unenforceable, it will be modified to the minimum extent necessary and the rest remains in effect. A waiver must be written and applies only to the instance given. Client may not assign this Agreement without Agency&rsquo;s consent; Agency may assign to a successor of its business. Notices may be given by email to the addresses on page one and are effective on the business day received. <strong>The parties agree this Agreement may be executed electronically, and electronic signatures (including via DocuSign) are valid and binding under the U.S. E-SIGN Act, the Arizona Electronic Transactions Act, and equivalent laws.</strong> This Agreement may be signed in counterparts. There are no third-party beneficiaries to this Agreement. Headings are for convenience only and do not affect interpretation.</p>'
+
+   +(cl.replacesAgreement&&cl.replacesAgreement.signedAt?'<p><strong>This Agreement replaces an earlier one.</strong> It replaces the Advertising Services Agreement between the parties signed on '+new Date(cl.replacesAgreement.signedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"America/Phoenix"})+(cl.replacesAgreement.envelopeId?' (DocuSign envelope '+String(cl.replacesAgreement.envelopeId).replace(/[^A-Za-z0-9-]/g,"")+')':'')+'. When this Agreement is signed, the parties agree that earlier agreement is cancelled and has no further effect, and nothing is owed under it.</p>':'')
 
    +specialHTML
    +'<h2>Signatures</h2>'
@@ -14087,6 +14089,20 @@ function SpecialTermsCard({client,pkg,onUpdate}) {
 //
 // Now there are three states and each one says what it is showing. The re-render is never
 // again presented as the agreement once an agreement exists.
+// A document (a contract, a signed PDF) drawn at its real page width and shrunk to fit a phone, so it never runs off
+// the right edge (Bryson, 2026-10-09, Springbok's signed agreement on his iPhone: "it's to big and it doesn't [fit]").
+function FitFrame({src,srcDoc,title,height=480,natural=820,sandbox}){
+  const ref=useRef(null); const [w,setW]=useState(0);
+  useEffect(()=>{ const el=ref.current; if(!el) return; const f=()=>setW(el.clientWidth); f(); let ro=null;
+    try{ ro=new ResizeObserver(f); ro.observe(el); }catch(e){ window.addEventListener("resize",f); }
+    return ()=>{ if(ro) ro.disconnect(); else window.removeEventListener("resize",f); }; },[]);
+  const k=w&&w<natural?w/natural:1;
+  return (
+    <div ref={ref} style={{width:"100%",height,overflow:"hidden",position:"relative",backgroundColor:"#fff"}}>
+      <iframe src={src} srcDoc={srcDoc} title={title} {...(sandbox?{sandbox}:{})} style={{width:k<1?natural:"100%",height:Math.round(height/k),border:"none",display:"block",backgroundColor:"#fff",transform:k<1?`scale(${k})`:"none",transformOrigin:"top left"}}/>
+    </div>);
+}
+
 function SignedContractCard({client,html}){
   const view=contractView(client);
   const [link,setLink]=useState({state:"idle",url:"",error:""});  // idle | loading | ready | missing | error
@@ -14126,9 +14142,7 @@ function SignedContractCard({client,html}){
     return (
       <Card style={{padding:0,overflow:"hidden"}}>
         {head("Contract Preview","This is exactly what gets sent")}
-        <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
-          <iframe srcDoc={html} title="Contract" style={{width:"100%",height:480,border:"none",display:"block",backgroundColor:"#fff",maxWidth:"100%"}} sandbox="allow-same-origin allow-scripts"/>
-        </div>
+        <FitFrame srcDoc={html} title="Contract" natural={1} sandbox="allow-same-origin allow-scripts"/>
       </Card>
     );
   }
@@ -14160,9 +14174,8 @@ function SignedContractCard({client,html}){
         )}
         {view==="signed"&&link.state==="ready"&&(
           <>
-            <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
-              <iframe src={link.url} title="Signed agreement" style={{width:"100%",height:480,border:"none",display:"block",backgroundColor:"#fff",maxWidth:"100%"}}/>
-            </div>
+            {/* The signed copy is DocuSign's PDF, a fixed letter-size page: drawn at page width and shrunk to the screen. */}
+            <FitFrame src={link.url} title="Signed agreement" natural={840}/>
             <div style={{padding:"9px 13px",borderTop:`1px solid ${C.border}`}}>
               <a href={link.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none"}}>Open it full size &#8599;</a>
               <span style={{fontSize:10,color:C.textMuted,marginLeft:10}}>This link stops working after an hour.</span>
@@ -14185,14 +14198,38 @@ function SignedContractCard({client,html}){
             <div style={{padding:"11px 13px",fontSize:11,color:C.textMuted,lineHeight:1.65,borderBottom:`1px solid ${C.border}`}}>
               🔴 <b style={{color:C.textDim}}>This is not the signed agreement.</b> It is rebuilt from what this client record says right now, so if you have changed a date, a fee or a package since they signed, this will show the change and the signed document above will not. The signed one is the one that counts.
             </div>
-            <div style={{width:"100%",overflow:"hidden",position:"relative"}}>
-              <iframe srcDoc={html} title="Current terms" style={{width:"100%",height:480,border:"none",display:"block",backgroundColor:"#fff",maxWidth:"100%"}} sandbox="allow-same-origin allow-scripts"/>
-            </div>
+            <FitFrame srcDoc={html} title="Current terms" natural={1} sandbox="allow-same-origin allow-scripts"/>
           </>
         )}
       </Card>
     </>
   );
+}
+
+// Replace a SIGNED agreement (Bryson, 2026-10-09, Springbok: "I need to cancel that contract he signed and make a new
+// one ... I thought I voided the contract but ... he signed it by mistake"). DocuSign cannot void a signed envelope, so
+// the only clean way out is a new agreement both sides sign that says it replaces and cancels the old one. This keeps the
+// signed copy on the record (contractHistory), unlocks the terms, and the next agreement carries that clause
+// (contract-shared.cjs `replacesAgreement`). He still counts as signed until then (founding.mjs). KB contract-replace.
+function ReplaceAgreementCard({client,onUpdate}){
+  const [open,setOpen]=useState(false);
+  const on=client.contractSignedAt?new Date(client.contractSignedAt).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric",timeZone:"America/Phoenix"}):"";
+  const go=()=>{
+    if(!window.confirm(`Replace ${client.name}'s signed agreement${on?` (signed ${on})`:""}?\n\nDocuSign can't cancel a signed agreement, so you'll send a new one that says in writing it replaces and cancels this one. When they sign it, the old one is gone. Until then the old one still stands.\n\nThe signed copy stays on the record. Next: change the terms, then send.`)) return;
+    const prev={envelopeId:client.docusignEnvelopeId||"",signedAt:client.contractSignedAt||"",signedContractPath:client.signedContractPath||"",termsVersion:client.contractTermsVersion==null?null:client.contractTermsVersion,omits:client.contractOmits||null,replacedAt:new Date().toISOString()};
+    onUpdate&&onUpdate({...client,contractHistory:[prev,...(client.contractHistory||[])].slice(0,10),replacesAgreement:{envelopeId:prev.envelopeId,signedAt:prev.signedAt||new Date().toISOString()},
+      contractSigned:false,contractStatus:"pending",docusignEnvelopeId:"",docusignStatus:"",docusignSentAt:"",contractSignedAt:"",signedContractPath:"",contractTermsVersion:null,contractOmits:null});
+  };
+  return (
+    <Card>
+      <button onClick={()=>setOpen(v=>!v)} style={{width:"100%",background:"none",border:0,padding:0,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",fontFamily:"inherit"}}>
+        <span style={{fontSize:12,fontWeight:700,color:C.textDim}}>Need to change or cancel this signed agreement?</span><span style={{fontSize:10,color:C.textMuted}}>{open?"Hide":"Show"}</span>
+      </button>
+      {open&&<div style={{marginTop:10}}>
+        <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.65,marginBottom:10}}>Once someone signs in DocuSign, nobody can void it, not even DocuSign. The clean way out is a new agreement that says it replaces and cancels this one. It takes effect when they sign, so it's agreed by both of you in writing. Send them a quick note first so the new one doesn't surprise them.</div>
+        <button onClick={go} style={{width:"100%",padding:"10px",fontSize:12,fontWeight:700,borderRadius:9,border:`1px solid ${C.borderAccent}`,backgroundColor:"rgba(200,168,75,.1)",color:C.gold,cursor:"pointer"}}>Replace this agreement</button>
+      </div>}
+    </Card>);
 }
 
 function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
@@ -14449,6 +14486,11 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       {/* 🔴 ABOVE the send button on purpose. These are the terms that go INTO the document
           being sent, so meeting them after the Send button is meeting them too late. */}
       <SpecialTermsCard client={client} pkg={pkg} onUpdate={onUpdate}/>
+      {client.contractSigned&&!client.internal&&<ReplaceAgreementCard client={client} onUpdate={onUpdate}/>}
+      {!client.contractSigned&&client.replacesAgreement&&client.replacesAgreement.signedAt&&<Card style={{borderColor:`${C.gold}44`,backgroundColor:"rgba(200,168,75,.05)"}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:4}}>This replaces the agreement signed {new Date(client.replacesAgreement.signedAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"America/Phoenix"})}</div>
+        <div style={{fontSize:11,color:C.textMuted,lineHeight:1.6}}>The new agreement says so in writing: once {client.contactName||client.name} signs it, the old one is cancelled by both of you. Until then the old one still stands. Change the fee, terms or special terms above, then send it below.</div>
+      </Card>}
       {!client.contractSigned&&<Card style={{backgroundColor:ds.bad?"rgba(239,68,68,.06)":"rgba(59,130,246,.06)",borderColor:ds.bad?"rgba(239,68,68,.28)":"rgba(59,130,246,.28)"}}>
         <div style={{fontSize:12,fontWeight:700,color:ds.bad?C.red:"#60A5FA",marginBottom:4}}>{ds.title}</div>
         <div style={{fontSize:11,color:C.textMuted,marginBottom:10,lineHeight:1.6}}>{ds.detail}</div>

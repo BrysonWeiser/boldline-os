@@ -32,7 +32,8 @@ export const FOUNDING_CLIENT_COUNT = 5;
 export const isFoundingClient = (c) => {
   const cl = c || {};
   if (cl.internal || cl.demo) return false;
-  return !!cl.contractSigned || cl.contractStatus === "active";
+  // A client replacing a signed agreement is still bound by it until the new one is signed (KB contract-replace).
+  return !!cl.contractSigned || cl.contractStatus === "active" || !!(cl.replacesAgreement && cl.replacesAgreement.signedAt);
 };
 
 export const countFoundingClients = (clients) => (clients || []).filter(isFoundingClient).length;
