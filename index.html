@@ -14103,6 +14103,81 @@ function FitFrame({src,srcDoc,title,height=480,natural=820,sandbox}){
     </div>);
 }
 
+// The signed agreement drawn page by page and trimmed to the words (Bryson, 2026-10-09: shrunk to fit, the
+// letter page's wide white margins left the text too small to read on his iPhone). pdf.js reads the PDF, the
+// text on each page gives where the writing starts and ends, and the page is drawn so that column fills the
+// width. DocuSign's envelope stamp in the top corner is left out of that measurement (it sits outside the
+// margin and would undo the trim). A page whose writing runs wider than page one's (DocuSign's certificate
+// page) is drawn whole instead. Read-only: it fetches the PDF and paints canvases, nothing else. If pdf.js
+// cannot load, the plain shrunk frame below is shown instead, at the letter page's real width.
+const PDFJS_V = "3.11.174";
+let PDFJS_P = null;
+const loadPdfJs = () => PDFJS_P || (PDFJS_P = new Promise((res, rej) => {
+  if (window.pdfjsLib) return res(window.pdfjsLib);
+  const s = document.createElement("script"); s.src = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_V}/pdf.min.js`; s.async = true;
+  s.onload = () => { const L = window.pdfjsLib; if (!L) return rej(new Error("no pdfjs")); L.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_V}/pdf.worker.min.js`; res(L); };
+  s.onerror = () => { PDFJS_P = null; rej(new Error("pdfjs failed")); };
+  document.head.appendChild(s);
+}));
+// Where the writing sits on a page, in PDF units: [left, right], or null for a page with no text.
+async function pdfTextSpan(page) {
+  const [vx0, , , vy1] = page.view; const tc = await page.getTextContent();
+  let l = Infinity, r = -Infinity;
+  for (const it of tc.items) {
+    if (!it.str || !it.str.trim() || !it.transform) continue;
+    if (it.transform[5] > vy1 - 36) continue;          // the envelope stamp along the top edge
+    l = Math.min(l, it.transform[4] - vx0); r = Math.max(r, it.transform[4] - vx0 + (it.width || 0));
+  }
+  return r > l ? [l, r] : null;
+}
+function PdfPages({ url, height = 560 }) {
+  const title = "Signed agreement";
+  const box = useRef(null); const [w, setW] = useState(0); const [state, setState] = useState("wait"); // wait | on | off
+  const docRef = useRef(null);
+  useEffect(() => { const el = box.current; if (!el) return; const f = () => setW(el.clientWidth); f(); let ro = null;
+    try { ro = new ResizeObserver(f); ro.observe(el); } catch (e) { window.addEventListener("resize", f); }
+    return () => { if (ro) ro.disconnect(); else window.removeEventListener("resize", f); }; }, []);
+  useEffect(() => { let alive = true; docRef.current = null; setState("wait");
+    loadPdfJs().then((L) => L.getDocument({ url, isEvalSupported: false }).promise).then(async (pdf) => {
+      const pages = []; for (let i = 1; i <= Math.min(pdf.numPages, 30); i++) { const pg = await pdf.getPage(i); pages.push({ pg, span: await pdfTextSpan(pg) }); }
+      if (alive) { docRef.current = pages; setState("on"); }
+    }).catch(() => { if (alive) setState("off"); });
+    return () => { alive = false; }; }, [url]);
+  useEffect(() => {
+    const pages = docRef.current, host = box.current && box.current.querySelector("[data-pages]");
+    if (state !== "on" || !pages || !host || !w) return;
+    let alive = true; const tasks = [];
+    const cssW = Math.min(w, 760), dpr = Math.min(window.devicePixelRatio || 1, 3), pad = 14;
+    const first = pages[0].span;
+    (async () => {
+      host.innerHTML = "";
+      for (const { pg, span } of pages) {
+        if (!alive) return;
+        const pw = pg.view[2] - pg.view[0], ph = pg.view[3] - pg.view[1];
+        // Trim to page one's column when this page's writing fits inside it; otherwise show the whole page.
+        const fits = first && (!span || (span[0] >= first[0] - 2 && span[1] <= first[1] + 2));
+        const x0 = fits ? Math.max(0, first[0] - pad) : 0, x1 = fits ? Math.min(pw, first[1] + pad) : pw;
+        const k = cssW / (x1 - x0);
+        const vp = pg.getViewport({ scale: k * dpr, offsetX: -x0 * k * dpr });
+        const cv = document.createElement("canvas");
+        cv.width = Math.round(cssW * dpr); cv.height = Math.round(ph * k * dpr);
+        cv.style.cssText = `display:block;width:${cssW}px;height:${Math.round(ph * k)}px;margin:0 auto 8px;background:#fff`;
+        cv.setAttribute("role", "img"); cv.setAttribute("aria-label", `${title}, page ${pg.pageNumber}`);
+        host.appendChild(cv);
+        const t = pg.render({ canvasContext: cv.getContext("2d"), viewport: vp }); tasks.push(t);
+        try { await t.promise; } catch (e) { return; }
+      }
+    })();
+    return () => { alive = false; tasks.forEach((t) => { try { t.cancel(); } catch (e) {} }); };
+  }, [state, w]);
+  if (state === "off") return <FitFrame src={url} title="Signed agreement" natural={612} height={height}/>;
+  return (
+    <div ref={box} style={{ width: "100%", height, overflowY: "auto", WebkitOverflowScrolling: "touch", background: "#E5E7EB" }}>
+      {state === "wait" && <div style={{ padding: "14px 13px", fontSize: 11.5, color: "#6B7280" }}>Drawing the signed copy…</div>}
+      <div data-pages="" style={{ paddingTop: 8 }}/>
+    </div>);
+}
+
 function SignedContractCard({client,html}){
   const view=contractView(client);
   const [link,setLink]=useState({state:"idle",url:"",error:""});  // idle | loading | ready | missing | error
@@ -14174,8 +14249,8 @@ function SignedContractCard({client,html}){
         )}
         {view==="signed"&&link.state==="ready"&&(
           <>
-            {/* The signed copy is DocuSign's PDF, a fixed letter-size page: drawn at page width and shrunk to the screen. */}
-            <FitFrame src={link.url} title="Signed agreement" natural={840}/>
+            {/* The signed copy is DocuSign's PDF: drawn page by page, trimmed to the writing so it reads on a phone. */}
+            <PdfPages url={link.url}/>
             <div style={{padding:"9px 13px",borderTop:`1px solid ${C.border}`}}>
               <a href={link.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,fontWeight:700,color:C.gold,textDecoration:"none"}}>Open it full size &#8599;</a>
               <span style={{fontSize:10,color:C.textMuted,marginLeft:10}}>This link stops working after an hour.</span>

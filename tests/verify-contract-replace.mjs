@@ -43,7 +43,11 @@ ok("🔴 a client replacing a signed agreement still counts (the old one binds u
 
 // 4. The phone
 const fit = UI.slice(UI.indexOf("function FitFrame("), UI.indexOf("function SignedContractCard("));
-ok("🔴 the signed PDF is drawn at page width and shrunk to the screen", /<FitFrame src=\{link\.url\} title="Signed agreement" natural=\{840\}\/>/.test(UI) && /const k=w&&w<natural\?w\/natural:1;/.test(fit) && /transform:k<1\?`scale\(\$\{k\}\)`:"none"/.test(fit));
+const pp = UI.slice(UI.indexOf("function PdfPages("), UI.indexOf("function SignedContractCard("));
+ok("🔴 the signed PDF is drawn page by page, trimmed to the writing, so it reads on a phone", /<PdfPages url=\{link\.url\}\/>/.test(UI) && /const k = cssW \/ \(x1 - x0\);/.test(pp) && /offsetX: -x0 \* k \* dpr/.test(pp));
+ok("the envelope stamp along the top is left out of the trim", /it\.transform\[5\] > vy1 - 36/.test(UI));
+ok("🔴 pdf.js runs with eval off", /isEvalSupported: false/.test(pp));
+ok("if pdf.js cannot load, the shrunk frame is shown at the letter page's real width", /<FitFrame src=\{url\} title="Signed agreement" natural=\{612\}/.test(pp) && /const k=w&&w<natural\?w\/natural:1;/.test(fit));
 ok("the responsive contract previews are never shrunk", (UI.match(/<FitFrame srcDoc=\{html\} title="(Contract|Current terms)" natural=\{1\}/g) || []).length === 2);
 
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
