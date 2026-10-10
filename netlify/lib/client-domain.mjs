@@ -77,7 +77,9 @@ export function isOwnHost(host, extra = "") {
 // authenticated". So every enquiry from a landing page on a client's own subdomain was refused while
 // the visitor saw "something went wrong", and nothing anywhere recorded it.
 // `/book` too (2026-10-07): the website's Book page asks it for open times and sends the booking there.
-const PASS_PATHS = ["/lead", "/site-hit", "/book", "/optout"];
+// `/pay` too (2026-10-09): a customer's pay link for a booking (KB payments-connect). A GET, so without this it
+// would have been drawn as the landing page instead of the payment page.
+const PASS_PATHS = ["/lead", "/site-hit", "/book", "/optout", "/pay"];
 export const isReservedPath = (pathname) => {
   const p = String(pathname || "/");
   return p.startsWith("/.netlify/") || p.startsWith("/.well-known/") || PASS_PATHS.includes(p.replace(/\/+$/, "") || "/");

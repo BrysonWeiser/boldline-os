@@ -39,7 +39,11 @@ export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: W
 // takes clients").
 // WA-4 (2026-10-09): the optional Business Email Setup add-on (section 6a), and the Signature tier (designed around
 // the client's brand, eight pages, three rounds, a four-edit care plan). Connecting the domain stays included.
-export const AGREEMENT_VERSION = "WA-4";
+// WA-5 (2026-10-09): taking payment from Client's own customers through the website (its own Stripe or Square, a
+// payment link, or in person) is set up the same way, and that money is Client's alone: it goes straight to
+// Client's account, Client is the seller and carries refunds, chargebacks and fees, BoldLine never holds it
+// (KB payments-connect; CLAUDE.md hard constraint).
+export const AGREEMENT_VERSION = "WA-5";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -213,6 +217,7 @@ ${pay}
 <h2>4. Changes before launch</h2>
 <p>${words[inc.rounds][0].toUpperCase() + words[inc.rounds].slice(1)} rounds of changes before launch are included. A round is one list of changes sent together. New pages, a different design after work has started, or changes beyond ${words[inc.rounds]} rounds are quoted separately and only done if Client agrees to the quote in writing.</p>
 <p>Setting up, and later changing, how customers reach Client through the website (a quote form, online booking, a link to a booking system Client already uses, or calling) is part of the build and the care plan. It never counts as a round of changes and is never charged separately.</p>
+<p>The same goes for how Client&rsquo;s customers pay through the website: connecting Client&rsquo;s own Stripe or Square account, a payment link from Client&rsquo;s own account, or payment in person. Every such payment goes straight from the customer to Client&rsquo;s own account. Client is the seller, and refunds, chargebacks, processing fees and any taxes on those sales are Client&rsquo;s. BoldLine never receives, holds or handles that money, takes no share of it, and Client may disconnect its account at any time.</p>
 
 <h2>5. Timing</h2>
 <p>BoldLine aims to have a first version ready for Client to review within fourteen (14) days of receiving the first payment and the information it needs. If BoldLine has not delivered a first version within sixty (60) days of receiving both, Client may end this Agreement by written notice and receive a refund of the Build Fee paid.</p>

@@ -11,3 +11,5 @@ Client websites are served from THIS folder's Netlify site, separate from the OS
   added here and their DNS points here.
 - Functions: `website` (every page, sitemap, robots, by the address it was asked for), `site-hit` (visitor
   count), `lead` (contact form: passed to the OS, and kept safe to deliver later if the OS is down).
+  `book` and `optout` pass booking and unsubscribes to the OS; `pay` passes a customer paying for a booking
+  (KB `payments-connect`), handing back the redirect to the business's own Stripe or Square checkout.

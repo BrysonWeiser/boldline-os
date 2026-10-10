@@ -135,7 +135,7 @@ ok("🔴 the automatic emails wait until the address is proven", kinds(BIZ({ ema
   const O = src("netlify/functions/optout.mjs");
   ok("🔴 opening the link changes nothing (mail scanners open links); the button does", /if \(req\.method !== "POST"\) return page\(/.test(O) && O.indexOf('req.method !== "POST"') < O.indexOf(".update("));
   ok("it speaks for the business, never BoldLine", !/boldline/i.test(O.replace(/^\/\/.*$/gm, "")));
-  ok("a client domain passes it through", /path: "\/optout"/.test(src("sites/functions/optout.mjs")) && /"\/optout"\]/.test(src("netlify/lib/client-domain.mjs")) && /functions\/optout\.mjs/.test(src("sites/deps.mjs")) && /from = "\/optout"/.test(src("netlify.toml")));
+  ok("a client domain passes it through", /path: "\/optout"/.test(src("sites/functions/optout.mjs")) && /"\/optout"[,\]]/.test(src("netlify/lib/client-domain.mjs")) && /functions\/optout\.mjs/.test(src("sites/deps.mjs")) && /from = "\/optout"/.test(src("netlify.toml")));
 }
 
 // 6. The phone calendar

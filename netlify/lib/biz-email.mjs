@@ -14,7 +14,8 @@
 // out for good. So does a booking still to come (they already rebooked), and unsubscribing.
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isOwned } from "./owned.mjs";
-import { bookingConfig, longWhen, depositPhrase } from "./booking.mjs";
+import { bookingConfig, longWhen, payPhrase, payLabel } from "./booking.mjs";
+import { depositPaid } from "./payments.mjs";
 import { bizBrand, bizEmailHTML, bizEmailText } from "./biz-email-shell.mjs";
 
 const H = 36e5, DAY = 864e5;
@@ -80,13 +81,13 @@ export function reminderEmail(cl, b) {
   const cfg = bookingConfig(cl), B = bizBrand(cl);
   const when = longWhen(Date.parse(b.start), cfg.tz);
   const first = String(b.name || "").split(" ")[0];
-  const dep = b.deposit && b.deposit.link && !b.deposit.paid ? b.deposit : null;
+  const dep = b.deposit && b.deposit.link && !depositPaid(cl, b) ? b.deposit : null;
   const parts = {
     preheader: `${b.packageName}, ${when}`,
     heading: `See you soon${first ? `, ${first}` : ""}.`,
-    paras: [`Just a reminder that your ${b.packageName} is coming up.`, dep ? `Your deposit isn't showing as paid yet. Pay ${depositPhrase(dep.amount)} to keep your time.` : ""],
+    paras: [`Just a reminder that your ${b.packageName} is coming up.`, dep ? `Your ${dep.kind === "full" ? "payment" : "deposit"} isn't showing as paid yet. Pay ${payPhrase(dep)} to keep your time.` : ""],
     rows: [["When", when], ["Where", b.address || ""], ["What", `${b.packageName}${b.price ? ` (${b.price})` : ""}`]],
-    button: dep ? { href: dep.link, label: "Pay the deposit" } : (B.phone ? { href: `tel:${B.phone.replace(/[^0-9+]/g, "")}`, label: "Call us" } : null),
+    button: dep ? { href: dep.link, label: payLabel(dep) } : (B.phone ? { href: `tel:${B.phone.replace(/[^0-9+]/g, "")}`, label: "Call us" } : null),
     after: [B.phone ? `Need to move it? Call or text ${B.phone}, or just reply to this email.` : "Need to move it? Just reply to this email."],
   };
   return { subject: `Reminder: ${b.packageName}, ${when}`, html: bizEmailHTML(cl, parts), text: bizEmailText(cl, parts) };

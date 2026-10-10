@@ -7,6 +7,8 @@ import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, sendEmail, notifyOwnerOfLead } from "../lib/report-shared.mjs";
 import { bookingOn, bookingDays, publicBooking, makeBooking, bookingConfirmEmail } from "../lib/booking.mjs";
 import { notifyTeamOfLead } from "../lib/team-view.mjs";
+import { payUrl, payKey } from "../lib/payments.mjs";
+import { OS_BASE } from "../lib/lead-relay.mjs";
 
 const HEAD = { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: HEAD });
@@ -44,6 +46,9 @@ export default async (req) => {
   if (made.error) return json({ ok: false, error: made.error, taken: !!made.taken, phone: phoneOf(fresh.data) }, made.taken ? 409 : 400);
 
   const cur = fresh.data;
+  // Charged through the business's own Stripe or Square: the customer's button is a pay link that opens a fresh
+  // checkout on that account (netlify/functions/pay.mjs), on the business's own domain once it has one.
+  if (made.booking.deposit && made.booking.deposit.via) made.booking.deposit.link = payUrl({ ...cur, id: fresh.id }, made.booking.id, process.env.OS_BASE_URL || OS_BASE, payKey());
   const next = {
     ...cur,
     bookings: [made.booking, ...(cur.bookings || [])].slice(0, 500),
@@ -65,5 +70,5 @@ export default async (req) => {
       : Promise.resolve(),
   ]);
   return json({ ok: true, when: made.when, packageName: made.booking.packageName, phone: phoneOf(next),
-    deposit: made.booking.deposit ? { amount: made.booking.deposit.amount, link: made.booking.deposit.link } : null });
+    deposit: made.booking.deposit ? { amount: made.booking.deposit.amount, link: made.booking.deposit.link, kind: made.booking.deposit.kind || "deposit" } : null });
 };

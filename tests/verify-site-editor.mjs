@@ -118,7 +118,7 @@ ok("an added section with no place goes just before the closing call to action",
   ok("🔴 it is told never to invent facts or mention BoldLine, and never to use dashes", /Never invent facts/.test(P) && /Never mention BoldLine anywhere on the site/.test(P) && /NEVER use a dash/.test(P) && !/[—–]/.test(P));
   ok("it knows what it can't do and where he does it instead", /Brand kit on the Overview tab/.test(P) && /Extra pages card/.test(P));
   const F = src("netlify/functions/site-ai-background.mjs");
-  ok("🔴 the AI never writes the website: its one write is its answer, on its own server-owned key", (F.match(/\.update\(/g) || []).length === 1 && /\.update\(\{ data: \{ \.\.\.row\.data, siteAiJob: job \}/.test(F) && /"siteAiJob"\]/.test(UI));
+  ok("🔴 the AI never writes the website: its one write is its answer, on its own server-owned key", (F.match(/\.update\(/g) || []).length === 1 && /\.update\(\{ data: \{ \.\.\.row\.data, siteAiJob: job \}/.test(F) && /"siteAiJob"[,\]]/.test(UI));
   ok("🔴 signed in", /db\.auth\.getUser\(jwt\)/.test(F));
   ok("it must answer with the change menu", /tool_choice: \{ type: "tool", name: "answer" \}/.test(F) && /tools: \[SITE_AI_TOOL\]/.test(F));
   ok("the words it writes follow the house rules, links are left alone", /humanizeDeep\(applied\.draft\.content\)/.test(F) && /NO_DASH_RULE/.test(F));

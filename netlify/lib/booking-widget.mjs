@@ -13,7 +13,7 @@ export const durLabel = (m) => { const h = Math.floor(m / 60), r = m % 60; retur
 
 export function bookingWidgetHTML(cl, { btnClass = "btn", headClass = "bk-h" } = {}) {
   const cfg = bookingConfig(cl);
-  const pk = (p) => [p.price, durLabel(p.minutes), p.deposit ? `${p.deposit} deposit` : ""].filter(Boolean).join(" · ");
+  const pk = (p) => [p.price, durLabel(p.minutes), p.payNote || ""].filter(Boolean).join(" · ");
   return `<div class="bk" id="bk">
 <div class="bk-step" id="bkp"><h2 class="${headClass}"><span>1</span>Pick a package</h2><div class="bk-pk">${cfg.packages.map((p) =>
     `<button type="button" class="bk-p" data-id="${esc(p.id)}" data-name="${esc(p.name)}"><b>${esc(p.name)}</b><span>${esc(pk(p))}</span>${p.desc ? `<em>${esc(p.desc)}</em>` : ""}</button>`).join("")}</div></div>
@@ -75,7 +75,7 @@ d.getElementById('bksum').textContent=BS.name+', '+BS.when;bshow('bkf');bgo('bkf
 bq('.bk-p').forEach(function(p){p.onclick=function(){bq('.bk-p').forEach(function(y){y.classList.toggle('on',y===p);});BS.pkg=p.getAttribute('data-id');BS.name=p.getAttribute('data-name');BS.start=null;
 d.getElementById('bkf').hidden=true;bshow('bkd');bdays();bgo('bkd');};});
 function bdone(t,dep){['bkp','bkd','bkf'].forEach(function(id){d.getElementById(id).hidden=true;});d.getElementById('bkokt').textContent=t;
-var dp=d.getElementById('bkdep');dp.innerHTML='';if(dep&&dep.link&&/^https:/.test(dep.link)){var n=d.createElement('p');n.textContent='Your time is held. Pay the '+(dep.amount?dep.amount+' ':'')+'deposit to lock it in.';var a=d.createElement('a');a.className='bk-dep';a.href=dep.link;a.target='_blank';a.rel='noopener';a.textContent='Pay the deposit';dp.appendChild(n);dp.appendChild(a);}
+var dp=d.getElementById('bkdep');dp.innerHTML='';if(dep&&dep.link&&/^https:/.test(dep.link)){var n=d.createElement('p');var full=dep.kind==='full';n.textContent='Your time is held. Pay the '+(dep.amount?dep.amount+' ':'')+(full?'now':'deposit')+' to lock it in.';var a=d.createElement('a');a.className='bk-dep';a.href=dep.link;a.target='_blank';a.rel='noopener';a.textContent=full?'Pay now':'Pay the deposit';dp.appendChild(n);dp.appendChild(a);}
 d.getElementById('bkok').style.display='block';bgo('bkok');}
 bf.addEventListener('submit',function(e){e.preventDefault();var er=bf.querySelector('.bk-err'),b=bf.querySelector('button'),ph=bf.ph.value.trim(),em=bf.em.value.trim();
 function bad(t){er.textContent=t;er.style.display='block';}
