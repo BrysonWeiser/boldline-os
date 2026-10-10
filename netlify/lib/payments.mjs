@@ -2,10 +2,14 @@
 // way we can just put in the client portal (or my own businesses portal) to be able to connect whatever method
 // the client (or my businesses use) to collect payment"). KB `payments-connect`.
 //
-// One choice per business, `cl.payments` (the business or Bryson edits it):
-//   method   stripe | square | link | inperson
-//   link     an https payment page from the business's own account (PayPal, Venmo, Jobber, Square, anything)
-//   charge   deposit | full   what a connected Stripe or Square charges when a customer books
+// The business's ways of getting paid, `cl.payments` (the business or Bryson edits it). Several at once (Bryson,
+// 2026-10-09: "make sure for payments there is the option to choose multiple ways"), and the CUSTOMER picks:
+//   card      stripe | square | ""   card payments through its own connected account (one card processor at a
+//                                     time: two would only show the customer two card buttons that do the same)
+//   links     [{label, url}] up to 3  its own payment pages: PayPal, Venmo, Cash App, Jobber, anything https
+//   inperson  true | false            it also takes payment at the job
+//   charge    deposit | full          what is asked for online when a customer books
+// The first version held a single choice (`method` + `link`); a record saved that way still reads correctly.
 // and one connection the server alone writes, `cl.payConnect` (SERVER_OWNED in the OS):
 //   { provider, account, name, connectedAt, live }
 // plus `cl.payLog` (server-owned too): one entry per booking that was sent to a checkout, keyed by booking id:
@@ -26,15 +30,42 @@ export const CONNECTABLE = ["stripe", "square"];
 const httpsUrl = (u) => { const t = String(u || "").trim(); if (!/^https:\/\/[^\s"'<>]+$/i.test(t)) return ""; try { return new URL(t).href; } catch (e) { return ""; } };
 const low = (s) => String(s || "").trim().toLowerCase();
 
-// The business's choice, cleaned. A connection counts when it matches the method picked, or when no method has
-// been picked yet (connecting IS picking).
+// What a payment link is called on the customer's page when the business did not name it.
+export function linkLabel(url) {
+  const h = (() => { try { return new URL(url).hostname.toLowerCase(); } catch (e) { return ""; } })();
+  return /paypal/.test(h) ? "PayPal" : /venmo/.test(h) ? "Venmo" : /cash\.app|cash\.me/.test(h) ? "Cash App" : /square|sq\.link/.test(h) ? "Square"
+    : /stripe/.test(h) ? "Card" : /jobber/.test(h) ? "Jobber" : /housecall/.test(h) ? "Housecall Pro" : /zelle/.test(h) ? "Zelle" : "Pay online";
+}
+export const MAX_LINKS = 3;
+
+// The business's ways, cleaned. Card counts only when the account it names is actually connected. A business
+// that connected an account and never picked anything takes card payments (connecting IS picking).
 export function payOf(cl) {
   const p = (cl && cl.payments) || {};
-  const method = PAY_METHODS.includes(p.method) ? p.method : "";
   const c = (cl && cl.payConnect) || null;
   const conn = c && CONNECTABLE.includes(c.provider) && c.account ? c : null;
-  const connected = conn && (method === conn.provider || !method) ? conn.provider : "";
-  return { method: method || connected, link: httpsUrl(p.link), charge: p.charge === "full" ? "full" : "deposit", connected, conn };
+  const shaped = "card" in p || "links" in p || "inperson" in p;
+  const legacy = PAY_METHODS.includes(p.method) ? p.method : "";
+  const card = shaped ? (CONNECTABLE.includes(p.card) ? p.card : "")
+    : CONNECTABLE.includes(legacy) ? legacy : (!legacy && conn ? conn.provider : "");
+  const rawLinks = shaped ? (Array.isArray(p.links) ? p.links : []) : legacy === "link" && p.link ? [{ url: p.link }] : [];
+  const links = rawLinks.map((l) => { const url = httpsUrl(l && l.url); return { url, label: String((l && l.label) || "").replace(/\s+/g, " ").trim().slice(0, 30) || linkLabel(url) }; })
+    .filter((l) => l.url).slice(0, MAX_LINKS);
+  const inperson = shaped ? p.inperson === true : legacy === "inperson";
+  const connected = conn && card === conn.provider ? conn.provider : "";
+  // `method` is the single main way, for the few places that still show one.
+  const method = card || (links.length ? "link" : inperson ? "inperson" : "");
+  return { card, connected, links, link: (links[0] || {}).url || "", inperson, charge: p.charge === "full" ? "full" : "deposit", conn, method, online: !!(connected || links.length) };
+}
+
+// The saved shape, from whatever the screen sent (or from the record as it reads now, with `patch` on top). Always
+// the several-ways shape; an old single choice is rewritten into it the first time it is saved.
+export function cleanPayments(input, current = null) {
+  const base = current ? (({ card, links, inperson, charge }) => ({ card, links, inperson, charge }))(payOf({ payments: current })) : {};
+  const i = { ...base, ...(input || {}) };
+  const links = (Array.isArray(i.links) ? i.links : []).map((l) => ({ label: String((l && l.label) || "").replace(/\s+/g, " ").trim().slice(0, 30), url: httpsUrl(l && l.url) }))
+    .filter((l) => l.url).slice(0, MAX_LINKS);
+  return { card: CONNECTABLE.includes(i.card) ? i.card : "", links, inperson: i.inperson === true, charge: i.charge === "full" ? "full" : "deposit" };
 }
 
 // "$50", "50", "$49.99", "$1,200" are amounts. "From $150", "$150+", "$100 to $200" are not: a price a customer
@@ -46,10 +77,18 @@ export function cents(v) {
 }
 export const money = (c) => `$${(c / 100).toFixed(c % 100 ? 2 : 0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 
-// What a customer pays online the moment they book this package, or null when nothing is charged online.
-// Stripe will not take less than 50 cents.
+// What a connected card account charges for this package, or null. Stripe will not take less than 50 cents.
 export function chargeFor(cl, pkg) {
   const P = payOf(cl); if (!P.connected || !pkg) return null;
+  return amountFor(P, pkg);
+}
+// What a customer is asked to pay online after booking, by whichever of the business's ways they pick (a card,
+// or one of its payment links), or null when there is no online way or nothing exact to ask for.
+export function payAmountFor(cl, pkg) {
+  const P = payOf(cl); if (!P.online || !pkg) return null;
+  return amountFor(P, pkg);
+}
+function amountFor(P, pkg) {
   const full = cents(pkg.price), dep = cents(pkg.deposit);
   if (P.charge === "full" && full >= 50) return { cents: full, kind: "full", label: money(full) };
   if (dep >= 50) return { cents: dep, kind: "deposit", label: money(dep) };
@@ -58,7 +97,7 @@ export function chargeFor(cl, pkg) {
 
 // How the package card on the booking page describes paying.
 export function payNoteFor(cl, pkg) {
-  const ch = chargeFor(cl, pkg);
+  const ch = payAmountFor(cl, pkg);
   if (ch) return ch.kind === "full" ? "Paid when you book" : `${ch.label} deposit`;
   return pkg && pkg.depositLink && pkg.deposit ? `${pkg.deposit} deposit` : "";
 }

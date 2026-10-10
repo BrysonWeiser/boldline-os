@@ -4,7 +4,7 @@ topic: Payments
 task: let a business (client or one of Bryson's own) take payment from ITS customers through the website or landing page booking - connect Stripe or Square, a payment link, or in person; deposits or full price at booking; pay links; marking paid
 keywords: [customer payments, get paid, connect stripe, connect square, stripe connect, oauth, square oauth, payment link, paypal, venmo, deposit, full price, pay at booking, pay link, /pay, payConnect, payLog, payments, pay-sweep, pay-connect, how customers pay, how your customers pay you, direct charge, standard account]
 status: open
-summary: Bryson 2026-10-09 ("put in the client portal (or my own businesses portal) ... connect whatever method ... to collect payment"). Built: "How Your Customers Pay You" card in the client portal (Website tab, or Your Information for booking-only) and "How customers pay" in the OS (every business's Website tab). Choices - Stripe (OAuth, Standard, direct charges on THEIR account), Square (OAuth, their key encrypted in private storage), payment link, in person. Connected - each booking charges the package deposit (or the exact full price) via a signed /pay link on the business's own domain; paid status in server-owned payLog, swept every 15 min. Agreement WA-5 says the money is the client's. LIVE in code but Stripe/Square buttons need Bryson's one-time setup (env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET) - in the 10pm reminder Fri 2026-10-09.
+summary: Bryson 2026-10-09 ("put in the client portal (or my own businesses portal) ... connect whatever method ... to collect payment"; then "make sure for payments there is the option to choose multiple ways"). SEVERAL WAYS AT ONCE, customer picks on the pay page: one card account (Stripe or Square), up to 3 payment links, in person. Built: "How Your Customers Pay You" card in the client portal (Website tab, or Your Information for booking-only) and "How customers pay" in the OS (every business's Website tab). Choices - Stripe (OAuth, Standard, direct charges on THEIR account), Square (OAuth, their key encrypted in private storage), payment link, in person. Connected - each booking charges the package deposit (or the exact full price) via a signed /pay link on the business's own domain; paid status in server-owned payLog, swept every 15 min. Agreement WA-5 says the money is the client's. LIVE in code but Stripe/Square buttons need Bryson's one-time setup (env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET) - in the 10pm reminder Fri 2026-10-09.
 verified: 2026-10-09
 ---
 
@@ -21,6 +21,22 @@ in-person options alongside. PayPal stays link-only (a real "Connect PayPal" nee
 - Website agreement **WA-5** (section 4): payments go straight to Client, Client is the seller, BoldLine never
   receives/holds/handles it, takes no share, Client can disconnect any time. Ad contract (contract-shared) NOT
   changed; consider adding the same line if an ad client takes payments on a landing page.
+
+## Several ways at once (same evening, Bryson: "make sure for payments there is the option to choose multiple ways")
+- `cl.payments` is now `{card: stripe|square|"", links: [{label,url}] (max 3), inperson: bool, charge}`. Tick boxes in
+  the portal and the OS. One card account at a time (two would just give the customer two identical card buttons);
+  ticking one unticks the other and says so.
+- Old single-choice records (`method` + `link`) still read the same; `cleanPayments` rewrites into the new shape on
+  the next save. `payOf` returns `{card, connected, links, link, inperson, charge, conn, method, online}`.
+- Any online way (`online` = connected card OR a link) makes a package's deposit count, so a links-only business
+  still asks for deposits. Booking deposit carries `pay:true` -> book.mjs adds the /pay link.
+- /pay lists every way: "Pay $50 by card" (POST, own checkout), "Pay with Venmo"/"Pay with PayPal" (the business's
+  links, new tab), "You can also pay at the job". Link payments are marked paid by hand. Card switched off after
+  booking: the other ways still show.
+- Unnamed links get a name from the address (PayPal, Venmo, Cash App, Square, Zelle, Jobber, Housecall Pro, else
+  "Pay online"). OS `osPay`/`osPayLabel` mirror; the test compares every field on 8 records.
+- Connecting a card keeps the links and in person (`cleanPayments({card}, current)` in pay-connect-done). The portal's
+  Connect button saves the ticked ways first, so nothing typed is lost on the trip to Stripe/Square.
 
 ## Data
 - `cl.payments` `{method: stripe|square|link|inperson, link, charge: deposit|full}` (client-editable; OS or portal).
@@ -70,7 +86,7 @@ in-person options alongside. PayPal stays link-only (a real "Connect PayPal" nee
 - Live check: POST `/.netlify/functions/pay-connect` `{"action":"ready"}` -> `{stripe, square}`.
 
 ## Tests
-`tests/verify-payments.mjs` (70). Updated: verify-booking, verify-business-emails, verify-site-editor,
+`tests/verify-payments.mjs` (86). Updated: verify-booking, verify-business-emails, verify-site-editor,
 verify-results-only-billing, verify-website-deal (WA-5).
 
 ## Not built / next

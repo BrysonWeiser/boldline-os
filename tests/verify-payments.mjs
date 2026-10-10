@@ -50,6 +50,21 @@ ok("full price falls back to the deposit when the price is not exact", P.chargeF
 ok("🔴 under Stripe's 50 cent minimum is never charged", P.chargeFor(cl, { ...pkg, deposit: "$0.25" }) === null);
 ok("not connected: nothing is charged online", P.chargeFor({ payments: { method: "stripe" } }, pkg) === null);
 
+// ── Several ways at once (Bryson, 2026-10-09: "the option to choose multiple ways") ─────────────────────
+const multi = { payConnect: conn, payments: { card: "stripe", links: [{ url: "https://venmo.com/u/desertgloss" }, { label: "Zelle", url: "https://enroll.zellepay.com/x" }, { url: "https://www.paypal.me/dg" }, { url: "https://cash.app/$dg" }], inperson: true } };
+const M = P.payOf(multi);
+ok("🔴 card, links and in person can all be on together", M.connected === "stripe" && M.links.length === 3 && M.inperson === true && M.online);
+ok("links are named for the customer when the business didn't name them", M.links[0].label === "Venmo" && M.links[1].label === "Zelle" && M.links[2].label === "PayPal");
+ok("at most three links", M.links.length === P.MAX_LINKS && P.MAX_LINKS === 3);
+ok("links only (no card account): customers still pay online, by link", P.payOf({ payments: { card: "", links: [{ url: "https://paypal.me/x" }] } }).online && !P.payOf({ payments: { card: "", links: [{ url: "https://paypal.me/x" }] } }).connected);
+ok("🔴 card ticked but not connected yet is not a way to pay", !P.payOf({ payments: { card: "square" } }).connected && !P.payOf({ payments: { card: "square" } }).online);
+ok("🔴 in person alone asks for nothing online", P.payAmountFor({ payments: { inperson: true } }, pkg) === null);
+ok("links only: the deposit is still asked for, by link", P.payAmountFor({ payments: { links: [{ url: "https://paypal.me/x" }] } }, pkg).cents === 5000);
+ok("unticking the card stops card charges even with an account connected", P.payOf({ payConnect: conn, payments: { card: "", links: [], inperson: true } }).connected === "");
+const cp = P.cleanPayments({ card: "stripe", links: [{ label: " Venmo ", url: "https://venmo.com/u/x" }, { url: "javascript:alert(1)" }, { url: "" }], inperson: true, charge: "full", method: "link" });
+ok("🔴 the saved shape drops bad links and anything unknown", JSON.stringify(cp) === JSON.stringify({ card: "stripe", links: [{ label: "Venmo", url: "https://venmo.com/u/x" }], inperson: true, charge: "full" }));
+ok("an old single choice is carried into the new shape when one part changes", JSON.stringify(P.cleanPayments({ card: "stripe" }, { method: "link", link: "https://paypal.me/x" }).links) === JSON.stringify([{ label: "PayPal", url: "https://paypal.me/x" }]));
+
 // ── Bookings ─────────────────────────────────────────────────────────────────────────────────
 const hours = [null, [480, 1020], [480, 1020], [480, 1020], [480, 1020], [480, 1020], [480, 1020]];
 const biz = { id: "c1", name: "Desert Gloss", intake: { how: "book" }, payConnect: conn, payments: { method: "stripe" },
@@ -90,10 +105,12 @@ ok("the OS booking list reads paid-online from the log and drops Mark unpaid for
 ok("the OS Calendar counts a deposit paid online as paid", /b\.deposit&&!b\.deposit\.paid&&!\(\(c\.payLog\|\|\{\}\)\[b\.id\]&&c\.payLog\[b\.id\]\.status==="paid"\)/.test(UI));
 ok("the business portal shows online payments as paid", /const cl = withPayStatus\(row\.data\);/.test(src("netlify/functions/biz.mjs")));
 ok("the reminder email asks for payment only when it is not paid online either", /!depositPaid\(cl, b\)/.test(src("netlify/lib/biz-email.mjs")));
-const osPayFn = UI.slice(UI.indexOf("function osPay(cl){"), UI.indexOf("function CustomerPayCard("));
-let osPay; try { osPay = new Function(`${osPayFn}; return osPay;`)(); } catch (e) {}
-ok("the OS's copy of payOf agrees with the server's", !!osPay && [{}, { payConnect: conn }, { payConnect: conn, payments: { method: "link" } }, { payments: { method: "square", charge: "full" } }]
-  .every((c) => { const a = P.payOf(c), o = osPay(c); return a.method === o.method && a.connected === o.connected && a.charge === o.charge; }));
+const osPayFn = UI.slice(UI.indexOf("function osPayLabel("), UI.indexOf("function CustomerPayCard("));
+const bkH = UI.match(/const bkHttps = [^\n]+/)[0];
+let osPay; try { osPay = new Function(`${bkH}\n${osPayFn}; return osPay;`)(); } catch (e) {}
+ok("the OS's copy of payOf agrees with the server's", !!osPay && [{}, { payConnect: conn }, { payConnect: conn, payments: { method: "link" } }, { payments: { method: "square", charge: "full" } }, { payments: { method: "link", link: "https://paypal.me/x" } }, multi,
+  { payments: { card: "square", links: [{ label: "My Venmo", url: "https://venmo.com/u/z" }, { url: "http://bad" }] } }, { payConnect: conn, payments: { card: "", inperson: true } }]
+  .every((c) => { const a = P.payOf(c), o = osPay(c); return ["method", "connected", "charge", "card", "inperson", "online", "link"].every((k) => a[k] === o[k]) && JSON.stringify(a.links) === JSON.stringify(o.links); }));
 
 // ── 4. Pay links ─────────────────────────────────────────────────────────────────────────────
 const key = "test-key";
@@ -104,14 +121,16 @@ ok("🔴 on the business's own domain once its website is live there", P.payBase
 const PAY = src("netlify/functions/pay.mjs");
 ok("🔴 a GET only shows the page; the checkout is made on POST", /if \(req\.method !== "POST"\) return page\(/.test(PAY) && PAY.indexOf('if (req.method !== "POST")') < PAY.indexOf("stripeCheckout(P.conn.account"));
 ok("a cancelled booking is never charged, a paid one never twice", /bk\.status === "cancelled"\) return page/.test(PAY) && /if \(depositPaid\(cl, bk\)\) return page/.test(PAY));
-ok("🔴 switched off since booking: nothing is charged", /if \(!provider \|\| P\.connected !== provider\) return page/.test(PAY));
+ok("🔴 card switched off since booking: no card charge, the other ways still show", /const P = payOf\(cl\), provider = P\.connected;/.test(PAY) && /if \(!card\.length\) return page\(/.test(PAY) && PAY.indexOf("if (!card.length) return page(") < PAY.indexOf("stripeCheckout(P.conn.account"));
+ok("🔴 every way the business takes payment is offered and the customer picks", /const ways = \[\.\.\.card, \.\.\.links\];/.test(PAY) && /label: `Pay with \$\{l\.label\}`/.test(PAY) && /Pick how you'd like to pay\./.test(PAY) && /You can also pay at the job\./.test(PAY));
+ok("a business's own payment link opens in a new tab", /target="_blank" rel="noopener noreferrer"/.test(PAY));
 ok("the pay page speaks for the business: no BoldLine, no emojis, no dashes", !/BoldLine/i.test(PAY.replace(/^\s*\/\/.*$/gm, "")) && !/[\u2013\u2014]|\p{Extended_Pictographic}/u.test(PAY.replace(/^\s*\/\/.*$/gm, "")));
 ok("the websites site passes /pay through, redirect and all", /path: "\/pay"/.test(src("sites/functions/pay.mjs")) && /redirect: "manual"/.test(src("sites/functions/pay.mjs")) && /functions\/pay\.mjs/.test(src("sites/deps.mjs")));
 ok("a client domain served by the OS lets /pay through", /"\/optout", "\/pay"\]/.test(src("netlify/lib/client-domain.mjs")));
 ok("the OS routes /pay and /pay-connect/done", /from = "\/pay"\s+to = "\/\.netlify\/functions\/pay"/.test(src("netlify.toml")) && /from = "\/pay-connect\/done"/.test(src("netlify.toml")));
 ok("a sweep every 15 minutes catches payments whose page was closed early", /\[functions\."pay-sweep"\]\s+schedule = "4,19,34,49 \* \* \* \*"/.test(src("netlify.toml")));
 const BOOK = src("netlify/functions/book.mjs");
-ok("a new booking charged online gets its pay link", /if \(made\.booking\.deposit && made\.booking\.deposit\.via\) made\.booking\.deposit\.link = payUrl\(/.test(BOOK));
+ok("a new booking charged online gets its pay link", /if \(made\.booking\.deposit && made\.booking\.deposit\.pay\) made\.booking\.deposit\.link = payUrl\(/.test(BOOK));
 
 // ── 1. The money is the business's ───────────────────────────────────────────────────────────
 const API = src("netlify/lib/payments-api.mjs");
@@ -134,14 +153,18 @@ const sealed = P.seal({ access: "EAAA-secret", refresh: "r" }, env);
 ok("🔴 Square keys are encrypted at rest", !sealed.includes("EAAA") && P.unseal(sealed, env).access === "EAAA-secret" && P.unseal(sealed, { ...env, SQUARE_APP_SECRET: "other" }) === null);
 ok("🔴 and kept in private storage, not the client record", P.SECRET_BUCKET === "client-contracts" && /saveSquare\(db, row\.id, r\.tokens\)/.test(src("netlify/functions/pay-connect-done.mjs")) && !/tokens:/.test(src("netlify/functions/pay-connect-done.mjs").match(/payConnect: \{[^}]*\}/)[0]));
 const PC = src("netlify/functions/pay-connect.mjs");
-ok("the portal's save only ever writes the choice", /if \(body\.action === "save" && from === "portal"\)/.test(PC) && /payments: \{ \.\.\.\(d\.payments \|\| \{\}\), method, link:/.test(PC));
+ok("the portal's save only ever writes the choice, in the several-ways shape", /if \(body\.action === "save" && from === "portal"\)/.test(PC) && /const next = cleanPayments\(\{ card: body\.card, links: body\.links, inperson: body\.inperson === true, charge: body\.charge \}\);/.test(PC) && /await write\(\(d\) => \(\{ \.\.\.d, payments: next \}\)\);/.test(PC));
+ok("connecting a card keeps the business's payment links and in person", /const payments = cleanPayments\(\{ card: st\.provider \}, d\.payments \|\| \{\}\);/.test(src("netlify/functions/pay-connect-done.mjs")));
 ok("connecting a new account lets go of the old one", /A different account connected before is let go first/.test(src("netlify/functions/pay-connect-done.mjs")));
 
 // ── 6. The portal card ───────────────────────────────────────────────────────────────────────
-const card = PP.customerPayCardHTML({ payConnect: conn, payments: { method: "stripe" } }, { stripe: true, square: false });
+const card = PP.customerPayCardHTML({ payConnect: conn, payments: { card: "stripe", links: [{ url: "https://venmo.com/u/x" }], inperson: true } }, { stripe: true, square: false });
 ok("the card is about the business's own customers", /How Your Customers Pay You/.test(card) && /goes straight to you\. We never touch it\./.test(card));
 ok("connected shows who, and a disconnect", /Connected: Desert Gloss/.test(card) && /blPayDisconnect\(this\)/.test(card));
 ok("a provider BoldLine has not switched on is not offered to the client", !/data-m="square"/.test(card) && /data-m="stripe"/.test(card));
+ok("🔴 the client ticks several ways at once", (card.match(/type="checkbox" class="cp-cb"/g) || []).length === 3 && /data-m="stripe" checked/.test(card) && /data-m="links" checked/.test(card) && /data-m="inperson" checked/.test(card));
+ok("their payment link is filled in, with room for up to three", /value="https:\/\/venmo\.com\/u\/x"/.test(card) && /rows\.length>=3/.test(PP.CUSTOMER_PAY_JS));
+ok("one card account at a time: ticking one unticks the other, and says so", /One card account at a time, so the other one was unticked\./.test(PP.CUSTOMER_PAY_JS));
 ok("🔴 no emojis or dashes in the card", !/[\u2013\u2014]|\p{Extended_Pictographic}/u.test(card));
 ok("🔴 every button in the OS's preview of the portal does nothing", ["blPayConnect", "blPaySave", "blPayDisconnect"].every((f) => new RegExp(`function ${f}\\([^)]*\\)\\{if\\(BL_PREVIEW\\)\\{blPayNote\\('Preview only`).test(PP.CUSTOMER_PAY_JS)));
 const PORTAL = src("netlify/functions/portal.mjs");

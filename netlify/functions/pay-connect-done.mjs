@@ -4,7 +4,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { OS_BASE } from "../lib/lead-relay.mjs";
-import { payKey, readState } from "../lib/payments.mjs";
+import { payKey, readState, cleanPayments } from "../lib/payments.mjs";
 import { stripeConnect, squareConnect, saveSquare, loadSquare, squareDisconnect, dropSquare, stripeDisconnect } from "../lib/payments-api.mjs";
 
 const osBase = () => (process.env.OS_BASE_URL || OS_BASE).replace(/\/$/, "");
@@ -39,7 +39,8 @@ export default async (req) => {
 
   const { data: fresh } = await db.from("clients").select("data").eq("id", row.id).maybeSingle();
   const d = (fresh && fresh.data) || row.data;
-  const payments = { ...(d.payments || {}), method: st.provider };
+  // Card payments now go through this account; the business's payment links and in person stay as they were.
+  const payments = cleanPayments({ card: st.provider }, d.payments || {});
   const { error } = await db.from("clients").update({ data: { ...d, payments,
     payConnect: { provider: st.provider, account: conn.account, name: conn.name || "", live: !!conn.live, connectedAt: new Date().toISOString() } },
     updated_at: new Date().toISOString() }).eq("id", row.id);
