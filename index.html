@@ -14106,11 +14106,15 @@ function FitFrame({src,srcDoc,title,height=480,natural=820,sandbox}){
 // The signed agreement drawn page by page and trimmed to the words (Bryson, 2026-10-09: shrunk to fit, the
 // letter page's wide white margins left the text too small to read on his iPhone). pdf.js reads the PDF, the
 // text on each page gives where the writing starts and ends, and the page is drawn so that column fills the
-// width. DocuSign's envelope stamp along the top starts a little left of the margin, so the trim's left edge
-// moves out to take it in (Bryson, 2026-10-09: "the code at the top is just slightly cut off"); it never sets
-// the right edge, which stays the writing's. A page whose writing runs wider than page one's (DocuSign's certificate
-// page) is drawn whole instead. Read-only: it fetches the PDF and paints canvases, nothing else. If pdf.js
-// cannot load, the plain shrunk frame below is shown instead, at the letter page's real width.
+// width, with the same white edge on both sides.
+// DocuSign's envelope stamp along the top starts well left of the writing. Cutting it off was wrong ("the code at
+// the top is just slightly cut off"), and widening the trim on one side to keep it made the page lopsided ("make
+// sure it's even on both sides"). So the thin strip holding the stamp is drawn shifted right, to line up with the
+// writing's left edge; nothing else moves. Only when the stamp is wider than the column does the whole trim
+// widen, evenly on both sides. "Open it full size" always shows DocuSign's file untouched.
+// A page whose writing runs wider than page one's (DocuSign's certificate page) is drawn whole. Read-only: it
+// fetches the PDF and paints canvases, nothing else. If pdf.js cannot load, the plain shrunk frame is shown
+// instead, at the letter page's real width.
 const PDFJS_V = "3.11.174";
 let PDFJS_P = null;
 const loadPdfJs = () => PDFJS_P || (PDFJS_P = new Promise((res, rej) => {
@@ -14120,17 +14124,22 @@ const loadPdfJs = () => PDFJS_P || (PDFJS_P = new Promise((res, rej) => {
   s.onerror = () => { PDFJS_P = null; rej(new Error("pdfjs failed")); };
   document.head.appendChild(s);
 }));
-// Where the writing sits on a page, in PDF units: [left, right, stamp left], or null for a page with no text.
-// Stamp left is where the envelope stamp along the top edge starts (Infinity when there is none).
+// Where the writing sits on a page, in PDF units measured from the page's left edge and top edge:
+//   l, r      the writing's left and right edges
+//   top       how far down the writing starts
+//   stamp     the envelope stamp along the top edge: { l, r, bottom } (null when there is none)
+// Null for a page with no text.
 async function pdfTextSpan(page) {
   const [vx0, , , vy1] = page.view; const tc = await page.getTextContent();
-  let l = Infinity, r = -Infinity, st = Infinity;
+  let l = Infinity, r = -Infinity, top = Infinity, sl = Infinity, sr = -Infinity, sb = -Infinity;
   for (const it of tc.items) {
     if (!it.str || !it.str.trim() || !it.transform) continue;
-    if (it.transform[5] > vy1 - 36) { st = Math.min(st, it.transform[4] - vx0); continue; }   // the envelope stamp along the top edge
-    l = Math.min(l, it.transform[4] - vx0); r = Math.max(r, it.transform[4] - vx0 + (it.width || 0));
+    const x = it.transform[4] - vx0, down = vy1 - it.transform[5], h = Math.abs(it.height || it.transform[3] || 10);
+    if (down < 36) { sl = Math.min(sl, x); sr = Math.max(sr, x + (it.width || 0)); sb = Math.max(sb, down + h * 0.3); continue; }   // the envelope stamp along the top edge
+    l = Math.min(l, x); r = Math.max(r, x + (it.width || 0)); top = Math.min(top, down - h);
   }
-  return r > l ? [l, r, st] : null;
+  if (!(r > l)) return null;
+  return { l, r, top, stamp: sr > sl ? { l: sl, r: sr, bottom: sb } : null };
 }
 function PdfPages({ url, height = 560 }) {
   const title = "Signed agreement";
@@ -14151,23 +14160,40 @@ function PdfPages({ url, height = 560 }) {
     let alive = true; const tasks = [];
     const cssW = Math.min(w, 760), dpr = Math.min(window.devicePixelRatio || 1, 3), pad = 14;
     const first = pages[0].span;
+    const whole = document.createElement("canvas");   // each page drawn in full first, then cut into the visible one
     (async () => {
       host.innerHTML = "";
       for (const { pg, span } of pages) {
         if (!alive) return;
         const pw = pg.view[2] - pg.view[0], ph = pg.view[3] - pg.view[1];
         // Trim to page one's column when this page's writing fits inside it; otherwise show the whole page.
-        const fits = first && (!span || (span[0] >= first[0] - 2 && span[1] <= first[1] + 2));
-        const x0 = fits ? Math.max(0, Math.min(first[0], (span || first)[2]) - pad) : 0, x1 = fits ? Math.min(pw, first[1] + pad) : pw;
-        const k = cssW / (x1 - x0);
-        const vp = pg.getViewport({ scale: k * dpr, offsetX: -x0 * k * dpr });
+        const fits = first && (!span || (span.l >= first.l - 2 && span.r <= first.r + 2));
+        let x0 = 0, x1 = pw, stamp = null;
+        if (fits) {
+          x0 = Math.max(0, first.l - pad); x1 = Math.min(pw, first.r + pad);
+          const st = span && span.stamp;
+          if (st && st.r - st.l <= x1 - x0 - 2 * pad && st.bottom < span.top) stamp = st;          // fits the column: move it in line
+          else if (st) { x0 = Math.max(0, Math.min(x0, st.l - pad)); x1 = Math.min(pw, Math.max(x1, pw - x0, st.r + pad)); x0 = Math.min(x0, pw - x1); }   // too wide: widen evenly
+        }
+        const k = cssW / (x1 - x0), D = k * dpr;
         const cv = document.createElement("canvas");
-        cv.width = Math.round(cssW * dpr); cv.height = Math.round(ph * k * dpr);
+        cv.width = Math.round(cssW * dpr); cv.height = Math.round(ph * D);
         cv.style.cssText = `display:block;width:${cssW}px;height:${Math.round(ph * k)}px;margin:0 auto 8px;background:#fff`;
         cv.setAttribute("role", "img"); cv.setAttribute("aria-label", `${title}, page ${pg.pageNumber}`);
         host.appendChild(cv);
-        const t = pg.render({ canvasContext: cv.getContext("2d"), viewport: vp }); tasks.push(t);
+        whole.width = Math.round(pw * D); whole.height = cv.height;
+        const wc = whole.getContext("2d"); wc.fillStyle = "#fff"; wc.fillRect(0, 0, whole.width, whole.height);
+        const t = pg.render({ canvasContext: wc, viewport: pg.getViewport({ scale: D }) }); tasks.push(t);
         try { await t.promise; } catch (e) { return; }
+        if (!alive) return;
+        const c = cv.getContext("2d"); c.fillStyle = "#fff"; c.fillRect(0, 0, cv.width, cv.height);
+        c.drawImage(whole, Math.round(x0 * D), 0, cv.width, cv.height, 0, 0, cv.width, cv.height);
+        if (stamp) {
+          // The strip from the top of the page to just under the stamp, redrawn so the stamp starts where the writing does.
+          const band = Math.round(Math.min(stamp.bottom + 3, span.top) * D);
+          c.fillRect(0, 0, cv.width, band);
+          c.drawImage(whole, Math.round((stamp.l - pad) * D), 0, cv.width, band, 0, 0, cv.width, band);
+        }
       }
     })();
     return () => { alive = false; tasks.forEach((t) => { try { t.cancel(); } catch (e) {} }); };

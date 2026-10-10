@@ -56,5 +56,14 @@ Nothing is sent to the client by the button itself; Bryson edits terms then pres
    trim's LEFT edge moves out to include it; the right edge stays the writing's. Costs ~14% text size versus the
    pure column trim; deliberately not made symmetric (that would cost ~25%).
 
+4. Round four, Bryson: "make sure it's even on both sides ... it used to fit before". Widening only the left made
+   the page lopsided and the text smaller. Now: trim is the writing's column + 14pt on BOTH sides (round-2 size),
+   and the thin top strip holding the stamp (top of page to just under the stamp, never into the writing) is
+   redrawn shifted right so the stamp starts at the column's left edge. Mechanics: each page is rendered in full
+   to an offscreen canvas, then cut into the visible canvas (body at x0, stamp strip at stamp.l - pad). If the
+   stamp is wider than the column, the trim instead widens evenly on both sides. The preview therefore moves the
+   stamp a little; "Open it full size" is DocuSign's untouched file. `pdfTextSpan` now returns
+   `{l, r, top, stamp:{l, r, bottom}}` (distances from the page's left and top edges).
+
 ## Tests
 `tests/verify-contract-replace.mjs` (clause in both templates, founding count, card fields, FitFrame use).
