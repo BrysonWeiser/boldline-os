@@ -4,7 +4,7 @@ topic: Contracts
 task: cancel, replace or redo a client's advertising agreement after it was signed (signed by mistake, wrong terms, renegotiated)
 keywords: [replace agreement, cancel contract, signed by mistake, void signed envelope, docusign void completed, redo contract, new contract, contract history, replacesAgreement, supersede, contract preview phone, signed pdf too big, fitframe]
 status: verified
-summary: DocuSign cannot void a COMPLETED envelope, so a signed agreement is "cancelled" by sending a new one that says it replaces and cancels the old one. OS Contract tab now has "Need to change or cancel this signed agreement?" > Replace this agreement. It archives the old signing into contractHistory, unlocks the terms, and the next agreement carries a cancels-the-earlier-one clause. The client stays counted (founding) until the new one is signed, because the old one still binds. Signed-PDF preview now scales to fit a phone.
+summary: DocuSign cannot void a COMPLETED envelope, so a signed agreement is "cancelled" by sending a new one that says it replaces and cancels the old one. OS Contract tab now has "Need to change or cancel this signed agreement?" > Replace this agreement. It archives the old signing into contractHistory, unlocks the terms, and the next agreement carries a cancels-the-earlier-one clause. The client stays counted (founding) until the new one is signed, because the old one still binds. Signed-PDF preview is drawn with pdf.js and trimmed to the text column so it reads on a phone (shrinking the whole page made text too small).
 verified: 2026-10-09
 ---
 
@@ -36,11 +36,20 @@ by default, two-step confirm. On confirm it saves:
 A gold note "This replaces the agreement signed {date}" shows while the new one is unsigned.
 Nothing is sent to the client by the button itself; Bryson edits terms then presses Send as normal.
 
-## Phone fit
-`FitFrame` (index.html) renders an iframe at a natural width and CSS-scales it to the container. The signed
-DocuSign PDF uses `natural={840}`; the Contract / Current terms previews use `natural={1}` (never scaled,
-their HTML is already responsive). Preview-safety test treats `<FitFrame` as an embed and checks it adds no
-`allow-` sandbox permissions.
+## Phone fit (two rounds, same evening)
+1. First try: `FitFrame` (iframe at a natural width, CSS-scaled). Fit the screen, but Bryson: "now the agreement
+   preview is to small". A letter page's wide white margins plus shrinking = unreadable. Also iOS draws a PDF in
+   an iframe at 612px (1pt = 1px), so `natural={840}` was wrong anyway.
+2. Now `PdfPages` (index.html): loads pdf.js 3.11.174 from cdnjs on demand (`isEvalSupported:false`), reads each
+   page's text positions to find the column the writing sits in, ignoring the top 36pt (DocuSign's envelope-ID
+   stamp sits outside the margin and would undo the trim), and draws every page on a canvas so that column fills
+   the width (max 760px on big screens), in a 560px scroll box. Pages whose text runs wider than page one's
+   (DocuSign's certificate page) are drawn whole. Up to 30 pages. If pdf.js fails it falls back to
+   `FitFrame natural={612}`. The Contract / Current terms previews still use `FitFrame natural={1}` (never
+   scaled, their HTML is responsive). Preview-safety test treats `<FitFrame` as an embed; the fallback keeps the
+   literal title "Signed agreement" so the manifest matches.
+   Checked headlessly with a Letter PDF of the contract + a fake stamp at 390 and 1280 (pdf.js served locally;
+   unpkg/cdnjs are not reachable from the test browser, route them to `osdeps/node_modules`).
 
 ## Tests
 `tests/verify-contract-replace.mjs` (clause in both templates, founding count, card fields, FitFrame use).
