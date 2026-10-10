@@ -176,7 +176,7 @@ const PORTAL = "https://os.test/portal?token=abc-123";
   // 🔴 Landing back is only half of it. The client has to be TOLD what happened.
   const portalSrc = readFileSync(join(ROOT, "netlify/functions/portal.mjs"), "utf8");
   ok("🔴 the portal reads the outcome Stripe sent it back with",
-    /makePortalHTML\(cl, pkg, \(event\.queryStringParameters \|\| \{\}\)\.billing(, site)?\)/.test(portalSrc));
+    /makePortalHTML\(cl, pkg, \(event\.queryStringParameters \|\| \{\}\)\.billing( \|\| [^\n]*?)?, site\)/.test(portalSrc));
   for (const [what, phrase] of [["a saved card", "Your card is saved"], ["a completed payment", "Payment set up"], ["backing out", "Nothing was saved"]]) {
     ok(`the portal says something for ${what}`, portalSrc.includes(phrase));
   }

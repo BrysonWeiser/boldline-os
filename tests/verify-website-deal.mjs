@@ -96,7 +96,7 @@ ok("the care plan starts on launch day", /starts on the day the Website goes liv
 ok("🔴 WA-2: BoldLine manages the domain through access the client gives, and may not transfer it, cancel it or touch their email settings", /Client will give BoldLine access to the account where the domain is registered/.test(aH) && /will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on/.test(aH));
 ok("🔴 WA-2: the domain stays theirs, they can remove our access any time, and the hand-back never depends on money owed", /The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses/.test(aH) && /This does not depend on any amount being owed/.test(aH));
 ok("WA-2: renewing the domain stays the client's job", /Keeping the domain renewed and paid for remains Client&rsquo;s responsibility/.test(aH));
-ok("the agreement is version WA-4", L.AGREEMENT_VERSION === "WA-4");
+ok("the agreement is version WA-5", L.AGREEMENT_VERSION === "WA-5");
 ok("🔴 WA-3: how customers reach the business (quote form, booking, their booking link, calling) is never a round of changes", /how customers reach Client through the website \(a quote form, online booking, a link to a booking system Client already uses, or calling\) is part of the build and the care plan\. It never counts as a round of changes and is never charged separately\./.test(aH));
 ok("🔴 the client keeps its domain and gets a copy of the site if it leaves", /Client owns its domain name/.test(aH) && /standard web files/.test(aH));
 ok("no promises about rankings or results", /does not guarantee any particular search ranking/.test(aH));

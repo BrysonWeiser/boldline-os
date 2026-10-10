@@ -141,9 +141,9 @@ ok("the website learns the packages, never anyone else's booking", Object.keys(B
 
 // 5. Reachable
 ok("/book reaches the OS endpoint", /from = "\/book"\n  to = "\/\.netlify\/functions\/book"\n  status = 200/.test(src("netlify.toml")));
-ok("a client domain served by the OS lets /book through", /const PASS_PATHS = \["\/lead", "\/site-hit", "\/book", "\/optout"\];/.test(src("netlify/lib/client-domain.mjs")));
+ok("a client domain served by the OS lets /book through", /const PASS_PATHS = \["\/lead", "\/site-hit", "\/book", "\/optout", "\/pay"\];/.test(src("netlify/lib/client-domain.mjs")));
 ok("🔴 the websites site has its own /book, passed to the OS", /export const config = \{ path: "\/book" \};/.test(src("sites/functions/book.mjs")) && /fetch\(`\$\{base\}\/book\$\{u\.search\}`/.test(src("sites/functions/book.mjs")));
-ok("and it ships with that site", /"functions\/book\.mjs", "functions\/optout\.mjs"\]/.test(src("sites/deps.mjs")));
+ok("and it ships with that site", /"functions\/book\.mjs", "functions\/optout\.mjs"/.test(src("sites/deps.mjs")));
 ok("if the OS does not answer, the page says to call", /Online booking is down for a moment\. Please call us\./.test(src("sites/functions/book.mjs")));
 
 // 6. In the OS
@@ -173,7 +173,7 @@ ok("cancelling frees the time and reminds him to tell the customer", /status:"ca
     && B.bookingConfig(base({ booking: { on: true, packages: [{ ...DEP, depositLink: "buy.stripe.com/x" }] } })).packages[0].deposit === "");
   ok("🔴 the payment link never goes out with the open times, only after booking", !("depositLink" in B.publicBooking(cl).packages[0]) && B.publicBooking(cl).packages[0].deposit === "$50");
   const F = src("netlify/functions/book.mjs");
-  ok("the booking answer hands the page the deposit to pay", /deposit: made\.booking\.deposit \? \{ amount: made\.booking\.deposit\.amount, link: made\.booking\.deposit\.link \} : null/.test(F));
+  ok("the booking answer hands the page the deposit to pay", /deposit: made\.booking\.deposit \? \{ amount: made\.booking\.deposit\.amount, link: made\.booking\.deposit\.link, kind: made\.booking\.deposit\.kind \|\| "deposit" \} : null/.test(F));
   const mail = B.bookingConfirmEmail(cl, r.booking);
   ok("🔴 the confirmation carries a Pay the deposit button to the business's own page", mail.html.includes('href="https://buy.stripe.com/test_abc"') && />Pay the deposit</.test(mail.html) && /Pay the \$50 deposit to lock it in\./.test(mail.text) && /Pay the deposit: https:\/\/buy\.stripe\.com\/test_abc/.test(mail.text));
   ok("Gmail's dark mode cannot turn that button invisible (a gradient keeps its colour)", /background-image:linear-gradient\(#111827,#111827\)/.test(mail.html));
@@ -240,7 +240,7 @@ ok("cancelling frees the time and reminds him to tell the customer", /status:"ca
   const a = UI.indexOf("function buildCalendarEvents(");
   ok("🔴 the Calendar puts his own businesses' bookings on it, never a client's", a > 0 && /if \(isOwned\(c\)\) \{\n\s+const tz = \(c\.booking && c\.booking\.tz\) \|\| "America\/Phoenix";/.test(UI.slice(a, a + 2000)) && /kind:"booking", title:`\$\{b\.packageName\} · \$\{c\.name\}`/.test(UI));
   ok("cancelled bookings stay off it", /\(c\.bookings\|\|\[\]\)\.filter\(b=>b&&b\.status!=="cancelled"&&b\.start\)/.test(UI));
-  ok("an unpaid deposit shows on the day", /b\.deposit&&!b\.deposit\.paid\?"deposit not paid yet":""/.test(UI));
+  ok("an unpaid deposit shows on the day (and one paid online does not)", /b\.deposit&&!b\.deposit\.paid&&!\(\(c\.payLog\|\|\{\}\)\[b\.id\]&&c\.payLog\[b\.id\]\.status==="paid"\)\?\(b\.deposit\.kind==="full"\?"not paid yet":"deposit not paid yet"\):""/.test(UI));
   ok("the Calendar is handed his businesses as well as clients", /<CalendarScreen clients=\{\[\.\.\.realClients,\.\.\.myBusinesses\]\}/.test(UI));
   ok("bookings have their own colour and legend entry", /booking:"#F472B6" \}/.test(UI) && /\["Bookings","#F472B6"\]/.test(UI));
   const G = src("netlify/lib/calendar-digest-shared.mjs");

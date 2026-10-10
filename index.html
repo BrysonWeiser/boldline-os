@@ -6778,7 +6778,7 @@ function buildCalendarEvents({ clients, newsletter, blog, meetings }) {
       (c.bookings||[]).filter(b=>b&&b.status!=="cancelled"&&b.start).forEach(b=>{
         const ymd = new Date(b.start).toLocaleDateString("en-CA",{timeZone:tz});
         const t = new Date(b.start).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:tz});
-        out.push({ ymd, kind:"booking", title:`${b.packageName} · ${c.name}`, sub:[t, b.name, b.address, b.deposit&&!b.deposit.paid?"deposit not paid yet":""].filter(Boolean).join(" · "), clientId:c.id });
+        out.push({ ymd, kind:"booking", title:`${b.packageName} · ${c.name}`, sub:[t, b.name, b.address, b.deposit&&!b.deposit.paid&&!((c.payLog||{})[b.id]&&c.payLog[b.id].status==="paid")?(b.deposit.kind==="full"?"not paid yet":"deposit not paid yet"):""].filter(Boolean).join(" · "), clientId:c.id });
       });
     }
     if (c.internal) return; // skip the internal house account
@@ -9874,6 +9874,9 @@ function BookingCard({client,onUpdate}){
     onUpdate({...client, bookings:(client.bookings||[]).map(x=>x.id===bk.id?{...x,status:"cancelled",cancelledAt:new Date().toISOString()}:x)}); };
   // The deposit is paid to the business's own payment page, so the OS cannot see it land; he marks it.
   const markPaid = (bk,paid) => onUpdate({...client, bookings:(client.bookings||[]).map(x=>x.id===bk.id?{...x,deposit:{...x.deposit,paid,paidAt:paid?new Date().toISOString():null}}:x)});
+  // Connected Stripe or Square: payments mark themselves (KB payments-connect), read from the server-owned log.
+  const payOn = osPay(client).connected;
+  const online = (bk) => { const e=(client.payLog||{})[bk.id]; return e&&e.status==="paid"?e:null; };
   const blocks = ((client.booking||{}).blocks||[]).filter(x=>x&&Date.parse(x.end)>now);
   const addBlock = () => { if(!blk.date||!(blk.to>blk.from)) return;
     const start=new Date(bkZonedToUtc(blk.date,blk.from,tz)).toISOString(), end=new Date(bkZonedToUtc(blk.date,blk.to,tz)).toISOString();
@@ -9941,12 +9944,15 @@ function BookingCard({client,onUpdate}){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,2fr)",gap:8}}>
             <div><div style={lbl}>Deposit (optional)</div><input value={p.deposit||""} onChange={e=>setPkg(i,"deposit",e.target.value)} placeholder="$50" style={inp}/></div>
-            <div><div style={lbl}>Deposit payment link</div><input value={p.depositLink||""} onChange={e=>setPkg(i,"depositLink",e.target.value)} placeholder="https://buy.stripe.com/..." style={{...inp,borderColor:String(p.depositLink||"").trim()&&!bkHttps(p.depositLink)?C.red:undefined}}/></div>
+            {payOn
+              ? <div><div style={lbl}>How it's paid</div><div style={{...inp,color:C.textDim,display:"flex",alignItems:"center"}}>{osPay(client).charge==="full"?`Full price charged through ${PAY_NAMES_OS[payOn]}`:`Charged through ${PAY_NAMES_OS[payOn]} at booking`}</div></div>
+              : <div><div style={lbl}>Deposit payment link</div><input value={p.depositLink||""} onChange={e=>setPkg(i,"depositLink",e.target.value)} placeholder="https://buy.stripe.com/..." style={{...inp,borderColor:String(p.depositLink||"").trim()&&!bkHttps(p.depositLink)?C.red:undefined}}/></div>}
           </div>
           <label style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:C.textDim,cursor:"pointer"}}><input type="checkbox" checked={!!p.plan} onChange={e=>setPkg(i,"plan",e.target.checked)}/>This is a subscription or membership (its customers never get "time for another" emails)</label>
         </div>))}
       <button onClick={addPkg} style={small(true)}>+ Add a package</button>
-      {cfg.packages.length>0&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Deposits are optional. Paste a payment link from the business's own Stripe, Square or PayPal, and after booking the customer gets a "Pay the deposit" button. The money goes straight to the business, never through BoldLine. Mark it paid below once it lands.</div>}
+      {cfg.packages.length>0&&payOn&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Deposits are optional. With {PAY_NAMES_OS[payOn]} connected, customers pay the deposit {osPay(client).charge==="full"?"(or the full price, see How customers pay below) ":""}right after they book, straight into the business's own account, and it marks itself paid. Use an exact amount like $50.</div>}
+      {cfg.packages.length>0&&!payOn&&<div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:8}}>Deposits are optional. Paste a payment link from the business's own Stripe, Square or PayPal, and after booking the customer gets a "Pay the deposit" button. The money goes straight to the business, never through BoldLine. Mark it paid below once it lands.</div>}
       {depBad&&<div style={{fontSize:11,color:C.red,marginTop:6}}>A deposit link needs to start with https:// (copy it from the payment page's address bar). Until it does, that package has no deposit.</div>}
 
       <div style={sub}>Working hours</div>
@@ -9989,11 +9995,11 @@ function BookingCard({client,onUpdate}){
               <div style={{fontSize:11.5,color:C.textDim,marginTop:2}}>{bk.name}{bk.phone?` · ${bk.phone}`:""}</div>
               <div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>{bk.address}</div>
               {bk.notes&&<div style={{fontSize:11.5,color:C.textMuted,marginTop:2}}>"{bk.notes}"</div>}
-              {bk.deposit&&<div style={{fontSize:11.5,fontWeight:700,marginTop:4,color:bk.deposit.paid?C.green:C.amber}}>{bk.deposit.paid?"✓ Deposit paid":`Deposit${bk.deposit.amount?` of ${bk.deposit.amount}`:""} not paid yet`}</div>}
+              {bk.deposit&&<div style={{fontSize:11.5,fontWeight:700,marginTop:4,color:bk.deposit.paid||online(bk)?C.green:C.amber}}>{online(bk)?`✓ Paid online${bk.deposit.amount?`, ${bk.deposit.amount}`:""} (${PAY_NAMES_OS[online(bk).provider]||"online"})`:bk.deposit.paid?(bk.deposit.kind==="full"?"✓ Paid":"✓ Deposit paid"):`${bk.deposit.kind==="full"?"Payment":"Deposit"}${bk.deposit.amount?` of ${bk.deposit.amount}`:""} not paid yet`}</div>}
             </div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {bk.phone&&<a href={`tel:${String(bk.phone).replace(/[^0-9+]/g,"")}`} style={{...small(true),textDecoration:"none"}}>Call</a>}
-              {bk.deposit&&<button onClick={()=>markPaid(bk,!bk.deposit.paid)} style={small(!bk.deposit.paid)}>{bk.deposit.paid?"Mark unpaid":"Mark paid"}</button>}
+              {bk.deposit&&!online(bk)&&<button onClick={()=>markPaid(bk,!bk.deposit.paid)} style={small(!bk.deposit.paid)}>{bk.deposit.paid?"Mark unpaid":"Mark paid"}</button>}
               <button onClick={()=>cancel(bk)} style={small(false)}>Cancel</button>
             </div>
           </div>))}
@@ -10015,6 +10021,87 @@ function BookingCard({client,onUpdate}){
     </Card>
   );
 }
+
+// ─── HOW CUSTOMERS PAY (KB payments-connect) ────────────────────────────────────────────────
+// Bryson, 2026-10-09: a business connects "whatever method the client (or my businesses use) to collect payment".
+// Mirrors netlify/lib/payments.mjs `payOf`. The connection (`payConnect`) and the paid log (`payLog`) are written
+// only by the server (SERVER_OWNED_KEYS); this card writes `payments` (the choice) and asks the server to connect.
+// 🔴 The money always goes to the business's own Stripe or Square account; BoldLine never holds it.
+const PAY_NAMES_OS = { stripe:"Stripe", square:"Square", link:"payment link", inperson:"in person" };
+function osPay(cl){
+  const p=(cl&&cl.payments)||{}; const method=["stripe","square","link","inperson"].includes(p.method)?p.method:"";
+  const c=(cl&&cl.payConnect)||null; const conn=c&&["stripe","square"].includes(c.provider)&&c.account?c:null;
+  const connected=conn&&(method===conn.provider||!method)?conn.provider:"";
+  return { method:method||connected, link:String(p.link||""), charge:p.charge==="full"?"full":"deposit", connected, conn };
+}
+function CustomerPayCard({client,onUpdate}){
+  const P=osPay(client);
+  const [ready,setReady]=useState(null);
+  const [link,setLink]=useState(P.link);
+  const [busy,setBusy]=useState("");
+  const [note,setNote]=useState("");
+  useEffect(()=>{ let alive=true; fetch("/.netlify/functions/pay-connect",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"ready"})})
+    .then(r=>r.json()).then(d=>{ if(alive) setReady((d&&d.ready)||{}); }).catch(()=>{ if(alive) setReady({}); }); return ()=>{ alive=false; }; },[]);
+  const owned=isOwned(client);
+  const setPay=(patch)=>onUpdate({...client,payments:{...(client.payments||{}),method:P.method,link:P.link,charge:P.charge,...patch}});
+  const call=async(body)=>{ const { data:{ session } }=await supabaseClient.auth.getSession(); const token=session&&session.access_token; if(!token) throw new Error("Session expired. Refresh and log in again.");
+    const r=await fetch("/.netlify/functions/pay-connect",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({...body,clientId:client.id})});
+    return r.json(); };
+  const connect=async(p)=>{ setBusy(p); setNote("");
+    try{ const d=await call({action:"start",provider:p}); if(!d||!d.ok||!d.url){ setNote((d&&d.error)||"That didn't open. Try again in a minute."); setBusy(""); return; } window.location.href=d.url; }
+    catch(e){ setNote(e.message||"That didn't open."); setBusy(""); } };
+  const disconnect=async()=>{ if(!window.confirm(`Disconnect ${PAY_NAMES_OS[P.conn.provider]}? Customers stop being asked to pay when they book. Bookings already made keep their pay links, which then say online payment is off.`)) return;
+    setBusy("off"); try{ const d=await call({action:"disconnect"}); if(!d||!d.ok) setNote((d&&d.error)||"That didn't go through."); else setNote("Disconnected. It disappears from this card within a few seconds."); }catch(e){ setNote(e.message||"That didn't go through."); } setBusy(""); };
+  const tile=(id,name,sub,disabled)=>(
+    <button key={id} onClick={()=>!disabled&&setPay({method:id})} disabled={disabled} style={{textAlign:"left",padding:"10px 12px",borderRadius:10,cursor:disabled?"default":"pointer",opacity:disabled?.55:1,
+      border:`1px solid ${P.method===id?C.gold:C.border}`,background:P.method===id?"rgba(200,168,75,.08)":"rgba(255,255,255,.02)",color:C.text,minWidth:0}}>
+      <div style={{fontSize:12.5,fontWeight:800}}>{name}</div><div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginTop:2}}>{sub}</div></button>);
+  const btn=(on)=>({padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:8,cursor:"pointer",border:`1px solid ${on?C.borderAccent:C.border}`,background:on?"rgba(200,168,75,.1)":"rgba(255,255,255,.04)",color:on?C.gold:C.textDim});
+  const notReady=(p)=>ready&&!ready[p]&&P.connected!==p;
+  const recent=Object.entries(client.payLog||{}).filter(([,e])=>e&&e.status==="paid").sort((a,b)=>String(b[1].paidAt||"").localeCompare(String(a[1].paidAt||""))).slice(0,3);
+  const bkName=(id)=>{ const b=(client.bookings||[]).find(x=>x&&x.id===id); return b?`${b.name}, ${b.packageName}`:"A booking"; };
+  return (
+    <Card>
+      <div style={{fontSize:13,fontWeight:800,color:C.text,marginBottom:3}}>How customers pay</div>
+      <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6,marginBottom:10}}>When someone books, how {owned?"they pay you":`they pay ${client.name}`}. The money always goes straight to the business's own account, never through BoldLine.{!owned&&" Your client can set this themselves in their portal (Website tab)."}</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:8}}>
+        {tile("stripe","Stripe",notReady("stripe")?"Needs a one-time setup first (in tonight's reminder)":"Card payment at booking, marks itself paid",notReady("stripe"))}
+        {tile("square","Square",notReady("square")?"Needs a one-time setup first (in tonight's reminder)":"Card payment at booking, marks itself paid",notReady("square"))}
+        {tile("link","Payment link","PayPal, Venmo, Jobber or any payment page. You mark it paid.")}
+        {tile("inperson","In person","Nothing online. Paid at the job.")}
+      </div>
+      {(P.method==="stripe"||P.method==="square")&&(
+        <div style={{marginTop:12,padding:"10px 12px",borderRadius:10,border:`1px solid ${C.border}`}}>
+          {P.connected===P.method
+            ? <>
+                <div style={{fontSize:12.5,fontWeight:800,color:C.green}}>✓ Connected{P.conn.name?`: ${P.conn.name}`:""}{P.conn.live===false?" (test mode)":""}</div>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:8}}>
+                  <span style={{fontSize:11.5,color:C.textDim}}>When they book, they pay</span>
+                  <select value={P.charge} onChange={e=>setPay({charge:e.target.value})} style={{padding:"6px 8px",fontSize:12,borderRadius:8,border:`1px solid ${C.border}`,background:C.bg||"#0B0D13",color:C.text}}>
+                    <option value="deposit">the deposit on each package</option><option value="full">the full price</option></select>
+                  <button onClick={disconnect} disabled={busy==="off"} style={btn(false)}>{busy==="off"?"Disconnecting...":"Disconnect"}</button>
+                </div>
+                <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.6,marginTop:6}}>{P.charge==="full"?"Only packages with an exact price (like $199) are charged. \"From $150\" never is.":"Set the deposit on each package above. A package with no deposit is booked without paying."}</div>
+              </>
+            : <>
+                <div style={{fontSize:11.5,color:C.textDim,lineHeight:1.6}}>{owned?"You":"Whoever owns the account"} logs in to {PAY_NAMES_OS[P.method]} and approves it. BoldLine never sees the password and can't move the money.</div>
+                <button onClick={()=>connect(P.method)} disabled={!!busy||notReady(P.method)} style={{...btn(true),marginTop:8}}>{busy===P.method?"Opening...":`Connect ${PAY_NAMES_OS[P.method]}`}</button>
+              </>}
+        </div>)}
+      {P.method==="link"&&(
+        <div style={{marginTop:12,display:"flex",gap:8,flexWrap:"wrap"}}>
+          <input value={link} onChange={e=>setLink(e.target.value)} placeholder="https://their payment page" style={{flex:"1 1 220px",minWidth:0,padding:"8px 10px",fontSize:12.5,borderRadius:8,border:`1px solid ${link.trim()&&!bkHttps(link)?C.red:C.border}`,background:"rgba(255,255,255,.03)",color:C.text}}/>
+          <button onClick={()=>{ if(bkHttps(link)) { setPay({link:link.trim()}); setNote("Saved."); } else setNote("The link needs to start with https://"); }} style={btn(true)}>Save</button>
+          <div style={{flexBasis:"100%",fontSize:10.5,color:C.textMuted,lineHeight:1.6}}>For a deposit on a package, paste it into that package's deposit link above too.</div>
+        </div>)}
+      {recent.length>0&&<div style={{marginTop:12}}>
+        <div style={{fontSize:10.5,fontWeight:800,letterSpacing:".06em",textTransform:"uppercase",color:C.textMuted,marginBottom:4}}>Paid online lately</div>
+        {recent.map(([id,e])=><div key={id} style={{fontSize:11.5,color:C.textDim,padding:"3px 0"}}>{bkName(id)} · {e.cents?`$${(e.cents/100).toFixed(e.cents%100?2:0)}`:""} · {PAY_NAMES_OS[e.provider]}</div>)}
+      </div>}
+      {note&&<div style={{fontSize:11.5,color:C.textDim,marginTop:8}}>{note}</div>}
+    </Card>);
+}
+
 
 function EmailCenterTab({client,pkg,onUpdate}) {
   const [types,setTypes]=useState([]);
@@ -10435,7 +10522,7 @@ function BlogCard({client}){
 
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
-const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob"];   // emails: KB business-emails; siteAiJob: KB site-editor
+const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","payConnect","payLog"];   // emails: KB business-emails; siteAiJob: KB site-editor; pay*: KB payments-connect
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
 const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
@@ -13093,6 +13180,7 @@ function ClientHub({client,onUpdate,onDelete,onBack,isDesktop,onOpenCampaign}) {
 
         {tab==="reviews"&&!isHouse(client)&&<ReviewRequestsCard client={client} onUpdate={onUpdate}/>}
         {tab==="website"&&<BookingCard client={client} onUpdate={onUpdate}/>}
+        {tab==="website"&&<CustomerPayCard client={client} onUpdate={onUpdate}/>}
         {tab==="website"&&<WebsiteTab client={client} onUpdate={onUpdate}/>}
 
         {tab==="portal"&&(

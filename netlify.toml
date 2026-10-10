@@ -62,6 +62,11 @@
 [functions."biz-customer-emails"]
   schedule = "7 * * * *"
 
+# A business's own online payments (KB payments-connect): checks deposits still waiting on its Stripe or Square
+# and keeps Square connections fresh. Every 15 minutes, at 4 past.
+[functions."pay-sweep"]
+  schedule = "4,19,34,49 * * * *"
+
 # Daily billing enforcement: syncs overdue invoices from Stripe, accrues the
 # Agreement's 1.5%/mo late interest after day 10 (as a pending invoice item on
 # the client's next bill), and emails the owner on late/interest/recovered
@@ -282,6 +287,18 @@
 [[redirects]]
   from = "/lead"
   to = "/.netlify/functions/lead-intake"
+  status = 200
+
+# A customer paying a business for a booking, on that business's own Stripe or Square (netlify/functions/pay.mjs).
+[[redirects]]
+  from = "/pay"
+  to = "/.netlify/functions/pay"
+  status = 200
+
+# Where Stripe and Square send a business back after it connects its account (KB payments-connect).
+[[redirects]]
+  from = "/pay-connect/done"
+  to = "/.netlify/functions/pay-connect-done"
   status = 200
 
 # Online booking from a business's website (netlify/functions/book.mjs).

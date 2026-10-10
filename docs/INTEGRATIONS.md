@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 221 task-keyed entries under `knowledge/`. They surface automatically via the
+> 222 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**221 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**222 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -714,6 +714,12 @@
 - **[package-multi-campaign](../knowledge/package-multi-campaign.md)** &mdash; &#9989; verified &middot; 2026-08-17  
   Multi-campaign is the TOP RUNG of each ladder. ⚠️ PRICES HERE ARE PRE-2026-08-18 and no longer correct — see KB `pricing-model` for the current numbers; the multi-campaign ANSWER below is unchanged. Launch and Growth tiers are single-campaign, so the answer for a g-launch prospect is still no. BUT what a prospect usually wants is a service-specific ad for a service-specific search, which is AD GROUPS, and every tier already gets 3-5; separate campaigns only buy per-service budget/geo/schedule/bidding, and splitting Launch-tier spend makes results worse. Fixed three catalog inconsistencies + an upgrade ladder that offered lead-gen clients an e-commerce package. Guarded by tests/verify-packages.mjs (968 assertions after the 2026-08-18 pricing rewrite).  
   <sub>*task:* answer a prospect asking whether their package can run multiple campaigns (one per service), or check which tiers include multi-campaign and split testing &nbsp;|&nbsp; *keywords:* c-acquisition, Full System Acquisition, multi_campaign, multiCampaign, Multi-Campaign Strategy, split_testing, splitTesting, g-acquisition, m-acquisition, e-domination, c-growth, g-launch, ad group vs campaign, separate budget per service, Stencil & Thread, PACKAGES_DB, PKG_FEATURES, getUpgradeOptions, UPGRADE_FAMILIES, verify-packages</sub>
+
+## Payments
+
+- **[payments-connect](../knowledge/payments-connect.md)** &mdash; &#9989; verified &middot; 2026-10-09  
+  Bryson 2026-10-09 ("put in the client portal (or my own businesses portal) ... connect whatever method ... to collect payment"). Built: "How Your Customers Pay You" card in the client portal (Website tab, or Your Information for booking-only) and "How customers pay" in the OS (every business's Website tab). Choices - Stripe (OAuth, Standard, direct charges on THEIR account), Square (OAuth, their key encrypted in private storage), payment link, in person. Connected - each booking charges the package deposit (or the exact full price) via a signed /pay link on the business's own domain; paid status in server-owned payLog, swept every 15 min. Agreement WA-5 says the money is the client's. LIVE in code but Stripe/Square buttons need Bryson's one-time setup (env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET) - in the 10pm reminder Fri 2026-10-09.  
+  <sub>*task:* let a business (client or one of Bryson's own) take payment from ITS customers through the website or landing page booking - connect Stripe or Square, a payment link, or in person; deposits or full price at booking; pay links; marking paid &nbsp;|&nbsp; *keywords:* customer payments, get paid, connect stripe, connect square, stripe connect, oauth, square oauth, payment link, paypal, venmo, deposit, full price, pay at booking, pay link, /pay, payConnect, payLog, payments, pay-sweep, pay-connect, how customers pay, how your customers pay you, direct charge, standard account</sub>
 
 ## Pending
 

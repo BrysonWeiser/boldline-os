@@ -6,6 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { portalOn, portalData, renderBizPortal, portalOffPage } from "../lib/biz-portal.mjs";
+import { withPayStatus } from "../lib/payments.mjs";
 
 const HEAD = { "cache-control": "no-store", "x-robots-tag": "noindex, nofollow", "referrer-policy": "no-referrer" };
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...HEAD } });
@@ -25,5 +26,7 @@ export default async (req) => {
   const row = (data || []).find((r) => r && r.data && r.data.portal && r.data.portal.token === token);
   if (!row || !portalOn(row.data)) return off();
   const base = process.env.URL || url.origin;
-  return wantData ? json({ ok: true, data: portalData(row.data, { base }) }) : html(renderBizPortal(row.data, { token, base }));
+  // Deposits paid online through the business's own Stripe or Square show as paid (KB payments-connect).
+  const cl = withPayStatus(row.data);
+  return wantData ? json({ ok: true, data: portalData(cl, { base }) }) : html(renderBizPortal(cl, { token, base }));
 };

@@ -10,6 +10,7 @@
 //
 // Used by netlify/functions/book.mjs (the OS, the only writer) and site-render.mjs (the Book page).
 import { bizEmailHTML, bizEmailText } from "./biz-email-shell.mjs";
+import { payOf, chargeFor, payNoteFor } from "./payments.mjs";
 
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 // Minutes from midnight, [open, close]; null is closed. Monday to Saturday, 8 to 5.
@@ -26,15 +27,19 @@ export function bookingConfig(cl) {
   const hours = Array.isArray(b.hours) && b.hours.length === 7
     ? b.hours.map((h) => (Array.isArray(h) && h.length === 2 && Number(h[1]) > Number(h[0]) ? [num(h[0], 480, 0, 1440), num(h[1], 1020, 0, 1440)] : null))
     : DEFAULT_HOURS;
+  const connected = !!payOf(cl).connected;
   const packages = (Array.isArray(b.packages) ? b.packages : [])
     .filter((p) => p && p.id && str(p.name, 80))
     .slice(0, MAX_PACKAGES)
     .map((p) => {
       const depositLink = httpsUrl(p.depositLink);
-      return { id: str(p.id, 40), name: str(p.name, 80), price: str(p.price, 30), minutes: num(p.minutes, 120, 15, 720), desc: str(p.desc, 300),
-        deposit: depositLink ? str(p.deposit, 20) : "", depositLink,
+      // A deposit amount counts when there is somewhere to pay it: the business's own payment link, or its
+      // connected Stripe or Square, which charges it at booking (KB payments-connect).
+      const pk = { id: str(p.id, 40), name: str(p.name, 80), price: str(p.price, 30), minutes: num(p.minutes, 120, 15, 720), desc: str(p.desc, 300),
+        deposit: depositLink || connected ? str(p.deposit, 20) : "", depositLink,
         // A subscription / membership package. Its customers never get the "time for another" email.
         plan: !!p.plan };
+      return { ...pk, payNote: payNoteFor(cl, pk) };
     });
   return {
     on: !!b.on, packages, hours,
@@ -162,18 +167,24 @@ export function makeBooking(cl, body, now = Date.now(), id = (globalThis.crypto 
   if (cfg.askAddress && !address) return { error: "Please add the address." };
   const end = start + pkg.minutes * 60000;
   const when = longWhen(start, cfg.tz);
-  // 🔴 A DEPOSIT IS PAID TO THE BUSINESS, NEVER THROUGH BOLDLINE. The link is the business's own payment
-  // page (Stripe, Square, PayPal); BoldLine only shows it and lets him mark it paid. It never holds the money.
-  const deposit = pkg.depositLink ? { amount: pkg.deposit, link: pkg.depositLink, paid: false } : null;
+  // 🔴 A DEPOSIT IS PAID TO THE BUSINESS, NEVER THROUGH BOLDLINE. Either the business's own Stripe or Square
+  // charges it (book.mjs adds the pay link, which opens a checkout ON the business's account), or the link is the
+  // business's own payment page and he marks it paid. BoldLine never holds the money.
+  const ch = chargeFor(cl, pkg);
+  const deposit = ch ? { amount: ch.label, kind: ch.kind, via: payOf(cl).connected, link: "", paid: false }
+    : pkg.depositLink ? { amount: pkg.deposit, link: pkg.depositLink, paid: false } : null;
   const booking = { id, packageId: pkg.id, packageName: pkg.name, price: pkg.price, minutes: pkg.minutes, plan: pkg.plan,
     start: new Date(start).toISOString(), end: new Date(end).toISOString(), address, name, phone, email, notes, deposit,
     status: "booked", createdAt: new Date(now).toISOString() };
   const lead = { name, phone, email, source: "booking", page: str(body.page, 500), receivedAt: new Date(now).toISOString(), leadId: id, bookingId: id,
-    message: [`Booked: ${pkg.name}${pkg.price ? ` (${pkg.price})` : ""} on ${when}.`, address ? `Address: ${address}.` : "", deposit ? `Deposit${deposit.amount ? ` of ${deposit.amount}` : ""} not paid yet.` : "", notes ? `Notes: ${notes}` : ""].filter(Boolean).join("\n") };
+    message: [`Booked: ${pkg.name}${pkg.price ? ` (${pkg.price})` : ""} on ${when}.`, address ? `Address: ${address}.` : "", deposit ? (deposit.kind === "full" ? `Payment of ${deposit.amount} due online when they booked, not paid yet.` : `Deposit${deposit.amount ? ` of ${deposit.amount}` : ""} not paid yet.`) : "", notes ? `Notes: ${notes}` : ""].filter(Boolean).join("\n") };
   return { booking, lead, when };
 }
 
 export const depositPhrase = (amount) => (String(amount || "").trim() ? `the ${String(amount).trim()} deposit` : "the deposit");
+// A connected Stripe or Square can take the whole price at booking instead of a deposit; the words follow.
+export const payPhrase = (dep) => (dep && dep.kind === "full" ? `the ${String(dep.amount || "").trim() || "payment"}`.replace(/^the payment$/, "for your booking") : depositPhrase(dep && dep.amount));
+export const payLabel = (dep) => (dep && dep.kind === "full" ? "Pay now" : "Pay the deposit");
 
 // The customer's confirmation, sent as the business and in its own branding (biz-email-shell.mjs). No
 // emojis, no dashes, nothing pointing at BoldLine.
@@ -188,8 +199,8 @@ export function bookingConfirmEmail(cl, booking) {
     heading: `You're booked${first ? `, ${first}` : ""}.`,
     paras: ["Here are the details. We'll see you then."],
     rows: [["What", `${booking.packageName}${booking.price ? ` (${booking.price})` : ""}`], ["When", when], ["Where", booking.address || ""]],
-    button: dep ? { href: dep.link, label: "Pay the deposit" } : null,
-    after: [dep ? `Your time is held. Pay ${depositPhrase(dep.amount)} to lock it in.` : "",
+    button: dep ? { href: dep.link, label: payLabel(dep) } : null,
+    after: [dep ? `Your time is held. Pay ${payPhrase(dep)} to lock it in.` : "",
       phone ? `Need to change anything? Call or text us at ${phone}, or just reply to this email.` : "Need to change anything? Just reply to this email."],
   };
   // The deposit line reads before its button.
