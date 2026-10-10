@@ -14106,8 +14106,9 @@ function FitFrame({src,srcDoc,title,height=480,natural=820,sandbox}){
 // The signed agreement drawn page by page and trimmed to the words (Bryson, 2026-10-09: shrunk to fit, the
 // letter page's wide white margins left the text too small to read on his iPhone). pdf.js reads the PDF, the
 // text on each page gives where the writing starts and ends, and the page is drawn so that column fills the
-// width. DocuSign's envelope stamp in the top corner is left out of that measurement (it sits outside the
-// margin and would undo the trim). A page whose writing runs wider than page one's (DocuSign's certificate
+// width. DocuSign's envelope stamp along the top starts a little left of the margin, so the trim's left edge
+// moves out to take it in (Bryson, 2026-10-09: "the code at the top is just slightly cut off"); it never sets
+// the right edge, which stays the writing's. A page whose writing runs wider than page one's (DocuSign's certificate
 // page) is drawn whole instead. Read-only: it fetches the PDF and paints canvases, nothing else. If pdf.js
 // cannot load, the plain shrunk frame below is shown instead, at the letter page's real width.
 const PDFJS_V = "3.11.174";
@@ -14119,16 +14120,17 @@ const loadPdfJs = () => PDFJS_P || (PDFJS_P = new Promise((res, rej) => {
   s.onerror = () => { PDFJS_P = null; rej(new Error("pdfjs failed")); };
   document.head.appendChild(s);
 }));
-// Where the writing sits on a page, in PDF units: [left, right], or null for a page with no text.
+// Where the writing sits on a page, in PDF units: [left, right, stamp left], or null for a page with no text.
+// Stamp left is where the envelope stamp along the top edge starts (Infinity when there is none).
 async function pdfTextSpan(page) {
   const [vx0, , , vy1] = page.view; const tc = await page.getTextContent();
-  let l = Infinity, r = -Infinity;
+  let l = Infinity, r = -Infinity, st = Infinity;
   for (const it of tc.items) {
     if (!it.str || !it.str.trim() || !it.transform) continue;
-    if (it.transform[5] > vy1 - 36) continue;          // the envelope stamp along the top edge
+    if (it.transform[5] > vy1 - 36) { st = Math.min(st, it.transform[4] - vx0); continue; }   // the envelope stamp along the top edge
     l = Math.min(l, it.transform[4] - vx0); r = Math.max(r, it.transform[4] - vx0 + (it.width || 0));
   }
-  return r > l ? [l, r] : null;
+  return r > l ? [l, r, st] : null;
 }
 function PdfPages({ url, height = 560 }) {
   const title = "Signed agreement";
@@ -14156,7 +14158,7 @@ function PdfPages({ url, height = 560 }) {
         const pw = pg.view[2] - pg.view[0], ph = pg.view[3] - pg.view[1];
         // Trim to page one's column when this page's writing fits inside it; otherwise show the whole page.
         const fits = first && (!span || (span[0] >= first[0] - 2 && span[1] <= first[1] + 2));
-        const x0 = fits ? Math.max(0, first[0] - pad) : 0, x1 = fits ? Math.min(pw, first[1] + pad) : pw;
+        const x0 = fits ? Math.max(0, Math.min(first[0], (span || first)[2]) - pad) : 0, x1 = fits ? Math.min(pw, first[1] + pad) : pw;
         const k = cssW / (x1 - x0);
         const vp = pg.getViewport({ scale: k * dpr, offsetX: -x0 * k * dpr });
         const cv = document.createElement("canvas");
