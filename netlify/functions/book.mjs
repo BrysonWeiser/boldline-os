@@ -46,9 +46,9 @@ export default async (req) => {
   if (made.error) return json({ ok: false, error: made.error, taken: !!made.taken, phone: phoneOf(fresh.data) }, made.taken ? 409 : 400);
 
   const cur = fresh.data;
-  // Charged through the business's own Stripe or Square: the customer's button is a pay link that opens a fresh
-  // checkout on that account (netlify/functions/pay.mjs), on the business's own domain once it has one.
-  if (made.booking.deposit && made.booking.deposit.via) made.booking.deposit.link = payUrl({ ...cur, id: fresh.id }, made.booking.id, process.env.OS_BASE_URL || OS_BASE, payKey());
+  // Paid online: the customer's button is a pay link to one page listing every way the business takes payment
+  // (netlify/functions/pay.mjs), on the business's own domain once it has one.
+  if (made.booking.deposit && made.booking.deposit.pay) made.booking.deposit.link = payUrl({ ...cur, id: fresh.id }, made.booking.id, process.env.OS_BASE_URL || OS_BASE, payKey());
   const next = {
     ...cur,
     bookings: [made.booking, ...(cur.bookings || [])].slice(0, 500),

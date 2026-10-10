@@ -10,7 +10,7 @@
 //
 // Used by netlify/functions/book.mjs (the OS, the only writer) and site-render.mjs (the Book page).
 import { bizEmailHTML, bizEmailText } from "./biz-email-shell.mjs";
-import { payOf, chargeFor, payNoteFor } from "./payments.mjs";
+import { payOf, payAmountFor, payNoteFor } from "./payments.mjs";
 
 export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 // Minutes from midnight, [open, close]; null is closed. Monday to Saturday, 8 to 5.
@@ -27,16 +27,16 @@ export function bookingConfig(cl) {
   const hours = Array.isArray(b.hours) && b.hours.length === 7
     ? b.hours.map((h) => (Array.isArray(h) && h.length === 2 && Number(h[1]) > Number(h[0]) ? [num(h[0], 480, 0, 1440), num(h[1], 1020, 0, 1440)] : null))
     : DEFAULT_HOURS;
-  const connected = !!payOf(cl).connected;
+  const online = payOf(cl).online;
   const packages = (Array.isArray(b.packages) ? b.packages : [])
     .filter((p) => p && p.id && str(p.name, 80))
     .slice(0, MAX_PACKAGES)
     .map((p) => {
       const depositLink = httpsUrl(p.depositLink);
-      // A deposit amount counts when there is somewhere to pay it: the business's own payment link, or its
-      // connected Stripe or Square, which charges it at booking (KB payments-connect).
+      // A deposit amount counts when there is somewhere to pay it: the package's own payment link, or any of the
+      // business's ways of being paid online (its connected Stripe or Square, its payment links). KB payments-connect.
       const pk = { id: str(p.id, 40), name: str(p.name, 80), price: str(p.price, 30), minutes: num(p.minutes, 120, 15, 720), desc: str(p.desc, 300),
-        deposit: depositLink || connected ? str(p.deposit, 20) : "", depositLink,
+        deposit: depositLink || online ? str(p.deposit, 20) : "", depositLink,
         // A subscription / membership package. Its customers never get the "time for another" email.
         plan: !!p.plan };
       return { ...pk, payNote: payNoteFor(cl, pk) };
@@ -167,11 +167,13 @@ export function makeBooking(cl, body, now = Date.now(), id = (globalThis.crypto 
   if (cfg.askAddress && !address) return { error: "Please add the address." };
   const end = start + pkg.minutes * 60000;
   const when = longWhen(start, cfg.tz);
-  // 🔴 A DEPOSIT IS PAID TO THE BUSINESS, NEVER THROUGH BOLDLINE. Either the business's own Stripe or Square
-  // charges it (book.mjs adds the pay link, which opens a checkout ON the business's account), or the link is the
-  // business's own payment page and he marks it paid. BoldLine never holds the money.
-  const ch = chargeFor(cl, pkg);
-  const deposit = ch ? { amount: ch.label, kind: ch.kind, via: payOf(cl).connected, link: "", paid: false }
+  // 🔴 A DEPOSIT IS PAID TO THE BUSINESS, NEVER THROUGH BOLDLINE. A card payment is a checkout ON the business's
+  // own Stripe or Square; a payment link is the business's own page, and those are marked paid by hand. BoldLine
+  // never holds the money.
+  // `pay` means book.mjs gives it a pay link: one page that offers every way the business takes payment (a card
+  // through its own account, its payment links, in person) and the customer picks.
+  const ch = payAmountFor(cl, pkg);
+  const deposit = ch ? { amount: ch.label, kind: ch.kind, pay: true, via: payOf(cl).connected, link: "", paid: false }
     : pkg.depositLink ? { amount: pkg.deposit, link: pkg.depositLink, paid: false } : null;
   const booking = { id, packageId: pkg.id, packageName: pkg.name, price: pkg.price, minutes: pkg.minutes, plan: pkg.plan,
     start: new Date(start).toISOString(), end: new Date(end).toISOString(), address, name, phone, email, notes, deposit,

@@ -3,12 +3,12 @@
 //   POST {action:"ready"}                                   which providers BoldLine has switched on
 //   POST {action:"start", provider, clientId | token}       the provider's own approval page to send them to
 //   POST {action:"disconnect", clientId | token}            cut the connection (on the provider's side too)
-//   POST {action:"save", token, method, link, charge}       the portal saving how the business takes payment
+//   POST {action:"save", token, card, links, inperson, charge}   the portal saving the ways the business takes payment
 // 🔴 Only `payConnect` (server-owned) and `payments` are ever written, each against the record as it is now.
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { OS_BASE } from "../lib/lead-relay.mjs";
-import { PAY_METHODS, CONNECTABLE, payKey, makeState, authorizeUrl, providersReady } from "../lib/payments.mjs";
+import { CONNECTABLE, payKey, makeState, authorizeUrl, providersReady, cleanPayments } from "../lib/payments.mjs";
 import { stripeDisconnect, squareDisconnect, loadSquare, dropSquare } from "../lib/payments-api.mjs";
 
 const json = (b, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -62,11 +62,12 @@ export default async (req) => {
   }
 
   if (body.action === "save" && from === "portal") {
-    const method = PAY_METHODS.includes(body.method) ? body.method : "";
-    const link = httpsUrl(body.link);
-    if (method === "link" && !link) return json({ ok: false, error: "Paste the full address of your payment page, starting with https://" });
-    await write((d) => ({ ...d, payments: { ...(d.payments || {}), method, link: link || (d.payments || {}).link || "", charge: body.charge === "full" ? "full" : body.charge === "deposit" ? "deposit" : ((d.payments || {}).charge || "deposit") } }));
-    return json({ ok: true });
+    // Several ways at once: a card through its own account, up to three payment links, and in person.
+    const bad = (Array.isArray(body.links) ? body.links : []).some((l) => l && String(l.url || "").trim() && !httpsUrl(l.url));
+    if (bad) return json({ ok: false, error: "Each payment link needs the full address, starting with https://" });
+    const next = cleanPayments({ card: body.card, links: body.links, inperson: body.inperson === true, charge: body.charge });
+    await write((d) => ({ ...d, payments: next }));
+    return json({ ok: true, payments: next });
   }
   return json({ ok: false, error: "Unknown action" }, 400);
 };
