@@ -65,7 +65,7 @@ ok("questions go to the chat, where actions still wait for a click", /setAriaAsk
 // 4. The microphone
 ok("🔴 off until he turns it on", /micOn: get\(LS\.mic, false\)/.test(VOICE));
 ok("the wake word catches the usual mishearings", ["hey aria open outreach", "Hey Arya", "ok area how am I doing"].every((t) => new RegExp(VOICE.match(/const ARIA_WAKE = \/(.*)\/i;/)[1], "i").test(t)));
-ok("🔴 she stops listening while she talks, and resumes after", /const pauseMic = \(\) => \{ if \(rec && st\.listening\)/.test(VOICE) && /cur = src; patch\(\{ speaking: true \}\); core\(\)\.state = "speak"; pauseMic\(\);/.test(VOICE) && /const resumeMic = \(\) => \{ if \(st\.micOn && rec && !st\.speaking/.test(VOICE));
+ok("🔴 she stops listening while she talks, and resumes after", /const pauseMic = \(\) => \{ const r = rec; if \(!r\) return; rec = null;/.test(VOICE) && /cur = src; curDone = res; patch\(\{ speaking: true \}\); core\(\)\.state = "speak"; pauseMic\(\);/.test(VOICE) && /if \(!st\.micOn \|\| st\.speaking \|\| !SR \|\| rec\) return;/.test(VOICE));
 ok("🔴 no background listening: no service worker, nothing after the tab closes", !/serviceWorker|navigator\.wakeLock|Notification\.requestPermission/.test(VOICE));
 ok("a blocked microphone turns the switch off and says how to fix it", /not-allowed[\s\S]{0,200}st\.micOn = false/.test(VOICE));
 ok("the switch says Chrome uses Google's speech service", /Chrome uses Google's speech service/.test(S));
@@ -75,7 +75,12 @@ ok("🔴 phones never start the voice model download", /if \(worker \|\| isPhone
 ok("phones (and the first visit, before the download) use the recordings", /if \(isPhone\(\) \|\| st\.neural === "off" \|\| !W\.Worker\) \{ if \(fallback\) await clip\(fallback\); return; \}/.test(VOICE)
   && /if \(st\.neural !== "ready"\) \{ warm\(\); if \(fallback\) await clip\(fallback\); return; \}/.test(VOICE));
 ok("the model runs in a background worker, so the OS never freezes while she thinks", /new Worker\(URL\.createObjectURL\(new Blob\(\[ARIA_WORKER_SRC\]/.test(VOICE));
-ok("greets once a day, on his first click (browsers block sound before that)", /if\(!ARIA_VOICE\.greetedToday\(\)\)\{ ARIA_VOICE\.markGreeted\(\);/.test(S));
+const G = slice("// She greets him when the OS opens", "\n  const [leads,setLeads]");
+ok("greets every time the OS opens, not again within a few minutes", /if\(!v\.voiceOn\|\|!ARIA_VOICE\.shouldGreet\(\)\) return;\s*ARIA_VOICE\.markGreeted\(\);/.test(G) && /> 3 \* 60000/.test(VOICE));
+ok("🔴 tries to speak straight away, before any tap", /setTimeout\(\(\)=>ARIA_VOICE\.canPlay\(500\)\.then\(ok=>\{ if\(ok\) greet\(\); \}\),700\)/.test(G));
+ok("🔴 waits for a tap a phone counts as real (never a finger touching down), and keeps waiting until sound is unlocked",
+  /const EV=\["pointerup","touchend","click","keydown"\];/.test(G) && !/pointerdown/.test(G) && /function first\(\)\{ ARIA_VOICE\.unlock\(\); ARIA_VOICE\.canPlay\(800\)\.then\(ok=>\{ if\(ok\) greet\(\); \}\); \}/.test(G));
+ok("🔴 an iPhone on silent still hears her", /navigator\.audioSession\.type = st\.micOn \? "auto" : "playback"/.test(VOICE));
 
 if (fails.length) console.log(fails.map((f) => "  FAIL  " + f).join("\n"));
 console.log(`verify-aria-voice: ${pass} passed, ${fails.length} failed`);

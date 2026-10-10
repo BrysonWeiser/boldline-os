@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 220 task-keyed entries under `knowledge/`. They surface automatically via the
+> 221 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**220 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**221 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -471,6 +471,9 @@
 
 ## OS
 
+- **[aria-voice-reliability](../knowledge/aria-voice-reliability.md)** &mdash; &#9989; verified &middot; 2026-10-09  
+  Bryson 2026-10-09: ARIA only sometimes spoke when the OS opened, and Hey ARIA worked once then stopped until he toggled it. Causes found and fixed - greeting waited for pointerdown (not a real tap on a phone), so audio stayed locked, yet the day was marked greeted; a reply cutting the "thinking" clip short could leave her "speaking" forever so the mic never resumed; one SpeechRecognition object was reused for the whole visit; iPhone silent switch muted Web Audio; and plain follow-up talk after an answer needed "Hey ARIA" again. Now: greets every open (3 min cooldown), tries before any tap, unlocks on pointerup/touchend/click/keydown, busy-counted speech, fresh listener each start, watchdog every 3s, 8s follow-up window after she answers something said aloud. verify-aria-conversation runs the real engine in a fake browser (17 checks).  
+  <sub>*task:* fix or change ARIA speaking when the OS opens, the Hey ARIA microphone, or a conversation with her that stops working &nbsp;|&nbsp; *keywords:* aria voice, hey aria, speak with aria, aria greeting, aria glitchy, mic stops, microphone stops, speech recognition, autoplay, audio unlock, silent switch, audioSession, follow-up window, conversation mode, aria not speaking, greet on open</sub>
 - **[client-campaign-tab](../knowledge/client-campaign-tab.md)** &mdash; &#9989; verified &middot; 2026-09-09  
   Everything needed to launch a client's ads existed and worked, scattered down the Package tab under the plan, the scorecard and the trade playbook. Building a campaign is the most common thing done on a new client and it was the hardest thing on the screen to find. New **Campaign** tab, second in the client tab strip right after Overview, holding the ordered guide, conversion tracking, the Google/Meta launch cards and the live campaign list. New `CampaignStartHere` card states the ORDER (account, landing page, tracking, build) and writes out only the one step that is actually blocking, all observed from the record. The house account's Package tab no longer relabels itself "Campaigns", which would have collided. Built 2026-09-09.  
   <sub>*task:* build a client's ad campaign without digging for the controls &nbsp;|&nbsp; *keywords:* campaign tab, campaign creation, build campaign, where do i build ads, CampaignStartHere, launch card, conversion tracking order, client tabs, campaign section</sub>
