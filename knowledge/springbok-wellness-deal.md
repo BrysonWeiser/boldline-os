@@ -4,8 +4,8 @@ topic: Clients
 task: work on Springbok Wellness, Brendon's chiropractic ads, or the qualified-lead definition for a clinic
 keywords: [springbok, springbok wellness, brendon, chiropractor, chiropractic, second client, client two, TMJ, jaw pain, lower back pain, neck pain, sciatica, qualified lead definition, monthly call before invoice, solicitors, spam form fills, appointment but not a patient, symptom searches]
 status: open
-summary: 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
-verified: 2026-09-22
+summary: UPDATE 2026-10-09: Brendon signed an envelope Bryson thought was voided; a replacement agreement (KB contract-replace) is how it gets redone, and a signed contract is now on the record. Older text follows. 🔴 NOT A CLIENT YET, AND MUST NOT BE COUNTED AS ONE (standing rule in CLAUDE.md, Bryson 2026-09-14: "until they are in the os still act as if we only have one"). This entry used to open "BoldLine's SECOND client", which is the exact wording that leaks into a banner, an offer or a number quoted back to him. Brendon, owner of Springbok Wellness, a chiropractor, closed VERBALLY on a call Thursday 2026-09-10 and the signed contract is not on the record; contract not yet sent as of Friday evening. A deeper call is set for later the week of 15 Sep to answer the intake questions. His one stated worry is what counts as a qualified lead, because he has been burned before by people booking an appointment and never becoming a patient, and by sales enquiries coming through his ads. Bryson promised a monthly Google Meet before invoicing to agree qualified leads, the same as Sebastian. He wants to market TMJ and symptom searches; Bryson's instinct to open as a chiropractor rather than one service is right, with a caveat about which searches to buy first.
+verified: 2026-10-09
 ---
 
 ## Who and where it stands
@@ -283,3 +283,12 @@ asking everyone mostly adds 5-star reviews, more reviews dilute any one bad one,
 reviews that break Google's rules can be flagged. Reminders: a BAA before sending to his patients (patient
 emails are PHI, see service-add-ons), and review replies must never confirm the reviewer is a patient.
 Still NOT a client (no signed contract on the record), so nothing is counted.
+
+## 2026-10-09 (Fri evening): old envelope signed by mistake; replace flow built
+Bryson thought he had voided the old envelope; Brendon signed it anyway. DocuSign cannot void a completed
+envelope, so the fix is the new **Replace this agreement** button on his Contract tab (KB `contract-replace`):
+it archives the mistaken signing, unlocks the terms, and the next agreement states it cancels the earlier
+one once signed. Bryson does the clicks: Replace, then set the agreed terms (per-show $40 + Special Terms
+only if Brendon agreed), then Send. Advised a quick text to Brendon first. Also fixed: the signed-contract
+preview now fits a phone. Count note: a signed contract IS on the record now, and he stays counted while
+the replacement is out (the old one binds until the new one is signed).
