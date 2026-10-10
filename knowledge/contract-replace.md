@@ -51,5 +51,10 @@ Nothing is sent to the client by the button itself; Bryson edits terms then pres
    Checked headlessly with a Letter PDF of the contract + a fake stamp at 390 and 1280 (pdf.js served locally;
    unpkg/cdnjs are not reachable from the test browser, route them to `osdeps/node_modules`).
 
+3. Round three, Bryson: "the code at the top is just slightly cut off still". The envelope-ID stamp starts ~70pt
+   left of the column, so excluding it clipped it. Now the stamp is measured separately (top 36pt band) and the
+   trim's LEFT edge moves out to include it; the right edge stays the writing's. Costs ~14% text size versus the
+   pure column trim; deliberately not made symmetric (that would cost ~25%).
+
 ## Tests
 `tests/verify-contract-replace.mjs` (clause in both templates, founding count, card fields, FitFrame use).
