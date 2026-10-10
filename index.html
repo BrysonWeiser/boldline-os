@@ -8364,18 +8364,29 @@ self.onmessage=async(e)=>{ const d=e.data||{};
 `;
 const ARIA_VOICE = (() => {
   const W = typeof window !== "undefined" ? window : {};
-  const LS = { voice: "aria-voice-on", mic: "aria-mic-on", greeted: "aria-greeted-day" };
+  const LS = { voice: "aria-voice-on", mic: "aria-mic-on", greeted: "aria-greeted-at" };
   const get = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v === "1"; } catch (e) { return d; } };
   const set = (k, v) => { try { localStorage.setItem(k, v ? "1" : "0"); } catch (e) {} };
   const isPhone = () => (W.matchMedia && matchMedia("(hover: none) and (pointer: coarse)").matches) || (W.innerWidth || 1200) < 700;
   const st = { voiceOn: get(LS.voice, true), micOn: get(LS.mic, false), listening: false, awake: false, speaking: false, neural: "idle", pct: 0, heard: "", err: "" };
   const subs = new Set(); const emit = () => subs.forEach((f) => { try { f({ ...st }); } catch (e) {} });
   const patch = (p) => { Object.assign(st, p); emit(); };
-  let ctx = null, out = null, an = null, worker = null, seq = 0, cur = null, queue = [], rec = null, handler = null, awakeT = null;
+  let ctx = null, out = null, an = null, worker = null, seq = 0, cur = null, curDone = null, queue = [], rec = null, handler = null, awakeT = null;
+  // 🔴 HOW MANY THINGS SHE IS IN THE MIDDLE OF SAYING (Bryson, 2026-10-09: "I spoke to her and she worked then I
+  // tried saying something else and it didn't work and I needed to disable and reenable"). "Speaking" used to be
+  // switched off only when the last sound ended on its own. A reply that cut the "thinking" line short stopped
+  // that sound without ever ending it, so she could believe she was still talking, and the microphone, which
+  // waits for her to finish, never came back. Now every line she says is counted in and out, a cut-off sound
+  // still counts as finished, and she is done when nothing is playing, queued or being made.
+  let busy = 0, lastClip = "", lastStart = 0, lastHear = 0, convoAt = 0;
   const core = () => (W.__ariaCore || (W.__ariaCore = { state: "idle", env: 0 }));
+  // 🔴 iPhone: sound made this way obeys the silent switch, so with the phone on silent she spoke and nothing
+  // came out. Asking for "playback" plays her like a video does. Left to the browser while the mic is on,
+  // because asking for playback alone can stop the microphone.
+  const session = () => { try { if (W.navigator && navigator.audioSession) navigator.audioSession.type = st.micOn ? "auto" : "playback"; } catch (e) {} };
   const audio = () => {
     if (ctx) return ctx; const AC = W.AudioContext || W.webkitAudioContext; if (!AC) return null;
-    ctx = new AC(); an = ctx.createAnalyser(); an.fftSize = 512; out = ctx.createGain(); out.gain.value = 1; out.connect(an); an.connect(ctx.destination);
+    session(); ctx = new AC(); an = ctx.createAnalyser(); an.fftSize = 512; out = ctx.createGain(); out.gain.value = 1; out.connect(an); an.connect(ctx.destination);
     const buf = new Uint8Array(an.fftSize);
     const meter = () => { if (st.speaking) { an.getByteTimeDomainData(buf); let s = 0; for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; s += v * v; } core().env = Math.min(1, Math.sqrt(s / buf.length) * 4); } requestAnimationFrame(meter); };
     requestAnimationFrame(meter); return ctx;
@@ -8387,21 +8398,40 @@ const ARIA_VOICE = (() => {
     const comp = c.createDynamicsCompressor(); comp.threshold.value = ARIA_LOCK.thresholdDb; comp.ratio.value = ARIA_LOCK.ratio; comp.attack.value = 0.008; comp.release.value = 0.12; comp.knee.value = 6;
     const g = c.createGain(); g.gain.value = ARIA_LOCK.gain; shelf.connect(comp); comp.connect(g); g.connect(out); return shelf;
   };
-  const pauseMic = () => { if (rec && st.listening) { try { rec.abort(); } catch (e) {} } };
   const play = (buffer, live) => new Promise((res) => {
     const c = audio(); if (!c) return res(); const src = c.createBufferSource(); src.buffer = buffer;
     if (live) { src.playbackRate.value = ARIA_LOCK.pitch; src.connect(chain()); } else src.connect(out);
-    cur = src; patch({ speaking: true }); core().state = "speak"; pauseMic();
-    src.onended = () => { if (cur === src) cur = null; res(); }; src.start();
+    cur = src; curDone = res; patch({ speaking: true }); core().state = "speak"; pauseMic();
+    src.onended = () => { if (cur === src) { cur = null; curDone = null; } res(); }; src.start();
   });
-  const done = () => { if (!cur && !queue.length) { patch({ speaking: false }); core().state = st.awake ? "listen" : "idle"; setTimeout(resumeMic, 250); } };
-  const unlock = () => { const c = audio(); if (c && c.state === "suspended") c.resume().catch(() => {}); };
-  const clipCache = {};
-  const clip = async (name) => {
-    if (!st.voiceOn || !ARIA_CLIPS.includes(name)) return; const c = audio(); if (!c) return; unlock();
-    try { const ab = clipCache[name] || (clipCache[name] = await fetch(`/aria/${name}.mp3`).then((r) => r.arrayBuffer()));
-      const b = await c.decodeAudioData(ab.slice(0)); stopNow(); await play(b, false); } catch (e) {} done();
+  // A cut-off sound still finishes: whoever was waiting on it is let go, so nothing waits forever.
+  const stopNow = () => { queue = []; const r = curDone; curDone = null; if (cur) { try { cur.onended = null; cur.stop(); } catch (e) {} cur = null; } if (r) r(); };
+  const done = () => {
+    if (cur || queue.length || busy) return;
+    const was = st.speaking; patch({ speaking: false });
+    // A conversation: after she answers something he said out loud, she keeps listening for a few seconds, so
+    // he can just carry on talking without saying "Hey ARIA" again. Not after "thinking", which is only a pause.
+    if (was && st.micOn && lastClip !== "thinking" && Date.now() - convoAt < 90000) wakeFor(8000);
+    else core().state = st.awake ? "listen" : "idle";
+    setTimeout(resumeMic, 250);
   };
+  const run = async (f) => { busy++; try { await f(); } catch (e) {} finally { busy--; done(); } };
+  // Browsers only allow sound once he has tapped or pressed a key. Resuming inside that tap, and playing one
+  // silent sample there (older iPhones need it), is what unlocks it.
+  const unlock = () => { const c = audio(); if (!c) return;
+    try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) {}
+    if (c.state !== "running") c.resume().catch(() => {}); };
+  // Whether sound can play right now: some browsers allow it before any tap (an installed app, a site he
+  // opens every day). Never waits more than a moment.
+  const canPlay = (ms = 600) => new Promise((res) => { const c = audio(); if (!c) return res(false); if (c.state === "running") return res(true);
+    let t = null; const fin = () => { clearTimeout(t); res(c.state === "running"); };
+    t = setTimeout(fin, ms); c.resume().then(fin, fin); });
+  const clipCache = {};
+  const clip = (name) => run(async () => {
+    if (!st.voiceOn || !ARIA_CLIPS.includes(name)) return; const c = audio(); if (!c) return; unlock();
+    const ab = clipCache[name] || (clipCache[name] = await fetch(`/aria/${name}.mp3`).then((r) => r.arrayBuffer()));
+    const b = await c.decodeAudioData(ab.slice(0)); stopNow(); lastClip = name; await play(b, false);
+  });
   const ensureWorker = () => {
     if (worker || isPhone() || !W.Worker || !W.caches) return worker;
     try { worker = new Worker(URL.createObjectURL(new Blob([ARIA_WORKER_SRC], { type: "text/javascript" })), { type: "module" }); }
@@ -8414,56 +8444,81 @@ const ARIA_VOICE = (() => {
     return worker;
   };
   const pending = {};
+  // A sentence the model has not made within 25 seconds is given up on, so a stuck model can never leave her
+  // "speaking" with the microphone off.
   const synth = (text) => new Promise((res) => { const w = ensureWorker(); if (!w) return res(null); const id = ++seq; pending[id] = res;
+    setTimeout(() => { if (pending[id]) { delete pending[id]; res(null); } }, 25000);
     if (st.neural === "idle") patch({ neural: "loading", pct: 0 });
     w.postMessage({ type: "say", id, text, blend: ARIA_LOCK.blend, speed: ARIA_LOCK.speed / ARIA_LOCK.pitch }); });
   // Sentence by sentence: the next one is being made while the current one plays.
-  const say = async (text, fallback) => {
+  const say = (text, fallback) => run(async () => {
     if (!st.voiceOn) return; const clean = String(text || "").replace(/[*_#`>]/g, "").replace(/\s+/g, " ").trim(); if (!clean) return;
     if (isPhone() || st.neural === "off" || !W.Worker) { if (fallback) await clip(fallback); return; }
     // Until the voice model has downloaded once, a fixed line stands in (or the words stay on screen), and
     // the download carries on in the background. Waiting would make her answer a minute late.
     if (st.neural !== "ready") { warm(); if (fallback) await clip(fallback); return; }
-    unlock(); stopNow();
-    const parts = clean.match(/[^.!?]+[.!?]*/g).map((s) => s.trim()).filter(Boolean).slice(0, 8);
+    unlock(); stopNow(); lastClip = "";
+    const parts = (clean.match(/[^.!?]+[.!?]*/g) || [clean]).map((s) => s.trim()).filter(Boolean).slice(0, 8);
     const my = queue = parts.map((p) => synth(p));
     for (const p of my) { const d = await p; if (queue !== my) return; if (!d) break;
       const c = audio(); const b = c.createBuffer(1, d.pcm.length, d.sr); b.copyToChannel(d.pcm, 0); await play(b, true); if (queue !== my) return; }
-    queue = []; done();
-  };
-  const stopNow = () => { queue = []; if (cur) { try { cur.onended = null; cur.stop(); } catch (e) {} cur = null; } };
-  const stop = () => { stopNow(); done(); };
+    queue = [];
+  });
+  const stop = () => { stopNow(); convoAt = 0; done(); };
   const warm = () => { const w = ensureWorker(); if (w && st.neural === "idle") { patch({ neural: "loading", pct: 0 }); w.postMessage({ type: "warm", id: ++seq, blend: ARIA_LOCK.blend }); } };
   // ── "Hey ARIA" ──
+  // 🔴 A FRESH LISTENER EVERY TIME. One listener object used to be stopped and restarted for the whole visit,
+  // and Chrome sometimes lets a restarted one run without ever hearing anything again: the light says
+  // listening, nothing arrives, and only switching it off and on (a new one) brought her back. Now each start
+  // is a new listener, the old one is ignored the moment it is replaced, and a check every few seconds starts
+  // one again whenever she should be listening and is not.
   const SR = W.SpeechRecognition || W.webkitSpeechRecognition;
-  const resumeMic = () => { if (st.micOn && rec && !st.speaking && !st.listening) { try { rec.start(); } catch (e) {} } };
+  const pauseMic = () => { const r = rec; if (!r) return; rec = null; patch({ listening: false }); try { r.abort(); } catch (e) {} };
+  const resumeMic = () => {
+    if (!st.micOn || st.speaking || !SR || rec) return;
+    const r = new SR(); r.continuous = true; r.interimResults = false; r.lang = "en-US"; r.maxAlternatives = 1;
+    r.onstart = () => { if (rec === r) patch({ listening: true, err: "" }); };
+    r.onend = () => { if (rec !== r) return; rec = null; patch({ listening: false }); if (st.micOn && !st.speaking) setTimeout(resumeMic, 300); };
+    r.onerror = (e) => { if (rec !== r) return;
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") { rec = null; st.micOn = false; set(LS.mic, false); session(); patch({ listening: false, err: "Microphone blocked. Allow it from the lock icon next to the address, then turn Hey ARIA on again." }); } };
+    r.onresult = (e) => { if (rec !== r) return; lastHear = Date.now(); for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard(e.results[i][0].transcript); };
+    rec = r; lastStart = Date.now();
+    try { r.start(); } catch (e) { rec = null; }
+  };
+  setInterval(() => {
+    if (!st.micOn || !SR) return;
+    // Healing: nothing playing, queued or being made, yet still marked as speaking.
+    if (st.speaking && !cur && !queue.length && !busy) done();
+    // A listener that never actually started is thrown away; then one is started if none is running.
+    if (rec && !st.listening && Date.now() - lastStart > 6000) { const r = rec; rec = null; try { r.abort(); } catch (e) {} }
+    if (!rec && !st.speaking && Date.now() - lastStart > 2000) resumeMic();
+    // A listener that has heard nothing for 45 seconds is swapped for a fresh one, in case it has gone deaf.
+    else if (rec && st.listening && !st.awake && !st.speaking && Date.now() - Math.max(lastStart, lastHear) > 45000) { pauseMic(); resumeMic(); }
+  }, 3000);
   const wakeFor = (ms) => { clearTimeout(awakeT); patch({ awake: true }); core().state = "listen"; awakeT = setTimeout(() => { patch({ awake: false }); if (!st.speaking) core().state = "idle"; }, ms); };
   const heard = (raw) => {
     const t = raw.trim(); if (!t) return; patch({ heard: t });
-    if (st.awake) { clearTimeout(awakeT); patch({ awake: false }); core().state = "idle"; return handler && handler(t); }
+    if (st.awake) { clearTimeout(awakeT); patch({ awake: false }); core().state = "idle"; convoAt = Date.now(); return handler && handler(t); }
     const m = t.match(ARIA_WAKE); if (!m) return;
     const rest = t.slice(m.index + m[0].length).trim();
-    if (rest.length > 1) { if (handler) handler(rest); } else { clip("yes"); wakeFor(7000); }
+    if (rest.length > 1) { convoAt = Date.now(); if (handler) handler(rest); } else { convoAt = 0; clip("yes"); wakeFor(7000); }
   };
   const startMic = () => {
     if (!SR) { patch({ err: "This browser can't listen. Chrome, Edge or Safari can." }); return false; }
-    if (!rec) { rec = new SR(); rec.continuous = true; rec.interimResults = false; rec.lang = "en-US"; rec.maxAlternatives = 1;
-      rec.onstart = () => patch({ listening: true, err: "" });
-      rec.onend = () => { patch({ listening: false }); if (st.micOn && !st.speaking) setTimeout(resumeMic, 400); };
-      rec.onerror = (e) => { if (e.error === "not-allowed" || e.error === "service-not-allowed") { st.micOn = false; set(LS.mic, false); patch({ err: "Microphone blocked. Allow it from the lock icon next to the address, then turn Hey ARIA on again." }); } };
-      rec.onresult = (e) => { for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) heard(e.results[i][0].transcript); }; }
-    try { rec.start(); } catch (e) {} return true;
+    pauseMic(); resumeMic(); return true;
   };
   return {
     clips: ARIA_CLIPS, lock: ARIA_LOCK, wake: ARIA_WAKE, heard,
     subscribe: (f) => { subs.add(f); f({ ...st }); return () => subs.delete(f); },
-    state: () => ({ ...st }), clip, say, stop, warm, unlock, isPhone,
+    state: () => ({ ...st }), clip, say, stop, warm, unlock, canPlay, isPhone,
     setHandler: (f) => { handler = f; },
     setVoice: (on) => { set(LS.voice, on); patch({ voiceOn: on }); if (!on) stop(); else { unlock(); if (!isPhone()) warm(); } },
-    setMic: (on) => { set(LS.mic, on); patch({ micOn: on }); if (on) { unlock(); startMic(); } else { clearTimeout(awakeT); patch({ awake: false }); if (rec) { try { rec.abort(); } catch (e) {} } } },
+    setMic: (on) => { set(LS.mic, on); patch({ micOn: on, err: "" }); session(); if (on) { unlock(); startMic(); } else { clearTimeout(awakeT); convoAt = 0; patch({ awake: false }); pauseMic(); } },
     resumeMicIfOn: () => { if (st.micOn) startMic(); },
-    greetedToday: () => { try { return localStorage.getItem(LS.greeted) === phxDayKey(Date.now()); } catch (e) { return true; } },
-    markGreeted: () => { try { localStorage.setItem(LS.greeted, phxDayKey(Date.now())); } catch (e) {} },
+    // She greets him each time he opens the OS (Bryson, 2026-10-09: "make sure she automatically speaks when
+    // the os is opened"), but not again if he reopens it within a few minutes.
+    shouldGreet: () => { try { return Date.now() - Number(localStorage.getItem(LS.greeted) || 0) > 3 * 60000; } catch (e) { return true; } },
+    markGreeted: () => { try { localStorage.setItem(LS.greeted, String(Date.now())); } catch (e) {} },
   };
 })();
 // Plain-language helpers for what he says to her. Only ever navigates, reads out, or hands the question to the
@@ -21761,17 +21816,28 @@ function App({onLogout}) {
     if(cl&&/^(open|show|go to|pull up|bring up)/.test(low)){ selectClient(cl); return ARIA_VOICE.say("Opening "+cl.name+".","on_it"); }
     setAriaAsk(String(text)); setShowARIA(true); ARIA_VOICE.clip("thinking");
   }); });
-  // Browsers only allow sound after a click or key press, so she greets him on the first one, once a day.
+  // She greets him when the OS opens (Bryson, 2026-10-09: "make sure she automatically speaks when the os is
+  // opened ... sometimes she speaks sometimes she doesn't"). Browsers allow sound only after a tap, so:
+  //   1. she tries straight away, which some browsers allow (an installed app, a site he opens daily);
+  //   2. otherwise on his first tap or key press. 🔴 Only events a phone counts as a real tap: a finger touching
+  //      down is not one, so on the iPhone the old greeting played into a locked speaker, was marked as done
+  //      for the day, and never came. The listeners now stay until sound is actually unlocked.
   useEffect(()=>{
     ARIA_VOICE.resumeMicIfOn();
-    const first=()=>{ window.removeEventListener("pointerdown",first); window.removeEventListener("keydown",first);
-      ARIA_VOICE.unlock(); const v=ARIA_VOICE.state(); if(!v.voiceOn) return;
-      if(!ARIA_VOICE.greetedToday()){ ARIA_VOICE.markGreeted(); const h=phxHour(), c=h<5?"greet_late":h<12?"greet_morning":h<17?"greet_afternoon":"greet_evening";
-        if(v.neural==="ready"&&window.__ariaBrief) ARIA_VOICE.say(window.__ariaBrief,c); else ARIA_VOICE.clip(c); }
+    let greeted=false, alive=true;
+    const EV=["pointerup","touchend","click","keydown"];
+    const off=()=>EV.forEach(n=>window.removeEventListener(n,first,true));
+    const greet=()=>{ if(greeted||!alive) return; greeted=true; off();
+      const v=ARIA_VOICE.state();
       if(!ARIA_VOICE.isPhone()) ARIA_VOICE.warm();
-      if(v.micOn) ARIA_VOICE.resumeMicIfOn(); };
-    window.addEventListener("pointerdown",first); window.addEventListener("keydown",first);
-    return ()=>{ window.removeEventListener("pointerdown",first); window.removeEventListener("keydown",first); };
+      if(v.micOn) ARIA_VOICE.resumeMicIfOn();
+      if(!v.voiceOn||!ARIA_VOICE.shouldGreet()) return;
+      ARIA_VOICE.markGreeted(); const h=phxHour(), c=h<5?"greet_late":h<12?"greet_morning":h<17?"greet_afternoon":"greet_evening";
+      if(v.neural==="ready"&&window.__ariaBrief) ARIA_VOICE.say(window.__ariaBrief,c); else ARIA_VOICE.clip(c); };
+    function first(){ ARIA_VOICE.unlock(); ARIA_VOICE.canPlay(800).then(ok=>{ if(ok) greet(); }); }
+    EV.forEach(n=>window.addEventListener(n,first,true));
+    const t=setTimeout(()=>ARIA_VOICE.canPlay(500).then(ok=>{ if(ok) greet(); }),700);
+    return ()=>{ alive=false; clearTimeout(t); off(); };
   },[]);
 
   const [leads,setLeads]               = useState([]);
