@@ -44,8 +44,10 @@ ok("🔴 a client replacing a signed agreement still counts (the old one binds u
 // 4. The phone
 const fit = UI.slice(UI.indexOf("function FitFrame("), UI.indexOf("function SignedContractCard("));
 const pp = UI.slice(UI.indexOf("function PdfPages("), UI.indexOf("function SignedContractCard("));
-ok("🔴 the signed PDF is drawn page by page, trimmed to the writing, so it reads on a phone", /<PdfPages url=\{link\.url\}\/>/.test(UI) && /const k = cssW \/ \(x1 - x0\);/.test(pp) && /offsetX: -x0 \* k \* dpr/.test(pp));
-ok("the envelope stamp along the top is measured on its own, and the trim widens on the left to keep it whole", /it\.transform\[5\] > vy1 - 36\) \{ st = Math\.min\(st, it\.transform\[4\] - vx0\); continue; \}/.test(UI) && /Math\.min\(first\[0\], \(span \|\| first\)\[2\]\) - pad/.test(pp));
+ok("🔴 the signed PDF is drawn page by page, trimmed to the writing, so it reads on a phone", /<PdfPages url=\{link\.url\}\/>/.test(UI) && /const k = cssW \/ \(x1 - x0\), D = k \* dpr;/.test(pp) && /c\.drawImage\(whole, Math\.round\(x0 \* D\), 0, cv\.width, cv\.height/.test(pp));
+ok("🔴 the trim leaves the same white edge on both sides of the writing", /x0 = Math\.max\(0, first\.l - pad\); x1 = Math\.min\(pw, first\.r \+ pad\);/.test(pp));
+ok("🔴 the envelope stamp is never cut off: its strip is moved in line with the writing", /if \(down < 36\) \{ sl = Math\.min\(sl, x\);/.test(UI) && /c\.drawImage\(whole, Math\.round\(\(stamp\.l - pad\) \* D\), 0, cv\.width, band/.test(pp) && /Math\.min\(stamp\.bottom \+ 3, span\.top\)/.test(pp));
+ok("a stamp wider than the writing widens the trim evenly instead", /x0 = Math\.min\(x0, pw - x1\);/.test(pp));
 ok("🔴 pdf.js runs with eval off", /isEvalSupported: false/.test(pp));
 ok("if pdf.js cannot load, the shrunk frame is shown at the letter page's real width", /<FitFrame src=\{url\} title="Signed agreement" natural=\{612\}/.test(pp) && /const k=w&&w<natural\?w\/natural:1;/.test(fit));
 ok("the responsive contract previews are never shrunk", (UI.match(/<FitFrame srcDoc=\{html\} title="(Contract|Current terms)" natural=\{1\}/g) || []).length === 2);
