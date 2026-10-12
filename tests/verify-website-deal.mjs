@@ -77,7 +77,7 @@ ok("🔴 an OS save keeps the database's copy of server-owned keys", /SERVER_OWN
 ok("🔴 if that read fails, nothing is written (writing without the key would erase it)", /if\(readErr\) return \{ error:readErr \};/.test(upd));
 const card = UI.slice(UI.indexOf("function WebsiteDealCard("), UI.indexOf("const SITE_THEME_LIST="));
 ok("the deal card only ever stores what the server sent back", (card.match(/onUpdate\(/g) || []).length === 1 && /onUpdate\(\{\.\.\.client,websiteDeal:out\.deal\}\)/.test(card));
-ok("🔴 sending asks first and shows the price, the plan and the care plan", /window\.confirm\(`Send the website agreement to/.test(card) && /Care plan:/.test(card));
+ok("🔴 sending asks first and shows the price, the plan and the care plan", /window\.confirm\(`Send the website agreement to/.test(card) && /\$\{t\.mgmt==="hosting"\?"Hosting only":"Care plan"\}: /.test(card) && /\$\{wdVariantName\(t\)\}/.test(card));
 ok("unsaved price changes can't be sent by accident", /Save the price first/.test(card));
 ok("payments that landed while the screen was closed are picked up", /call\("sync"\)/.test(card));
 const tab = UI.slice(UI.indexOf("function WebsiteTab("), UI.indexOf("// ─── Review requests:"));
@@ -96,7 +96,7 @@ ok("the care plan starts on launch day", /starts on the day the Website goes liv
 ok("🔴 WA-2: BoldLine manages the domain through access the client gives, and may not transfer it, cancel it or touch their email settings", /Client will give BoldLine access to the account where the domain is registered/.test(aH) && /will not transfer the domain, change who owns it, cancel it, or change the settings Client&rsquo;s email depends on/.test(aH));
 ok("🔴 WA-2: the domain stays theirs, they can remove our access any time, and the hand-back never depends on money owed", /The domain and the account stay Client&rsquo;s at all times, and Client may remove BoldLine&rsquo;s access whenever it chooses/.test(aH) && /This does not depend on any amount being owed/.test(aH));
 ok("WA-2: renewing the domain stays the client's job", /Keeping the domain renewed and paid for remains Client&rsquo;s responsibility/.test(aH));
-ok("the agreement is version WA-6", L.AGREEMENT_VERSION === "WA-6");
+ok("the agreement is version WA-7", L.AGREEMENT_VERSION === "WA-7");
 {
   // WA-6 (2026-10-11, Bryson: "yes add both"): the client answers for what it supplies, and BoldLine may show the site.
   const A = L.websiteAgreementHTML({ name: "Sample Co", email: "a@b.co" }, { price: 1500, plan: "full", care: 100 });
@@ -295,9 +295,44 @@ ok("🔴 adding ads asks first and only changes the package (nothing is sent or 
   ok("the server and the page writer honour the included pages", /tier: body\.tier === "signature" \? "signature" : "standard"/.test(src("netlify/functions/website-deal.mjs")) && /extraPageAllowance\(termsOf\(cl\)\)/.test(src("netlify/functions/site-build-background.mjs")));
   const UIx = src("index.html");
   ok("🔴 the OS mirror matches the price list", /const WEBSITE_SIGNATURE=\{build:3500,care:150,pages:8,includedExtraPages:3,carePlanEdits:4,revisionRounds:3\};/.test(UIx) && P.WEBSITE_SIGNATURE.pages === 8 && P.WEBSITE_SIGNATURE.carePlanEdits === 4);
-  ok("he picks the tier on the deal card, and the price follows unless he changed it", /\["signature","Signature website"/.test(UIx) && /call\("set-terms",\{tier:form\.tier,/.test(UIx));
+  ok("he picks the tier on the deal card, and the price follows unless he changed it", /\["signature","care","Signature \(custom\) website, with Care Plan"/.test(UIx) && /call\("set-terms",\{tier:form\.tier,mgmt:form\.mgmt,/.test(UIx));
   ok("the public pricing shows it, from the same price list", readFileSync(join(ROOT, "marketing-site", "pricing", "index.html"), "utf8").includes("Signature website") && readFileSync(join(ROOT, "marketing-site", "pricing", "index.html"), "utf8").includes("$3,500"));
   ok("Deal Prep knows to pitch it", /Premium tier, the Signature website/.test(src("netlify/lib/pricing-shared.mjs")));
+}
+
+
+// ── WA-7 (Bryson, 2026-10-11): four versions, and Special Terms written by hand or by the AI ─────────────────
+{
+  const V = (t) => L.websiteAgreementHTML({ name: "Sample Co", email: "a@b.co" }, t);
+  const sc = V({ tier: "standard" }), sh = V({ tier: "standard", mgmt: "hosting" }), gc = V({ tier: "signature" }), gh = V({ tier: "signature", mgmt: "hosting" });
+  ok("🔴 four versions, each named for what it is", [["standard", "care", "Standard website with Care Plan"], ["standard", "hosting", "Standard website, hosting only"], ["signature", "care", "Signature (custom) website with Care Plan"], ["signature", "hosting", "Signature (custom) website, hosting only"]]
+    .every(([tier, mgmt, n]) => L.variantOf({ tier, mgmt }).name === n));
+  ok("with management it is the Care Agreement; without, the Hosting Agreement", /<h1>Website Design and Care Agreement<\/h1>/.test(sc) && /<h1>Website Design and Care Agreement<\/h1>/.test(gc) && /<h1>Website Design and Hosting Agreement<\/h1>/.test(sh) && /<h1>Website Design and Hosting Agreement<\/h1>/.test(gh));
+  ok("🔴 hosting only promises no changes, and says every change is quoted first", /<h2>7\. Hosting<\/h2>/.test(sh) && /It does not include changes to the Website&rsquo;s words, photos, pages or design\. BoldLine will quote any change Client asks for before doing it/.test(sh) && !/small content changes per month/.test(sh));
+  ok("🔴 the Care Plan versions still include their monthly changes (two standard, four Signature)", /up to two small content changes per month/.test(sc) && /up to four small content changes per month/.test(gc));
+  ok("hosting only defaults to $25 a month and has no blog", L.normTerms({ mgmt: "hosting" }).care === 25 && L.normTerms({ mgmt: "hosting", blog: true }).blog === false && !/7a\. The blog/.test(V({ mgmt: "hosting", blog: true })));
+  ok("hosting only: changing how customers book after launch is quoted, not free", /After launch, changing it is quoted like any other change/.test(sh) && /part of the build and the care plan/.test(sc));
+  ok("an agreement from before versions reads as the Care Plan", L.normTerms({ price: 1500 }).mgmt === "care" && L.normTerms({ price: 1500 }).care === 100);
+  ok("🔴 a client silent for 14 days lets BoldLine pause with written notice, and 14 more days lets it close", /does not respond to BoldLine for fourteen \(14\) days in a row while the Website is being built, BoldLine may pause the project and tell Client so in writing/.test(sc) && /still has not responded fourteen \(14\) days after that notice, BoldLine may close the project by written notice/.test(sc) && !/sixty \(60\) days in a row/.test(sc));
+  ok("Signature hosting only keeps the custom design wording", /designs it around Client&rsquo;s own brand/.test(gh));
+
+  // Special Terms
+  const plain = V({ tier: "standard" }), withS = V({ tier: "standard", special: [{ heading: "Free First Month", text: "The first month of the Care Plan is free." }, { heading: "<b>x</b>", text: "Extra round <script>alert(1)</script> — included." }] });
+  ok("🔴 special terms land in their own section above the signatures", /<h2>14\. Special Terms<\/h2>/.test(withS) && withS.indexOf("14. Special Terms") > withS.indexOf("13. General") && withS.indexOf("14. Special Terms") < withS.indexOf("BL_SIGN_HERE"));
+  ok("🔴 and change nothing else in the document", withS.replace(/<h2>14\. Special Terms<\/h2>\n<p>[^\n]*<\/p>\n(?:<p>\([a-z]\)[^\n]*<\/p>\n)+/, "") === plain);
+  ok("🔴 typed terms can't inject markup, and a dash becomes a comma", !/<script>/.test(withS) && /&lt;script&gt;/.test(withS) && /Extra round .*, included\./.test(withS) && !/<b>x<\/b>/.test(withS));
+  ok("no special terms, no section", !/Special Terms/.test(plain));
+  ok("at most twelve, blank ones dropped", L.cleanSpecial(Array.from({ length: 15 }, (_, i) => ({ heading: "h", text: `t${i}` })).concat([{ heading: "x", text: "" }])).length === 12);
+  ok("🔴 special terms freeze with the rest once the agreement is out", L.termsOf({ websiteDeal: { special: [{ text: "new" }], agreement: { status: "sent", terms: { special: [{ text: "old" }] } } } }).special[0].text === "old");
+  const FN = src("netlify/functions/website-deal.mjs");
+  ok("🔴 the server saves special terms only while no agreement is out", /case "set-special": \{\s*if \(agreementLive\(cl\)\) return json\(\{ ok: false/.test(FN) && /const special = cleanSpecial\(body\.special\);/.test(FN));
+  ok("set-terms takes the version", /mgmt: body\.mgmt === "hosting" \? "hosting" : "care"/.test(FN));
+  const CT = src("netlify/functions/contract-terms.mjs");
+  ok("🔴 the AI writes website terms with its own background, and refuses once the agreement is out", /const website = body\.kind === "website";/.test(CT) && /if \(website && row && row\.data && websiteAgreementLive\(row\.data\)\)/.test(CT) && /system: website \? WEBSITE_SYSTEM : SYSTEM/.test(CT));
+  const UIy = src("index.html");
+  const comp = UIy.slice(UIy.indexOf("function WebsiteSpecialTerms("), UIy.indexOf("function WebsiteDealCard("));
+  ok("the OS card writes terms by hand or with the AI, and saves through the server", /kind:"website"/.test(comp) && /call\("set-special",\{special:list\}/.test(comp) && /Write one myself/.test(comp) && /Write it up with AI/.test(comp) && !/onUpdate\(/.test(comp));
+  ok("🔴 once the agreement is out the card shows them read-only", /locked=\{true\}/.test(UIy) && /The agreement is out, so these are locked\./.test(comp));
 }
 
 if (fails.length) console.error(fails.map((f) => "  FAIL  " + f).join("\n"));

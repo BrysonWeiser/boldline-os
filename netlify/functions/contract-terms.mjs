@@ -30,6 +30,7 @@ import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { humanizeDeep, NO_DASH_RULE } from "../lib/humanize.mjs";
+import { agreementLive as websiteAgreementLive, termsOf as websiteTermsOf, variantOf, buildTotal, monthlyTotal } from "../lib/website-deal.mjs";
 
 // 🔴 TWO MODELS, TRIED IN ORDER (2026-09-28). Every other drafting function in the OS already falls
 // back like this; this one did not, so one bad answer from the first model was the end of the road.
@@ -110,6 +111,14 @@ Short, plain, enforceable clauses covering ONLY what the note actually agrees. O
 STYLE
 "Agency" is BoldLine Media. "Client" is the other party. Write in the present tense. Say who does what by when.`;
 
+// The same job for the WEBSITE agreement (Bryson, 2026-10-11: "make sure there is a way to manually edit it or have
+// the ai edit it just like we do for the ads contract"). Same bounded section, same rules, its own background: no ad
+// spend here, but the same line about money, since the business's own customers pay the business, never BoldLine.
+export const WEBSITE_SYSTEM = SYSTEM
+  .replace("a US advertising agency in Arizona. Their standard service agreement already exists", "a US agency in Arizona that designs, builds and hosts websites for businesses. Their standard website agreement already exists")
+  .replace("Never write a clause that has BoldLine paying for, fronting, holding, or being billed for the client's advertising spend. The client pays the ad platforms directly on their own card, always, with no exception.", "Never write a clause that has BoldLine receiving, holding or handling money the client's own customers pay the client, or paying anything on the client's behalf. Customers pay the client directly, always, with no exception.")
+  .replace("(confidentiality, governing law, e-signature, entire agreement)", "(the build fee, the payment plan, the monthly fee, pages included, rounds of changes, ownership, the domain, governing law, e-signature, entire agreement)");
+
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 
@@ -165,14 +174,26 @@ export default async (req) => {
   // fresh every time, so the copy in the portal would quietly stop matching the copy they
   // signed. That is not an edge case, it is the single worst thing this feature could do.
   // A change after signing is an amendment, and an amendment is a new signed document.
-  if (body.clientId) {
-    const { data: row } = await supabase.from("clients").select("data").eq("id", String(body.clientId)).maybeSingle();
-    if (row && row.data && row.data.contractSigned) {
-      return json({ ok: false, error: "This agreement is already signed, so its terms cannot be changed. Anything new has to go in a written amendment both of you sign." }, 409);
-    }
+  const website = body.kind === "website";
+  let row = null;
+  if (body.clientId) ({ data: row } = await supabase.from("clients").select("data").eq("id", String(body.clientId)).maybeSingle());
+  if (!website && row && row.data && row.data.contractSigned) {
+    return json({ ok: false, error: "This agreement is already signed, so its terms cannot be changed. Anything new has to go in a written amendment both of you sign." }, 409);
+  }
+  // The website agreement is frozen the moment it goes out, not only once it is signed: the copy in their inbox
+  // must say what the OS says it says.
+  if (website && row && row.data && websiteAgreementLive(row.data)) {
+    return json({ ok: false, error: "This website agreement is already out, so its terms are locked. Cancel it first if it isn't signed yet, or put anything new in a written amendment." }, 409);
   }
 
-  const ctx = [
+  const wt = website && row && row.data ? websiteTermsOf(row.data) : null;
+  const ctx = wt ? [
+    body.clientName ? `Client: ${String(body.clientName).slice(0, 120)}` : "",
+    `Agreement: ${variantOf(wt).title} (${variantOf(wt).name})`,
+    `Build fee already in the agreement: $${buildTotal(wt)} (${wt.plan === "half" ? "half on signing, half before launch" : "paid in full on signing"})`,
+    `Monthly ${wt.mgmt === "hosting" ? "hosting" : "Care Plan"} fee already in the agreement: $${monthlyTotal(wt)}`,
+    (wt.special || []).length ? `Special terms already added: ${wt.special.map((c) => c.heading || c.text.slice(0, 60)).join("; ")}` : "",
+  ].filter(Boolean).join("\n") : [
     body.clientName ? `Client: ${String(body.clientName).slice(0, 120)}` : "",
     body.packageName ? `Package: ${String(body.packageName).slice(0, 120)}` : "",
     body.monthly ? `Monthly minimum already in the agreement: $${Number(body.monthly)}` : "",
@@ -194,7 +215,7 @@ export default async (req) => {
         // nothing. Rewriting agreed terms into clauses needs no deliberation. Opus 4.8 does not think
         // unless asked, so it gets no thinking field at all.
         model, max_tokens: 8000, ...(model === "claude-sonnet-5" ? { thinking: { type: "disabled" } } : {}),
-        system: SYSTEM, tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name },
+        system: website ? WEBSITE_SYSTEM : SYSTEM, tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name },
         messages: [{ role: "user", content: userContent }],
       });
       const use = (resp.content || []).find((c) => c.type === "tool_use");

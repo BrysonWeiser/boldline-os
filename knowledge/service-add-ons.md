@@ -200,3 +200,18 @@ card, auto-renew on, then reply with the address. Pinned in verify-website-deal.
   is mostly switching it on for them.
 - **A "fully custom website" tier.** He floated it as an upsell; see KB `site-editor` (the AI editor is the
   engine for it).
+
+## 2026-10-11 (Sun ~1am Phoenix): his questions, my answers (nothing built)
+- **Automated texts for website clients ("like how Shaun does for his clients")**: yes, as a paid add-on, but only the
+  texts that make money: an instant text back to every new enquiry and missed call, a reminder before a booked job,
+  and a review request after it. Blocker is real: every business sending texts needs its own carrier registration
+  (A2P 10DLC brand + campaign, a few weeks and some fees), and BoldLine's own texting is still off until that is done
+  (KB website-booking-intake). Price it monthly; build once one client says yes.
+- **"SEO ranking" retainers**: still no (same reasoning as above: hard to prove, easy to cancel). The SEO that moves
+  the needle for these businesses is the Google Business Profile (already the #1 add-on recommendation) plus the blog
+  add-on and the on-page work every site already gets.
+- **Website designs, 3 -> 5?**: recommended holding at 3 (Cinematic, Aurora, Editorial). Each client already gets its
+  own motion mix and 3D scene, Signature covers "custom", and every feature (booking, payments, brand kit, editor,
+  before/after) must work and be checked in every design, so 5 means about two-thirds more upkeep and a slower choice
+  for the client. Add a design only when a real prospect turns all three down, and aim it at that gap.
+
