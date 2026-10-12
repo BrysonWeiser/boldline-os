@@ -27,3 +27,12 @@ verified: 2026-07-24
 **Full-bleed hero glow fix (2026-07-25, Bryson follow-up: "the background still isn't fitting the screen").** GOTCHA: the `.hero-glow` (gold radial gradient) was `width:620px` and the earlier horizontal-overflow fix had put `overflow:hidden` on `.hero`. But `.hero` lives inside `.wrap` (`padding:0 22px`), so the clip cropped the glow into a **rectangle inset ~22px from each screen edge**, with bare `--bg` in the side gutters — that inset panel is what read as "the background not fitting the screen." Fix: `.hero-glow{width:min(760px,100vw)}` centered via `left:50%;translateX(-50%)` (edge-to-edge on phones, tasteful 760px on desktop, never overflows) **and removed `overflow:hidden` from `.hero`** so it can reach the edges; `html`/`body{overflow-x:hidden}` still guarantee no horizontal scroll. **Lesson: `overflow:hidden` to kill glow overflow is the WRONG tool when the element is inside a padded container — it crops the visual to the inner box. Size the glow to `min(px,100vw)` and let the body clip instead.**
 
 **DEFERRED (remember — do when Meta unblocks):** add REAL interest-based audience targeting to the Meta campaign builder. Right now My-Ads niche targeting on Meta is COPY-ONLY (`metaAgencySeed` writes niche headlines/text; no interest audiences sent to the API). Needs a backend addition to `meta-ads.mjs` `createCampaign`. Full note lives in KB `my-ads-internal-account` (Platform-selection section). Blocked on Meta App Review either way.
+
+## 2026-10-11 (Sun ~10pm Phoenix): Google Search Console "Excluded by 'noindex' tag" email
+- Cause found: `/get-started/` had been added to the marketing sitemap (`marketing-site/netlify/functions/sitemap.mjs`
+  SITE_PAGES) because verify-marketing-pages demanded every generated page be listed. So the sitemap asked Google to
+  show a page whose own tag says not to, and Search Console flagged it.
+- Fix: removed from the sitemap; the test now requires noindex pages to be LEFT OUT and fails if any sitemap page
+  carries noindex. The other pages Google lists under that reason are on purpose and need nothing: `/examples/*`
+  (sample sites of made-up businesses, noindex so they never rank as real companies) and the 404 page.
+- Live check that every other sitemap page is indexable: all 34 remaining sitemap URLs carry no noindex tag or header.
