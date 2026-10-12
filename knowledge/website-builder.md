@@ -137,6 +137,10 @@ management, custom, etc)."
   client silence lets BoldLine PAUSE with written notice (section 5 timing stops), 14 more days after the notice lets
   it CLOSE (no refund). Recommended the notice step over a flat 14-day close: a client on a two-week trip would
   otherwise lose their deposit, which is the kind of clause that gets challenged. He can ask for a flat 14.
+- 🔴 DEPLOY STATUS: merged to main 2026-10-12 ~1am Phoenix (e0c522e) but NOT live at 8am: the live site still
+  serves the WA-6 sample PDF (74106 bytes) and the new PDFs 404 to the app shell. Nothing in the commit looks like a
+  secret-scan hit, so most likely out of Netlify build credits (KB netlify-secret-scan-deploys). Asked Bryson to look
+  at Deploys during the 8am Netlify job; "Trigger deploy" there publishes it. Verify with the sample-PDF size check.
 - Tests: verify-website-deal (173, incl. 21 WA-7 checks), verify-client-emails (hosting flag in OS preview ctx).
 
 ## Add-ons: extra pages and the blog (BUILT 2026-10-06)
