@@ -108,6 +108,10 @@ export async function sendEnvelope(accessToken, { subject, documentHtml, recipie
   return data; // { envelopeId, status, statusDateTime, uri }
 }
 
+// A website-only client (package "w-site", the OS's WEB_PKG_ID). Their agreement is the website one.
+export const WEBSITE_ONLY_PKG = "w-site";
+const isWebsiteOnlyRecord = (d) => !!d && d.packageId === WEBSITE_ONLY_PKG;
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 export default async (req) => {
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -144,6 +148,18 @@ export default async (req) => {
   }
   const recipientName = String(body.recipientName || "Authorized Signatory").trim().slice(0, 100);
   const isTest = !body.documentHtml;
+
+  // 🔴 A WEBSITE CLIENT NEVER GETS THE ADS AGREEMENT (Bryson, 2026-10-11: "make sure when we take on a website
+  // client that the website contract is what is used"). This endpoint sends the ads agreement (the website one
+  // goes out through website-deal.mjs). A real send names its client, and a client on the Website Only package
+  // is refused here, whatever the screen that asked thought. Checked on the record as it is now.
+  if (!isTest) {
+    const clientId = String(body.clientId || "").trim();
+    if (!clientId) return json({ ok: false, error: "Which client is this for? Refresh the page and send it from their Contract tab." }, 400);
+    const { data: row, error: rowErr } = await supabase.from("clients").select("id, data").eq("id", clientId).maybeSingle();
+    if (rowErr || !row || !row.data) return json({ ok: false, error: "That client could not be found." }, 404);
+    if (isWebsiteOnlyRecord(row.data)) return json({ ok: false, websiteClient: true, error: "This is a website client, so the ads agreement can't go to them. Send the website agreement from their Website tab." }, 409);
+  }
   const documentHtml = ensureAnchor(
     typeof body.documentHtml === "string" && body.documentHtml.length > 50
       ? body.documentHtml

@@ -92,6 +92,23 @@ confirms). "Copy pay link" / "Send it again" (voids the old invoice so nobody pa
   the brief said `WEBSITE: only`), with NO ads contract dates. Server jobs already skip them because
   they never get `contractSigned`/`contractStatus: active` (that is the ads agreement).
 
+## 🔴 A website client only ever gets the website agreement (Bryson, 2026-10-11)
+"We will need contracts specific to website clients ... make sure when we take on a website client that the website
+contract is what is used." It already existed (Website Design and Care Agreement, WA-5, sent from the Website tab's
+deal card through website-deal.mjs). Now enforced three ways:
+- The ads Contract tab is hidden for `packageId: "w-site"` and they land on the Website tab (was already so).
+- `contractGaps` (index.html) returns "This is a website client ... send it from the Website tab" first, so the ads
+  send button stays blocked even if that tab is reached some other way.
+- `docusign-send.mjs` (the ads sender) now requires `clientId` for any real send, looks the client up, and refuses a
+  `w-site` client (409, `websiteClient:true`). The website agreement has its own sender and is unaffected.
+- A client with ads AND a website signs both: the ads agreement for ads, the website agreement for the site
+  (section 11: "ending one does not end the other").
+- Sample for Bryson: `docs/contracts/website-agreement-sample.pdf` (standard tier, half now half before launch).
+- Suggested to Bryson (his call, not yet added): an indemnity for content the client supplies (photos/logos they
+  have no rights to), and permission to show the finished site in BoldLine's portfolio. Still a DRAFT FOR ATTORNEY
+  REVIEW, same as the ads agreement.
+- Test: `tests/verify-website-contract-only.mjs` (14).
+
 ## Add-ons: extra pages and the blog (BUILT 2026-10-06)
 Bryson: *"what if a client wants to add extra pages such as a blog page? We should charge an extra for blog
 page creation and then ai blog post creations"*. Recommended defaults (in `WEBSITE_OFFER`, all editable per
