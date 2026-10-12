@@ -86,11 +86,16 @@ for (const [, href] of NAV) ok(`menu link ${href} exists`, resolves(href));
 {
   const { SITE_PAGES: MAPPED } = await import("../marketing-site/netlify/functions/sitemap.mjs");
   const mapped = new Set(MAPPED.map(([p]) => p));
+  // A page that tells Google not to show it (noindex, like the ad-only /get-started/) must NOT be listed:
+  // listing it asks Google to show a page that says not to, and Search Console emails about the clash.
+  const hidden = (file) => /<meta name="robots" content="[^"]*noindex/i.test(readPage(file));
   for (const p of PAGES.filter((x) => x.file !== "index.html")) {
     const path = "/" + p.file.replace(/index\.html$/, "");
-    ok(`the sitemap lists ${path}`, mapped.has(path));
+    if (hidden(p.file)) ok(`🔴 the sitemap leaves out ${path}, which tells Google not to show it`, !mapped.has(path));
+    else ok(`the sitemap lists ${path}`, mapped.has(path));
   }
   ok("and everything it lists exists", [...mapped].every(resolves), [...mapped].filter((p) => !resolves(p)).join(", "));
+  ok("🔴 nothing it lists tells Google not to show it", [...mapped].every((p) => !resolves(p) || !hidden(p.replace(/^\//, "") + "index.html")), [...mapped].filter((p) => resolves(p) && hidden(p.replace(/^\//, "") + "index.html")).join(", "));
 }
 
 // The hand-written pages share the same menu, so no visitor hits an old one-page menu.
