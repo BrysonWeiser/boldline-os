@@ -137,7 +137,7 @@ const API = src("netlify/lib/payments-api.mjs");
 ok("🔴 Stripe checkouts are made ON the connected account (Stripe-Account header)", /stripeCheckout\(account,[\s\S]{0,120}stripeCall\("checkout\/sessions", \{ \.\.\.opts, account,/.test(API) && /"stripe-account": account/.test(API));
 ok("🔴 no BoldLine cut: no application fee, no transfer to BoldLine", !/application_fee|transfer_data|on_behalf_of|destination/.test(API));
 ok("🔴 Square links are made with the business's own key at its own location", /squareCall\("\/v2\/online-checkout\/payment-links", \{ \.\.\.opts, method: "POST", token: tokens\.access/.test(API));
-ok("the website agreement says so (WA-5)", WD.AGREEMENT_VERSION === "WA-5" && /Every such payment goes straight from the customer to Client&rsquo;s own account/.test(src("netlify/lib/website-deal.mjs")) && /BoldLine never receives, holds or handles that money, takes no share of it/.test(src("netlify/lib/website-deal.mjs")));
+ok("the website agreement says so (WA-5 on)", /^WA-([5-9]|\d\d)$/.test(WD.AGREEMENT_VERSION) && /Every such payment goes straight from the customer to Client&rsquo;s own account/.test(src("netlify/lib/website-deal.mjs")) && /BoldLine never receives, holds or handles that money, takes no share of it/.test(src("netlify/lib/website-deal.mjs")));
 
 // ── 5. Connecting ────────────────────────────────────────────────────────────────────────────
 const st = P.makeState(key, { clientId: "c1", provider: "square", from: "portal" });

@@ -104,9 +104,12 @@ deal card through website-deal.mjs). Now enforced three ways:
 - A client with ads AND a website signs both: the ads agreement for ads, the website agreement for the site
   (section 11: "ending one does not end the other").
 - Sample for Bryson: `docs/contracts/website-agreement-sample.pdf` (standard tier, half now half before launch).
-- Suggested to Bryson (his call, not yet added): an indemnity for content the client supplies (photos/logos they
-  have no rights to), and permission to show the finished site in BoldLine's portfolio. Still a DRAFT FOR ATTORNEY
-  REVIEW, same as the ads agreement.
+- WA-6 (same night, Bryson: "yes add both"): section 2 now makes the client answer for material it supplies
+  (defends BoldLine and pays losses/legal costs if a photo, logo, text or review infringes; BoldLine may pull it
+  while a claim is open), and section 8 lets BoldLine show the finished site, business name and pictures in its
+  portfolio/marketing, never private information, enquiries or results without written approval, removed within
+  30 days of a written request. Agreements already sent keep their own version. Still a DRAFT FOR ATTORNEY REVIEW,
+  same as the ads agreement.
 - Test: `tests/verify-website-contract-only.mjs` (14).
 
 ## Add-ons: extra pages and the blog (BUILT 2026-10-06)
