@@ -50,6 +50,8 @@ export const buildClientCtx = (cl, extra = {}) => {
     previewUrl: cl.landingSlug && cl.website && cl.website.previewKey ? `${base}/site/${encodeURIComponent(cl.landingSlug)}/?preview=${encodeURIComponent(cl.website.previewKey)}` : "",
     plan: termsOf(cl).plan,
     care: termsOf(cl).care,
+    // Hosting only (no management): the emails say hosting, never a care plan with changes it doesn't include.
+    hosting: termsOf(cl).mgmt === "hosting",
     blog: !!termsOf(cl).blog,
     date: fmt(new Date()),
     ...extra,

@@ -5,7 +5,8 @@
 // `websiteDeal` (plus a log line), because the OS must never be the one writing it. KB `website-builder`.
 //
 // POST { action, clientId, ... } with the owner's session:
-//   set-terms { price, plan, care }   only while no agreement is out
+//   set-terms { price, plan, care, tier, mgmt, ... }   only while no agreement is out
+//   set-special { special: [{heading, text}] }       the Special Terms, only while no agreement is out
 //   preview                            the agreement as it would be sent, for the OS to show
 //   send      { email?, name? }        DocuSign the agreement (terms freeze from here)
 //   void                               cancel an unsigned agreement in DocuSign so the terms can change
@@ -29,7 +30,7 @@ import { promises as dnsp } from "node:dns";
 import { cleanDomain, altHost, isApex, dnsRecords, checkDomain, addNetlifyAlias, addressTaken, netlifyStatus, sitesTarget } from "../lib/site-domain.mjs";
 import {
   dealOf, termsOf, agreementLive, websiteAgreementHTML, AGREEMENT_VERSION, createWebsiteInvoice, startCarePlan,
-  publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned,
+  publishLock, amountsOf, exempt, buildTotal, monthlyTotal, isSigned, cleanSpecial,
 } from "../lib/website-deal.mjs";
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -80,7 +81,7 @@ export default async (req) => {
         if (agreementLive(cl)) return json({ ok: false, error: "The agreement is already out. Cancel it first to change the terms." }, 409);
         const price = Number(body.price), care = Number(body.care);
         if (!Number.isFinite(price) || price < 0 || price > 100000) return json({ ok: false, error: "Enter a build price between $0 and $100,000." }, 400);
-        if (!Number.isFinite(care) || care < 0 || care > 5000) return json({ ok: false, error: "Enter a care plan price between $0 and $5,000 a month." }, 400);
+        if (!Number.isFinite(care) || care < 0 || care > 5000) return json({ ok: false, error: `Enter a ${body.mgmt === "hosting" ? "hosting" : "care plan"} price between $0 and $5,000 a month.` }, 400);
         const extraPages = Math.floor(Number(body.extraPages || 0)), extraPagePrice = Number(body.extraPagePrice ?? WEBSITE_OFFER.extraPage);
         const blogSetup = Number(body.blogSetup ?? WEBSITE_OFFER.blogSetup), blogMonthly = Number(body.blogMonthly ?? WEBSITE_OFFER.blogMonthly), blogPosts = Math.floor(Number(body.blogPosts ?? WEBSITE_OFFER.blogPostsPerMonth));
         if (!(extraPages >= 0 && extraPages <= 20)) return json({ ok: false, error: "Extra pages must be between 0 and 20." }, 400);
@@ -90,7 +91,17 @@ export default async (req) => {
         const r = (n) => Math.round(n * 100) / 100;
         const next = await save({ price: r(price), care: r(care), plan: body.plan === "half" ? "half" : "full",
           extraPages, extraPagePrice: r(extraPagePrice), blog: body.blog === true, blogSetup: r(blogSetup), blogMonthly: r(blogMonthly), blogPosts,
-          emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice), tier: body.tier === "signature" ? "signature" : "standard" });
+          emailSetup: body.emailSetup === true, emailSetupPrice: r(emailSetupPrice), tier: body.tier === "signature" ? "signature" : "standard",
+          mgmt: body.mgmt === "hosting" ? "hosting" : "care" });
+        return json({ ok: true, deal: next });
+      }
+      // The Special Terms on their own, so writing one up never touches the price. Frozen once the agreement is out,
+      // like every other term (a sent document must say what it said).
+      case "set-special": {
+        if (agreementLive(cl)) return json({ ok: false, error: "The agreement is already out, so its terms are locked. Cancel it first to change them." }, 409);
+        if (!Array.isArray(body.special)) return json({ ok: false, error: "Nothing to save." }, 400);
+        const special = cleanSpecial(body.special);
+        const next = await save({ special }, special.length ? `Website agreement special terms set (${special.length}).` : "Website agreement special terms removed.");
         return json({ ok: true, deal: next });
       }
       case "preview":

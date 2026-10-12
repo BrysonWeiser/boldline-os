@@ -124,7 +124,10 @@ export const WEBSITE_OFFER = { build: 1500, care: 100, pages: 5, carePlanEdits: 
   // extra for blog page creation and then ai blog post creations"). Defaults; each is editable per client.
   extraPage: 200, blogSetup: 300, blogMonthly: 150, blogPostsPerMonth: 4,
   // Business email on their own domain (Bryson, 2026-10-09). Connecting the domain itself is part of every build.
-  emailSetup: 99 };
+  emailSetup: 99,
+  // Hosting only, no management (Bryson, 2026-10-11: "a version for each variation ... regular website with
+  // management, website without management, custom"): kept online and secure, every change quoted. Editable per client.
+  hosting: 25 };
 // The premium tier (Bryson, 2026-10-09: "add the new premium package", after "add the option for a fully custom
 // build website instead of paying for one of the templates that way it allows for an upsell"). Same engine, shaped
 // around their brand: their typefaces and colours, sections and layout made for them with the AI editor, eight

@@ -103,7 +103,7 @@ deal card through website-deal.mjs). Now enforced three ways:
   `w-site` client (409, `websiteClient:true`). The website agreement has its own sender and is unaffected.
 - A client with ads AND a website signs both: the ads agreement for ads, the website agreement for the site
   (section 11: "ending one does not end the other").
-- Sample for Bryson: `docs/contracts/website-agreement-sample.pdf` (standard tier, half now half before launch).
+- Samples for Bryson: `docs/contracts/website-agreement-{1..4}-*.pdf`, one per version (see WA-7 below).
 - WA-6 (same night, Bryson: "yes add both"): section 2 now makes the client answer for material it supplies
   (defends BoldLine and pays losses/legal costs if a photo, logo, text or review infringes; BoldLine may pull it
   while a claim is open), and section 8 lets BoldLine show the finished site, business name and pictures in its
@@ -111,6 +111,33 @@ deal card through website-deal.mjs). Now enforced three ways:
   30 days of a written request. Agreements already sent keep their own version. Still a DRAFT FOR ATTORNEY REVIEW,
   same as the ads agreement.
 - Test: `tests/verify-website-contract-only.mjs` (14).
+
+## WA-7: four versions + Special Terms (Bryson, 2026-10-11)
+"Make sure there is a way to manually edit it or have the ai edit it just like we do for the ads contract. Also make
+sure there is a version for each variation of the website stuff (regular website with management, website without
+management, custom, etc)."
+- Terms gain `mgmt: "care" | "hosting"` (old agreements read as care) and `special: [{heading,text}]` (max 12,
+  plain text, dashes become commas; `cleanSpecial`, mirrored as `wdSpecial`). `variantOf(t)` names the version.
+- Four versions: Standard/Signature (custom) x Care Plan/hosting only. Hosting only = "Website Design and Hosting
+  Agreement": section 7 "Hosting" ($25/mo default, `WEBSITE_OFFER.hosting`, editable), keeps it online + security +
+  forms/booking/payments working, NO changes included, every change quoted, can move to the Care Plan in writing;
+  no blog (normTerms forces it off); after launch, changing how customers book is quoted; tierIncludes careEdits 0.
+  Stripe product "Website hosting, <name>"; welcome/payment emails and portal (change card, plan box) say hosting.
+  🔴 Hosting only is an interpretation of "without management" (he may have meant a hand-off where the client hosts
+  it themselves; no website export tool exists yet, only the landing-page handover-export). Told him; his call.
+- Special Terms: section "14. Special Terms" after General, above the signatures, precedence wording identical to
+  the ads agreement. Test proves the rest of the document is byte-identical with and without them. OS card
+  `WebsiteSpecialTerms` (above WebsiteDealCard): "Write it up with AI" (contract-terms.mjs with `kind:"website"`,
+  its own WEBSITE_SYSTEM, refuses 409 once the website agreement is out) or "Write one myself"; edits are local until
+  "Save special terms"; saved through website-deal `set-special` (server-owned deal, refused once the agreement is
+  out). Read-only once sent. Frozen into `agreement.terms` at send like everything else.
+- OS deal card: "Which version" 2x2 tiles (price/monthly defaults follow unless he typed his own), "Hosting ($ a
+  month)" label, blog hidden for hosting, send-confirm names the version and special-term count.
+- Section 5 (same night, Bryson: "if you can't answer me within two weeks then that's just ghosting"): 14 days of
+  client silence lets BoldLine PAUSE with written notice (section 5 timing stops), 14 more days after the notice lets
+  it CLOSE (no refund). Recommended the notice step over a flat 14-day close: a client on a two-week trip would
+  otherwise lose their deposit, which is the kind of clause that gets challenged. He can ask for a flat 14.
+- Tests: verify-website-deal (173, incl. 21 WA-7 checks), verify-client-emails (hosting flag in OS preview ctx).
 
 ## Add-ons: extra pages and the blog (BUILT 2026-10-06)
 Bryson: *"what if a client wants to add extra pages such as a blog page? We should charge an extra for blog

@@ -483,7 +483,7 @@ const T = {
           "You pay the first invoice. We start building the moment it lands.",
           "We send you a private link to your new site. Nobody else can see it yet, and you can ask for changes.",
           half ? "When you're happy with it, you pay the second half and we put it live." : "When you're happy with it, we put it live.",
-          ...(care ? ["From launch day, your care plan keeps it online, secure and up to date."] : []),
+          ...(care ? [c.hosting ? "From launch day, our hosting keeps it online and secure. Any change you'd like, we quote first." : "From launch day, your care plan keeps it online, secure and up to date."] : []),
         ]) +
         // 🔴 We look after their web address too, so the one thing we need from them is said up front.
         p(`One small thing from you: if the business already has a web address, we'll ask for access to the account it's registered with, so we can put your new site on it and look after it from then on. It stays in your name. No address yet? We'll help you pick one and buy it in your name.`) +
@@ -506,7 +506,7 @@ const T = {
       ? { subject: "Paid in full, your website goes live next", pre: "Thanks, the build is paid off.", h: "Paid in full, thank you",
           body: p(`Thanks ${first}. We've received your final payment of ${b(money(amount))}, so the build for ${biz} is paid off.`) + p("We'll put your site live and email you the moment it's up.") }
       : c.stage === "care"
-      ? { subject: "Payment received for your website care plan", pre: `We received your payment of ${money(amount)}. Thank you!`, h: "Payment received, thank you",
+      ? { subject: `Payment received for your website ${c.hosting ? "hosting" : "care plan"}`, pre: `We received your payment of ${money(amount)}. Thank you!`, h: "Payment received, thank you",
           body: p(`Thanks ${first}. We've received this month's payment of ${b(money(amount))} for ${biz}'s website. Here's your receipt:`) }
       : { subject: "Payment received, we're starting your website", pre: "Thanks! Building starts now.", h: "Payment received. We're on it.",
           body: p(`Thanks ${first}. We've received your payment of ${b(money(amount))} for ${biz}'s new website, and building starts now.`) + p("Next you'll get a private link to look it over. Nothing goes public until you've seen it and you're happy with it.") };
@@ -516,7 +516,7 @@ const T = {
       preheader: head.pre,
       bodyHtml:
         h1(head.h) + head.body + detailBox(rows) +
-        (c.stage === "care" ? p("That covers hosting, security updates, keeping the site online and a couple of small changes each month. Want something updated? Ask in your portal.") : "") +
+        (c.stage === "care" ? p(c.hosting ? "That covers hosting, security updates and keeping the site online. Want something changed? Ask in your portal and we'll quote it first." : "That covers hosting, security updates, keeping the site online and a couple of small changes each month. Want something updated? Ask in your portal.") : "") +
         (c.invoiceUrl ? button("View Your Invoice", c.invoiceUrl) + small("Your full invoice, with a downloadable PDF, is on the secure Stripe page.") : button("Open Your Portal", c.portalUrl)) +
         signoff(),
     };

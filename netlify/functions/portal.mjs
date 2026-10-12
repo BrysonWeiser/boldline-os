@@ -644,7 +644,7 @@ const makePortalHTML = (cl, pkg, notice, site = null) => {
   const websitePlanHTML = webOnly ? (() => {
     const inc = tierIncludes(wT), pages = inc.basePages + wT.extraPages;
     const items = [`${pages} pages, written for you`, `${inc.rounds} rounds of changes before it goes live`, "Hosting, security and keeping it online",
-      `Up to ${inc.careEdits} small changes a month once it's live`, "Your own web address connected, and kept working",
+      wT.mgmt === "hosting" ? "Changes after launch are quoted first (hosting only)" : `Up to ${inc.careEdits} small changes a month once it's live`, "Your own web address connected, and kept working",
       wT.blog ? `A blog with about ${wT.blogPosts} new articles a month` : "", wT.emailSetup ? "Business email set up on your own address" : "",
       wT.tier === "signature" ? "Designed around your own brand: your colours, fonts and layout" : ""].filter(Boolean);
     return '<details class="acc"><summary><div><div class="at">Your Website Plan</div><div class="as">What you are on, and what it includes.</div></div><span class="car">&#9654;</span></summary><div class="abody"><div><div class="card">'
