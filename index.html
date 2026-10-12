@@ -3138,6 +3138,13 @@ function contractGaps(cl, pkg) {
   const add = (what, where) => out.push({ what, where });
   const blank = (v) => !String(v == null ? "" : v).trim();
 
+  // 🔴 A WEBSITE CLIENT NEVER GETS THE ADS AGREEMENT (Bryson, 2026-10-11: "make sure when we take on a website
+  // client that the website contract is what is used"). Their agreement is the Website Design and Care
+  // Agreement, sent from the Website tab. The ads agreement would bind them to ad terms, a per-lead fee and a
+  // three-month term for a service they never bought. docusign-send refuses it on the server too.
+  // ("w-site" is WEB_PKG_ID, written out so this check runs on its own, as the tests run it.)
+  if (c.packageId === "w-site") { add("This is a website client", "Their agreement is the website agreement. Send it from the Website tab, never this one."); return out; }
+
   // The package drives the service, the platform, the prices AND which fee clause exists at
   // all. Nothing else here comes close to it for damage done.
   if (!pkg) {
@@ -14546,7 +14553,7 @@ function ContractTabContent({client,pkg,days,onRenew,onUpdate}) {
       const { data:{ session } }=await supabaseClient.auth.getSession();
       const token=session&&session.access_token;
       if(!token){ setDsState("error"); setDsMsg("Session expired — refresh the page and log in again."); return; }
-      const r=await fetch("/.netlify/functions/docusign-send",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({recipientEmail:client.email,recipientName:client.contactName||client.name,documentHtml:html})});
+      const r=await fetch("/.netlify/functions/docusign-send",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify({recipientEmail:client.email,recipientName:client.contactName||client.name,documentHtml:html,clientId:client.id,kind:"ads"})});
       const d=await r.json().catch(()=>({}));
       if(!r.ok||!d.ok){ setDsState("error"); setDsMsg(d.error||"Send failed — try again."); return; }
       setDsState("sent");
