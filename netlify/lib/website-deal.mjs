@@ -43,7 +43,10 @@ export const DEAL_DEFAULTS = { price: WEBSITE_OFFER.build, plan: "full", care: W
 // payment link, or in person) is set up the same way, and that money is Client's alone: it goes straight to
 // Client's account, Client is the seller and carries refunds, chargebacks and fees, BoldLine never holds it
 // (KB payments-connect; CLAUDE.md hard constraint).
-export const AGREEMENT_VERSION = "WA-5";
+// WA-6 (2026-10-11, Bryson: "yes add both"): Client answers for what it supplies (a photo, logo or review it had no
+// right to use is Client's problem, not BoldLine's), and BoldLine may show the finished Website in its portfolio,
+// never Client's private information or results, and stops if Client asks.
+export const AGREEMENT_VERSION = "WA-6";
 export const PLANS = { full: "Paid in full up front", half: "Half now, half before launch" };
 
 const num = (v, d) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : d; };
@@ -209,6 +212,7 @@ ${t.blog ? `<tr><td>Blog Plan</td><td>${money(t.blogMonthly)} per month for abou
 
 <h2>2. What Client provides</h2>
 <p>Client will provide the information BoldLine reasonably asks for, its logo if it has one, and photos of its own work and team where it can. Until Client&rsquo;s own photos are provided, BoldLine may use licensed stock photos, which will never be presented as Client&rsquo;s own work. Client confirms it has the right to use everything it provides, and that the Website may display it.</p>
+<p>Client is responsible for the material it provides, such as photos, logos, text and reviews. If anyone claims that something Client provided infringes their rights or breaks the law, Client will defend BoldLine against that claim and pay the resulting losses, damages and reasonable legal costs, as long as BoldLine tells Client about the claim promptly and lets Client handle it. BoldLine may remove any such material from the Website while the claim is open.</p>
 
 <h2>3. Price and payment</h2>
 ${pay}
@@ -239,6 +243,7 @@ ${blog}
 
 <h2>8. Who owns what</h2>
 <p>Once the Build Fee is paid in full, Client owns the words written for the Website, and always owns its own name, logo, photos, content and domain. BoldLine keeps ownership of its design templates, code and tools, and grants Client a license to use them as part of the Website. If the Care Plan ends, and once everything owed has been paid, BoldLine will on request provide a copy of the Website&rsquo;s pages and images as standard web files, which Client may host anywhere and keep using.</p>
+<p>BoldLine may show the finished Website, Client&rsquo;s business name and pictures of the Website in its portfolio and marketing, including on BoldLine&rsquo;s own website, as an example of its work. BoldLine will not share Client&rsquo;s private information, enquiries or results without Client&rsquo;s written approval. Client may ask BoldLine in writing (email is fine) to stop at any time, and BoldLine will remove it from anything BoldLine controls within thirty (30) days.</p>
 
 <h2>9. No guarantees about results</h2>
 <p>BoldLine will build the Website with care and skill. BoldLine does not guarantee any particular search ranking, number of visitors, enquiries or sales, and is not responsible for services it does not control, such as domain registrars, search engines, email providers or Client&rsquo;s own systems.</p>
