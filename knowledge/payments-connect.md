@@ -4,8 +4,8 @@ topic: Payments
 task: let a business (client or one of Bryson's own) take payment from ITS customers through the website or landing page booking - connect Stripe or Square, a payment link, or in person; deposits or full price at booking; pay links; marking paid
 keywords: [customer payments, get paid, connect stripe, connect square, stripe connect, oauth, square oauth, payment link, paypal, venmo, deposit, full price, pay at booking, pay link, /pay, payConnect, payLog, payments, pay-sweep, pay-connect, how customers pay, how your customers pay you, direct charge, standard account]
 status: open
-summary: Bryson 2026-10-09 ("put in the client portal (or my own businesses portal) ... connect whatever method ... to collect payment"; then "make sure for payments there is the option to choose multiple ways"). SEVERAL WAYS AT ONCE, customer picks on the pay page: one card account (Stripe or Square), up to 3 payment links, in person. Built: "How Your Customers Pay You" card in the client portal (Website tab, or Your Information for booking-only) and "How customers pay" in the OS (every business's Website tab). Choices - Stripe (OAuth, Standard, direct charges on THEIR account), Square (OAuth, their key encrypted in private storage), payment link, in person. Connected - each booking charges the package deposit (or the exact full price) via a signed /pay link on the business's own domain; paid status in server-owned payLog, swept every 15 min. Agreement WA-5 says the money is the client's. LIVE in code but Stripe/Square buttons need Bryson's one-time setup (env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET) - in the 10pm reminder Fri 2026-10-09.
-verified: 2026-10-09
+summary: Bryson 2026-10-09 ("put in the client portal (or my own businesses portal) ... connect whatever method ... to collect payment"; then "make sure for payments there is the option to choose multiple ways"). SEVERAL WAYS AT ONCE, customer picks on the pay page: one card account (Stripe or Square), up to 3 payment links, in person. Built: "How Your Customers Pay You" card in the client portal (Website tab, or Your Information for booking-only) and "How customers pay" in the OS (every business's Website tab). Choices - Stripe (OAuth, Standard, direct charges on THEIR account), Square (OAuth, their key encrypted in private storage), payment link, in person. Connected - each booking charges the package deposit (or the exact full price) via a signed /pay link on the business's own domain; paid status in server-owned payLog, swept every 15 min. Agreement WA-5 says the money is the client's. ✅ FULLY SWITCHED ON 2026-10-13 (env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET set; ready check true for both).
+verified: 2026-10-13
 ---
 
 ## What he asked
@@ -93,3 +93,24 @@ verify-results-only-billing, verify-website-deal (WA-5).
 - Subscriptions (monthly plans billed automatically) - possible with the same connections, not built.
 - Refunds from the OS (do them in Stripe/Square for now).
 - Notifying the business when a deposit lands (it shows in the OS/portal; no push/email yet).
+
+## 2026-10-13: setup under way
+Bryson chose to do JOB 2 now (the business email job is paused until the detailing LLC + bank account exist). Parts A
+(Stripe Connect, OAuth, redirect `https://os.boldlinemedia.com/pay-connect/done`, copy the `ca_` live client ID) and B
+(Square developer app "BoldLine Payments", Production, same redirect, copy Application ID + secret) during the day;
+Part C (the three Netlify env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET + redeploy) in the
+10pm reminder `trig_012or1EhMCnUkBmyMhyk1dmA`. Check: POST pay-connect {"action":"ready"}. Do not test-connect the
+detailing business's own Stripe until its LLC exists.
+
+- Gotcha (2026-10-13): pressing "Continue setup" on Connect in LIVE mode pops "Switch to sandbox account? You must
+  set up this feature in your sandbox account before using it in your live account." Do the Connect questionnaire in
+  the sandbox, then switch back to live and do OAuth + redirect + copy the LIVE client ID there. The sandbox's own
+  ca_ id is a test id and must NOT go into Netlify.
+- ✅ DONE 2026-10-13 ~10:45am Phoenix, at his computer: Stripe Connect live (Platform, direct charges, Stripe-hosted
+  onboarding, full Dashboard, Stripe liable for losses; OAuth on, redirect added), Square developer app "BoldLine
+  Payments" (Production, redirect added), all three env vars in Netlify + redeploy. pay-connect {"action":"ready"}
+  returns stripe:true, square:true. Live go-live path that worked: sandbox questionnaire, Test Connect (test account +
+  test payment), then in LIVE: Verify your identity, Confirm your integration choices (Platform), then the OAuth page.
+  "Create a live invoice" was skipped and was not required. 10pm reminder trig_012or1EhMCnUkBmyMhyk1dmA deleted.
+  Next real test: the detailing business connecting its own Stripe once its LLC exists, or the first website client.
+

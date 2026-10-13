@@ -47,14 +47,19 @@ export const SITE_SCHEMA = obj({
 export function buildPrompt(cl) {
   const cs = (cl && cl.campaignSetup) || {};
   const bv = (cl && cl.brandVoice) || {};
+  // What the client sent through "What we need from you" in their portal (KB website-needs), in their own words.
+  const wi = (cl && cl.websiteIntake) || {};
   const facts = [
     ["Business name", brandName(cl)],
     ["What they do", cl.niche],
     ["Services they mentioned", (cl.services || cs.services || "")],
+    ["Services and prices, from the client", wi.services],
     ["Main offer", cs.mainOffer],
-    ["Service area", cs.serviceArea || cs.targetLocations],
+    ["Service area", cs.serviceArea || cs.targetLocations || wi.area],
+    ["Hours", wi.hours],
     ["Average job", cs.avgTicket],
     ["What makes them different", bv.differentiator],
+    ["About them, in their own words", wi.different],
     ["Tone they want", bv.tone],
     ["Notes from the sales call", String(cl.notes || "").slice(0, 1500)],
     ["What counts as a good customer", String(cl.qualifiedLeadDef || "").slice(0, 600)],

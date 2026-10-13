@@ -5,7 +5,7 @@ task: emails a business Bryson owns sends its own customers (booking confirmatio
 keywords: [customer emails, reminder email, review request, rebook, time for another, one-off customers, subscription, plan package, planCustomers, sendAsBusiness, emailSender, emailSenderStatus, customerEmailLog, emailOptOut, optout, unsubscribe, biz-email.mjs, biz-email-shell.mjs, biz-customer-emails, brandFromHTML, Resend domain, fromAddress, biz-cal, webcal, ics, calendar feed]
 status: verified
 summary: Bryson, 2026-10-09 - "lets do all of them" (reminder before a job, review request after, phone calendar feed, time for another) "but make sure the email comes from the business email for my other business not boldline media (make a way for you to brand the email based off of the business name and website when i add it to the my businesses tab)" and the rebook email "only goes to the one off customers ... and dont already have a subscription". Built a branded email design per business (logo and colour pulled from its own website), sending from its own address once a test send proves it, an hourly job for the three automatic emails with narrow windows (no backlog), strict one-off-only rebook logic, signed unsubscribe, and a webcal calendar feed. Needs Bryson to verify the business's email domain in Resend before the automatic emails start.
-verified: 2026-10-09
+verified: 2026-10-13
 ---
 
 ## What he asked (2026-10-09)
@@ -120,8 +120,20 @@ a subscription."
    Gmail or Outlook addresses cannot be verified as a sender.
 2. **Add that domain in Resend:** Domains, then Add Domain. Put the DNS records it shows into wherever the
    domain is registered, then press Verify.
-   - Resend's free plan covers one domain, which boldlinemedia.com already uses, so a second domain
-     probably needs Resend's paid plan. He should check this on Resend's pricing page.
+   - ✅ CORRECTED 2026-10-13 (checked resend.com/pricing): the FREE plan now covers **3 domains** (3,000
+     emails a month, 100 a day). boldlinemedia.com uses one, so the detailing business fits free. Pro ($20/mo)
+     is only needed past 3 domains or 100 emails a day. The old note here said one domain, and the 8am and
+     10pm messages on 2026-10-12 repeated that; Bryson was told it was wrong.
+   - 🔴 2026-10-13: **the detailing business has NO domain yet** (Bryson: "for job one we dont have a domain yet
+     for that business"). Step 0 is buying one: recommended Namecheap (matches the OS's own "how to buy an
+     address" guide), .com, owned by the BUSINESS since it is co-owned with his friend, extras skipped, free
+     privacy on, auto-renew on; then Namecheap's free email forwarding (hello@ to his Gmail) so replies are not
+     lost. Asked him for the business name so availability can be checked before he buys. The same domain then
+     gets the website connected to it.
+   - ⏸️ PAUSED 2026-10-13 (Bryson: "lets wait on that because i want to wait to get the llc and then a business
+     bank account first. ill let you know when i do"). Do NOT resend Job 1 or put it in reminders until he says
+     the detailing LLC and its bank account exist. Then: domain (in the LLC's name, paid from its account),
+     email forwarding, Resend, website on the domain, all in one go.
 3. **In the OS:** open the business, go to Overview, then Customer emails, and press "Send a test to me".
    Once that works, everything sends as the business.
 4. **The Google review link:** in the business's Google profile, use "Ask for reviews" and copy the link.

@@ -141,6 +141,10 @@ management, custom, etc)."
   serves the WA-6 sample PDF (74106 bytes) and the new PDFs 404 to the app shell. Nothing in the commit looks like a
   secret-scan hit, so most likely out of Netlify build credits (KB netlify-secret-scan-deploys). Asked Bryson to look
   at Deploys during the 8am Netlify job; "Trigger deploy" there publishes it. Verify with the sample-PDF size check.
+  ✅ LIVE by 10:01pm Phoenix Mon 2026-10-12: the hosting-only sample PDF serves 74972 bytes and the live OS has the
+  new version tiles. It went out with the next merge to main (5de1156, Lead Scout website mode), so the earlier
+  build simply never ran rather than being blocked for good. If a merge is ever missing from the live site again,
+  the next push is worth checking before assuming credits ran out.
 - Tests: verify-website-deal (173, incl. 21 WA-7 checks), verify-client-emails (hosting flag in OS preview ctx).
 
 ## Add-ons: extra pages and the blog (BUILT 2026-10-06)
