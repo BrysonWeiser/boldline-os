@@ -6069,6 +6069,16 @@ function LinkRequestRow({customerId}) {
 // Anthropic's "out of money" error, however it arrives: the plain message, or wrapped in the JSON a
 // failed call returns. Matched on the words, not the shape, because the shape is theirs to change.
 const scoutCreditError = (e)=>/credit balance is too low|insufficient[^a-z]{0,3}(api )?credit/i.test(String(e||""));
+// One line on what the free website check SAW (KB `website-prospects`), for the card, the CSV and Deal Prep.
+// The words come from the check itself (netlify/lib/site-check.mjs), so every screen says the same thing.
+const scoutSiteSummary=(sc)=>{ if(!sc||typeof sc!=="object") return "";
+  if((sc.state==="none"||sc.state==="broken")&&sc.reason) return sc.reason;
+  const probs=Array.isArray(sc.problems)?sc.problems.filter(x=>x&&x.label):[];
+  if(sc.state==="weak"&&probs.length) return "Needs work: "+probs.map(x=>x.label.charAt(0).toLowerCase()+x.label.slice(1)).join(", ");
+  if(sc.state==="ok") return "Passed the checks (works on phones, has a padlock, nothing obviously out of date)";
+  return sc.note||""; };
+const SCOUT_SITE_PILL={none:["No website","red"],broken:["Website down","red"],weak:["Website needs work","amber"],ok:["Website OK","green"],unknown:["Website not checked","muted"]};
+const SCOUT_PITCH_LABEL={ads:"Ads lead",website:"Website lead",both:"Ads + website lead"};
 const SCOUT_NICHES = [
   { g:"Home Services & Trades", k:"service", n:["Roofing","HVAC / Heating & Air","Plumbing","Electrical","Garage Door","Pest Control","Landscaping / Lawn Care","Hardscaping & Pavers","Tree Service","Fencing","Deck & Patio Builders","Painting (Residential)","Painting (Commercial)","Flooring","Windows & Doors","Siding","Gutters","Concrete & Paving","Epoxy / Garage Floor Coating","Pressure Washing","Window Cleaning","House Cleaning / Maid Service","Carpet & Upholstery Cleaning","Water Damage Restoration","Mold Remediation","Fire & Smoke Restoration","Foundation Repair","Insulation","Solar Installation","Pool Construction","Pool Service & Repair","Septic Services","Well Drilling","Chimney Sweep","Locksmith","Handyman","Appliance Repair","Junk Removal","Dumpster Rental","Moving Company","Self Storage","Home Remodeling (General)","Kitchen Remodeling","Bathroom Remodeling","Custom Home Builder","General Contractor","Smart Home / AV Install","Security & Alarm Install"] },
   { g:"Legal", k:"service", n:["Personal Injury Law","Car Accident Law","Truck Accident Law","Workers Compensation Law","Medical Malpractice Law","Mass Tort / Class Action","Criminal Defense","DUI Defense","Family Law / Divorce","Estate Planning & Probate","Bankruptcy Law","Immigration Law","Employment Law","Business & Corporate Law","Real Estate Law","Intellectual Property / Patent Law","Social Security Disability","Elder Law"] },
@@ -6115,6 +6125,9 @@ const SCOUT_STATUSES = [
 
 function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const [tab,setTab]=useState("search"); // search | list
+  // What the search is for (KB `website-prospects`). "website" hunts businesses with no website or a weak
+  // one, and checks every website for free before any research is paid for.
+  const [pitch,setPitch]=useState("ads");
   const [niche,setNiche]=useState(null);   // {label,group,kind} — see NicheSelect
   const [areas,setAreas]=useState([]);
   const [areaInput,setAreaInput]=useState("");
@@ -6129,7 +6142,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
   const [list,setList]=useState([]);
   const [facets,setFacets]=useState(null);
   const [listLoading,setListLoading]=useState(false);
-  const [lf,setLf]=useState({niche:"",area:"",status:"",minScore:0,q:""});
+  const [lf,setLf]=useState({niche:"",area:"",status:"",minScore:0,q:"",pitch:""});
   const [openId,setOpenId]=useState(null);
   const [providers,setProviders]=useState(null);
   const [elapsed,setElapsed]=useState(0);
@@ -6157,13 +6170,13 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
       const qs=new URLSearchParams({action:"prospects"});
       if(lf.niche) qs.set("niche",lf.niche); if(lf.area) qs.set("area",lf.area);
       if(lf.status) qs.set("status",lf.status); if(lf.minScore>0) qs.set("minScore",String(lf.minScore));
-      if(lf.q.trim()) qs.set("q",lf.q.trim());
+      if(lf.q.trim()) qs.set("q",lf.q.trim()); if(lf.pitch) qs.set("pitch",lf.pitch);
       const [p,f]=await Promise.all([api(qs.toString()),api("action=facets")]);
       setList(p.prospects||[]); setFacets(f);
     }catch(e){ setMsg(String(e.message||e)); }
     setListLoading(false);
   };
-  useEffect(()=>{ if(tab==="list") loadList(); },[tab,lf.niche,lf.area,lf.status,lf.minScore]);
+  useEffect(()=>{ if(tab==="list") loadList(); },[tab,lf.niche,lf.area,lf.status,lf.minScore,lf.pitch]);
   useEffect(()=>{ api("action=providers").then(r=>setProviders(r.providers)).catch(()=>setProviders({places:false,apollo:false})); },[]);
 
   const addArea=()=>{ const v=areaInput.trim().replace(/,+$/,""); if(!v) return;
@@ -6188,7 +6201,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
     catch(e){ const m=setupMsg((e&&e.message)||e);
       setRunState("error"); setMsg(m||("Couldn't reach the server: "+((e&&e.message)||e))); return; }
     fetch("/.netlify/functions/lead-scout-background",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({id,niche:selected.label,nicheGroup:selected.group,nicheKind:selected.kind,areas,count,filters,notes})}).catch(()=>{});
+      body:JSON.stringify({id,niche:selected.label,nicheGroup:selected.group,nicheKind:selected.kind,areas,count,filters,notes,pitch})}).catch(()=>{});
     const started=Date.now();
     setElapsed(0);
     if(tickRef.current) clearInterval(tickRef.current);
@@ -6254,18 +6267,33 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
       d.yearsInBusiness?`In business: ${d.yearsInBusiness}`:"",
       d.rating?`Rating: ${d.rating}★${d.reviewCount?` (${d.reviewCount} reviews)`:""}`:"",
       `Ads: Google ${d.googleAds||"unknown"}, Meta ${d.metaAds||"unknown"}`,
+      scoutSiteSummary(d.siteCheck)?`Website check: ${scoutSiteSummary(d.siteCheck)}`:"",
+      outPitchOf({data:d})!=="ads"?`Selling them: ${outPitchOf({data:d})==="website"?"a new website":"ads and a new website"}`:"",
       (d.gaps&&d.gaps.length)?`Gaps found: ${d.gaps.join("; ")}`:"" ].filter(Boolean).join("\n");
     onDealPrep({companyName:d.name,niche:d.niche||fallbackNiche||"",website:d.websiteRaw||d.website||"",
       location:[d.city,d.state].filter(Boolean).join(", "),notes:known});
   };
 
   // Free backfill: re-reads saved prospects' websites for ad tags. No AI involved.
+  // 🔴 A FEW AT A TIME. The server gets about ten seconds per request, which is not enough to read
+  // hundreds of websites, so this asks for eight at a time until a page comes back short. A page that
+  // fails is skipped rather than stopping the rest, and the total says what actually happened.
   const recheckAds=async()=>{
     setRecheck("working"); setMsg("");
-    try{ const r=await api("action=recheck-ads",{method:"POST"});
-      setMsg(`Done. ${r.checked} websites read: ${r.found} showing advertising tags, ${r.instagram||0} with an Instagram.`);
+    const PAGE=8; let offset=0, checked=0, found=0, ig=0, needSite=0, failed=0;
+    try{
+      for(let guard=0;guard<200;guard++){
+        setMsg(`Reading websites… ${checked} done${facets&&facets.total?` of ${facets.total}`:""}.`);
+        let r=null;
+        try{ r=await api(`action=recheck-ads&offset=${offset}&limit=${PAGE}`,{method:"POST"}); }
+        catch(e){ failed++; if(failed>=3) throw e; offset+=PAGE; continue; }
+        checked+=r.checked||0; found+=r.found||0; ig+=r.instagram||0; needSite+=r.needSite||0;
+        if((r.checked||0)<PAGE) break;
+        offset+=PAGE;
+      }
+      setMsg(`Done. ${checked} websites read: ${needSite} need a new website, ${found} showing advertising tags, ${ig} with an Instagram.${failed?` ${failed} batch${failed===1?"":"es"} didn't answer, so press it again later to finish those.`:""}`);
       await loadList(); }
-    catch(e){ setMsg("Ad re-check failed: "+((e&&e.message)||e)); }
+    catch(e){ setMsg("Re-check stopped: "+((e&&e.message)||e)+(checked?` (${checked} websites were read before it stopped.)`:"")); }
     setRecheck("");
   };
 
@@ -6283,6 +6311,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
       ["Affordability",p=>p.affordability?(p.affordability.band||"unknown"):""],
       ["Rating",p=>p.rating],["Reviews",p=>p.reviewCount],
       ["Google ads",p=>p.googleAds],["Meta ads",p=>p.metaAds],
+      ["Selling",p=>({ads:"Ads",website:"Website",both:"Both"})[outPitchOf({data:p})]],["Website check",p=>scoutSiteSummary(p.siteCheck)],
       ["Score",p=>p.score],["Score reasons",p=>(p.scoreFactors||[]).map(f=>`${f.label} ${f.points}${f.max?"/"+f.max:""}: ${f.why}`).join(" | ")],
       ["Capped",p=>p.capReason||""],
       ["Recommended package",p=>p.recommendedPackageId],
@@ -6346,8 +6375,11 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                 <a href={d.adLibraryUrl} target="_blank" rel="noopener noreferrer"
                   title="Opens Meta's Ad Library filtered to this business — the definitive answer on whether their Facebook/Instagram ads are live"
                   style={{fontSize:10,fontWeight:700,color:C.blue,border:`1px solid ${C.blue}44`,background:C.blue+"14",borderRadius:7,padding:"3px 7px",textDecoration:"none",whiteSpace:"nowrap"}}>Check Meta ads ↗</a>)}
-              {d.websiteQuality&&d.websiteQuality!=="unknown"&&(
-                <span style={{fontSize:10,fontWeight:700,color:C.textDim,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 7px"}}>site: {d.websiteQuality}</span>)}
+              {(()=>{ const sp=d.siteCheck&&SCOUT_SITE_PILL[d.siteCheck.state];
+                if(sp){ const col=sp[1]==="red"?C.red:sp[1]==="amber"?C.amber:sp[1]==="green"?C.green:C.textMuted;
+                  return <span style={{fontSize:10,fontWeight:700,color:col,border:`1px solid ${col}44`,background:col+"14",borderRadius:7,padding:"3px 7px",whiteSpace:"nowrap"}}>{sp[0]}</span>; }
+                return d.websiteQuality&&d.websiteQuality!=="unknown"?<span style={{fontSize:10,fontWeight:700,color:C.textDim,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 7px"}}>site: {d.websiteQuality}</span>:null; })()}
+              <span style={{fontSize:10,fontWeight:700,color:C.gold,border:`1px solid ${C.gold}44`,background:C.gold+"12",borderRadius:7,padding:"3px 7px",whiteSpace:"nowrap"}}>{SCOUT_PITCH_LABEL[outPitchOf(p)]}</span>
               {typeof d.completeness==="number"&&(
                 <span style={{fontSize:10,fontWeight:700,color:d.completeness>=70?C.green:d.completeness>=40?C.amber:C.textMuted,border:`1px solid ${C.border}`,borderRadius:7,padding:"3px 7px"}}>{d.completeness}% verified</span>)}
             </div>
@@ -6355,6 +6387,16 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
         </div>
 
         {d.verdict&&<div style={{fontSize:12.5,color:C.textDim,lineHeight:1.55,marginTop:10}}>{d.verdict}</div>}
+
+        {/* WHAT THE WEBSITE CHECK SAW. Only things anyone can see for themselves on their homepage, so
+            every line is safe to say to the owner. Shown up front whenever it found a problem. */}
+        {d.siteCheck&&["none","broken","weak"].includes(d.siteCheck.state)&&(
+          <div style={{marginTop:10,padding:"10px 12px",borderRadius:10,border:`1px solid ${(d.siteCheck.state==="weak"?C.amber:C.red)}33`,background:(d.siteCheck.state==="weak"?C.amber:C.red)+"0d"}}>
+            <div style={{fontSize:9.5,fontWeight:800,color:d.siteCheck.state==="weak"?C.amber:C.red,textTransform:"uppercase",letterSpacing:".05em",marginBottom:5}}>Website check</div>
+            {d.siteCheck.state==="weak"
+              ? <ul style={{margin:0,paddingLeft:16}}>{(d.siteCheck.problems||[]).slice(0,5).map((x,i)=><li key={i} style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>{x.label}</li>)}</ul>
+              : <div style={{fontSize:12,color:C.textDim,lineHeight:1.55}}>{d.siteCheck.reason}.</div>}
+          </div>)}
 
         {/* CONTACT — every number and address found, each labelled with whose it is
             and where it came from. Tap any of them to dial straight from the phone. */}
@@ -6405,7 +6447,9 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
           <Fact k="Revenue est." v={d.revenueEstimate}/>
           <Fact k="Budget capacity" v={d.affordability&&d.affordability.known?`~$${Math.round(d.affordability.monthlyCapacity).toLocaleString()}/mo`:""}/>
           <Fact k="Address" v={d.address}/>
-          <Fact k="Best package" v={(function(){ const pk=ALL_PKGS.find(x=>x.id===d.recommendedPackageId); return pk?`${pk.name} · from $${pk.price}/mo`:""; })()}/>
+          <Fact k="Best package" v={(function(){
+            const w={"w-standard":`Standard website · $${WEBSITE_OFFER.build.toLocaleString("en-US")}`,"w-signature":`Signature website · $${WEBSITE_SIGNATURE.build.toLocaleString("en-US")}`}[d.recommendedPackageId];
+            if(w) return w; const pk=ALL_PKGS.find(x=>x.id===d.recommendedPackageId); return pk?`${pk.name} · from $${pk.price}/mo`:""; })()}/>
         </div>
 
         {d.capReason&&(
@@ -6455,7 +6499,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                 {!d.affordability.known&&<div style={{fontSize:11.5,color:C.amber,lineHeight:1.55,marginTop:2}}>{d.affordability.note}</div>}
                 {d.packageDowngradedFrom&&(
                   <div style={{fontSize:11,color:C.amber,lineHeight:1.5,marginTop:6}}>
-                    Recommendation stepped down from {(function(){const x=ALL_PKGS.find(y=>y.id===d.packageDowngradedFrom);return x?x.name:d.packageDowngradedFrom;})()} — don't pitch above their budget.
+                    Recommendation stepped down from {(function(){ if(d.packageDowngradedFrom==="w-signature") return "the Signature website"; const x=ALL_PKGS.find(y=>y.id===d.packageDowngradedFrom);return x?x.name:d.packageDowngradedFrom;})()} — don't pitch above their budget.
                   </div>)}
               </div>)}
 
@@ -6478,6 +6522,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                   <span key={i} style={{fontSize:11,color:C.textDim,border:`1px solid ${C.border}`,background:C.bg3,borderRadius:7,padding:"4px 8px"}}>{x}</span>)}</div></div>)}
             {d.adsEvidence&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Ad evidence:</b> {d.adsEvidence}</div>}
             {d.adTechNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Ad-tag check:</b> {d.adTechNote}</div>}
+            {d.siteCheck&&["ok","unknown"].includes(d.siteCheck.state)&&scoutSiteSummary(d.siteCheck)&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Website check:</b> {scoutSiteSummary(d.siteCheck)}</div>}
             {d.seoNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Search presence:</b> {d.seoNote}</div>}
             {d.ownerSource&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5}}><b style={{color:C.textDim}}>Owner info from:</b> {d.ownerSource}</div>}
             {d.dataNotes&&<div style={{fontSize:11,color:C.amber,lineHeight:1.5}}><b>Verify before quoting:</b> {d.dataNotes}</div>}
@@ -6539,6 +6584,22 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
             </div>)}
           <div style={{...card}}>
             <div style={S.col12}>
+              {/* What the search is FOR (Bryson, 2026-10-12: "a category for companies that need websites and
+                  or need better websites"). Website mode reads every website for free first and only pays to
+                  research the businesses whose site is missing or letting them down. */}
+              <div>
+                <div style={lbl}>What are you selling?</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,200px),1fr))",gap:8}}>
+                  {[["ads","Ads","Businesses worth running Google or Meta ads for."],
+                    ["website","A website","Businesses with no website, or one that's costing them customers."]].map(([v,t,sub])=>{ const on=pitch===v; return (
+                    <button key={v} onClick={()=>setPitch(v)} aria-pressed={on}
+                      style={{textAlign:"left",font:"inherit",cursor:"pointer",padding:"11px 13px",borderRadius:11,minWidth:0,
+                        border:`1px solid ${on?C.gold+"88":C.border}`,background:on?"rgba(200,168,75,0.10)":"rgba(255,255,255,.03)"}}>
+                      <span style={{display:"block",fontSize:13.5,fontWeight:800,color:on?C.gold:C.text}}>{t}</span>
+                      <span style={{display:"block",fontSize:11,color:C.textMuted,lineHeight:1.45,marginTop:3}}>{sub}</span>
+                    </button>); })}
+                </div>
+              </div>
               <div>
                 <div style={lbl}>Industry / niche *</div>
                 {/* 🔴 NOT A NATIVE <select>. Bryson reported the identical bug on the client sheet
@@ -6584,17 +6645,18 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               </div>
 
               <button onClick={()=>setShowAdv(v=>!v)} style={{background:"none",border:"none",color:C.textDim,fontSize:11.5,fontWeight:700,cursor:"pointer",padding:"2px 0",textAlign:"left"}}>
-                {showAdv?"− Hide filters":"+ Narrow it down (website, ads, size)"}
+                {showAdv?"− Hide filters":pitch==="website"?"+ Narrow it down (ads, size)":"+ Narrow it down (website, ads, size)"}
               </button>
               {showAdv&&(
                 <div style={{display:"flex",flexDirection:"column",gap:12,padding:"12px 13px",borderRadius:11,background:C.bg3,border:`1px solid ${C.border}`}}>
+                  {pitch!=="website"&&(
                   <div>
                     <div style={lbl}>Website</div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                       {[["any","Doesn't matter"],["none","No / weak site (easy sell)"],["has","Has a real site"]].map(([v,t])=>
                         <button key={v} onClick={()=>setFilters(f=>({...f,websiteState:v}))} style={chipBtn(filters.websiteState===v)}>{t}</button>)}
                     </div>
-                  </div>
+                  </div>)}
                   <div>
                     <div style={lbl}>Currently advertising</div>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -6619,10 +6681,12 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               <button onClick={run} disabled={runState==="running"}
                 style={{width:"100%",padding:"12px",fontSize:14,fontWeight:800,borderRadius:11,border:"none",
                   background:runState==="running"?"rgba(255,255,255,.06)":C.gradB,color:runState==="running"?C.textMuted:"#1a1400",cursor:runState==="running"?"default":"pointer"}}>
-                {runState==="running"?"Scouting…":"🔎 Find prospects"}
+                {runState==="running"?"Scouting…":pitch==="website"?"🔎 Find website prospects":"🔎 Find prospects"}
               </button>
               <div style={{fontSize:10.5,color:C.textMuted,lineHeight:1.5,textAlign:"center"}}>
-                A run does live web research on every business it finds — expect 2–6 minutes and a few cents to about a dollar of API usage depending on how many you ask for.
+                {pitch==="website"
+                  ? "Every website is checked first, for free. Only the businesses with no website or a weak one get researched, so you never pay to look into one whose site is already fine. Expect 2 to 6 minutes."
+                  : "A run does live web research on every business it finds — expect 2–6 minutes and a few cents to about a dollar of API usage depending on how many you ask for."}
               </div>
               {msg&&<div style={{fontSize:12,color:runState==="error"?C.red:C.textDim,lineHeight:1.5,textAlign:"center"}}>{msg}</div>}
             </div>
@@ -6656,7 +6720,7 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                 <div style={{fontSize:13,color:C.text,fontWeight:700}}>{runResult.message}</div>
                 {stats&&(
                   <div style={{fontSize:10.5,color:C.textMuted,marginLeft:"auto"}}>
-                    {stats.found} found · {stats.duplicates||0} already on your list · {stats.outOfArea||0} outside your areas
+                    {stats.found} found · {stats.duplicates||0} already on your list · {stats.outOfArea||0} outside your areas{stats.goodSite?` · ${stats.goodSite} already had a good website`:""}
                   </div>)}
               </div>
               {runResult.coverageNote&&<div style={{fontSize:11,color:C.textMuted,lineHeight:1.5,marginBottom:12}}>{runResult.coverageNote}</div>}
@@ -6738,6 +6802,14 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
                 </select>
               </div>
               <div style={{flex:"1 1 140px",minWidth:0}}>
+                <div style={lbl}>Selling</div>
+                <select value={lf.pitch} onChange={e=>setLf(f=>({...f,pitch:e.target.value}))} style={{...inp,cursor:"pointer"}}>
+                  <option value="">Everything</option>
+                  <option value="ads">Ads</option>
+                  <option value="website">Websites</option>
+                </select>
+              </div>
+              <div style={{flex:"1 1 140px",minWidth:0}}>
                 <div style={lbl}>Status</div>
                 <select value={lf.status} onChange={e=>setLf(f=>({...f,status:e.target.value}))} style={{...inp,cursor:"pointer"}}>
                   <option value="">All</option>
@@ -6749,8 +6821,8 @@ function LeadScoutScreen({onBack,isDesktop,onDealPrep}){
               <span style={{fontSize:10.5,fontWeight:700,color:C.textMuted,textTransform:"uppercase",letterSpacing:".05em"}}>Min score</span>
               {[0,42,62,80].map(v=><button key={v} onClick={()=>setLf(f=>({...f,minScore:v}))} style={chipBtn(lf.minScore===v)}>{v===0?"Any":v+"+"}</button>)}
               <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-                <button onClick={recheckAds} disabled={recheck==="working"} title="Re-reads every saved prospect's website for ad tracking tags and their Instagram link. Free, no AI, no credits."
-                  style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:recheck==="working"?C.textMuted:C.textDim,cursor:recheck==="working"?"default":"pointer"}}>{recheck==="working"?"Checking…":"Re-check ads + Instagram"}</button>
+                <button onClick={recheckAds} disabled={recheck==="working"} title="Re-reads every saved prospect's website: what's wrong with it, its ad tracking tags and its Instagram link. Free, no AI, no credits."
+                  style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:recheck==="working"?C.textMuted:C.textDim,cursor:recheck==="working"?"default":"pointer"}}>{recheck==="working"?"Checking…":"Re-check websites, ads + Instagram"}</button>
                 <button onClick={loadList} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:C.textDim,cursor:"pointer"}}>Refresh</button>
                 <button onClick={exportCSV} disabled={!list.length} style={{padding:"7px 12px",fontSize:11.5,fontWeight:700,borderRadius:9,border:`1px solid ${C.border}`,background:"rgba(255,255,255,.04)",color:list.length?C.textDim:C.textMuted,cursor:list.length?"pointer":"default"}}>Export CSV</button>
               </div>
@@ -7078,6 +7150,12 @@ const OUT_ROLE_RANK=["owner_mobile","owner_line","mobile","direct","small_main",
 // silence rather than a guess. Anything unconfirmed becomes a QUESTION to ask, which on a cold call
 // is stronger anyway — he cannot be caught out on a question.
 const OUT_WEAK_SITE=["none","poor","dated"];
+// Ads, a website or both: what he is selling this company (KB `website-prospects`). Mirrors
+// netlify/lib/pitch.mjs. Everything found before this existed came from the ads search, so an unlabelled
+// company counts as ads, and "both" shows under either filter.
+const OUT_PITCHES=[{id:"ads",label:"Ads"},{id:"website",label:"Website"},{id:"both",label:"Both"}];
+const outPitchOf=(p)=>{ const v=String((p&&p.data&&p.data.pitch)||""); return ["ads","website","both"].includes(v)?v:"ads"; };
+const outMatchesPitch=(p,f)=>{ if(!f) return true; const v=outPitchOf(p); return v===f||v==="both"; };
 const OUT_MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
 const outLastSeenMonth=(iso)=>{ const t=Date.parse(String(iso||"")); if(!Number.isFinite(t)) return "";
   const dt=new Date(t); return `${OUT_MONTHS[dt.getUTCMonth()]} ${dt.getUTCFullYear()}`; };
@@ -7090,6 +7168,16 @@ const outPainPoints=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const o
   const g=String(d.googleAds||"unknown"), site=String(d.websiteQuality||"unknown");
   const rating=Number(d.rating)||0, reviews=Math.max(0,Math.round(Number(d.reviewCount)||0));
   const years=outYearsTrading(prospect), weakSite=OUT_WEAK_SITE.includes(site), advertising=g==="yes";
+  // What the free website check SAW (KB `website-prospects`). Leads when the website is what he is selling.
+  const sc=d.siteCheck&&typeof d.siteCheck==="object"?d.siteCheck:null, siteFirst=outPitchOf(prospect)!=="ads";
+  let siteSaid=false;
+  if(sc&&sc.state==="none"&&sc.reason){ siteSaid=true; out.push({id:"no_website",strength:siteFirst?0:3,line:`${sc.reason}.`,
+    ask:"When somebody hears about you and looks you up, what do they find?"}); }
+  else if(sc&&sc.state==="broken"&&sc.reason){ siteSaid=true; out.push({id:"site_down",strength:siteFirst?0:1,line:`${sc.reason}, so anyone who clicks through from Google hits a dead end.`,
+    ask:"Have you looked at your website lately? It isn't coming up for me."}); }
+  else if(sc&&sc.state==="weak"){ const probs=(Array.isArray(sc.problems)?sc.problems:[]).filter(x=>x&&x.says).slice(0,2);
+    if(probs.length){ siteSaid=true; out.push({id:"site_problems",strength:siteFirst?0:3,line:`Their website ${probs.map(x=>x.says).join(" and ")}.`,
+      ask:"When did you last pull up your own website on your phone?"}); } }
   if(g==="likely") out.push({id:"tag_no_campaign",strength:1,
     line:"Their site has ad tracking on it but no paid results are showing, so somebody set this up and it stopped.",
     ask:"Were you running Google ads at some point? What happened with it?"});
@@ -7103,7 +7191,7 @@ const outPainPoints=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const o
   if(advertising&&weakSite) out.push({id:"paying_for_weak_page",strength:1,
     line:"They are paying for clicks that land on a page built to describe the company rather than to book the job.",
     ask:"When someone clicks one of your ads, where do they land and what do you want them to do there?"});
-  else if(weakSite) out.push({id:"weak_site",strength:3,
+  else if(weakSite&&!siteSaid) out.push({id:"weak_site",strength:3,
     line:"Their site will not convert somebody who is ready to buy today.",
     ask:"When someone lands on your site ready to go, what are they supposed to do next?"});
   if(rating>=4.5&&reviews>=25) out.push({id:"reputation_unused",strength:2,
@@ -7168,7 +7256,13 @@ const outFacts=(prospect)=>{ const d=(prospect&&prospect.data)||{}; const out=[]
   const size=[staff!==null?`about ${staff} staff`:(emp?emp+" staff":""), d.revenueEstimate?`revenue ${d.revenueEstimate}`:""].filter(Boolean).join(", ");
   if(size) out.push({label:"Size",value:size});
   if(d.ownerName) out.push({label:"Owner",value:String(d.ownerName)+(d.ownerTitle?` (${d.ownerTitle})`:"")});
-  if(OUT_SITE_FACT[d.websiteQuality]) out.push({label:"Website",value:OUT_SITE_FACT[d.websiteQuality]});
+  // What the free website check saw beats a one-word opinion. Nothing is said for a site nobody checked.
+  const sc=d.siteCheck&&typeof d.siteCheck==="object"?d.siteCheck:null, probs=sc&&Array.isArray(sc.problems)?sc.problems.filter(x=>x&&x.label):[];
+  const site=sc&&(sc.state==="none"||sc.state==="broken")&&sc.reason?sc.reason
+    :sc&&sc.state==="weak"&&probs.length?"Needs work: "+probs.slice(0,3).map(x=>x.label.charAt(0).toLowerCase()+x.label.slice(1)).join(", ")
+    :sc&&sc.state==="ok"?"Passed the checks (works on phones, has a padlock)"
+    :OUT_SITE_FACT[d.websiteQuality]||"";
+  if(site) out.push({label:"Website",value:site});
   const svc=(Array.isArray(d.services)?d.services:[]).filter(Boolean).slice(0,5);
   if(svc.length) out.push({label:"Services",value:svc.join(", ")});
   return out; };
@@ -7255,6 +7349,12 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   const [adCheck,setAdCheck]=useState({id:null,busy:false,msg:""});
   const [igEdit,setIgEdit]=useState({id:null,text:"",busy:false,msg:""});
   const [histById,setHistById]=useState({});     // full history per company, fetched when it comes on screen
+  // What he is calling about: everyone, ads, or websites (KB `website-prospects`). Remembered on this
+  // device only, as a convenience; the label itself lives on each company.
+  const [pitchF,setPitchF]=useState(()=>{ try{ const v=localStorage.getItem("bl-outreach-pitch")||""; return ["ads","website"].includes(v)?v:""; }catch(e){ return ""; } });
+  const [pitchCounts,setPitchCounts]=useState(null);
+  const [pitchBusy,setPitchBusy]=useState("");
+  const [addPitch,setAddPitch]=useState("");
   // Power Hour session: counted from the outcomes logged on THIS screen since it opened.
   const [ph,setPh]=useState({running:false,secs:0,calls:0,talks:0,booked:0,log:[]});
   const [callSecs,setCallSecs]=useState(0);
@@ -7277,13 +7377,14 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
     : "";
 
   const loadQueue=async()=>{ setLoading(true); setMsg("");
-    try{ const d=await api("action=queue&limit=200"); setQueue(d.queue||[]); setWaiting(d.waiting||0); setNextAt(d.nextAt||null); setI(0); }
+    try{ const d=await api("action=queue&limit=200"+(pitchF?"&pitch="+pitchF:"")); setQueue(d.queue||[]); setWaiting(d.waiting||0); setNextAt(d.nextAt||null); setPitchCounts(d.counts||null); setI(0); }
     catch(e){ setMsg(setupMsg(e.message)||e.message); }
     setLoading(false); };
   const loadTouches=async()=>{ try{ const d=await api("action=touches&days=30"); setTouches(d.touches||[]); }catch(e){ if(!msg) setMsg(setupMsg(e.message)||e.message); } };
   // The saved call script is no longer shown (facts replaced it, 2026-09-28). It stays stored on the
   // server untouched, so nothing he wrote is lost if it ever comes back.
-  useEffect(()=>{ loadQueue(); loadTouches(); },[]);
+  useEffect(()=>{ loadTouches(); },[]);
+  useEffect(()=>{ loadQueue(); try{ localStorage.setItem("bl-outreach-pitch",pitchF); }catch(e){} },[pitchF]);
 
   const cur = queue[i] || null;
   const d   = (cur&&cur.data)||{};
@@ -7404,6 +7505,23 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
   };
   const emails = Array.isArray(d.emails)?d.emails:[];
 
+  // Ads, website or both, set on the company in front of him. Shown at once and put back if the save
+  // fails, so the label on screen is never one the server does not have.
+  const setPitch=async(v)=>{
+    if(!cur||pitchBusy||outPitchOf(cur)===v) return;
+    const id=cur.id, before=cur.data||{}, was={data:before}, now={data:{pitch:v}};
+    setPitchBusy(id);
+    setQueue(q=>q.map(x=>x.id===id?{...x,data:{...(x.data||{}),pitch:v}}:x));
+    try{
+      const r=await api("action=pitch&id="+encodeURIComponent(id),{method:"POST",body:JSON.stringify({pitch:v})});
+      setQueue(q=>q.map(x=>x.id===id?{...x,data:r.data}:x));
+      setPitchCounts(c=>c?{...c,
+        ads:c.ads-(outMatchesPitch(was,"ads")?1:0)+(outMatchesPitch(now,"ads")?1:0),
+        website:c.website-(outMatchesPitch(was,"website")?1:0)+(outMatchesPitch(now,"website")?1:0)}:c);
+    }catch(e){ setQueue(q=>q.map(x=>x.id===id?{...x,data:before}:x)); setMsg("That label didn't save: "+e.message); }
+    setPitchBusy("");
+  };
+
   // 🔴 ONE TAP LOGS AND ADVANCES. Anything that needs more (a time, a confirmation) opens a small
   // panel first rather than logging something half-specified.
   const choose=(o)=>{
@@ -7462,7 +7580,7 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
     if(adding) return;
     setAdding(true); setAddErr(""); setAddMsg("");
     try{
-      const d=await api("action=add",{method:"POST",body:JSON.stringify(addForm)});
+      const d=await api("action=add",{method:"POST",body:JSON.stringify({...addForm,pitch:addPitch})});
       // 🔴 THE FORM STAYS OPEN AND EMPTIES ITSELF. Referrals arrive in threes, and closing it
       // would take the confirmation down with it, so the one thing he wants to see would be the
       // thing that vanishes.
@@ -7506,6 +7624,15 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
         <button onClick={()=>{setTab("messages"); if(channel==="call"){setChannel("email");setDrafts(null);}}} style={chip(tab==="messages")}>Messages</button>
         <button onClick={()=>setTab("numbers")} style={chip(tab==="numbers")}>Numbers</button>
       </div>
+
+      {/* What he is calling about (Bryson, 2026-10-12: "categorize them in outreach if I want to"). The
+          counts are of everyone due, so they stay meaningful whichever one is picked. */}
+      {tab!=="numbers"&&(
+        <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+          <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginRight:2}}>Selling</span>
+          {[["","Everything",pitchCounts&&pitchCounts.all],["ads","Ads",pitchCounts&&pitchCounts.ads],["website","Websites",pitchCounts&&pitchCounts.website]].map(([id,label,n])=>(
+            <button key={id||"all"} onClick={()=>{ if(pitchF!==id){ setPitchF(id); setPending(null); setDrafts(null); } }} style={chip(pitchF===id)}>{label}{typeof n==="number"?` (${n})`:""}</button>))}
+        </div>)}
 
       {msg&&<div style={{maxWidth:760,marginBottom:14,padding:"11px 13px",borderRadius:11,border:`1px solid ${C.amber}55`,background:C.amber+"12",color:C.amber,fontSize:12,lineHeight:1.6}}>{msg}</div>}
 
@@ -7579,6 +7706,11 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                       style={{width:"100%",boxSizing:"border-box",padding:"9px 11px",fontSize:13,borderRadius:9,border:`1px solid ${C.border}`,background:C.bg2,color:C.text,fontFamily:"inherit",resize:"vertical"}}/>
                   </div>
                 </div>
+                <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center",marginTop:11}}>
+                  <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginRight:2}}>Selling them</span>
+                  {OUT_PITCHES.map(x=>{ const on=(addPitch||"ads")===x.id; return (
+                    <button key={x.id} type="button" onClick={()=>setAddPitch(x.id)} aria-pressed={on} style={chip(on)}>{x.label}</button>); })}
+                </div>
                 {addErr&&<div style={{marginTop:10,fontSize:12,color:C.red,lineHeight:1.6}}>{addErr}</div>}
                 {addMsg&&<div style={{marginTop:10,fontSize:12,color:C.gold,lineHeight:1.6}}>{addMsg}</div>}
                 <button onClick={addCompany} disabled={adding||!addForm.name.trim()}
@@ -7603,6 +7735,8 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
               <div style={{fontSize:12,color:C.textMuted,lineHeight:1.65}}>
                 {waiting>0
                   ? <>{waiting} {waiting===1?"prospect is":"prospects are"} waiting on a follow up{nextAt?<>, the next on {fmt(nextAt)}</>:null}. That is the cadence working, not an empty list.</>
+                  : pitchF&&pitchCounts&&pitchCounts.all>0
+                  ? <>Nobody labelled {pitchF==="website"?"Website":"Ads"} is due right now. {pitchCounts.all} other {pitchCounts.all===1?"company is":"companies are"}: pick Everything above to see {pitchCounts.all===1?"it":"them"}.</>
                   : <>Your call list is empty or everyone on it has been worked through. Run a search in Lead Scout to fill it, or add one company by hand with the button above.</>}
               </div>
             </Card>
@@ -7650,6 +7784,15 @@ function OutreachScreen({onBack,isDesktop,onDealPrep}){
                   {history.length>6&&<div style={{fontSize:10.5,color:C.textMuted,marginTop:2}}>+ {history.length-6} older</div>}
                 </div>)}
 
+              {/* What he is selling this company. One tap to change it, and the facts and pain points
+                  below re-order around it at once. */}
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",marginBottom:10}}>
+                <span style={{fontSize:9.5,fontWeight:800,textTransform:"uppercase",letterSpacing:".05em",color:C.textMuted,marginRight:2}}>Selling them</span>
+                {OUT_PITCHES.map(x=>{ const on=outPitchOf(cur)===x.id; return (
+                  <button key={x.id} onClick={()=>setPitch(x.id)} disabled={!!pitchBusy} aria-pressed={on}
+                    style={{padding:"4px 11px",fontSize:11,fontWeight:700,borderRadius:999,cursor:on||pitchBusy?"default":"pointer",
+                      border:`1px solid ${on?C.gold:C.border}`,background:on?C.goldDim:"transparent",color:on?C.gold:C.textDim}}>{x.label}</button>); })}
+              </div>
               {/* Tap to dial or mail straight from the phone. 🔴 BEST BET FIRST AND LABELLED: three
                   bare numbers is three decisions per prospect, and the point of this screen is that
                   there are none. Every label is hedged because the research is a likelihood, not a

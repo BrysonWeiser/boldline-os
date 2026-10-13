@@ -20,6 +20,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { humanizeDeep } from "../lib/humanize.mjs";
+import { pitchOf } from "../lib/pitch.mjs";
 
 const MODELS = ["claude-sonnet-5", "claude-opus-4-8"];
 
@@ -58,7 +59,9 @@ const LENGTH = {
   text:  "Under 35 words, and it must read like a person typed it on a phone.",
 };
 
-const buildSystem = (channel) => `You write cold outreach for Bryson Weiser, who owns BoldLine Media. BoldLine plans, builds and runs Google and Meta ad campaigns for businesses, plus the landing pages behind them. The client keeps and pays for their own ad account; BoldLine never holds or fronts ad spend.
+const buildSystem = (channel) => `You write cold outreach for Bryson Weiser, who owns BoldLine Media. BoldLine plans, builds and runs Google and Meta ad campaigns for businesses, plus the landing pages behind them, and it builds websites. The client keeps and pays for their own ad account; BoldLine never holds or fronts ad spend.
+
+WHAT YOU ARE SELLING: the research says what Bryson is selling this business. If it is a new website, write about THEIR WEBSITE and what the website check found, and do not pitch ads. If it is both, lead with whichever problem the research shows most clearly. Never insult their website; say what you saw and why it costs them customers.
 
 You are writing a FIRST message to somebody who has never heard of him. ${LENGTH[channel] || LENGTH.email}
 
@@ -95,6 +98,14 @@ export const researchLines = (p, extra = {}) => {
   add("Google ads", d.googleAds === "no" && d.googleAdsLastSeen ? `ran Google ads until ${String(d.googleAdsLastSeen).slice(0, 7)} and stopped` : ads(d.googleAds));
   add("Facebook and Instagram ads", ads(d.metaAds));
   add("Website quality", ["none", "poor", "dated", "decent", "strong"].includes(d.websiteQuality) ? d.websiteQuality : "");
+  // What the free website check SAW on their homepage (KB `website-prospects`), and what he is selling them.
+  const sc = d.siteCheck && typeof d.siteCheck === "object" ? d.siteCheck : null;
+  add("Website check (BoldLine read their homepage)", !sc ? ""
+    : (sc.state === "none" || sc.state === "broken") ? sc.reason
+    : sc.state === "weak" ? (Array.isArray(sc.problems) ? sc.problems.map((x) => x && x.label).filter(Boolean).join("; ") : "")
+    : sc.state === "ok" ? "passed: works on phones, has a padlock, nothing obviously out of date" : "");
+  const pitch = pitchOf(p);
+  add("What Bryson is selling them", pitch === "website" ? "a new website (not ads)" : pitch === "both" ? "ads and a new website" : "");
   add("Services", Array.isArray(d.services) ? d.services.slice(0, 5).join(", ") : "");
   add("Marketing gaps our research found", Array.isArray(d.gaps) ? d.gaps.slice(0, 3).join("; ") : "");
   add("Research verdict", d.verdict);

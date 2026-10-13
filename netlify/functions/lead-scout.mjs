@@ -4,7 +4,7 @@
 //
 // GET  ?action=run&id=            -> one run's status + progress + result
 // GET  ?action=runs               -> the last 20 runs (for the history strip)
-// GET  ?action=prospects&...      -> the saved list, filterable (niche/area/status/minScore/q)
+// GET  ?action=prospects&...      -> the saved list, filterable (niche/area/status/minScore/q/pitch)
 // GET  ?action=facets             -> distinct niches + areas + status counts, for the filter UI
 // POST ?action=status&id=         -> { status, notes? } update one prospect
 // POST ?action=delete&id=         -> remove one prospect (frees its dedupe key)
@@ -13,6 +13,8 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
 import { providerStatus, inspectAdTech, adLibraryUrl, googleAdsRecord, combineAdsState } from "../lib/scout-providers.mjs";
+import { checkWebsite } from "../lib/site-check.mjs";
+import { cleanPitch, matchesPitch, pitchCounts } from "../lib/pitch.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -70,12 +72,15 @@ export default async (req) => {
     const minScore = Number(url.searchParams.get("minScore") || 0) || 0;
     const q = (url.searchParams.get("q") || "").trim();
     const limit = Math.max(1, Math.min(500, Number(url.searchParams.get("limit") || 200)));
+    // Ads / website / both lives inside each record, and the rows found before it existed carry no label
+    // (they count as ads), so it is filtered here in code, over a wider read, rather than in the query.
+    const pitch = cleanPitch(url.searchParams.get("pitch"));
 
     let query = supabase
       .from("scout_prospects")
       .select("id, run_id, name, domain, niche, area, score, tier, status, data, notes, created_at")
       .order("score", { ascending: false })
-      .limit(limit);
+      .limit(pitch ? 1000 : limit);
 
     if (niche) query = query.eq("niche", niche);
     if (area) query = query.eq("area", area);
@@ -86,7 +91,8 @@ export default async (req) => {
 
     const { data, error } = await query;
     if (error) return json({ ok: false, error: error.message }, 500);
-    return json({ ok: true, prospects: data || [] });
+    const rows = data || [];
+    return json({ ok: true, prospects: pitch ? rows.filter((r) => matchesPitch(r, pitch)).slice(0, limit) : rows, counts: pitchCounts(rows) });
   }
 
   // ── Filter options, computed server-side so the UI never guesses ───────────
@@ -146,13 +152,19 @@ export default async (req) => {
   // and re-running the full research just to fix that would have cost real money.
   if (action === "recheck-ads") {
     if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
-    let q = supabase.from("scout_prospects").select("id, name, data").limit(300);
-    if (id) q = q.eq("id", id);
+    // 🔴 IN SMALL PAGES. A function here gets about ten seconds, and reading 300 websites does not fit in
+    // that, so the screen asks for a few at a time (`offset` + `limit`) and keeps going until a page comes
+    // back short. Each row is saved the moment it is read, so a page that runs out of time still keeps
+    // what it finished.
+    const offset = Math.max(0, Number(url.searchParams.get("offset") || 0) || 0);
+    const pageSize = Math.max(1, Math.min(300, Number(url.searchParams.get("limit") || 300) || 300));
+    let q = supabase.from("scout_prospects").select("id, name, data").order("created_at", { ascending: true }).range(offset, offset + pageSize - 1);
+    if (id) q = supabase.from("scout_prospects").select("id, name, data").eq("id", id).limit(1);
     const { data, error } = await q;
     if (error) return json({ ok: false, error: error.message }, 500);
 
     const rows = data || [];
-    let updated = 0, found = 0, withIg = 0;
+    let updated = 0, found = 0, withIg = 0, needSite = 0;
     // 🔴 GOOGLE'S AD RECORD ONLY FOR ONE PROSPECT AT A TIME. Each lookup spends one of the free
     // plan's 250 monthly searches, and a bulk re-check of 300 rows would spend the whole month in
     // one tap. The bulk path stays on the free website-tag read; the Outreach card's button checks
@@ -166,11 +178,18 @@ export default async (req) => {
         const row = queue.shift();
         const d = row.data || {};
         const site = d.websiteRaw || d.website || row.domain || "";
-        const [tech, rec] = await Promise.all([
+        // The free website check rides along, so the whole existing list learns what is wrong with each
+        // website without a research credit being spent. Only a Google listing's own link is trusted to be
+        // their address (see checkWebsite).
+        const fromPlaces = Array.isArray(d.verifiedBy) && d.verifiedBy.includes("Google Places");
+        const [tech, rec, siteCheck] = await Promise.all([
           inspectAdTech(site).catch(() => null),
           useRecord ? googleAdsRecord(site).catch((e) => ({ state: "unknown", lastShown: "", adCount: 0, note: `Google ad record check failed: ${e && e.message}` })) : Promise.resolve(null),
+          // A hand-added company with no website on file has nothing to read, and no listing to say so.
+          site ? checkWebsite(site, { from: fromPlaces ? "places" : "research", timeoutMs: id ? 8000 : 6000 }).catch(() => null)
+            : fromPlaces ? checkWebsite("", { from: "places" }).catch(() => null) : Promise.resolve(null),
         ]);
-        if (!tech && !rec) continue;
+        if (!tech && !rec && !siteCheck) continue;
         // 🔴 A stored Google answer is only replaced by a NEW Google answer. An earlier "no" from the
         // AI research is weaker than a tag, so it is not carried forward as if it were the record.
         const prevRec = d.googleAdsCheckedAt ? { state: d.googleAds, lastShown: d.googleAdsLastSeen || "" } : null;
@@ -187,19 +206,23 @@ export default async (req) => {
           // existing list gets handles without spending a single research credit. Never overwrites one
           // Bryson typed in himself.
           instagram: d.instagram || (tech && tech.instagram) || "",
+          // A fresh reading replaces the old one, except that "couldn't read it this time" never wipes out
+          // something an earlier check actually saw.
+          siteCheck: siteCheck && !(siteCheck.state === "unknown" && d.siteCheck && d.siteCheck.state !== "unknown") ? siteCheck : (d.siteCheck || null),
           adsEvidence: [String(d.adsEvidence || "").replace(/\s*·?\s*Site tags:.*$/, "").trim(),
             (tech && tech.reachable && tech.evidence.length) ? `Site tags: ${tech.evidence.join("; ")}` : ""].filter(Boolean).join(" · "),
         };
         if (next.googleAds === "likely" || next.metaAds === "likely") found++;
         if (next.instagram) withIg++;
+        if (next.siteCheck && ["none", "broken", "weak"].includes(next.siteCheck.state)) needSite++;
         const { error: upErr } = await supabase.from("scout_prospects")
           .update({ data: next, updated_at: new Date().toISOString() }).eq("id", row.id);
         if (!upErr) updated++;
         if (useRecord) single = { data: next, googleRecord: rec };
       }
     };
-    await Promise.all(Array.from({ length: Math.min(6, rows.length) }, worker));
-    return json({ ok: true, checked: rows.length, updated, found, instagram: withIg, ...(single ? { prospect: single } : {}) });
+    await Promise.all(Array.from({ length: Math.min(8, rows.length) }, worker));
+    return json({ ok: true, checked: rows.length, updated, found, instagram: withIg, needSite, ...(single ? { prospect: single } : {}) });
   }
 
   if (action === "delete-run") {
