@@ -1020,7 +1020,7 @@ function contactBody(theme, cl, C, base) {
   const phone = (cl && (cl.businessPhone || cl.callTrackingNumber)) || "";
   const email = String((cl && cl.website && cl.website.publicEmail) || "").trim();
   const addr = String((cl && cl.businessAddress) || "").trim();
-  const hours = clean(cl && cl.website && cl.website.hours, 160);
+  const hours = clean((cl && cl.website && cl.website.hours) || (cl && cl.websiteIntake && cl.websiteIntake.hours), 160);
   const map = addr ? `<iframe class="map rv" loading="lazy" title="Map" referrerpolicy="no-referrer-when-downgrade" src="https://www.google.com/maps?q=${encodeURIComponent(addr)}&amp;output=embed"></iframe>` : "";
   return `${pageHero(theme, C.cta.headline, C.cta.sub, "Contact")}
 <section class="sec" style="padding-top:20px"><div class="wrap split" style="align-items:start">

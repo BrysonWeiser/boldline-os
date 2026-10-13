@@ -3,6 +3,7 @@ import { makeContractHTML, resultWords, contractFeatureIds } from "../lib/contra
 import { withLambda } from "../lib/lambda-adapter.mjs";
 import { stripe, ensureCustomer } from "../lib/stripe-shared.mjs";
 import { websitePortalHTML, WEBSITE_PORTAL_JS, hasWebsite } from "../lib/portal-website.mjs";
+import { cleanIntake, needsStatus } from "../lib/website-needs.mjs";
 import { summarize } from "../lib/site-stats.mjs";
 import { supabaseStore, loadIndex, loadPost, setHeld, applyEdit } from "../lib/site-blog.mjs";
 import { termsOf, websiteAgreementHTML, dealOf, isSigned, agreementLive, tierIncludes, buildTotal, monthlyTotal } from "../lib/website-deal.mjs";
@@ -917,6 +918,26 @@ const handler = async (event) => {
         if (ue) return { statusCode: 500, body: JSON.stringify({ ok: false, error: "That did not save. Please try again." }) };
         try { await dispatchAlert({ severity: "blue", title: `${cur.name || "A client"} asked for a website change`, body: text, smsText: `${cur.name || "A client"} asked for a website change.` }); } catch {}
         return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+      }
+
+      // "What we need from you" answers (Website tab, KB website-needs). Merged over what is there, so saving one
+      // box never wipes another; Bryson is told only when something actually changed.
+      if (body.websiteIntake && typeof body.websiteIntake === "object") {
+        const cur = data.data || {};
+        if (!hasWebsite(cur)) return { statusCode: 403, body: JSON.stringify({ ok: false, error: "Your plan does not include a website." }) };
+        const at = new Date();
+        const { intake, changed } = cleanIntake(body.websiteIntake, cur.websiteIntake, at.toISOString());
+        let next = cur;
+        if (changed) {
+          next = { ...cur, websiteIntake: intake,
+            commLog: [{ date: at.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Phoenix" }), note: "Sent website details in the portal (What we need from you).", cat: "website", ts: at.getTime() }, ...(cur.commLog || [])] };
+          const { error: ue } = await supabaseAdmin.from("clients").update({ data: next, updated_at: at.toISOString() }).eq("id", data.id);
+          if (ue) return { statusCode: 500, body: JSON.stringify({ ok: false, error: "That did not save. Please try again." }) };
+          const ns0 = needsStatus(next);
+          try { await dispatchAlert({ severity: "blue", title: `${cur.name || "A client"} sent website details`, body: `${ns0.done} of ${ns0.total} things we need are in. Open their Website tab to see them.`, smsText: `${cur.name || "A client"} sent website details (${ns0.done} of ${ns0.total}).` }); } catch {}
+        }
+        const ns = needsStatus(next);
+        return { statusCode: 200, body: JSON.stringify({ ok: true, done: ns.done, total: ns.total, needs: Object.fromEntries(ns.items.map((i) => [i.id, i.isDone])) }) };
       }
 
       // Approval decision from the portal (client Approves / Requests Changes on an

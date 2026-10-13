@@ -10700,7 +10700,7 @@ function BlogCard({client}){
 
 // ─── Website deal (mirror of netlify/lib/website-deal.mjs; pinned by tests/verify-website-deal.mjs) ───
 // The OS only READS cl.websiteDeal; the server owns it (SERVER_OWNED_KEYS). WD-MIRROR-START
-const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","payConnect","payLog"];   // emails: KB business-emails; siteAiJob: KB site-editor; pay*: KB payments-connect
+const SERVER_OWNED_KEYS=["websiteDeal","emailSenderStatus","customerEmailLog","emailOptOut","siteAiJob","websiteIntake","payConnect","payLog"];   // emails: KB business-emails; siteAiJob: KB site-editor; websiteIntake: KB website-needs (the client writes it in the portal); pay*: KB payments-connect
 // Mirror of WEBSITE_OFFER in netlify/lib/pricing-shared.mjs (pinned by tests/verify-website-deal.mjs).
 const WEBSITE_OFFER={build:1500,care:100,pages:5,carePlanEdits:2,revisionRounds:2,extraPage:200,blogSetup:300,blogMonthly:150,blogPostsPerMonth:4,emailSetup:99,hosting:25};
 const WD_DEFAULTS={price:WEBSITE_OFFER.build,plan:"full",care:WEBSITE_OFFER.care};
@@ -10764,6 +10764,67 @@ const wdFmt=(iso)=>{ try{ return new Date(iso).toLocaleDateString("en-US",{month
 // The deal card on the Website tab: price and plan, the agreement, the payments. Every button here goes
 // through the website-deal function; nothing on this card writes the client record itself.
 // Their own web address: set it, give their web person the records, check it, and see when it's live.
+// ─── "What we need from you" (KB website-needs) ────────────────────────────────────────────────────
+// Bryson, 2026-10-13: "build the what i need from you list so i can ask for it on a call and also have it in the
+// website client portal". The same list the client sees in their portal, so a call and the portal can never
+// ask for different things. WN-MIRROR of netlify/lib/website-needs.mjs (verify-website-needs runs both).
+// WN-MIRROR-START
+const WN_S=(v)=>String(v==null?"":v).trim();
+const wnIntake=(cl)=>((cl&&cl.websiteIntake&&typeof cl.websiteIntake==="object")?cl.websiteIntake:{});
+const wnPhotos=(cl)=>((cl&&cl.mediaLibrary)||[]).filter(m=>m&&m.category==="photo").length;
+const WN_NEEDS=[
+  {id:"logo",title:"Your logo",where:"photos",ask:"Do you have a logo? Send me the best file you've got. A PNG with no background is perfect.",tip:"It goes at the top of every page. No logo yet? We'll set your business name in a clean typeface instead.",done:(cl)=>((cl&&cl.mediaLibrary)||[]).some(m=>m&&m.category==="logo")},
+  {id:"photos",title:"5 to 10 photos of your work",where:"photos",ask:"Can you send me 5 to 10 photos of real jobs? Before and afters, you and your team, your truck or shop.",tip:"Real photos win more customers than stock ones. Phone photos are fine. Until yours arrive, we use stock photos.",done:(cl)=>wnPhotos(cl)>=5,progress:(cl)=>`${Math.min(wnPhotos(cl),10)} of 5 sent`},
+  {id:"services",title:"Your services and prices",field:"services",ask:"Walk me through what you offer, and roughly what each one costs or starts at.",tip:"List each service, with a price or a starting price if you're happy to show one.",done:(cl)=>!!(WN_S(wnIntake(cl).services)||WN_S(cl&&cl.services)||WN_S(((cl&&cl.campaignSetup)||{}).services))},
+  {id:"different",title:"What makes you different",field:"different",ask:"Why do customers pick you over the other guys? And how did you get started?",tip:"A few lines in your own words. This becomes your About page, so the more it sounds like you, the better.",done:(cl)=>!!(WN_S(wnIntake(cl).different)||WN_S(((cl&&cl.brandVoice)||{}).differentiator))},
+  {id:"area",title:"Where you work",field:"area",ask:"Which towns or areas do you cover?",tip:"The towns or areas you serve, so the right customers find you.",done:(cl)=>!!(WN_S(wnIntake(cl).area)||WN_S(((cl&&cl.campaignSetup)||{}).serviceArea)||WN_S(((cl&&cl.campaignSetup)||{}).targetLocations))},
+  {id:"hours",title:"Your hours",field:"hours",ask:"What are your hours?",tip:"When customers can reach you.",done:(cl)=>!!(WN_S(wnIntake(cl).hours)||WN_S(((cl&&cl.website)||{}).hours)||(cl&&cl.booking&&cl.booking.on))},
+  {id:"contact",title:"Phone and email for the website",where:"info",ask:"Which phone number and email should customers use?",tip:"The number and email customers will see on your website.",done:(cl)=>!!(WN_S(cl&&cl.businessPhone)&&WN_S(cl&&cl.email))},
+  {id:"reviews",title:"Your reviews",field:"reviews",ask:"Can you send me your Google reviews link, or paste in 3 to 5 of your best reviews?",tip:"Your Google reviews link, or paste 3 to 5 of your favourite reviews with the customer's first name.",done:(cl)=>!!(WN_S(wnIntake(cl).reviews)||(((cl&&cl.website)||{}).reviews||[]).length||WN_S(cl&&cl.googleReviewUrl))},
+  {id:"domain",title:"Your web address",field:"domain",ask:"Do you already own a web address, like yourbusiness.com? If not, I'll send you how to get one. It takes five minutes.",tip:"If you already own one, type it here. Don't have one? Type \"none\" and we'll send you a 5 minute guide to get one in your own name.",done:(cl)=>!!(WN_S(wnIntake(cl).domain)||WN_S((((cl&&cl.websiteDeal)||{}).domain||{}).host))},
+  {id:"likes",title:"Websites you like",field:"likes",optional:true,ask:"Any websites you like the look of? Even a competitor's.",tip:"Optional. Links to any websites you like the look of, even a competitor's.",done:(cl)=>!!WN_S(wnIntake(cl).likes)},
+];
+const wnStatus=(cl)=>{ const items=WN_NEEDS.map(n=>({...n,isDone:!!n.done(cl),note:n.progress?n.progress(cl):""})); const req=items.filter(i=>!i.optional);
+  return {items,done:req.filter(i=>i.isDone).length,total:req.length,complete:req.every(i=>i.isDone)}; };
+const wnMessage=(cl,opts)=>{ const portalUrl=(opts&&opts.portalUrl)||""; const first=WN_S((cl&&(cl.contactName||cl.name))||"").split(/\s+/)[0]||"there";
+  const missing=wnStatus(cl).items.filter(i=>!i.isDone&&!i.optional);
+  if(!missing.length) return `Hi ${first}, thanks for sending everything over. We have all we need to build your website.`;
+  const lines=missing.map((i,k)=>`${k+1}. ${i.title}: ${i.tip}`);
+  return `Hi ${first}, here's what I need from you to build your website:\n\n${lines.join("\n")}\n\n`
+    +(portalUrl?`The easiest way is your client portal, Website tab: ${portalUrl}\nEach one ticks off as you send it. `:"")
+    +"Or just reply here with whatever you have. Photos can come straight from your phone."; };
+// WN-MIRROR-END
+function WebsiteNeedsCard({client}){
+  const [msg,setMsg]=useState(""); const [open,setOpen]=useState(null);
+  const shown=!client.internal&&(wdAgreementLive(client)||isWebsiteOnly(client))&&!(client.website&&client.website.published&&wdDeal(client).launchedAt);
+  if(!shown) return null;
+  const ns=wnStatus(client), wi=wnIntake(client);
+  const portalUrl=client.portalToken?`${window.location.origin}/portal?token=${client.portalToken}`:"";
+  const copy=async()=>{ const t=wnMessage(client,{portalUrl}); try{ await navigator.clipboard.writeText(t); setMsg("✓ Copied. Paste it into a text or email to them."); }catch(e){ setMsg(t); } };
+  const pct=Math.round(ns.done/Math.max(1,ns.total)*100);
+  return (
+    <div style={card}>
+      <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+        <div style={{fontSize:15,fontWeight:800,color:C.text,marginRight:"auto"}}>What we need from them</div>
+        <span style={{fontSize:11,fontWeight:800,color:ns.complete?C.green:C.gold}}>{ns.done} of {ns.total} in</span>
+      </div>
+      <div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.6,marginBottom:9}}>Ask these on the call, or copy them as a message. The same list is in their portal, and each one ticks off by itself as they send it.</div>
+      <div style={{height:5,borderRadius:3,background:"rgba(255,255,255,.06)",overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:pct+"%",background:ns.complete?C.green:C.gold,borderRadius:3}}/></div>
+      {ns.items.map(i=>{ const ans=i.field?WN_S(wi[i.field]):""; const isOpen=open===i.id; return (
+        <div key={i.id} style={{display:"flex",gap:10,padding:"9px 0",borderTop:`1px solid ${C.border}`}}>
+          <span style={{flexShrink:0,width:20,height:20,borderRadius:"50%",display:"grid",placeItems:"center",fontSize:11,fontWeight:900,background:i.isDone?C.green:"transparent",border:i.isDone?"none":`2px solid ${C.border}`,color:"#07080C"}}>{i.isDone?"✓":""}</span>
+          <div style={{minWidth:0,flex:1}}>
+            <div style={{fontSize:12.5,fontWeight:700,color:i.isDone?C.textDim:C.text}}>{i.title}{i.optional&&<span style={{fontWeight:600,color:C.textMuted}}> (optional)</span>}{i.note&&!i.isDone&&<span style={{fontWeight:600,color:C.gold}}> · {i.note}</span>}</div>
+            {!i.isDone&&<div style={{fontSize:11.5,color:C.textMuted,lineHeight:1.55,marginTop:2}}>Ask: “{i.ask}”</div>}
+            {ans&&<button onClick={()=>setOpen(isOpen?null:i.id)} style={{marginTop:4,padding:0,border:"none",background:"none",color:C.gold,fontSize:11.5,fontWeight:700,cursor:"pointer"}}>{isOpen?"Hide what they sent":"See what they sent"}</button>}
+            {ans&&isOpen&&<div style={{marginTop:5,padding:"8px 10px",borderRadius:8,background:C.bg3,border:`1px solid ${C.border}`,fontSize:12,color:C.textDim,lineHeight:1.55,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{ans}</div>}
+          </div>
+        </div>); })}
+      <button onClick={copy} style={{marginTop:10,width:"100%",padding:"10px 14px",fontSize:12,fontWeight:700,borderRadius:9,border:"none",backgroundColor:C.gold,color:"#0a0800",cursor:"pointer"}}>{ns.complete?"Copy a thank-you message":"Copy what's missing as a message"}</button>
+      {msg&&<div style={{fontSize:11.5,color:msg[0]==="✓"?C.green:C.textDim,marginTop:8,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{msg}</div>}
+    </div>);
+}
+
 function SiteDomainCard({client,onUpdate}){
   const d=((client.websiteDeal)||{}).domain||null;
   const [val,setVal]=useState(""); const [busy,setBusy]=useState(""); const [msg,setMsg]=useState(""); const [nf,setNf]=useState(null); const [me,setMe]=useState("");
@@ -11391,6 +11452,7 @@ function WebsiteTab({client,onUpdate}){
   if(!content) return (
     <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:12}}>
     <WebsiteDealCard client={client} onUpdate={onUpdate}/>
+    <WebsiteNeedsCard client={client}/>
     <div style={card}>
       <div style={{fontSize:15,fontWeight:800,color:C.text,marginBottom:6}}>Website</div>
       <div style={{fontSize:12,color:C.textMuted,lineHeight:1.65,marginBottom:14}}>Build {client.name} a 5-page website (Home, Services, About, Reviews, Contact) from what's already on their record. It writes the words, picks background photos, and gives you three designs for the client to choose from. Nothing goes live until you say so.</div>
@@ -11436,6 +11498,7 @@ function WebsiteTab({client,onUpdate}){
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:12}}>
       <WebsiteDealCard client={client} onUpdate={onUpdate}/>
+    <WebsiteNeedsCard client={client}/>
       <div style={card}>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:8}}>
           <div style={{fontSize:15,fontWeight:800,color:C.text,marginRight:"auto"}}>Website</div>

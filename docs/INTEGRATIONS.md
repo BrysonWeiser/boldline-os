@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 224 task-keyed entries under `knowledge/`. They surface automatically via the
+> 225 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**224 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**225 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -789,6 +789,9 @@
 - **[service-add-ons](../knowledge/service-add-ons.md)** &mdash; &#9989; verified &middot; 2026-10-05  
   2026-10-05 a long-running car detailer told Bryson on a cold call that his agency charges $500/mo to run ads, plus extra for managing his Google Business Profile and his website. Recommendation given: do NOT become a menu agency (pay-for-results is the differentiator and the counter-pitch to a flat $500/mo); add only add-ons that produce leads and that the OS can mostly automate. Order: (1) Google Business Profile care, (2) review-request texts after a job, (3) website care for sites BoldLine built. Skip SEO retainers and social media management. Nothing built; offer them by hand first, build only once 2 or 3 clients pay for one.  
   <sub>*task:* decide whether to add services beyond ads and landing pages (Google Business Profile, website care, reviews, SEO, social), or price them against competitors &nbsp;|&nbsp; *keywords:* add-on, add-ons, upsell, google business profile, GBP, google maps, map pack, website management, website care, hosting, maintenance, review requests, reviews automation, SEO retainer, social media management, competitor pricing, what other agencies charge, car detailer, $500 a month</sub>
+- **[website-needs](../knowledge/website-needs.md)** &mdash; &#9989; verified &middot; 2026-10-13  
+  Built 2026-10-13 (Bryson - "build the what i need from you list so i can ask for it on a call and also have it in the website client portal"). ONE list of 10 items (9 required + optional "websites you like") used three ways - the OS card "What we need from them" on a website client's Website tab (call questions + "Copy what's missing as a message"), and the portal card "What we need from you" on the client's Website tab, where each item ticks itself off from the record. Written answers save to `websiteIntake` (server-owned in the OS) and feed the website builder; logo/photos link to Photos & Video, phone/email to Your Information. Bryson gets a blue alert when a client sends details. Shown until the site is live.  
+  <sub>*task:* collect what a new website client must send (logo, photos, services, story, area, hours, contact, reviews, web address), ask for it on a call, or change the website intake checklist in the portal or the OS &nbsp;|&nbsp; *keywords:* what we need from you, website intake, intake checklist, onboarding checklist, client checklist, website client onboarding, logo, photos, services and prices, about us, service area, hours, reviews, web address, domain, websites you like, websiteIntake, website-needs, needsStatus, WN_NEEDS, copy as a message, call questions</sub>
 
 ## Sales funnel
 
