@@ -8,6 +8,16 @@ summary: BoldLine's FIRST real client. SIGNED Sunday 2026-08-30. 🔴 SEBASTIAN 
 verified: 2026-09-22
 ---
 
+## 2026-10-12 (Mon 5:22pm Phoenix): Google paused his Ads account 924-850-6870 for advertiser verification
+Bryson forwarded Google's "[Account paused] Complete advertiser verification to run ads again" (sent to him as the
+manager-linked user). Advice given: nothing to do. No ad ever ran on it, the agreement is being closed out (notice
+planned 5 Oct, effective 4 Nov), and only Sebastian can verify: Google checks the ADVERTISER, i.e. his business's
+legal name and documents, and the account stays his and billed to him (CLAUDE.md hard constraint), so BoldLine must
+never verify it as the payer. Recommended not texting him about it now (reopens a thread he has ignored); if he comes
+back, verification is his first step (Google Ads > Admin > Advertiser verification, a few business days).
+Separate heads-up given: BoldLine's OWN Google Ads account will likely get the same request; it needs BoldLine Media
+LLC's documents (Articles of Organization, EIN letter) and his ID.
+
 ## 🔴 2026-10-05 (Mon, ~10:55am Phoenix) — HIS OWN WEEKEND DEADLINE PASSED: NOTICE GOES OUT TODAY
 
 Instead of the planned Thursday hold-or-close text, Bryson texted on **Saturday 3 Oct, 12:36am**:
