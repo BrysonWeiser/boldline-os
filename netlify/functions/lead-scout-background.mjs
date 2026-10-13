@@ -14,7 +14,10 @@
 //                   "finds and researches 20 businesses" reliably produces shallow, half-
 //                   invented records; small batches don't.
 //
-// POST body: { id, niche, nicheGroup, nicheKind, areas[], count, filters{}, notes }
+// POST body: { id, niche, nicheGroup, nicheKind, areas[], count, filters{}, notes, pitch }
+//   pitch = "ads" (the original search) or "website": businesses with no website or a weak one, checked
+//   for free BEFORE any paid research so a business whose site is already fine never costs a credit.
+//   KB `website-prospects`.
 //   id = a client-generated run id the OS also polls on.
 
 import { createClient } from "@supabase/supabase-js";
@@ -26,6 +29,7 @@ import {
 } from "../lib/scout-shared.mjs";
 import { assessAffordability, buildScore } from "../lib/scout-scoring.mjs";
 import { providerStatus, placesSearch, enrichFromProviders, combineAdsState } from "../lib/scout-providers.mjs";
+import { checkWebsite, siteNeed, siteRank } from "../lib/site-check.mjs";
 
 const anthropic = new Anthropic();
 const MODEL = "claude-opus-5";
@@ -136,7 +140,7 @@ const mergeContacts = (providerRows, aiRows, keyOf, cap) => {
 };
 
 const sanitize = (p, ctx) => {
-  const { verified = {}, providerPhones = [], providerEmails = [], nicheGroup = "", kind = "service", providerSources = [] } = ctx || {};
+  const { verified = {}, providerPhones = [], providerEmails = [], nicheGroup = "", kind = "service", providerSources = [], pitch = "ads", siteCheck = null } = ctx || {};
   const tri = (v) => (["yes", "likely", "no", "unknown"].includes(String(v)) ? String(v) : "unknown");
   // A tracking tag on their own site is real evidence, so it can upgrade an
   // "unknown" to "likely" — but it must never downgrade a confirmed sighting, and
@@ -238,7 +242,17 @@ const sanitize = (p, ctx) => {
     instagram: (verified.adTech && verified.adTech.instagram) || "",
     adTechNote: (verified.adTech && verified.adTech.note) || "",
     seoNote: clean(p.seo_note),
-    websiteQuality: ["none", "poor", "dated", "decent", "strong", "unknown"].includes(String(p.website_quality)) ? String(p.website_quality) : "unknown",
+    // The free website check beats the model wherever it SAW something: no site is "none", a dead one is
+    // "poor", and a real problem (no mobile layout, no padlock) cannot be called "decent".
+    websiteQuality: (() => {
+      const ai = ["none", "poor", "dated", "decent", "strong", "unknown"].includes(String(p.website_quality)) ? String(p.website_quality) : "unknown";
+      if (siteCheck && siteCheck.state === "none") return "none";
+      if (siteCheck && siteCheck.state === "broken") return "poor";
+      if (siteCheck && siteCheck.state === "weak" && (siteCheck.problems || []).some((x) => x.strong) && ["decent", "strong", "unknown", "none"].includes(ai)) return "dated";
+      return ai;
+    })(),
+    siteCheck: siteCheck || null,
+    pitch: pitch === "website" ? "website" : "ads",
     services: list(p.services, 6),
     gaps: list(p.gaps, 4),
 
@@ -253,8 +267,8 @@ const sanitize = (p, ctx) => {
   };
 
   // ── The money math + the score, computed here rather than guessed ────────
-  const aff = assessAffordability({ employeesEstimate: out.employeesEstimate, revenueEstimate: out.revenueEstimate, nicheGroup, kind });
-  const scored = buildScore(p.score_factors, aff);
+  const aff = assessAffordability({ employeesEstimate: out.employeesEstimate, revenueEstimate: out.revenueEstimate, nicheGroup, kind, pitch });
+  const scored = buildScore(p.score_factors, aff, pitch === "website" ? { site: siteNeed(siteCheck) } : {});
   out.affordability = aff;
   out.scoreFactors = scored.factors;
   out.scoreSubtotal = scored.subtotal;
@@ -263,8 +277,17 @@ const sanitize = (p, ctx) => {
   out.score = scored.score;
   out.tier = tierFor(scored.score).id;
 
+  // Website mode recommends a website, never an ads package, and never the Signature one to a business
+  // the math says can only carry the Standard.
+  if (pitch === "website") {
+    if (!["w-standard", "w-signature"].includes(out.recommendedPackageId)) out.recommendedPackageId = "w-standard";
+    if (out.recommendedPackageId === "w-signature" && aff.known && aff.affordableId !== "w-signature") {
+      out.packageDowngradedFrom = "w-signature";
+      out.recommendedPackageId = "w-standard";
+    }
+  }
   // Never let him pitch above what the math says they can carry.
-  if (aff.known && aff.affordableId && out.recommendedPackageId) {
+  else if (aff.known && aff.affordableId && out.recommendedPackageId) {
     const rec = PACKAGES.find((x) => x.id === out.recommendedPackageId);
     const afford = PACKAGES.find((x) => x.id === aff.affordableId);
     if (rec && afford && rec.price > afford.price) {
@@ -300,6 +323,8 @@ const pool = async (items, limit, worker) => {
 // ─── The run ─────────────────────────────────────────────────────────────────
 const doRun = async (supabase, id, input) => {
   const { niche, nicheGroup, nicheKind, areas, count, filters, notes } = input;
+  const pitch = input.pitch === "website" ? "website" : "ads";
+  const website = pitch === "website";
   const leadFee = getNicheLeadFee(niche);
   const setProgress = (progress) =>
     supabase.from("scout_runs").update({ progress, updated_at: new Date().toISOString() }).eq("id", id);
@@ -334,37 +359,78 @@ const doRun = async (supabase, id, input) => {
   }
 
   // AI discovery fills in when Places is off, can't be used (online brands have no
-  // storefront to find), or came back thin.
-  if (rawCandidates.length < count) {
-    await setProgress({ stage: "searching", message: `Searching the web for more ${niche} businesses…`, found: rawCandidates.length, enriched: 0, total: 0 });
-    const already = rawCandidates.map((c) => `${c.name} (${c.city})`);
+  // storefront to find), or came back thin. Website mode can call it a second time, below.
+  let aiRan = false;
+  const aiDiscover = async (n, already) => {
+    aiRan = true;
+    await setProgress({ stage: "searching", message: website ? `Searching the web for ${niche} businesses that need a website…` : `Searching the web for more ${niche} businesses…`, found: rawCandidates.length, enriched: 0, total: 0 });
     const discovery = await runToolCall({
-      system: discoverySystem({ niche, nicheGroup, kind: nicheKind, areas, count: count - rawCandidates.length, exclude: excludeNames.concat(already), filters }),
-      userText: `Find up to ${count - rawCandidates.length} ${niche} businesses${(areas || []).length ? ` in: ${areas.join(" | ")}` : " (online brands, any location)"}.${notes ? `\n\nExtra context from Bryson: ${notes}` : ""}\n\nSearch the web now, then call emit_candidates.`,
+      system: discoverySystem({ niche, nicheGroup, kind: nicheKind, areas, count: n, exclude: excludeNames.concat(already), filters, pitch }),
+      userText: `Find up to ${n} ${niche} businesses${website ? " that have no website or a weak one" : ""}${(areas || []).length ? ` in: ${areas.join(" | ")}` : " (online brands, any location)"}.${notes ? `\n\nExtra context from Bryson: ${notes}` : ""}\n\nSearch the web now, then call emit_candidates.`,
       tool: CANDIDATE_TOOL, maxUses: 14, maxTokens: 20000,
     });
-    (Array.isArray(discovery.candidates) ? discovery.candidates : []).forEach((c) => rawCandidates.push(c));
     coverageNote = [coverageNote, clean(discovery.coverage_note)].filter(Boolean).join(" ");
+    return Array.isArray(discovery.candidates) ? discovery.candidates : [];
+  };
+  if (rawCandidates.length < count) {
+    (await aiDiscover(count - rawCandidates.length, rawCandidates.map((c) => `${c.name} (${c.city})`))).forEach((c) => rawCandidates.push(c));
   }
 
   // Dedupe + strict area enforcement happen HERE, in code, before we spend money
   // enriching anything.
   const stats = { found: rawCandidates.length, duplicates: 0, outOfArea: 0 };
   const seenThisRun = new Set();
-  const candidates = [];
-  for (const c of rawCandidates) {
-    const name = clean(c.name);
-    if (!name) continue;
-    const cand = { name, city: clean(c.city), state: clean(c.state), postal: clean(c.postal), address: clean(c.address),
-      area_match: clean(c.area_match), website: clean(c.website), phone: clean(c.phone),
-      placeId: c.placeId || "", rating: c.rating || "", reviewCount: c.reviewCount || 0, mapsUrl: c.mapsUrl || "", source: c.source || "" };
-    if (!areaMatches(cand, areas)) { stats.outOfArea++; continue; }
-    const key = dedupeKeyFor(cand);
-    const domain = normDomain(cand.website);
-    if (!key || seenThisRun.has(key) || knownKeys.has(key) || (domain && knownDomains.has(domain))) { stats.duplicates++; continue; }
-    seenThisRun.add(key);
-    if (domain) knownDomains.add(domain);
-    candidates.push(cand);
+  const accept = (list) => {
+    const out = [];
+    for (const c of list) {
+      const name = clean(c.name);
+      if (!name) continue;
+      const cand = { name, city: clean(c.city), state: clean(c.state), postal: clean(c.postal), address: clean(c.address),
+        area_match: clean(c.area_match), website: clean(c.website), phone: clean(c.phone),
+        // The research said outright that they have no site. Kept apart from `website` so nothing downstream
+        // mistakes the word "none" for an address (the ad lookups would spend a paid search on it).
+        saidNone: /^none$/i.test(String(c.website || "").trim()),
+        placeId: c.placeId || "", rating: c.rating || "", reviewCount: c.reviewCount || 0, mapsUrl: c.mapsUrl || "", source: c.source || "" };
+      if (!areaMatches(cand, areas)) { stats.outOfArea++; continue; }
+      const key = dedupeKeyFor(cand);
+      const domain = normDomain(cand.website);
+      if (!key || seenThisRun.has(key) || knownKeys.has(key) || (domain && knownDomains.has(domain))) { stats.duplicates++; continue; }
+      seenThisRun.add(key);
+      if (domain) knownDomains.add(domain);
+      out.push(cand);
+    }
+    return out;
+  };
+  let candidates = accept(rawCandidates);
+
+  // ── Website mode: check every website FIRST, for free ────────────────────
+  // Reading a homepage costs nothing; researching a business costs real money. So a business whose
+  // website already does the job is dropped here, before a cent is spent on it, and the rest are
+  // researched worst website first. If that leaves too few, the web search runs (again) asking
+  // specifically for businesses without a decent site.
+  const checkSites = (list) => pool(list, 8, async (c) => {
+    c.siteCheck = await checkWebsite(c.saidNone ? "none" : c.website, { from: c.source === "Google Places" ? "places" : "research" }).catch(() => null);
+  });
+  if (website) {
+    const cap = Math.min(60, Math.max(20, count * 3));
+    const first = candidates.slice(0, cap);
+    await setProgress({ stage: "searching", message: `Checking ${first.length} websites (free) to find the ones that need replacing…`, found: first.length, enriched: 0, total: 0 });
+    await checkSites(first);
+    const needs = (c) => !c.siteCheck || c.siteCheck.state !== "ok";
+    let needy = first.filter(needs);
+    stats.siteChecked = first.length;
+    stats.goodSite = first.length - needy.length;
+    if (needy.length < count && !aiRan) {
+      const extra = await aiDiscover(count - needy.length, rawCandidates.map((c) => `${clean(c.name)} (${clean(c.city)})`));
+      stats.found += extra.length;
+      const more = accept(extra);
+      await checkSites(more);
+      const moreNeedy = more.filter(needs);
+      stats.siteChecked += more.length;
+      stats.goodSite += more.length - moreNeedy.length;
+      needy = needy.concat(moreNeedy);
+    }
+    candidates = needy.sort((a, b) => siteRank(a.siteCheck) - siteRank(b.siteCheck));
   }
 
   // "How many to find" is a promise, not a suggestion. Google Places returns up to 20
@@ -375,8 +441,10 @@ const doRun = async (supabase, id, input) => {
 
   if (!candidates.length) {
     return {
-      prospects: [], stats, coverageNote, providers: prov, providerNotes,
-      message: stats.found
+      prospects: [], stats, coverageNote, providers: prov, providerNotes, pitch,
+      message: website && stats.goodSite
+        ? `Checked ${stats.siteChecked} websites and every one already does the job, so nothing was researched or charged. Try another area or niche.`
+        : stats.found
         ? `Found ${stats.found} businesses but none were new and inside your areas (${stats.duplicates} already on your list, ${stats.outOfArea} outside the areas). Try different areas or a wider niche.`
         : "No businesses matched. Try a broader niche or a larger area.",
     };
@@ -389,7 +457,16 @@ const doRun = async (supabase, id, input) => {
   // Runs unconditionally: ad-tech detection only needs their public homepage, so it
   // works with no API keys at all.
   await setProgress({ stage: "enriching", message: `Checking contact data and ad tracking for ${candidates.length} businesses…`, found: candidates.length, enriched: 0, total: candidates.length });
-  const enrichments = await pool(candidates, 4, (c) => enrichFromProviders(c));
+  // The website check rides along here in ads mode too: it is free, and it turns "website: dated" from
+  // the model's opinion into the specific things Bryson can see for himself.
+  const enrichments = await pool(candidates, 4, async (c) => {
+    const [e, sc] = await Promise.all([
+      enrichFromProviders(c),
+      c.siteCheck !== undefined ? Promise.resolve(c.siteCheck) : checkWebsite(c.saidNone ? "none" : c.website, { from: c.source === "Google Places" ? "places" : "research" }).catch(() => null),
+    ]);
+    c.siteCheck = sc;
+    return e;
+  });
   candidates.forEach((c, i) => {
     const e = enrichments[i];
     c.provider = (e && !e.__error) ? e : { phones: [], emails: [], sources: [], verified: {}, notes: [] };
@@ -413,6 +490,14 @@ const doRun = async (supabase, id, input) => {
 
   await setProgress({ stage: "enriching", message: `Found ${candidates.length} new businesses — researching each one…`, found: candidates.length, enriched: 0, total: candidates.length });
 
+  // What the free website check saw, in one line, for the model to treat as fact.
+  const siteLine = (sc) => {
+    if (!sc) return "";
+    if (sc.state === "none" || sc.state === "broken") return `WEBSITE CHECK (BoldLine read it): ${sc.reason}`;
+    if (sc.state === "weak") return `WEBSITE CHECK (BoldLine read their homepage): ${(sc.problems || []).map((x) => x.label).join("; ")}`;
+    if (sc.state === "ok") return "WEBSITE CHECK (BoldLine read their homepage): it works on phones, has a padlock and nothing is obviously out of date";
+    return sc.note ? `WEBSITE CHECK: ${sc.note}` : "";
+  };
   // What the providers already proved, handed to the model as ground truth.
   const verifiedBlock = (c) => {
     const v = (c.provider && c.provider.verified) || {};
@@ -431,6 +516,7 @@ const doRun = async (supabase, id, input) => {
         ? `GOOGLE'S OWN AD RECORD: ${v.googleAdsRecord.note} (this is authoritative: google_ads must be "${v.googleAdsRecord.state}")` : "",
       (c.provider.phones || []).filter((p) => p.whose === "owner").map((p) => `owner ${p.kind} ${p.number}`).join(", "),
       (c.provider.emails || []).map((e) => `${e.whose} email ${e.address}`).join(", "),
+      siteLine(c.siteCheck),
     ].filter(Boolean);
     return rows.length ? `\n   VERIFIED FACTS (${(c.provider.sources || []).join(" + ") || "provider"}) — treat as ground truth: ${rows.join("; ")}` : "";
   };
@@ -459,7 +545,7 @@ const doRun = async (supabase, id, input) => {
       .join("\n")}\n\nSearch the web for each one now, then call emit_prospects.`;
 
     const out = await runToolCall({
-      system: enrichSystem({ niche, kind: nicheKind, leadFee, areas }),
+      system: enrichSystem({ niche, kind: nicheKind, leadFee, areas, pitch }),
       userText,
       tool: PROSPECT_TOOL,
       maxUses: 5 * batch.length,
@@ -467,12 +553,23 @@ const doRun = async (supabase, id, input) => {
     });
 
     const rows = [];
-    (Array.isArray(out.prospects) ? out.prospects : []).forEach((raw, i) => {
+    const outList = Array.isArray(out.prospects) ? out.prospects : [];
+    // The research sometimes finds a website the listing never linked. Check THAT one too, rather than
+    // telling Bryson they have none. Anything it says is "broken" is ignored, because an address only the
+    // research came up with may be the wrong one, and the listing's word stands.
+    const checks = await Promise.all(outList.map(async (raw, i) => {
+      const c = batch[i] || {}, sc = c.siteCheck || null;
+      const found = normDomain(clean(raw && raw.website)), had = normDomain(c.website);
+      if (!found || had || (sc && !["none", "unknown"].includes(sc.state))) return sc;
+      const again = await checkWebsite(raw.website, { from: "research", listingMissing: c.source === "Google Places" }).catch(() => null);
+      return again && again.state !== "broken" && !(again.state === "unknown" && sc && sc.state === "none") ? again : sc;
+    }));
+    outList.forEach((raw, i) => {
       const fallback = batch[i] || {};
       const fp = fallback.provider || { phones: [], emails: [], sources: [], verified: {} };
       const p = sanitize(
         { ...raw, name: clean(raw.name) || fallback.name, city: clean(raw.city) || fallback.city },
-        { verified: fp.verified, providerPhones: fp.phones, providerEmails: fp.emails, providerSources: fp.sources, nicheGroup, kind: nicheKind });
+        { verified: fp.verified, providerPhones: fp.phones, providerEmails: fp.emails, providerSources: fp.sources, nicheGroup, kind: nicheKind, pitch, siteCheck: checks[i] || null });
       if (!p.name) return;
       // Re-check the area after enrichment — the deep research often corrects the city.
       if (!areaMatches({ city: p.city, state: p.state, postal: p.postal, area_match: p.area_match }, areas)) { stats.outOfArea++; return; }
@@ -505,14 +602,14 @@ const doRun = async (supabase, id, input) => {
     // to `scout_prospects` as it lands. The key is how the screen addresses them.
     prospects: prospects.map((p) => ({ ...p.data, dedupeKey: p.key })),
     stats: { ...stats, kept: prospects.length },
-    coverageNote, providers: prov, providerNotes,
+    coverageNote, providers: prov, providerNotes, pitch,
     errors: errors.slice(0, 3),
     engine: diag.rung || "",
     // A run that researched businesses and produced nothing is either a genuine
     // no-match or a broken research step. Say which — the first version reported
     // both as "everything was a duplicate", which sent us hunting in the wrong place.
     message: prospects.length
-      ? `${prospects.length} new prospect${prospects.length === 1 ? "" : "s"} added to your list.${stats.trimmed ? ` (${stats.trimmed} more were found — raise "how many to find" to research them too.)` : ""}`
+      ? `${prospects.length} new ${website ? "website " : ""}prospect${prospects.length === 1 ? "" : "s"} added to your list.${website && stats.goodSite ? ` ${stats.goodSite} already had a website that does the job, so they were skipped before any research was paid for.` : ""}${stats.trimmed ? ` (${stats.trimmed} more were found — raise "how many to find" to research them too.)` : ""}`
       : errors.length
         ? `The research step failed on every batch, so nothing could be saved. ${errors[0]}`
         : "Everything found was either already on your list or outside your areas.",
@@ -548,6 +645,7 @@ export default async (req) => {
     areas,
     count: Math.max(3, Math.min(MAX_COUNT, Math.round(Number(body.count) || 12))),
     notes: String(body.notes || "").trim().slice(0, 800),
+    pitch: body.pitch === "website" ? "website" : "ads",
     filters: {
       websiteState: ["any", "has", "none"].includes(body.filters && body.filters.websiteState) ? body.filters.websiteState : "any",
       adsState: ["any", "running", "not"].includes(body.filters && body.filters.adsState) ? body.filters.adsState : "any",
@@ -559,7 +657,7 @@ export default async (req) => {
   // spend several minutes of API budget researching businesses it can never save.
   const { error: initErr } = await supabase.from("scout_runs").upsert({
     id, status: "running", niche: input.niche, niche_group: input.nicheGroup,
-    areas: input.areas, options: { count: input.count, filters: input.filters, nicheKind: input.nicheKind, notes: input.notes },
+    areas: input.areas, options: { count: input.count, filters: input.filters, nicheKind: input.nicheKind, notes: input.notes, pitch: input.pitch },
     progress: { stage: "starting", message: "Starting the search…" },
     result: null, error: null, updated_at: new Date().toISOString(),
   });

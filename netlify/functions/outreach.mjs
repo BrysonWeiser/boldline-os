@@ -10,7 +10,7 @@
 import { normInstagram } from "../lib/instagram.mjs";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "../lib/report-shared.mjs";
-import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict, QUEUE_SKIP_STATUS } from "../lib/outreach.mjs";
+import { applyTouch, dueQueue, rollup, rollupByChannel, outcomeById, isBlocked, buildManualProspect, manualAddVerdict, cleanPitch, matchesPitch, pitchCounts, QUEUE_SKIP_STATUS } from "../lib/outreach.mjs";
 
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
@@ -40,16 +40,20 @@ export default async (req) => {
   if (action === "queue") {
     const limit = Math.max(1, Math.min(400, Number(url.searchParams.get("limit") || 200)));
     const niche = url.searchParams.get("niche") || "";
+    // Ads / website / both (KB `website-prospects`). Lives inside each record and unlabelled rows count
+    // as ads, so it is applied in code over a wider read rather than in the query.
+    const pitch = cleanPitch(url.searchParams.get("pitch"));
     let q = supabase.from("scout_prospects").select(PROSPECT_COLS)
       .is("blocked_at", null)
       // A prospect marked "Not a fit" or already won is not somebody to cold call. Filtered here
       // AND in `dueQueue`, the same belt-and-braces as the blocked check above.
       .not("status", "in", `(${QUEUE_SKIP_STATUS.join(",")})`)
-      .limit(limit * 2);
+      .limit(1000);
     if (niche) q = q.eq("niche", niche);
     const { data, error } = await q;
     if (error) return json({ ok: false, error: error.message }, 500);
-    const queue = dueQueue(data || [], Date.now()).slice(0, limit);
+    const due = dueQueue(data || [], Date.now());
+    const queue = due.filter((p) => matchesPitch(p, pitch)).slice(0, limit);
     // Everything not due yet, so the screen can say when the list refills instead of looking empty.
     const later = (data || [])
       .filter((p) => !isBlocked(p) && p.next_due_at && new Date(p.next_due_at).getTime() > Date.now())
@@ -59,6 +63,8 @@ export default async (req) => {
       queue,
       waiting: later.length,
       nextAt: later.length ? later[0].next_due_at : null,
+      // How many are due under each label, so the filter chips can say so before he taps one.
+      counts: pitchCounts(due),
     });
   }
 
@@ -153,6 +159,25 @@ export default async (req) => {
     const { error: upErr } = await supabase.from("scout_prospects").update({ data }).eq("id", id);
     if (upErr) return json({ ok: false, error: upErr.message }, 500);
     return json({ ok: true, instagram: handle, data });
+  }
+
+  // ── Ads, website or both: what he is selling them ──────────────────────────
+  // Bryson, 2026-10-12: "I also want to be able to categorize them in outreach if I want to". Stored inside
+  // `data`, beside everything else the scout knows, so no database change was needed.
+  if (action === "pitch") {
+    if (req.method !== "POST") return json({ ok: false, error: "POST required" }, 405);
+    if (!id) return json({ ok: false, error: "id required" }, 400);
+    let body; try { body = JSON.parse((await req.text()) || "{}"); } catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+    const pitch = cleanPitch(body.pitch);
+    if (!pitch) return json({ ok: false, error: "Pick ads, website or both." }, 400);
+    const { data: rows, error: readErr } = await supabase.from("scout_prospects").select("id, data").eq("id", id).limit(1);
+    if (readErr) return json({ ok: false, error: readErr.message }, 500);
+    const row = (rows || [])[0];
+    if (!row) return json({ ok: false, error: "That company is no longer on the list." }, 404);
+    const data = { ...(row.data || {}), pitch };
+    const { error: upErr } = await supabase.from("scout_prospects").update({ data, updated_at: new Date().toISOString() }).eq("id", id);
+    if (upErr) return json({ ok: false, error: upErr.message }, 500);
+    return json({ ok: true, pitch, data });
   }
 
   // ── Add one company by hand ────────────────────────────────────────────────

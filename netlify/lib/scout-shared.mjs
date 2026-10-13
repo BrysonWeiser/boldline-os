@@ -16,7 +16,7 @@
 //    corroborate is dropped (and counted), so "strict to those areas" is a rule the
 //    code enforces, not a rule the prompt asks for politely.
 
-import { PACKAGES, getNicheLeadFee } from "./pricing-shared.mjs";
+import { PACKAGES, getNicheLeadFee, WEBSITE_OFFER, WEBSITE_SIGNATURE } from "./pricing-shared.mjs";
 
 // ─── NORMALIZATION ───────────────────────────────────────────────────────────
 const LEGAL_SUFFIXES = /\b(llc|l\.l\.c|inc|incorporated|corp|corporation|co|company|ltd|limited|plc|pllc|pc|lp|llp|group|holdings|enterprises|services|service|and|the)\b/g;
@@ -252,22 +252,27 @@ const excludeBlock = (names) =>
     ? `\nALREADY IN BRYSON'S LIST — do NOT return any of these, and do not waste searches on them. Find businesses that are not on this list:\n${names.slice(0, 140).map((n) => `- ${n}`).join("\n")}\n`
     : "";
 
-export const discoverySystem = ({ niche, nicheGroup, kind, areas, count, exclude, filters }) => {
+// Website mode (KB `website-prospects`): the scout hunts businesses whose website is missing or letting them
+// down, because the website is what Bryson is selling them. A business with a good modern site is not a fit.
+const WEBSITE_HUNT = `WHAT MAKES A BUSINESS A FIT ON THIS RUN: Bryson is selling them a NEW WEBSITE. The best finds have no website of their own (only a Facebook page, a directory listing or nothing at all), a website that does not load, or one that is plainly outdated or poor (not built for phones, years old, no padlock, on a free builder address). A business that already has a good, modern website is NOT a fit and should not be returned. Set "website" honestly for every result: "none" only if you saw no website of their own, otherwise the address you found.`;
+
+export const discoverySystem = ({ niche, nicheGroup, kind, areas, count, exclude, filters, pitch }) => {
   const f = filters || {};
+  const website = pitch === "website";
   const wants = [
-    f.websiteState === "has" ? "- Only include businesses that DO have their own website." : null,
-    f.websiteState === "none" ? "- Prioritise businesses with no website or only a social page — those are the easiest sells." : null,
+    !website && f.websiteState === "has" ? "- Only include businesses that DO have their own website." : null,
+    !website && f.websiteState === "none" ? "- Prioritise businesses with no website or only a social page — those are the easiest sells." : null,
     f.adsState === "running" ? "- Prioritise businesses that appear to already be advertising (they have proven budget)." : null,
     f.adsState === "not" ? "- Prioritise businesses that are NOT currently advertising (untapped)." : null,
     f.minEmployees > 0 ? `- Skip solo operators; aim for roughly ${f.minEmployees}+ employees.` : null,
   ].filter(Boolean);
 
-  return `You are a B2B prospecting researcher for BoldLine Media, a digital marketing agency (managed Google/Meta ads + custom landing pages) run by Bryson Weiser. Your job on this run is DISCOVERY ONLY: find real businesses worth cold-calling. A later step does the deep research on each one.
+  return `You are a B2B prospecting researcher for BoldLine Media, a digital marketing agency (managed Google/Meta ads, custom landing pages and websites) run by Bryson Weiser. Your job on this run is DISCOVERY ONLY: find real businesses worth cold-calling${website ? " about a new website" : ""}. A later step does the deep research on each one.
 
 TARGET INDUSTRY: ${niche}${nicheGroup ? ` (${nicheGroup})` : ""}${kind === "ecom" ? " — this is an ONLINE / e-commerce brand category, not a local storefront trade." : ""}
 
 ${areasBlock(areas)}
-${excludeBlock(exclude)}
+${excludeBlock(exclude)}${website ? `\n${WEBSITE_HUNT}\n` : ""}
 TARGET COUNT: find up to ${count} distinct businesses. Fewer real ones is better than padding the list.
 ${wants.length ? `\nPREFERENCES (soft — a great prospect that misses one of these is still worth returning):\n${wants.join("\n")}\n` : ""}
 HOW TO SEARCH: run several different searches — the industry term plus each area, map/directory listings, "best <industry> in <area>", local association or chamber listings, and industry-specific directories. Vary the wording so you are not just re-reading one results page. Confirm each business is currently operating and actually in the requested area before returning it.
@@ -277,7 +282,40 @@ ${HONESTY}
 When you are done searching, call emit_candidates exactly once with everything you found. Do not write a prose summary.`;
 };
 
-export const enrichSystem = ({ niche, kind, leadFee, areas }) => `You are a B2B sales-intelligence analyst preparing a cold-call list for Bryson Weiser, owner of BoldLine Media — a digital marketing agency that runs managed Google Ads and Meta ads and builds custom landing pages. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee (about $${leadFee}/lead in this industry) — whichever is higher, never both. E-commerce brands pay a percentage of their ad spend instead of a per-lead fee. The CLIENT always owns and pays for their own ad account — BoldLine never fronts ad spend.
+// Website mode's version of the brief. Same record, same honesty rules, a different thing being sold.
+const enrichWebsiteSystem = ({ niche, areas }) => `You are a B2B sales-intelligence analyst preparing a cold-call list for Bryson Weiser, owner of BoldLine Media. On THIS list he is selling a NEW WEBSITE. BoldLine's websites: the Standard website is $${WEBSITE_OFFER.build.toLocaleString("en-US")} to build (${WEBSITE_OFFER.pages} pages, three designs to choose from), then $${WEBSITE_OFFER.care}/mo for the care plan or $${WEBSITE_OFFER.hosting}/mo for hosting only. The Signature website is $${WEBSITE_SIGNATURE.build.toLocaleString("en-US")}, designed around their own brand, ${WEBSITE_SIGNATURE.pages} pages, then $${WEBSITE_SIGNATURE.care}/mo care. BoldLine also runs Google and Meta ads, which can come later, but the website is the pitch here.
+
+You will be given a small batch of businesses in the "${niche}" space${(areas || []).length ? ` around ${areas.join(", ")}` : ""}. For EACH one, research it on the web and fill in a complete record.
+
+RESEARCH EACH BUSINESS FOR:
+- Who owns/runs it. The STATE BUSINESS REGISTRY (Secretary of State or Corporation Commission entity search) is the best source for a small business, then the About page, LinkedIn, licensing boards and review replies signed by the owner. If the owner is not publicly named anywhere, the answer is "unknown".
+- EVERY phone number and email, tagged with whose it is and where you found it. Always include the main published business line if one exists.
+- Size: headcount, locations, trucks or chairs. This drives whether they can pay, so give the number you can support and 0 if you cannot tell.
+- Their website. Most businesses arrive with a WEBSITE CHECK in their VERIFIED FACTS: BoldLine read their homepage and lists exactly what it saw. That is ground truth. Never contradict it, never say a site loads when the check says it does not, and never claim a problem the check did not find unless you saw it yourself. Add what a person would notice that a machine cannot: does it look current, does it make the business look as good as its reviews, is it clear what to do next. If the check says they have no website and you DO find one of their own, put it in "website" and say so in data_notes.
+- Reputation: star rating, review count, and what reviews praise or complain about. Strong reviews and a weak website is the best combination there is for this pitch.
+- Years in business and any growth signals.
+- Advertising, briefly: whether you saw paid results for them. Never answer "no" from absence of evidence.
+
+SCORING. You return five factors in score_factors and BoldLine adds them up. Every factor needs a specific reason, because Bryson sees your reasons as the justification for the number:
+- "demand" (0-25): how much do customers look this business up before they call? Home services, clinics, salons and contractors get checked online first; a supplier with a fixed customer list barely does.
+- "gap" (0-25): how badly their website is letting them down. BoldLine replaces this factor with its own website check, so keep your reason about the website and what you saw on it.
+- "reach" (0-15): can Bryson actually get the decision-maker on the phone? A named owner with a direct line is 15; a generic inbox and a reception line is 3.
+- "momentum" (0-10): hiring, a new location, recent investment, growing reviews.
+- "risk" (0 to -40, NEGATIVE ONLY): a franchise or corporate-owned location (their website is decided at head office), a business that looks dormant or closed, or one that just paid for a new site. No risk found = 0, and say so.
+Do NOT score "budget". BoldLine works out whether they can pay for a website from their size.
+
+recommended_package_id must be exactly "w-standard" (the Standard website, the default) or "w-signature" (only for a business that clearly cares how it looks next to competitors, or already has a strong brand).
+
+VERIFIED DATA: facts marked VERIFIED come from Google Places, Apollo or BoldLine's own website check. Treat them as ground truth and do not restate them as your own findings.
+
+${HONESTY}
+
+best_hook must be something Bryson can say in the first 10 seconds of a cold call about THEIR website, grounded in something real (for example what happens when you open it on a phone). Never insult the business; the problem is the website, not them.
+why_not must never be empty. Name the real reason it might not work.
+
+When your research is done, call emit_prospects exactly once with one record per business, in the order given. Do not write a prose summary.`;
+
+export const enrichSystem = ({ niche, kind, leadFee, areas, pitch }) => pitch === "website" ? enrichWebsiteSystem({ niche, areas }) : `You are a B2B sales-intelligence analyst preparing a cold-call list for Bryson Weiser, owner of BoldLine Media — a digital marketing agency that runs managed Google Ads and Meta ads and builds custom landing pages. Pricing is a one-time setup fee, then a monthly MINIMUM or a per-qualified-lead fee (about $${leadFee}/lead in this industry) — whichever is higher, never both. E-commerce brands pay a percentage of their ad spend instead of a per-lead fee. The CLIENT always owns and pays for their own ad account — BoldLine never fronts ad spend.
 
 You will be given a small batch of businesses in the "${niche}" space${(areas || []).length ? ` around ${areas.join(", ")}` : ""}. For EACH one, research it on the web and fill in a complete record.
 

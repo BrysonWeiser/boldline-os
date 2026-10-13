@@ -12,7 +12,7 @@
 // they physically cannot appear near the top of the call list no matter how good the
 // rest of their profile looks.
 
-import { PACKAGES } from "./pricing-shared.mjs";
+import { PACKAGES, WEBSITE_OFFER, WEBSITE_SIGNATURE } from "./pricing-shared.mjs";
 
 // ─── Revenue estimation ──────────────────────────────────────────────────────
 // Conservative annual revenue per employee by industry group. Deliberately on the
@@ -89,16 +89,69 @@ export const adSpendLow = (pkg) => {
   return m ? Number(m[0].replace(/,/g, "")) : 0;
 };
 
+// 🔴 MANAGED PACKAGES ONLY (fixed 2026-10-12). The one-time "Launch & Hand Off" has no monthly fee and no
+// number in its ad budget, so once it existed it became the "cheapest way in" at $0/mo: every business
+// came out "comfortable", the affordability cap never bit, and the card said "Infinity× their capacity".
+// This math is about whether they can carry BoldLine every month, so a one-time build is not an entry.
+const managed = (p) => p.pricingModel !== "one_time";
 const entryPackageFor = (kind) =>
   kind === "ecom"
-    ? PACKAGES.filter((p) => p.id.startsWith("e-")).sort((a, b) => a.price - b.price)[0]
-    : PACKAGES.filter((p) => !p.id.startsWith("e-")).sort((a, b) => a.price - b.price)[0];
+    ? PACKAGES.filter((p) => p.id.startsWith("e-") && managed(p)).sort((a, b) => a.price - b.price)[0]
+    : PACKAGES.filter((p) => !p.id.startsWith("e-") && managed(p)).sort((a, b) => a.price - b.price)[0];
 
 const fmt = (n) => "$" + Math.round(n).toLocaleString();
 
+// ─── Can they pay for a WEBSITE (website mode, KB `website-prospects`) ──────
+// A website is one payment, not a monthly ad bill, so the question is different: how many months of
+// what a business this size typically spends on marketing would the build take? A website is far easier
+// to afford than ads, which is the point: plenty of businesses too small for ads are fine for a site.
+// Bands: up to 1.2 months comfortable, 2 workable, 3 tight (cap 55), 5 stretch (cap 30), more cannot (cap 15).
+const websiteAffordability = ({ annualRevenue, basis, pct, nicheGroup }) => {
+  const build = WEBSITE_OFFER.build, hosting = WEBSITE_OFFER.hosting;
+  const base = { entryId: "w-standard", entryName: "Standard website", entryMonthly: hosting, entrySetup: build, pitch: "website" };
+  if (!annualRevenue) {
+    return { ...base, known: false,
+      note: `Company size unknown, so whether they can pay could not be worked out. The cheapest way in is the Standard website at ${fmt(build)} once, then ${fmt(hosting)}/mo hosting. Confirm they can cover that before you spend real time on them.`,
+      lines: [`Cheapest way in: Standard website, ${fmt(build)} once, then ${fmt(hosting)}/mo hosting`, "Size unknown, so check the budget on the call"] };
+  }
+  const monthlyCapacity = (annualRevenue * pct) / 12;
+  const months = build / monthlyCapacity;
+  let band, points, cap, verdict;
+  if (months <= 1.2)    { band = "comfortable"; points = 25; cap = 100; verdict = "Can comfortably pay for a new website."; }
+  else if (months <= 2) { band = "workable";    points = 19; cap = 100; verdict = "Can pay for a website without much strain."; }
+  else if (months <= 3) { band = "tight";       points = 10; cap = 55;  verdict = "A website is a real expense for them. Offer half now and half before launch."; }
+  else if (months <= 5) { band = "stretch";     points = 3;  cap = 30;  verdict = `A ${fmt(build)} website would eat months of their marketing budget.`; }
+  else                  { band = "cannot";      points = 0;  cap = 15;  verdict = "Too small to pay for a website right now. Not worth your time."; }
+  const signature = WEBSITE_SIGNATURE.build / monthlyCapacity <= 2;
+  const affordableId = band === "cannot" ? null : signature ? "w-signature" : "w-standard";
+  return {
+    ...base, known: true, annualRevenue, basis, monthlyCapacity, ratio: 1 / months, months,
+    band, points, cap, verdict,
+    affordableId, affordableName: affordableId === "w-signature" ? "Signature website" : affordableId ? "Standard website" : null,
+    budgetWhy: `${verdict} The build is about ${months.toFixed(1)} months of the ~${fmt(monthlyCapacity)}/mo a business their size spends on marketing.`,
+    lines: [
+      `Revenue estimate: ${fmt(annualRevenue)}/yr (${basis})`,
+      `Marketing budget capacity: ~${fmt(monthlyCapacity)}/mo (${Math.round(pct * 100)}% of revenue, ${nicheGroup || "general"} benchmark)`,
+      `Cheapest way in: Standard website, ${fmt(build)} once, then ${fmt(hosting)}/mo hosting`,
+      `The build is about ${months.toFixed(1)} months of their marketing budget: ${band}`,
+      affordableId === "w-signature" ? `Realistic ceiling: Signature website at ${fmt(WEBSITE_SIGNATURE.build)}`
+        : affordableId ? "Realistic ceiling: the Standard website" : "Can't comfortably pay for any website right now",
+    ],
+  };
+};
+
 // ─── The affordability model ─────────────────────────────────────────────────
 // Returns everything needed to both SCORE the prospect and SHOW Bryson the math.
-export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheGroup, kind }) => {
+export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheGroup, kind, pitch }) => {
+  if (pitch === "website") {
+    const statedRevenue = parseRevenue(revenueEstimate);
+    const emp = Math.max(0, Math.round(Number(employeesEstimate) || 0));
+    const perEmp = revPerEmployee(nicheGroup, kind);
+    const annualRevenue = statedRevenue > 0 ? statedRevenue : emp * perEmp;
+    const basis = statedRevenue > 0 ? `reported revenue ~${fmt(statedRevenue)}/yr`
+      : emp > 0 ? `${emp} employee${emp === 1 ? "" : "s"} × ~${fmt(perEmp)} revenue per employee (${nicheGroup || "general"} benchmark)` : "";
+    return websiteAffordability({ annualRevenue, basis, pct: marketingPct(nicheGroup, kind), nicheGroup });
+  }
   const entry = entryPackageFor(kind) || PACKAGES[0];
   // Monthly minimum (the floor BoldLine bills even in a dead month) + the smallest ad
   // budget the package can actually work on. That sum is what the prospect must cover.
@@ -135,7 +188,7 @@ export const assessAffordability = ({ employeesEstimate, revenueEstimate, nicheG
 
   // What they could actually step up to, so Bryson never pitches above their budget.
   const pool = (kind === "ecom" ? PACKAGES.filter((p) => p.id.startsWith("e-")) : PACKAGES.filter((p) => !p.id.startsWith("e-")))
-    .slice().sort((a, b) => b.price - a.price);
+    .filter(managed).slice().sort((a, b) => b.price - a.price);
   const affordable = pool.find((p) => monthlyCapacity >= p.price + adSpendLow(p)) || null;
 
   return {
@@ -169,7 +222,10 @@ export const FACTOR_ORDER = ["demand", "budget", "gap", "reach", "momentum", "ri
 // Builds the final score FROM the factors, so the number always equals the visible
 // breakdown. The model supplies every factor except `budget`, which we overwrite with
 // our own arithmetic, then the affordability band caps the total.
-export const buildScore = (rawFactors, aff) => {
+// `opts.site` (website mode only) is `siteNeed()` from site-check.mjs: it replaces the model's "gap" factor
+// with what the free website check actually found, and a site that already does the job caps the total.
+export const buildScore = (rawFactors, aff, opts = {}) => {
+  const site = opts && opts.site;
   const byId = {};
   (Array.isArray(rawFactors) ? rawFactors : []).forEach((f) => {
     const id = String((f && f.factor) || "").toLowerCase();
@@ -190,9 +246,12 @@ export const buildScore = (rawFactors, aff) => {
     max: FACTOR_META.budget.max,
     points: aff.known ? aff.points : 9,   // unknown size: middling, never rewarded
     why: aff.known
-      ? `${aff.verdict} ${aff.lines[1]}; entry cost ${fmt(aff.entryMonthly)}/mo.`
+      ? (aff.budgetWhy || `${aff.verdict} ${aff.lines[1]}; entry cost ${fmt(aff.entryMonthly)}/mo.`)
       : "Company size could not be confirmed, so their budget is unverified — check it on the call.",
   };
+  if (site) {
+    byId.gap = { factor: "gap", label: "Website need", max: FACTOR_META.gap.max, points: Math.round(Number(site.points) || 0), why: String(site.why || "") };
+  }
 
   const factors = FACTOR_ORDER.map((id) => byId[id]).filter(Boolean).map((f) => ({
     ...f,
@@ -206,10 +265,15 @@ export const buildScore = (rawFactors, aff) => {
   let score = Math.max(0, Math.min(100, subtotal));
 
   let cappedFrom = null, capReason = "";
-  if (aff.known && score > aff.cap) {
+  // The tightest cap that actually bites wins, and says which it was.
+  const caps = [];
+  if (aff.known) caps.push({ cap: aff.cap, reason: aff.verdict });
+  if (site && Number(site.cap) < 100) caps.push({ cap: Number(site.cap), reason: site.capWhy || site.why });
+  const binding = caps.filter((c) => score > c.cap).sort((a, b) => a.cap - b.cap)[0];
+  if (binding) {
     cappedFrom = score;
-    score = aff.cap;
-    capReason = `Score capped at ${aff.cap} — ${aff.verdict}`;
+    score = binding.cap;
+    capReason = `Score capped at ${binding.cap} — ${binding.reason}`;
   }
   return { score, factors, subtotal, cappedFrom, capReason };
 };

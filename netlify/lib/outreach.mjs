@@ -13,6 +13,10 @@
 // that arithmetic is three different numbers on three screens.
 
 import { dedupeKeyFor, normDomain } from "./scout-shared.mjs";
+import { pitchOf, cleanPitch, matchesPitch, pitchCounts, PITCHES } from "./pitch.mjs";
+
+// Ads, a website, or both: what he is selling this company (KB `website-prospects`).
+export { pitchOf, cleanPitch, matchesPitch, pitchCounts, PITCHES };
 
 const DAY = 864e5;
 
@@ -181,6 +185,7 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
   const niche = String(input.niche || "").trim().replace(/\s+/g, " ");
   const owner = String(input.ownerName || "").trim().replace(/\s+/g, " ");
   const notes = String(input.notes || "").trim().slice(0, 2000);
+  const pitch = cleanPitch(input.pitch);
 
   const dedupeKey = dedupeKeyFor({ name, city });
   if (!dedupeKey) return { error: "Add the company name." };
@@ -212,6 +217,7 @@ export const buildManualProspect = (input = {}, { at = Date.now() } = {}) => {
         phones: phone ? [{ number: prettyPhone(phone), whose: owner ? "owner" : "main", kind: "main" }] : [],
         emails: email ? [{ address: email, whose: owner ? "owner" : "main" }] : [],
         addedAt: iso,
+        ...(pitch ? { pitch } : {}),
       },
       updated_at: iso,
     },
@@ -349,6 +355,29 @@ export const painPoints = (prospect, { now = Date.now() } = {}) => {
   const weakSite = WEAK_SITE.includes(site);
   const advertising = g === "yes";
 
+  // 🔴 WHAT THE FREE WEBSITE CHECK SAW (KB `website-prospects`). Only ever read from `siteCheck`, which
+  // only ever records what was observed, so these are facts about them rather than guesses. When the
+  // website is what he is selling them, it leads; otherwise it sits among the rest.
+  const sc = d.siteCheck && typeof d.siteCheck === "object" ? d.siteCheck : null;
+  const siteFirst = pitchOf(prospect) !== "ads";
+  let siteSaid = false;
+  if (sc && sc.state === "none" && sc.reason) {
+    siteSaid = true;
+    out.push({ id: "no_website", strength: siteFirst ? 0 : 3, line: `${sc.reason}.`,
+      ask: "When somebody hears about you and looks you up, what do they find?" });
+  } else if (sc && sc.state === "broken" && sc.reason) {
+    siteSaid = true;
+    out.push({ id: "site_down", strength: siteFirst ? 0 : 1, line: `${sc.reason}, so anyone who clicks through from Google hits a dead end.`,
+      ask: "Have you looked at your website lately? It isn't coming up for me." });
+  } else if (sc && sc.state === "weak") {
+    const probs = (Array.isArray(sc.problems) ? sc.problems : []).filter((x) => x && x.says).slice(0, 2);
+    if (probs.length) {
+      siteSaid = true;
+      out.push({ id: "site_problems", strength: siteFirst ? 0 : 3, line: `Their website ${probs.map((x) => x.says).join(" and ")}.`,
+        ask: "When did you last pull up your own website on your phone?" });
+    }
+  }
+
   // Strongest first. Someone set this up and walked away, which means budget once existed.
   if (g === "likely") out.push({ id: "tag_no_campaign", strength: 1,
     line: "Their site has ad tracking on it but no paid results are showing, so somebody set this up and it stopped.",
@@ -368,7 +397,7 @@ export const painPoints = (prospect, { now = Date.now() } = {}) => {
   if (advertising && weakSite) out.push({ id: "paying_for_weak_page", strength: 1,
     line: "They are paying for clicks that land on a page built to describe the company rather than to book the job.",
     ask: "When someone clicks one of your ads, where do they land and what do you want them to do there?" });
-  else if (weakSite) out.push({ id: "weak_site", strength: 3,
+  else if (weakSite && !siteSaid) out.push({ id: "weak_site", strength: 3,
     line: "Their site will not convert somebody who is ready to buy today.",
     ask: "When someone lands on your site ready to go, what are they supposed to do next?" });
 
