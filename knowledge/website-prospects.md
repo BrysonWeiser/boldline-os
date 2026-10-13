@@ -94,3 +94,4 @@ Merged to main as `5de1156` on Mon 2026-10-12 about 9:45pm Phoenix. **Not live y
 still serves the build from before the website contract update (WA-7), so Netlify has not deployed anything
 since. Same stuck deploy as KB `website-builder`. Added to the 10pm reminder (`trig_01JgEpuMMMZW7KgBEd4uNW59`).
 Live check: `curl -s https://os.boldlinemedia.com/ | grep -c "What are you selling"` (0 = not live).
+✅ **LIVE at 10:01pm Phoenix** (the check returned 1), and the WA-7 contract update went out with it.
