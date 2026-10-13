@@ -102,3 +102,7 @@ Part C (the three Netlify env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUA
 10pm reminder `trig_012or1EhMCnUkBmyMhyk1dmA`. Check: POST pay-connect {"action":"ready"}. Do not test-connect the
 detailing business's own Stripe until its LLC exists.
 
+- Gotcha (2026-10-13): pressing "Continue setup" on Connect in LIVE mode pops "Switch to sandbox account? You must
+  set up this feature in your sandbox account before using it in your live account." Do the Connect questionnaire in
+  the sandbox, then switch back to live and do OAuth + redirect + copy the LIVE client ID there. The sandbox's own
+  ca_ id is a test id and must NOT go into Netlify.
