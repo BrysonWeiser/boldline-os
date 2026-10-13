@@ -20,20 +20,33 @@ verified: 2026-10-12
   limited to those businesses"). Lead with a broad test ("if people search Google for what you do"), then name
   the group's own trades as examples plus a few others. Naming their trade is what makes a reader stop, so keep
   examples; just never present them as the whole list.
+- NO HEDGING (Bryson, 2026-10-12: "I do not want this message to sound uncertain ... like saying probably,
+  potentially"). No probably / potentially / might / may be able to. Confident is fine; promising results
+  is not, so claims stay about what we DO, never a number of leads.
+- Don't write "any type of business" literally: every agency says it, so it reads as filler. Show the range
+  instead ("every kind and size, from one-truck contractors to online stores").
+- Say "Facebook and Instagram ads", not "Meta ads": most owners don't know the word Meta in this sense.
+  (Meta is approved since 2026-09-14, so offering it is accurate.)
+- Pay-for-results applies to ADS only. Website builds are a set price, so the "tied to real leads" line must
+  stay scoped to ads.
 
-## The intro post (2026-10-12, widened the same night)
-Hey everyone, I'm Bryson. I'm based here in Phoenix and I'm glad to be in the group.
+## The intro post (2026-10-12, third version: intro, company, services, then the hook)
+Hey everyone, I'm Bryson, based here in Phoenix. Glad to be in the group.
 
-I run BoldLine Media. I set up and run Google Ads, and I build the landing page or website those ads send
-people to. If people search Google for what you do, I can probably help. That's most of the trades in here, and
-plenty of others too, like clinics, salons, law offices and online stores.
+I own BoldLine Media. We bring businesses new customers, and here's how:
+- Google Ads
+- Facebook and Instagram ads
+- Landing pages built to turn clicks into calls
+- Website design, hosting and upkeep, with online booking and payments built in
 
-What I do differently: no big flat monthly fee whether the phone rings or not. Most of what I earn is tied to
-real leads, meaning people who actually asked for a quote. Your ad budget goes straight to Google from your own
-card, and the account stays yours. I'm also waiving the setup fee for my first few clients.
+We work with businesses of every kind and size, from one-truck contractors to online stores.
 
-Not running ads and not looking to? I'll still take a free look at your website and your Google listing and send
-you a short list of things that are probably costing you calls. No pitch attached.
+On ads, you won't pay a big flat fee every month whether the phone rings or not. Most of what we earn is tied to
+real leads, meaning people who actually asked for a quote or booked. Your ad budget goes straight to Google or Meta
+from your own card, and the accounts stay yours. I'm also waiving the setup fee for my first few clients.
+
+Not ready for ads? I'll still look over your website and Google listing for free and send you a short list of
+what to fix to get more calls. No pitch attached.
 
 Comment your business and the area you serve and I'll get to everyone this week. And if you just want to say hi,
 tell me what you do. I'm always happy to send work to people in here.
