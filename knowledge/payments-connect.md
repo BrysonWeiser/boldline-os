@@ -93,3 +93,12 @@ verify-results-only-billing, verify-website-deal (WA-5).
 - Subscriptions (monthly plans billed automatically) - possible with the same connections, not built.
 - Refunds from the OS (do them in Stripe/Square for now).
 - Notifying the business when a deposit lands (it shows in the OS/portal; no push/email yet).
+
+## 2026-10-13: setup under way
+Bryson chose to do JOB 2 now (the business email job is paused until the detailing LLC + bank account exist). Parts A
+(Stripe Connect, OAuth, redirect `https://os.boldlinemedia.com/pay-connect/done`, copy the `ca_` live client ID) and B
+(Square developer app "BoldLine Payments", Production, same redirect, copy Application ID + secret) during the day;
+Part C (the three Netlify env vars STRIPE_CONNECT_CLIENT_ID, SQUARE_APP_ID, SQUARE_APP_SECRET + redeploy) in the
+10pm reminder `trig_012or1EhMCnUkBmyMhyk1dmA`. Check: POST pay-connect {"action":"ready"}. Do not test-connect the
+detailing business's own Stripe until its LLC exists.
+
