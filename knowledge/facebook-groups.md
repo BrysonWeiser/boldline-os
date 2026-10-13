@@ -16,12 +16,17 @@ verified: 2026-10-12
 - Ask people to comment their business and area, so each comment opens a conversation he can move to DMs.
 - Reply to every comment within the hour, then DM. Post Tuesday to Thursday morning.
 - House copy rules: no em dashes, no "local businesses", no client counts or results that aren't true.
+- Don't box him in to one industry (Bryson, 2026-10-12: "generalize a bit more ... so it doesn't seem like I'm
+  limited to those businesses"). Lead with a broad test ("if people search Google for what you do"), then name
+  the group's own trades as examples plus a few others. Naming their trade is what makes a reader stop, so keep
+  examples; just never present them as the whole list.
 
-## The intro post (2026-10-12)
+## The intro post (2026-10-12, widened the same night)
 Hey everyone, I'm Bryson. I'm based here in Phoenix and I'm glad to be in the group.
 
-I run BoldLine Media. I set up and run Google Ads for service businesses like HVAC, plumbing, handyman and
-cleaning companies, and I build the landing page or website those ads send people to.
+I run BoldLine Media. I set up and run Google Ads, and I build the landing page or website those ads send
+people to. If people search Google for what you do, I can probably help. That's most of the trades in here, and
+plenty of others too, like clinics, salons, law offices and online stores.
 
 What I do differently: no big flat monthly fee whether the phone rings or not. Most of what I earn is tied to
 real leads, meaning people who actually asked for a quote. Your ad budget goes straight to Google from your own
