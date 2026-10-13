@@ -130,6 +130,10 @@ a subscription."
      privacy on, auto-renew on; then Namecheap's free email forwarding (hello@ to his Gmail) so replies are not
      lost. Asked him for the business name so availability can be checked before he buys. The same domain then
      gets the website connected to it.
+   - ⏸️ PAUSED 2026-10-13 (Bryson: "lets wait on that because i want to wait to get the llc and then a business
+     bank account first. ill let you know when i do"). Do NOT resend Job 1 or put it in reminders until he says
+     the detailing LLC and its bank account exist. Then: domain (in the LLC's name, paid from its account),
+     email forwarding, Resend, website on the domain, all in one go.
 3. **In the OS:** open the business, go to Overview, then Customer emails, and press "Send a test to me".
    Once that works, everything sends as the business.
 4. **The Google review link:** in the business's Google profile, use "Ask for reviews" and copy the link.
