@@ -4,11 +4,11 @@
 > Edit the task-keyed entries in `knowledge/` and re-run `node knowledge/build-index.cjs`.
 >
 > This is the slim, human-browsable index of BoldLine's memory. The full detail lives in
-> 225 task-keyed entries under `knowledge/`. They surface automatically via the
+> 226 task-keyed entries under `knowledge/`. They surface automatically via the
 > recall hook when a prompt matches, so Claude no longer bulk-reads this whole file every session.
 > To read the detail on any topic, open just its entry (linked below).
 
-**225 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
+**226 entries.** Legend: &#9989; verified &middot; &#9888; stale-able (may have drifted, re-check) &middot; &#9940; dead-end (tried and failed - do not retry).
 
 ## Ads
 
@@ -42,6 +42,9 @@
 - **[conversion-loop](../knowledge/conversion-loop.md)** &mdash; &#9989; verified &middot; 2026-08-24  
   Google is now told which leads were actually worth having. Three conversion actions per client, deliberately unequal - a form fill is measured but NEVER bid on, while qualified lead and closed customer are what Smart Bidding chases. The click id is captured on the landing page at the visit, stored with the lead, and used weeks later to credit the outcome back to the ad that caused it. Plus the client-requested 30-day scorecard.  
   <sub>*task:* set up or debug what Google Ads is told to optimize toward for a client, or send qualified/won leads back to Google &nbsp;|&nbsp; *keywords:* conversion loop, conversion actions, offline conversion import, uploadClickConversions, gclid, wbraid, gbraid, click id, qualified lead, closed customer, primaryForGoal, secondary conversion, enhanced conversions for leads, ConversionLoopCard, ScorecardCard, gads-conversions, scorecard, 30 day scorecard, grossMarginPct, mark qualified, order value</sub>
+- **[housing-ads](../knowledge/housing-ads.md)** &mdash; &#9989; verified &middot; 2026-10-14  
+  Built 2026-10-14 (Bryson - "yes do the ads fix now", after asking how we'd do a real estate agent's website + ads). US housing ads (sale/rental of homes, mortgages, home insurance, title/escrow, home builders) must carry Meta's HOUSING special ad category and may not be aimed by age, gender or ZIP code on either platform. Every Meta campaign used to go out with special_ad_categories [] and an age range (the launch path sends 25 to 65), so a real estate client's ads would have been rejected. Now `isHousing` (netlify/lib/ad-categories.mjs) decides from the client's niche/name; Meta gets HOUSING + the country, ages 18 to 65, no genders; Google refuses ZIP codes (typed or resolved as postal). All four OS builds and the automatic Google build send the niche. Real estate WEBSITE pieces (listings, home valuation form, brokerage/license/Equal Housing footer) were recommended but NOT built: build when an agent is actually interested.  
+  <sub>*task:* run ads for a real estate agent, broker, property manager, rental, mortgage, title/escrow, home insurance or home builder client, or change how Google/Meta campaigns are labelled and targeted for housing &nbsp;|&nbsp; *keywords:* housing ads, special ad category, HOUSING, fair housing, real estate ads, realtor ads, mortgage ads, rental ads, property management ads, special_ad_categories, special_ad_category_country, age targeting, gender targeting, zip code targeting, 15 mile radius, isHousing, ad-categories, real estate website, IDX, listings</sub>
 - **[landing-page-options](../knowledge/landing-page-options.md)** &mdash; &#9989; verified &middot; 2026-09-01  
   Three landing pages written from three different angles instead of one take-it-or-leave-it. Use one as it is, take single pieces from any of them, or tick a few and describe the blend in plain English. The live page is never touched except by "Use this one", and choosing keeps the page exactly as live as it already was. 96 checks, 14 mutations caught.  
   <sub>*task:* give the owner several landing pages to choose from, mix, or rewrite &nbsp;|&nbsp; *keywords:* landing page options, variants, landingVariants, multiple options, three options, blend, mix and match, pick field, take just, regenerate one, rewrite option, use this one, angles, LandingOptionsCard, blApplyVariant, blPickField, blBlendPrompt, landing-variants</sub>
