@@ -136,6 +136,8 @@ const realCampaign = async (cl) => {
     landingUrl: url,
     dailyBudgetDollars: Math.max(1, budget / 30.4),
     name: `${cl.name} — Search`,
+    // What the business is, so housing rules apply by themselves (KB housing-ads).
+    niche: cl.niche, clientName: cl.name,
     adGroups: clean.adGroups,
     locations: cs.targetLocations,
     negatives: cs.excludedKeywords,

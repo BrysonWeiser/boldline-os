@@ -7149,6 +7149,8 @@ const OUT_ROLE_RANK=["owner_mobile","owner_line","mobile","direct","small_main",
 // and "no" is returned only when it actively searched and saw nothing, so "unknown" produces
 // silence rather than a guess. Anything unconfirmed becomes a QUESTION to ask, which on a cold call
 // is stronger anyway — he cannot be caught out on a question.
+// Housing ads (KB housing-ads): the server decides and enforces this; the OS only says so out loud.
+const ADS_HOUSING_NOTE="Labelled as a housing ad, as Meta requires: it can't be aimed by age, gender or ZIP code, so it reaches all adults 18 and up in the areas you chose.";
 const OUT_WEAK_SITE=["none","poor","dated"];
 // Ads, a website or both: what he is selling this company (KB `website-prospects`). Mirrors
 // netlify/lib/pitch.mjs. Everything found before this existed came from the ads search, so an unlabelled
@@ -11907,7 +11909,7 @@ function AudienceAdPlanCard({client, onUpdate}) {
         if(!groups.length) throw new Error("The writer came back with no ad groups. Try again.");
         setStep(`Building ${groups.length} ad group${groups.length===1?"":"s"} on Google.`);
         const r = await gadsCall({ action:"createCampaign", customerId:client.googleAdsCustomerId,
-          name, dailyBudgetDollars:daily, landingUrl:chosen.url, clientName:client.name,
+          name, dailyBudgetDollars:daily, landingUrl:chosen.url, clientName:client.name, niche:client.niche,
           matchType:"PHRASE",
           locations: locations.split(/[\n,]/).map(x=>x.trim()).filter(Boolean),
           negativeKeywords: d.negativeKeywords||[], goal:"leads",
@@ -11931,7 +11933,7 @@ function AudienceAdPlanCard({client, onUpdate}) {
           locations: brief.locations, country:"US", ageMin:25, ageMax:65,
           headline:humanizeAdCopy(first.headline), primaryText:humanizeAdCopy(first.primaryText),
           description:humanizeAdCopy(first.description||""), ctaType:"LEARN_MORE",
-          imageUrl:metaImage, clientName:client.name,
+          imageUrl:metaImage, clientName:client.name, niche:client.niche,
           // The rest of the versions ride along and land in the SAME ad set, so the test is
           // running from the first impression instead of a thousand impressions from now.
           extraAds: use.slice(1).map(v=>({ headline:humanizeAdCopy(v.headline),
@@ -16533,7 +16535,7 @@ function GoogleLaunchCard({client, onUpdate, platformCount}) {
     try{
       const d=await gadsCall({action:"createCampaign",
         customerId:client.googleAdsCustomerId, name:f.name, dailyBudgetDollars:Number(f.dailyBudgetDollars),
-        landingUrl:f.landingUrl, clientName:client.name,
+        landingUrl:f.landingUrl, clientName:client.name, niche:client.niche,
         // Only ever a real match type. "MIXED" describes the generated set, it is not a
         // value Google accepts, and it is only the FALLBACK for a keyword carrying none.
         matchType:(["EXACT","PHRASE","BROAD"].includes(f.matchType)?f.matchType:"PHRASE"),
@@ -17024,9 +17026,9 @@ function MetaLaunchCard({client, onUpdate, platformCount}) {
         locations:f.locationsText, country:f.country||"US",
         ageMin:Number(f.ageMin)||18, ageMax:Number(f.ageMax)||65,
         headline:humanizeAdCopy(f.headline), primaryText:humanizeAdCopy(f.primaryText), description:humanizeAdCopy(f.description),
-        ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}), clientName:client.name,
+        ctaType:f.ctaType, ...(f.imageUrl?{imageUrl:f.imageUrl}:{}), clientName:client.name, niche:client.niche,
       });
-      setState("done"); setMsg(`✓ Campaign created PAUSED (campaign ${d.campaignId}). It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.`);
+      setState("done"); setMsg(`✓ Campaign created PAUSED (campaign ${d.campaignId}). It's in your Alerts now — approve it there (or use "Your Live Campaigns" above) to go live. Nothing spends until you do.${d.housing?" "+ADS_HOUSING_NOTE:""}`);
       if(d.campaignId&&onUpdate){
         const upd={...client, pendingActions:[
           {id:`launch-m-${d.campaignId}`, title:`Launch Meta campaign "${f.name}"`, detail:`Created PAUSED on ${client.internal?"your":client.name+"'s"} Meta account. Approve to set it live and start spend.`, cat:"launch", ts:Date.now(),

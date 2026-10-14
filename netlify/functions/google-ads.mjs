@@ -21,6 +21,7 @@
 //   (optional) GOOGLE_ADS_API_VERSION — see API_VERSION note below.
 
 import { createClient } from "@supabase/supabase-js";
+import { isHousing, isZip } from "../lib/ad-categories.mjs";
 import { parseLocations } from "../lib/geo-parse.mjs";
 import { dropSelfBlockingNegatives } from "../lib/trade-playbooks.mjs";
 import {
@@ -488,6 +489,7 @@ async function resolveGeoTargets(accessToken, names, defaultCountry = "US") {
       resolved.push({
         resourceName: hit.geoTargetConstant.resourceName,
         canonicalName: hit.geoTargetConstant.canonicalName || hit.geoTargetConstant.name || name,
+        targetType: hit.geoTargetConstant.targetType || "",
         requested: name,
       });
     } else {
@@ -622,7 +624,16 @@ export async function createCampaign(accessToken, p) {
   const campaignRN = `customers/${cid}/campaigns/-2`;
   const cpcMicros = String(dollarsToMicros(Number(p.cpcBidDollars) > 0 ? p.cpcBidDollars : 2));
 
+  // 🔴 HOUSING ADS (KB housing-ads): Google's US housing policy forbids aiming them by ZIP code. Refused before
+  // anything is looked up or created, with the fix in the message.
+  const housing = isHousing({ niche: p.niche, name: p.clientName });
+  if (housing && locationNames.some(isZip)) {
+    throw err("this is a housing ad (real estate, mortgage or rentals), and Google doesn't allow those to target ZIP codes. Use cities or a county instead. Nothing was created.");
+  }
   const geo = await resolveGeoTargets(accessToken, locationNames, p.countryCode || "US");
+  if (housing && geo.some((g) => /postal/i.test(g.targetType || ""))) {
+    throw err("this is a housing ad, and one of those locations is a ZIP code, which Google doesn't allow for housing. Use cities or a county instead. Nothing was created.");
+  }
   if (!geo.length) {
     throw err(`could not resolve any of these locations: ${locationNames.join(", ")}. Use a form Google recognises, e.g. "Gilbert, Arizona", "London, United Kingdom" or "Canada".`);
   }

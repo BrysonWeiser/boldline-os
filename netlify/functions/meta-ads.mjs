@@ -40,6 +40,7 @@
 //     (no code change). Default tracks the current GA version.
 
 import { createClient } from "@supabase/supabase-js";
+import { isHousing } from "../lib/ad-categories.mjs";
 import crypto from "node:crypto";
 import { parseLocations } from "../lib/geo-parse.mjs";
 import { resolveGoal } from "../lib/campaign-goals.mjs";
@@ -912,6 +913,9 @@ async function createCampaign(p) {
   if (!p.imageUrl) throw Object.assign(new Error("createCampaign: an ad image is required — Meta link ads must have an image. Upload one to the client's media library, then retry."), { stage: "createCampaign" });
 
   const name = String(p.name || "BoldLine Lead Campaign");
+  // 🔴 HOUSING ADS (KB housing-ads). Real estate, mortgage and rental businesses must be labelled HOUSING, and
+  // may not be aimed by age or gender. Decided from the business itself, so nobody has to remember a box.
+  const housing = isHousing({ niche: p.niche, name: p.clientName });
 
   // 1) image (optional) -> hash
   let imageHash = null;
@@ -961,7 +965,8 @@ async function createCampaign(p) {
       name,
       objective: chaseLeads ? "OUTCOME_LEADS" : "OUTCOME_TRAFFIC",
       status: "PAUSED",
-      special_ad_categories: "[]",
+      special_ad_categories: housing ? JSON.stringify(["HOUSING"]) : "[]",
+      ...(housing ? { special_ad_category_country: JSON.stringify([String(p.country || "US").toUpperCase()]) } : {}),
       daily_budget: String(dollarsToCents(p.dailyBudgetDollars)),
       bid_strategy: "LOWEST_COST_WITHOUT_CAP",
     },
@@ -1002,10 +1007,11 @@ async function createCampaign(p) {
 
   const targeting = {
     geo_locations: geo,
-    age_min: Number(p.ageMin) || 18,
-    age_max: Number(p.ageMax) || 65,
+    // Housing: everyone 18 and up, whatever was asked for. Meta rejects a narrower range on a HOUSING campaign.
+    age_min: housing ? 18 : (Number(p.ageMin) || 18),
+    age_max: housing ? 65 : (Number(p.ageMax) || 65),
   };
-  if (p.genders) targeting.genders = p.genders; // [1]=male [2]=female; omit = all
+  if (p.genders && !housing) targeting.genders = p.genders; // [1]=male [2]=female; omit = all. Never for housing.
   const adset = await graph("createCampaign", `${a}/adsets`, {
     method: "POST",
     params: {
@@ -1162,6 +1168,7 @@ async function createCampaign(p) {
     adsCreated: 1 + extraAdIds.length,
     extraAdsRequested: extras.length,
     status: "PAUSED",
+    housing,
     note: "Created PAUSED — review it, then activate (approval queue / Ads Manager) to start spend.",
   };
 }
