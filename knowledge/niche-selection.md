@@ -144,3 +144,14 @@ Runner-up: artificial turf and pavers (huge tickets but office staff answer and 
 Calling tip given: 7 to 8am before crews leave, or after 5pm. Recommended starting order: epoxy first, detailers
 second, still ONE niche at a time. Detailer caution: many are one-person shops for whom ~$900/mo all-in is a stretch;
 target 2+ van operations or ceramic/paint-correction shops.
+
+## 2026-10-14: "would going after real estate agents be worth it?" Answer: not as the calling niche
+- Against: the most-pitched niche there is (Zillow, lead sellers, agencies call them daily); most agents close only a
+  handful of deals a year and can't carry ~$900/mo; a home sale takes 3 to 12 months from first enquiry, so inside a
+  3-month minimum the agent sees leads but no closings and blames the leads (churn); housing-ad rules remove the
+  narrow targeting other agencies promise (KB housing-ads).
+- For: one sale pays $8k to $15k in commission, so a good agent can afford it, and every agent needs a website.
+- Verdict: stay on the current trades for the 100 calls. Take a real estate client when one comes warm (referral,
+  Facebook group), and then only top producers or team leads, sold as website + seller leads ("what's my home worth"),
+  never buyer leads. Property managers are the less-farmed real estate cousin worth a look later (recurring revenue,
+  landlord leads).
