@@ -215,3 +215,11 @@ card, auto-renew on, then reply with the address. Pinned in verify-website-deal.
   before/after) must work and be checked in every design, so 5 means about two-thirds more upkeep and a slower choice
   for the client. Add a design only when a real prospect turns all three down, and aim it at that gap.
 
+
+## 2026-10-14 (Wed ~8:30pm Phoenix): "Are we able to offer Google profile management yet?"
+Answer: not built; sellable by hand today (client adds BoldLine as Manager on their profile; ~10 to 15 min/client/week;
+~$150/mo). Automation needs Google's Business Profile API approval (form, days to weeks; BoldLine's listing passed the
+60-day mark ~Oct 7). Recommended: apply now, and meanwhile a "Google listing" card that drafts the weekly post and review
+replies (not built, offered). He asked for the application steps at 8am Thu Oct 15: reminder trig_01VEcPbVCrFhuiYhf1PqUT4s.
+Requirements found: verified 60+ days, a website on the listing, a Google Cloud project NUMBER, "Application for Basic API
+Access" on the GBP API contact form, an owner/manager email; quota stays 0 until approved.
