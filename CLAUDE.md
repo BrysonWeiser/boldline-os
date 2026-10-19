@@ -107,6 +107,13 @@ automated.
   same information, and "reduce motion" makes everything still. Reuse the shared pieces (`ScreenHeader`
   `focus`/`viz`, `CountUp`, `Spark`), never hand-built effects. Pinned by `verify-os-screens`. Details in
   KB `cool-but-clear`.
+- **EVERY GRAPH ANSWERS "HOW IS IT GOING?" AT A GLANCE (Bryson, 2026-10-19: "make sure the the bar graph and any
+  graphs we use can clearly display data that way a client can see how things are going based on a quick glance").**
+  Write the answer above the chart in words (Up / Down / Level, with an arrow and the two numbers, never colour
+  alone), group sparse data so it has a readable shape (weeks, not a comb of daily 0s and 1s), highlight the period
+  that matters and grey the rest, give it a real scale (gridlines with round numbers) and a reference (their
+  average), label only the latest and the best values, and keep every number reachable (tap tip + a table). Load the
+  `dataviz` skill and run its palette validator before building any chart. Reference build + rules in KB `portal-chart`.
 - **ONE BUSINESS, ONE LOOK; EVERY BUTTON FITS AND MEANS SOMETHING (Bryson, 2026-10-07).** A client's website and its
   landing page share colours, typefaces and shape (enforced: `siteBrandKit` + `verify-brand-match`). Buttons say
   something specific to that business and never wrap or spill (no copy-pasted "Our services" / "Learn more" / "Send").
