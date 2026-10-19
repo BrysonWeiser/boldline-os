@@ -3,7 +3,7 @@ name: portal-chart
 topic: Client portal
 task: build or change any chart or graph a client (or Bryson) reads, especially the portal's results chart; make a graph readable at a glance
 keywords: [chart, graph, bar graph, bar chart, leads per week, leads per day, at a glance, trend, up down level, weekly average, gridlines, scale, dataviz, portal chart, weeklyChartHTML, portal-chart.mjs, see the numbers, glance]
-status: built on the dev branch with the portal v4 look (KB portal-os-look); goes live with it
+status: LIVE 2026-10-19 with the portal v4 look
 summary: Built 2026-10-19 (Bryson, "make sure the the bar graph and any graphs we use can clearly display data that way a client can see how things are going based on a quick glance"). The portal's 30 daily bars (a comb of 0s, 1s and 2s, no scale) became "Leads per week": up to 8 rolling 7-day weeks (no empty weeks before their first lead, minimum 4), the answer written above it ("Up: 9 leads in the last 7 days, up from 4 the week before", arrow + word + colour), this week gold and earlier weeks grey, gridlines at 0 / middle / a round top, a dashed weekly-average line named in the key, numbers only on this week and the best week, a tap tip on every bar, and "See the numbers" opening the table. Now a standing rule in CLAUDE.md for every graph.
 verified: 2026-10-19
 ---

@@ -26913,7 +26913,7 @@
         "see the numbers",
         "glance"
       ],
-      "status": "built on the dev branch with the portal v4 look (KB portal-os-look); goes live with it",
+      "status": "LIVE 2026-10-19 with the portal v4 look",
       "summary": "Built 2026-10-19 (Bryson, \"make sure the the bar graph and any graphs we use can clearly display data that way a client can see how things are going based on a quick glance\"). The portal's 30 daily bars (a comb of 0s, 1s and 2s, no scale) became \"Leads per week\": up to 8 rolling 7-day weeks (no empty weeks before their first lead, minimum 4), the answer written above it (\"Up: 9 leads in the last 7 days, up from 4 the week before\", arrow + word + colour), this week gold and earlier weeks grey, gridlines at 0 / middle / a round top, a dashed weekly-average line named in the key, numbers only on this week and the best week, a tap tip on every bar, and \"See the numbers\" opening the table. Now a standing rule in CLAUDE.md for every graph.",
       "verified": "2026-10-19",
       "terms": {
@@ -27270,7 +27270,7 @@
         "client portal modern",
         "old portal"
       ],
-      "status": "preview (dev branch only, waiting for Bryson's OK before main)",
+      "status": "LIVE 2026-10-19 (Bryson: \"yes put it live\")",
       "summary": "Built 2026-10-19 after Bryson opened Springbok's portal and said it looked like the old version (\"didnt we update the client portals to be a bit more modern and more like the os with the 3d models?\"). The 3D had only ever been built for the OS; the portal had the 7 Oct results refresh, and a client not yet live (Springbok) only sees the setup screen. v4 is a pure LAYER (netlify/lib/portal-look.mjs) over the same markup: the OS's fonts (Chakra Petch headings and numbers, IBM Plex Mono captions, Inter body), the blueprint grid, glass panels with gold corner ticks, gold glowing tabs, a header with a name chip, and a hand-written WebGL particle sphere inside the progress ring that fills with gold up to the client's stage (full once live). Numbers count up once, chart bars rise once. No library; skipped for Data Saver, 2G and low-memory phones; reduce-motion gets one still frame; no WebGL leaves the old ring.",
       "verified": "2026-10-19",
       "terms": {
