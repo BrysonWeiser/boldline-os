@@ -38,5 +38,5 @@ billing-watch never creates a Stripe item for a $0 fee, and its owner alert says
 ## Tests
 `tests/verify-late-fee-setting.mjs` (33 checks): both copies of the rules run on the same probes, the agreement text
 for $150 / $25 / $0 / signed-then-lowered / stamped, the OS agreement equals the server's, the charge, the $0 Stripe
-guard, the email both ways, and the OS wiring. `verify-late-payment` updated for the $0 guard. Full suite 166/166.
+guard, the email both ways, and the OS wiring. `verify-late-payment` updated for the $0 guard. Full suite 165/165.
 Box driven in a browser at 390/768/1280/1600.
